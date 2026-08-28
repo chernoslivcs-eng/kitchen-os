@@ -5,11 +5,16 @@
 //
 // Cookie: httpOnly, sameSite=lax, secure у проді, path=/. Ключ — 'kos'.
 // Не пишемо сирий токен нікуди, крім листа. У БД тільки SHA-256.
+//
+// Rate limit на /request: 5/15хв на IP+email. Мета — не заспамити email-бокс
+// і не витратити квоту мейлера через простий скрипт. Битий email теж рахується
+// (інакше scanner підбирає адреси, не бачачи 429).
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo } from '@kitchen/domain';
 import { requestChallenge, verifyChallenge, logoutSession, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
+import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
 export const COOKIE_NAME = 'kos';
 
@@ -21,22 +26,41 @@ function baseUrl(): string {
   return process.env.APP_URL ?? 'http://localhost:3000';
 }
 
-export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer) {
-  app.post<{ Body: { email?: string } }>('/v1/auth/request', async (req, reply) => {
-    const email = req.body?.email?.trim().toLowerCase();
-    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      return reply.code(400).send({ error: 'valid email required' });
+export interface AuthRoutesOpts {
+  rateLimit?: RateLimitCfg;
+}
+
+export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opts: AuthRoutesOpts = {}) {
+  const cfg = opts.rateLimit ?? { max: 5, windowMs: 15 * 60_000 };
+  const limiter = makeRateLimiter(cfg);
+
+  const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
+    const email = ((req.body as { email?: string })?.email ?? '').toLowerCase().trim();
+    const key = `${req.ip}:${email}`;
+    if (!limiter.check(key)) {
+      reply.code(429).send({ error: 'too many requests' });
+      return reply;
     }
-    const { raw_token } = await requestChallenge(repo, {
-      email,
-      ip: req.ip,
-      user_agent: req.headers['user-agent'] ?? null,
-    });
-    const link = `${baseUrl()}/v1/auth/verify?token=${encodeURIComponent(raw_token)}`;
-    await mailer.sendMagicLink({ to: email, link, expires_in_min: CHALLENGE_TTL_MS / 60_000 });
-    // Свідомо завжди 202 — не розкриваємо, чи є юзер з таким email.
-    return reply.code(202).send({ ok: true });
-  });
+  };
+
+  app.post<{ Body: { email?: string } }>(
+    '/v1/auth/request',
+    { preHandler: limitCheck },
+    async (req, reply) => {
+      const email = req.body?.email?.trim().toLowerCase();
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return reply.code(400).send({ error: 'valid email required' });
+      }
+      const { raw_token } = await requestChallenge(repo, {
+        email,
+        ip: req.ip,
+        user_agent: req.headers['user-agent'] ?? null,
+      });
+      const link = `${baseUrl()}/v1/auth/verify?token=${encodeURIComponent(raw_token)}`;
+      await mailer.sendMagicLink({ to: email, link, expires_in_min: CHALLENGE_TTL_MS / 60_000 });
+      return reply.code(202).send({ ok: true });
+    },
+  );
 
   app.get<{ Querystring: { token?: string; next?: string } }>('/v1/auth/verify', async (req, reply) => {
     const raw = req.query.token;
@@ -53,7 +77,6 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer) {
       path: '/',
       maxAge: SESSION_TTL_MS / 1000,
     });
-    // Дефолтна відповідь — JSON із контекстом; фронт може передати ?next=/… для редиректу.
     const next = req.query.next;
     if (next && next.startsWith('/')) return reply.redirect(next);
     return reply.send({ ok: true, user_id: out.result.user_id, household_id: out.result.household_id });

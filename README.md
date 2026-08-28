@@ -13,7 +13,8 @@
 - Крок 3а (auth) — magic-link + серверні сесії. Три ендпоінти: `POST /v1/auth/request`, `GET /v1/auth/verify?token=`, `POST /v1/auth/logout`. Cookie `kos` (httpOnly, sameSite=lax). Всі захищені ендпоінти (chat, cards, attachments) беруть `user_id`/`household_id` із сесії, а не з тіла запиту. Пошта — інтерфейс `Mailer` з `ConsoleMailer` для дев/тестів; прод-провайдер (Resend/SES/SMTP) — окремий крок. Міграція `0002_auth.sql`.
 - Крок 3б (облік токенів) — `token_usage` рядок на кожен виклик моделі (стаб теж, з `mode='stub'`). Міграція `0003_token_usage.sql`. У проді фільтрувати `mode='live'`.
 - Крок 3в (запрошення в дім) — `POST /v1/households/:id/invite`, `POST /v1/invites/:id/revoke`, `GET /v1/invites/accept?token=`. Той самий каркас, що magic-link: `token_hash` SHA-256, одноразовий, TTL 7 днів, revocable. Клік по лінку сам логінить запрошеного і додає в `household_member`. Міграція `0004_household_invite.sql`. **Продуктова модель:** дім = сімейний, magic-link = оформлення підписки (юзер + власний дім), invite = гостьовий ключ (юзер без власного дому, тільки membership у чужому). Аналогія — сімейний Netflix: один акаунт, кілька профілів, у кожного окрема історія, але бібліотека одна.
-- Далі: прод-мейлер, rate limit на `/v1/auth/request`, звірка `allergen_groups` на 115 нових позицій каталогу, розширення каталогу до 1500-2500, мережа Сільпо.
+- Крок 3г (прод-готовність auth) — `SmtpMailer` через nodemailer (працює з Resend/SES/будь-яким SMTP), вибір через `SMTP_HOST` env. Власний rate limiter (без `@fastify/rate-limit`, бо його hook у v10 несумісний з нашим порядком preHandler'ів): 5/15хв на IP+email для `/v1/auth/request`, 20/год на user_id для `/v1/households/:id/invite`. Битий email рахується як спроба (щоб scanner не обходив ліміт).
+- Далі: звірка `allergen_groups` на 115 нових позицій каталогу, розширення каталогу до 1500-2500, мережа Сільпо, household switch UI.
 
 ## Postgres: Neon або локально
 

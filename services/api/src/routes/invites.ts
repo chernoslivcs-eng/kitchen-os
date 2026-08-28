@@ -1,18 +1,19 @@
 // Три ендпоінти для запрошень у дім.
 //   POST /v1/households/:household_id/invite   { email, role? }
-//     тільки учасники дому — 403 інакше
+//     тільки учасники дому — 403 інакше; ліміт 20/год на user_id
 //   POST /v1/invites/:id/revoke
 //     тільки автор запрошення
 //   GET  /v1/invites/accept?token=<raw>
 //     БЕЗ авторизації — лінк сам по собі є входом; на успіху ставить cookie,
 //     той самий 'kos', що й після magic-link
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo, HouseholdRole } from '@kitchen/domain';
 import { createInvite, acceptInvite, INVITE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { COOKIE_NAME } from './auth.js';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
 function isSecure(): boolean {
   return process.env.NODE_ENV === 'production';
@@ -22,13 +23,28 @@ function baseUrl(): string {
   return process.env.APP_URL ?? 'http://localhost:3000';
 }
 
-export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer) {
+export interface InvitesRoutesOpts {
+  rateLimit?: RateLimitCfg;
+}
+
+export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opts: InvitesRoutesOpts = {}) {
+  const cfg = opts.rateLimit ?? { max: 20, windowMs: 60 * 60_000 };
+  const limiter = makeRateLimiter(cfg);
+
+  const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
+    const key = (req as { user?: { user_id: string } }).user?.user_id ?? req.ip;
+    if (!limiter.check(key)) {
+      reply.code(429).send({ error: 'too many requests' });
+      return reply;
+    }
+  };
+
   app.post<{
     Params: { household_id: string };
     Body: { email?: string; role?: HouseholdRole };
   }>(
     '/v1/households/:household_id/invite',
-    { preHandler: authenticated(repo) },
+    { preHandler: [authenticated(repo), limitCheck] },     // порядок: спочатку сесія, потім ліміт по user_id
     async (req, reply) => {
       const { user_id } = requireUser(req);
       const { household_id } = req.params;

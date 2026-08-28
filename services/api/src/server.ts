@@ -4,26 +4,34 @@ import cookie from '@fastify/cookie';
 import { InMemoryRepo, type Repo } from '@kitchen/domain';
 import { makePool, migrate, PostgresRepo } from '@kitchen/db';
 import { InMemoryStore, LocalFSStore, type AttachmentStore } from './attachment-store.js';
-import { ConsoleMailer, type Mailer } from './mailer.js';
+import { ConsoleMailer, pickMailer, type Mailer } from './mailer.js';
 import { chatRoute } from './routes/chat.js';
 import { cardsRoutes } from './routes/cards.js';
 import { attachmentsRoutes } from './routes/attachments.js';
 import { authRoutes } from './routes/auth.js';
 import { invitesRoutes } from './routes/invites.js';
 
-// Один сервіс на MVP: auth + chat + cards + attachments в тому самому процесі, спільний Repo.
+import type { RateLimitCfg } from './rate-limit.js';
+
+export interface BuildAppOpts {
+  rateLimits?: {
+    authRequest?: RateLimitCfg;
+    invite?: RateLimitCfg;
+  };
+}
 
 export function buildApp(
   repo: Repo = new InMemoryRepo(),
   store: AttachmentStore = new InMemoryStore(),
   mailer: Mailer = new ConsoleMailer(),
+  opts: BuildAppOpts = {},
 ): FastifyInstance {
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' });
   app.register(cookie);
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
-  authRoutes(app, repo, mailer);
-  invitesRoutes(app, repo, mailer);
+  authRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.authRequest });
+  invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   chatRoute(app, repo, store);
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);
@@ -45,7 +53,7 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
     repo = new InMemoryRepo();
   }
   const store: AttachmentStore = new LocalFSStore();
-  const mailer: Mailer = new ConsoleMailer(); // Прод-мейлер (Resend/SES) — окремим кроком.
+  const mailer: Mailer = pickMailer();
   return buildApp(repo, store, mailer);
 }
 
