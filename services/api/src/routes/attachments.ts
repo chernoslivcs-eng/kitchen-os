@@ -12,6 +12,7 @@ import { createPending } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { callAttachmentParse } from '../model.js';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { recordUsage } from '../usage.js';
 
 function kindOf(contentType: string): AttachmentKind {
   if (contentType.startsWith('image/')) return 'image';
@@ -57,7 +58,8 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
     Params: { id: string };
     Body: { hint: string };
   }>('/v1/attachments/:id/reparse', { preHandler: authenticated(repo) }, async (req, reply) => {
-    const { user_id, household_id } = requireUser(req);
+    const ctx = requireUser(req);
+    const { user_id, household_id } = ctx;
     const { hint } = req.body ?? ({} as any);
     if (!hint) return reply.code(400).send({ error: 'hint required' });
 
@@ -68,9 +70,11 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
     await repo.updateAttachment(att.id, { hint });
 
     const { buffer, content_type } = await store.get(att.url);
+    const started = Date.now();
     const call = await callAttachmentParse([{
       kind: att.kind, buffer, content_type, hint,
     }]);
+    await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
 
     let card_id: string | null = null;
     if (call.card) {

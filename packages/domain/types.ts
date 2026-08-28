@@ -116,6 +116,28 @@ export interface Profile {
   equipment: Record<string, 'has' | 'lacks'>;
 }
 
+// ----- Облік токенів ----------------------------------------------------
+
+export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen' | 'recipe_import' | 'pantry_search';
+export type ModelProfile = 'fast' | 'smart' | 'stub';
+export type CallMode = 'live' | 'stub';
+
+export interface TokenUsageRow {
+  id: string;
+  user_id: string;
+  household_id: string | null;
+  call: CallName;
+  profile: ModelProfile;
+  model: string;
+  prompt_version: string;
+  mode: CallMode;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  latency_ms: number | null;
+  created_at: string;
+}
+
 // ----- Автентифікація ---------------------------------------------------
 
 export interface AuthChallenge {

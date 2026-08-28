@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Repo, UserRow } from './repo.js';
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
-  AuthChallenge, AuthSession,
+  AuthChallenge, AuthSession, TokenUsageRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 
@@ -16,6 +16,7 @@ export class InMemoryRepo implements Repo {
   private members = new Map<string, string[]>();              // user_id → [household_id]
   private challenges = new Map<string, AuthChallenge>();      // by token_hash
   private sessions = new Map<string, AuthSession>();          // by cookie_hash
+  private tokenUsage: TokenUsageRow[] = [];
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -155,5 +156,17 @@ export class InMemoryRepo implements Repo {
         return;
       }
     }
+  }
+
+  async logTokenUsage(row: TokenUsageRow): Promise<void> {
+    this.tokenUsage.push({ ...row });
+  }
+
+  async listTokenUsage(user_id: string, limit = 100): Promise<TokenUsageRow[]> {
+    return this.tokenUsage
+      .filter((r) => r.user_id === user_id)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, limit)
+      .map((r) => ({ ...r }));
   }
 }

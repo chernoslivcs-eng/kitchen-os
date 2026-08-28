@@ -10,7 +10,7 @@
 import type { Pool } from './pool.js';
 import type {
   Repo, UserRow, PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
-  AuthChallenge, AuthSession,
+  AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -358,5 +358,44 @@ export class PostgresRepo implements Repo {
 
   async revokeSession(id: string): Promise<void> {
     await this.pool.query('UPDATE auth_session SET revoked_at = now() WHERE id = $1', [id]);
+  }
+
+  // ----- Облік токенів ---------------------------------------------------
+
+  async logTokenUsage(row: TokenUsageRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO token_usage
+         (id, user_id, household_id, call, profile, model, prompt_version, mode,
+          input_tokens, output_tokens, cached_tokens, latency_ms, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [
+        row.id, row.user_id, row.household_id, row.call, row.profile, row.model,
+        row.prompt_version, row.mode,
+        row.input_tokens, row.output_tokens, row.cached_tokens,
+        row.latency_ms, row.created_at,
+      ],
+    );
+  }
+
+  async listTokenUsage(user_id: string, limit = 100): Promise<TokenUsageRow[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM token_usage WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
+      [user_id, limit],
+    );
+    return rows.map((r): TokenUsageRow => ({
+      id: r.id,
+      user_id: r.user_id,
+      household_id: r.household_id ?? null,
+      call: r.call as CallName,
+      profile: r.profile as ModelProfile,
+      model: r.model,
+      prompt_version: r.prompt_version,
+      mode: r.mode as CallMode,
+      input_tokens: r.input_tokens,
+      output_tokens: r.output_tokens,
+      cached_tokens: r.cached_tokens,
+      latency_ms: r.latency_ms ?? null,
+      created_at: new Date(r.created_at).toISOString(),
+    }));
   }
 }

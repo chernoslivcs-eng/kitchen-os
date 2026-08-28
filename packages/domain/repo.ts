@@ -3,7 +3,7 @@
 
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
-  AuthChallenge, AuthSession,
+  AuthChallenge, AuthSession, TokenUsageRow,
 } from './types.js';
 
 export interface UserRow {
@@ -50,4 +50,8 @@ export interface Repo {
   getSessionByCookieHash(cookie_hash: string): Promise<AuthSession | null>;
   touchSession(id: string, now: string, expires_at: string): Promise<void>;
   revokeSession(id: string): Promise<void>;
+
+  // Облік токенів
+  logTokenUsage(row: TokenUsageRow): Promise<void>;
+  listTokenUsage(user_id: string, limit?: number): Promise<TokenUsageRow[]>;
 }

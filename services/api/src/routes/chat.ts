@@ -4,6 +4,7 @@ import { callChat, callAttachmentParse, type AttachmentPayload } from '../model.
 import { createPending, type Repo } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { recordUsage } from '../usage.js';
 
 // POST /v1/chat
 //   Тіло: { session_id, text, attachments?: [{id}] }
@@ -23,7 +24,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       attachments?: { id: string }[];
     };
   }>('/v1/chat', { preHandler: authenticated(repo) }, async (req, reply) => {
-    const { user_id, household_id } = requireUser(req);
+    const ctx = requireUser(req);
+    const { user_id, household_id } = ctx;
     const { text, attachments } = req.body ?? {};
     if (!text && !attachments?.length) {
       return reply.code(400).send({ error: 'text or attachments required' });
@@ -38,7 +40,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         const { buffer, content_type } = await store.get(rec.url);
         payloads.push({ kind: rec.kind, buffer, content_type, hint: rec.hint ?? undefined });
       }
+      const started = Date.now();
       const call = await callAttachmentParse(payloads);
+      await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -54,9 +58,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     }
 
     const pantry = await repo.listBatches(household_id);
+    const started = Date.now();
     const call = await callChat({
       user_id, session_id: req.body?.session_id ?? '', text: text ?? '', pantry,
     });
+    await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
