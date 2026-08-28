@@ -302,6 +302,14 @@ export class PostgresRepo implements Repo {
     }
   }
 
+  async createUserOnly(email: string, name: string): Promise<string> {
+    const { rows } = await this.pool.query<{ id: string }>(
+      'INSERT INTO "user" (name, email) VALUES ($1, $2) RETURNING id',
+      [name, email.toLowerCase()],
+    );
+    return rows[0]!.id;
+  }
+
   async firstHouseholdOf(user_id: string): Promise<string | null> {
     const { rows } = await this.pool.query<{ household_id: string }>(
       'SELECT household_id FROM household_member WHERE user_id = $1 ORDER BY joined_at LIMIT 1',

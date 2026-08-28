@@ -105,9 +105,13 @@ export async function verifyChallenge(repo: Repo, raw_token: string, ip?: string
   if (existing) {
     user_id = existing.id;
     const hh = await repo.firstHouseholdOf(user_id);
+    // У гостя, якого запрошували, є хоча б один household_member (той, куди його
+    // запросили). Тому null тут — справжня аномалія, а не «гість без дому».
     if (!hh) throw new Error(`user ${user_id} has no household — data invariant broken`);
     household_id = hh;
   } else {
+    // Перший вхід за власним email == оформлення підписки: створюємо власний дім,
+    // юзер там owner. У майбутньому ця гілка привʼяжеться до оплати; зараз безкоштовно.
     const created = await repo.createUserWithHousehold(challenge.email, challenge.email.split('@')[0] ?? 'Anon');
     user_id = created.user_id;
     household_id = created.household_id;

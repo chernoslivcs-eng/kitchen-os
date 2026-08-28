@@ -70,10 +70,20 @@ export async function acceptInvite(
   if (inv.consumed_at) return { ok: false, reason: 'consumed' };
   if (new Date(inv.expires_at).getTime() < Date.now()) return { ok: false, reason: 'expired' };
 
-  // Знайти або створити юзера з email запрошення. Якщо запрошений вже юзер —
-  // просто додаємо в дім. Новий — створюємо, але БЕЗ окремого домохазяйства
-  // (createUserWithHousehold дає ще один дім, чого нам тут не треба).
-  // Замість цього створюємо голого юзера й одразу додаємо в цільовий дім.
+  // Гість не отримує свого дому. Це продуктове рішення, не технічне: підписку
+  // платить хазяїн, у цю підписку входять гостьові ключі, а не окремі кухні
+  // для запрошених. Аналогія — сімейний Netflix: один акаунт, кілька профілів,
+  // ніхто з профілів не має «своєї бібліотеки».
+  //
+  // Наслідок для коду: новий юзер, який прийшов через invite, створюється БЕЗ
+  // домогосподарства. Його firstHouseholdOf одразу поверне дім запрошувача,
+  // бо це буде його ЄДИНИЙ household_member-запис. Ніякої «стрічки на ключі»
+  // не треба — ключ і так один.
+  //
+  // Для юзера, який уже мав свій дім (сам купував підписку) і тепер приймає
+  // запрошення в чужий, лишається запитання «в який зайти за замовчуванням»:
+  // firstHouseholdOf дасть той, до якого він приєднався раніше. Це edge case,
+  // закриється явним перемикачем дому в UI, коли з'явиться другий сценарій.
   let user_id: string;
   let already_member = false;
   const existing = await repo.findUserByEmail(inv.email);
@@ -81,11 +91,7 @@ export async function acceptInvite(
     user_id = existing.id;
     already_member = await repo.isMember(inv.household_id, user_id);
   } else {
-    // Для новоствореного юзера все одно потрібен «його» дім за замовчуванням —
-    // інакше firstHouseholdOf може повернути дім-запрошення, а він не «його».
-    // Йдемо простим шляхом: створюємо юзера з власним домом, потім додаємо в цільовий.
-    const created = await repo.createUserWithHousehold(inv.email, inv.email.split('@')[0] ?? 'Anon');
-    user_id = created.user_id;
+    user_id = await repo.createUserOnly(inv.email, inv.email.split('@')[0] ?? 'Anon');
   }
   await repo.addMember(inv.household_id, user_id, inv.role);
   await repo.consumeInvite(inv.id, user_id);

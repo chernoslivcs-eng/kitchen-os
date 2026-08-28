@@ -113,6 +113,16 @@ export class InMemoryRepo implements Repo {
     return { user_id, household_id };
   }
 
+  async createUserOnly(email: string, name: string): Promise<string> {
+    const key = email.toLowerCase();
+    if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
+    const user_id = randomUUID();
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString() });
+    this.usersByEmail.set(key, user_id);
+    this.members.set(user_id, []);
+    return user_id;
+  }
+
   async firstHouseholdOf(user_id: string): Promise<string | null> {
     return this.members.get(user_id)?.[0] ?? null;
   }

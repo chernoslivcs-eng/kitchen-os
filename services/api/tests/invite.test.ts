@@ -20,7 +20,7 @@ describe('household invite', () => {
     await app.ready();
   });
 
-  it('A запрошує B → B клікає лінк → B у household_member дому A', async () => {
+  it('A запрошує B → B клікає лінк → B пише в комору дому A, без свого', async () => {
     const A = await signIn(app, mailer, 'a@example.com');
     mailer.sent.length = 0;
 
@@ -33,31 +33,40 @@ describe('household invite', () => {
     expect(inv.statusCode).toBe(201);
     const invBody = inv.json();
     expect(invBody.email).toBe('b@example.com');
-    expect(invBody.role).toBe('member');
 
-    const link = mailer.last()!.link;
-    expect(link).toContain('/v1/invites/accept?token=');
-    const url = new URL(link);
-
+    const url = new URL(mailer.last()!.link);
     const accept = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
     expect(accept.statusCode).toBe(200);
     const body = accept.json();
     expect(body.household_id).toBe(A.household_id);
-    expect(body.role).toBe('member');
     expect(body.already_member).toBe(false);
 
-    // B справді в домі A
+    // Гість — B — існує в домі A, і БІЛЬШЕ ніде. Свого дому в нього нема.
     expect(await repo.isMember(A.household_id, body.user_id)).toBe(true);
+    expect(await repo.firstHouseholdOf(body.user_id)).toBe(A.household_id);
 
-    // B тепер може писати в комору A через свою cookie
+    // B пише в комору через свою cookie — вона має вести в дім A, не в порожній свій.
     const setCookie = accept.headers['set-cookie']!;
     const bCookieRaw = Array.isArray(setCookie) ? setCookie[0]! : setCookie;
     const bCookie = bCookieRaw.split(';')[0]!;
-
-    // Cookie B веде до його «власного» дому (той, що створився з юзером за замовчуванням),
-    // а не до дому A — щоб потрапити в дім A, потрібне явне перемикання (окремий крок).
-    // Але isMember(A.household_id, B) вже true — це основне.
-    expect(bCookie).toBeTruthy();
+    const chat = await app.inject({
+      method: 'POST',
+      url: '/v1/chat',
+      headers: { cookie: bCookie },
+      payload: { session_id: 's', text: 'купив пармезан' },
+    });
+    expect(chat.statusCode).toBe(200);
+    const { card_id } = chat.json();
+    await app.inject({
+      method: 'POST',
+      url: `/v1/cards/${card_id}/apply`,
+      headers: { cookie: bCookie },
+      payload: {},
+    });
+    // Пармезан ліг у комору A, а не в якийсь окремий дім B.
+    const batches = await repo.listBatches(A.household_id);
+    expect(batches).toHaveLength(1);
+    expect(batches[0]!.label.toLowerCase()).toContain('пармезан');
   });
 
   it('чужа сесія не може запросити в дім, до якого не належить', async () => {

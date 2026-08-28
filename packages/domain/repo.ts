@@ -36,9 +36,13 @@ export interface Repo {
   getAttachment(id: string): Promise<AttachmentRecord | null>;
   updateAttachment(id: string, patch: Partial<AttachmentRecord>): Promise<void>;
 
-  // Користувачі (обмежений набір: створити/знайти по email; без імені-тощо, це MVP)
+  // Користувачі.
+  // createUserWithHousehold — «оформив підписку»: новий юзер + власний дім, він у ньому власник.
+  // createUserOnly — «гість»: тільки user-рядок. Далі його вручну додають у чужий дім
+  // через addMember. Своєї комори гість не має за визначенням — це те, за що платить хазяїн.
   findUserByEmail(email: string): Promise<UserRow | null>;
   createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;
+  createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;
 
   // Автентифікація
