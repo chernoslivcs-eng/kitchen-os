@@ -1,3 +1,4 @@
+import './env.js';                      // MUST BE FIRST — заселяє process.env (ANTHROPIC_API_KEY etc.)
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

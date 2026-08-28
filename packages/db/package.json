@@ -16,7 +16,8 @@
   "dependencies": {
     "@kitchen/domain": "workspace:*",
     "@kitchen/catalog": "workspace:*",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^10.13.2",

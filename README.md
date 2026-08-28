@@ -21,22 +21,38 @@
 
 ## Postgres: Neon або локально
 
-**Neon (production & dev)**:
+`.env` у корені монорепо тримає всі секрети — `PG_URL`, `PG_TEST_URL`, `ANTHROPIC_API_KEY`, `SMTP_*`, `APP_URL`. Раннер бекенду, міграцій і eval сам його завантажує; **shell-експорту не потрібно**.
+
+**Neon (production + dev branch)**:
 ```bash
 # .env містить PG_URL (production pooler) і PG_TEST_URL (dev pooler)
-PG_URL="..." pnpm --filter @kitchen/db migrate     # прогнати на dev branch
-PG_TEST_URL="..." pnpm --filter @kitchen/db test   # тести проти dev branch
+pnpm --filter @kitchen/db migrate     # прогнати migrations/*.sql на PG_URL
+pnpm --filter @kitchen/db test        # тести проти PG_TEST_URL
 ```
 
 **Docker локально**:
 ```bash
 docker compose up -d postgres         # порт 5433
-export PG_URL=postgresql://kitchen:kitchen@localhost:5433/kitchen
-pnpm --filter @kitchen/db migrate     # прогнати migrations/*.sql
-pnpm --filter @kitchen/api start      # api з PostgresRepo
+# у .env поклади: PG_URL=postgresql://kitchen:kitchen@localhost:5433/kitchen
+pnpm --filter @kitchen/db migrate
+pnpm --filter @kitchen/api start
 ```
 
-Без обраних опцій — задай `PG_TEST_URL` до будь-якого свого Postgres 16 з розширеннями `pg_trgm`, `unaccent`, `pgcrypto`. Тести `packages/db` тоді запустяться проти нього. Інакше скіп із причиною — CI лишається зеленим, але «прогалину видно».
+Без обраних опцій — задай `PG_TEST_URL` до будь-якого свого Postgres 16 з розширеннями `pg_trgm`, `unaccent`, `pgcrypto`. Тести `packages/db` тоді запустяться проти нього. Інакше скіп із причиною.
+
+## Локальний запуск фронту + бекенду
+
+```bash
+# .env у корені (мінімум): PG_URL=..., APP_URL=http://localhost:5173
+
+# Термінал 1 — бекенд на :3000
+pnpm --filter @kitchen/api start
+
+# Термінал 2 — фронт на :5173
+pnpm --filter @kitchen/web dev
+```
+
+Vite проксить `/v1/*` на fastify:3000, cookie `kos` лягає на 5173, magic-link теж повертається сюди. Введи email → `202` → на фронті редирект на `/sent`. У stdout fastify побачиш `[mail] magic link → …` (`ConsoleMailer` без SMTP). Клікни лінк — потрапиш через `/v1/auth/verify` на `/app`.
 
 ## Структура
 

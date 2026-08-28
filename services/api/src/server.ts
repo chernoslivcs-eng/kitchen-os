@@ -1,3 +1,4 @@
+import './env.js';                      // MUST BE FIRST — заселяє process.env перед усім
 import Fastify, { type FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
 import cookie from '@fastify/cookie';

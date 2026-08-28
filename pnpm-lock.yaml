@@ -66,6 +66,9 @@ importers:
       '@kitchen/domain':
         specifier: workspace:*
         version: link:../domain
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
       pg:
         specifier: ^8.13.1
         version: 8.23.0
@@ -101,6 +104,9 @@ importers:
       '@kitchen/prompts':
         specifier: workspace:*
         version: link:../prompts
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
 
   packages/prompts: {}
 
@@ -127,6 +133,9 @@ importers:
       '@kitchen/prompts':
         specifier: workspace:*
         version: link:../../packages/prompts
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
       fastify:
         specifier: ^5.1.0
         version: 5.12.1
@@ -1280,6 +1289,10 @@ packages:
   dockerode@4.0.12:
     resolution: {integrity: sha512-/bCZd6KlGcjZO8Buqmi/vXuqEGVEZ0PNjx/biBNqJD3MhK9DmdiAuKxqfNhflgDESDIiBz3qF+0e55+CpnrUcw==}
     engines: {node: '>= 8.0'}
+
+  dotenv@16.6.1:
+    resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+    engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -3096,6 +3109,8 @@ snapshots:
       uuid: 10.0.0
     transitivePeerDependencies:
       - supports-color
+
+  dotenv@16.6.1: {}
 
   dunder-proto@1.0.1:
     dependencies:

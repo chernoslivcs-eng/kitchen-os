@@ -11,6 +11,7 @@
   "dependencies": {
     "@kitchen/prompts": "workspace:*",
     "@kitchen/catalog": "workspace:*",
-    "@anthropic-ai/sdk": "^0.60.0"
+    "@anthropic-ai/sdk": "^0.60.0",
+    "dotenv": "^16.4.5"
   }
 }

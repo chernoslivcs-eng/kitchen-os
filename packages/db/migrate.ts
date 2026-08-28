@@ -4,6 +4,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
+import { config as loadDotenv } from 'dotenv';
 import { makePool, type Pool } from './pool.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,7 @@ export async function migrate(pool: Pool, dir: string = DEFAULT_DIR): Promise<Mi
 
 // CLI: pnpm --filter @kitchen/db migrate
 if (import.meta.url === `file://${process.argv[1]}`) {
+  loadDotenv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../.env') });
   const url = process.env.PG_URL;
   if (!url) { console.error('PG_URL is required'); process.exit(1); }
   const pool = makePool(url);
