@@ -1,0 +1,20 @@
+/* Mono-мітка — той самий IBM Plex Mono, малий кегль, широкий трекінг, uppercase.
+ * У брифі вона всюди: у мета-рядках стрічки (18:42 КОМОРА), у секційних заголовках,
+ * у чипах. Стан через колір: default fg-dim, semantic — accent/amber/plum/danger.
+ */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.pending  { color: var(--amber); }
+.applied  { color: var(--accent); }
+.anti     { color: var(--plum); }
+.danger   { color: var(--danger); }
+.muted    { color: var(--fg-dim); }

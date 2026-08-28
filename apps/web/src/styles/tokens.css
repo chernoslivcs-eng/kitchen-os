@@ -1,0 +1,170 @@
+/* Дизайн-токени. Дві теми — компаньйон, не дзеркало: значення дібрано зустрічно
+ * (шавлія темніша на світлому, бурштин тепліший на темному). Не робимо один --fg
+ * і не переключаємо його. У кожної семантики — свій колір під тему.
+ *
+ * Порядок за брифом: несуча (surface / border / text), семантика (шавлія =
+ * дія/applied, бурштин = pending/opened, слива = АНТИ, теракота = помилка),
+ * типографіка, motion, radii, spacing.
+ */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-body:        #101317;
+  --bg-surface:     #181c21;
+  --bg-surface-2:   #1f242b;
+  --bg-hover:       #1f242b;
+  --border:         #262c33;
+  --border-strong:  #2c333b;
+
+  --fg:             #e7eaec;
+  --fg-strong:      #ffffff;
+  --fg-muted:       #9aa3ac;
+  --fg-dim:         #79828c;
+  --fg-mono:        #c3c9ce;
+
+  /* шавлія — дія і applied */
+  --accent:         #93b48b;
+  --accent-strong:  #a9c6a1;
+  --accent-bg:      #20291f;
+  --accent-border:  #3a4a3a;
+  --accent-fg-on:   #141a12;
+
+  /* бурштин — pending, opened */
+  --amber:          #c9a86a;
+  --amber-bg:       #2b2419;
+  --amber-border:   #4a3d26;
+
+  /* слива — АНТИ */
+  --plum:           #c99ab4;
+  --plum-bg:        #2f2129;
+  --plum-border:    #4a3040;
+
+  /* теракота — помилка */
+  --danger:         #cc7a70;
+  --danger-bg:      #2e1e1b;
+  --danger-border:  #4d2f29;
+
+  /* тонові фокус-кільце */
+  --focus-ring:     rgba(147, 180, 139, 0.18);
+
+  /* нейтральний акцент — коли фон інвертований (світла кнопка на темному) */
+  --btn-primary-bg:      #e7eaec;
+  --btn-primary-fg:      #181c21;
+  --btn-primary-hover:   #ffffff;
+  --btn-primary-pressed: #c3c9ce;
+
+  --shadow-panel:   0 12px 40px rgba(0, 0, 0, 0.4);
+  --shadow-toast:   0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-body:        #d9dcdf;
+  --bg-surface:     #eef0f1;
+  --bg-surface-2:   #f8f9fa;
+  --bg-hover:       #e3e6e8;
+  --border:         #dde0e2;
+  --border-strong:  #ced3d6;
+
+  --fg:             #1d2126;
+  --fg-strong:      #000000;
+  --fg-muted:       #5c646d;
+  --fg-dim:         #7b838b;
+  --fg-mono:        #3c4249;
+
+  --accent:         #58754e;
+  --accent-strong:  #3f5837;
+  --accent-bg:      #e4ecdf;
+  --accent-border:  #c2d3b8;
+  --accent-fg-on:   #f2f4f0;
+
+  --amber:          #96712c;
+  --amber-bg:       #f2e9d5;
+  --amber-border:   #ddc99a;
+
+  --plum:           #8f5c78;
+  --plum-bg:        #f0e3ea;
+  --plum-border:    #d8bccb;
+
+  --danger:         #a8483d;
+  --danger-bg:      #f5dcd7;
+  --danger-border:  #e0b4ab;
+
+  --focus-ring:     rgba(88, 117, 78, 0.14);
+
+  --btn-primary-bg:      #1d2126;
+  --btn-primary-fg:      #eef0f1;
+  --btn-primary-hover:   #3c4249;
+  --btn-primary-pressed: #0f1114;
+
+  --shadow-panel:   0 12px 40px rgba(29, 33, 38, 0.2);
+  --shadow-toast:   0 12px 32px rgba(29, 33, 38, 0.25);
+}
+
+/* --- Типографіка ---------------------------------------------------------- */
+:root {
+  --font-display: 'Onest', system-ui, -apple-system, sans-serif;
+  --font-body:    'Golos Text', system-ui, -apple-system, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Розміри у брифі: H1 42-46, H2 24-30, body 15-17, meta mono 11-13 */
+  --fs-1:   42px;      /* headline */
+  --fs-2:   26px;      /* section */
+  --fs-3:   19px;      /* card title mobile */
+  --fs-body:16px;
+  --fs-small:14px;
+  --fs-mono:11px;
+
+  --tracking-tight: -0.03em;
+  --tracking-body:   0;
+  --tracking-mono:  0.06em;    /* .1em+ під caps */
+  --tracking-caps:  0.14em;
+
+  --lh-tight: 1.15;
+  --lh-body:  1.55;
+}
+
+/* --- Motion -------------------------------------------------------------- */
+:root {
+  --dur-fast:    150ms;    /* hover, press, checkbox */
+  --dur-base:    250ms;    /* card state, toast */
+  --dur-slow:    400ms;    /* step change, screen transition */
+  --dur-breathe: 1200ms;   /* pending pulse, spinner */
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter:    cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit:     cubic-bezier(0.4, 0, 1, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+    --dur-breathe: 0ms;
+  }
+}
+
+/* --- Radii + spacing ---------------------------------------------------- */
+:root {
+  --r-sm:   8px;
+  --r:      12px;
+  --r-lg:   14px;
+  --r-xl:   16px;
+  --r-2xl:  20px;
+  --r-pill: 999px;
+
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-7:  32px;
+  --sp-8:  44px;
+
+  --tap: 44px;        /* мінімум для тап-цілі */
+}

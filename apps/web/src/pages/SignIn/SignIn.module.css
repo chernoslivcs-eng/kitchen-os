@@ -1,0 +1,70 @@
+/* Екран 01 · Вхід
+ * Мобайл-фьорст, 390px базовий, вертикальний ритм: логотип угорі → мета «kitchen os» →
+ * заголовок (H1 800 34px, tight tracking) → підзаголовок → поле → кнопка
+ * → внизу тонка сноска про приватність. Без карток, без бордерів навколо ready-полів.
+ */
+.screen {
+  min-height: 100dvh;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  padding: 44px 26px 26px;
+  gap: 32px;
+}
+.head { display: flex; flex-direction: column; gap: 18px; }
+.mono { color: var(--fg-dim); }
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: auto;
+}
+.title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+}
+.sub {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: var(--lh-body);
+  color: var(--fg-muted);
+}
+
+.form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.foot {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-dim);
+  text-align: center;
+  margin-top: auto;
+}
+
+/* Мобайл: wrapper прозорий для flex, щоб margin-top:auto працював від .screen. */
+.panel { display: contents; }
+
+/* Десктоп: центруємо панель ~460px в межах екрану, все інше — так само. */
+@media (min-width: 720px) {
+  .screen {
+    background: var(--bg-body);
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+  }
+  .panel {
+    width: 460px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2xl);
+    padding: 44px 40px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    box-shadow: var(--shadow-panel);
+  }
+}

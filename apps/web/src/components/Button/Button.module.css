@@ -1,0 +1,70 @@
+.btn {
+  height: 46px;
+  padding: 0 20px;
+  border-radius: var(--r);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Primary — нейтральна інверсія: на темному світлий фон, на світлому темний. */
+.primary {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+}
+.primary:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.primary:active:not(:disabled) { background: var(--btn-primary-pressed); }
+
+/* Positive — шавлія. Головна дія на «наступний крок»/apply. */
+.positive {
+  background: var(--accent);
+  color: var(--accent-fg-on);
+}
+.positive:hover:not(:disabled) { background: var(--accent-strong); }
+
+/* Secondary — прозорий фон, тонкий бордер. */
+.secondary {
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border-strong);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--bg-surface-2);
+  color: var(--fg);
+}
+
+/* Block — на всю ширину контейнера. */
+.block { width: 100%; }
+
+/* Large — 52px для головних дій в футерах екранів. */
+.large { height: 52px; padding: 0 24px; font-size: 16px; border-radius: var(--r-lg); }
+
+/* Spinner всередині кнопки — коли loading. */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid var(--fg-dim);
+  border-top-color: var(--btn-primary-fg);
+  animation: spin var(--dur-breathe) linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
