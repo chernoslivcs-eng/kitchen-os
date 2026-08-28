@@ -13,6 +13,20 @@ export interface UserRow {
   created_at: string;
 }
 
+export interface HouseholdRow {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface HouseholdMemberRow {
+  user_id: string;
+  name: string;
+  email: string;
+  role: HouseholdRole;
+  joined_at: string;
+}
+
 export interface Repo {
   // Комора
   listBatches(household_id: string): Promise<PantryBatch[]>;
@@ -41,9 +55,13 @@ export interface Repo {
   // createUserOnly — «гість»: тільки user-рядок. Далі його вручну додають у чужий дім
   // через addMember. Своєї комори гість не має за визначенням — це те, за що платить хазяїн.
   findUserByEmail(email: string): Promise<UserRow | null>;
+  getUser(id: string): Promise<UserRow | null>;
   createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;
+  getHousehold(id: string): Promise<HouseholdRow | null>;
+  listMembersOfHousehold(household_id: string): Promise<HouseholdMemberRow[]>;
+  roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null>;
 
   // Автентифікація
   saveChallenge(c: AuthChallenge): Promise<void>;

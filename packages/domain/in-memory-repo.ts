@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Repo, UserRow } from './repo.js';
+import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js';
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
@@ -13,7 +13,10 @@ export class InMemoryRepo implements Repo {
   private attachments = new Map<string, AttachmentRecord>();
   private users = new Map<string, UserRow>();                 // by id
   private usersByEmail = new Map<string, string>();           // email → id
-  private members = new Map<string, string[]>();              // user_id → [household_id]
+  private households = new Map<string, HouseholdRow>();       // by id
+  private members: {
+    household_id: string; user_id: string; role: HouseholdRole; joined_at: string;
+  }[] = [];
   private challenges = new Map<string, AuthChallenge>();      // by token_hash
   private sessions = new Map<string, AuthSession>();          // by cookie_hash
   private tokenUsage: TokenUsageRow[] = [];
@@ -102,14 +105,21 @@ export class InMemoryRepo implements Repo {
     return this.users.get(id) ?? null;
   }
 
+  async getUser(id: string): Promise<UserRow | null> {
+    const u = this.users.get(id);
+    return u ? { ...u } : null;
+  }
+
   async createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }> {
     const key = email.toLowerCase();
     if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
     const user_id = randomUUID();
     const household_id = randomUUID();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString() });
+    const now = new Date().toISOString();
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: now });
     this.usersByEmail.set(key, user_id);
-    this.members.set(user_id, [household_id]);
+    this.households.set(household_id, { id: household_id, name: `Дім ${name}`, created_at: now });
+    this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
     return { user_id, household_id };
   }
 
@@ -119,12 +129,36 @@ export class InMemoryRepo implements Repo {
     const user_id = randomUUID();
     this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString() });
     this.usersByEmail.set(key, user_id);
-    this.members.set(user_id, []);
     return user_id;
   }
 
   async firstHouseholdOf(user_id: string): Promise<string | null> {
-    return this.members.get(user_id)?.[0] ?? null;
+    const mine = this.members.filter((m) => m.user_id === user_id).sort((a, b) => a.joined_at.localeCompare(b.joined_at));
+    return mine[0]?.household_id ?? null;
+  }
+
+  async getHousehold(id: string): Promise<HouseholdRow | null> {
+    const h = this.households.get(id);
+    return h ? { ...h } : null;
+  }
+
+  async listMembersOfHousehold(household_id: string): Promise<HouseholdMemberRow[]> {
+    const out: HouseholdMemberRow[] = [];
+    for (const m of this.members) {
+      if (m.household_id !== household_id) continue;
+      const u = this.users.get(m.user_id);
+      if (!u) continue;
+      out.push({
+        user_id: u.id, name: u.name, email: u.email,
+        role: m.role, joined_at: m.joined_at,
+      });
+    }
+    return out.sort((a, b) => a.joined_at.localeCompare(b.joined_at));
+  }
+
+  async roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null> {
+    const m = this.members.find((x) => x.household_id === household_id && x.user_id === user_id);
+    return m?.role ?? null;
   }
 
   async saveChallenge(c: AuthChallenge): Promise<void> {
@@ -183,15 +217,12 @@ export class InMemoryRepo implements Repo {
   }
 
   async isMember(household_id: string, user_id: string): Promise<boolean> {
-    return (this.members.get(user_id) ?? []).includes(household_id);
+    return this.members.some((m) => m.household_id === household_id && m.user_id === user_id);
   }
 
-  async addMember(household_id: string, user_id: string, _role: HouseholdRole): Promise<void> {
-    const arr = this.members.get(user_id) ?? [];
-    if (!arr.includes(household_id)) {
-      arr.push(household_id);
-      this.members.set(user_id, arr);
-    }
+  async addMember(household_id: string, user_id: string, role: HouseholdRole): Promise<void> {
+    if (this.members.some((m) => m.household_id === household_id && m.user_id === user_id)) return;
+    this.members.push({ household_id, user_id, role, joined_at: new Date().toISOString() });
   }
 
   async saveInvite(inv: HouseholdInvite): Promise<void> {

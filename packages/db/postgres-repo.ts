@@ -9,7 +9,8 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, UserRow, PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
+  Repo, UserRow, HouseholdRow, HouseholdMemberRow,
+  PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
@@ -308,6 +309,46 @@ export class PostgresRepo implements Repo {
       [name, email.toLowerCase()],
     );
     return rows[0]!.id;
+  }
+
+  async getUser(id: string): Promise<UserRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM "user" WHERE id = $1', [id]);
+    const r = rows[0];
+    if (!r) return null;
+    return { id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString() };
+  }
+
+  async getHousehold(id: string): Promise<HouseholdRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM household WHERE id = $1', [id]);
+    const r = rows[0];
+    if (!r) return null;
+    return { id: r.id, name: r.name, created_at: new Date(r.created_at).toISOString() };
+  }
+
+  async listMembersOfHousehold(household_id: string): Promise<HouseholdMemberRow[]> {
+    const { rows } = await this.pool.query(
+      `SELECT hm.user_id, u.name, u.email, hm.role, hm.joined_at
+         FROM household_member hm
+         JOIN "user" u ON u.id = hm.user_id
+        WHERE hm.household_id = $1
+        ORDER BY hm.joined_at`,
+      [household_id],
+    );
+    return rows.map((r): HouseholdMemberRow => ({
+      user_id: r.user_id,
+      name: r.name,
+      email: r.email,
+      role: r.role as HouseholdRole,
+      joined_at: new Date(r.joined_at).toISOString(),
+    }));
+  }
+
+  async roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null> {
+    const { rows } = await this.pool.query<{ role: HouseholdRole }>(
+      'SELECT role FROM household_member WHERE household_id = $1 AND user_id = $2',
+      [household_id, user_id],
+    );
+    return rows[0]?.role ?? null;
   }
 
   async firstHouseholdOf(user_id: string): Promise<string | null> {
