@@ -5,6 +5,42 @@ import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose } from '@kitchen/prompts';
 import type { Card, PantryBatch } from '@kitchen/domain';
 
+// Один провайдер моделі — або прямий Anthropic, або OpenRouter (той самий формат
+// повідомлень, лише інший baseURL і префіксовані model-id). Обирає autonomly:
+//   OPENROUTER_API_KEY у env → OpenRouter (baseURL, префікс anthropic/)
+//   ANTHROPIC_API_KEY у env → прямий Anthropic
+//   ні того, ні того → stub-режим (див. нижче)
+//
+// Модель ID: якщо в .env задано MODEL_FAST/MODEL_SMART — беремо як є (юзер знає, що робить).
+// Інакше — дефолт під провайдера.
+
+function isOpenRouter(): boolean {
+  return !!process.env.OPENROUTER_API_KEY;
+}
+function apiKey(): string | undefined {
+  return process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY;
+}
+function baseURL(): string | undefined {
+  // OpenRouter має Anthropic-сумісний ендпоінт /api/v1/messages. Anthropic SDK сам
+  // додає /v1/messages до baseURL, тож baseURL має бути /api без /v1.
+  return isOpenRouter() ? 'https://openrouter.ai/api' : undefined;
+}
+function fastModel(): string {
+  if (process.env.MODEL_FAST) return process.env.MODEL_FAST;
+  // OpenRouter точно має claude-3-haiku і claude-3.5-sonnet. Юзер може перевизначити
+  // MODEL_FAST у .env, якщо хоче іншу модель — імена звіряти на openrouter.ai/models.
+  return isOpenRouter() ? 'anthropic/claude-3-haiku' : 'claude-haiku-4-5-20251001';
+}
+function smartModel(): string {
+  if (process.env.MODEL_SMART) return process.env.MODEL_SMART;
+  return isOpenRouter() ? 'anthropic/claude-3.5-sonnet' : 'claude-sonnet-5';
+}
+function makeClient(): Anthropic | null {
+  const key = apiKey();
+  if (!key) return null;
+  return new Anthropic({ apiKey: key, baseURL: baseURL() });
+}
+
 export interface ChatArgs {
   user_id: string;
   session_id: string;
@@ -18,8 +54,6 @@ export interface ChatCall {
   usage: { input: number; output: number; cached?: number };
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
-
-const PROFILE_FAST = process.env.MODEL_FAST ?? 'claude-haiku-4-5-20251001';
 
 // Стисла серіалізація комори — та сама, що в прототипі: id · назва · зона · кількість · стан.
 function serializePantry(bs: PantryBatch[]): string {
@@ -60,13 +94,13 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
 
 export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const prompt = loadPrompt();
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return stub(args, prompt.version);
+  const client = makeClient();
+  if (!client) return stub(args, prompt.version);
 
-  const client = new Anthropic({ apiKey });
+  const model = fastModel();
   const system = compose('chat', prompt) + '\n\n[КОМОРА]\n' + serializePantry(args.pantry);
   const resp = await client.messages.create({
-    model: PROFILE_FAST,
+    model,
     max_tokens: 2048,
     system,
     messages: [{ role: 'user', content: args.text }],
@@ -78,15 +112,25 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const parsed = tryParse(text);
   let reply = text;
   let card: Card | null = null;
-  if (parsed && typeof parsed === 'object' && 'reply' in parsed && 'card' in parsed) {
-    reply = (parsed as { reply: string }).reply ?? '';
-    card = (parsed as { card: Card | null }).card;
+  if (parsed && typeof parsed === 'object') {
+    const o = parsed as Record<string, unknown>;
+    // Модель повертає одне з двох:
+    //   { reply, card } — обгортка з окремим текстом і карткою
+    //   { type, ops|items|... } — саму картку без обгортки; тоді reply — коротке
+    //   пояснення поверх, збережемо порожнім і покладемось на UI
+    if ('reply' in o && 'card' in o) {
+      reply = typeof o.reply === 'string' ? o.reply : '';
+      card = (o.card ?? null) as Card | null;
+    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile'].includes(o.type)) {
+      card = o as unknown as Card;
+      reply = '';
+    }
   }
   return {
     reply,
     card,
     usage: { input: resp.usage.input_tokens, output: resp.usage.output_tokens },
-    meta: { promptVersion: prompt.version, model: PROFILE_FAST, mode: 'live' },
+    meta: { promptVersion: prompt.version, model, mode: 'live' },
   };
 }
 
@@ -140,10 +184,10 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
 // temperature: 0 — щоб той самий знімок давав той самий розбір. Це прямо в правилах промпту.
 export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<AttachmentCall> {
   const prompt = loadPrompt();
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return attachmentStub(atts, prompt.version);
+  const client = makeClient();
+  if (!client) return attachmentStub(atts, prompt.version);
 
-  const client = new Anthropic({ apiKey });
+  const model = fastModel();
   const system = compose('attachment_parse', prompt);
 
   const parts: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam)[] = [];
@@ -174,7 +218,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   parts.push({ type: 'text', text: 'Розбери за схемою й поверни JSON. Користувач бачив вкладення на власні очі — його слово важливіше.' });
 
   const resp = await client.messages.create({
-    model: PROFILE_FAST,
+    model,
     max_tokens: 4096,
     temperature: 0,
     system,
@@ -206,7 +250,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     card,
     raw_kind,
     usage: { input: resp.usage.input_tokens, output: resp.usage.output_tokens },
-    meta: { promptVersion: prompt.version, model: PROFILE_FAST, mode: 'live' },
+    meta: { promptVersion: prompt.version, model, mode: 'live' },
   };
 }
 

@@ -9,5 +9,9 @@ import { config } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-const rootEnv = resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env');
-config({ path: rootEnv });
+// Vitest сам виставляє VITEST=true. У тестах пропускаємо — vitest.setup.ts керує процесним env
+// герметично, і перечитувати .env тут означало б повертати живі ключі назад.
+if (!process.env.VITEST) {
+  const rootEnv = resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env');
+  config({ path: rootEnv });
+}
