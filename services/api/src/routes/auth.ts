@@ -77,8 +77,13 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
       path: '/',
       maxAge: SESSION_TTL_MS / 1000,
     });
+    // Явний ?next=/… — перемагає завжди. Інакше: браузер (Accept: text/html) → редирект
+    // на корінь фронту; клієнт, який хоче JSON, — отримує JSON. Це дає нормальний UX
+    // при кліку по лінку з листа й не ламає тести, які ходять без Accept-заголовка.
     const next = req.query.next;
     if (next && next.startsWith('/')) return reply.redirect(next);
+    const wantsHtml = /text\/html/i.test(String(req.headers.accept ?? ''));
+    if (wantsHtml) return reply.redirect('/');
     return reply.send({ ok: true, user_id: out.result.user_id, household_id: out.result.household_id });
   });
 

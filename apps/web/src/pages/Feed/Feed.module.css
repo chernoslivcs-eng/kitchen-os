@@ -1,0 +1,182 @@
+/* Стрічка — мінімальний робочий цикл (не повний 04 Стрічка з брифу, а її кістяк).
+ * Мобайл-фьорст. Каркас: шапка → скролабельна стрічка → композитор внизу.
+ */
+.screen {
+  min-height: 100dvh;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px 12px;
+  gap: 12px;
+}
+.head-meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.head-actions { display: flex; gap: 8px; align-items: center; }
+
+.timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.turn { display: flex; flex-direction: column; gap: 6px; }
+.turn-meta { color: var(--fg-dim); }
+.turn-text {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: var(--lh-body);
+  color: var(--fg-mono);
+}
+
+/* Картка intake_diff — без бордера-кола, лінії й повітря, як у брифі. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: card-enter var(--dur-base) var(--ease-enter);
+}
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.ops { display: flex; flex-direction: column; }
+.op {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.op:last-child { border-bottom: 0; }
+.op-sign {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  width: 16px;
+}
+.op-label { flex: 1; font-size: 16px; color: var(--fg); }
+.op-qty {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+.card-actions { display: flex; gap: 10px; margin-top: 4px; }
+.card-actions > :first-child { flex: 1; }
+
+/* Applied / undone стани — приглушаємо. */
+.card.applied .op-label { color: var(--fg-muted); }
+.card.undone { opacity: 0.55; }
+
+/* Композитор — липне до низу, тонкий бордер зверху. */
+.composer {
+  padding: 12px 22px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.composer input {
+  flex: 1;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: var(--r-lg);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  outline: 0;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.composer input::placeholder { color: var(--fg-dim); }
+.composer input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+.composer button {
+  height: 48px;
+  width: 48px;
+  border-radius: var(--r);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  font-weight: 600;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  transition: background var(--dur-fast);
+}
+.composer button:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.composer button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Тост знизу — auto-hide через 4с у JS. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  transform: translateX(-50%);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow: var(--shadow-toast);
+  color: var(--fg);
+  font-size: 15px;
+  animation: toast-in var(--dur-base) var(--ease-enter);
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.toast .undo {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.toast .ok { color: var(--accent); font-weight: 700; }
+.toast .err { color: var(--danger); font-weight: 700; }
+
+/* Порожній стан — коли ще нічого не написав. */
+.empty {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.empty h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--fg);
+}

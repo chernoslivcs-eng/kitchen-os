@@ -98,7 +98,7 @@ export const api = {
   auth: {
     request: (email: string) =>
       req<{ ok: true }>('/v1/auth/request', { method: 'POST', body: JSON.stringify({ email }) }),
-    logout: () => req<null>('/v1/auth/logout', { method: 'POST' }),
+    logout: () => req<null>('/v1/auth/logout', { method: 'POST', body: '{}' }),
   },
 
   me: () => req<Me>('/v1/me'),
