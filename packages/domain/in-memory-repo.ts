@@ -1,5 +1,9 @@
-import type { Repo } from './repo.js';
-import type { PantryBatch, PendingCard, Profile, AttachmentRecord } from './types.js';
+import { randomUUID } from 'node:crypto';
+import type { Repo, UserRow } from './repo.js';
+import type {
+  PantryBatch, PendingCard, Profile, AttachmentRecord,
+  AuthChallenge, AuthSession,
+} from './types.js';
 import { normalize } from '@kitchen/catalog';
 
 export class InMemoryRepo implements Repo {
@@ -7,6 +11,11 @@ export class InMemoryRepo implements Repo {
   private profiles = new Map<string, Profile>();
   private pending = new Map<string, PendingCard>();
   private attachments = new Map<string, AttachmentRecord>();
+  private users = new Map<string, UserRow>();                 // by id
+  private usersByEmail = new Map<string, string>();           // email → id
+  private members = new Map<string, string[]>();              // user_id → [household_id]
+  private challenges = new Map<string, AuthChallenge>();      // by token_hash
+  private sessions = new Map<string, AuthSession>();          // by cookie_hash
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -82,5 +91,69 @@ export class InMemoryRepo implements Repo {
     const cur = this.attachments.get(id);
     if (!cur) throw new Error(`attachment not found: ${id}`);
     this.attachments.set(id, { ...cur, ...patch });
+  }
+
+  async findUserByEmail(email: string): Promise<UserRow | null> {
+    const id = this.usersByEmail.get(email.toLowerCase());
+    if (!id) return null;
+    return this.users.get(id) ?? null;
+  }
+
+  async createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }> {
+    const key = email.toLowerCase();
+    if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
+    const user_id = randomUUID();
+    const household_id = randomUUID();
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString() });
+    this.usersByEmail.set(key, user_id);
+    this.members.set(user_id, [household_id]);
+    return { user_id, household_id };
+  }
+
+  async firstHouseholdOf(user_id: string): Promise<string | null> {
+    return this.members.get(user_id)?.[0] ?? null;
+  }
+
+  async saveChallenge(c: AuthChallenge): Promise<void> {
+    this.challenges.set(c.token_hash, { ...c });
+  }
+
+  async getChallengeByHash(token_hash: string): Promise<AuthChallenge | null> {
+    return this.challenges.get(token_hash) ?? null;
+  }
+
+  async consumeChallenge(id: string): Promise<void> {
+    for (const [hash, c] of this.challenges) {
+      if (c.id === id) {
+        this.challenges.set(hash, { ...c, consumed_at: new Date().toISOString() });
+        return;
+      }
+    }
+  }
+
+  async saveSession(s: AuthSession): Promise<void> {
+    this.sessions.set(s.cookie_hash, { ...s });
+  }
+
+  async getSessionByCookieHash(cookie_hash: string): Promise<AuthSession | null> {
+    return this.sessions.get(cookie_hash) ?? null;
+  }
+
+  async touchSession(id: string, now: string, expires_at: string): Promise<void> {
+    for (const [hash, s] of this.sessions) {
+      if (s.id === id) {
+        this.sessions.set(hash, { ...s, last_seen_at: now, expires_at });
+        return;
+      }
+    }
+  }
+
+  async revokeSession(id: string): Promise<void> {
+    for (const [hash, s] of this.sessions) {
+      if (s.id === id) {
+        this.sessions.set(hash, { ...s, revoked_at: new Date().toISOString() });
+        return;
+      }
+    }
   }
 }

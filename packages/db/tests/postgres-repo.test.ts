@@ -50,7 +50,7 @@ if ('skip' in backend) {
   describeRepoContract('PostgresRepo', {
     async make() {
       // Чистимо між тестами й сіємо household + user під FK.
-      await pool.query('TRUNCATE card_pending, pantry_batch, household_member, profile, household, "user" RESTART IDENTITY CASCADE');
+      await pool.query('TRUNCATE auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_member, profile, household, "user" RESTART IDENTITY CASCADE');
       const household_id = randomUUID();
       const user_id = randomUUID();
       await pool.query('INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3)', [user_id, 'Test', `test-${user_id}@x.local`]);

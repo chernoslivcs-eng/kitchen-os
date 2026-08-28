@@ -3,35 +3,32 @@ import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, type AttachmentPayload } from '../model.js';
 import { createPending, type Repo } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
+import { authenticated, requireUser } from '../middleware/session.js';
 
 // POST /v1/chat
-//   { session_id, user_id, household_id, text, attachments?: [{id}] }
+//   Тіло: { session_id, text, attachments?: [{id}] }
+//   user_id/household_id беруться з cookie-сесії, не з тіла.
 //   →
 //   { reply, card, card_id, raw_kind?, usage, meta }
 //
 // Побічних ефектів на комору НЕ застосовує. Картка йде як пропозиція,
 // клієнт натискає apply. Це те саме правило, що й у прототипі:
 // модель ніколи не пише в стан напряму.
-//
-// Якщо attachments[] є — маршрутизуємо на attachment_parse (temperature 0), а не chat.
-// Це відповідає розкладці реєстру викликів у 01-product.html § «Реєстр викликів».
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore) {
   app.post<{
     Body: {
-      session_id: string;
-      user_id: string;
-      household_id: string;
-      text: string;
+      session_id?: string;
+      text?: string;
       attachments?: { id: string }[];
     };
-  }>('/v1/chat', async (req, reply) => {
-    const { user_id, household_id, text, attachments } = req.body ?? ({} as any);
-    if (!user_id || !household_id || (!text && !attachments?.length)) {
-      return reply.code(400).send({ error: 'user_id, household_id, and text or attachments required' });
+  }>('/v1/chat', { preHandler: authenticated(repo) }, async (req, reply) => {
+    const { user_id, household_id } = requireUser(req);
+    const { text, attachments } = req.body ?? {};
+    if (!text && !attachments?.length) {
+      return reply.code(400).send({ error: 'text or attachments required' });
     }
 
-    // Гілка з вкладеннями.
     if (attachments?.length) {
       const payloads: AttachmentPayload[] = [];
       for (const { id } of attachments) {
@@ -41,7 +38,6 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         const { buffer, content_type } = await store.get(rec.url);
         payloads.push({ kind: rec.kind, buffer, content_type, hint: rec.hint ?? undefined });
       }
-
       const call = await callAttachmentParse(payloads);
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
@@ -57,14 +53,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       };
     }
 
-    // Звичайна гілка чату.
     const pantry = await repo.listBatches(household_id);
-    const call = await callChat({ ...req.body, pantry });
+    const call = await callChat({
+      user_id, session_id: req.body?.session_id ?? '', text: text ?? '', pantry,
+    });
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
     }
-
     return {
       reply: call.reply,
       card: call.card,

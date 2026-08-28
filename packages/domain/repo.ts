@@ -1,7 +1,17 @@
 // Repo — вузький порт до сховища. Дві реалізації: InMemoryRepo (для тестів
 // і локального дев-режиму) і PostgresRepo (пізніше). Домен не знає про SQL.
 
-import type { PantryBatch, PendingCard, Profile, AttachmentRecord } from './types.js';
+import type {
+  PantryBatch, PendingCard, Profile, AttachmentRecord,
+  AuthChallenge, AuthSession,
+} from './types.js';
+
+export interface UserRow {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
 
 export interface Repo {
   // Комора
@@ -25,4 +35,19 @@ export interface Repo {
   saveAttachment(a: AttachmentRecord): Promise<void>;
   getAttachment(id: string): Promise<AttachmentRecord | null>;
   updateAttachment(id: string, patch: Partial<AttachmentRecord>): Promise<void>;
+
+  // Користувачі (обмежений набір: створити/знайти по email; без імені-тощо, це MVP)
+  findUserByEmail(email: string): Promise<UserRow | null>;
+  createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;
+  firstHouseholdOf(user_id: string): Promise<string | null>;
+
+  // Автентифікація
+  saveChallenge(c: AuthChallenge): Promise<void>;
+  getChallengeByHash(token_hash: string): Promise<AuthChallenge | null>;
+  consumeChallenge(id: string): Promise<void>;
+
+  saveSession(s: AuthSession): Promise<void>;
+  getSessionByCookieHash(cookie_hash: string): Promise<AuthSession | null>;
+  touchSession(id: string, now: string, expires_at: string): Promise<void>;
+  revokeSession(id: string): Promise<void>;
 }

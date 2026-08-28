@@ -116,6 +116,38 @@ export interface Profile {
   equipment: Record<string, 'has' | 'lacks'>;
 }
 
+// ----- Автентифікація ---------------------------------------------------
+
+export interface AuthChallenge {
+  id: string;
+  email: string;
+  token_hash: string;                // SHA-256(hex) від сирого токена, який їде в листі
+  created_at: string;
+  expires_at: string;
+  consumed_at: string | null;
+  ip: string | null;
+  user_agent: string | null;
+}
+
+export interface AuthSession {
+  id: string;
+  user_id: string;
+  cookie_hash: string;               // SHA-256(hex) від сирого cookie-значення
+  created_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  ip: string | null;
+  user_agent: string | null;
+}
+
+// Активний користувач у контексті запиту — виводиться з cookie в middleware.
+export interface UserContext {
+  user_id: string;
+  household_id: string;              // «активний дім»: перший, до якого приєднаний користувач
+  session_id: string;
+}
+
 // ----- Вкладення --------------------------------------------------------
 
 export type AttachmentKind = 'image' | 'pdf' | 'text';

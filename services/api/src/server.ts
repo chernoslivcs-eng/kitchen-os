@@ -1,23 +1,27 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
+import cookie from '@fastify/cookie';
 import { InMemoryRepo, type Repo } from '@kitchen/domain';
 import { makePool, migrate, PostgresRepo } from '@kitchen/db';
 import { InMemoryStore, LocalFSStore, type AttachmentStore } from './attachment-store.js';
+import { ConsoleMailer, type Mailer } from './mailer.js';
 import { chatRoute } from './routes/chat.js';
 import { cardsRoutes } from './routes/cards.js';
 import { attachmentsRoutes } from './routes/attachments.js';
+import { authRoutes } from './routes/auth.js';
 
-// Один сервіс на MVP: chat + cards + attachments в тому самому процесі, спільний Repo.
-// Розділення на chat-service / pantry-service / intake-service — задача про деплой.
+// Один сервіс на MVP: auth + chat + cards + attachments в тому самому процесі, спільний Repo.
 
 export function buildApp(
   repo: Repo = new InMemoryRepo(),
   store: AttachmentStore = new InMemoryStore(),
+  mailer: Mailer = new ConsoleMailer(),
 ): FastifyInstance {
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' });
-  // 20 MB per file — вища за реальні фото/PDF, нижча за DoS-ризик.
+  app.register(cookie);
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
+  authRoutes(app, repo, mailer);
   chatRoute(app, repo, store);
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);
@@ -27,7 +31,6 @@ export function buildApp(
 }
 
 // Обрати сховище: PG_URL → PostgresRepo (з міграцією), інакше InMemoryRepo.
-// ATTACHMENT_DIR (або дефолт ./storage/attachments) → LocalFSStore.
 export async function buildAppWithBackend(): Promise<FastifyInstance> {
   const url = process.env.PG_URL;
   let repo: Repo;
@@ -40,7 +43,8 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
     repo = new InMemoryRepo();
   }
   const store: AttachmentStore = new LocalFSStore();
-  return buildApp(repo, store);
+  const mailer: Mailer = new ConsoleMailer(); // Прод-мейлер (Resend/SES) — окремим кроком.
+  return buildApp(repo, store, mailer);
 }
 
 // entrypoint

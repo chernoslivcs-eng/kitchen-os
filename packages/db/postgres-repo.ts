@@ -9,7 +9,8 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
+  Repo, UserRow, PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
+  AuthChallenge, AuthSession,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -239,5 +240,123 @@ export class PostgresRepo implements Repo {
       `UPDATE attachment SET ${cols.join(', ')} WHERE id = $${i}`,
       vals,
     );
+  }
+
+  // ----- Користувачі й дом-контекст ---------------------------------------
+
+  async findUserByEmail(email: string): Promise<UserRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM "user" WHERE lower(email) = $1', [email.toLowerCase()]);
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      created_at: new Date(r.created_at).toISOString(),
+    };
+  }
+
+  async createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }> {
+    // Атомарно: юзер + дім + membership. Дім робимо named за email — можна перейменувати згодом.
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const u = await client.query<{ id: string }>(
+        'INSERT INTO "user" (name, email) VALUES ($1, $2) RETURNING id',
+        [name, email.toLowerCase()],
+      );
+      const user_id = u.rows[0]!.id;
+      const h = await client.query<{ id: string }>(
+        'INSERT INTO household (name) VALUES ($1) RETURNING id',
+        [`Дім ${name}`],
+      );
+      const household_id = h.rows[0]!.id;
+      await client.query(
+        'INSERT INTO household_member (household_id, user_id, role) VALUES ($1, $2, $3)',
+        [household_id, user_id, 'owner'],
+      );
+      await client.query('COMMIT');
+      return { user_id, household_id };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async firstHouseholdOf(user_id: string): Promise<string | null> {
+    const { rows } = await this.pool.query<{ household_id: string }>(
+      'SELECT household_id FROM household_member WHERE user_id = $1 ORDER BY joined_at LIMIT 1',
+      [user_id],
+    );
+    return rows[0]?.household_id ?? null;
+  }
+
+  // ----- Автентифікація ---------------------------------------------------
+
+  async saveChallenge(c: AuthChallenge): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO auth_challenge (id, email, token_hash, created_at, expires_at, consumed_at, ip, user_agent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (token_hash) DO NOTHING`,
+      [c.id, c.email, c.token_hash, c.created_at, c.expires_at, c.consumed_at, c.ip, c.user_agent],
+    );
+  }
+
+  async getChallengeByHash(token_hash: string): Promise<AuthChallenge | null> {
+    const { rows } = await this.pool.query('SELECT * FROM auth_challenge WHERE token_hash = $1', [token_hash]);
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      email: r.email,
+      token_hash: r.token_hash,
+      created_at: new Date(r.created_at).toISOString(),
+      expires_at: new Date(r.expires_at).toISOString(),
+      consumed_at: r.consumed_at ? new Date(r.consumed_at).toISOString() : null,
+      ip: r.ip ?? null,
+      user_agent: r.user_agent ?? null,
+    };
+  }
+
+  async consumeChallenge(id: string): Promise<void> {
+    await this.pool.query('UPDATE auth_challenge SET consumed_at = now() WHERE id = $1', [id]);
+  }
+
+  async saveSession(s: AuthSession): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO auth_session (id, user_id, cookie_hash, created_at, last_seen_at, expires_at, revoked_at, ip, user_agent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [s.id, s.user_id, s.cookie_hash, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at, s.ip, s.user_agent],
+    );
+  }
+
+  async getSessionByCookieHash(cookie_hash: string): Promise<AuthSession | null> {
+    const { rows } = await this.pool.query('SELECT * FROM auth_session WHERE cookie_hash = $1', [cookie_hash]);
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      user_id: r.user_id,
+      cookie_hash: r.cookie_hash,
+      created_at: new Date(r.created_at).toISOString(),
+      last_seen_at: new Date(r.last_seen_at).toISOString(),
+      expires_at: new Date(r.expires_at).toISOString(),
+      revoked_at: r.revoked_at ? new Date(r.revoked_at).toISOString() : null,
+      ip: r.ip ?? null,
+      user_agent: r.user_agent ?? null,
+    };
+  }
+
+  async touchSession(id: string, now: string, expires_at: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE auth_session SET last_seen_at = $1, expires_at = $2 WHERE id = $3',
+      [now, expires_at, id],
+    );
+  }
+
+  async revokeSession(id: string): Promise<void> {
+    await this.pool.query('UPDATE auth_session SET revoked_at = now() WHERE id = $1', [id]);
   }
 }
