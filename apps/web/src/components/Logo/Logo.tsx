@@ -44,6 +44,7 @@ export function Logo({ size = 44, variant = 'default', className, style }: Props
           fontSize: size * 0.55,
           letterSpacing: 'var(--tracking-tight)',
           color: 'var(--fg)',
+          whiteSpace: 'nowrap',
         }}
       >
         Kitchen

@@ -109,21 +109,23 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
-  const parsed = tryParse(text);
-  let reply = text;
+  const { parsed, residualText } = extractJson(text);
+  // Якщо JSON знайшовся — reply це те, що ЗАЛИШИЛОСЬ поза ним (може бути порожньо).
+  // Якщо не знайшовся — residualText вже = text, тобто весь текст як reply.
+  let reply = residualText;
   let card: Card | null = null;
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
     // Модель повертає одне з двох:
     //   { reply, card } — обгортка з окремим текстом і карткою
-    //   { type, ops|items|... } — саму картку без обгортки; тоді reply — коротке
-    //   пояснення поверх, збережемо порожнім і покладемось на UI
+    //   { type, ops|items|... } — саму картку без обгортки; reply тоді — те,
+    //   що модель написала поруч із JSON у тому ж повідомленні
     if ('reply' in o && 'card' in o) {
-      reply = typeof o.reply === 'string' ? o.reply : '';
+      reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = (o.card ?? null) as Card | null;
     } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile'].includes(o.type)) {
       card = o as unknown as Card;
-      reply = '';
+      // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }
   }
   return {
@@ -254,9 +256,46 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   };
 }
 
+// Витягає перший верхньорівневий JSON-обʼєкт із тексту й повертає його разом
+// з рештою тексту (все, що НЕ входить у цей обʼєкт). Модель часто пише
+// «<JSON> — коротка фраза», і фраза йде людині як reply, JSON — як card.
+function extractJson(text: string): { parsed: unknown; residualText: string } {
+  const trimmed = text.trim();
+  try {
+    return { parsed: JSON.parse(trimmed), residualText: '' };
+  } catch {}
+  const start = text.indexOf('{');
+  if (start === -1) return { parsed: null, residualText: text };
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') { inString = true; continue; }
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          const parsed = JSON.parse(text.slice(start, i + 1));
+          const residual = (text.slice(0, start) + text.slice(i + 1)).trim();
+          return { parsed, residualText: residual };
+        } catch {
+          return { parsed: null, residualText: text };
+        }
+      }
+    }
+  }
+  return { parsed: null, residualText: text };
+}
+
+// Обгортка для випадків, де нам потрібен лише parsed (у callAttachmentParse).
 function tryParse(text: string): unknown {
-  try { return JSON.parse(text.trim()); } catch {}
-  const m = text.match(/\{[\s\S]*\}$/);
-  if (!m) return null;
-  try { return JSON.parse(m[0]); } catch { return null; }
+  return extractJson(text).parsed;
 }
