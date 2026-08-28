@@ -1,0 +1,16 @@
+{
+  "name": "@kitchen/eval",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "./runner.ts",
+  "scripts": {
+    "start": "tsx runner.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kitchen/prompts": "workspace:*",
+    "@kitchen/catalog": "workspace:*",
+    "@anthropic-ai/sdk": "^0.60.0"
+  }
+}

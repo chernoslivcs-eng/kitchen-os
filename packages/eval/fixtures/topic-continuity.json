@@ -1,0 +1,19 @@
+{
+  "id": "topic-continuity",
+  "description": "Плескавиця з камбоцолою обговорювалась. «Дай рецепт» має стосуватись САМЕ ЇЇ, а не перетворюватись на новий proposal під комору чи в shopping.",
+  "call": "chat",
+  "pantry": [
+    {"id":"p1","label":"Яловично-свинячий фарш","zone":"fridge","v":500,"u":"g","state":"sealed","added_days_ago":1},
+    {"id":"p2","label":"Камбоцола 70%","zone":"fridge","v":193,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Цибуля ріпчаста","zone":"fresh","v":800,"u":"g","state":"sealed"},
+    {"id":"p4","label":"Спагеті №5","zone":"dry","v":500,"u":"g","state":"sealed"},
+    {"id":"p5","label":"Помідори чері","zone":"fresh","v":400,"u":"g","state":"sealed"},
+    {"id":"p6","label":"Пелаті Pomodori","zone":"dry","v":400,"u":"g","state":"opened","opened_days_ago":2}
+  ],
+  "conversation": [
+    {"role":"user","content":"хочу зробити плескавицю з камбоцолою"},
+    {"role":"assistant","content":"[proposal: Плескавиця з камбоцолою — щільна котлета з розтопленим сиром усередині, добре йде з айваром]"},
+    {"role":"user","content":"дай рецепт"}
+  ],
+  "invariants": ["topic-holds:плескавиц", "no-shopping-on-give-recipe", "proposal-single-item-when-topic-set"]
+}

@@ -1,0 +1,131 @@
+// Логіка резолвера, алергенів, антипатернів і пошуку.
+// Свідомо тримається на JS-структурі — тести перевіряють механіку, а не PostgreSQL.
+// У проді ті самі правила стають SQL-запитами по catalog_ingredient + pg_trgm.
+
+import { CATALOG, type CatalogItem } from './seed.js';
+
+// ---------- нормалізація ----------
+
+// Латиниця ↔ кирилиця тут не робимо (у прототипі це fold; для тестів достатньо lowercase).
+// Головне: лапки, апострофи (ʼ / '/’), тире, крапки — прибрати.
+export function normalize(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[ʼ'’ʹ`]/g, '')
+    .replace(/[—–−]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Корінь без останніх двох літер, мінімум 4 символи.
+// Це не морфологія, а її дешевий замінник (див. 01-product.html § M5).
+export function root(word: string): string {
+  const w = normalize(word);
+  if (w.length <= 4) return w;
+  return w.slice(0, Math.max(4, w.length - 2));
+}
+
+// Витяг «значимих» слів із фрази: викидаємо стоп-слова антипатерну.
+// «не їм свинину й похідні» → ["свинину", "похідні"]
+const STOPWORDS = new Set([
+  'не', 'їм', 'є', 'пʼю', 'пю', 'люблю', 'хочу',
+  'і', 'й', 'та', 'з', 'із', 'зі', 'на', 'у', 'в', 'до', 'від',
+  'а', 'ані', 'жодного', 'жодної',
+  'мене', 'мені',
+  'алергія',
+]);
+
+export function meaningfulWords(phrase: string): string[] {
+  return normalize(phrase)
+    .split(/[\s,;.—\-]+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+}
+
+// ---------- алергени ----------
+
+// Алергія «молюски» → знаходить усе, у чого allergen_groups або categories містять «молюски».
+// Оце і є основне рішення каталогу. Без нього «молюски» не помічають «мʼясо мідій».
+export function itemMatchesAllergen(item: CatalogItem, allergyLabel: string): boolean {
+  const norm = normalize(allergyLabel);
+  if (item.allergen_groups.some((g) => normalize(g) === norm)) return true;
+  if (item.categories.some((c) => normalize(c) === norm)) return true;
+  // Родові слова: «морепродукти» → категорія «морепродукти» на позиції каталогу
+  if (item.categories.some((c) => normalize(c).includes(norm))) return true;
+  return false;
+}
+
+// ---------- антипатерни ----------
+
+// «не їм свинину» → root «свини» → категорії item, які починаються на «свини».
+// «Ковбаса Міланська» має categories: ["ковбаса","сирокопчене","свинина","мʼясо","тваринне"].
+// «свинина» починається на «свини» → збіг.
+export function itemMatchesAntipattern(item: CatalogItem, phrase: string): boolean {
+  const words = meaningfulWords(phrase);
+  if (!words.length) return false;
+  for (const w of words) {
+    const r = root(w);
+    for (const cat of item.categories) {
+      if (normalize(cat).startsWith(r)) return true;
+    }
+    for (const alias of item.aliases) {
+      if (normalize(alias).startsWith(r)) return true;
+    }
+    if (normalize(item.name).startsWith(r)) return true;
+  }
+  return false;
+}
+
+// ---------- резолвер: партія комори → catalog_key ----------
+
+// Три джерела зіставлення (див. 01-product.html § S1):
+//   pantry   — посилання на партію (перевірка належності, без здогадок)
+//   catalog  — канонічний ключ (точний збіг за нормалізованою назвою чи аліасом)
+//   external — назва з кулінарного світу (евристика; тут — те саме alias-match зі score)
+export function resolveLabelToKey(label: string, catalog = CATALOG): string | null {
+  const norm = normalize(label);
+  let best: { key: string; score: number } | null = null;
+  for (const item of catalog) {
+    const candidates = [item.name, ...item.aliases].map(normalize);
+    for (const c of candidates) {
+      if (!c) continue;
+      let score = 0;
+      if (c === norm) score = 100;
+      else if (norm.includes(c)) score = 60 + c.length; // «Karolina — мʼясо мідій» містить «мʼясо мідій»
+      else if (c.includes(norm)) score = 40 + norm.length;
+      if (score > (best?.score ?? 0)) best = { key: item.key, score };
+    }
+  }
+  return best && best.score >= 40 ? best.key : null;
+}
+
+// ---------- пошук ----------
+
+export interface SearchHit {
+  item: CatalogItem;
+  layer: 'exact' | 'alias' | 'substring' | 'root';
+  score: number;
+}
+
+// Каскад із ранньою зупинкою (див. 01-product.html § S2).
+// Тут спрощений: exact → alias → substring → root. Модель — окремо, тут її нема.
+export function search(query: string, catalog = CATALOG): SearchHit[] {
+  const q = normalize(query);
+  if (!q) return [];
+  const r = root(query);
+  const hits: SearchHit[] = [];
+
+  for (const item of catalog) {
+    const name = normalize(item.name);
+    const aliases = item.aliases.map(normalize);
+    if (name === q) { hits.push({ item, layer: 'exact', score: 100 }); continue; }
+    if (aliases.includes(q)) { hits.push({ item, layer: 'alias', score: 90 }); continue; }
+    if (name.includes(q) || aliases.some((a) => a.includes(q))) {
+      hits.push({ item, layer: 'substring', score: 70 });
+      continue;
+    }
+    if (name.startsWith(r) || aliases.some((a) => a.startsWith(r))) {
+      hits.push({ item, layer: 'root', score: 50 });
+    }
+  }
+  return hits.sort((a, b) => b.score - a.score);
+}

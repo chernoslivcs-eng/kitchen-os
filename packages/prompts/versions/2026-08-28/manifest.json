@@ -1,0 +1,33 @@
+{
+  "version": "2026-08-28",
+  "notes": "Дослівний перенос із kitchen-prototype.jsx через 03-prompts.md. Кожне правило поставлене після конкретної помилки — реєстр збоїв у 03-prompts.md § «Що ламалось і чим закрито».",
+  "calls": {
+    "chat": {
+      "profile": "fast",
+      "compose": ["role", "onboarding-stage1?", "onboarding-stage2?", "card-rules"],
+      "cache_prefix": ["role", "card-rules"],
+      "notes": "Порядок у промпті: ROLE → [onboarding] → profile → audience → occasions → memory → cuisine → pantry → shopping → card-rules. Кеш ламається при перестановці — див. 02-architecture.html §05."
+    },
+    "recipe_gen": {
+      "profile": "smart",
+      "compose": ["role", "recipe-generator"],
+      "cache_prefix": ["role", "recipe-generator"]
+    },
+    "attachment_parse": {
+      "profile": "fast",
+      "temperature": 0,
+      "compose": ["role", "attachment-parser"],
+      "cache_prefix": ["role", "attachment-parser"]
+    },
+    "recipe_import": {
+      "profile": "smart",
+      "compose": ["role", "attachment-parser"],
+      "cache_prefix": ["role", "attachment-parser"]
+    },
+    "pantry_search": {
+      "profile": "fast",
+      "compose": ["role"],
+      "cache_prefix": ["role"]
+    }
+  }
+}

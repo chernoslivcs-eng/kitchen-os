@@ -1,0 +1,261 @@
+<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Кухня — Архітектура</title><style>
+:root{--bg:#0b0d10;--panel:#12161b;--panel2:#171c22;--line:#2a323c;--text:#f3f5f7;--muted:#98a4b0;--dim:#687584;--accent:#e8a33d;--good:#58d896;--warn:#ff8a5c;--cool:#4dbbff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1440px;margin:auto;padding:34px}
+h1{font-size:34px;margin:0 0 8px;letter-spacing:-.02em}
+h2{font-size:22px;margin:0 0 8px}
+h3{font-size:15px;margin:0 0 6px}
+h4{font-size:11px;margin:0 0 5px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+p,li{font-size:12.5px;line-height:1.55;color:var(--muted)}
+ul{padding-left:17px;margin:6px 0}
+.intro{max-width:1050px}
+.section{margin:26px 0}
+.k{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--accent);font-weight:800;margin-bottom:6px}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:15px;margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#090b0e;border:1px solid #242c35;border-radius:9px;padding:11px;color:#ccd8e3;font-size:11px;line-height:1.5;margin:8px 0}
+code{background:#090b0e;border:1px solid #242c35;border-radius:5px;padding:2px 5px;color:#d6e2ee;font-size:11px}
+.rule{border-left:3px solid var(--good);padding:10px 12px;background:#10151a;border-radius:8px;margin:8px 0}
+.rule.warn{border-left-color:var(--warn)}
+.rule.hot{border-left-color:var(--accent)}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);margin:8px 0}
+td,th{padding:10px;border-bottom:1px solid var(--line);font-size:11.5px;text-align:left;vertical-align:top}
+th{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.sub{color:var(--dim);font-size:11px;margin:0 0 10px}
+hr{border:0;border-top:1px solid var(--line);margin:30px 0}
+@media(max-width:900px){.grid,.grid2{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+
+<h1>Архітектура · продакшн</h1>
+<p class="intro">Що будувати після прототипу. Прототип — фронтенд без бекенду, з викликами моделі напряму з браузера. У продакшні між ними стає сервер, і це змінює три речі: де живуть ключі, де живе стан і хто платить за токени.</p>
+
+<hr>
+
+<section class="section"><div class="k">01 · Межі</div><h2>Що переїжджає на бекенд і чому</h2>
+<table>
+<tr><th>Що</th><th>У прототипі</th><th>У продакшні</th><th>Чому</th></tr>
+<tr><td>Ключ API</td><td>відсутній, виклики проксює пісочниця</td><td>тільки на сервері</td><td>Очевидно</td></tr>
+<tr><td>Стан (комора, профіль, сесії)</td><td>памʼять + key-value сховище</td><td>Postgres</td><td>Спільна комора для кількох пристроїв і кількох людей</td></tr>
+<tr><td>Виклики моделі</td><td>браузер → api.anthropic.com</td><td>браузер → наш API → Anthropic</td><td>Ключі, ліміти, кешування, облік вартості</td></tr>
+<tr><td>MCP мережі</td><td>моки</td><td>сервер, OAuth 2.1 + PKCE</td><td>Токен не можна тримати у фронтенді — сказано в їхній документації</td></tr>
+<tr><td>Зображення</td><td>base64 у повідомленні</td><td>обʼєктне сховище + посилання</td><td>Фото чека — це мегабайти, у БД їм не місце</td></tr>
+<tr><td>Резолвер, пошук, приводи</td><td>браузер</td><td>сервер</td><td>Потрібні каталогу інгредієнтів, який не віддають на клієнт</td></tr>
+</table>
+
+<div class="rule hot"><b>Що лишається на клієнті:</b> рендер карток, черга вкладень, таймери Cook Mode, оптимістичні оновлення. Усе, що має працювати при поганому звʼязку біля плити.</div>
+</section>
+
+<section class="section"><div class="k">02 · Дані</div><h2>Схема</h2>
+<pre>household            дім — головна одиниця власності
+  id, name, created_at
+
+household_member     учасник
+  id, household_id, user_id, role (owner|member), joined_at
+
+user                 людина
+  id, name, email, created_at
+
+profile              особисте, 1:1 з user
+  user_id
+  allergies    text[]     конкретні назви, шукаються збігом
+  wishes       text[]     вільні фрази: традиції, свята, наміри, смаки
+  antipatterns text[]     вільні фрази, сила читається з формулювання
+  equipment    jsonb      {"вок":"has","міксер":"lacks"}
+
+pantry_batch         партія, НЕ продукт
+  id, household_id
+  catalog_key  text null  канонічний ключ, коли впізнали
+  label        text       як показувати людині
+  zone         enum       dry|fridge|freezer|fresh|spices|drinks
+  value, unit
+  state        enum       sealed|opened|depleted
+  opened_at, expires_at, best_before_opened_days
+  added_at, depleted_at
+  confidence   numeric    0..1
+  provenance   enum       receipt_line|package_label|user_statement|visual_guess|inference
+  staple       bool       базове, згортається в промпті
+  last_by      uuid       автор останньої зміни
+  last_action  text
+
+shopping_item
+  id, household_id, label, reason, value, unit, zone
+  checked bool, added_by uuid, source enum, created_at
+
+recipe               заморожений знімок
+  id, owner_id, origin enum (generated|imported|catalog)
+  title, desc, character, risk, base_servings, time_total
+  nutrition jsonb, payload jsonb   -- ings і steps як є
+  created_at
+
+cook_run             приготування
+  id, household_id, user_id, recipe_id
+  servings, started_at, finished_at
+  rating int null, verdict text null, photo_url text null
+
+memory_note          висновок
+  id, user_id, text, recipe_title, rating, pinned bool, created_at
+
+session              розмова
+  id, user_id, title, day date, created_at
+
+message
+  id, session_id, role, text, card jsonb, applied int, created_at
+
+attachment
+  id, message_id, kind enum (image|pdf|text), url, bytes
+
+consumption          для передбачення покупок
+  household_id, catalog_key, times int, last_depleted_at
+
+catalog_ingredient   ВІДСУТНІЙ У ПРОТОТИПІ, критичний
+  key, name, aliases text[], categories text[], zone_default
+  density, unit_weight, allergen_groups text[]</pre>
+
+<div class="rule warn"><b>Індекси, які знадобляться одразу:</b> <code>pantry_batch(household_id, state)</code> — читається в кожному промпті; <code>message(session_id, created_at)</code>; <code>cook_run(user_id, finished_at desc)</code>; повнотекстовий по <code>pantry_batch.label</code> і <code>catalog_ingredient.aliases</code>.</div>
+</section>
+
+<section class="section"><div class="k">03 · Каталог</div><h2>Деталь, якої немає, і без якої не працюють чотири речі</h2>
+<p class="sub">У прототипі все тримається на збігу рядків. Це виходить боком у чотирьох різних місцях, і кожне лікується окремою милицею.</p>
+<table>
+<tr><th>Де болить</th><th>Приклад</th><th>Що дає каталог</th></tr>
+<tr><td>Алергени за змістом</td><td>алергія «молюски» не помічає «мʼясо мідій»</td><td><code>allergen_groups</code> на позиції каталогу</td></tr>
+<tr><td>Релігійні обмеження</td><td>«не їм свинину» не ловить «ковбаса Міланська»</td><td>категорії: <code>[мʼясо, свинина, ковбаса]</code></td></tr>
+<tr><td>Синоніми в резолвері</td><td>«курячий бульйон» не знаходить «фонд курячий»</td><td><code>aliases</code></td></tr>
+<tr><td>Морфологія в пошуку</td><td>«кінзу» не знаходить «кінза»</td><td>лематизація на індексі</td></tr>
+</table>
+<div class="rule hot"><b>Це найдорожча відсутня деталь у продукті.</b> Обсяг для першої версії — 1500–2500 позицій із категоріями й аліасами українською. Джерела: відкриті бази продуктів, каталоги мереж, USDA для поживності. Заповнюється один раз і далі поповнюється з реальних чеків.</div>
+</section>
+
+<hr>
+
+<section class="section"><div class="k">04 · Сервіси</div><h2>Розкладка бекенду</h2>
+<div class="grid">
+<div class="card"><h3>chat-service</h3><p>Збирає промпт, викликає модель, валідує відповідь, застосовує побічні ефекти після підтвердження. Тримає ліміти й облік токенів на користувача.</p></div>
+<div class="card"><h3>pantry-service</h3><p>Партії, стани, терміни, кошик закінченого, авторство. Єдине джерело правди про комору.</p></div>
+<div class="card"><h3>catalog-service</h3><p>Резолвер, синоніми, категорії, алергенні групи, поживність. Читається всіма.</p></div>
+</div>
+<div class="grid">
+<div class="card"><h3>intake-service</h3><p>Вкладення: зображення, PDF, текст. Стиснення, зберігання, розбір, дедуплікація між кількома фото.</p></div>
+<div class="card"><h3>retail-service</h3><p>OAuth із мережею, MCP-виклики, мапінг наш список ↔ їхній каталог, імпорт чеків.</p></div>
+<div class="card"><h3>calendar-service</h3><p>Сезони, пасхалія, місячні дати. Розпізнавання традиції з побажань. Горизонт — рік.</p></div>
+</div>
+
+<h4>Головний ендпоінт</h4>
+<pre>POST /v1/chat
+  { session_id, text, attachments[], audience[] }
+  →
+  { reply, card, usage: { input, output, cached }, mode }
+
+Побічних ефектів НЕ застосовує. Картка повертається як пропозиція.
+
+POST /v1/cards/:id/apply
+  { selected: [op_index] }
+  →
+  { applied, undo_token }
+
+POST /v1/cards/:id/undo
+  { undo_token }</pre>
+
+<div class="rule"><b>Розділення «повернути картку» і «застосувати» — не формальність.</b> Це те саме правило, що й у прототипі: модель ніколи не пише в стан напряму. На бекенді воно стає ще важливішим, бо застосування має бути ідемпотентним і мати токен скасування.</div>
+</section>
+
+<section class="section"><div class="k">05 · Виклики моделі</div><h2>Профілі, кешування, ліміти</h2>
+<table>
+<tr><th>Виклик</th><th>Профіль</th><th>Вхід</th><th>Кешується</th></tr>
+<tr><td>chat / пропозиції</td><td>fast</td><td>≈4300</td><td>роль + правила + комора</td></tr>
+<tr><td>генерація рецепта</td><td>smart</td><td>≈3200</td><td>роль + правила</td></tr>
+<tr><td>розбір вкладень</td><td>fast, temperature 0</td><td>≈2500 + зображення</td><td>роль + комора</td></tr>
+<tr><td>добір кроків</td><td>fast</td><td>≈300</td><td>—</td></tr>
+<tr><td>пошук у коморі</td><td>fast</td><td>≈2500</td><td>комора</td></tr>
+</table>
+
+<pre>Кешування: префікс = роль + правила карток + комора.
+Він змінюється рідко, а решта промпту — часто. Тому порядок блоків
+у системному промпті має бути СТАЛИЙ, від найстабільнішого до найзміннішого:
+
+  ROLE → правила карток → комора → профіль → адресати → приводи → досвід
+
+Переставили місцями — кеш зламався.</pre>
+
+<div class="rule warn"><b>Контрінтуїтивне, перевірене розрахунком:</b> годинний TTL кешу дорожчий за пʼятихвилинний при типовій сесії з трьох викликів. Запис коштує вдвічі, а читань замало, щоб окупити. Довгий TTL має сенс лише для користувачів із довгими сесіями — тобто це параметр, який треба міряти, а не задавати наперед.</div>
+
+<div class="rule warn"><b>Спільна комора × кілька учасників = множення рахунку.</b> Двоє людей у домі отримують той самий стан комори в промпті двічі, і кешування не рятує, бо сесії різні. Варіанти: спільний кеш-префікс на рівні дому, або віддавати комору інструментом за запитом замість того, щоб класти в кожен промпт.</div>
+</section>
+
+<hr>
+
+<section class="section"><div class="k">06 · Інтеграція з мережею</div><h2>MCP «Сільпо»</h2>
+<pre>URL        https://mcp.silpo.ua/mcp
+Транспорт  Streamable HTTP
+Авторизація OAuth 2.1 + PKCE
+Токен      ТІЛЬКИ серверно (вимога документації)
+
+Сценарій «список → кошик»:
+  get_my_shopping_cart → get_shopping_cart_by_id → get_time_slots
+  → find_products_batch (до 30 позицій) → add_or_update_cart_products
+  → посилання на оформлення
+
+Сценарій «чеки → комора»:
+  get_my_offline_orders → IntakeDiff з confidence 1, evidence receipt_line
+
+Профіль:
+  get_my_food_restrictions, get_my_family</pre>
+<div class="rule"><b>Структуровані дані знімають цілий пласт евристики.</b> Позиція з чека мережі приходить із повною впевненістю. Порівняйте з фото, де ми боремося за 60% і вигадані сорти. Резолвер лишається потрібним для того, чого в мережі немає.</div>
+<div class="rule warn"><b>Проєктувати треба під кілька мереж.</b> Інтерфейс <code>RetailProvider</code> із чотирма методами: <code>findBatch</code>, <code>addToCart</code>, <code>receipts</code>, <code>restrictions</code>. Сільпо — перша реалізація, не єдина. Універсальний запасний канал для всіх мереж — QR фіскального чека через реєстр ДПС.</div>
+</section>
+
+<section class="section"><div class="k">07 · Клієнт</div><h2>Що переносити з прототипу як є</h2>
+<div class="grid2">
+<div class="card"><h4>Переносити</h4>
+<ul>
+<li>Три компоненти карток: список зі <code>scope</code>, пропозиція, рецепт</li>
+<li>Один канал уточнення через префікс у полі вводу</li>
+<li>Черга вкладень до відправки</li>
+<li>Cook Mode із згортанням і збереженим кроком</li>
+<li>Скасування останньої зміни комори</li>
+<li>Швидкий локальний ввід «+ молоко 1 л» — працює без мережі</li>
+</ul>
+</div>
+<div class="card"><h4>Переробити</h4>
+<ul>
+<li>51 стан у головному компоненті → стор із доменними зрізами</li>
+<li>Оптимістичні оновлення з відкотом при помилці сервера</li>
+<li>Офлайн-черга: дії в Cook Mode мають доїжджати після відновлення звʼязку</li>
+<li>Зображення: завантаження окремим запитом, а не в тілі повідомлення</li>
+<li>Стрімінг відповіді — зараз чекаємо повний JSON</li>
+</ul>
+</div>
+</div>
+<div class="rule hot"><b>Найважливіше з клієнтського:</b> Cook Mode має працювати при поганому звʼязку. Людина стоїть біля плити, таймер іде, і «немає інтернету» тут неприйнятне. Кроки й таймери — локально, списання — у чергу.</div>
+</section>
+
+<hr>
+
+<section class="section"><div class="k">08 · Приватність</div><h2>Межа проходить за природою даних</h2>
+<pre>СПІЛЬНЕ (household_id)     комора, обладнання, список, календар дому
+ОСОБИСТЕ (user_id)         профіль, досвід, журнал, сесії, задуми
+З ОПЦІЄЮ ПОДІЛИТИСЬ        окремий рецепт, окрема нотатка
+
+Сесії не шеряться НІКОЛИ — це щоденник, а не документ.
+Задуми успадковують приватність сесій, з яких виведені.</pre>
+<div class="rule"><b>Пріоритет власника.</b> Асистент готує для того, хто питає. Обмеження інших учасників підключаються тільки коли їх названо адресатами — ні мовчки, ні «про всяк випадок».</div>
+<div class="rule warn"><b>Що треба вирішити юридично:</b> алергії й релігійні обмеження — чутливі персональні дані. Зберігання, експорт, видалення й термін життя мають бути описані до першого користувача, а не після.</div>
+</section>
+
+<section class="section"><div class="k">09 · Спостережуваність</div><h2>Що міряти з першого дня</h2>
+<table>
+<tr><th>Метрика</th><th>Навіщо</th></tr>
+<tr><td>Частка інгредієнтів, зіставлених посиланням, а не назвою</td><td>Головний показник здоровʼя резолвера. Падає — щось зламалось у каталозі</td></tr>
+<tr><td>Частка підтверджених операцій із запропонованих</td><td>Якість розбору. Нижче 70% — модель домислює забагато</td></tr>
+<tr><td>Скасувань після підтвердження</td><td>Помилки, які людина помітила пізно</td></tr>
+<tr><td>Токенів на активного користувача, з розбивкою по профілях</td><td>Рахунок і місця для оптимізації</td></tr>
+<tr><td>Час від відкриття до першої страви (нові)</td><td>Чи працює знайомство</td></tr>
+<tr><td>Готувань на тиждень і серія</td><td>Головна продуктова метрика: чи стало готування частішим</td></tr>
+<tr><td>Позицій, списаних як «зіпсувалось»</td><td>Чи справді зменшується викидання</td></tr>
+</table>
+<div class="rule"><b>Кожна відповідь моделі має логуватись із версією промпту.</b> Інакше після зміни формулювання неможливо зрозуміти, чому якість поїхала. Промпти — версіоновані артефакти, не рядки в коді.</div>
+</section>
+
+</div></body></html>

@@ -1,0 +1,26 @@
+{
+  "name": "@kitchen/db",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "migrate": "tsx migrate.ts"
+  },
+  "dependencies": {
+    "@kitchen/domain": "workspace:*",
+    "@kitchen/catalog": "workspace:*",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^10.13.2",
+    "@types/pg": "^8.11.10",
+    "vitest": "^2.1.4"
+  }
+}

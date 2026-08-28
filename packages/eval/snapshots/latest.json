@@ -1,0 +1,48 @@
+{
+  "promptVersion": "2026-08-28",
+  "createdAt": "2026-08-28T13:32:11.317Z",
+  "runs": [
+    {
+      "id": "receipt-abbreviated",
+      "call": "attachment_parse",
+      "invariants": {},
+      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+    },
+    {
+      "id": "receipt-nonfood",
+      "call": "attachment_parse",
+      "invariants": {},
+      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+    },
+    {
+      "id": "shelf-photo",
+      "call": "attachment_parse",
+      "invariants": {},
+      "error": "SKIPPED: no image (shelf-photo.jpg not present)"
+    },
+    {
+      "id": "recipe-freeform",
+      "call": "recipe_import",
+      "invariants": {},
+      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+    },
+    {
+      "id": "topic-continuity",
+      "call": "chat",
+      "invariants": {},
+      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+    },
+    {
+      "id": "missing-ingredient",
+      "call": "chat",
+      "invariants": {},
+      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+    },
+    {
+      "id": "allergen-conflict",
+      "call": "chat",
+      "invariants": {},
+      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+    }
+  ]
+}

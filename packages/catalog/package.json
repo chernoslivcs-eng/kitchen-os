@@ -1,0 +1,19 @@
+{
+  "name": "@kitchen/catalog",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "./logic.ts",
+  "types": "./logic.ts",
+  "exports": {
+    ".": "./logic.ts",
+    "./seed": "./seed.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.4"
+  }
+}

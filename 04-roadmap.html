@@ -1,0 +1,122 @@
+<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Кухня — Порядок збірки</title><style>
+:root{--bg:#0b0d10;--panel:#12161b;--line:#2a323c;--text:#f3f5f7;--muted:#98a4b0;--dim:#687584;--accent:#e8a33d;--good:#58d896;--warn:#ff8a5c;--cool:#4dbbff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1440px;margin:auto;padding:34px}
+h1{font-size:34px;margin:0 0 8px;letter-spacing:-.02em}
+h2{font-size:22px;margin:0 0 8px}
+h3{font-size:15px;margin:0 0 6px}
+h4{font-size:11px;margin:0 0 5px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+p,li{font-size:12.5px;line-height:1.55;color:var(--muted)}
+ul{padding-left:17px;margin:6px 0}
+.intro{max-width:1050px}
+.section{margin:26px 0}
+.k{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--accent);font-weight:800;margin-bottom:6px}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:15px;margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#090b0e;border:1px solid #242c35;border-radius:9px;padding:11px;color:#ccd8e3;font-size:11px;line-height:1.5;margin:8px 0}
+code{background:#090b0e;border:1px solid #242c35;border-radius:5px;padding:2px 5px;color:#d6e2ee;font-size:11px}
+.rule{border-left:3px solid var(--good);padding:10px 12px;background:#10151a;border-radius:8px;margin:8px 0}
+.rule.warn{border-left-color:var(--warn)}
+.rule.hot{border-left-color:var(--accent)}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);margin:8px 0}
+td,th{padding:10px;border-bottom:1px solid var(--line);font-size:11.5px;text-align:left;vertical-align:top}
+th{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.sub{color:var(--dim);font-size:11px;margin:0 0 10px}
+.tag{display:inline-block;font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;padding:3px 7px;border-radius:999px;border:1px solid var(--line);color:var(--dim);margin-right:5px}
+.tag.a{border-color:#5a4526;color:#f0c689}
+.tag.b{border-color:#2f4557;color:var(--cool)}
+hr{border:0;border-top:1px solid var(--line);margin:30px 0}
+@media(max-width:900px){.grid,.grid2{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+
+<h1>Порядок збірки</h1>
+<p class="intro">Етапи впорядковані так, щоб кожен закінчувався чимось, що можна дати живій людині. Не «спочатку весь бекенд, потім весь фронт», а вертикальні зрізи.</p>
+
+<hr>
+
+<section class="section"><div class="k">Етап 0</div><h2>Каталог інгредієнтів</h2>
+<p class="sub">Робиться першим, бо від нього залежать чотири інші речі, і кожна з них без нього лікується милицею.</p>
+<pre>1500–2500 позицій українською:
+  key · name · aliases[] · categories[] · zone_default
+  allergen_groups[] · unit_weight · density
+
+Джерела:
+  каталоги мереж (назви як у чеках — найцінніше)
+  відкриті бази продуктів
+  USDA / FoodData для поживності
+
+Категорії потрібні ієрархічні:
+  мідії → молюски → морепродукти
+  бекон → свинина → мʼясо
+  фундук → горіхи (арахіс — НЕ горіх, окрема гілка)</pre>
+<div class="rule hot"><b>Критерій готовності:</b> алергія «молюски» позначає «мʼясо мідій», антипатерн «не їм свинину» позначає «ковбаса Міланська», пошук «кінзу» знаходить «кінза свіжа». Це три тести, які зараз не проходять.</div>
+</section>
+
+<section class="section"><div class="k">Етап 1</div><h2>Ядро: комора, чат, рецепт</h2>
+<p class="sub">Мінімум, після якого продукт має сенс. Один користувач, один дім.</p>
+<div class="grid">
+<div class="card"><h4>Бекенд</h4><ul><li>Postgres, схема з документа архітектури</li><li><code>/v1/chat</code> із розділенням «повернути картку» / «застосувати»</li><li>Профілі моделей, облік токенів</li><li>Кешування префікса</li></ul></div>
+<div class="card"><h4>Клієнт</h4><ul><li>Три компоненти карток</li><li>Один канал уточнення через префікс</li><li>Cook Mode із згортанням, локальні таймери</li><li>Скасування останньої зміни</li></ul></div>
+<div class="card"><h4>Що переносити як є</h4><ul><li>Резолвер із трьома джерелами</li><li>Каскад пошуку</li><li>Лагодження обрізаного JSON</li><li>Швидкий локальний ввід</li></ul></div>
+</div>
+<div class="rule"><b>Критерій:</b> людина наповнює комору текстом, отримує пропозицію, готує зі списанням і бачить це наступного дня з іншого пристрою.</div>
+</section>
+
+<section class="section"><div class="k">Етап 2</div><h2>Вкладення</h2>
+<p class="sub">Найдешевший канал наповнення й найбільша різниця у щоденному користуванні.</p>
+<pre>обʼєктне сховище для зображень
+стиснення на клієнті до 1400px перед відправкою
+PDF як document-блок
+черга вкладень, кілька файлів одним викликом
+temperature 0
+повторний розбір із уточненням</pre>
+<div class="rule warn"><b>Ризик:</b> багатосторінковий PDF рахується як кілька зображень і може впертися в ліміт відповіді. Потрібен розбір частинами з дедуплікацією.</div>
+</section>
+
+<section class="section"><div class="k">Етап 3</div><h2>Дім і приватність</h2>
+<pre>household · household_member · ролі
+розділення спільного й особистого на рівні запитів
+авторство змін у коморі й списку
+адресати: «готую ще на когось»
+запрошення посиланням</pre>
+<div class="rule warn"><b>Тут же вирішується питання вартості:</b> спільна комора йде в промпт кожному учаснику окремо. Або спільний кеш-префікс на рівні дому, або віддавати комору інструментом за запитом.</div>
+</section>
+
+<section class="section"><div class="k">Етап 4</div><h2>Мережа</h2>
+<pre>інтерфейс RetailProvider — не одна мережа, а контракт
+OAuth 2.1 + PKCE, токен серверно
+Сільпо: find_products_batch → кошик, offline_orders → комора
+QR фіскального чека як універсальний канал для решти мереж</pre>
+<div class="rule"><b>Найшвидший спосіб перевірити форму даних:</b> підключити <code>mcp.silpo.ua/mcp</code> у Claude Desktop і подивитись власні чеки перед тим, як писати інтеграцію.</div>
+</section>
+
+<section class="section"><div class="k">Етап 5</div><h2>Соціальний шар</h2>
+<pre>публікація страви з оверлеєм
+метрики: N з M з комори · врятовано K · серія
+шеринг рецепта посиланням із перевіркою проти комори того, хто відкрив</pre>
+<div class="rule"><b>Це єдиний органічний канал росту в продукті.</b> Але він працює тільки якщо перед ним усе інше вже дає результат, яким хочеться поділитись.</div>
+</section>
+
+<hr>
+
+<section class="section"><div class="k">Паралельно</div><h2>Те, що не має чекати на етапи</h2>
+<table>
+<tr><th>Що</th><th>Коли</th><th>Чому не можна відкласти</th></tr>
+<tr><td>Версіонування промптів + лог із версією</td><td>з першого дня</td><td>Інакше після зміни формулювання неможливо зрозуміти, чому якість поїхала</td></tr>
+<tr><td>Набір зафіксованих кейсів</td><td>з першого дня</td><td>Чек зі скороченнями, фото полиці, вставлений рецепт, «дай рецепт» після обговорення, запит із відсутнім продуктом</td></tr>
+<tr><td>Метрика зіставлення посиланням</td><td>з етапу 1</td><td>Головний показник здоровʼя резолвера</td></tr>
+<tr><td>Облік токенів на користувача</td><td>з етапу 1</td><td>Потім не відновити заднім числом</td></tr>
+<tr><td>Правова рамка для алергій</td><td>до першого користувача</td><td>Чутливі дані. Зберігання, експорт, видалення</td></tr>
+</table>
+</section>
+
+<section class="section"><div class="k">Не робити</div><h2>Спокуси, які варто назвати вголос</h2>
+<div class="rule warn"><b>Не додавати екрани під кожну функцію.</b> Прототип пройшов шлях від девʼяти типів карток до трьох і від десяти секцій профілю до трьох. Кожне спрощення далося важче, ніж додавання.</div>
+<div class="rule warn"><b>Не виносити знання системи в плашки.</b> Тричі поспіль ми вішали те, що система знає, окремим блоком — чіпи «рятує», блок припущень, нагадування про задум — і тричі прибирали. Якщо від людини нічого не потрібно, це має бути сказано словами в потрібний момент.</div>
+<div class="rule warn"><b>Не підсилювати тривогу заради метрики.</b> Продукт заробляє на зменшенні викидання, тому спокуса вбудована. Але «горить 11 позицій» знецінює себе за тиждень.</div>
+<div class="rule warn"><b>Не перетворювати приводи на рекламний канал непомітно.</b> Модуль сезонів і свят структурно не відрізняється від нього. Різниця лише в тому, хто платить за подію — і це рішення треба ухвалити свідомо, а не з'ясувати постфактум.</div>
+</section>
+
+</div></body></html>

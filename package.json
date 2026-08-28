@@ -1,0 +1,19 @@
+{
+  "name": "kitchen-os",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "eval": "pnpm --filter @kitchen/eval run start",
+    "eval:diff": "pnpm --filter @kitchen/eval run start -- --diff-only",
+    "test": "pnpm -r --parallel test",
+    "typecheck": "pnpm -r --parallel typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "tsx": "^4.19.1",
+    "vitest": "^2.1.4",
+    "@types/node": "^22.7.5"
+  }
+}

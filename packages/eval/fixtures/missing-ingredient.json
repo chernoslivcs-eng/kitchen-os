@@ -1,0 +1,16 @@
+{
+  "id": "missing-ingredient",
+  "description": "Користувач хоче страву з інгредієнтом, якого в коморі немає. Модель має дати proposal з 2-3 варіантами навколо цього інгредієнта; в needs — точна назва продукту, який треба докупити. Ніколи не відмовляти через відсутність.",
+  "call": "chat",
+  "pantry": [
+    {"id":"p1","label":"Спагеті №5","zone":"dry","v":500,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Часник","zone":"fresh","v":100,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Пармезан","zone":"fridge","v":80,"u":"g","state":"opened"},
+    {"id":"p4","label":"Оливкова олія екстра","zone":"spices","v":500,"u":"ml","state":"opened"},
+    {"id":"p5","label":"Помідори чері","zone":"fresh","v":250,"u":"g","state":"sealed"}
+  ],
+  "conversation": [
+    {"role":"user","content":"хочу приготувати щось із креветками сьогодні"}
+  ],
+  "invariants": ["is-proposal", "not-a-refusal", "needs-mentions-креветк", "at-least-2-items"]
+}

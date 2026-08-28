@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kitchen-postgres
+    environment:
+      POSTGRES_USER: kitchen
+      POSTGRES_PASSWORD: kitchen
+      POSTGRES_DB: kitchen
+    ports:
+      - "5433:5432"    # 5433, щоб не битися з локальним pg
+    volumes:
+      - kitchen_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kitchen -d kitchen"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  kitchen_pg_data:
