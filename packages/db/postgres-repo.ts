@@ -11,11 +11,28 @@ import type { Pool } from './pool.js';
 import type {
   Repo, UserRow, PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
+  HouseholdInvite, HouseholdRole,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
+
+function rowToInvite(r: Row): HouseholdInvite {
+  return {
+    id: r.id as string,
+    household_id: r.household_id as string,
+    invited_by: r.invited_by as string,
+    email: r.email as string,
+    role: r.role as HouseholdRole,
+    token_hash: r.token_hash as string,
+    created_at: new Date(r.created_at as string).toISOString(),
+    expires_at: new Date(r.expires_at as string).toISOString(),
+    consumed_at: r.consumed_at ? new Date(r.consumed_at as string).toISOString() : null,
+    consumed_by: (r.consumed_by as string | null) ?? null,
+    revoked_at: r.revoked_at ? new Date(r.revoked_at as string).toISOString() : null,
+  };
+}
 
 function rowToBatch(r: Row): PantryBatch {
   return {
@@ -375,6 +392,66 @@ export class PostgresRepo implements Repo {
         row.latency_ms, row.created_at,
       ],
     );
+  }
+
+  // ----- Дом-membership і запрошення --------------------------------------
+
+  async isMember(household_id: string, user_id: string): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      'SELECT 1 FROM household_member WHERE household_id = $1 AND user_id = $2 LIMIT 1',
+      [household_id, user_id],
+    );
+    return rows.length > 0;
+  }
+
+  async addMember(household_id: string, user_id: string, role: HouseholdRole): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO household_member (household_id, user_id, role) VALUES ($1, $2, $3)
+       ON CONFLICT (household_id, user_id) DO NOTHING`,
+      [household_id, user_id, role],
+    );
+  }
+
+  async saveInvite(inv: HouseholdInvite): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO household_invite
+         (id, household_id, invited_by, email, role, token_hash, created_at, expires_at, consumed_at, consumed_by, revoked_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        inv.id, inv.household_id, inv.invited_by, inv.email.toLowerCase(), inv.role,
+        inv.token_hash, inv.created_at, inv.expires_at,
+        inv.consumed_at, inv.consumed_by, inv.revoked_at,
+      ],
+    );
+  }
+
+  async getInviteByHash(token_hash: string): Promise<HouseholdInvite | null> {
+    const { rows } = await this.pool.query('SELECT * FROM household_invite WHERE token_hash = $1', [token_hash]);
+    return rows[0] ? rowToInvite(rows[0]) : null;
+  }
+
+  async getInvite(id: string): Promise<HouseholdInvite | null> {
+    const { rows } = await this.pool.query('SELECT * FROM household_invite WHERE id = $1', [id]);
+    return rows[0] ? rowToInvite(rows[0]) : null;
+  }
+
+  async consumeInvite(id: string, consumed_by: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE household_invite SET consumed_at = now(), consumed_by = $2 WHERE id = $1',
+      [id, consumed_by],
+    );
+  }
+
+  async revokeInvite(id: string): Promise<void> {
+    await this.pool.query('UPDATE household_invite SET revoked_at = now() WHERE id = $1', [id]);
+  }
+
+  async listInvitesForHousehold(household_id: string): Promise<HouseholdInvite[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM household_invite WHERE household_id = $1 ORDER BY created_at DESC',
+      [household_id],
+    );
+    return rows.map(rowToInvite);
   }
 
   async listTokenUsage(user_id: string, limit = 100): Promise<TokenUsageRow[]> {

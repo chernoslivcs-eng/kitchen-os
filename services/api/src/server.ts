@@ -9,6 +9,7 @@ import { chatRoute } from './routes/chat.js';
 import { cardsRoutes } from './routes/cards.js';
 import { attachmentsRoutes } from './routes/attachments.js';
 import { authRoutes } from './routes/auth.js';
+import { invitesRoutes } from './routes/invites.js';
 
 // Один сервіс на MVP: auth + chat + cards + attachments в тому самому процесі, спільний Repo.
 
@@ -22,6 +23,7 @@ export function buildApp(
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
   authRoutes(app, repo, mailer);
+  invitesRoutes(app, repo, mailer);
   chatRoute(app, repo, store);
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);

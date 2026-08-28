@@ -17,8 +17,38 @@ function sha256(input: string): string {
 
 // Одноразовий токен для листа. base64url без паддингу, 32 байти ентропії — достатньо
 // проти брутфорсу за 15 хв TTL, коротший за URL-безпечний JWT.
-function randomToken(): string {
+export function randomToken(): string {
   return randomBytes(32).toString('base64url');
+}
+
+export function hashToken(raw: string): string {
+  return sha256(raw);
+}
+
+// Створити нову сесію для user_id. Виносимо із verifyChallenge, щоб той самий
+// код використовувався для magic-link і для invite accept — інакше два потоки
+// поволі розійдуться в деталях (TTL, поля, атрибути).
+export async function openSession(
+  repo: Repo,
+  user_id: string,
+  ip?: string | null,
+  user_agent?: string | null,
+): Promise<{ session: AuthSession; raw_cookie: string }> {
+  const raw_cookie = randomToken();
+  const now = new Date();
+  const session: AuthSession = {
+    id: randomUUID(),
+    user_id,
+    cookie_hash: sha256(raw_cookie),
+    created_at: now.toISOString(),
+    last_seen_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
+    revoked_at: null,
+    ip: ip ?? null,
+    user_agent: user_agent ?? null,
+  };
+  await repo.saveSession(session);
+  return { session, raw_cookie };
 }
 
 export interface RequestChallengeInput {
@@ -83,21 +113,7 @@ export async function verifyChallenge(repo: Repo, raw_token: string, ip?: string
     household_id = created.household_id;
   }
 
-  const raw_cookie = randomToken();
-  const now = new Date();
-  const session: AuthSession = {
-    id: randomUUID(),
-    user_id,
-    cookie_hash: sha256(raw_cookie),
-    created_at: now.toISOString(),
-    last_seen_at: now.toISOString(),
-    expires_at: new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
-    revoked_at: null,
-    ip: ip ?? null,
-    user_agent: user_agent ?? null,
-  };
-  await repo.saveSession(session);
-
+  const { session, raw_cookie } = await openSession(repo, user_id, ip, user_agent);
   return { ok: true, result: { session, raw_cookie, user_id, household_id } };
 }
 

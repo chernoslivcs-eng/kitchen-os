@@ -11,8 +11,9 @@
 - Крок 2а (Postgres) — `packages/db` з реалізацією Repo проти pg + міграційним раннером. Контракт домену прогоняється проти обох реалізацій (InMemory + Postgres) із того самого файлу [`packages/domain/contract.ts`](packages/domain/contract.ts) — це гарантує, що дрейф між реалізаціями ловиться тестом. **Тестовано проти Neon**: 8/8 тестів PostgresRepo пройшли на dev branch; міграції `0001_init.sql` застосовані; три архітектурні правила підтверджені.**
 - Крок 3 (вкладення) — `POST /v1/attachments` (multipart), `/v1/chat { attachments: [{id}] }` маршрутизує на `attachment_parse` (temperature 0), `POST /v1/attachments/:id/reparse` для повторного розбору з підказкою. Обʼєктне сховище через `AttachmentStore` (`LocalFSStore` + `InMemoryStore`); S3 — окрема реалізація.
 - Крок 3а (auth) — magic-link + серверні сесії. Три ендпоінти: `POST /v1/auth/request`, `GET /v1/auth/verify?token=`, `POST /v1/auth/logout`. Cookie `kos` (httpOnly, sameSite=lax). Всі захищені ендпоінти (chat, cards, attachments) беруть `user_id`/`household_id` із сесії, а не з тіла запиту. Пошта — інтерфейс `Mailer` з `ConsoleMailer` для дев/тестів; прод-провайдер (Resend/SES/SMTP) — окремий крок. Міграція `0002_auth.sql`.
-- Дім — дані вже є (`household`, `household_member`, `pantry_batch` прив'язана до `household_id`, `profile` до `user_id`). Створення юзера через magic-link одразу створює його дім. Запрошення в дім посиланням — окремий крок.
-- Далі: облік токенів на користувача (зараз рахується, але ніде не пишеться), запрошення в дім посиланням, прод-мейлер, мережа.
+- Крок 3б (облік токенів) — `token_usage` рядок на кожен виклик моделі (стаб теж, з `mode='stub'`). Міграція `0003_token_usage.sql`. У проді фільтрувати `mode='live'`.
+- Крок 3в (запрошення в дім) — `POST /v1/households/:id/invite`, `POST /v1/invites/:id/revoke`, `GET /v1/invites/accept?token=`. Той самий каркас, що magic-link: `token_hash` SHA-256, одноразовий, TTL 7 днів, revocable. Клік по лінку сам логінить запрошеного (створює user + сесію) і додає в `household_member`. Міграція `0004_household_invite.sql`.
+- Далі: прод-мейлер, rate limit на `/v1/auth/request`, звірка `allergen_groups` на 115 нових позицій каталогу, розширення каталогу до 1500-2500, мережа Сільпо.
 
 ## Postgres: Neon або локально
 

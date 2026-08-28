@@ -170,6 +170,24 @@ export interface UserContext {
   session_id: string;
 }
 
+// ----- Запрошення в дім -------------------------------------------------
+
+export type HouseholdRole = 'owner' | 'member';
+
+export interface HouseholdInvite {
+  id: string;
+  household_id: string;
+  invited_by: string;
+  email: string;                     // нижній регістр
+  role: HouseholdRole;
+  token_hash: string;                // SHA-256(hex) від сирого токена
+  created_at: string;
+  expires_at: string;
+  consumed_at: string | null;
+  consumed_by: string | null;
+  revoked_at: string | null;
+}
+
 // ----- Вкладення --------------------------------------------------------
 
 export type AttachmentKind = 'image' | 'pdf' | 'text';

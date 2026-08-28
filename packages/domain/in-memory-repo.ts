@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Repo, UserRow } from './repo.js';
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
-  AuthChallenge, AuthSession, TokenUsageRow,
+  AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 
@@ -17,6 +17,8 @@ export class InMemoryRepo implements Repo {
   private challenges = new Map<string, AuthChallenge>();      // by token_hash
   private sessions = new Map<string, AuthSession>();          // by cookie_hash
   private tokenUsage: TokenUsageRow[] = [];
+  private invites = new Map<string, HouseholdInvite>();          // by id
+  private inviteByHash = new Map<string, string>();              // token_hash → id
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -168,5 +170,51 @@ export class InMemoryRepo implements Repo {
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, limit)
       .map((r) => ({ ...r }));
+  }
+
+  async isMember(household_id: string, user_id: string): Promise<boolean> {
+    return (this.members.get(user_id) ?? []).includes(household_id);
+  }
+
+  async addMember(household_id: string, user_id: string, _role: HouseholdRole): Promise<void> {
+    const arr = this.members.get(user_id) ?? [];
+    if (!arr.includes(household_id)) {
+      arr.push(household_id);
+      this.members.set(user_id, arr);
+    }
+  }
+
+  async saveInvite(inv: HouseholdInvite): Promise<void> {
+    this.invites.set(inv.id, { ...inv });
+    this.inviteByHash.set(inv.token_hash, inv.id);
+  }
+
+  async getInviteByHash(token_hash: string): Promise<HouseholdInvite | null> {
+    const id = this.inviteByHash.get(token_hash);
+    if (!id) return null;
+    return this.invites.get(id) ?? null;
+  }
+
+  async getInvite(id: string): Promise<HouseholdInvite | null> {
+    return this.invites.get(id) ?? null;
+  }
+
+  async consumeInvite(id: string, consumed_by: string): Promise<void> {
+    const cur = this.invites.get(id);
+    if (!cur) return;
+    this.invites.set(id, { ...cur, consumed_at: new Date().toISOString(), consumed_by });
+  }
+
+  async revokeInvite(id: string): Promise<void> {
+    const cur = this.invites.get(id);
+    if (!cur) return;
+    this.invites.set(id, { ...cur, revoked_at: new Date().toISOString() });
+  }
+
+  async listInvitesForHousehold(household_id: string): Promise<HouseholdInvite[]> {
+    return [...this.invites.values()]
+      .filter((i) => i.household_id === household_id)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map((i) => ({ ...i }));
   }
 }

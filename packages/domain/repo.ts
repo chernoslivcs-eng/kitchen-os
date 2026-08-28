@@ -3,7 +3,7 @@
 
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
-  AuthChallenge, AuthSession, TokenUsageRow,
+  AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
 } from './types.js';
 
 export interface UserRow {
@@ -54,4 +54,14 @@ export interface Repo {
   // Облік токенів
   logTokenUsage(row: TokenUsageRow): Promise<void>;
   listTokenUsage(user_id: string, limit?: number): Promise<TokenUsageRow[]>;
+
+  // Дом-membership і запрошення
+  isMember(household_id: string, user_id: string): Promise<boolean>;
+  addMember(household_id: string, user_id: string, role: HouseholdRole): Promise<void>;
+  saveInvite(inv: HouseholdInvite): Promise<void>;
+  getInviteByHash(token_hash: string): Promise<HouseholdInvite | null>;
+  getInvite(id: string): Promise<HouseholdInvite | null>;
+  consumeInvite(id: string, consumed_by: string): Promise<void>;
+  revokeInvite(id: string): Promise<void>;
+  listInvitesForHousehold(household_id: string): Promise<HouseholdInvite[]>;
 }
