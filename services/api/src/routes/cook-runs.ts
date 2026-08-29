@@ -60,7 +60,27 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         photo_url: null,
       });
 
-      return reply.code(201).send({ id: run_id, recipe_id });
+      // Списання партій, на які модель поставила посилання (ing.p = batch id).
+      // Це замикає цикл: те, що використали в готуванні — зникає з комори.
+      // Що моделі не вдалось повʼязати з коморою (ing.n лише) — не чіпаємо.
+      let depleted = 0;
+      const depletedIds: string[] = [];
+      for (const ing of recipe.ing ?? []) {
+        if (!ing.p) continue;
+        const batch = await repo.getBatch(ing.p);
+        if (!batch || batch.household_id !== household_id) continue;
+        if (batch.state === 'depleted') continue;
+        await repo.updateBatch(batch.id, {
+          state: 'depleted',
+          depleted_at: now,
+          last_by: user_id,
+          last_action: 'cook',
+        });
+        depletedIds.push(batch.id);
+        depleted++;
+      }
+
+      return reply.code(201).send({ id: run_id, recipe_id, depleted, depleted_batch_ids: depletedIds });
     },
   );
 

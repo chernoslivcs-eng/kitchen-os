@@ -74,10 +74,14 @@ export function CookPage() {
   const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
   const done = stepIdx >= total;
 
-  // Тихий post при завершенні — не блокуємо UX, просто fire-and-forget.
+  // При завершенні: зберігаємо cook-run і списуємо використані партії.
+  // Кількість повертаємо, щоб «Готово» показало «списано N позицій».
+  const [depleted, setDepleted] = useState<number | null>(null);
   useEffect(() => {
     if (done) {
-      void api.cookRuns.save(recipe).catch(() => {/* offline: наступним разом */});
+      api.cookRuns.save(recipe)
+        .then((r) => setDepleted(r.depleted))
+        .catch(() => {/* offline: наступним разом */});
     }
   }, [done, recipe]);
 
@@ -98,7 +102,17 @@ export function CookPage() {
 
       <div className={styles.body}>
         {done ? (
-          <div className={styles['step-title']}>Готово. Смачного.</div>
+          <>
+            <div className={styles['step-title']}>Готово. Смачного.</div>
+            {depleted != null && depleted > 0 && (
+              <div className={styles.section}>
+                <MonoLabel className={styles['section-label']}>СПИСАНО З КОМОРИ</MonoLabel>
+                <div className={styles.next}>
+                  {depleted} {depleted === 1 ? 'позиція' : 'позицій'} — те, що взяли на це блюдо.
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <div className={styles['step-title']}>
@@ -140,15 +154,31 @@ export function CookPage() {
       </div>
 
       <div className={styles.foot}>
-        <button
-          className={styles.main}
-          onClick={() => {
-            if (done) navigate('/app');
-            else setStepIdx((i) => i + 1);
-          }}
-        >
-          {done ? '← У стрічку' : stepIdx === total - 1 ? 'Готово ✓' : 'Крок готово ✓'}
-        </button>
+        {done ? (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className={styles.main}
+              style={{ flex: 1 }}
+              onClick={() => navigate('/share', { state: { recipe } })}
+            >
+              Поділитись
+            </button>
+            <button
+              className={styles.main}
+              style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 120 }}
+              onClick={() => navigate('/app')}
+            >
+              У стрічку
+            </button>
+          </div>
+        ) : (
+          <button
+            className={styles.main}
+            onClick={() => setStepIdx((i) => i + 1)}
+          >
+            {stepIdx === total - 1 ? 'Готово ✓' : 'Крок готово ✓'}
+          </button>
+        )}
         <div className={styles.offline}>Працює без мережі · таймер живе локально</div>
       </div>
     </div>

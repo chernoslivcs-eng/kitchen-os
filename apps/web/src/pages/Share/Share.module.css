@@ -1,0 +1,149 @@
+/* Публікація страви (M15 з брифу): Strava-style overlay поверх фото.
+ * «Не глянцевий фудпорн, а „зібрав із того, що було"». */
+.screen {
+  min-height: 100dvh;
+  background: var(--bg-body);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px 0;
+}
+.exit {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--fg-muted);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.body {
+  flex: 1;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Preview: 9:16, або кому як зайшло. */
+.canvas {
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 3 / 4;
+  margin: 0 auto;
+  background: #101317;
+  border-radius: var(--r-2xl);
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow-panel);
+  display: grid;
+  place-items: center;
+}
+.canvas img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.canvas.empty {
+  border: 2px dashed rgba(255,255,255,0.15);
+}
+.canvas .placeholder {
+  color: rgba(255,255,255,0.6);
+  font-family: var(--font-body);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+  z-index: 1;
+}
+
+/* Overlay-текст поверх фото. Без плашки, лише мʼяка тінь для читабельності —
+ * так, як у брифі §03 Патерни: «текст із м'якою тінню прямо на фото». */
+.overlay {
+  position: absolute;
+  inset: 0;
+  padding: 24px;
+  color: #ffffff;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.overlay .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.85);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+.overlay .bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.overlay .dish {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.55);
+}
+.overlay .stats {
+  display: flex;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+.overlay .logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.overlay .logo span {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+
+.actions { display: flex; gap: 10px; }
+.actions > * { flex: 1; }
+.hint {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (min-width: 720px) {
+  .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
+}
