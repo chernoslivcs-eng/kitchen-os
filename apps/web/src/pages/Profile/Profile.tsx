@@ -113,7 +113,7 @@ export function ProfilePage() {
         <div className={styles.section}>
           <div className={styles['section-label']}>Побажання</div>
           <div className={styles.hint}>
-            Куди тягнути. Вільні фрази: традиції, дієта, свята, наміри, смаки.
+            Куди тягне. Наприклад: більше риби, менше цукру, українська кухня на свята.
           </div>
           <div className={styles.chips}>
             {(profile?.wishes ?? []).length === 0 && (
@@ -126,7 +126,7 @@ export function ProfilePage() {
         </div>
 
         <div className={styles.section}>
-          <div className={styles['section-label']}>Антипатерни</div>
+          <div className={styles['section-label']}>Чого не їм</div>
           <div className={styles.hint}>
             Від чого відштовхуватись. Сила читається з формулювання: «не їм свинину» — принципово; «не люблю кінзу» — смак.
           </div>

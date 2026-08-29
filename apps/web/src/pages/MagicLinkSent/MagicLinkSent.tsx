@@ -16,7 +16,7 @@ export function MagicLinkSent() {
       <div className={styles.panel}>
         <div className={styles.head}>
           <Logo size={40} />
-          <MonoLabel tone="pending">◌ ЛИНК ЛЕТИТЬ</MonoLabel>
+          <MonoLabel tone="pending">◌ ЛІНК ЛЕТИТЬ</MonoLabel>
         </div>
         <div className={styles.hero}>
           <h1 className={styles.title}>Перевір пошту</h1>

@@ -168,7 +168,7 @@ export function SharePage() {
         <Button variant="secondary" onClick={copyLink}>{copied ? 'Скопійовано ✓' : 'Скопіювати підпис'}</Button>
         {shareUrl && (
           <div className={styles.hint} style={{ marginTop: -6 }}>
-            Друзі клацнуть <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg)' }}>/r/{recipeId?.slice(0, 8)}…</span> — побачать той же рецепт, зможуть готувати в себе.
+            Хто відкриє лінк — побачить той самий рецепт і зможе готувати в себе.
           </div>
         )}
 

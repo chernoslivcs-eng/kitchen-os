@@ -113,7 +113,7 @@ export function CookLogPage() {
         {empty && (
           <div className={styles.empty}>
             <h3>Ще нічого не готували</h3>
-            <p>Приготуй перше блюдо — з&apos;явиться тут. Спогад про вечір, а не рецензія.</p>
+            <p>Приготуй першу страву — з&apos;явиться тут. Спогад про вечір, а не рецензія.</p>
           </div>
         )}
         {!empty && filteredRuns.length === 0 && query && (

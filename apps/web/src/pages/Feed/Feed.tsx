@@ -34,6 +34,10 @@ interface Toast {
   kind: 'ok' | 'err';
   text: string;
   onUndo?: () => void;
+  // Тост живе до setToast(null). Undo timeout — 18с (людина може відволіктись
+  // на екран; 6с — не встигає). «Готую рецепт…» — persist:true, поки
+  // openingRecipe не спаде до false.
+  persist?: boolean;
 }
 
 function hhmm(): string {
@@ -191,8 +195,11 @@ export function Feed() {
   }, [turns]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 6000);
+    if (!toast || toast.persist) return;
+    // Undo toast — довше вікно (людина може прочитати й натиснути).
+    // Успіх без undo — 5с, помилка — 8с. «Готую рецепт…» — persist до кінця.
+    const ttl = toast.onUndo ? 18_000 : (toast.kind === 'err' ? 8_000 : 5_000);
+    const t = setTimeout(() => setToast(null), ttl);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -297,7 +304,7 @@ export function Feed() {
     const pick = items[index];
     if (!pick?.title) return;
     setOpeningRecipe(true);
-    setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…' });
+    setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…', persist: true });
     try {
       const { recipe } = await api.recipes.generate(pick.title, pick.desc);
       setToast(null);
@@ -426,9 +433,8 @@ export function Feed() {
           <div className={styles.empty}>
             <h3>Скажи, що купив або що хочеш приготувати</h3>
             <p>
-              «купив моцарелу 250 г», «поклав у морозилку лосось», «дай рецепт з
-              вершків і фуета», «додай молоко в список», «Оля не їсть лактозу» — все
-              одне поле, усе через підтвердження.
+              «купив моцарелу 250 г» або «дай рецепт з вершків і фуета» — одне поле,
+              усе через підтвердження.
             </p>
             {pantryCount === 0 && (
               <button

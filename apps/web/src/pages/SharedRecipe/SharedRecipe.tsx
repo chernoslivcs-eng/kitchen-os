@@ -13,6 +13,7 @@ import { useAuth } from '../../store/auth';
 import type { Recipe } from '../../api';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
+import { renderStepContent } from '../../lib/recipe';
 import styles from './SharedRecipe.module.css';
 
 interface SharedRecipeResponse {
@@ -108,7 +109,7 @@ export function SharedRecipePage() {
                 </div>
                 <div className={styles['step-body']}>
                   <div className={`${styles['step-title']} ${styles.pending}`}>
-                    {step.t}. {step.c}
+                    {step.t}. {renderStepContent(step.c, r.ing)}
                   </div>
                 </div>
               </div>

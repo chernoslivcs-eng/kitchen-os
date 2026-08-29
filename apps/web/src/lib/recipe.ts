@@ -25,17 +25,28 @@ export function resolveIngName(ing: RecipeIngLite, labels?: BatchLabels): string
 
 // {0}, {1}, ... у step.c → назва відповідного інгредієнта, з опційною
 // кількістю. Дублювалось в Recipe.tsx і Cook.tsx — winесено сюди.
+//
+// QA3-01 guard: sonnet-4.5 іноді пише і назву словами, і плейсхолдер
+// («Часник {1} подрібни»). Промпт це забороняє, але страховка тут: якщо
+// перед `{N}` (одразу або через пробіл) стоїть та сама назва інгредієнта —
+// прибираємо дублікат. Регістр і закінчення не звіряємо через відмінки —
+// перевіряємо збіг перших 3 символів на нижньому регістрі, цього достатньо.
 export function renderStepContent(
   content: string,
   ing: RecipeIngLite[],
   labels?: BatchLabels,
 ): string {
-  return content.replace(/\{(\d+)\}/g, (_, idx) => {
+  return content.replace(/(\S*?)\s*\{(\d+)\}/g, (match, before: string, idx: string) => {
     const i = Number(idx);
     const it = ing[i];
-    if (!it) return `{${idx}}`;
+    if (!it) return match;
     const name = resolveIngName(it, labels);
-    if (it.v != null && it.u) return `${name} ${formatQty(it.v, it.u)}`.trim();
-    return name;
+    const rendered = it.v != null && it.u ? `${name} ${formatQty(it.v, it.u)}`.trim() : name;
+    // Прибираємо назву перед плейсхолдером, якщо це той самий інгредієнт.
+    const firstWord = name.split(/\s+/)[0]?.toLowerCase() ?? '';
+    if (before && firstWord.length >= 3 && before.toLowerCase().startsWith(firstWord.slice(0, 3))) {
+      return rendered;
+    }
+    return before ? `${before} ${rendered}` : rendered;
   });
 }

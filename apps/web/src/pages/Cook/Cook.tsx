@@ -384,7 +384,7 @@ export function CookPage() {
             className={styles.main}
             onClick={() => setStepIdx((i) => i + 1)}
           >
-            {stepIdx === total - 1 ? 'Готово ✓' : 'Крок готово ✓'}
+            {stepIdx === total - 1 ? 'Готово ✓' : 'Далі →'}
           </button>
         )}
         <div className={styles.offline}>Працює без мережі · таймер живе локально</div>
