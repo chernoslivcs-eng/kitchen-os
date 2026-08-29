@@ -201,6 +201,7 @@ export const api = {
         body: JSON.stringify({ checked }),
       }),
     remove: (id: string) => req<null>(`/v1/shopping/${id}`, { method: 'DELETE' }),
+    unpack: () => req<{ created: number }>('/v1/shopping/unpack', { method: 'POST', body: '{}' }),
   },
 
   profile: () => req<{ profile: ProfileData }>('/v1/profile'),

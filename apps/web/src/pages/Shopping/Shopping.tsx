@@ -37,13 +37,47 @@ export function ShoppingPage() {
     }
   }
 
+  const [unpacking, setUnpacking] = useState(false);
+  async function unpackChecked() {
+    if (!confirm(`Перекласти ${checkedCount} позицій із «куплено» в комору?`)) return;
+    setUnpacking(true);
+    try {
+      await api.shopping.unpack();
+      const fresh = await api.shopping.list();
+      setItems(fresh.items);
+    } finally { setUnpacking(false); }
+  }
+
   const unchecked = items.filter((x) => !x.checked).length;
+  const checkedCount = items.filter((x) => x.checked).length;
 
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
         <div className={styles.title}>Список</div>
-        <div className={styles.meta}>{unchecked} / {items.length}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {checkedCount > 0 && (
+            <button
+              onClick={unpackChecked}
+              disabled={unpacking}
+              style={{
+                background: 'var(--accent-bg)',
+                border: '1px solid var(--accent)',
+                borderRadius: 'var(--r-pill)',
+                padding: '5px 12px',
+                color: 'var(--accent)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                cursor: unpacking ? 'wait' : 'pointer',
+              }}
+            >
+              → В КОМОРУ ({checkedCount})
+            </button>
+          )}
+          <div className={styles.meta}>{unchecked} / {items.length}</div>
+        </div>
       </div>
 
       <div className={styles.body}>
