@@ -123,4 +123,38 @@ export const api = {
         { method: 'POST', body: JSON.stringify({ undo_token }) },
       ),
   },
+
+  recipes: {
+    generate: (title: string, context?: string) =>
+      req<{ recipe: Recipe; meta: unknown; usage: unknown }>(
+        '/v1/recipes/generate',
+        { method: 'POST', body: JSON.stringify({ title, context }) },
+      ),
+  },
 };
+
+// ----- Recipe types -------------------------------------------------------
+
+export interface RecipeIng {
+  p?: string;
+  n?: string;
+  v?: number;
+  u?: string;
+}
+export interface RecipeStep {
+  t: string;
+  c: string;
+  s?: number;                // сек. для таймера, якщо крок часовий
+}
+export interface Recipe {
+  t: string;                 // title
+  sv: number;                // servings
+  tm: number;                // total minutes
+  ch: string;                // характер
+  d: string;                 // description
+  rk: string;                // ключова помилка
+  nu?: { kcal: number; p: number; f: number; c: number };
+  op?: string[];
+  ing: RecipeIng[];
+  st: RecipeStep[];
+}

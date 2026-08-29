@@ -4,6 +4,7 @@
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
@@ -41,12 +42,14 @@ const newId = () => `t${nextId++}`;
 
 export function Feed() {
   const logout = useAuth((s) => s.logout);
+  const navigate = useNavigate();
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [openingRecipe, setOpeningRecipe] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   async function refreshPantry() {
@@ -123,6 +126,25 @@ export function Feed() {
     }
   }
 
+  async function openRecipe(turn: Turn) {
+    // Клік «Рецепт →» на пропозиції: беремо перший title як seed для генератора.
+    if (turn.card?.type !== 'proposal') return;
+    const items = (turn.card.items as { title?: string; desc?: string }[] | undefined) ?? [];
+    const first = items[0];
+    if (!first?.title) return;
+    setOpeningRecipe(true);
+    setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…' });
+    try {
+      const { recipe } = await api.recipes.generate(first.title, first.desc);
+      setToast(null);
+      navigate('/recipe', { state: { recipe } });
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    } finally {
+      setOpeningRecipe(false);
+    }
+  }
+
   async function undo(turnId: string, undoToken: string) {
     const turn = turns.find((t) => t.id === turnId);
     if (!turn?.cardId) return;
@@ -178,7 +200,7 @@ export function Feed() {
                 undoAvailable={!!t.undoToken}
                 onApply={() => apply(t.id)}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
-                onOpen={t.card.type === 'proposal' ? () => setToast({ id: Date.now(), kind: 'ok', text: 'Екран рецепта — наступний крок' }) : undefined}
+                onOpen={t.card.type === 'proposal' ? () => openRecipe(t) : undefined}
               />
             )}
           </div>

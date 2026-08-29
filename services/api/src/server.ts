@@ -13,6 +13,7 @@ import { authRoutes } from './routes/auth.js';
 import { invitesRoutes } from './routes/invites.js';
 import { meRoute } from './routes/me.js';
 import { pantryRoute } from './routes/pantry.js';
+import { recipesRoutes } from './routes/recipes.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 
@@ -37,6 +38,7 @@ export function buildApp(
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
   pantryRoute(app, repo);
+  recipesRoutes(app, repo);
   chatRoute(app, repo, store);
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);

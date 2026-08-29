@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SignIn } from './pages/SignIn/SignIn';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
+import { RecipePage } from './pages/Recipe/Recipe';
+import { CookPage } from './pages/Cook/Cook';
 import { useAuth } from './store/auth';
 
 function Boot({ children }: { children: React.ReactNode }) {
@@ -36,6 +38,8 @@ export function App() {
           <Route path="/" element={<RedirectIfSignedIn><SignIn /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
           <Route path="/app" element={<RequireAuth><Feed /></RequireAuth>} />
+          <Route path="/recipe" element={<RequireAuth><RecipePage /></RequireAuth>} />
+          <Route path="/cook" element={<RequireAuth><CookPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Boot>

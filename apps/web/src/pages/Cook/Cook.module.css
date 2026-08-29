@@ -1,0 +1,165 @@
+/* Cook Mode — 10 з брифу. Темніший фон (--bg-body), великий таймер, мінімум UI.
+ * Ключове правило з брифу: працює без мережі, таймер живе локально.
+ */
+.screen {
+  min-height: 100dvh;
+  background: var(--bg-body);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px 0;
+}
+.exit {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-strong);
+  color: var(--fg-muted);
+  background: transparent;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.exit:hover { background: var(--bg-surface-2); color: var(--fg); }
+.head-meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+/* Прогрес — тонкі рисочки поверх, шавлієві = зроблені, світло-сіра = поточна */
+.progress {
+  padding: 18px 22px 0;
+  display: flex;
+  gap: 6px;
+}
+.progress > div {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background var(--dur-base) var(--ease-standard);
+}
+.progress > .done { background: var(--accent); }
+.progress > .current { background: var(--fg); }
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 26px 22px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.step-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 27px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+/* Таймер: 74px, tabular-nums, кнопки Пауза/+1хв */
+.timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.timer-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 74px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.timer-value.done { color: var(--accent); }
+.timer-actions { display: flex; gap: 10px; }
+.timer-actions button {
+  height: 52px;
+  padding: 0 24px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.timer-actions button.primary {
+  background: var(--accent);
+  color: var(--accent-fg-on);
+  border: 0;
+}
+.timer-actions button.primary:hover { background: var(--accent-strong); }
+.timer-actions button.secondary {
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border-strong);
+}
+.timer-actions button.secondary:hover { background: var(--bg-surface-2); color: var(--fg); }
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.section-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.section-body {
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--fg-mono);
+}
+.next {
+  color: var(--fg-dim);
+  font-size: 16px;
+}
+
+.foot {
+  padding: 16px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.foot button.main {
+  height: 60px;
+  border: 0;
+  border-radius: var(--r-xl);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 18px;
+  cursor: pointer;
+}
+.foot .offline {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fg-dim);
+  text-align: center;
+}
+
+@media (min-width: 720px) {
+  .body, .head, .progress, .foot { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
+}

@@ -136,6 +136,100 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   };
 }
 
+// ---------- генерація рецепта ----------
+
+export interface RecipeIng {
+  p?: string;   // id партії з комори — модель показує пальцем
+  n?: string;   // назва, коли продукту нема в коморі
+  v?: number;
+  u?: string;
+}
+
+export interface RecipeStep {
+  t: string;    // короткий тайтл кроку
+  c: string;    // дія з плейсхолдерами {0}, {1} за індексом інгредієнта
+  s?: number;   // секунди таймера, якщо крок часовий
+}
+
+export interface Recipe {
+  t: string;                                      // title
+  sv: number;                                     // servings
+  tm: number;                                     // total minutes
+  ch: string;                                     // характер (час і зусилля)
+  d: string;                                      // description
+  rk: string;                                     // ключова помилка (не застереження)
+  nu?: { kcal: number; p: number; f: number; c: number };
+  op?: string[];                                  // варіанти замін
+  ing: RecipeIng[];
+  st: RecipeStep[];
+}
+
+export interface RecipeCall {
+  recipe: Recipe | null;
+  raw: string;
+  usage: { input: number; output: number };
+  meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+}
+
+function recipeStub(title: string, promptVersion: string): RecipeCall {
+  // Мінімальний рецепт для тестів без ключа. Не намагається бути «розумним».
+  return {
+    recipe: {
+      t: title,
+      sv: 2,
+      tm: 20,
+      ch: '20 хв, одна пательня',
+      d: 'Простий сценарій під те, що ти назвав.',
+      rk: 'ПРИМІТКА: не пересолити на початку — краще досолити наприкінці.',
+      ing: [
+        { n: title, v: 200, u: 'g' },
+      ],
+      st: [
+        { t: 'Підготувати', c: 'Розкласти інгредієнти на робочому місці.' },
+        { t: 'Готувати', c: 'Смажити або варити за смаком, {0}.', s: 300 },
+        { t: 'Подати', c: 'Викласти на тарілку, скуштувати, поправити сіль.' },
+      ],
+    },
+    raw: '',
+    usage: { input: 0, output: 0 },
+    meta: { promptVersion, model: 'stub', mode: 'stub' },
+  };
+}
+
+export async function callRecipe(args: { title: string; context?: string; pantry?: PantryBatch[] }): Promise<RecipeCall> {
+  const prompt = loadPrompt();
+  const client = makeClient();
+  if (!client) return recipeStub(args.title, prompt.version);
+
+  const model = smartModel();
+  const pantryBlock = args.pantry ? '\n\n[КОМОРА]\n' + serializePantry(args.pantry) : '';
+  const system = compose('recipe_gen', prompt) + pantryBlock;
+  const userText = args.context
+    ? `${args.title}\n\n${args.context}`
+    : args.title;
+  const resp = await client.messages.create({
+    model,
+    max_tokens: 3072,
+    system,
+    messages: [{ role: 'user', content: userText }],
+  });
+  const text = resp.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n');
+  const { parsed } = extractJson(text);
+  let recipe: Recipe | null = null;
+  if (parsed && typeof parsed === 'object' && 't' in parsed && 'ing' in parsed && 'st' in parsed) {
+    recipe = parsed as Recipe;
+  }
+  return {
+    recipe,
+    raw: text,
+    usage: { input: resp.usage.input_tokens, output: resp.usage.output_tokens },
+    meta: { promptVersion: prompt.version, model, mode: 'live' },
+  };
+}
+
 // ---------- розбір вкладень ----------
 
 export interface AttachmentPayload {
