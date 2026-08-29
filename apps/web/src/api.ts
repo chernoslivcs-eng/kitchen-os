@@ -156,7 +156,40 @@ export const api = {
   },
 
   profile: () => req<{ profile: ProfileData }>('/v1/profile'),
+
+  households: {
+    listInvites: (household_id: string) =>
+      req<{ invites: InviteInfo[] }>(`/v1/households/${household_id}/invites`),
+    invite: (household_id: string, email: string) =>
+      req<InviteCreated>(`/v1/households/${household_id}/invite`, {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+  },
+
+  invites: {
+    revoke: (id: string) =>
+      req<null>(`/v1/invites/${id}/revoke`, { method: 'POST', body: '{}' }),
+  },
 };
+
+export interface InviteInfo {
+  id: string;
+  email: string;
+  role: 'owner' | 'member';
+  created_at: string;
+  expires_at: string;
+  consumed_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface InviteCreated {
+  id: string;
+  household_id: string;
+  email: string;
+  role: 'owner' | 'member';
+  expires_at: string;
+}
 
 export interface ShoppingItem {
   id: string;

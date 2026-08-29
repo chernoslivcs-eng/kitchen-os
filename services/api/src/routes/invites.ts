@@ -75,6 +75,31 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
     },
   );
 
+  app.get<{ Params: { household_id: string } }>(
+    '/v1/households/:household_id/invites',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const { household_id } = req.params;
+      if (!(await repo.isMember(household_id, user_id))) {
+        return reply.code(403).send({ error: 'not a member of this household' });
+      }
+      const invites = await repo.listInvitesForHousehold(household_id);
+      // Не витікаємо token_hash — це серверний секрет. Клієнту потрібні лише
+      // метадані запрошень.
+      const safe = invites.map((i) => ({
+        id: i.id,
+        email: i.email,
+        role: i.role,
+        created_at: i.created_at,
+        expires_at: i.expires_at,
+        consumed_at: i.consumed_at,
+        revoked_at: i.revoked_at,
+      }));
+      return { invites: safe };
+    },
+  );
+
   app.post<{ Params: { id: string } }>(
     '/v1/invites/:id/revoke',
     { preHandler: authenticated(repo) },
