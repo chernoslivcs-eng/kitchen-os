@@ -41,6 +41,35 @@ function makeClient(): Anthropic | null {
   return new Anthropic({ apiKey: key, baseURL: baseURL() });
 }
 
+// Тимчасові помилки провайдера — 429 (rate limit), 5xx (їхній сервер), мережеві —
+// ретраїмо. Постійні (400/401/403/404) — не ретраїмо, помилка справжня.
+function isRetryable(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const anyErr = err as { status?: number; code?: string; name?: string };
+  if (anyErr.status === 429) return true;
+  if (anyErr.status && anyErr.status >= 500 && anyErr.status < 600) return true;
+  if (anyErr.name === 'APIConnectionError') return true;
+  if (anyErr.code === 'ECONNRESET' || anyErr.code === 'ETIMEDOUT' || anyErr.code === 'ECONNREFUSED') return true;
+  return false;
+}
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i === attempts - 1 || !isRetryable(err)) throw err;
+      // Експоненційний беfoff з невеликим джитером щоб не збилися вдвох тим самим тактом
+      const base = 300 * 2 ** i;
+      const jitter = Math.floor(Math.random() * 150);
+      await new Promise((r) => setTimeout(r, base + jitter));
+    }
+  }
+  throw lastErr;
+}
+
 export interface RecentCookRunSummary {
   title: string;
   rating: number | null;
@@ -128,12 +157,12 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n' + args.recentCookRuns.map(serializeCookRun).join('\n')
     : '';
   const system = compose('chat', prompt, { stage: args.stage }) + '\n\n[КОМОРА]\n' + serializePantry(args.pantry) + cookLog;
-  const resp = await client.messages.create({
+  const resp = await withRetry(() => client.messages.create({
     model,
     max_tokens: 2048,
     system,
     messages: [{ role: 'user', content: args.text }],
-  });
+  }));
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
@@ -236,12 +265,12 @@ export async function callRecipe(args: { title: string; context?: string; pantry
   const userText = args.context
     ? `${args.title}\n\n${args.context}`
     : args.title;
-  const resp = await client.messages.create({
+  const resp = await withRetry(() => client.messages.create({
     model,
     max_tokens: 3072,
     system,
     messages: [{ role: 'user', content: userText }],
-  });
+  }));
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
@@ -342,13 +371,13 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   }
   parts.push({ type: 'text', text: 'Розбери за схемою й поверни JSON. Користувач бачив вкладення на власні очі — його слово важливіше.' });
 
-  const resp = await client.messages.create({
+  const resp = await withRetry(() => client.messages.create({
     model,
     max_tokens: 4096,
     temperature: 0,
     system,
     messages: [{ role: 'user', content: parts }],
-  });
+  }));
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
