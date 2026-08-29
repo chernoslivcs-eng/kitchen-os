@@ -1,0 +1,16 @@
+{
+  "name": "Kitchen OS",
+  "short_name": "Kitchen",
+  "description": "Кухня, що пам'ятає, що в тебе є",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#181c21",
+  "theme_color": "#181c21",
+  "lang": "uk",
+  "categories": ["food", "lifestyle", "productivity"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
