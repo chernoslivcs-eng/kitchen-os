@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { SignIn } from './pages/SignIn/SignIn';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
@@ -10,6 +10,7 @@ import { RecipePage } from './pages/Recipe/Recipe';
 import { CookPage } from './pages/Cook/Cook';
 import { SharePage } from './pages/Share/Share';
 import { CookLogPage } from './pages/CookLog/CookLog';
+import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { useAuth } from './store/auth';
 
 function Boot({ children }: { children: React.ReactNode }) {
@@ -31,7 +32,15 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
   const status = useAuth((s) => s.status);
-  if (status === 'signed_in') return <Navigate to="/app" replace />;
+  const loc = useLocation();
+  if (status === 'signed_in') {
+    // Якщо гість прийшов з розшареного лінка й тепер залогінений — повертаємо на нього.
+    // ?next мусить бути внутрішнім шляхом, щоб не міг стати open-redirect на зовнішній хост.
+    const params = new URLSearchParams(loc.search);
+    const next = params.get('next');
+    const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
+    return <Navigate to={safe} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -50,6 +59,7 @@ export function App() {
           <Route path="/cook" element={<RequireAuth><CookPage /></RequireAuth>} />
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
           <Route path="/cooklog" element={<RequireAuth><CookLogPage /></RequireAuth>} />
+          <Route path="/r/:id" element={<SharedRecipePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Boot>

@@ -12,13 +12,15 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import type { Recipe } from '../../api';
 import styles from './Share.module.css';
 
-interface State { recipe?: Recipe; photoUrl?: string | null }
+interface State { recipe?: Recipe; photoUrl?: string | null; recipeId?: string | null }
 
 export function SharePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const state = (location.state as State | null);
   const recipe = state?.recipe ?? null;
+  const recipeId = state?.recipeId ?? null;
+  const shareUrl = recipeId ? `${window.location.origin}/r/${recipeId}` : null;
   const [photoUrl, setPhotoUrl] = useState<string | null>(state?.photoUrl ?? null);
   const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,12 +93,21 @@ export function SharePage() {
     }
   }
 
+  const [copied, setCopied] = useState(false);
   async function copyLink() {
-    // Заготовка на майбутнє: реальний shareable link зʼявиться разом із persistуванням.
-    // Зараз копіюємо просто фактичний state — назву та метрики — як текст.
-    const text = `${r.t} · ${r.tm} хв · ${fromPantry} з ${total} — з того, що було · Kitchen OS`;
+    // Формуємо підпис із назвою, метриками і посиланням на публічний рецепт.
+    // Друзі клікають лінк — бачать рецепт read-only, можуть залогінитись і готувати.
+    const parts = [
+      r.t,
+      `${r.tm} хв`,
+      `${fromPantry} з ${total} — з того, що було`,
+      'Kitchen OS',
+    ];
+    if (shareUrl) parts.push(shareUrl);
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(parts.join(' · '));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
     } catch {/* deny — не проблема, просто не скопіювало */}
   }
 
@@ -153,7 +164,12 @@ export function SharePage() {
             Завантажити PNG
           </Button>
         </div>
-        <Button variant="secondary" onClick={copyLink}>Скопіювати підпис</Button>
+        <Button variant="secondary" onClick={copyLink}>{copied ? 'Скопійовано ✓' : 'Скопіювати підпис'}</Button>
+        {shareUrl && (
+          <div className={styles.hint} style={{ marginTop: -6 }}>
+            Друзі клацнуть <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg)' }}>/r/{recipeId?.slice(0, 8)}…</span> — побачать той же рецепт, зможуть готувати в себе.
+          </div>
+        )}
 
         <div className={styles.hint}>
           Публікація — не для лайків, а для памʼяті: врятовані продукти, вечері поспіль вдома. Метрика — «зібрав із того, що було», а не калорії.

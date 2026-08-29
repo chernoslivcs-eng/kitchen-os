@@ -43,7 +43,7 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     }
   };
 
-  app.post<{ Body: { email?: string } }>(
+  app.post<{ Body: { email?: string; next?: string } }>(
     '/v1/auth/request',
     { preHandler: limitCheck },
     async (req, reply) => {
@@ -51,12 +51,18 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
       if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return reply.code(400).send({ error: 'valid email required' });
       }
+      // ?next йде наскрізь від фронту: браузер лишає його в URL SignIn, той передає
+      // сюди, ми — вшиваємо у magic-link. Гарантія, що після клацання лінка юзер
+      // повернеться туди, звідки пішов авторизуватись, а не зʼїде на дефолт /app.
+      const nextRaw = req.body?.next;
+      const next = nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//') ? nextRaw : null;
       const { raw_token } = await requestChallenge(repo, {
         email,
         ip: req.ip,
         user_agent: req.headers['user-agent'] ?? null,
       });
-      const link = `${baseUrl()}/v1/auth/verify?token=${encodeURIComponent(raw_token)}`;
+      let link = `${baseUrl()}/v1/auth/verify?token=${encodeURIComponent(raw_token)}`;
+      if (next) link += `&next=${encodeURIComponent(next)}`;
       await mailer.sendMagicLink({ to: email, link, expires_in_min: CHALLENGE_TTL_MS / 60_000 });
       return reply.code(202).send({ ok: true });
     },

@@ -79,11 +79,12 @@ export function CookPage() {
   const [depleted, setDepleted] = useState<number | null>(null);
   const [partial, setPartial] = useState<number>(0);
   const [runId, setRunId] = useState<string | null>(null);
+  const [recipeId, setRecipeId] = useState<string | null>(null);
   const [undone, setUndone] = useState<boolean>(false);
   useEffect(() => {
     if (done) {
       api.cookRuns.save(recipe)
-        .then((r) => { setDepleted(r.depleted); setPartial(r.partial); setRunId(r.id); })
+        .then((r) => { setDepleted(r.depleted); setPartial(r.partial); setRunId(r.id); setRecipeId(r.recipe_id); })
         .catch(() => {/* offline: наступним разом */});
     }
   }, [done, recipe]);
@@ -355,7 +356,7 @@ export function CookPage() {
             <button
               className={styles.main}
               style={{ flex: 1 }}
-              onClick={() => navigate('/share', { state: { recipe, photoUrl } })}
+              onClick={() => navigate('/share', { state: { recipe, photoUrl, recipeId } })}
             >
               Поділитись
             </button>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { Logo } from '../../components/Logo/Logo';
@@ -14,6 +14,8 @@ export function SignIn() {
   const [loading, setLoading] = useState(false);
   const requestMagicLink = useAuth((s) => s.requestMagicLink);
   const navigate = useNavigate();
+  const loc = useLocation();
+  const next = new URLSearchParams(loc.search).get('next');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -25,7 +27,7 @@ export function SignIn() {
     }
     setLoading(true);
     try {
-      await requestMagicLink(trimmed);
+      await requestMagicLink(trimmed, next);
       navigate('/sent', { state: { email: trimmed } });
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {

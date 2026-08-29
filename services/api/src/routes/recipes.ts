@@ -27,4 +27,21 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     }
     return { recipe: call.recipe, meta: call.meta, usage: call.usage };
   });
+
+  // Публічний read-only рецепт для sharing. Без auth: хто отримав лінк, той бачить.
+  // Це саме payload з recipe — той самий, що в БД, без owner/created_at. Плюс на клієнті
+  // ми не дозволяємо Cook Mode без логіну — тільки перегляд і "Готуй у себе".
+  app.get<{ Params: { id: string } }>(
+    '/v1/r/:id',
+    async (req, reply) => {
+      const r = await repo.getRecipe(req.params.id);
+      if (!r) return reply.code(404).send({ error: 'not_found' });
+      return {
+        id: r.id,
+        title: r.title,
+        recipe: r.payload,
+        created_at: r.created_at,
+      };
+    },
+  );
 }

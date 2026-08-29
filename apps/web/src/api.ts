@@ -96,8 +96,11 @@ export interface ChatResponse {
 
 export const api = {
   auth: {
-    request: (email: string) =>
-      req<{ ok: true }>('/v1/auth/request', { method: 'POST', body: JSON.stringify({ email }) }),
+    request: (email: string, next?: string | null) =>
+      req<{ ok: true }>('/v1/auth/request', {
+        method: 'POST',
+        body: JSON.stringify(next ? { email, next } : { email }),
+      }),
     logout: () => req<null>('/v1/auth/logout', { method: 'POST', body: '{}' }),
   },
 

@@ -12,7 +12,7 @@ interface AuthState {
   me: Me | null;
   error: string | null;
   refresh: () => Promise<void>;
-  requestMagicLink: (email: string) => Promise<void>;
+  requestMagicLink: (email: string, next?: string | null) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -35,8 +35,8 @@ export const useAuth = create<AuthState>((set) => ({
     }
   },
 
-  requestMagicLink: async (email) => {
-    await api.auth.request(email);
+  requestMagicLink: async (email, next) => {
+    await api.auth.request(email, next);
   },
 
   logout: async () => {
