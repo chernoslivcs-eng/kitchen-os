@@ -22,6 +22,7 @@ interface Turn {
   card?: ChatCard | null;
   cardId?: string | null;
   applied?: boolean;
+  applying?: boolean;
   undoToken?: string;
   undone?: boolean;
 }
@@ -225,11 +226,12 @@ export function Feed() {
 
   async function apply(turnId: string) {
     const turn = turns.find((t) => t.id === turnId);
-    if (!turn?.cardId) return;
+    if (!turn?.cardId || turn.applying) return;
+    setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: true } : t));
     try {
       const r = await api.cards.apply(turn.cardId);
       setTurns((prev) => prev.map((t) => t.id === turnId
-        ? { ...t, applied: true, undoToken: r.undo_token }
+        ? { ...t, applied: true, applying: false, undoToken: r.undo_token }
         : t,
       ));
       // Оновлюємо лічильники для комори/списку — profile тепер теж може змінити те, що показуємо
@@ -246,6 +248,7 @@ export function Feed() {
         onUndo: () => undo(turnId, r.undo_token),
       });
     } catch (err) {
+      setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     }
   }
@@ -428,6 +431,7 @@ export function Feed() {
               <Card
                 card={t.card}
                 applied={t.applied}
+                applying={t.applying}
                 undone={t.undone}
                 undoAvailable={!!t.undoToken}
                 onApply={() => apply(t.id)}

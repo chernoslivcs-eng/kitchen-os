@@ -45,6 +45,7 @@ type ProfileItem = {
 export interface CardProps {
   card: ChatCard;
   applied?: boolean;
+  applying?: boolean;
   undone?: boolean;
   undoAvailable?: boolean;
   onApply?: () => void;
@@ -62,7 +63,7 @@ function stateClass(applied?: boolean, undone?: boolean): string {
 
 // ----- Intake --------------------------------------------------------------
 
-export function IntakeCard({ card, applied, undone, undoAvailable, onApply, onUndo }: CardProps) {
+export function IntakeCard({ card, applied, applying, undone, undoAvailable, onApply, onUndo }: CardProps) {
   const ops = (card.ops as IntakeOp[] | undefined ?? []).filter(
     (o) => !o.op || o.op === 'add' || o.op === 'open' || o.op === 'deplete',
   );
@@ -86,7 +87,7 @@ export function IntakeCard({ card, applied, undone, undoAvailable, onApply, onUn
       </div>
       {!applied && !undone && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply}>Застосувати</Button>
+          <Button variant="primary" onClick={onApply} loading={applying}>Застосувати</Button>
           <Button variant="secondary" onClick={() => {}}>Ні</Button>
         </div>
       )}
@@ -151,7 +152,7 @@ export function ProposalCard({ card, onOpen }: CardProps) {
 
 // ----- Shopping ------------------------------------------------------------
 
-export function ShoppingCard({ card, applied, undone, undoAvailable, onApply, onUndo }: CardProps) {
+export function ShoppingCard({ card, applied, applying, undone, undoAvailable, onApply, onUndo }: CardProps) {
   const items = (card.items as ShoppingItem[] | undefined ?? []);
   return (
     <div className={stateClass(applied, undone)}>
@@ -168,7 +169,7 @@ export function ShoppingCard({ card, applied, undone, undoAvailable, onApply, on
       </div>
       {!applied && !undone && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply}>У список</Button>
+          <Button variant="primary" onClick={onApply} loading={applying}>У список</Button>
           <Button variant="secondary" onClick={() => {}}>Ні</Button>
         </div>
       )}
@@ -183,7 +184,7 @@ export function ShoppingCard({ card, applied, undone, undoAvailable, onApply, on
 
 // ----- Profile -------------------------------------------------------------
 
-export function ProfileCard({ card, applied, undone, onApply }: CardProps) {
+export function ProfileCard({ card, applied, applying, undone, onApply }: CardProps) {
   const items = (card.ops as ProfileItem[] | undefined ?? []);
   return (
     <div className={stateClass(applied, undone)}>
@@ -200,7 +201,7 @@ export function ProfileCard({ card, applied, undone, onApply }: CardProps) {
       </div>
       {!applied && !undone && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply}>Запам'ятати</Button>
+          <Button variant="primary" onClick={onApply} loading={applying}>Запам'ятати</Button>
           <Button variant="secondary" onClick={() => {}}>Ні</Button>
         </div>
       )}
