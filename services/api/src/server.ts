@@ -56,7 +56,39 @@ export function buildApp(
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);
 
-  app.get('/health', async () => ({ ok: true, prompt: process.env.PROMPT_VERSION ?? '(latest)' }));
+  // /health для uptime-probes. Легкий SELECT 1 для перевірки БД, метадані
+  // про модель/сховище/пошту. Ніяких HEAD-запитів у OpenRouter — це витрачає
+  // квоту й не додає інформації, яку не бачить чат.
+  app.get('/health', async (req, reply) => {
+    const provider = process.env.OPENROUTER_API_KEY ? 'openrouter'
+      : process.env.ANTHROPIC_API_KEY ? 'anthropic'
+      : 'stub';
+    const attachmentMode = process.env.BLOB_READ_WRITE_TOKEN ? 'vercel_blob' : 'local_fs';
+    const mailerMode = process.env.SMTP_HOST ? 'smtp' : 'console';
+    let db: 'ok' | 'error' | 'skipped' = 'skipped';
+    try {
+      // Тільки якщо репо реально Postgres — інакше InMemory завжди «ok».
+      const anyRepo = repo as unknown as { pool?: { query: (q: string) => Promise<unknown> } };
+      if (anyRepo.pool && typeof anyRepo.pool.query === 'function') {
+        await anyRepo.pool.query('SELECT 1');
+        db = 'ok';
+      } else {
+        db = 'ok'; // InMemory не має що перевіряти
+      }
+    } catch {
+      db = 'error';
+    }
+    if (db === 'error') return reply.code(503).send({ ok: false, db });
+    return {
+      ok: true,
+      prompt: process.env.PROMPT_VERSION ?? '(latest)',
+      model_provider: provider,
+      attachments: attachmentMode,
+      mailer: mailerMode,
+      db,
+    };
+    void req;
+  });
   return app;
 }
 
