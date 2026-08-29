@@ -132,6 +132,10 @@ export const api = {
       ),
   },
 
+  session: {
+    today: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session/today'),
+  },
+
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
     save: (recipe: Recipe, servings?: number, rating?: number, verdict?: string) =>
@@ -248,6 +252,24 @@ export interface RecipeStep {
   c: string;
   s?: number;                // сек. для таймера, якщо крок часовий
 }
+export interface SessionInfo {
+  id: string;
+  user_id: string;
+  title: string | null;
+  day: string;
+  created_at: string;
+}
+
+export interface MessageInfo {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant';
+  text: string | null;
+  card: ChatCard | null;
+  applied: number;
+  created_at: string;
+}
+
 export interface CookRunWithRecipe {
   id: string;
   household_id: string;

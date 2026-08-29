@@ -4,6 +4,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, CookRunRow, CookRunWithRecipe,
+  SessionRow, MessageRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 
@@ -26,6 +27,9 @@ export class InMemoryRepo implements Repo {
   private shopping = new Map<string, ShoppingItemRow>();          // by id
   private recipes = new Map<string, RecipeRow>();
   private cookRuns = new Map<string, CookRunRow>();
+  private chatSessions = new Map<string, SessionRow>();
+  private chatSessionsByUserDay = new Map<string, string>();   // `${user_id}:${day}` → session_id
+  private messages = new Map<string, MessageRow[]>();          // session_id → messages
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -218,6 +222,35 @@ export class InMemoryRepo implements Repo {
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, limit)
       .map((r) => ({ ...r }));
+  }
+
+  async getOrCreateSessionForDay(user_id: string, day: string): Promise<SessionRow> {
+    const key = `${user_id}:${day}`;
+    const existingId = this.chatSessionsByUserDay.get(key);
+    if (existingId) {
+      const s = this.chatSessions.get(existingId);
+      if (s) return { ...s };
+    }
+    const id = randomUUID();
+    const s: SessionRow = { id, user_id, title: null, day, created_at: new Date().toISOString() };
+    this.chatSessions.set(id, s);
+    this.chatSessionsByUserDay.set(key, id);
+    this.messages.set(id, []);
+    return { ...s };
+  }
+  async saveMessage(msg: MessageRow): Promise<void> {
+    const arr = this.messages.get(msg.session_id) ?? [];
+    arr.push({ ...msg });
+    this.messages.set(msg.session_id, arr);
+  }
+  async listMessages(session_id: string): Promise<MessageRow[]> {
+    return (this.messages.get(session_id) ?? []).map((m) => ({ ...m }));
+  }
+  async markMessageApplied(id: string, applied: number): Promise<void> {
+    for (const arr of this.messages.values()) {
+      const m = arr.find((x) => x.id === id);
+      if (m) { m.applied = applied; return; }
+    }
   }
 
   async saveRecipe(recipe: RecipeRow): Promise<void> {

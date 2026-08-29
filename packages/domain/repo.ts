@@ -5,6 +5,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, CookRunRow, CookRunWithRecipe,
+  SessionRow, MessageRow,
 } from './types.js';
 
 export interface UserRow {
@@ -77,6 +78,12 @@ export interface Repo {
   // Облік токенів
   logTokenUsage(row: TokenUsageRow): Promise<void>;
   listTokenUsage(user_id: string, limit?: number): Promise<TokenUsageRow[]>;
+
+  // Сесії й повідомлення
+  getOrCreateSessionForDay(user_id: string, day: string): Promise<SessionRow>;
+  saveMessage(msg: MessageRow): Promise<void>;
+  listMessages(session_id: string): Promise<MessageRow[]>;
+  markMessageApplied(id: string, applied: number): Promise<void>;
 
   // Рецепти й приготування
   saveRecipe(recipe: RecipeRow): Promise<void>;

@@ -92,6 +92,7 @@ export async function applyCard(
       undo_token,
       undo_snapshot: snapshot,
     });
+    await repo.markMessageApplied(pc.id, chosen.length);
     return { applied: chosen.length, undo_token, already: false };
   }
 
@@ -110,6 +111,7 @@ export async function applyCard(
       undo_token,
       undo_snapshot: snapshot,
     });
+    await repo.markMessageApplied(pc.id, chosen.length);
     return { applied: chosen.length, undo_token, already: false };
   }
 
@@ -133,6 +135,7 @@ export async function applyCard(
       undo_token,
       undo_snapshot: snapshot,
     });
+    await repo.markMessageApplied(pc.id, chosen.length);
     return { applied: chosen.length, undo_token, already: false };
   }
 
@@ -346,5 +349,6 @@ export async function undoCard(
   }
 
   await repo.updatePending(pc.id, { undone_at: new Date().toISOString() });
+  await repo.markMessageApplied(pc.id, 0);
   return { undone: true, already: false };
 }

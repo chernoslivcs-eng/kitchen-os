@@ -17,6 +17,7 @@ import { recipesRoutes } from './routes/recipes.js';
 import { shoppingRoutes } from './routes/shopping.js';
 import { profileRoutes } from './routes/profile.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
+import { sessionRoutes } from './routes/session.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 
@@ -45,6 +46,7 @@ export function buildApp(
   profileRoutes(app, repo);
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);
+  sessionRoutes(app, repo);
   chatRoute(app, repo, store);
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);

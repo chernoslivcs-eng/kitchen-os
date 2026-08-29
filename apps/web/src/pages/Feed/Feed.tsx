@@ -9,7 +9,7 @@ import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { TabBar } from '../../components/TabBar/TabBar';
-import { api, type AttachmentUploaded, type ChatCard, type ChatResponse } from '../../api';
+import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor } from './cards';
 import styles from './Feed.module.css';
 
@@ -48,6 +48,23 @@ function kindLabel(k: 'image' | 'pdf' | 'text'): string {
   return 'текст';
 }
 
+function messageToTurn(m: MessageInfo): Turn {
+  const d = new Date(m.created_at);
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const applied = m.applied > 0;
+  return {
+    id: newId(),
+    role: m.role,
+    time,
+    text: m.text ?? undefined,
+    card: m.card,
+    cardId: m.card ? m.id : null,     // message.id === card_id за нашою інваріантою
+    applied,
+    // undoToken на клієнті не відновлюємо — apply вже пройшов, повторний
+    // apply/undo вимагатимуть нового токена. Кнопки undo після F5 нема.
+  };
+}
+
 let nextId = 1;
 const newId = () => `t${nextId++}`;
 
@@ -78,6 +95,17 @@ export function Feed() {
   }
 
   useEffect(() => { void refreshCounts(); }, []);
+
+  useEffect(() => {
+    // Гідратуємо стрічку з сесії дня. Показуємо кожне message як окремий turn.
+    // Cards із applied>0 показуються в стані «застосовано» (без Apply-кнопки).
+    (async () => {
+      try {
+        const { messages } = await api.session.today();
+        setTurns(messages.map((m) => messageToTurn(m)));
+      } catch {/* offline: залишаємо порожню стрічку */}
+    })();
+  }, []);
 
   useEffect(() => {
     const el = timelineRef.current;

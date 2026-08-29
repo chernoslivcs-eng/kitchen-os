@@ -6,15 +6,17 @@ import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // POST /v1/chat
-//   Тіло: { session_id, text, attachments?: [{id}] }
-//   user_id/household_id беруться з cookie-сесії, не з тіла.
-//   →
-//   { reply, card, card_id, raw_kind?, usage, meta }
+//   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
 //
 // Побічних ефектів на комору НЕ застосовує. Картка йде як пропозиція,
-// клієнт натискає apply. Це те саме правило, що й у прототипі:
-// модель ніколи не пише в стан напряму.
+// клієнт натискає apply. Обидва повідомлення (user + assistant) пишуться
+// в message/session — щоб чат переживав F5 і перезапуск сервера.
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore) {
   app.post<{
@@ -31,6 +33,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       return reply.code(400).send({ error: 'text or attachments required' });
     }
 
+    const session = await repo.getOrCreateSessionForDay(user_id, today());
+
     if (attachments?.length) {
       const payloads: AttachmentPayload[] = [];
       for (const { id } of attachments) {
@@ -40,6 +44,13 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         const { buffer, content_type } = await store.get(rec.url);
         payloads.push({ kind: rec.kind, buffer, content_type, hint: rec.hint ?? undefined });
       }
+      // Спершу записуємо user-message (текст + факт вкладень).
+      const userMsgText = text?.trim() || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
+      await repo.saveMessage({
+        id: randomUUID(), session_id: session.id, role: 'user',
+        text: userMsgText, card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+
       const started = Date.now();
       const call = await callAttachmentParse(payloads);
       await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
@@ -47,20 +58,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
       }
+      await repo.saveMessage({
+        id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
+        text: call.reply ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
+      });
       return {
-        reply: call.reply,
-        card: call.card,
-        card_id,
-        raw_kind: call.raw_kind,
-        usage: call.usage,
-        meta: call.meta,
+        reply: call.reply, card: call.card, card_id,
+        raw_kind: call.raw_kind, usage: call.usage, meta: call.meta,
       };
     }
 
     const pantry = await repo.listBatches(household_id);
     // Онбординг: stage 1, поки в коморі порожньо; stage 2, коли комора наповнена,
-    // а профіль ще не має відповіді на «алергії/дім/традиції» (як проксі використовуємо
-    // порожні три блоки — щойно щось з'явиться, стадія 2 гасне).
+    // а профіль ще не має відповіді на «алергії/дім/традиції» (як проксі — порожні три блоки).
     let stage: 1 | 2 | undefined;
     const activeBatches = pantry.filter((b) => b.state !== 'depleted').length;
     if (activeBatches === 0) {
@@ -71,21 +81,28 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         || (profile.allergies.length === 0 && profile.wishes.length === 0 && profile.antipatterns.length === 0);
       if (empty) stage = 2;
     }
+
+    await repo.saveMessage({
+      id: randomUUID(), session_id: session.id, role: 'user',
+      text: text ?? '', card: null, applied: 0, created_at: new Date().toISOString(),
+    });
+
     const started = Date.now();
     const call = await callChat({
-      user_id, session_id: req.body?.session_id ?? '', text: text ?? '', pantry, stage,
+      user_id, session_id: session.id, text: text ?? '', pantry, stage,
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
     }
+    await repo.saveMessage({
+      id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
+      text: call.reply ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
+    });
     return {
-      reply: call.reply,
-      card: call.card,
-      card_id,
-      usage: call.usage,
-      meta: call.meta,
+      reply: call.reply, card: call.card, card_id,
+      usage: call.usage, meta: call.meta,
     };
   });
 }

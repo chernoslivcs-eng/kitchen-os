@@ -14,6 +14,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow,
   RecipeRow, CookRunRow, CookRunWithRecipe,
+  SessionRow, MessageRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -475,6 +476,66 @@ export class PostgresRepo implements Repo {
         row.latency_ms, row.created_at,
       ],
     );
+  }
+
+  // ----- Сесії й повідомлення --------------------------------------------
+
+  async getOrCreateSessionForDay(user_id: string, day: string): Promise<SessionRow> {
+    const { rows: existing } = await this.pool.query(
+      'SELECT * FROM session WHERE user_id = $1 AND day = $2 LIMIT 1',
+      [user_id, day],
+    );
+    if (existing[0]) {
+      const r = existing[0];
+      return {
+        id: r.id, user_id: r.user_id, title: r.title ?? null,
+        day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+        created_at: new Date(r.created_at).toISOString(),
+      };
+    }
+    const { rows } = await this.pool.query(
+      `INSERT INTO session (user_id, day) VALUES ($1, $2)
+       RETURNING id, user_id, title, day, created_at`,
+      [user_id, day],
+    );
+    const r = rows[0]!;
+    return {
+      id: r.id, user_id: r.user_id, title: r.title ?? null,
+      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      created_at: new Date(r.created_at).toISOString(),
+    };
+  }
+
+  async saveMessage(msg: MessageRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO message (id, session_id, role, text, card, applied, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        msg.id, msg.session_id, msg.role, msg.text,
+        msg.card == null ? null : JSON.stringify(msg.card),
+        msg.applied, msg.created_at,
+      ],
+    );
+  }
+
+  async listMessages(session_id: string): Promise<MessageRow[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM message WHERE session_id = $1 ORDER BY created_at',
+      [session_id],
+    );
+    return rows.map((r): MessageRow => ({
+      id: r.id,
+      session_id: r.session_id,
+      role: r.role as 'user' | 'assistant',
+      text: r.text ?? null,
+      card: r.card ?? null,
+      applied: r.applied ?? 0,
+      created_at: new Date(r.created_at).toISOString(),
+    }));
+  }
+
+  async markMessageApplied(id: string, applied: number): Promise<void> {
+    await this.pool.query('UPDATE message SET applied = $2 WHERE id = $1', [id, applied]);
   }
 
   // ----- Рецепти й приготування ------------------------------------------

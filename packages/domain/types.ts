@@ -116,6 +116,24 @@ export interface Profile {
   equipment: Record<string, 'has' | 'lacks'>;
 }
 
+export interface SessionRow {
+  id: string;
+  user_id: string;
+  title: string | null;
+  day: string;                          // YYYY-MM-DD
+  created_at: string;
+}
+
+export interface MessageRow {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant';
+  text: string | null;
+  card: Card | null;                     // те, що асистент повернув
+  applied: number;                       // скільки ops вже застосовано (0 або applied_ops.length)
+  created_at: string;
+}
+
 export interface RecipeRow {
   id: string;
   owner_id: string;
