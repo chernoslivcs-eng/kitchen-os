@@ -171,6 +171,32 @@ describe('GET /v1/me + /v1/pantry', () => {
     expect(patch.statusCode).toBe(403);
   });
 
+  it('POST /v1/pantry: пряме додавання партії обходить чат', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    const r = await app.inject({
+      method: 'POST', url: '/v1/pantry',
+      headers: { cookie: A.cookie },
+      payload: { label: 'моцарела', value: 250, unit: 'g', zone: 'fridge' },
+    });
+    expect(r.statusCode).toBe(201);
+    const body = r.json();
+    expect(body.batch.label).toBe('моцарела');
+    expect(body.batch.value).toBe(250);
+    expect(body.batch.zone).toBe('fridge');
+    expect(body.batch.state).toBe('sealed');
+    expect(body.batch.last_action).toBe('user_add');
+  });
+
+  it('POST /v1/pantry: без label — 400', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    const r = await app.inject({
+      method: 'POST', url: '/v1/pantry',
+      headers: { cookie: A.cookie },
+      payload: { label: '   ' },
+    });
+    expect(r.statusCode).toBe(400);
+  });
+
   it('DELETE /v1/pantry/:id: м\'яке видалення переводить у depleted', async () => {
     const A = await signIn(app, mailer, 'a@example.com');
     const chat = await app.inject({

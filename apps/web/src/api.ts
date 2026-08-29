@@ -109,6 +109,11 @@ export const api = {
   pantry: () => req<PantryList>('/v1/pantry'),
 
   batches: {
+    create: (input: { label: string; value?: number | null; unit?: PantryBatch['unit']; zone?: PantryBatch['zone'] }) =>
+      req<{ batch: PantryBatch }>('/v1/pantry', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
     update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state'>>) =>
       req<{ updated: boolean; batch: PantryBatch }>(`/v1/pantry/${id}`, {
         method: 'PATCH',

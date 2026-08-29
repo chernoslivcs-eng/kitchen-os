@@ -42,6 +42,56 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
   const UNITS: Unit[] = ['g', 'ml', 'pcs', 'pack'];
   const STATES: BatchState[] = ['sealed', 'opened', 'depleted'];
 
+  // Пряме створення партії — юзер знає, що додає. Модель у бріфі §01 «не пише в стан
+  // напряму», але це не про людину. Тут — той самий шлях, що intake_diff add op,
+  // тільки без картки-підтвердження.
+  app.post<{
+    Body: {
+      label: string;
+      value?: number | null;
+      unit?: Unit | null;
+      zone?: Zone;
+    };
+  }>('/v1/pantry', { preHandler: authenticated(repo) }, async (req, reply) => {
+    const { user_id, household_id } = requireUser(req);
+    const label = (req.body.label ?? '').trim();
+    if (!label) return reply.code(400).send({ error: 'label_required' });
+    const value = req.body.value ?? null;
+    if (value != null && (typeof value !== 'number' || value < 0)) {
+      return reply.code(400).send({ error: 'value_negative' });
+    }
+    const unit = req.body.unit ?? null;
+    if (unit != null && !UNITS.includes(unit)) return reply.code(400).send({ error: 'unit_invalid' });
+    const zone = req.body.zone ?? 'dry';
+    if (!ZONES.includes(zone)) return reply.code(400).send({ error: 'zone_invalid' });
+
+    const { randomUUID } = await import('node:crypto');
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    await repo.insertBatch({
+      id,
+      household_id,
+      catalog_key: null,
+      label,
+      zone,
+      value,
+      unit,
+      state: 'sealed',
+      opened_at: null,
+      expires_at: null,
+      best_before_opened_days: null,
+      added_at: now,
+      depleted_at: null,
+      confidence: 1,
+      provenance: 'user_statement',
+      staple: false,
+      last_by: user_id,
+      last_action: 'user_add',
+    });
+    const batch = await repo.getBatch(id);
+    return reply.code(201).send({ batch });
+  });
+
   app.patch<{
     Params: { id: string };
     Body: {

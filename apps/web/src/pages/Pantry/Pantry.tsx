@@ -30,6 +30,7 @@ export function PantryPage() {
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
+  const [adding, setAdding] = useState(false);
 
   async function refresh() {
     try {
@@ -53,7 +54,26 @@ export function PantryPage() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div className={styles.title}>Комора</div>
-        <div className={styles.meta}>{batches.length} ПОЗИЦІЙ</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => setAdding(true)}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--r-pill)',
+              padding: '5px 12px',
+              color: 'var(--fg-muted)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            + Додати
+          </button>
+          <div className={styles.meta}>{batches.length} ПОЗИЦІЙ</div>
+        </div>
       </div>
 
       <div className={styles.body}>
@@ -105,6 +125,13 @@ export function PantryPage() {
           batch={editing}
           onClose={() => setEditing(null)}
           onChanged={async () => { await refresh(); setEditing(null); }}
+        />
+      )}
+
+      {adding && (
+        <BatchAddSheet
+          onClose={() => setAdding(false)}
+          onCreated={async () => { await refresh(); setAdding(false); }}
         />
       )}
 
@@ -257,6 +284,114 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
         >
           Прибрати з комори
         </button>
+      </div>
+    </div>
+  );
+}
+
+function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+  const [label, setLabel] = useState('');
+  const [value, setValue] = useState<string>('');
+  const [unit, setUnit] = useState<PantryBatch['unit']>('g');
+  const [zone, setZone] = useState<PantryBatch['zone']>('fridge');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    const l = label.trim();
+    if (!l) { setError('Назва потрібна'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const v = value.trim() === '' ? null : Number(value.trim());
+      if (v != null && isNaN(v)) { setError('Кількість — число або порожнє'); return; }
+      await api.batches.create({ label: l, value: v, unit, zone });
+      await onCreated();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        zIndex: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 720,
+          background: 'var(--bg-surface)',
+          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
+          padding: '22px 22px calc(22px + env(safe-area-inset-bottom))',
+          display: 'flex', flexDirection: 'column', gap: 14,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <MonoLabel>ДОДАТИ ПАРТІЮ</MonoLabel>
+          <button
+            onClick={onClose}
+            style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
+            aria-label="Закрити"
+          >✕</button>
+        </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Назва</span>
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Наприклад, моцарела"
+            error={error}
+            autoFocus
+          />
+        </label>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Кількість</span>
+            <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Одиниця</span>
+            <select
+              value={unit ?? ''}
+              onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
+              style={{
+                padding: '11px 12px', background: 'var(--bg-input)',
+                border: '1px solid var(--border)', borderRadius: 'var(--r)',
+                color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+              }}
+            >
+              {UNIT_OPTIONS.map((o) => <option key={o.value ?? ''} value={o.value ?? ''}>{o.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Зона</span>
+          <select
+            value={zone}
+            onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}
+            style={{
+              padding: '11px 12px', background: 'var(--bg-input)',
+              border: '1px solid var(--border)', borderRadius: 'var(--r)',
+              color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+            }}
+          >
+            {ZONE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Скасувати</Button>
+          <div style={{ flex: 1 }} />
+          <Button onClick={submit} loading={saving}>Додати</Button>
+        </div>
       </div>
     </div>
   );
