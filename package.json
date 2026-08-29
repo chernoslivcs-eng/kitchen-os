@@ -8,7 +8,8 @@
     "eval": "pnpm --filter @kitchen/eval run start",
     "eval:diff": "pnpm --filter @kitchen/eval run start -- --diff-only",
     "test": "pnpm -r --parallel test",
-    "typecheck": "pnpm -r --parallel typecheck"
+    "typecheck": "pnpm -r --parallel typecheck",
+    "smoke": "bash scripts/smoke.sh"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
