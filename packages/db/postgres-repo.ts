@@ -553,6 +553,26 @@ export class PostgresRepo implements Repo {
     };
   }
 
+  async listSessionsForUser(user_id: string, limit = 30): Promise<Array<SessionRow & { message_count: number }>> {
+    const { rows } = await this.pool.query(
+      `SELECT s.id, s.user_id, s.title, s.day, s.created_at,
+              COUNT(m.id)::int AS message_count
+         FROM session s
+         LEFT JOIN message m ON m.session_id = s.id
+        WHERE s.user_id = $1
+        GROUP BY s.id
+        ORDER BY s.created_at DESC
+        LIMIT $2`,
+      [user_id, limit],
+    );
+    return rows.map((r) => ({
+      id: r.id, user_id: r.user_id, title: r.title ?? null,
+      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      created_at: new Date(r.created_at).toISOString(),
+      message_count: Number(r.message_count),
+    }));
+  }
+
   async saveMessage(msg: MessageRow): Promise<void> {
     await this.pool.query(
       `INSERT INTO message (id, session_id, role, text, card, applied, created_at)

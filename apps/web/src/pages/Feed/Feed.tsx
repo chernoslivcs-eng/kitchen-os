@@ -9,6 +9,7 @@ import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { Sheet } from '../../components/Sheet/Sheet';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor } from './cards';
 import styles from './Feed.module.css';
@@ -132,6 +133,28 @@ export function Feed() {
       setSessionId(session.id);
       setTurns([]);
     } catch {/* тихо: наступним разом */}
+  }
+
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historySessions, setHistorySessions] = useState<{ id: string; day: string; created_at: string; message_count: number }[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  async function openHistory() {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const { sessions } = await api.session.list();
+      // Не показуємо порожні сесії — свіжі, куди юзер не встиг нічого написати.
+      setHistorySessions(sessions.filter((s) => s.message_count > 0));
+    } catch {/* тихо */}
+    finally { setHistoryLoading(false); }
+  }
+  async function loadHistorySession(id: string) {
+    try {
+      const { session, messages } = await api.session.get(id);
+      setSessionId(session.id);
+      setTurns(messages.map((m) => messageToTurn(m)));
+      setHistoryOpen(false);
+    } catch {/* тихо */}
   }
 
   useEffect(() => {
@@ -266,6 +289,24 @@ export function Feed() {
           <Logo variant="wordmark" size={30} />
         </div>
         <div className={styles['head-actions']}>
+          <button
+            onClick={openHistory}
+            title="Історія чатів"
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--r-pill)',
+              padding: '5px 10px',
+              color: 'var(--fg-muted)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            ⌚ Історія
+          </button>
           {turns.length > 0 && (
             <button
               onClick={startFreshSession}
@@ -291,6 +332,54 @@ export function Feed() {
           )}
         </div>
       </div>
+
+      {historyOpen && (
+        <Sheet onClose={() => setHistoryOpen(false)} ariaLabel="Історія чатів">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <MonoLabel>ІСТОРІЯ ЧАТІВ</MonoLabel>
+            <button
+              onClick={() => setHistoryOpen(false)}
+              style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
+              aria-label="Закрити"
+            >✕</button>
+          </div>
+          {historyLoading && <div style={{ color: 'var(--fg-muted)', padding: '20px 0' }}>Завантажую…</div>}
+          {!historyLoading && historySessions.length === 0 && (
+            <div style={{ color: 'var(--fg-muted)', padding: '20px 0', fontSize: 14 }}>
+              Тут порожньо. Кожна сесія зберігається — вона зʼявиться тут завтра.
+            </div>
+          )}
+          {historySessions.map((s) => {
+            const d = new Date(s.created_at);
+            const dayLabel = formatDayLabel(d);
+            return (
+              <button
+                key={s.id}
+                onClick={() => loadHistorySession(s.id)}
+                style={{
+                  display: 'flex', alignItems: 'baseline', gap: 12,
+                  padding: '14px 0',
+                  borderBottom: '1px solid var(--border)',
+                  border: 0, borderBottomWidth: 1, borderBottomStyle: 'solid',
+                  borderColor: 'var(--border)',
+                  background: 'transparent',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>{dayLabel}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase', marginTop: 3 }}>
+                    {d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {s.message_count === 1 ? 'ПОВІДОМЛЕННЯ' : 'ПОВІДОМЛЕНЬ'}
+                  </div>
+                </div>
+                <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>
+              </button>
+            );
+          })}
+        </Sheet>
+      )}
 
       <div className={styles.timeline} ref={timelineRef}>
         {turns.length === 0 && (
@@ -460,4 +549,17 @@ export function Feed() {
       )}
     </div>
   );
+}
+
+const WEEKDAYS = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
+const MONTHS = ['СІЧ', 'ЛЮТ', 'БЕР', 'КВІ', 'ТРА', 'ЧЕР', 'ЛИП', 'СЕР', 'ВЕР', 'ЖОВ', 'ЛИС', 'ГРУ'];
+function formatDayLabel(d: Date): string {
+  const today = new Date();
+  const same = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (same(d, today)) return 'Сьогодні';
+  if (same(d, yesterday)) return 'Вчора';
+  return `${WEEKDAYS[d.getDay()]} · ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }

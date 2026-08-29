@@ -154,6 +154,8 @@ export const api = {
     fresh: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session', {
       method: 'POST', body: '{}',
     }),
+    list: () => req<{ sessions: (SessionInfo & { message_count: number })[] }>('/v1/sessions'),
+    get: (id: string) => req<{ session: SessionInfo; messages: MessageInfo[] }>(`/v1/sessions/${id}`),
   },
 
   cookRuns: {

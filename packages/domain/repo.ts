@@ -85,6 +85,7 @@ export interface Repo {
   getOrCreateSessionForDay(user_id: string, day: string): Promise<SessionRow>;
   createFreshSession(user_id: string, day: string): Promise<SessionRow>;
   getSession(id: string): Promise<SessionRow | null>;
+  listSessionsForUser(user_id: string, limit?: number): Promise<Array<SessionRow & { message_count: number }>>;
   saveMessage(msg: MessageRow): Promise<void>;
   listMessages(session_id: string): Promise<MessageRow[]>;
   markMessageApplied(id: string, applied: number): Promise<void>;
