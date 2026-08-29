@@ -86,37 +86,77 @@ export function CookLogPage() {
                 const deplete = r.changes?.batches.filter((c) => c.op === 'deplete').length ?? 0;
                 const undone = !!r.undone_at;
                 return (
-                  <button
-                    key={r.id}
-                    className={styles.card}
-                    onClick={() => navigate('/recipe', { state: { recipe: r.recipe.payload } })}
-                  >
-                    {r.photo_url && !undone ? (
-                      <img
-                        src={r.photo_url}
-                        alt=""
-                        style={{
-                          width: 46, height: 46, borderRadius: 'var(--r)',
-                          objectFit: 'cover', flexShrink: 0,
-                        }}
-                      />
-                    ) : (
-                      <div className={`${styles.icon} ${undone ? styles.undone : ''}`}>
-                        {undone ? '↩' : '✓'}
-                      </div>
-                    )}
-                    <div className={styles.info}>
-                      <div className={`${styles.dish} ${undone ? styles.undone : ''}`}>{r.recipe.title}</div>
-                      <div className={styles.sub}>
-                        {timeLabel(r.finished_at ?? r.started_at)}
-                        {r.recipe.time_total && <> · {r.recipe.time_total}хв</>}
-                        {!undone && (deplete + partial > 0) && (
-                          <> · <span className={styles.stat}>{deplete + partial} з комори</span></>
+                  <div key={r.id} style={{ position: 'relative' }}>
+                    <button
+                      className={styles.card}
+                      onClick={() => navigate('/recipe', { state: { recipe: r.recipe.payload } })}
+                    >
+                      {r.photo_url && !undone ? (
+                        <img
+                          src={r.photo_url}
+                          alt=""
+                          style={{
+                            width: 46, height: 46, borderRadius: 'var(--r)',
+                            objectFit: 'cover', flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div className={`${styles.icon} ${undone ? styles.undone : ''}`}>
+                          {undone ? '↩' : '✓'}
+                        </div>
+                      )}
+                      <div className={styles.info}>
+                        <div className={`${styles.dish} ${undone ? styles.undone : ''}`}>{r.recipe.title}</div>
+                        <div className={styles.sub}>
+                          {timeLabel(r.finished_at ?? r.started_at)}
+                          {r.recipe.time_total && <> · {r.recipe.time_total}хв</>}
+                          {r.rating != null && !undone && (
+                            <> · <span className={styles.stat}>{'★'.repeat(r.rating)}<span style={{ opacity: 0.3 }}>{'★'.repeat(5 - r.rating)}</span></span></>
+                          )}
+                          {!undone && (deplete + partial > 0) && (
+                            <> · <span className={styles.stat}>{deplete + partial} з комори</span></>
+                          )}
+                          {undone && <> · <span className={styles.stat + ' ' + styles.warn}>СКАСОВАНО</span></>}
+                        </div>
+                        {r.verdict && !undone && (
+                          <div style={{
+                            marginTop: 4,
+                            fontFamily: 'var(--font-body)',
+                            fontSize: 13,
+                            color: 'var(--fg-muted)',
+                            fontStyle: 'italic',
+                          }}>
+                            «{r.verdict}»
+                          </div>
                         )}
-                        {undone && <> · <span className={styles.stat + ' ' + styles.warn}>СКАСОВАНО</span></>}
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    {!undone && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/cook', { state: { recipe: r.recipe.payload } });
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: 20, right: 0,
+                          background: 'transparent',
+                          border: '1px solid var(--border-strong)',
+                          padding: '6px 12px',
+                          borderRadius: 'var(--r-pill)',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 10,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--fg-muted)',
+                          cursor: 'pointer',
+                        }}
+                        aria-label="Приготувати знову"
+                      >
+                        Знову ⟳
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
