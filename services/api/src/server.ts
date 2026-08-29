@@ -105,8 +105,14 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
   let repo: Repo;
   if (url) {
     const pool = makePool(url);
-    const migRes = await migrate(pool);
-    if (migRes.applied.length) console.log('migrations applied:', migRes.applied.join(', '));
+    // На Vercel міграції ганяє крок білду (див. buildCommand у vercel.json):
+    // теки migrations/ у бандлі функції немає, і паралельні cold start'и
+    // влаштували б гонку у CREATE TABLE. Локально — як раніше, при кожному
+    // старті.
+    if (!process.env.VERCEL) {
+      const migRes = await migrate(pool);
+      if (migRes.applied.length) console.log('migrations applied:', migRes.applied.join(', '));
+    }
     repo = new PostgresRepo(pool);
   } else {
     repo = new InMemoryRepo();

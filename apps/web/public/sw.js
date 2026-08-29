@@ -1,11 +1,13 @@
 // Service Worker — простий cache-first для статики, mережа-first для навігацій,
 // network-only для /v1/*. Робить встановлений PWA офлайн-запускабельним.
 //
-// Версія кешу — вручну: при зміні index.html/JS-бандлу міняємо CACHE_VERSION
-// щоб примусово інвалідувати старий кеш. Vite додає хеш до assets, тому вони
-// самі версіонуються — але sw.js кешує їх під однією назвою.
+// Версія кешу береться з URL-параметра `?v=<build_id>`, який ми передаємо у
+// navigator.serviceWorker.register('/sw.js?v=…'). Vite додає BUILD_ID через
+// define в конфізі — кожен білд = нова URL = нова SW = нова кеш-версія = стара
+// вибиваєтся в activate. Без цього після деплою PWA лишалась із застарілим
+// index.html.
 
-const CACHE_VERSION = 'kitchen-os-v1';
+const CACHE_VERSION = 'kitchen-os-' + (new URL(self.location.href).searchParams.get('v') || 'dev');
 const OFFLINE_FALLBACK = '/index.html';
 
 self.addEventListener('install', (event) => {

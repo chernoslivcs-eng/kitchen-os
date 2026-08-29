@@ -184,10 +184,20 @@ export const api = {
 
   attachments: {
     // Не через req() — FormData, свій content-type ставить браузер.
+    // На Vercel body-limit 4.5МБ; фото полиці/страви з телефона 3-8МБ,
+    // тому вхідне зображення проганяємо через canvas-ресайз до 1600px
+    // по довшій стороні, jpeg q=0.82 — для розпізнавання й preview
+    // достатньо, а вага ~300-800КБ. Не-зображення — як є.
     async upload(file: File): Promise<AttachmentUploaded> {
+      const prepared = file.type.startsWith('image/') && file.size > 900_000
+        ? await downscaleImage(file, 1600, 0.82)
+        : file;
       const fd = new FormData();
-      fd.append('file', file, file.name);
+      fd.append('file', prepared, prepared.name);
       const res = await fetch('/v1/attachments', { method: 'POST', body: fd, credentials: 'include' });
+      if (res.status === 413) {
+        throw new ApiError(413, null, 'Файл завеликий. Стисни фото або спробуй інше.');
+      }
       const text = await res.text();
       const payload: unknown = text ? safeParse(text) : null;
       if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
@@ -358,4 +368,33 @@ export interface Recipe {
   op?: string[];
   ing: RecipeIng[];
   st: RecipeStep[];
+}
+
+// ----- Utilities -----------------------------------------------------------
+
+// Ресайз зображення на клієнті: довша сторона до maxSide, JPEG quality.
+// Vercel body-limit 4.5МБ, а фото з телефона 3-8МБ; 1600px+q=0.82 дає
+// ~300-800КБ і зберігає деталі етикеток і продуктів.
+async function downscaleImage(file: File, maxSide: number, quality: number): Promise<File> {
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    if (scale === 1) return file;
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+  } catch {
+    // createImageBitmap може падати на HEIC на старих браузерах — тоді надсилаємо
+    // оригінал і покладаємось на 413-обробку.
+    return file;
+  }
 }
