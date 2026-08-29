@@ -1,9 +1,13 @@
 // Комора (05 з брифу): партії дому, згруповані за зоною.
 // Порядок зон — з брифу §01: свіже → холодильник → морозилка → комора → спеції → напої.
+// Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
 import { useEffect, useState } from 'react';
 import { api, type PantryBatch, type ShoppingList } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { Button } from '../../components/Button/Button';
+import { Input } from '../../components/Input/Input';
+import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import styles from './Pantry.module.css';
 
 const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
@@ -25,18 +29,19 @@ export function PantryPage() {
   const [batches, setBatches] = useState<PantryBatch[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<PantryBatch | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [p, s] = await Promise.all([api.pantry(), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
-        setBatches(p.batches);
-        setShoppingCount(s.count);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  async function refresh() {
+    try {
+      const [p, s] = await Promise.all([api.pantry(), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
+      setBatches(p.batches);
+      setShoppingCount(s.count);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void refresh(); }, []);
 
   const byZone = new Map<PantryBatch['zone'], PantryBatch[]>();
   for (const b of batches) {
@@ -69,7 +74,12 @@ export function PantryPage() {
                 const days = daysLeft(b.expires_at);
                 const urgent = b.state === 'opened' && days != null && days <= 5;
                 return (
-                  <div key={b.id} className={styles.row}>
+                  <button
+                    key={b.id}
+                    className={styles.row}
+                    onClick={() => setEditing(b)}
+                    style={{ background: 'transparent', border: 0, borderBottom: '1px solid var(--border)', width: '100%', textAlign: 'left', cursor: 'pointer', padding: '11px 0' }}
+                  >
                     <span className={`${styles.mark} ${b.state === 'opened' ? styles.opened : ''}`}>
                       {b.state === 'opened' ? '◔' : '●'}
                     </span>
@@ -82,7 +92,7 @@ export function PantryPage() {
                     {b.value != null && b.unit && (
                       <span className={styles.qty}>{b.value}{b.unit}</span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -90,7 +100,164 @@ export function PantryPage() {
         })}
       </div>
 
+      {editing && (
+        <BatchEditSheet
+          batch={editing}
+          onClose={() => setEditing(null)}
+          onChanged={async () => { await refresh(); setEditing(null); }}
+        />
+      )}
+
       <TabBar shoppingCount={shoppingCount} />
+    </div>
+  );
+}
+
+const ZONE_OPTIONS: { value: PantryBatch['zone']; label: string }[] = [
+  { value: 'fresh', label: 'Свіже' },
+  { value: 'fridge', label: 'Холодильник' },
+  { value: 'freezer', label: 'Морозилка' },
+  { value: 'dry', label: 'Комора' },
+  { value: 'spices', label: 'Спеції' },
+  { value: 'drinks', label: 'Напої' },
+];
+const UNIT_OPTIONS: { value: PantryBatch['unit']; label: string }[] = [
+  { value: null, label: '—' },
+  { value: 'g', label: 'г' },
+  { value: 'ml', label: 'мл' },
+  { value: 'pcs', label: 'шт' },
+  { value: 'pack', label: 'пач' },
+];
+
+function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onClose: () => void; onChanged: () => Promise<void> }) {
+  const [label, setLabel] = useState(batch.label);
+  const [value, setValue] = useState<string>(batch.value != null ? String(batch.value) : '');
+  const [unit, setUnit] = useState<PantryBatch['unit']>(batch.unit);
+  const [zone, setZone] = useState<PantryBatch['zone']>(batch.zone);
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const v = value.trim() === '' ? null : Number(value.trim());
+      await api.batches.update(batch.id, {
+        label: label.trim(),
+        value: v,
+        unit,
+        zone,
+      });
+      await onChanged();
+    } finally { setSaving(false); }
+  }
+
+  async function toggleOpened() {
+    setSaving(true);
+    try {
+      await api.batches.update(batch.id, { state: batch.state === 'sealed' ? 'opened' : 'sealed' });
+      await onChanged();
+    } finally { setSaving(false); }
+  }
+
+  async function remove() {
+    if (!confirm('Прибрати з комори? Це те саме, що «зʼїли» — до історії лишиться.')) return;
+    setSaving(true);
+    try {
+      await api.batches.remove(batch.id);
+      await onChanged();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        zIndex: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 720,
+          background: 'var(--bg-surface)',
+          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
+          padding: '22px 22px calc(22px + env(safe-area-inset-bottom))',
+          display: 'flex', flexDirection: 'column', gap: 14,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <MonoLabel>ПАРТІЯ</MonoLabel>
+          <button
+            onClick={onClose}
+            style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
+            aria-label="Закрити"
+          >✕</button>
+        </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Назва</span>
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} />
+        </label>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Кількість</span>
+            <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Одиниця</span>
+            <select
+              value={unit ?? ''}
+              onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
+              style={{
+                padding: '11px 12px', background: 'var(--bg-input)',
+                border: '1px solid var(--border)', borderRadius: 'var(--r)',
+                color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+              }}
+            >
+              {UNIT_OPTIONS.map((o) => <option key={o.value ?? ''} value={o.value ?? ''}>{o.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Зона</span>
+          <select
+            value={zone}
+            onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}
+            style={{
+              padding: '11px 12px', background: 'var(--bg-input)',
+              border: '1px solid var(--border)', borderRadius: 'var(--r)',
+              color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+            }}
+          >
+            {ZONE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <Button variant="secondary" onClick={toggleOpened} disabled={saving}>
+            {batch.state === 'sealed' ? '◔ Відкрито' : '● Запаковано'}
+          </Button>
+          <div style={{ flex: 1 }} />
+          <Button onClick={save} loading={saving}>Зберегти</Button>
+        </div>
+
+        <button
+          onClick={remove}
+          disabled={saving}
+          style={{
+            marginTop: 4,
+            background: 'transparent', border: 0,
+            color: 'var(--danger)', fontFamily: 'var(--font-mono)',
+            fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase',
+            padding: '10px 0', cursor: 'pointer',
+          }}
+        >
+          Прибрати з комори
+        </button>
+      </div>
     </div>
   );
 }

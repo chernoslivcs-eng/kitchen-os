@@ -108,6 +108,15 @@ export const api = {
 
   pantry: () => req<PantryList>('/v1/pantry'),
 
+  batches: {
+    update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state'>>) =>
+      req<{ updated: boolean; batch: PantryBatch }>(`/v1/pantry/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    remove: (id: string) => req<{ deleted: true }>(`/v1/pantry/${id}`, { method: 'DELETE' }),
+  },
+
   chat: (input: { text?: string; attachments?: { id: string }[]; session_id?: string }) =>
     req<ChatResponse>('/v1/chat', {
       method: 'POST',
