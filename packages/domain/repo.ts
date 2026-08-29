@@ -90,7 +90,7 @@ export interface Repo {
   getRecipe(id: string): Promise<RecipeRow | null>;
   saveCookRun(run: CookRunRow): Promise<void>;
   getCookRun(id: string): Promise<CookRunRow | null>;
-  updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict'>>): Promise<void>;
+  updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict' | 'photo_url'>>): Promise<void>;
   markCookRunUndone(id: string, undone_at: string): Promise<void>;
   listCookRuns(user_id: string, limit?: number): Promise<CookRunWithRecipe[]>;
 

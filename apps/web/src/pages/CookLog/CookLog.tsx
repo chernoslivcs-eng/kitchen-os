@@ -91,9 +91,20 @@ export function CookLogPage() {
                     className={styles.card}
                     onClick={() => navigate('/recipe', { state: { recipe: r.recipe.payload } })}
                   >
-                    <div className={`${styles.icon} ${undone ? styles.undone : ''}`}>
-                      {undone ? '↩' : '✓'}
-                    </div>
+                    {r.photo_url && !undone ? (
+                      <img
+                        src={r.photo_url}
+                        alt=""
+                        style={{
+                          width: 46, height: 46, borderRadius: 'var(--r)',
+                          objectFit: 'cover', flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <div className={`${styles.icon} ${undone ? styles.undone : ''}`}>
+                        {undone ? '↩' : '✓'}
+                      </div>
+                    )}
                     <div className={styles.info}>
                       <div className={`${styles.dish} ${undone ? styles.undone : ''}`}>{r.recipe.title}</div>
                       <div className={styles.sub}>

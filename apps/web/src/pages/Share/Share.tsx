@@ -12,13 +12,14 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import type { Recipe } from '../../api';
 import styles from './Share.module.css';
 
-interface State { recipe?: Recipe }
+interface State { recipe?: Recipe; photoUrl?: string | null }
 
 export function SharePage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const recipe = (location.state as State | null)?.recipe ?? null;
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const state = (location.state as State | null);
+  const recipe = state?.recipe ?? null;
+  const [photoUrl, setPhotoUrl] = useState<string | null>(state?.photoUrl ?? null);
   const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);

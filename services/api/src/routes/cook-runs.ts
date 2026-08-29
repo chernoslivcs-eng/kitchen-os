@@ -155,7 +155,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
 
   // Ретро-оцінка: юзер міг натиснути «Готово», а рейтинг поставити пізніше
   // (або взагалі пропустити). Тому PATCH окремо від POST.
-  app.patch<{ Params: { id: string }; Body: { rating?: number | null; verdict?: string | null } }>(
+  app.patch<{ Params: { id: string }; Body: { rating?: number | null; verdict?: string | null; photo_url?: string | null } }>(
     '/v1/cook-runs/:id',
     { preHandler: authenticated(repo) },
     async (req, reply) => {
@@ -163,13 +163,18 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       const run = await repo.getCookRun(req.params.id);
       if (!run) return reply.code(404).send({ error: 'not_found' });
       if (run.user_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
-      const rating = req.body.rating === undefined ? run.rating : req.body.rating;
-      if (rating != null && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
-        return reply.code(400).send({ error: 'rating_out_of_range' });
+      const patch: Parameters<typeof repo.updateCookRun>[1] = {};
+      if ('rating' in req.body) {
+        if (req.body.rating != null && (typeof req.body.rating !== 'number' || req.body.rating < 1 || req.body.rating > 5)) {
+          return reply.code(400).send({ error: 'rating_out_of_range' });
+        }
+        patch.rating = req.body.rating;
       }
-      const verdict = req.body.verdict === undefined ? run.verdict : (req.body.verdict || null);
-      await repo.updateCookRun(run.id, { rating: rating ?? null, verdict });
-      return { updated: true, rating: rating ?? null, verdict };
+      if ('verdict' in req.body) patch.verdict = req.body.verdict || null;
+      if ('photo_url' in req.body) patch.photo_url = req.body.photo_url || null;
+      await repo.updateCookRun(run.id, patch);
+      const updated = await repo.getCookRun(run.id);
+      return { updated: true, rating: updated?.rating ?? null, verdict: updated?.verdict ?? null, photo_url: updated?.photo_url ?? null };
     },
   );
 

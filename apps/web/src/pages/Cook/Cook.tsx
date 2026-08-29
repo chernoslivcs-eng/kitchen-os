@@ -120,6 +120,23 @@ export function CookPage() {
     } catch {/* тихо */}
   }
 
+  // Фото готової страви. Завантажуємо через звичайний /v1/attachments,
+  // отриманий URL кладемо в cook_run.photo_url — журнал і Share його підхоплять.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  async function onPickPhoto(files: FileList | null) {
+    const f = files?.[0];
+    if (!f || !runId || undone) return;
+    setUploadingPhoto(true);
+    try {
+      const up = await api.attachments.upload(f);
+      await api.cookRuns.setPhoto(runId, up.url);
+      setPhotoUrl(up.url);
+    } catch {/* тихо: юзер побачить, що фото не з'явилось */}
+    finally { setUploadingPhoto(false); }
+  }
+
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
@@ -230,6 +247,67 @@ export function CookPage() {
                 )}
               </div>
             )}
+
+            {runId && !undone && (
+              <div className={styles.section}>
+                <MonoLabel className={styles['section-label']}>ФОТО</MonoLabel>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={(e) => onPickPhoto(e.target.files)}
+                />
+                {photoUrl ? (
+                  <div style={{ marginTop: 8, position: 'relative' }}>
+                    <img
+                      src={photoUrl}
+                      alt="Готова страва"
+                      style={{
+                        width: '100%',
+                        maxHeight: 260,
+                        objectFit: 'cover',
+                        borderRadius: 'var(--r)',
+                        display: 'block',
+                      }}
+                    />
+                    <button
+                      onClick={() => photoInputRef.current?.click()}
+                      style={{
+                        position: 'absolute', top: 8, right: 8,
+                        background: 'rgba(0,0,0,0.6)', color: '#fff', border: 0,
+                        padding: '6px 10px', borderRadius: 'var(--r-pill)',
+                        fontFamily: 'var(--font-mono)', fontSize: 11,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Інше
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    style={{
+                      marginTop: 8,
+                      width: '100%',
+                      padding: '20px',
+                      background: 'transparent',
+                      border: '1px dashed var(--border-strong)',
+                      borderRadius: 'var(--r)',
+                      color: 'var(--fg-muted)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 14,
+                      cursor: uploadingPhoto ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {uploadingPhoto ? 'Завантажую…' : '📷 Зняти або додати фото'}
+                  </button>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -277,7 +355,7 @@ export function CookPage() {
             <button
               className={styles.main}
               style={{ flex: 1 }}
-              onClick={() => navigate('/share', { state: { recipe } })}
+              onClick={() => navigate('/share', { state: { recipe, photoUrl } })}
             >
               Поділитись
             </button>

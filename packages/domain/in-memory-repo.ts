@@ -270,7 +270,7 @@ export class InMemoryRepo implements Repo {
     const cur = this.cookRuns.get(id);
     if (cur) this.cookRuns.set(id, { ...cur, undone_at });
   }
-  async updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict'>>): Promise<void> {
+  async updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict' | 'photo_url'>>): Promise<void> {
     const cur = this.cookRuns.get(id);
     if (cur) this.cookRuns.set(id, { ...cur, ...patch });
   }
