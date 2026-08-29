@@ -12,12 +12,28 @@ import type {
   Repo, UserRow, HouseholdRow, HouseholdMemberRow,
   PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
-  HouseholdInvite, HouseholdRole,
+  HouseholdInvite, HouseholdRole, ShoppingItemRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
+
+function rowToShopping(r: Row): ShoppingItemRow {
+  return {
+    id: r.id as string,
+    household_id: r.household_id as string,
+    label: r.label as string,
+    reason: (r.reason as string | null) ?? null,
+    value: r.value == null ? null : Number(r.value),
+    unit: (r.unit as string | null) ?? null,
+    zone: (r.zone as string | null) ?? null,
+    checked: r.checked as boolean,
+    added_by: (r.added_by as string | null) ?? null,
+    source: r.source as ShoppingItemRow['source'],
+    created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
 
 function rowToInvite(r: Row): HouseholdInvite {
   return {
@@ -441,6 +457,45 @@ export class PostgresRepo implements Repo {
         row.latency_ms, row.created_at,
       ],
     );
+  }
+
+  // ----- Список покупок ---------------------------------------------------
+
+  async listShoppingItems(household_id: string): Promise<ShoppingItemRow[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM shopping_item WHERE household_id = $1 ORDER BY created_at',
+      [household_id],
+    );
+    return rows.map(rowToShopping);
+  }
+
+  async insertShoppingItem(item: ShoppingItemRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO shopping_item
+         (id, household_id, label, reason, value, unit, zone, checked, added_by, source, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        item.id, item.household_id, item.label, item.reason,
+        item.value, item.unit, item.zone, item.checked,
+        item.added_by, item.source, item.created_at,
+      ],
+    );
+  }
+
+  async toggleShoppingItem(id: string, checked: boolean): Promise<void> {
+    await this.pool.query('UPDATE shopping_item SET checked = $2 WHERE id = $1', [id, checked]);
+  }
+
+  async deleteShoppingItem(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM shopping_item WHERE id = $1', [id]);
+  }
+
+  async findShoppingItemByLabel(household_id: string, label: string): Promise<ShoppingItemRow | null> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM shopping_item WHERE household_id = $1 AND lower(label) = lower($2) LIMIT 1',
+      [household_id, label],
+    );
+    return rows[0] ? rowToShopping(rows[0]) : null;
   }
 
   // ----- Дом-membership і запрошення --------------------------------------

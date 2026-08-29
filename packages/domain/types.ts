@@ -116,6 +116,20 @@ export interface Profile {
   equipment: Record<string, 'has' | 'lacks'>;
 }
 
+export interface ShoppingItemRow {
+  id: string;
+  household_id: string;
+  label: string;
+  reason: string | null;
+  value: number | null;
+  unit: string | null;
+  zone: string | null;
+  checked: boolean;
+  added_by: string | null;
+  source: 'user' | 'recipe' | 'model' | 'retail';
+  created_at: string;
+}
+
 // ----- Облік токенів ----------------------------------------------------
 
 export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen' | 'recipe_import' | 'pantry_search';

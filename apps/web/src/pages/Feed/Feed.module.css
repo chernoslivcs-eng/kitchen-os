@@ -153,10 +153,58 @@
 }
 
 /* ----- Composer ------------------------------------------------------- */
-.composer {
-  padding: 12px 22px 20px;
+.composer-wrap {
   border-top: 1px solid var(--border);
   background: var(--bg-surface);
+}
+.pending-attachments {
+  padding: 10px 22px 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.att-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--fg-mono);
+}
+.att-remove {
+  border: 0;
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+}
+.att-remove:hover { color: var(--danger); }
+
+.attach-btn {
+  height: 48px;
+  width: 48px;
+  flex: none;
+  border-radius: var(--r);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--fg-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.attach-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg); }
+.attach-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.composer {
+  padding: 12px 22px 20px;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -202,7 +250,7 @@
   position: fixed;
   left: 22px;
   right: 22px;
-  bottom: 92px;
+  bottom: 170px;                    /* над composer (~82px) і над TabBar (~72px) */
   background: var(--bg-surface-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);

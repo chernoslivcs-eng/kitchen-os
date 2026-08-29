@@ -3,6 +3,7 @@ import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js'
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
+  ShoppingItemRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 
@@ -22,6 +23,7 @@ export class InMemoryRepo implements Repo {
   private tokenUsage: TokenUsageRow[] = [];
   private invites = new Map<string, HouseholdInvite>();          // by id
   private inviteByHash = new Map<string, string>();              // token_hash → id
+  private shopping = new Map<string, ShoppingItemRow>();          // by id
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -214,6 +216,29 @@ export class InMemoryRepo implements Repo {
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, limit)
       .map((r) => ({ ...r }));
+  }
+
+  async listShoppingItems(household_id: string): Promise<ShoppingItemRow[]> {
+    return [...this.shopping.values()]
+      .filter((it) => it.household_id === household_id)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map((it) => ({ ...it }));
+  }
+  async insertShoppingItem(item: ShoppingItemRow): Promise<void> {
+    this.shopping.set(item.id, { ...item });
+  }
+  async toggleShoppingItem(id: string, checked: boolean): Promise<void> {
+    const cur = this.shopping.get(id);
+    if (cur) this.shopping.set(id, { ...cur, checked });
+  }
+  async deleteShoppingItem(id: string): Promise<void> {
+    this.shopping.delete(id);
+  }
+  async findShoppingItemByLabel(household_id: string, label: string): Promise<ShoppingItemRow | null> {
+    for (const it of this.shopping.values()) {
+      if (it.household_id === household_id && it.label.toLowerCase() === label.toLowerCase()) return it;
+    }
+    return null;
   }
 
   async isMember(household_id: string, user_id: string): Promise<boolean> {

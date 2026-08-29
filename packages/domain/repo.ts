@@ -4,6 +4,7 @@
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
+  ShoppingItemRow,
 } from './types.js';
 
 export interface UserRow {
@@ -76,6 +77,13 @@ export interface Repo {
   // Облік токенів
   logTokenUsage(row: TokenUsageRow): Promise<void>;
   listTokenUsage(user_id: string, limit?: number): Promise<TokenUsageRow[]>;
+
+  // Список покупок
+  listShoppingItems(household_id: string): Promise<ShoppingItemRow[]>;
+  insertShoppingItem(item: ShoppingItemRow): Promise<void>;
+  toggleShoppingItem(id: string, checked: boolean): Promise<void>;
+  deleteShoppingItem(id: string): Promise<void>;
+  findShoppingItemByLabel(household_id: string, label: string): Promise<ShoppingItemRow | null>;
 
   // Дом-membership і запрошення
   isMember(household_id: string, user_id: string): Promise<boolean>;

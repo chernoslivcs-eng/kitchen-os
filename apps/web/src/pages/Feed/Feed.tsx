@@ -8,8 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import { api, type ChatCard, type ChatResponse } from '../../api';
-import { useAuth } from '../../store/auth';
+import { TabBar } from '../../components/TabBar/TabBar';
+import { api, type AttachmentUploaded, type ChatCard, type ChatResponse } from '../../api';
 import { Card, labelFor } from './cards';
 import styles from './Feed.module.css';
 
@@ -37,29 +37,47 @@ function hhmm(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function formatBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${Math.round(b / 1024)} KB`;
+  return `${(b / 1024 / 1024).toFixed(1)} MB`;
+}
+function kindLabel(k: 'image' | 'pdf' | 'text'): string {
+  if (k === 'image') return 'фото';
+  if (k === 'pdf') return 'PDF';
+  return 'текст';
+}
+
 let nextId = 1;
 const newId = () => `t${nextId++}`;
 
 export function Feed() {
-  const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
 
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [openingRecipe, setOpeningRecipe] = useState(false);
+  const [pending, setPending] = useState<AttachmentUploaded[]>([]);
+  const [uploading, setUploading] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function refreshPantry() {
+  async function refreshCounts() {
     try {
-      const p = await api.pantry();
+      const [p, s] = await Promise.all([
+        api.pantry(),
+        api.shopping.list().catch(() => ({ count: 0 })),
+      ]);
       setPantryCount(p.count);
+      setShoppingCount(s.count);
     } catch { /* offline: лишаємо старе значення */ }
   }
 
-  useEffect(() => { void refreshPantry(); }, []);
+  useEffect(() => { void refreshCounts(); }, []);
 
   useEffect(() => {
     const el = timelineRef.current;
@@ -72,18 +90,45 @@ export function Feed() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  async function pickFiles(list: FileList | null) {
+    if (!list?.length) return;
+    if (pending.length + list.length > 5) {
+      setToast({ id: Date.now(), kind: 'err', text: 'Максимум 5 вкладень за раз' });
+      return;
+    }
+    setUploading(true);
+    try {
+      for (const file of Array.from(list)) {
+        const rec = await api.attachments.upload(file);
+        setPending((p) => [...p, rec]);
+      }
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function removePending(id: string) {
+    setPending((p) => p.filter((x) => x.id !== id));
+  }
+
   async function send(e: FormEvent) {
     e.preventDefault();
     const text = input.trim();
-    if (!text) return;
+    if (!text && pending.length === 0) return;
     setInput('');
+    const attachments = pending.map((p) => ({ id: p.id }));
+    setPending([]);
     setSending(true);
 
-    const userTurn: Turn = { id: newId(), role: 'user', time: hhmm(), text };
+    const userTurnText = text || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
+    const userTurn: Turn = { id: newId(), role: 'user', time: hhmm(), text: userTurnText };
     setTurns((prev) => [...prev, userTurn]);
 
     try {
-      const res: ChatResponse = await api.chat({ text });
+      const res: ChatResponse = await api.chat({ text, attachments: attachments.length ? attachments : undefined });
       const turn: Turn = {
         id: newId(),
         role: 'assistant',
@@ -109,7 +154,8 @@ export function Feed() {
         ? { ...t, applied: true, undoToken: r.undo_token }
         : t,
       ));
-      if (turn.card?.type === 'intake_diff') await refreshPantry();
+      // Оновлюємо лічильники для комори/списку — profile тепер теж може змінити те, що показуємо
+      await refreshCounts();
       const count = turn.card?.type === 'intake_diff'
         ? ((turn.card.ops as unknown[] | undefined)?.length ?? 0)
         : ((turn.card?.items as unknown[] | undefined)?.length ?? 0);
@@ -151,7 +197,7 @@ export function Feed() {
     try {
       await api.cards.undo(turn.cardId, undoToken);
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, undone: true } : t));
-      if (turn.card?.type === 'intake_diff') await refreshPantry();
+      await refreshCounts();
       setToast({ id: Date.now(), kind: 'ok', text: 'Скасовано' });
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -168,7 +214,6 @@ export function Feed() {
           {pantryCount !== null && (
             <MonoLabel className={styles['head-meta']}>КОМОРА {pantryCount}</MonoLabel>
           )}
-          <Button variant="secondary" onClick={() => logout()}>Вийти</Button>
         </div>
       </div>
 
@@ -207,17 +252,58 @@ export function Feed() {
         ))}
       </div>
 
-      <form className={styles.composer} onSubmit={send}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Записати в журнал…"
-          disabled={sending}
-          autoFocus
-        />
-        <button type="submit" disabled={sending || !input.trim()} aria-label="Надіслати">↑</button>
-      </form>
+      <div className={styles['composer-wrap']}>
+        {pending.length > 0 && (
+          <div className={styles['pending-attachments']}>
+            {pending.map((a) => (
+              <span key={a.id} className={styles['att-chip']} title={a.content_type}>
+                {a.kind === 'image' ? '📷' : a.kind === 'pdf' ? '📄' : '📝'} {kindLabel(a.kind)} · {formatBytes(a.bytes)}
+                <button
+                  type="button"
+                  className={styles['att-remove']}
+                  onClick={() => removePending(a.id)}
+                  aria-label="Прибрати"
+                >×</button>
+              </span>
+            ))}
+            {uploading && <span className={styles['att-chip']}>завантажую…</span>}
+          </div>
+        )}
+        <form className={styles.composer} onSubmit={send}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf,text/plain"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => pickFiles(e.target.files)}
+          />
+          <button
+            type="button"
+            className={styles['attach-btn']}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploading}
+            aria-label="Додати вкладення"
+          >
+            📎
+          </button>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
+            disabled={sending}
+            autoFocus
+          />
+          <button
+            type="submit"
+            disabled={sending || (!input.trim() && pending.length === 0)}
+            aria-label="Надіслати"
+          >↑</button>
+        </form>
+      </div>
+
+      <TabBar shoppingCount={shoppingCount} />
 
       {toast && (
         <div className={styles.toast}>

@@ -1,0 +1,105 @@
+.screen {
+  min-height: 100dvh;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+}
+.head {
+  padding: 22px 22px 8px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+}
+.meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.check {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  cursor: pointer;
+  color: var(--accent-fg-on);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex: none;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+.check.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.label {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--fg);
+}
+.label.done { color: var(--fg-muted); text-decoration: line-through; }
+.qty {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+.reason {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-dim);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+}
+.delete {
+  border: 0;
+  background: transparent;
+  color: var(--fg-dim);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 18px;
+  border-radius: var(--r-sm);
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.delete:hover { color: var(--danger); background: var(--danger-bg); }
+
+.empty {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--fg); margin-bottom: 6px; }
+
+@media (min-width: 720px) {
+  .head, .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
+}

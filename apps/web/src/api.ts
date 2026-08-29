@@ -131,7 +131,67 @@ export const api = {
         { method: 'POST', body: JSON.stringify({ title, context }) },
       ),
   },
+
+  attachments: {
+    // Не через req() — FormData, свій content-type ставить браузер.
+    async upload(file: File): Promise<AttachmentUploaded> {
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      const res = await fetch('/v1/attachments', { method: 'POST', body: fd, credentials: 'include' });
+      const text = await res.text();
+      const payload: unknown = text ? safeParse(text) : null;
+      if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
+      return payload as AttachmentUploaded;
+    },
+  },
+
+  shopping: {
+    list: () => req<ShoppingList>('/v1/shopping'),
+    toggle: (id: string, checked: boolean) =>
+      req<{ ok: true; checked: boolean }>(`/v1/shopping/${id}/toggle`, {
+        method: 'POST',
+        body: JSON.stringify({ checked }),
+      }),
+    remove: (id: string) => req<null>(`/v1/shopping/${id}`, { method: 'DELETE' }),
+  },
+
+  profile: () => req<{ profile: ProfileData }>('/v1/profile'),
 };
+
+export interface ShoppingItem {
+  id: string;
+  household_id: string;
+  label: string;
+  reason: string | null;
+  value: number | null;
+  unit: string | null;
+  zone: string | null;
+  checked: boolean;
+  added_by: string | null;
+  source: 'user' | 'recipe' | 'model' | 'retail';
+  created_at: string;
+}
+export interface ShoppingList {
+  household_id: string;
+  count: number;
+  items: ShoppingItem[];
+}
+
+export interface AttachmentUploaded {
+  id: string;
+  url: string;
+  kind: 'image' | 'pdf' | 'text';
+  bytes: number;
+  content_type: string;
+}
+
+export interface ProfileData {
+  user_id: string;
+  allergies: string[];
+  wishes: string[];
+  antipatterns: string[];
+  equipment: Record<string, 'has' | 'lacks'>;
+}
 
 // ----- Recipe types -------------------------------------------------------
 

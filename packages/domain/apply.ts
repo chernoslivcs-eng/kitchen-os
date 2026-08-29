@@ -16,6 +16,9 @@ import type {
   PendingCard,
   UndoSnapshot,
   Provenance,
+  Profile,
+  ProfileKind,
+  ShoppingItemRow,
   Zone,
   Unit,
 } from './types.js';
@@ -71,30 +74,69 @@ export async function applyCard(
     return { applied: 0, undo_token: pc.undo_token!, already: true };
   }
 
-  if (pc.card.type !== 'intake_diff') {
-    // Інші типи — на наступних кроках.
-    throw new Error(`apply not implemented for card type: ${pc.card.type}`);
-  }
-
   const { card } = pc;
-  const chosen = selected.length ? selected : card.ops.map((_, i) => i);
-  const snapshot: UndoSnapshot = { kind: 'intake_diff', before: { created_batch_ids: [], modified_batches: [] } };
 
-  for (const idx of chosen) {
-    const op = card.ops[idx];
-    if (!op) continue;
-    await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot);
+  // Кожен тип картки має власний обробник і власний знімок для undo.
+  if (card.type === 'intake_diff') {
+    const chosen = selected.length ? selected : card.ops.map((_, i) => i);
+    const snapshot: UndoSnapshot = { kind: 'intake_diff', before: { created_batch_ids: [], modified_batches: [] } };
+    for (const idx of chosen) {
+      const op = card.ops[idx];
+      if (!op) continue;
+      await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot);
+    }
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: new Date().toISOString(),
+      applied_ops: chosen,
+      undo_token,
+      undo_snapshot: snapshot,
+    });
+    return { applied: chosen.length, undo_token, already: false };
   }
 
-  const undo_token = randomUUID();
-  await repo.updatePending(pc.id, {
-    applied_at: new Date().toISOString(),
-    applied_ops: chosen,
-    undo_token,
-    undo_snapshot: snapshot,
-  });
+  if (card.type === 'shopping') {
+    const chosen = selected.length ? selected : card.items.map((_, i) => i);
+    const snapshot: UndoSnapshot = { kind: 'shopping', before: { added_shopping_ids: [], removed_shopping_ids: [] } };
+    for (const idx of chosen) {
+      const item = card.items[idx];
+      if (!item) continue;
+      await applyShoppingOp(repo, item, pc.household_id, actor_user_id, snapshot);
+    }
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: new Date().toISOString(),
+      applied_ops: chosen,
+      undo_token,
+      undo_snapshot: snapshot,
+    });
+    return { applied: chosen.length, undo_token, already: false };
+  }
 
-  return { applied: chosen.length, undo_token, already: false };
+  if (card.type === 'profile') {
+    const chosen = selected.length ? selected : card.ops.map((_, i) => i);
+    const before = await repo.getProfile(actor_user_id);
+    const snapshot: UndoSnapshot = { kind: 'profile', before: { profile_before: before ?? undefined } };
+    const next: Profile = before
+      ? { ...before }
+      : { user_id: actor_user_id, allergies: [], wishes: [], antipatterns: [], equipment: {} };
+    for (const idx of chosen) {
+      const op = card.ops[idx];
+      if (!op) continue;
+      applyProfileOp(next, op);
+    }
+    await repo.upsertProfile(next);
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: new Date().toISOString(),
+      applied_ops: chosen,
+      undo_token,
+      undo_snapshot: snapshot,
+    });
+    return { applied: chosen.length, undo_token, already: false };
+  }
+
+  throw new Error(`apply not implemented for card type: ${(card as { type: string }).type}`);
 }
 
 async function applyIntakeOp(
@@ -172,6 +214,73 @@ async function applyIntakeOp(
   }
 }
 
+async function applyShoppingOp(
+  repo: Repo,
+  item: { op?: 'add' | 'remove'; label?: string; note?: string; v?: number; u?: string },
+  household_id: string,
+  actor: string,
+  snap: UndoSnapshot,
+): Promise<void> {
+  if (!item.label) return;
+  if (item.op === 'remove') {
+    const existing = await repo.findShoppingItemByLabel(household_id, item.label);
+    if (existing) {
+      await repo.deleteShoppingItem(existing.id);
+      snap.before.removed_shopping_ids ??= [];
+      snap.before.removed_shopping_ids.push(existing.id);
+    }
+    return;
+  }
+  // Дефолт — add. Якщо вже є з тим самим label — не дублюємо.
+  const existing = await repo.findShoppingItemByLabel(household_id, item.label);
+  if (existing) return;
+  const id = randomUUID();
+  await repo.insertShoppingItem({
+    id, household_id,
+    label: item.label,
+    reason: item.note ?? null,
+    value: item.v ?? null,
+    unit: item.u ?? null,
+    zone: null,
+    checked: false,
+    added_by: actor,
+    source: 'model',
+    created_at: new Date().toISOString(),
+  });
+  snap.before.added_shopping_ids ??= [];
+  snap.before.added_shopping_ids.push(id);
+}
+
+function applyProfileOp(
+  next: Profile,
+  op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string },
+): void {
+  if (!op.label || !op.kind) return;
+  const label = op.label.trim();
+  const removing = op.op === 'remove';
+  const listByKind = (k: ProfileKind): string[] | null => {
+    if (k === 'allergy') return next.allergies;
+    if (k === 'wish') return next.wishes;
+    if (k === 'anti') return next.antipatterns;
+    return null;
+  };
+  const list = listByKind(op.kind);
+  if (list) {
+    if (removing) {
+      const idx = list.findIndex((x) => x.toLowerCase() === label.toLowerCase());
+      if (idx !== -1) list.splice(idx, 1);
+    } else if (!list.some((x) => x.toLowerCase() === label.toLowerCase())) {
+      list.push(label);
+    }
+    return;
+  }
+  if (op.kind === 'equip') {
+    if (removing) delete next.equipment[label];
+    else next.equipment[label] = 'has';
+  }
+  // note / member — MVP ігнорує; додамо коли будуть окремі таблиці.
+}
+
 // ---------- undo ----------
 
 export async function undoCard(
@@ -194,6 +303,16 @@ export async function undoCard(
   }
   for (const b of snap.before.modified_batches ?? []) {
     await repo.updateBatch(b.id, b);
+  }
+  // Shopping: додані ідуть на видалення. Видалені лишаються видаленими —
+  // ми не тримаємо їх «повного тіла» на цьому кроці. Це прийнятне спрощення
+  // для MVP: undo після «прибери X» не поверне X назад.
+  for (const id of snap.before.added_shopping_ids ?? []) {
+    await repo.deleteShoppingItem(id);
+  }
+  // Profile: повертаємо блок як був до застосування картки.
+  if (snap.before.profile_before) {
+    await repo.upsertProfile(snap.before.profile_before);
   }
 
   await repo.updatePending(pc.id, { undone_at: new Date().toISOString() });

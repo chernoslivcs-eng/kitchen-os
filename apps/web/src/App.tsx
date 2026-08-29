@@ -3,6 +3,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SignIn } from './pages/SignIn/SignIn';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
+import { PantryPage } from './pages/Pantry/Pantry';
+import { ShoppingPage } from './pages/Shopping/Shopping';
+import { ProfilePage } from './pages/Profile/Profile';
 import { RecipePage } from './pages/Recipe/Recipe';
 import { CookPage } from './pages/Cook/Cook';
 import { useAuth } from './store/auth';
@@ -38,6 +41,9 @@ export function App() {
           <Route path="/" element={<RedirectIfSignedIn><SignIn /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
           <Route path="/app" element={<RequireAuth><Feed /></RequireAuth>} />
+          <Route path="/pantry" element={<RequireAuth><PantryPage /></RequireAuth>} />
+          <Route path="/list" element={<RequireAuth><ShoppingPage /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/recipe" element={<RequireAuth><RecipePage /></RequireAuth>} />
           <Route path="/cook" element={<RequireAuth><CookPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
