@@ -7,14 +7,23 @@ export class ApiError extends Error {
   }
 }
 
+// Content-Type ставимо ТІЛЬКИ коли є тіло. Fastify із app/json parser відкидає
+// запит із 'application/json' і порожнім тілом (FST_ERR_CTP_EMPTY_JSON_BODY) —
+// на цьому мовчки лягали всі DELETE-запити (batches.remove, shopping.remove,
+// households.removeMember). Явні заголовки з call-сайту перекривають дефолт.
+export function buildHeaders(init: RequestInit): HeadersInit {
+  const hasBody = init.body != null;
+  return {
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+    ...(init.headers ?? {}),
+  };
+}
+
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     ...init,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
+    headers: buildHeaders(init),
   });
   const text = await res.text();
   const payload: unknown = text ? safeParse(text) : null;

@@ -1,6 +1,9 @@
 /* Таб-бар за брифом (UI-кіт §04): 4 таби, поточний із заливкою.
  * Тонкий бордер зверху, живе в футері екранів застосунку. */
 .wrap {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
   border-top: 1px solid var(--border);
   background: var(--bg-surface);
   padding: 8px 22px calc(8px + env(safe-area-inset-bottom));

@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe } from '../../api';
+import { formatQty } from '../../lib/units';
 import styles from './Recipe.module.css';
 
 interface RecipeLocationState {
@@ -111,7 +112,7 @@ export function RecipePage() {
                   )}
                 </span>
                 {ing.v != null && ing.u && (
-                  <span className={styles['ing-qty']}>{ing.v}{ing.u}</span>
+                  <span className={styles['ing-qty']}>{formatQty(ing.v, ing.u)}</span>
                 )}
               </div>
             );
@@ -172,7 +173,7 @@ function renderStepContent(c: string, ing: { v?: number; u?: string; n?: string 
     const i = Number(idx);
     const it = ing[i];
     if (!it) return `{${idx}}`;
-    if (it.v != null && it.u) return `${it.v}${it.u}`;
+    if (it.v != null && it.u) return formatQty(it.v, it.u);
     if (it.n) return it.n;
     return `{${idx}}`;
   });

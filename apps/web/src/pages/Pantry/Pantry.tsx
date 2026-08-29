@@ -9,6 +9,8 @@ import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { plural } from '../../lib/plural';
+import { formatQty } from '../../lib/units';
 import styles from './Pantry.module.css';
 
 const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
@@ -78,7 +80,7 @@ export function PantryPage() {
           >
             + Додати
           </button>
-          <div className={styles.meta}>{batches.length} ПОЗИЦІЙ</div>
+          <div className={styles.meta}>{batches.length} {plural(batches.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}</div>
         </div>
       </div>
 
@@ -139,7 +141,7 @@ export function PantryPage() {
                       )}
                     </span>
                     {b.value != null && b.unit && (
-                      <span className={styles.qty}>{b.value}{b.unit}</span>
+                      <span className={styles.qty}>{formatQty(b.value, b.unit)}</span>
                     )}
                   </button>
                 );
@@ -203,14 +205,27 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
         zone,
       });
       await onChanged();
+    } catch (err) {
+      alert(`Не вдалося зберегти: ${(err as Error).message}`);
     } finally { setSaving(false); }
   }
 
   async function toggleOpened() {
     setSaving(true);
     try {
-      await api.batches.update(batch.id, { state: batch.state === 'sealed' ? 'opened' : 'sealed' });
+      // FIX-04: перемикач «Відкрито» шле ще й поточні поля форми, інакше тап
+      // тихо викидає все, що юзер щойно наредагував, і закриває шит.
+      const v = value.trim() === '' ? null : Number(value.trim());
+      await api.batches.update(batch.id, {
+        label: label.trim(),
+        value: v,
+        unit,
+        zone,
+        state: batch.state === 'sealed' ? 'opened' : 'sealed',
+      });
       await onChanged();
+    } catch (err) {
+      alert(`Не вдалося зберегти: ${(err as Error).message}`);
     } finally { setSaving(false); }
   }
 
@@ -220,6 +235,8 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
     try {
       await api.batches.remove(batch.id);
       await onChanged();
+    } catch (err) {
+      alert(`Не вдалося прибрати: ${(err as Error).message}`);
     } finally { setSaving(false); }
   }
 

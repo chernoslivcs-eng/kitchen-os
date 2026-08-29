@@ -5,6 +5,8 @@
 import { useEffect, useState } from 'react';
 import { api, type ShoppingItem } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { plural } from '../../lib/plural';
+import { formatQty } from '../../lib/units';
 import styles from './Shopping.module.css';
 
 export function ShoppingPage() {
@@ -39,7 +41,7 @@ export function ShoppingPage() {
 
   const [unpacking, setUnpacking] = useState(false);
   async function unpackChecked() {
-    if (!confirm(`Перекласти ${checkedCount} позицій із «куплено» в комору?`)) return;
+    if (!confirm(`Перекласти ${checkedCount} ${plural(checkedCount, ['позицію', 'позиції', 'позицій'])} із «куплено» в комору?`)) return;
     setUnpacking(true);
     try {
       await api.shopping.unpack();
@@ -102,7 +104,7 @@ export function ShoppingPage() {
               {it.reason && <span className={styles.reason}>{it.reason}</span>}
             </span>
             {it.value != null && it.unit && (
-              <span className={styles.qty}>{it.value}{it.unit}</span>
+              <span className={styles.qty}>{formatQty(it.value, it.unit)}</span>
             )}
             <button className={styles.delete} onClick={() => remove(it)} aria-label="Видалити">×</button>
           </div>

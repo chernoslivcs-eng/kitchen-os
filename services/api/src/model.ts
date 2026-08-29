@@ -27,13 +27,14 @@ function baseURL(): string | undefined {
 }
 function fastModel(): string {
   if (process.env.MODEL_FAST) return process.env.MODEL_FAST;
-  // OpenRouter точно має claude-3-haiku і claude-3.5-sonnet. Юзер може перевизначити
-  // MODEL_FAST у .env, якщо хоче іншу модель — імена звіряти на openrouter.ai/models.
-  return isOpenRouter() ? 'anthropic/claude-3-haiku' : 'claude-haiku-4-5-20251001';
+  // Слаги OpenRouter застарівають без попередження — актуальні звіряти на
+  // GET https://openrouter.ai/api/v1/models. Перекривається MODEL_FAST у .env
+  // / Vercel Env. Стан на 2026-08-29 підтверджено QA-звітом Cowork.
+  return isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001';
 }
 function smartModel(): string {
   if (process.env.MODEL_SMART) return process.env.MODEL_SMART;
-  return isOpenRouter() ? 'anthropic/claude-3.5-sonnet' : 'claude-sonnet-5';
+  return isOpenRouter() ? 'anthropic/claude-sonnet-4.5' : 'claude-sonnet-5';
 }
 function makeClient(): Anthropic | null {
   const key = apiKey();
@@ -408,19 +409,48 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   };
 }
 
-// Витягає перший верхньорівневий JSON-обʼєкт із тексту й повертає його разом
-// з рештою тексту (все, що НЕ входить у цей обʼєкт). Модель часто пише
-// «<JSON> — коротка фраза», і фраза йде людині як reply, JSON — як card.
-function extractJson(text: string): { parsed: unknown; residualText: string } {
+// Витягає ВСІ верхньорівневі JSON-обʼєкти з тексту й обирає карту з валідним
+// `type`. Модель іноді пише два обʼєкти в одну відповідь («ось intake для
+// комори, ось proposal для рецепта») — раніше ми брали перший, а другий
+// затікав у reply сирим JSON. QA-звіт зафіксував це як FIX-05.
+export function extractJson(text: string): { parsed: unknown; residualText: string } {
   const trimmed = text.trim();
   try {
     return { parsed: JSON.parse(trimmed), residualText: '' };
   } catch {}
-  const start = text.indexOf('{');
-  if (start === -1) return { parsed: null, residualText: text };
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
+
+  const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile'];
+  const found: unknown[] = [];
+  let residual = '';
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] !== '{') { residual += text[i++]; continue; }
+    const end = matchBrace(text, i);
+    if (end === -1) { residual += text[i++]; continue; }
+    const slice = text.slice(i, end + 1);
+    try {
+      found.push(JSON.parse(slice));
+    } catch {
+      residual += slice;
+    }
+    i = end + 1;
+  }
+  // Пріоритет: (1) обгортка {reply,card}; (2) обʼєкт із валідним type;
+  // (3) перший знайдений. Тоді при двох JSON з type card вибирається один,
+  // а другий не тече в reply.
+  const wrapper = found.find((o) =>
+    o && typeof o === 'object' && 'reply' in (o as object) && 'card' in (o as object),
+  );
+  const card = found.find((o) => {
+    const t = (o as { type?: unknown } | null)?.type;
+    return typeof t === 'string' && CARD_TYPES.includes(t);
+  });
+  return { parsed: wrapper ?? card ?? found[0] ?? null, residualText: residual.trim() };
+}
+
+// Індекс парної '}' для '{' на позиції start; -1 якщо не знайдено.
+function matchBrace(text: string, start: number): number {
+  let depth = 0, inString = false, escaped = false;
   for (let i = start; i < text.length; i++) {
     const c = text[i];
     if (inString) {
@@ -431,20 +461,9 @@ function extractJson(text: string): { parsed: unknown; residualText: string } {
     }
     if (c === '"') { inString = true; continue; }
     if (c === '{') depth++;
-    else if (c === '}') {
-      depth--;
-      if (depth === 0) {
-        try {
-          const parsed = JSON.parse(text.slice(start, i + 1));
-          const residual = (text.slice(0, start) + text.slice(i + 1)).trim();
-          return { parsed, residualText: residual };
-        } catch {
-          return { parsed: null, residualText: text };
-        }
-      }
-    }
+    else if (c === '}' && --depth === 0) return i;
   }
-  return { parsed: null, residualText: text };
+  return -1;
 }
 
 // Обгортка для випадків, де нам потрібен лише parsed (у callAttachmentParse).

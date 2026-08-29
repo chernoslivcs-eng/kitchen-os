@@ -5,6 +5,7 @@
 import type { ChatCard } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
+import { formatQty } from '../../lib/units';
 import styles from './Feed.module.css';
 
 // ----- Спільні типи op/item, які модель кладе в картку -------------------
@@ -46,11 +47,13 @@ export interface CardProps {
   card: ChatCard;
   applied?: boolean;
   applying?: boolean;
+  dismissed?: boolean;
   undone?: boolean;
   undoAvailable?: boolean;
   onApply?: () => void;
+  onDismiss?: () => void;
   onUndo?: () => void;
-  onOpen?: () => void;
+  onOpen?: (index: number) => void;
 }
 
 function stateClass(applied?: boolean, undone?: boolean): string {
@@ -63,7 +66,7 @@ function stateClass(applied?: boolean, undone?: boolean): string {
 
 // ----- Intake --------------------------------------------------------------
 
-export function IntakeCard({ card, applied, applying, undone, undoAvailable, onApply, onUndo }: CardProps) {
+export function IntakeCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
   const ops = (card.ops as IntakeOp[] | undefined ?? []).filter(
     (o) => !o.op || o.op === 'add' || o.op === 'open' || o.op === 'deplete',
   );
@@ -80,15 +83,15 @@ export function IntakeCard({ card, applied, applying, undone, undoAvailable, onA
             <span className={styles['op-sign']}>{signFor(op.op)}</span>
             <span className={styles['op-label']}>{op.label ?? '—'}</span>
             {op.value != null && op.unit && (
-              <span className={styles['op-qty']}>{op.value}{op.unit}</span>
+              <span className={styles['op-qty']}>{formatQty(op.value, op.unit)}</span>
             )}
           </div>
         ))}
       </div>
-      {!applied && !undone && onApply && (
+      {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
           <Button variant="primary" onClick={onApply} loading={applying}>Застосувати</Button>
-          <Button variant="secondary" onClick={() => {}}>Ні</Button>
+          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
       {applied && !undone && undoAvailable && onUndo && (
@@ -139,9 +142,9 @@ export function ProposalCard({ card, onOpen }: CardProps) {
               <div className={styles['proposal-desc']}>{it.why}</div>
             </div>
           )}
-          {i === 0 && onOpen && (
+          {onOpen && (
             <div className={styles['card-actions']}>
-              <Button variant="positive" onClick={onOpen}>Рецепт →</Button>
+              <Button variant="positive" onClick={() => onOpen(i)}>Рецепт →</Button>
             </div>
           )}
         </div>
@@ -152,7 +155,7 @@ export function ProposalCard({ card, onOpen }: CardProps) {
 
 // ----- Shopping ------------------------------------------------------------
 
-export function ShoppingCard({ card, applied, applying, undone, undoAvailable, onApply, onUndo }: CardProps) {
+export function ShoppingCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
   const items = (card.items as ShoppingItem[] | undefined ?? []);
   return (
     <div className={stateClass(applied, undone)}>
@@ -162,15 +165,15 @@ export function ShoppingCard({ card, applied, applying, undone, undoAvailable, o
             <span className={styles['op-sign']}>{it.op === 'remove' ? '−' : '+'}</span>
             <span className={styles['op-label']}>{it.label ?? '—'}</span>
             {it.v != null && it.u && (
-              <span className={styles['op-qty']}>{it.v}{it.u}</span>
+              <span className={styles['op-qty']}>{formatQty(it.v, it.u)}</span>
             )}
           </div>
         ))}
       </div>
-      {!applied && !undone && onApply && (
+      {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
           <Button variant="primary" onClick={onApply} loading={applying}>У список</Button>
-          <Button variant="secondary" onClick={() => {}}>Ні</Button>
+          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
       {applied && !undone && undoAvailable && onUndo && (
@@ -184,7 +187,7 @@ export function ShoppingCard({ card, applied, applying, undone, undoAvailable, o
 
 // ----- Profile -------------------------------------------------------------
 
-export function ProfileCard({ card, applied, applying, undone, onApply }: CardProps) {
+export function ProfileCard({ card, applied, applying, dismissed, undone, onApply, onDismiss }: CardProps) {
   const items = (card.ops as ProfileItem[] | undefined ?? []);
   return (
     <div className={stateClass(applied, undone)}>
@@ -199,10 +202,10 @@ export function ProfileCard({ card, applied, applying, undone, onApply }: CardPr
           </div>
         ))}
       </div>
-      {!applied && !undone && onApply && (
+      {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
           <Button variant="primary" onClick={onApply} loading={applying}>Запам'ятати</Button>
-          <Button variant="secondary" onClick={() => {}}>Ні</Button>
+          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
     </div>

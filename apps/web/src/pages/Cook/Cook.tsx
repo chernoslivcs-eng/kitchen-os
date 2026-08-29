@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe } from '../../api';
+import { plural } from '../../lib/plural';
+import { formatQty } from '../../lib/units';
 import styles from './Cook.module.css';
 
 interface CookLocationState {
@@ -166,11 +168,11 @@ export function CookPage() {
                   ) : (
                     <>
                       {depleted > 0 && (
-                        <>Списано {depleted} {depleted === 1 ? 'позицію' : 'позицій'}</>
+                        <>Списано {depleted} {plural(depleted, ['позицію', 'позиції', 'позицій'])}</>
                       )}
                       {depleted > 0 && partial > 0 && <> · </>}
                       {partial > 0 && (
-                        <>Частково використано {partial} {partial === 1 ? 'позицію' : 'позицій'}</>
+                        <>Частково використано {partial} {plural(partial, ['позицію', 'позиції', 'позицій'])}</>
                       )}
                     </>
                   )}
@@ -387,7 +389,7 @@ function renderStepContent(c: string, ing: { v?: number; u?: string; n?: string 
     const i = Number(idx);
     const it = ing[i];
     if (!it) return `{${idx}}`;
-    if (it.v != null && it.u) return `${it.v}${it.u}`;
+    if (it.v != null && it.u) return formatQty(it.v, it.u);
     if (it.n) return it.n;
     return `{${idx}}`;
   });

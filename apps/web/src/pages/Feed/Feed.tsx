@@ -10,6 +10,7 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { TabBar } from '../../components/TabBar/TabBar';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor } from './cards';
 import styles from './Feed.module.css';
@@ -23,6 +24,7 @@ interface Turn {
   cardId?: string | null;
   applied?: boolean;
   applying?: boolean;
+  dismissed?: boolean;
   undoToken?: string;
   undone?: boolean;
 }
@@ -264,12 +266,13 @@ export function Feed() {
       const count = turn.card?.type === 'intake_diff'
         ? ((turn.card.ops as unknown[] | undefined)?.length ?? 0)
         : ((turn.card?.items as unknown[] | undefined)?.length ?? 0);
-      const noun = turn.card?.type === 'shopping' ? 'позиція у списку' : 'позиція у коморі';
-      const nounPl = turn.card?.type === 'shopping' ? 'позицій у списку' : 'позицій у коморі';
+      const forms: [string, string, string] = turn.card?.type === 'shopping'
+        ? ['позиція у списку', 'позиції у списку', 'позицій у списку']
+        : ['позиція у коморі', 'позиції у коморі', 'позицій у коморі'];
       setToast({
         id: Date.now(),
         kind: 'ok',
-        text: `${count} ${count === 1 ? noun : nounPl}`,
+        text: `${count} ${plural(count, forms)}`,
         onUndo: () => undo(turnId, r.undo_token),
       });
     } catch (err) {
@@ -278,16 +281,25 @@ export function Feed() {
     }
   }
 
-  async function openRecipe(turn: Turn) {
-    // Клік «Рецепт →» на пропозиції: беремо перший title як seed для генератора.
+  function dismissCard(turnId: string) {
+    // «Ні» на пропозиції — локальне відхилення в межах вкладки. Не переживає
+    // F5 (для цього треба POST /v1/cards/:id/dismiss + поле в БД, окрема
+    // задача). Мінімум — кнопка мусить хоч би реагувати.
+    setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, dismissed: true } : t));
+  }
+
+  async function openRecipe(turn: Turn, index = 0) {
+    // Клік «Рецепт →» на пропозиції: беремо title обраної страви як seed
+    // для генератора. Раніше UI показував кнопку лише на першій, а Feed
+    // жорстко брав items[0] — 2/3 пропозицій були недосяжні.
     if (turn.card?.type !== 'proposal') return;
     const items = (turn.card.items as { title?: string; desc?: string }[] | undefined) ?? [];
-    const first = items[0];
-    if (!first?.title) return;
+    const pick = items[index];
+    if (!pick?.title) return;
     setOpeningRecipe(true);
     setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…' });
     try {
-      const { recipe } = await api.recipes.generate(first.title, first.desc);
+      const { recipe } = await api.recipes.generate(pick.title, pick.desc);
       setToast(null);
       navigate('/recipe', { state: { recipe } });
     } catch (err) {
@@ -399,7 +411,7 @@ export function Feed() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>{dayLabel}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase', marginTop: 3 }}>
-                    {d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {s.message_count === 1 ? 'ПОВІДОМЛЕННЯ' : 'ПОВІДОМЛЕНЬ'}
+                    {d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
                   </div>
                 </div>
                 <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>
@@ -457,11 +469,13 @@ export function Feed() {
                 card={t.card}
                 applied={t.applied}
                 applying={t.applying}
+                dismissed={t.dismissed}
                 undone={t.undone}
                 undoAvailable={!!t.undoToken}
                 onApply={() => apply(t.id)}
+                onDismiss={() => dismissCard(t.id)}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
-                onOpen={t.card.type === 'proposal' ? () => openRecipe(t) : undefined}
+                onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
               />
             )}
           </div>
@@ -547,7 +561,7 @@ export function Feed() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
+            placeholder={pending.length > 0 ? 'Що з цим?' : 'Що купив або що готуємо?'}
             disabled={sending}
             autoFocus
           />

@@ -11,6 +11,7 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { useAuth } from '../../store/auth';
 import type { Recipe } from '../../api';
+import { formatQty } from '../../lib/units';
 import styles from './SharedRecipe.module.css';
 
 interface SharedRecipeResponse {
@@ -89,7 +90,7 @@ export function SharedRecipePage() {
               <span className={styles['ing-mark']}>•</span>
               <span className={styles['ing-name']}>{ing.n ?? (ing.p ? `[${ing.p}]` : '—')}</span>
               {ing.v != null && ing.u && (
-                <span className={styles['ing-qty']}>{ing.v}{ing.u}</span>
+                <span className={styles['ing-qty']}>{formatQty(ing.v, ing.u)}</span>
               )}
             </div>
           ))}

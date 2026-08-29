@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type CookRunWithRecipe } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { plural } from '../../lib/plural';
 import styles from './CookLog.module.css';
 
 const WEEKDAYS = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
@@ -83,7 +84,7 @@ export function CookLogPage() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div className={styles.title}>Журнал</div>
-        <div className={styles.meta}>{runs.length} {runs.length === 1 ? 'ГОТУВАННЯ' : 'ГОТУВАНЬ'}</div>
+        <div className={styles.meta}>{runs.length} {plural(runs.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</div>
       </div>
 
       <div className={styles.body}>
@@ -132,7 +133,7 @@ export function CookLogPage() {
             lineHeight: 1.5,
           }}>
             <span style={{ color: 'var(--fg-dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
-            <span style={{ color: 'var(--fg)' }}>{weekRuns.length} {weekRuns.length === 1 ? 'ГОТУВАННЯ' : 'ГОТУВАНЬ'}</span>
+            <span style={{ color: 'var(--fg)' }}>{weekRuns.length} {plural(weekRuns.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</span>
             {avgRating != null && <> · <span style={{ color: 'var(--accent)' }}>★{avgRating.toFixed(1)}</span></>}
             {pantryUsed > 0 && <> · <span style={{ color: 'var(--fg)' }}>{pantryUsed} З КОМОРИ</span></>}
           </div>
