@@ -149,6 +149,14 @@ export interface RecipeRow {
   created_at: string;
 }
 
+export type CookRunBatchChange =
+  | { id: string; op: 'deplete'; prev_state: BatchState; prev_depleted_at: string | null }
+  | { id: string; op: 'subtract'; amount: number; prev_state: BatchState; prev_value: number | null; prev_opened_at: string | null };
+
+export interface CookRunChanges {
+  batches: CookRunBatchChange[];
+}
+
 export interface CookRunRow {
   id: string;
   household_id: string;
@@ -160,6 +168,8 @@ export interface CookRunRow {
   rating: number | null;
   verdict: string | null;
   photo_url: string | null;
+  changes: CookRunChanges | null;
+  undone_at: string | null;
 }
 
 export interface CookRunWithRecipe extends CookRunRow {

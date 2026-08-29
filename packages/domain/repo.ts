@@ -89,6 +89,8 @@ export interface Repo {
   saveRecipe(recipe: RecipeRow): Promise<void>;
   getRecipe(id: string): Promise<RecipeRow | null>;
   saveCookRun(run: CookRunRow): Promise<void>;
+  getCookRun(id: string): Promise<CookRunRow | null>;
+  markCookRunUndone(id: string, undone_at: string): Promise<void>;
   listCookRuns(user_id: string, limit?: number): Promise<CookRunWithRecipe[]>;
 
   // Список покупок

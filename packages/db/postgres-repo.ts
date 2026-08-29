@@ -13,7 +13,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow,
-  RecipeRow, CookRunRow, CookRunWithRecipe,
+  RecipeRow, CookRunRow, CookRunChanges, CookRunWithRecipe,
   SessionRow, MessageRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
@@ -35,6 +35,23 @@ function rowToRecipe(r: Row): RecipeRow {
     nutrition: r.nutrition,
     payload: r.payload,
     created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
+
+function rowToCookRun(r: Row): CookRunRow {
+  return {
+    id: r.id as string,
+    household_id: r.household_id as string,
+    user_id: r.user_id as string,
+    recipe_id: r.recipe_id as string,
+    servings: r.servings as number,
+    started_at: new Date(r.started_at as string).toISOString(),
+    finished_at: r.finished_at ? new Date(r.finished_at as string).toISOString() : null,
+    rating: (r.rating as number | null) ?? null,
+    verdict: (r.verdict as string | null) ?? null,
+    photo_url: (r.photo_url as string | null) ?? null,
+    changes: (r.changes as CookRunChanges | null) ?? null,
+    undone_at: r.undone_at ? new Date(r.undone_at as string).toISOString() : null,
   };
 }
 
@@ -567,13 +584,26 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO cook_run
          (id, household_id, user_id, recipe_id, servings, started_at, finished_at,
-          rating, verdict, photo_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          rating, verdict, photo_url, changes, undone_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [
         run.id, run.household_id, run.user_id, run.recipe_id, run.servings,
         run.started_at, run.finished_at, run.rating, run.verdict, run.photo_url,
+        run.changes ? JSON.stringify(run.changes) : null,
+        run.undone_at,
       ],
     );
+  }
+
+  async getCookRun(id: string): Promise<CookRunRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM cook_run WHERE id = $1', [id]);
+    const r = rows[0];
+    if (!r) return null;
+    return rowToCookRun(r);
+  }
+
+  async markCookRunUndone(id: string, undone_at: string): Promise<void> {
+    await this.pool.query('UPDATE cook_run SET undone_at = $1 WHERE id = $2', [undone_at, id]);
   }
 
   async listCookRuns(user_id: string, limit = 20): Promise<CookRunWithRecipe[]> {
@@ -588,16 +618,7 @@ export class PostgresRepo implements Repo {
       [user_id, limit],
     );
     return rows.map((r): CookRunWithRecipe => ({
-      id: r.id,
-      household_id: r.household_id,
-      user_id: r.user_id,
-      recipe_id: r.recipe_id,
-      servings: r.servings,
-      started_at: new Date(r.started_at).toISOString(),
-      finished_at: r.finished_at ? new Date(r.finished_at).toISOString() : null,
-      rating: r.rating ?? null,
-      verdict: r.verdict ?? null,
-      photo_url: r.photo_url ?? null,
+      ...rowToCookRun(r),
       recipe: rowToRecipe(r.recipe_row),
     }));
   }

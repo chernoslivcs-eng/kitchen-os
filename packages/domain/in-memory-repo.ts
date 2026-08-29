@@ -262,6 +262,14 @@ export class InMemoryRepo implements Repo {
   async saveCookRun(run: CookRunRow): Promise<void> {
     this.cookRuns.set(run.id, { ...run });
   }
+  async getCookRun(id: string): Promise<CookRunRow | null> {
+    const r = this.cookRuns.get(id);
+    return r ? { ...r } : null;
+  }
+  async markCookRunUndone(id: string, undone_at: string): Promise<void> {
+    const cur = this.cookRuns.get(id);
+    if (cur) this.cookRuns.set(id, { ...cur, undone_at });
+  }
   async listCookRuns(user_id: string, limit = 20): Promise<CookRunWithRecipe[]> {
     return [...this.cookRuns.values()]
       .filter((r) => r.user_id === user_id)

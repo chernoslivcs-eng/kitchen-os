@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { RecipeRow, Repo } from '@kitchen/domain';
+import type { RecipeRow, Repo, CookRunBatchChange } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import type { Recipe } from '../model.js';
 
@@ -75,6 +75,59 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       await repo.saveRecipe(recipeRow);
 
       const run_id = randomUUID();
+
+      // Списання партій, на які модель поставила посилання (ing.p = batch id).
+      // Часткове: якщо recipe.ing[i] має v/u сумісні з партією — віднімаємо. Якщо
+      // після цього залишок ≤ 0 — партія депляцується. Одиниці конвертуємо
+      // за тими ж правилами, що intake normalizeUnit: l→ml×1000, kg→g×1000.
+      // Якщо recipe не дав кількості, або одиниці несумісні — все ж депляцуємо
+      // всю партію, бо інакше вона зависне як «використана, але жива».
+      let depleted = 0;
+      let partial = 0;
+      const depletedIds: string[] = [];
+      const changes: CookRunBatchChange[] = [];
+      for (const ing of recipe.ing ?? []) {
+        if (!ing.p) continue;
+        const batch = await repo.getBatch(ing.p);
+        if (!batch || batch.household_id !== household_id) continue;
+        if (batch.state === 'depleted') continue;
+
+        const used = normalizeForBatch(ing.v ?? null, ing.u ?? null, batch.unit);
+        if (used != null && batch.value != null && batch.value > used) {
+          changes.push({
+            id: batch.id,
+            op: 'subtract',
+            amount: used,
+            prev_state: batch.state,
+            prev_value: batch.value,
+            prev_opened_at: batch.opened_at,
+          });
+          await repo.updateBatch(batch.id, {
+            value: Math.round((batch.value - used) * 100) / 100,
+            state: batch.state === 'sealed' ? 'opened' : batch.state,
+            opened_at: batch.opened_at ?? now,
+            last_by: user_id,
+            last_action: 'cook',
+          });
+          partial++;
+        } else {
+          changes.push({
+            id: batch.id,
+            op: 'deplete',
+            prev_state: batch.state,
+            prev_depleted_at: batch.depleted_at,
+          });
+          await repo.updateBatch(batch.id, {
+            state: 'depleted',
+            depleted_at: now,
+            last_by: user_id,
+            last_action: 'cook',
+          });
+          depletedIds.push(batch.id);
+          depleted++;
+        }
+      }
+
       await repo.saveCookRun({
         id: run_id,
         household_id,
@@ -86,46 +139,9 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         rating: rating ?? null,
         verdict: verdict ?? null,
         photo_url: null,
+        changes: changes.length ? { batches: changes } : null,
+        undone_at: null,
       });
-
-      // Списання партій, на які модель поставила посилання (ing.p = batch id).
-      // Часткове: якщо recipe.ing[i] має v/u сумісні з партією — віднімаємо. Якщо
-      // після цього залишок ≤ 0 — партія депляцується. Одиниці конвертуємо
-      // за тими ж правилами, що intake normalizeUnit: l→ml×1000, kg→g×1000.
-      // Якщо recipe не дав кількості, або одиниці несумісні — все ж депляцуємо
-      // всю партію, бо інакше вона зависне як «використана, але жива».
-      let depleted = 0;
-      let partial = 0;
-      const depletedIds: string[] = [];
-      for (const ing of recipe.ing ?? []) {
-        if (!ing.p) continue;
-        const batch = await repo.getBatch(ing.p);
-        if (!batch || batch.household_id !== household_id) continue;
-        if (batch.state === 'depleted') continue;
-
-        const used = normalizeForBatch(ing.v ?? null, ing.u ?? null, batch.unit);
-        if (used != null && batch.value != null && batch.value > used) {
-          // Часткове: віднімаємо й лишаємо партію живою
-          await repo.updateBatch(batch.id, {
-            value: Math.round((batch.value - used) * 100) / 100,
-            state: batch.state === 'sealed' ? 'opened' : batch.state,
-            opened_at: batch.opened_at ?? now,
-            last_by: user_id,
-            last_action: 'cook',
-          });
-          partial++;
-        } else {
-          // Повне: або невідома кількість, або вжили не менше залишку
-          await repo.updateBatch(batch.id, {
-            state: 'depleted',
-            depleted_at: now,
-            last_by: user_id,
-            last_action: 'cook',
-          });
-          depletedIds.push(batch.id);
-          depleted++;
-        }
-      }
 
       return reply.code(201).send({
         id: run_id,
@@ -142,4 +158,50 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
     const runs = await repo.listCookRuns(user_id, 30);
     return { runs };
   });
+
+  // Розкат назад: партіям, що були депляцовані — повертаємо попередній стан;
+  // тим, у кого віднімали — повертаємо попередній value і opened_at. Ідемпотентно:
+  // повторний виклик по вже undone-ному пробіжаному run поверне 200 з {already: true}.
+  app.post<{ Params: { id: string } }>(
+    '/v1/cook-runs/:id/undo',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id, household_id } = requireUser(req);
+      const run = await repo.getCookRun(req.params.id);
+      if (!run) return reply.code(404).send({ error: 'not_found' });
+      if (run.user_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
+      if (run.undone_at) return reply.send({ undone: true, already: true, restored: 0 });
+      if (!run.changes) return reply.code(400).send({ error: 'no_changes_to_undo' });
+
+      const now = new Date().toISOString();
+      let restored = 0;
+      for (const ch of run.changes.batches) {
+        const batch = await repo.getBatch(ch.id);
+        if (!batch || batch.household_id !== household_id) continue;
+        if (ch.op === 'deplete') {
+          await repo.updateBatch(ch.id, {
+            state: ch.prev_state,
+            depleted_at: ch.prev_depleted_at,
+            last_by: user_id,
+            last_action: 'undo_cook',
+          });
+          restored++;
+        } else {
+          // 'subtract' — повертаємо попередню кількість і opened_at.
+          // Якщо hindsight: партія вже інша (юзер щось редагував уручну),
+          // все одно повертаємо декларативно — це undo саме cook-run-у.
+          await repo.updateBatch(ch.id, {
+            value: ch.prev_value,
+            state: ch.prev_state,
+            opened_at: ch.prev_opened_at,
+            last_by: user_id,
+            last_action: 'undo_cook',
+          });
+          restored++;
+        }
+      }
+      await repo.markCookRunUndone(run.id, now);
+      return reply.send({ undone: true, already: false, restored });
+    },
+  );
 }

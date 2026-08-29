@@ -78,13 +78,23 @@ export function CookPage() {
   // Кількість повертаємо, щоб «Готово» показало «списано N позицій».
   const [depleted, setDepleted] = useState<number | null>(null);
   const [partial, setPartial] = useState<number>(0);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [undone, setUndone] = useState<boolean>(false);
   useEffect(() => {
     if (done) {
       api.cookRuns.save(recipe)
-        .then((r) => { setDepleted(r.depleted); setPartial(r.partial); })
+        .then((r) => { setDepleted(r.depleted); setPartial(r.partial); setRunId(r.id); })
         .catch(() => {/* offline: наступним разом */});
     }
   }, [done, recipe]);
+
+  async function undoCook() {
+    if (!runId || undone) return;
+    try {
+      await api.cookRuns.undo(runId);
+      setUndone(true);
+    } catch {/* тихо: юзер побачить, що кнопка не спрацювала */}
+  }
 
   return (
     <div className={styles.screen}>
@@ -109,14 +119,40 @@ export function CookPage() {
               <div className={styles.section}>
                 <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>
                 <div className={styles.next}>
-                  {depleted > 0 && (
-                    <>Списано {depleted} {depleted === 1 ? 'позицію' : 'позицій'}</>
-                  )}
-                  {depleted > 0 && partial > 0 && <> · </>}
-                  {partial > 0 && (
-                    <>Частково використано {partial} {partial === 1 ? 'позицію' : 'позицій'}</>
+                  {undone ? (
+                    <>Повернуто в комору — вибач за неспокій.</>
+                  ) : (
+                    <>
+                      {depleted > 0 && (
+                        <>Списано {depleted} {depleted === 1 ? 'позицію' : 'позицій'}</>
+                      )}
+                      {depleted > 0 && partial > 0 && <> · </>}
+                      {partial > 0 && (
+                        <>Частково використано {partial} {partial === 1 ? 'позицію' : 'позицій'}</>
+                      )}
+                    </>
                   )}
                 </div>
+                {runId && !undone && (
+                  <button
+                    onClick={undoCook}
+                    style={{
+                      marginTop: 12,
+                      background: 'transparent',
+                      color: 'var(--fg-muted)',
+                      border: '1px solid var(--border-strong)',
+                      padding: '8px 14px',
+                      borderRadius: 'var(--r-pill)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ← Скасувати списання
+                  </button>
+                )}
               </div>
             )}
           </>

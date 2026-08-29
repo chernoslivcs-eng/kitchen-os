@@ -143,6 +143,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ recipe, servings, rating, verdict }),
       }),
+    undo: (id: string) =>
+      req<{ undone: boolean; already: boolean; restored: number }>(`/v1/cook-runs/${id}/undo`, {
+        method: 'POST',
+        body: '{}',
+      }),
   },
 
   attachments: {
@@ -270,6 +275,16 @@ export interface MessageInfo {
   created_at: string;
 }
 
+export interface CookRunBatchChange {
+  id: string;
+  op: 'deplete' | 'subtract';
+  amount?: number;
+  prev_state?: string;
+  prev_value?: number | null;
+  prev_opened_at?: string | null;
+  prev_depleted_at?: string | null;
+}
+
 export interface CookRunWithRecipe {
   id: string;
   household_id: string;
@@ -281,6 +296,8 @@ export interface CookRunWithRecipe {
   rating: number | null;
   verdict: string | null;
   photo_url: string | null;
+  changes: { batches: CookRunBatchChange[] } | null;
+  undone_at: string | null;
   recipe: {
     id: string;
     title: string;

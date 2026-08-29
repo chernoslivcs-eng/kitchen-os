@@ -9,6 +9,7 @@ import { ProfilePage } from './pages/Profile/Profile';
 import { RecipePage } from './pages/Recipe/Recipe';
 import { CookPage } from './pages/Cook/Cook';
 import { SharePage } from './pages/Share/Share';
+import { CookLogPage } from './pages/CookLog/CookLog';
 import { useAuth } from './store/auth';
 
 function Boot({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ export function App() {
           <Route path="/recipe" element={<RequireAuth><RecipePage /></RequireAuth>} />
           <Route path="/cook" element={<RequireAuth><CookPage /></RequireAuth>} />
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
+          <Route path="/cooklog" element={<RequireAuth><CookLogPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Boot>
