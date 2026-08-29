@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import type { Recipe } from '../../api';
+import { api, type Recipe } from '../../api';
 import styles from './Cook.module.css';
 
 interface CookLocationState {
@@ -73,6 +73,13 @@ export function CookPage() {
   const total = recipe.st.length;
   const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
   const done = stepIdx >= total;
+
+  // Тихий post при завершенні — не блокуємо UX, просто fire-and-forget.
+  useEffect(() => {
+    if (done) {
+      void api.cookRuns.save(recipe).catch(() => {/* offline: наступним разом */});
+    }
+  }, [done, recipe]);
 
   return (
     <div className={styles.screen}>

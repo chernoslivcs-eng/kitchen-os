@@ -3,7 +3,7 @@ import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js'
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
-  ShoppingItemRow,
+  ShoppingItemRow, RecipeRow, CookRunRow, CookRunWithRecipe,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 
@@ -24,6 +24,8 @@ export class InMemoryRepo implements Repo {
   private invites = new Map<string, HouseholdInvite>();          // by id
   private inviteByHash = new Map<string, string>();              // token_hash → id
   private shopping = new Map<string, ShoppingItemRow>();          // by id
+  private recipes = new Map<string, RecipeRow>();
+  private cookRuns = new Map<string, CookRunRow>();
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -216,6 +218,24 @@ export class InMemoryRepo implements Repo {
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, limit)
       .map((r) => ({ ...r }));
+  }
+
+  async saveRecipe(recipe: RecipeRow): Promise<void> {
+    this.recipes.set(recipe.id, { ...recipe });
+  }
+  async getRecipe(id: string): Promise<RecipeRow | null> {
+    return this.recipes.get(id) ?? null;
+  }
+  async saveCookRun(run: CookRunRow): Promise<void> {
+    this.cookRuns.set(run.id, { ...run });
+  }
+  async listCookRuns(user_id: string, limit = 20): Promise<CookRunWithRecipe[]> {
+    return [...this.cookRuns.values()]
+      .filter((r) => r.user_id === user_id)
+      .sort((a, b) => (b.finished_at ?? b.started_at).localeCompare(a.finished_at ?? a.started_at))
+      .slice(0, limit)
+      .map((r) => ({ ...r, recipe: this.recipes.get(r.recipe_id)! }))
+      .filter((r) => r.recipe);
   }
 
   async listShoppingItems(household_id: string): Promise<ShoppingItemRow[]> {

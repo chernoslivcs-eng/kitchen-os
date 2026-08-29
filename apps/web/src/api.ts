@@ -132,6 +132,15 @@ export const api = {
       ),
   },
 
+  cookRuns: {
+    list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
+    save: (recipe: Recipe, servings?: number, rating?: number, verdict?: string) =>
+      req<{ id: string; recipe_id: string }>('/v1/cook-runs', {
+        method: 'POST',
+        body: JSON.stringify({ recipe, servings, rating, verdict }),
+      }),
+  },
+
   attachments: {
     // Не через req() — FormData, свій content-type ставить браузер.
     async upload(file: File): Promise<AttachmentUploaded> {
@@ -239,6 +248,26 @@ export interface RecipeStep {
   c: string;
   s?: number;                // сек. для таймера, якщо крок часовий
 }
+export interface CookRunWithRecipe {
+  id: string;
+  household_id: string;
+  user_id: string;
+  recipe_id: string;
+  servings: number;
+  started_at: string;
+  finished_at: string | null;
+  rating: number | null;
+  verdict: string | null;
+  photo_url: string | null;
+  recipe: {
+    id: string;
+    title: string;
+    time_total: number | null;
+    payload: Recipe;
+    created_at: string;
+  };
+}
+
 export interface Recipe {
   t: string;                 // title
   sv: number;                // servings

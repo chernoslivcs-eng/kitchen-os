@@ -116,6 +116,38 @@ export interface Profile {
   equipment: Record<string, 'has' | 'lacks'>;
 }
 
+export interface RecipeRow {
+  id: string;
+  owner_id: string;
+  origin: 'generated' | 'imported' | 'catalog';
+  title: string;
+  descr: string | null;
+  character: string | null;
+  risk: string | null;
+  base_servings: number;
+  time_total: number | null;
+  nutrition: unknown;
+  payload: unknown;                                    // повний рецепт як JSON (ing, st)
+  created_at: string;
+}
+
+export interface CookRunRow {
+  id: string;
+  household_id: string;
+  user_id: string;
+  recipe_id: string;
+  servings: number;
+  started_at: string;
+  finished_at: string | null;
+  rating: number | null;
+  verdict: string | null;
+  photo_url: string | null;
+}
+
+export interface CookRunWithRecipe extends CookRunRow {
+  recipe: RecipeRow;
+}
+
 export interface ShoppingItemRow {
   id: string;
   household_id: string;

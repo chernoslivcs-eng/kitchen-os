@@ -46,6 +46,7 @@ export interface ChatArgs {
   session_id: string;
   text: string;
   pantry: PantryBatch[];
+  stage?: 1 | 2;                       // онбординг: 1 — порожня комора; 2 — комора наповнена, але людину ще не спитали
 }
 
 export interface ChatCall {
@@ -98,7 +99,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   if (!client) return stub(args, prompt.version);
 
   const model = fastModel();
-  const system = compose('chat', prompt) + '\n\n[КОМОРА]\n' + serializePantry(args.pantry);
+  const system = compose('chat', prompt, { stage: args.stage }) + '\n\n[КОМОРА]\n' + serializePantry(args.pantry);
   const resp = await client.messages.create({
     model,
     max_tokens: 2048,

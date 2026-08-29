@@ -7,7 +7,8 @@
 // коли відповідь на нього одразу потрібна».
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, type ProfileData, type Me, type InviteInfo } from '../../api';
+import { useNavigate } from 'react-router-dom';
+import { api, type ProfileData, type Me, type InviteInfo, type CookRunWithRecipe } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { TabBar } from '../../components/TabBar/TabBar';
@@ -16,7 +17,9 @@ import styles from './Profile.module.css';
 
 export function ProfilePage() {
   const logout = useAuth((s) => s.logout);
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [runs, setRuns] = useState<CookRunWithRecipe[]>([]);
   const [me, setMe] = useState<Me | null>(null);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [invites, setInvites] = useState<InviteInfo[]>([]);
@@ -40,8 +43,23 @@ export function ProfilePage() {
           setInvites(inv.invites);
         } catch { /* no permission or transient error — не показуємо */ }
       }
+      try {
+        const r = await api.cookRuns.list();
+        setRuns(r.runs);
+      } catch { /* empty */ }
     })();
   }, []);
+
+  function agoText(iso: string): string {
+    const ms = Date.now() - new Date(iso).getTime();
+    const h = Math.floor(ms / 3_600_000);
+    if (h < 1) return 'щойно';
+    if (h < 24) return `${h} год тому`;
+    const d = Math.floor(h / 24);
+    if (d === 1) return 'вчора';
+    if (d < 7) return `${d} дн тому`;
+    return `${Math.floor(d / 7)} тижн тому`;
+  }
 
   async function inviteSend(e: FormEvent) {
     e.preventDefault();
@@ -139,6 +157,26 @@ export function ProfilePage() {
             ))}
           </div>
         </div>
+
+        {runs.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles['section-label']}>Останнє готування</div>
+            <div className={styles.members}>
+              {runs.slice(0, 5).map((r) => (
+                <button
+                  key={r.id}
+                  className={styles.member}
+                  style={{ background: 'transparent', border: 0, borderBottom: '1px solid var(--border)', textAlign: 'left', padding: '10px 0', cursor: 'pointer' }}
+                  onClick={() => navigate('/recipe', { state: { recipe: r.recipe.payload } })}
+                >
+                  <div className={styles.avatar}>👨‍🍳</div>
+                  <span className={styles.name}>{r.recipe.title}</span>
+                  <span className={styles.role}>{agoText(r.finished_at ?? r.started_at)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {me && me.household.members.length > 0 && (
           <div className={styles.section}>

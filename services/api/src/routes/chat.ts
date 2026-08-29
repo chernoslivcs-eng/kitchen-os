@@ -58,9 +58,22 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     }
 
     const pantry = await repo.listBatches(household_id);
+    // Онбординг: stage 1, поки в коморі порожньо; stage 2, коли комора наповнена,
+    // а профіль ще не має відповіді на «алергії/дім/традиції» (як проксі використовуємо
+    // порожні три блоки — щойно щось з'явиться, стадія 2 гасне).
+    let stage: 1 | 2 | undefined;
+    const activeBatches = pantry.filter((b) => b.state !== 'depleted').length;
+    if (activeBatches === 0) {
+      stage = 1;
+    } else if (activeBatches >= 3) {
+      const profile = await repo.getProfile(user_id);
+      const empty = !profile
+        || (profile.allergies.length === 0 && profile.wishes.length === 0 && profile.antipatterns.length === 0);
+      if (empty) stage = 2;
+    }
     const started = Date.now();
     const call = await callChat({
-      user_id, session_id: req.body?.session_id ?? '', text: text ?? '', pantry,
+      user_id, session_id: req.body?.session_id ?? '', text: text ?? '', pantry, stage,
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
     const card_id = call.card ? randomUUID() : null;

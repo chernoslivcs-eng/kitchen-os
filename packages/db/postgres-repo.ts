@@ -13,11 +13,29 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow,
+  RecipeRow, CookRunRow, CookRunWithRecipe,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
+
+function rowToRecipe(r: Row): RecipeRow {
+  return {
+    id: r.id as string,
+    owner_id: r.owner_id as string,
+    origin: r.origin as RecipeRow['origin'],
+    title: r.title as string,
+    descr: (r.descr as string | null) ?? null,
+    character: (r.character as string | null) ?? null,
+    risk: (r.risk as string | null) ?? null,
+    base_servings: r.base_servings as number,
+    time_total: (r.time_total as number | null) ?? null,
+    nutrition: r.nutrition,
+    payload: r.payload,
+    created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
 
 function rowToShopping(r: Row): ShoppingItemRow {
   return {
@@ -457,6 +475,70 @@ export class PostgresRepo implements Repo {
         row.latency_ms, row.created_at,
       ],
     );
+  }
+
+  // ----- Рецепти й приготування ------------------------------------------
+
+  async saveRecipe(recipe: RecipeRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO recipe
+         (id, owner_id, origin, title, descr, character, risk, base_servings,
+          time_total, nutrition, payload, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [
+        recipe.id, recipe.owner_id, recipe.origin, recipe.title, recipe.descr,
+        recipe.character, recipe.risk, recipe.base_servings, recipe.time_total,
+        recipe.nutrition == null ? null : JSON.stringify(recipe.nutrition),
+        JSON.stringify(recipe.payload),
+        recipe.created_at,
+      ],
+    );
+  }
+
+  async getRecipe(id: string): Promise<RecipeRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM recipe WHERE id = $1', [id]);
+    const r = rows[0];
+    if (!r) return null;
+    return rowToRecipe(r);
+  }
+
+  async saveCookRun(run: CookRunRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO cook_run
+         (id, household_id, user_id, recipe_id, servings, started_at, finished_at,
+          rating, verdict, photo_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        run.id, run.household_id, run.user_id, run.recipe_id, run.servings,
+        run.started_at, run.finished_at, run.rating, run.verdict, run.photo_url,
+      ],
+    );
+  }
+
+  async listCookRuns(user_id: string, limit = 20): Promise<CookRunWithRecipe[]> {
+    const { rows } = await this.pool.query(
+      `SELECT cr.*,
+              row_to_json(r.*) AS recipe_row
+         FROM cook_run cr
+         JOIN recipe r ON r.id = cr.recipe_id
+        WHERE cr.user_id = $1
+        ORDER BY COALESCE(cr.finished_at, cr.started_at) DESC
+        LIMIT $2`,
+      [user_id, limit],
+    );
+    return rows.map((r): CookRunWithRecipe => ({
+      id: r.id,
+      household_id: r.household_id,
+      user_id: r.user_id,
+      recipe_id: r.recipe_id,
+      servings: r.servings,
+      started_at: new Date(r.started_at).toISOString(),
+      finished_at: r.finished_at ? new Date(r.finished_at).toISOString() : null,
+      rating: r.rating ?? null,
+      verdict: r.verdict ?? null,
+      photo_url: r.photo_url ?? null,
+      recipe: rowToRecipe(r.recipe_row),
+    }));
   }
 
   // ----- Список покупок ---------------------------------------------------
