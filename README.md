@@ -15,9 +15,15 @@
 - Крок 3в (запрошення в дім) — `POST /v1/households/:id/invite`, `POST /v1/invites/:id/revoke`, `GET /v1/invites/accept?token=`. Той самий каркас, що magic-link: `token_hash` SHA-256, одноразовий, TTL 7 днів, revocable. Клік по лінку сам логінить запрошеного і додає в `household_member`. Міграція `0004_household_invite.sql`. **Продуктова модель:** дім = сімейний, magic-link = оформлення підписки (юзер + власний дім), invite = гостьовий ключ (юзер без власного дому, тільки membership у чужому). Аналогія — сімейний Netflix: один акаунт, кілька профілів, у кожного окрема історія, але бібліотека одна.
 - Крок 3г (прод-готовність auth) — `SmtpMailer` через nodemailer (працює з Resend/SES/будь-яким SMTP), вибір через `SMTP_HOST` env. Власний rate limiter (без `@fastify/rate-limit`, бо його hook у v10 несумісний з нашим порядком preHandler'ів): 5/15хв на IP+email для `/v1/auth/request`, 20/год на user_id для `/v1/households/:id/invite`. Битий email рахується як спроба (щоб scanner не обходив ліміт).
 - Крок 4 (опора для фронту) — `GET /v1/me` (юзер + активний дім + учасники) і `GET /v1/pantry` (партії активного дому, відсортовані за терміновістю). Мінімум, який фронт хоче показати одразу після входу. Мультидомний перемикач — наступним кроком, коли UI буде.
-- Крок 5 (apps/web — фундамент) — Vite + React + TS, дизайн-токени як CSS custom properties (темна + світла тема), Zustand для auth, API-клієнт із cookie credentials, react-router-dom. Компонентна база: `Logo`, `Button`, `Input`, `MonoLabel`. Два auth-екрани з брифу: «01 Вхід» і «02 Лист надіслано». Замкнений цикл вхід → лист → cookie → `/app` (плейсхолдер стрічки).
-- Далі: стрічка (04), комора (05), пропозиція (08), рецепт (09), Cook Mode (10), список (06), рецепти (07), профіль (11), фото-інтейк (12), онбординг (03), десктопні варіанти.
-- Далі: звірка `allergen_groups` на 115 нових позицій каталогу, розширення каталогу до 1500-2500, мережа Сільпо, household switch UI.
+- Крок 5 (apps/web) — Vite + React + TS, дизайн-токени, Zustand для auth, react-router-dom. Всі екрани брифу проходять: Стрічка (04), Комора (05), Список (06), Профіль (11), Пропозиція (08), Рецепт (09), Cook Mode (10). Плюс окремий таб «Журнал» під готування. Auto light/dark за prefers-color-scheme.
+- Крок 6 (Cook loop) — cook_run списує партії. **Часткова депляція**: 250 г моцарели − 100 г = батч на 150 г (opened). Депляція повна, коли recipe.ing.v ≥ batch.value. **Undo** розкатує стан назад через `cook_run.changes` JSONB snapshot (міграція `0005_cook_run_changes.sql`). **Ретро-оцінка** (★1-5 + verdict) → `[ОСТАННІ ГОТУВАННЯ]` блок у контексті наступного chat call. **Cook photo** через `/v1/attachments` → мініатюра в Журналі → preload в Share.
+- Крок 7 (Sharing) — `GET /v1/r/:id` публічний read-only рецепт (60/хв per IP). `/r/:id` фронтенд-роут із SharedRecipe read-only view; signed-in бачить «Готуй у себе», guest — «Увійти в Kitchen OS →» з `?next=` наскрізь через magic-link. Share.tsx експортує PNG (1080×1440 canvas overlay) + копіює підпис із URL.
+- Крок 8 (Pantry management) — тап на партію → sheet із редагуванням label/value/unit/zone/state. «+ Додати» вручну (POST /v1/pantry), «Прибрати з комори» (DELETE, soft-depletes). Amber-чіп «СКОРО ЗГОРИТЬ» на Feed для партій ≤3 дні. Модель бачить `!Nдн` маркери в контексті.
+- Крок 9 (Shopping loop) — «→ В КОМОРУ (N)» bulk unpack: усі checked-позиції стають sealed батчами з `last_action='unpack'`, зникають зі списку. Закриває контур: пропозиція → у список → куплено → в комору.
+- Крок 10 (Household mgmt) — DELETE `/v1/households/:hid/members/:uid`: власник виключає, учасник виходить сам, останній власник — 409. Профіль показує × ВИКЛЮЧИТИ / × ВИЙТИ біля member row.
+- Крок 11 (Robustness) — Rate limits на всіх горячих ендпоінтах: 30/хв chat, 60/хв public recipe, 5/15хв auth, 20/год invite. Model calls (chat/recipe/attachment_parse) обгорнуті в `withRetry(3, exp)` — 429/5xx/connection errors ретраяться, 4xx — ні. Fresh chat session on demand: POST `/v1/session` створює нову сесію того ж дня; чат route бере session_id з тіла якщо передано.
+- Крок 12 (PWA) — `manifest.webmanifest` + `icon.svg` + apple-touch-icon в index.html. Installable на home screen (standalone, portrait). Service worker для offline — не зроблено.
+- Далі: prod-мейлер (Resend/SES з юзерським API-key), каталог 131 → 2000 (Cowork branch `catalog/expand`), Silpo retail, voice input (M16), session history browser, weekly digest, household ownership transfer.
 
 ## Postgres: Neon або локально
 
@@ -57,13 +63,15 @@ Vite проксить `/v1/*` на fastify:3000, cookie `kos` лягає на 51
 ## Структура
 
 ```
-apps/api                       (порожньо; fastify + drizzle пізніше)
-apps/web                       (порожньо; vite + react + zustand пізніше)
-services/                      (порожньо; окремі процеси, спільна БД)
+apps/web                       Vite + React + TS, всі екрани брифу
+services/api                   Fastify: chat, cards, cook-runs, pantry, shopping,
+                               profile, session, invites, attachments, auth
+packages/domain                типи + Repo interface + apply/undo + InMemoryRepo
+packages/db                    PostgresRepo + міграційний раннер
 packages/prompts               версіоновані .md, реєстр із версією
 packages/eval                  фікстури + інваріанти + прогінник із дифом
 packages/catalog               схема + сід + логіка збігу; проходить 3 критерії
-migrations/                    SQL міграції Postgres (пізніше)
+migrations/                    SQL: init, auth, token_usage, invite, cook_run_changes
 ```
 
 ## Запуск
