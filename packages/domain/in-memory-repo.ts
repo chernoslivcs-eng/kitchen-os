@@ -171,6 +171,11 @@ export class InMemoryRepo implements Repo {
   async removeMember(household_id: string, user_id: string): Promise<void> {
     this.members = this.members.filter((m) => !(m.household_id === household_id && m.user_id === user_id));
   }
+  async setMemberRole(household_id: string, user_id: string, role: HouseholdRole): Promise<void> {
+    this.members = this.members.map((m) =>
+      (m.household_id === household_id && m.user_id === user_id) ? { ...m, role } : m
+    );
+  }
 
   async saveChallenge(c: AuthChallenge): Promise<void> {
     this.challenges.set(c.token_hash, { ...c });

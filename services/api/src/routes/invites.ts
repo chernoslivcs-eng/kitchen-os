@@ -100,6 +100,37 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
     },
   );
 
+  // PATCH /v1/households/:hid/members/:uid — змінити роль учасника.
+  // Тільки власник може підвищувати або знижувати. Останній власник не може
+  // сам собі забрати роль — інакше дім лишиться без хазяїна.
+  app.patch<{
+    Params: { household_id: string; user_id: string };
+    Body: { role?: 'owner' | 'member' };
+  }>('/v1/households/:household_id/members/:user_id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const actor = requireUser(req);
+      const { household_id, user_id: target } = req.params;
+      const nextRole = req.body?.role;
+      if (nextRole !== 'owner' && nextRole !== 'member') {
+        return reply.code(400).send({ error: 'role_invalid' });
+      }
+      const actorRole = await repo.roleOf(household_id, actor.user_id);
+      if (actorRole !== 'owner') return reply.code(403).send({ error: 'only_owner_can_change_roles' });
+      const targetRole = await repo.roleOf(household_id, target);
+      if (!targetRole) return reply.code(404).send({ error: 'not_a_member' });
+      if (targetRole === 'owner' && nextRole === 'member') {
+        const members = await repo.listMembersOfHousehold(household_id);
+        const owners = members.filter((m) => m.role === 'owner');
+        if (owners.length <= 1) {
+          return reply.code(409).send({ error: 'last_owner_cannot_downgrade', hint: 'promote_someone_first' });
+        }
+      }
+      await repo.setMemberRole(household_id, target, nextRole);
+      return { updated: true, role: nextRole };
+    },
+  );
+
   // DELETE /v1/households/:hid/members/:uid — виключити учасника з дому.
   // Правила: власник може виключити будь-кого, крім себе. Учасник може виключити
   // сам себе. Ніхто не може виключити останнього власника — це залишить дім без

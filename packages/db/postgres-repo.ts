@@ -410,6 +410,13 @@ export class PostgresRepo implements Repo {
     );
   }
 
+  async setMemberRole(household_id: string, user_id: string, role: HouseholdRole): Promise<void> {
+    await this.pool.query(
+      'UPDATE household_member SET role = $1 WHERE household_id = $2 AND user_id = $3',
+      [role, household_id, user_id],
+    );
+  }
+
   async firstHouseholdOf(user_id: string): Promise<string | null> {
     const { rows } = await this.pool.query<{ household_id: string }>(
       'SELECT household_id FROM household_member WHERE user_id = $1 ORDER BY joined_at LIMIT 1',

@@ -155,6 +155,29 @@ export function ProfilePage() {
                     <div className={styles.avatar}>{initials(mem.name)}</div>
                     <span className={styles.name}>{mem.name}</span>
                     <span className={styles.role}>{mem.role.toUpperCase()}</span>
+                    {iAmOwner && !isMe && mem.role === 'member' && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Передати роль власника ${mem.name}? Ти станеш звичайним учасником.`)) return;
+                          try {
+                            // Транзакційно: спочатку піднімаємо target, потім знижуємо себе.
+                            // Якщо перше вдалось, а друге ні — просто дім із двома власниками,
+                            // не критично.
+                            await api.households.setRole(me.household.id, mem.user_id, 'owner');
+                            await api.households.setRole(me.household.id, me.user.id, 'member');
+                            const fresh = await api.me().catch(() => null);
+                            if (fresh) setMe(fresh);
+                          } catch (err) { alert((err as Error).message); }
+                        }}
+                        style={{
+                          border: 0, background: 'transparent',
+                          color: 'var(--fg-dim)', cursor: 'pointer',
+                          fontSize: 12, fontFamily: 'var(--font-mono)',
+                          marginLeft: 8, padding: '4px 6px',
+                        }}
+                        title="Передати роль власника"
+                      >↑ РОЛЬ</button>
+                    )}
                     {canRemove && (
                       <button
                         onClick={async () => {

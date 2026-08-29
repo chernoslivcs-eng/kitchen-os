@@ -265,6 +265,62 @@ describe('DELETE /v1/households/:hid/members/:uid', () => {
     expect(leave.statusCode).toBe(204);
   });
 
+  it('власник передає роль → тепер новий власник, старий стає member', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    mailer.sent.length = 0;
+    await app.inject({
+      method: 'POST', url: `/v1/households/${A.household_id}/invite`,
+      headers: { cookie: A.cookie }, payload: { email: 'b@example.com' },
+    });
+    const bCookie = await acceptInvite(app, mailer);
+    const bMe = await app.inject({ method: 'GET', url: '/v1/me', headers: { cookie: bCookie } });
+    const bUserId = bMe.json().user.id;
+
+    // Спочатку А підвищує B
+    const up = await app.inject({
+      method: 'PATCH', url: `/v1/households/${A.household_id}/members/${bUserId}`,
+      headers: { cookie: A.cookie }, payload: { role: 'owner' },
+    });
+    expect(up.statusCode).toBe(200);
+
+    // Потім А знижує себе
+    const down = await app.inject({
+      method: 'PATCH', url: `/v1/households/${A.household_id}/members/${A.user_id}`,
+      headers: { cookie: A.cookie }, payload: { role: 'member' },
+    });
+    expect(down.statusCode).toBe(200);
+
+    const members = await repo.listMembersOfHousehold(A.household_id);
+    const roles = new Map(members.map((m) => [m.user_id, m.role]));
+    expect(roles.get(bUserId)).toBe('owner');
+    expect(roles.get(A.user_id)).toBe('member');
+  });
+
+  it('останній власник не може знизити собі роль', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    const res = await app.inject({
+      method: 'PATCH', url: `/v1/households/${A.household_id}/members/${A.user_id}`,
+      headers: { cookie: A.cookie }, payload: { role: 'member' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe('last_owner_cannot_downgrade');
+  });
+
+  it('member не може міняти ролі', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    mailer.sent.length = 0;
+    await app.inject({
+      method: 'POST', url: `/v1/households/${A.household_id}/invite`,
+      headers: { cookie: A.cookie }, payload: { email: 'b@example.com' },
+    });
+    const bCookie = await acceptInvite(app, mailer);
+    const res = await app.inject({
+      method: 'PATCH', url: `/v1/households/${A.household_id}/members/${A.user_id}`,
+      headers: { cookie: bCookie }, payload: { role: 'member' },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
   it('останній власник не може вийти', async () => {
     const A = await signIn(app, mailer, 'a@example.com');
     const del = await app.inject({

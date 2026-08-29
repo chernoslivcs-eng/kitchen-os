@@ -21,9 +21,21 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       return reply;
     }
   };
+
+  // Recipe generation — теж дорогий model call. Ліміт нижчий, ніж у chat, бо
+  // юзер клікає «Рецепт →» рідше, ніж пише в композитор. 10/хв per user_id.
+  const genLimiter = makeRateLimiter({ max: 10, windowMs: 60_000 });
+  const genLimit = async (req: FastifyRequest, reply: FastifyReply) => {
+    const ctx = requireUser(req);
+    if (!genLimiter.check(ctx.user_id)) {
+      reply.code(429).send({ error: 'too many requests' });
+      return reply;
+    }
+  };
+
   app.post<{
     Body: { title?: string; context?: string };
-  }>('/v1/recipes/generate', { preHandler: authenticated(repo) }, async (req, reply) => {
+  }>('/v1/recipes/generate', { preHandler: [authenticated(repo), genLimit] }, async (req, reply) => {
     const ctx = requireUser(req);
     const { title, context } = req.body ?? {};
     if (!title || !title.trim()) return reply.code(400).send({ error: 'title required' });

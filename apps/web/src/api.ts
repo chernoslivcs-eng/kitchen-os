@@ -216,6 +216,11 @@ export const api = {
       }),
     removeMember: (household_id: string, user_id: string) =>
       req<null>(`/v1/households/${household_id}/members/${user_id}`, { method: 'DELETE' }),
+    setRole: (household_id: string, user_id: string, role: 'owner' | 'member') =>
+      req<{ updated: boolean; role: 'owner' | 'member' }>(
+        `/v1/households/${household_id}/members/${user_id}`,
+        { method: 'PATCH', body: JSON.stringify({ role }) },
+      ),
   },
 
   invites: {

@@ -65,6 +65,7 @@ export interface Repo {
   listMembersOfHousehold(household_id: string): Promise<HouseholdMemberRow[]>;
   roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null>;
   removeMember(household_id: string, user_id: string): Promise<void>;
+  setMemberRole(household_id: string, user_id: string, role: HouseholdRole): Promise<void>;
 
   // Автентифікація
   saveChallenge(c: AuthChallenge): Promise<void>;
