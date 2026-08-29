@@ -58,6 +58,22 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       }
       const now = new Date().toISOString();
       const recipe_id = randomUUID();
+
+      // Enrich `ing.n` із коморних міток: модель показала пальцем через `ing.p`
+      // (uuid партії), а на публічному /r/:id інший юзер уже не має цих партій.
+      // Печемо назву в payload при збереженні — тоді SharedRecipe завжди показує
+      // «моцарела», не голий uuid. Живе `ing.p` теж лишається — для алергічних
+      // прапорців і для деплеції.
+      const enrichedIng = await Promise.all(
+        (recipe.ing ?? []).map(async (ing) => {
+          if (ing.n || !ing.p) return ing;
+          const b = await repo.getBatch(ing.p);
+          if (b && b.household_id === household_id) return { ...ing, n: b.label };
+          return ing;
+        }),
+      );
+      const enrichedRecipe = { ...recipe, ing: enrichedIng };
+
       const recipeRow: RecipeRow = {
         id: recipe_id,
         owner_id: user_id,
@@ -69,7 +85,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         base_servings: recipe.sv ?? servings ?? 2,
         time_total: recipe.tm ?? null,
         nutrition: recipe.nu ?? null,
-        payload: recipe,
+        payload: enrichedRecipe,
         created_at: now,
       };
       await repo.saveRecipe(recipeRow);

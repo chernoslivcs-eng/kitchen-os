@@ -3,7 +3,9 @@
 .wrap {
   position: sticky;
   bottom: 0;
-  z-index: 20;
+  /* Нижче за Sheet (Sheet.tsx, zIndex 20) — інакше таб-бар перекриває
+     нижні дії модалки, зокрема «Прибрати з комори». */
+  z-index: 10;
   border-top: 1px solid var(--border);
   background: var(--bg-surface);
   padding: 8px 22px calc(8px + env(safe-area-inset-bottom));

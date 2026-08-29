@@ -8,7 +8,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
-import { formatQty } from '../../lib/units';
+import { renderStepContent, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
 
 interface CookLocationState {
@@ -29,6 +29,15 @@ export function CookPage() {
   const state = (location.state as CookLocationState | null) ?? {};
   const recipe = state.recipe ?? null;
   const [stepIdx, setStepIdx] = useState(state.startAt ?? 0);
+  const [batchLabels, setBatchLabels] = useState<BatchLabels>(new Map());
+
+  useEffect(() => {
+    // Мапа id партії → людський label. Модель показує на комору через `ing.p`
+    // (uuid), крокі мають плейсхолдери {0} → назва інгредієнта, не uuid.
+    api.pantry()
+      .then(({ batches }) => setBatchLabels(new Map(batches.map((b) => [b.id, b.label]))))
+      .catch(() => {/* silent */});
+  }, []);
 
   // Таймер на активний крок. Якщо в кроку немає step.s — таймер не показуємо.
   const step = recipe?.st[stepIdx];
@@ -315,7 +324,7 @@ export function CookPage() {
         ) : (
           <>
             <div className={styles['step-title']}>
-              {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing)}
+              {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, batchLabels)}
             </div>
 
             {step?.s && (
@@ -384,13 +393,3 @@ export function CookPage() {
   );
 }
 
-function renderStepContent(c: string, ing: { v?: number; u?: string; n?: string }[]): string {
-  return c.replace(/\{(\d+)\}/g, (_, idx) => {
-    const i = Number(idx);
-    const it = ing[i];
-    if (!it) return `{${idx}}`;
-    if (it.v != null && it.u) return formatQty(it.v, it.u);
-    if (it.n) return it.n;
-    return `{${idx}}`;
-  });
-}

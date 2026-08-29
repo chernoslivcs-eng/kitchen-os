@@ -8,6 +8,8 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe } from '../../api';
 import { formatQty } from '../../lib/units';
+import { plural } from '../../lib/plural';
+import { resolveIngName, renderStepContent, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
 
 interface RecipeLocationState {
@@ -21,12 +23,19 @@ export function RecipePage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [allergies, setAllergies] = useState<string[]>([]);
+  const [batchLabels, setBatchLabels] = useState<BatchLabels>(new Map());
 
   useEffect(() => {
     // Підтягнемо алергії з профілю, щоб позначити відповідні інгредієнти.
     // «Позначка, а не заборона» — рецепт лишається доступним, ми тільки попереджаємо.
     api.profile()
       .then(({ profile }) => setAllergies(profile.allergies))
+      .catch(() => {/* silent */});
+    // Мапа id партії → людський label: модель показує на комору через `ing.p`,
+    // а рендер має показати назву, не uuid. Без цього алергічна мітка теж
+    // мертва: flagsFor читає рядок «[uuid…]» і нічому не збігається.
+    api.pantry()
+      .then(({ batches }) => setBatchLabels(new Map(batches.map((b) => [b.id, b.label]))))
       .catch(() => {/* silent */});
   }, []);
 
@@ -56,7 +65,7 @@ export function RecipePage() {
 
   const summary = [
     recipe.tm ? `${recipe.tm}ХВ` : null,
-    recipe.sv ? `${recipe.sv} ПОРЦІЇ` : null,
+    recipe.sv ? `${recipe.sv} ${plural(recipe.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
     recipe.nu?.kcal ? `${recipe.nu.kcal}ККАЛ` : null,
     recipe.nu ? `Б${Math.round(recipe.nu.p)} Ж${Math.round(recipe.nu.f)} В${Math.round(recipe.nu.c)}` : null,
   ].filter(Boolean).join(' · ');
@@ -83,7 +92,7 @@ export function RecipePage() {
         <div className={styles.section}>
           <MonoLabel>ІНГРЕДІЄНТИ</MonoLabel>
           {recipe.ing.map((ing, i) => {
-            const name = ing.n ?? (ing.p ? `[${ing.p}]` : '—');
+            const name = resolveIngName(ing, batchLabels);
             const flags = flagsFor(name);
             const hasFlag = flags.length > 0;
             return (
@@ -139,7 +148,7 @@ export function RecipePage() {
                   </div>
                   <div className={styles['step-body']}>
                     <div className={`${styles['step-title']} ${done ? styles.done : current ? '' : styles.pending}`}>
-                      {step.t}. {renderStepContent(step.c, recipe.ing)}
+                      {step.t}. {renderStepContent(step.c, recipe.ing, batchLabels)}
                     </div>
                     {step.s && (
                       <button className={styles['step-timer']} onClick={() => navigate('/cook', { state: { recipe, startAt: i } })}>
@@ -165,18 +174,6 @@ export function RecipePage() {
       </div>
     </div>
   );
-}
-
-// Плейсхолдери {0}, {1} у step.c замінюємо на "value unit" відповідного інгредієнта.
-function renderStepContent(c: string, ing: { v?: number; u?: string; n?: string }[]): string {
-  return c.replace(/\{(\d+)\}/g, (_, idx) => {
-    const i = Number(idx);
-    const it = ing[i];
-    if (!it) return `{${idx}}`;
-    if (it.v != null && it.u) return formatQty(it.v, it.u);
-    if (it.n) return it.n;
-    return `{${idx}}`;
-  });
 }
 
 function formatSeconds(s: number): string {

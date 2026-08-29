@@ -127,6 +127,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
+
+    // Гвардія: юзер явно попросив рецепт/ідею, а модель не вернула картку.
+    // Логуємо як промах промпту — воно ловиться в token_usage-логах, потім
+    // потрапляє в eval-фікстуру, а не мовчить у проді. Не блокуємо відповідь
+    // самій — не хочемо ретраяти й палити токени, поки не буде eval-циклу.
+    const wantsRecipe = /(рецепт|приготувати|вечер|що готувати|давай зробимо|давай приготу)/i.test(text ?? '');
+    if (wantsRecipe && !call.card) {
+      req.log.warn(
+        { user_id, text: (text ?? '').slice(0, 100), model: call.meta.model },
+        'proposal-card-missed: user asked for recipe, model returned no card',
+      );
+    }
+
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });

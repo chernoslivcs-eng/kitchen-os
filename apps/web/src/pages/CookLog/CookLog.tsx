@@ -69,6 +69,10 @@ export function CookLogPage() {
 
   const empty = !loading && runs.length === 0;
 
+  // Лічильник у шапці — тільки активні готування; після undo кількість спадає
+  // разом із weekly chip. undone-runs лишаються у списку із міткою «СКАСОВАНО».
+  const activeCount = runs.filter((r) => !r.undone_at).length;
+
   // За тиждень: скільки готувань (не скасованих), середній рейтинг, скільки позицій
   // з комори реально пішло в їжу. Одна фраза, без графіків.
   const weekAgo = Date.now() - 7 * 86_400_000;
@@ -84,7 +88,7 @@ export function CookLogPage() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div className={styles.title}>Журнал</div>
-        <div className={styles.meta}>{runs.length} {plural(runs.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</div>
+        <div className={styles.meta}>{activeCount} {plural(activeCount, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</div>
       </div>
 
       <div className={styles.body}>

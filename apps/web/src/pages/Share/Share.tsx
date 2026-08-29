@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import type { Recipe } from '../../api';
+import { plural } from '../../lib/plural';
 import styles from './Share.module.css';
 
 interface State { recipe?: Recipe; photoUrl?: string | null; recipeId?: string | null }
@@ -143,7 +144,7 @@ export function SharePage() {
               <div className={styles.dish}>{r.t}</div>
               <div className={styles.stats}>
                 {r.tm && <span>{r.tm} ХВ</span>}
-                {r.sv && <span>{r.sv} ПОРЦІЇ</span>}
+                {r.sv && <span>{r.sv} {plural(r.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}</span>}
               </div>
             </div>
           </div>
@@ -216,7 +217,7 @@ function drawOverlay(ctx: CanvasRenderingContext2D, w: number, h: number, d: Ove
   ctx.shadowBlur = 8;
   const stats = [
     d.time ? `${d.time} ХВ` : null,
-    d.servings ? `${d.servings} ПОРЦІЇ` : null,
+    d.servings ? `${d.servings} ${plural(d.servings, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
   ].filter(Boolean).join('   ·   ');
   ctx.fillText(stats, pad, h - pad - 60);
 
