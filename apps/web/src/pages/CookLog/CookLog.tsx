@@ -61,6 +61,17 @@ export function CookLogPage() {
 
   const empty = !loading && runs.length === 0;
 
+  // За тиждень: скільки готувань (не скасованих), середній рейтинг, скільки позицій
+  // з комори реально пішло в їжу. Одна фраза, без графіків.
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const weekRuns = runs.filter((r) => !r.undone_at && new Date(r.finished_at ?? r.started_at).getTime() >= weekAgo);
+  const ratings = weekRuns.map((r) => r.rating).filter((x): x is number => x != null);
+  const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) : null;
+  const pantryUsed = weekRuns.reduce(
+    (n, r) => n + (r.changes?.batches.length ?? 0),
+    0,
+  );
+
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
@@ -73,6 +84,27 @@ export function CookLogPage() {
           <div className={styles.empty}>
             <h3>Ще нічого не готували</h3>
             <p>Приготуй перше блюдо — з&apos;явиться тут. Спогад про вечір, а не рецензія.</p>
+          </div>
+        )}
+
+        {weekRuns.length > 0 && (
+          <div style={{
+            padding: '14px 16px',
+            background: 'var(--bg-hover)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--r)',
+            marginTop: 4,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            letterSpacing: '0.06em',
+            color: 'var(--fg-muted)',
+            textTransform: 'uppercase',
+            lineHeight: 1.5,
+          }}>
+            <span style={{ color: 'var(--fg-dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
+            <span style={{ color: 'var(--fg)' }}>{weekRuns.length} {weekRuns.length === 1 ? 'ГОТУВАННЯ' : 'ГОТУВАНЬ'}</span>
+            {avgRating != null && <> · <span style={{ color: 'var(--accent)' }}>★{avgRating.toFixed(1)}</span></>}
+            {pantryUsed > 0 && <> · <span style={{ color: 'var(--fg)' }}>{pantryUsed} З КОМОРИ</span></>}
           </div>
         )}
 
