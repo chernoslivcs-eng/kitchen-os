@@ -139,6 +139,30 @@ export async function applyCard(
   throw new Error(`apply not implemented for card type: ${(card as { type: string }).type}`);
 }
 
+// Модель повертає одиниці людською мовою («l», «kg», «літр», «шт»), а БД тримає
+// вужчий словник (g/ml/pcs/pack). Приводимо тут, до вставки, і множимо value —
+// щоб 0.25 л напою стало 250 мл, а не впало на check constraint.
+function normalizeUnit(value: number | undefined | null, unit: string | undefined | null): { value: number | null; unit: Unit | null } {
+  if (value == null && unit == null) return { value: null, unit: null };
+  const u = (unit ?? '').toLowerCase().trim();
+  const v = value ?? null;
+  // Прямі співпадіння з нашим словником
+  if (u === 'g' || u === 'г' || u === 'гр') return { value: v, unit: 'g' };
+  if (u === 'ml' || u === 'мл') return { value: v, unit: 'ml' };
+  if (u === 'pcs' || u === 'pc' || u === 'шт' || u === 'штук') return { value: v, unit: 'pcs' };
+  if (u === 'pack' || u === 'упак' || u === 'пачка' || u === 'упаковка') return { value: v, unit: 'pack' };
+  // Конверсії
+  if (u === 'kg' || u === 'кг' || u === 'кілограм') {
+    return { value: v == null ? null : Math.round(v * 1000), unit: 'g' };
+  }
+  if (u === 'l' || u === 'л' || u === 'літр' || u === 'liter' || u === 'litre') {
+    return { value: v == null ? null : Math.round(v * 1000), unit: 'ml' };
+  }
+  // Невідома одиниця — value лишаємо як міру-без-одиниці немає сенсу, ставимо null.
+  // Це рідкий випадок; якщо стане частим — розширимо словник, а не check constraint.
+  return { value: null, unit: null };
+}
+
 async function applyIntakeOp(
   repo: Repo,
   op: IntakeOp,
@@ -149,14 +173,15 @@ async function applyIntakeOp(
   if (op.op === 'add') {
     const id = randomUUID();
     const provenance: Provenance = (op.evidence as Provenance) ?? 'user_statement';
+    const norm = normalizeUnit(op.value, op.unit);
     const batch: PantryBatch = {
       id,
       household_id,
       catalog_key: op.catalog_key ?? null,
       label: op.label,
       zone: (op.zone ?? 'dry') as Zone,
-      value: op.value ?? null,
-      unit: (op.unit ?? null) as Unit | null,
+      value: norm.value,
+      unit: norm.unit,
       state: 'sealed',
       opened_at: null,
       expires_at: null,
@@ -207,8 +232,13 @@ async function applyIntakeOp(
     });
   } else if (op.op === 'correct') {
     const patch: Partial<PantryBatch> = { last_by: actor, last_action: 'correct' };
-    if (op.value !== undefined) patch.value = op.value;
-    if (op.unit !== undefined) patch.unit = op.unit;
+    if (op.value !== undefined || op.unit !== undefined) {
+      // Пропускаємо і value, і unit через normalizeUnit разом, щоб
+      // конверсія «0.25 л» → 250 мл спрацювала і для correction теж.
+      const norm = normalizeUnit(op.value, op.unit);
+      if (norm.value !== null) patch.value = norm.value;
+      if (norm.unit !== null) patch.unit = norm.unit;
+    }
     if (op.zone !== undefined) patch.zone = op.zone;
     await repo.updateBatch(target.id, patch);
   }
