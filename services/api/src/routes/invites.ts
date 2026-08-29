@@ -100,6 +100,41 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
     },
   );
 
+  // DELETE /v1/households/:hid/members/:uid — виключити учасника з дому.
+  // Правила: власник може виключити будь-кого, крім себе. Учасник може виключити
+  // сам себе. Ніхто не може виключити останнього власника — це залишить дім без
+  // хазяїна; спершу треба передати роль (окрема майбутня операція).
+  app.delete<{ Params: { household_id: string; user_id: string } }>(
+    '/v1/households/:household_id/members/:user_id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const actor = requireUser(req);
+      const { household_id, user_id: target } = req.params;
+
+      const actorRole = await repo.roleOf(household_id, actor.user_id);
+      if (!actorRole) return reply.code(403).send({ error: 'not_a_member' });
+
+      const targetRole = await repo.roleOf(household_id, target);
+      if (!targetRole) return reply.code(404).send({ error: 'not_a_member' });
+
+      // Тільки власник може видаляти інших. Учасник — тільки себе.
+      if (actor.user_id !== target && actorRole !== 'owner') {
+        return reply.code(403).send({ error: 'only_owner_can_remove_others' });
+      }
+
+      if (targetRole === 'owner') {
+        const members = await repo.listMembersOfHousehold(household_id);
+        const owners = members.filter((m) => m.role === 'owner');
+        if (owners.length <= 1) {
+          return reply.code(409).send({ error: 'last_owner_cannot_leave', hint: 'transfer_ownership_first' });
+        }
+      }
+
+      await repo.removeMember(household_id, target);
+      return reply.code(204).send();
+    },
+  );
+
   app.post<{ Params: { id: string } }>(
     '/v1/invites/:id/revoke',
     { preHandler: authenticated(repo) },

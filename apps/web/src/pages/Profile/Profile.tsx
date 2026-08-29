@@ -144,13 +144,49 @@ export function ProfilePage() {
           <div className={styles.section}>
             <div className={styles['section-label']}>Дім · {me.household.name}</div>
             <div className={styles.members}>
-              {me.household.members.map((mem) => (
-                <div key={mem.user_id} className={styles.member}>
-                  <div className={styles.avatar}>{initials(mem.name)}</div>
-                  <span className={styles.name}>{mem.name}</span>
-                  <span className={styles.role}>{mem.role.toUpperCase()}</span>
-                </div>
-              ))}
+              {me.household.members.map((mem) => {
+                const isMe = mem.user_id === me.user.id;
+                const iAmOwner = me.household.role === 'owner';
+                // Власник бачить «× видалити» на всіх, крім себе.
+                // Учасник бачить «× вийти» тільки на собі.
+                const canRemove = (iAmOwner && !isMe) || (isMe && me.household.role !== 'owner');
+                return (
+                  <div key={mem.user_id} className={styles.member}>
+                    <div className={styles.avatar}>{initials(mem.name)}</div>
+                    <span className={styles.name}>{mem.name}</span>
+                    <span className={styles.role}>{mem.role.toUpperCase()}</span>
+                    {canRemove && (
+                      <button
+                        onClick={async () => {
+                          const label = isMe ? 'Вийти з дому?' : `Виключити ${mem.name}?`;
+                          if (!confirm(label)) return;
+                          try {
+                            await api.households.removeMember(me.household.id, mem.user_id);
+                            if (isMe) {
+                              await logout();
+                            } else {
+                              // Оновити список членів на екрані
+                              const fresh = await api.me().catch(() => null);
+                              if (fresh) setMe(fresh);
+                            }
+                          } catch (err) {
+                            alert((err as Error).message);
+                          }
+                        }}
+                        style={{
+                          border: 0, background: 'transparent',
+                          color: 'var(--fg-dim)', cursor: 'pointer',
+                          fontSize: 12, fontFamily: 'var(--font-mono)',
+                          marginLeft: 8, padding: '4px 6px',
+                        }}
+                        title={isMe ? 'Вийти з дому' : 'Виключити з дому'}
+                      >
+                        × {isMe ? 'ВИЙТИ' : 'ВИКЛЮЧИТИ'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

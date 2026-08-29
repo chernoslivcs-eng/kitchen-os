@@ -214,6 +214,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
+    removeMember: (household_id: string, user_id: string) =>
+      req<null>(`/v1/households/${household_id}/members/${user_id}`, { method: 'DELETE' }),
   },
 
   invites: {

@@ -403,6 +403,13 @@ export class PostgresRepo implements Repo {
     return rows[0]?.role ?? null;
   }
 
+  async removeMember(household_id: string, user_id: string): Promise<void> {
+    await this.pool.query(
+      'DELETE FROM household_member WHERE household_id = $1 AND user_id = $2',
+      [household_id, user_id],
+    );
+  }
+
   async firstHouseholdOf(user_id: string): Promise<string | null> {
     const { rows } = await this.pool.query<{ household_id: string }>(
       'SELECT household_id FROM household_member WHERE user_id = $1 ORDER BY joined_at LIMIT 1',
