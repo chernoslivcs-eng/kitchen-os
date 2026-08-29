@@ -35,6 +35,7 @@ export function CookLogPage() {
   const [runs, setRuns] = useState<CookRunWithRecipe[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -51,9 +52,15 @@ export function CookLogPage() {
     })();
   }, []);
 
+  // Фільтр по назві рецепта — коли журнал переростає екран.
+  const q = query.trim().toLowerCase();
+  const filteredRuns = q
+    ? runs.filter((r) => r.recipe.title.toLowerCase().includes(q))
+    : runs;
+
   // Групуємо по дню; кожна група стає окремою секцією.
   const groups = new Map<string, CookRunWithRecipe[]>();
-  for (const r of runs) {
+  for (const r of filteredRuns) {
     const day = (r.finished_at ?? r.started_at).slice(0, 10);
     if (!groups.has(day)) groups.set(day, []);
     groups.get(day)!.push(r);
@@ -80,10 +87,33 @@ export function CookLogPage() {
       </div>
 
       <div className={styles.body}>
+        {runs.length >= 8 && (
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Знайти в журналі"
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--r)',
+              color: 'var(--fg)',
+              fontFamily: 'var(--font-body)',
+              fontSize: 14,
+              marginBottom: 4,
+            }}
+          />
+        )}
         {empty && (
           <div className={styles.empty}>
             <h3>Ще нічого не готували</h3>
             <p>Приготуй перше блюдо — з&apos;явиться тут. Спогад про вечір, а не рецензія.</p>
+          </div>
+        )}
+        {!empty && filteredRuns.length === 0 && query && (
+          <div className={styles.empty} style={{ borderStyle: 'solid' }}>
+            <p>Нічого не знайшлось за «{query}».</p>
           </div>
         )}
 

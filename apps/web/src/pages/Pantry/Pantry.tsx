@@ -32,6 +32,7 @@ export function PantryPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState('');
 
   async function refresh() {
     try {
@@ -45,8 +46,12 @@ export function PantryPage() {
 
   useEffect(() => { void refresh(); }, []);
 
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? batches.filter((b) => b.label.toLowerCase().includes(q))
+    : batches;
   const byZone = new Map<PantryBatch['zone'], PantryBatch[]>();
-  for (const b of batches) {
+  for (const b of filtered) {
     if (!byZone.has(b.zone)) byZone.set(b.zone, []);
     byZone.get(b.zone)!.push(b);
   }
@@ -78,10 +83,33 @@ export function PantryPage() {
       </div>
 
       <div className={styles.body}>
+        {batches.length >= 8 && (
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Знайти в коморі"
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--r)',
+              color: 'var(--fg)',
+              fontFamily: 'var(--font-body)',
+              fontSize: 14,
+              marginBottom: 4,
+            }}
+          />
+        )}
         {!loading && batches.length === 0 && (
           <div className={styles.empty}>
             <h3>Комора порожня</h3>
             <p>Розкажи асистенту, що купив — воно з'явиться тут. Наприклад: «купив моцарелу 250 г».</p>
+          </div>
+        )}
+        {!loading && batches.length > 0 && filtered.length === 0 && (
+          <div className={styles.empty} style={{ borderStyle: 'solid' }}>
+            <p>Нічого не знайшлось за «{query}». Спробуй інше слово.</p>
           </div>
         )}
 
