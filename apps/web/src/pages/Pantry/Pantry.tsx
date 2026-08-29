@@ -127,7 +127,7 @@ export function PantryPage() {
                     key={b.id}
                     className={styles.row}
                     onClick={() => setEditing(b)}
-                    style={{ background: 'transparent', border: 0, borderBottom: '1px solid var(--border)', width: '100%', textAlign: 'left', cursor: 'pointer', padding: '11px 0' }}
+                    style={{ border: 0, borderBottom: '1px solid var(--border)', width: '100%', textAlign: 'left', cursor: 'pointer' }}
                   >
                     <span className={`${styles.mark} ${b.state === 'opened' ? styles.opened : ''}`}>
                       {b.state === 'opened' ? '◔' : '●'}

@@ -57,16 +57,22 @@
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  padding: 14px 0;
+  padding: 14px 12px;
+  margin: 0 -12px;
   border-bottom: 1px solid var(--border);
   background: transparent;
   border-left: 0; border-right: 0; border-top: 0;
-  width: 100%;
+  width: calc(100% + 24px);
   text-align: left;
   cursor: pointer;
   color: inherit;
+  border-radius: var(--r);
+  transition: background var(--dur-fast) var(--ease-standard);
 }
 .card:last-child { border-bottom: 0; }
+@media (hover: hover) {
+  .card:hover { background: var(--bg-hover); }
+}
 .icon {
   width: 34px;
   height: 34px;

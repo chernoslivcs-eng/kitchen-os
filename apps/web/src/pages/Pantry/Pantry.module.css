@@ -45,10 +45,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 0;
+  padding: 11px 12px;
+  margin: 0 -12px;
+  background: transparent;
   border-bottom: 1px solid var(--border);
+  border-radius: var(--r);
+  transition: background var(--dur-fast) var(--ease-standard);
 }
 .row:last-child { border-bottom: 0; }
+/* Hover — тільки на pointer-девайсах, щоб на touch-сенсорі стан не «застрягав» */
+@media (hover: hover) {
+  .row:hover { background: var(--bg-hover); }
+}
+.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .row .mark {
   color: var(--accent);
   width: 16px;
@@ -88,4 +97,22 @@
 
 @media (min-width: 720px) {
   .head, .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
+}
+
+/* Wide-mode: на десктопі й планшетах ≥1024 показуємо дві колонки зон.
+ * Кожна зона (свіже, холодильник, ...) стає окремою карткою в grid.
+ * Пошук лишається на всю ширину зверху, empty state теж. */
+@media (min-width: 1024px) {
+  .head, .body { max-width: 1080px; }
+  .body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+    row-gap: 20px;
+    align-items: start;
+  }
+  .body > input,           /* поле пошуку — на дві колонки */
+  .body > .empty {
+    grid-column: 1 / -1;
+  }
 }

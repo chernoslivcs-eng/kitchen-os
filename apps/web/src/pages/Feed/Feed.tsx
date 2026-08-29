@@ -85,6 +85,7 @@ export function Feed() {
   const [uploading, setUploading] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const composerInputRef = useRef<HTMLInputElement>(null);
 
   async function refreshCounts() {
     try {
@@ -162,6 +163,30 @@ export function Feed() {
     const el = timelineRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [turns]);
+
+  // Keyboard shortcuts на десктопі:
+  //   Ctrl+K / Cmd+K — фокус у композитор (як у Slack/Linear/Notion — універсальний
+  //     жест для «швидко почати вводити»)
+  //   Ctrl+Enter / Cmd+Enter в композиторі — Apply на найновішу unapplied+undone
+  //     картку (щоб не тягнути мишу до карток після кожного «купив X»)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        composerInputRef.current?.focus();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const target = [...turns].reverse().find((t) => t.card && !t.applied && !t.undone && t.cardId);
+        if (target) {
+          e.preventDefault();
+          void apply(target.id);
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [turns]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!toast) return;
@@ -518,6 +543,7 @@ export function Feed() {
             📎
           </button>
           <input
+            ref={composerInputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

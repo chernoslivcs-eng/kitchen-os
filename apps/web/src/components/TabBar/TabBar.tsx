@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './TabBar.module.css';
 
@@ -15,6 +16,15 @@ interface Props {
 export function TabBar({ shoppingCount }: Props) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
+  // На десктопі таб-бар стає sidebar-ом ліворуч. Ставимо клас на <body> щоб
+  // головні screens зсунулись праворуч на 200px (див. tokens.css). Знімаємо
+  // клас при unmount — SignIn/Recipe/Cook/Share не мають TabBar, і сайдбара
+  // теж не буде.
+  useEffect(() => {
+    document.body.classList.add('with-sidebar');
+    return () => document.body.classList.remove('with-sidebar');
+  }, []);
 
   const tabs: TabDef[] = [
     { path: '/app', glyph: '◉', label: 'Стрічка' },

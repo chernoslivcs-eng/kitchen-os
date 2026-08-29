@@ -148,6 +148,14 @@
   }
 }
 
+/* Wide-mode: TabBar перетворюється на sidebar 200px ліворуч; головні screens
+ * (з таб-баром) зсуваються праворуч на цю ширину. Клас додає TabBar на mount.
+ * Sheet-модалки — position:fixed inset:0, тому вони натурально накривають
+ * і сайдбар — це очікувано. */
+@media (min-width: 1024px) {
+  body.with-sidebar { padding-left: 200px; }
+}
+
 /* --- Radii + spacing ---------------------------------------------------- */
 :root {
   --r-sm:   8px;

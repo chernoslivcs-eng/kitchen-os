@@ -36,8 +36,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
+  padding: 10px 12px;
+  margin: 0 -12px;
   border-bottom: 1px solid var(--border);
+  border-radius: var(--r);
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+@media (hover: hover) {
+  .row:hover { background: var(--bg-hover); }
 }
 .check {
   width: 24px;

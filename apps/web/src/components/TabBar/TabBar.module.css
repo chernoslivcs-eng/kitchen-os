@@ -32,6 +32,9 @@
   background: var(--bg-hover);
   color: var(--fg);
 }
+@media (hover: hover) {
+  .tab:hover:not(.active) { background: var(--bg-hover); color: var(--fg); }
+}
 .badge {
   position: absolute;
   top: 4px;
@@ -45,6 +48,38 @@
   font-weight: 700;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 720px) and (max-width: 1023px) {
   .wrap { max-width: 720px; margin-left: auto; margin-right: auto; }
+}
+
+/* Wide-mode: на десктопі таб-бар стає вертикальним sidebar-ом ліворуч.
+ * Position:fixed, повна висота, тонкий бордер справа. Тексти справа від
+ * гліфа, не під ним. Активний таб — з accent-акцентом. */
+@media (min-width: 1024px) {
+  .wrap {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 200px;
+    padding: 24px 12px;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 0;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    justify-content: flex-start;
+    align-items: stretch;
+    z-index: 5;
+  }
+  .tab {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 12px 14px;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .badge {
+    position: static;
+    margin-left: auto;
+  }
 }
