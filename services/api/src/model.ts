@@ -57,13 +57,20 @@ export interface ChatCall {
 }
 
 // Стисла серіалізація комори — та сама, що в прототипі: id · назва · зона · кількість · стан.
+// Термін догоряння додаємо як «!Nдн» щоб модель могла згадати про нього в репліці
+// (бриф §04: «Інформація — репліка, а не панель»).
 function serializePantry(bs: PantryBatch[]): string {
+  const now = Date.now();
   return bs
     .filter((b) => b.state !== 'depleted')
     .map((b) => {
       const parts = [b.id, b.label, b.zone];
       if (b.value && b.unit) parts.push(`${b.value}${b.unit}`);
       if (b.state === 'opened') parts.push('вдкр');
+      if (b.expires_at) {
+        const days = Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000);
+        if (days <= 7) parts.push(`!${days}дн`);
+      }
       return parts.join(' · ');
     })
     .join('\n');

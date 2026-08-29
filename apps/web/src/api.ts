@@ -139,7 +139,7 @@ export const api = {
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
     save: (recipe: Recipe, servings?: number, rating?: number, verdict?: string) =>
-      req<{ id: string; recipe_id: string; depleted: number; depleted_batch_ids: string[] }>('/v1/cook-runs', {
+      req<{ id: string; recipe_id: string; depleted: number; partial: number; depleted_batch_ids: string[] }>('/v1/cook-runs', {
         method: 'POST',
         body: JSON.stringify({ recipe, servings, rating, verdict }),
       }),

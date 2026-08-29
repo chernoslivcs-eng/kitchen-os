@@ -77,10 +77,11 @@ export function CookPage() {
   // При завершенні: зберігаємо cook-run і списуємо використані партії.
   // Кількість повертаємо, щоб «Готово» показало «списано N позицій».
   const [depleted, setDepleted] = useState<number | null>(null);
+  const [partial, setPartial] = useState<number>(0);
   useEffect(() => {
     if (done) {
       api.cookRuns.save(recipe)
-        .then((r) => setDepleted(r.depleted))
+        .then((r) => { setDepleted(r.depleted); setPartial(r.partial); })
         .catch(() => {/* offline: наступним разом */});
     }
   }, [done, recipe]);
@@ -104,11 +105,17 @@ export function CookPage() {
         {done ? (
           <>
             <div className={styles['step-title']}>Готово. Смачного.</div>
-            {depleted != null && depleted > 0 && (
+            {depleted != null && (depleted > 0 || partial > 0) && (
               <div className={styles.section}>
-                <MonoLabel className={styles['section-label']}>СПИСАНО З КОМОРИ</MonoLabel>
+                <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>
                 <div className={styles.next}>
-                  {depleted} {depleted === 1 ? 'позиція' : 'позицій'} — те, що взяли на це блюдо.
+                  {depleted > 0 && (
+                    <>Списано {depleted} {depleted === 1 ? 'позицію' : 'позицій'}</>
+                  )}
+                  {depleted > 0 && partial > 0 && <> · </>}
+                  {partial > 0 && (
+                    <>Частково використано {partial} {partial === 1 ? 'позицію' : 'позицій'}</>
+                  )}
                 </div>
               </div>
             )}

@@ -11,6 +11,34 @@ import type { RecipeRow, Repo } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import type { Recipe } from '../model.js';
 
+// Приводимо (value, unit) з рецепта до одиниць, у яких зберігається партія.
+// Ті ж самі правила, що в domain/apply.ts normalizeUnit: l→ml, kg→g. Якщо
+// одиниці несумісні (партія в pcs, рецепт у g) — повертаємо null: тоді
+// на верхньому рівні спрацює повна депляція.
+function normalizeForBatch(value: number | null, unit: string | null, batchUnit: string | null): number | null {
+  if (value == null || unit == null || batchUnit == null) return null;
+  const u = unit.toLowerCase();
+  if (batchUnit === 'ml') {
+    if (u === 'ml' || u === 'мл') return value;
+    if (u === 'l' || u === 'л') return value * 1000;
+    return null;
+  }
+  if (batchUnit === 'g') {
+    if (u === 'g' || u === 'г') return value;
+    if (u === 'kg' || u === 'кг') return value * 1000;
+    return null;
+  }
+  if (batchUnit === 'pcs') {
+    if (u === 'pcs' || u === 'шт' || u === 'штук' || u === 'штука') return value;
+    return null;
+  }
+  if (batchUnit === 'pack') {
+    if (u === 'pack' || u === 'пач' || u === 'пачка') return value;
+    return null;
+  }
+  return null;
+}
+
 interface CookRunBody {
   recipe?: Recipe;
   servings?: number;
@@ -61,26 +89,51 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       });
 
       // Списання партій, на які модель поставила посилання (ing.p = batch id).
-      // Це замикає цикл: те, що використали в готуванні — зникає з комори.
-      // Що моделі не вдалось повʼязати з коморою (ing.n лише) — не чіпаємо.
+      // Часткове: якщо recipe.ing[i] має v/u сумісні з партією — віднімаємо. Якщо
+      // після цього залишок ≤ 0 — партія депляцується. Одиниці конвертуємо
+      // за тими ж правилами, що intake normalizeUnit: l→ml×1000, kg→g×1000.
+      // Якщо recipe не дав кількості, або одиниці несумісні — все ж депляцуємо
+      // всю партію, бо інакше вона зависне як «використана, але жива».
       let depleted = 0;
+      let partial = 0;
       const depletedIds: string[] = [];
       for (const ing of recipe.ing ?? []) {
         if (!ing.p) continue;
         const batch = await repo.getBatch(ing.p);
         if (!batch || batch.household_id !== household_id) continue;
         if (batch.state === 'depleted') continue;
-        await repo.updateBatch(batch.id, {
-          state: 'depleted',
-          depleted_at: now,
-          last_by: user_id,
-          last_action: 'cook',
-        });
-        depletedIds.push(batch.id);
-        depleted++;
+
+        const used = normalizeForBatch(ing.v ?? null, ing.u ?? null, batch.unit);
+        if (used != null && batch.value != null && batch.value > used) {
+          // Часткове: віднімаємо й лишаємо партію живою
+          await repo.updateBatch(batch.id, {
+            value: Math.round((batch.value - used) * 100) / 100,
+            state: batch.state === 'sealed' ? 'opened' : batch.state,
+            opened_at: batch.opened_at ?? now,
+            last_by: user_id,
+            last_action: 'cook',
+          });
+          partial++;
+        } else {
+          // Повне: або невідома кількість, або вжили не менше залишку
+          await repo.updateBatch(batch.id, {
+            state: 'depleted',
+            depleted_at: now,
+            last_by: user_id,
+            last_action: 'cook',
+          });
+          depletedIds.push(batch.id);
+          depleted++;
+        }
       }
 
-      return reply.code(201).send({ id: run_id, recipe_id, depleted, depleted_batch_ids: depletedIds });
+      return reply.code(201).send({
+        id: run_id,
+        recipe_id,
+        depleted,
+        partial,
+        depleted_batch_ids: depletedIds,
+      });
     },
   );
 
