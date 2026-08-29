@@ -51,8 +51,36 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
     };
     await repo.saveAttachment(record);
 
-    return { id, url: stored.url, kind, bytes: stored.bytes, content_type };
+    // Клієнту віддаємо ФЕТЧ-ЧЕРЕЗ URL — той самий origin, з cookie автентифікацією.
+    // stored.url (fs://…, mem://…, blob://…) — внутрішній ідентифікатор сховища,
+    // frontend його не бачить.
+    return {
+      id,
+      url: `/v1/attachments/${id}/bytes`,
+      kind,
+      bytes: stored.bytes,
+      content_type,
+    };
   });
+
+  // Стрім байтів по id. Потребує сесію користувача-власника; фото коморі й
+  // журналі рендеряться в <img src="/v1/attachments/…/bytes"> — cookies летять
+  // з same-origin запитом. Публічна роздача не потрібна: sharing розшарює
+  // рецепт, не фотки.
+  app.get<{ Params: { id: string } }>(
+    '/v1/attachments/:id/bytes',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const att = await repo.getAttachment(req.params.id);
+      if (!att) return reply.code(404).send({ error: 'not_found' });
+      if (att.user_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
+      const { buffer, content_type } = await store.get(att.url);
+      reply.header('Content-Type', content_type ?? att.content_type ?? 'application/octet-stream');
+      reply.header('Cache-Control', 'private, max-age=3600');
+      return reply.send(buffer);
+    },
+  );
 
   app.post<{
     Params: { id: string };
