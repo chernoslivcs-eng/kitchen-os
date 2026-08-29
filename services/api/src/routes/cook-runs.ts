@@ -153,6 +153,26 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
     },
   );
 
+  // Ретро-оцінка: юзер міг натиснути «Готово», а рейтинг поставити пізніше
+  // (або взагалі пропустити). Тому PATCH окремо від POST.
+  app.patch<{ Params: { id: string }; Body: { rating?: number | null; verdict?: string | null } }>(
+    '/v1/cook-runs/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const run = await repo.getCookRun(req.params.id);
+      if (!run) return reply.code(404).send({ error: 'not_found' });
+      if (run.user_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
+      const rating = req.body.rating === undefined ? run.rating : req.body.rating;
+      if (rating != null && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
+        return reply.code(400).send({ error: 'rating_out_of_range' });
+      }
+      const verdict = req.body.verdict === undefined ? run.verdict : (req.body.verdict || null);
+      await repo.updateCookRun(run.id, { rating: rating ?? null, verdict });
+      return { updated: true, rating: rating ?? null, verdict };
+    },
+  );
+
   app.get('/v1/cook-runs', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
     const runs = await repo.listCookRuns(user_id, 30);

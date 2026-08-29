@@ -41,12 +41,20 @@ function makeClient(): Anthropic | null {
   return new Anthropic({ apiKey: key, baseURL: baseURL() });
 }
 
+export interface RecentCookRunSummary {
+  title: string;
+  rating: number | null;
+  verdict: string | null;
+  finished_at: string;
+}
+
 export interface ChatArgs {
   user_id: string;
   session_id: string;
   text: string;
   pantry: PantryBatch[];
   stage?: 1 | 2;                       // онбординг: 1 — порожня комора; 2 — комора наповнена, але людину ще не спитали
+  recentCookRuns?: RecentCookRunSummary[];
 }
 
 export interface ChatCall {
@@ -54,6 +62,16 @@ export interface ChatCall {
   card: Card | null;
   usage: { input: number; output: number; cached?: number };
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+}
+
+// Серіалізація готування: назва · N діб тому · рейтинг · verdict. Verdict короткий, тому
+// повністю. Це те, що модель бачить як «людина вже пробувала цю штуку — от як їй було».
+function serializeCookRun(r: RecentCookRunSummary): string {
+  const days = Math.round((Date.now() - new Date(r.finished_at).getTime()) / 86_400_000);
+  const parts = [r.title, `${days}дн тому`];
+  if (r.rating != null) parts.push(`★${r.rating}/5`);
+  if (r.verdict) parts.push(`«${r.verdict}»`);
+  return parts.join(' · ');
 }
 
 // Стисла серіалізація комори — та сама, що в прототипі: id · назва · зона · кількість · стан.
@@ -106,7 +124,10 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   if (!client) return stub(args, prompt.version);
 
   const model = fastModel();
-  const system = compose('chat', prompt, { stage: args.stage }) + '\n\n[КОМОРА]\n' + serializePantry(args.pantry);
+  const cookLog = args.recentCookRuns?.length
+    ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n' + args.recentCookRuns.map(serializeCookRun).join('\n')
+    : '';
+  const system = compose('chat', prompt, { stage: args.stage }) + '\n\n[КОМОРА]\n' + serializePantry(args.pantry) + cookLog;
   const resp = await client.messages.create({
     model,
     max_tokens: 2048,

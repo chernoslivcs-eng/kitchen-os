@@ -96,6 +96,30 @@ export function CookPage() {
     } catch {/* тихо: юзер побачить, що кнопка не спрацювала */}
   }
 
+  // Ретро-оцінка: 1-5 зірок + опційно короткий verdict. Пропуск = null, це ок.
+  // Модель побачить це в контексті на наступному запиті рецепта.
+  const [rating, setRating] = useState<number | null>(null);
+  const [verdict, setVerdict] = useState<string>('');
+  const [ratingSaved, setRatingSaved] = useState<boolean>(false);
+  async function submitRating(newRating: number) {
+    if (!runId || undone) return;
+    setRating(newRating);
+    try {
+      await api.cookRuns.rate(runId, newRating, verdict.trim() || null);
+      setRatingSaved(true);
+      // ховаємо «збережено» через 2с, щоб не звисало
+      setTimeout(() => setRatingSaved(false), 2000);
+    } catch {/* тихо */}
+  }
+  async function saveVerdict() {
+    if (!runId || undone || !rating) return;
+    try {
+      await api.cookRuns.rate(runId, rating, verdict.trim() || null);
+      setRatingSaved(true);
+      setTimeout(() => setRatingSaved(false), 2000);
+    } catch {/* тихо */}
+  }
+
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
@@ -152,6 +176,57 @@ export function CookPage() {
                   >
                     ← Скасувати списання
                   </button>
+                )}
+              </div>
+            )}
+
+            {runId && !undone && (
+              <div className={styles.section}>
+                <MonoLabel className={styles['section-label']}>
+                  ЯК ВИЙШЛО {ratingSaved && <span style={{ color: 'var(--accent)' }}>· ЗБЕРЕЖЕНО</span>}
+                </MonoLabel>
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => submitRating(n)}
+                      style={{
+                        width: 40, height: 40,
+                        border: `1px solid ${rating != null && n <= rating ? 'var(--accent)' : 'var(--border-strong)'}`,
+                        background: rating != null && n <= rating ? 'var(--accent-bg)' : 'transparent',
+                        color: rating != null && n <= rating ? 'var(--accent)' : 'var(--fg-muted)',
+                        borderRadius: 'var(--r)',
+                        fontSize: 20,
+                        cursor: 'pointer',
+                        transition: 'background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast)',
+                      }}
+                      aria-label={`${n} із 5`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                {rating != null && (
+                  <textarea
+                    placeholder="Що б змінити? Одна фраза достатньо."
+                    value={verdict}
+                    onChange={(e) => setVerdict(e.target.value)}
+                    onBlur={saveVerdict}
+                    maxLength={200}
+                    rows={2}
+                    style={{
+                      marginTop: 10,
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--r)',
+                      padding: '10px 12px',
+                      color: 'var(--fg)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 14,
+                      resize: 'none',
+                    }}
+                  />
                 )}
               </div>
             )}

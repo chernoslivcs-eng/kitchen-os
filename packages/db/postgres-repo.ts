@@ -606,6 +606,16 @@ export class PostgresRepo implements Repo {
     await this.pool.query('UPDATE cook_run SET undone_at = $1 WHERE id = $2', [undone_at, id]);
   }
 
+  async updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict'>>): Promise<void> {
+    const parts: string[] = [];
+    const vals: unknown[] = [];
+    if ('rating' in patch) { parts.push(`rating = $${parts.length + 1}`); vals.push(patch.rating ?? null); }
+    if ('verdict' in patch) { parts.push(`verdict = $${parts.length + 1}`); vals.push(patch.verdict ?? null); }
+    if (!parts.length) return;
+    vals.push(id);
+    await this.pool.query(`UPDATE cook_run SET ${parts.join(', ')} WHERE id = $${vals.length}`, vals);
+  }
+
   async listCookRuns(user_id: string, limit = 20): Promise<CookRunWithRecipe[]> {
     const { rows } = await this.pool.query(
       `SELECT cr.*,

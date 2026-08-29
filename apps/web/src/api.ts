@@ -148,6 +148,11 @@ export const api = {
         method: 'POST',
         body: '{}',
       }),
+    rate: (id: string, rating: number | null, verdict?: string | null) =>
+      req<{ updated: boolean; rating: number | null; verdict: string | null }>(`/v1/cook-runs/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ rating, verdict }),
+      }),
   },
 
   attachments: {

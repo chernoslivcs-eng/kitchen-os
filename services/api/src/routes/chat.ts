@@ -87,9 +87,22 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       text: text ?? '', card: null, applied: 0, created_at: new Date().toISOString(),
     });
 
+    // Останні 5 приготувань з рейтингом і verdict — щоб модель памʼятала,
+    // що зайшло, а що ні. undone-runs не показуємо (то помилки, не історія).
+    const rawRuns = await repo.listCookRuns(user_id, 8);
+    const recentCookRuns = rawRuns
+      .filter((r) => !r.undone_at)
+      .slice(0, 5)
+      .map((r) => ({
+        title: r.recipe.title,
+        rating: r.rating,
+        verdict: r.verdict,
+        finished_at: r.finished_at ?? r.started_at,
+      }));
+
     const started = Date.now();
     const call = await callChat({
-      user_id, session_id: session.id, text: text ?? '', pantry, stage,
+      user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
     const card_id = call.card ? randomUUID() : null;
