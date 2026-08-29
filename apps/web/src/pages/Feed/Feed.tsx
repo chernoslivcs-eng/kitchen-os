@@ -76,6 +76,7 @@ export function Feed() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [pantryCount, setPantryCount] = useState<number | null>(null);
+  const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
@@ -91,6 +92,21 @@ export function Feed() {
       ]);
       setPantryCount(p.count);
       setShoppingCount(s.count);
+      // Догоряння: беремо активні партії з expires_at ≤ 3 днів. Показуємо 3 перших.
+      // Це «підказка одним рядком», не панель — юзер може її ігнорувати або тапнути,
+      // щоб модель сама запропонувала, що з ними зробити.
+      const now = Date.now();
+      const stale = p.batches
+        .filter((b) => b.state !== 'depleted' && b.expires_at)
+        .map((b) => ({
+          id: b.id,
+          label: b.label,
+          days: Math.round((new Date(b.expires_at!).getTime() - now) / 86_400_000),
+        }))
+        .filter((b) => b.days <= 3)
+        .sort((a, b) => a.days - b.days)
+        .slice(0, 3);
+      setStaleBatches(stale);
     } catch { /* offline: лишаємо старе значення */ }
   }
 
@@ -254,6 +270,29 @@ export function Feed() {
               вершків і фуета», «додай молоко в список», «Оля не їсть лактозу» — все
               одне поле, усе через підтвердження.
             </p>
+            {pantryCount === 0 && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  marginTop: 18,
+                  padding: '14px 20px',
+                  background: 'var(--accent-bg)',
+                  border: '1px solid var(--accent)',
+                  borderRadius: 'var(--r)',
+                  color: 'var(--accent)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                📷 Сфотографуй чек — я розкладу
+              </button>
+            )}
           </div>
         )}
 
@@ -281,6 +320,45 @@ export function Feed() {
       </div>
 
       <div className={styles['composer-wrap']}>
+        {staleBatches.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              // Тап по підказці — питання моделі, не відкриття панелі. Модель бачить
+              // ті ж партії в контексті (з !Nдн-маркерами), відповість по-своєму.
+              const labels = staleBatches.map((b) => b.label).join(', ');
+              setInput(`Що зробити з ${labels}? Скоро згорять.`);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '10px 14px',
+              margin: '0 0 8px',
+              background: 'var(--amber-bg)',
+              border: '1px solid var(--amber-border)',
+              borderRadius: 'var(--r)',
+              color: 'var(--amber)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              letterSpacing: '0.06em',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            aria-label="Спитати модель, що зробити з тим, що згоряє"
+          >
+            <span>◔</span>
+            <span style={{ flex: 1 }}>
+              СКОРО ЗГОРИТЬ · {staleBatches.map((b) => (
+                b.days <= 0 ? `${b.label.toUpperCase()} (сьогодні)`
+                : b.days === 1 ? `${b.label.toUpperCase()} (завтра)`
+                : `${b.label.toUpperCase()} (${b.days}дн)`
+              )).join(' · ')}
+            </span>
+            <span>→</span>
+          </button>
+        )}
         {pending.length > 0 && (
           <div className={styles['pending-attachments']}>
             {pending.map((a) => (
