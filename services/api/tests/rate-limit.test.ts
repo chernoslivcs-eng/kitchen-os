@@ -19,6 +19,7 @@ describe('rate limit', () => {
       rateLimits: {
         authRequest: { max: 3, windowMs: 60_000 },   // 3 на 60 сек за IP+email
         invite:      { max: 2, windowMs: 60_000 },   // 2 на 60 сек за user_id
+        chat:        { max: 2, windowMs: 60_000 },   // 2 на 60 сек за user_id
       },
     });
     await app.ready();
@@ -71,6 +72,33 @@ describe('rate limit', () => {
       payload: { email: 'guest3@example.com' },
     });
     expect(r.statusCode).toBe(429);
+  });
+
+  it('/v1/chat: 2 підряд ОК, 3-й — 429; ліміт per-user, не per-IP', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    const B = await signIn(app, mailer, 'b@example.com');
+    for (let i = 0; i < 2; i++) {
+      const r = await app.inject({
+        method: 'POST', url: '/v1/chat',
+        headers: { cookie: A.cookie },
+        payload: { text: 'привіт' },
+      });
+      expect(r.statusCode).toBe(200);
+    }
+    const over = await app.inject({
+      method: 'POST', url: '/v1/chat',
+      headers: { cookie: A.cookie },
+      payload: { text: 'привіт' },
+    });
+    expect(over.statusCode).toBe(429);
+
+    // Інший юзер — свій бюджет, ліміт не з'їдений
+    const otherUser = await app.inject({
+      method: 'POST', url: '/v1/chat',
+      headers: { cookie: B.cookie },
+      payload: { text: 'привіт' },
+    });
+    expect(otherUser.statusCode).toBe(200);
   });
 
   it('невалідний email рахується як спроба (щоб scanner не обходив ліміт)', async () => {

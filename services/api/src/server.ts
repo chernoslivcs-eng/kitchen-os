@@ -25,6 +25,7 @@ export interface BuildAppOpts {
   rateLimits?: {
     authRequest?: RateLimitCfg;
     invite?: RateLimitCfg;
+    chat?: RateLimitCfg;
   };
 }
 
@@ -47,7 +48,7 @@ export function buildApp(
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);
-  chatRoute(app, repo, store);
+  chatRoute(app, repo, store, { rateLimit: opts.rateLimits?.chat });
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);
 

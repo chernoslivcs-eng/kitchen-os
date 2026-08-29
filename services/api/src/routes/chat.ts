@@ -1,10 +1,11 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, type AttachmentPayload } from '../model.js';
 import { createPending, type Repo } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
+import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
 function today(): string {
   const d = new Date();
@@ -18,14 +19,31 @@ function today(): string {
 // клієнт натискає apply. Обидва повідомлення (user + assistant) пишуться
 // в message/session — щоб чат переживав F5 і перезапуск сервера.
 
-export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore) {
+export interface ChatRouteOpts {
+  rateLimit?: RateLimitCfg;
+}
+
+export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
+  // Ліміт для чату — щоб залогінений юзер (свідомо чи ні) не наспамив у модель тисячу
+  // запитів за хвилину. 30 запитів/хв — це «людина активно спілкується» на верхній межі,
+  // явно замало для ліберпетлі. Ключ — user_id, не IP: розділяємо кухні в спільній мережі.
+  const cfg = opts.rateLimit ?? { max: 30, windowMs: 60_000 };
+  const limiter = makeRateLimiter(cfg);
+  const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
+    const ctx = requireUser(req);
+    if (!limiter.check(ctx.user_id)) {
+      reply.code(429).send({ error: 'too many requests' });
+      return reply;
+    }
+  };
+
   app.post<{
     Body: {
       session_id?: string;
       text?: string;
       attachments?: { id: string }[];
     };
-  }>('/v1/chat', { preHandler: authenticated(repo) }, async (req, reply) => {
+  }>('/v1/chat', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
     const ctx = requireUser(req);
     const { user_id, household_id } = ctx;
     const { text, attachments } = req.body ?? {};
