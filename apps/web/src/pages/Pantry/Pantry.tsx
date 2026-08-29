@@ -8,6 +8,7 @@ import { TabBar } from '../../components/TabBar/TabBar';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
+import { Sheet } from '../../components/Sheet/Sheet';
 import styles from './Pantry.module.css';
 
 const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
@@ -195,24 +196,7 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        zIndex: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%', maxWidth: 720,
-          background: 'var(--bg-surface)',
-          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
-          padding: '22px 22px calc(22px + env(safe-area-inset-bottom))',
-          display: 'flex', flexDirection: 'column', gap: 14,
-        }}
-      >
+    <Sheet onClose={onClose} ariaLabel="Редагувати партію">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <MonoLabel>ПАРТІЯ</MonoLabel>
           <button
@@ -284,8 +268,7 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
         >
           Прибрати з комори
         </button>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -313,24 +296,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        zIndex: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%', maxWidth: 720,
-          background: 'var(--bg-surface)',
-          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
-          padding: '22px 22px calc(22px + env(safe-area-inset-bottom))',
-          display: 'flex', flexDirection: 'column', gap: 14,
-        }}
-      >
+    <Sheet onClose={onClose} ariaLabel="Додати партію в комору">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <MonoLabel>ДОДАТИ ПАРТІЮ</MonoLabel>
           <button
@@ -392,7 +358,6 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
           <div style={{ flex: 1 }} />
           <Button onClick={submit} loading={saving}>Додати</Button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

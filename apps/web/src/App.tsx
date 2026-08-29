@@ -11,6 +11,7 @@ import { CookPage } from './pages/Cook/Cook';
 import { SharePage } from './pages/Share/Share';
 import { CookLogPage } from './pages/CookLog/CookLog';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
+import { NotFoundPage } from './pages/NotFound/NotFound';
 import { useAuth } from './store/auth';
 
 function Boot({ children }: { children: React.ReactNode }) {
@@ -60,7 +61,7 @@ export function App() {
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
           <Route path="/cooklog" element={<RequireAuth><CookLogPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Boot>
     </BrowserRouter>

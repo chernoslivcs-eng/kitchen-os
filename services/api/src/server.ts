@@ -4,7 +4,7 @@ import multipart from '@fastify/multipart';
 import cookie from '@fastify/cookie';
 import { InMemoryRepo, type Repo } from '@kitchen/domain';
 import { makePool, migrate, PostgresRepo } from '@kitchen/db';
-import { InMemoryStore, LocalFSStore, type AttachmentStore } from './attachment-store.js';
+import { InMemoryStore, LocalFSStore, VercelBlobStore, type AttachmentStore } from './attachment-store.js';
 import { ConsoleMailer, pickMailer, type Mailer } from './mailer.js';
 import { chatRoute } from './routes/chat.js';
 import { cardsRoutes } from './routes/cards.js';
@@ -35,7 +35,11 @@ export function buildApp(
   mailer: Mailer = new ConsoleMailer(),
   opts: BuildAppOpts = {},
 ): FastifyInstance {
-  const app = Fastify({ logger: process.env.NODE_ENV !== 'test' });
+  const app = Fastify({
+    logger: process.env.NODE_ENV === 'test' ? false
+      : process.env.NODE_ENV === 'production' ? { level: 'warn' }
+      : true,
+  });
   app.register(cookie);
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -56,6 +60,13 @@ export function buildApp(
   return app;
 }
 
+// Обрати attachment-сховище: BLOB_READ_WRITE_TOKEN → VercelBlobStore, інакше LocalFS.
+// Тестовий шар (InMemoryStore) використовується лише в тестах через buildApp() напряму.
+export function pickStore(): AttachmentStore {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return new VercelBlobStore();
+  return new LocalFSStore();
+}
+
 // Обрати сховище: PG_URL → PostgresRepo (з міграцією), інакше InMemoryRepo.
 export async function buildAppWithBackend(): Promise<FastifyInstance> {
   const url = process.env.PG_URL;
@@ -68,7 +79,7 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
   } else {
     repo = new InMemoryRepo();
   }
-  const store: AttachmentStore = new LocalFSStore();
+  const store: AttachmentStore = pickStore();
   const mailer: Mailer = pickMailer();
   return buildApp(repo, store, mailer);
 }
