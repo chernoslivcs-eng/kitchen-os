@@ -109,6 +109,14 @@ function serializeCookRun(r: RecentCookRunSummary): string {
   return parts.join(' · ');
 }
 
+// QA5-07: модель не знала дати й у суботу сказала «Сьогодні середа — піст». Без цього
+// рядка вся гілка правил про традиції, свята й «щоп'ятниці риба» не може працювати.
+function todayLabel(): string {
+  return new Date().toLocaleDateString('uk-UA', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+}
+
 // Профіль у контекст. QA4-02: до цього алергії зберігались, показувались у UI — і не
 // впливали ні на що. Модель двічі пропонувала мигдаль людині з алергією на мигдаль.
 function serializeProfile(p: Profile | null | undefined): string {
@@ -130,8 +138,14 @@ function serializeProfile(p: Profile | null | undefined): string {
 // Стисла серіалізація комори — та сама, що в прототипі: id · назва · зона · кількість · стан.
 // Термін догоряння додаємо як «!Nдн» щоб модель могла згадати про нього в репліці
 // (бриф §04: «Інформація — репліка, а не панель»).
-function serializePantry(bs: PantryBatch[]): string {
+//
+// QA5-01: алергени позначаємо ПРЯМО В РЯДКУ ПАРТІЇ, а не окремим правилом. Правило
+// «ніколи не пропонуй алерген» стояло за пів промпту вище й ігнорувалось: коли модель
+// читає [КОМОРА] і перелічує, що є вдома, її ніщо не зупиняє. Тепер «Шоколад з мигдалем»
+// фізично не прочитати без мітки поруч.
+function serializePantry(bs: PantryBatch[], profile?: Profile | null): string {
   const now = Date.now();
+  const allergens = (profile?.allergies ?? []).map((a) => a.toLowerCase()).filter(Boolean);
   return bs
     .filter((b) => b.state !== 'depleted')
     .map((b) => {
@@ -142,6 +156,9 @@ function serializePantry(bs: PantryBatch[]): string {
         const days = Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000);
         if (days <= 7) parts.push(`!${days}дн`);
       }
+      const label = b.label.toLowerCase();
+      const hit = allergens.filter((a) => label.includes(a));
+      if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — САМ НЕ ПРОПОНУЙ`);
       return parts.join(' · ');
     })
     .join('\n');
@@ -183,10 +200,15 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const cookLog = args.recentCookRuns?.length
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n' + args.recentCookRuns.map(serializeCookRun).join('\n')
     : '';
+  // Порядок блоків: обмеження ПЕРЕД інвентарем. Модель читає [КОМОРА] згори вниз;
+  // якщо профіль стоїть після, вона встигає перелічити алергени до того, як побачить
+  // обмеження (QA5-01). Кеш це не ламає — cache_prefix у маніфесті це role+card-rules,
+  // обидва блоки й так за ним.
   const system = compose('chat', prompt, { stage: args.stage })
-    + '\n\n[КОМОРА]\n' + serializePantry(args.pantry)
-    + cookLog
-    + serializeProfile(args.profile);
+    + serializeProfile(args.profile)
+    + '\n\n[СЬОГОДНІ] ' + todayLabel()
+    + '\n\n[КОМОРА]\n' + serializePantry(args.pantry, args.profile)
+    + cookLog;
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
   const messages = [
@@ -301,8 +323,10 @@ export async function callRecipe(args: {
   if (!client) return recipeStub(args.title, prompt.version);
 
   const model = smartModel();
-  const pantryBlock = args.pantry ? '\n\n[КОМОРА]\n' + serializePantry(args.pantry) : '';
-  const system = compose('recipe_gen', prompt) + pantryBlock + serializeProfile(args.profile);
+  const pantryBlock = args.pantry
+    ? '\n\n[КОМОРА]\n' + serializePantry(args.pantry, args.profile)
+    : '';
+  const system = compose('recipe_gen', prompt) + serializeProfile(args.profile) + pantryBlock;
   const userText = args.context
     ? `${args.title}\n\n${args.context}`
     : args.title;

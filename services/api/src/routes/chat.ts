@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, type AttachmentPayload } from '../model.js';
-import { createPending, type Repo } from '@kitchen/domain';
+import { createPending, type Repo, type Card } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -10,6 +10,28 @@ import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 function today(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// QA5-03: в історію йшов тільки m.text. Уся суть картки — назви страв, позиції комори —
+// лишалась за бортом, а при `proposal` reply це часто один рядок («Три варіанти:»).
+// Наслідок: модель не пам'ятала, що сама запропонувала, і вигадувала третій варіант.
+// Гірше — картка без прози зберігалась із text:'' і випадала з історії цілком, лишаючи
+// юзерську репліку без відповіді; наступного разу модель її «переграла» і згенерувала
+// повторний intake. Це найімовірніша причина дублів у коморі.
+function summarizeCard(c: Card): string {
+  if (c.type === 'proposal') {
+    return '[картка: пропозиції] ' + c.items.map((i) => i.title).join(' · ');
+  }
+  if (c.type === 'intake_diff') {
+    return '[картка: комора] ' + c.ops.map((o) => `${o.op ?? 'add'} ${o.label}`).join(' · ');
+  }
+  if (c.type === 'shopping') {
+    return '[картка: покупки] ' + c.items.map((i) => `${i.op ?? 'add'} ${i.label}`).join(' · ');
+  }
+  if (c.type === 'profile') {
+    return '[картка: профіль] ' + c.ops.map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
+  }
+  return '[картка]';
 }
 
 // POST /v1/chat
@@ -107,10 +129,23 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Історія розмови ДО збереження поточної репліки — інакше вона задвоїться
     // (потрапить і в history, і в messages як поточний user-turn).
     // Ліміт 20 останніх: вистачає щоб тримати нитку, не рознесе вхідні токени.
-    const history = (await repo.listMessages(session.id))
-      .filter((m) => m.text)
+    //
+    // Картка йде в історію разом зі статусом: модель має розрізняти «я це
+    // запропонувала» і «людина це застосувала». Без мітки вона вірила власному
+    // «Запишу» й казала «так, вже в коморі», коли нічого не записано (QA5-02).
+    const allMessages = await repo.listMessages(session.id);
+    const history = allMessages
       .slice(-20)
-      .map((m) => ({ role: m.role, content: m.text! }));
+      .map((m) => {
+        const parts: string[] = [];
+        if (m.text) parts.push(m.text);
+        if (m.card) {
+          parts.push(summarizeCard(m.card) + (m.applied > 0 ? ' [ЗАСТОСОВАНО]' : ' [НЕ ЗАСТОСОВАНО]'));
+        }
+        return { role: m.role, content: parts.join('\n') };
+      })
+      .filter((m) => m.content);
+    const truncated = allMessages.length > 20;
 
     await repo.saveMessage({
       id: randomUUID(), session_id: session.id, role: 'user',
@@ -131,6 +166,15 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       }));
 
     const started = Date.now();
+    // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
+    // «у тебе немає покупок на початку», хоча вони були за межею вікна. Кажемо прямо.
+    if (truncated) {
+      history.unshift({
+        role: 'user',
+        content: `[раніше в цій розмові було ще ${allMessages.length - 20} реплік — ти їх не бачиш]`,
+      });
+    }
+
     const call = await callChat({
       user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
       history, profile,
@@ -147,6 +191,17 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         { user_id, text: (text ?? '').slice(0, 100), model: call.meta.model },
         'proposal-card-missed: user asked for recipe, model returned no card',
       );
+    }
+
+    // QA5-01: чи не проліз алерген у пропозицію. Збіг за підрядком дає хибні
+    // спрацювання, тому це лог, а не блок — але без нього ніхто не дізнається,
+    // як часто це стається у проді.
+    if (profile?.allergies.length) {
+      const hay = ((call.reply ?? '') + JSON.stringify(call.card ?? {})).toLowerCase();
+      const hit = profile.allergies.filter((a) => a && hay.includes(a.toLowerCase()));
+      if (hit.length) {
+        req.log.warn({ hit, user_id, model: call.meta.model }, 'response-contains-allergen');
+      }
     }
 
     const card_id = call.card ? randomUUID() : null;

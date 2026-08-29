@@ -305,7 +305,7 @@ async function applyShoppingOp(
 // як `applied` — щоб не рапортувати успіх на op, яку MVP не вміє (QA4-05).
 function applyProfileOp(
   next: Profile,
-  op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string },
+  op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string; has?: boolean },
 ): boolean {
   if (!op.label || !op.kind) return false;
   const label = op.label.trim();
@@ -334,7 +334,10 @@ function applyProfileOp(
       delete next.equipment[label];
       return true;
     }
-    next.equipment[label] = 'has';
+    // QA5-04: «в мене немає духовки» модель віддає як {kind:'equip', has:false},
+    // а ми безумовно писали 'has' — і потім пропонували запікати в духовці.
+    // serializeProfile розрізняє has/lacks, але 'lacks' ніде не записувалось.
+    next.equipment[label] = op.has === false ? 'lacks' : 'has';
     return true;
   }
   // note / member — MVP не має для них таблиць. Повертаємо false, щоб API не

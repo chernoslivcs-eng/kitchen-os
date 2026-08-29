@@ -225,9 +225,16 @@ export function Card(props: CardProps) {
 }
 
 // Мета-мітка перед карткою, залежно від типу й стану — на кшталт «КОМОРА · ◌ ОЧІКУЄ».
-export function labelFor(type: ChatCard['type'], applied?: boolean, undone?: boolean): { text: string; tone: 'pending' | 'applied' | 'muted' } {
+export function labelFor(
+  type: ChatCard['type'],
+  applied?: boolean,
+  undone?: boolean,
+  dismissed?: boolean,
+): { text: string; tone: 'pending' | 'applied' | 'muted' } {
   if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
   if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
+  // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.
+  if (dismissed) return { text: '✕ ВІДХИЛЕНО', tone: 'muted' };
   const base = type === 'intake_diff' ? 'КОМОРА'
     : type === 'shopping' ? 'СПИСОК'
     : type === 'profile' ? 'ПРОФІЛЬ'

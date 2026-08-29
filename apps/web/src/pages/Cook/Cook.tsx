@@ -89,13 +89,17 @@ export function CookPage() {
   // Кількість повертаємо, щоб «Готово» показало «списано N позицій».
   const [depleted, setDepleted] = useState<number | null>(null);
   const [partial, setPartial] = useState<number>(0);
+  const [opened, setOpened] = useState<number>(0);
   const [runId, setRunId] = useState<string | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
   const [undone, setUndone] = useState<boolean>(false);
   useEffect(() => {
     if (done) {
       api.cookRuns.save(recipe)
-        .then((r) => { setDepleted(r.depleted); setPartial(r.partial); setRunId(r.id); setRecipeId(r.recipe_id); })
+        .then((r) => {
+          setDepleted(r.depleted); setPartial(r.partial); setOpened(r.opened);
+          setRunId(r.id); setRecipeId(r.recipe_id);
+        })
         .catch(() => {/* offline: наступним разом */});
     }
   }, [done, recipe]);
@@ -168,7 +172,7 @@ export function CookPage() {
         {done ? (
           <>
             <div className={styles['step-title']}>Готово. Смачного.</div>
-            {depleted != null && (depleted > 0 || partial > 0) && (
+            {depleted != null && (depleted > 0 || partial > 0 || opened > 0) && (
               <div className={styles.section}>
                 <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>
                 <div className={styles.next}>
@@ -182,6 +186,13 @@ export function CookPage() {
                       {depleted > 0 && partial > 0 && <> · </>}
                       {partial > 0 && (
                         <>Частково використано {partial} {plural(partial, ['позицію', 'позиції', 'позицій'])}</>
+                      )}
+                      {/* QA5-10: коли рецепт не дав кількості, ми лишаємо партію
+                          в коморі й тільки відкриваємо її. Без цього рядка екран
+                          казав «Списано 0 позицій» і людина не розуміла, що сталось. */}
+                      {(depleted > 0 || partial > 0) && opened > 0 && <> · </>}
+                      {opened > 0 && (
+                        <>Кількість не вказана в {opened} {plural(opened, ['позиції', 'позиціях', 'позиціях'])} — комору не міняв, лише відкрив</>
                       )}
                     </>
                   )}

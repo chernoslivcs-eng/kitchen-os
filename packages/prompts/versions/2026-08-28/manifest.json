@@ -3,10 +3,10 @@
   "notes": "Дослівний перенос із kitchen-prototype.jsx через 03-prompts.md. Кожне правило поставлене після конкретної помилки — реєстр збоїв у 03-prompts.md § «Що ламалось і чим закрито».",
   "calls": {
     "chat": {
-      "profile": "fast",
+      "profile": "smart",
       "compose": ["role", "onboarding-stage1?", "onboarding-stage2?", "card-rules"],
       "cache_prefix": ["role", "card-rules"],
-      "notes": "Порядок у промпті: ROLE → [onboarding] → profile → audience → occasions → memory → cuisine → pantry → shopping → card-rules. Кеш ламається при перестановці — див. 02-architecture.html §05."
+      "notes": "Фактичний порядок (model.ts callChat): compose(role → [onboarding] → card-rules) → [ПРОФІЛЬ] → [СЬОГОДНІ] → [КОМОРА] → [ОСТАННІ ГОТУВАННЯ]. Обмеження стоять ПЕРЕД інвентарем свідомо (QA5-01): інакше модель встигає перелічити алергени до того, як побачить профіль. cache_prefix — усе, що в compose(); динамічні блоки за ним і кеш не ламають."
     },
     "recipe_gen": {
       "profile": "smart",

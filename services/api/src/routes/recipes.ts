@@ -51,7 +51,17 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       // правильно сказала, що завдання неоднозначне («400 г лосося — це мало
       // на шістьох»). Тепер це діалог: клієнт покаже reply як репліку кухаря.
       req.log.info({ raw: call.raw.slice(0, 200) }, 'recipe-returned-prose-not-json');
-      return reply.send({ recipe: null, reply: call.raw.slice(0, 600).trim(), meta: call.meta, usage: call.usage });
+      // QA5-06: `raw` — сирий текст моделі, а цей канал обходить контракт із
+      // card-rules.md. Зачищаємо маркдаун, інакше юзер бачить зірочки як текст.
+      const clean = call.raw
+        .replace(/\*\*/g, '')
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/^\s*[-*]\s+/gm, '')
+        .replace(/`/g, '')
+        .replace(/\n{2,}/g, ' ')
+        .trim()
+        .slice(0, 400);
+      return reply.send({ recipe: null, reply: clean, meta: call.meta, usage: call.usage });
     }
 
     // QA4-03: модель вигадує схему `ing`, коли промпт її не описує. Логуємо

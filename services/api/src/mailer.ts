@@ -27,12 +27,28 @@ export class ConsoleMailer implements Mailer {
     console.log(
       `[mail] magic link → ${mail.to} (діє ${mail.expires_in_min} хв):\n  ${mail.link}`,
     );
+    // Дублюємо у файл — stdout процесу недосяжний для QA-сесій у пісочниці, і
+    // через це онбординг stage=1 лишався неперевіреним п'ять прогонів поспіль.
+    // Тільки поза продом: у проді працює SmtpMailer, сюди ми не потрапляємо.
+    // Файл лягає в /tmp — не в репо, не в бекапи, живе до перезавантаження.
+    if (process.env.NODE_ENV !== 'production' && !process.env.VITEST) {
+      try {
+        const { appendFile } = await import('node:fs/promises');
+        await appendFile(
+          MAGIC_LINK_LOG,
+          `${new Date().toISOString()}\t${mail.to}\t${mail.link}\n`,
+        );
+      } catch { /* лог — зручність, не контракт; падіння тут не має ламати вхід */ }
+    }
   }
 
   last(): MagicLinkMail | null {
     return this.sent[this.sent.length - 1] ?? null;
   }
 }
+
+// Шлях можна перевизначити через env, якщо /tmp недоступний.
+export const MAGIC_LINK_LOG = process.env.MAGIC_LINK_LOG ?? '/tmp/kos-magic-links.log';
 
 export interface SmtpConfig {
   host: string;

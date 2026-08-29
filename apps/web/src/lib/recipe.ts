@@ -3,8 +3,6 @@
 // комори через `ing.p` = uuid, показати юзеру НАЗВУ, а не uuid, і плейсхолдер
 // {0} у step.c замінити тим же людським рядком.
 
-import { formatQty } from './units';
-
 export interface RecipeIngLite {
   p?: string;
   n?: string;
@@ -36,17 +34,21 @@ export function renderStepContent(
   ing: RecipeIngLite[],
   labels?: BatchLabels,
 ): string {
-  return content.replace(/(\S*?)\s*\{(\d+)\}/g, (match, before: string, idx: string) => {
+  const out = content.replace(/(\S*?)\s*\{(\d+)\}/g, (match, before: string, idx: string) => {
     const i = Number(idx);
     const it = ing[i];
     if (!it) return match;
+    // QA5-09: кількість у крок НЕ підставляємо. Вона вже є в списку інгредієнтів,
+    // а в тексті ламає фразу: «половиною {4}» ставало «половиною олія оливкова 40 мл».
     const name = resolveIngName(it, labels);
-    const rendered = it.v != null && it.u ? `${name} ${formatQty(it.v, it.u)}`.trim() : name;
-    // Прибираємо назву перед плейсхолдером, якщо це той самий інгредієнт.
+    // Прибираємо назву перед плейсхолдером, якщо це той самий інгредієнт (QA3-01).
     const firstWord = name.split(/\s+/)[0]?.toLowerCase() ?? '';
     if (before && firstWord.length >= 3 && before.toLowerCase().startsWith(firstWord.slice(0, 3))) {
-      return rendered;
+      return name;
     }
-    return before ? `${before} ${rendered}` : rendered;
+    return before ? `${before} ${name}` : name;
   });
+  // Капіталізуємо перший символ: плейсхолдер часто стоїть на початку кроку, а назва
+  // партії приходить із малої — виходило «Підготовка. помідори — скибочки».
+  return out.charAt(0).toUpperCase() + out.slice(1);
 }

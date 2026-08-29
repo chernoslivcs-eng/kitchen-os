@@ -476,7 +476,7 @@ export function Feed() {
           <div key={t.id} className={styles.turn}>
             <MonoLabel tone="muted">
               {t.time} {t.role === 'user' ? 'ТИ' : t.card
-                ? labelFor(t.card.type, t.applied, t.undone).text
+                ? labelFor(t.card.type, t.applied, t.undone, t.dismissed).text
                 : 'АСИСТЕНТ'}
             </MonoLabel>
             {t.text && <div className={styles['turn-text']}>{t.text}</div>}
