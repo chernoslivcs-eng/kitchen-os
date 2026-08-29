@@ -92,4 +92,35 @@ describe('magic-link auth', () => {
     expect(s2.household_id).toBe(s1.household_id);
     expect(s2.cookie).not.toBe(s1.cookie);
   });
+
+  it('?next іде наскрізь у magic-link; verify тоді редіректить туди', async () => {
+    // Payload з next=/r/xyz → у листі має бути verify?token=…&next=/r/xyz.
+    // Verify з ?next та Accept: text/html — 302 на /r/xyz, не на /.
+    const req = await app.inject({
+      method: 'POST', url: '/v1/auth/request',
+      payload: { email: 'shared@example.com', next: '/r/abc123' },
+    });
+    expect(req.statusCode).toBe(202);
+    const link = mailer.last()!.link;
+    expect(link).toContain('next=%2Fr%2Fabc123');
+
+    const url = new URL(link);
+    const verify = await app.inject({
+      method: 'GET',
+      url: `${url.pathname}${url.search}`,
+      headers: { accept: 'text/html' },
+    });
+    expect(verify.statusCode).toBe(302);
+    expect(verify.headers.location).toBe('/r/abc123');
+  });
+
+  it('?next з зовнішнім значенням ігнорується — редіректить на /', async () => {
+    const req = await app.inject({
+      method: 'POST', url: '/v1/auth/request',
+      payload: { email: 'evil@example.com', next: 'https://evil.example.com' },
+    });
+    expect(req.statusCode).toBe(202);
+    const link = mailer.last()!.link;
+    expect(link).not.toContain('next=');
+  });
 });
