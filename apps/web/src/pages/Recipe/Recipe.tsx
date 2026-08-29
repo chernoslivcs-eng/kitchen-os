@@ -2,11 +2,11 @@
 // (з попереднього «Рецепт →» на пропозиції). Якщо стан порожній (F5),
 // показуємо повідомлення й пропонуємо повернутись у стрічку.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import type { Recipe } from '../../api';
+import { api, type Recipe } from '../../api';
 import styles from './Recipe.module.css';
 
 interface RecipeLocationState {
@@ -19,6 +19,20 @@ export function RecipePage() {
   const recipe = (location.state as RecipeLocationState | null)?.recipe ?? null;
   const [currentStep, setCurrentStep] = useState(0);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
+  const [allergies, setAllergies] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Підтягнемо алергії з профілю, щоб позначити відповідні інгредієнти.
+    // «Позначка, а не заборона» — рецепт лишається доступним, ми тільки попереджаємо.
+    api.profile()
+      .then(({ profile }) => setAllergies(profile.allergies))
+      .catch(() => {/* silent */});
+  }, []);
+
+  function flagsFor(ingName: string): string[] {
+    const n = ingName.toLowerCase();
+    return allergies.filter((a) => a && n.includes(a.toLowerCase()));
+  }
 
   if (!recipe) {
     return (
@@ -67,19 +81,41 @@ export function RecipePage() {
 
         <div className={styles.section}>
           <MonoLabel>ІНГРЕДІЄНТИ</MonoLabel>
-          {recipe.ing.map((ing, i) => (
-            <div key={i} className={styles.ing}>
-              <span className={`${styles['ing-mark']} ${ing.p ? '' : styles.missing}`}>
-                {ing.p ? '●' : '○'}
-              </span>
-              <span className={`${styles['ing-name']} ${ing.p ? '' : styles.missing}`}>
-                {ing.n ?? (ing.p ? `[${ing.p}]` : '—')}
-              </span>
-              {ing.v != null && ing.u && (
-                <span className={styles['ing-qty']}>{ing.v}{ing.u}</span>
-              )}
-            </div>
-          ))}
+          {recipe.ing.map((ing, i) => {
+            const name = ing.n ?? (ing.p ? `[${ing.p}]` : '—');
+            const flags = flagsFor(name);
+            const hasFlag = flags.length > 0;
+            return (
+              <div key={i} className={styles.ing}>
+                <span className={`${styles['ing-mark']} ${ing.p ? '' : styles.missing}`}>
+                  {ing.p ? '●' : '○'}
+                </span>
+                <span className={`${styles['ing-name']} ${ing.p ? '' : styles.missing}`}>
+                  {name}
+                  {hasFlag && (
+                    <span style={{
+                      display: 'inline-block',
+                      marginLeft: 8,
+                      padding: '2px 8px',
+                      background: 'var(--danger-bg)',
+                      border: '1px solid var(--danger-border)',
+                      color: 'var(--danger)',
+                      borderRadius: 'var(--r-pill)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                    }}>
+                      ⚠ {flags[0]}
+                    </span>
+                  )}
+                </span>
+                {ing.v != null && ing.u && (
+                  <span className={styles['ing-qty']}>{ing.v}{ing.u}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className={styles.section}>
