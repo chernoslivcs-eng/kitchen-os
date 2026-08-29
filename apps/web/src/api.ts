@@ -151,8 +151,11 @@ export const api = {
   },
 
   recipes: {
+    // recipe може прийти null — тоді модель відповіла прозою замість JSON
+    // (напр. «400 г лосося — це мало на шістьох»). Показуємо `reply` як
+    // репліку кухаря, а не як помилку.
     generate: (title: string, context?: string) =>
-      req<{ recipe: Recipe; meta: unknown; usage: unknown }>(
+      req<{ recipe: Recipe | null; reply?: string; meta: unknown; usage: unknown }>(
         '/v1/recipes/generate',
         { method: 'POST', body: JSON.stringify({ title, context }) },
       ),
@@ -170,7 +173,7 @@ export const api = {
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
     save: (recipe: Recipe, servings?: number, rating?: number, verdict?: string) =>
-      req<{ id: string; recipe_id: string; depleted: number; partial: number; depleted_batch_ids: string[] }>('/v1/cook-runs', {
+      req<{ id: string; recipe_id: string; depleted: number; partial: number; opened: number; depleted_batch_ids: string[] }>('/v1/cook-runs', {
         method: 'POST',
         body: JSON.stringify({ recipe, servings, rating, verdict }),
       }),

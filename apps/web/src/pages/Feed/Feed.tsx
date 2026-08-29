@@ -306,8 +306,18 @@ export function Feed() {
     setOpeningRecipe(true);
     setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…', persist: true });
     try {
-      const { recipe } = await api.recipes.generate(pick.title, pick.desc);
+      const { recipe, reply } = await api.recipes.generate(pick.title, pick.desc);
       setToast(null);
+      if (!recipe) {
+        // Модель відповіла прозою замість рецепта — зазвичай бо запит
+        // неоднозначний («меню на 6 осіб»). Показуємо як репліку кухаря
+        // у стрічці, щоб людина могла уточнити.
+        setTurns((prev) => [...prev, {
+          id: newId(), role: 'assistant', time: hhmm(),
+          text: reply || 'Не вийшло скласти рецепт. Спробуй сформулювати конкретніше.',
+        }]);
+        return;
+      }
       navigate('/recipe', { state: { recipe } });
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });

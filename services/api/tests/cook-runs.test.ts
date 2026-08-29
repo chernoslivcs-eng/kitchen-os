@@ -76,9 +76,34 @@ describe('POST /v1/cook-runs', () => {
     expect(batch?.opened_at).toBeTruthy();
   });
 
-  it('повна депляція: коли recipe.ing.v ≥ batch.value або без v/u', async () => {
+  it('повна депляція коли recipe.ing.v ≥ batch.value', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const b1 = await addBatch(me.household_id, { value: 200 });
+
+    const cook = await app.inject({
+      method: 'POST', url: '/v1/cook-runs',
+      headers: { cookie: me.cookie },
+      payload: {
+        recipe: {
+          t: 'Салат', tm: 5, sv: 2,
+          ing: [{ p: b1, n: 'моцарела', v: 250, u: 'g' }],
+          st: [{ t: 'Готуй', c: 'Змішай' }],
+        },
+      },
+    });
+    expect(cook.statusCode).toBe(201);
+    const body = cook.json();
+    expect(body.depleted).toBe(1);
+    expect(body.partial).toBe(0);
+    expect((await repo.getBatch(b1))?.state).toBe('depleted');
+  });
+
+  // QA4-03: коли модель не дала v/u (або дала «q»:"400g" замість них),
+  // раніше депляцували ВСЮ партію. Для пляшки олії й «2 ст.л» це знищувало
+  // пляшку. Тепер партія лишається в коморі, лише позначається відкритою.
+  it('невідома кількість → партія лишається, тільки opened', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b1 = await addBatch(me.household_id, { label: 'олія', value: 500, unit: 'ml' });
     const b2 = await addBatch(me.household_id, { label: 'помідор', value: null, unit: null });
 
     const cook = await app.inject({
@@ -88,8 +113,8 @@ describe('POST /v1/cook-runs', () => {
         recipe: {
           t: 'Салат', tm: 5, sv: 2,
           ing: [
-            { p: b1, n: 'моцарела', v: 250, u: 'g' },  // все
-            { p: b2, n: 'помідор' },                    // невідома кількість → все
+            { p: b1, n: 'олія' },        // без v/u
+            { p: b2, n: 'помідор' },     // без v/u і партія без кількості
           ],
           st: [{ t: 'Готуй', c: 'Змішай' }],
         },
@@ -97,11 +122,15 @@ describe('POST /v1/cook-runs', () => {
     });
     expect(cook.statusCode).toBe(201);
     const body = cook.json();
-    expect(body.depleted).toBe(2);
+    expect(body.depleted).toBe(0);
     expect(body.partial).toBe(0);
+    expect(body.opened).toBe(2);
 
-    expect((await repo.getBatch(b1))?.state).toBe('depleted');
-    expect((await repo.getBatch(b2))?.state).toBe('depleted');
+    // Обидві партії живі, просто відкриті — юзер сам скоригує у шиті.
+    const o1 = await repo.getBatch(b1);
+    expect(o1?.state).toBe('opened');
+    expect(o1?.value).toBe(500);
+    expect((await repo.getBatch(b2))?.state).toBe('opened');
   });
 
   it('undo повертає стан партії — і для деплеції, і для віднімання', async () => {

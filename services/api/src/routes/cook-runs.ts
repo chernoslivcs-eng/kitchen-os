@@ -96,10 +96,14 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       // Часткове: якщо recipe.ing[i] має v/u сумісні з партією — віднімаємо. Якщо
       // після цього залишок ≤ 0 — партія депляцується. Одиниці конвертуємо
       // за тими ж правилами, що intake normalizeUnit: l→ml×1000, kg→g×1000.
-      // Якщо recipe не дав кількості, або одиниці несумісні — все ж депляцуємо
-      // всю партію, бо інакше вона зависне як «використана, але жива».
+      //
+      // QA4-03: коли кількість невідома (модель віддала «q»:"400g" замість v/u,
+      // або одиниці несумісні) — раніше депляцували ВСЮ партію. Для пляшки олії
+      // й «2 ст.л» це знищувало пляшку. Тепер у такому разі просто позначаємо
+      // партію відкритою: недосписання чесніше за тихе знищення.
       let depleted = 0;
       let partial = 0;
+      let opened = 0;
       const depletedIds: string[] = [];
       const changes: CookRunBatchChange[] = [];
       for (const ing of recipe.ing ?? []) {
@@ -109,7 +113,31 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         if (batch.state === 'depleted') continue;
 
         const used = normalizeForBatch(ing.v ?? null, ing.u ?? null, batch.unit);
-        if (used != null && batch.value != null && batch.value > used) {
+
+        if (used == null) {
+          // Кількість невідома. Партію не чіпаємо крім стану — вона лишається
+          // в коморі, юзер сам скоригує через шит партії, якщо треба.
+          if (batch.state === 'sealed') {
+            changes.push({
+              id: batch.id,
+              op: 'subtract',
+              amount: 0,
+              prev_state: batch.state,
+              prev_value: batch.value,
+              prev_opened_at: batch.opened_at,
+            });
+            await repo.updateBatch(batch.id, {
+              state: 'opened',
+              opened_at: now,
+              last_by: user_id,
+              last_action: 'cook',
+            });
+            opened++;
+          }
+          continue;
+        }
+
+        if (batch.value != null && batch.value > used) {
           changes.push({
             id: batch.id,
             op: 'subtract',
@@ -127,6 +155,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
           });
           partial++;
         } else {
+          // Вжили не менше залишку → партія справді закінчилась.
           changes.push({
             id: batch.id,
             op: 'deplete',
@@ -164,6 +193,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         recipe_id,
         depleted,
         partial,
+        opened,
         depleted_batch_ids: depletedIds,
       });
     },

@@ -3,7 +3,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose } from '@kitchen/prompts';
-import type { Card, PantryBatch } from '@kitchen/domain';
+import type { Card, PantryBatch, Profile } from '@kitchen/domain';
 
 // Один провайдер моделі — або прямий Anthropic, або OpenRouter (той самий формат
 // повідомлень, лише інший baseURL і префіксовані model-id). Обирає autonomly:
@@ -85,6 +85,8 @@ export interface ChatArgs {
   pantry: PantryBatch[];
   stage?: 1 | 2;                       // онбординг: 1 — порожня комора; 2 — комора наповнена, але людину ще не спитали
   recentCookRuns?: RecentCookRunSummary[];
+  history?: { role: 'user' | 'assistant'; content: string }[];
+  profile?: Profile | null;
 }
 
 export interface ChatCall {
@@ -94,14 +96,35 @@ export interface ChatCall {
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
 
-// Серіалізація готування: назва · N діб тому · рейтинг · verdict. Verdict короткий, тому
+// Серіалізація готування: назва · коли · рейтинг · verdict. Verdict короткий, тому
 // повністю. Це те, що модель бачить як «людина вже пробувала цю штуку — от як їй було».
+// QA4-08: Math.round давав «0дн тому» для готування 20 хв тому, і модель казала «вчора».
 function serializeCookRun(r: RecentCookRunSummary): string {
-  const days = Math.round((Date.now() - new Date(r.finished_at).getTime()) / 86_400_000);
-  const parts = [r.title, `${days}дн тому`];
+  const ms = Date.now() - new Date(r.finished_at).getTime();
+  const days = Math.floor(ms / 86_400_000);
+  const when = days === 0 ? 'сьогодні' : days === 1 ? 'вчора' : `${days} дн тому`;
+  const parts = [r.title, when];
   if (r.rating != null) parts.push(`★${r.rating}/5`);
   if (r.verdict) parts.push(`«${r.verdict}»`);
   return parts.join(' · ');
+}
+
+// Профіль у контекст. QA4-02: до цього алергії зберігались, показувались у UI — і не
+// впливали ні на що. Модель двічі пропонувала мигдаль людині з алергією на мигдаль.
+function serializeProfile(p: Profile | null | undefined): string {
+  if (!p) return '';
+  const parts: string[] = [];
+  if (p.allergies.length) {
+    parts.push('АЛЕРГІЇ (тверда межа — ніколи не пропонуй сам): ' + p.allergies.join(', '));
+  }
+  if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
+  if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
+  const eq = Object.entries(p.equipment ?? {});
+  const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
+  const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
+  if (has.length) parts.push('Є ТЕХНІКА: ' + has.join(', '));
+  if (lacks.length) parts.push('НЕМАЄ ТЕХНІКИ: ' + lacks.join(', '));
+  return parts.length ? '\n\n[ПРОФІЛЬ]\n' + parts.join('\n') : '';
 }
 
 // Стисла серіалізація комори — та сама, що в прототипі: id · назва · зона · кількість · стан.
@@ -153,16 +176,28 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const client = makeClient();
   if (!client) return stub(args, prompt.version);
 
-  const model = fastModel();
+  // Чат — це і є продукт: там, де людина чує голос, економити на моделі означає
+  // економити на голосі. QA-4 copy-report: haiku-4.5 дав 8 мовних дефектів за прогін
+  // (русизми, неіснуючі слова), sonnet-4.5 за чотири прогони — жодного.
+  const model = smartModel();
   const cookLog = args.recentCookRuns?.length
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n' + args.recentCookRuns.map(serializeCookRun).join('\n')
     : '';
-  const system = compose('chat', prompt, { stage: args.stage }) + '\n\n[КОМОРА]\n' + serializePantry(args.pantry) + cookLog;
+  const system = compose('chat', prompt, { stage: args.stage })
+    + '\n\n[КОМОРА]\n' + serializePantry(args.pantry)
+    + cookLog
+    + serializeProfile(args.profile);
+  // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
+  // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
+  const messages = [
+    ...(args.history ?? []),
+    { role: 'user' as const, content: args.text },
+  ];
   const resp = await withRetry(() => client.messages.create({
     model,
     max_tokens: 2048,
     system,
-    messages: [{ role: 'user', content: args.text }],
+    messages,
   }));
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
@@ -255,14 +290,19 @@ function recipeStub(title: string, promptVersion: string): RecipeCall {
   };
 }
 
-export async function callRecipe(args: { title: string; context?: string; pantry?: PantryBatch[] }): Promise<RecipeCall> {
+export async function callRecipe(args: {
+  title: string;
+  context?: string;
+  pantry?: PantryBatch[];
+  profile?: Profile | null;
+}): Promise<RecipeCall> {
   const prompt = loadPrompt();
   const client = makeClient();
   if (!client) return recipeStub(args.title, prompt.version);
 
   const model = smartModel();
   const pantryBlock = args.pantry ? '\n\n[КОМОРА]\n' + serializePantry(args.pantry) : '';
-  const system = compose('recipe_gen', prompt) + pantryBlock;
+  const system = compose('recipe_gen', prompt) + pantryBlock + serializeProfile(args.profile);
   const userText = args.context
     ? `${args.title}\n\n${args.context}`
     : args.title;

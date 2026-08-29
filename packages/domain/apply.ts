@@ -118,14 +118,31 @@ export async function applyCard(
   if (card.type === 'profile') {
     const chosen = selected.length ? selected : card.ops.map((_, i) => i);
     const before = await repo.getProfile(actor_user_id);
-    const snapshot: UndoSnapshot = { kind: 'profile', before: { profile_before: before ?? undefined } };
+    // QA4-04: {...before} — поверхнева копія, next.allergies це ТОЙ САМИЙ масив,
+    // що before.allergies. applyProfileOp робить push і мутує масив, на який
+    // дивиться знімок → undo фіксував стан ПІСЛЯ зміни. Глибока копія обов'язкова.
+    const deepCopy = (p: Profile): Profile => ({
+      ...p,
+      allergies: [...p.allergies],
+      wishes: [...p.wishes],
+      antipatterns: [...p.antipatterns],
+      equipment: { ...p.equipment },
+    });
+    const snapshot: UndoSnapshot = {
+      kind: 'profile',
+      before: { profile_before: before ? deepCopy(before) : undefined },
+    };
     const next: Profile = before
-      ? { ...before }
+      ? deepCopy(before)
       : { user_id: actor_user_id, allergies: [], wishes: [], antipatterns: [], equipment: {} };
+    // QA4-05: рахуємо те, що СПРАВДІ лягло. `kind: member` / `note` MVP ігнорує,
+    // але раніше API рапортував applied:1 і UI показував успіх — людина думала,
+    // що продукт знає про вегетаріанку в домі, а в профілі нічого не було.
+    let landed = 0;
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      applyProfileOp(next, op);
+      if (applyProfileOp(next, op)) landed++;
     }
     await repo.upsertProfile(next);
     const undo_token = randomUUID();
@@ -135,8 +152,8 @@ export async function applyCard(
       undo_token,
       undo_snapshot: snapshot,
     });
-    await repo.markMessageApplied(pc.id, chosen.length);
-    return { applied: chosen.length, undo_token, already: false };
+    await repo.markMessageApplied(pc.id, landed);
+    return { applied: landed, undo_token, already: false };
   }
 
   throw new Error(`apply not implemented for card type: ${(card as { type: string }).type}`);
@@ -284,11 +301,13 @@ async function applyShoppingOp(
   snap.before.added_shopping_ids.push(id);
 }
 
+// Повертає true, якщо операція реально змінила профіль. Виклик-сайт рахує це
+// як `applied` — щоб не рапортувати успіх на op, яку MVP не вміє (QA4-05).
 function applyProfileOp(
   next: Profile,
   op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string },
-): void {
-  if (!op.label || !op.kind) return;
+): boolean {
+  if (!op.label || !op.kind) return false;
   const label = op.label.trim();
   const removing = op.op === 'remove';
   const listByKind = (k: ProfileKind): string[] | null => {
@@ -301,17 +320,26 @@ function applyProfileOp(
   if (list) {
     if (removing) {
       const idx = list.findIndex((x) => x.toLowerCase() === label.toLowerCase());
-      if (idx !== -1) list.splice(idx, 1);
-    } else if (!list.some((x) => x.toLowerCase() === label.toLowerCase())) {
-      list.push(label);
+      if (idx === -1) return false;
+      list.splice(idx, 1);
+      return true;
     }
-    return;
+    if (list.some((x) => x.toLowerCase() === label.toLowerCase())) return false;
+    list.push(label);
+    return true;
   }
   if (op.kind === 'equip') {
-    if (removing) delete next.equipment[label];
-    else next.equipment[label] = 'has';
+    if (removing) {
+      if (!(label in next.equipment)) return false;
+      delete next.equipment[label];
+      return true;
+    }
+    next.equipment[label] = 'has';
+    return true;
   }
-  // note / member — MVP ігнорує; додамо коли будуть окремі таблиці.
+  // note / member — MVP не має для них таблиць. Повертаємо false, щоб API не
+  // рапортував applied:1 на те, що нікуди не лягло.
+  return false;
 }
 
 // ---------- undo ----------

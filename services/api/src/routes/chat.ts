@@ -91,6 +91,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     }
 
     const pantry = await repo.listBatches(household_id);
+    const profile = await repo.getProfile(user_id);
     // Онбординг: stage 1, поки в коморі порожньо; stage 2, коли комора наповнена,
     // а профіль ще не має відповіді на «алергії/дім/традиції» (як проксі — порожні три блоки).
     let stage: 1 | 2 | undefined;
@@ -98,11 +99,18 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     if (activeBatches === 0) {
       stage = 1;
     } else if (activeBatches >= 3) {
-      const profile = await repo.getProfile(user_id);
       const empty = !profile
         || (profile.allergies.length === 0 && profile.wishes.length === 0 && profile.antipatterns.length === 0);
       if (empty) stage = 2;
     }
+
+    // Історія розмови ДО збереження поточної репліки — інакше вона задвоїться
+    // (потрапить і в history, і в messages як поточний user-turn).
+    // Ліміт 20 останніх: вистачає щоб тримати нитку, не рознесе вхідні токени.
+    const history = (await repo.listMessages(session.id))
+      .filter((m) => m.text)
+      .slice(-20)
+      .map((m) => ({ role: m.role, content: m.text! }));
 
     await repo.saveMessage({
       id: randomUUID(), session_id: session.id, role: 'user',
@@ -125,6 +133,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const started = Date.now();
     const call = await callChat({
       user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
+      history, profile,
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
 

@@ -41,13 +41,26 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     if (!title || !title.trim()) return reply.code(400).send({ error: 'title required' });
 
     const pantry = await repo.listBatches(ctx.household_id);
+    const profile = await repo.getProfile(ctx.user_id);
     const started = Date.now();
-    const call = await callRecipe({ title: title.trim(), context, pantry });
+    const call = await callRecipe({ title: title.trim(), context, pantry, profile });
     await recordUsage(repo, ctx, 'recipe_gen', call.meta, call.usage, started);
 
     if (!call.recipe) {
-      return reply.code(502).send({ error: 'model_returned_no_recipe', raw: call.raw.slice(0, 400) });
+      // QA4-06: раніше тут був 502, і людина бачила помилку там, де модель
+      // правильно сказала, що завдання неоднозначне («400 г лосося — це мало
+      // на шістьох»). Тепер це діалог: клієнт покаже reply як репліку кухаря.
+      req.log.info({ raw: call.raw.slice(0, 200) }, 'recipe-returned-prose-not-json');
+      return reply.send({ recipe: null, reply: call.raw.slice(0, 600).trim(), meta: call.meta, usage: call.usage });
     }
+
+    // QA4-03: модель вигадує схему `ing`, коли промпт її не описує. Логуємо
+    // порушення — це сигнал, що правило в recipe-generator.md знову поїхало.
+    const bad = call.recipe.ing.filter(
+      (i) => 'q' in (i as object) || (i.v != null && typeof i.v !== 'number'),
+    );
+    if (bad.length) req.log.warn({ bad, title }, 'recipe-ing-schema-violation');
+
     return { recipe: call.recipe, meta: call.meta, usage: call.usage };
   });
 
