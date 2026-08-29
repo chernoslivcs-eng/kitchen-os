@@ -46,12 +46,16 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
   }>('/v1/chat', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
     const ctx = requireUser(req);
     const { user_id, household_id } = ctx;
-    const { text, attachments } = req.body ?? {};
+    const { text, attachments, session_id: clientSessionId } = req.body ?? {};
     if (!text && !attachments?.length) {
       return reply.code(400).send({ error: 'text or attachments required' });
     }
 
-    const session = await repo.getOrCreateSessionForDay(user_id, today());
+    // Якщо клієнт передав конкретний session_id (напр. після «Новий чат»),
+    // валідуємо володіння й використовуємо його. Інакше — сесія дня.
+    let session = clientSessionId ? await repo.getSession(clientSessionId) : null;
+    if (session && session.user_id !== user_id) session = null;
+    if (!session) session = await repo.getOrCreateSessionForDay(user_id, today());
 
     if (attachments?.length) {
       const payloads: AttachmentPayload[] = [];

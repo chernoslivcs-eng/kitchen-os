@@ -112,16 +112,27 @@ export function Feed() {
 
   useEffect(() => { void refreshCounts(); }, []);
 
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
   useEffect(() => {
     // Гідратуємо стрічку з сесії дня. Показуємо кожне message як окремий turn.
     // Cards із applied>0 показуються в стані «застосовано» (без Apply-кнопки).
     (async () => {
       try {
-        const { messages } = await api.session.today();
+        const { session, messages } = await api.session.today();
+        setSessionId(session.id);
         setTurns(messages.map((m) => messageToTurn(m)));
       } catch {/* offline: залишаємо порожню стрічку */}
     })();
   }, []);
+
+  async function startFreshSession() {
+    try {
+      const { session } = await api.session.fresh();
+      setSessionId(session.id);
+      setTurns([]);
+    } catch {/* тихо: наступним разом */}
+  }
 
   useEffect(() => {
     const el = timelineRef.current;
@@ -172,7 +183,7 @@ export function Feed() {
     setTurns((prev) => [...prev, userTurn]);
 
     try {
-      const res: ChatResponse = await api.chat({ text, attachments: attachments.length ? attachments : undefined });
+      const res: ChatResponse = await api.chat({ text, attachments: attachments.length ? attachments : undefined, session_id: sessionId ?? undefined });
       const turn: Turn = {
         id: newId(),
         role: 'assistant',
@@ -255,6 +266,26 @@ export function Feed() {
           <Logo variant="wordmark" size={30} />
         </div>
         <div className={styles['head-actions']}>
+          {turns.length > 0 && (
+            <button
+              onClick={startFreshSession}
+              title="Почати новий чат"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--r-pill)',
+                padding: '5px 10px',
+                color: 'var(--fg-muted)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              + Новий
+            </button>
+          )}
           {pantryCount !== null && (
             <MonoLabel className={styles['head-meta']}>КОМОРА {pantryCount}</MonoLabel>
           )}

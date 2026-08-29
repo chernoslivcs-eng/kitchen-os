@@ -238,6 +238,20 @@ export class InMemoryRepo implements Repo {
     this.messages.set(id, []);
     return { ...s };
   }
+  async createFreshSession(user_id: string, day: string): Promise<SessionRow> {
+    // Не переприв'язуємо мапу «user:day → session_id» — вона показує *останню*
+    // сесію дня для гідратації, а нова стає такою.
+    const id = randomUUID();
+    const s: SessionRow = { id, user_id, title: null, day, created_at: new Date().toISOString() };
+    this.chatSessions.set(id, s);
+    this.chatSessionsByUserDay.set(`${user_id}:${day}`, id);
+    this.messages.set(id, []);
+    return { ...s };
+  }
+  async getSession(id: string): Promise<SessionRow | null> {
+    const s = this.chatSessions.get(id);
+    return s ? { ...s } : null;
+  }
   async saveMessage(msg: MessageRow): Promise<void> {
     const arr = this.messages.get(msg.session_id) ?? [];
     arr.push({ ...msg });

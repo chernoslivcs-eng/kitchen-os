@@ -498,8 +498,9 @@ export class PostgresRepo implements Repo {
   // ----- Сесії й повідомлення --------------------------------------------
 
   async getOrCreateSessionForDay(user_id: string, day: string): Promise<SessionRow> {
+    // Найсвіжіша сесія цього дня — це «поточна» для гідратації.
     const { rows: existing } = await this.pool.query(
-      'SELECT * FROM session WHERE user_id = $1 AND day = $2 LIMIT 1',
+      'SELECT * FROM session WHERE user_id = $1 AND day = $2 ORDER BY created_at DESC LIMIT 1',
       [user_id, day],
     );
     if (existing[0]) {
@@ -510,12 +511,27 @@ export class PostgresRepo implements Repo {
         created_at: new Date(r.created_at).toISOString(),
       };
     }
+    return this.createFreshSession(user_id, day);
+  }
+
+  async createFreshSession(user_id: string, day: string): Promise<SessionRow> {
     const { rows } = await this.pool.query(
       `INSERT INTO session (user_id, day) VALUES ($1, $2)
        RETURNING id, user_id, title, day, created_at`,
       [user_id, day],
     );
     const r = rows[0]!;
+    return {
+      id: r.id, user_id: r.user_id, title: r.title ?? null,
+      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      created_at: new Date(r.created_at).toISOString(),
+    };
+  }
+
+  async getSession(id: string): Promise<SessionRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM session WHERE id = $1', [id]);
+    const r = rows[0];
+    if (!r) return null;
     return {
       id: r.id, user_id: r.user_id, title: r.title ?? null,
       day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,

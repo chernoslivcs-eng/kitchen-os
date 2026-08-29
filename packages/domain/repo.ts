@@ -81,6 +81,8 @@ export interface Repo {
 
   // Сесії й повідомлення
   getOrCreateSessionForDay(user_id: string, day: string): Promise<SessionRow>;
+  createFreshSession(user_id: string, day: string): Promise<SessionRow>;
+  getSession(id: string): Promise<SessionRow | null>;
   saveMessage(msg: MessageRow): Promise<void>;
   listMessages(session_id: string): Promise<MessageRow[]>;
   markMessageApplied(id: string, applied: number): Promise<void>;

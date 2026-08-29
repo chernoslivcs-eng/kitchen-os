@@ -146,6 +146,9 @@ export const api = {
 
   session: {
     today: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session/today'),
+    fresh: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session', {
+      method: 'POST', body: '{}',
+    }),
   },
 
   cookRuns: {
