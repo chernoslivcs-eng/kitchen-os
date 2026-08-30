@@ -427,3 +427,77 @@ describe('POST /v1/cook-runs · dry_run', () => {
     expect(r.json().would_deplete).toEqual([]);
   });
 });
+
+// Бриф-2 п.4: знята галочка може нести опційне «лишилось ≈ 100г». Тоді партія
+// стає відкритою з ЦИМ значенням, а не з чесним «не знаю».
+describe('POST /v1/cook-runs · keep із залишком', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  async function seed(me: { household_id: string }, label: string, value: number) {
+    const id = randomUUID();
+    await repo.insertBatch({
+      id, household_id: me.household_id, catalog_key: null, label, zone: 'fridge',
+      value, unit: 'g', state: 'sealed', opened_at: null, expires_at: null,
+      best_before_opened_days: null, added_at: new Date().toISOString(),
+      depleted_at: null, confidence: 1, provenance: 'user_statement',
+      staple: false, last_by: null, last_action: null,
+    });
+    return id;
+  }
+
+  it('keep з v: партія відкрита з указаним залишком', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Фета', 200);
+    const r = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: { t: 'Салат', ing: [{ p: b, v: 200, u: 'g' }], st: [] },
+        keep: [{ id: b, v: 100 }],
+      },
+    });
+    expect(r.statusCode).toBe(201);
+    const batch = (await repo.getBatch(b))!;
+    expect(batch.state).toBe('opened');
+    expect(batch.value).toBe(100);
+  });
+
+  it('старий формат keep: [id] далі працює (value: null)', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Фета', 200);
+    await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: { recipe: { t: 'Салат', ing: [{ p: b, v: 200, u: 'g' }], st: [] }, keep: [b] },
+    });
+    const batch = (await repo.getBatch(b))!;
+    expect(batch.state).toBe('opened');
+    expect(batch.value).toBeNull();
+  });
+
+  it('undo повертає початкові кількість і стан', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Фета', 200);
+    const run = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: { t: 'Салат', ing: [{ p: b, v: 200, u: 'g' }], st: [] },
+        keep: [{ id: b, v: 100 }],
+      },
+    });
+    await app.inject({
+      method: 'POST', url: `/v1/cook-runs/${run.json().id}/undo`,
+      headers: { cookie: me.cookie }, payload: {},
+    });
+    const batch = (await repo.getBatch(b))!;
+    expect(batch.state).toBe('sealed');
+    expect(batch.value).toBe(200);
+  });
+});

@@ -8,6 +8,7 @@ import { TabBar } from '../../components/TabBar/TabBar';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import styles from './Shopping.module.css';
+import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 
 export function ShoppingPage() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -83,10 +84,11 @@ export function ShoppingPage() {
       </div>
 
       <div className={styles.body}>
+        {loading && <SkeletonRows rows={4} />}
         {!loading && items.length === 0 && (
           <div className={styles.empty}>
-            <h3>Список порожній</h3>
-            <p>Бракуючі інгредієнти з пропозицій додаються сюди самі — після твого «так». Або скажи в стрічці: «додай молоко в список».</p>
+            <h3>Список чистий</h3>
+            <p>Бракуючі інгредієнти з пропозицій додаються сюди самі — після твого «так».</p>
           </div>
         )}
 

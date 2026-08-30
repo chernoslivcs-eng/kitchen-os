@@ -84,6 +84,9 @@ export function Feed() {
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  // DA-02: дев'ять секунд тиші на кожну відповідь моделі. Кіт: три крапки зі
+  // stagger 150ms, мітка «КУХНЯ · <дієслово>» — завжди з дієсловом.
+  const [thinkingVerb, setThinkingVerb] = useState('ДУМАЮ');
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -262,6 +265,7 @@ export function Feed() {
     const attachments = pending.map((p) => ({ id: p.id }));
     setPending([]);
     setSending(true);
+    setThinkingVerb(attachments.length ? 'РОЗБИРАЮ' : 'ДУМАЮ');
 
     const userTurnText = text || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
     const userTurn: Turn = { id: newId(), role: 'user', time: hhmm(), text: userTurnText };
@@ -364,7 +368,11 @@ export function Feed() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div className={styles['head-left']}>
-          <Logo variant="wordmark" size={30} />
+          {/* DA-29: хендоф дає шапці заголовок «Кухня», не вордмарк — бренд
+              живе на вході й іконці. DA-05: обидва лічильники поруч. */}
+          <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg-strong)' }}>
+            Кухня
+          </div>
         </div>
         <div className={styles['head-actions']}>
           <button
@@ -406,7 +414,9 @@ export function Feed() {
             </button>
           )}
           {pantryCount !== null && (
-            <MonoLabel className={styles['head-meta']}>КОМОРА {pantryCount}</MonoLabel>
+            <MonoLabel className={styles['head-meta']}>
+              КОМОРА {pantryCount}{shoppingCount > 0 ? ` · СПИСОК ${shoppingCount}` : ''}
+            </MonoLabel>
           )}
         </div>
       </div>
@@ -532,6 +542,15 @@ export function Feed() {
             )}
           </div>
         ))}
+
+        {sending && (
+          <div className={styles.turn} aria-live="polite">
+            <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
+            <div className={styles.thinking}>
+              <span /><span /><span />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={styles['composer-wrap']}>

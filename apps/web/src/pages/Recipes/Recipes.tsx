@@ -13,6 +13,7 @@ import { api, type SavedRecipe } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
 import { plural } from '../../lib/plural';
 import styles from './Recipes.module.css';
+import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 
 type Filter = 'all' | 'ready' | 'near' | 'cooked';
 
@@ -90,6 +91,7 @@ export function RecipesPage() {
       </div>
 
       <div className={styles.body}>
+        {loading && <SkeletonRows rows={4} />}
         {!loading && recipes.length === 0 && (
           <div className={styles.empty}>
             <h3>Тут порожньо</h3>

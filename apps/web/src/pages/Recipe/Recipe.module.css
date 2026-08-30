@@ -195,3 +195,15 @@
 @media (min-width: 720px) {
   .body, .head, .foot { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
 }
+
+/* DA-06: чипи інгредієнтів з UI-кіта — спільна форма для ⚠ / АНТИ / ◔. */
+.ing-chip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

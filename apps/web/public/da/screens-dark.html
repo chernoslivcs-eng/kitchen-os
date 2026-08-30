@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#22262b;font-family:'Golos Text',system-ui,sans-serif;color:#e7eaec}
+a{color:#93b48b;text-decoration:none}a:hover{color:#a9c6a1;text-decoration:underline}
+.mono{font-family:'IBM Plex Mono',monospace}
+.ph{width:390px;background:#181c21;border-radius:32px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.4);display:flex;flex-direction:column;height:844px}
+.phl{width:390px;background:#eef0f1;border-radius:32px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;height:844px;color:#1d2126}
+.slab{font:600 13px 'Golos Text',sans-serif;color:#9aa3ac}
+.scol{display:flex;flex-direction:column;gap:10px}
+.tabbar{display:flex;border-top:1px solid #262c33;padding:10px 12px 22px;gap:4px}
+.tabbar>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;border-radius:12px}
+.tabl{font:600 11px 'Golos Text',sans-serif}
+</style>
+</helmet>
+<div style="padding:44px;display:flex;flex-direction:column;gap:36px">
+<header style="display:flex;flex-direction:column;gap:6px">
+  <div class="mono" style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#79828c">Kitchen OS · Handoff · усі екрани · v1.0</div>
+  <div style="font:400 15px/1.5 'Golos Text',sans-serif;color:#9aa3ac;max-width:860px">Структура з прототипу: 4 таби (Стрічка · Комора · Рецепти · Список) + онбординг, вхід magic-link, профіль/сім'я, cook mode. Темна тема як референс; світла — дзеркальні токени з «Дизайн-система.dc.html» (показана на двох контрольних екранах внизу). Токени й стани компонентів — в «UI-кіт.dc.html», моушн — в «Моушн.dc.html».</div>
+</header>
+
+<div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+
+  <!-- 01 AUTH -->
+  <div class="scol" data-screen-label="01 Вхід">
+    <div class="slab">01 · Вхід — magic link</div>
+    <div class="ph">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 32px;gap:22px">
+        <svg width="52" height="52" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="19" stroke="#e7eaec" stroke-width="3" stroke-linecap="round" stroke-dasharray="104 15" transform="rotate(-58 24 24)"/><circle cx="24" cy="24" r="6" fill="#93b48b"/></svg>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font:800 30px/1.12 'Onest',sans-serif;letter-spacing:-0.025em">Вхід у кухню</div>
+          <div style="font:400 15px/1.55 'Golos Text',sans-serif;color:#9aa3ac">Без паролів. Надішлемо лист із посиланням — воно і є вхід.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="height:54px;border-radius:14px;background:#1f242b;border:1px solid #2c333b;display:flex;align-items:center;padding:0 16px"><span style="font:400 16px 'Golos Text',sans-serif;color:#79828c">email</span></div>
+          <button style="height:54px;border:0;border-radius:14px;background:#e7eaec;color:#181c21;font:600 16px 'Golos Text',sans-serif;cursor:pointer">Надіслати посилання</button>
+        </div>
+        <div class="mono" style="font-size:12px;color:#79828c;line-height:1.6">Кухня — спільна: одна комора на сім'ю,<br>запрошення всередині профілю.</div>
+      </div>
+      <div style="padding:0 32px 40px"><div class="mono" style="font-size:11px;color:#5c646d">v1.0 · працює офлайн після входу</div></div>
+    </div>
+  </div>
+
+  <!-- 02 MAGIC SENT -->
+  <div class="scol" data-screen-label="02 Лист надіслано">
+    <div class="slab">02 · Лист надіслано</div>
+    <div class="ph">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 32px;gap:22px">
+        <div style="width:64px;height:64px;border-radius:999px;border:1px solid #3a4a3a;display:grid;place-items:center"><span style="font:700 24px 'Golos Text',sans-serif;color:#93b48b">✓</span></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font:800 30px/1.12 'Onest',sans-serif;letter-spacing:-0.025em">Перевір пошту</div>
+          <div style="font:400 15px/1.55 'Golos Text',sans-serif;color:#9aa3ac">Посилання діє 15 хвилин і працює один раз. Надіслали на <span style="color:#e7eaec">p***@gmail.com</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div class="mono" style="font-size:12px;color:#79828c">НЕ ПРИЙШЛО?</div>
+          <button style="align-self:flex-start;height:44px;padding:0;border:0;background:none;color:#e7eaec;font:600 15px 'Golos Text',sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:4px">Надіслати ще раз · 0:42</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 ONBOARDING -->
+  <div class="scol" data-screen-label="03 Онбординг">
+    <div class="slab">03 · Онбординг — перша комора</div>
+    <div class="ph">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня</div>
+        <div class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">КОМОРА 0</div>
+      </div>
+      <div style="flex:1;padding:14px 26px 0;display:flex;flex-direction:column;gap:24px;overflow:hidden">
+        <div style="display:flex;gap:14px">
+          <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:20px"><div style="width:8px;height:8px;border-radius:999px;background:#93b48b;margin-top:7px"></div></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div class="mono" style="font-size:11px;color:#79828c">ЗАРАЗ · КУХНЯ</div>
+            <div style="font:400 16px/1.55 'Golos Text',sans-serif;color:#c3c9ce">Пилипе, привіт. Я веду твою комору й готую разом із тобою — але поки не знаю, що в тебе на кухні.</div>
+            <div style="font:400 16px/1.55 'Golos Text',sans-serif;color:#c3c9ce">Покажи: сфотографуй полицю, кинь чек або перелічи текстом. Досить 5–10 позицій — решту доберемо по ходу.</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding-left:34px">
+          <button style="height:52px;border:1px solid #2c333b;border-radius:14px;background:#1f242b;color:#e7eaec;font:600 15px 'Golos Text',sans-serif;cursor:pointer;text-align:left;padding:0 16px">📷 Сфотографувати полицю</button>
+          <button style="height:52px;border:1px solid #2c333b;border-radius:14px;background:#1f242b;color:#e7eaec;font:600 15px 'Golos Text',sans-serif;cursor:pointer;text-align:left;padding:0 16px">🧾 Кинути чек</button>
+          <button style="height:52px;border:1px solid #2c333b;border-radius:14px;background:none;color:#9aa3ac;font:600 15px 'Golos Text',sans-serif;cursor:pointer;text-align:left;padding:0 16px">Перелічити текстом</button>
+        </div>
+      </div>
+      <div style="padding:16px 26px 26px"><div style="height:52px;border-radius:14px;background:#1f242b;border:1px solid #2c333b;display:flex;align-items:center;padding:0 8px 0 16px;justify-content:space-between"><span style="font:400 15px 'Golos Text',sans-serif;color:#79828c">Записати в журнал…</span><div style="width:38px;height:38px;border-radius:10px;background:#e7eaec;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#181c21" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10v1a7 7 0 0 0 14 0v-1"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg></div></div></div>
+    </div>
+  </div>
+
+  <!-- 04 FEED -->
+  <div class="scol" data-screen-label="04 Стрічка">
+    <div class="slab">04 · Стрічка — робочий стан</div>
+    <div class="ph">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня</div>
+        <div class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">КОМОРА 23 · СПИСОК 4</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:10px 26px 0;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="mono" style="font-size:11px;color:#79828c">18:42 ТИ</div>
+          <div style="font:400 16px/1.5 'Golos Text',sans-serif;color:#c3c9ce">купив вершки, фует і багет, багет почали</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="mono" style="font-size:11px;color:#79828c">18:42 КОМОРА</div><div class="mono" style="font-size:11px;color:#c9a86a">◌ ОЧІКУЄ</div></div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#93b48b;font-size:15px;font-weight:600;width:16px">+</span><span style="flex:1;font:400 16px 'Golos Text',sans-serif">Вершки 33%</span><span class="mono" style="font-size:13px;color:#79828c">400мл</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#93b48b;font-size:15px;font-weight:600;width:16px">+</span><span style="flex:1;font:400 16px 'Golos Text',sans-serif">Фует <span class="mono" style="font-size:11px;color:#c9a86a">0.62</span></span><span class="mono" style="font-size:13px;color:#79828c">180г</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0"><span class="mono" style="color:#c9a86a;font-size:15px;font-weight:600;width:16px">◔</span><span style="flex:1;font:400 16px 'Golos Text',sans-serif">Багет <span style="color:#79828c;font-size:13px">відкрито</span></span><span class="mono" style="font-size:13px;color:#79828c">1шт</span></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button style="flex:1;height:48px;border:0;border-radius:12px;background:#e7eaec;color:#181c21;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Застосувати</button>
+            <button style="height:48px;padding:0 20px;border:1px solid #2c333b;border-radius:12px;background:none;color:#9aa3ac;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Ні</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;border-top:1px solid #262c33;padding-top:18px">
+          <div class="mono" style="font-size:11px;color:#79828c">18:45 ПРОПОЗИЦІЯ · РЯТУЄ ВЕРШКИ</div>
+          <div style="font:700 22px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Вершкова фетучіні з фуетом</div>
+          <div class="mono" style="font-size:12px;color:#79828c">25ХВ · 2 ПОРЦІЇ · 540ККАЛ</div>
+          <button style="align-self:flex-start;height:44px;padding:0 18px;border:0;border-radius:12px;background:#93b48b;color:#141a12;font:600 15px 'Golos Text',sans-serif;cursor:pointer;margin-top:2px">Рецепт →</button>
+        </div>
+      </div>
+      <div style="padding:14px 26px 8px"><div style="height:52px;border-radius:14px;background:#1f242b;border:1px solid #2c333b;display:flex;align-items:center;padding:0 8px 0 16px;justify-content:space-between"><span style="font:400 15px 'Golos Text',sans-serif;color:#79828c">Записати в журнал…</span><div style="width:38px;height:38px;border-radius:10px;background:#e7eaec;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#181c21" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10v1a7 7 0 0 0 14 0v-1"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg></div></div></div>
+      <div class="tabbar">
+        <div style="background:#1f242b"><span style="color:#e7eaec">◉</span><span class="tabl" style="color:#e7eaec">Стрічка</span></div>
+        <div><span style="color:#79828c">▤</span><span class="tabl" style="color:#79828c">Комора</span></div>
+        <div><span style="color:#79828c">✎</span><span class="tabl" style="color:#79828c">Рецепти</span></div>
+        <div><span style="color:#79828c">☰</span><span class="tabl" style="color:#79828c">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 PANTRY -->
+  <div class="scol" data-screen-label="05 Комора">
+    <div class="slab">05 · Комора — зони і свіжість</div>
+    <div class="ph">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Комора</div>
+        <div class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">23 ПОЗИЦІЇ</div>
+      </div>
+      <div style="padding:0 26px 12px;display:flex;gap:6px;overflow:hidden">
+        <span style="height:34px;padding:0 14px;border-radius:999px;background:#e7eaec;color:#181c21;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Усе</span>
+        <span style="height:34px;padding:0 14px;border-radius:999px;border:1px solid #2c333b;color:#9aa3ac;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Холодильник</span>
+        <span style="height:34px;padding:0 14px;border-radius:999px;border:1px solid #2c333b;color:#9aa3ac;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Морозилка</span>
+        <span style="height:34px;padding:0 14px;border-radius:999px;border:1px solid #2c333b;color:#9aa3ac;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Сухе</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:0 26px;display:flex;flex-direction:column">
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#c9a86a;padding:10px 0 4px">СПОЧАТКУ ГОРИТЬ</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#c9a86a;font-size:14px;width:16px">◔</span><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Вершки 33%</div><div class="mono" style="font-size:11px;color:#c9a86a">ВІДКРИТО · ≈3 ДНІ</div></div><span class="mono" style="font-size:13px;color:#79828c">300мл</span></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#c9a86a;font-size:14px;width:16px">◔</span><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Багет</div><div class="mono" style="font-size:11px;color:#c9a86a">ВІДКРИТО · ЧЕРСТВІЄ</div></div><span class="mono" style="font-size:13px;color:#79828c">½шт</span></div>
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c;padding:14px 0 4px">ХОЛОДИЛЬНИК</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#93b48b;font-size:14px;width:16px">●</span><div style="flex:1;font:400 16px 'Golos Text',sans-serif">Фует</div><span class="mono" style="font-size:13px;color:#79828c">180г</span></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#93b48b;font-size:14px;width:16px">●</span><div style="flex:1;font:400 16px 'Golos Text',sans-serif">Пармезан</div><span class="mono" style="font-size:13px;color:#79828c">120г</span></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#93b48b;font-size:14px;width:16px">●</span><div style="flex:1;font:400 16px 'Golos Text',sans-serif">Яйця <span class="mono" style="font-size:11px;color:#c9a86a">0.7</span></div><span class="mono" style="font-size:13px;color:#79828c">6шт</span></div>
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c;padding:14px 0 4px">МОРОЗИЛКА</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0"><span class="mono" style="color:#93b48b;font-size:14px;width:16px">●</span><div style="flex:1;font:400 16px 'Golos Text',sans-serif">Лосось стейк</div><span class="mono" style="font-size:13px;color:#79828c">2шт</span></div>
+      </div>
+      <div style="padding:10px 26px 8px"><div style="height:48px;border-radius:12px;background:#1f242b;border:1px solid #2c333b;display:flex;align-items:center;padding:0 16px"><span class="mono" style="font-size:13px;color:#79828c">+ молоко 1 л — швидкий ввід, працює офлайн</span></div></div>
+      <div class="tabbar">
+        <div><span style="color:#79828c">◉</span><span class="tabl" style="color:#79828c">Стрічка</span></div>
+        <div style="background:#1f242b"><span style="color:#e7eaec">▤</span><span class="tabl" style="color:#e7eaec">Комора</span></div>
+        <div><span style="color:#79828c">✎</span><span class="tabl" style="color:#79828c">Рецепти</span></div>
+        <div><span style="color:#79828c">☰</span><span class="tabl" style="color:#79828c">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 06 SHOPPING -->
+  <div class="scol" data-screen-label="06 Список">
+    <div class="slab">06 · Список покупок</div>
+    <div class="ph">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Список</div>
+        <button style="border:0;background:none;padding:0;cursor:pointer" class="mono" style2=""><span class="mono" style="font-size:11px;color:#93b48b;letter-spacing:.06em">КОПІЮВАТИ ТЕКСТОМ</span></button>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:4px 26px 0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #262c33">
+          <span style="width:24px;height:24px;border-radius:8px;border:1px solid #3a4a3a;flex:none"></span>
+          <div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Фетучіні</div><div class="mono" style="font-size:11px;color:#79828c">ДЛЯ: ВЕРШКОВА ФЕТУЧІНІ</div></div>
+          <div style="display:flex;align-items:center;gap:8px"><button style="width:34px;height:34px;border:1px solid #2c333b;border-radius:10px;background:none;color:#9aa3ac;cursor:pointer;font-size:15px">−</button><span class="mono" style="font-size:13px;color:#c3c9ce;min-width:44px;text-align:center">200г</span><button style="width:34px;height:34px;border:1px solid #2c333b;border-radius:10px;background:none;color:#9aa3ac;cursor:pointer;font-size:15px">+</button></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #262c33">
+          <span style="width:24px;height:24px;border-radius:8px;border:1px solid #3a4a3a;flex:none"></span>
+          <div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Безлактозне молоко</div><div class="mono" style="font-size:11px;color:#c99ab4">ДЛЯ ОЛІ · АНТИ ЛАКТОЗА</div></div>
+          <div style="display:flex;align-items:center;gap:8px"><button style="width:34px;height:34px;border:1px solid #2c333b;border-radius:10px;background:none;color:#9aa3ac;cursor:pointer;font-size:15px">−</button><span class="mono" style="font-size:13px;color:#c3c9ce;min-width:44px;text-align:center">1л</span><button style="width:34px;height:34px;border:1px solid #2c333b;border-radius:10px;background:none;color:#9aa3ac;cursor:pointer;font-size:15px">+</button></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #262c33">
+          <span style="width:24px;height:24px;border-radius:8px;border:1px solid #3a4a3a;flex:none"></span>
+          <div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Нут</div><div class="mono" style="font-size:11px;color:#79828c">ДОДАЛА ОКСАНА · ДЛЯ ХУМУСУ</div></div>
+          <span class="mono" style="font-size:13px;color:#79828c">1шт</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0">
+          <span style="width:24px;height:24px;border-radius:8px;background:#93b48b;color:#141a12;display:grid;place-items:center;font:700 13px 'Golos Text',sans-serif;flex:none">✓</span>
+          <div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif;color:#79828c;text-decoration:line-through">Пармезан</div><div class="mono" style="font-size:11px;color:#79828c">КУПЛЕНО → ПЕРЕНЕСТИ В КОМОРУ?</div></div>
+          <button style="height:36px;padding:0 12px;border:1px solid #3a4a3a;border-radius:999px;background:none;color:#93b48b;font:600 13px 'Golos Text',sans-serif;cursor:pointer">У комору</button>
+        </div>
+      </div>
+      <div style="padding:10px 26px 8px"><div style="height:48px;border-radius:12px;background:#1f242b;border:1px solid #2c333b;display:flex;align-items:center;padding:0 16px"><span class="mono" style="font-size:13px;color:#79828c">+ додати в список…</span></div></div>
+      <div class="tabbar">
+        <div><span style="color:#79828c">◉</span><span class="tabl" style="color:#79828c">Стрічка</span></div>
+        <div><span style="color:#79828c">▤</span><span class="tabl" style="color:#79828c">Комора</span></div>
+        <div><span style="color:#79828c">✎</span><span class="tabl" style="color:#79828c">Рецепти</span></div>
+        <div style="background:#1f242b"><span style="color:#e7eaec">☰</span><span class="tabl" style="color:#e7eaec">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 07 RECIPES -->
+  <div class="scol" data-screen-label="07 Рецепти">
+    <div class="slab">07 · Рецепти — збережені + журнал готування</div>
+    <div class="ph">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Рецепти</div>
+        <button style="border:0;background:none;padding:0;cursor:pointer"><span class="mono" style="font-size:11px;color:#93b48b;letter-spacing:.06em">+ ІМПОРТ</span></button>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:4px 26px 0;display:flex;flex-direction:column">
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c;padding:8px 0 4px">МОЖНА ЗАРАЗ · З КОМОРИ</div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-bottom:1px solid #262c33">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 17px 'Onest',sans-serif">Вершкова фетучіні з фуетом</span><span class="mono" style="font-size:12px;color:#79828c">25ХВ</span></div>
+          <div class="mono" style="font-size:11px;color:#93b48b">4/5 З КОМОРИ · БРАКУЄ: ФЕТУЧІНІ</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-bottom:1px solid #262c33">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 17px 'Onest',sans-serif">Тост з фуетом і яйцем</span><span class="mono" style="font-size:12px;color:#79828c">10ХВ</span></div>
+          <div class="mono" style="font-size:11px;color:#93b48b">ВСЕ Є</div>
+        </div>
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c;padding:14px 0 4px">ЗБЕРЕЖЕНІ</div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-bottom:1px solid #262c33">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 17px 'Onest',sans-serif">Хумус класичний</span><span class="mono" style="font-size:12px;color:#79828c">40ХВ</span></div>
+          <div class="mono" style="font-size:11px;color:#79828c">НУТ У СПИСКУ · ГОТУВАЛИ 2 РАЗИ</div>
+        </div>
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c;padding:14px 0 4px">ГОТУВАЛИ НЕДАВНО</div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:10px 0">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 17px 'Onest',sans-serif;color:#c3c9ce">Салат з прошуто</span><span class="mono" style="font-size:12px;color:#79828c">ПН</span></div>
+          <div class="mono" style="font-size:11px;color:#79828c">ОЦІНКА ✓ СПОДОБАЛОСЬ</div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div><span style="color:#79828c">◉</span><span class="tabl" style="color:#79828c">Стрічка</span></div>
+        <div><span style="color:#79828c">▤</span><span class="tabl" style="color:#79828c">Комора</span></div>
+        <div style="background:#1f242b"><span style="color:#e7eaec">✎</span><span class="tabl" style="color:#e7eaec">Рецепти</span></div>
+        <div><span style="color:#79828c">☰</span><span class="tabl" style="color:#79828c">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 08 PROPOSAL -->
+  <div class="scol" data-screen-label="08 Пропозиція">
+    <div class="slab">08 · Пропозиція</div>
+    <div class="ph">
+      <div style="padding:24px 26px 6px;display:flex;justify-content:space-between;align-items:center">
+        <button style="width:42px;height:42px;border:1px solid #2c333b;border-radius:12px;background:none;font:600 16px sans-serif;color:#9aa3ac;cursor:pointer">←</button>
+        <div class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">ПРОПОЗИЦІЯ 1/3</div>
+        <button style="width:42px;height:42px;border:1px solid #2c333b;border-radius:12px;background:none;font:600 16px sans-serif;color:#9aa3ac;cursor:pointer">→</button>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:18px 26px 0;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font:800 29px/1.15 'Onest',sans-serif;letter-spacing:-0.02em">Вершкова фетучіні з фуетом</div>
+          <div style="font:400 15px/1.55 'Golos Text',sans-serif;color:#9aa3ac">Паста у вершковому соусі на витопленому жирі фуету, з хрусткими шматочками зверху.</div>
+          <div class="mono" style="font-size:12px;color:#79828c">25ХВ · 2 ПОРЦІЇ · ОДНА ПАТЕЛЬНЯ · 540ККАЛ</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;border-top:1px solid #262c33;padding-top:16px">
+          <div class="mono" style="font-size:11px;color:#79828c">ЧОМУ ЗАРАЗ</div>
+          <div style="font:400 15px/1.55 'Golos Text',sans-serif;color:#c3c9ce">Вершки відкриті — у них 3–4 дні. Багет почали: піде до соусу, поки м'який. Порція для Олі — на безлактозному молоці.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid #262c33;padding-top:16px">
+          <div class="mono" style="font-size:11px;color:#79828c">РЯТУЄ</div>
+          <div style="display:flex;justify-content:space-between;font:400 15px 'Golos Text',sans-serif;color:#c3c9ce"><span style="color:#93b48b">● вершки</span><span class="mono" style="font-size:12px;color:#79828c">3 ДНІ</span></div>
+          <div style="display:flex;justify-content:space-between;font:400 15px 'Golos Text',sans-serif;color:#c3c9ce"><span style="color:#93b48b">● багет</span><span class="mono" style="font-size:12px;color:#79828c">ВІДКРИТИЙ</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid #262c33;padding-top:16px">
+          <div class="mono" style="font-size:11px;color:#79828c">БРАКУЄ</div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="flex:1;font:400 16px 'Golos Text',sans-serif;color:#c3c9ce">Фетучіні <span style="color:#79828c;font-size:13px">· або будь-яка довга паста</span></span><button style="height:38px;padding:0 14px;border:1px solid #3a4a3a;border-radius:999px;background:none;color:#93b48b;font:600 13px 'Golos Text',sans-serif;cursor:pointer">+ у список</button></div>
+        </div>
+      </div>
+      <div style="padding:16px 26px 26px;display:flex;gap:10px">
+        <button style="flex:1;height:52px;border:0;border-radius:14px;background:#93b48b;color:#141a12;font:600 16px 'Golos Text',sans-serif;cursor:pointer">Готуємо це</button>
+        <button style="height:52px;padding:0 20px;border:1px solid #2c333b;border-radius:14px;background:none;color:#9aa3ac;font:600 16px 'Golos Text',sans-serif;cursor:pointer">Інше</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 09 RECIPE -->
+  <div class="scol" data-screen-label="09 Рецепт">
+    <div class="slab">09 · Рецепт — виконання</div>
+    <div class="ph">
+      <div style="padding:24px 26px 6px;display:flex;justify-content:space-between;align-items:center">
+        <button style="width:42px;height:42px;border:1px solid #2c333b;border-radius:12px;background:none;font:600 16px sans-serif;color:#9aa3ac;cursor:pointer">←</button>
+        <div class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">РЕЦЕПТ · КРОК 3/5</div>
+        <button style="height:42px;padding:0 14px;border:1px solid #3a4a3a;border-radius:12px;background:none;font:600 13px 'Golos Text',sans-serif;color:#93b48b;cursor:pointer">Cook Mode</button>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:14px 26px 0;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font:800 25px/1.15 'Onest',sans-serif;letter-spacing:-0.02em">Вершкова фетучіні з фуетом</div>
+          <div class="mono" style="font-size:12px;color:#79828c">25ХВ · 2 ПОРЦІЇ · 540ККАЛ · Б18 Ж32 В44</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="mono" style="font-size:11px;color:#79828c">ІНГРЕДІЄНТИ · ● З КОМОРИ</div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #262c33"><span style="color:#93b48b;font-size:11px">●</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Вершки</span><span class="mono" style="font-size:13px;color:#79828c">300мл</span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #262c33"><span style="color:#93b48b;font-size:11px">●</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Фует</span><span class="mono" style="font-size:13px;color:#79828c">120г</span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 0"><span style="color:#79828c;font-size:11px">○</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif;color:#c3c9ce">Фетучіні</span><span class="mono" style="font-size:13px;color:#79828c">200г</span></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div style="display:flex;gap:14px">
+            <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:24px"><div style="width:24px;height:24px;border-radius:999px;background:#93b48b;color:#141a12;display:grid;place-items:center;font:700 13px 'Golos Text',sans-serif">✓</div><div style="flex:1;width:1px;background:#2c333b"></div></div>
+            <div style="flex:1;padding-bottom:14px;font:400 15px/1.5 'Golos Text',sans-serif;color:#79828c;text-decoration:line-through">Поставити воду на пасту, посолити.</div>
+          </div>
+          <div style="display:flex;gap:14px">
+            <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:24px"><div style="width:24px;height:24px;border-radius:999px;background:#93b48b;color:#141a12;display:grid;place-items:center;font:700 13px 'Golos Text',sans-serif">✓</div><div style="flex:1;width:1px;background:#2c333b"></div></div>
+            <div style="flex:1;padding-bottom:14px;font:400 15px/1.5 'Golos Text',sans-serif;color:#79828c;text-decoration:line-through">Фует нарізати тонко, ⅔ — на пательню.</div>
+          </div>
+          <div style="display:flex;gap:14px">
+            <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:24px"><div style="width:24px;height:24px;border-radius:999px;background:#e7eaec;color:#181c21;display:grid;place-items:center;font:700 13px 'Golos Text',sans-serif">3</div><div style="flex:1;width:1px;background:#2c333b"></div></div>
+            <div style="flex:1;padding-bottom:14px;display:flex;flex-direction:column;gap:8px">
+              <div style="font:600 16px/1.45 'Golos Text',sans-serif">Витопити фует до хрустких країв, середній вогонь.</div>
+              <button style="align-self:flex-start;height:42px;padding:0 16px;border:1px solid #3a4a3a;border-radius:999px;background:none;font:600 14px 'IBM Plex Mono',monospace;color:#93b48b;cursor:pointer">▷ 4:00</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px">
+            <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:24px"><div style="width:24px;height:24px;border-radius:999px;border:1px solid #2c333b;color:#79828c;display:grid;place-items:center;font:600 13px 'Golos Text',sans-serif">4</div></div>
+            <div style="flex:1;font:400 15px/1.5 'Golos Text',sans-serif;color:#9aa3ac">Влити вершки, прогріти не киплячи, 3–4 хв.</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px 26px 26px;display:flex;gap:10px">
+        <button style="flex:1;height:52px;border:0;border-radius:14px;background:#e7eaec;color:#181c21;font:600 16px 'Golos Text',sans-serif;cursor:pointer">Крок готово ✓</button>
+        <button style="height:52px;padding:0 18px;border:1px solid #2c333b;border-radius:14px;background:none;color:#9aa3ac;font:600 16px 'Golos Text',sans-serif;cursor:pointer">Приготували</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10 COOK MODE -->
+  <div class="scol" data-screen-label="10 Cook Mode">
+    <div class="slab">10 · Cook Mode</div>
+    <div style="width:390px;background:#13161a;border-radius:32px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;height:844px">
+      <div style="padding:24px 26px 0;display:flex;justify-content:space-between;align-items:center">
+        <button style="height:44px;padding:0 16px;border:1px solid #2c333b;border-radius:12px;background:none;color:#9aa3ac;font:600 14px 'Golos Text',sans-serif;cursor:pointer">✕ Вийти</button>
+        <div class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">ФЕТУЧІНІ · КРОК 3/5</div>
+      </div>
+      <div style="padding:22px 26px 0;display:flex;gap:6px">
+        <div style="flex:1;height:4px;border-radius:2px;background:#93b48b"></div><div style="flex:1;height:4px;border-radius:2px;background:#93b48b"></div><div style="flex:1;height:4px;border-radius:2px;background:#e7eaec"></div><div style="flex:1;height:4px;border-radius:2px;background:#2c333b"></div><div style="flex:1;height:4px;border-radius:2px;background:#2c333b"></div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:30px 26px 0;display:flex;flex-direction:column;gap:26px">
+        <div style="font:600 29px/1.35 'Onest',sans-serif;letter-spacing:-0.01em">Витопити фует до хрустких країв, середній вогонь.</div>
+        <div style="display:flex;flex-direction:column;gap:12px;align-items:center;padding:20px 0;border-top:1px solid #262c33;border-bottom:1px solid #262c33">
+          <div style="font:800 74px/1 'Onest',sans-serif;font-variant-numeric:tabular-nums">3:41</div>
+          <div style="display:flex;gap:10px">
+            <button style="height:56px;padding:0 28px;border:0;border-radius:999px;background:#93b48b;color:#141a12;font:700 17px 'Golos Text',sans-serif;cursor:pointer">Пауза</button>
+            <button style="height:56px;padding:0 22px;border:1px solid #2c333b;border-radius:999px;background:none;color:#9aa3ac;font:600 17px 'Golos Text',sans-serif;cursor:pointer">+1 хв</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;color:#79828c">НА ЦЬОМУ КРОЦІ</div>
+          <div style="font:400 19px/1.5 'Golos Text',sans-serif;color:#c3c9ce">Фует · ⅔ від 120 г — краї мають загнутись і потемніти</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="mono" style="font-size:11px;color:#79828c">ДАЛІ</div>
+          <div style="font:400 17px/1.5 'Golos Text',sans-serif;color:#79828c">4 · Влити вершки, прогріти не киплячи…</div>
+        </div>
+      </div>
+      <div style="padding:16px 26px 26px;display:flex;flex-direction:column;gap:10px">
+        <button style="height:64px;border:0;border-radius:16px;background:#e7eaec;color:#13161a;font:700 19px 'Golos Text',sans-serif;cursor:pointer">Крок готово ✓</button>
+        <div style="font:400 13px/1.4 'Golos Text',sans-serif;color:#5c646d;text-align:center">Працює без мережі · таймер живе локально</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11 PROFILE -->
+  <div class="scol" data-screen-label="11 Профіль">
+    <div class="slab">11 · Профіль — сім'я, пам'ять, запрошення</div>
+    <div class="ph">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня Пилипа</div>
+        <button style="border:0;background:none;padding:0;cursor:pointer"><span class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">ВИЙТИ</span></button>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:4px 26px 0;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c">СІМ'Я · ОДНА КОМОРА НА ВСІХ</div>
+          <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #262c33"><div style="width:36px;height:36px;border-radius:999px;background:#2c333b;display:grid;place-items:center;font:600 14px 'Golos Text',sans-serif;color:#c3c9ce">П</div><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Пилип</div><div class="mono" style="font-size:11px;color:#79828c">ВЛАСНИК</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #262c33"><div style="width:36px;height:36px;border-radius:999px;background:#2c333b;display:grid;place-items:center;font:600 14px 'Golos Text',sans-serif;color:#c3c9ce">О</div><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Оксана</div><div class="mono" style="font-size:11px;color:#79828c">УЧАСНИЦЯ</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #262c33"><div style="width:36px;height:36px;border-radius:999px;border:1px dashed #3a4a3a;display:grid;place-items:center;font:600 14px 'Golos Text',sans-serif;color:#93b48b">+</div><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif;color:#93b48b">Запросити</div><div class="mono" style="font-size:11px;color:#79828c">ПОСИЛАННЯ ДІЄ 72 ГОД</div></div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c">ПАМ'ЯТЬ ПРО ЛЮДЕЙ</div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid #262c33"><span class="mono" style="font-size:11px;color:#c99ab4;flex:none">АНТИ</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Оля: без лактози</span><button style="border:0;background:none;padding:0;color:#79828c;font:600 13px 'Golos Text',sans-serif;cursor:pointer">✕</button></div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid #262c33"><span class="mono" style="font-size:11px;color:#cc7a70;flex:none">АЛЕРГІЯ</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Оксана: молюски</span><button style="border:0;background:none;padding:0;color:#79828c;font:600 13px 'Golos Text',sans-serif;cursor:pointer">✕</button></div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid #262c33"><span class="mono" style="font-size:11px;color:#93b48b;flex:none">ЛЮБИТЬ</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Пилип: гостре, кінза</span><button style="border:0;background:none;padding:0;color:#79828c;font:600 13px 'Golos Text',sans-serif;cursor:pointer">✕</button></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#79828c">ОБЛАДНАННЯ</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="background:#1f242b;border:1px solid #2c333b;color:#c3c9ce;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif">духовка</span>
+            <span style="background:#1f242b;border:1px solid #2c333b;color:#c3c9ce;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif">блендер</span>
+            <span style="background:#1f242b;border:1px solid #2c333b;color:#c3c9ce;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif">гриль-пательня</span>
+            <span style="border:1px dashed #3a4a3a;color:#93b48b;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif">+ додати</span>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div><span style="color:#79828c">◉</span><span class="tabl" style="color:#79828c">Стрічка</span></div>
+        <div><span style="color:#79828c">▤</span><span class="tabl" style="color:#79828c">Комора</span></div>
+        <div><span style="color:#79828c">✎</span><span class="tabl" style="color:#79828c">Рецепти</span></div>
+        <div><span style="color:#79828c">☰</span><span class="tabl" style="color:#79828c">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12 PHOTO INTAKE -->
+  <div class="scol" data-screen-label="12 Фото-інтейк">
+    <div class="slab">12 · Розбір фото/чека</div>
+    <div class="ph">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня</div>
+        <div class="mono" style="font-size:11px;color:#79828c;letter-spacing:.06em">КОМОРА 23</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:10px 26px 0;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="mono" style="font-size:11px;color:#79828c">19:02 ТИ · ФОТО</div>
+          <div style="width:160px;height:110px;border-radius:14px;background:#1f242b;border:1px solid #2c333b;display:grid;place-items:center"><span class="mono" style="font-size:11px;color:#79828c">чек · IMG_2214</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="mono" style="font-size:11px;color:#79828c">19:02 КУХНЯ · РОЗБИРАЮ…</div>
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:14px;height:14px;border-radius:999px;border:2px solid #2c333b;border-top-color:#93b48b"></div><span style="font:400 14px 'Golos Text',sans-serif;color:#9aa3ac">Розпізнаю рядки чека — скорочення розгортаю</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="mono" style="font-size:11px;color:#79828c">19:03 КОМОРА · З ЧЕКА</div><div class="mono" style="font-size:11px;color:#c9a86a">◌ ОЧІКУЄ</div></div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#93b48b;font-size:15px;font-weight:600;width:16px">+</span><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Сир Камбоцола 70%</div><div class="mono" style="font-size:11px;color:#79828c">«СИР КАМБОЦ.70% 193Г» · РОЗГОРНУТО</div></div><span class="mono" style="font-size:13px;color:#79828c">193г</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #262c33"><span class="mono" style="color:#93b48b;font-size:15px;font-weight:600;width:16px">+</span><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Помідори чері</div></div><span class="mono" style="font-size:13px;color:#79828c">250г</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0"><span class="mono" style="color:#79828c;font-size:15px;width:16px">−</span><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif;color:#79828c">Серветки</div><div class="mono" style="font-size:11px;color:#79828c">НЕ ЇЖА · ПРОПУЩЕНО</div></div></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button style="flex:1;height:48px;border:0;border-radius:12px;background:#e7eaec;color:#181c21;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Застосувати 2</button>
+            <button style="height:48px;padding:0 16px;border:1px solid #2c333b;border-radius:12px;background:none;color:#9aa3ac;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Правити</button>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 26px 8px"><div style="height:52px;border-radius:14px;background:#1f242b;border:1px solid #2c333b;display:flex;align-items:center;padding:0 8px 0 16px;justify-content:space-between"><span style="font:400 15px 'Golos Text',sans-serif;color:#79828c">Записати в журнал…</span><div style="width:38px;height:38px;border-radius:10px;background:#e7eaec;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#181c21" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10v1a7 7 0 0 0 14 0v-1"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg></div></div></div>
+      <div class="tabbar">
+        <div style="background:#1f242b"><span style="color:#e7eaec">◉</span><span class="tabl" style="color:#e7eaec">Стрічка</span></div>
+        <div><span style="color:#79828c">▤</span><span class="tabl" style="color:#79828c">Комора</span></div>
+        <div><span style="color:#79828c">✎</span><span class="tabl" style="color:#79828c">Рецепти</span></div>
+        <div><span style="color:#79828c">☰</span><span class="tabl" style="color:#79828c">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13 LIGHT FEED -->
+  <div class="scol" data-screen-label="13 Стрічка світла">
+    <div class="slab">13 · Контроль паритету — стрічка світла</div>
+    <div class="phl">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня</div>
+        <div class="mono" style="font-size:11px;color:#7b838b;letter-spacing:.06em">КОМОРА 23 · СПИСОК 4</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:10px 26px 0;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="mono" style="font-size:11px;color:#7b838b">18:42 ТИ</div>
+          <div style="font:400 16px/1.5 'Golos Text',sans-serif;color:#3c4249">купив вершки, фует і багет, багет почали</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="mono" style="font-size:11px;color:#7b838b">18:42 КОМОРА</div><div class="mono" style="font-size:11px;color:#96712c">◌ ОЧІКУЄ</div></div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #dde0e2"><span class="mono" style="color:#58754e;font-size:15px;font-weight:600;width:16px">+</span><span style="flex:1;font:400 16px 'Golos Text',sans-serif">Вершки 33%</span><span class="mono" style="font-size:13px;color:#7b838b">400мл</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0"><span class="mono" style="color:#96712c;font-size:15px;font-weight:600;width:16px">◔</span><span style="flex:1;font:400 16px 'Golos Text',sans-serif">Багет <span style="color:#7b838b;font-size:13px">відкрито</span></span><span class="mono" style="font-size:13px;color:#7b838b">1шт</span></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button style="flex:1;height:48px;border:0;border-radius:12px;background:#1d2126;color:#eef0f1;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Застосувати</button>
+            <button style="height:48px;padding:0 20px;border:1px solid #ced3d6;border-radius:12px;background:none;color:#5c646d;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Ні</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;border-top:1px solid #dde0e2;padding-top:18px">
+          <div class="mono" style="font-size:11px;color:#7b838b">18:45 ПРОПОЗИЦІЯ · РЯТУЄ ВЕРШКИ</div>
+          <div style="font:700 22px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Вершкова фетучіні з фуетом</div>
+          <div class="mono" style="font-size:12px;color:#7b838b">25ХВ · 2 ПОРЦІЇ · 540ККАЛ</div>
+          <button style="align-self:flex-start;height:44px;padding:0 18px;border:0;border-radius:12px;background:#58754e;color:#f2f4f0;font:600 15px 'Golos Text',sans-serif;cursor:pointer;margin-top:2px">Рецепт →</button>
+        </div>
+      </div>
+      <div style="padding:14px 26px 8px"><div style="height:52px;border-radius:14px;background:#f8f9fa;border:1px solid #dde0e2;display:flex;align-items:center;padding:0 8px 0 16px;justify-content:space-between"><span style="font:400 15px 'Golos Text',sans-serif;color:#7b838b">Записати в журнал…</span><div style="width:38px;height:38px;border-radius:10px;background:#1d2126;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eef0f1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10v1a7 7 0 0 0 14 0v-1"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg></div></div></div>
+      <div class="tabbar" style="border-top:1px solid #dde0e2">
+        <div style="background:#e3e6e8"><span style="color:#1d2126">◉</span><span class="tabl" style="color:#1d2126">Стрічка</span></div>
+        <div><span style="color:#7b838b">▤</span><span class="tabl" style="color:#7b838b">Комора</span></div>
+        <div><span style="color:#7b838b">✎</span><span class="tabl" style="color:#7b838b">Рецепти</span></div>
+        <div><span style="color:#7b838b">☰</span><span class="tabl" style="color:#7b838b">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 14 LIGHT PANTRY -->
+  <div class="scol" data-screen-label="14 Комора світла">
+    <div class="slab">14 · Контроль паритету — комора світла</div>
+    <div class="phl">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Комора</div>
+        <div class="mono" style="font-size:11px;color:#7b838b;letter-spacing:.06em">23 ПОЗИЦІЇ</div>
+      </div>
+      <div style="padding:0 26px 12px;display:flex;gap:6px;overflow:hidden">
+        <span style="height:34px;padding:0 14px;border-radius:999px;background:#1d2126;color:#eef0f1;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Усе</span>
+        <span style="height:34px;padding:0 14px;border-radius:999px;border:1px solid #ced3d6;color:#5c646d;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Холодильник</span>
+        <span style="height:34px;padding:0 14px;border-radius:999px;border:1px solid #ced3d6;color:#5c646d;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Морозилка</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:0 26px;display:flex;flex-direction:column">
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#96712c;padding:10px 0 4px">СПОЧАТКУ ГОРИТЬ</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #dde0e2"><span class="mono" style="color:#96712c;font-size:14px;width:16px">◔</span><div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Вершки 33%</div><div class="mono" style="font-size:11px;color:#96712c">ВІДКРИТО · ≈3 ДНІ</div></div><span class="mono" style="font-size:13px;color:#7b838b">300мл</span></div>
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b;padding:14px 0 4px">ХОЛОДИЛЬНИК</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #dde0e2"><span class="mono" style="color:#58754e;font-size:14px;width:16px">●</span><div style="flex:1;font:400 16px 'Golos Text',sans-serif">Фует</div><span class="mono" style="font-size:13px;color:#7b838b">180г</span></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0"><span class="mono" style="color:#58754e;font-size:14px;width:16px">●</span><div style="flex:1;font:400 16px 'Golos Text',sans-serif">Пармезан</div><span class="mono" style="font-size:13px;color:#7b838b">120г</span></div>
+      </div>
+      <div style="padding:10px 26px 8px"><div style="height:48px;border-radius:12px;background:#f8f9fa;border:1px solid #dde0e2;display:flex;align-items:center;padding:0 16px"><span class="mono" style="font-size:13px;color:#7b838b">+ молоко 1 л</span></div></div>
+      <div class="tabbar" style="border-top:1px solid #dde0e2">
+        <div><span style="color:#7b838b">◉</span><span class="tabl" style="color:#7b838b">Стрічка</span></div>
+        <div style="background:#e3e6e8"><span style="color:#1d2126">▤</span><span class="tabl" style="color:#1d2126">Комора</span></div>
+        <div><span style="color:#7b838b">✎</span><span class="tabl" style="color:#7b838b">Рецепти</span></div>
+        <div><span style="color:#7b838b">☰</span><span class="tabl" style="color:#7b838b">Список</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -64,7 +64,25 @@
 }
 .card.applied .op-label { color: var(--fg-muted); }
 .card.undone { opacity: 0.55; }
-.card.undone .op-label { text-decoration: line-through; }
+/* DA-10: закреслення undo — лінія проходить зліва направо 250ms, потім
+   приглушення (Моушн-кіт). text-decoration не анімується — малюємо ::after. */
+.card.undone .op-label {
+  position: relative;
+}
+.card.undone .op-label::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1px;
+  background: currentColor;
+  width: 100%;
+  animation: strike var(--dur-base, 250ms) var(--ease-standard, ease) both;
+}
+@keyframes strike {
+  from { width: 0; }
+  to   { width: 100%; }
+}
 
 /* Список ops для intake/shopping/profile */
 .ops { display: flex; flex-direction: column; }
@@ -263,7 +281,7 @@
   animation: toast-in var(--dur-base) var(--ease-enter);
 }
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .toast-text {
@@ -334,3 +352,20 @@
 .pending-pulse {
   animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite;
 }
+
+/* DA-02: «система думає» — 3 крапки, 1.2s, stagger 150ms (Моушн-кіт §02).
+   При reduced motion --dur-breathe = 0 і крапки просто стоять. */
+.thinking {
+  display: flex;
+  gap: 5px;
+  padding: 6px 0;
+}
+.thinking span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+  animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite;
+}
+.thinking span:nth-child(2) { animation-delay: 150ms; }
+.thinking span:nth-child(3) { animation-delay: 300ms; }

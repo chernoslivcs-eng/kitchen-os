@@ -1,12 +1,35 @@
 /* Cook Mode — 10 з брифу. Темніший фон (--bg-body), великий таймер, мінімум UI.
  * Ключове правило з брифу: працює без мережі, таймер живе локально.
  */
+/* DA-17: Cook Mode темний В ОБОХ темах — «окремий повноекранний темний режим»
+ * (хендоф №10, Д05). Планшет на підставці біля плити: контраст і нічна кухня
+ * не мають залежати від системної теми. Тому не токени, а темні значення прямо. */
 .screen {
   min-height: 100dvh;
-  background: var(--bg-body);
-  color: var(--fg);
+  background: #101317;
+  color: #e7eaec;
   display: flex;
   flex-direction: column;
+  /* Перевизначаємо токени локально: все всередині Cook Mode бачить темну тему,
+     незалежно від data-theme на html. */
+  --bg-body: #101317;
+  --bg-surface: #181c21;
+  --bg-surface-2: #1f242b;
+  --border: #262c33;
+  --border-strong: #2c333b;
+  --fg: #e7eaec;
+  --fg-strong: #ffffff;
+  --fg-muted: #9aa3ac;
+  --fg-dim: #79828c;
+  --accent: #93b48b;
+  --accent-bg: #20291f;
+  --accent-border: #3a4a3a;
+  --amber: #c9a86a;
+  --danger: #cc7a70;
+  --btn-primary-bg: #e7eaec;
+  --btn-primary-fg: #181c21;
+  --btn-primary-hover: #ffffff;
+  --btn-primary-pressed: #c3c9ce;
 }
 
 .head {
