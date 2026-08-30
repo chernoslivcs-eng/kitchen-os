@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, type AttachmentPayload } from '../model.js';
-import { createPending, type Repo, type Card } from '@kitchen/domain';
+import { createPending, deriveSessionTitle, type Repo, type Card } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -94,6 +94,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         id: randomUUID(), session_id: session.id, role: 'user',
         text: userMsgText, card: null, applied: 0, created_at: new Date().toISOString(),
       });
+      if (!session.title) {
+        const title = deriveSessionTitle(userMsgText);
+        if (title) await repo.setSessionTitle(session.id, title);
+      }
 
       const started = Date.now();
       const call = await callAttachmentParse(payloads);
@@ -154,6 +158,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       id: randomUUID(), session_id: session.id, role: 'user',
       text: text ?? '', card: null, applied: 0, created_at: new Date().toISOString(),
     });
+
+    // Назва сесії — з першої репліки. Без неї історія розмов була стовпчиком
+    // однакових рядків «дата · час · N повідомлень»; кілька сесій за один день
+    // розрізнити було нічим.
+    if (!session.title) {
+      const title = deriveSessionTitle(text ?? '');
+      if (title) await repo.setSessionTitle(session.id, title);
+    }
 
     // Останні 5 приготувань з рейтингом і verdict — щоб модель памʼятала,
     // що зайшло, а що ні. undone-runs не показуємо (то помилки, не історія).

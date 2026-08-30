@@ -294,6 +294,10 @@ export class InMemoryRepo implements Repo {
       .slice(0, limit)
       .map((s) => ({ ...s, message_count: (this.messages.get(s.id) ?? []).length }));
   }
+  async setSessionTitle(id: string, title: string): Promise<void> {
+    const s = this.chatSessions.get(id);
+    if (s) this.chatSessions.set(id, { ...s, title });
+  }
   async saveMessage(msg: MessageRow): Promise<void> {
     const arr = this.messages.get(msg.session_id) ?? [];
     arr.push({ ...msg });

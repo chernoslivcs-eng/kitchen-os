@@ -144,7 +144,7 @@ export function Feed() {
   }
 
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historySessions, setHistorySessions] = useState<{ id: string; day: string; created_at: string; message_count: number }[]>([]);
+  const [historySessions, setHistorySessions] = useState<{ id: string; title: string | null; day: string; created_at: string; message_count: number }[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   async function openHistory() {
     setHistoryOpen(true);
@@ -425,10 +425,18 @@ export function Feed() {
                   textAlign: 'left',
                 }}
               >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>{dayLabel}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Назва згори, дата — під нею. До назв усі рядки за один
+                      день виглядали однаково, і знайти потрібну розмову можна
+                      було тільки відкриваючи їх по черзі. */}
+                  <div style={{
+                    fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {s.title ?? dayLabel}
+                  </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase', marginTop: 3 }}>
-                    {d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
+                    {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
                   </div>
                 </div>
                 <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>

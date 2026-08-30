@@ -595,6 +595,11 @@ export class PostgresRepo implements Repo {
     };
   }
 
+  async setSessionTitle(id: string, title: string): Promise<void> {
+    // Тільки якщо ще порожня: назву дає перша репліка й більше ніхто.
+    await this.pool.query('UPDATE session SET title = $2 WHERE id = $1 AND title IS NULL', [id, title]);
+  }
+
   async listSessionsForUser(user_id: string, limit = 30): Promise<Array<SessionRow & { message_count: number }>> {
     const { rows } = await this.pool.query(
       `SELECT s.id, s.user_id, s.title, s.day, s.created_at,
