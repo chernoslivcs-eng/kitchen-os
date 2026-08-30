@@ -32,7 +32,8 @@ export function Button({
   return (
     <button className={cls} disabled={disabled || loading} {...rest}>
       {loading && <span className={styles.spinner} aria-hidden="true" />}
-      {children}
+      {/* DA-08: кіт дає loading-стану власне копі — дія в процесі, не її назва. */}
+      {loading ? 'Застосовую…' : children}
     </button>
   );
 }

@@ -176,3 +176,12 @@
 
   --tap: 44px;        /* мінімум для тап-цілі */
 }
+
+/* DA-01: фокус-кільце кіта — глобально, а не по файлах. До цього кітове кільце
+ * мав лише компонент Button; решта показувала синій дефолт Chrome, а поле
+ * вводу — нічого. :where() має нульову специфічність, тож локальні правила
+ * (наприклад, -2px offset у рядка комори) лишаються чинними. */
+:where(button, a[href], input, textarea, select, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

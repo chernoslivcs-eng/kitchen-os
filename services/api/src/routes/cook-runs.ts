@@ -44,7 +44,9 @@ interface CookRunBody {
   servings?: number;
   rating?: number;
   verdict?: string;
-  keep?: string[];   // партії, з яких «щось лишилось» — не депляцувати, а відкрити
+  // Партії, з яких «щось лишилось» — не депляцувати, а відкрити. Елемент —
+  // id або {id, v}: v — опційне «лишилось ≈» з модалки (Бриф-2 п.4).
+  keep?: (string | { id: string; v?: number })[];
   dry_run?: boolean; // тільки прогноз would_deplete, без запису
 }
 
@@ -58,7 +60,13 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       // #7 (план 2026-08-30): «щось лишилось» — id партій, які людина зняла з
       // повного списання в модалці підтвердження. Замість depleted → opened із
       // невідомою кількістю: чесне «не знаю» замість вигаданого залишку.
-      const keepSet = new Set(Array.isArray(keep) ? keep.filter((k) => typeof k === 'string') : []);
+      const keepMap = new Map<string, number | null>();
+      for (const k of Array.isArray(keep) ? keep : []) {
+        if (typeof k === 'string') keepMap.set(k, null);
+        else if (k && typeof k.id === 'string') {
+          keepMap.set(k.id, typeof k.v === 'number' && k.v > 0 ? k.v : null);
+        }
+      }
       if (!recipe || !recipe.t || !Array.isArray(recipe.ing)) {
         return reply.code(400).send({ error: 'recipe with t and ing[] required' });
       }
@@ -181,7 +189,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
             last_action: 'cook',
           });
           partial++;
-        } else if (keepSet.has(batch.id)) {
+        } else if (keepMap.has(batch.id)) {
           // Людина сказала «щось лишилось»: партія відкрита, кількість невідома.
           changes.push({
             id: batch.id,
@@ -194,7 +202,8 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
           await repo.updateBatch(batch.id, {
             state: 'opened',
             opened_at: batch.opened_at ?? now,
-            value: null,
+            // «Лишилось ≈ 100г» із модалки — або чесне «не знаю».
+            value: keepMap.get(batch.id) ?? null,
             last_by: user_id,
             last_action: 'cook',
           });

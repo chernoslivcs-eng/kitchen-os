@@ -114,3 +114,33 @@
   cursor: pointer;
 }
 .add:disabled { opacity: 0.5; cursor: default; }
+
+
+/* Канон Бриф-2: один контейнер-поле, чипи всередині. */
+.field {
+  min-height: 48px;
+  border-radius: var(--r-md, 12px);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  flex-wrap: wrap;
+  cursor: text;
+}
+.field:focus-within {
+  border-color: var(--border-strong);
+}
+.inline {
+  flex: 1;
+  min-width: 90px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 4px 0;
+}
+.inline::placeholder { color: var(--fg-dim); }
+.inline:focus { outline: none; }

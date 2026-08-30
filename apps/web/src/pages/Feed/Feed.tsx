@@ -13,6 +13,8 @@ import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor, appliedToast } from './cards';
+import { useAuth } from '../../store/auth';
+import { Avatar } from '../../components/Avatar/Avatar';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import styles from './Feed.module.css';
 
@@ -78,12 +80,16 @@ let nextId = 1;
 const newId = () => `t${nextId++}`;
 
 export function Feed() {
+  const meName = useAuth((st) => st.me?.user?.name ?? null);
   const navigate = useNavigate();
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  // DA-02: дев'ять секунд тиші на кожну відповідь моделі. Кіт: три крапки зі
+  // stagger 150ms, мітка «КУХНЯ · <дієслово>» — завжди з дієсловом.
+  const [thinkingVerb, setThinkingVerb] = useState('ДУМАЮ');
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -262,6 +268,7 @@ export function Feed() {
     const attachments = pending.map((p) => ({ id: p.id }));
     setPending([]);
     setSending(true);
+    setThinkingVerb(attachments.length ? 'РОЗБИРАЮ' : 'ДУМАЮ');
 
     const userTurnText = text || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
     const userTurn: Turn = { id: newId(), role: 'user', time: hhmm(), text: userTurnText };
@@ -364,27 +371,14 @@ export function Feed() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div className={styles['head-left']}>
-          <Logo variant="wordmark" size={30} />
+          {/* DA-29: хендоф дає шапці заголовок «Кухня», не вордмарк — бренд
+              живе на вході й іконці. DA-05: обидва лічильники поруч. */}
+          <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg-strong)' }}>
+            Кухня
+          </div>
         </div>
         <div className={styles['head-actions']}>
-          <button
-            onClick={openHistory}
-            title="Історія чатів"
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-strong)',
-              borderRadius: 'var(--r-pill)',
-              padding: '5px 10px',
-              color: 'var(--fg-muted)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-            }}
-          >
-            ⌚ Історія
-          </button>
+
           {turns.length > 0 && (
             <button
               onClick={startFreshSession}
@@ -406,9 +400,24 @@ export function Feed() {
             </button>
           )}
           {pantryCount !== null && (
-            <MonoLabel className={styles['head-meta']}>КОМОРА {pantryCount}</MonoLabel>
+            <MonoLabel className={styles['head-meta']}>
+              КОМОРА {pantryCount}{shoppingCount > 0 ? ` · СПИСОК ${shoppingCount}` : ''}
+            </MonoLabel>
           )}
+          <Avatar name={meName} />
         </div>
+      </div>
+
+      {/* Бриф-2 п.2: журнал сесій живе сегментом «Історія» всередині Стрічки. */}
+      <div style={{ display: 'flex', gap: 4, padding: '0 16px 8px' }}>
+        <button
+          onClick={() => setHistoryOpen(false)}
+          className={!historyOpen ? styles['seg-active'] : styles.seg}
+        >Сьогодні</button>
+        <button
+          onClick={openHistory}
+          className={historyOpen ? styles['seg-active'] : styles.seg}
+        >Історія</button>
       </div>
 
       {historyOpen && (
@@ -532,6 +541,15 @@ export function Feed() {
             )}
           </div>
         ))}
+
+        {sending && (
+          <div className={styles.turn} aria-live="polite">
+            <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
+            <div className={styles.thinking}>
+              <span /><span /><span />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={styles['composer-wrap']}>
@@ -611,19 +629,28 @@ export function Feed() {
           {speechSupported() && (
             <button
               type="button"
-              className={styles['attach-btn']}
+              className={listening ? styles['mic-live'] : styles['attach-btn']}
               onClick={toggleVoice}
               disabled={sending}
               aria-label={listening ? 'Зупинити диктування' : 'Продиктувати'}
               aria-pressed={listening}
-              style={listening ? { color: 'var(--danger)', animation: 'pulse 1.2s ease-in-out infinite' } : undefined}
             >
-              {listening ? '●' : '🎙'}
+              {listening ? (
+                /* Стоп-квадрат: цегляний ≠ помилка, це «живий запис» (як REC). */
+                <span className={styles['mic-stop']} />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <rect x="9" y="3" width="6" height="11" rx="3" />
+                  <path d="M5 11a7 7 0 0 0 14 0" />
+                  <line x1="12" y1="18" x2="12" y2="21" />
+                </svg>
+              )}
             </button>
           )}
           <input
             ref={composerInputRef}
             type="text"
+            className={listening ? styles['input-recording'] : undefined}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={pending.length > 0 ? 'Що з цим?' : 'Що купив або що готуємо?'}

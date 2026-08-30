@@ -22,20 +22,35 @@ export function RecipePage() {
   const recipe = (location.state as RecipeLocationState | null)?.recipe ?? null;
   const [currentStep, setCurrentStep] = useState(0);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
-  const [allergies, setAllergies] = useState<string[]>([]);
+  const [allergies, setAllergies] = useState<{ label: string; who: string | null }[]>([]);
+  const [antis, setAntis] = useState<string[]>([]);
+  const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
   const [batchLabels, setBatchLabels] = useState<BatchLabels>(new Map());
 
   useEffect(() => {
     // Підтягнемо алергії з профілю, щоб позначити відповідні інгредієнти.
     // «Позначка, а не заборона» — рецепт лишається доступним, ми тільки попереджаємо.
     api.profile()
-      .then(({ profile }) => setAllergies(profile.allergies))
+      .then(({ profile, eaters }) => {
+        // DA-06: алергія їдця — теж мітка на інгредієнті («⚠ АЛЕРГІЯ ОКСАНИ»
+        // в хендофі). Другий рубіж поверх промахів моделі — QA7-06 показав,
+        // що перший (промпт) інколи мовчить.
+        setAllergies([
+          ...profile.allergies.map((a) => ({ label: a, who: null as string | null })),
+          ...(eaters ?? []).flatMap((e) => e.allergies.map((a) => ({ label: a, who: e.name }))),
+        ]);
+        setAntis(profile.antipatterns);
+      })
       .catch(() => {/* silent */});
     // Мапа id партії → людський label: модель показує на комору через `ing.p`,
     // а рендер має показати назву, не uuid. Без цього алергічна мітка теж
     // мертва: flagsFor читає рядок «[uuid…]» і нічому не збігається.
     api.pantry()
-      .then(({ batches }) => setBatchLabels(new Map(batches.map((b) => [b.id, b.label]))))
+      .then(({ batches }) => {
+        setBatchLabels(new Map(batches.map((b) => [b.id, b.label])));
+        // ◔ відкрито — чип із кіта: видно, що інгредієнт уже почато.
+        setOpenedIds(new Set(batches.filter((b) => b.state === 'opened').map((b) => b.id)));
+      })
       .catch(() => {/* silent */});
   }, []);
 
@@ -52,9 +67,15 @@ export function RecipePage() {
     } finally { setSaving(false); }
   }
 
-  function flagsFor(ingName: string): string[] {
+  function flagsFor(ingName: string): { allergy: { label: string; who: string | null } | null; anti: string | null } {
     const n = ingName.toLowerCase();
-    return allergies.filter((a) => a && n.includes(a.toLowerCase()));
+    const allergy = allergies.find((a) => a.label && n.includes(a.label.toLowerCase())) ?? null;
+    // АНТИ — грубий збіг по слову: «не люблю кінзу» помітить «кінза» через корінь «кінз».
+    const anti = antis.find((a) => {
+      const words = a.toLowerCase().split(/[\s,]+/).filter((w) => w.length > 3);
+      return words.some((w) => n.includes(w.slice(0, Math.max(4, w.length - 2))));
+    }) ?? null;
+    return { allergy, anti };
   }
 
   if (!recipe) {
@@ -106,8 +127,8 @@ export function RecipePage() {
           <MonoLabel>ІНГРЕДІЄНТИ</MonoLabel>
           {recipe.ing.map((ing, i) => {
             const name = resolveIngName(ing, batchLabels);
-            const flags = flagsFor(name);
-            const hasFlag = flags.length > 0;
+            const { allergy, anti } = flagsFor(name);
+            const opened = !!ing.p && openedIds.has(ing.p);
             return (
               <div key={i} className={styles.ing}>
                 <span className={`${styles['ing-mark']} ${ing.p ? '' : styles.missing}`}>
@@ -115,21 +136,25 @@ export function RecipePage() {
                 </span>
                 <span className={`${styles['ing-name']} ${ing.p ? '' : styles.missing}`}>
                   {name}
-                  {hasFlag && (
-                    <span style={{
-                      display: 'inline-block',
-                      marginLeft: 8,
-                      padding: '2px 8px',
-                      background: 'var(--danger-bg)',
-                      border: '1px solid var(--danger-border)',
-                      color: 'var(--danger)',
-                      borderRadius: 'var(--r-pill)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 10,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
+                  {allergy && (
+                    <span className={styles['ing-chip']} style={{
+                      background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                     }}>
-                      ⚠ {flags[0]}
+                      ⚠ {allergy.who ? `АЛЕРГІЯ ${allergy.who}` : allergy.label}
+                    </span>
+                  )}
+                  {!allergy && anti && (
+                    <span className={styles['ing-chip']} style={{
+                      background: 'var(--plum-bg)', border: '1px solid var(--plum-border)', color: 'var(--plum)',
+                    }}>
+                      АНТИ
+                    </span>
+                  )}
+                  {opened && (
+                    <span className={styles['ing-chip']} style={{
+                      background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', color: 'var(--amber)',
+                    }}>
+                      ◔ відкрито
                     </span>
                   )}
                 </span>

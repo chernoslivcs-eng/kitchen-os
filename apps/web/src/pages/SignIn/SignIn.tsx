@@ -68,6 +68,7 @@ export function SignIn() {
         </form>
       </div>
       <p className={styles.foot}>Пароля немає. Лінк діє 15 хвилин, одноразовий.</p>
+        <p className={styles.foot} style={{ marginTop: 4 }}>v1.0 · працює офлайн після входу</p>
     </>
   );
 

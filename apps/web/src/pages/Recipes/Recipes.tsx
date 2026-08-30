@@ -13,6 +13,9 @@ import { api, type SavedRecipe } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
 import { plural } from '../../lib/plural';
 import styles from './Recipes.module.css';
+import { SkeletonRows } from '../../components/Skeleton/Skeleton';
+import { Avatar } from '../../components/Avatar/Avatar';
+import { useAuth } from '../../store/auth';
 
 type Filter = 'all' | 'ready' | 'near' | 'cooked';
 
@@ -34,6 +37,7 @@ function statusChip(r: SavedRecipe): { text: string; color: string; bg: string; 
 }
 
 export function RecipesPage() {
+  const meName = useAuth((st) => st.me?.user?.name ?? null);
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [shoppingCount, setShoppingCount] = useState(0);
@@ -82,6 +86,20 @@ export function RecipesPage() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div className={styles.title}>Рецепти</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => navigate('/cooklog')}
+            style={{
+              background: 'transparent', border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--r-pill)', padding: '5px 10px', color: 'var(--fg-muted)',
+              fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em',
+              textTransform: 'uppercase', cursor: 'pointer',
+            }}
+          >
+            ✎ Журнал
+          </button>
+          <Avatar name={meName} />
+        </div>
         <div className={styles.meta}>
           {readyCount > 0
             ? `${readyCount} МОЖУ ЗАРАЗ`
@@ -90,6 +108,7 @@ export function RecipesPage() {
       </div>
 
       <div className={styles.body}>
+        {loading && <SkeletonRows rows={4} />}
         {!loading && recipes.length === 0 && (
           <div className={styles.empty}>
             <h3>Тут порожньо</h3>
@@ -109,15 +128,17 @@ export function RecipesPage() {
                   key={f.id}
                   onClick={() => setFilter(f.id)}
                   style={{
-                    padding: '6px 12px',
+                    // Канон Бриф-2 5б: активний фільтр — інверсна пігулка,
+                    // шавлія лишається для семантики (МОЖУ ЗАРАЗ), не для стану.
+                    height: 32,
+                    padding: '0 13px',
                     borderRadius: 'var(--r-pill)',
-                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
-                    background: active ? 'var(--accent-bg)' : 'transparent',
-                    color: active ? 'var(--accent)' : 'var(--fg-muted)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
+                    border: `1px solid ${active ? 'var(--btn-primary-bg)' : 'var(--border-strong)'}`,
+                    background: active ? 'var(--btn-primary-bg)' : 'transparent',
+                    color: active ? 'var(--btn-primary-fg)' : 'var(--fg-muted)',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 13,
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >

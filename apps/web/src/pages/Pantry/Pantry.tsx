@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { api, type PantryBatch, type ShoppingList } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
@@ -12,6 +13,9 @@ import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import styles from './Pantry.module.css';
+import { SkeletonRows } from '../../components/Skeleton/Skeleton';
+import { Avatar } from '../../components/Avatar/Avatar';
+import { useAuth } from '../../store/auth';
 
 const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
 const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
@@ -29,6 +33,8 @@ function daysLeft(iso: string | null): number | null {
 }
 
 export function PantryPage() {
+  const meName = useAuth((st) => st.me?.user?.name ?? null);
+  const navigate = useNavigate();
   const [batches, setBatches] = useState<PantryBatch[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -63,6 +69,7 @@ export function PantryPage() {
       <div className={styles.head}>
         <div className={styles.title}>Комора</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar name={meName} />
           <button
             onClick={() => setAdding(true)}
             style={{
@@ -109,10 +116,15 @@ export function PantryPage() {
             }}
           />
         )}
+        {loading && <SkeletonRows rows={5} />}
         {!loading && batches.length === 0 && (
           <div className={styles.empty}>
             <h3>Комора порожня</h3>
-            <p>Сфотографуй полицю або перелічи 5–10 позицій у стрічці — решту доберемо по ходу.</p>
+            {/* DA-03: «порожні стани — коротко, з дією». Дія і є суть патерна. */}
+            <p>Сфотографуй полицю або перелічи 5–10 позицій — решту доберемо.</p>
+            <p style={{ marginTop: 12 }}>
+              <Button onClick={() => navigate('/app')}>Показати кухню</Button>
+            </p>
           </div>
         )}
         {!loading && batches.length > 0 && filtered.length === 0 && (

@@ -231,11 +231,12 @@ export function ProfileCard({ card, applied, applying, dismissed, undone, onAppl
 export function RecipeCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   if (!r) return null;
+  // Канон Бриф-2 5б: «5 КРОКІВ · 25ХВ · 2 ПОРЦІЇ» — кроки першими, без прев'ю.
   const meta = [
+    r.st?.length ? `${r.st.length} КРОКІВ` : null,
     r.tm ? `${r.tm}ХВ` : null,
-    r.sv ? `${r.sv} ПОРЦ` : null,
+    r.sv ? `${r.sv} ПОРЦІЇ` : null,
     r.ing?.length ? `${r.ing.length} ІНГР` : null,
-    r.st?.length ? `${r.st.length} КРОК` : null,
   ].filter(Boolean).join(' · ');
 
   return (
@@ -269,12 +270,32 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
 
 // Фото страви → журнал. Мінімальна картка: назва готування і дві кнопки.
 export function CookPhotoCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
+  const attId = (card as { attachment_id?: string }).attachment_id;
   return (
     <div className={stateClass(applied, undone)}>
-      <div className={styles.ops}>
-        <div className={styles.op}>
-          <span className={styles['op-sign']}>📷</span>
-          <span className={styles['op-label']}>{card.recipe_title ?? 'Готування'}</span>
+      {/* Канон Бриф-2 5б: мініатюра 56px + здогад назви, без емодзі. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: 12, background: 'var(--bg-hover)',
+          overflow: 'hidden', flex: 'none', display: 'grid', placeItems: 'center',
+        }}>
+          {attId ? (
+            <img
+              src={`/v1/attachments/${attId}/bytes`}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-dim)' }}>IMG</span>
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: 'var(--fg)' }}>
+            {card.recipe_title ?? 'Готування'}
+          </div>
+          <div style={{ marginTop: 2, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>
+            Фото до запису в журналі
+          </div>
         </div>
       </div>
       {!applied && !undone && !dismissed && onApply && (

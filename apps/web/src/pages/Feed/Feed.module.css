@@ -3,7 +3,10 @@
  * Мобайл-фьорст. Каркас: шапка → скролабельна стрічка → композитор внизу.
  */
 .screen {
-  min-height: 100dvh;
+  /* height, не min-height: інакше на довгому чаті скролиться body, і композитор
+     з таб-баром їдуть за екран. Хендоф тримає їх знизу завжди; скрол живе
+     всередині .timeline (flex:1 + overflow-y). */
+  height: 100dvh;
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;
@@ -64,7 +67,25 @@
 }
 .card.applied .op-label { color: var(--fg-muted); }
 .card.undone { opacity: 0.55; }
-.card.undone .op-label { text-decoration: line-through; }
+/* DA-10: закреслення undo — лінія проходить зліва направо 250ms, потім
+   приглушення (Моушн-кіт). text-decoration не анімується — малюємо ::after. */
+.card.undone .op-label {
+  position: relative;
+}
+.card.undone .op-label::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1px;
+  background: currentColor;
+  width: 100%;
+  animation: strike var(--dur-base, 250ms) var(--ease-standard, ease) both;
+}
+@keyframes strike {
+  from { width: 0; }
+  to   { width: 100%; }
+}
 
 /* Список ops для intake/shopping/profile */
 .ops { display: flex; flex-direction: column; }
@@ -263,7 +284,7 @@
   animation: toast-in var(--dur-base) var(--ease-enter);
 }
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .toast-text {
@@ -333,4 +354,74 @@
    При reduced motion --dur-breathe стає 0ms і пульс зникає. */
 .pending-pulse {
   animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite;
+}
+
+/* DA-02: «система думає» — 3 крапки, 1.2s, stagger 150ms (Моушн-кіт §02).
+   При reduced motion --dur-breathe = 0 і крапки просто стоять. */
+.thinking {
+  display: flex;
+  gap: 5px;
+  padding: 6px 0;
+}
+.thinking span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+  animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite;
+}
+.thinking span:nth-child(2) { animation-delay: 150ms; }
+.thinking span:nth-child(3) { animation-delay: 300ms; }
+
+/* Бриф-2: сегменти «Сьогодні | Історія». Активна пігулка інверсна
+   (фон = fg, текст = bg) — як сегменти зон у UI-кіті. */
+.seg,
+.seg-active {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.seg {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--fg-muted);
+}
+.seg-active {
+  background: var(--btn-primary-bg);
+  border: 1px solid var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+}
+
+/* Мікрофон — канон Бриф-2 5б: під час запису кнопка стає цегляним квадратом
+   38px зі стоп-іконкою і пульсом 1.2s; цегляний тут НЕ помилка, а «REC». */
+.mic-live {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--danger);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+  animation: micpulse var(--dur-breathe, 1.2s) ease-out infinite;
+}
+.mic-stop {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bg-body);
+  display: block;
+}
+@keyframes micpulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 40%, transparent); }
+  60% { box-shadow: 0 0 0 9px transparent; }
+}
+.input-recording {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent);
 }

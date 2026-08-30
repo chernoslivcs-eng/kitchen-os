@@ -8,16 +8,17 @@
 // помилка сиділа в найдорожчому полі й не мала кнопки.
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type ProfileData, type Me, type InviteInfo, type NoteInfo, type EaterInfo } from '../../api';
 import { TagInput } from '../../components/TagInput/TagInput';
 import { EQUIP_EXTRA, DIET_PRESETS, cycleEquip, equipGlyph, type EquipState } from '../../lib/presets';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
-import { TabBar } from '../../components/TabBar/TabBar';
 import { useAuth } from '../../store/auth';
 import styles from './Profile.module.css';
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const logout = useAuth((s) => s.logout);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [me, setMe] = useState<Me | null>(null);
@@ -139,7 +140,19 @@ export function ProfilePage() {
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
-        <div className={styles.title}>Профіль</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Бриф-2 5а: Профіль відкривається з аватара, тому в шапці «←». */}
+          <button
+            onClick={() => navigate(-1)}
+            aria-label="Назад"
+            style={{
+              width: 38, height: 38, border: '1px solid var(--border-strong)',
+              borderRadius: 10, background: 'transparent', color: 'var(--fg-muted)',
+              cursor: 'pointer', fontSize: 16,
+            }}
+          >←</button>
+          <div className={styles.title}>Профіль</div>
+        </div>
         {me && <div className={styles.who}>{me.user.email}</div>}
       </div>
 
@@ -153,7 +166,6 @@ export function ProfilePage() {
             values={profile?.allergies ?? []}
             tone="allergy"
             prefix="⚠"
-            emptyLabel="ще жодної"
             placeholder="арахіс, арахісова паста…"
             onAdd={(l) => patch('add', 'allergy', l)}
             onRemove={(l) => patch('remove', 'allergy', l)}
@@ -242,13 +254,17 @@ export function ProfilePage() {
                     if (next.op === 'remove') void patch('remove', 'equip', name);
                     else void patchEquip(name, next.has);
                   }}
-                  className={`${styles.chip} ${state === 'lacks' ? styles['chip-anti'] : ''}`}
+                  className={styles.chip}
                   style={{
                     cursor: 'pointer',
-                    border: state ? undefined : '1px dashed var(--border-strong)',
-                    background: state ? undefined : 'transparent',
-                    color: state === 'has' ? 'var(--accent)' : state === 'lacks' ? undefined : 'var(--fg-dim)',
-                    ...(state === 'has' ? { background: 'var(--accent-bg)', border: '1px solid var(--accent-border)' } : {}),
+                    // Канон Бриф-2 5а: ● є = шавлія; ✕ немає = закреслений і
+                    // пригашений (45%), НЕ слива — слива тільки для АНТИ;
+                    // ○ невідомо = пунктир.
+                    ...(state === 'has'
+                      ? { background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)' }
+                      : state === 'lacks'
+                        ? { background: 'transparent', border: '1px solid var(--border)', color: 'var(--fg-dim)', opacity: 0.45, textDecoration: 'line-through' }
+                        : { background: 'transparent', border: '1px dashed var(--border-strong)', color: 'var(--fg-dim)' }),
                   }}
                   title={state === 'has' ? 'Є → позначити «немає»' : state === 'lacks' ? 'Немає → прибрати запис' : 'Невідомо → позначити «є»'}
                 >
@@ -336,7 +352,7 @@ export function ProfilePage() {
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)' }}>
-                      {n.pinned && <span style={{ color: 'var(--accent)', marginRight: 6 }}>★</span>}
+                      {n.pinned && <span style={{ color: 'var(--amber)', marginRight: 6 }}>★</span>}
                       {n.text}
                     </div>
                     {n.recipe_title && (
@@ -506,7 +522,6 @@ export function ProfilePage() {
         </div>
       </div>
 
-      <TabBar shoppingCount={shoppingCount} />
     </div>
   );
 }
