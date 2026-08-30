@@ -1,0 +1,18 @@
+{
+  "id": "member-card",
+  "description": "«Зі мною живе Оксана, вона веганка» шість прогонів розмазувалось по анти-полю власника («на двох: Оксана не їсть…»), бо промпт забороняв kind:member. Тепер це окремий запис їдця. Модель має віддати профільну картку з member-операцією, а не питати дозволу.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"p1","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "До речі, зі мною тепер живе Оксана — вона веганка і в неї алергія на арахіс." }
+  ],
+  "invariants": [
+    "member-op-with-restrictions",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

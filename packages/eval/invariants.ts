@@ -381,6 +381,24 @@ export const registry: Record<string, Invariant> = {
       : pass();
   },
 
+  // «Зі мною живе Оксана, вона веганка, алергія на арахіс» → member-операція
+  // з обмеженнями в ЇЇ записі, а не в анти-полі власника.
+  'member-op-with-restrictions': (out) => {
+    const card = out.card;
+    if (card?.type !== 'profile') return fail(`очікували profile-картку, отримали ${card?.type ?? '(null)'}`);
+    const ops = (card as { ops?: Record<string, unknown>[] }).ops ?? [];
+    const member = ops.find((o) => o.kind === 'member');
+    if (!member) return fail('немає member-операції — людину знову розмазали по чужому профілю');
+    const blob = JSON.stringify(member).toLowerCase();
+    if (!blob.includes('оксана')) return fail('member без імені');
+    if (!blob.includes('арахіс')) return fail('алергія їдця не в її записі');
+    // Обмеження власника ця фраза не змінює.
+    const ownerOps = ops.filter((o) => o.kind === 'allergy' || o.kind === 'anti');
+    return ownerOps.length
+      ? fail('обмеження Оксани потрапили в профіль власника')
+      : pass();
+  },
+
   // QA5-02: незастосована картка нічого не змінила.
   'denies-unapplied-card': (out) => {
     const reply = String(out.reply ?? '').toLowerCase();
