@@ -4,7 +4,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
-  SessionRow, MessageRow, MemoryNote,
+  SessionRow, MessageRow, MemoryNote, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 
@@ -12,6 +12,7 @@ export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
   private profiles = new Map<string, Profile>();
   private notes = new Map<string, MemoryNote>();
+  private eaters = new Map<string, EaterRow>();
   private pending = new Map<string, PendingCard>();
   private attachments = new Map<string, AttachmentRecord>();
   private users = new Map<string, UserRow>();                 // by id
@@ -74,6 +75,23 @@ export class InMemoryRepo implements Repo {
 
   async getProfile(user_id: string): Promise<Profile | null> {
     return this.profiles.get(user_id) ?? null;
+  }
+
+  async insertEater(e: EaterRow): Promise<void> {
+    this.eaters.set(e.id, { ...e });
+  }
+  async listEaters(household_id: string): Promise<EaterRow[]> {
+    return [...this.eaters.values()]
+      .filter((e) => e.household_id === household_id)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }
+  async findEaterByName(household_id: string, name: string): Promise<EaterRow | null> {
+    const n = name.trim().toLowerCase();
+    return [...this.eaters.values()]
+      .find((e) => e.household_id === household_id && e.name.trim().toLowerCase() === n) ?? null;
+  }
+  async deleteEater(id: string): Promise<void> {
+    this.eaters.delete(id);
   }
 
   async insertNote(n: MemoryNote): Promise<void> {

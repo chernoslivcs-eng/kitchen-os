@@ -146,7 +146,8 @@ describe('висновки з готування', () => {
     });
     const r = await applyCard(repo, message_id, [1], USER);
     expect(r.applied).toBe(1);
-    expect((await repo.getProfile(USER))!.allergies).toEqual([]);
+    // Профіль або не існує, або порожній — головне, що алергія не пролізла.
+    expect((await repo.getProfile(USER))?.allergies ?? []).toEqual([]);
     expect(await repo.listNotes(USER)).toHaveLength(1);
   });
 

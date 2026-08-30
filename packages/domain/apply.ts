@@ -18,6 +18,7 @@ import type {
   UndoSnapshot,
   Provenance,
   Profile,
+  EaterRow,
   ProfileKind,
   ShoppingItemRow,
   Zone,
@@ -136,13 +137,13 @@ export async function applyCard(
     const next: Profile = before
       ? deepCopy(before)
       : { user_id: actor_user_id, allergies: [], wishes: [], antipatterns: [], equipment: {} };
-    // QA4-05: рахуємо те, що СПРАВДІ лягло. `kind: member` MVP ще ігнорує,
-    // але раніше API рапортував applied:1 і UI показував успіх — людина думала,
-    // що продукт знає про вегетаріанку в домі, а в профілі нічого не було.
+    // QA4-05: рахуємо те, що СПРАВДІ лягло.
     let landed = 0;
+    let profileTouched = false;
     // Висновки не входять у документ профілю — вони окремі рядки, тож і
     // застосовуються окремо, і відкочуються поштучно.
     const added_note_ids: string[] = [];
+    const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
@@ -150,10 +151,28 @@ export async function applyCard(
         if (await applyNoteOp(repo, actor_user_id, op, added_note_ids)) landed++;
         continue;
       }
-      if (applyProfileOp(next, op)) landed++;
+      if (op.kind === 'member') {
+        if (await applyMemberOp(repo, pc.household_id, op, memberTrace)) landed++;
+        continue;
+      }
+      if (applyProfileOp(next, op)) { landed++; profileTouched = true; }
     }
     if (added_note_ids.length) snapshot.before.added_note_ids = added_note_ids;
-    await repo.upsertProfile(next);
+    if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
+    if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
+    // Порожній документ профілю не створюємо: картка з самих member/note
+    // не має лишати по собі привида з нульовими масивами.
+    if (profileTouched || before) {
+      // Якщо документа не існувало, undo має його спорожнити — фіксуємо
+      // «порожньо» як стан до картки, інакше відкат алергії не мав би куди
+      // повертатись.
+      if (!before && profileTouched) {
+        snapshot.before.profile_before = {
+          user_id: actor_user_id, allergies: [], wishes: [], antipatterns: [], equipment: {},
+        };
+      }
+      await repo.upsertProfile(next);
+    }
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -377,6 +396,47 @@ async function applyNoteOp(
   return true;
 }
 
+// «Зі мною живе Оксана, вона веганка» → окремий запис їдця в домі.
+// Обмеження лежать у ньому, а не в профілі власника. Прототип, 2160:
+// «Обмеження учасника кладуться в його ж запис».
+async function applyMemberOp(
+  repo: Repo,
+  household_id: string,
+  op: {
+    op?: 'add' | 'remove'; label?: string;
+    diet?: unknown; allergies?: unknown; wishes?: unknown; antipatterns?: unknown; avoid?: unknown;
+    [k: string]: unknown;
+  },
+  trace: { added: string[]; removed: EaterRow[] },
+): Promise<boolean> {
+  const name = (op.label ?? '').trim();
+  if (!name) return false;
+  const existing = await repo.findEaterByName(household_id, name);
+  if (op.op === 'remove') {
+    if (!existing) return false;
+    await repo.deleteEater(existing.id);
+    trace.removed.push(existing);
+    return true;
+  }
+  if (existing) return false;
+  const strs = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!x.trim()) : [];
+  const diet = typeof op.diet === 'string' && op.diet.trim() ? [op.diet.trim()] : [];
+  const eater: EaterRow = {
+    id: randomUUID(),
+    household_id,
+    name,
+    allergies: strs(op.allergies),
+    // Дієта — це побажання, як і в профілі власника: окремого поля немає.
+    wishes: [...new Set([...diet, ...strs(op.wishes)])],
+    antipatterns: [...strs(op.antipatterns), ...strs(op.avoid)],
+    created_at: new Date().toISOString(),
+  };
+  await repo.insertEater(eater);
+  trace.added.push(eater.id);
+  return true;
+}
+
 export function applyProfileOp(
   next: Profile,
   op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string; has?: boolean },
@@ -451,6 +511,13 @@ export async function undoCard(
   // Висновки: точковий відкат — видаляємо рівно те, що ця картка додала.
   for (const id of snap.before.added_note_ids ?? []) {
     await repo.deleteNote(id);
+  }
+  for (const id of snap.before.added_eater_ids ?? []) {
+    await repo.deleteEater(id);
+  }
+  // Видалений їдець повертається з усіма обмеженнями — знімок повний.
+  for (const e of snap.before.removed_eaters ?? []) {
+    await repo.insertEater(e);
   }
   // Імпортований рецепт: прибираємо рядок цілком — на нього ще ніщо не
   // посилається, і «незбережений» привид у базі нікому не потрібен.

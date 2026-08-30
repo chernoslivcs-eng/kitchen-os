@@ -10,7 +10,7 @@
 // алергени, не дійшовши до обмеження (QA5-01).
 
 import { root, meaningfulWords } from '@kitchen/catalog';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote } from './types.js';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow } from './types.js';
 import { serializeOccasions } from './occasions.js';
 
 export interface RecentCookRunSummary {
@@ -26,6 +26,7 @@ export interface KitchenContext {
   shopping?: ShoppingItemRow[];
   recentCookRuns?: RecentCookRunSummary[];
   notes?: MemoryNote[];
+  eaters?: EaterRow[];
   now?: Date;                            // для тестів — інакше Date.now()
 }
 
@@ -107,6 +108,22 @@ export function serializeCookRun(r: RecentCookRunSummary, now = Date.now()): str
   return parts.join(' · ');
 }
 
+// Їдці дому: «зі мною живе Оксана, вона веганка». Страва готується на всіх,
+// хто за столом, тому алергія їдця — така сама тверда межа, як алергія
+// власника, і позначається тими самими словами.
+export function serializeEaters(eaters: EaterRow[]): string {
+  if (!eaters.length) return '';
+  const lines = eaters.map((e) => {
+    const parts = [e.name];
+    if (e.allergies.length) parts.push(`АЛЕРГІЯ (тверда межа — ніколи не пропонуй сам): ${e.allergies.join(', ')}`);
+    if (e.antipatterns.length) parts.push(`не їсть: ${e.antipatterns.join(', ')}`);
+    if (e.wishes.length) parts.push(`тягне до: ${e.wishes.join(', ')}`);
+    return '— ' + parts.join(' · ');
+  });
+  return '\n\n[ДОМАШНІ]\n' + lines.join('\n')
+    + '\nСтрава готується на всіх за столом: обмеження домашніх враховуй нарівні з профілем.';
+}
+
 // Висновки з готування. Це єдине в контексті, що написала не система, а сама
 // людина про свою кухню: «фует знімати, щойно краї хрусткі». Тому вони йдуть
 // окремим блоком, а не тонуть у профілі серед побажань.
@@ -137,5 +154,6 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime())
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
-    + serializeNotes(ctx.notes ?? []);
+    + serializeNotes(ctx.notes ?? [])
+    + serializeEaters(ctx.eaters ?? []);
 }

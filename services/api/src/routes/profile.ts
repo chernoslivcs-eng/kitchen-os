@@ -30,10 +30,11 @@ interface PatchOp {
 
 export function profileRoutes(app: FastifyInstance, repo: Repo) {
   app.get('/v1/profile', { preHandler: authenticated(repo) }, async (req) => {
-    const { user_id } = requireUser(req);
+    const { user_id, household_id } = requireUser(req);
     const profile = (await repo.getProfile(user_id)) ?? empty(user_id);
     const notes = await repo.listNotes(user_id, 50);
-    return { profile, notes };
+    const eaters = await repo.listEaters(household_id);
+    return { profile, notes, eaters };
   });
 
   app.patch<{ Body: { ops?: PatchOp[] } }>(
@@ -65,6 +66,21 @@ export function profileRoutes(app: FastifyInstance, repo: Repo) {
       }
       await repo.upsertProfile(next);
       return { profile: next, applied };
+    },
+  );
+
+  // Їдець живе в домі, тож право на видалення — членство в домі, не авторство.
+  app.delete<{ Params: { id: string } }>(
+    '/v1/eaters/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { household_id } = requireUser(req);
+      const mine = await repo.listEaters(household_id);
+      if (!mine.some((e) => e.id === req.params.id)) {
+        return reply.code(404).send({ error: 'not_found' });
+      }
+      await repo.deleteEater(req.params.id);
+      return reply.code(204).send();
     },
   );
 

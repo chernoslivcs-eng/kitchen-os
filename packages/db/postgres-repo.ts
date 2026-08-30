@@ -14,7 +14,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow,
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
-  SessionRow, MessageRow, MemoryNote,
+  SessionRow, MessageRow, MemoryNote, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -68,6 +68,18 @@ function rowToShopping(r: Row): ShoppingItemRow {
     checked: r.checked as boolean,
     added_by: (r.added_by as string | null) ?? null,
     source: r.source as ShoppingItemRow['source'],
+    created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
+
+function eaterRow(r: Row): EaterRow {
+  return {
+    id: r.id as string,
+    household_id: r.household_id as string,
+    name: r.name as string,
+    allergies: (r.allergies as string[] | null) ?? [],
+    wishes: (r.wishes as string[] | null) ?? [],
+    antipatterns: (r.antipatterns as string[] | null) ?? [],
     created_at: new Date(r.created_at as string).toISOString(),
   };
 }
@@ -233,6 +245,34 @@ export class PostgresRepo implements Repo {
          updated_at = now()`,
       [p.user_id, p.allergies, p.wishes, p.antipatterns, p.equipment],
     );
+  }
+
+  async insertEater(e: EaterRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO eater (id, household_id, name, allergies, wishes, antipatterns, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [e.id, e.household_id, e.name, e.allergies, e.wishes, e.antipatterns, e.created_at],
+    );
+  }
+
+  async listEaters(household_id: string): Promise<EaterRow[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM eater WHERE household_id = $1 ORDER BY created_at',
+      [household_id],
+    );
+    return rows.map(eaterRow);
+  }
+
+  async findEaterByName(household_id: string, name: string): Promise<EaterRow | null> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM eater WHERE household_id = $1 AND lower(btrim(name)) = lower(btrim($2)) LIMIT 1',
+      [household_id, name],
+    );
+    return rows[0] ? eaterRow(rows[0]) : null;
+  }
+
+  async deleteEater(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM eater WHERE id = $1', [id]);
   }
 
   async insertNote(n: MemoryNote): Promise<void> {

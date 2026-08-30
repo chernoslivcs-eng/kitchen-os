@@ -8,7 +8,7 @@
 // помилка сиділа в найдорожчому полі й не мала кнопки.
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, type ProfileData, type Me, type InviteInfo, type NoteInfo } from '../../api';
+import { api, type ProfileData, type Me, type InviteInfo, type NoteInfo, type EaterInfo } from '../../api';
 import { TagInput } from '../../components/TagInput/TagInput';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -26,6 +26,7 @@ export function ProfilePage() {
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [notes, setNotes] = useState<NoteInfo[]>([]);
+  const [eaters, setEaters] = useState<EaterInfo[]>([]);
   const [profileError, setProfileError] = useState<string | null>(null);
 
   // Одна точка правки на всі три блоки. Відповідь сервера — джерело істини:
@@ -36,6 +37,15 @@ export function ProfilePage() {
     try {
       const { profile: next } = await api.profilePatch([{ op, kind, label }]);
       setProfile(next);
+    } catch (err) {
+      setProfileError((err as Error).message);
+    }
+  }
+
+  async function dropEater(id: string) {
+    try {
+      await api.deleteEater(id);
+      setEaters((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {
       setProfileError((err as Error).message);
     }
@@ -53,12 +63,13 @@ export function ProfilePage() {
   useEffect(() => {
     (async () => {
       const [p, m, s] = await Promise.all([
-        api.profile().catch(() => ({ profile: null as ProfileData | null, notes: [] as NoteInfo[] })),
+        api.profile().catch(() => ({ profile: null as ProfileData | null, notes: [] as NoteInfo[], eaters: [] as EaterInfo[] })),
         api.me().catch(() => null),
         api.shopping.list().catch(() => ({ count: 0 })),
       ]);
       setProfile(p.profile);
       setNotes(p.notes ?? []);
+      setEaters(p.eaters ?? []);
       setMe(m);
       setShoppingCount(s.count);
       if (m) {
@@ -195,6 +206,59 @@ export function ProfilePage() {
                   >×</button>
                 </span>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Їдці дому без акаунтів: «зі мною живе Оксана, вона веганка».
+            Записуються розмовою (kind: member); тут — видно й можна прибрати. */}
+        {eaters.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles['section-label']}>Домашні</div>
+            <div className={styles.hint}>
+              Хто ще їсть у домі. Страви враховують їхні обмеження нарівні з твоїми.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {eaters.map((e) => {
+                const limits = [
+                  ...e.allergies.map((a) => `⚠ ${a}`),
+                  ...e.antipatterns,
+                  ...e.wishes,
+                ].join(' · ');
+                return (
+                  <div
+                    key={e.id}
+                    style={{
+                      display: 'flex', alignItems: 'baseline', gap: 10,
+                      padding: '10px 0', borderBottom: '1px solid var(--border)',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)' }}>
+                        {e.name}
+                      </div>
+                      {limits && (
+                        <div style={{
+                          marginTop: 3, fontFamily: 'var(--font-mono)', fontSize: 11,
+                          letterSpacing: '0.04em', color: e.allergies.length ? 'var(--danger)' : 'var(--fg-dim)',
+                        }}>
+                          {limits}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void dropEater(e.id)}
+                      aria-label={`Прибрати «${e.name}»`}
+                      title="Прибрати"
+                      style={{
+                        border: 0, background: 'transparent', color: 'var(--fg-dim)',
+                        fontFamily: 'var(--font-mono)', fontSize: 13, cursor: 'pointer', padding: '2px 4px',
+                      }}
+                    >×</button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

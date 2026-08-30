@@ -236,7 +236,7 @@ export const api = {
     unpack: () => req<{ created: number }>('/v1/shopping/unpack', { method: 'POST', body: '{}' }),
   },
 
-  profile: () => req<{ profile: ProfileData; notes: NoteInfo[] }>('/v1/profile'),
+  profile: () => req<{ profile: ProfileData; notes: NoteInfo[]; eaters: EaterInfo[] }>('/v1/profile'),
   // Правка руками. Модель у стан не пише — але людина у своєму профілі пише,
   // і це рівно «дія — інтерфейс».
   profilePatch: (ops: { op: 'add' | 'remove'; kind: 'allergy' | 'wish' | 'anti' | 'equip'; label: string; has?: boolean }[]) =>
@@ -244,6 +244,7 @@ export const api = {
       method: 'PATCH', body: JSON.stringify({ ops }),
     }),
   deleteNote: (id: string) => req<void>(`/v1/notes/${id}`, { method: 'DELETE' }),
+  deleteEater: (id: string) => req<void>(`/v1/eaters/${id}`, { method: 'DELETE' }),
 
   households: {
     listInvites: (household_id: string) =>
@@ -341,6 +342,14 @@ export interface NoteInfo {
   rating: number | null;
   pinned: boolean;
   created_at: string;
+}
+
+export interface EaterInfo {
+  id: string;
+  name: string;
+  allergies: string[];
+  wishes: string[];
+  antipatterns: string[];
 }
 
 export interface SessionInfo {

@@ -164,3 +164,52 @@ describe('висновки в профілі', () => {
     expect(await repo.listNotes(alice.user_id)).toHaveLength(1);
   });
 });
+
+describe('їдці в профілі', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  it('GET /v1/profile віддає їдців дому', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    await repo.insertEater({
+      id: crypto.randomUUID(), household_id: me.household_id, name: 'Оксана',
+      allergies: [], wishes: ['веганство'], antipatterns: [],
+      created_at: new Date().toISOString(),
+    });
+    const got = await app.inject({ method: 'GET', url: '/v1/profile', headers: { cookie: me.cookie } });
+    expect(got.json().eaters).toHaveLength(1);
+    expect(got.json().eaters[0].name).toBe('Оксана');
+  });
+
+  it('DELETE /v1/eaters/:id прибирає їдця', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const id = crypto.randomUUID();
+    await repo.insertEater({
+      id, household_id: me.household_id, name: 'Оксана',
+      allergies: [], wishes: [], antipatterns: [], created_at: new Date().toISOString(),
+    });
+    const del = await app.inject({ method: 'DELETE', url: `/v1/eaters/${id}`, headers: { cookie: me.cookie } });
+    expect(del.statusCode).toBe(204);
+    expect(await repo.listEaters(me.household_id)).toHaveLength(0);
+  });
+
+  it('їдця чужого дому не видалити — 404', async () => {
+    const alice = await signIn(app, mailer, 'alice@example.com');
+    const bob = await signIn(app, mailer, 'bob@example.com');
+    const id = crypto.randomUUID();
+    await repo.insertEater({
+      id, household_id: alice.household_id, name: 'Оксана',
+      allergies: [], wishes: [], antipatterns: [], created_at: new Date().toISOString(),
+    });
+    const del = await app.inject({ method: 'DELETE', url: `/v1/eaters/${id}`, headers: { cookie: bob.cookie } });
+    expect(del.statusCode).toBe(404);
+  });
+});

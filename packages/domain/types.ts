@@ -140,6 +140,8 @@ export interface UndoSnapshot {
     profile_before?: Profile;           // profile: повернути весь блок
     added_note_ids?: string[];          // note: висновки лише додаються, тож undo — це видалення
     added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється
+    added_eater_ids?: string[];         // member add: undo видаляє
+    removed_eaters?: EaterRow[];        // member remove: undo повертає повний рядок
   };
 }
 
@@ -155,6 +157,20 @@ export interface MemoryNote {
   recipe_title: string | null;
   rating: number | null;
   pinned: boolean;
+  created_at: string;
+}
+
+// Їдець без акаунта: «зі мною живе Оксана, вона веганка». Не user і не
+// household_member — Оксана не логіниться й не пише в комору, вона просто
+// їсть те, що тут готують. Обмеження лежать у її записі, а не розмазуються
+// по анти-полю власника рядком «на двох: …», як радив промпт шість прогонів.
+export interface EaterRow {
+  id: string;
+  household_id: string;
+  name: string;
+  allergies: string[];
+  wishes: string[];
+  antipatterns: string[];
   created_at: string;
 }
 
