@@ -328,3 +328,9 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+
+/* Моушн-кіт: pending-пульс мітки «◌ ОЧІКУЄ» — opacity 1→.55→1, 1.2s, лише поки pending.
+   При reduced motion --dur-breathe стає 0ms і пульс зникає. */
+.pending-pulse {
+  animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite;
+}

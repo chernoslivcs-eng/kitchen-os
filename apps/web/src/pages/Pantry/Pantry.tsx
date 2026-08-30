@@ -112,7 +112,7 @@ export function PantryPage() {
         {!loading && batches.length === 0 && (
           <div className={styles.empty}>
             <h3>Комора порожня</h3>
-            <p>Розкажи кухарю, що купив — покупка з'явиться тут. Наприклад: «купив моцарелу 250 г».</p>
+            <p>Сфотографуй полицю або перелічи 5–10 позицій у стрічці — решту доберемо по ходу.</p>
           </div>
         )}
         {!loading && batches.length > 0 && filtered.length === 0 && (

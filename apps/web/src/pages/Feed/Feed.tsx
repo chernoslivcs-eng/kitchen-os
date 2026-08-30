@@ -223,7 +223,9 @@ export function Feed() {
     if (!toast || toast.persist) return;
     // Undo toast — довше вікно (людина може прочитати й натиснути).
     // Успіх без undo — 5с, помилка — 8с. «Готую рецепт…» — persist до кінця.
-    const ttl = toast.onUndo ? 18_000 : (toast.kind === 'err' ? 8_000 : 5_000);
+    // Моушн-кіт: тост auto 4с, з undo — 8с. 18с висіло як бажання «дати
+    // більше часу», але дизайн свідомо тримає ритм — undo є і в журналі.
+    const ttl = toast.onUndo ? 8_000 : (toast.kind === 'err' ? 8_000 : 4_000);
     const t = setTimeout(() => setToast(null), ttl);
     return () => clearTimeout(t);
   }, [toast]);
@@ -502,9 +504,15 @@ export function Feed() {
         {turns.map((t) => (
           <div key={t.id} className={styles.turn}>
             <MonoLabel tone="muted">
-              {t.time} {t.role === 'user' ? 'ТИ' : t.card
-                ? labelFor(t.card.type, t.applied, t.undone, t.dismissed).text
-                : 'АСИСТЕНТ'}
+              {t.time} {t.role === 'user' ? 'ТИ' : t.card ? (
+                (() => {
+                  const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed);
+                  // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
+                  return l.tone === 'pending'
+                    ? <span className={styles['pending-pulse']}>{l.text}</span>
+                    : l.text;
+                })()
+              ) : 'КУХНЯ'}
             </MonoLabel>
             {t.text && <div className={styles['turn-text']}>{t.text}</div>}
             {t.card && (
