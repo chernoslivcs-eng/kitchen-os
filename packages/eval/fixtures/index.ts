@@ -19,6 +19,7 @@ export interface Fixture {
   stage?: 1 | 2;
   shopping?: unknown[];
   notes?: unknown[];
+  eaters?: unknown[];
   now?: string;               // фіксована дата — інакше календарні фікстури живуть один день
   skip?: string;
 }

@@ -204,7 +204,11 @@ export const registry: Record<string, Invariant> = {
     const target = (fx.invariants.find((i) => i.startsWith('mentions-allergen-out-loud:')) ?? '').split(':')[1] ?? '';
     if (!target) return pass();
     const recipe = out.card?.recipe ?? out.card;
-    const ings = (recipe?.ing ?? []).map((i: any) => String(i.n ?? i.name ?? '').toLowerCase()).join(' ');
+    const ings = ((recipe?.ing ?? []) as any[]).map((i: any) => String(i.n ?? i.name ?? '').toLowerCase()).join(' ');
+    // Немає рецепта зі складом — нема де ховати. «Стій — у мами алергія на
+    // мідії» з питанням замість рецепта — це алерген у центрі репліки, а не
+    // прихований інгредієнт.
+    if (!ings.trim()) return pass('рецепта зі складом немає');
     if (ings.includes(target.toLowerCase())) return pass();
     return fail(`інгредієнт «${target}» приховано серед складу`);
   },
@@ -365,7 +369,8 @@ export const registry: Record<string, Invariant> = {
   // Висновок людини про власну духовку сильніший за книжкову температуру.
   'uses-oven-note': (out) => {
     const hay = (String(out.reply ?? '') + ' ' + JSON.stringify(out.card ?? {})).toLowerCase();
-    return /духовк|градус|нижч|менше|20|двадцят/.test(hay) && /нижч|менше|20|двадцят|з поправк|врахув/.test(hay)
+    return /духовк|градус|нижч|менше|20|двадцят/.test(hay)
+      && /нижч|менше|20|двадцят|з поправк|врахув|сильніш|за шкалу|1[0-6]\d/.test(hay)
       ? pass()
       : fail('дала температуру, не згадавши, що духовка гріє сильніше — висновок людини проігноровано');
   },
@@ -403,7 +408,7 @@ export const registry: Record<string, Invariant> = {
   'denies-unapplied-card': (out) => {
     const reply = String(out.reply ?? '').toLowerCase();
     const claims = /\b(так,|вже в коморі|записав|записано|є в коморі)\b/.test(reply);
-    const denies = /\bні\b|ще не|не застосов|не натиснув|чекає|треба підтвердити/.test(reply);
+    const denies = /\bні\b|ще не|не застосов|не натиснув|не тапнув|тапнут|чекає|треба підтвердити|не змінилась|не зміню|поки що ні/.test(reply);
     if (claims && !denies) {
       return fail('стверджує, що позиція в коморі, хоча картка [НЕ ЗАСТОСОВАНО]');
     }

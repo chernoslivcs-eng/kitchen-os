@@ -78,7 +78,7 @@ export function serializePantry(bs: PantryBatch[], p?: Profile | null, now = Dat
       const hit = allergens
         .filter((a) => words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w)))
         .map((a) => a.label);
-      if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — САМ НЕ ПРОПОНУЙ`);
+      if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй; просять прямо — дай і назви алергію першою фразою reply`);
       return parts.join(' · ');
     })
     .join('\n');

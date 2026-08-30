@@ -1,18 +1,260 @@
 {
   "promptVersion": "2026-08-28",
-  "createdAt": "2026-08-28T13:32:09.922Z",
+  "createdAt": "2026-08-30T07:03:32.018Z",
   "runs": [
     {
       "id": "receipt-abbreviated",
       "call": "attachment_parse",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "receipt-coverage-80": {
+          "pass": true,
+          "detail": "12/11 рядків (109%)"
+        },
+        "expanded-abbreviations": {
+          "pass": true
+        },
+        "no-prices": {
+          "pass": true
+        },
+        "plastic-bag-included": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 2715,
+        "output": 1043
+      },
+      "reply": "базова паста з м'ясом і помідорами на вечерю",
+      "card": {
+        "type": "intake_diff",
+        "ops": [
+          {
+            "op": "add",
+            "label": "камбоцола 70%",
+            "v": 193,
+            "u": "g",
+            "zone": "fridge",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "молоко пастеризоване 2,5%",
+            "v": 950,
+            "u": "ml",
+            "zone": "fridge",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "молоко пастеризоване 2,5%",
+            "v": 950,
+            "u": "ml",
+            "zone": "fridge",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "помідори чері на грозді",
+            "v": 400,
+            "u": "g",
+            "zone": "fresh",
+            "conf": 0.9,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "фарш яловичий охолоджений",
+            "v": 500,
+            "u": "g",
+            "zone": "fridge",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "паста спагеті №5 Barilla",
+            "v": 500,
+            "u": "g",
+            "zone": "dry",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "хліб житній нарізаний",
+            "v": 400,
+            "u": "g",
+            "zone": "fresh",
+            "conf": 0.9,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "олія оливкова extra virgin Monini",
+            "v": 500,
+            "u": "ml",
+            "zone": "dry",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "цибуля ріпчаста",
+            "v": 250,
+            "u": "g",
+            "zone": "fresh",
+            "conf": 0.85,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "часник молодий",
+            "v": 100,
+            "u": "g",
+            "zone": "fresh",
+            "conf": 0.85,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "базилік зелений пучок",
+            "v": 30,
+            "u": "g",
+            "zone": "fresh",
+            "conf": 0.9,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "пакет т-майка",
+            "v": 1,
+            "u": "шт",
+            "zone": "dry",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          }
+        ]
+      }
     },
     {
       "id": "receipt-nonfood",
       "call": "attachment_parse",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "receipt-coverage-80": {
+          "pass": true,
+          "detail": "10/10 рядків (100%)"
+        },
+        "no-prices": {
+          "pass": true
+        },
+        "includes-nonfood": {
+          "pass": true,
+          "detail": "6 нехарчових позицій"
+        }
+      },
+      "usage": {
+        "input": 2617,
+        "output": 809
+      },
+      "reply": "напої й побутовина, без їстівного",
+      "card": {
+        "type": "intake_diff",
+        "ops": [
+          {
+            "op": "add",
+            "label": "кола зеро",
+            "v": 1500,
+            "u": "ml",
+            "zone": "drinks",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "вода негазована",
+            "v": 1500,
+            "u": "ml",
+            "zone": "drinks",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "чіпси лейс сметана",
+            "v": 150,
+            "u": "g",
+            "zone": "dry",
+            "conf": 0.9,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "папір туалетний",
+            "v": 8,
+            "u": "шт",
+            "zone": "dry",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "гель для душу фа",
+            "v": 250,
+            "u": "ml",
+            "zone": "dry",
+            "conf": 0.9,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "серветки столові",
+            "v": 100,
+            "u": "шт",
+            "zone": "dry",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "губки для посуду",
+            "v": 5,
+            "u": "шт",
+            "zone": "dry",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "порошок пральний персіль",
+            "v": 400,
+            "u": "g",
+            "zone": "dry",
+            "conf": 0.9,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "балон газовий туристичний",
+            "v": 1,
+            "u": "шт",
+            "zone": "dry",
+            "conf": 0.9,
+            "ev": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "пакет",
+            "v": 1,
+            "u": "шт",
+            "zone": "dry",
+            "conf": 0.95,
+            "ev": "receipt_line"
+          }
+        ]
+      }
     },
     {
       "id": "shelf-photo",
@@ -22,27 +264,649 @@
     },
     {
       "id": "recipe-freeform",
-      "call": "recipe_import",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "call": "attachment_parse",
+      "invariants": {
+        "all-placeholders-substituted": {
+          "pass": true
+        },
+        "no-pantry-ids-in-user-text": {
+          "pass": true
+        },
+        "ing-uses-p-or-n-never-both": {
+          "pass": true
+        },
+        "max-9-ings-6-steps": {
+          "pass": true,
+          "detail": "7 інгредієнтів, 5 кроків"
+        }
+      },
+      "usage": {
+        "input": 2517,
+        "output": 904
+      },
+      "reply": "Плескавиця з камбоцолою — сербська котлета з розплавленим сиром всередині",
+      "card": {
+        "type": "recipe",
+        "recipe": {
+          "t": "Плескавиця з камбоцолою",
+          "sv": 2,
+          "tm": 45,
+          "ch": "середньо — змішування, охолодження, формування, смаження",
+          "d": "м'ясо з хрусткою скоринкою, розплавлений сир всередині, гострий айвар",
+          "rk": "не защипнути краї — сир витече; смажити на сухій пательні, щоб скоринка була хрусткою",
+          "nu": {
+            "kcal": 520,
+            "p": 32,
+            "f": 38,
+            "c": 4
+          },
+          "ing": [
+            {
+              "n": "фарш яловичо-свинячий",
+              "v": 400,
+              "u": "g"
+            },
+            {
+              "n": "цибуля",
+              "v": 60,
+              "u": "g",
+              "note": "дрібно нарізана"
+            },
+            {
+              "n": "камбоцола",
+              "v": 80,
+              "u": "g",
+              "note": "шматочками всередину"
+            },
+            {
+              "n": "сіль",
+              "v": 5,
+              "u": "g"
+            },
+            {
+              "n": "чорний перець",
+              "v": 2,
+              "u": "g"
+            },
+            {
+              "n": "айвар",
+              "v": 100,
+              "u": "g",
+              "note": "до подачі"
+            },
+            {
+              "n": "салат",
+              "v": 150,
+              "u": "g",
+              "note": "до подачі"
+            }
+          ],
+          "st": [
+            {
+              "n": 1,
+              "s": "Змішати фарш з дрібно нарізаною цибулею, сіллю й перцем. Дати відпочити 30 хвилин у холодильнику."
+            },
+            {
+              "n": 2,
+              "s": "Розділити фарш на дві рівні частини. Розплющити кожну, покласти в центр шматочок камбоцоли, добре защипнути краї, щоб сир не витік."
+            },
+            {
+              "n": 3,
+              "s": "Сформувати товсті котлети (товщина близько 2 см). Розігріти суху пательню на середньому вогні."
+            },
+            {
+              "n": 4,
+              "s": "Смажити по 4–5 хвилин з кожного боку, доки скоринка не стане золотистою й сир всередині не почне текти. Не переворотити частіше — скоринка має час утворитися."
+            },
+            {
+              "n": 5,
+              "s": "Подавати гарячою з айваром і свіжим салатом."
+            }
+          ]
+        }
+      }
     },
     {
       "id": "topic-continuity",
       "call": "chat",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "topic-holds:плескавиц": {
+          "pass": true,
+          "detail": "title містить «плескавиц»"
+        },
+        "no-shopping-on-give-recipe": {
+          "pass": true
+        },
+        "proposal-single-item-when-topic-set": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7899,
+        "output": 223
+      },
+      "reply": "Плескавиця з камбоцолою — щільна котлета з розтопленим сиром усередині. Добре йде з айваром або свіжими томатами.",
+      "card": {
+        "type": "proposal",
+        "items": [
+          {
+            "title": "Плескавиця з камбоцолою",
+            "desc": "Щільна соковита котлета з розплавленим блакитним сиром усередині. М'ясо хрумке ззовні, сир тягнеться і дає гострий присмак.",
+            "character": "30 хвилин, середні зусилля",
+            "rescues": [
+              "фарш",
+              "камбоцола"
+            ],
+            "needs": []
+          }
+        ]
+      }
     },
     {
       "id": "missing-ingredient",
       "call": "chat",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "is-proposal": {
+          "pass": true
+        },
+        "not-a-refusal": {
+          "pass": true
+        },
+        "needs-mentions:креветк": {
+          "pass": true
+        },
+        "at-least-2-items": {
+          "pass": true,
+          "detail": "3 варіантів"
+        }
+      },
+      "usage": {
+        "input": 7813,
+        "output": 434
+      },
+      "reply": "Креветок у коморі немає. Дам три варіанти — що докупити й як готувати.",
+      "card": {
+        "type": "proposal",
+        "items": [
+          {
+            "title": "Паста з креветками й часником",
+            "desc": "Креветки соковиті, спагеті вбирають часниковий соус, пармезан додає глибини — класична швидка вечеря",
+            "character": "25 хвилин, одна пательня",
+            "needs": [
+              "креветки очищені 300г",
+              "петрушка"
+            ]
+          },
+          {
+            "title": "Креветки з чері й базиліком",
+            "desc": "Креветки пружні, томати дають кислоту й сік, базилік освіжає — легка середземноморська страва",
+            "character": "15 хвилин, мінімум зусиль",
+            "needs": [
+              "креветки очищені 400г",
+              "базилік свіжий",
+              "білий винний оцет"
+            ]
+          },
+          {
+            "title": "Креветки у вершковому соусі",
+            "desc": "Вершки обволікають креветку, часник дає аромат, пармезан згущує соус — ситна й ніжна страва",
+            "character": "20 хвилин, середньо",
+            "needs": [
+              "креветки очищені 350г",
+              "вершки 33% 200мл",
+              "лимон"
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "allergen-conflict",
       "call": "chat",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "not-a-refusal": {
+          "pass": true
+        },
+        "mentions-allergen-out-loud:мідії": {
+          "pass": true
+        },
+        "does-not-hide-ingredient": {
+          "pass": true,
+          "detail": "рецепта зі складом немає"
+        },
+        "does-not-list-mussels-as-normal": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7944,
+        "output": 220
+      },
+      "reply": "УВАГА: мідії — у мами алергія на молюсків. Якщо готуєш собі — є все, крім вершків чи білого вина до соусу.",
+      "card": {
+        "type": "proposal",
+        "items": [
+          {
+            "title": "Спагеті з мідіями",
+            "desc": "Мідії в томатному соусі з часником, спагеті всмоктують сік — класика прибережної кухні",
+            "character": "30 хв, середні зусилля",
+            "rescues": [
+              "помідори пелаті"
+            ],
+            "needs": [
+              "біле сухе вино",
+              "петрушка",
+              "оливкова олія"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "qa5-allergen-proactive",
+      "call": "chat",
+      "invariants": {
+        "has-card": {
+          "pass": true,
+          "detail": "card.type=proposal"
+        },
+        "no-almond-in-proposal": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7910,
+        "output": 258
+      },
+      "reply": "Є булочки з корицею й чорний шоколад. Булочки можна підігріти — тепла кориця до чаю краще.",
+      "card": {
+        "type": "proposal",
+        "items": [
+          {
+            "title": "Булочки з корицею",
+            "desc": "Тепла кориця, м'яке тісто, легка солодкість — ідеально до чаю",
+            "character": "2 хв — розігріти",
+            "rescues": [],
+            "needs": []
+          },
+          {
+            "title": "Чорний шоколад 70%",
+            "desc": "Гіркуватий, щільний, тане повільно — контраст до солодкого чаю",
+            "character": "готово зараз",
+            "rescues": [],
+            "needs": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "qa5-allergen-on-request",
+      "call": "chat",
+      "invariants": {
+        "not-a-refusal": {
+          "pass": true
+        },
+        "mentions-allergen-out-loud:арахіс": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7813,
+        "output": 285
+      },
+      "reply": "УВАГА: тут арахіс, у тебе на нього позначка. Даю рецепт — але готуєш для гостей, перевір, чи їм можна.",
+      "card": {
+        "type": "proposal",
+        "items": [
+          {
+            "title": "Локшина з арахісовим соусом",
+            "desc": "Локшина в густому солоному соусі з арахісовою пастою, часником і імбиром, трохи гостра, з хрумкими овочами зверху",
+            "character": "20 хвилин, середні зусилля",
+            "rescues": [
+              "локшина рисова",
+              "курка філе"
+            ],
+            "needs": [
+              "арахісова паста",
+              "соєвий соус",
+              "рисовий оцет",
+              "кунжутна олія",
+              "часник",
+              "імбир",
+              "огірок",
+              "зелена цибуля",
+              "кунжут"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "qa5-unapplied-card-truth",
+      "call": "chat",
+      "invariants": {
+        "denies-unapplied-card": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7778,
+        "output": 62
+      },
+      "reply": "Ні, ще не записано. Натисни «Застосувати» під карткою вище — тоді потраплять у комору.",
+      "card": null
+    },
+    {
+      "id": "qa6-nonfood-purchase",
+      "call": "chat",
+      "invariants": {
+        "has-card": {
+          "pass": true,
+          "detail": "card.type=intake_diff"
+        },
+        "is-intake-not-shopping": {
+          "pass": true
+        },
+        "reply-matches-card": {
+          "pass": true
+        },
+        "future-tense-with-card": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7716,
+        "output": 289
+      },
+      "reply": "Запишу побутові речі в комору. Скільки пачок паперу й серветок, і який обʼєм мийного?",
+      "card": {
+        "type": "intake_diff",
+        "ops": [
+          {
+            "op": "add",
+            "label": "туалетний папір",
+            "value": 1,
+            "unit": "pack",
+            "zone": "dry",
+            "confidence": 0.6,
+            "evidence": "inference"
+          },
+          {
+            "op": "add",
+            "label": "мийний засіб",
+            "value": 1,
+            "unit": "pack",
+            "zone": "dry",
+            "confidence": 0.6,
+            "evidence": "inference"
+          },
+          {
+            "op": "add",
+            "label": "серветки",
+            "value": 1,
+            "unit": "pack",
+            "zone": "dry",
+            "confidence": 0.6,
+            "evidence": "inference"
+          }
+        ]
+      }
+    },
+    {
+      "id": "qa6-onboarding-asks",
+      "call": "chat",
+      "invariants": {
+        "asks-about-restrictions": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 8390,
+        "output": 63
+      },
+      "reply": "Перед тим як готувати — є щось, чого ти не їси? Алергії, дієта, просто нелюбе?",
+      "card": null
+    },
+    {
+      "id": "calendar-lent",
+      "call": "chat",
+      "invariants": {
+        "has-card": {
+          "pass": true,
+          "detail": "card.type=proposal"
+        },
+        "lent-no-meat-or-dairy": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7931,
+        "output": 477
+      },
+      "reply": "Пропоную три страви — усі постні, різні за зусиллям:",
+      "card": {
+        "type": "proposal",
+        "items": [
+          {
+            "title": "Нутовий суп із грибами",
+            "desc": "Густий, насичений, з грибним присмаком і розварним нутом — їси ложкою, майже як рагу",
+            "character": "45 хв, середнє зусилля",
+            "rescues": [
+              "гриби печериці"
+            ],
+            "needs": [
+              "морква",
+              "помідори в банці або томатна паста",
+              "часник"
+            ]
+          },
+          {
+            "title": "Рис із грибами й цибулею",
+            "desc": "Проста основа — рис розсипчастий, гриби смажені до золотистого, цибуля солодкувата",
+            "why": "рис відкритий — краще сьогодні-завтра",
+            "character": "30 хв, легке зусилля",
+            "rescues": [
+              "гриби печериці",
+              "рис"
+            ],
+            "needs": []
+          },
+          {
+            "title": "Нутові котлети з грибним соусом",
+            "desc": "Котлети щільні, трохи хрусткі зверху, гриби в соусі — насичений смак умамі",
+            "character": "1 год, складніше — замочити нут із вечора, розібрати в блендері",
+            "rescues": [
+              "гриби печериці"
+            ],
+            "needs": [
+              "часник",
+              "панірувальні сухарі або манка",
+              "олія для смаження"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "calendar-no-tradition",
+      "call": "chat",
+      "invariants": {
+        "no-invented-feast-date": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7402,
+        "output": 74
+      },
+      "reply": "Не бачу розкладу свят у своїх блоках. За яким календарем дивитись — православним чи католицьким? Вони розходяться до тижня.",
+      "card": null
+    },
+    {
+      "id": "calendar-season",
+      "call": "chat",
+      "invariants": {
+        "has-card": {
+          "pass": true,
+          "detail": "card.type=proposal"
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        },
+        "no-calendar-opening": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7866,
+        "output": 296
+      },
+      "reply": "Різото з білими грибами — зараз їхній сезон, пік смаку. Готується 30 хвилин, треба стояти біля плити й помішувати.",
+      "card": {
+        "type": "proposal",
+        "items": [
+          {
+            "title": "Різото з білими грибами",
+            "desc": "Кремова текстура, гриби м'які всередині з легкою скоринкою, пармезан тягнеться. Рис тримає форму, але тане в роті.",
+            "why": "білі гриби зараз найсмачніші за рік, треба з'їсти сьогодні-завтра",
+            "character": "30 хвилин, треба стояти біля плити",
+            "rescues": [
+              "білі гриби",
+              "пармезан відкритий"
+            ],
+            "needs": [
+              "цибуля",
+              "часник",
+              "біле сухе вино",
+              "бульйон або вода"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "notes-remembered",
+      "call": "chat",
+      "invariants": {
+        "uses-oven-note": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7901,
+        "output": 81
+      },
+      "reply": "На 180°C, але твоя духовка гріє на двадцять сильніше — крути на 160. Стегна й картопля готуватимуться разом близько 40 хвилин.",
+      "card": null
+    },
+    {
+      "id": "notes-no-duplicate",
+      "call": "chat",
+      "invariants": {
+        "no-duplicate-note-card": {
+          "pass": true,
+          "detail": "картки немає — правильно"
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7854,
+        "output": 54
+      },
+      "reply": "Уже записано — бачу це в твоїх висновках. Готуємо фует зараз?",
+      "card": null
+    },
+    {
+      "id": "member-card",
+      "call": "chat",
+      "invariants": {
+        "member-op-with-restrictions": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7830,
+        "output": 229
+      },
+      "reply": "Запишу Оксану. Веганство — без м'яса, риби, яєць і молочного. Арахіс поставлю окремо від інших горіхів — він ботанічно бобова культура, часто реагує інакше.",
+      "card": {
+        "type": "profile",
+        "ops": [
+          {
+            "op": "add",
+            "kind": "member",
+            "label": "Оксана",
+            "diet": "веганство",
+            "antipatterns": [
+              "не їсть м'яса",
+              "не їсть риби",
+              "не їсть яєць",
+              "не їсть молочного"
+            ],
+            "allergies": [
+              "арахіс",
+              "арахісова паста",
+              "арахісове масло"
+            ]
+          }
+        ]
+      }
     }
   ]
 }
