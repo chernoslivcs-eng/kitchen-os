@@ -18,7 +18,7 @@ const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
   fresh: 'Свіже',
   fridge: 'Холодильник',
   freezer: 'Морозилка',
-  dry: 'Комора',
+  dry: 'Суха шафа',
   spices: 'Спеції',
   drinks: 'Напої',
 };
@@ -80,7 +80,13 @@ export function PantryPage() {
           >
             + Додати
           </button>
-          <div className={styles.meta}>{batches.length} {plural(batches.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}</div>
+          {/* QA6-12: під час пошуку лічильник показував загальну кількість —
+              «9 ПОЗИЦІЙ» при одній видимій. */}
+          <div className={styles.meta}>
+            {q
+              ? `${filtered.length} З ${batches.length}`
+              : `${batches.length} ${plural(batches.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`}
+          </div>
         </div>
       </div>
 
@@ -106,7 +112,7 @@ export function PantryPage() {
         {!loading && batches.length === 0 && (
           <div className={styles.empty}>
             <h3>Комора порожня</h3>
-            <p>Розкажи асистенту, що купив — воно з'явиться тут. Наприклад: «купив моцарелу 250 г».</p>
+            <p>Розкажи кухарю, що купив — покупка з'явиться тут. Наприклад: «купив моцарелу 250 г».</p>
           </div>
         )}
         {!loading && batches.length > 0 && filtered.length === 0 && (
@@ -175,7 +181,7 @@ const ZONE_OPTIONS: { value: PantryBatch['zone']; label: string }[] = [
   { value: 'fresh', label: 'Свіже' },
   { value: 'fridge', label: 'Холодильник' },
   { value: 'freezer', label: 'Морозилка' },
-  { value: 'dry', label: 'Комора' },
+  { value: 'dry', label: 'Суха шафа' },
   { value: 'spices', label: 'Спеції' },
   { value: 'drinks', label: 'Напої' },
 ];
@@ -230,7 +236,7 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
   }
 
   async function remove() {
-    if (!confirm('Прибрати з комори? Це те саме, що «зʼїли» — до історії лишиться.')) return;
+    if (!confirm('Прибрати з комори? Це те саме, що «зʼїли» — в історії лишиться.')) return;
     setSaving(true);
     try {
       await api.batches.remove(batch.id);
@@ -241,9 +247,9 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
   }
 
   return (
-    <Sheet onClose={onClose} ariaLabel="Редагувати партію">
+    <Sheet onClose={onClose} ariaLabel="Редагувати позицію">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MonoLabel>ПАРТІЯ</MonoLabel>
+          <MonoLabel>ПОЗИЦІЯ</MonoLabel>
           <button
             onClick={onClose}
             style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
@@ -341,9 +347,9 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
   }
 
   return (
-    <Sheet onClose={onClose} ariaLabel="Додати партію в комору">
+    <Sheet onClose={onClose} ariaLabel="Додати позицію в комору">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MonoLabel>ДОДАТИ ПАРТІЮ</MonoLabel>
+          <MonoLabel>ДОДАТИ ПОЗИЦІЮ</MonoLabel>
           <button
             onClick={onClose}
             style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
@@ -356,7 +362,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="Наприклад, моцарела"
+            placeholder="Наприклад, пармезан"
             error={error}
             autoFocus
           />

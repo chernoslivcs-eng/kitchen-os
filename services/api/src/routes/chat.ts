@@ -114,6 +114,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     const pantry = await repo.listBatches(household_id);
     const profile = await repo.getProfile(user_id);
+    // QA6-04: список у контекст — інакше в новій сесії модель каже «порожній»
+    // при двох позиціях і додає дубль.
+    const shopping = await repo.listShoppingItems(household_id);
     // Онбординг: stage 1, поки в коморі порожньо; stage 2, коли комора наповнена,
     // а профіль ще не має відповіді на «алергії/дім/традиції» (як проксі — порожні три блоки).
     let stage: 1 | 2 | undefined;
@@ -177,7 +180,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     const call = await callChat({
       user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-      history, profile,
+      history, profile, shopping,
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
 

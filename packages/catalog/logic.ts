@@ -98,6 +98,15 @@ export function resolveLabelToKey(label: string, catalog = CATALOG): string | nu
   return best && best.score >= 40 ? best.key : null;
 }
 
+// Зона зберігання за назвою продукту. Використовується там, де зону не вказали
+// явно — unpack списку покупок, intake_diff без zone. Без цього все падало в
+// `dry`, і молоко переїжджало в комору замість холодильника (QA6-06).
+export function resolveLabelToZone(label: string, catalog = CATALOG): CatalogItem['zone_default'] | null {
+  const key = resolveLabelToKey(label, catalog);
+  if (!key) return null;
+  return catalog.find((c) => c.key === key)?.zone_default ?? null;
+}
+
 // ---------- пошук ----------
 
 export interface SearchHit {

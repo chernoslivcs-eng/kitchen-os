@@ -8,6 +8,7 @@
 // створити акаунт, взяти SMTP-креденшли, покласти в env — код не змінюється.
 
 import { createTransport, type Transporter } from 'nodemailer';
+import { fileURLToPath } from 'node:url';
 
 export interface MagicLinkMail {
   to: string;
@@ -47,8 +48,10 @@ export class ConsoleMailer implements Mailer {
   }
 }
 
-// Шлях можна перевизначити через env, якщо /tmp недоступний.
-export const MAGIC_LINK_LOG = process.env.MAGIC_LINK_LOG ?? '/tmp/kos-magic-links.log';
+// Файл лежить у корені репо, а не в /tmp: QA-сесії живуть в окремих VM зі своїм
+// /tmp, і QA-6 довелось діставати лог через симлінк у public/. У .gitignore.
+export const MAGIC_LINK_LOG = process.env.MAGIC_LINK_LOG
+  ?? fileURLToPath(new URL('../../../.qa-magic-links.log', import.meta.url));
 
 export interface SmtpConfig {
   host: string;

@@ -7,6 +7,7 @@
 // нічого в базу другого разу не запишеться. Це критично: сітка мобільна, повтори бувають.
 
 import { randomUUID } from 'node:crypto';
+import { resolveLabelToZone } from '@kitchen/catalog';
 import type { Repo } from './repo.js';
 import type {
   Card,
@@ -199,7 +200,8 @@ async function applyIntakeOp(
       household_id,
       catalog_key: op.catalog_key ?? null,
       label: op.label,
-      zone: (op.zone ?? 'dry') as Zone,
+      // QA6-06: коли модель не вказала зону — питаємо каталог, а не кладемо в `dry`.
+      zone: (op.zone ?? resolveLabelToZone(op.label) ?? 'dry') as Zone,
       value: norm.value,
       unit: norm.unit,
       state: 'sealed',

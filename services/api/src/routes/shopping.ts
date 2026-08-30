@@ -7,6 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit } from '@kitchen/domain';
+import { resolveLabelToKey, resolveLabelToZone } from '@kitchen/catalog';
 import { authenticated, requireUser } from '../middleware/session.js';
 
 export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
@@ -50,11 +51,16 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
     for (const it of checked) {
       // Одиниці й зона в shopping_item — вільний string. Приводимо до enum, або null.
       const unit = (it.unit && (UNITS as string[]).includes(it.unit)) ? (it.unit as Unit) : null;
-      const zone = (it.zone && (ZONES as string[]).includes(it.zone)) ? (it.zone as Zone) : 'dry';
+      // QA6-06: коли зони немає, питаємо каталог, а не кладемо все в `dry`.
+      // Молоко переїжджало в комору замість холодильника.
+      const catalogKey = resolveLabelToKey(it.label);
+      const zone = (it.zone && (ZONES as string[]).includes(it.zone))
+        ? (it.zone as Zone)
+        : (resolveLabelToZone(it.label) ?? 'dry');
       const batch: PantryBatch = {
         id: randomUUID(),
         household_id,
-        catalog_key: null,
+        catalog_key: catalogKey,
         label: it.label,
         zone,
         value: it.value,

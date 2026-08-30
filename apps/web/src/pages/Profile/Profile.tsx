@@ -140,6 +140,27 @@ export function ProfilePage() {
           </div>
         </div>
 
+        {/* QA6-09: техніка зберігалась і ніде не показувалась — людина не могла ні
+            перевірити, ні прибрати запис «немає духовки». */}
+        {Object.keys(profile?.equipment ?? {}).length > 0 && (
+          <div className={styles.section}>
+            <div className={styles['section-label']}>Техніка</div>
+            <div className={styles.hint}>
+              Базове — пательня, каструля, ніж — вважається наявним. Тут тільки те, про що ти сказав окремо.
+            </div>
+            <div className={styles.chips}>
+              {Object.entries(profile!.equipment).map(([name, state], i) => (
+                <span
+                  key={i}
+                  className={`${styles.chip} ${state === 'lacks' ? styles['chip-anti'] : ''}`}
+                >
+                  {state === 'lacks' ? '✕' : '●'} {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {me && me.household.members.length > 0 && (
           <div className={styles.section}>
             <div className={styles['section-label']}>Дім · {me.household.name}</div>

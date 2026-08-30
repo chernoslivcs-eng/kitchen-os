@@ -3,7 +3,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose } from '@kitchen/prompts';
-import type { Card, PantryBatch, Profile } from '@kitchen/domain';
+import type { Card, PantryBatch, Profile, ShoppingItemRow } from '@kitchen/domain';
 
 // Один провайдер моделі — або прямий Anthropic, або OpenRouter (той самий формат
 // повідомлень, лише інший baseURL і префіксовані model-id). Обирає autonomly:
@@ -87,6 +87,7 @@ export interface ChatArgs {
   recentCookRuns?: RecentCookRunSummary[];
   history?: { role: 'user' | 'assistant'; content: string }[];
   profile?: Profile | null;
+  shopping?: ShoppingItemRow[];
 }
 
 export interface ChatCall {
@@ -115,6 +116,20 @@ function todayLabel(): string {
   return new Date().toLocaleDateString('uk-UA', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
+}
+
+// Список покупок у контекст. QA6-04: без нього модель у новій сесії казала «список
+// порожній» при двох позиціях у ньому — і додавала дубль за один тап. У межах сесії
+// рятувала історія, між сесіями — нічого.
+function serializeShopping(items: ShoppingItemRow[]): string {
+  if (!items.length) return '';
+  const lines = items.map((i) => {
+    const parts = [i.label];
+    if (i.value != null && i.unit) parts.push(`${i.value}${i.unit}`);
+    if (i.checked) parts.push('куплено');
+    return parts.join(' · ');
+  });
+  return '\n\n[СПИСОК ПОКУПОК]\n' + lines.join('\n');
 }
 
 // Профіль у контекст. QA4-02: до цього алергії зберігались, показувались у UI — і не
@@ -208,6 +223,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     + serializeProfile(args.profile)
     + '\n\n[СЬОГОДНІ] ' + todayLabel()
     + '\n\n[КОМОРА]\n' + serializePantry(args.pantry, args.profile)
+    + serializeShopping(args.shopping ?? [])
     + cookLog;
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
