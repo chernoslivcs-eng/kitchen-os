@@ -109,6 +109,8 @@ export function loadFixtures(): Fixture[] {
     readJson('qa6-nonfood-purchase.json'),
     readJson('tagger-chat-brand.json'),
     readJson('intent-capture.json'),
+    readJson('exotic-ingredient-request.json'),
+    readJson('shopping-open-question.json'),
     readJson('qa6-onboarding-asks.json'),
     readJson('calendar-lent.json'),
     readJson('calendar-no-tradition.json'),

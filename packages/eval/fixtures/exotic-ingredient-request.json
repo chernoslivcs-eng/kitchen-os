@@ -1,0 +1,21 @@
+{
+  "id": "exotic-ingredient-request",
+  "description": "Пул-2 №8, живий діалог 2026-08-31: «Хочу стейк зі страуса... хочеться екзотики» при портерхаусі в коморі. Модель відповідала «Страусятини немає — дам три варіанти з портерхаусом?» — підміна бажання + зустрічна вилка замість картки. Очікування: картка про СТРАУСА одразу (браковане в needs), заміна з комори — одним реченням після, без оцінок досяжності («рідко буває»).",
+  "call": "chat",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    { "label": "яловичина портерхаус", "zone": "fridge", "value": 502, "unit": "g", "state": "sealed" },
+    { "label": "олія оливкова", "zone": "dry", "value": 700, "unit": "ml", "state": "opened" },
+    { "label": "сіль", "zone": "spices", "value": 500, "unit": "g", "state": "sealed" },
+    { "label": "перець чорний", "zone": "spices", "value": 50, "unit": "g", "state": "sealed" }
+  ],
+  "conversation": [
+    { "role": "user", "content": "Хочу стейк зі страуса, але не знаю, як готувати буду і з чим подам. Хочеться екзотики." }
+  ],
+  "invariants": [
+    "has-card",
+    "ostrich-dish-offered",
+    "no-availability-excuse",
+    "no-markdown"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "shopping-open-question",
+  "description": "Пул-2 №9, живий діалог: «Шо купить в магазині?» у порожній сесії → модель дала одну позицію («докупи пармезан») і зупинилась. Очікування: тверда частина + площина для експерименту — покупки-мости від залежаного (дод.Nдн) і намірів: маш лежить 20 днів, рисовий папір 15, у намірах роли з креветками.",
+  "call": "chat",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "now": "2026-08-31T12:00:00.000Z",
+  "pantry": [
+    { "label": "маш (боби мунг)", "zone": "dry", "value": 500, "unit": "g", "state": "sealed", "added_at": "2026-08-11T10:00:00.000Z" },
+    { "label": "рисовий папір", "zone": "dry", "value": 1, "unit": "pack", "state": "sealed", "added_at": "2026-08-16T10:00:00.000Z" },
+    { "label": "спагеті", "zone": "dry", "value": 450, "unit": "g", "state": "opened", "added_at": "2026-08-29T10:00:00.000Z" },
+    { "label": "олія оливкова", "zone": "dry", "value": 650, "unit": "ml", "state": "opened", "added_at": "2026-08-20T10:00:00.000Z" }
+  ],
+  "notes": [
+    { "id": "n1", "user_id": "u1", "text": "рисовий папір — вʼєтнамські роли з креветками й авокадо", "recipe_title": null, "rating": null, "pinned": false, "created_at": "2026-08-16T10:00:00.000Z", "kind": "intent" }
+  ],
+  "conversation": [
+    { "role": "user", "content": "Шо купить в магазині?" }
+  ],
+  "invariants": [
+    "bridge-from-idle",
+    "no-markdown"
+  ]
+}

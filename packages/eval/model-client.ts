@@ -31,7 +31,8 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     opened_at: b.opened_at ?? null,
     expires_at: b.expires_at ?? null,
     best_before_opened_days: null,
-    added_at: new Date().toISOString(),
+    // Пул-2 №9: фікстури залежаного задають added_at — «дод.Nдн» у серіалізації.
+    added_at: b.added_at ?? new Date().toISOString(),
     depleted_at: null,
     confidence: 1,
     provenance: 'user_statement',

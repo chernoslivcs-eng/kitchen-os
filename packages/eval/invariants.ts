@@ -44,6 +44,37 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Пул-2 №8: юзер назвав страву з відсутнім інгредієнтом — картка мусить
+  // бути ПРО НЕЇ (страус у title або needs), а не про заміну з комори.
+  'ostrich-dish-offered': (out) => {
+    const c = out.card;
+    if (!c) return fail('картки немає — зустрічна вилка замість пропозиції?');
+    const hay = JSON.stringify(c).toLowerCase();
+    if (!/страус/.test(hay)) return fail('у картці немає страуса — бажання підмінене наявним');
+    if (c.type === 'proposal') {
+      const items = (c.items ?? []) as { title?: string; needs?: string[] }[];
+      const withOstrich = items.filter((i) =>
+        /страус/i.test(i.title ?? '') || (i.needs ?? []).some((n) => /страус/i.test(n)));
+      if (!withOstrich.length) return fail('страус згаданий, але не в title/needs жодної страви');
+    }
+    return pass();
+  },
+
+  // «Рідко буває в магазинах» — модель не оцінює досяжність продуктів.
+  'no-availability-excuse': (out) => {
+    const r = out.reply ?? '';
+    const hit = /рідко (буває|зустрічається|трапляється)|важко (знайти|дістати)|не буває в магазин|складно (знайти|дістати)/i.exec(r);
+    return hit ? fail(`відмовка про досяжність: «${hit[0]}»`) : pass();
+  },
+
+  // Пул-2 №9: відкрите «що купити?» відштовхується від залежаного/намірів —
+  // міст (маш / рисовий папір / роли) мусить прозвучати, одна позиція — замало.
+  'bridge-from-idle': (out) => {
+    const hay = ((out.reply ?? '') + JSON.stringify(out.card ?? {})).toLowerCase();
+    if (!/маш|рисов|рол/.test(hay)) return fail('ні маш, ні рисовий папір, ні роли не згадані — залежане й наміри проігноровані');
+    return pass();
+  },
+
   // Пул-2 №6: «тримай в голові» → profile-картка з op kind:"intent".
   'intent-op': (out) => {
     const c = out.card;
