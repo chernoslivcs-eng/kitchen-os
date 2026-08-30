@@ -26,13 +26,14 @@ export function TabBar({ shoppingCount }: Props) {
     return () => document.body.classList.remove('with-sidebar');
   }, []);
 
+  // Бриф-2 п.2: чотири таби — канон. Профіль живе аватаром у шапці екранів,
+  // журнал сесій — сегментом «Історія» в Стрічці, журнал готувань — лінком
+  // із Рецептів. Порядок і глифи — з хендофа (❋ Рецепти третій).
   const tabs: TabDef[] = [
     { path: '/app', glyph: '◉', label: 'Стрічка' },
     { path: '/pantry', glyph: '▤', label: 'Комора' },
-    { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount },
     { path: '/recipes', glyph: '❋', label: 'Рецепти' },
-    { path: '/cooklog', glyph: '✎', label: 'Журнал' },
-    { path: '/profile', glyph: '⚙', label: 'Профіль' },
+    { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount },
   ];
 
   return (

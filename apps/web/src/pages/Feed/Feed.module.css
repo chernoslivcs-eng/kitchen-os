@@ -369,3 +369,56 @@
 }
 .thinking span:nth-child(2) { animation-delay: 150ms; }
 .thinking span:nth-child(3) { animation-delay: 300ms; }
+
+/* Бриф-2: сегменти «Сьогодні | Історія». Активна пігулка інверсна
+   (фон = fg, текст = bg) — як сегменти зон у UI-кіті. */
+.seg,
+.seg-active {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.seg {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--fg-muted);
+}
+.seg-active {
+  background: var(--btn-primary-bg);
+  border: 1px solid var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+}
+
+/* Мікрофон — канон Бриф-2 5б: під час запису кнопка стає цегляним квадратом
+   38px зі стоп-іконкою і пульсом 1.2s; цегляний тут НЕ помилка, а «REC». */
+.mic-live {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--danger);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+  animation: micpulse var(--dur-breathe, 1.2s) ease-out infinite;
+}
+.mic-stop {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bg-body);
+  display: block;
+}
+@keyframes micpulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 40%, transparent); }
+  60% { box-shadow: 0 0 0 9px transparent; }
+}
+.input-recording {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent);
+}

@@ -13,6 +13,8 @@ import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor, appliedToast } from './cards';
+import { useAuth } from '../../store/auth';
+import { Avatar } from '../../components/Avatar/Avatar';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import styles from './Feed.module.css';
 
@@ -78,6 +80,7 @@ let nextId = 1;
 const newId = () => `t${nextId++}`;
 
 export function Feed() {
+  const meName = useAuth((st) => st.me?.user?.name ?? null);
   const navigate = useNavigate();
 
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -375,24 +378,7 @@ export function Feed() {
           </div>
         </div>
         <div className={styles['head-actions']}>
-          <button
-            onClick={openHistory}
-            title="Історія чатів"
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-strong)',
-              borderRadius: 'var(--r-pill)',
-              padding: '5px 10px',
-              color: 'var(--fg-muted)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-            }}
-          >
-            ⌚ Історія
-          </button>
+
           {turns.length > 0 && (
             <button
               onClick={startFreshSession}
@@ -418,7 +404,20 @@ export function Feed() {
               КОМОРА {pantryCount}{shoppingCount > 0 ? ` · СПИСОК ${shoppingCount}` : ''}
             </MonoLabel>
           )}
+          <Avatar name={meName} />
         </div>
+      </div>
+
+      {/* Бриф-2 п.2: журнал сесій живе сегментом «Історія» всередині Стрічки. */}
+      <div style={{ display: 'flex', gap: 4, padding: '0 16px 8px' }}>
+        <button
+          onClick={() => setHistoryOpen(false)}
+          className={!historyOpen ? styles['seg-active'] : styles.seg}
+        >Сьогодні</button>
+        <button
+          onClick={openHistory}
+          className={historyOpen ? styles['seg-active'] : styles.seg}
+        >Історія</button>
       </div>
 
       {historyOpen && (
@@ -630,19 +629,28 @@ export function Feed() {
           {speechSupported() && (
             <button
               type="button"
-              className={styles['attach-btn']}
+              className={listening ? styles['mic-live'] : styles['attach-btn']}
               onClick={toggleVoice}
               disabled={sending}
               aria-label={listening ? 'Зупинити диктування' : 'Продиктувати'}
               aria-pressed={listening}
-              style={listening ? { color: 'var(--danger)', animation: 'pulse 1.2s ease-in-out infinite' } : undefined}
             >
-              {listening ? '●' : '🎙'}
+              {listening ? (
+                /* Стоп-квадрат: цегляний ≠ помилка, це «живий запис» (як REC). */
+                <span className={styles['mic-stop']} />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <rect x="9" y="3" width="6" height="11" rx="3" />
+                  <path d="M5 11a7 7 0 0 0 14 0" />
+                  <line x1="12" y1="18" x2="12" y2="21" />
+                </svg>
+              )}
             </button>
           )}
           <input
             ref={composerInputRef}
             type="text"
+            className={listening ? styles['input-recording'] : undefined}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={pending.length > 0 ? 'Що з цим?' : 'Що купив або що готуємо?'}

@@ -9,8 +9,11 @@ import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import styles from './Shopping.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
+import { Avatar } from '../../components/Avatar/Avatar';
+import { useAuth } from '../../store/auth';
 
 export function ShoppingPage() {
+  const meName = useAuth((st) => st.me?.user?.name ?? null);
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,6 +62,7 @@ export function ShoppingPage() {
       <div className={styles.head}>
         <div className={styles.title}>Список</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar name={meName} />
           {checkedCount > 0 && (
             <button
               onClick={unpackChecked}

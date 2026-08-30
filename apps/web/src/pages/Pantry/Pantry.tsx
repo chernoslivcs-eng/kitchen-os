@@ -14,6 +14,8 @@ import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import styles from './Pantry.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
+import { Avatar } from '../../components/Avatar/Avatar';
+import { useAuth } from '../../store/auth';
 
 const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
 const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
@@ -31,6 +33,7 @@ function daysLeft(iso: string | null): number | null {
 }
 
 export function PantryPage() {
+  const meName = useAuth((st) => st.me?.user?.name ?? null);
   const navigate = useNavigate();
   const [batches, setBatches] = useState<PantryBatch[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
@@ -66,6 +69,7 @@ export function PantryPage() {
       <div className={styles.head}>
         <div className={styles.title}>Комора</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar name={meName} />
           <button
             onClick={() => setAdding(true)}
             style={{

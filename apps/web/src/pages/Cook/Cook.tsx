@@ -97,8 +97,9 @@ export function CookPage() {
   // #7 (план 2026-08-30): списання «на око», але те, що зникне з комори
   // ПОВНІСТЮ, людина підтверджує — кейс «відкрив банку, не тримався рецепта,
   // щось лишив». Прогноз рахує бекенд тим самим кодом, що списує.
-  const [vanish, setVanish] = useState<{ id: string; label: string }[] | null>(null);
-  const [keepIds, setKeepIds] = useState<Set<string>>(new Set());
+  const [vanish, setVanish] = useState<{ id: string; label: string; value: number | null; unit: string | null }[] | null>(null);
+  // id → «лишилось ≈» (null = кількість невідома). Бриф-2 п.4.
+  const [keepMap, setKeepMap] = useState<Map<string, number | null>>(new Map());
   const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
@@ -113,7 +114,7 @@ export function CookPage() {
 
   useEffect(() => {
     if (!done || !confirmed) return;
-    api.cookRuns.save(recipe, { keep: [...keepIds] })
+    api.cookRuns.save(recipe, { keep: [...keepMap].map(([id, v]) => (v != null ? { id, v } : id)) })
       .then((r) => {
         setDepleted(r.depleted); setPartial(r.partial); setOpened(r.opened);
         setRunId(r.id); setRecipeId(r.recipe_id);
@@ -191,66 +192,130 @@ export function CookPage() {
           <>
             <div className={styles['step-title']}>Готово. Смачного.</div>
 
-            {/* Модалка з UI-кіта («Списати молоко повністю? Партія зникне з
-                комори»): підтвердження повного списання. Знята галочка =
-                «щось лишилось» → партія стає відкритою з невідомою кількістю. */}
+            {/* Бриф-2 п.4 — канон: «Що списуємо повністю?», чекбокси-квадрати,
+                знята галочка розкриває опційне поле «лишилось ≈», кнопка
+                «Списати N» (данжер) + «Скасувати». Стек модалок — заборонено. */}
             {vanish && !confirmed && (
               <div
                 role="dialog"
                 aria-modal="true"
-                aria-label="Підтвердження списання"
+                aria-label="Що списуємо повністю"
                 style={{
                   position: 'fixed', inset: 0, zIndex: 60,
-                  background: 'rgba(0,0,0,0.55)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+                  background: 'rgba(0,0,0,0.35)',
+                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
                 }}
               >
                 <div style={{
                   background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
-                  borderRadius: 'var(--r-lg, 14px)', padding: 20, maxWidth: 420, width: '100%',
-                  boxShadow: 'var(--shadow-panel)',
+                  borderRadius: 20, padding: 22, margin: 16, maxWidth: 440, width: '100%',
+                  boxShadow: 'var(--shadow-panel)', display: 'flex', flexDirection: 'column', gap: 14,
                 }}>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 600, color: 'var(--fg-strong)' }}>
-                    {vanish.length === 1 ? `Списати ${vanish[0]!.label.toLowerCase()} повністю?` : 'Списати повністю?'}
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)' }}>
+                      Що списуємо повністю?
+                    </div>
+                    <div style={{ marginTop: 4, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                      Знята галочка = щось лишилось — партія стане відкритою.
+                    </div>
                   </div>
-                  <div style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-                    {vanish.length === 1 ? 'Партія зникне з комори.' : 'Ці партії зникнуть з комори.'} Якщо щось лишилось — зніми позначку, партія стане відкритою.
-                  </div>
-                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {vanish.map((v) => {
-                      const kept = keepIds.has(v.id);
+                      const kept = keepMap.has(v.id);
                       return (
-                        <label
-                          key={v.id}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '9px 0', borderBottom: '1px solid var(--border)',
-                            fontFamily: 'var(--font-body)', fontSize: 14,
-                            color: kept ? 'var(--fg-muted)' : 'var(--fg)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={!kept}
-                            onChange={() => {
-                              setKeepIds((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(v.id)) next.delete(v.id); else next.add(v.id);
+                        <div key={v.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <label style={{
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            padding: '11px 0', cursor: 'pointer',
+                            fontFamily: 'var(--font-body)', fontSize: 16,
+                            color: 'var(--fg)',
+                          }}>
+                            <span
+                              role="checkbox"
+                              aria-checked={!kept}
+                              tabIndex={0}
+                              onClick={() => setKeepMap((prev) => {
+                                const next = new Map(prev);
+                                if (next.has(v.id)) next.delete(v.id); else next.set(v.id, null);
                                 return next;
-                              });
-                            }}
-                          />
-                          <span style={{ flex: 1 }}>{v.label}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: kept ? 'var(--amber)' : 'var(--fg-dim)', textTransform: 'uppercase' }}>
-                            {kept ? '◔ лишилось' : 'списати'}
-                          </span>
-                        </label>
+                              })}
+                              onKeyDown={(e) => {
+                                if (e.key === ' ' || e.key === 'Enter') {
+                                  e.preventDefault();
+                                  setKeepMap((prev) => {
+                                    const next = new Map(prev);
+                                    if (next.has(v.id)) next.delete(v.id); else next.set(v.id, null);
+                                    return next;
+                                  });
+                                }
+                              }}
+                              style={{
+                                width: 24, height: 24, borderRadius: 8, flex: 'none',
+                                display: 'grid', placeItems: 'center',
+                                background: kept ? 'transparent' : 'var(--accent)',
+                                border: kept ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
+                                color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 13,
+                                cursor: 'pointer',
+                              }}
+                            >{kept ? '' : '✓'}</span>
+                            <span style={{ flex: 1 }}>{v.label}</span>
+                            {v.value != null && v.unit && (
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)' }}>
+                                {v.value}{v.unit}
+                              </span>
+                            )}
+                          </label>
+                          {kept && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 0 12px 36px' }}>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)' }}>ЛИШИЛОСЬ ≈</span>
+                              <input
+                                type="number"
+                                min={0}
+                                placeholder={v.unit ?? ''}
+                                onChange={(e) => {
+                                  const n = e.target.value === '' ? null : Number(e.target.value);
+                                  setKeepMap((prev) => {
+                                    const next = new Map(prev);
+                                    next.set(v.id, n != null && !isNaN(n) && n > 0 ? n : null);
+                                    return next;
+                                  });
+                                }}
+                                style={{
+                                  height: 36, width: 90, borderRadius: 10,
+                                  border: '1px solid var(--accent-border)',
+                                  boxShadow: '0 0 0 3px var(--focus-ring)',
+                                  background: 'var(--bg-surface-2)', color: 'var(--fg)',
+                                  padding: '0 12px', fontFamily: 'var(--font-body)', fontSize: 15,
+                                }}
+                              />
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)' }}>ОПЦІЙНО</span>
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
-                  <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-                    <Button variant="primary" onClick={() => setConfirmed(true)}>Готово</Button>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={() => setConfirmed(true)}
+                      style={{
+                        flex: 1, height: 50, border: 0, borderRadius: 14,
+                        background: 'var(--danger)', color: 'var(--bg-body)',
+                        fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >
+                      Списати {vanish.length - keepMap.size}
+                    </button>
+                    <button
+                      onClick={() => { setKeepMap(new Map(vanish.map((v) => [v.id, null]))); setConfirmed(true); }}
+                      style={{
+                        height: 50, padding: '0 18px', borderRadius: 14,
+                        border: '1px solid var(--border-strong)', background: 'transparent',
+                        color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >
+                      Нічого не списувати
+                    </button>
                   </div>
                 </div>
               </div>
