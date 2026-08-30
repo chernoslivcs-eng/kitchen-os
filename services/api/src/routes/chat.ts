@@ -11,6 +11,7 @@ import {
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
   FEEDBACK_MARKERS,
 } from '../post-cook.js';
+import { looksLikeModelDebris, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
 
 function today(): string {
   const d = new Date();
@@ -126,6 +127,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         return reply.code(502).send({ error: 'model_unavailable' });
       }
       await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
+
+      // Пул-2 №5: нерозібрана/обірвана відповідь — чесний фолбек, не нутрощі.
+      if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
+        req.log.warn({ user_id, raw: (call.reply ?? '').slice(0, 300) }, 'attachment-reply-debris');
+        call.reply = INTAKE_TOO_BIG_REPLY;
+      }
 
       // #5: фото готової страви. Якщо є недавнє готування без фото — картка
       // cook_photo: тап, і фото в журналі. Старше доби не чіпаємо (це вже не
@@ -328,6 +335,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       return reply.code(502).send({ error: 'model_unavailable' });
     }
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
+
+    // Пул-2 №5: те саме для чату — сирий JSON у стрічку не протікає ніколи.
+    if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
+      req.log.warn({ user_id, raw: (call.reply ?? '').slice(0, 300) }, 'chat-reply-debris');
+      call.reply = INTAKE_TOO_BIG_REPLY;
+    }
 
     // Копі-звіти QA-4…7: час дієслова коливається (1/6 → 10/11 → 9/14 → 7/13),
     // і QA-7 вперше побачив закономірність — правило тримається на картках про

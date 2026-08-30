@@ -3,6 +3,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
+import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
 import {
   buildKitchenContext,
   extractJson,
@@ -236,7 +237,9 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   ];
   const resp = await withRetry(() => client.messages.create({
     model,
-    max_tokens: 2048,
+    // Пул-2 №3: 2048 обрізало картку великого інтейку (інвентар на ~100
+    // позицій з трійками й тегами). Платимо лише за фактично згенероване.
+    max_tokens: 8192,
     // Температура з маніфесту: на 1.0 (дефолт) поведінка фліпала між
     // запусками — фікстури падали через раз на тих самих правилах.
     temperature: prompt.manifest.calls.chat.temperature,
@@ -265,6 +268,11 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       card = o as unknown as Card;
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }
+  }
+  // Пул-2 №5: відповідь уперлась у стелю і картка не зібралась — юзер не
+  // мусить бачити ні уламок, ні бадьоре «Записую все» без картки.
+  if (resp.stop_reason === 'max_tokens' && !card) {
+    reply = INTAKE_TOO_BIG_REPLY;
   }
   return {
     reply,
@@ -493,7 +501,9 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
 
   const resp = await withRetry(() => client.messages.create({
     model,
-    max_tokens: 4096,
+    // Пул-2 №3: інвентар на ~100 позицій з трійками+тегами — це ~10k токенів
+    // відповіді; 8192 обрізало живий кейс. Платимо за фактичне.
+    max_tokens: 16384,
     temperature: 0,
     // System тут повністю статичний — кешується цілком, без динаміки.
     system: cachedSystem(system),

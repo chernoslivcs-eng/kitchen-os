@@ -359,6 +359,23 @@ export function Feed() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Пул-2 №4: простиня з буфера (інвентар, довгий список) не мусить іти
+  // чат-конвеєром — він обрізається стелею відповіді. Вставка >1500 символів
+  // з переносами сама стає TXT-вкладенням і їде парс-конвеєром (haiku, t=0).
+  async function pasteAsAttachment(text: string) {
+    setUploading(true);
+    try {
+      const file = new File([text], 'вставка.txt', { type: 'text/plain' });
+      const rec = await api.attachments.upload(file);
+      setPending((p) => [...p, rec]);
+      setToast({ id: Date.now(), kind: 'ok', text: 'Великий список поїде вкладенням — так він не загубиться' });
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function pickFiles(list: FileList | null) {
     if (!list?.length) return;
     if (pending.length + list.length > 5) {
@@ -855,6 +872,13 @@ export function Feed() {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData('text/plain');
+              if (text.length > 1500 && text.includes('\n') && pending.length < 5) {
+                e.preventDefault();
+                void pasteAsAttachment(text);
               }
             }}
             placeholder={listening ? 'Слухаю…' : pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
