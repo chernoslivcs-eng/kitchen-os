@@ -11,6 +11,7 @@
 
 import { root, meaningfulWords } from '@kitchen/catalog';
 import type { PantryBatch, Profile, ShoppingItemRow } from './types.js';
+import { serializeOccasions } from './occasions.js';
 
 export interface RecentCookRunSummary {
   title: string;
@@ -115,6 +116,9 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     : '';
   return serializeProfile(ctx.profile)
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
+    // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
+    // триває — і завжди порожній, поки традиція не розпізнана з побажань.
+    + serializeOccasions(now, ctx.profile?.wishes ?? [])
     + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime())
     + serializeShopping(ctx.shopping ?? [])
     + cookLog;
