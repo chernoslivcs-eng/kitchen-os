@@ -65,6 +65,15 @@ describe('правка профілю руками', () => {
     expect(r.json().profile.wishes).toEqual(['більше риби']);
   });
 
+  // Пікер техніки шле has явно: ○→● це has:true, ●→✕ це has:false.
+  it('has:false пише «немає», не «є»', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const r = await patch(me.cookie, [{ op: 'add', kind: 'equip', label: 'духовка', has: false }]);
+    expect(r.json().profile.equipment).toEqual({ 'духовка': 'lacks' });
+    const flip = await patch(me.cookie, [{ op: 'add', kind: 'equip', label: 'духовка', has: true }]);
+    expect(flip.json().profile.equipment).toEqual({ 'духовка': 'has' });
+  });
+
   it('прибирає запис про техніку', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     await patch(me.cookie, [{ op: 'add', kind: 'equip', label: 'духовка', has: false }]);

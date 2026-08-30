@@ -10,6 +10,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type ProfileData, type Me, type InviteInfo, type NoteInfo, type EaterInfo } from '../../api';
 import { TagInput } from '../../components/TagInput/TagInput';
+import { EQUIP_EXTRA, DIET_PRESETS, cycleEquip, equipGlyph, type EquipState } from '../../lib/presets';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { TabBar } from '../../components/TabBar/TabBar';
@@ -36,6 +37,16 @@ export function ProfilePage() {
     setProfileError(null);
     try {
       const { profile: next } = await api.profilePatch([{ op, kind, label }]);
+      setProfile(next);
+    } catch (err) {
+      setProfileError((err as Error).message);
+    }
+  }
+
+  async function patchEquip(label: string, has: boolean) {
+    setProfileError(null);
+    try {
+      const { profile: next } = await api.profilePatch([{ op: 'add', kind: 'equip', label, has }]);
       setProfile(next);
     } catch (err) {
       setProfileError((err as Error).message);
@@ -161,6 +172,32 @@ export function ProfilePage() {
             onAdd={(l) => patch('add', 'wish', l)}
             onRemove={(l) => patch('remove', 'wish', l)}
           />
+          {/* DIET_PRESETS із прототипу — там вони лишились заготовкою.
+              Тап — і побажання записане, без набирання «низький FODMAP»
+              пальцем на телефоні. Уже записані пресети зі списку зникають. */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            {DIET_PRESETS
+              .filter((d) => !(profile?.wishes ?? []).some((w) => w.toLowerCase() === d.toLowerCase()))
+              .map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => void patch('add', 'wish', d)}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: 'var(--r-pill)',
+                    border: '1px dashed var(--border-strong)',
+                    background: 'transparent',
+                    color: 'var(--fg-dim)',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + {d}
+                </button>
+              ))}
+          </div>
         </div>
 
         <div className={styles.section}>
@@ -177,38 +214,44 @@ export function ProfilePage() {
           />
         </div>
 
-        {/* QA6-09: техніка зберігалась і ніде не показувалась — людина не могла ні
-            перевірити, ні прибрати запис «немає духовки». */}
-        {Object.keys(profile?.equipment ?? {}).length > 0 && (
-          <div className={styles.section}>
-            <div className={styles['section-label']}>Техніка</div>
-            <div className={styles.hint}>
-              Базове — пательня, каструля, ніж — вважається наявним. Тут тільки те, про що ти сказав окремо.
-            </div>
-            <div className={styles.chips}>
-              {Object.entries(profile!.equipment).map(([name, state]) => (
-                <span
-                  key={name}
-                  className={`${styles.chip} ${state === 'lacks' ? styles['chip-anti'] : ''}`}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, paddingRight: 8 }}
-                >
-                  {state === 'lacks' ? '✕' : '●'} {name}
-                  <button
-                    type="button"
-                    onClick={() => void patch('remove', 'equip', name)}
-                    aria-label={`Прибрати «${name}»`}
-                    title="Прибрати"
-                    style={{
-                      width: 20, height: 20, border: 0, borderRadius: '50%',
-                      background: 'transparent', color: 'currentColor', opacity: 0.45,
-                      fontSize: 15, lineHeight: 1, cursor: 'pointer', padding: 0,
-                    }}
-                  >×</button>
-                </span>
-              ))}
-            </div>
+        {/* Пікер техніки з прототипу (EQUIP_EXTRA): весь список одразу, тап
+            крутить цикл ○ невідомо → ● є → ✕ немає → ○. До цього техніка
+            зʼявлялась тут лише після того, як людина сама згадала її в чаті
+            (QA6-09) — тобто список був порожній рівно тоді, коли він
+            найпотрібніший. */}
+        <div className={styles.section}>
+          <div className={styles['section-label']}>Техніка</div>
+          <div className={styles.hint}>
+            Базове — пательня, каструля, ніж — вважається наявним. ● є · ✕ немає · ○ невідомо.
           </div>
-        )}
+          <div className={styles.chips}>
+            {[...EQUIP_EXTRA, ...Object.keys(profile?.equipment ?? {}).filter((k) => !(EQUIP_EXTRA as readonly string[]).includes(k))].map((name) => {
+              const state = (profile?.equipment ?? {})[name] as EquipState;
+              const next = cycleEquip(state);
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => {
+                    if (next.op === 'remove') void patch('remove', 'equip', name);
+                    else void patchEquip(name, next.has);
+                  }}
+                  className={`${styles.chip} ${state === 'lacks' ? styles['chip-anti'] : ''}`}
+                  style={{
+                    cursor: 'pointer',
+                    border: state ? undefined : '1px dashed var(--border-strong)',
+                    background: state ? undefined : 'transparent',
+                    color: state === 'has' ? 'var(--accent)' : state === 'lacks' ? undefined : 'var(--fg-dim)',
+                    ...(state === 'has' ? { background: 'var(--accent-bg)', border: '1px solid var(--accent-border)' } : {}),
+                  }}
+                  title={state === 'has' ? 'Є → позначити «немає»' : state === 'lacks' ? 'Немає → прибрати запис' : 'Невідомо → позначити «є»'}
+                >
+                  {equipGlyph(state)} {name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Їдці дому без акаунтів: «зі мною живе Оксана, вона веганка».
             Записуються розмовою (kind: member); тут — видно й можна прибрати. */}
