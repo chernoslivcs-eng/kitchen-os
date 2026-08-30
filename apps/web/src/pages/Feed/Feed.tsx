@@ -16,6 +16,7 @@ import { useAuth } from '../../store/auth';
 import { Avatar } from '../../components/Avatar/Avatar';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
+import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import styles from './Feed.module.css';
 
 interface Turn {
@@ -92,6 +93,7 @@ export function Feed() {
   const [thinkingVerb, setThinkingVerb] = useState('ДУМАЮ');
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
+  const [batchLabels, setBatchLabels] = useState<Map<string, string>>(new Map());
   const [toast, setToast] = useState<Toast | null>(null);
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
@@ -119,7 +121,21 @@ export function Feed() {
 
     // «Уточнити» на пропозиції: префілимо композитор назвою страви з тире —
   // відповідь механічно привʼязана до неї. Прототипний startRefine.
-  // «+ Імпорт» з екрана Рецептів приходить сюди з префіксом — той самий
+  // Бриф-3 п.2: перерване готування живе — рядок над таймлайном веде назад
+  // на той самий крок. Перечитуємо при поверненні фокуса (могло завершитись
+  // в іншій вкладці).
+  const [cookLive, setCookLive] = useState<CookSession | null>(() => loadCookSession());
+  useEffect(() => {
+    const onVis = () => setCookLive(loadCookSession());
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onVis);
+    };
+  }, []);
+
+    // «+ Імпорт» з екрана Рецептів приходить сюди з префіксом — той самий
   // механізм, що startRefine: композитор веде, канал вводу один.
   const location = useLocation();
   useEffect(() => {
@@ -135,7 +151,17 @@ export function Feed() {
 
     // «☆ На потім» просто зі стрічки: чернетка вже має адресу — це PATCH-позначка.
   const [savedRecipeIds, setSavedRecipeIds] = useState<Set<string>>(new Set());
-  async function saveRecipeForLater(recipe_id: string) {
+  // «+ у список» з рецепта-повідомлення: пише напряму (людина, не модель).
+  async function addNeedToList(label: string, v: number | undefined, u: string | undefined, forDish: string) {
+    try {
+      await api.shopping.add(label, v, u, `для: ${forDish}`);
+      await refreshCounts();
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+    async function saveRecipeForLater(recipe_id: string) {
     try {
       await api.savedRecipes.setSaved(recipe_id, true);
       setSavedRecipeIds((prev) => new Set(prev).add(recipe_id));
@@ -157,6 +183,8 @@ export function Feed() {
         api.shopping.list().catch(() => ({ count: 0 })),
       ]);
       setPantryCount(p.count);
+      // Мапа id→label: рецепт-повідомлення показує «Вершки 33%», а не «з комори».
+      setBatchLabels(new Map(p.batches.map((b) => [b.id, b.label])));
       setShoppingCount(s.count);
       // Догоряння: беремо активні партії з expires_at ≤ 3 днів. Показуємо 3 перших.
       // Це «підказка одним рядком», не панель — юзер може її ігнорувати або тапнути,
@@ -463,6 +491,25 @@ export function Feed() {
 
 
       <div className={styles.timeline} ref={timelineRef}>
+        {cookLive && !historyOpen && (
+          <button
+            onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe } })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              border: '1px solid var(--accent-border)', borderRadius: 14,
+              padding: '13px 16px', background: 'transparent',
+              cursor: 'pointer', textAlign: 'left', width: '100%',
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
+            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
+              Готування триває · {cookLive.recipe.t.toLowerCase()} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
+              Продовжити ›
+            </span>
+          </button>
+        )}
         {/* DA2-37: сегмент «Історія» показує сесії ПРЯМО ТУТ — контент під
             шапкою, як у макеті 1б, а не bottom sheet поверх стрічки. */}
         {historyOpen && (
@@ -540,7 +587,7 @@ export function Feed() {
         )}
 
         {!historyOpen && turns.map((t) => (
-          <div key={t.id} className={styles.turn}>
+          <div key={t.id} id={`turn-${t.id}`} className={styles.turn}>
             <MonoLabel tone="muted">
               {t.time} {t.role === 'user' ? 'ТИ' : t.card ? (
                 (() => {
@@ -569,6 +616,8 @@ export function Feed() {
                 onCook={(r) => navigate('/cook', { state: { recipe: r } })}
                 onSaveRecipe={saveRecipeForLater}
                 savedRecipeIds={savedRecipeIds}
+                onNeedToList={addNeedToList}
+                batchLabels={batchLabels}
               />
             )}
           </div>
@@ -640,7 +689,10 @@ export function Feed() {
             {uploading && <span className={styles['att-chip']}>завантажую…</span>}
           </div>
         )}
-        <form className={styles.composer} onSubmit={send}>
+        {/* Бриф-3 п.6 — канон композитора: одна пілюля, 📎 (ghost) і 🎙
+            всередині фрейму справа; при наборі 🎙 морфить у ↑, 📎 лишається.
+            «Обери інструмент» стало «запиши» — ввід виглядає як рядок журналу. */}
+        <form className={`${styles.composer} ${listening ? styles['composer-recording'] : ''}`} onSubmit={send}>
           <input
             ref={fileInputRef}
             type="file"
@@ -649,53 +701,107 @@ export function Feed() {
             style={{ display: 'none' }}
             onChange={(e) => pickFiles(e.target.files)}
           />
-          <button
-            type="button"
-            className={styles['attach-btn']}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={sending || uploading}
-            aria-label="Додати вкладення"
-          >
-            📎
-          </button>
-          {speechSupported() && (
-            <button
-              type="button"
-              className={listening ? styles['mic-live'] : styles['attach-btn']}
-              onClick={toggleVoice}
-              disabled={sending}
-              aria-label={listening ? 'Зупинити диктування' : 'Продиктувати'}
-              aria-pressed={listening}
-            >
-              {listening ? (
-                /* Стоп-квадрат: цегляний ≠ помилка, це «живий запис» (як REC). */
-                <span className={styles['mic-stop']} />
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <rect x="9" y="3" width="6" height="11" rx="3" />
-                  <path d="M5 11a7 7 0 0 0 14 0" />
-                  <line x1="12" y1="18" x2="12" y2="21" />
-                </svg>
-              )}
-            </button>
-          )}
           <input
             ref={composerInputRef}
             type="text"
-            className={listening ? styles['input-recording'] : undefined}
+            className={styles['composer-input']}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={pending.length > 0 ? 'Що з цим?' : 'Що купив або що готуємо?'}
+            placeholder={pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
             disabled={sending}
             autoFocus
           />
           <button
-            type="submit"
-            disabled={sending || (!input.trim() && pending.length === 0)}
-            aria-label="Надіслати"
-          >↑</button>
+            type="button"
+            className={styles['frame-btn-ghost']}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploading}
+            aria-label="Додати вкладення"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
+          {listening ? (
+            <button
+              type="button"
+              className={styles['mic-live']}
+              onClick={toggleVoice}
+              aria-label="Зупинити диктування"
+              aria-pressed="true"
+            >
+              <span className={styles['mic-stop']} />
+            </button>
+          ) : (input.trim() || pending.length > 0) ? (
+            <button
+              type="submit"
+              className={styles['frame-btn-solid']}
+              disabled={sending}
+              aria-label="Надіслати"
+            >↑</button>
+          ) : speechSupported() ? (
+            <button
+              type="button"
+              className={styles['frame-btn']}
+              onClick={toggleVoice}
+              disabled={sending}
+              aria-label="Продиктувати"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="9" y="2" width="6" height="12" rx="3" />
+                <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
+                <line x1="12" y1="18" x2="12" y2="22" />
+              </svg>
+            </button>
+          ) : (
+            <button type="submit" className={styles['frame-btn-solid']} disabled aria-label="Надіслати">↑</button>
+          )}
         </form>
       </div>
+
+      {/* Бриф-3 п.3: права панель — навігатор стану на десктопі.
+          ГОРИТЬ = живий зріз комори; ОЧІКУЮТЬ = pending-картки розмови.
+          «Вечеря сьогодні» знята дизайном — її зміст живе в ранковій картці. */}
+      <aside className={styles.rail}>
+        {staleBatches.length > 0 && (
+          <div className={styles['rail-block']}>
+            <div className={styles['rail-title']} style={{ color: 'var(--amber)' }}>
+              ГОРИТЬ · {staleBatches.length}
+            </div>
+            {staleBatches.slice(0, 4).map((b) => (
+              <button
+                key={b.id}
+                className={styles['rail-row']}
+                onClick={() => { setInput(`Що зробити з ${b.label}?`); composerInputRef.current?.focus(); }}
+              >
+                <span className={styles['rail-label']}>{b.label}</span>
+                <span className={styles['rail-meta']} style={{ color: 'var(--amber)' }}>
+                  {b.days <= 0 ? 'СЬОГОДНІ' : `≈${b.days} ДН`}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {turns.some((t) => t.card && !t.applied && !t.undone && !t.dismissed) && (
+          <div className={styles['rail-block']}>
+            <div className={styles['rail-title']}>
+              ОЧІКУЮТЬ РІШЕННЯ · {turns.filter((t) => t.card && !t.applied && !t.undone && !t.dismissed).length}
+            </div>
+            {turns.filter((t) => t.card && !t.applied && !t.undone && !t.dismissed).slice(-4).map((t) => (
+              <button
+                key={t.id}
+                className={styles['rail-row']}
+                onClick={() => {
+                  document.getElementById(`turn-${t.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              >
+                <span className={styles['rail-label']}>{labelFor(t.card!.type).text.replace(' · ◌ ОЧІКУЄ', '')}</span>
+                <span className={styles['rail-meta']} style={{ color: 'var(--amber)' }}>◌</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </aside>
 
       <TabBar shoppingCount={shoppingCount} />
 

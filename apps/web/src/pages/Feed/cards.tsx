@@ -2,6 +2,7 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ChatCard, Recipe } from '../../api';
 import { Button } from '../../components/Button/Button';
@@ -75,6 +76,8 @@ export interface CardProps {
   onCook?: (recipe: Recipe) => void;
   onSaveRecipe?: (recipe_id: string) => void;
   savedRecipeIds?: Set<string>;
+  onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void;
+  batchLabels?: Map<string, string>;
 }
 
 function stateClass(applied?: boolean, undone?: boolean): string {
@@ -330,18 +333,20 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 
 // ----- Recipe link ----------------------------------------------------------
 
-// Рішення Пилипа: рецепт — це хід розмови, а не екран. Повна страва
-// рендериться в стрічці «гілкою» (лівий бордюр 2px — патерн Бриф-2 1а):
-// інгредієнти, кроки, «Готуємо» і «На потім» — усе тут. Тап «Рецепт»
-// нікуди не веде; окремий екран лишився бібліотеці й шерингу.
-export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds }: CardProps) {
+// Канон Бриф-3 п.8: рецепт — звичайне повідомлення КУХНІ в журнальному
+// ритмі, без рамок і бордюрів-гілок. Інгредієнти списком (○ бракує →
+// «+ у список» інлайн), кроки з номерами, довгі згорнуті до трьох із
+// «Показати всі N». «Готуємо» веде тільки в Cook Mode; /recipe/:id
+// лишається адресою для «У рецепти» і шерингу.
+export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
+  const [allSteps, setAllSteps] = useState(false);
+  const [listed, setListed] = useState<Set<number>>(new Set());
   if (!rid) return null;
   const saved = savedRecipeIds?.has(rid) ?? false;
 
-  // Старі повідомлення (до цього рішення) мають тільки посилання — для них
-  // лишаємо рядок-слід.
+  // Старі повідомлення (до рецепта-в-розмові) мають тільки посилання.
   if (!r) {
     return (
       <Link
@@ -364,85 +369,114 @@ export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds }: C
 
   const summary = [
     r.tm ? `${r.tm}ХВ` : null,
-    r.sv ? `${r.sv} ПОРЦ` : null,
+    r.sv ? `${r.sv} ПОРЦІЇ` : null,
     r.nu?.kcal ? `${r.nu.kcal}ККАЛ` : null,
   ].filter(Boolean).join(' · ');
 
+  const shownSteps = allSteps ? r.st : r.st.slice(0, 3);
+
   return (
-    <div style={{ borderLeft: '2px solid var(--border-strong)', paddingLeft: 14, marginLeft: 2 }}>
-      <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)', lineHeight: 1.25 }}>
-        {r.t}
-      </div>
-      {summary && (
-        <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)' }}>{summary}</div>
-      )}
-      {r.d && (
-        <div style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.45 }}>{r.d}</div>
-      )}
-      {r.rk && (
-        <div style={{
-          marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--amber)',
-          fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45,
-        }}>{r.rk}</div>
-      )}
-
-      <div style={{ marginTop: 12 }}>
-        <MonoLabel>ІНГРЕДІЄНТИ</MonoLabel>
-        <div style={{ marginTop: 4 }}>
-          {r.ing.map((ing, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'baseline', gap: 10,
-              padding: '7px 0', borderBottom: '1px solid var(--border)',
-              fontFamily: 'var(--font-body)', fontSize: 14,
-            }}>
-              <span style={{ color: ing.p ? 'var(--accent)' : 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                {ing.p ? '●' : '○'}
-              </span>
-              <span style={{ flex: 1, color: 'var(--fg)' }}>{ing.n ?? 'з комори'}</span>
-              {ing.v != null && ing.u && (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-dim)' }}>{formatQty(ing.v, ing.u)}</span>
-              )}
-            </div>
-          ))}
+    <div className={styles['recipe-msg']}>
+      <div>
+        <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 21, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)', lineHeight: 1.25 }}>
+          {r.t}
         </div>
+        {summary && (
+          <div style={{ marginTop: 3, fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.04em', color: 'var(--fg-dim)' }}>{summary}</div>
+        )}
+        {r.rk && (
+          <div style={{
+            marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--amber)',
+            fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45,
+          }}>{r.rk}</div>
+        )}
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <MonoLabel>КРОКИ</MonoLabel>
-        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {r.st.map((step, i) => (
-            <div key={i} style={{ display: 'flex', gap: 10, fontFamily: 'var(--font-body)', fontSize: 14, lineHeight: 1.5 }}>
-              <span style={{
-                width: 22, height: 22, borderRadius: '50%', flex: 'none',
-                border: '1px solid var(--border-strong)', color: 'var(--fg-dim)',
-                display: 'grid', placeItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 11,
-              }}>{i + 1}</span>
-              <span style={{ color: 'var(--fg)' }}>
-                {step.t}. {renderStepInline(step.c, r.ing)}
-                {!!step.s && (
-                  <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
-                    ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
+      <div className={styles['recipe-msg-cols']}>
+        <div>
+          <MonoLabel>ІНГРЕДІЄНТИ · ● З КОМОРИ</MonoLabel>
+          <div style={{ marginTop: 2 }}>
+            {r.ing.map((ing, i) => {
+              const missing = !ing.p;
+              const added = listed.has(i);
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'baseline', gap: 10,
+                  padding: '7px 0', borderBottom: '1px solid var(--border)',
+                  fontFamily: 'var(--font-body)', fontSize: 15,
+                }}>
+                  <span style={{ color: missing ? 'var(--fg-dim)' : 'var(--accent)', fontSize: 11 }}>
+                    {missing ? '○' : '●'}
                   </span>
-                )}
-              </span>
-            </div>
-          ))}
+                  <span style={{ flex: 1, color: 'var(--fg)' }}>
+                    {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
+                    {missing && ing.n && onNeedToList && (
+                      /* Канон п.8: бракує → «+ у список» просто тут. */
+                      <button
+                        type="button"
+                        disabled={added}
+                        onClick={() => { onNeedToList(ing.n!, ing.v, ing.u, r.t); setListed((prev) => new Set(prev).add(i)); }}
+                        style={{
+                          border: 0, background: 'none', padding: 0, marginLeft: 8,
+                          color: added ? 'var(--fg-dim)' : 'var(--accent)',
+                          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                          textDecoration: added ? 'none' : 'underline', textUnderlineOffset: 3,
+                          cursor: added ? 'default' : 'pointer',
+                        }}
+                      >
+                        {added ? '✓ у списку' : '+ у список'}
+                      </button>
+                    )}
+                  </span>
+                  {ing.v != null && ing.u && (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)' }}>{formatQty(ing.v, ing.u)}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <MonoLabel>КРОКИ · {r.st.length}</MonoLabel>
+          <div style={{ marginTop: 2 }}>
+            {shownSteps.map((step, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
+                <span style={{ color: 'var(--fg)' }}>
+                  {step.t}. {renderStepInline(step.c, r.ing)}
+                  {!!step.s && (
+                    <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
+                      ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+            {r.st.length > 3 && !allSteps && (
+              <button
+                type="button"
+                onClick={() => setAllSteps(true)}
+                style={{
+                  border: 0, background: 'none', padding: '6px 0 0',
+                  color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                  textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer',
+                }}
+              >
+                Показати всі {r.st.length} кроків
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
-        {onCook && <Button variant="primary" onClick={() => onCook(r)}>Готуємо</Button>}
+      <div style={{ display: 'flex', gap: 10 }}>
+        {onCook && <Button variant="positive" onClick={() => onCook(r)}>Готуємо → Cook Mode</Button>}
         {onSaveRecipe && (
           <Button variant="secondary" onClick={() => onSaveRecipe(rid)} disabled={saved}>
-            {saved ? '✓ Збережено' : '☆ На потім'}
+            {saved ? '✓ У рецептах' : 'У рецепти'}
           </Button>
         )}
-        <Link
-          to={`/recipe/${rid}`}
-          style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-dim)', textDecoration: 'none' }}
-        >
-          Відкрити →
-        </Link>
       </div>
     </div>
   );
@@ -493,7 +527,7 @@ export function labelFor(
   dismissed?: boolean,
 ): { text: string; tone: 'pending' | 'applied' | 'muted' } {
   // Слід рецепта — не дія: жодного «ОЧІКУЄ», просто мітка.
-  if (type === 'recipe_link') return { text: 'РЕЦЕПТ', tone: 'muted' };
+  if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
   if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
   if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.

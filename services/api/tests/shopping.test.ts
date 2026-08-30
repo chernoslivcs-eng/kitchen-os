@@ -101,3 +101,56 @@ describe('GET /v1/shopping · канон лічильника', () => {
     expect(body.total).toBe(3);      // мета-рядок «2 / 3»
   });
 });
+
+// Бриф-3 п.8: «+ у список» інлайн на бракуючому інгредієнті рецепта.
+// Досі позицію руками було не додати взагалі (QA7-01: «POST /v1/shopping не
+// існує») — список наповнювався тільки картками моделі.
+describe('POST /v1/shopping · ручне додавання', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  it('додає позицію з кількістю і причиною', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const r = await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: 'Фетучіні', v: 200, u: 'g', reason: 'для: Вершкова фетучіні' },
+    });
+    expect(r.statusCode).toBe(201);
+    const items = await repo.listShoppingItems(me.household_id);
+    expect(items).toHaveLength(1);
+    expect(items[0]!.label).toBe('Фетучіні');
+    expect(items[0]!.value).toBe(200);
+    expect(items[0]!.reason).toBe('для: Вершкова фетучіні');
+    expect(items[0]!.source).toBe('user');
+  });
+
+  it('дубль за назвою не плодиться — повертає наявну позицію', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: 'Фетучіні' },
+    });
+    const second = await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: 'фетучіні' },
+    });
+    expect(second.statusCode).toBe(200);
+    expect(await repo.listShoppingItems(me.household_id)).toHaveLength(1);
+  });
+
+  it('порожня назва — 400', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    expect((await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: '  ' },
+    })).statusCode).toBe(400);
+  });
+});

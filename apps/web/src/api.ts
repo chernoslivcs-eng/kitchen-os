@@ -242,6 +242,11 @@ export const api = {
   },
 
   shopping: {
+    // Бриф-3 п.8: «+ у список» інлайн з рецепта-повідомлення.
+    add: (label: string, v?: number, u?: string, reason?: string) =>
+      req<{ item: unknown; already?: boolean }>('/v1/shopping', {
+        method: 'POST', body: JSON.stringify({ label, v, u, reason }),
+      }),
     list: () => req<ShoppingList>('/v1/shopping'),
     toggle: (id: string, checked: boolean) =>
       req<{ ok: true; checked: boolean }>(`/v1/shopping/${id}/toggle`, {

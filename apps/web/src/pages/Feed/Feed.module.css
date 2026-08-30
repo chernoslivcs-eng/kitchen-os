@@ -223,47 +223,73 @@
 .attach-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg); }
 .attach-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* Бриф-3 п.6 — канон: композитор = одна пілюля-фрейм 52px; кнопки живуть
+   усередині (📎 ghost без рамки, 🎙 з рамкою; ↑ — інверсна). */
 .composer {
-  padding: 12px 22px 20px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.composer input {
-  flex: 1;
-  min-width: 0;
-  height: 48px;
-  padding: 0 16px;
+  margin: 12px 22px 20px;
+  height: 52px;
   border-radius: var(--r-lg);
   background: var(--bg-surface-2);
   border: 1px solid var(--border-strong);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0 8px 0 16px;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+.composer-recording {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent) !important;
+}
+.composer-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
   color: var(--fg);
   font-family: var(--font-body);
   font-size: 15px;
   outline: 0;
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
-.composer input::placeholder { color: var(--fg-dim); }
-.composer input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-.composer button {
-  height: 48px;
-  width: 48px;
+.composer-input::placeholder { color: var(--fg-dim); }
+.frame-btn,
+.frame-btn-ghost,
+.frame-btn-solid {
+  width: 38px;
+  height: 38px;
   flex: none;
-  border-radius: var(--r);
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-fg);
-  font-weight: 600;
-  cursor: pointer;
+  border-radius: 10px;
   display: grid;
   place-items: center;
-  font-size: 20px;
+  cursor: pointer;
   transition: background var(--dur-fast);
 }
-.composer button:hover:not(:disabled) { background: var(--btn-primary-hover); }
-.composer button:disabled { opacity: 0.45; cursor: not-allowed; }
+.frame-btn {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--fg-muted);
+}
+.frame-btn-ghost {
+  border: 0;
+  background: transparent;
+  color: var(--fg-dim);
+}
+.frame-btn-ghost:hover:not(:disabled) { color: var(--fg-muted); }
+.frame-btn-solid {
+  border: 0;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  font-size: 17px;
+  font-weight: 600;
+}
+.frame-btn-solid:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.frame-btn:disabled,
+.frame-btn-ghost:disabled,
+.frame-btn-solid:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ----- Toast --------------------------------------------------------- */
 .toast {
@@ -437,5 +463,87 @@
   :global(body.with-sidebar) .composer-wrap {
     margin-left: 36px;
     margin-right: auto;
+  }
+}
+
+/* Канон Бриф-3 п.8: рецепт-повідомлення. На десктопі (прототип 1280) —
+   інгредієнти і кроки двома колонками. */
+.recipe-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.recipe-msg-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 1024px) {
+  .recipe-msg-cols {
+    flex-direction: row;
+    gap: 36px;
+  }
+  .recipe-msg-cols > div:first-child { flex: 1; }
+  .recipe-msg-cols > div:last-child { flex: 1.2; }
+}
+
+/* Бриф-3 п.3: права панель — тільки десктоп. Живий зріз, не дашборд. */
+.rail { display: none; }
+@media (min-width: 1280px) {
+  .rail {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 250px;
+    border-left: 1px solid var(--border);
+    background: var(--bg-surface-2);
+    padding: 22px 18px;
+    overflow-y: auto;
+  }
+}
+.rail-block { display: flex; flex-direction: column; gap: 2px; }
+.rail-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  padding-bottom: 4px;
+}
+.rail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.rail-row:last-child { border-bottom: 0; }
+.rail-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  flex: none;
+}
+/* Контент стрічки звільняє місце під панель. */
+@media (min-width: 1280px) {
+  :global(body.with-sidebar) .timeline,
+  :global(body.with-sidebar) .composer-wrap,
+  :global(body.with-sidebar) .head {
+    margin-right: 250px;
   }
 }

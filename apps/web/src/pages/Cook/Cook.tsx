@@ -10,6 +10,7 @@ import { Button } from '../../components/Button/Button';
 import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
+import { saveCookSession, loadCookSession, clearCookSession } from '../../lib/cook-session';
 import { renderStepContent, stepIngredients, resolveIngName, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
 
@@ -34,6 +35,16 @@ export function CookPage() {
   // DA2-03: подвійний тап мокрим пальцем перескакував крок (1 → 3). 400ms
   // локу після переходу — рівно --dur-slow, тривалість зміни кроку.
   const [stepLocked, setStepLocked] = useState(false);
+
+  // Бриф-3 п.1: повернення на пройдений крок — тап по смузі або ↩.
+  // Таймер при поверненні стає на паузу (він не «відмотує час», людина
+  // сама вирішить, чи запускати).
+  function goToStep(n: number) {
+    if (n >= stepIdx) return;
+    stopAlarm();
+    setStepIdx(n);
+  }
+
   function advanceStep() {
     if (stepLocked) return;
     stopAlarm();
@@ -81,6 +92,21 @@ export function CookPage() {
   useEffect(() => {
     if (secondsLeft === 0 && running) setRunning(false);
   }, [secondsLeft, running]);
+
+  // Бриф-3 п.2: відновлення перерваного готування того самого рецепта.
+  const resumeRef = useRef(false);
+  useEffect(() => {
+    if (resumeRef.current) return;
+    resumeRef.current = true;
+    const saved = loadCookSession();
+    if (saved && recipe && saved.recipe.t === recipe.t && saved.stepIdx < recipe.st.length) {
+      setStepIdx(saved.stepIdx);
+      setSecondsLeft(saved.secondsLeft);
+      setRunning(false);   // таймер на паузі — час не відмотується
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // DA2-07: планшет біля плити не має гаснути на другій хвилині тушкування.
   // Wake Lock знімається системою при згортанні — перезапитуємо на поверненні.
@@ -152,6 +178,15 @@ export function CookPage() {
   const total = recipe.st.length;
   const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
   const done = stepIdx >= total;
+
+  useEffect(() => {
+    if (!recipe) return;
+    if (done) { clearCookSession(); return; }
+    saveCookSession({ recipe, stepIdx, secondsLeft });
+    // Пишемо на зміну кроку/паузу — не щосекунди: resume з точністю до
+    // останньої дії достатній, а localStorage не любить тік.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIdx, running, done]);
 
   // При завершенні: зберігаємо cook-run і списуємо використані партії.
   // Кількість повертаємо, щоб «Готово» показало «списано N позицій».
@@ -248,9 +283,21 @@ export function CookPage() {
         </MonoLabel>
       </div>
 
+      {/* Бриф-3 п.1: тап по сегменту смуги = перейти на пройдений крок.
+          Сегмент 4px — не тап-зона, тому кожен обгорнутий кнопкою з
+          вертикальним padding ≥44px сумарної висоти. */}
       <div className={styles.progress}>
         {recipe.st.map((_, i) => (
-          <div key={i} className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
+          <button
+            key={i}
+            type="button"
+            className={styles['progress-hit']}
+            disabled={i >= stepIdx || done}
+            aria-label={`Повернутись до кроку ${i + 1}`}
+            onClick={() => goToStep(i)}
+          >
+            <div className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
+          </button>
         ))}
       </div>
 
@@ -642,6 +689,15 @@ export function CookPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', gap: 10 }}>
+            {stepIdx > 0 && (
+              /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
+              <button
+                className={styles.main}
+                style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)' }}
+                aria-label="Крок назад"
+                onClick={() => goToStep(stepIdx - 1)}
+              >↩</button>
+            )}
             <button
               className={styles.main}
               style={{ flex: 1 }}
@@ -665,7 +721,7 @@ export function CookPage() {
             )}
           </div>
         )}
-        <div className={styles.offline}>Працює без мережі · таймер живе локально</div>
+        <div className={styles.offline}>Працює без мережі · тап по смузі = крок назад</div>
       </div>
     </div>
   );
