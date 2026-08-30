@@ -9,7 +9,8 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Button } from '../../components/Button/Button';
 import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
-import { renderStepContent, type BatchLabels } from '../../lib/recipe';
+import { formatQty } from '../../lib/units';
+import { renderStepContent, stepIngredients, resolveIngName, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
 
 interface CookLocationState {
@@ -30,6 +31,16 @@ export function CookPage() {
   const state = (location.state as CookLocationState | null) ?? {};
   const recipe = state.recipe ?? null;
   const [stepIdx, setStepIdx] = useState(state.startAt ?? 0);
+  // DA2-03: подвійний тап мокрим пальцем перескакував крок (1 → 3). 400ms
+  // локу після переходу — рівно --dur-slow, тривалість зміни кроку.
+  const [stepLocked, setStepLocked] = useState(false);
+  function advanceStep() {
+    if (stepLocked) return;
+    stopAlarm();
+    setStepLocked(true);
+    setStepIdx((i) => i + 1);
+    window.setTimeout(() => setStepLocked(false), 400);
+  }
   const [batchLabels, setBatchLabels] = useState<BatchLabels>(new Map());
 
   useEffect(() => {
@@ -70,6 +81,62 @@ export function CookPage() {
   useEffect(() => {
     if (secondsLeft === 0 && running) setRunning(false);
   }, [secondsLeft, running]);
+
+  // DA2-07: планшет біля плити не має гаснути на другій хвилині тушкування.
+  // Wake Lock знімається системою при згортанні — перезапитуємо на поверненні.
+  useEffect(() => {
+    let lock: { release(): Promise<void> } | null = null;
+    let alive = true;
+    async function acquire() {
+      try {
+        const wl = (navigator as { wakeLock?: { request(t: 'screen'): Promise<{ release(): Promise<void> }> } }).wakeLock;
+        if (wl && alive) lock = await wl.request('screen');
+      } catch { /* заборонено політикою або низький заряд — тихо */ }
+    }
+    void acquire();
+    const onVis = () => { if (document.visibilityState === 'visible') void acquire(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      alive = false;
+      document.removeEventListener('visibilitychange', onVis);
+      void lock?.release().catch(() => {});
+    };
+  }, []);
+
+  // DA2-08: таймер, який мовчить, — це таймер, якого немає. Кіт: сигнал
+  // повторюється кожні 30с, поки людина не підтвердить (будь-яка дія кроку).
+  const alarmRef = useRef<number | null>(null);
+  const beep = () => {
+    try {
+      type AC = typeof AudioContext;
+      const Ctx: AC | undefined = window.AudioContext
+        ?? (window as { webkitAudioContext?: AC }).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.65);
+      osc.onended = () => void ctx.close();
+    } catch { /* без звуку — лишається вібро */ }
+    try { navigator.vibrate?.([200, 100, 200]); } catch { /* desktop */ }
+  };
+  const stopAlarm = () => {
+    if (alarmRef.current != null) { window.clearInterval(alarmRef.current); alarmRef.current = null; }
+  };
+  useEffect(() => {
+    if (secondsLeft === 0 && step?.s && !done) {
+      beep();
+      alarmRef.current = window.setInterval(beep, 30_000);
+      return stopAlarm;
+    }
+    stopAlarm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft === 0]);
 
   if (!recipe) {
     return (
@@ -199,6 +266,23 @@ export function CookPage() {
               <div
                 role="dialog"
                 aria-modal="true"
+                onKeyDown={(e) => {
+                  // DA2-09: Escape — безпечний вихід (нічого не списувати,
+                  // все відкочується undo). Tab тримаємо всередині діалогу.
+                  if (e.key === 'Escape') {
+                    setKeepMap(new Map(vanish.map((v) => [v.id, null])));
+                    setConfirmed(true);
+                  }
+                  if (e.key === 'Tab') {
+                    const focusables = (e.currentTarget as HTMLElement)
+                      .querySelectorAll<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])');
+                    if (!focusables.length) return;
+                    const first = focusables[0]!;
+                    const last = focusables[focusables.length - 1]!;
+                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                  }
+                }}
                 aria-label="Що списуємо повністю"
                 style={{
                   position: 'fixed', inset: 0, zIndex: 60,
@@ -271,7 +355,7 @@ export function CookPage() {
                               <input
                                 type="number"
                                 min={0}
-                                placeholder={v.unit ?? ''}
+                                placeholder={v.unit === 'g' ? 'г' : v.unit === 'ml' ? 'мл' : v.unit === 'pcs' ? 'шт' : v.unit === 'pack' ? 'уп' : ''}
                                 onChange={(e) => {
                                   const n = e.target.value === '' ? null : Number(e.target.value);
                                   setKeepMap((prev) => {
@@ -486,7 +570,7 @@ export function CookPage() {
               {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, batchLabels)}
             </div>
 
-            {step?.s && (
+            {!!step?.s && (
               <div className={styles.timer}>
                 <div className={`${styles['timer-value']} ${secondsLeft === 0 ? styles.done : ''}`}>
                   {formatMS(secondsLeft)}
@@ -495,6 +579,7 @@ export function CookPage() {
                   <button
                     className={styles.primary}
                     onClick={() => {
+                      stopAlarm();
                       if (secondsLeft === 0) { setSecondsLeft(step.s ?? 0); setRunning(true); return; }
                       setRunning((r) => !r);
                     }}
@@ -504,6 +589,23 @@ export function CookPage() {
                   <button className={styles.secondary} onClick={() => setSecondsLeft((s) => s + 60)}>
                     +1 хв
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* DA2-05: «НА ЦЬОМУ КРОЦІ» — прив'язка кроку до партій з комори,
+                «скільки саме з мого». Стоїть у 4 еталонах. */}
+            {step && stepIngredients(step.c ?? '', recipe.ing).length > 0 && (
+              <div className={styles.section}>
+                <MonoLabel>НА ЦЬОМУ КРОЦІ</MonoLabel>
+                <div className={styles.next}>
+                  {stepIngredients(step.c ?? '', recipe.ing).map((ing, i) => (
+                    <span key={i}>
+                      {i > 0 && ' · '}
+                      {resolveIngName(ing, batchLabels)}
+                      {ing.v != null && ing.u ? ` — ${formatQty(ing.v, ing.u)}` : ''}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
@@ -539,12 +641,29 @@ export function CookPage() {
             </button>
           </div>
         ) : (
-          <button
-            className={styles.main}
-            onClick={() => setStepIdx((i) => i + 1)}
-          >
-            {stepIdx === total - 1 ? 'Готово ✓' : 'Далі →'}
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className={styles.main}
+              style={{ flex: 1 }}
+              disabled={stepLocked}
+              onClick={advanceStep}
+            >
+              {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
+                  дії, а не навігація «Далі →». */}
+              {stepIdx === total - 1 ? 'Приготували' : 'Крок готово ✓'}
+            </button>
+            {stepIdx < total - 1 && (
+              /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
+              <button
+                className={styles.main}
+                style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
+                disabled={stepLocked}
+                onClick={() => { stopAlarm(); setStepIdx(total); }}
+              >
+                Приготували
+              </button>
+            )}
+          </div>
         )}
         <div className={styles.offline}>Працює без мережі · таймер живе локально</div>
       </div>

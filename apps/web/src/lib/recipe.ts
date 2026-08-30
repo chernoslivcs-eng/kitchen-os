@@ -55,3 +55,14 @@ export function renderStepContent(
     .replace(/^\s*\p{Ll}/u, (c) => c.toUpperCase())
     .replace(/([.!?]\s+)(\p{Ll})/gu, (_, sep: string, c: string) => sep + c.toUpperCase());
 }
+
+// DA2-05: «НА ЦЬОМУ КРОЦІ» — які інгредієнти крок згадує через {N}.
+// Єдине місце, де людина бачить «скільки саме з мого» під час готування.
+export function stepIngredients(content: string, ing: RecipeIngLite[]): RecipeIngLite[] {
+  const seen = new Set<number>();
+  for (const m of content.matchAll(/\{(\d+)\}/g)) {
+    const i = Number(m[1]);
+    if (!seen.has(i) && ing[i]) seen.add(i);
+  }
+  return [...seen].sort((a, b) => a - b).map((i) => ing[i]!);
+}

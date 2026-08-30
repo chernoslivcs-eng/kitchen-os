@@ -158,7 +158,7 @@ export const api = {
     // (напр. «400 г лосося — це мало на шістьох»). Показуємо `reply` як
     // репліку кухаря, а не як помилку.
     generate: (title: string, context?: string) =>
-      req<{ recipe: Recipe | null; reply?: string; meta: unknown; usage: unknown }>(
+      req<{ id?: string; recipe: Recipe | null; reply?: string; meta: unknown; usage: unknown }>(
         '/v1/recipes/generate',
         { method: 'POST', body: JSON.stringify({ title, context }) },
       ),
@@ -169,6 +169,12 @@ export const api = {
     save: (recipe: Recipe) =>
       req<{ id: string }>('/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe }) }),
     unsave: (id: string) => req<null>(`/v1/recipes/${id}`, { method: 'DELETE' }),
+    // Р-3: адреса рецепта — F5 більше нічого не губить.
+    get: (id: string) => req<{ id: string; saved_at: string | null; recipe: Recipe }>(`/v1/recipes/${id}`),
+    setSaved: (id: string, saved: boolean) =>
+      req<{ id: string; saved: boolean }>(`/v1/recipes/${id}`, {
+        method: 'PATCH', body: JSON.stringify({ saved }),
+      }),
   },
 
   session: {

@@ -4,17 +4,17 @@
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { TabBar } from '../../components/TabBar/TabBar';
-import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor, appliedToast } from './cards';
 import { useAuth } from '../../store/auth';
 import { Avatar } from '../../components/Avatar/Avatar';
+import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import styles from './Feed.module.css';
 
@@ -119,7 +119,21 @@ export function Feed() {
 
     // «Уточнити» на пропозиції: префілимо композитор назвою страви з тире —
   // відповідь механічно привʼязана до неї. Прототипний startRefine.
-  function startRefine(title: string) {
+  // «+ Імпорт» з екрана Рецептів приходить сюди з префіксом — той самий
+  // механізм, що startRefine: композитор веде, канал вводу один.
+  const location = useLocation();
+  useEffect(() => {
+    const prefix = (location.state as { composePrefix?: string } | null)?.composePrefix;
+    if (prefix) {
+      setInput(prefix);
+      composerInputRef.current?.focus();
+      // Чистимо state, щоб F5 не префіксив удруге.
+      window.history.replaceState({}, '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+    function startRefine(title: string) {
     setInput(`${title} — `);
     composerInputRef.current?.focus();
   }
@@ -334,7 +348,7 @@ export function Feed() {
     setOpeningRecipe(true);
     setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…', persist: true });
     try {
-      const { recipe, reply } = await api.recipes.generate(pick.title, pick.desc);
+      const { id, recipe, reply } = await api.recipes.generate(pick.title, pick.desc);
       setToast(null);
       if (!recipe) {
         // Модель відповіла прозою замість рецепта — зазвичай бо запит
@@ -346,7 +360,8 @@ export function Feed() {
         }]);
         return;
       }
-      navigate('/recipe', { state: { recipe } });
+      // Р-3: адреса замість state — state лишаємо кешем першого рендера.
+      navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe } });
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     } finally {
@@ -420,64 +435,52 @@ export function Feed() {
         >Історія</button>
       </div>
 
-      {historyOpen && (
-        <Sheet onClose={() => setHistoryOpen(false)} ariaLabel="Історія чатів">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <MonoLabel>ІСТОРІЯ ЧАТІВ</MonoLabel>
-            <button
-              onClick={() => setHistoryOpen(false)}
-              style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
-              aria-label="Закрити"
-            >✕</button>
-          </div>
-          {historyLoading && <div style={{ color: 'var(--fg-muted)', padding: '20px 0' }}>Завантажую…</div>}
-          {!historyLoading && historySessions.length === 0 && (
-            <div style={{ color: 'var(--fg-muted)', padding: '20px 0', fontSize: 14 }}>
-              Тут порожньо. Кожна сесія зберігається — вона зʼявиться тут завтра.
-            </div>
-          )}
-          {historySessions.map((s) => {
-            const d = new Date(s.created_at);
-            const dayLabel = formatDayLabel(d);
-            return (
-              <button
-                key={s.id}
-                onClick={() => loadHistorySession(s.id)}
-                style={{
-                  display: 'flex', alignItems: 'baseline', gap: 12,
-                  padding: '14px 0',
-                  borderBottom: '1px solid var(--border)',
-                  border: 0, borderBottomWidth: 1, borderBottomStyle: 'solid',
-                  borderColor: 'var(--border)',
-                  background: 'transparent',
-                  color: 'inherit',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* Назва згори, дата — під нею. До назв усі рядки за один
-                      день виглядали однаково, і знайти потрібну розмову можна
-                      було тільки відкриваючи їх по черзі. */}
-                  <div style={{
-                    fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {s.title ?? dayLabel}
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase', marginTop: 3 }}>
-                    {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
-                  </div>
-                </div>
-                <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>
-              </button>
-            );
-          })}
-        </Sheet>
-      )}
 
       <div className={styles.timeline} ref={timelineRef}>
-        {turns.length === 0 && (
+        {/* DA2-37: сегмент «Історія» показує сесії ПРЯМО ТУТ — контент під
+            шапкою, як у макеті 1б, а не bottom sheet поверх стрічки. */}
+        {historyOpen && (
+          <div>
+            {historyLoading && <SkeletonRows rows={4} />}
+            {!historyLoading && historySessions.length === 0 && (
+              <div style={{ color: 'var(--fg-muted)', padding: '20px 0', fontSize: 14 }}>
+                Тут порожньо. Кожна сесія зберігається — вона зʼявиться тут завтра.
+              </div>
+            )}
+            {historySessions.map((s) => {
+              const d = new Date(s.created_at);
+              const dayLabel = formatDayLabel(d);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => loadHistorySession(s.id)}
+                  style={{
+                    display: 'flex', alignItems: 'baseline', gap: 12, width: '100%',
+                    padding: '12px 0',
+                    border: 0, borderBottom: '1px solid var(--border)',
+                    background: 'transparent', color: 'inherit',
+                    cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {s.title ?? dayLabel}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase', marginTop: 3 }}>
+                      {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
+                    </div>
+                  </div>
+                  <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {!historyOpen && turns.length === 0 && (
           <div className={styles.empty}>
             <h3>Скажи, що купив або що хочеш приготувати</h3>
             <p>
@@ -510,7 +513,7 @@ export function Feed() {
           </div>
         )}
 
-        {turns.map((t) => (
+        {!historyOpen && turns.map((t) => (
           <div key={t.id} className={styles.turn}>
             <MonoLabel tone="muted">
               {t.time} {t.role === 'user' ? 'ТИ' : t.card ? (
@@ -542,7 +545,7 @@ export function Feed() {
           </div>
         ))}
 
-        {sending && (
+        {!historyOpen && sending && (
           <div className={styles.turn} aria-live="polite">
             <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
             <div className={styles.thinking}>

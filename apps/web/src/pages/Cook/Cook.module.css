@@ -165,15 +165,21 @@
   gap: 10px;
 }
 .foot button.main {
-  height: 60px;
+  /* DA2-13: еталон мобільний 64px/19px, десктоп 72px/21px — головна кнопка
+     режиму, розрахованого на тап наосліп. */
+  height: 64px;
   border: 0;
   border-radius: var(--r-xl);
   background: var(--btn-primary-bg);
   color: var(--btn-primary-fg);
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: 18px;
+  font-size: 19px;
   cursor: pointer;
+}
+.main:disabled { opacity: 0.45; cursor: default; }
+@media (min-width: 1024px) {
+  .main { height: 72px; font-size: 21px; border-radius: 18px; }
 }
 .foot .offline {
   font-family: var(--font-body);

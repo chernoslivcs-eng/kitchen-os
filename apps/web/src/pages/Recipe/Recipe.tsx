@@ -3,7 +3,7 @@
 // показуємо повідомлення й пропонуємо повернутись у стрічку.
 
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe } from '../../api';
@@ -11,6 +11,7 @@ import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { resolveIngName, renderStepContent, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
+import { TabBar } from '../../components/TabBar/TabBar';
 
 interface RecipeLocationState {
   recipe?: Recipe;
@@ -19,7 +20,19 @@ interface RecipeLocationState {
 export function RecipePage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const recipe = (location.state as RecipeLocationState | null)?.recipe ?? null;
+  const { id } = useParams<{ id: string }>();
+  // Р-3: рецепт живе за адресою. State — лише миттєвий кеш для першого рендера;
+  // джерело істини — GET /v1/recipes/:id, тому F5 більше нічого не губить.
+  const [fetched, setFetched] = useState<Recipe | null>(null);
+  const [fetchedSaved, setFetchedSaved] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  useEffect(() => {
+    if (!id) return;
+    api.savedRecipes.get(id)
+      .then((r) => { setFetched(r.recipe); setFetchedSaved(r.saved_at); })
+      .catch(() => setNotFound(true));
+  }, [id]);
+  const recipe = (location.state as RecipeLocationState | null)?.recipe ?? fetched ?? null;
   const [currentStep, setCurrentStep] = useState(0);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [allergies, setAllergies] = useState<{ label: string; who: string | null }[]>([]);
@@ -55,13 +68,20 @@ export function RecipePage() {
   }, []);
 
   const [savedId, setSavedId] = useState<string | null>(null);
+  useEffect(() => { if (fetchedSaved) setSavedId(id ?? 'saved'); }, [fetchedSaved, id]);
   const [saving, setSaving] = useState(false);
   async function saveForLater() {
     if (!recipe || savedId || saving) return;
     setSaving(true);
     try {
-      const { id } = await api.savedRecipes.save(recipe);
-      setSavedId(id);
+      if (id) {
+        // Чернетка вже має адресу — «на потім» це позначка, не другий рядок.
+        await api.savedRecipes.setSaved(id, true);
+        setSavedId(id);
+      } else {
+        const r = await api.savedRecipes.save(recipe);
+        setSavedId(r.id);
+      }
     } catch (err) {
       alert(`Не вдалося зберегти: ${(err as Error).message}`);
     } finally { setSaving(false); }
@@ -79,10 +99,14 @@ export function RecipePage() {
   }
 
   if (!recipe) {
+    if (id && !notFound) {
+      // Адреса є, дані летять — не лякаємо «не знайдено» на півсекунди.
+      return <div className={styles.screen} />;
+    }
     return (
       <div className={styles.screen}>
         <div className={styles.info}>
-          <p>Рецепт не знайдено. Це не сесія — F5 його не збереже.</p>
+          <p>Рецепт не знайдено.</p>
           <p style={{ marginTop: 12 }}>
             <Button onClick={() => navigate('/app')}>← Назад у стрічку</Button>
           </p>
@@ -188,7 +212,7 @@ export function RecipePage() {
                     <div className={`${styles['step-title']} ${done ? styles.done : current ? '' : styles.pending}`}>
                       {step.t}. {renderStepContent(step.c, recipe.ing, batchLabels)}
                     </div>
-                    {step.s && (
+                    {!!step.s && (
                       <button className={styles['step-timer']} onClick={() => navigate('/cook', { state: { recipe, startAt: i } })}>
                         ▷ {formatSeconds(step.s)}
                       </button>
@@ -221,6 +245,7 @@ export function RecipePage() {
           Готуємо
         </Button>
       </div>
+      <TabBar desktopOnly />
     </div>
   );
 }

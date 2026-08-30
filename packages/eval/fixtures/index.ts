@@ -109,6 +109,7 @@ export function loadFixtures(): Fixture[] {
     readJson('notes-no-duplicate.json'),
     readJson('member-card.json'),
     readJson('calendar-easter-date.json'),
+    readJson('own-recipe-text.json'),
   ];
   return list;
 }

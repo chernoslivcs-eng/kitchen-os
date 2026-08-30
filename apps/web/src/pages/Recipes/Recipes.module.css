@@ -119,3 +119,23 @@
 .stat.warn {
   color: var(--amber);
 }
+
+
+/* Єдиний екран без обмеження ширини: шапка розтягувалась на 1528px, аватар
+   опинявся посеред екрана (design-audit-desktop, «шапка Рецептів
+   розсипається»). Той самий шаблон, що в решти екранів. */
+@media (min-width: 720px) {
+  .head, .body {
+    max-width: 720px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+@media (min-width: 1024px) {
+  :global(body.with-sidebar) .head,
+  :global(body.with-sidebar) .body {
+    margin-left: 36px;
+    margin-right: auto;
+  }
+}

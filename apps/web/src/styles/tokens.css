@@ -153,7 +153,7 @@
  * Sheet-модалки — position:fixed inset:0, тому вони натурально накривають
  * і сайдбар — це очікувано. */
 @media (min-width: 1024px) {
-  body.with-sidebar { padding-left: 200px; }
+  body.with-sidebar { padding-left: 232px; }  /* Д01: сайдбар 232, не 200 */
 }
 
 /* --- Radii + spacing ---------------------------------------------------- */

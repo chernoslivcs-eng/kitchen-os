@@ -58,6 +58,8 @@ export function App() {
           <Route path="/list" element={<RequireAuth><ShoppingPage /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/recipe" element={<RequireAuth><RecipePage /></RequireAuth>} />
+          {/* Р-3: стабільна адреса — рецепт більше не живе тільки в router state. */}
+          <Route path="/recipe/:id" element={<RequireAuth><RecipePage /></RequireAuth>} />
           <Route path="/cook" element={<RequireAuth><CookPage /></RequireAuth>} />
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
           <Route path="/cooklog" element={<RequireAuth><CookLogPage /></RequireAuth>} />

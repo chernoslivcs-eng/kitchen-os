@@ -38,6 +38,16 @@ type ShoppingItem = {
   u?: string;
 };
 
+// DA2-24: сирий kind («NOTE») світився латиницею серед кириличних лейблів.
+const KIND_LABELS: Record<string, string> = {
+  allergy: 'АЛЕРГІЯ',
+  wish: 'ЛЮБИТЬ',
+  anti: 'АНТИ',
+  equip: 'ТЕХНІКА',
+  note: 'НОТАТКА',
+  member: 'ДОМАШНІ',
+};
+
 type ProfileItem = {
   op?: 'add' | 'remove';
   kind?: 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member';
@@ -206,7 +216,7 @@ export function ProfileCard({ card, applied, applying, dismissed, undone, onAppl
             <span className={styles['op-sign']}>{it.op === 'remove' ? '−' : '+'}</span>
             <span className={styles['op-label']}>{it.label ?? '—'}</span>
             {it.kind && (
-              <span className={styles['op-qty']}>{it.kind.toUpperCase()}</span>
+              <span className={styles['op-qty']}>{KIND_LABELS[it.kind] ?? it.kind.toUpperCase()}</span>
             )}
           </div>
         ))}

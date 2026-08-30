@@ -74,8 +74,60 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     );
     if (bad.length) req.log.warn({ bad, title }, 'recipe-ing-schema-violation');
 
-    return { recipe: call.recipe, meta: call.meta, usage: call.usage };
+    // Р-3 (design-audit-2): рецепт одразу пишеться чернеткою і отримує адресу.
+    // saved_at: null → у бібліотеці не видно; «☆ На потім» стає PATCH saved,
+    // тобто з «рятування» перетворюється на «впорядкування». F5 на /recipe/:id
+    // більше нічого не губить.
+    // TODO(прибирання): чернетки, не збережені й не приготовані за 30 днів,
+    // можна чистити — політика узгоджена в звіті, крон буде після деплою.
+    const draft_id = randomUUID();
+    await repo.saveRecipe({
+      id: draft_id,
+      owner_id: ctx.user_id,
+      origin: 'generated',
+      title: call.recipe.t,
+      descr: call.recipe.d ?? null,
+      character: call.recipe.ch ?? null,
+      risk: call.recipe.rk ?? null,
+      base_servings: call.recipe.sv ?? 2,
+      time_total: call.recipe.tm ?? null,
+      nutrition: call.recipe.nu ?? null,
+      payload: call.recipe,
+      created_at: new Date().toISOString(),
+      saved_at: null,
+    });
+
+    return { id: draft_id, recipe: call.recipe, meta: call.meta, usage: call.usage };
   });
+
+  // Р-3: адреса рецепта. 404 і для чужого — не підтверджуємо існування id.
+  app.get<{ Params: { id: string } }>(
+    '/v1/recipes/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const row = await repo.getRecipe(req.params.id);
+      if (!row || row.owner_id !== user_id) return reply.code(404).send({ error: 'not_found' });
+      return {
+        id: row.id, origin: row.origin, saved_at: row.saved_at,
+        created_at: row.created_at, recipe: row.payload,
+      };
+    },
+  );
+
+  // «На потім» для рецепта, який уже має адресу: не плодимо другий рядок.
+  app.patch<{ Params: { id: string }; Body: { saved?: boolean } }>(
+    '/v1/recipes/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const row = await repo.getRecipe(req.params.id);
+      if (!row || row.owner_id !== user_id) return reply.code(404).send({ error: 'not_found' });
+      const saved = req.body?.saved === true;
+      await repo.setRecipeSaved(row.id, saved ? new Date().toISOString() : null);
+      return { id: row.id, saved };
+    },
+  );
 
   // ---- Бібліотека рецептів (екран 07 із прототипу) ----------------------
   //

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderStepContent, resolveIngName, type BatchLabels } from './recipe.js';
+import { renderStepContent, resolveIngName, stepIngredients, type BatchLabels } from './recipe.js';
 
 describe('resolveIngName', () => {
   const labels: BatchLabels = new Map([['b1', 'Моцарела'], ['b2', 'Пелаті']]);
@@ -71,5 +71,30 @@ describe('renderStepContent · placeholder replacement', () => {
     expect(renderStepContent('Соус. {0} — продави пресом. {1}: розігрій', [
       { n: 'часник' }, { n: 'олія оливкова' },
     ])).toBe('Соус. Часник — продави пресом. Олія оливкова: розігрій');
+  });
+});
+
+describe('stepIngredients (DA2-05, «НА ЦЬОМУ КРОЦІ»)', () => {
+  const ing = [
+    { n: 'фует', v: 120, u: 'g' },
+    { n: 'вершки', v: 300, u: 'ml' },
+    { n: 'пармезан', v: 40, u: 'g' },
+  ];
+
+  it('витягує інгредієнти кроку за {N}, у порядку індексів', () => {
+    expect(stepIngredients('Витопити {0}, влити {1}', ing).map((i) => i.n))
+      .toEqual(['фует', 'вершки']);
+  });
+
+  it('дубль {0} не подвоює', () => {
+    expect(stepIngredients('{0} нарізати, {0} витопити', ing)).toHaveLength(1);
+  });
+
+  it('крок без плейсхолдерів — порожньо', () => {
+    expect(stepIngredients('Поставити воду, посолити', ing)).toEqual([]);
+  });
+
+  it('індекс за межами — ігнорується', () => {
+    expect(stepIngredients('{7} додати', ing)).toEqual([]);
   });
 });
