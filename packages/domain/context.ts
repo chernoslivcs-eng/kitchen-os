@@ -10,7 +10,7 @@
 // алергени, не дійшовши до обмеження (QA5-01).
 
 import { root, meaningfulWords } from '@kitchen/catalog';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow } from './types.js';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe } from './types.js';
 import { serializeOccasions } from './occasions.js';
 
 export interface RecentCookRunSummary {
@@ -27,6 +27,7 @@ export interface KitchenContext {
   recentCookRuns?: RecentCookRunSummary[];
   notes?: MemoryNote[];
   eaters?: EaterRow[];
+  recentRecipes?: RecipeRow[];
   now?: Date;                            // для тестів — інакше Date.now()
 }
 
@@ -138,6 +139,25 @@ export function serializeEaters(eaters: EaterRow[]): string {
     + '\nСтрава готується на всіх за столом: обмеження домашніх враховуй нарівні з профілем.';
 }
 
+// Останні згенеровані рецепти. Без цього блоку модель не бачила ВЛАСНИХ
+// рецептів: «а що ти там пропонував з борщем?» — і вона вигадувала борщ
+// заново, з іншим мʼясом і іншими калоріями (скріни Пилипа: 280 ккал з
+// яловичиною проти 180 зі свининою на ту саму назву).
+export function serializeRecentRecipes(rows: RecipeRow[]): string {
+  if (!rows.length) return '';
+  const lines = rows.map((r) => {
+    const payload = r.payload as Recipe | null;
+    const ing = (payload?.ing ?? [])
+      .map((i) => i.n)
+      .filter((n): n is string => !!n)      // партії без назви (лише p) — не смітимо id-ами
+      .join(', ');
+    return `— ${r.title}${ing ? `: ${ing}` : ''}`;
+  });
+  return '\n\n[ЗГЕНЕРОВАНІ РЕЦЕПТИ]\n' + lines.join('\n')
+    + '\nЯкщо людина повертається до однієї з цих страв — тримайся ЦЬОГО складу, не вигадуй новий підхід.'
+    + ' Хоче інакше — вона скаже прямо.';
+}
+
 // Висновки з готування. Це єдине в контексті, що написала не система, а сама
 // людина про свою кухню: «фует знімати, щойно краї хрусткі». Тому вони йдуть
 // окремим блоком, а не тонуть у профілі серед побажань.
@@ -169,5 +189,6 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [])
-    + serializeEaters(ctx.eaters ?? []);
+    + serializeEaters(ctx.eaters ?? [])
+    + serializeRecentRecipes(ctx.recentRecipes ?? []);
 }

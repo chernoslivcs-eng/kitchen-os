@@ -109,6 +109,10 @@ export interface Repo {
   // Бібліотека рецептів (екран 07 із прототипу). Повертає збережені «на потім»
   // і ті, які вже готували — з лічильником готувань.
   listRecipes(user_id: string, limit?: number): Promise<RecipeListItem[]>;
+  // Останні рецепти власника ВКЛЮЧНО з чернетками — для dedupe генерації і
+  // блоку [ЗГЕНЕРОВАНІ РЕЦЕПТИ] в контексті моделі. listRecipes чернетки
+  // свідомо ховає (бібліотека), тому окремий метод.
+  listRecentRecipes(user_id: string, limit?: number): Promise<RecipeRow[]>;
   setRecipeSaved(id: string, saved_at: string | null): Promise<void>;
   // Undo імпорту прибирає рядок цілком: на щойно імпортований рецепт ще ніщо
   // не посилається, і лишати «незбережений» привид у базі нема сенсу.

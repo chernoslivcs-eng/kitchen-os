@@ -20,6 +20,7 @@ export interface Fixture {
   shopping?: unknown[];
   notes?: unknown[];
   eaters?: unknown[];
+  recentRecipes?: unknown[];
   now?: string;               // фіксована дата — інакше календарні фікстури живуть один день
   skip?: string;
 }
@@ -110,6 +111,7 @@ export function loadFixtures(): Fixture[] {
     readJson('member-card.json'),
     readJson('calendar-easter-date.json'),
     readJson('own-recipe-text.json'),
+    readJson('generated-recipe-memory.json'),
   ];
   return list;
 }

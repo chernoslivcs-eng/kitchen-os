@@ -124,10 +124,14 @@ export interface CookPhotoCard {
 // тому в apply гілки немає і модель цей тип не породжує (немає в CARD_TYPES
 // парсера). Компроміс Р-3 з design-audit-2: рецепт живе окремим екраном, але
 // більше не зникає з розмови.
+// Рішення Пилипа (31.08): рецепт — це хід розмови, а не екран. Повідомлення
+// несе ПОВНИЙ рецепт: стрічка рендерить його цілком, F5 тримає, історія
+// розмови містить страву, а не посилання на неї.
 export interface RecipeLinkCard {
   type: 'recipe_link';
   recipe_id: string;
   title: string;
+  recipe?: Recipe;
 }
 
 export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard;

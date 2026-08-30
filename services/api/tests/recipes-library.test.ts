@@ -343,3 +343,126 @@ describe('слід рецепта в розмові', () => {
     expect(messages.some((m: { card?: { type?: string } }) => m.card?.type === 'recipe_link')).toBe(false);
   });
 });
+
+// Скріни Пилипа: два «Бабусин борщ» — з яловичиною на 280 ккал і зі свининою
+// на 180. Кожен тап «Рецепт» викликав модель заново, і вона щоразу вигадувала
+// інший підхід. Та сама назва в межах доби → той самий рецепт, нуль токенів.
+describe('генерація ідемпотентна в межах доби', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  const gen = (cookie: string, title: string, extra: Record<string, unknown> = {}) =>
+    app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie }, payload: { title, ...extra },
+    });
+
+  it('другий тап по тій самій назві повертає ТОЙ САМИЙ рецепт', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const first = (await gen(me.cookie, 'Бабусин борщ')).json();
+    const second = (await gen(me.cookie, 'Бабусин борщ')).json();
+    expect(second.id).toBe(first.id);
+    expect(second.recipe).toEqual(first.recipe);
+    expect(second.reused).toBe(true);
+  });
+
+  it('регістр не робить нового рецепта', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const first = (await gen(me.cookie, 'Борщ')).json();
+    const second = (await gen(me.cookie, 'борщ')).json();
+    expect(second.id).toBe(first.id);
+  });
+
+  it('інша назва — інший рецепт', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const first = (await gen(me.cookie, 'Борщ')).json();
+    const second = (await gen(me.cookie, 'Різото')).json();
+    expect(second.id).not.toBe(first.id);
+  });
+
+  it('regenerate: true — свідомий новий підхід', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const first = (await gen(me.cookie, 'Борщ')).json();
+    const second = (await gen(me.cookie, 'Борщ', { regenerate: true })).json();
+    expect(second.id).not.toBe(first.id);
+  });
+
+  it('чужий рецепт із тією ж назвою не перевикористовується', async () => {
+    const alice = await signIn(app, mailer, 'alice@example.com');
+    const bob = await signIn(app, mailer, 'bob@example.com');
+    const a = (await gen(alice.cookie, 'Борщ')).json();
+    const b = (await gen(bob.cookie, 'Борщ')).json();
+    expect(b.id).not.toBe(a.id);
+  });
+});
+
+// Рішення Пилипа: рецепт — це хід розмови, а не екран. Повідомлення-слід
+// несе ПОВНИЙ рецепт (card.recipe), щоб стрічка рендерила його цілком і
+// він переживав F5 як звичайне повідомлення сесії.
+describe('рецепт як хід розмови', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  it('повідомлення в сесії несе повний рецепт, не тільки посилання', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'що приготувати?' },
+    });
+    const { session } = (await app.inject({
+      method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie },
+    })).json();
+
+    await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie },
+      payload: { title: 'Борщ', session_id: session.id },
+    });
+    const { messages } = (await app.inject({
+      method: 'GET', url: `/v1/sessions/${session.id}`, headers: { cookie: me.cookie },
+    })).json();
+    const msg = messages.find((m: { card?: { type?: string } }) => m.card?.type === 'recipe_link');
+    expect(msg.card.recipe).toBeTruthy();
+    expect(msg.card.recipe.t).toBe('Борщ');
+    expect(msg.card.recipe.st.length).toBeGreaterThan(0);
+  });
+
+  it('повторний тап із session_id не плодить друге повідомлення', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'привіт' },
+    });
+    const { session } = (await app.inject({
+      method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie },
+    })).json();
+    for (let i = 0; i < 2; i++) {
+      await app.inject({
+        method: 'POST', url: '/v1/recipes/generate',
+        headers: { cookie: me.cookie },
+        payload: { title: 'Борщ', session_id: session.id },
+      });
+    }
+    const { messages } = (await app.inject({
+      method: 'GET', url: `/v1/sessions/${session.id}`, headers: { cookie: me.cookie },
+    })).json();
+    const links = messages.filter((m: { card?: { type?: string } }) => m.card?.type === 'recipe_link');
+    expect(links).toHaveLength(1);
+  });
+});

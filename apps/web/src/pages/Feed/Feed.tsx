@@ -133,6 +133,18 @@ export function Feed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+    // «☆ На потім» просто зі стрічки: чернетка вже має адресу — це PATCH-позначка.
+  const [savedRecipeIds, setSavedRecipeIds] = useState<Set<string>>(new Set());
+  async function saveRecipeForLater(recipe_id: string) {
+    try {
+      await api.savedRecipes.setSaved(recipe_id, true);
+      setSavedRecipeIds((prev) => new Set(prev).add(recipe_id));
+      setToast({ id: Date.now(), kind: 'ok', text: 'У рецептах — підсвітиться, коли все буде в коморі' });
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
     function startRefine(title: string) {
     setInput(`${title} — `);
     composerInputRef.current?.focus();
@@ -360,15 +372,22 @@ export function Feed() {
         }]);
         return;
       }
-      // Слід у розмові одразу, без рефетча — сервер уже записав повідомлення.
+      // Рішення Пилипа: рецепт — хід розмови, а не екран. Він з'являється
+      // в стрічці цілком (сервер уже записав повідомлення — F5 тримає);
+      // повторний тап по тій самій назві поверне ТОЙ САМИЙ рецепт (dedupe).
       if (id) {
-        setTurns((prev) => [...prev, {
-          id: newId(), role: 'assistant', time: hhmm(),
-          card: { type: 'recipe_link', recipe_id: id, title: recipe.t },
-        }]);
+        setTurns((prev) => {
+          // Не дублюємо хід, якщо цей рецепт уже в стрічці (reused).
+          if (prev.some((t) => t.card?.type === 'recipe_link' && t.card.recipe_id === id)) return prev;
+          return [...prev, {
+            id: newId(), role: 'assistant', time: hhmm(),
+            card: { type: 'recipe_link', recipe_id: id, title: recipe.t, recipe },
+          }];
+        });
+      } else {
+        // Аварійний шлях без id (не мало б статись) — старий екран.
+        navigate('/recipe', { state: { recipe } });
       }
-      // Р-3: адреса замість state — state лишаємо кешем першого рендера.
-      navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe } });
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     } finally {
@@ -547,6 +566,9 @@ export function Feed() {
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onRefine={t.card.type === 'proposal' ? startRefine : undefined}
+                onCook={(r) => navigate('/cook', { state: { recipe: r } })}
+                onSaveRecipe={saveRecipeForLater}
+                savedRecipeIds={savedRecipeIds}
               />
             )}
           </div>

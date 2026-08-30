@@ -736,6 +736,14 @@ export class PostgresRepo implements Repo {
     }));
   }
 
+  async listRecentRecipes(user_id: string, limit = 5): Promise<RecipeRow[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM recipe WHERE owner_id = $1 ORDER BY created_at DESC LIMIT $2',
+      [user_id, limit],
+    );
+    return rows.map(rowToRecipe);
+  }
+
   async setRecipeSaved(id: string, saved_at: string | null): Promise<void> {
     await this.pool.query('UPDATE recipe SET saved_at = $1 WHERE id = $2', [saved_at, id]);
   }
