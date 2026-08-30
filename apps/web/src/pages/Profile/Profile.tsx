@@ -175,7 +175,13 @@ export function ProfilePage() {
           {/* DIET_PRESETS із прототипу — там вони лишились заготовкою.
               Тап — і побажання записане, без набирання «низький FODMAP»
               пальцем на телефоні. Уже записані пресети зі списку зникають. */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          <div style={{
+            marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 10,
+            letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--fg-dim)',
+          }}>
+            Часті дієти — одним тапом
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
             {DIET_PRESETS
               .filter((d) => !(profile?.wishes ?? []).some((w) => w.toLowerCase() === d.toLowerCase()))
               .map((d) => (
@@ -255,12 +261,17 @@ export function ProfilePage() {
 
         {/* Їдці дому без акаунтів: «зі мною живе Оксана, вона веганка».
             Записуються розмовою (kind: member); тут — видно й можна прибрати. */}
-        {eaters.length > 0 && (
-          <div className={styles.section}>
-            <div className={styles['section-label']}>Домашні</div>
-            <div className={styles.hint}>
-              Хто ще їсть у домі. Страви враховують їхні обмеження нарівні з твоїми.
-            </div>
+        <div className={styles.section}>
+          <div className={styles['section-label']}>Домашні</div>
+          <div className={styles.hint}>
+            Хто ще їсть у домі. Страви враховують їхні обмеження нарівні з твоїми.
+          </div>
+          {eaters.length === 0 && (
+            <span className={styles['empty-chip']}>
+              поки нікого — скажи в чаті «зі мною живе Оксана, вона веганка»
+            </span>
+          )}
+          {eaters.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {eaters.map((e) => {
                 const limits = [
@@ -303,8 +314,8 @@ export function ProfilePage() {
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Висновки з готування. Єдине в профілі, що написала не система про
             людину, а людина про свою кухню — тому окремим блоком. */}
@@ -312,7 +323,7 @@ export function ProfilePage() {
           <div className={styles.section}>
             <div className={styles['section-label']}>Висновки з готування</div>
             <div className={styles.hint}>
-              Те, що ти зрозумів про свою кухню. Асистент це памʼятає й враховує в рецептах.
+              Те, що ти зрозумів про свою кухню. Памʼятається назавжди і враховується в кожному рецепті. ★ — закріплене, згадується завжди.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {notes.map((n) => (

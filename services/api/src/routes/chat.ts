@@ -102,7 +102,18 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const started = Date.now();
       const call = await callAttachmentParse(payloads);
       await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
-      const card_id = call.card ? randomUUID() : null;
+      // Копі-звіти QA-4…7: час дієслова коливається (1/6 → 10/11 → 9/14 → 7/13),
+    // і QA-7 вперше побачив закономірність — правило тримається на картках про
+    // людину (profile/member/note: 6/8) і розсипається на картках про речі
+    // (intake_diff: 0/3). Правило переписували двічі; втретє не переписуємо —
+    // рахуємо на реальних даних із розбивкою за типом, і через тиждень логів
+    // буде видно, чи гіпотеза правильна і чи варто ставити пост-процесор.
+    const TENSE_CLAIMS = /\b(записав|записала|записую|прибрав|прибрала|прибираю|додав|додала|додаю|видалив|видалила|видаляю)\b/i;
+    if (call.card && TENSE_CLAIMS.test(call.reply ?? '')) {
+      req.log.warn({ card_type: call.card.type, reply: call.reply }, 'tense-violation');
+    }
+
+    const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
       }
