@@ -340,7 +340,10 @@ export const registry: Record<string, Invariant> = {
     const reply = String(out.reply ?? '');
     // Конкретна дата у квітні — «5 квітня», «12.04», «12 квітня»
     const named = /\d{1,2}\s*(квітня|берез)|\d{1,2}[.\/]0?[34]\b/.test(reply);
-    const asks = reply.includes('?');
+    // Питання не завжди має знак питання: «Скажи, за яким календарем рахуєш»
+    // — це запит на уточнення, і завалювати його за пунктуацію безглуздо.
+    const asks = reply.includes('?')
+      || /скажи|уточни|за яким календарем|який (?:саме )?календар|православн\w* чи католиц/i.test(reply);
     if (named && !asks) return fail('називає дату свята, якої не бачила в контексті');
     return asks
       ? pass()
@@ -410,7 +413,10 @@ export const registry: Record<string, Invariant> = {
   },
 };
 
-// Параметричні: `topic-holds:плескавиц`, `mentions-allergen-out-loud:мідії`, `needs-mentions-креветк`.
+// Параметричні — аргумент ЗАВЖДИ через двокрапку: `topic-holds:плескавиц`,
+// `mentions-allergen-out-loud:мідії`, `needs-mentions:креветк`. Дефіс не працює:
+// `needs-mentions-креветк` у фікстурі мовчки падав як «невідомий інваріант»,
+// тобто перевірка була мертва з дня написання.
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
 

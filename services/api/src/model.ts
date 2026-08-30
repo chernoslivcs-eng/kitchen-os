@@ -6,6 +6,7 @@ import { loadPrompt, compose, type CallName, type LoadedPrompt } from '@kitchen/
 import {
   buildKitchenContext,
   extractJson,
+  parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
   serializeProfile as ctxSerializeProfile,
   type RecentCookRunSummary,
@@ -396,25 +397,12 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
-  const parsed = tryParse(text) as { kind?: AttachmentCall['raw_kind']; note?: string; ops?: unknown; recipe?: unknown } | null;
-
-  let card: Card | null = null;
-  let raw_kind: AttachmentCall['raw_kind'] = null;
-  if (parsed?.kind === 'receipt' || parsed?.kind === 'shelf') {
-    raw_kind = parsed.kind;
-    if (Array.isArray(parsed.ops)) {
-      // Схема моделі — attachment-parser.md; тут довіряємо і закладаємось на валідацію в apply.
-      card = { type: 'intake_diff', ops: parsed.ops as never };
-    }
-  } else if (parsed?.kind === 'recipe') {
-    raw_kind = 'recipe';
-    // Recipe-картка як окрема сутність буде на наступному кроці; поки reply без card.
-  } else if (parsed?.kind) {
-    raw_kind = parsed.kind;
-  }
+  // Розбір — у домені, спільний з eval. Поки він жив тут, eval розбирав
+  // відповідь про чек чатовим парсером і перевіряв не той конвеєр.
+  const { reply, card, raw_kind } = parseAttachmentResponse(text);
 
   return {
-    reply: parsed?.note ?? text,
+    reply,
     card,
     raw_kind,
     usage: { input: resp.usage.input_tokens, output: resp.usage.output_tokens },
@@ -422,8 +410,3 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   };
 }
 
-
-// Обгортка для випадків, де нам потрібен лише parsed (у callAttachmentParse).
-function tryParse(text: string): unknown {
-  return extractJson(text).parsed;
-}

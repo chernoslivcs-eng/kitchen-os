@@ -84,3 +84,38 @@ export function parseModelResponse(text: string): { reply: string; card: Card | 
   }
   return { reply, card };
 }
+
+// Не плутати з AttachmentKind у types.ts — той про формат файлу (image|pdf|text),
+// цей про те, що на ньому зображено.
+export type AttachmentSubject = 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other';
+
+// Розбір відповіді на вкладення. Схема тут інша, ніж у чаті: не {reply, card},
+// а {kind, note, ops|recipe}.
+//
+// Живе поруч із чатовим парсером із тієї ж причини, з якої сюди переїхав
+// buildKitchenContext: цим користуються прод і eval. Поки логіка сиділа тільки
+// в services/api, eval розбирав відповідь про чек ЧАТОВИМ парсером — той
+// шукав {reply, card}, не знаходив, і віддавав порожню картку з JSON-уламком
+// у полі reply. Тобто фікстури на чеки перевіряли не той конвеєр, що працює,
+// і не могли позеленіти в принципі — що й було видно в снапшотах.
+export function parseAttachmentResponse(text: string): {
+  reply: string;
+  card: Card | null;
+  raw_kind: AttachmentSubject | null;
+} {
+  const parsed = extractJson(text).parsed as {
+    kind?: AttachmentSubject; note?: string; ops?: unknown; recipe?: unknown;
+  } | null;
+
+  let card: Card | null = null;
+  let raw_kind: AttachmentSubject | null = null;
+  if (parsed?.kind === 'receipt' || parsed?.kind === 'shelf') {
+    raw_kind = parsed.kind;
+    // Схема моделі — attachment-parser.md; валідація полів робиться в apply.
+    if (Array.isArray(parsed.ops)) card = { type: 'intake_diff', ops: parsed.ops as never };
+  } else if (parsed?.kind) {
+    // recipe/dish/other картки не дають: recipe-картка — окремий крок.
+    raw_kind = parsed.kind;
+  }
+  return { reply: parsed?.note ?? text, card, raw_kind };
+}

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
-import { buildKitchenContext, parseModelResponse } from '@kitchen/domain';
+import { buildKitchenContext, parseModelResponse, parseAttachmentResponse } from '@kitchen/domain';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
@@ -90,7 +90,11 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
       parts.push({ type: 'text', text: fx.attachment.content });
     }
     // TODO: image branch — load .jpg, base64, push ImageBlockParam. Не тепер.
-    parts.push({ type: 'text', text: 'Розбери за схемою й поверни JSON.' });
+    // Дослівно як у проді (callAttachmentParse): хвостова фраза частина промпту.
+    parts.push({
+      type: 'text',
+      text: 'Розбери за схемою й поверни JSON. Користувач бачив вкладення на власні очі — його слово важливіше.',
+    });
     return [{ role: 'user', content: parts }];
   }
 
@@ -139,9 +143,13 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
-    // Той самий парсер, що у проді: знімає ```-огорожу, бачить кілька JSON,
-    // розрізняє {reply,card} і голу картку.
-    const { reply, card } = parseModelResponse(text);
+    // Той самий парсер, що у проді — і саме той, що відповідає виклику.
+    // Чат віддає {reply, card}, вкладення — {kind, note, ops}. Поки eval гнав
+    // обидва через чатовий парсер, фікстури на чеки не могли позеленіти
+    // в принципі: він шукав card, не знаходив, і клав уламок JSON у reply.
+    const { reply, card } = call === 'attachment_parse'
+      ? parseAttachmentResponse(text)
+      : parseModelResponse(text);
 
     return {
       raw: text,

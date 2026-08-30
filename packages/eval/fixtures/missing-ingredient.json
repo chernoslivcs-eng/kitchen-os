@@ -12,5 +12,5 @@
   "conversation": [
     {"role":"user","content":"хочу приготувати щось із креветками сьогодні"}
   ],
-  "invariants": ["is-proposal", "not-a-refusal", "needs-mentions-креветк", "at-least-2-items"]
+  "invariants": ["is-proposal", "not-a-refusal", "needs-mentions:креветк", "at-least-2-items"]
 }
