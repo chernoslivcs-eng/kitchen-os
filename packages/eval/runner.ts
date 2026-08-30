@@ -99,14 +99,26 @@ function diffSnapshots(prev: Snapshot | null, curr: Snapshot): string[] {
 async function main() {
   const diffOnly = process.argv.includes('--diff-only');
   const promoteBaseline = process.argv.includes('--baseline');
+  // Гроші: повний прогін ≈ 30 платних викликів sonnet. Ітерувати ОДНЕ правило
+  // повними прогонами — $1+ за ітерацію (31.08 так згоріло ~$10). Тому фільтр:
+  //   pnpm eval -- --only=pantry-truth,calendar-lent
+  // Відфільтрований прогін НЕ пише снапшот і не рахує діф — він для ітерації,
+  // базлайн просувається тільки повним чистим прогоном.
+  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+  const only = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map((s) => s.trim())) : null;
   const version = process.env.PROMPT_VERSION;
   const prompt = loadPrompt(version);
 
   console.log(`Prompt version: ${prompt.version}`);
   console.log(`Model: fast=${process.env.MODEL_FAST ?? 'claude-haiku-4-5-20251001'} smart=${process.env.MODEL_SMART ?? 'claude-sonnet-5'}`);
+  if (only) console.log(`Фільтр --only: ${[...only].join(', ')} (снапшот і діф не пишуться)`);
   console.log('');
 
-  const fixtures = loadFixtures();
+  const fixtures = loadFixtures().filter((fx) => !only || only.has(fx.id));
+  if (only && fixtures.length === 0) {
+    console.error('Жодна фікстура не збіглась із --only');
+    process.exit(1);
+  }
   const runs: FixtureRun[] = [];
 
   for (const fx of fixtures) {
@@ -150,18 +162,22 @@ async function main() {
     }
   }
 
-  const snap = toSnapshot(prompt.version, runs);
-  saveSnapshot(snap, 'latest');
-  if (promoteBaseline) {
-    saveSnapshot(snap, 'baseline');
-    console.log('\n(записано як baseline)');
-  }
+  // Відфільтрований прогін — інструмент ітерації, не вимірювання: снапшот не
+  // пишемо (інакше latest.json «худне» до вибраних фікстур і діф бреше).
+  if (!only) {
+    const snap = toSnapshot(prompt.version, runs);
+    saveSnapshot(snap, 'latest');
+    if (promoteBaseline) {
+      saveSnapshot(snap, 'baseline');
+      console.log('\n(записано як baseline)');
+    }
 
-  const prev = loadPrevious();
-  const diff = diffSnapshots(prev, snap);
-  console.log('\n=== ДІФ до baseline ===');
-  if (diff.length === 0) console.log('  (без змін)');
-  for (const l of diff) console.log(l);
+    const prev = loadPrevious();
+    const diff = diffSnapshots(prev, snap);
+    console.log('\n=== ДІФ до baseline ===');
+    if (diff.length === 0) console.log('  (без змін)');
+    for (const l of diff) console.log(l);
+  }
 
   const anyFail = runs.some((r) => !r.allPassed && !r.result.error?.startsWith('SKIPPED'));
   if (!diffOnly && anyFail) process.exit(1);
