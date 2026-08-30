@@ -140,6 +140,68 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       await expect(applyCard(ctx.repo, mid, [], randomUUID())).rejects.toThrow(/forbidden/);
     });
 
+    // QA-7: цей клас багів (розсинхрон SQL і схеми) проходив зелений CI, бо
+    // жоден тест не виконував INSERT-и PostgresRepo. Контракт тепер торкається
+    // кожної сутності хоча б раз — на InMemoryRepo це тривіально зелене, на
+    // PostgresRepo кожен запит мусить реально виконатись. Зайвий $12 у
+    // shopping_item і household_invite (обидва падали на живій базі з
+    // «INSERT has more expressions than target columns») цей блок ловить.
+    it('smoke: кожна сутність пишеться й читається', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const now = new Date().toISOString();
+
+      await repo.insertShoppingItem({
+        id: randomUUID(), household_id, label: 'молоко', reason: null,
+        value: 1000, unit: 'ml', zone: 'fridge', checked: false,
+        added_by: user_id, source: 'user', created_at: now,
+      });
+      expect((await repo.listShoppingItems(household_id)).map((i) => i.label)).toContain('молоко');
+
+      await repo.saveInvite({
+        id: randomUUID(), household_id, invited_by: user_id,
+        email: 'invited@example.com', role: 'member',
+        token_hash: 'h'.repeat(64), created_at: now,
+        expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+        consumed_at: null, consumed_by: null, revoked_at: null,
+      });
+      expect((await repo.listInvitesForHousehold(household_id)).some((i) => i.email === 'invited@example.com')).toBe(true);
+
+      const note_id = randomUUID();
+      await repo.insertNote({
+        id: note_id, user_id, text: 'смок-висновок', recipe_title: null,
+        rating: null, pinned: false, created_at: now,
+      });
+      expect((await repo.listNotes(user_id)).some((n) => n.id === note_id)).toBe(true);
+
+      const eater_id = randomUUID();
+      await repo.insertEater({
+        id: eater_id, household_id, name: 'Смок-їдець',
+        allergies: ['арахіс'], wishes: [], antipatterns: [], created_at: now,
+      });
+      expect((await repo.listEaters(household_id)).some((e) => e.id === eater_id)).toBe(true);
+
+      const recipe_id = randomUUID();
+      await repo.saveRecipe({
+        id: recipe_id, owner_id: user_id, origin: 'imported', title: 'Смок-рецепт',
+        descr: null, character: null, risk: null, base_servings: 2,
+        time_total: null, nutrition: null,
+        payload: { t: 'Смок-рецепт', ing: [], st: [] }, created_at: now, saved_at: now,
+      });
+      expect((await repo.listRecipes(user_id)).some((r) => r.id === recipe_id)).toBe(true);
+
+      await repo.saveCookRun({
+        id: randomUUID(), household_id, user_id, recipe_id, servings: 2,
+        started_at: now, finished_at: now, rating: 5, verdict: 'смок',
+        photo_url: null, changes: null, undone_at: null,
+      });
+      expect((await repo.listCookRuns(user_id)).length).toBeGreaterThan(0);
+
+      await repo.upsertProfile({
+        user_id, allergies: ['селера'], wishes: [], antipatterns: [], equipment: {},
+      });
+      expect((await repo.getProfile(user_id))?.allergies).toEqual(['селера']);
+    });
+
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

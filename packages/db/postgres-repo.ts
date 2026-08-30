@@ -819,7 +819,7 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO shopping_item
          (id, household_id, label, reason, value, unit, zone, checked, added_by, source, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
         item.id, item.household_id, item.label, item.reason,
         item.value, item.unit, item.zone, item.checked,
@@ -866,7 +866,7 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO household_invite
          (id, household_id, invited_by, email, role, token_hash, created_at, expires_at, consumed_at, consumed_by, revoked_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
         inv.id, inv.household_id, inv.invited_by, inv.email.toLowerCase(), inv.role,
         inv.token_hash, inv.created_at, inv.expires_at,
