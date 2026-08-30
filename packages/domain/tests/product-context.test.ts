@@ -1,0 +1,74 @@
+// Черга Д (№2): серіалізація комори знає про «продукт дому».
+// 1) вік партії (added_at) видимий моделі;
+// 2) «вжити до» без точної дати — ПРИБЛИЗНО з shelf_open_days тегів (тільки
+//    для відкритої партії), точний «!Nдн» лишається за expires_at;
+// 3) подвійний алерген-захист: мітка ⚠ ставиться за коренем У НАЗВІ АБО за
+//    тегом allergens продукту — «камбоцола» без слова «молоко» теж ловиться.
+
+import { describe, it, expect } from 'vitest';
+import { serializePantry, type PantryBatch, type Profile, type HouseholdProduct } from '../index.js';
+
+const DAY = 86_400_000;
+const NOW = Date.parse('2026-08-31T12:00:00Z');
+
+function batch(patch: Partial<PantryBatch>): PantryBatch {
+  return {
+    id: 'b1', household_id: 'h1', catalog_key: null, label: 'щось', zone: 'fridge',
+    value: 100, unit: 'g', state: 'sealed', opened_at: null, expires_at: null,
+    best_before_opened_days: null, added_at: new Date(NOW - DAY).toISOString(),
+    depleted_at: null, confidence: 1, provenance: 'user_statement', staple: false,
+    last_by: null, last_action: null, product_id: null, ...patch,
+  };
+}
+
+function product(patch: Partial<HouseholdProduct>): HouseholdProduct {
+  return {
+    id: 'p1', household_id: 'h1', product: 'камбоцола', brand: null, variant: null,
+    unit: 'g', pack_size: null, tags: {}, catalog_key: null,
+    created_at: new Date(NOW).toISOString(), ...patch,
+  };
+}
+
+describe('serializePantry × продукт дому', () => {
+  it('вік партії видно: «дод.Nдн»', () => {
+    const out = serializePantry(
+      [batch({ label: 'сир', added_at: new Date(NOW - 5 * DAY).toISOString() })],
+      null, NOW, [], false, 'none',
+    );
+    expect(out).toContain('дод.5дн');
+  });
+
+  it('свіжа партія (до 2 днів) без вікового маркера', () => {
+    const out = serializePantry([batch({ label: 'сир' })], null, NOW, [], false, 'none');
+    expect(out).not.toContain('дод.');
+  });
+
+  it('відкрита партія без expires_at → «~строк≈» із shelf_open_days тегів', () => {
+    const prod = product({ tags: { shelf_open_days: 7 } });
+    const b = batch({
+      label: 'камбоцола', product_id: 'p1', state: 'opened',
+      opened_at: new Date(NOW - 5 * DAY).toISOString(),
+    });
+    const out = serializePantry([b], null, NOW, [], false, 'none', 60, [prod]);
+    expect(out).toContain('~строк≈2дн');
+    expect(out).not.toContain('!2дн');       // приблизне ≠ точне
+  });
+
+  it('expires_at лишається точним «!Nдн», без «~строк»', () => {
+    const b = batch({ label: 'сметана', expires_at: new Date(NOW + 2 * DAY).toISOString() });
+    const out = serializePantry([b], null, NOW, [], false, 'none');
+    expect(out).toContain('!2дн');
+    expect(out).not.toContain('~строк');
+  });
+
+  it('алерген ловиться ЗА ТЕГОМ продукту, коли в назві кореня нема', () => {
+    const p: Profile = { user_id: 'u1', allergies: ['молоко'], wishes: [], antipatterns: [], equipment: {} };
+    const prod = product({ tags: { allergens: ['молоко'] } });
+    const b = batch({ label: 'камбоцола', product_id: 'p1' });
+    const out = serializePantry([b], p, NOW, [], false, 'none', 60, [prod]);
+    expect(out).toContain('⚠АЛЕРГЕН');
+    // без продуктів — мітки нема (старе поведінка за коренем у назві)
+    const bare = serializePantry([b], p, NOW, [], false, 'none');
+    expect(bare).not.toContain('⚠АЛЕРГЕН');
+  });
+});

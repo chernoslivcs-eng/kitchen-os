@@ -31,10 +31,14 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     const all = await repo.listBatches(household_id);
     const active = all.filter((b) => b.state !== 'depleted');
     active.sort((a, b) => urgencyScore(a) - urgencyScore(b));
+    // Черга Д (№2/№4а): продукти дому — клієнту для «повна назва в
+    // інгредієнтах, тільки product у кроках».
+    const products = await repo.listProducts(household_id);
     return {
       household_id,
       count: active.length,
       batches: active,
+      products,
     };
   });
 

@@ -11,7 +11,7 @@ import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import { saveCookSession, loadCookSession, clearCookSession } from '../../lib/cook-session';
-import { renderStepContent, stepIngredients, resolveIngName, type BatchLabels } from '../../lib/recipe';
+import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
 
 interface CookLocationState {
@@ -67,12 +67,17 @@ export function CookPage() {
     window.setTimeout(() => setStepLocked(false), 400);
   }
   const [batchLabels, setBatchLabels] = useState<BatchLabels>(new Map());
+  // №4а: кроки показують тільки product — без бренду й варіанта.
+  const [stepLabels, setStepLabels] = useState<BatchLabels>(new Map());
 
   useEffect(() => {
     // Мапа id партії → людський label. Модель показує на комору через `ing.p`
     // (uuid), крокі мають плейсхолдери {0} → назва інгредієнта, не uuid.
     api.pantry()
-      .then(({ batches }) => setBatchLabels(new Map(batches.map((b) => [b.id, b.label]))))
+      .then(({ batches, products }) => {
+        setBatchLabels(new Map(batches.map((b) => [b.id, b.label])));
+        setStepLabels(stepLabelsFrom(batches, products));
+      })
       .catch(() => {/* silent */});
   }, []);
 
@@ -343,7 +348,7 @@ export function CookPage() {
                 таймер+кнопки справа за бордюром — Д05. */}
             <div className={styles['col-main']}>
               <div className={styles['step-title']}>
-                {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, batchLabels)}
+                {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, stepLabels)}
               </div>
 
               {/* DA2-05: «НА ЦЬОМУ КРОЦІ» — прив'язка кроку до партій з комори,

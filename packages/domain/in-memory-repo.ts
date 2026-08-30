@@ -7,6 +7,7 @@ import type {
   SessionRow, MessageRow, MemoryNote, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
+import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
@@ -71,6 +72,37 @@ export class InMemoryRepo implements Repo {
 
   async deleteBatch(id: string): Promise<void> {
     this.batches.delete(id);
+  }
+
+  // ----- Продукти дому (черга Д, №2) -------------------------------------
+
+  private products = new Map<string, HouseholdProduct>();
+
+  async insertProduct(p: HouseholdProduct): Promise<void> {
+    this.products.set(p.id, { ...p, tags: { ...p.tags } });
+  }
+  async getProduct(id: string): Promise<HouseholdProduct | null> {
+    const p = this.products.get(id);
+    return p ? { ...p, tags: { ...p.tags } } : null;
+  }
+  async findProductByTriple(household_id: string, t: ProductTriple): Promise<HouseholdProduct | null> {
+    const key = tripleKey(t);
+    for (const p of this.products.values()) {
+      if (p.household_id === household_id && tripleKey(p) === key) {
+        return { ...p, tags: { ...p.tags } };
+      }
+    }
+    return null;
+  }
+  async listProducts(household_id: string): Promise<HouseholdProduct[]> {
+    return [...this.products.values()]
+      .filter((p) => p.household_id === household_id)
+      .map((p) => ({ ...p, tags: { ...p.tags } }));
+  }
+  async updateProduct(id: string, patch: Partial<Omit<HouseholdProduct, 'id' | 'household_id' | 'created_at'>>): Promise<void> {
+    const cur = this.products.get(id);
+    if (!cur) throw new Error(`product not found: ${id}`);
+    this.products.set(id, { ...cur, ...patch, tags: { ...(patch.tags ?? cur.tags) } });
   }
 
   async getProfile(user_id: string): Promise<Profile | null> {

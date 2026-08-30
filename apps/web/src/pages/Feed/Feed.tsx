@@ -18,6 +18,7 @@ import { Avatar } from '../../components/Avatar/Avatar';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
+import { stepLabelsFrom } from '../../lib/recipe';
 import styles from './Feed.module.css';
 
 interface Turn {
@@ -92,6 +93,8 @@ export function Feed() {
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
   const [batchLabels, setBatchLabels] = useState<Map<string, string>>(new Map());
+  // №4а: кроки рецептів у стрічці — тільки product.
+  const [stepLabels, setStepLabels] = useState<Map<string, string>>(new Map());
   const [toast, setToast] = useState<Toast | null>(null);
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
@@ -209,6 +212,7 @@ export function Feed() {
       setPantryCount(p.count);
       // Мапа id→label: рецепт-повідомлення показує «Вершки 33%», а не «з комори».
       setBatchLabels(new Map(p.batches.map((b) => [b.id, b.label])));
+      setStepLabels(stepLabelsFrom(p.batches, p.products));
       setShoppingCount(s.count);
       // Догоряння: беремо активні партії з expires_at ≤ 3 днів. Показуємо 3 перших.
       // Це «підказка одним рядком», не панель — юзер може її ігнорувати або тапнути,
@@ -724,6 +728,7 @@ export function Feed() {
                 savedRecipeIds={savedRecipeIds}
                 onNeedToList={addNeedToList}
                 batchLabels={batchLabels}
+                stepLabels={stepLabels}
               />
             )}
           </div>

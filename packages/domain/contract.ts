@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { PantryBatch, IntakeCard } from './types.js';
 import { createPending, applyCard, undoCard } from './apply.js';
+import { displayName } from './product.js';
 
 export interface RepoCtx {
   repo: Repo;
@@ -70,6 +71,90 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const res = await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
       expect(res.undone).toBe(true);
       expect(await ctx.repo.listBatches(ctx.household_id)).toHaveLength(0);
+    });
+
+    // Черга Д (№2): add-оп із трійкою створює «продукт дому», партія показує
+    // на нього, а видима назва ФОРМУЄТЬСЯ з трійки. Знайома трійка (без
+    // регістру) реюзається — теги беруться з БД, модельні ігноруються.
+    it('add із трійкою: створює продукт дому, формує назву, реюзає знайому трійку', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [
+        {
+          op: 'add', label: 'Пармезан Galbani', value: 200, unit: 'g', zone: 'fridge',
+          product: 'пармезан', brand: 'Galbani', variant: 'тертий',
+          tags: { allergens: ['молоко'], lactose: 'low', shelf_open_days: 14 },
+        },
+      ]};
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      const batches = await ctx.repo.listBatches(ctx.household_id);
+      expect(batches).toHaveLength(1);
+      const b = batches[0]!;
+      expect(b.label).toBe('пармезан Galbani тертий');    // назва — з трійки, не з op.label
+      expect(b.product_id).toBeTruthy();
+      // shelf_open_days з тегів живить «вжити до» відкритої партії
+      expect(b.best_before_opened_days).toBe(14);
+
+      const prod = await ctx.repo.getProduct(b.product_id!);
+      expect(prod).toMatchObject({ product: 'пармезан', brand: 'Galbani', variant: 'тертий' });
+      expect(prod!.tags.allergens).toEqual(['молоко']);
+      expect(displayName(prod!)).toBe(b.label);
+
+      // Друга покупка тієї ж трійки (інший регістр, інші модельні теги) —
+      // продукт НЕ дублюється, теги з БД перемагають.
+      const mid2 = randomUUID();
+      await createPending(ctx.repo, { message_id: mid2, household_id: ctx.household_id, user_id: ctx.user_id, card: {
+        type: 'intake_diff', ops: [{
+          op: 'add', label: 'пармезан', value: 200, unit: 'g',
+          product: 'Пармезан', brand: 'GALBANI', variant: 'Тертий',
+          tags: { allergens: ['інше'] },
+        }],
+      } });
+      await applyCard(ctx.repo, mid2, [], ctx.user_id);
+      expect(await ctx.repo.listProducts(ctx.household_id)).toHaveLength(1);
+      const again = await ctx.repo.listBatches(ctx.household_id);
+      expect(again).toHaveLength(2);
+      expect(again[1]!.product_id).toBe(b.product_id);
+      expect((await ctx.repo.getProduct(b.product_id!))!.tags.allergens).toEqual(['молоко']);
+    });
+
+    // Теги правляться ТІЛЬКИ чатом через картку («шити прапорцями —
+    // неюзабельно»): correct-оп несе tags — вони мерджаться в продукт партії.
+    it('correct з tags: мердж у продукт дому, решта тегів не чіпається', async () => {
+      const mid = randomUUID();
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card: {
+        type: 'intake_diff', ops: [{
+          op: 'add', label: 'камбоцола', value: 200, unit: 'g', zone: 'fridge',
+          product: 'камбоцола', tags: { allergens: ['молоко'], lactose: 'yes' },
+        }],
+      } });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+      const b = (await ctx.repo.listBatches(ctx.household_id))[0]!;
+
+      const mid2 = randomUUID();
+      await createPending(ctx.repo, { message_id: mid2, household_id: ctx.household_id, user_id: ctx.user_id, card: {
+        type: 'intake_diff', ops: [{ op: 'correct', label: 'камбоцола', tags: { lactose: 'none' } }],
+      } });
+      await applyCard(ctx.repo, mid2, [], ctx.user_id);
+
+      const prod = await ctx.repo.getProduct(b.product_id!);
+      expect(prod!.tags.lactose).toBe('none');
+      expect(prod!.tags.allergens).toEqual(['молоко']);   // не затерлось
+    });
+
+    it('add без трійки: продукт формується з label (product=label, без бренду)', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [
+        { op: 'add', label: 'сіль', value: 500, unit: 'g', zone: 'spices' },
+      ]};
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+      const b = (await ctx.repo.listBatches(ctx.household_id))[0]!;
+      expect(b.label).toBe('сіль');
+      expect(b.product_id).toBeTruthy();
+      const prod = await ctx.repo.getProduct(b.product_id!);
+      expect(prod).toMatchObject({ product: 'сіль', brand: null, variant: null });
     });
 
     // UX9-27: «купив усе зі списку» додавало в комору, а список стояв як був —

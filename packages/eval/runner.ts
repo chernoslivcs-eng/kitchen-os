@@ -164,6 +164,12 @@ async function main() {
       if (!v.pass) console.log(`      ✗ ${name}  ${v.detail ?? ''}`);
       else if (v.detail) console.log(`      ✓ ${name}  ${v.detail}`);
     }
+    // Ітеративний режим (--only): на провалі показуємо сиру відповідь —
+    // інакше «немає ops» не діагностується без ще одного платного прогону.
+    if (only && !allPassed && result.raw) {
+      console.log('      --- RAW ---');
+      console.log(result.raw.split('\n').map((l) => '      ' + l).join('\n').slice(0, 4000));
+    }
     // Верифікація кешування очима: перший прогін пише кеш (cache_write>0),
     // повторний у межах TTL — читає (cached>0). Обидва 0 на живому виклику =
     // провайдер не прокидає поля.

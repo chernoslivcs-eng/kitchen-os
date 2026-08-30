@@ -78,12 +78,25 @@ export interface PantryBatch {
   staple: boolean;
   last_by: string | null;
   last_action: string | null;
+  product_id?: string | null;
+}
+
+// Черга Д (№2): продукт дому — трійка + невидимі теги.
+export interface HouseholdProduct {
+  id: string;
+  product: string;
+  brand: string | null;
+  variant: string | null;
+  unit: 'g' | 'ml' | 'pcs' | null;
+  pack_size: number | null;
+  tags: Record<string, unknown>;
 }
 
 export interface PantryList {
   household_id: string;
   count: number;
   batches: PantryBatch[];
+  products?: HouseholdProduct[];
 }
 
 export interface ChatCard {

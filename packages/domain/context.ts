@@ -11,6 +11,7 @@
 
 import { root, meaningfulWords } from '@kitchen/catalog';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe } from './types.js';
+import type { HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted } from './occasions.js';
 
 export interface RecentCookRunSummary {
@@ -28,6 +29,8 @@ export interface KitchenContext {
   notes?: MemoryNote[];
   eaters?: EaterRow[];
   recentRecipes?: RecipeRow[];
+  // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈».
+  products?: HouseholdProduct[];
   now?: Date;                            // для тестів — інакше Date.now()
 }
 
@@ -84,6 +87,9 @@ export function serializePantry(
   // бачить і може попередити); далі термінові (відкриті/догоряють); далі
   // свіжіші за added_at. Порядок рендера — вихідний (мінімум пертурбацій).
   cap = 60,
+  // Черга Д (№2): продукти дому — подвійний алерген-захист (тег АБО корінь
+  // у назві) і приблизний «вжити до» з shelf_open_days тегів.
+  products: HouseholdProduct[] = [],
 ): string {
   const allergens = [
     ...(p?.allergies ?? []).map((a) => ({ label: a, who: '' })),
@@ -92,21 +98,34 @@ export function serializePantry(
     .filter((a) => a.label)
     .map((a) => ({ ...a, root: root(a.label) }));
 
+  const prodById = new Map(products.map((pr) => [pr.id, pr]));
   const active = bs.filter((b) => b.state !== 'depleted');
 
   const scored = active.map((b) => {
+    const prod = b.product_id ? prodById.get(b.product_id) : undefined;
     const words = meaningfulWords(b.label).map(root);
+    // Тег АБО корінь: «камбоцола» без слова «молоко» ловиться тегом продукту.
+    const tagRoots = (prod?.tags.allergens ?? []).map(root);
     const hit = allergens
-      .filter((a) => words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w)))
+      .filter((a) =>
+        words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w))
+        || tagRoots.some((t) => t === a.root || t.startsWith(a.root) || a.root.startsWith(t)))
       .map((a) => a.label + a.who);
-    const fastHit = fasting && isFastingRestricted(b.label);
+    const fastHit = fasting && (isFastingRestricted(b.label) || prod?.tags.fasting === true);
     const days = b.expires_at
       ? Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000)
       : null;
+    // Приблизний «вжити до»: expires_at немає, партія відкрита, і теги (або
+    // сама партія) знають, скільки живе відкрите. НЕ точна дата — «~».
+    const shelf = prod?.tags.shelf_open_days ?? b.best_before_opened_days;
+    const approxDays = days == null && b.state === 'opened' && b.opened_at && shelf != null
+      ? shelf - Math.floor((now - new Date(b.opened_at).getTime()) / 86_400_000)
+      : null;
+    const ageDays = Math.floor((now - new Date(b.added_at).getTime()) / 86_400_000);
     return {
-      b, hit, fastHit, days,
+      b, hit, fastHit, days, approxDays, ageDays,
       marked: hit.length > 0 || fastHit,
-      urgent: b.state === 'opened' || (days != null && days <= 7),
+      urgent: b.state === 'opened' || (days != null && days <= 7) || (approxDays != null && approxDays <= 3),
     };
   });
 
@@ -128,12 +147,16 @@ export function serializePantry(
     hidden = scored.length - shown.length;
   }
 
-  const rows = shown.map(({ b, hit, fastHit, days }) => {
+  const rows = shown.map(({ b, hit, fastHit, days, approxDays, ageDays }) => {
     const shownId = ids === 'uuid' ? b.id : ids === 'none' ? null : (ids.get(b.id) ?? null);
     const parts = [...(shownId ? [shownId] : []), b.label, b.zone];
     if (b.value && b.unit) parts.push(`${b.value}${b.unit}`);
     if (b.state === 'opened') parts.push('вдкр');
+    // Вік партії — щоб «свіже» і «лежить другий тиждень» розрізнялись.
+    if (ageDays >= 2) parts.push(`дод.${ageDays}дн`);
     if (days != null && days <= 7) parts.push(`!${days}дн`);
+    // Приблизна оцінка (з тегів продукту) — «~», щоб модель говорила м'яко.
+    if (approxDays != null && approxDays <= 7) parts.push(`~строк≈${approxDays}дн`);
     // «...теж є, але не беру» — теж пропозиція: людина щойно прочитала
     // спокусу. Тому «не згадуй ВЗАГАЛІ», а не лише «не пропонуй».
     if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй і НЕ ЗГАДУЙ цю позицію взагалі (навіть «є, але не беру»); просять прямо — дай і назви алергію першою фразою reply`);
@@ -255,8 +278,8 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // UX9-04, «творча бухгалтерія»: модель додавала числа з історії до чисел
     // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
     // самому блоці — той самий механізм, що рятував з алергенами й постом.
-    + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування)\n'
-    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none')
+    + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування. «~строк≈» — приблизна оцінка від відкриття: згадуй мʼяко — «варто передивитись», точні дні називай лише для «!Nдн»)\n'
+    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none', 60, ctx.products ?? [])
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [])

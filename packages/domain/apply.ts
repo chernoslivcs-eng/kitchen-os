@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import { resolveLabelToZone } from '@kitchen/catalog';
 import type { Repo } from './repo.js';
+import { normalizeTriple, displayName, type HouseholdProduct } from './product.js';
 import type {
   Card,
   IntakeCard,
@@ -288,13 +289,38 @@ async function applyIntakeOp(
     const id = randomUUID();
     const provenance: Provenance = (op.evidence as Provenance) ?? 'user_statement';
     const norm = normalizeUnit(op.value, op.unit);
+
+    // Черга Д (№2): партія показує на «продукт дому». Трійка з op (фолбек —
+    // label як product); знайома трійка реюзається, і тоді її теги — істина
+    // дому, модельні ігноруються. Продукт при undo партії НЕ видаляється:
+    // це довідник, наступна покупка тієї ж трійки має його знайти.
+    const triple = normalizeTriple({ product: op.product ?? op.label, brand: op.brand, variant: op.variant });
+    let product: HouseholdProduct | null = null;
+    if (triple.product) {
+      product = await repo.findProductByTriple(household_id, triple);
+      if (!product) {
+        product = {
+          id: randomUUID(),
+          household_id,
+          ...triple,
+          unit: norm.unit === 'pack' ? null : norm.unit,
+          pack_size: null,
+          tags: op.tags ?? {},
+          catalog_key: null,
+          created_at: new Date().toISOString(),
+        };
+        await repo.insertProduct(product);
+      }
+    }
+
     const batch: PantryBatch = {
       id,
       household_id,
       // UX9-01 (той самий клас, що unpack): catalog_ingredient у БД порожня до
       // задачі «каталог 2341» — будь-який непорожній ключ валить insert по FK.
       catalog_key: null,
-      label: op.label,
+      // Видима назва ФОРМУЄТЬСЯ з трійки; op.label — фолбек без продукту.
+      label: product ? displayName(product) : op.label,
       // QA6-06: коли модель не вказала зону — питаємо каталог, а не кладемо в `dry`.
       zone: (op.zone ?? resolveLabelToZone(op.label) ?? 'dry') as Zone,
       value: norm.value,
@@ -302,7 +328,8 @@ async function applyIntakeOp(
       state: 'sealed',
       opened_at: null,
       expires_at: null,
-      best_before_opened_days: null,
+      // «відкр., дн» з тегів продукту — джерело м'якого «вжити до».
+      best_before_opened_days: product?.tags.shelf_open_days ?? null,
       added_at: new Date().toISOString(),
       depleted_at: null,
       confidence: op.confidence ?? 1,
@@ -310,6 +337,7 @@ async function applyIntakeOp(
       staple: false,
       last_by: actor,
       last_action: 'add',
+      product_id: product?.id ?? null,
     };
     await repo.insertBatch(batch);
     snap.before.created_batch_ids!.push(id);
@@ -358,6 +386,13 @@ async function applyIntakeOp(
     }
     if (op.zone !== undefined) patch.zone = op.zone;
     await repo.updateBatch(target.id, patch);
+    // Черга Д (№2): правка невидимих тегів — мердж у продукт партії.
+    // Undo-снапшот продукту не робимо: теги — довідник, а не стан комори;
+    // наступний correct поверне як треба.
+    if (op.tags && target.product_id) {
+      const prod = await repo.getProduct(target.product_id);
+      if (prod) await repo.updateProduct(prod.id, { tags: { ...prod.tags, ...op.tags } });
+    }
   }
 }
 

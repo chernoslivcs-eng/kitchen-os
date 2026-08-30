@@ -7,6 +7,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow,
 } from './types.js';
+import type { HouseholdProduct, ProductTriple } from './product.js';
 
 export interface UserRow {
   id: string;
@@ -37,6 +38,14 @@ export interface Repo {
   insertBatch(b: PantryBatch): Promise<void>;
   updateBatch(id: string, patch: Partial<PantryBatch>): Promise<void>;
   deleteBatch(id: string): Promise<void>;
+
+  // Продукти дому (черга Д, №2): трійка product·brand·variant + теги.
+  // Пошук по трійці — суворий збіг без регістру (tripleKey).
+  insertProduct(p: HouseholdProduct): Promise<void>;
+  getProduct(id: string): Promise<HouseholdProduct | null>;
+  findProductByTriple(household_id: string, t: ProductTriple): Promise<HouseholdProduct | null>;
+  listProducts(household_id: string): Promise<HouseholdProduct[]>;
+  updateProduct(id: string, patch: Partial<Omit<HouseholdProduct, 'id' | 'household_id' | 'created_at'>>): Promise<void>;
 
   // Профіль
   getProfile(user_id: string): Promise<Profile | null>;

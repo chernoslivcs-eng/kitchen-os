@@ -16,7 +16,7 @@ import {
 } from '@kitchen/domain';
 import type {
   Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow,
-  Recipe, RecipeIng, RecipeStep,
+  Recipe, RecipeIng, RecipeStep, HouseholdProduct,
 } from '@kitchen/domain';
 // Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
 // а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.
@@ -134,6 +134,8 @@ export interface ChatArgs {
   notes?: MemoryNote[];
   eaters?: EaterRow[];
   recentRecipes?: RecipeRow[];
+  // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈» комори.
+  products?: HouseholdProduct[];
 }
 
 export interface ChatCall {
@@ -202,6 +204,7 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     notes: args.notes,
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
+    products: args.products,
   });
 }
 
@@ -223,6 +226,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     notes: args.notes,
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
+    products: args.products,
   });
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
@@ -322,6 +326,7 @@ export async function callRecipe(args: {
   // Г-1: без цього recipe_gen НЕ БАЧИВ [ВИСНОВКИ З ГОТУВАННЯ] — щоденник
   // помилок лежав на кухні, а кухар писав рецепти в сусідній кімнаті.
   notes?: MemoryNote[];
+  products?: HouseholdProduct[];
 }): Promise<RecipeCall> {
   const prompt = loadPrompt();
   const client = makeClient();
@@ -333,7 +338,7 @@ export async function callRecipe(args: {
   // помилку. Переклад назад — детермінований; невідомий аліас → дроп p.
   const alias = buildAliasMap(args.pantry ?? []);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias)
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 60, args.products ?? [])
     : '';
   // Кеш-межа: role+recipe-generator стабільні; профіль/комора/висновки — динаміка.
   const stable = compose('recipe_gen', prompt);

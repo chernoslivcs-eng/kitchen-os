@@ -44,6 +44,37 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Черга Д (№2): тегер. Кожен add-оп чека несе трійку (мінімум product);
+  // молочне мусить отримати allergens з коренем «молок». Ліміт 70% — чек
+  // містить нехарчове/неоднозначне, де трійка може бути голим product.
+  'tagger-triples': (out) => {
+    const ops = (opsOfIntake(out) ?? []).filter((o: any) => (o.op ?? 'add') === 'add');
+    if (!ops.length) return fail('немає add-ops');
+    const withProduct = ops.filter((o: any) => typeof o.product === 'string' && o.product.trim());
+    const ratio = withProduct.length / ops.length;
+    if (ratio < 0.7) return fail(`product лише в ${withProduct.length}/${ops.length} ops`);
+    const dairy = ops.filter((o: any) => /сир|молок|сметан|вершк|йогурт|кефір|камбоц|моцарел|парме/i.test(String(o.label ?? '') + String(o.product ?? '')));
+    if (dairy.length) {
+      const tagged = dairy.filter((o: any) => (o.tags?.allergens ?? []).some((a: string) => /молок/i.test(a)));
+      if (!tagged.length) return fail(`молочні позиції без allergens: ${dairy.map((o: any) => o.label).slice(0, 3).join(', ')}`);
+    }
+    return pass(`product у ${withProduct.length}/${ops.length}, молочних із тегом: ${dairy.length}`);
+  },
+
+  // Чат-інтейк із названим брендом: трійка розкладена (product без бренду,
+  // brand окремо), а не злита в один label.
+  'tagger-chat-triple': (out) => {
+    const ops = (opsOfIntake(out) ?? []).filter((o: any) => (o.op ?? 'add') === 'add');
+    if (!ops.length) return fail('немає add-ops');
+    const parm = ops.find((o: any) => /парме/i.test(String(o.label ?? '') + String(o.product ?? '')));
+    if (!parm) return fail('пармезан не знайдено в ops');
+    if (!/парме/i.test(String(parm.product ?? ''))) return fail(`product не «пармезан»: ${JSON.stringify(parm.product)}`);
+    if (!/galbani/i.test(String(parm.brand ?? ''))) return fail(`brand не Galbani: ${JSON.stringify(parm.brand)}`);
+    if (/galbani/i.test(String(parm.product))) return fail('бренд злитий у product');
+    const dairyTag = (parm.tags?.allergens ?? []).some((a: string) => /молок/i.test(a));
+    return dairyTag ? pass() : fail('у пармезана немає тега allergens: молоко');
+  },
+
   // === Розбір вкладень ===
 
   'receipt-coverage-80': (out, fx) => {

@@ -66,3 +66,18 @@ export function stepIngredients(content: string, ing: RecipeIngLite[]): RecipeIn
   }
   return [...seen].sort((a, b) => a - b).map((i) => ing[i]!);
 }
+
+// Черга Д (№4а): КРОКИ рецепта показують тільки product («пармезан») — повна
+// формована назва («пармезан Galbani тертий») лишається в списку інгредієнтів.
+export interface ProductLite {
+  id: string;
+  product: string;
+}
+
+export function stepLabelsFrom(
+  batches: { id: string; label: string; product_id?: string | null }[],
+  products: ProductLite[] | undefined,
+): BatchLabels {
+  const byId = new Map((products ?? []).map((p) => [p.id, p.product]));
+  return new Map(batches.map((b) => [b.id, (b.product_id && byId.get(b.product_id)) || b.label]));
+}

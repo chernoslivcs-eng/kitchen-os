@@ -25,16 +25,26 @@ export interface PantryBatch {
   staple: boolean;
   last_by: string | null;
   last_action: string | null;
+  // Черга Д (№2): партія показує на «продукт дому» (трійка product·brand·
+  // variant + невидимі теги). Старі партії — null до бекфілу; label лишається
+  // самодостатнім фолбеком.
+  product_id?: string | null;
 }
 
 // ----- Картки з 03-prompts.md -----
 
 export type IntakeOp =
-  | { op: 'add'; label: string; value?: number; unit?: Unit; zone?: Zone; confidence?: number; evidence?: string; catalog_key?: string }
+  // Черга Д (№2): add несе трійку product·brand·variant і теги — тегер
+  // збирає їх РАЗ при додаванні (той самий виклик парсу). Знайома трійка
+  // реюзається з БД, модельні теги тоді ігноруються.
+  | { op: 'add'; label: string; value?: number; unit?: Unit; zone?: Zone; confidence?: number; evidence?: string; catalog_key?: string;
+      product?: string; brand?: string; variant?: string; tags?: import('./product.js').ProductTags }
   | { op: 'deplete'; label: string }
   | { op: 'open'; label: string }
   | { op: 'rename'; label: string; to: string }
-  | { op: 'correct'; label: string; value?: number; unit?: Unit; zone?: Zone };
+  // correct може правити й невидимі теги продукту партії («камбоцола без
+  // лактози») — мердж, не заміна; редагування тегів існує ТІЛЬКИ цим шляхом.
+  | { op: 'correct'; label: string; value?: number; unit?: Unit; zone?: Zone; tags?: import('./product.js').ProductTags };
 
 export interface IntakeCard {
   type: 'intake_diff';

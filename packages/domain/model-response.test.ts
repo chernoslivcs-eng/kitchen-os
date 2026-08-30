@@ -130,3 +130,41 @@ describe('вкладення з рецептом', () => {
     expect(card).toBeNull();
   });
 });
+
+// Черга Д (№2): чекові ops приходять у компактній схемі (v/u/conf/ev) —
+// парсер приводить їх до словника apply (value/unit/confidence/evidence),
+// інакше кількість з чека мовчки губилась. Трійка+теги проходять наскрізь.
+describe('parseAttachmentResponse: нормалізація ops', () => {
+  it('v/u/conf/ev → value/unit/confidence/evidence; трійка й теги проходять', () => {
+    const raw = JSON.stringify({
+      kind: 'receipt', note: 'Чек із АТБ',
+      ops: [{
+        op: 'add', label: 'Пармезан Galbani', v: 200, u: 'g', zone: 'fridge', conf: 0.9, ev: 'receipt_line',
+        product: 'пармезан', brand: 'Galbani', variant: 'тертий',
+        tags: { allergens: ['молоко'], lactose: 'low', shelf_open_days: 14 },
+      }],
+    });
+    const { card } = parseAttachmentResponse(raw);
+    expect(card?.type).toBe('intake_diff');
+    const op = (card as { ops: Record<string, unknown>[] }).ops[0]!;
+    expect(op).toMatchObject({
+      op: 'add', label: 'Пармезан Galbani', value: 200, unit: 'g',
+      confidence: 0.9, evidence: 'receipt_line',
+      product: 'пармезан', brand: 'Galbani', variant: 'тертий',
+    });
+    expect((op.tags as { allergens: string[] }).allergens).toEqual(['молоко']);
+    expect(op.v).toBeUndefined();
+  });
+});
+
+// Живий прогін 2026-08-31: модель віддала [{...}] — обʼєкт в масиві-обгортці.
+// Парсер розгортає одноелементний масив; плейсхолдери бренду («не видно»)
+// вичищає normalizeTriple.
+describe('parseAttachmentResponse: обгортки і плейсхолдери', () => {
+  it('одноелементний масив розгортається', () => {
+    const raw = JSON.stringify([{ kind: 'receipt', note: 'н', ops: [{ op: 'add', label: 'сіль', v: 500, u: 'g' }] }]);
+    const { card, raw_kind } = parseAttachmentResponse(raw);
+    expect(raw_kind).toBe('receipt');
+    expect((card as { ops: unknown[] }).ops).toHaveLength(1);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderStepContent, resolveIngName, stepIngredients, type BatchLabels } from './recipe.js';
+import { renderStepContent, resolveIngName, stepIngredients, stepLabelsFrom, type BatchLabels } from './recipe.js';
 
 describe('resolveIngName', () => {
   const labels: BatchLabels = new Map([['b1', 'Моцарела'], ['b2', 'Пелаті']]);
@@ -116,5 +116,21 @@ describe('renderStepContent — кроки з партіями комори (QA8
   it('початок речення капіталізується (QA6-11 не втрачено)', () => {
     const out = renderStepContent('{0} — кинути в окріп', ing, labels);
     expect(out[0]).toBe(out[0]!.toUpperCase());
+  });
+});
+
+// Черга Д (№4а): КРОКИ показують тільки product («пармезан»), повна назва
+// («пармезан Galbani тертий») лишається в списку інгредієнтів.
+describe('stepLabelsFrom — базова назва для кроків', () => {
+  it('партія з product_id → product; без → label', () => {
+    const labels = stepLabelsFrom(
+      [
+        { id: 'b1', label: 'пармезан Galbani тертий', product_id: 'p1' },
+        { id: 'b2', label: 'сіль', product_id: null },
+      ],
+      [{ id: 'p1', product: 'пармезан' }],
+    );
+    expect(labels.get('b1')).toBe('пармезан');
+    expect(labels.get('b2')).toBe('сіль');
   });
 });

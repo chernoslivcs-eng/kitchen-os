@@ -16,6 +16,7 @@ import type {
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
   SessionRow, MessageRow, MemoryNote, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
+  HouseholdProduct, ProductTriple,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
@@ -146,6 +147,22 @@ function rowToBatch(r: Row): PantryBatch {
     staple: r.staple as boolean,
     last_by: (r.last_by as string | null) ?? null,
     last_action: (r.last_action as string | null) ?? null,
+    product_id: (r.product_id as string | null) ?? null,
+  };
+}
+
+function rowToProduct(r: Row): HouseholdProduct {
+  return {
+    id: r.id as string,
+    household_id: r.household_id as string,
+    product: r.product as string,
+    brand: (r.brand as string | null) ?? null,
+    variant: (r.variant as string | null) ?? null,
+    unit: (r.unit as HouseholdProduct['unit']) ?? null,
+    pack_size: r.pack_size == null ? null : Number(r.pack_size),
+    tags: (r.tags as HouseholdProduct['tags']) ?? {},
+    catalog_key: (r.catalog_key as string | null) ?? null,
+    created_at: new Date(r.created_at as string).toISOString(),
   };
 }
 
@@ -203,14 +220,62 @@ export class PostgresRepo implements Repo {
       `INSERT INTO pantry_batch (
          id, household_id, catalog_key, label, zone, value, unit, state,
          opened_at, expires_at, best_before_opened_days, added_at, depleted_at,
-         confidence, provenance, staple, last_by, last_action
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+         confidence, provenance, staple, last_by, last_action, product_id
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
       [
         b.id, b.household_id, b.catalog_key, b.label, b.zone, b.value, b.unit, b.state,
         b.opened_at, b.expires_at, b.best_before_opened_days, b.added_at, b.depleted_at,
-        b.confidence, b.provenance, b.staple, b.last_by, b.last_action,
+        b.confidence, b.provenance, b.staple, b.last_by, b.last_action, b.product_id ?? null,
       ],
     );
+  }
+
+  // ----- Продукти дому (черга Д, №2) -------------------------------------
+
+  async insertProduct(p: HouseholdProduct): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO household_product (id, household_id, product, brand, variant, unit, pack_size, tags, catalog_key, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [p.id, p.household_id, p.product, p.brand, p.variant, p.unit, p.pack_size, JSON.stringify(p.tags ?? {}), p.catalog_key, p.created_at],
+    );
+  }
+
+  async getProduct(id: string): Promise<HouseholdProduct | null> {
+    const { rows } = await this.pool.query('SELECT * FROM household_product WHERE id = $1', [id]);
+    return rows[0] ? rowToProduct(rows[0]) : null;
+  }
+
+  async findProductByTriple(household_id: string, t: ProductTriple): Promise<HouseholdProduct | null> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM household_product
+        WHERE household_id = $1
+          AND lower(product) = lower($2)
+          AND coalesce(lower(brand), '') = coalesce(lower($3), '')
+          AND coalesce(lower(variant), '') = coalesce(lower($4), '')`,
+      [household_id, t.product, t.brand, t.variant],
+    );
+    return rows[0] ? rowToProduct(rows[0]) : null;
+  }
+
+  async listProducts(household_id: string): Promise<HouseholdProduct[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM household_product WHERE household_id = $1 ORDER BY created_at',
+      [household_id],
+    );
+    return rows.map(rowToProduct);
+  }
+
+  async updateProduct(id: string, patch: Partial<Omit<HouseholdProduct, 'id' | 'household_id' | 'created_at'>>): Promise<void> {
+    const cols: string[] = [];
+    const vals: unknown[] = [];
+    let i = 1;
+    for (const [k, v] of Object.entries(patch)) {
+      cols.push(`${k} = $${i++}`);
+      vals.push(k === 'tags' ? JSON.stringify(v) : v);
+    }
+    if (!cols.length) return;
+    vals.push(id);
+    await this.pool.query(`UPDATE household_product SET ${cols.join(', ')} WHERE id = $${i}`, vals);
   }
 
   async updateBatch(id: string, patch: Partial<PantryBatch>): Promise<void> {

@@ -211,6 +211,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     }
 
     const pantry = await repo.listBatches(household_id);
+    // Черга Д (№2): продукти дому — теги в серіалізацію (⚠, «~строк≈»).
+    const products = await repo.listProducts(household_id);
     const profile = await repo.getProfile(user_id);
     // QA6-04: список у контекст — інакше в новій сесії модель каже «порожній»
     // при двох позиціях і додає дубль.
@@ -319,7 +321,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profile, shopping, notes, eaters, recentRecipes,
+        history, profile, shopping, notes, eaters, recentRecipes, products,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');
@@ -436,6 +438,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           pantry,
           profile,
           notes,
+          products,
         });
       } catch (err) {
         req.log.error({ err, user_id }, 'recipe-edit-model-call-failed');

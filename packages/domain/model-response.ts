@@ -103,16 +103,36 @@ export function parseAttachmentResponse(text: string): {
   card: Card | null;
   raw_kind: AttachmentSubject | null;
 } {
-  const parsed = extractJson(text).parsed as {
+  let parsed = extractJson(text).parsed as {
     kind?: AttachmentSubject; note?: string; ops?: unknown; recipe?: unknown;
   } | null;
+  // Живий прогін 2026-08-31: модель віддала [{...}] — одноелементний масив
+  // замість обʼєкта. Розгортаємо, а не валимо весь чек.
+  if (Array.isArray(parsed) && parsed.length === 1 && parsed[0] && typeof parsed[0] === 'object') {
+    parsed = parsed[0] as typeof parsed;
+  }
 
   let card: Card | null = null;
   let raw_kind: AttachmentSubject | null = null;
   if (parsed?.kind === 'receipt' || parsed?.kind === 'shelf') {
     raw_kind = parsed.kind;
-    // Схема моделі — attachment-parser.md; валідація полів робиться в apply.
-    if (Array.isArray(parsed.ops)) card = { type: 'intake_diff', ops: parsed.ops as never };
+    // Схема моделі компактна (v/u/conf/ev) — приводимо до словника apply
+    // (value/unit/confidence/evidence). Черга Д: без цього кількість із чека
+    // мовчки губилась (apply читає тільки value/unit). Трійка product·brand·
+    // variant і tags проходять наскрізь — їх споживає apply-тегер.
+    if (Array.isArray(parsed.ops)) {
+      const ops = (parsed.ops as Record<string, unknown>[]).map((o) => {
+        const { v, u, conf, ev, ...rest } = o;
+        return {
+          ...rest,
+          ...(rest.value === undefined && v !== undefined ? { value: v } : {}),
+          ...(rest.unit === undefined && u !== undefined ? { unit: u } : {}),
+          ...(rest.confidence === undefined && conf !== undefined ? { confidence: conf } : {}),
+          ...(rest.evidence === undefined && ev !== undefined ? { evidence: ev } : {}),
+        };
+      });
+      card = { type: 'intake_diff', ops: ops as never };
+    }
   } else if (parsed?.kind === 'recipe') {
     raw_kind = 'recipe';
     const r = parsed.recipe as Recipe | undefined;

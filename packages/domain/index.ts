@@ -11,3 +11,4 @@ export * from './occasions.js';
 export * from './session-title.js';
 export * from './auth.js';
 export * from './invite.js';
+export * from './product.js';

@@ -95,6 +95,8 @@ export interface CardProps {
   savedRecipeIds?: Set<string>;
   onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void;
   batchLabels?: Map<string, string>;
+  // №4а: базові назви (product) для кроків.
+  stepLabels?: Map<string, string>;
 }
 
 function stateClass(applied?: boolean, undone?: boolean): string {
@@ -420,7 +422,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 // «+ у список» інлайн), кроки з номерами, довгі згорнуті до трьох із
 // «Показати всі N». «Готуємо» веде тільки в Cook Mode; /recipe/:id
 // лишається адресою для «У рецепти» і шерингу.
-export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels }: CardProps) {
+export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels, stepLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
   const [allSteps, setAllSteps] = useState(false);
@@ -526,7 +528,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
               <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
                 <span style={{ color: 'var(--fg)' }}>
-                  {step.t}. {renderStepContent(step.c, r.ing, batchLabels)}
+                  {step.t}. {renderStepContent(step.c, r.ing, stepLabels ?? batchLabels)}
                   {!!step.s && (
                     <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
                       ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}

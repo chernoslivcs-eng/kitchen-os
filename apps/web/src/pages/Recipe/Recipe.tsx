@@ -9,7 +9,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe } from '../../api';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
-import { resolveIngName, renderStepContent, type BatchLabels } from '../../lib/recipe';
+import { resolveIngName, renderStepContent, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
 import { TabBar } from '../../components/TabBar/TabBar';
 
@@ -39,6 +39,7 @@ export function RecipePage() {
   const [antis, setAntis] = useState<string[]>([]);
   const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
   const [batchLabels, setBatchLabels] = useState<BatchLabels>(new Map());
+  const [stepLabels, setStepLabels] = useState<BatchLabels>(new Map());
 
   useEffect(() => {
     // Підтягнемо алергії з профілю, щоб позначити відповідні інгредієнти.
@@ -59,8 +60,9 @@ export function RecipePage() {
     // а рендер має показати назву, не uuid. Без цього алергічна мітка теж
     // мертва: flagsFor читає рядок «[uuid…]» і нічому не збігається.
     api.pantry()
-      .then(({ batches }) => {
+      .then(({ batches, products }) => {
         setBatchLabels(new Map(batches.map((b) => [b.id, b.label])));
+        setStepLabels(stepLabelsFrom(batches, products));
         // ◔ відкрито — чип із кіта: видно, що інгредієнт уже почато.
         setOpenedIds(new Set(batches.filter((b) => b.state === 'opened').map((b) => b.id)));
       })
@@ -227,7 +229,7 @@ export function RecipePage() {
                   </div>
                   <div className={styles['step-body']}>
                     <div className={`${styles['step-title']} ${done ? styles.done : current ? '' : styles.pending}`}>
-                      {step.t}. {renderStepContent(step.c, recipe.ing, batchLabels)}
+                      {step.t}. {renderStepContent(step.c, recipe.ing, stepLabels)}
                     </div>
                     {!!step.s && (
                       <button className={styles['step-timer']} onClick={() => navigate('/cook', { state: { recipe, startAt: i, recipeId: id } })}>
