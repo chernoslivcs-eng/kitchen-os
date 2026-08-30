@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type CookRunWithRecipe } from '../../api';
 import { plural } from '../../lib/plural';
 import styles from './CookLog.module.css';
+import { TabBar } from '../../components/TabBar/TabBar';
 
 const WEEKDAYS = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
 const MONTHS = ['СІЧ', 'ЛЮТ', 'БЕР', 'КВІ', 'ТРА', 'ЧЕР', 'ЛИП', 'СЕР', 'ВЕР', 'ЖОВ', 'ЛИС', 'ГРУ'];
@@ -233,6 +234,8 @@ export function CookLogPage() {
         })}
       </div>
 
+      {/* Д03/Д06: на десктопі сайдбар є всюди, крім Cook Mode. */}
+      <TabBar desktopOnly />
     </div>
   );
 }

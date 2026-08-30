@@ -60,12 +60,64 @@
 /* Wide-mode: на десктопі таб-бар стає вертикальним sidebar-ом ліворуч.
  * Position:fixed, повна висота, тонкий бордер справа. Тексти справа від
  * гліфа, не під ним. Активний таб — з accent-акцентом. */
+/* Приховані поза десктопом частини сайдбара. */
+.brand { display: none; align-items: center; gap: 10px; padding: 0 12px 22px; }
+.brand-name {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--fg-strong);
+}
+.count {
+  display: none;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.spacer { display: none; }
+.user {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+.user:hover { background: var(--bg-hover); }
+.user.active { background: var(--bg-hover); color: var(--fg-strong); }
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-mono);
+  flex: none;
+}
+
+/* На екранах без мобільної навігації (Профіль, Журнал, Рецепт) TabBar
+   монтуються з desktopOnly: на <1024 його не видно, на десктопі він дає
+   сайдбар — як у хендофах Д03/Д06, де сайдбар є всюди, крім Cook Mode. */
+.desktop-only { display: none; }
+
 @media (min-width: 1024px) {
+  .desktop-only { display: flex; }
   .wrap {
     position: fixed;
     top: 0; left: 0; bottom: 0;
-    width: 200px;
-    padding: 24px 12px;
+    width: 232px;                     /* Д01: 232, не 200 */
+    padding: 20px 14px;               /* Д01 */
     flex-direction: column;
     gap: 4px;
     border-top: 0;
@@ -79,12 +131,22 @@
     flex: 0 0 auto;
     flex-direction: row;
     justify-content: flex-start;
-    padding: 12px 14px;
-    gap: 12px;
+    padding: 11px 14px;               /* Д01: висота пункту 42px */
+    gap: 11px;
     font-size: 14px;
+    color: var(--fg-muted);           /* Д01: #5c646d, не --fg-dim */
   }
   .badge {
     position: static;
     margin-left: auto;
+    font-size: 11px;                  /* Д01: 11px, не мобільні 9px */
+    padding: 1px 7px;
   }
+  /* Д01: логотип угорі, приглушений mono-лічильник, блок користувача внизу. */
+  .brand { display: flex; }
+  .count { display: inline; }
+  .spacer { display: block; flex: 1; }
+  .user { display: flex; }
 }
+
+

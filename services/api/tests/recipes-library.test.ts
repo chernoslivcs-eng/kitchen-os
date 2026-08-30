@@ -192,3 +192,77 @@ describe('бібліотека рецептів', () => {
     expect(r.statusCode).toBe(400);
   });
 });
+
+// Р-3 варіант A (design-audit-2): рецепт отримує адресу. Згенерований пишеться
+// одразу як чернетка (saved_at: null → у бібліотеці не видно), і /recipe/:id
+// більше не залежить від router state — F5 перестає бути катастрофою.
+describe('адреса рецепта', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  it('generate персистить чернетку і віддає її id', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const r = await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie }, payload: { title: 'Борщ' },
+    });
+    expect(r.statusCode).toBe(200);
+    const { id, recipe } = r.json();
+    expect(id).toBeTruthy();
+    expect(recipe.t).toBe('Борщ');
+    // Чернетка є в базі…
+    const row = await repo.getRecipe(id);
+    expect(row).not.toBeNull();
+    expect(row!.saved_at).toBeNull();
+    // …але в бібліотеці не світиться, поки не збережена і не приготована.
+    const list = await app.inject({ method: 'GET', url: '/v1/recipes', headers: { cookie: me.cookie } });
+    expect(list.json().recipes).toHaveLength(0);
+  });
+
+  it('GET /v1/recipes/:id віддає повний payload власнику', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const { id } = (await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie }, payload: { title: 'Борщ' },
+    })).json();
+    const got = await app.inject({ method: 'GET', url: `/v1/recipes/${id}`, headers: { cookie: me.cookie } });
+    expect(got.statusCode).toBe(200);
+    expect(got.json().recipe.t).toBe('Борщ');
+    expect(got.json().saved_at).toBeNull();
+  });
+
+  it('чужий рецепт — 404, не 403: не підтверджуємо існування', async () => {
+    const alice = await signIn(app, mailer, 'alice@example.com');
+    const bob = await signIn(app, mailer, 'bob@example.com');
+    const { id } = (await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: alice.cookie }, payload: { title: 'Борщ' },
+    })).json();
+    expect((await app.inject({
+      method: 'GET', url: `/v1/recipes/${id}`, headers: { cookie: bob.cookie },
+    })).statusCode).toBe(404);
+  });
+
+  it('PATCH /v1/recipes/:id {saved:true} — «на потім» для чернетки з адресою', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const { id } = (await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie }, payload: { title: 'Борщ' },
+    })).json();
+    const patch = await app.inject({
+      method: 'PATCH', url: `/v1/recipes/${id}`,
+      headers: { cookie: me.cookie }, payload: { saved: true },
+    });
+    expect(patch.statusCode).toBe(200);
+    const list = await app.inject({ method: 'GET', url: '/v1/recipes', headers: { cookie: me.cookie } });
+    expect(list.json().recipes.map((r: { id: string }) => r.id)).toContain(id);
+  });
+});

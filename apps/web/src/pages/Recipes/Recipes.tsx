@@ -87,6 +87,19 @@ export function RecipesPage() {
       <div className={styles.head}>
         <div className={styles.title}>Рецепти</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
+              лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
+              моделі явний сигнал на recipe-картку (DA2-23). */}
+          <button
+            onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}
+            style={{
+              background: 'transparent', border: 0, padding: '5px 4px',
+              color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11,
+              letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
+            }}
+          >
+            + Імпорт
+          </button>
           <button
             onClick={() => navigate('/cooklog')}
             style={{
@@ -161,7 +174,7 @@ export function RecipesPage() {
             <div key={r.id} style={{ position: 'relative' }}>
               <button
                 className={styles.card}
-                onClick={() => navigate('/recipe', { state: { recipe: r.payload } })}
+                onClick={() => navigate(`/recipe/${r.id}`, { state: { recipe: r.payload } })}
               >
                 <div className={styles.info}>
                   <div className={styles.dish}>{r.title}</div>

@@ -311,7 +311,7 @@ export const registry: Record<string, Invariant> = {
     // «з горіхами», «на мигдалі»: це вже склад.
     const hay = (JSON.stringify(card) + ' ' + String(out.reply ?? ''))
       .toLowerCase()
-      .replace(/(смаку[єч][а-яі]*|пахн[а-яі]+|нагаду[єч][а-яі]*|з нотками|у смаку)[^.,;!?]*/g, '');
+      .replace(/(смаку[єч][а-яі]*|пахн[а-яі]+|нагаду[єч][а-яі]*|з нотками|у смаку|[а-яіїє]+ нотк[а-яіїє]*)[^.,;!?]*/g, '');
     // корінь «мигдал» ловить і «мигдаль», і «мигдалем», і «мигдальний»
     return /мигдал|арахіс|горіх|кеш|фундук/.test(hay)
       ? fail('алерген у власній пропозиції моделі — правило «сам не пропонуй» порушене')
@@ -441,6 +441,22 @@ export const registry: Record<string, Invariant> = {
     return hit.length
       ? fail(`описує внутрішню механіку: ${hit.join(', ')}`)
       : pass();
+  },
+
+  // DA2-23: продиктований рецепт — recipe-картка зі структурою, не note.
+  'is-recipe-card': (out) => {
+    const card = out.card;
+    if (!card) return fail('картки немає — рецепт загубився в прозі');
+    if (card.type === 'profile') {
+      const ops = (card as { ops?: { kind?: string }[] }).ops ?? [];
+      if (ops.some((o) => o.kind === 'note')) {
+        return fail('рецепт поїхав у kind:note — за нотаткою неможливо готувати');
+      }
+    }
+    if (card.type !== 'recipe') return fail(`очікували recipe, отримали ${card.type}`);
+    const r = (card as { recipe?: { ing?: unknown[]; st?: unknown[] } }).recipe;
+    if (!r?.ing?.length || !r?.st?.length) return fail('recipe без ing або st — структури немає');
+    return pass();
   },
 
   // QA5-02: незастосована картка нічого не змінила.

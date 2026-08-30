@@ -14,7 +14,11 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
   app.get('/v1/shopping', { preHandler: authenticated(repo) }, async (req) => {
     const { household_id } = requireUser(req);
     const items = await repo.listShoppingItems(household_id);
-    return { household_id, count: items.length, items };
+    // DA2-31: один елемент навігації показував два різні числа — сервер
+    // рахував усі позиції, екран списку тільки некуплені. Канон: count =
+    // «ще треба купити», total — для мета-рядка «2 / 3».
+    const unchecked = items.filter((i) => !i.checked).length;
+    return { household_id, count: unchecked, total: items.length, items };
   });
 
   app.post<{

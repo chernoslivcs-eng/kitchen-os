@@ -70,3 +70,34 @@ describe('POST /v1/shopping/unpack', () => {
     expect(res.json().created).toBe(0);
   });
 });
+
+// DA2-31: бейдж «Список» показував різні числа на різних екранах — сервер
+// рахував УСІ позиції, екран списку — тільки некуплені. Канон: бейдж = скільки
+// ще треба купити (некуплені); total віддаємо окремо для мета-рядка «2 / 3».
+describe('GET /v1/shopping · канон лічильника', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  it('count = некуплені; total = всі', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    for (const [label, checked] of [['молоко', false], ['хліб', false], ['яйця', true]] as const) {
+      await repo.insertShoppingItem({
+        id: randomUUID(), household_id: me.household_id, label, reason: null,
+        value: null, unit: null, zone: null, checked,
+        added_by: me.user_id, source: 'user', created_at: new Date().toISOString(),
+      });
+    }
+    const r = await app.inject({ method: 'GET', url: '/v1/shopping', headers: { cookie: me.cookie } });
+    const body = r.json();
+    expect(body.count).toBe(2);      // бейдж: ще треба купити
+    expect(body.total).toBe(3);      // мета-рядок «2 / 3»
+  });
+});

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d9dcdf;font-family:'Golos Text',system-ui,sans-serif;color:#1d2126}
+a{color:#58754e;text-decoration:none}a:hover{color:#3f5837;text-decoration:underline}
+.mono{font-family:'IBM Plex Mono',monospace}
+.ph{width:390px;background:#eef0f1;border-radius:32px;overflow:hidden;box-shadow:0 12px 40px rgba(29,33,38,.2);display:flex;flex-direction:column;color:#1d2126}
+.slab{font:600 13px 'Golos Text',sans-serif;color:#454b52;max-width:390px;line-height:1.5}
+.scol{display:flex;flex-direction:column;gap:10px}
+.note{font:400 12px/1.55 'Golos Text',sans-serif;color:#5c646d;max-width:390px}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(168,72,61,.4)}60%{box-shadow:0 0 0 9px rgba(168,72,61,0)}}
+@keyframes dot{0%,100%{opacity:1}50%{opacity:.45}}
+</style>
+</helmet>
+<div style="padding:44px;display:flex;flex-direction:column;gap:40px">
+<header style="display:flex;flex-direction:column;gap:6px">
+  <div class="mono" style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#6a727a">Kitchen OS · Бриф №2 · рішення під затвердження · 30.08.2026</div>
+  <div style="font:400 15px/1.5 'Golos Text',sans-serif;color:#454b52;max-width:880px">П.1 ранкова картка · п.2 шапка+таби · п.4 модалка списання · п.5 нові підсистеми · п.7 рядок здогаду. Вердикти без верстки: п.3 офлайн-стани лишаємо в кіті (друга черга), п.6 календар — репліка + рядок у ранковій картці, п.7 степер і кільце — прибрати з кіта, свайп — v2, п.8 оверлеї — беклог.</div>
+</header>
+
+<div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+
+  <!-- 1 MORNING RICH -->
+  <div class="scol" data-screen-label="Р1 Ранок багатий">
+    <div class="slab">1а · Ранкова картка — багатий ранок</div>
+    <div class="ph" style="height:640px">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="mono" style="font-size:11px;color:#7b838b;letter-spacing:.06em">КОМОРА 23 · СПИСОК 4</div>
+          <div style="width:34px;height:34px;border-radius:999px;background:#e3e6e8;display:grid;place-items:center;font:600 13px 'Golos Text',sans-serif;color:#3c4249">П</div>
+        </div>
+      </div>
+      <div style="padding:0 26px 10px;display:flex;gap:4px">
+        <span style="height:32px;padding:0 14px;border-radius:999px;background:#1d2126;color:#eef0f1;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Сьогодні</span>
+        <span style="height:32px;padding:0 14px;border-radius:999px;border:1px solid #ced3d6;color:#5c646d;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Історія</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:8px 26px 0;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="mono" style="font-size:11px;color:#7b838b">08:10 РАНОК · СБ 30 СЕРП</div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #dde0e2;cursor:pointer">
+              <span class="mono" style="color:#96712c;font-size:14px;width:16px">◔</span>
+              <span style="flex:1;font:400 16px/1.4 'Golos Text',sans-serif">З відкритого першою варто з'їсти <b style="font-weight:600">фету</b></span>
+              <span class="mono" style="font-size:11px;color:#96712c">≈2 ДНІ ›</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #dde0e2;cursor:pointer">
+              <span class="mono" style="color:#58754e;font-size:14px;width:16px">●</span>
+              <span style="flex:1;font:400 16px/1.4 'Golos Text',sans-serif">Ти хотів різото — тепер усе є</span>
+              <span class="mono" style="font-size:11px;color:#58754e">ГОТУЄМО? ›</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0;cursor:pointer">
+              <span class="mono" style="color:#7b838b;font-size:14px;width:16px">◇</span>
+              <span style="flex:1;font:400 16px/1.4 'Golos Text',sans-serif">Попереду: <b style="font-weight:600">Масниця</b> за 3 дні</span>
+              <span class="mono" style="font-size:11px;color:#7b838b">ІДЕЇ ›</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;border-left:2px solid #dde0e2;padding-left:14px;margin-left:2px">
+          <div class="mono" style="font-size:11px;color:#7b838b">РОЗГОРНУТО З «ФЕТА»</div>
+          <div style="font:700 19px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Салат з фетою і черрі</div>
+          <div class="mono" style="font-size:12px;color:#7b838b">15ХВ · РЯТУЄ ФЕТУ · ВСЕ Є</div>
+          <div style="display:flex;gap:10px">
+            <button style="height:42px;padding:0 18px;border:0;border-radius:12px;background:#58754e;color:#f2f4f0;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Рецепт →</button>
+            <button style="height:42px;padding:0 14px;border:1px solid #ced3d6;border-radius:12px;background:none;color:#5c646d;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Згорнути</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="mono" style="font-size:11px;color:#7b838b">09:02 ТИ</div>
+          <div style="font:400 16px/1.5 'Golos Text',sans-serif;color:#3c4249">доїли яйця</div>
+        </div>
+      </div>
+    </div>
+    <div class="note">Картка = мета-рядок + 2–4 рядки-факти в журнальному ритмі (не панель, без рамки). Кожен рядок — точка дотику: тап розгортає відповідь <b>під карткою</b> (лівий бордюр 2px — «гілка»), не веде на інший екран. Лишається в таймлайні дня назавжди, одна на день. Календар (п.6) живе тут рядком ◇.</div>
+  </div>
+
+  <!-- 1b MORNING POOR + HEADER -->
+  <div class="scol" data-screen-label="Р1б Ранок бідний">
+    <div class="slab">1б · Бідний ранок + шапка з аватаром (п.2)</div>
+    <div class="ph" style="height:640px">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="mono" style="font-size:11px;color:#7b838b;letter-spacing:.06em">КОМОРА 23 · СПИСОК 4</div>
+          <div style="width:34px;height:34px;border-radius:999px;background:#e3e6e8;display:grid;place-items:center;font:600 13px 'Golos Text',sans-serif;color:#3c4249;cursor:pointer">П</div>
+        </div>
+      </div>
+      <div style="padding:0 26px 10px;display:flex;gap:4px">
+        <span style="height:32px;padding:0 14px;border-radius:999px;background:#1d2126;color:#eef0f1;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Сьогодні</span>
+        <span style="height:32px;padding:0 14px;border-radius:999px;border:1px solid #ced3d6;color:#5c646d;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center;cursor:pointer">Історія</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:8px 26px 0;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="mono" style="font-size:11px;color:#7b838b">08:10 РАНОК · НД 31 СЕРП</div>
+          <div style="font:400 16px/1.5 'Golos Text',sans-serif;color:#3c4249">Комора в нормі, нічого термінового. Якщо буде настрій — лосось у морозилці чекає слушного вечора.</div>
+        </div>
+        <div style="border-top:1px solid #dde0e2"></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;color:#7b838b">ІСТОРІЯ · ВКЛАДКА (П.2: ЖУРНАЛ СЕСІЙ ЖИВЕ ТУТ)</div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid #dde0e2;opacity:.75"><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Вершкова фетучіні і закупка</span><span class="mono" style="font-size:11px;color:#7b838b">ЧТ · 18:42 · 12</span></div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid #dde0e2;opacity:.75"><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Розбір чека Сільпо</span><span class="mono" style="font-size:11px;color:#7b838b">СР · 19:03 · 6</span></div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:9px 0;opacity:.75"><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Хумус на вихідні</span><span class="mono" style="font-size:11px;color:#7b838b">НД · 11:20 · 9</span></div>
+        </div>
+      </div>
+      <div style="display:flex;border-top:1px solid #dde0e2;padding:10px 12px 22px;gap:4px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;border-radius:12px;background:#e3e6e8"><span style="color:#1d2126">◉</span><span style="font:600 11px 'Golos Text',sans-serif;color:#1d2126">Стрічка</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0"><span style="color:#7b838b">▤</span><span style="font:600 11px 'Golos Text',sans-serif;color:#7b838b">Комора</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0"><span style="color:#7b838b">❋</span><span style="font:600 11px 'Golos Text',sans-serif;color:#7b838b">Рецепти</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0"><span style="color:#7b838b">☰</span><span style="font:600 11px 'Golos Text',sans-serif;color:#7b838b">Список</span></div>
+      </div>
+    </div>
+    <div class="note">Бідний ранок — репліка без картки. <b>П.2:</b> 4 таби канон (❋ Рецепти); Профіль = аватар у шапці; Журнал сесій = сегмент «Історія» всередині Стрічки — показано зверху (сегмент їде разом зі скролом під шапкою).</div>
+  </div>
+
+  <!-- 4 WRITE-OFF MODAL -->
+  <div class="scol" data-screen-label="Р4 Модалка списання">
+    <div class="slab">4 · Списання кількох партій — канон</div>
+    <div class="ph" style="height:640px;position:relative;background:#c9cdd1">
+      <div style="position:absolute;inset:0;background:rgba(29,33,38,.35)"></div>
+      <div style="position:absolute;left:16px;right:16px;bottom:16px;background:#ffffff;border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 16px 48px rgba(29,33,38,.3)">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font:700 19px 'Onest',sans-serif;letter-spacing:-0.015em">Що списуємо повністю?</div>
+          <div style="font:400 13px/1.5 'Golos Text',sans-serif;color:#5c646d">Знята галочка = щось лишилось — партія стане відкритою.</div>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #dde0e2">
+            <span style="width:24px;height:24px;border-radius:8px;background:#58754e;color:#f2f4f0;display:grid;place-items:center;font:700 13px 'Golos Text',sans-serif;flex:none">✓</span>
+            <span style="flex:1;font:400 16px 'Golos Text',sans-serif">Вершки 33%</span><span class="mono" style="font-size:13px;color:#7b838b">300мл</span>
+          </div>
+          <div style="display:flex;flex-direction:column;border-bottom:1px solid #dde0e2">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0">
+              <span style="width:24px;height:24px;border-radius:8px;border:1px solid #b9bec3;flex:none"></span>
+              <span style="flex:1;font:400 16px 'Golos Text',sans-serif">Фета</span><span class="mono" style="font-size:13px;color:#7b838b">200г</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:0 0 12px 36px">
+              <span class="mono" style="font-size:11px;color:#7b838b">ЛИШИЛОСЬ ≈</span>
+              <span style="height:36px;width:90px;border-radius:10px;border:1px solid #58754e;box-shadow:0 0 0 3px rgba(88,117,78,.12);display:inline-flex;align-items:center;padding:0 12px;font:400 15px 'Golos Text',sans-serif">100г</span>
+              <span class="mono" style="font-size:11px;color:#7b838b">ОПЦІЙНО</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 0">
+            <span style="width:24px;height:24px;border-radius:8px;background:#58754e;color:#f2f4f0;display:grid;place-items:center;font:700 13px 'Golos Text',sans-serif;flex:none">✓</span>
+            <span style="flex:1;font:400 16px 'Golos Text',sans-serif">Багет</span><span class="mono" style="font-size:13px;color:#7b838b">½шт</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button style="flex:1;height:50px;border:0;border-radius:14px;background:#a8483d;color:#fdf3f1;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Списати 2</button>
+          <button style="height:50px;padding:0 18px;border:1px solid #ced3d6;border-radius:14px;background:none;color:#5c646d;font:600 15px 'Golos Text',sans-serif;cursor:pointer">Скасувати</button>
+        </div>
+        <div class="mono" style="font-size:11px;color:#7b838b;text-align:center">ПІСЛЯ — ТОСТ ІЗ ↩ СКАСУВАТИ 8С</div>
+      </div>
+    </div>
+    <div class="note">Ваша екстраполяція затверджена: один шит, чекбокси, кнопка з лічильником «Списати N». Додано: знята галочка розкриває опційне поле «лишилось ≈» (150ms, як рядок у списку). Стек модалок — заборонено.</div>
+  </div>
+
+  <!-- 5 PROFILE -->
+  <div class="scol" data-screen-label="Р5 Профіль">
+    <div class="slab">5а · Профіль — канонізація самопального</div>
+    <div class="ph" style="height:760px">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:12px"><button style="width:38px;height:38px;border:1px solid #ced3d6;border-radius:10px;background:none;color:#5c646d;cursor:pointer">←</button><div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня Пилипа</div></div>
+        <span class="mono" style="font-size:11px;color:#7b838b;letter-spacing:.06em">ВИЙТИ</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:4px 26px 0;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b">ТЕХНІКА · ТАП ЦИКЛОМ ○ Є → ● ЧАСТО → ✕ НЕМА</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="background:#e4ecdf;border:1px solid #c2d3b8;color:#3f5837;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif;cursor:pointer">● духовка</span>
+            <span style="background:#f8f9fa;border:1px solid #dde0e2;color:#3c4249;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif;cursor:pointer">○ блендер</span>
+            <span style="background:#f8f9fa;border:1px solid #dde0e2;color:#3c4249;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif;cursor:pointer">○ гриль</span>
+            <span style="border:1px solid #eceeef;color:#b9bec3;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif;cursor:pointer;text-decoration:line-through">✕ фритюр</span>
+            <span style="border:1px dashed #c2d3b8;color:#3f5837;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif;cursor:pointer">ще 17…</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b">ДІЄТИ · ПРЕСЕТИ (ПУНКТИР = НЕАКТИВНИЙ)</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="background:#f0e3ea;border:1px solid #d8bccb;color:#7a4a63;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif">без лактози · Оля</span>
+            <span style="border:1px dashed #ced3d6;color:#7b838b;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif;cursor:pointer">вегетаріанство</span>
+            <span style="border:1px dashed #ced3d6;color:#7b838b;border-radius:999px;padding:6px 13px;font:500 13px 'Golos Text',sans-serif;cursor:pointer">без глютену</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b">ДОМАШНІ</div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid #dde0e2"><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Оксана</span><span class="mono" style="font-size:11px;color:#a8483d">⚠ МОЛЮСКИ</span></div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid #dde0e2"><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Оля</span><span class="mono" style="font-size:11px;color:#8f5c78">АНТИ ЛАКТОЗА</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b">ВИСНОВКИ З ГОТУВАННЯ · СИСТЕМА ЗАПАМ'ЯТАЛА САМА</div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid #dde0e2"><span class="mono" style="font-size:12px;color:#96712c;flex:none">★</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Паста — завжди аль денте, −2 хв від пачки</span><button style="border:0;background:none;padding:0;color:#7b838b;font:600 13px 'Golos Text',sans-serif;cursor:pointer">✕</button></div>
+          <div style="display:flex;align-items:baseline;gap:10px;padding:8px 0"><span class="mono" style="font-size:12px;color:#96712c;flex:none">★</span><span style="flex:1;font:400 15px 'Golos Text',sans-serif">Гостре — множити спеції ×1.5</span><button style="border:0;background:none;padding:0;color:#7b838b;font:600 13px 'Golos Text',sans-serif;cursor:pointer">✕</button></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b">TAGINPUT · КАНОН</div>
+          <div style="min-height:48px;border-radius:12px;background:#f8f9fa;border:1px solid #dde0e2;display:flex;align-items:center;gap:6px;padding:6px 12px;flex-wrap:wrap">
+            <span style="background:#e3e6e8;color:#3c4249;border-radius:999px;padding:4px 10px;font:500 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center;gap:6px">кінза <span style="color:#7b838b;cursor:pointer">×</span></span>
+            <span style="font:400 14px 'Golos Text',sans-serif;color:#7b838b">додати…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note">Цикл ○→●→✕ затверджено (✕ — closest від line-through + 45%). Пресети дієт: пунктир = вимкнено, активний набирає семантичний колір (слива для АНТИ). ★ висновки — бурштин.</div>
+  </div>
+
+  <!-- 5b CARDS + RECIPES + MIC -->
+  <div class="scol" data-screen-label="Р5б Картки і мікрофон">
+    <div class="slab">5б · Картки РЕЦЕПТ/ЖУРНАЛ · фільтри Рецептів · мікрофон</div>
+    <div class="ph" style="height:760px">
+      <div style="flex:1;overflow:hidden;padding:22px 26px 0;display:flex;flex-direction:column;gap:22px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="mono" style="font-size:11px;color:#7b838b">19:12 РЕЦЕПТ · З ФОТО</div><div class="mono" style="font-size:11px;color:#96712c">◌ ОЧІКУЄ</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <div style="font:700 19px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Шакшука з фетою</div>
+            <div class="mono" style="font-size:12px;color:#7b838b">5 КРОКІВ · 25ХВ · 2 ПОРЦІЇ · 3/6 З КОМОРИ</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button style="height:44px;padding:0 18px;border:0;border-radius:12px;background:#1d2126;color:#eef0f1;font:600 14px 'Golos Text',sans-serif;cursor:pointer">У рецепти</button>
+            <button style="height:44px;padding:0 16px;border:1px solid #ced3d6;border-radius:12px;background:none;color:#5c646d;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Ні</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #dde0e2;padding-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="mono" style="font-size:11px;color:#7b838b">20:40 ЖУРНАЛ · ФОТО СТРАВИ</div><div class="mono" style="font-size:11px;color:#96712c">◌ ОЧІКУЄ</div></div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:56px;height:56px;border-radius:12px;background:#e3e6e8;display:grid;place-items:center;flex:none"><span class="mono" style="font-size:10px;color:#7b838b">IMG</span></div>
+            <div style="flex:1"><div style="font:600 16px 'Golos Text',sans-serif">Схоже на вершкову фетучіні</div><div class="mono" style="font-size:11px;color:#7b838b">ЗАПИСАТИ ГОТУВАННЯ · СПИШУ ІНГРЕДІЄНТИ</div></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button style="height:44px;padding:0 18px;border:0;border-radius:12px;background:#1d2126;color:#eef0f1;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Так, записати</button>
+            <button style="height:44px;padding:0 16px;border:1px solid #ced3d6;border-radius:12px;background:none;color:#5c646d;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Інша страва</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #dde0e2;padding-top:16px">
+          <div class="mono" style="font-size:11px;color:#7b838b">ЕКРАН РЕЦЕПТИ · ФІЛЬТРИ + СТАТУСИ</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <span style="height:32px;padding:0 13px;border-radius:999px;background:#1d2126;color:#eef0f1;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Усі</span>
+            <span style="height:32px;padding:0 13px;border-radius:999px;border:1px solid #ced3d6;color:#5c646d;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Можу зараз</span>
+            <span style="height:32px;padding:0 13px;border-radius:999px;border:1px solid #ced3d6;color:#5c646d;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Майже</span>
+            <span style="height:32px;padding:0 13px;border-radius:999px;border:1px solid #ced3d6;color:#5c646d;font:600 13px 'Golos Text',sans-serif;display:inline-flex;align-items:center">Готував</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid #dde0e2">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 16px 'Onest',sans-serif">Шакшука з фетою</span><span class="mono" style="font-size:11px;color:#58754e">МОЖУ ЗАРАЗ</span></div>
+            <div class="mono" style="font-size:11px;color:#58754e">РЯТУЄ: ФЕТА</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 16px 'Onest',sans-serif">Різото з грибами</span><span class="mono" style="font-size:11px;color:#96712c">−2</span></div>
+            <div class="mono" style="font-size:11px;color:#7b838b">БРАКУЄ: АРБОРІО, ПАРМЕЗАН</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #dde0e2;padding-top:16px">
+          <div class="mono" style="font-size:11px;color:#7b838b">МІКРОФОН · ДИКТУВАННЯ (БЕЗ ЕМОДЗІ — SVG)</div>
+          <div style="height:52px;border-radius:14px;background:#f8f9fa;border:1px solid #a8483d;box-shadow:0 0 0 3px rgba(168,72,61,.1);display:flex;align-items:center;padding:0 8px 0 16px;gap:8px">
+            <span style="flex:1;font:400 15px 'Golos Text',sans-serif;color:#3c4249">купив вершки і<span style="display:inline-block;width:2px;height:14px;background:#a8483d;margin-left:2px;animation:dot .9s infinite"></span></span>
+            <div style="width:38px;height:38px;border-radius:10px;background:#a8483d;display:grid;place-items:center;flex:none;animation:micpulse 1.2s ease-out infinite"><span style="width:12px;height:12px;border-radius:3px;background:#fdf3f1;display:block"></span></div>
+          </div>
+          <div class="mono" style="font-size:11px;color:#7b838b">🎙 ГОСТ → ТАП → ● ЗАПИС (КВАДРАТ-СТОП, ПУЛЬС 1.2С, БОРДЕР ЦЕГЛА) → СТОП → ТЕКСТ У ПОЛІ → ↑</div>
+        </div>
+      </div>
+    </div>
+    <div class="note">РЕЦЕПТ-картка: без прев'ю кроків — «5 КРОКІВ · 25ХВ» достатньо, розгортка після «У рецепти». ЖУРНАЛ-картка: мініатюра 56px + здогад назви. Статуси Рецептів: шавлія=можу, бурштин=−N. Мікрофон під час запису — семантика error-ramp НЕ означає помилку: цегляний = «живий запис» (як REC), стоп-квадрат замість іконки.</div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>

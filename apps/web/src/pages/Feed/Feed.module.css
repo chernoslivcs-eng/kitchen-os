@@ -425,3 +425,17 @@
   border-color: var(--danger) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent);
 }
+
+
+/* Десктоп-хендоф: контент читається як продовження навігації — починається
+   на 232+36px від краю, а не плаває по центру з провалом ~400px (крок 1
+   черги design-audit-desktop). Діє тільки коли сайдбар змонтований. */
+@media (min-width: 1024px) {
+  :global(body.with-sidebar) .head,
+  :global(body.with-sidebar) .body,
+  :global(body.with-sidebar) .timeline,
+  :global(body.with-sidebar) .composer-wrap {
+    margin-left: 36px;
+    margin-right: auto;
+  }
+}
