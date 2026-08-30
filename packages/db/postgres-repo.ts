@@ -14,7 +14,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow,
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
-  SessionRow, MessageRow,
+  SessionRow, MessageRow, MemoryNote,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -68,6 +68,18 @@ function rowToShopping(r: Row): ShoppingItemRow {
     checked: r.checked as boolean,
     added_by: (r.added_by as string | null) ?? null,
     source: r.source as ShoppingItemRow['source'],
+    created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
+
+function noteRow(r: Row): MemoryNote {
+  return {
+    id: r.id as string,
+    user_id: r.user_id as string,
+    text: r.text as string,
+    recipe_title: (r.recipe_title as string | null) ?? null,
+    rating: r.rating == null ? null : Number(r.rating),
+    pinned: r.pinned as boolean,
     created_at: new Date(r.created_at as string).toISOString(),
   };
 }
@@ -221,6 +233,35 @@ export class PostgresRepo implements Repo {
          updated_at = now()`,
       [p.user_id, p.allergies, p.wishes, p.antipatterns, p.equipment],
     );
+  }
+
+  async insertNote(n: MemoryNote): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO memory_note (id, user_id, text, recipe_title, rating, pinned, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [n.id, n.user_id, n.text, n.recipe_title, n.rating, n.pinned, n.created_at],
+    );
+  }
+
+  async listNotes(user_id: string, limit = 20): Promise<MemoryNote[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM memory_note WHERE user_id = $1
+       ORDER BY pinned DESC, created_at DESC LIMIT $2`,
+      [user_id, limit],
+    );
+    return rows.map(noteRow);
+  }
+
+  async findNoteByText(user_id: string, text: string): Promise<MemoryNote | null> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM memory_note WHERE user_id = $1 AND lower(btrim(text)) = lower(btrim($2)) LIMIT 1',
+      [user_id, text],
+    );
+    return rows[0] ? noteRow(rows[0]) : null;
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM memory_note WHERE id = $1', [id]);
   }
 
   async savePending(pc: PendingCard): Promise<void> {

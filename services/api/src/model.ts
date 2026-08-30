@@ -10,7 +10,7 @@ import {
   serializeProfile as ctxSerializeProfile,
   type RecentCookRunSummary,
 } from '@kitchen/domain';
-import type { Card, PantryBatch, Profile, ShoppingItemRow } from '@kitchen/domain';
+import type { Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote } from '@kitchen/domain';
 
 // Один провайдер моделі — або прямий Anthropic, або OpenRouter (той самий формат
 // повідомлень, лише інший baseURL і префіксовані model-id). Обирає autonomly:
@@ -95,6 +95,7 @@ export interface ChatArgs {
   history?: { role: 'user' | 'assistant'; content: string }[];
   profile?: Profile | null;
   shopping?: ShoppingItemRow[];
+  notes?: MemoryNote[];
 }
 
 export interface ChatCall {
@@ -146,6 +147,7 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     profile: args.profile,
     shopping: args.shopping,
     recentCookRuns: args.recentCookRuns,
+    notes: args.notes,
   });
 }
 

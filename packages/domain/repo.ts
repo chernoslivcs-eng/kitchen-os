@@ -2,7 +2,7 @@
 // і локального дев-режиму) і PostgresRepo (пізніше). Домен не знає про SQL.
 
 import type {
-  PantryBatch, PendingCard, Profile, AttachmentRecord,
+  PantryBatch, PendingCard, Profile, AttachmentRecord, MemoryNote,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow,
@@ -41,6 +41,12 @@ export interface Repo {
   // Профіль
   getProfile(user_id: string): Promise<Profile | null>;
   upsertProfile(p: Profile): Promise<void>;
+
+  // Висновки з готування
+  insertNote(n: MemoryNote): Promise<void>;
+  listNotes(user_id: string, limit?: number): Promise<MemoryNote[]>;
+  findNoteByText(user_id: string, text: string): Promise<MemoryNote | null>;
+  deleteNote(id: string): Promise<void>;
 
   // Картки на застосуванні
   savePending(pc: PendingCard): Promise<void>;

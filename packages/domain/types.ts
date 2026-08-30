@@ -105,7 +105,23 @@ export interface UndoSnapshot {
     removed_shopping_ids?: string[];    // shopping remove: повернути назад (потрібне окреме сховище — пізніше)
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     profile_before?: Profile;           // profile: повернути весь блок
+    added_note_ids?: string[];          // note: висновки лише додаються, тож undo — це видалення
   };
+}
+
+// Висновок із готування: «фует знімати, щойно краї хрусткі». Живе окремо від
+// Profile, а не масивом у ньому, з двох причин. По-перше, у висновка є власні
+// поля — до якої страви, з якою оцінкою. По-друге, undo профілю замінює весь
+// документ (QA5), і висновок, що приїхав пізніше, зникав би разом із ним.
+// Висновки лише додаються й видаляються поштучно, тому їх undo точний.
+export interface MemoryNote {
+  id: string;
+  user_id: string;
+  text: string;
+  recipe_title: string | null;
+  rating: number | null;
+  pinned: boolean;
+  created_at: string;
 }
 
 export interface Profile {

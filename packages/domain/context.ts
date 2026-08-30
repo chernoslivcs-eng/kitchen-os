@@ -10,7 +10,7 @@
 // алергени, не дійшовши до обмеження (QA5-01).
 
 import { root, meaningfulWords } from '@kitchen/catalog';
-import type { PantryBatch, Profile, ShoppingItemRow } from './types.js';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote } from './types.js';
 import { serializeOccasions } from './occasions.js';
 
 export interface RecentCookRunSummary {
@@ -25,6 +25,7 @@ export interface KitchenContext {
   profile?: Profile | null;
   shopping?: ShoppingItemRow[];
   recentCookRuns?: RecentCookRunSummary[];
+  notes?: MemoryNote[];
   now?: Date;                            // для тестів — інакше Date.now()
 }
 
@@ -106,6 +107,20 @@ export function serializeCookRun(r: RecentCookRunSummary, now = Date.now()): str
   return parts.join(' · ');
 }
 
+// Висновки з готування. Це єдине в контексті, що написала не система, а сама
+// людина про свою кухню: «фует знімати, щойно краї хрусткі». Тому вони йдуть
+// окремим блоком, а не тонуть у профілі серед побажань.
+export function serializeNotes(notes: MemoryNote[]): string {
+  if (!notes.length) return '';
+  const lines = notes.map((n) => {
+    const parts = [n.text];
+    if (n.recipe_title) parts.push(`до «${n.recipe_title}»`);
+    if (n.pinned) parts.push('закріплено');
+    return '— ' + parts.join(' · ');
+  });
+  return '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lines.join('\n');
+}
+
 // Повний блок стану, який іде в системний промпт після composed-промпту.
 // Одна функція для прода і для eval — саме тому вона тут, а не в model.ts.
 export function buildKitchenContext(ctx: KitchenContext): string {
@@ -121,5 +136,6 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializeOccasions(now, ctx.profile?.wishes ?? [])
     + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime())
     + serializeShopping(ctx.shopping ?? [])
-    + cookLog;
+    + cookLog
+    + serializeNotes(ctx.notes ?? []);
 }

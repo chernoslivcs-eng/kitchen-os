@@ -194,7 +194,7 @@ export function upcomingEvents(from = new Date(), trads: Tradition[] = [], horiz
     if (at > now && at <= until) out.push({ at, title, kind, approx });
   };
   const yearOf = (md: string, y: number) => {
-    const [m, d] = md.split('-').map(Number);
+    const [m = 1, d = 1] = md.split('-').map(Number);
     return new Date(y, m - 1, d).getTime();
   };
 

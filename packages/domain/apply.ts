@@ -136,15 +136,23 @@ export async function applyCard(
     const next: Profile = before
       ? deepCopy(before)
       : { user_id: actor_user_id, allergies: [], wishes: [], antipatterns: [], equipment: {} };
-    // QA4-05: рахуємо те, що СПРАВДІ лягло. `kind: member` / `note` MVP ігнорує,
+    // QA4-05: рахуємо те, що СПРАВДІ лягло. `kind: member` MVP ще ігнорує,
     // але раніше API рапортував applied:1 і UI показував успіх — людина думала,
     // що продукт знає про вегетаріанку в домі, а в профілі нічого не було.
     let landed = 0;
+    // Висновки не входять у документ профілю — вони окремі рядки, тож і
+    // застосовуються окремо, і відкочуються поштучно.
+    const added_note_ids: string[] = [];
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
+      if (op.kind === 'note') {
+        if (await applyNoteOp(repo, actor_user_id, op, added_note_ids)) landed++;
+        continue;
+      }
       if (applyProfileOp(next, op)) landed++;
     }
+    if (added_note_ids.length) snapshot.before.added_note_ids = added_note_ids;
     await repo.upsertProfile(next);
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
@@ -305,6 +313,38 @@ async function applyShoppingOp(
 
 // Повертає true, якщо операція реально змінила профіль. Виклик-сайт рахує це
 // як `applied` — щоб не рапортувати успіх на op, яку MVP не вміє (QA4-05).
+// Висновок про страву: «фует знімати, щойно краї хрусткі». Тільки текст —
+// решта полів (до чого, з якою оцінкою) заповнюється, коли висновок народжується
+// в cook-run, а не в розмові.
+async function applyNoteOp(
+  repo: Repo,
+  user_id: string,
+  op: { op?: 'add' | 'remove'; label?: string; pin?: boolean; [k: string]: unknown },
+  added: string[],
+): Promise<boolean> {
+  const text = (op.label ?? '').trim();
+  if (!text) return false;
+  const existing = await repo.findNoteByText(user_id, text);
+  if (op.op === 'remove') {
+    if (!existing) return false;
+    await repo.deleteNote(existing.id);
+    return true;
+  }
+  // Той самий висновок двічі — не помилка, але й не подія. QA4-05: раніше API
+  // рапортував applied:1 там, де в базі нічого не змінилось.
+  if (existing) return false;
+  const id = randomUUID();
+  await repo.insertNote({
+    id, user_id, text,
+    recipe_title: typeof op.recipe_title === 'string' ? op.recipe_title : null,
+    rating: typeof op.rating === 'number' ? op.rating : null,
+    pinned: op.pin === true,
+    created_at: new Date().toISOString(),
+  });
+  added.push(id);
+  return true;
+}
+
 function applyProfileOp(
   next: Profile,
   op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string; has?: boolean },
@@ -375,6 +415,10 @@ export async function undoCard(
   // для MVP: undo після «прибери X» не поверне X назад.
   for (const id of snap.before.added_shopping_ids ?? []) {
     await repo.deleteShoppingItem(id);
+  }
+  // Висновки: точковий відкат — видаляємо рівно те, що ця картка додала.
+  for (const id of snap.before.added_note_ids ?? []) {
+    await repo.deleteNote(id);
   }
   // Profile: повертаємо блок як був до застосування картки.
   if (snap.before.profile_before) {

@@ -4,13 +4,14 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
-  SessionRow, MessageRow,
+  SessionRow, MessageRow, MemoryNote,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
   private profiles = new Map<string, Profile>();
+  private notes = new Map<string, MemoryNote>();
   private pending = new Map<string, PendingCard>();
   private attachments = new Map<string, AttachmentRecord>();
   private users = new Map<string, UserRow>();                 // by id
@@ -73,6 +74,32 @@ export class InMemoryRepo implements Repo {
 
   async getProfile(user_id: string): Promise<Profile | null> {
     return this.profiles.get(user_id) ?? null;
+  }
+
+  async insertNote(n: MemoryNote): Promise<void> {
+    this.notes.set(n.id, { ...n });
+  }
+
+  // Порядок як в індексі memory_note: закріплені згори, далі найсвіжіші.
+  // reverse() перед сортуванням — бо два висновки в одну мілісекунду дають
+  // нічию за created_at, і тоді порядок вставки має читатись як «пізніший
+  // згори». Map тримає порядок вставки, sort у V8 стабільний.
+  async listNotes(user_id: string, limit = 20): Promise<MemoryNote[]> {
+    return [...this.notes.values()]
+      .filter((n) => n.user_id === user_id)
+      .reverse()
+      .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || b.created_at.localeCompare(a.created_at))
+      .slice(0, limit);
+  }
+
+  async findNoteByText(user_id: string, text: string): Promise<MemoryNote | null> {
+    const t = text.trim().toLowerCase();
+    return [...this.notes.values()]
+      .find((n) => n.user_id === user_id && n.text.trim().toLowerCase() === t) ?? null;
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    this.notes.delete(id);
   }
 
   async upsertProfile(p: Profile): Promise<void> {
