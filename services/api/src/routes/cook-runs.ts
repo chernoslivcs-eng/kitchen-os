@@ -10,6 +10,7 @@ import type { FastifyInstance } from 'fastify';
 import type { RecipeRow, Repo, CookRunBatchChange } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import type { Recipe } from '../model.js';
+import { WRITEOFF_PROMPT } from '../post-cook.js';
 
 // Приводимо (value, unit) з рецепта до одиниць, у яких зберігається партія.
 // Ті ж самі правила, що в domain/apply.ts normalizeUnit: l→ml, kg→g. Якщо
@@ -58,6 +59,12 @@ interface CookRunBody {
   recipe_id?: string;
   // Правка №11: сесія, з якої запустили Cook Mode — журнал поведе назад у неї.
   session_id?: string;
+  // Правка №6: пост-готування живе в чаті. «Приготували» шле skip_pantry +
+  // ask_writeoff — сервер кладе в сесію детерміноване «Списати продукти?»
+  // (0 токенів), а списання поїде звичайною intake_diff-карткою після «так».
+  // Канони Бриф-2 п.4 (модалка зникнення) і п.7 (оцінка на фініш-екрані)
+  // скасовано свідомо — див. post-cook.ts.
+  ask_writeoff?: boolean;
 }
 
 export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
@@ -66,7 +73,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
     { preHandler: authenticated(repo) },
     async (req, reply) => {
       const { user_id, household_id } = requireUser(req);
-      const { recipe, servings, rating, verdict, keep, dry_run, skip_pantry, recipe_id: clientRecipeId, session_id } = req.body ?? {};
+      const { recipe, servings, rating, verdict, keep, dry_run, skip_pantry, recipe_id: clientRecipeId, session_id, ask_writeoff } = req.body ?? {};
       // #7 (план 2026-08-30): «щось лишилось» — id партій, які людина зняла з
       // повного списання в модалці підтвердження. Замість depleted → opened із
       // невідомою кількістю: чесне «не знаю» замість вигаданого залишку.
@@ -254,6 +261,10 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         }
       }
 
+      // Чужу/неіснуючу сесію мовчки не пишемо — журнал важливіший за слід.
+      const owned_session_id =
+        session_id && (await repo.getSession(session_id))?.user_id === user_id ? session_id : null;
+
       await repo.saveCookRun({
         id: run_id,
         household_id,
@@ -267,9 +278,17 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         photo_url: null,
         changes: changes.length ? { batches: changes } : null,
         undone_at: null,
-        // Чужу/неіснуючу сесію мовчки не пишемо — журнал важливіший за слід.
-        session_id: session_id && (await repo.getSession(session_id))?.user_id === user_id ? session_id : null,
+        session_id: owned_session_id,
       });
+
+      // Правка №6: перше слово пост-готування — детерміноване питання в сесії
+      // запуску. Далі все їде чатом (шорткати «так»/«ні» — див. chat.ts).
+      if (ask_writeoff && owned_session_id) {
+        await repo.saveMessage({
+          id: randomUUID(), session_id: owned_session_id, role: 'assistant',
+          text: WRITEOFF_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+      }
 
       return reply.code(201).send({
         id: run_id,

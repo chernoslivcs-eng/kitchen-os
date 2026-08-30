@@ -75,7 +75,9 @@ export interface CardProps {
   dismissed?: boolean;
   undone?: boolean;
   undoAvailable?: boolean;
-  onApply?: () => void;
+  // intake_diff може прислати вибіркове застосування (індекси ops) — бекенд
+  // PendingCard.selected[] це вміє давно, UI зʼявився з пост-кук списанням (№6).
+  onApply?: (selected?: number[]) => void;
   onDismiss?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
@@ -109,6 +111,16 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
   // UX9-17: rename/correct ФІЛЬТРУВАЛИСЬ — картка перейменування стояла без
   // жодного предметного рядка, людина тиснула «Застосувати» наосліп.
   const ops = (card.ops as IntakeOp[] | undefined ?? []);
+  // №6: чекбокси позицій — «щось лишилось» знімається галочкою, решта
+  // застосовується. Дефолт — усе увімкнено; актуально насамперед для
+  // пост-кук списання, але працює на будь-якій intake-картці.
+  const [off, setOff] = useState<Set<number>>(new Set());
+  const actionable = !applied && !undone && !dismissed && !!onApply;
+  const toggle = (i: number) => setOff((prev) => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    return next;
+  });
   const signFor = (op?: IntakeOp['op']) => {
     if (op === 'deplete') return '−';
     if (op === 'open') return '◔';
@@ -120,7 +132,27 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
     <div className={stateClass(applied, undone)}>
       <div className={styles.ops}>
         {ops.map((op, i) => (
-          <div key={i} className={styles.op}>
+          <div
+            key={i}
+            className={styles.op}
+            onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
+            style={actionable && ops.length > 1
+              ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
+              : undefined}
+          >
+            {actionable && ops.length > 1 && (
+              <span
+                role="checkbox"
+                aria-checked={!off.has(i)}
+                style={{
+                  width: 18, height: 18, borderRadius: 6, flex: 'none',
+                  display: 'inline-grid', placeItems: 'center',
+                  background: off.has(i) ? 'transparent' : 'var(--accent)',
+                  border: off.has(i) ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
+                  color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 11,
+                }}
+              >{off.has(i) ? '' : '✓'}</span>
+            )}
             <span className={styles['op-sign']}>{signFor(op.op)}</span>
             <span className={styles['op-label']}>
               {op.op === 'rename'
@@ -138,9 +170,16 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
           </div>
         ))}
       </div>
-      {!applied && !undone && !dismissed && onApply && (
+      {actionable && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply} loading={applying}>Застосувати</Button>
+          <Button
+            variant="primary"
+            onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
+            loading={applying}
+            disabled={off.size === ops.length}
+          >
+            {off.size ? `Застосувати ${ops.length - off.size}` : 'Застосувати'}
+          </Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
@@ -225,7 +264,7 @@ export function ShoppingCard({ card, applied, applying, dismissed, undone, undoA
       </div>
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply} loading={applying}>У список</Button>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>У список</Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
@@ -274,7 +313,7 @@ export function ProfileCard({ card, applied, applying, dismissed, undone, onAppl
       </div>
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply} loading={applying}>Запам'ятати</Button>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>Запам'ятати</Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
@@ -316,7 +355,7 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
       )}
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply} loading={applying}>У рецепти</Button>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>У рецепти</Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
@@ -361,7 +400,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
       </div>
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={onApply} loading={applying}>У журнал</Button>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>У журнал</Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}

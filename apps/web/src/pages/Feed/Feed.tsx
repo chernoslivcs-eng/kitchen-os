@@ -419,16 +419,22 @@ export function Feed() {
     await dispatchChat(text, attachments);
   }
 
-  async function apply(turnId: string) {
+  async function apply(turnId: string, selected?: number[]) {
     const turn = turns.find((t) => t.id === turnId);
     if (!turn?.cardId || turn.applying) return;
     setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: true } : t));
     try {
-      const r = await api.cards.apply(turn.cardId);
+      const r = await api.cards.apply(turn.cardId, selected);
       setTurns((prev) => prev.map((t) => t.id === turnId
         ? { ...t, applied: true, applying: false, undoToken: r.undo_token }
         : t,
       ));
+      // Правка №6: застосована пост-кук картка списання продовжує розмову
+      // детермінованим «Як вийшло?» — сервер уже записав його в сесію,
+      // нам лишається показати хід без перезавантаження історії.
+      if (r.followup) {
+        setTurns((prev) => [...prev, { id: newId(), role: 'assistant', time: hhmm(), text: r.followup! }]);
+      }
       // Оновлюємо лічильники для комори/списку — profile тепер теж може змінити те, що показуємо
       await refreshCounts();
       setToast({
@@ -695,7 +701,7 @@ export function Feed() {
                 dismissed={t.dismissed}
                 undone={t.undone}
                 undoAvailable={!!t.undoToken}
-                onApply={() => apply(t.id)}
+                onApply={(selected) => apply(t.id, selected)}
                 onDismiss={() => dismissCard(t.id)}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}

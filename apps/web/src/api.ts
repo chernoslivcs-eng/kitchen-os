@@ -144,7 +144,7 @@ export const api = {
 
   cards: {
     apply: (id: string, selected?: number[]) =>
-      req<{ applied: number; undo_token: string; already: boolean }>(
+      req<{ applied: number; undo_token: string; already: boolean; followup?: string }>(
         `/v1/cards/${id}/apply`,
         { method: 'POST', body: JSON.stringify({ selected }) },
       ),
@@ -194,7 +194,7 @@ export const api = {
 
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
-    save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string; session_id?: string }) =>
+    save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string; session_id?: string; ask_writeoff?: boolean }) =>
       req<{ id: string; recipe_id: string; depleted: number; partial: number; opened: number; depleted_batch_ids: string[]; depleted_labels?: string[]; partial_labels?: string[]; opened_labels?: string[] }>('/v1/cook-runs', {
         method: 'POST',
         body: JSON.stringify({ recipe, ...opts }),

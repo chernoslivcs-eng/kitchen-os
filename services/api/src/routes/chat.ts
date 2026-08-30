@@ -6,6 +6,11 @@ import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import {
+  isYes, isNo, extractRating, buildWriteoffOps, latestRunInSession,
+  WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
+  FEEDBACK_MARKERS,
+} from '../post-cook.js';
 
 function today(): string {
   const d = new Date();
@@ -155,6 +160,56 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       };
     }
 
+    // Правка №6: детерміновані пост-кук ходи. Якщо останнє слово асистента —
+    // наше службове питання, коротка відповідь людини обробляється БЕЗ моделі
+    // (0 токенів). Все, що складніше за «так»/«ні», падає у звичайний чат.
+    const preMessages = await repo.listMessages(session.id);
+    const lastMsg = preMessages[preMessages.length - 1];
+    const detMeta = { promptVersion: 'post-cook', model: 'deterministic', mode: 'stub' as const };
+    const zeroUsage = { input: 0, output: 0 };
+    if (text && lastMsg?.role === 'assistant' && !lastMsg.card && lastMsg.text === WRITEOFF_PROMPT) {
+      const saveTurn = async (reply_text: string, card: Card | null, card_id: string | null) => {
+        await repo.saveMessage({
+          id: randomUUID(), session_id: session.id, role: 'user',
+          text, card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+        await repo.saveMessage({
+          id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
+          text: reply_text, card, applied: 0, created_at: new Date().toISOString(),
+        });
+      };
+      if (isNo(text)) {
+        await saveTurn(WRITEOFF_DECLINED_REPLY, null, null);
+        return { reply: WRITEOFF_DECLINED_REPLY, card: null, card_id: null, usage: zeroUsage, meta: detMeta };
+      }
+      if (isYes(text)) {
+        const run = await latestRunInSession(repo, user_id, session.id);
+        const payload = run?.recipe?.payload as Recipe | undefined;
+        const ops = payload ? await buildWriteoffOps(repo, household_id, payload) : [];
+        if (!ops.length) {
+          await saveTurn(WRITEOFF_EMPTY_REPLY, null, null);
+          return { reply: WRITEOFF_EMPTY_REPLY, card: null, card_id: null, usage: zeroUsage, meta: detMeta };
+        }
+        const card: Card = { type: 'intake_diff', ops };
+        const card_id = randomUUID();
+        await createPending(repo, { message_id: card_id, household_id, user_id, card });
+        await saveTurn(WRITEOFF_CARD_REPLY, card, card_id);
+        return { reply: WRITEOFF_CARD_REPLY, card, card_id, usage: zeroUsage, meta: detMeta };
+      }
+      // складна відповідь → модель (питання лишиться в історії — вона побачить контекст)
+    }
+    // Відповідь на «Як вийшло?» — сервер сам пише verdict/оцінку в останній
+    // run цієї сесії; сама репліка далі йде звичайним чатом (фідбек-діагност).
+    if (text && lastMsg?.role === 'assistant' && !lastMsg.card && lastMsg.text && FEEDBACK_MARKERS.has(lastMsg.text)) {
+      const run = await latestRunInSession(repo, user_id, session.id);
+      if (run) {
+        await repo.updateCookRun(run.id, {
+          verdict: text.slice(0, 200),
+          rating: extractRating(text) ?? run.rating,
+        });
+      }
+    }
+
     const pantry = await repo.listBatches(household_id);
     const profile = await repo.getProfile(user_id);
     // QA6-04: список у контекст — інакше в новій сесії модель каже «порожній»
@@ -179,7 +234,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Картка йде в історію разом зі статусом: модель має розрізняти «я це
     // запропонувала» і «людина це застосувала». Без мітки вона вірила власному
     // «Запишу» й казала «так, вже в коморі», коли нічого не записано (QA5-02).
-    const allMessages = await repo.listMessages(session.id);
+    const allMessages = preMessages;
     const history = allMessages
       .slice(-20)
       .map((m) => {

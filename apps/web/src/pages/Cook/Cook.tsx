@@ -195,7 +195,7 @@ export function CookPage() {
     if (alarmRef.current != null) { window.clearInterval(alarmRef.current); alarmRef.current = null; }
   };
   useEffect(() => {
-    if (secondsLeft === 0 && step?.s && !done) {
+    if (secondsLeft === 0 && step?.s && !finishedRef.current) {
       beep();
       alarmRef.current = window.setInterval(beep, 30_000);
       return stopAlarm;
@@ -220,133 +220,60 @@ export function CookPage() {
 
   const total = recipe.st.length;
   const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
-  const done = stepIdx >= total;
 
   // Актуальний знімок для збереження — оминаємо замикання ефектів.
-  const sessionSnapRef = useRef({ stepIdx, secondsLeft, done });
-  sessionSnapRef.current = { stepIdx, secondsLeft, done };
+  const sessionSnapRef = useRef({ stepIdx, secondsLeft });
+  sessionSnapRef.current = { stepIdx, secondsLeft };
   useEffect(() => {
-    if (!recipe) return;
-    if (done) { clearCookSession(); return; }
+    if (!recipe || finishedRef.current) return;
     saveCookSession({ recipe, stepIdx, secondsLeft, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIdx, running, done]);
+  }, [stepIdx, running]);
   // QA8-06: «Вийти» за 20 секунд до кінця повертало повний таймер — запис
   // ішов тільки на дію. Тепер вихід (unmount) пише точний залишок.
   useEffect(() => {
     if (!recipe) return;
     return () => {
       const snap = sessionSnapRef.current;
-      if (!snap.done) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+      if (!finishedRef.current) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.t]);
 
-  // При завершенні: зберігаємо cook-run і списуємо використані партії.
-  // Кількість повертаємо, щоб «Готово» показало «списано N позицій».
-  const [depleted, setDepleted] = useState<number | null>(null);
-  const [partial, setPartial] = useState<number>(0);
-  const [opened, setOpened] = useState<number>(0);
-  const [runId, setRunId] = useState<string | null>(null);
-  const [recipeId, setRecipeId] = useState<string | null>(null);
-  const [undone, setUndone] = useState<boolean>(false);
-  // #7 (план 2026-08-30): списання «на око», але те, що зникне з комори
-  // ПОВНІСТЮ, людина підтверджує — кейс «відкрив банку, не тримався рецепта,
-  // щось лишив». Прогноз рахує бекенд тим самим кодом, що списує.
-  const [vanish, setVanish] = useState<{ id: string; label: string; value: number | null; unit: string | null }[] | null>(null);
-  // id → «лишилось ≈» (null = кількість невідома). Бриф-2 п.4.
-  const [keepMap, setKeepMap] = useState<Map<string, number | null>>(new Map());
-  const [confirmed, setConfirmed] = useState(false);
-  // UX9-26: «Нічого не списувати» = НЕ ЧІПАТИ комору взагалі. Раніше воно
-  // слало keep-на-всіх — сервер все одно віднімав часткові й відкривав
-  // vanish-партії з value:null (вершки втратили «200 мл» назавжди).
-  const [skipPantry, setSkipPantry] = useState(false);
-  // UX9-24: підсумок називає позиції, не лише лічильники.
-  const [changedLabels, setChangedLabels] = useState<{ depleted: string[]; partial: string[]; opened: string[] }>({ depleted: [], partial: [], opened: [] });
-
-  useEffect(() => {
-    if (!done) return;
-    api.cookRuns.dryRun(recipe)
-      .then((r) => {
-        if (r.would_deplete.length === 0) setConfirmed(true);   // нема про що питати
-        else setVanish(r.would_deplete);
-      })
-      .catch(() => setConfirmed(true));   // offline: поводимось як раніше
-  }, [done, recipe]);
-
-  useEffect(() => {
-    if (!done || !confirmed) return;
-    api.cookRuns.save(recipe, {
-      keep: [...keepMap].map(([id, v]) => (v != null ? { id, v } : id)),
-      skip_pantry: skipPantry || undefined,
-      recipe_id: state.recipeId,
-      session_id: state.returnSessionId ?? undefined,
-    })
-      .then((r) => {
-        setDepleted(r.depleted); setPartial(r.partial); setOpened(r.opened);
-        setRunId(r.id); setRecipeId(r.recipe_id);
-        setChangedLabels({
-          depleted: r.depleted_labels ?? [],
-          partial: r.partial_labels ?? [],
-          opened: r.opened_labels ?? [],
-        });
-      })
-      .catch(() => {/* offline: наступним разом */});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [done, confirmed]);
-
-  async function undoCook() {
-    if (!runId || undone) return;
+  // Правка №6: фінішного екрана більше немає — «Приготували» закриває Cook
+  // Mode як поп-ап і повертає в сесію запуску, де сервер уже поклав
+  // детерміноване «Списати продукти?». Списання їде звичайною intake_diff-
+  // карткою після «так», оцінка — реплікою на «Як вийшло?». Канони Бриф-2
+  // п.4 (модалка «Що списуємо повністю?») і п.7 (ретро-оцінка на фініші)
+  // скасовано свідомо (рішення Пилипа, 2026-08-30).
+  const [finishing, setFinishing] = useState(false);
+  const finishedRef = useRef(false);
+  async function finish() {
+    if (finishing || finishedRef.current) return;
+    stopAlarm();
+    setFinishing(true);
+    finishedRef.current = true;
+    clearCookSession();
+    // Сесія для пост-кук діалогу: точка запуску, або сесія дня (входи без
+    // returnSessionId — «Знову» з журналу, адресна сторінка рецепта).
+    let sid = state.returnSessionId ?? null;
+    if (!sid) {
+      try { sid = (await api.session.today()).session.id; } catch {/* offline */}
+    }
     try {
-      await api.cookRuns.undo(runId);
-      setUndone(true);
-    } catch {/* тихо: юзер побачить, що кнопка не спрацювала */}
-  }
-
-  // Ретро-оцінка: 1-5 зірок + опційно короткий verdict. Пропуск = null, це ок.
-  // Модель побачить це в контексті на наступному запиті рецепта.
-  const [rating, setRating] = useState<number | null>(null);
-  const [verdict, setVerdict] = useState<string>('');
-  const [ratingSaved, setRatingSaved] = useState<boolean>(false);
-  async function submitRating(newRating: number) {
-    if (!runId) return;   /* папіркат UX-9: оцінка стосується готування, не списання */
-    setRating(newRating);
-    try {
-      await api.cookRuns.rate(runId, newRating, verdict.trim() || null);
-      setRatingSaved(true);
-      // ховаємо «збережено» через 2с, щоб не звисало
-      setTimeout(() => setRatingSaved(false), 2000);
-    } catch {/* тихо */}
-  }
-  async function saveVerdict() {
-    if (!runId || !rating) return;
-    try {
-      await api.cookRuns.rate(runId, rating, verdict.trim() || null);
-      setRatingSaved(true);
-      setTimeout(() => setRatingSaved(false), 2000);
-    } catch {/* тихо */}
-  }
-
-  // Фото готової страви. Завантажуємо через звичайний /v1/attachments,
-  // отриманий URL кладемо в cook_run.photo_url — журнал і Share його підхоплять.
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  async function onPickPhoto(files: FileList | null) {
-    const f = files?.[0];
-    if (!f || !runId) return;
-    setUploadingPhoto(true);
-    try {
-      const up = await api.attachments.upload(f);
-      await api.cookRuns.setPhoto(runId, up.url);
-      setPhotoUrl(up.url);
-    } catch {/* тихо: юзер побачить, що фото не з'явилось */}
-    finally { setUploadingPhoto(false); }
+      await api.cookRuns.save(recipe!, {
+        skip_pantry: true,
+        recipe_id: state.recipeId,
+        session_id: sid ?? undefined,
+        ask_writeoff: true,
+      });
+    } catch {/* offline: запис у журнал не вийшов — не тримаємо людину в пастці */}
+    navigate('/app', sid ? { state: { sessionId: sid, at: Date.now() } } : undefined);
   }
 
   // Кнопки кроку — одні на два лейаути: мобільний футер і десктопна права
   // колонка (Д05: ↩ і «Крок готово ✓» живуть під таймером).
-  const stepButtons = !done && (
+  const stepButtons = (
     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
       {stepIdx > 0 && (
         /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
@@ -360,22 +287,22 @@ export function CookPage() {
       <button
         className={styles.main}
         style={{ flex: 1 }}
-        disabled={stepLocked}
-        onClick={advanceStep}
+        disabled={stepLocked || finishing}
+        onClick={stepIdx === total - 1 ? finish : advanceStep}
       >
         {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
             дії, а не навігація «Далі →». */}
-        {stepIdx === total - 1 ? 'Приготували' : 'Крок готово ✓'}
+        {stepIdx === total - 1 ? (finishing ? 'Зберігаю…' : 'Приготували') : 'Крок готово ✓'}
       </button>
       {stepIdx < total - 1 && (
         /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
         <button
           className={styles.main}
           style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
-          disabled={stepLocked}
-          onClick={() => { stopAlarm(); setStepIdx(total); }}
+          disabled={stepLocked || finishing}
+          onClick={finish}
         >
-          Приготували
+          {finishing ? 'Зберігаю…' : 'Приготували'}
         </button>
       )}
     </div>
@@ -389,7 +316,7 @@ export function CookPage() {
       <div className={styles.head}>
         <button className={styles.exit} onClick={exitToOrigin}>✕ Вийти</button>
         <MonoLabel className={styles['head-meta']}>
-          {recipe.t.toUpperCase()} · {done ? 'ГОТОВО' : `КРОК ${stepIdx + 1}/${total}`}
+          {recipe.t.toUpperCase()} · КРОК {stepIdx + 1}/{total}
         </MonoLabel>
         {/* Бриф-3 п.1: тап по сегменту смуги = перейти на пройдений крок.
             Сегмент 4px — не тап-зона, тому кожен обгорнутий кнопкою з
@@ -400,7 +327,7 @@ export function CookPage() {
               key={i}
               type="button"
               className={styles['progress-hit']}
-              disabled={i >= stepIdx || done}
+              disabled={i >= stepIdx}
               aria-label={`Повернутись до кроку ${i + 1}`}
               onClick={() => goToStep(i)}
             >
@@ -410,334 +337,7 @@ export function CookPage() {
         </div>
       </div>
 
-      <div className={`${styles.body} ${!done ? styles['body-steps'] : ''}`}>
-        {done ? (
-          <>
-            <div className={styles['step-title']}>Готово. Смачного.</div>
-
-            {/* Бриф-2 п.4 — канон: «Що списуємо повністю?», чекбокси-квадрати,
-                знята галочка розкриває опційне поле «лишилось ≈», кнопка
-                «Списати N» (данжер) + «Скасувати». Стек модалок — заборонено. */}
-            {vanish && !confirmed && (
-              <div
-                role="dialog"
-                aria-modal="true"
-                ref={(el) => {
-                  // QA8-09: без фокусу всередині діалог не чує клавіатури.
-                  if (el && !el.contains(document.activeElement)) {
-                    el.querySelector<HTMLElement>('button, input, [tabindex]')?.focus();
-                  }
-                }}
-                onKeyDown={(e) => {
-                  // DA2-09 + UX9-26: Escape — безпечний вихід, комора не
-                  // чіпається взагалі. Tab тримаємо всередині діалогу.
-                  if (e.key === 'Escape') {
-                    setSkipPantry(true);
-                    setConfirmed(true);
-                  }
-                  if (e.key === 'Tab') {
-                    const focusables = (e.currentTarget as HTMLElement)
-                      .querySelectorAll<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])');
-                    if (!focusables.length) return;
-                    const first = focusables[0]!;
-                    const last = focusables[focusables.length - 1]!;
-                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-                  }
-                }}
-                aria-label="Що списуємо повністю"
-                style={{
-                  position: 'fixed', inset: 0, zIndex: 60,
-                  background: 'rgba(0,0,0,0.35)',
-                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                }}
-              >
-                <div style={{
-                  background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
-                  borderRadius: 20, padding: 22, margin: 16, maxWidth: 440, width: '100%',
-                  boxShadow: 'var(--shadow-panel)', display: 'flex', flexDirection: 'column', gap: 14,
-                }}>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)' }}>
-                      Що списуємо повністю?
-                    </div>
-                    <div style={{ marginTop: 4, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-                      Знята галочка = щось лишилось — партія стане відкритою.
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {vanish.map((v) => {
-                      const kept = keepMap.has(v.id);
-                      return (
-                        <div key={v.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <label style={{
-                            display: 'flex', alignItems: 'center', gap: 12,
-                            padding: '11px 0', cursor: 'pointer',
-                            fontFamily: 'var(--font-body)', fontSize: 16,
-                            color: 'var(--fg)',
-                          }}>
-                            <span
-                              role="checkbox"
-                              aria-checked={!kept}
-                              tabIndex={0}
-                              onClick={() => setKeepMap((prev) => {
-                                const next = new Map(prev);
-                                if (next.has(v.id)) next.delete(v.id); else next.set(v.id, null);
-                                return next;
-                              })}
-                              onKeyDown={(e) => {
-                                if (e.key === ' ' || e.key === 'Enter') {
-                                  e.preventDefault();
-                                  setKeepMap((prev) => {
-                                    const next = new Map(prev);
-                                    if (next.has(v.id)) next.delete(v.id); else next.set(v.id, null);
-                                    return next;
-                                  });
-                                }
-                              }}
-                              style={{
-                                width: 24, height: 24, borderRadius: 8, flex: 'none',
-                                display: 'grid', placeItems: 'center',
-                                background: kept ? 'transparent' : 'var(--accent)',
-                                border: kept ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
-                                color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 13,
-                                cursor: 'pointer',
-                              }}
-                            >{kept ? '' : '✓'}</span>
-                            <span style={{ flex: 1 }}>{v.label}</span>
-                            {v.value != null && v.unit && (
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)' }}>
-                                {v.value}{v.unit === 'g' ? 'г' : v.unit === 'ml' ? 'мл' : v.unit === 'pcs' ? 'шт' : v.unit === 'pack' ? 'уп' : v.unit}
-                              </span>
-                            )}
-                          </label>
-                          {kept && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 0 12px 36px' }}>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)' }}>ЛИШИЛОСЬ ≈</span>
-                              <input
-                                type="number"
-                                min={0}
-                                placeholder={v.unit === 'g' ? 'г' : v.unit === 'ml' ? 'мл' : v.unit === 'pcs' ? 'шт' : v.unit === 'pack' ? 'уп' : ''}
-                                onChange={(e) => {
-                                  const n = e.target.value === '' ? null : Number(e.target.value);
-                                  setKeepMap((prev) => {
-                                    const next = new Map(prev);
-                                    next.set(v.id, n != null && !isNaN(n) && n > 0 ? n : null);
-                                    return next;
-                                  });
-                                }}
-                                style={{
-                                  height: 36, width: 90, borderRadius: 10,
-                                  border: '1px solid var(--accent-border)',
-                                  boxShadow: '0 0 0 3px var(--focus-ring)',
-                                  background: 'var(--bg-surface-2)', color: 'var(--fg)',
-                                  padding: '0 12px', fontFamily: 'var(--font-body)', fontSize: 15,
-                                }}
-                              />
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)' }}>ОПЦІЙНО</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button
-                      onClick={() => setConfirmed(true)}
-                      style={{
-                        flex: 1, height: 50, border: 0, borderRadius: 14,
-                        background: 'var(--danger)', color: 'var(--bg-body)',
-                        fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-                      }}
-                    >
-                      Списати {vanish.length - keepMap.size}
-                    </button>
-                    <button
-                      /* UX9-26: чесне «нічого» — комора лишається недоторканою,
-                         запис у журналі при цьому створюється. */
-                      onClick={() => { setSkipPantry(true); setConfirmed(true); }}
-                      style={{
-                        height: 50, padding: '0 18px', borderRadius: 14,
-                        border: '1px solid var(--border-strong)', background: 'transparent',
-                        color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-                      }}
-                    >
-                      Нічого не списувати
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-            {skipPantry && runId && (
-              <div className={styles.section}>
-                <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>
-                <div className={styles.next}>Комору не чіпав — як і просив.</div>
-              </div>
-            )}
-            {depleted != null && (depleted > 0 || partial > 0 || opened > 0) && (
-              <div className={styles.section}>
-                <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>
-                <div className={styles.next}>
-                  {undone ? (
-                    <>Повернуто в комору — вибач за неспокій.</>
-                  ) : (
-                    /* UX9-24: не «2 позиції», а ЯКІ саме — інакше людина йде в
-                       Комору звіряти цифри руками. */
-                    <>
-                      {depleted > 0 && (
-                        <>Списано: {changedLabels.depleted.join(', ') || `${depleted} ${plural(depleted, ['позицію', 'позиції', 'позицій'])}`}</>
-                      )}
-                      {depleted > 0 && partial > 0 && <> · </>}
-                      {partial > 0 && (
-                        <>Частково використано: {changedLabels.partial.join(', ') || `${partial} ${plural(partial, ['позицію', 'позиції', 'позицій'])}`}</>
-                      )}
-                      {/* QA5-10: коли рецепт не дав кількості, ми лишаємо партію
-                          в коморі й тільки відкриваємо її. Без цього рядка екран
-                          казав «Списано 0 позицій» і людина не розуміла, що сталось. */}
-                      {(depleted > 0 || partial > 0) && opened > 0 && <> · </>}
-                      {opened > 0 && (
-                        <>Без кількості — лише відкрито: {changedLabels.opened.join(', ') || `${opened} ${plural(opened, ['позиція', 'позиції', 'позицій'])}`}</>
-                      )}
-                    </>
-                  )}
-                </div>
-                {runId && !undone && (
-                  <button
-                    onClick={undoCook}
-                    style={{
-                      marginTop: 12,
-                      background: 'transparent',
-                      color: 'var(--fg-muted)',
-                      border: '1px solid var(--border-strong)',
-                      padding: '8px 14px',
-                      borderRadius: 'var(--r-pill)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 12,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ← Скасувати списання
-                  </button>
-                )}
-              </div>
-            )}
-
-            {runId && (
-              <div className={styles.section}>
-                <MonoLabel className={styles['section-label']}>
-                  ЯК ВИЙШЛО {ratingSaved && <span style={{ color: 'var(--accent)' }}>· ЗБЕРЕЖЕНО</span>}
-                </MonoLabel>
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => submitRating(n)}
-                      style={{
-                        width: 40, height: 40,
-                        border: `1px solid ${rating != null && n <= rating ? 'var(--accent)' : 'var(--border-strong)'}`,
-                        background: rating != null && n <= rating ? 'var(--accent-bg)' : 'transparent',
-                        color: rating != null && n <= rating ? 'var(--accent)' : 'var(--fg-muted)',
-                        borderRadius: 'var(--r)',
-                        fontSize: 20,
-                        cursor: 'pointer',
-                        transition: 'background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast)',
-                      }}
-                      aria-label={`${n} із 5`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-                {rating != null && (
-                  <textarea
-                    placeholder="Що б змінити? Одна фраза достатньо."
-                    value={verdict}
-                    onChange={(e) => setVerdict(e.target.value)}
-                    onBlur={saveVerdict}
-                    maxLength={200}
-                    rows={2}
-                    style={{
-                      marginTop: 10,
-                      width: '100%',
-                      background: 'var(--bg-input)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--r)',
-                      padding: '10px 12px',
-                      color: 'var(--fg)',
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 14,
-                      resize: 'none',
-                    }}
-                  />
-                )}
-              </div>
-            )}
-
-            {runId && (
-              <div className={styles.section}>
-                <MonoLabel className={styles['section-label']}>ФОТО</MonoLabel>
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: 'none' }}
-                  onChange={(e) => onPickPhoto(e.target.files)}
-                />
-                {photoUrl ? (
-                  <div style={{ marginTop: 8, position: 'relative' }}>
-                    <img
-                      src={photoUrl}
-                      alt="Готова страва"
-                      style={{
-                        width: '100%',
-                        maxHeight: 260,
-                        objectFit: 'cover',
-                        borderRadius: 'var(--r)',
-                        display: 'block',
-                      }}
-                    />
-                    <button
-                      onClick={() => photoInputRef.current?.click()}
-                      style={{
-                        position: 'absolute', top: 8, right: 8,
-                        background: 'rgba(0,0,0,0.6)', color: '#fff', border: 0,
-                        padding: '6px 10px', borderRadius: 'var(--r-pill)',
-                        fontFamily: 'var(--font-mono)', fontSize: 11,
-                        letterSpacing: '0.06em', textTransform: 'uppercase',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Інше
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    style={{
-                      marginTop: 8,
-                      width: '100%',
-                      padding: '20px',
-                      background: 'transparent',
-                      border: '1px dashed var(--border-strong)',
-                      borderRadius: 'var(--r)',
-                      color: 'var(--fg-muted)',
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 14,
-                      cursor: uploadingPhoto ? 'wait' : 'pointer',
-                    }}
-                  >
-                    {uploadingPhoto ? 'Завантажую…' : '📷 Зняти або додати фото'}
-                  </button>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
+      <div className={`${styles.body} ${styles['body-steps']}`}>
             {/* QA9-03: обгортки колонок. Мобільний їх не бачить
                 (display:contents + order), десктоп кладе крок зліва,
                 таймер+кнопки справа за бордюром — Д05. */}
@@ -805,34 +405,12 @@ export function CookPage() {
               <div className={styles['side-actions']}>{stepButtons}</div>
               <div className={styles['side-hint']}>Працює без мережі · смуга вгорі вертає на крок</div>
             </div>
-          </>
-        )}
       </div>
 
-      {/* На десктопі в step-режимі кнопки живуть у правій колонці (Д05) —
-          футер ховається. Done-екран тримає футер на всіх ширинах. */}
-      <div className={`${styles.foot} ${!done ? styles['foot-steps'] : ''}`}>
-        {done ? (
-          /* Папіркат UX-9: головна дія фінішу — повернутись до свого продукту,
-             шеринг другорядний. Було навпаки. */
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              className={styles.main}
-              style={{ flex: 1 }}
-              onClick={exitToOrigin}
-            >
-              У стрічку
-            </button>
-            <button
-              className={styles.main}
-              style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
-              onClick={() => navigate('/share', { state: { recipe, photoUrl, recipeId } })}
-            >
-              Поділитись
-            </button>
-          </div>
-        ) : stepButtons}
-        <div className={styles.offline}>{done ? "Працює без мережі" : "Працює без мережі · смуга вгорі вертає на крок"}</div>
+      {/* Правка №6: done-екрана немає — футер завжди степовий. */}
+      <div className={`${styles.foot} ${styles['foot-steps']}`}>
+        {stepButtons}
+        <div className={styles.offline}>Працює без мережі · смуга вгорі вертає на крок</div>
       </div>
     </div>
   );

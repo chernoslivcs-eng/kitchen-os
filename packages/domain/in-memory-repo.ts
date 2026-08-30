@@ -324,6 +324,13 @@ export class InMemoryRepo implements Repo {
   async listMessages(session_id: string): Promise<MessageRow[]> {
     return (this.messages.get(session_id) ?? []).map((m) => ({ ...m }));
   }
+  async getMessage(id: string): Promise<MessageRow | null> {
+    for (const arr of this.messages.values()) {
+      const m = arr.find((x) => x.id === id);
+      if (m) return { ...m };
+    }
+    return null;
+  }
   async markMessageApplied(id: string, applied: number): Promise<void> {
     for (const arr of this.messages.values()) {
       const m = arr.find((x) => x.id === id);

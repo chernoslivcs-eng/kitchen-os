@@ -101,6 +101,9 @@ export interface Repo {
   setSessionTitle(id: string, title: string): Promise<void>;
   saveMessage(msg: MessageRow): Promise<void>;
   listMessages(session_id: string): Promise<MessageRow[]>;
+  // Правка №6: cards-роут шукає повідомлення застосованої картки, щоб пост-кук
+  // списання відповіло в ту саму сесію детермінованим «Як вийшло?».
+  getMessage(id: string): Promise<MessageRow | null>;
   markMessageApplied(id: string, applied: number): Promise<void>;
 
   // Рецепти й приготування

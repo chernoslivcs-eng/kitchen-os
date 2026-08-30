@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { applyCard, undoCard, type Repo } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { WRITEOFF_CARD_REPLY, FEEDBACK_PROMPT } from '../post-cook.js';
 
 export function cardsRoutes(app: FastifyInstance, repo: Repo) {
   // POST /v1/cards/:id/apply  { selected?: [op_index] }
-  //   → { applied, undo_token, already }
+  //   → { applied, undo_token, already, followup? }
   app.post<{
     Params: { id: string };
     Body: { selected?: number[] };
@@ -12,6 +14,19 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
     const { user_id } = requireUser(req);
     try {
       const r = await applyCard(repo, req.params.id, req.body?.selected ?? [], user_id);
+      // Правка №6: застосована пост-кук картка списання продовжує розмову
+      // детермінованим «Як вийшло?» (0 токенів). Впізнаємо її за точним
+      // службовим текстом повідомлення-носія.
+      if (!r.already) {
+        const msg = await repo.getMessage(req.params.id);
+        if (msg?.card?.type === 'intake_diff' && msg.text === WRITEOFF_CARD_REPLY) {
+          await repo.saveMessage({
+            id: randomUUID(), session_id: msg.session_id, role: 'assistant',
+            text: FEEDBACK_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
+          });
+          return { ...r, followup: FEEDBACK_PROMPT };
+        }
+      }
       return r;
     } catch (err) {
       const msg = (err as Error).message;

@@ -703,6 +703,21 @@ export class PostgresRepo implements Repo {
     }));
   }
 
+  async getMessage(id: string): Promise<MessageRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM message WHERE id = $1', [id]);
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      session_id: r.session_id,
+      role: r.role as 'user' | 'assistant',
+      text: r.text ?? null,
+      card: r.card ?? null,
+      applied: r.applied ?? 0,
+      created_at: new Date(r.created_at).toISOString(),
+    };
+  }
+
   async markMessageApplied(id: string, applied: number): Promise<void> {
     await this.pool.query('UPDATE message SET applied = $2 WHERE id = $1', [id, applied]);
   }
