@@ -114,6 +114,8 @@ export interface Repo {
   // свідомо ховає (бібліотека), тому окремий метод.
   listRecentRecipes(user_id: string, limit?: number): Promise<RecipeRow[]>;
   setRecipeSaved(id: string, saved_at: string | null): Promise<void>;
+  // QA9-08: сховати з бібліотеки (журнал не чіпається); null — повернути.
+  setRecipeHidden(id: string, hidden_at: string | null): Promise<void>;
   // Undo імпорту прибирає рядок цілком: на щойно імпортований рецепт ще ніщо
   // не посилається, і лишати «незбережений» привид у базі нема сенсу.
   deleteRecipe(id: string): Promise<void>;

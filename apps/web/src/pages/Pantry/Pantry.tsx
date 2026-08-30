@@ -2,7 +2,7 @@
 // Порядок зон — з брифу §01: свіже → холодильник → морозилка → комора → спеції → напої.
 // Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, type PantryBatch, type ShoppingList } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
 import { useNavigate } from 'react-router-dom';
@@ -41,6 +41,31 @@ export function PantryPage() {
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
+  // QA9-09: швидке «✕» на рядку — списати одним тапом, з ↩ Повернути.
+  const [removed, setRemoved] = useState<PantryBatch | null>(null);
+  const removedTimer = useRef<number | null>(null);
+
+  async function quickRemove(b: PantryBatch) {
+    try {
+      await api.batches.update(b.id, { state: 'depleted' });
+      setRemoved(b);
+      if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
+      removedTimer.current = window.setTimeout(() => setRemoved(null), 8000);
+      await refresh();
+    } catch { /* рядок лишиться — видно, що не вийшло */ }
+  }
+
+  async function undoRemove() {
+    if (!removed) return;
+    const prev = removed;
+    setRemoved(null);
+    if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
+    try {
+      // Повертаємо той стан, що був: sealed чи opened.
+      await api.batches.update(prev.id, { state: prev.state === 'opened' ? 'opened' : 'sealed' });
+      await refresh();
+    } catch { /* тихо */ }
+  }
 
   async function refresh() {
     try {
@@ -143,31 +168,46 @@ export function PantryPage() {
                 const days = daysLeft(b.expires_at);
                 const urgent = b.state === 'opened' && days != null && days <= 5;
                 return (
-                  <button
-                    key={b.id}
-                    className={styles.row}
-                    onClick={() => setEditing(b)}
-                    style={{ border: 0, borderBottom: '1px solid var(--border)', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                  >
-                    <span className={`${styles.mark} ${b.state === 'opened' ? styles.opened : ''}`}>
-                      {b.state === 'opened' ? '◔' : '●'}
-                    </span>
-                    <span className={styles.name}>
-                      {b.label}
-                      {urgent && days != null && (
-                        <span className={styles.hint}>ВІДКРИТО · ≈{days} {days === 1 ? 'ДЕНЬ' : 'ДНІ'}</span>
+                  /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
+                     ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
+                  <div key={b.id} className={styles.row} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <button
+                      className={styles['row-main']}
+                      onClick={() => setEditing(b)}
+                    >
+                      <span className={`${styles.mark} ${b.state === 'opened' ? styles.opened : ''}`}>
+                        {b.state === 'opened' ? '◔' : '●'}
+                      </span>
+                      <span className={styles.name}>
+                        {b.label}
+                        {urgent && days != null && (
+                          <span className={styles.hint}>ВІДКРИТО · ≈{days} {days === 1 ? 'ДЕНЬ' : 'ДНІ'}</span>
+                        )}
+                      </span>
+                      {b.value != null && b.unit && (
+                        <span className={styles.qty}>{formatQty(b.value, b.unit)}</span>
                       )}
-                    </span>
-                    {b.value != null && b.unit && (
-                      <span className={styles.qty}>{formatQty(b.value, b.unit)}</span>
-                    )}
-                  </button>
+                    </button>
+                    <button
+                      className={styles['row-x']}
+                      aria-label={`Списати «${b.label}»`}
+                      title="Закінчилось — списати"
+                      onClick={() => void quickRemove(b)}
+                    >✕</button>
+                  </div>
                 );
               })}
             </div>
           );
         })}
       </div>
+
+      {removed && (
+        <div className={styles['undo-bar']} role="status">
+          <span style={{ flex: 1 }}>Списано «{removed.label}»</span>
+          <button type="button" onClick={() => void undoRemove()}>↩ Повернути</button>
+        </div>
+      )}
 
       {editing && (
         <BatchEditSheet

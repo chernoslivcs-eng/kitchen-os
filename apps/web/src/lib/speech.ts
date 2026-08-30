@@ -54,17 +54,26 @@ export function startDictation(handlers: {
   const rec = new C();
   rec.lang = 'uk-UA';
   rec.interimResults = true;
-  rec.continuous = false;
+  // QA9-07: continuous=false обривав сеанс на першій паузі — людина ще
+  // говорить, а мікрофон уже здався. Тепер сеанс живе, поки не натиснуто
+  // стоп (або браузер сам не закриє по довгій тиші — onend відпрацює).
+  rec.continuous = true;
 
   let finalText = '';
   rec.onresult = (e) => {
+    // QA9-07: перебудова З НУЛЯ на кожній події, а не резервуар += з
+    // resultIndex. Chrome (особливо Android) переграє фінальні результати —
+    // накопичення дублювало слова, а поле «замінювалось останнім словом».
+    // e.results завжди тримає ВСІ результати сеансу — читаємо їх усі.
+    let final = '';
     let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
+    for (let i = 0; i < e.results.length; i++) {
       const r = e.results[i]!;
-      if (r.isFinal) finalText += r[0].transcript;
+      if (r.isFinal) final += r[0].transcript + ' ';
       else interim += r[0].transcript;
     }
-    handlers.onText((finalText + interim).trim());
+    finalText = final.replace(/\s+/g, ' ').trim();
+    handlers.onText((finalText + ' ' + interim).replace(/\s+/g, ' ').trim());
   };
   rec.onend = () => {
     if (finalText.trim()) handlers.onDone(finalText.trim());

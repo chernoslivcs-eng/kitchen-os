@@ -73,7 +73,11 @@ export function RecipesPage() {
   const readyCount = recipes.filter((r) => r.status === 'ready').length;
 
   async function unsave(r: SavedRecipe) {
-    if (!confirm(`Прибрати «${r.title}» зі збережених?`)) return;
+    // QA9-08: приготовані рядки теж можна прибрати — журнал не постраждає.
+    const q = r.cooked_count > 0
+      ? `Прибрати «${r.title}» з бібліотеки? Записи в журналі готувань лишаться.`
+      : `Прибрати «${r.title}» з бібліотеки?`;
+    if (!confirm(q)) return;
     try {
       await api.savedRecipes.unsave(r.id);
       await refresh();
@@ -236,23 +240,24 @@ export function RecipesPage() {
                 </div>
               </button>
 
-              {r.saved_at && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); void unsave(r); }}
-                  style={{
-                    position: 'absolute',
-                    top: 16, right: 0,
-                    background: 'transparent',
-                    border: 0,
-                    color: 'var(--fg-dim)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    padding: '4px 6px',
-                    cursor: 'pointer',
-                  }}
-                  title="Прибрати зі збережених"
-                >×</button>
-              )}
+              {/* QA9-08: ✕ на КОЖНОМУ рядку — «готував, не зберіг» раніше
+                  висів у бібліотеці назавжди без жодного способу прибрати. */}
+              <button
+                onClick={(e) => { e.stopPropagation(); void unsave(r); }}
+                style={{
+                  position: 'absolute',
+                  top: 12, right: 0,
+                  width: 32, height: 32,
+                  background: 'transparent',
+                  border: 0,
+                  borderRadius: 'var(--r)',
+                  color: 'var(--fg-dim)',
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+                aria-label={`Прибрати «${r.title}» з бібліотеки`}
+                title="Прибрати з бібліотеки"
+              >✕</button>
             </div>
           );
         })}

@@ -111,9 +111,12 @@ export function Feed() {
       dictationRef.current?.stop();
       return;
     }
+    // QA9-07: диктовка ДОПИСУЄ до вже набраного, а не затирає його.
+    const base = input.trim();
+    const join = (t: string) => (base ? `${base} ${t}` : t);
     const d = startDictation({
-      onText: (t) => setInput(t),
-      onDone: (t) => setInput(t),
+      onText: (t) => setInput(join(t)),
+      onDone: (t) => setInput(join(t)),
       onEnd: () => { setListening(false); dictationRef.current = null; composerInputRef.current?.focus(); },
     });
     if (d) { dictationRef.current = d; setListening(true); }

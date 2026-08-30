@@ -350,7 +350,8 @@ export class InMemoryRepo implements Repo {
         return { ...r, cooked_count: mine.length, last_cooked_at: last };
       })
       // Збережені «на потім» і приготовані — решта (побічні артефакти) не показуємо.
-      .filter((r) => r.saved_at || r.cooked_count > 0)
+      // QA9-08: сховані (hidden_at) не показуємо ніколи.
+      .filter((r) => !r.hidden_at && (r.saved_at || r.cooked_count > 0))
       .sort((a, b) => (b.saved_at ?? b.created_at).localeCompare(a.saved_at ?? a.created_at))
       .slice(0, limit);
   }
@@ -365,6 +366,10 @@ export class InMemoryRepo implements Repo {
   async setRecipeSaved(id: string, saved_at: string | null): Promise<void> {
     const cur = this.recipes.get(id);
     if (cur) this.recipes.set(id, { ...cur, saved_at });
+  }
+  async setRecipeHidden(id: string, hidden_at: string | null): Promise<void> {
+    const cur = this.recipes.get(id);
+    if (cur) this.recipes.set(id, { ...cur, hidden_at });
   }
   async deleteRecipe(id: string): Promise<void> {
     this.recipes.delete(id);

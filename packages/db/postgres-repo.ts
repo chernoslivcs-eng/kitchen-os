@@ -48,6 +48,7 @@ function rowToRecipe(r: Row): RecipeRow {
     payload: r.payload,
     created_at: new Date(r.created_at as string).toISOString(),
     saved_at: r.saved_at ? new Date(r.saved_at as string).toISOString() : null,
+    hidden_at: r.hidden_at ? new Date(r.hidden_at as string).toISOString() : null,
   };
 }
 
@@ -735,6 +736,7 @@ export class PostgresRepo implements Repo {
          FROM recipe r
          LEFT JOIN cook_run c ON c.recipe_id = r.id
         WHERE r.owner_id = $1
+          AND r.hidden_at IS NULL
         GROUP BY r.id
        HAVING r.saved_at IS NOT NULL
            OR COUNT(c.id) FILTER (WHERE c.undone_at IS NULL) > 0
@@ -759,6 +761,10 @@ export class PostgresRepo implements Repo {
 
   async setRecipeSaved(id: string, saved_at: string | null): Promise<void> {
     await this.pool.query('UPDATE recipe SET saved_at = $1 WHERE id = $2', [saved_at, id]);
+  }
+
+  async setRecipeHidden(id: string, hidden_at: string | null): Promise<void> {
+    await this.pool.query('UPDATE recipe SET hidden_at = $1 WHERE id = $2', [hidden_at, id]);
   }
 
   async deleteRecipe(id: string): Promise<void> {

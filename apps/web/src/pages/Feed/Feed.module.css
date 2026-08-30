@@ -58,7 +58,9 @@
    r14, до 80% ширини). Мітка «ТИ» вирівнюється разом із баблом через flex-end. */
 .turn-user { align-items: flex-end; }
 .turn-user .turn-text {
-  background: var(--bg-surface);
+  /* QA9-add: саме --bg-surface-2 (#f8f9fa) — біла підложка канону, --bg-surface
+     зливалась із тлом стрічки. */
+  background: var(--bg-surface-2);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 10px 14px;

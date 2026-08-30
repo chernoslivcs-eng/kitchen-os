@@ -531,4 +531,36 @@ describe('ідемпотентність за запитаною назвою (Q
     expect(again.id).toBe(first.id);
     expect(again.reused).toBe(true);
   });
+
+  // QA9-08: «можливості видалити старі рецепти — нема». Рядок «готував, не
+  // зберіг» висів у бібліотеці назавжди: DELETE знімав лише saved_at, а
+  // HAVING тримав рядок через cooked_count. Тепер DELETE ховає рецепт із
+  // бібліотеки (hidden_at), журнал готувань не чіпає.
+  it('DELETE прибирає з бібліотеки і рецепт «готував, не зберіг»', async () => {
+    const me = await signIn(app, mailer, 'hide@example.com');
+
+    const cook = await app.inject({
+      method: 'POST', url: '/v1/cook-runs',
+      headers: { cookie: me.cookie },
+      payload: {
+        recipe: { t: 'Капрезе', tm: 5, sv: 2, ing: [{ n: 'моцарела', v: 100, u: 'g' }], st: [{ t: 'Наріж', c: 'Наріж' }] },
+      },
+    });
+    expect(cook.statusCode).toBe(201);
+    const { recipe_id } = cook.json() as { recipe_id: string };
+
+    // У бібліотеці — бо «готував».
+    let list = (await app.inject({ method: 'GET', url: '/v1/recipes', headers: { cookie: me.cookie } })).json() as { recipes: { id: string }[] };
+    expect(list.recipes.some((r) => r.id === recipe_id)).toBe(true);
+
+    const del = await app.inject({ method: 'DELETE', url: `/v1/recipes/${recipe_id}`, headers: { cookie: me.cookie } });
+    expect(del.statusCode).toBe(204);
+
+    list = (await app.inject({ method: 'GET', url: '/v1/recipes', headers: { cookie: me.cookie } })).json() as { recipes: { id: string }[] };
+    expect(list.recipes.some((r) => r.id === recipe_id)).toBe(false);
+
+    // Журнал живий: готування нікуди не зникло.
+    const runs = (await app.inject({ method: 'GET', url: '/v1/cook-runs', headers: { cookie: me.cookie } })).json() as { runs: { recipe_id?: string }[] };
+    expect(runs.runs.length).toBeGreaterThan(0);
+  });
 });

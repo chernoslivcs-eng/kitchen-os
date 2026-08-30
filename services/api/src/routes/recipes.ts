@@ -237,8 +237,10 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     return { recipes };
   });
 
-  // Прибрати зі збережених. Рецепт, який готували, лишається в списку як
-  // «готував» — тому не видаляємо рядок, а лише знімаємо saved_at.
+  // Прибрати з бібліотеки. Рядок не видаляємо (журнал тримає recipe_id через
+  // ON DELETE CASCADE — жорстке видалення знесло б готування), а знімаємо
+  // saved_at і ставимо hidden_at: QA9-08 — рецепт «готував, не зберіг» інакше
+  // висів у списку назавжди без жодного ✕.
   app.delete<{ Params: { id: string } }>(
     '/v1/recipes/:id',
     { preHandler: authenticated(repo) },
@@ -248,6 +250,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       if (!r) return reply.code(404).send({ error: 'not_found' });
       if (r.owner_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
       await repo.setRecipeSaved(r.id, null);
+      await repo.setRecipeHidden(r.id, new Date().toISOString());
       return reply.code(204).send();
     },
   );

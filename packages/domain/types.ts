@@ -253,6 +253,9 @@ export interface RecipeRow {
   payload: unknown;                                    // повний рецепт як JSON (ing, st)
   created_at: string;
   saved_at: string | null;                             // «лишити на потім» — QA-6
+  // QA9-08: «прибрати з бібліотеки» для рядка «готував, не зберіг». Рядок
+  // не видаляється (журнал тримає recipe_id) — лише зникає зі списку.
+  hidden_at?: string | null;
 }
 
 // Рецепт у списку: сам рядок + скільки разів готували. Стан ready/near/far
