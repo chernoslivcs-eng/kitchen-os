@@ -3,7 +3,7 @@
 // Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
 import { useEffect, useRef, useState } from 'react';
-import { api, type PantryBatch, type ShoppingList } from '../../api';
+import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { TabBar } from '../../components/TabBar/TabBar';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
@@ -36,6 +36,7 @@ export function PantryPage() {
   const meName = useAuth((st) => st.me?.user?.name ?? null);
   const navigate = useNavigate();
   const [batches, setBatches] = useState<PantryBatch[]>([]);
+  const [products, setProducts] = useState<HouseholdProduct[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
@@ -71,6 +72,7 @@ export function PantryPage() {
     try {
       const [p, s] = await Promise.all([api.pantry(), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
       setBatches(p.batches);
+      setProducts(p.products ?? []);
       setShoppingCount(s.count);
     } finally {
       setLoading(false);
@@ -229,6 +231,7 @@ export function PantryPage() {
 
       {editing && (
         <BatchEditSheet
+          product={products.find((pr) => pr.id === (editing?.product_id ?? '')) ?? null}
           batch={editing}
           onClose={() => setEditing(null)}
           onChanged={async () => { await refresh(); setEditing(null); }}
@@ -263,7 +266,7 @@ const UNIT_OPTIONS: { value: PantryBatch['unit']; label: string }[] = [
   { value: 'pack', label: 'пач' },
 ];
 
-function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onClose: () => void; onChanged: () => Promise<void> }) {
+function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryBatch; product?: HouseholdProduct | null; onClose: () => void; onChanged: () => Promise<void> }) {
   const [label, setLabel] = useState(batch.label);
   const [value, setValue] = useState<string>(batch.value != null ? String(batch.value) : '');
   const [unit, setUnit] = useState<PantryBatch['unit']>(batch.unit);
@@ -330,6 +333,16 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Назва</span>
           <Input value={label} onChange={(e) => setLabel(e.target.value)} />
+          {/* Пул-2 №11: партія показує на продукт дому — трійку і теги
+              правлять у чаті; ручна правка назви тут трійку НЕ міняє. */}
+          {product && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em', color: 'var(--fg-dim)', lineHeight: 1.5 }}>
+              ПРОДУКТ: {product.product}
+              {product.brand ? ` · БРЕНД: ${product.brand}` : ''}
+              {product.variant ? ` · ВАРІАНТ: ${product.variant}` : ''}
+              {' — трійка й теги правляться в чаті'}
+            </span>
+          )}
         </label>
 
         <div style={{ display: 'flex', gap: 10 }}>
