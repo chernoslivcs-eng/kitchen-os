@@ -1,7 +1,7 @@
 // Запрошення в дім посиланням. Той самий каркас, що magic-link:
 //   - сирий токен існує лише в листі
 //   - у БД лежить SHA-256(hex)
-//   - одноразовий, revocable, TTL 7 днів
+//   - одноразовий, revocable, TTL 72 години (хендоф Д06)
 // Різниця з magic-link — прив'язка до household_id і опційна роль. Клік лінка
 // приймачем не тільки логінить, а й додає у household_member.
 
@@ -10,8 +10,9 @@ import type { Repo } from './repo.js';
 import type { HouseholdInvite, HouseholdRole, AuthSession } from './types.js';
 import { randomToken, hashToken, openSession } from './auth.js';
 
-const INVITE_TTL_DAYS = 7;
-export const INVITE_TTL_MS = INVITE_TTL_DAYS * 86_400_000;
+// QA8-18: макет обіцяє «ПОСИЛАННЯ ДІЄ 72 ГОД», код давав тиждень.
+const INVITE_TTL_HOURS = 72;
+export const INVITE_TTL_MS = INVITE_TTL_HOURS * 3_600_000;
 
 export interface CreateInviteInput {
   household_id: string;

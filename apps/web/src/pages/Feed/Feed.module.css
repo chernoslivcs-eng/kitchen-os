@@ -464,6 +464,14 @@
     margin-left: 36px;
     margin-right: auto;
   }
+  /* QA8-16: форма центрувалась усередині вже притиснутої обгортки —
+     стрічка на 268px, поле вводу на 513. Обгортка притиснута, форма
+     всередині лишається на місці. */
+  :global(body.with-sidebar) .composer-wrap .composer {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 720px;
+  }
 }
 
 /* Канон Бриф-3 п.8: рецепт-повідомлення. На десктопі (прототип 1280) —
@@ -496,7 +504,7 @@
     gap: 18px;
     position: fixed;
     top: 0; right: 0; bottom: 0;
-    width: 250px;
+    width: 320px;  /* Д01: 320, не 250 (QA8-17) */
     border-left: 1px solid var(--border);
     background: var(--bg-surface-2);
     padding: 22px 18px;
@@ -544,6 +552,6 @@
   :global(body.with-sidebar) .timeline,
   :global(body.with-sidebar) .composer-wrap,
   :global(body.with-sidebar) .head {
-    margin-right: 250px;
+    margin-right: 320px;
   }
 }

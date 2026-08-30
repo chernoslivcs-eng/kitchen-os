@@ -324,7 +324,13 @@ export const registry: Record<string, Invariant> = {
   'lent-no-meat-or-dairy': (out) => {
     const card = out.card;
     if (card?.type !== 'proposal') return pass('не proposal');
-    const hay = JSON.stringify(card).toLowerCase();
+    // desc — мова смаку й текстури («крем-вершкова каша» з нуту вершків не
+    // містить); продукти живуть у title, needs і rescues — їх і перевіряємо.
+    const items = (card as { items?: { title?: string; needs?: string[]; rescues?: string[] }[] }).items ?? [];
+    const hay = items
+      .map((i) => [i.title ?? '', ...(i.needs ?? []), ...(i.rescues ?? [])].join(' '))
+      .join(' | ')
+      .toLowerCase();
     // Підрядком тут ловиться не те: «фарш» сидить у «фаршировані гриби»,
     // «сир» у «сирий», а «кокосове молоко» в піст цілком дозволене. Тому
     // кожен корінь із власними винятками, а не список слів через includes.
@@ -334,7 +340,10 @@ export const registry: Record<string, Invariant> = {
       ['фарш', new RegExp(`${LB}фарш(?!ирован)`)],
       ['птиця', new RegExp(`${LB}курк|куряч|${LB}курц|індичк|індич`)],
       ['риба', new RegExp(`${LB}риб[аиуоі]${RB}|лосос|тунц|оселедц|креветк|${LB}тріск`)],
-      ['вершки', /вершк(?!ов[а-яі]*\s+олі)/],
+      // Іменник («вершки», «вершків») — продукт; прикметник — текстура
+      // («крем-вершкова каша» з нуту), КРІМ пари з «соус»: вершковий соус
+      // робиться з вершків.
+      ['вершки', /вершк(и|ів|ами|ах)(?![а-яіїє])|вершков[а-яіїє]*\s+(соус|масл)/],
       ['сметана', /сметан/],
       ['сир', new RegExp(`${LB}сир[ауоюі]?${RB}|${LB}сиром${RB}|пармезан|${LB}фет[аиу]${RB}|моцарел`)],
       ['масло', new RegExp(`вершков[а-яі]*\\s+масл|${LB}масл[оаиуом]+${RB}(?!\\s*(?:оливков|соняшников|рослинн))`)],
@@ -470,6 +479,16 @@ export const registry: Record<string, Invariant> = {
         : fail('не назвала склад із власного рецепта');
     }
     return pass();
+  },
+
+  // QA8-08: спільна трапеза — алерген їдця виключає страву, а не маркує.
+  'shared-meal-no-eater-allergen': (out) => {
+    const card = out.card;
+    if (card?.type !== 'proposal') return pass('не proposal');
+    const hay = JSON.stringify(card).toLowerCase();
+    return /арахіс/.test(hay)
+      ? fail('арахіс у пропозиції на спільний сніданок при алергії Оксани')
+      : pass();
   },
 
   // QA5-02: незастосована картка нічого не змінила.

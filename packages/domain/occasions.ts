@@ -287,7 +287,7 @@ export function serializeOccasions(now = new Date(), wishes: string[] = []): str
     const anchors: string[] = [];
     for (const t of trads) {
       if (t !== 'orthodox' && t !== 'catholic') continue;
-      const label = t === 'catholic' ? 'катол.' : 'правосл.';
+      const label = t === 'catholic' ? 'католицький' : 'православний';
       for (const yr of [y, y + 1]) {
         const e = easterDate(yr, t);
         if (e.getTime() < now.getTime() && yr === y) continue;  // торішній не потрібен
@@ -340,4 +340,27 @@ export function serializeOccasions(now = new Date(), wishes: string[] = []): str
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
+}
+
+
+// ── Механічна гвардія посту ─────────────────────────────────────────────────
+// Третій flap eval-фікстури calendar-lent: модель ігнорувала блок обмеження
+// в середині контексту і «рятувала» фарш тефтелями. Промпт посилювали двічі —
+// далі діє механізм, що вже двічі рятував з алергенами (QA5-01, QA7-06):
+// мітка прямо в рядку партії, куди модель дивиться, коли добирає страви.
+
+const SKOROMNE_ROOTS =
+  /м[ʼ']яс(?!ист)|фарш(?!ирован)|яловичин|свинин|телятин|баранин|бекон|шинк|ковбас|курк|куряч|індич|(?<![а-яіїєґ])риб[аиуоі]|лосос|тунц|оселедц|креветк|вершк(?!ов[а-яі]*\s+олі)|сметан|(?<![а-яіїєґ])сир(?![іео]п|овин)|пармезан|фет[аи]\b|моцарел|масл[оа]\s*вершков|вершкове\s*масл|яйц|яєц|молок/i;
+const LEAN_EXCEPTIONS = /кокосов|рослинн|соєв|вівсян|мигдальн|горіхов|соняшников|оливков/i;
+
+/** Чи ця назва — скоромне (для мітки в коморі під час посту). */
+export function isFastingRestricted(label: string): boolean {
+  if (LEAN_EXCEPTIONS.test(label)) return false;
+  return SKOROMNE_ROOTS.test(label);
+}
+
+/** Чи просто зараз триває піст для розпізнаної традиції. */
+export function fastingActive(now: Date, wishes: string[]): boolean {
+  const trads = traditionsFrom(wishes);
+  return activeOccasions(now, trads).some((o) => o.restricts);
 }

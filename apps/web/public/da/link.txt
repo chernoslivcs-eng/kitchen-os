@@ -1,1 +1,0 @@
-http://localhost:5173/v1/auth/verify?token=JY9My_Yf6FTEwqESlAO4TGxKYGCCLNXu3vtM1l4AXLw

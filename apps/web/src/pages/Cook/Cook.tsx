@@ -75,18 +75,32 @@ export function CookPage() {
     setRunning(false);
   }, [stepIdx, step?.s]);
 
+  // QA8-03: таймер рахує від дедлайну, не тіками. Лічильник тіків втрачав
+  // час на будь-якому дроселі (виміряно: 2000мс/тік, паста на 8:00 варилась
+  // би 16 хвилин), а StrictMode-подвоєння ефекту робило його недетермінованим.
+  // З дедлайном хоч десять інтервалів пишуть одне й те саме обчислене число,
+  // а заморожена вкладка наздоганяє час першим же тіком. Це ж робить точним
+  // відновлення сесії (QA8-06): зберігаємо залишок, порахований з дедлайну.
+  const deadlineRef = useRef<number | null>(null);
   useEffect(() => {
     if (!running) {
       if (tickRef.current != null) window.clearInterval(tickRef.current);
       tickRef.current = null;
+      deadlineRef.current = null;
       return;
     }
+    deadlineRef.current = Date.now() + secondsLeft * 1000;
     tickRef.current = window.setInterval(() => {
-      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
-    }, 1000);
+      const d = deadlineRef.current;
+      if (d == null) return;
+      setSecondsLeft(Math.max(0, Math.ceil((d - Date.now()) / 1000)));
+    }, 250);
     return () => {
       if (tickRef.current != null) window.clearInterval(tickRef.current);
     };
+    // secondsLeft свідомо не в залежностях: дедлайн фіксується на старті,
+    // а «+1 хв» коригує його напряму.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
 
   useEffect(() => {
@@ -103,6 +117,18 @@ export function CookPage() {
       setStepIdx(saved.stepIdx);
       setSecondsLeft(saved.secondsLeft);
       setRunning(false);   // таймер на паузі — час не відмотується
+    } else if (saved && recipe && saved.recipe.t !== recipe.t) {
+      // QA8-07: тут живе ІНШЕ незавершене готування. Мовчки затерти його —
+      // втратити чиїсь пів рецепта. Питаємо; відмова повертає до стрічки,
+      // де рядок «Готування триває» веде до старої сесії.
+      const drop = window.confirm(
+        `Триває готування «${saved.recipe.t}» (крок ${saved.stepIdx + 1}/${saved.recipe.st.length}). Кинути його й почати «${recipe.t}»?`,
+      );
+      if (!drop) {
+        navigate(-1);
+        return;
+      }
+      clearCookSession();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -164,6 +190,9 @@ export function CookPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secondsLeft === 0]);
 
+
+  // QA8-20: guard стоїть ПІСЛЯ всіх хуків — кількість викликаних хуків
+  // не залежить від наявності рецепта (Rules of Hooks).
   if (!recipe) {
     return (
       <div className={styles.screen}>
@@ -179,14 +208,25 @@ export function CookPage() {
   const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
   const done = stepIdx >= total;
 
+  // Актуальний знімок для збереження — оминаємо замикання ефектів.
+  const sessionSnapRef = useRef({ stepIdx, secondsLeft, done });
+  sessionSnapRef.current = { stepIdx, secondsLeft, done };
   useEffect(() => {
     if (!recipe) return;
     if (done) { clearCookSession(); return; }
     saveCookSession({ recipe, stepIdx, secondsLeft });
-    // Пишемо на зміну кроку/паузу — не щосекунди: resume з точністю до
-    // останньої дії достатній, а localStorage не любить тік.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx, running, done]);
+  // QA8-06: «Вийти» за 20 секунд до кінця повертало повний таймер — запис
+  // ішов тільки на дію. Тепер вихід (unmount) пише точний залишок.
+  useEffect(() => {
+    if (!recipe) return;
+    return () => {
+      const snap = sessionSnapRef.current;
+      if (!snap.done) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe?.t]);
 
   // При завершенні: зберігаємо cook-run і списуємо використані партії.
   // Кількість повертаємо, щоб «Готово» показало «списано N позицій».
@@ -313,6 +353,12 @@ export function CookPage() {
               <div
                 role="dialog"
                 aria-modal="true"
+                ref={(el) => {
+                  // QA8-09: без фокусу всередині діалог не чує клавіатури.
+                  if (el && !el.contains(document.activeElement)) {
+                    el.querySelector<HTMLElement>('button, input, [tabindex]')?.focus();
+                  }
+                }}
                 onKeyDown={(e) => {
                   // DA2-09: Escape — безпечний вихід (нічого не списувати,
                   // все відкочується undo). Tab тримаємо всередині діалогу.
@@ -392,7 +438,7 @@ export function CookPage() {
                             <span style={{ flex: 1 }}>{v.label}</span>
                             {v.value != null && v.unit && (
                               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)' }}>
-                                {v.value}{v.unit}
+                                {v.value}{v.unit === 'g' ? 'г' : v.unit === 'ml' ? 'мл' : v.unit === 'pcs' ? 'шт' : v.unit === 'pack' ? 'уп' : v.unit}
                               </span>
                             )}
                           </label>
@@ -633,7 +679,13 @@ export function CookPage() {
                   >
                     {secondsLeft === 0 ? 'Спочатку' : running ? 'Пауза' : 'Пуск'}
                   </button>
-                  <button className={styles.secondary} onClick={() => setSecondsLeft((s) => s + 60)}>
+                  <button
+                    className={styles.secondary}
+                    onClick={() => {
+                      if (deadlineRef.current != null) deadlineRef.current += 60_000;
+                      setSecondsLeft((s) => s + 60);
+                    }}
+                  >
                     +1 хв
                   </button>
                 </div>
@@ -721,7 +773,7 @@ export function CookPage() {
             )}
           </div>
         )}
-        <div className={styles.offline}>Працює без мережі · тап по смузі = крок назад</div>
+        <div className={styles.offline}>{done ? "Працює без мережі" : "Працює без мережі · смуга вгорі вертає на крок"}</div>
       </div>
     </div>
   );

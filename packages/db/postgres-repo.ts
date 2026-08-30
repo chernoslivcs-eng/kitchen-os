@@ -21,12 +21,24 @@ import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
 
+
+// QA8-19: pg віддає date-колонку як JS Date опівночі ЛОКАЛЬНОГО часу, а
+// toISOString() зсуває в UTC — для UTC+3 «2026-08-30» ставав «2026-08-29».
+// Форматуємо локально, без подорожей через часові пояси.
+function dayString(d: unknown): string {
+  if (d instanceof Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return String(d);
+}
+
 function rowToRecipe(r: Row): RecipeRow {
   return {
     id: r.id as string,
     owner_id: r.owner_id as string,
     origin: r.origin as RecipeRow['origin'],
     title: r.title as string,
+    requested_title: (r.requested_title as string | null) ?? null,
     descr: (r.descr as string | null) ?? null,
     character: (r.character as string | null) ?? null,
     risk: (r.risk as string | null) ?? null,
@@ -603,7 +615,7 @@ export class PostgresRepo implements Repo {
       const r = existing[0];
       return {
         id: r.id, user_id: r.user_id, title: r.title ?? null,
-        day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+        day: dayString(r.day),
         created_at: new Date(r.created_at).toISOString(),
       };
     }
@@ -619,7 +631,7 @@ export class PostgresRepo implements Repo {
     const r = rows[0]!;
     return {
       id: r.id, user_id: r.user_id, title: r.title ?? null,
-      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      day: dayString(r.day),
       created_at: new Date(r.created_at).toISOString(),
     };
   }
@@ -630,7 +642,7 @@ export class PostgresRepo implements Repo {
     if (!r) return null;
     return {
       id: r.id, user_id: r.user_id, title: r.title ?? null,
-      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      day: dayString(r.day),
       created_at: new Date(r.created_at).toISOString(),
     };
   }
@@ -654,7 +666,7 @@ export class PostgresRepo implements Repo {
     );
     return rows.map((r) => ({
       id: r.id, user_id: r.user_id, title: r.title ?? null,
-      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      day: dayString(r.day),
       created_at: new Date(r.created_at).toISOString(),
       message_count: Number(r.message_count),
     }));
@@ -697,11 +709,12 @@ export class PostgresRepo implements Repo {
   async saveRecipe(recipe: RecipeRow): Promise<void> {
     await this.pool.query(
       `INSERT INTO recipe
-         (id, owner_id, origin, title, descr, character, risk, base_servings,
+         (id, owner_id, origin, title, requested_title, descr, character, risk, base_servings,
           time_total, nutrition, payload, created_at, saved_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
       [
-        recipe.id, recipe.owner_id, recipe.origin, recipe.title, recipe.descr,
+        recipe.id, recipe.owner_id, recipe.origin, recipe.title,
+        recipe.requested_title ?? null, recipe.descr,
         recipe.character, recipe.risk, recipe.base_servings, recipe.time_total,
         recipe.nutrition == null ? null : JSON.stringify(recipe.nutrition),
         JSON.stringify(recipe.payload),

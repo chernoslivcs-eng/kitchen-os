@@ -98,3 +98,23 @@ describe('stepIngredients (DA2-05, «НА ЦЬОМУ КРОЦІ»)', () => {
     expect(stepIngredients('{7} додати', ing)).toEqual([]);
   });
 });
+
+// QA8-02: рецепт-повідомлення рендерило кроки самописною копією без
+// batchLabels — «Відварити пасту. інгредієнт — кинути в окріп». Копія
+// втратила три раніше закриті фікси (QA3-01, QA5-09, QA6-11) одним рядком.
+// Гвардія: спільна функція з labels резолвить партії з комори.
+describe('renderStepContent — кроки з партіями комори (QA8-02)', () => {
+  const labels: BatchLabels = new Map([['6b42a922', 'Спагеті №5']]);
+  const ing = [{ p: '6b42a922', v: 200, u: 'g' }, { n: 'яйця', v: 3, u: 'pcs' }];
+
+  it('партія без n резолвиться в назву з комори, не в заглушку', () => {
+    const out = renderStepContent('{0} — кинути в окріп', ing, labels);
+    expect(out).toContain('Спагеті №5');
+    expect(out).not.toContain('інгредієнт');
+  });
+
+  it('початок речення капіталізується (QA6-11 не втрачено)', () => {
+    const out = renderStepContent('{0} — кинути в окріп', ing, labels);
+    expect(out[0]).toBe(out[0]!.toUpperCase());
+  });
+});

@@ -11,7 +11,7 @@
 
 import { root, meaningfulWords } from '@kitchen/catalog';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe } from './types.js';
-import { serializeOccasions } from './occasions.js';
+import { serializeOccasions, fastingActive, isFastingRestricted } from './occasions.js';
 
 export interface RecentCookRunSummary {
   title: string;
@@ -72,6 +72,7 @@ export function serializePantry(
   p?: Profile | null,
   now = Date.now(),
   eaters: EaterRow[] = [],
+  fasting = false,
 ): string {
   const allergens = [
     ...(p?.allergies ?? []).map((a) => ({ label: a, who: '' })),
@@ -94,6 +95,12 @@ export function serializePantry(
         .filter((a) => words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w)))
         .map((a) => a.label + a.who);
       if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй; просять прямо — дай і назви алергію першою фразою reply`);
+      // Третій flap calendar-lent: правило посту в середині контексту модель
+      // ігнорувала і «рятувала» фарш тефтелями. Мітка в рядку партії — той
+      // самий механізм, що двічі рятував з алергенами.
+      if (fasting && isFastingRestricted(b.label)) {
+        parts.push('⚠ПІСТ — зараз піст: сам не пропонуй і не «рятуй» стравами; можна запропонувати заморозити одним реченням');
+      }
       return parts.join(' · ');
     })
     .join('\n');
@@ -136,7 +143,10 @@ export function serializeEaters(eaters: EaterRow[]): string {
     return '— ' + parts.join(' · ');
   });
   return '\n\n[ДОМАШНІ]\n' + lines.join('\n')
-    + '\nСтрава готується на всіх за столом: обмеження домашніх враховуй нарівні з профілем.';
+    + '\nСтрава готується на всіх за столом: обмеження домашніх враховуй нарівні з профілем.'
+    + ' Якщо трапеза СПІЛЬНА («на нас», «на двох», «на сімʼю», «на вечерю всім») — алерген будь-кого з домашніх'
+    + ' ВИКЛЮЧАЄ страву з пропозицій, а не додає позначку: за спільним столом «позначка, не заборона» не працює.'
+    + ' Попередження про алерген ЗАВЖДИ перша фраза reply, ніколи не в why/desc — why це слот переконування, не безпеки.';
 }
 
 // Останні згенеровані рецепти. Без цього блоку модель не бачила ВЛАСНИХ
@@ -185,7 +195,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
     + serializeOccasions(now, ctx.profile?.wishes ?? [])
-    + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [])
+    + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []))
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [])

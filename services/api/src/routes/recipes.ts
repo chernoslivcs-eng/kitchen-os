@@ -49,9 +49,13 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     // regenerate: true — свідомий «дай інший підхід».
     if (!regenerate) {
       const dayAgo = Date.now() - 24 * 3600_000;
-      const recent = await repo.listRecentRecipes(ctx.user_id, 20);
+      // QA8-01: людина тапає назву ПРОПОЗИЦІЇ, а рядок збережено під назвою
+      // МОДЕЛІ — звіряємо обидві. Вікно 40: 20 обрізало добу активного дня.
+      const recent = await repo.listRecentRecipes(ctx.user_id, 40);
+      const wanted = title.trim().toLowerCase();
       const same = recent.find((r) =>
-        r.title.trim().toLowerCase() === title.trim().toLowerCase()
+        (r.title.trim().toLowerCase() === wanted
+          || r.requested_title?.trim().toLowerCase() === wanted)
         && new Date(r.created_at).getTime() > dayAgo);
       if (same) {
         return { id: same.id, recipe: same.payload, reused: true, meta: null, usage: null };
@@ -101,6 +105,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       owner_id: ctx.user_id,
       origin: 'generated',
       title: call.recipe.t,
+      requested_title: title.trim(),
       descr: call.recipe.d ?? null,
       character: call.recipe.ch ?? null,
       risk: call.recipe.rk ?? null,
