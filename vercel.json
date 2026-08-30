@@ -14,6 +14,6 @@
     { "source": "/v1/:path*", "destination": "/api/index" },
     { "source": "/health", "destination": "/api/index" },
     { "source": "/r/:id", "destination": "/api/index" },
-    { "source": "/((?!assets|manifest.webmanifest|icon.svg|api/).*)", "destination": "/index.html" }
+    { "source": "/((?!assets|manifest.webmanifest|icon.svg|sw.js|api/).*)", "destination": "/index.html" }
   ]
 }
