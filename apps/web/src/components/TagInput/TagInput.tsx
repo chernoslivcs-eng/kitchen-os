@@ -15,7 +15,6 @@ interface Props {
   values: string[];
   tone: 'allergy' | 'wish' | 'anti' | 'neutral';
   placeholder: string;
-  emptyLabel?: string;
   prefix?: string;                       // «⚠» перед алергією
   disabled?: boolean;
   onAdd: (label: string) => Promise<void> | void;
@@ -23,7 +22,7 @@ interface Props {
 }
 
 export function TagInput({
-  values, tone, placeholder, emptyLabel = 'ще жодного', prefix,
+  values, tone, placeholder, prefix,
   disabled, onAdd, onRemove,
 }: Props) {
   const [draft, setDraft] = useState('');
@@ -59,9 +58,8 @@ export function TagInput({
       className={styles.field}
       onClick={() => inputRef.current?.focus()}
     >
-      {values.length === 0 && !draft && (
-        <span className={styles.empty}>{emptyLabel}</span>
-      )}
+      {/* Порожній стан каже плейсхолдер — окремий чіп «ще жодної» поруч із ним
+          повторював те саме двічі (канон 5а показує тільки «додати…»). */}
       {values.map((v) => (
         <span key={v} className={`${styles.chip} ${styles[tone]}`}>
           {prefix ? `${prefix} ` : ''}{v}

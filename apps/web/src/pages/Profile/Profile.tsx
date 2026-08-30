@@ -166,7 +166,6 @@ export function ProfilePage() {
             values={profile?.allergies ?? []}
             tone="allergy"
             prefix="⚠"
-            emptyLabel="ще жодної"
             placeholder="арахіс, арахісова паста…"
             onAdd={(l) => patch('add', 'allergy', l)}
             onRemove={(l) => patch('remove', 'allergy', l)}

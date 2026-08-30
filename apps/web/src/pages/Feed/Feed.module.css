@@ -3,7 +3,10 @@
  * Мобайл-фьорст. Каркас: шапка → скролабельна стрічка → композитор внизу.
  */
 .screen {
-  min-height: 100dvh;
+  /* height, не min-height: інакше на довгому чаті скролиться body, і композитор
+     з таб-баром їдуть за екран. Хендоф тримає їх знизу завжди; скрол живе
+     всередині .timeline (flex:1 + overflow-y). */
+  height: 100dvh;
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;
