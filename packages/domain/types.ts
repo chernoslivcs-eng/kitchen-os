@@ -147,6 +147,14 @@ export interface RecipeRow {
   nutrition: unknown;
   payload: unknown;                                    // повний рецепт як JSON (ing, st)
   created_at: string;
+  saved_at: string | null;                             // «лишити на потім» — QA-6
+}
+
+// Рецепт у списку: сам рядок + скільки разів готували. Стан ready/near/far
+// рахується проти комори через matchRecipe().
+export interface RecipeListItem extends RecipeRow {
+  cooked_count: number;
+  last_cooked_at: string | null;
 }
 
 export type CookRunBatchChange =

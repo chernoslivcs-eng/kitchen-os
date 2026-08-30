@@ -4,7 +4,7 @@
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
-  ShoppingItemRow, RecipeRow, CookRunRow, CookRunWithRecipe,
+  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow,
 } from './types.js';
 
@@ -93,6 +93,10 @@ export interface Repo {
   // Рецепти й приготування
   saveRecipe(recipe: RecipeRow): Promise<void>;
   getRecipe(id: string): Promise<RecipeRow | null>;
+  // Бібліотека рецептів (екран 07 із прототипу). Повертає збережені «на потім»
+  // і ті, які вже готували — з лічильником готувань.
+  listRecipes(user_id: string, limit?: number): Promise<RecipeListItem[]>;
+  setRecipeSaved(id: string, saved_at: string | null): Promise<void>;
   saveCookRun(run: CookRunRow): Promise<void>;
   getCookRun(id: string): Promise<CookRunRow | null>;
   updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict' | 'photo_url'>>): Promise<void>;

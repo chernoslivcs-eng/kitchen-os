@@ -4,5 +4,6 @@ export * from './in-memory-repo.js';
 export * from './apply.js';
 export * from './context.js';
 export * from './model-response.js';
+export * from './recipe-match.js';
 export * from './auth.js';
 export * from './invite.js';

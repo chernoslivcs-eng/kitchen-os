@@ -13,7 +13,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow,
-  RecipeRow, CookRunRow, CookRunChanges, CookRunWithRecipe,
+  RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
   SessionRow, MessageRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
 } from '@kitchen/domain';
@@ -35,6 +35,7 @@ function rowToRecipe(r: Row): RecipeRow {
     nutrition: r.nutrition,
     payload: r.payload,
     created_at: new Date(r.created_at as string).toISOString(),
+    saved_at: r.saved_at ? new Date(r.saved_at as string).toISOString() : null,
   };
 }
 
@@ -611,16 +612,46 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO recipe
          (id, owner_id, origin, title, descr, character, risk, base_servings,
-          time_total, nutrition, payload, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          time_total, nutrition, payload, created_at, saved_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [
         recipe.id, recipe.owner_id, recipe.origin, recipe.title, recipe.descr,
         recipe.character, recipe.risk, recipe.base_servings, recipe.time_total,
         recipe.nutrition == null ? null : JSON.stringify(recipe.nutrition),
         JSON.stringify(recipe.payload),
         recipe.created_at,
+        recipe.saved_at,
       ],
     );
+  }
+
+  // Бібліотека: збережені «на потім» + ті, які готували, з лічильником.
+  // Побічні артефакти cook-run без saved_at і без готувань не показуємо.
+  async listRecipes(user_id: string, limit = 50): Promise<RecipeListItem[]> {
+    const { rows } = await this.pool.query(
+      `SELECT r.*,
+              COUNT(c.id) FILTER (WHERE c.undone_at IS NULL)::int AS cooked_count,
+              MAX(COALESCE(c.finished_at, c.started_at))
+                FILTER (WHERE c.undone_at IS NULL)              AS last_cooked_at
+         FROM recipe r
+         LEFT JOIN cook_run c ON c.recipe_id = r.id
+        WHERE r.owner_id = $1
+        GROUP BY r.id
+       HAVING r.saved_at IS NOT NULL
+           OR COUNT(c.id) FILTER (WHERE c.undone_at IS NULL) > 0
+        ORDER BY COALESCE(r.saved_at, r.created_at) DESC
+        LIMIT $2`,
+      [user_id, limit],
+    );
+    return rows.map((r): RecipeListItem => ({
+      ...rowToRecipe(r),
+      cooked_count: Number(r.cooked_count ?? 0),
+      last_cooked_at: r.last_cooked_at ? new Date(r.last_cooked_at as string).toISOString() : null,
+    }));
+  }
+
+  async setRecipeSaved(id: string, saved_at: string | null): Promise<void> {
+    await this.pool.query('UPDATE recipe SET saved_at = $1 WHERE id = $2', [saved_at, id]);
   }
 
   async getRecipe(id: string): Promise<RecipeRow | null> {
@@ -698,7 +729,7 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO shopping_item
          (id, household_id, label, reason, value, unit, zone, checked, added_by, source, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [
         item.id, item.household_id, item.label, item.reason,
         item.value, item.unit, item.zone, item.checked,
@@ -745,7 +776,7 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO household_invite
          (id, household_id, invited_by, email, role, token_hash, created_at, expires_at, consumed_at, consumed_by, revoked_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [
         inv.id, inv.household_id, inv.invited_by, inv.email.toLowerCase(), inv.role,
         inv.token_hash, inv.created_at, inv.expires_at,

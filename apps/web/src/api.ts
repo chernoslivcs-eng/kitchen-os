@@ -161,6 +161,13 @@ export const api = {
       ),
   },
 
+  savedRecipes: {
+    list: () => req<{ recipes: SavedRecipe[] }>('/v1/recipes'),
+    save: (recipe: Recipe) =>
+      req<{ id: string }>('/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe }) }),
+    unsave: (id: string) => req<null>(`/v1/recipes/${id}`, { method: 'DELETE' }),
+  },
+
   session: {
     today: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session/today'),
     fresh: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session', {
@@ -335,6 +342,26 @@ export interface MessageInfo {
   card: ChatCard | null;
   applied: number;
   created_at: string;
+}
+
+// Рецепт у бібліотеці. `status` рахує сервер проти поточної комори:
+// ready — усе є, near — бракує опційного, far — бракує головного.
+export interface SavedRecipe {
+  id: string;
+  title: string;
+  descr: string | null;
+  character: string | null;
+  time_total: number | null;
+  base_servings: number;
+  saved_at: string | null;
+  cooked_count: number;
+  last_cooked_at: string | null;
+  payload: Recipe;
+  status: 'ready' | 'near' | 'far';
+  have: number;
+  total: number;
+  missing: string[];
+  rescues: string[];
 }
 
 export interface CookRunBatchChange {

@@ -4,8 +4,10 @@
 // перезавантаження. Коли зʼявиться таблиця recipe і CookRun — додамо GET/POST /v1/recipes/:id.
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { randomUUID } from 'node:crypto';
+import { matchRecipe, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
-import { callRecipe } from '../model.js';
+import { callRecipe, type Recipe } from '../model.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter } from '../rate-limit.js';
@@ -73,6 +75,90 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
 
     return { recipe: call.recipe, meta: call.meta, usage: call.usage };
   });
+
+  // ---- Бібліотека рецептів (екран 07 із прототипу) ----------------------
+  //
+  // До цього рецепт народжувався ТІЛЬКИ в POST /v1/cook-runs: не приготував —
+  // зник назавжди. QA-6 намацав це через відчуття «двічі отримав різото й
+  // обидва рази втратив». У прототипі екран був, у прод не доїхав.
+
+  // «Лишити на потім» під карткою пропозиції.
+  app.post<{ Body: { recipe?: Recipe } }>(
+    '/v1/recipes',
+    { preHandler: [authenticated(repo), genLimit] },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const recipe = req.body?.recipe;
+      if (!recipe?.t || !Array.isArray(recipe.ing)) {
+        return reply.code(400).send({ error: 'recipe with t and ing[] required' });
+      }
+      const now = new Date().toISOString();
+      const id = randomUUID();
+      await repo.saveRecipe({
+        id,
+        owner_id: user_id,
+        origin: 'generated',
+        title: recipe.t,
+        descr: recipe.d ?? null,
+        character: recipe.ch ?? null,
+        risk: recipe.rk ?? null,
+        base_servings: recipe.sv ?? 2,
+        time_total: recipe.tm ?? null,
+        nutrition: recipe.nu ?? null,
+        payload: recipe,
+        created_at: now,
+        saved_at: now,
+      });
+      return reply.code(201).send({ id });
+    },
+  );
+
+  // Список із готовністю проти поточної комори: ready / near / far.
+  app.get('/v1/recipes', { preHandler: authenticated(repo) }, async (req) => {
+    const { user_id, household_id } = requireUser(req);
+    const [rows, pantry] = await Promise.all([
+      repo.listRecipes(user_id, 50),
+      repo.listBatches(household_id),
+    ]);
+    const recipes = rows.map((r) => {
+      const payload = r.payload as { ing?: RecipeIngredient[] } | null;
+      const match = matchRecipe(payload?.ing ?? [], pantry);
+      return {
+        id: r.id,
+        title: r.title,
+        descr: r.descr,
+        character: r.character,
+        time_total: r.time_total,
+        base_servings: r.base_servings,
+        saved_at: r.saved_at,
+        cooked_count: r.cooked_count,
+        last_cooked_at: r.last_cooked_at,
+        payload: r.payload,
+        status: match.status,
+        have: match.have,
+        total: match.total,
+        // Назви, не uuid — на екрані має бути «бракує: яйця, бекон».
+        missing: match.missing.map((m) => m.n ?? 'інгредієнт'),
+        rescues: match.rescues.map((b) => b.label),
+      };
+    });
+    return { recipes };
+  });
+
+  // Прибрати зі збережених. Рецепт, який готували, лишається в списку як
+  // «готував» — тому не видаляємо рядок, а лише знімаємо saved_at.
+  app.delete<{ Params: { id: string } }>(
+    '/v1/recipes/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const r = await repo.getRecipe(req.params.id);
+      if (!r) return reply.code(404).send({ error: 'not_found' });
+      if (r.owner_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
+      await repo.setRecipeSaved(r.id, null);
+      return reply.code(204).send();
+    },
+  );
 
   // Публічний read-only рецепт для sharing. Без auth: хто отримав лінк, той бачить.
   // Це саме payload з recipe — той самий, що в БД, без owner/created_at. Плюс на клієнті

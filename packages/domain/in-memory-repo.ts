@@ -3,7 +3,7 @@ import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js'
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
-  ShoppingItemRow, RecipeRow, CookRunRow, CookRunWithRecipe,
+  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
@@ -287,6 +287,27 @@ export class InMemoryRepo implements Repo {
   }
   async getRecipe(id: string): Promise<RecipeRow | null> {
     return this.recipes.get(id) ?? null;
+  }
+  async listRecipes(user_id: string, limit = 50): Promise<RecipeListItem[]> {
+    const runs = [...this.cookRuns.values()].filter((r) => r.user_id === user_id && !r.undone_at);
+    return [...this.recipes.values()]
+      .filter((r) => r.owner_id === user_id)
+      .map((r) => {
+        const mine = runs.filter((c) => c.recipe_id === r.id);
+        const last = mine
+          .map((c) => c.finished_at ?? c.started_at)
+          .sort()
+          .pop() ?? null;
+        return { ...r, cooked_count: mine.length, last_cooked_at: last };
+      })
+      // Збережені «на потім» і приготовані — решта (побічні артефакти) не показуємо.
+      .filter((r) => r.saved_at || r.cooked_count > 0)
+      .sort((a, b) => (b.saved_at ?? b.created_at).localeCompare(a.saved_at ?? a.created_at))
+      .slice(0, limit);
+  }
+  async setRecipeSaved(id: string, saved_at: string | null): Promise<void> {
+    const cur = this.recipes.get(id);
+    if (cur) this.recipes.set(id, { ...cur, saved_at });
   }
   async saveCookRun(run: CookRunRow): Promise<void> {
     this.cookRuns.set(run.id, { ...run });

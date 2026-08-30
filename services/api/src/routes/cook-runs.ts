@@ -87,6 +87,9 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         nutrition: recipe.nu ?? null,
         payload: enrichedRecipe,
         created_at: now,
+        // Cook-run зберігає рецепт як побічний ефект — не як «збережений».
+        // «Лишити на потім» ставить saved_at через POST /v1/recipes.
+        saved_at: null,
       };
       await repo.saveRecipe(recipeRow);
 

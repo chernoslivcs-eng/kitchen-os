@@ -30,6 +30,7 @@ export function TabBar({ shoppingCount }: Props) {
     { path: '/app', glyph: '◉', label: 'Стрічка' },
     { path: '/pantry', glyph: '▤', label: 'Комора' },
     { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount },
+    { path: '/recipes', glyph: '❋', label: 'Рецепти' },
     { path: '/cooklog', glyph: '✎', label: 'Журнал' },
     { path: '/profile', glyph: '⚙', label: 'Профіль' },
   ];

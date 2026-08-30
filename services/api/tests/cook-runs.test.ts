@@ -258,7 +258,7 @@ describe('GET /v1/r/:id (public)', () => {
       id, owner_id: randomUUID(), origin: 'generated', title: 'Капрезе',
       descr: null, character: null, risk: null, base_servings: 2, time_total: 10,
       nutrition: null, payload: { t: 'Капрезе', tm: 10, sv: 2, ing: [], st: [] },
-      created_at: new Date().toISOString(),
+      created_at: new Date().toISOString(), saved_at: null,
     });
     const res = await app.inject({ method: 'GET', url: `/v1/r/${id}` });
     expect(res.statusCode).toBe(200);

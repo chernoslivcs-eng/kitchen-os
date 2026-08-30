@@ -1,0 +1,230 @@
+// Екран 07 «Рецепти» — бібліотека. Був у прототипі (RecipesView), у прод не
+// доїхав: рецепт існував тільки як побічний ефект cook-run, і не приготувавши —
+// зникав назавжди. QA-6 намацав це відчуттям «двічі отримав різото й обидва
+// рази втратив».
+//
+// Фільтри — з прототипу: «Можу зараз» (ready) / «Майже» (near) / «Готував».
+// Стан рахує сервер проти поточної комори, тому список змінюється сам, коли
+// щось купуєш: рецепт переїжджає з «далеко» в «можу зараз» без жодної дії.
+
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api, type SavedRecipe } from '../../api';
+import { TabBar } from '../../components/TabBar/TabBar';
+import { plural } from '../../lib/plural';
+import styles from './Recipes.module.css';
+
+type Filter = 'all' | 'ready' | 'near' | 'cooked';
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'Усі' },
+  { id: 'ready', label: 'Можу зараз' },
+  { id: 'near', label: 'Майже' },
+  { id: 'cooked', label: 'Готував' },
+];
+
+function statusChip(r: SavedRecipe): { text: string; color: string; bg: string; border: string } {
+  if (r.status === 'ready') {
+    return { text: 'МОЖУ ЗАРАЗ', color: 'var(--accent)', bg: 'var(--accent-bg)', border: 'var(--accent)' };
+  }
+  if (r.status === 'near') {
+    return { text: `−${r.missing.length}`, color: 'var(--amber)', bg: 'var(--amber-bg)', border: 'var(--amber-border)' };
+  }
+  return { text: `${r.have} З ${r.total}`, color: 'var(--fg-dim)', bg: 'transparent', border: 'var(--border-strong)' };
+}
+
+export function RecipesPage() {
+  const navigate = useNavigate();
+  const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
+  const [shoppingCount, setShoppingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>('all');
+
+  async function refresh() {
+    try {
+      const [r, s] = await Promise.all([
+        api.savedRecipes.list().catch(() => ({ recipes: [] as SavedRecipe[] })),
+        api.shopping.list().catch(() => ({ count: 0 })),
+      ]);
+      setRecipes(r.recipes);
+      setShoppingCount(s.count);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void refresh(); }, []);
+
+  const shown = recipes.filter((r) => {
+    if (filter === 'ready') return r.status === 'ready';
+    if (filter === 'near') return r.status === 'near';
+    if (filter === 'cooked') return r.cooked_count > 0;
+    return true;
+  });
+
+  // Порядок як у прототипі: спершу те, що можна робити зараз.
+  const rank = (r: SavedRecipe) => (r.status === 'ready' ? 0 : r.status === 'near' ? 1 : 2);
+  const sorted = [...shown].sort((a, b) => rank(a) - rank(b));
+
+  const readyCount = recipes.filter((r) => r.status === 'ready').length;
+
+  async function unsave(r: SavedRecipe) {
+    if (!confirm(`Прибрати «${r.title}» зі збережених?`)) return;
+    try {
+      await api.savedRecipes.unsave(r.id);
+      await refresh();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }
+
+  return (
+    <div className={styles.screen}>
+      <div className={styles.head}>
+        <div className={styles.title}>Рецепти</div>
+        <div className={styles.meta}>
+          {readyCount > 0
+            ? `${readyCount} МОЖУ ЗАРАЗ`
+            : `${recipes.length} ${plural(recipes.length, ['РЕЦЕПТ', 'РЕЦЕПТИ', 'РЕЦЕПТІВ'])}`}
+        </div>
+      </div>
+
+      <div className={styles.body}>
+        {!loading && recipes.length === 0 && (
+          <div className={styles.empty}>
+            <h3>Тут порожньо</h3>
+            <p>
+              Коли асистент запропонує страву — натисни «Лишити на потім». Рецепт чекатиме
+              тут і сам підсвітиться, щойно в коморі зʼявиться все потрібне.
+            </p>
+          </div>
+        )}
+
+        {recipes.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+            {FILTERS.map((f) => {
+              const active = filter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setFilter(f.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--r-pill)',
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
+                    background: active ? 'var(--accent-bg)' : 'transparent',
+                    color: active ? 'var(--accent)' : 'var(--fg-muted)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading && recipes.length > 0 && sorted.length === 0 && (
+          <div className={styles.empty} style={{ borderStyle: 'solid' }}>
+            <p>Нічого не підійшло під цей фільтр.</p>
+          </div>
+        )}
+
+        {sorted.map((r) => {
+          const chip = statusChip(r);
+          return (
+            <div key={r.id} style={{ position: 'relative' }}>
+              <button
+                className={styles.card}
+                onClick={() => navigate('/recipe', { state: { recipe: r.payload } })}
+              >
+                <div className={styles.info}>
+                  <div className={styles.dish}>{r.title}</div>
+
+                  <div className={styles.sub} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: 'var(--r-pill)',
+                      border: `1px solid ${chip.border}`,
+                      background: chip.bg,
+                      color: chip.color,
+                      fontSize: 10,
+                    }}>
+                      {chip.text}
+                    </span>
+                    {r.time_total && <span>{r.time_total}ХВ</span>}
+                    {r.cooked_count > 0 && (
+                      <span>ГОТУВАВ {r.cooked_count} {plural(r.cooked_count, ['РАЗ', 'РАЗИ', 'РАЗІВ'])}</span>
+                    )}
+                  </div>
+
+                  {r.descr && (
+                    <div style={{
+                      marginTop: 5,
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 13,
+                      color: 'var(--fg-muted)',
+                      lineHeight: 1.45,
+                    }}>
+                      {r.descr}
+                    </div>
+                  )}
+
+                  {/* Найкорисніший рядок екрана: що саме докупити. */}
+                  {r.missing.length > 0 && (
+                    <div style={{
+                      marginTop: 5,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                      color: 'var(--amber)',
+                    }}>
+                      БРАКУЄ: {r.missing.join(', ')}
+                    </div>
+                  )}
+
+                  {/* Чому саме зараз — те, що рецепт рятує з комори. */}
+                  {r.rescues.length > 0 && (
+                    <div style={{
+                      marginTop: 3,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                      color: 'var(--accent)',
+                    }}>
+                      РЯТУЄ: {r.rescues.join(', ')}
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              {r.saved_at && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); void unsave(r); }}
+                  style={{
+                    position: 'absolute',
+                    top: 16, right: 0,
+                    background: 'transparent',
+                    border: 0,
+                    color: 'var(--fg-dim)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    padding: '4px 6px',
+                    cursor: 'pointer',
+                  }}
+                  title="Прибрати зі збережених"
+                >×</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <TabBar shoppingCount={shoppingCount} />
+    </div>
+  );
+}

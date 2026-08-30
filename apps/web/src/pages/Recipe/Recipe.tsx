@@ -39,6 +39,19 @@ export function RecipePage() {
       .catch(() => {/* silent */});
   }, []);
 
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  async function saveForLater() {
+    if (!recipe || savedId || saving) return;
+    setSaving(true);
+    try {
+      const { id } = await api.savedRecipes.save(recipe);
+      setSavedId(id);
+    } catch (err) {
+      alert(`Не вдалося зберегти: ${(err as Error).message}`);
+    } finally { setSaving(false); }
+  }
+
   function flagsFor(ingName: string): string[] {
     const n = ingName.toLowerCase();
     return allergies.filter((a) => a && n.includes(a.toLowerCase()));
@@ -163,7 +176,18 @@ export function RecipePage() {
         </div>
       </div>
 
-      <div className={styles.foot}>
+      <div className={styles.foot} style={{ display: 'flex', gap: 10 }}>
+        {/* QA-6: рецепт існував тільки як побічний ефект cook-run — не приготував,
+            зник назавжди. Тепер його можна лишити в бібліотеці, і він сам
+            підсвітиться, коли в коморі зʼявиться все потрібне. */}
+        <Button
+          variant="secondary"
+          size="lg"
+          onClick={saveForLater}
+          disabled={savedId !== null || saving}
+        >
+          {savedId ? '✓ Збережено' : saving ? '…' : '☆ На потім'}
+        </Button>
         <Button
           variant="primary"
           size="lg"
