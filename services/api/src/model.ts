@@ -2,7 +2,7 @@
 // Без ключа повертає стаб-картку — тести й локальний дев не потребують мережі.
 
 import Anthropic from '@anthropic-ai/sdk';
-import { loadPrompt, compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
+import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import {
   buildKitchenContext,
   extractJson,
@@ -140,7 +140,7 @@ export interface ChatCall {
   reply: string;
   card: Card | null;
   usage: { input: number; output: number; cached?: number; cache_write?: number };
-  meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+  meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
 }
 
 
@@ -266,7 +266,11 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     reply,
     card,
     usage: usageFrom(resp.usage),
-    meta: { promptVersion: prompt.version, model, mode: 'live' },
+    meta: {
+      promptVersion: prompt.version, model, mode: 'live',
+      // A3: слід тексту, що реально поїхав (стабільний префікс).
+      prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
+    },
   };
 }
 
@@ -276,7 +280,7 @@ export interface RecipeCall {
   recipe: Recipe | null;
   raw: string;
   usage: { input: number; output: number; cached?: number; cache_write?: number };
-  meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+  meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
 }
 
 function recipeStub(title: string, promptVersion: string, pantry?: PantryBatch[]): RecipeCall {
@@ -359,7 +363,10 @@ export async function callRecipe(args: {
     recipe,
     raw: text,
     usage: usageFrom(resp.usage),
-    meta: { promptVersion: prompt.version, model, mode: 'live' },
+    meta: {
+      promptVersion: prompt.version, model, mode: 'live',
+      prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
+    },
   };
 }
 
@@ -377,7 +384,7 @@ export interface AttachmentCall {
   card: Card | null;
   raw_kind: 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other' | null;
   usage: { input: number; output: number; cached?: number; cache_write?: number };
-  meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+  meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
 }
 
 function attachmentStub(atts: AttachmentPayload[], promptVersion: string): AttachmentCall {
@@ -500,7 +507,10 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     card,
     raw_kind,
     usage: usageFrom(resp.usage),
-    meta: { promptVersion: prompt.version, model, mode: 'live' },
+    meta: {
+      promptVersion: prompt.version, model, mode: 'live',
+      prompt_hash: hashPromptText(system), prompt_chars: system.length,
+    },
   };
 }
 

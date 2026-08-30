@@ -25,7 +25,9 @@ interface Snapshot {
     call: string;
     invariants: Record<string, { pass: boolean; detail?: string }>;
     error?: string;
-    usage?: { input: number; output: number };
+    // A3: редакція стабільного префікса, з якою отримано цей результат.
+    promptHash?: string;
+    usage?: { input: number; output: number; cached?: number; cache_write?: number };
     // Сама відповідь моделі. Без неї провалений інваріант неможливо розсудити:
     // не видно, чи помилилась модель, чи інваріант ловить не те. Двічі
     // доводилось платити за повторний прогін, щоб просто побачити текст.
@@ -56,6 +58,7 @@ function toSnapshot(prompt: string, runs: FixtureRun[]): Snapshot {
         Object.entries(r.verdicts).map(([k, v]) => [k, { pass: v.pass, detail: v.detail }]),
       ),
       error: r.result.error,
+      promptHash: r.result.promptHash,
       usage: r.result.usage,
       reply: r.result.reply,
       card: r.result.card,

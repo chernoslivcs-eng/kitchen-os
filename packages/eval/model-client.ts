@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
+import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse,
   buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
@@ -132,6 +132,8 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
 
 export interface RunResult extends ModelOutput {
   promptVersion: string;
+  // A3: слід тексту стабільного префікса — знахідки привʼязуються до редакції.
+  promptHash?: string;
   model: string;
   call: CallName;
   usage?: { input: number; output: number; cached?: number; cache_write?: number };
@@ -203,6 +205,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       reply,
       card,
       promptVersion: prompt.version,
+      promptHash: hashPromptText(system.stable),
       model,
       call,
       usage: (() => {

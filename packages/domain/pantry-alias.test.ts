@@ -76,3 +76,49 @@ describe('pantry alias', () => {
     expect(out.ing[1]!.n).toBe('Багет');
   });
 });
+
+// B1 (OPTIMIZATION_PLAN): хард-кеп серіалізації комори. Позначені партії —
+// поза кепом (важіль якості: модель бачить і може попередити), хвостовий
+// рядок несе ТІЛЬКИ число (інакше B1 дрейфує до ризик-профілю агрегатів).
+describe('serializePantry: хард-кеп', () => {
+  const many = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      batch(`id-${i}`, `Продукт ${i}`, { added_at: new Date(2026, 0, 1 + i).toISOString() }));
+
+  it('до кепу — без змін і без хвостового рядка', () => {
+    const s = serializePantry(many(10), null, Date.now(), [], false, 'none');
+    expect(s.split('\n')).toHaveLength(10);
+    expect(s).not.toContain('і ще');
+  });
+
+  it('понад кеп — рівно cap рядків + хвіст лише з числом', () => {
+    const s = serializePantry(many(80), null, Date.now(), [], false, 'none', 60);
+    const lines = s.split('\n');
+    expect(lines).toHaveLength(61);                      // 60 рядків + хвіст
+    expect(lines[60]).toBe('…і ще 20 позицій — спитай, якщо треба');
+    // хвіст без зон/вмісту — тільки число
+    expect(lines[60]).not.toMatch(/dry|fridge|Продукт/);
+  });
+
+  it('відбір: свіжіші за added_at виживають, найстаріші ріжуться', () => {
+    const s = serializePantry(many(80), null, Date.now(), [], false, 'none', 60);
+    expect(s).toContain('Продукт 79');   // найновіший
+    expect(s).not.toContain('Продукт 0 ·');  // найстаріший — відрізаний
+  });
+
+  it('позначена алергеном партія виживає навіть у найстарішій позиції', () => {
+    const bs = many(80);
+    bs[0] = batch('id-0', 'Арахісова паста', { added_at: new Date(2026, 0, 1).toISOString() });
+    const profile = { user_id: 'u1', allergies: ['арахіс'], wishes: [], antipatterns: [], equipment: {} };
+    const s = serializePantry(bs, profile, Date.now(), [], false, 'none', 60);
+    expect(s).toContain('Арахісова паста');
+    expect(s).toContain('⚠АЛЕРГЕН');
+  });
+
+  it('термінова (відкрита) партія виживає попри вік', () => {
+    const bs = many(80);
+    bs[1] = batch('id-1', 'Відкриті вершки', { added_at: new Date(2026, 0, 2).toISOString(), state: 'opened' });
+    const s = serializePantry(bs, null, Date.now(), [], false, 'none', 60);
+    expect(s).toContain('Відкриті вершки');
+  });
+});

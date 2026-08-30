@@ -593,13 +593,14 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO token_usage
          (id, user_id, household_id, call, profile, model, prompt_version, mode,
-          input_tokens, output_tokens, cached_tokens, latency_ms, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+          input_tokens, output_tokens, cached_tokens, latency_ms,
+          prompt_hash, prompt_chars, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
         row.id, row.user_id, row.household_id, row.call, row.profile, row.model,
         row.prompt_version, row.mode,
         row.input_tokens, row.output_tokens, row.cached_tokens,
-        row.latency_ms, row.created_at,
+        row.latency_ms, row.prompt_hash, row.prompt_chars, row.created_at,
       ],
     );
   }
@@ -949,6 +950,8 @@ export class PostgresRepo implements Repo {
       output_tokens: r.output_tokens,
       cached_tokens: r.cached_tokens,
       latency_ms: r.latency_ms ?? null,
+      prompt_hash: r.prompt_hash ?? null,
+      prompt_chars: r.prompt_chars ?? null,
       created_at: new Date(r.created_at).toISOString(),
     }));
   }

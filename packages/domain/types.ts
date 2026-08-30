@@ -326,6 +326,11 @@ export interface TokenUsageRow {
   output_tokens: number;
   cached_tokens: number;
   latency_ms: number | null;
+  // A3 (OPTIMIZATION_PLAN): хеш і довжина СКОМПОНОВАНОГО стабільного префікса
+  // цього виклику. promptVersion лишається людинозчитним; точність — тут.
+  // Редагування промпту «на місці» тепер видиме в даних постфактум.
+  prompt_hash: string | null;
+  prompt_chars: number | null;
   created_at: string;
 }
 

@@ -1,6 +1,14 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+
+// A3 (OPTIMIZATION_PLAN): хеш СКОМПОНОВАНОГО стабільного префікса виклику.
+// promptVersion лишається людинозчитним ідентифікатором; точність — окремою
+// колонкою token_usage. 12 hex вистачає (колізії тут не атака, а статистика).
+export function hashPromptText(text: string): string {
+  return createHash('sha256').update(text, 'utf-8').digest('hex').slice(0, 12);
+}
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VERSIONS_DIR = resolve(HERE, 'versions');

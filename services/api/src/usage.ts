@@ -17,7 +17,7 @@ export async function recordUsage(
   repo: Repo,
   ctx: UserContext,
   call: CallName,
-  meta: { promptVersion: string; model: string; mode: CallMode },
+  meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number },
   usage: { input: number; output: number; cached?: number },
   started_at_ms: number,
 ): Promise<void> {
@@ -34,6 +34,10 @@ export async function recordUsage(
     output_tokens: usage.output ?? 0,
     cached_tokens: usage.cached ?? 0,
     latency_ms: Date.now() - started_at_ms,
+    // A3: точний слід тексту промпту на кожен виклик — редагування «на місці»
+    // більше не невидиме для телеметрії (аудит: +3,2k ток. під тим самим version).
+    prompt_hash: meta.prompt_hash ?? null,
+    prompt_chars: meta.prompt_chars ?? null,
     created_at: new Date().toISOString(),
   });
 }

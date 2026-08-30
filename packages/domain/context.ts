@@ -78,6 +78,12 @@ export function serializePantry(
   // символів модель не вміє); 'none' — без id взагалі (чат ними не
   // користується, це чистий шум і токени).
   ids: 'uuid' | 'none' | Map<string, string> = 'uuid',
+  // B1 (OPTIMIZATION_PLAN): хард-кеп рядків. Без нього токени росли лінійно
+  // з накопиченням комори (компаундна проблема, ~15-25 ток./рядок). Відбір:
+  // позначені (⚠алерген/⚠піст) — ЗАВЖДИ, поза кепом (важіль якості: модель
+  // бачить і може попередити); далі термінові (відкриті/догоряють); далі
+  // свіжіші за added_at. Порядок рендера — вихідний (мінімум пертурбацій).
+  cap = 60,
 ): string {
   const allergens = [
     ...(p?.allergies ?? []).map((a) => ({ label: a, who: '' })),
@@ -85,33 +91,66 @@ export function serializePantry(
   ]
     .filter((a) => a.label)
     .map((a) => ({ ...a, root: root(a.label) }));
-  return bs
-    .filter((b) => b.state !== 'depleted')
-    .map((b) => {
-      const shownId = ids === 'uuid' ? b.id : ids === 'none' ? null : (ids.get(b.id) ?? null);
-      const parts = [...(shownId ? [shownId] : []), b.label, b.zone];
-      if (b.value && b.unit) parts.push(`${b.value}${b.unit}`);
-      if (b.state === 'opened') parts.push('вдкр');
-      if (b.expires_at) {
-        const days = Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000);
-        if (days <= 7) parts.push(`!${days}дн`);
-      }
-      const words = meaningfulWords(b.label).map(root);
-      const hit = allergens
-        .filter((a) => words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w)))
-        .map((a) => a.label + a.who);
-      // «...теж є, але не беру» — теж пропозиція: людина щойно прочитала
-      // спокусу. Тому «не згадуй ВЗАГАЛІ», а не лише «не пропонуй».
-      if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй і НЕ ЗГАДУЙ цю позицію взагалі (навіть «є, але не беру»); просять прямо — дай і назви алергію першою фразою reply`);
-      // Третій flap calendar-lent: правило посту в середині контексту модель
-      // ігнорувала і «рятувала» фарш тефтелями. Мітка в рядку партії — той
-      // самий механізм, що двічі рятував з алергенами.
-      if (fasting && isFastingRestricted(b.label)) {
-        parts.push('⚠ПІСТ — зараз піст: сам не пропонуй і не «рятуй» стравами; можна запропонувати заморозити одним реченням');
-      }
-      return parts.join(' · ');
-    })
-    .join('\n');
+
+  const active = bs.filter((b) => b.state !== 'depleted');
+
+  const scored = active.map((b) => {
+    const words = meaningfulWords(b.label).map(root);
+    const hit = allergens
+      .filter((a) => words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w)))
+      .map((a) => a.label + a.who);
+    const fastHit = fasting && isFastingRestricted(b.label);
+    const days = b.expires_at
+      ? Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000)
+      : null;
+    return {
+      b, hit, fastHit, days,
+      marked: hit.length > 0 || fastHit,
+      urgent: b.state === 'opened' || (days != null && days <= 7),
+    };
+  });
+
+  let shown = scored;
+  let hidden = 0;
+  if (scored.length > cap) {
+    const picked = new Set<string>();
+    for (const s of scored) if (s.marked) picked.add(s.b.id);           // поза кепом
+    const byRecency = [...scored].sort((a, b2) => b2.b.added_at.localeCompare(a.b.added_at));
+    for (const s of byRecency) {
+      if (picked.size >= cap) break;
+      if (s.urgent) picked.add(s.b.id);
+    }
+    for (const s of byRecency) {
+      if (picked.size >= cap) break;
+      picked.add(s.b.id);
+    }
+    shown = scored.filter((s) => picked.has(s.b.id));
+    hidden = scored.length - shown.length;
+  }
+
+  const rows = shown.map(({ b, hit, fastHit, days }) => {
+    const shownId = ids === 'uuid' ? b.id : ids === 'none' ? null : (ids.get(b.id) ?? null);
+    const parts = [...(shownId ? [shownId] : []), b.label, b.zone];
+    if (b.value && b.unit) parts.push(`${b.value}${b.unit}`);
+    if (b.state === 'opened') parts.push('вдкр');
+    if (days != null && days <= 7) parts.push(`!${days}дн`);
+    // «...теж є, але не беру» — теж пропозиція: людина щойно прочитала
+    // спокусу. Тому «не згадуй ВЗАГАЛІ», а не лише «не пропонуй».
+    if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй і НЕ ЗГАДУЙ цю позицію взагалі (навіть «є, але не беру»); просять прямо — дай і назви алергію першою фразою reply`);
+    // Третій flap calendar-lent: правило посту в середині контексту модель
+    // ігнорувала і «рятувала» фарш тефтелями. Мітка в рядку партії — той
+    // самий механізм, що двічі рятував з алергенами.
+    if (fastHit) {
+      parts.push('⚠ПІСТ — зараз піст: сам не пропонуй і не «рятуй» стравами; можна запропонувати заморозити одним реченням');
+    }
+    return parts.join(' · ');
+  });
+
+  // Хвіст — ТІЛЬКИ число, без зон/категорій/прикладів: натяк на вміст
+  // перетворив би відрізане на «агрегат», який модель може «рятувати» наосліп
+  // (ризик-профіль B2 з OPTIMIZATION_PLAN).
+  if (hidden > 0) rows.push(`…і ще ${hidden} позицій — спитай, якщо треба`);
+  return rows.join('\n');
 }
 
 // QA6-04: без списку в контексті модель у новій сесії казала «порожній» при
