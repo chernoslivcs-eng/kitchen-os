@@ -56,11 +56,6 @@ function formatBytes(b: number): string {
   if (b < 1024 * 1024) return `${Math.round(b / 1024)} KB`;
   return `${(b / 1024 / 1024).toFixed(1)} MB`;
 }
-function kindLabel(k: 'image' | 'pdf' | 'text'): string {
-  if (k === 'image') return 'фото';
-  if (k === 'pdf') return 'PDF';
-  return 'текст';
-}
 
 function messageToTurn(m: MessageInfo): Turn {
   const d = new Date(m.created_at);
@@ -102,7 +97,16 @@ export function Feed() {
   const [uploading, setUploading] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const composerInputRef = useRef<HTMLInputElement>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Правка №8: авторіст textarea від вмісту (і від диктовки, яка пише в
+  // input повз onChange) — 1→8 рядків, далі внутрішній скрол.
+  useEffect(() => {
+    const el = composerInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 8 * 22 + 16)}px`;
+  }, [input]);
 
   // #9: голосовий ввід. Кнопка є лише там, де браузер уміє SpeechRecognition;
   // interim-текст летить прямо в поле, щоб людина бачила, що її чують.
@@ -671,6 +675,7 @@ export function Feed() {
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onRefine={t.card.type === 'proposal' ? startRefine : undefined}
                 onCook={(r, rid) => navigate('/cook', { state: { recipe: r, recipeId: rid } })}
+                onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
                 onSaveRecipe={saveRecipeForLater}
                 savedRecipeIds={savedRecipeIds}
                 onNeedToList={addNeedToList}
@@ -754,9 +759,15 @@ export function Feed() {
         )}
         {pending.length > 0 && (
           <div className={styles['pending-attachments']}>
+            {/* Правка №9: квадратик-прев'ю замість назви й ваги. Зображення —
+                мініатюра, решта — розширення. */}
             {pending.map((a) => (
               <span key={a.id} className={styles['att-chip']} title={a.content_type}>
-                {a.kind === 'image' ? '📷' : a.kind === 'pdf' ? '📄' : '📝'} {kindLabel(a.kind)} · {formatBytes(a.bytes)}
+                {a.kind === 'image' ? (
+                  <img src={`/v1/attachments/${a.id}/bytes`} alt="" className={styles['att-thumb']} />
+                ) : (
+                  <span className={styles['att-ext']}>{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                )}
                 <button
                   type="button"
                   className={styles['att-remove']}
@@ -765,7 +776,7 @@ export function Feed() {
                 >×</button>
               </span>
             ))}
-            {uploading && <span className={styles['att-chip']}>завантажую…</span>}
+            {uploading && <span className={styles['att-chip']}><span className={styles['att-ext']}>…</span></span>}
           </div>
         )}
         {/* Бриф-3 п.6 — канон композитора: одна пілюля, 📎 (ghost) і 🎙
@@ -780,12 +791,20 @@ export function Feed() {
             style={{ display: 'none' }}
             onChange={(e) => pickFiles(e.target.files)}
           />
-          <input
+          {/* Правка №8: textarea з авторостом угору, 1→8 рядків, далі скрол.
+              Enter = надіслати, Shift+Enter = новий рядок. */}
+          <textarea
             ref={composerInputRef}
-            type="text"
+            rows={1}
             className={styles['composer-input']}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             placeholder={listening ? 'Слухаю…' : pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
             disabled={sending}
             autoFocus

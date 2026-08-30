@@ -87,6 +87,8 @@ export interface CardProps {
   // recipe_link: рецепт живе в розмові — готуємо і зберігаємо прямо звідси.
   // UX9-11: recipeId — id чернетки, cook-run реюзає її рядок замість дубля.
   onCook?: (recipe: Recipe, recipeId?: string) => void;
+  // №6: шеринг живе на картці рецепта (фініш Cook Mode помер).
+  onShare?: (recipe: Recipe, recipeId?: string) => void;
   onSaveRecipe?: (recipe_id: string) => void;
   savedRecipeIds?: Set<string>;
   onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void;
@@ -379,7 +381,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 // «+ у список» інлайн), кроки з номерами, довгі згорнуті до трьох із
 // «Показати всі N». «Готуємо» веде тільки в Cook Mode; /recipe/:id
 // лишається адресою для «У рецепти» і шерингу.
-export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels }: CardProps) {
+export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
   const [allSteps, setAllSteps] = useState(false);
@@ -511,12 +513,18 @@ export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds, onN
         </div>
       </div>
 
+      {/* Правка №4б: «Готуємо» — на всю ширину, як «Рецепт →» у пропозиції;
+          «У рецепти» і «Поділитись» — вузькі другорядні (№6: шеринг тепер
+          живе тут, а не на фініші Cook Mode). */}
       <div style={{ display: 'flex', gap: 10 }}>
-        {onCook && <Button variant="positive" onClick={() => onCook(r, rid)}>Готуємо → Cook Mode</Button>}
+        {onCook && <Button variant="positive" style={{ flex: 1 }} onClick={() => onCook(r, rid)}>Готуємо → Cook Mode</Button>}
         {onSaveRecipe && (
           <Button variant="secondary" onClick={() => onSaveRecipe(rid)} disabled={saved}>
             {saved ? '✓ У рецептах' : 'У рецепти'}
           </Button>
+        )}
+        {onShare && (
+          <Button variant="secondary" onClick={() => onShare(r, rid)}>Поділитись</Button>
         )}
       </div>
     </div>

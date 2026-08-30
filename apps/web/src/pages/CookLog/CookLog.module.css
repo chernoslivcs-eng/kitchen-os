@@ -9,7 +9,11 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  /* Папіркат: «Журнал11 ГОТУВАНЬ» злипався — гарантований зазор незалежно
+     від ширини обгортки. */
+  gap: 16px;
 }
+.head .meta { margin-left: auto; white-space: nowrap; }
 .title {
   font-family: var(--font-display);
   font-weight: 700;

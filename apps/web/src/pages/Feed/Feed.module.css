@@ -38,13 +38,20 @@
 .head-actions .head-meta { white-space: nowrap; }
 
 /* ----- Timeline ------------------------------------------------------- */
+/* Правка №7: скрол-контейнер — ВСЯ центральна зона (курсор будь-де в зоні
+   крутить стрічку), а вузька колонка контенту центрується дітьми. */
 .timeline {
   flex: 1;
   overflow-y: auto;
   padding: 12px 22px 20px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 22px;
+}
+.timeline > * {
+  width: 100%;
+  max-width: 720px;
 }
 .turn { display: flex; flex-direction: column; gap: 6px; }
 .turn-text {
@@ -197,28 +204,56 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+/* Правка №9: чип = квадратик-прев'ю + хрестик. Без назв і кілобайтів. */
 .att-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px 5px 8px;
+  justify-content: center;
+  padding: 0;
   background: var(--bg-surface-2);
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-pill);
+  border-radius: var(--r);
+  overflow: visible;
   font-family: var(--font-body);
   font-size: 12px;
   color: var(--fg-mono);
 }
+.att-thumb {
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: calc(var(--r) - 1px);
+  display: block;
+}
+.att-ext {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
 .att-remove {
-  border: 0;
-  background: transparent;
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-surface);
   color: var(--fg-dim);
   cursor: pointer;
-  font-size: 14px;
-  padding: 0 2px;
+  font-size: 12px;
   line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
-.att-remove:hover { color: var(--danger); }
+.att-remove:hover { color: var(--danger); border-color: var(--danger); }
 
 .attach-btn {
   height: 48px;
@@ -241,14 +276,16 @@
    усередині (📎 ghost без рамки, 🎙 з рамкою; ↑ — інверсна). */
 .composer {
   margin: 12px 22px 20px;
-  height: 52px;
+  /* Правка №8: пілюля росте разом із textarea (1→8 рядків), кнопки
+     тримаються низу. */
+  min-height: 52px;
   border-radius: var(--r-lg);
   background: var(--bg-surface-2);
   border: 1px solid var(--border-strong);
   display: flex;
   gap: 6px;
-  align-items: center;
-  padding: 0 8px 0 16px;
+  align-items: flex-end;
+  padding: 7px 8px 7px 16px;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .composer:focus-within {
@@ -268,6 +305,12 @@
   font-family: var(--font-body);
   font-size: 15px;
   outline: 0;
+  /* Правка №8: textarea. Ріст керує JS (scrollHeight, кеп 8 рядків). */
+  resize: none;
+  line-height: 22px;
+  max-height: 176px;              /* 8 × 22px */
+  overflow-y: auto;
+  padding: 8px 0;                 /* однорядкова = 38px, як кнопки поруч */
 }
 .composer-input::placeholder { color: var(--fg-dim); }
 .frame-btn,
@@ -359,7 +402,9 @@
     from { opacity: 0; transform: translate(-50%, 8px); }
     to   { opacity: 1; transform: translate(-50%, 0); }
   }
-  .head, .timeline, .composer {
+  /* Правка №7: .timeline тут НЕМАЄ навмисно — вона лишається скрол-зоною на
+     всю ширину (колесо працює будь-де), а колонку центрують її діти. */
+  .head, .composer {
     max-width: 720px;
     width: 100%;
     margin-left: auto;
@@ -469,24 +514,15 @@
 }
 
 
-/* Десктоп-хендоф: контент читається як продовження навігації — починається
-   на 232+36px від краю, а не плаває по центру з провалом ~400px (крок 1
-   черги design-audit-desktop). Діє тільки коли сайдбар змонтований. */
+/* Правка №7: колишнє притискання вліво (margin-left:36 + композитор зі своїм
+   краєм) скасоване — колонка чату (таймлайн-діти + композитор) центрована в
+   зоні між сайдбаром (padding-left body) і панеллю (padding-right .screen).
+   Обгортка композитора — на всю ширину зони (бордер), вміст — колонка. */
 @media (min-width: 1024px) {
-  :global(body.with-sidebar) .head,
-  :global(body.with-sidebar) .body,
-  :global(body.with-sidebar) .timeline,
-  :global(body.with-sidebar) .composer-wrap {
-    margin-left: 36px;
-    margin-right: auto;
-  }
-  /* QA8-16: форма центрувалась усередині вже притиснутої обгортки —
-     стрічка на 268px, поле вводу на 513. Обгортка притиснута, форма
-     всередині лишається на місці. */
-  :global(body.with-sidebar) .composer-wrap .composer {
-    margin-left: 0;
-    margin-right: 0;
+  :global(body.with-sidebar) .composer-wrap > * {
     max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
@@ -563,11 +599,10 @@
   letter-spacing: 0.04em;
   flex: none;
 }
-/* Контент стрічки звільняє місце під панель. */
+/* Правка №7: зона чату закінчується перед панеллю — відступ на РІВНІ ЕКРАНА,
+   щоб колонка центрувалась у зоні, а скрол-зона лишалась суцільною. */
 @media (min-width: 1280px) {
-  :global(body.with-sidebar) .timeline,
-  :global(body.with-sidebar) .composer-wrap,
-  :global(body.with-sidebar) .head {
-    margin-right: 320px;
+  :global(body.with-sidebar) .screen {
+    padding-right: 320px;
   }
 }
