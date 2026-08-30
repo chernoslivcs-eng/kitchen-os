@@ -81,11 +81,26 @@ export async function applyCard(
   // Кожен тип картки має власний обробник і власний знімок для undo.
   if (card.type === 'intake_diff') {
     const chosen = selected.length ? selected : card.ops.map((_, i) => i);
-    const snapshot: UndoSnapshot = { kind: 'intake_diff', before: { created_batch_ids: [], modified_batches: [] } };
+    const snapshot: UndoSnapshot = { kind: 'intake_diff', before: { created_batch_ids: [], modified_batches: [], checked_shopping_ids: [] } };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
       await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot);
+    }
+    // UX9-27: «купив X» закриває X у списку покупок. Інакше продукт одночасно
+    // вважав, що олія В КОМОРІ і що олію ТРЕБА купити. Збіг — точний за назвою
+    // (trim+lower); позицію не видаляємо, а відмічаємо купленою — людина бачить
+    // її перекресленою, «→ В КОМОРУ» її вже не задвоїть (дедуп у unpack немає,
+    // але checked-позиції людина розбирає свідомо).
+    for (const idx of chosen) {
+      const op = card.ops[idx];
+      if (!op || op.op !== 'add') continue;
+      const items = await repo.listShoppingItems(pc.household_id);
+      const hit = items.find((i) => !i.checked && i.label.trim().toLowerCase() === op.label.trim().toLowerCase());
+      if (hit) {
+        await repo.toggleShoppingItem(hit.id, true);
+        snapshot.before.checked_shopping_ids!.push(hit.id);
+      }
     }
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
@@ -276,7 +291,9 @@ async function applyIntakeOp(
     const batch: PantryBatch = {
       id,
       household_id,
-      catalog_key: op.catalog_key ?? null,
+      // UX9-01 (той самий клас, що unpack): catalog_ingredient у БД порожня до
+      // задачі «каталог 2341» — будь-який непорожній ключ валить insert по FK.
+      catalog_key: null,
       label: op.label,
       // QA6-06: коли модель не вказала зону — питаємо каталог, а не кладемо в `dry`.
       zone: (op.zone ?? resolveLabelToZone(op.label) ?? 'dry') as Zone,
@@ -526,6 +543,10 @@ export async function undoCard(
   // для MVP: undo після «прибери X» не поверне X назад.
   for (const id of snap.before.added_shopping_ids ?? []) {
     await repo.deleteShoppingItem(id);
+  }
+  // UX9-27: intake відмітив куплене — undo повертає галочку назад.
+  for (const id of snap.before.checked_shopping_ids ?? []) {
+    await repo.toggleShoppingItem(id, false);
   }
   // Висновки: точковий відкат — видаляємо рівно те, що ця картка додала.
   for (const id of snap.before.added_note_ids ?? []) {

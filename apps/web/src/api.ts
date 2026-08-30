@@ -190,8 +190,8 @@ export const api = {
 
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
-    save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[] }) =>
-      req<{ id: string; recipe_id: string; depleted: number; partial: number; opened: number; depleted_batch_ids: string[] }>('/v1/cook-runs', {
+    save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string }) =>
+      req<{ id: string; recipe_id: string; depleted: number; partial: number; opened: number; depleted_batch_ids: string[]; depleted_labels?: string[]; partial_labels?: string[]; opened_labels?: string[] }>('/v1/cook-runs', {
         method: 'POST',
         body: JSON.stringify({ recipe, ...opts }),
       }),

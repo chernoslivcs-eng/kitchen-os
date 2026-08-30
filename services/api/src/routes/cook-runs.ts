@@ -48,6 +48,14 @@ interface CookRunBody {
   // id або {id, v}: v — опційне «лишилось ≈» з модалки (Бриф-2 п.4).
   keep?: (string | { id: string; v?: number })[];
   dry_run?: boolean; // тільки прогноз would_deplete, без запису
+  // UX9-26: «Нічого не списувати» мусить означати НІЧОГО. Раніше клієнт слав
+  // keep-на-всіх — і часткові віднімання плюс opened+value:null все одно
+  // проходили (вершки втратили «200 мл» назавжди). skip_pantry пропускає весь
+  // цикл списання: журнальний запис створюється, комора недоторкана.
+  skip_pantry?: boolean;
+  // UX9-11: рецепт зі стрічки вже персистований чернеткою (recipe_link.recipe_id).
+  // Передали id — реюзаємо рядок, не плодимо другий («У рецепти» давало дубль).
+  recipe_id?: string;
 }
 
 export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
@@ -56,7 +64,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
     { preHandler: authenticated(repo) },
     async (req, reply) => {
       const { user_id, household_id } = requireUser(req);
-      const { recipe, servings, rating, verdict, keep, dry_run } = req.body ?? {};
+      const { recipe, servings, rating, verdict, keep, dry_run, skip_pantry, recipe_id: clientRecipeId } = req.body ?? {};
       // #7 (план 2026-08-30): «щось лишилось» — id партій, які людина зняла з
       // повного списання в модалці підтвердження. Замість depleted → opened із
       // невідомою кількістю: чесне «не знаю» замість вигаданого залишку.
@@ -71,7 +79,14 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         return reply.code(400).send({ error: 'recipe with t and ing[] required' });
       }
       const now = new Date().toISOString();
-      const recipe_id = randomUUID();
+      // UX9-11: якщо клієнт показав на існуючу чернетку — реюзаємо її рядок.
+      // Чужий або неіснуючий id мовчки ігноруємо (створюємо новий, як раніше).
+      let existingRecipe: RecipeRow | null = null;
+      if (clientRecipeId) {
+        const row = await repo.getRecipe(clientRecipeId);
+        if (row && row.owner_id === user_id) existingRecipe = row;
+      }
+      const recipe_id = existingRecipe?.id ?? randomUUID();
 
       // Enrich `ing.n` із коморних міток: модель показала пальцем через `ing.p`
       // (uuid партії), а на публічному /r/:id інший юзер уже не має цих партій.
@@ -88,24 +103,26 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       );
       const enrichedRecipe = { ...recipe, ing: enrichedIng };
 
-      const recipeRow: RecipeRow = {
-        id: recipe_id,
-        owner_id: user_id,
-        origin: 'generated',
-        title: recipe.t,
-        descr: recipe.d ?? null,
-        character: recipe.ch ?? null,
-        risk: recipe.rk ?? null,
-        base_servings: recipe.sv ?? servings ?? 2,
-        time_total: recipe.tm ?? null,
-        nutrition: recipe.nu ?? null,
-        payload: enrichedRecipe,
-        created_at: now,
-        // Cook-run зберігає рецепт як побічний ефект — не як «збережений».
-        // «Лишити на потім» ставить saved_at через POST /v1/recipes.
-        saved_at: null,
-      };
-      await repo.saveRecipe(recipeRow);
+      if (!existingRecipe) {
+        const recipeRow: RecipeRow = {
+          id: recipe_id,
+          owner_id: user_id,
+          origin: 'generated',
+          title: recipe.t,
+          descr: recipe.d ?? null,
+          character: recipe.ch ?? null,
+          risk: recipe.rk ?? null,
+          base_servings: recipe.sv ?? servings ?? 2,
+          time_total: recipe.tm ?? null,
+          nutrition: recipe.nu ?? null,
+          payload: enrichedRecipe,
+          created_at: now,
+          // Cook-run зберігає рецепт як побічний ефект — не як «збережений».
+          // «Лишити на потім» ставить saved_at через POST /v1/recipes.
+          saved_at: null,
+        };
+        await repo.saveRecipe(recipeRow);
+      }
 
       const run_id = randomUUID();
 
@@ -140,8 +157,12 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       let partial = 0;
       let opened = 0;
       const depletedIds: string[] = [];
+      // UX9-24: підсумок на «Готово» називає позиції, не лічильники.
+      const depletedLabels: string[] = [];
+      const partialLabels: string[] = [];
+      const openedLabels: string[] = [];
       const changes: CookRunBatchChange[] = [];
-      for (const ing of recipe.ing ?? []) {
+      for (const ing of skip_pantry ? [] : (recipe.ing ?? [])) {
         if (!ing.p) continue;
         const batch = await repo.getBatch(ing.p);
         if (!batch || batch.household_id !== household_id) continue;
@@ -168,6 +189,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
               last_action: 'cook',
             });
             opened++;
+            openedLabels.push(batch.label);
           }
           continue;
         }
@@ -189,6 +211,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
             last_action: 'cook',
           });
           partial++;
+          partialLabels.push(batch.label);
         } else if (keepMap.has(batch.id)) {
           // Людина сказала «щось лишилось»: партія відкрита, кількість невідома.
           changes.push({
@@ -208,6 +231,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
             last_action: 'cook',
           });
           opened++;
+          openedLabels.push(batch.label);
         } else {
           // Вжили не менше залишку → партія справді закінчилась.
           changes.push({
@@ -224,6 +248,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
           });
           depletedIds.push(batch.id);
           depleted++;
+          depletedLabels.push(batch.label);
         }
       }
 
@@ -249,6 +274,9 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         partial,
         opened,
         depleted_batch_ids: depletedIds,
+        depleted_labels: depletedLabels,
+        partial_labels: partialLabels,
+        opened_labels: openedLabels,
       });
     },
   );

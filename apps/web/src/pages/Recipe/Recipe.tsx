@@ -135,7 +135,7 @@ export function RecipePage() {
         <MonoLabel className={styles['head-meta']}>РЕЦЕПТ · КРОК {Math.min(currentStep + 1, recipe.st.length)}/{recipe.st.length}</MonoLabel>
         <Button
           variant="secondary"
-          onClick={() => navigate('/cook', { state: { recipe } })}
+          onClick={() => navigate('/cook', { state: { recipe, recipeId: id } })}
         >
           Cook Mode
         </Button>
@@ -213,7 +213,7 @@ export function RecipePage() {
                       {step.t}. {renderStepContent(step.c, recipe.ing, batchLabels)}
                     </div>
                     {!!step.s && (
-                      <button className={styles['step-timer']} onClick={() => navigate('/cook', { state: { recipe, startAt: i } })}>
+                      <button className={styles['step-timer']} onClick={() => navigate('/cook', { state: { recipe, startAt: i, recipeId: id } })}>
                         ▷ {formatSeconds(step.s)}
                       </button>
                     )}
@@ -240,7 +240,7 @@ export function RecipePage() {
         <Button
           variant="primary"
           size="lg"
-          onClick={() => navigate('/cook', { state: { recipe, startAt: currentStep } })}
+          onClick={() => navigate('/cook', { state: { recipe, startAt: currentStep, recipeId: id } })}
         >
           Готуємо
         </Button>

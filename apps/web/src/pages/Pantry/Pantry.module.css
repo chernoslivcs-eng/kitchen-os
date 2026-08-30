@@ -75,9 +75,10 @@
   color: inherit;
 }
 .row-x {
+  /* Папіркат UX-9: 34px < норми 44 на найчастішій дії. */
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: var(--r);
   background: transparent;

@@ -31,6 +31,8 @@ interface Turn {
   dismissed?: boolean;
   undoToken?: string;
   undone?: boolean;
+  // UX9-02: відповідь не прийшла — хід позначений, під ним «↻ Повторити».
+  failed?: boolean;
 }
 
 interface Toast {
@@ -118,6 +120,8 @@ export function Feed() {
       onText: (t) => setInput(join(t)),
       onDone: (t) => setInput(join(t)),
       onEnd: () => { setListening(false); dictationRef.current = null; composerInputRef.current?.focus(); },
+      // UX9-08: заборонений мікрофон / мережа — раніше кнопка тихо гасла.
+      onError: (msg) => setToast({ id: Date.now(), kind: 'err', text: msg }),
     });
     if (d) { dictationRef.current = d; setListening(true); }
   }
@@ -208,6 +212,18 @@ export function Feed() {
   }
 
   useEffect(() => { void refreshCounts(); }, []);
+
+  // UX9-15: застарілі лічильники другого вікна — перечитуємо на фокусі.
+  useEffect(() => {
+    const refetch = () => { void refreshCounts(); };
+    window.addEventListener('focus', refetch);
+    document.addEventListener('visibilitychange', refetch);
+    return () => {
+      window.removeEventListener('focus', refetch);
+      document.removeEventListener('visibilitychange', refetch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
 
@@ -322,19 +338,22 @@ export function Feed() {
     setPending((p) => p.filter((x) => x.id !== id));
   }
 
-  async function send(e: FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text && pending.length === 0) return;
-    setInput('');
-    const attachments = pending.map((p) => ({ id: p.id }));
-    setPending([]);
+  // UX9-02: серцевина відправки — спільна для першої спроби і «↻ Повторити».
+  // Помилка більше не ковтається: хід позначається failed, під ним кнопка
+  // повтору, тост пояснює людською мовою.
+  async function dispatchChat(text: string, attachments: { id: string }[], retryTurnId?: string) {
     setSending(true);
     setThinkingVerb(attachments.length ? 'РОЗБИРАЮ' : 'ДУМАЮ');
 
-    const userTurnText = text || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
-    const userTurn: Turn = { id: newId(), role: 'user', time: hhmm(), text: userTurnText };
-    setTurns((prev) => [...prev, userTurn]);
+    let turnId = retryTurnId;
+    if (!turnId) {
+      const userTurnText = text || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
+      const userTurn: Turn = { id: newId(), role: 'user', time: hhmm(), text: userTurnText };
+      turnId = userTurn.id;
+      setTurns((prev) => [...prev, userTurn]);
+    } else {
+      setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: false } : t)));
+    }
 
     try {
       const res: ChatResponse = await api.chat({ text, attachments: attachments.length ? attachments : undefined, session_id: sessionId ?? undefined });
@@ -348,10 +367,25 @@ export function Feed() {
       };
       setTurns((prev) => [...prev, turn]);
     } catch (err) {
-      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+      const raw = (err as Error).message;
+      const human = raw === 'model_unavailable'
+        ? 'Кухня зараз не відповідає — спробуй ще раз за хвилину.'
+        : raw;
+      setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: true } : t)));
+      setToast({ id: Date.now(), kind: 'err', text: human });
     } finally {
       setSending(false);
     }
+  }
+
+  async function send(e: FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text && pending.length === 0) return;
+    setInput('');
+    const attachments = pending.map((p) => ({ id: p.id }));
+    setPending([]);
+    await dispatchChat(text, attachments);
   }
 
   async function apply(turnId: string) {
@@ -503,25 +537,6 @@ export function Feed() {
 
 
       <div className={styles.timeline} ref={timelineRef}>
-        {cookLive && !historyOpen && (
-          <button
-            onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe } })}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              border: '1px solid var(--accent-border)', borderRadius: 14,
-              padding: '13px 16px', background: 'transparent',
-              cursor: 'pointer', textAlign: 'left', width: '100%',
-            }}
-          >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
-            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
-              Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
-            </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
-              Продовжити ›
-            </span>
-          </button>
-        )}
         {/* DA2-37: сегмент «Історія» показує сесії ПРЯМО ТУТ — контент під
             шапкою, як у макеті 1б, а не bottom sheet поверх стрічки. */}
         {historyOpen && (
@@ -565,7 +580,10 @@ export function Feed() {
           </div>
         )}
 
-        {!historyOpen && turns.length === 0 && (
+        {/* Папіркат UX-9: онбординговий заголовок показувався на КОЖНОМУ
+            порожньому чаті — «онбординг без онбордингу». Тепер тільки поки
+            комора порожня; новий чат бувалого акаунта — просто чиста стрічка. */}
+        {!historyOpen && turns.length === 0 && pantryCount === 0 && (
           <div className={styles.empty}>
             <h3>Скажи, що купив або що хочеш приготувати</h3>
             <p>
@@ -575,10 +593,12 @@ export function Feed() {
             {pantryCount === 0 && (
               <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
                 {/* QA8-14 / хендоф №03: три входи, не один. Людина з відкритим
-                    холодильником і без чека теж має куди тапнути. */}
+                    холодильником і без чека теж має куди тапнути.
+                    UX9-25: голос — четвертий вхід, бо телефон на кухні. */}
                 {[
                   { label: '📷 Сфотографувати полицю', action: () => fileInputRef.current?.click() },
                   { label: '🧾 Кинути чек', action: () => fileInputRef.current?.click() },
+                  ...(speechSupported() ? [{ label: '🎙 Продиктувати', action: () => toggleVoice() }] : []),
                   { label: 'Перелічити текстом', action: () => composerInputRef.current?.focus() },
                 ].map((cta, i) => (
                   <button
@@ -620,6 +640,23 @@ export function Feed() {
               ) : 'КУХНЯ'}
             </MonoLabel>
             {t.text && <div className={styles['turn-text']}>{t.text}</div>}
+            {t.failed && (
+              /* UX9-02: людина писала в мертвий продукт і не знала. Тепер хід
+                 без відповіді позначений, повтор — одним тапом. */
+              <button
+                type="button"
+                onClick={() => void dispatchChat(t.text ?? '', [], t.id)}
+                disabled={sending}
+                style={{
+                  border: 0, background: 'none', padding: 0,
+                  color: 'var(--danger)', fontFamily: 'var(--font-mono)',
+                  fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer',
+                  textAlign: 'inherit',
+                }}
+              >
+                НЕ НАДІСЛАЛОСЬ · ↻ ПОВТОРИТИ
+              </button>
+            )}
             {t.card && (
               <Card
                 card={t.card}
@@ -633,7 +670,7 @@ export function Feed() {
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onRefine={t.card.type === 'proposal' ? startRefine : undefined}
-                onCook={(r) => navigate('/cook', { state: { recipe: r } })}
+                onCook={(r, rid) => navigate('/cook', { state: { recipe: r, recipeId: rid } })}
                 onSaveRecipe={saveRecipeForLater}
                 savedRecipeIds={savedRecipeIds}
                 onNeedToList={addNeedToList}
@@ -654,6 +691,28 @@ export function Feed() {
       </div>
 
       <div className={styles['composer-wrap']}>
+        {/* UX9-09: «Готування триває» жило В САМОМУ ВЕРХУ стрічки — на момент
+            виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
+            композитором: видиме завжди, доки готування живе. */}
+        {cookLive && !historyOpen && (
+          <button
+            onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe, recipeId: cookLive.recipeId } })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              border: '1px solid var(--accent-border)', borderRadius: 14,
+              padding: '13px 16px', margin: '0 0 8px', background: 'var(--bg-surface)',
+              cursor: 'pointer', textAlign: 'left', width: '100%',
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
+            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
+              Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
+              Продовжити ›
+            </span>
+          </button>
+        )}
         {staleBatches.length > 0 && (
           <button
             type="button"
@@ -727,7 +786,7 @@ export function Feed() {
             className={styles['composer-input']}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
+            placeholder={listening ? 'Слухаю…' : pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
             disabled={sending}
             autoFocus
           />
@@ -753,12 +812,32 @@ export function Feed() {
               <span className={styles['mic-stop']} />
             </button>
           ) : (input.trim() || pending.length > 0) ? (
-            <button
-              type="submit"
-              className={styles['frame-btn-solid']}
-              disabled={sending}
-              aria-label="Надіслати"
-            >↑</button>
+            <>
+              {/* UX9-05: мікрофон НЕ зникає при тексті — інакше додиктувати
+                  неможливо в принципі (єдиний шлях був — стерти поле).
+                  Свідоме відхилення від «🎙 морфить у ↑»: тепер поруч. */}
+              {speechSupported() && (
+                <button
+                  type="button"
+                  className={styles['frame-btn-ghost']}
+                  onClick={toggleVoice}
+                  disabled={sending}
+                  aria-label="Додиктувати"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="2" width="6" height="12" rx="3" />
+                    <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
+                    <line x1="12" y1="18" x2="12" y2="22" />
+                  </svg>
+                </button>
+              )}
+              <button
+                type="submit"
+                className={styles['frame-btn-solid']}
+                disabled={sending}
+                aria-label="Надіслати"
+              >↑</button>
+            </>
           ) : speechSupported() ? (
             <button
               type="button"

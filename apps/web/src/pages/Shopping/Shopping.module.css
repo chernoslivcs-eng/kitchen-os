@@ -46,21 +46,32 @@
   .row:hover { background: var(--bg-hover); }
 }
 .check {
+  /* Папіркат UX-9: 24px — замала мішень для «однією рукою в магазині».
+     Кнопка = тап-зона 44px, видимий квадрат 24px малює .check-box усередині. */
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  flex: none;
+}
+.check-box {
   width: 24px;
   height: 24px;
   border-radius: var(--r-sm);
   border: 1px solid var(--border-strong);
   background: transparent;
-  cursor: pointer;
   color: var(--accent-fg-on);
   display: grid;
   place-items: center;
   font-weight: 700;
   font-size: 13px;
-  flex: none;
   transition: background var(--dur-fast), border-color var(--dur-fast);
 }
-.check.checked {
+.check.checked .check-box {
   background: var(--accent);
   border-color: var(--accent);
 }

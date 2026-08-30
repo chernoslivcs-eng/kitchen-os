@@ -129,9 +129,12 @@ export function RecipesPage() {
         {!loading && recipes.length === 0 && (
           <div className={styles.empty}>
             <h3>Тут порожньо</h3>
+            {/* UX9-20: кнопка в стрічці зветься «У рецепти» — підказка вчила
+                неіснуючій назві. */}
             <p>
-              Коли асистент запропонує страву — натисни «Лишити на потім». Рецепт чекатиме
-              тут і сам підсвітиться, щойно в коморі зʼявиться все потрібне.
+              Під рецептом у стрічці натисни «У рецепти» — він чекатиме тут
+              і сам підсвітиться, щойно в коморі зʼявиться все потрібне.
+              Приготоване теж лягає сюди само.
             </p>
           </div>
         )}
@@ -246,8 +249,8 @@ export function RecipesPage() {
                 onClick={(e) => { e.stopPropagation(); void unsave(r); }}
                 style={{
                   position: 'absolute',
-                  top: 12, right: 0,
-                  width: 32, height: 32,
+                  top: 8, right: 0,
+                  width: 44, height: 44,
                   background: 'transparent',
                   border: 0,
                   borderRadius: 'var(--r)',

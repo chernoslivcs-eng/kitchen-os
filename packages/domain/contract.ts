@@ -72,6 +72,31 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await ctx.repo.listBatches(ctx.household_id)).toHaveLength(0);
     });
 
+    // UX9-27: «купив усе зі списку» додавало в комору, а список стояв як був —
+    // продукт одночасно вважав, що олія Є і що олію ТРЕБА купити. Тепер add-оп
+    // з тим самим label відмічає позицію списку купленою; undo знімає галочку.
+    it('add відмічає однойменну позицію списку купленою; undo знімає', async () => {
+      const itemId = randomUUID();
+      await ctx.repo.insertShoppingItem({
+        id: itemId, household_id: ctx.household_id, label: 'олія оливкова',
+        reason: null, value: null, unit: null, zone: null, checked: false,
+        added_by: ctx.user_id, source: 'user', created_at: new Date().toISOString(),
+      });
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [
+        { op: 'add', label: 'Олія оливкова', value: 30, unit: 'ml', zone: 'dry' },
+      ]};
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { undo_token } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      let items = await ctx.repo.listShoppingItems(ctx.household_id);
+      expect(items.find((i) => i.id === itemId)!.checked).toBe(true);
+
+      await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
+      items = await ctx.repo.listShoppingItems(ctx.household_id);
+      expect(items.find((i) => i.id === itemId)!.checked).toBe(false);
+    });
+
     it('deplete: знаходить партію за назвою й ставить depleted', async () => {
       const seeded = await seedFarsh(ctx.repo, ctx.household_id);
       const mid = randomUUID();

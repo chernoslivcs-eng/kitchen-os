@@ -79,6 +79,19 @@ export function PantryPage() {
 
   useEffect(() => { void refresh(); }, []);
 
+  // UX9-15: друге вікно показувало «КОМОРА 7» при 5 позиціях безкінечно.
+  // Мінімум чесності: перечитуємо на поверненні фокуса/видимості.
+  useEffect(() => {
+    const refetch = () => { void refresh(); };
+    window.addEventListener('focus', refetch);
+    document.addEventListener('visibilitychange', refetch);
+    return () => {
+      window.removeEventListener('focus', refetch);
+      document.removeEventListener('visibilitychange', refetch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const q = query.trim().toLowerCase();
   const filtered = q
     ? batches.filter((b) => b.label.toLowerCase().includes(q))
@@ -175,7 +188,12 @@ export function PantryPage() {
                       className={styles['row-main']}
                       onClick={() => setEditing(b)}
                     >
-                      <span className={`${styles.mark} ${b.state === 'opened' ? styles.opened : ''}`}>
+                      {/* UX9-19: гліф стану має пояснювати себе сам. */}
+                      <span
+                        className={`${styles.mark} ${b.state === 'opened' ? styles.opened : ''}`}
+                        title={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
+                        aria-label={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
+                      >
                         {b.state === 'opened' ? '◔' : '●'}
                       </span>
                       <span className={styles.name}>
@@ -351,8 +369,15 @@ function BatchEditSheet({ batch, onClose, onChanged }: { batch: PantryBatch; onC
         </label>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={toggleOpened} disabled={saving}>
-            {batch.state === 'sealed' ? '◔ Відкрито' : '● Запаковано'}
+          {/* UX9-18: «● Запаковано» читалось як СТАН (і суперечило рядку) —
+              це ДІЯ. Дієслово + title знімають двозначність. */}
+          <Button
+            variant="secondary"
+            onClick={toggleOpened}
+            disabled={saving}
+            title={batch.state === 'sealed' ? 'Позначити партію відкритою' : 'Позначити партію запакованою'}
+          >
+            {batch.state === 'sealed' ? '◔ Позначити відкритою' : '● Позначити запакованою'}
           </Button>
           <div style={{ flex: 1 }} />
           <Button onClick={save} loading={saving}>Зберегти</Button>

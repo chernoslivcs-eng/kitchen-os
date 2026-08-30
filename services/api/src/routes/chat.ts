@@ -112,7 +112,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       }
 
       const started = Date.now();
-      const call = await callAttachmentParse(payloads);
+      // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
+      let call: Awaited<ReturnType<typeof callAttachmentParse>>;
+      try {
+        call = await callAttachmentParse(payloads);
+      } catch (err) {
+        req.log.error({ err, user_id }, 'attachment-model-call-failed');
+        return reply.code(502).send({ error: 'model_unavailable' });
+      }
       await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
 
       // #5: фото готової страви. Якщо є недавнє готування без фото — картка
@@ -237,10 +244,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       });
     }
 
-    const call = await callChat({
-      user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-      history, profile, shopping, notes, eaters, recentRecipes,
-    });
+    // UX9-02: модель упала (402 кредити, 5xx провайдера, мережа) — раніше це
+    // ставало сирим 500, а клієнт ковтав його мовчки: людина писала в мертвий
+    // продукт і не знала. 502 з кодом — клієнт показує «не надіслалось · повторити».
+    let call: Awaited<ReturnType<typeof callChat>>;
+    try {
+      call = await callChat({
+        user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
+        history, profile, shopping, notes, eaters, recentRecipes,
+      });
+    } catch (err) {
+      req.log.error({ err, user_id }, 'chat-model-call-failed');
+      return reply.code(502).send({ error: 'model_unavailable' });
+    }
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
 
     // Копі-звіти QA-4…7: час дієслова коливається (1/6 → 10/11 → 9/14 → 7/13),
@@ -329,17 +345,23 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       }
 
       const genStarted = Date.now();
-      const gen = await callRecipe({
-        title: base.title,
-        context:
-          'Це ПРАВКА наявного рецепта, не нова страва. Базовий рецепт (JSON):\n'
-          + JSON.stringify(base.payload)
-          + `\n\nВнеси зміну: ${call.card.instruction}\n`
-          + 'Решту складу, кількостей і кроків збережи без змін, включно з привʼязками "p" до партій комори. '
-          + 'Якщо заміна стосується інгредієнта, зміни і кроки, де він згаданий.',
-        pantry,
-        profile,
-      });
+      let gen: Awaited<ReturnType<typeof callRecipe>>;
+      try {
+        gen = await callRecipe({
+          title: base.title,
+          context:
+            'Це ПРАВКА наявного рецепта, не нова страва. Базовий рецепт (JSON):\n'
+            + JSON.stringify(base.payload)
+            + `\n\nВнеси зміну: ${call.card.instruction}\n`
+            + 'Решту складу, кількостей і кроків збережи без змін, включно з привʼязками "p" до партій комори. '
+            + 'Якщо заміна стосується інгредієнта, зміни і кроки, де він згаданий.',
+          pantry,
+          profile,
+        });
+      } catch (err) {
+        req.log.error({ err, user_id }, 'recipe-edit-model-call-failed');
+        return reply.code(502).send({ error: 'model_unavailable' });
+      }
       await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted);
 
       if (!gen.recipe) {

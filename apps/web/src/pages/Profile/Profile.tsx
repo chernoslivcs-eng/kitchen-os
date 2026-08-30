@@ -291,11 +291,14 @@ export function ProfilePage() {
           {eaters.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {eaters.map((e) => {
-                const limits = [
-                  ...e.allergies.map((a) => `⚠ ${a}`),
-                  ...e.antipatterns,
-                  ...e.wishes,
-                ].join(' · ');
+                // UX9-33: однакові за суттю дані — однакова форма. Алергії
+                // фарбуються danger поштучно; анти/побажання — рівним muted
+                // тим самим моно-ритмом, а не «чипи проти прози».
+                const limits: { text: string; danger: boolean }[] = [
+                  ...e.allergies.map((a) => ({ text: `⚠ ${a}`, danger: true })),
+                  ...e.antipatterns.map((a) => ({ text: a, danger: false })),
+                  ...e.wishes.map((w) => ({ text: w, danger: false })),
+                ];
                 return (
                   <div
                     key={e.id}
@@ -308,12 +311,17 @@ export function ProfilePage() {
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)' }}>
                         {e.name}
                       </div>
-                      {limits && (
+                      {limits.length > 0 && (
                         <div style={{
                           marginTop: 3, fontFamily: 'var(--font-mono)', fontSize: 11,
-                          letterSpacing: '0.04em', color: e.allergies.length ? 'var(--danger)' : 'var(--fg-dim)',
+                          letterSpacing: '0.04em', color: 'var(--fg-dim)',
                         }}>
-                          {limits}
+                          {limits.map((l, i) => (
+                            <span key={i}>
+                              {i > 0 && ' · '}
+                              <span style={l.danger ? { color: 'var(--danger)' } : undefined}>{l.text}</span>
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>

@@ -65,7 +65,14 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     const pantry = await repo.listBatches(ctx.household_id);
     const profile = await repo.getProfile(ctx.user_id);
     const started = Date.now();
-    const call = await callRecipe({ title: title.trim(), context, pantry, profile });
+    // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
+    let call: Awaited<ReturnType<typeof callRecipe>>;
+    try {
+      call = await callRecipe({ title: title.trim(), context, pantry, profile });
+    } catch (err) {
+      req.log.error({ err }, 'recipe-model-call-failed');
+      return reply.code(502).send({ error: 'model_unavailable' });
+    }
     await recordUsage(repo, ctx, 'recipe_gen', call.meta, call.usage, started);
 
     if (!call.recipe) {

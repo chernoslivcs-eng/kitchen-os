@@ -482,6 +482,99 @@ describe('POST /v1/cook-runs · keep із залишком', () => {
     expect(batch.value).toBeNull();
   });
 
+  // UX9-26: «Нічого не списувати» все одно списувало — keep-на-всіх відкривав
+  // vanish-партії з value:null (вершки втратили «200 мл» назавжди), а часткові
+  // віднімання йшли повз модалку взагалі. skip_pantry — справжнє «не чіпати»:
+  // журнальний запис є, комора недоторкана.
+  it('skip_pantry: жодна партія не змінюється, run створюється', async () => {
+    const me = await signIn(app, mailer, 'skip@example.com');
+    // partial-кандидат (250 г, рецепт бере 60) і vanish-кандидат (100 г, рецепт бере 800)
+    const partialId = await seed(me, 'Пармезан', 250);
+    const vanishId = await seed(me, 'Помідори', 100);
+
+    const res = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: {
+          t: 'Паста', sv: 1,
+          ing: [{ p: partialId, v: 60, u: 'g' }, { p: vanishId, v: 800, u: 'g' }],
+          st: [{ t: 'Крок', c: 'Зробити' }],
+        },
+        skip_pantry: true,
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json() as { id: string; depleted: number; partial: number; opened: number };
+    expect(body.depleted).toBe(0);
+    expect(body.partial).toBe(0);
+    expect(body.opened).toBe(0);
+
+    const partialBatch = (await repo.getBatch(partialId))!;
+    expect(partialBatch.value).toBe(250);
+    expect(partialBatch.state).toBe('sealed');
+    const vanishBatch = (await repo.getBatch(vanishId))!;
+    expect(vanishBatch.value).toBe(100);
+    expect(vanishBatch.state).toBe('sealed');
+
+    // Журнальний запис живий — оцінку поставити можна.
+    const run = await repo.getCookRun(body.id);
+    expect(run).toBeTruthy();
+    expect(run!.changes).toBeNull();
+  });
+
+  // UX9-24: підсумок називає позиції, не «2 позиції» — інакше людина йде
+  // в Комору звіряти цифри руками.
+  it('відповідь містить назви змінених партій', async () => {
+    const me = await signIn(app, mailer, 'labels@example.com');
+    const partialId = await seed(me, 'Пармезан', 250);
+    const vanishId = await seed(me, 'Помідори', 100);
+
+    const res = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: {
+          t: 'Паста', sv: 1,
+          ing: [{ p: partialId, v: 60, u: 'g' }, { p: vanishId, v: 800, u: 'g' }],
+          st: [],
+        },
+      },
+    });
+    const body = res.json() as { depleted_labels: string[]; partial_labels: string[]; opened_labels: string[] };
+    expect(body.partial_labels).toEqual(['Пармезан']);
+    expect(body.depleted_labels).toEqual(['Помідори']);
+    expect(body.opened_labels).toEqual([]);
+  });
+
+  // UX9-11: рецепт зі стрічки вже має рядок (чернетку) — cook-run реюзає його,
+  // а не плодить другий. Інакше «У рецепти» дає два однакові рядки в бібліотеці.
+  it('recipe_id: реюз чернетки замість другого рядка', async () => {
+    const me = await signIn(app, mailer, 'reuse@example.com');
+    const draft_id = randomUUID();
+    await repo.saveRecipe({
+      id: draft_id, owner_id: me.user_id, origin: 'generated',
+      title: 'Тост', requested_title: 'Тост', descr: null, character: null,
+      risk: null, base_servings: 1, time_total: 5, nutrition: null,
+      payload: { t: 'Тост', sv: 1, ing: [{ n: 'багет', v: 60, u: 'g' }], st: [] },
+      created_at: new Date().toISOString(), saved_at: null,
+    });
+
+    const res = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: { t: 'Тост', sv: 1, ing: [{ n: 'багет', v: 60, u: 'g' }], st: [] },
+        recipe_id: draft_id,
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect((res.json() as { recipe_id: string }).recipe_id).toBe(draft_id);
+
+    // Один рядок у бібліотеці (як «готував»), не два.
+    const list = (await app.inject({ method: 'GET', url: '/v1/recipes', headers: { cookie: me.cookie } }))
+      .json() as { recipes: { id: string }[] };
+    expect(list.recipes.filter((r) => r.id === draft_id).length).toBe(1);
+    expect(list.recipes.length).toBe(1);
+  });
+
   it('undo повертає початкові кількість і стан', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const b = await seed(me, 'Фета', 200);

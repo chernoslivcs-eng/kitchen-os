@@ -178,7 +178,9 @@ export function CookLogPage() {
                         </div>
                       )}
                       <div className={styles.info}>
-                        <div className={`${styles.dish} ${undone ? styles.undone : ''}`}>{r.recipe.title}</div>
+                        {/* Папіркат UX-9: «ЗНОВУ ⟳» (absolute справа) наїжджав
+                            на довгу назву — резервуємо їй місце. */}
+                        <div className={`${styles.dish} ${undone ? styles.undone : ''}`} style={{ paddingRight: 86 }}>{r.recipe.title}</div>
                         <div className={styles.sub}>
                           {timeLabel(r.finished_at ?? r.started_at)}
                           {r.recipe.time_total && <> · {r.recipe.time_total}хв</>}
@@ -207,7 +209,8 @@ export function CookLogPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate('/cook', { state: { recipe: r.recipe.payload } });
+                          /* UX9-11: реюз рядка рецепта — «ЗНОВУ» не плодить дубль. */
+                          navigate('/cook', { state: { recipe: r.recipe.payload, recipeId: r.recipe_id } });
                         }}
                         style={{
                           position: 'absolute',

@@ -172,6 +172,7 @@ export interface UndoSnapshot {
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
     removed_shopping_ids?: string[];    // shopping remove: повернути назад (потрібне окреме сховище — пізніше)
     added_shopping_ids?: string[];      // shopping add: видалити при undo
+    checked_shopping_ids?: string[];    // UX9-27: intake add відмітив куплене — undo знімає галочку
     profile_before?: Profile;           // profile: повернути весь блок
     added_note_ids?: string[];          // note: висновки лише додаються, тож undo — це видалення
     added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється

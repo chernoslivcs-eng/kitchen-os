@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit } from '@kitchen/domain';
-import { resolveLabelToKey, resolveLabelToZone } from '@kitchen/catalog';
+import { resolveLabelToZone } from '@kitchen/catalog';
 import { authenticated, requireUser } from '../middleware/session.js';
 
 export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
@@ -89,14 +89,17 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
       const unit = (it.unit && (UNITS as string[]).includes(it.unit)) ? (it.unit as Unit) : null;
       // QA6-06: коли зони немає, питаємо каталог, а не кладемо все в `dry`.
       // Молоко переїжджало в комору замість холодильника.
-      const catalogKey = resolveLabelToKey(it.label);
+      // UX9-01: catalog_key НЕ ставимо. Кодовий каталог знає ключі, яких немає
+      // в таблиці catalog_ingredient (сідінг — частина відкладеної задачі
+      // «каталог 2341»), і FK валив unpack 500-кою: «→ В КОМОРУ» мовчки не
+      // робив нічого. Зона з кодового каталогу лишається — вона без FK.
       const zone = (it.zone && (ZONES as string[]).includes(it.zone))
         ? (it.zone as Zone)
         : (resolveLabelToZone(it.label) ?? 'dry');
       const batch: PantryBatch = {
         id: randomUUID(),
         household_id,
-        catalog_key: catalogKey,
+        catalog_key: null,
         label: it.label,
         zone,
         value: it.value,

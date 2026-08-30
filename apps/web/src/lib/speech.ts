@@ -3,7 +3,13 @@
 //
 // Прогресивне покращення: якщо браузер не вміє (Firefox) — кнопки мікрофона
 // просто немає. Мова uk-UA; interim-результати показуємо одразу, щоб людина
-// бачила, що її чують, а фіналізуємо на onresult(final).
+// бачила, що її чують.
+//
+// UX9-05..08 (звіт частина 1): попередня версія (а) вмирала на першій паузі —
+// браузер закриває сеанс подією end, рестарту не було; (б) була вразлива до
+// «results містить лише новий результат» (Android Chrome) — поле затиралось
+// останнім словом; (в) мовчала на not-allowed/no-speech/network. Тепер:
+// накопичення через сеанси + авто-рестарт до явного стопу + onError.
 
 type SpeechRecognitionLike = {
   lang: string;
@@ -40,47 +46,95 @@ export interface Dictation {
   stop(): void;
 }
 
+// Людські пояснення фатальних відмов. Все інше (no-speech, aborted) — робочі
+// моменти: сеанс перезапуститься через onend.
+const FATAL_ERRORS: Record<string, string> = {
+  'not-allowed': 'Мікрофон заборонений — дозволь доступ у налаштуваннях браузера.',
+  'service-not-allowed': 'Розпізнавання мови вимкнене в цьому браузері.',
+  'audio-capture': 'Мікрофон не знайдено.',
+  'network': 'Розпізнавання зараз недоступне — перевір мережу.',
+};
+
 /**
- * Один сеанс диктування. onText отримує накопичений текст (interim включно),
- * onDone — фінальний текст, onEnd — кінець сеансу з будь-якої причини.
+ * Один сеанс диктування (з погляду людини). Під капотом браузер може закривати
+ * розпізнавання на паузах — ми перезапускаємо його, доки не натиснуто стоп.
+ * onText отримує накопичений текст (interim включно), onDone — фінальний,
+ * onEnd — кінець сеансу з будь-якої причини, onError — людське пояснення
+ * фатальної відмови (після нього прийде і onEnd).
  */
 export function startDictation(handlers: {
   onText: (text: string) => void;
   onDone: (text: string) => void;
   onEnd: () => void;
+  onError?: (message: string) => void;
 }): Dictation | null {
   const C = ctor();
   if (!C) return null;
-  const rec = new C();
-  rec.lang = 'uk-UA';
-  rec.interimResults = true;
-  // QA9-07: continuous=false обривав сеанс на першій паузі — людина ще
-  // говорить, а мікрофон уже здався. Тепер сеанс живе, поки не натиснуто
-  // стоп (або браузер сам не закриє по довгій тиші — onend відпрацює).
-  rec.continuous = true;
 
-  let finalText = '';
-  rec.onresult = (e) => {
-    // QA9-07: перебудова З НУЛЯ на кожній події, а не резервуар += з
-    // resultIndex. Chrome (особливо Android) переграє фінальні результати —
-    // накопичення дублювало слова, а поле «замінювалось останнім словом».
-    // e.results завжди тримає ВСІ результати сеансу — читаємо їх усі.
-    let final = '';
-    let interim = '';
-    for (let i = 0; i < e.results.length; i++) {
-      const r = e.results[i]!;
-      if (r.isFinal) final += r[0].transcript + ' ';
-      else interim += r[0].transcript;
-    }
-    finalText = final.replace(/\s+/g, ' ').trim();
-    handlers.onText((finalText + ' ' + interim).replace(/\s+/g, ' ').trim());
-  };
-  rec.onend = () => {
-    if (finalText.trim()) handlers.onDone(finalText.trim());
-    handlers.onEnd();
-  };
-  rec.onerror = () => { /* onend прийде слідом — там і приберемось */ };
+  let stopped = false;          // людина натиснула стоп або фатальна помилка
+  let accumulated = '';         // фінали ПОПЕРЕДНІХ сеансів розпізнавання
+  let sessionFinal = '';        // фінали поточного сеансу
+  let rec: SpeechRecognitionLike | null = null;
 
-  try { rec.start(); } catch { return null; }
-  return { stop: () => { try { rec.stop(); } catch { /* вже зупинено */ } } };
+  const compose = (interim = '') =>
+    `${accumulated} ${sessionFinal} ${interim}`.replace(/\s+/g, ' ').trim();
+
+  function spawn(): boolean {
+    const r = new C!();
+    r.lang = 'uk-UA';
+    r.interimResults = true;
+    r.continuous = true;
+    sessionFinal = '';
+
+    // Фінали — у Map за індексом результату: стійко до ОБОХ семантик
+    // results (повний список і «тільки нове» з resultIndex-зсувом).
+    const finals = new Map<number, string>();
+    r.onresult = (e) => {
+      let interim = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const res = e.results[i]!;
+        if (res.isFinal) finals.set(e.resultIndex + i, res[0].transcript);
+        else interim += res[0].transcript;
+      }
+      sessionFinal = [...finals.entries()].sort((a, b) => a[0] - b[0]).map(([, t]) => t).join(' ');
+      handlers.onText(compose(interim));
+    };
+
+    r.onerror = (e) => {
+      const fatal = e.error && FATAL_ERRORS[e.error];
+      if (fatal) {
+        stopped = true;
+        handlers.onError?.(fatal);
+      }
+      // Нефатальне (no-speech, aborted) — нічого: onend перезапустить.
+    };
+
+    r.onend = () => {
+      accumulated = compose();
+      sessionFinal = '';
+      if (stopped) {
+        if (accumulated) handlers.onDone(accumulated);
+        handlers.onEnd();
+        return;
+      }
+      // UX9-07: браузер закрив сеанс на тиші — людина ще не закінчила.
+      // Мовчки піднімаємо новий; кнопка лишається в стані «слухаю».
+      if (!spawn()) {
+        if (accumulated) handlers.onDone(accumulated);
+        handlers.onEnd();
+      }
+    };
+
+    try { r.start(); } catch { return false; }
+    rec = r;
+    return true;
+  }
+
+  if (!spawn()) return null;
+  return {
+    stop: () => {
+      stopped = true;
+      try { rec?.stop(); } catch { /* вже зупинено */ }
+    },
+  };
 }

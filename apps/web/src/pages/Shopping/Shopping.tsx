@@ -24,6 +24,35 @@ export function ShoppingPage() {
     })();
   }, []);
 
+  // UX9-15: два вікна на одному акаунті не бачили одне одного — застарілий
+  // екран нічим не позначався. Мінімум: перечитуємо на поверненні фокуса.
+  useEffect(() => {
+    const refetch = () => { void api.shopping.list().then((l) => setItems(l.items)).catch(() => {}); };
+    window.addEventListener('focus', refetch);
+    document.addEventListener('visibilitychange', refetch);
+    return () => {
+      window.removeEventListener('focus', refetch);
+      document.removeEventListener('visibilitychange', refetch);
+    };
+  }, []);
+
+  // UX9-12: «стою біля полиці, згадав про молоко» — дописати руками, без
+  // чотирьох екранів і моделі. POST /v1/shopping існує з QA-8.
+  const [newLabel, setNewLabel] = useState('');
+  const [adding, setAdding] = useState(false);
+  async function addManual(e: { preventDefault(): void }) {
+    e.preventDefault();
+    const label = newLabel.trim();
+    if (!label || adding) return;
+    setAdding(true);
+    try {
+      await api.shopping.add(label);
+      setNewLabel('');
+      setItems((await api.shopping.list()).items);
+    } catch { /* рядок лишиться в полі — видно, що не додалось */ }
+    finally { setAdding(false); }
+  }
+
   async function toggle(it: ShoppingItem) {
     const nextChecked = !it.checked;
     setItems((prev) => prev.map((x) => x.id === it.id ? { ...x, checked: nextChecked } : x));
@@ -88,6 +117,31 @@ export function ShoppingPage() {
       </div>
 
       <div className={styles.body}>
+        <form onSubmit={addManual} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+          <input
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="+ Додати в список…"
+            style={{
+              flex: 1, padding: '10px 14px',
+              background: 'var(--bg-input)', border: '1px solid var(--border)',
+              borderRadius: 'var(--r)', color: 'var(--fg)',
+              fontFamily: 'var(--font-body)', fontSize: 14,
+            }}
+          />
+          {newLabel.trim() && (
+            <button
+              type="submit"
+              disabled={adding}
+              style={{
+                padding: '0 16px', border: 0, borderRadius: 'var(--r)',
+                background: 'var(--accent)', color: 'var(--accent-fg-on)',
+                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                cursor: adding ? 'wait' : 'pointer',
+              }}
+            >Додати</button>
+          )}
+        </form>
         {loading && <SkeletonRows rows={4} />}
         {!loading && items.length === 0 && (
           <div className={styles.empty}>
@@ -103,9 +157,15 @@ export function ShoppingPage() {
               onClick={() => toggle(it)}
               aria-label={it.checked ? 'Зняти галочку' : 'Позначити куплене'}
             >
-              {it.checked ? '✓' : ''}
+              <span className={styles['check-box']}>{it.checked ? '✓' : ''}</span>
             </button>
-            <span className={`${styles.label} ${it.checked ? styles.done : ''}`}>
+            {/* Папіркат UX-9: у магазині тапають по НАЗВІ, не по кружечку 24px.
+                Весь рядок-тіло — тогл; ✕ лишається окремою мішенню праворуч. */}
+            <span
+              className={`${styles.label} ${it.checked ? styles.done : ''}`}
+              onClick={() => toggle(it)}
+              style={{ cursor: 'pointer' }}
+            >
               {it.label}
               {it.reason && <span className={styles.reason}>{it.reason}</span>}
             </span>

@@ -58,6 +58,11 @@ describe('POST /v1/shopping/unpack', () => {
     expect(labels).toEqual(['моцарела', 'песто']);
     expect(pantry.every((b) => b.last_action === 'unpack')).toBe(true);
     expect(pantry.every((b) => b.state === 'sealed')).toBe(true);
+    // UX9-01: catalog_key МУСИТЬ бути null. Кодовий каталог знає ключі, яких
+    // немає в таблиці catalog_ingredient (вона не сідиться до задачі «каталог
+    // 2341») — БД валила unpack по FK, «→ В КОМОРУ» мовчки не робив нічого.
+    // In-memory FK не відтворює, тому фіксуємо контракт значенням.
+    expect(pantry.every((b) => b.catalog_key === null)).toBe(true);
   });
 
   it('порожній checked → 200 з created:0', async () => {

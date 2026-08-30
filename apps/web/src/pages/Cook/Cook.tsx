@@ -17,6 +17,8 @@ import styles from './Cook.module.css';
 interface CookLocationState {
   recipe?: Recipe;
   startAt?: number;
+  // UX9-11: id чернетки зі стрічки — cook-run реюзає її замість другого рядка.
+  recipeId?: string;
 }
 
 function formatMS(secondsLeft: number): string {
@@ -214,7 +216,7 @@ export function CookPage() {
   useEffect(() => {
     if (!recipe) return;
     if (done) { clearCookSession(); return; }
-    saveCookSession({ recipe, stepIdx, secondsLeft });
+    saveCookSession({ recipe, stepIdx, secondsLeft, recipeId: state.recipeId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx, running, done]);
   // QA8-06: «Вийти» за 20 секунд до кінця повертало повний таймер — запис
@@ -223,7 +225,7 @@ export function CookPage() {
     if (!recipe) return;
     return () => {
       const snap = sessionSnapRef.current;
-      if (!snap.done) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft });
+      if (!snap.done) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft, recipeId: state.recipeId });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.t]);
@@ -243,6 +245,12 @@ export function CookPage() {
   // id → «лишилось ≈» (null = кількість невідома). Бриф-2 п.4.
   const [keepMap, setKeepMap] = useState<Map<string, number | null>>(new Map());
   const [confirmed, setConfirmed] = useState(false);
+  // UX9-26: «Нічого не списувати» = НЕ ЧІПАТИ комору взагалі. Раніше воно
+  // слало keep-на-всіх — сервер все одно віднімав часткові й відкривав
+  // vanish-партії з value:null (вершки втратили «200 мл» назавжди).
+  const [skipPantry, setSkipPantry] = useState(false);
+  // UX9-24: підсумок називає позиції, не лише лічильники.
+  const [changedLabels, setChangedLabels] = useState<{ depleted: string[]; partial: string[]; opened: string[] }>({ depleted: [], partial: [], opened: [] });
 
   useEffect(() => {
     if (!done) return;
@@ -256,10 +264,19 @@ export function CookPage() {
 
   useEffect(() => {
     if (!done || !confirmed) return;
-    api.cookRuns.save(recipe, { keep: [...keepMap].map(([id, v]) => (v != null ? { id, v } : id)) })
+    api.cookRuns.save(recipe, {
+      keep: [...keepMap].map(([id, v]) => (v != null ? { id, v } : id)),
+      skip_pantry: skipPantry || undefined,
+      recipe_id: state.recipeId,
+    })
       .then((r) => {
         setDepleted(r.depleted); setPartial(r.partial); setOpened(r.opened);
         setRunId(r.id); setRecipeId(r.recipe_id);
+        setChangedLabels({
+          depleted: r.depleted_labels ?? [],
+          partial: r.partial_labels ?? [],
+          opened: r.opened_labels ?? [],
+        });
       })
       .catch(() => {/* offline: наступним разом */});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,7 +296,7 @@ export function CookPage() {
   const [verdict, setVerdict] = useState<string>('');
   const [ratingSaved, setRatingSaved] = useState<boolean>(false);
   async function submitRating(newRating: number) {
-    if (!runId || undone) return;
+    if (!runId) return;   /* папіркат UX-9: оцінка стосується готування, не списання */
     setRating(newRating);
     try {
       await api.cookRuns.rate(runId, newRating, verdict.trim() || null);
@@ -289,7 +306,7 @@ export function CookPage() {
     } catch {/* тихо */}
   }
   async function saveVerdict() {
-    if (!runId || undone || !rating) return;
+    if (!runId || !rating) return;
     try {
       await api.cookRuns.rate(runId, rating, verdict.trim() || null);
       setRatingSaved(true);
@@ -304,7 +321,7 @@ export function CookPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   async function onPickPhoto(files: FileList | null) {
     const f = files?.[0];
-    if (!f || !runId || undone) return;
+    if (!f || !runId) return;
     setUploadingPhoto(true);
     try {
       const up = await api.attachments.upload(f);
@@ -399,10 +416,10 @@ export function CookPage() {
                   }
                 }}
                 onKeyDown={(e) => {
-                  // DA2-09: Escape — безпечний вихід (нічого не списувати,
-                  // все відкочується undo). Tab тримаємо всередині діалогу.
+                  // DA2-09 + UX9-26: Escape — безпечний вихід, комора не
+                  // чіпається взагалі. Tab тримаємо всередині діалогу.
                   if (e.key === 'Escape') {
-                    setKeepMap(new Map(vanish.map((v) => [v.id, null])));
+                    setSkipPantry(true);
                     setConfirmed(true);
                   }
                   if (e.key === 'Tab') {
@@ -523,7 +540,9 @@ export function CookPage() {
                       Списати {vanish.length - keepMap.size}
                     </button>
                     <button
-                      onClick={() => { setKeepMap(new Map(vanish.map((v) => [v.id, null]))); setConfirmed(true); }}
+                      /* UX9-26: чесне «нічого» — комора лишається недоторканою,
+                         запис у журналі при цьому створюється. */
+                      onClick={() => { setSkipPantry(true); setConfirmed(true); }}
                       style={{
                         height: 50, padding: '0 18px', borderRadius: 14,
                         border: '1px solid var(--border-strong)', background: 'transparent',
@@ -536,6 +555,12 @@ export function CookPage() {
                 </div>
               </div>
             )}
+            {skipPantry && runId && (
+              <div className={styles.section}>
+                <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>
+                <div className={styles.next}>Комору не чіпав — як і просив.</div>
+              </div>
+            )}
             {depleted != null && (depleted > 0 || partial > 0 || opened > 0) && (
               <div className={styles.section}>
                 <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>
@@ -543,20 +568,22 @@ export function CookPage() {
                   {undone ? (
                     <>Повернуто в комору — вибач за неспокій.</>
                   ) : (
+                    /* UX9-24: не «2 позиції», а ЯКІ саме — інакше людина йде в
+                       Комору звіряти цифри руками. */
                     <>
                       {depleted > 0 && (
-                        <>Списано {depleted} {plural(depleted, ['позицію', 'позиції', 'позицій'])}</>
+                        <>Списано: {changedLabels.depleted.join(', ') || `${depleted} ${plural(depleted, ['позицію', 'позиції', 'позицій'])}`}</>
                       )}
                       {depleted > 0 && partial > 0 && <> · </>}
                       {partial > 0 && (
-                        <>Частково використано {partial} {plural(partial, ['позицію', 'позиції', 'позицій'])}</>
+                        <>Частково використано: {changedLabels.partial.join(', ') || `${partial} ${plural(partial, ['позицію', 'позиції', 'позицій'])}`}</>
                       )}
                       {/* QA5-10: коли рецепт не дав кількості, ми лишаємо партію
                           в коморі й тільки відкриваємо її. Без цього рядка екран
                           казав «Списано 0 позицій» і людина не розуміла, що сталось. */}
                       {(depleted > 0 || partial > 0) && opened > 0 && <> · </>}
                       {opened > 0 && (
-                        <>Кількість не вказана в {opened} {plural(opened, ['позиції', 'позиціях', 'позиціях'])} — комору не міняв, лише відкрив</>
+                        <>Без кількості — лише відкрито: {changedLabels.opened.join(', ') || `${opened} ${plural(opened, ['позиція', 'позиції', 'позицій'])}`}</>
                       )}
                     </>
                   )}
@@ -584,7 +611,7 @@ export function CookPage() {
               </div>
             )}
 
-            {runId && !undone && (
+            {runId && (
               <div className={styles.section}>
                 <MonoLabel className={styles['section-label']}>
                   ЯК ВИЙШЛО {ratingSaved && <span style={{ color: 'var(--accent)' }}>· ЗБЕРЕЖЕНО</span>}
@@ -635,7 +662,7 @@ export function CookPage() {
               </div>
             )}
 
-            {runId && !undone && (
+            {runId && (
               <div className={styles.section}>
                 <MonoLabel className={styles['section-label']}>ФОТО</MonoLabel>
                 <input
@@ -773,20 +800,22 @@ export function CookPage() {
           футер ховається. Done-екран тримає футер на всіх ширинах. */}
       <div className={`${styles.foot} ${!done ? styles['foot-steps'] : ''}`}>
         {done ? (
+          /* Папіркат UX-9: головна дія фінішу — повернутись до свого продукту,
+             шеринг другорядний. Було навпаки. */
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               className={styles.main}
               style={{ flex: 1 }}
-              onClick={() => navigate('/share', { state: { recipe, photoUrl, recipeId } })}
-            >
-              Поділитись
-            </button>
-            <button
-              className={styles.main}
-              style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 120 }}
               onClick={() => navigate('/app')}
             >
               У стрічку
+            </button>
+            <button
+              className={styles.main}
+              style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
+              onClick={() => navigate('/share', { state: { recipe, photoUrl, recipeId } })}
+            >
+              Поділитись
             </button>
           </div>
         ) : stepButtons}

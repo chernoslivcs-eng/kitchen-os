@@ -310,7 +310,9 @@
   position: fixed;
   left: 22px;
   right: 22px;
-  bottom: 170px;                    /* над composer (~82px) і над TabBar (~72px) */
+  /* Папіркат UX-9: тост лягав на поле вводу. Композитор-стек виріс (банер
+     готування, підказка «горить») — тримаємо тост вище за нього. */
+  bottom: 218px;
   background: var(--bg-surface-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);

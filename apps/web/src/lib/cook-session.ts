@@ -15,6 +15,9 @@ export interface CookSession {
   stepIdx: number;
   secondsLeft: number;
   savedAt: number;
+  // UX9-11: id чернетки рецепта — щоб фініш після resume реюзав той самий
+  // рядок, а не плодив другий.
+  recipeId?: string;
 }
 
 export function saveCookSession(s: Omit<CookSession, 'savedAt'>): void {

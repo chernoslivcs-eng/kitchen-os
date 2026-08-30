@@ -42,6 +42,12 @@ type ShoppingItem = {
 };
 
 // DA2-24: сирий kind («NOTE») світився латиницею серед кириличних лейблів.
+// UX9-17: correct із зоною показує, КУДИ переїде партія.
+const ZONE_LABELS: Record<string, string> = {
+  fresh: 'Свіже', fridge: 'Холодильник', freezer: 'Морозилка',
+  dry: 'Суха шафа', spices: 'Спеції', drinks: 'Напої',
+};
+
 const KIND_LABELS: Record<string, string> = {
   allergy: 'АЛЕРГІЯ',
   wish: 'ЛЮБИТЬ',
@@ -55,6 +61,11 @@ type ProfileItem = {
   op?: 'add' | 'remove';
   kind?: 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member';
   label?: string;
+  // UX9-32: обмеження member-опа мають бути ВИДИМІ до підтвердження.
+  diet?: string;
+  allergies?: string[];
+  antipatterns?: string[];
+  wishes?: string[];
 };
 
 export interface CardProps {
@@ -74,7 +85,8 @@ export interface CardProps {
   // закриває з боку інтерфейсу, а не вмовляннями в промпті.
   onRefine?: (title: string) => void;
   // recipe_link: рецепт живе в розмові — готуємо і зберігаємо прямо звідси.
-  onCook?: (recipe: Recipe) => void;
+  // UX9-11: recipeId — id чернетки, cook-run реюзає її рядок замість дубля.
+  onCook?: (recipe: Recipe, recipeId?: string) => void;
   onSaveRecipe?: (recipe_id: string) => void;
   savedRecipeIds?: Set<string>;
   onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void;
@@ -92,12 +104,14 @@ function stateClass(applied?: boolean, undone?: boolean): string {
 // ----- Intake --------------------------------------------------------------
 
 export function IntakeCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
-  const ops = (card.ops as IntakeOp[] | undefined ?? []).filter(
-    (o) => !o.op || o.op === 'add' || o.op === 'open' || o.op === 'deplete',
-  );
+  // UX9-17: rename/correct ФІЛЬТРУВАЛИСЬ — картка перейменування стояла без
+  // жодного предметного рядка, людина тиснула «Застосувати» наосліп.
+  const ops = (card.ops as IntakeOp[] | undefined ?? []);
   const signFor = (op?: IntakeOp['op']) => {
     if (op === 'deplete') return '−';
     if (op === 'open') return '◔';
+    if (op === 'rename') return '✎';
+    if (op === 'correct') return '✎';
     return '+';
   };
   return (
@@ -106,9 +120,18 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
         {ops.map((op, i) => (
           <div key={i} className={styles.op}>
             <span className={styles['op-sign']}>{signFor(op.op)}</span>
-            <span className={styles['op-label']}>{op.label ?? '—'}</span>
+            <span className={styles['op-label']}>
+              {op.op === 'rename'
+                ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
+                : op.label ?? '—'}
+              {op.op === 'correct' && (op as { zone?: string }).zone && (
+                <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
+                </span>
+              )}
+            </span>
             {op.value != null && op.unit && (
-              <span className={styles['op-qty']}>{formatQty(op.value, op.unit)}</span>
+              <span className={styles['op-qty']}>{op.op === 'correct' ? '→ ' : ''}{formatQty(op.value, op.unit)}</span>
             )}
           </div>
         ))}
@@ -220,15 +243,32 @@ export function ProfileCard({ card, applied, applying, dismissed, undone, onAppl
   return (
     <div className={stateClass(applied, undone)}>
       <div className={styles.ops}>
-        {items.map((it, i) => (
-          <div key={i} className={styles.op}>
-            <span className={styles['op-sign']}>{it.op === 'remove' ? '−' : '+'}</span>
-            <span className={styles['op-label']}>{it.label ?? '—'}</span>
-            {it.kind && (
-              <span className={styles['op-qty']}>{KIND_LABELS[it.kind] ?? it.kind.toUpperCase()}</span>
-            )}
-          </div>
-        ))}
+        {items.map((it, i) => {
+          // UX9-32: «+ Оля / ДОМАШНІ» без самого обмеження — підтвердження
+          // наосліп. Показуємо, що саме запишеться.
+          const details = [
+            it.diet,
+            it.allergies?.length ? `алергії: ${it.allergies.join(', ')}` : null,
+            it.antipatterns?.length ? it.antipatterns.join(' · ') : null,
+            it.wishes?.length ? it.wishes.join(' · ') : null,
+          ].filter(Boolean);
+          return (
+            <div key={i} className={styles.op} style={details.length ? { alignItems: 'flex-start' } : undefined}>
+              <span className={styles['op-sign']}>{it.op === 'remove' ? '−' : '+'}</span>
+              <span className={styles['op-label']}>
+                {it.label ?? '—'}
+                {details.length > 0 && (
+                  <span style={{ display: 'block', marginTop: 2, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45 }}>
+                    {details.join(' · ')}
+                  </span>
+                )}
+              </span>
+              {it.kind && (
+                <span className={styles['op-qty']}>{KIND_LABELS[it.kind] ?? it.kind.toUpperCase()}</span>
+              )}
+            </div>
+          );
+        })}
       </div>
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
@@ -472,7 +512,7 @@ export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds, onN
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
-        {onCook && <Button variant="positive" onClick={() => onCook(r)}>Готуємо → Cook Mode</Button>}
+        {onCook && <Button variant="positive" onClick={() => onCook(r, rid)}>Готуємо → Cook Mode</Button>}
         {onSaveRecipe && (
           <Button variant="secondary" onClick={() => onSaveRecipe(rid)} disabled={saved}>
             {saved ? '✓ У рецептах' : 'У рецепти'}
