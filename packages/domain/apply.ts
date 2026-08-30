@@ -345,7 +345,7 @@ async function applyNoteOp(
   return true;
 }
 
-function applyProfileOp(
+export function applyProfileOp(
   next: Profile,
   op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string; has?: boolean },
 ): boolean {

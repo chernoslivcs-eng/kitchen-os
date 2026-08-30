@@ -235,7 +235,14 @@ export const api = {
     unpack: () => req<{ created: number }>('/v1/shopping/unpack', { method: 'POST', body: '{}' }),
   },
 
-  profile: () => req<{ profile: ProfileData }>('/v1/profile'),
+  profile: () => req<{ profile: ProfileData; notes: NoteInfo[] }>('/v1/profile'),
+  // Правка руками. Модель у стан не пише — але людина у своєму профілі пише,
+  // і це рівно «дія — інтерфейс».
+  profilePatch: (ops: { op: 'add' | 'remove'; kind: 'allergy' | 'wish' | 'anti' | 'equip'; label: string; has?: boolean }[]) =>
+    req<{ profile: ProfileData; applied: number }>('/v1/profile', {
+      method: 'PATCH', body: JSON.stringify({ ops }),
+    }),
+  deleteNote: (id: string) => req<void>(`/v1/notes/${id}`, { method: 'DELETE' }),
 
   households: {
     listInvites: (household_id: string) =>
@@ -326,6 +333,15 @@ export interface RecipeStep {
   c: string;
   s?: number;                // сек. для таймера, якщо крок часовий
 }
+export interface NoteInfo {
+  id: string;
+  text: string;
+  recipe_title: string | null;
+  rating: number | null;
+  pinned: boolean;
+  created_at: string;
+}
+
 export interface SessionInfo {
   id: string;
   user_id: string;

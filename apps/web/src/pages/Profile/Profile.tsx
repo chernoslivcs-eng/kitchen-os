@@ -1,13 +1,15 @@
-// Профіль (11 з брифу): три блоки з чипами (алергії/побажання/анти),
-// плюс список членів дому, плюс logout.
+// Профіль (11 з брифу): алергії, побажання, обмеження, техніка, висновки з
+// готування, склад дому, logout.
 //
-// MVP-межа: тут тільки перегляд + чипи, редагування — через чат
-// ("Оля не їсть лактозу", "запам'ятай алергію арахіс"). Це саме те,
-// про що бриф §07: «прогресивне розкриття — питання ставиться в момент,
-// коли відповідь на нього одразу потрібна».
+// Основний шлях наповнення лишається розмовним — питання ставиться в момент,
+// коли відповідь одразу потрібна (бриф §07). Але правити руками теж можна:
+// поки екран був доступний лише для читання, помилка моделі в полі «алергії»
+// коштувала ще однієї розмови й надії, що цього разу вона зрозуміє. Найдорожча
+// помилка сиділа в найдорожчому полі й не мала кнопки.
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, type ProfileData, type Me, type InviteInfo } from '../../api';
+import { api, type ProfileData, type Me, type InviteInfo, type NoteInfo } from '../../api';
+import { TagInput } from '../../components/TagInput/TagInput';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { TabBar } from '../../components/TabBar/TabBar';
@@ -23,15 +25,40 @@ export function ProfilePage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<NoteInfo[]>([]);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Одна точка правки на всі три блоки. Відповідь сервера — джерело істини:
+  // локально нічого не домальовуємо, щоб на екрані не з'явилось те, чого
+  // в базі немає.
+  async function patch(op: 'add' | 'remove', kind: 'allergy' | 'wish' | 'anti' | 'equip', label: string) {
+    setProfileError(null);
+    try {
+      const { profile: next } = await api.profilePatch([{ op, kind, label }]);
+      setProfile(next);
+    } catch (err) {
+      setProfileError((err as Error).message);
+    }
+  }
+
+  async function dropNote(id: string) {
+    try {
+      await api.deleteNote(id);
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch (err) {
+      setProfileError((err as Error).message);
+    }
+  }
 
   useEffect(() => {
     (async () => {
       const [p, m, s] = await Promise.all([
-        api.profile().catch(() => ({ profile: null as ProfileData | null })),
+        api.profile().catch(() => ({ profile: null as ProfileData | null, notes: [] as NoteInfo[] })),
         api.me().catch(() => null),
         api.shopping.list().catch(() => ({ count: 0 })),
       ]);
       setProfile(p.profile);
+      setNotes(p.notes ?? []);
       setMe(m);
       setShoppingCount(s.count);
       if (m) {
@@ -100,14 +127,15 @@ export function ProfilePage() {
           <div className={styles.hint}>
             Конкретними назвами. «Молюски» не помітять «мідії» — тому виписуємо всі назви, під якими продукт зустрічається.
           </div>
-          <div className={styles.chips}>
-            {(profile?.allergies ?? []).length === 0 && (
-              <span className={styles['empty-chip']}>ще жодної</span>
-            )}
-            {profile?.allergies.map((a, i) => (
-              <span key={i} className={`${styles.chip} ${styles['chip-allergy']}`}>⚠ {a}</span>
-            ))}
-          </div>
+          <TagInput
+            values={profile?.allergies ?? []}
+            tone="allergy"
+            prefix="⚠"
+            emptyLabel="ще жодної"
+            placeholder="арахіс, арахісова паста…"
+            onAdd={(l) => patch('add', 'allergy', l)}
+            onRemove={(l) => patch('remove', 'allergy', l)}
+          />
         </div>
 
         <div className={styles.section}>
@@ -115,14 +143,13 @@ export function ProfilePage() {
           <div className={styles.hint}>
             Куди тягне. Наприклад: більше риби, менше цукру, українська кухня на свята.
           </div>
-          <div className={styles.chips}>
-            {(profile?.wishes ?? []).length === 0 && (
-              <span className={styles['empty-chip']}>ще жодного</span>
-            )}
-            {profile?.wishes.map((w, i) => (
-              <span key={i} className={`${styles.chip} ${styles['chip-wish']}`}>{w}</span>
-            ))}
-          </div>
+          <TagInput
+            values={profile?.wishes ?? []}
+            tone="wish"
+            placeholder="більше риби, постуємо…"
+            onAdd={(l) => patch('add', 'wish', l)}
+            onRemove={(l) => patch('remove', 'wish', l)}
+          />
         </div>
 
         <div className={styles.section}>
@@ -130,14 +157,13 @@ export function ProfilePage() {
           <div className={styles.hint}>
             Від чого відштовхуватись. Сила читається з формулювання: «не їм свинину» — принципово; «не люблю кінзу» — смак.
           </div>
-          <div className={styles.chips}>
-            {(profile?.antipatterns ?? []).length === 0 && (
-              <span className={styles['empty-chip']}>ще жодного</span>
-            )}
-            {profile?.antipatterns.map((a, i) => (
-              <span key={i} className={`${styles.chip} ${styles['chip-anti']}`}>{a}</span>
-            ))}
-          </div>
+          <TagInput
+            values={profile?.antipatterns ?? []}
+            tone="anti"
+            placeholder="не їм свинину, не люблю кінзу…"
+            onAdd={(l) => patch('add', 'anti', l)}
+            onRemove={(l) => patch('remove', 'anti', l)}
+          />
         </div>
 
         {/* QA6-09: техніка зберігалась і ніде не показувалась — людина не могла ні
@@ -149,14 +175,81 @@ export function ProfilePage() {
               Базове — пательня, каструля, ніж — вважається наявним. Тут тільки те, про що ти сказав окремо.
             </div>
             <div className={styles.chips}>
-              {Object.entries(profile!.equipment).map(([name, state], i) => (
+              {Object.entries(profile!.equipment).map(([name, state]) => (
                 <span
-                  key={i}
+                  key={name}
                   className={`${styles.chip} ${state === 'lacks' ? styles['chip-anti'] : ''}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, paddingRight: 8 }}
                 >
                   {state === 'lacks' ? '✕' : '●'} {name}
+                  <button
+                    type="button"
+                    onClick={() => void patch('remove', 'equip', name)}
+                    aria-label={`Прибрати «${name}»`}
+                    title="Прибрати"
+                    style={{
+                      width: 20, height: 20, border: 0, borderRadius: '50%',
+                      background: 'transparent', color: 'currentColor', opacity: 0.45,
+                      fontSize: 15, lineHeight: 1, cursor: 'pointer', padding: 0,
+                    }}
+                  >×</button>
                 </span>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Висновки з готування. Єдине в профілі, що написала не система про
+            людину, а людина про свою кухню — тому окремим блоком. */}
+        {notes.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles['section-label']}>Висновки з готування</div>
+            <div className={styles.hint}>
+              Те, що ти зрозумів про свою кухню. Асистент це памʼятає й враховує в рецептах.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {notes.map((n) => (
+                <div
+                  key={n.id}
+                  style={{
+                    display: 'flex', alignItems: 'baseline', gap: 10,
+                    padding: '10px 0', borderBottom: '1px solid var(--border)',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)' }}>
+                      {n.pinned && <span style={{ color: 'var(--accent)', marginRight: 6 }}>★</span>}
+                      {n.text}
+                    </div>
+                    {n.recipe_title && (
+                      <div style={{
+                        marginTop: 3, fontFamily: 'var(--font-mono)', fontSize: 11,
+                        letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase',
+                      }}>
+                        {n.recipe_title}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void dropNote(n.id)}
+                    aria-label={`Прибрати висновок «${n.text}»`}
+                    title="Прибрати"
+                    style={{
+                      border: 0, background: 'transparent', color: 'var(--fg-dim)',
+                      fontFamily: 'var(--font-mono)', fontSize: 13, cursor: 'pointer', padding: '2px 4px',
+                    }}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {profileError && (
+          <div className={styles.section}>
+            <div style={{ color: 'var(--danger)', fontFamily: 'var(--font-body)', fontSize: 13 }}>
+              Не вдалося зберегти: {profileError}
             </div>
           </div>
         )}
