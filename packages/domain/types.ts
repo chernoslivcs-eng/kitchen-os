@@ -229,6 +229,9 @@ export interface RecipeRow {
   owner_id: string;
   origin: 'generated' | 'imported' | 'catalog';
   title: string;
+  // QA8-01: людина просила «Паста карбонара з фуетом», модель назвала
+  // «Карбонара з фуетом» — dedupe генерації шукає за ОБОМА назвами.
+  requested_title?: string | null;
   descr: string | null;
   character: string | null;
   risk: string | null;

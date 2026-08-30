@@ -8,6 +8,7 @@ import type { ChatCard, Recipe } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { formatQty } from '../../lib/units';
+import { renderStepContent } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
 
@@ -444,7 +445,7 @@ export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds, onN
               <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
                 <span style={{ color: 'var(--fg)' }}>
-                  {step.t}. {renderStepInline(step.c, r.ing)}
+                  {step.t}. {renderStepContent(step.c, r.ing, batchLabels)}
                   {!!step.s && (
                     <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
                       ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
@@ -482,10 +483,6 @@ export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds, onN
   );
 }
 
-// Плейсхолдери {N} у тексті кроку → назви інгредієнтів.
-function renderStepInline(content: string, ing: Recipe['ing']): string {
-  return content.replace(/\{(\d+)\}/g, (_, n) => ing[Number(n)]?.n ?? 'інгредієнт');
-}
 
 export function Card(props: CardProps) {
   switch (props.card.type) {

@@ -3,7 +3,7 @@
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
@@ -250,9 +250,14 @@ export function Feed() {
     } catch {/* тихо */}
   }
 
-  useEffect(() => {
+  // QA8-04: smooth-скрол у цьому контейнері мовчки не працював (виміряно:
+  // scrollTop лишався 0), і вимір scrollHeight ішов до розкладки високого
+  // блока рецепта. useLayoutEffect + rAF міряють ПІСЛЯ розкладки, скрол
+  // миттєвий — людина бачить нову відповідь, а не порожнечу за кадром.
+  useLayoutEffect(() => {
     const el = timelineRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    if (!el) return;
+    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }, [turns]);
 
   // Keyboard shortcuts на десктопі:
@@ -404,14 +409,18 @@ export function Feed() {
       // в стрічці цілком (сервер уже записав повідомлення — F5 тримає);
       // повторний тап по тій самій назві поверне ТОЙ САМИЙ рецепт (dedupe).
       if (id) {
-        setTurns((prev) => {
-          // Не дублюємо хід, якщо цей рецепт уже в стрічці (reused).
-          if (prev.some((t) => t.card?.type === 'recipe_link' && t.card.recipe_id === id)) return prev;
-          return [...prev, {
-            id: newId(), role: 'assistant', time: hhmm(),
-            card: { type: 'recipe_link', recipe_id: id, title: recipe.t, recipe },
-          }];
-        });
+        // QA8-01: сервер тепер ідемпотентний за запитаною назвою — повторний
+        // тап повертає той самий id. Якщо рецепт уже в стрічці, не дублюємо
+        // хід, а скролимо до нього: людина бачить, куди дивитись.
+        const existing = turns.find((t) => t.card?.type === 'recipe_link' && t.card.recipe_id === id);
+        if (existing) {
+          document.getElementById(`turn-${existing.id}`)?.scrollIntoView({ block: 'center' });
+          return;
+        }
+        setTurns((prev) => [...prev, {
+          id: newId(), role: 'assistant', time: hhmm(),
+          card: { type: 'recipe_link', recipe_id: id, title: recipe.t, recipe },
+        }]);
       } else {
         // Аварійний шлях без id (не мало б статись) — старий екран.
         navigate('/recipe', { state: { recipe } });
@@ -792,7 +801,7 @@ export function Feed() {
                 key={t.id}
                 className={styles['rail-row']}
                 onClick={() => {
-                  document.getElementById(`turn-${t.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  document.getElementById(`turn-${t.id}`)?.scrollIntoView({ block: 'center' });
                 }}
               >
                 <span className={styles['rail-label']}>{labelFor(t.card!.type).text.replace(' · ◌ ОЧІКУЄ', '')}</span>

@@ -466,3 +466,69 @@ describe('рецепт як хід розмови', () => {
     expect(links).toHaveLength(1);
   });
 });
+
+// QA8-01: «хвороба двох борщів» повернулась — dedupe порівнював ЗАПИТАНУ
+// назву («Паста карбонара з фуетом» із пропозиції) зі збереженою назвою
+// МОДЕЛІ («Карбонара з фуетом»). Вони не збігаються майже ніколи. Тепер
+// запитана назва пишеться поруч і бере участь у пошуку.
+describe('ідемпотентність за запитаною назвою (QA8-01)', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  it('повтор із назвою пропозиції знаходить рецепт, який модель назвала інакше', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    // Чернетка, де модель «перейменувала» страву: title від моделі,
+    // requested_title — те, що просила людина.
+    const draft_id = randomUUID();
+    await repo.saveRecipe({
+      id: draft_id, owner_id: me.user_id, origin: 'generated',
+      title: 'Карбонара з фуетом',
+      requested_title: 'Паста карбонара з фуетом',
+      descr: null, character: null, risk: null, base_servings: 2,
+      time_total: null, nutrition: null,
+      payload: { t: 'Карбонара з фуетом', ing: [], st: [] },
+      created_at: new Date().toISOString(), saved_at: null,
+    });
+
+    const second = (await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie }, payload: { title: 'Паста карбонара з фуетом' },
+    })).json();
+    expect(second.id).toBe(draft_id);
+    expect(second.reused).toBe(true);
+  });
+
+  it('вікно пошуку не обрізає до 20 — 25 рецептів, перший досі знаходиться', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const first = (await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie }, payload: { title: 'Нульовий борщ' },
+    })).json();
+    // Чернетки напряму: 24 генерації впираються в rate-limit, а тест
+    // перевіряє вікно пошуку, не ліміт.
+    for (let i = 0; i < 24; i++) {
+      await repo.saveRecipe({
+        id: randomUUID(), owner_id: me.user_id, origin: 'generated',
+        title: `Страва ${i}`, requested_title: `Страва ${i}`,
+        descr: null, character: null, risk: null, base_servings: 2,
+        time_total: null, nutrition: null,
+        payload: { t: `Страва ${i}`, ing: [], st: [] },
+        created_at: new Date(Date.now() + i).toISOString(), saved_at: null,
+      });
+    }
+    const again = (await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie }, payload: { title: 'Нульовий борщ' },
+    })).json();
+    expect(again.id).toBe(first.id);
+    expect(again.reused).toBe(true);
+  });
+});
