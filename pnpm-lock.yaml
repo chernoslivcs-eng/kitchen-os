@@ -107,6 +107,9 @@ importers:
       '@kitchen/catalog':
         specifier: workspace:*
         version: link:../catalog
+      '@kitchen/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@kitchen/prompts':
         specifier: workspace:*
         version: link:../prompts

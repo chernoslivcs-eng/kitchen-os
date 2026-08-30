@@ -1,0 +1,19 @@
+{
+  "id": "qa5-unapplied-card-truth",
+  "description": "QA5-02. Модель вірила власному «Запишу» з історії й казала «так, вже в коморі», коли картку не застосовано. Джерело правди — блок [КОМОРА], а не попередні репліки. Картка в історії йде з міткою [НЕ ЗАСТОСОВАНО].",
+  "call": "chat",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"p1","label":"Спагеті","zone":"dry","v":500,"u":"g","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Купив молоко 1 л і батон" },
+    { "role": "assistant", "content": "Запишу молоко й батон.\n[картка: комора] add молоко · add батон [НЕ ЗАСТОСОВАНО]" },
+    { "role": "user", "content": "Це вже в коморі?" }
+  ],
+  "invariants": [
+    "denies-unapplied-card",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

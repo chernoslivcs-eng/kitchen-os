@@ -1,33 +1,20 @@
 {
   "version": "2026-08-28",
-  "notes": "Дослівний перенос із kitchen-prototype.jsx через 03-prompts.md. Кожне правило поставлене після конкретної помилки — реєстр збоїв у 03-prompts.md § «Що ламалось і чим закрито».",
+  "notes": "Дослівний перенос із kitchen-prototype.jsx через 03-prompts.md. Кожне правило поставлене після конкретної помилки — реєстр збоїв у 03-prompts.md § «Що ламалось і чим закрито», далі в qa-report-*.md і copy-report-*.md.",
   "calls": {
     "chat": {
       "profile": "smart",
       "compose": ["role", "onboarding-stage1?", "onboarding-stage2?", "card-rules"],
-      "cache_prefix": ["role", "card-rules"],
-      "notes": "Фактичний порядок (model.ts callChat): compose(role → [onboarding] → card-rules) → [ПРОФІЛЬ] → [СЬОГОДНІ] → [КОМОРА] → [ОСТАННІ ГОТУВАННЯ]. Обмеження стоять ПЕРЕД інвентарем свідомо (QA5-01): інакше модель встигає перелічити алергени до того, як побачить профіль. cache_prefix — усе, що в compose(); динамічні блоки за ним і кеш не ламають."
+      "notes": "Порядок системного промпту: compose(role → [onboarding] → card-rules) + buildKitchenContext() з @kitchen/domain, який дає [ПРОФІЛЬ] → [СЬОГОДНІ] → [КОМОРА] → [СПИСОК ПОКУПОК] → [ОСТАННІ ГОТУВАННЯ]. Обмеження перед інвентарем свідомо (QA5-01). Модель smart, а не fast: copy-report-4 зафіксував 8 мовних дефектів на haiku проти 3 на sonnet."
     },
     "recipe_gen": {
       "profile": "smart",
-      "compose": ["role", "recipe-generator"],
-      "cache_prefix": ["role", "recipe-generator"]
+      "compose": ["role", "recipe-generator"]
     },
     "attachment_parse": {
       "profile": "fast",
       "temperature": 0,
-      "compose": ["role", "attachment-parser"],
-      "cache_prefix": ["role", "attachment-parser"]
-    },
-    "recipe_import": {
-      "profile": "smart",
-      "compose": ["role", "attachment-parser"],
-      "cache_prefix": ["role", "attachment-parser"]
-    },
-    "pantry_search": {
-      "profile": "fast",
-      "compose": ["role"],
-      "cache_prefix": ["role"]
+      "compose": ["role", "attachment-parser"]
     }
   }
 }

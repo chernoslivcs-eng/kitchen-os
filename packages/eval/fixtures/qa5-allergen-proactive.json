@@ -1,0 +1,25 @@
+{
+  "id": "qa5-allergen-proactive",
+  "description": "QA5-01. Модель бачила алергію на мигдаль, цитувала її дослівно на пряме питання — і сама пропонувала шоколад з мигдалем першим пунктом. Правило стояло за пів промпту від даних. Тепер алерген позначений прямо в рядку партії.",
+  "call": "chat",
+  "profile": {
+    "allergies": ["арахіс", "мигдаль", "волоські горіхи", "кешʼю", "фундук"],
+    "wishes": [],
+    "antipatterns": []
+  },
+  "pantry": [
+    {"id":"p1","label":"Шоколад молочний з мигдалем","zone":"dry","v":100,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Булочки з корицею","zone":"dry","v":4,"u":"pcs","state":"sealed"},
+    {"id":"p3","label":"Шоколад чорний 70%","zone":"dry","v":90,"u":"g","state":"sealed"},
+    {"id":"p4","label":"Чай чорний","zone":"drinks","v":50,"u":"g","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Що солодкого до чаю з того, що є вдома?" }
+  ],
+  "invariants": [
+    "has-card",
+    "no-almond-in-proposal",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

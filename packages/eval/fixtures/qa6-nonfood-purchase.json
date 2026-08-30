@@ -1,0 +1,17 @@
+{
+  "id": "qa6-nonfood-purchase",
+  "description": "QA6-02. «Купив» на нехарчове має давати intake_diff, не shopping. Людина сказала, що ВЖЕ купила — продукт клав це в список того, що треба купити. Плюс reply називав дві позиції, а картка мала одну.",
+  "call": "chat",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [],
+  "conversation": [
+    { "role": "user", "content": "Купив туалетний папір, мийний засіб і серветки" }
+  ],
+  "invariants": [
+    "has-card",
+    "is-intake-not-shopping",
+    "reply-matches-card",
+    "future-tense-with-card",
+    "no-markdown"
+  ]
+}

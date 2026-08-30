@@ -2,12 +2,15 @@
 // незалежно від того, live це чи stub. У проді фільтруємо `mode='live'`.
 
 import { randomUUID } from 'node:crypto';
+import { loadPrompt } from '@kitchen/prompts';
 import type { Repo, UserContext, CallName, ModelProfile, CallMode } from '@kitchen/domain';
 
+// Третє місце, де жив мапінг «виклик → профіль», і воно теж розійшлось: чат тут
+// рахувався як 'fast' навіть після переходу на sonnet. Тепер джерело одне —
+// маніфест промпту; тут лишається тільки stub-гілка.
 function deriveProfile(call: CallName, mode: CallMode): ModelProfile {
   if (mode === 'stub') return 'stub';
-  if (call === 'recipe_gen' || call === 'recipe_import') return 'smart';
-  return 'fast';
+  return loadPrompt().manifest.calls[call].profile;
 }
 
 export async function recordUsage(

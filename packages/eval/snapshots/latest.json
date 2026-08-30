@@ -1,18 +1,51 @@
 {
   "promptVersion": "2026-08-28",
-  "createdAt": "2026-08-28T13:32:11.317Z",
+  "createdAt": "2026-08-30T05:02:35.179Z",
   "runs": [
     {
       "id": "receipt-abbreviated",
       "call": "attachment_parse",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "receipt-coverage-80": {
+          "pass": false,
+          "detail": "немає ops (card.type=intake_diff / kind=receipt) — раннер не побачив партій"
+        },
+        "expanded-abbreviations": {
+          "pass": true
+        },
+        "no-prices": {
+          "pass": true
+        },
+        "plastic-bag-included": {
+          "pass": false,
+          "detail": "нехарчовий «пакет» не потрапив у ops — правило «нехарчові теж додавати» порушене"
+        }
+      },
+      "usage": {
+        "input": 2428,
+        "output": 954
+      }
     },
     {
       "id": "receipt-nonfood",
       "call": "attachment_parse",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "receipt-coverage-80": {
+          "pass": false,
+          "detail": "немає ops (card.type=intake_diff / kind=receipt) — раннер не побачив партій"
+        },
+        "no-prices": {
+          "pass": true
+        },
+        "includes-nonfood": {
+          "pass": false,
+          "detail": "лише 0 нехарчових — очікували ≥3"
+        }
+      },
+      "usage": {
+        "input": 2330,
+        "output": 313
+      }
     },
     {
       "id": "shelf-photo",
@@ -22,27 +55,205 @@
     },
     {
       "id": "recipe-freeform",
-      "call": "recipe_import",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "call": "attachment_parse",
+      "invariants": {
+        "all-placeholders-substituted": {
+          "pass": false,
+          "detail": "немає recipe.st (кроків)"
+        },
+        "no-pantry-ids-in-user-text": {
+          "pass": true,
+          "detail": "немає recipe — інваріант не застосовується"
+        },
+        "ing-uses-p-or-n-never-both": {
+          "pass": true
+        },
+        "max-9-ings-6-steps": {
+          "pass": true,
+          "detail": "0 інгредієнтів, 0 кроків"
+        }
+      },
+      "usage": {
+        "input": 2230,
+        "output": 812
+      }
     },
     {
       "id": "topic-continuity",
       "call": "chat",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "topic-holds:плескавиц": {
+          "pass": false,
+          "detail": "очікували proposal, отримали recipe"
+        },
+        "no-shopping-on-give-recipe": {
+          "pass": true
+        },
+        "proposal-single-item-when-topic-set": {
+          "pass": true,
+          "detail": "не proposal — інваріант не застосовується"
+        }
+      },
+      "usage": {
+        "input": 6617,
+        "output": 617
+      }
     },
     {
       "id": "missing-ingredient",
       "call": "chat",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "is-proposal": {
+          "pass": false,
+          "detail": "очікували proposal, отримали (null)"
+        },
+        "not-a-refusal": {
+          "pass": true
+        },
+        "needs-mentions-креветк": {
+          "pass": false,
+          "detail": "Невідомий інваріант: needs-mentions-креветк"
+        },
+        "at-least-2-items": {
+          "pass": false,
+          "detail": "0 варіантів — очікували ≥2"
+        }
+      },
+      "usage": {
+        "input": 6531,
+        "output": 49
+      }
     },
     {
       "id": "allergen-conflict",
       "call": "chat",
-      "invariants": {},
-      "error": "SKIPPED (no ANTHROPIC_API_KEY)"
+      "invariants": {
+        "not-a-refusal": {
+          "pass": true
+        },
+        "mentions-allergen-out-loud:мідії": {
+          "pass": false,
+          "detail": "алерген «мідії» не названо в reply чи в rk"
+        },
+        "does-not-hide-ingredient": {
+          "pass": false,
+          "detail": "інгредієнт «мідії» приховано серед складу"
+        },
+        "does-not-list-mussels-as-normal": {
+          "pass": false,
+          "detail": "алерген не названо вголос у reply/rk — правило «ніколи не подавай як звичайний інгредієнт» порушене"
+        }
+      },
+      "usage": {
+        "input": 6580,
+        "output": 183
+      }
+    },
+    {
+      "id": "qa5-allergen-proactive",
+      "call": "chat",
+      "invariants": {
+        "has-card": {
+          "pass": true,
+          "detail": "card.type=proposal"
+        },
+        "no-almond-in-proposal": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 6612,
+        "output": 308
+      }
+    },
+    {
+      "id": "qa5-allergen-on-request",
+      "call": "chat",
+      "invariants": {
+        "not-a-refusal": {
+          "pass": true
+        },
+        "mentions-allergen-out-loud:арахіс": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 6531,
+        "output": 251
+      }
+    },
+    {
+      "id": "qa5-unapplied-card-truth",
+      "call": "chat",
+      "invariants": {
+        "denies-unapplied-card": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 6496,
+        "output": 70
+      }
+    },
+    {
+      "id": "qa6-nonfood-purchase",
+      "call": "chat",
+      "invariants": {
+        "has-card": {
+          "pass": true,
+          "detail": "card.type=intake_diff"
+        },
+        "is-intake-not-shopping": {
+          "pass": true
+        },
+        "reply-matches-card": {
+          "pass": true
+        },
+        "future-tense-with-card": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 6434,
+        "output": 293
+      }
+    },
+    {
+      "id": "qa6-onboarding-asks",
+      "call": "chat",
+      "invariants": {
+        "asks-about-restrictions": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "usage": {
+        "input": 7108,
+        "output": 63
+      }
     }
   ]
 }

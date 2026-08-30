@@ -2,7 +2,14 @@
 // Без ключа повертає стаб-картку — тести й локальний дев не потребують мережі.
 
 import Anthropic from '@anthropic-ai/sdk';
-import { loadPrompt, compose } from '@kitchen/prompts';
+import { loadPrompt, compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
+import {
+  buildKitchenContext,
+  extractJson,
+  serializePantry as ctxSerializePantry,
+  serializeProfile as ctxSerializeProfile,
+  type RecentCookRunSummary,
+} from '@kitchen/domain';
 import type { Card, PantryBatch, Profile, ShoppingItemRow } from '@kitchen/domain';
 
 // Один провайдер моделі — або прямий Anthropic, або OpenRouter (той самий формат
@@ -25,16 +32,21 @@ function baseURL(): string | undefined {
   // додає /v1/messages до baseURL, тож baseURL має бути /api без /v1.
   return isOpenRouter() ? 'https://openrouter.ai/api' : undefined;
 }
-function fastModel(): string {
-  if (process.env.MODEL_FAST) return process.env.MODEL_FAST;
-  // Слаги OpenRouter застарівають без попередження — актуальні звіряти на
-  // GET https://openrouter.ai/api/v1/models. Перекривається MODEL_FAST у .env
-  // / Vercel Env. Стан на 2026-08-29 підтверджено QA-звітом Cowork.
-  return isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001';
+// Слаги OpenRouter застарівають без попередження — актуальні звіряти на
+// GET https://openrouter.ai/api/v1/models. Перекривається MODEL_FAST/MODEL_SMART.
+function modelFor(profile: 'fast' | 'smart'): string {
+  if (profile === 'fast') {
+    return process.env.MODEL_FAST
+      ?? (isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001');
+  }
+  return process.env.MODEL_SMART
+    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-4.5' : 'claude-sonnet-5');
 }
-function smartModel(): string {
-  if (process.env.MODEL_SMART) return process.env.MODEL_SMART;
-  return isOpenRouter() ? 'anthropic/claude-sonnet-4.5' : 'claude-sonnet-5';
+
+// Яка модель обслуговує виклик — вирішує маніфест, не код. Доки мапінг жив у
+// двох місцях, вони розійшлись (QA5-12).
+function modelForCall(call: CallName, prompt: LoadedPrompt): string {
+  return modelFor(prompt.manifest.calls[call].profile);
 }
 function makeClient(): Anthropic | null {
   const key = apiKey();
@@ -71,12 +83,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
   throw lastErr;
 }
 
-export interface RecentCookRunSummary {
-  title: string;
-  rating: number | null;
-  verdict: string | null;
-  finished_at: string;
-}
+export type { RecentCookRunSummary };
 
 export interface ChatArgs {
   user_id: string;
@@ -97,87 +104,10 @@ export interface ChatCall {
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
 
-// Серіалізація готування: назва · коли · рейтинг · verdict. Verdict короткий, тому
-// повністю. Це те, що модель бачить як «людина вже пробувала цю штуку — от як їй було».
-// QA4-08: Math.round давав «0дн тому» для готування 20 хв тому, і модель казала «вчора».
-function serializeCookRun(r: RecentCookRunSummary): string {
-  const ms = Date.now() - new Date(r.finished_at).getTime();
-  const days = Math.floor(ms / 86_400_000);
-  const when = days === 0 ? 'сьогодні' : days === 1 ? 'вчора' : `${days} дн тому`;
-  const parts = [r.title, when];
-  if (r.rating != null) parts.push(`★${r.rating}/5`);
-  if (r.verdict) parts.push(`«${r.verdict}»`);
-  return parts.join(' · ');
-}
 
-// QA5-07: модель не знала дати й у суботу сказала «Сьогодні середа — піст». Без цього
-// рядка вся гілка правил про традиції, свята й «щоп'ятниці риба» не може працювати.
-function todayLabel(): string {
-  return new Date().toLocaleDateString('uk-UA', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
-}
 
-// Список покупок у контекст. QA6-04: без нього модель у новій сесії казала «список
-// порожній» при двох позиціях у ньому — і додавала дубль за один тап. У межах сесії
-// рятувала історія, між сесіями — нічого.
-function serializeShopping(items: ShoppingItemRow[]): string {
-  if (!items.length) return '';
-  const lines = items.map((i) => {
-    const parts = [i.label];
-    if (i.value != null && i.unit) parts.push(`${i.value}${i.unit}`);
-    if (i.checked) parts.push('куплено');
-    return parts.join(' · ');
-  });
-  return '\n\n[СПИСОК ПОКУПОК]\n' + lines.join('\n');
-}
 
-// Профіль у контекст. QA4-02: до цього алергії зберігались, показувались у UI — і не
-// впливали ні на що. Модель двічі пропонувала мигдаль людині з алергією на мигдаль.
-function serializeProfile(p: Profile | null | undefined): string {
-  if (!p) return '';
-  const parts: string[] = [];
-  if (p.allergies.length) {
-    parts.push('АЛЕРГІЇ (тверда межа — ніколи не пропонуй сам): ' + p.allergies.join(', '));
-  }
-  if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
-  if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
-  const eq = Object.entries(p.equipment ?? {});
-  const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
-  const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
-  if (has.length) parts.push('Є ТЕХНІКА: ' + has.join(', '));
-  if (lacks.length) parts.push('НЕМАЄ ТЕХНІКИ: ' + lacks.join(', '));
-  return parts.length ? '\n\n[ПРОФІЛЬ]\n' + parts.join('\n') : '';
-}
 
-// Стисла серіалізація комори — та сама, що в прототипі: id · назва · зона · кількість · стан.
-// Термін догоряння додаємо як «!Nдн» щоб модель могла згадати про нього в репліці
-// (бриф §04: «Інформація — репліка, а не панель»).
-//
-// QA5-01: алергени позначаємо ПРЯМО В РЯДКУ ПАРТІЇ, а не окремим правилом. Правило
-// «ніколи не пропонуй алерген» стояло за пів промпту вище й ігнорувалось: коли модель
-// читає [КОМОРА] і перелічує, що є вдома, її ніщо не зупиняє. Тепер «Шоколад з мигдалем»
-// фізично не прочитати без мітки поруч.
-function serializePantry(bs: PantryBatch[], profile?: Profile | null): string {
-  const now = Date.now();
-  const allergens = (profile?.allergies ?? []).map((a) => a.toLowerCase()).filter(Boolean);
-  return bs
-    .filter((b) => b.state !== 'depleted')
-    .map((b) => {
-      const parts = [b.id, b.label, b.zone];
-      if (b.value && b.unit) parts.push(`${b.value}${b.unit}`);
-      if (b.state === 'opened') parts.push('вдкр');
-      if (b.expires_at) {
-        const days = Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000);
-        if (days <= 7) parts.push(`!${days}дн`);
-      }
-      const label = b.label.toLowerCase();
-      const hit = allergens.filter((a) => label.includes(a));
-      if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — САМ НЕ ПРОПОНУЙ`);
-      return parts.join(' · ');
-    })
-    .join('\n');
-}
 
 // Стаб для тестів і локального дев без ключа. Повертає передбачувану intake_diff-картку
 // на текст із «купив X». Все інше — просто reply без картки.
@@ -203,28 +133,29 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
   };
 }
 
+// Складання системного промпту експортоване НАВМИСНЕ: усі справжні баги
+// QA-4/5/6 були тут, а не в логіці. «Профіль не доходить до моделі», «список
+// не доходить», «правило стоїть після даних» — усе це перевіряється на рядку,
+// без мережі й без ключа (tests/model-context.test.ts).
+//
+// Сам контекст живе в @kitchen/domain — його ділять прод і eval. Поки він сидів
+// тут, eval складав власний промпт і перевіряв не те, що працює у проді.
+export function buildChatSystem(args: ChatArgs, promptText: string): string {
+  return promptText + buildKitchenContext({
+    pantry: args.pantry,
+    profile: args.profile,
+    shopping: args.shopping,
+    recentCookRuns: args.recentCookRuns,
+  });
+}
+
 export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const prompt = loadPrompt();
   const client = makeClient();
   if (!client) return stub(args, prompt.version);
 
-  // Чат — це і є продукт: там, де людина чує голос, економити на моделі означає
-  // економити на голосі. QA-4 copy-report: haiku-4.5 дав 8 мовних дефектів за прогін
-  // (русизми, неіснуючі слова), sonnet-4.5 за чотири прогони — жодного.
-  const model = smartModel();
-  const cookLog = args.recentCookRuns?.length
-    ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n' + args.recentCookRuns.map(serializeCookRun).join('\n')
-    : '';
-  // Порядок блоків: обмеження ПЕРЕД інвентарем. Модель читає [КОМОРА] згори вниз;
-  // якщо профіль стоїть після, вона встигає перелічити алергени до того, як побачить
-  // обмеження (QA5-01). Кеш це не ламає — cache_prefix у маніфесті це role+card-rules,
-  // обидва блоки й так за ним.
-  const system = compose('chat', prompt, { stage: args.stage })
-    + serializeProfile(args.profile)
-    + '\n\n[СЬОГОДНІ] ' + todayLabel()
-    + '\n\n[КОМОРА]\n' + serializePantry(args.pantry, args.profile)
-    + serializeShopping(args.shopping ?? [])
-    + cookLog;
+  const model = modelForCall('chat', prompt);
+  const system = buildChatSystem(args, compose('chat', prompt, { stage: args.stage }));
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
   const messages = [
@@ -338,11 +269,11 @@ export async function callRecipe(args: {
   const client = makeClient();
   if (!client) return recipeStub(args.title, prompt.version);
 
-  const model = smartModel();
+  const model = modelForCall('recipe_gen', prompt);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + serializePantry(args.pantry, args.profile)
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile)
     : '';
-  const system = compose('recipe_gen', prompt) + serializeProfile(args.profile) + pantryBlock;
+  const system = compose('recipe_gen', prompt) + ctxSerializeProfile(args.profile) + pantryBlock;
   const userText = args.context
     ? `${args.title}\n\n${args.context}`
     : args.title;
@@ -422,7 +353,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   const client = makeClient();
   if (!client) return attachmentStub(atts, prompt.version);
 
-  const model = fastModel();
+  const model = modelForCall('attachment_parse', prompt);
   const system = compose('attachment_parse', prompt);
 
   const parts: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam)[] = [];
@@ -489,62 +420,6 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   };
 }
 
-// Витягає ВСІ верхньорівневі JSON-обʼєкти з тексту й обирає карту з валідним
-// `type`. Модель іноді пише два обʼєкти в одну відповідь («ось intake для
-// комори, ось proposal для рецепта») — раніше ми брали перший, а другий
-// затікав у reply сирим JSON. QA-звіт зафіксував це як FIX-05.
-export function extractJson(text: string): { parsed: unknown; residualText: string } {
-  const trimmed = text.trim();
-  try {
-    return { parsed: JSON.parse(trimmed), residualText: '' };
-  } catch {}
-
-  const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile'];
-  const found: unknown[] = [];
-  let residual = '';
-  let i = 0;
-  while (i < text.length) {
-    if (text[i] !== '{') { residual += text[i++]; continue; }
-    const end = matchBrace(text, i);
-    if (end === -1) { residual += text[i++]; continue; }
-    const slice = text.slice(i, end + 1);
-    try {
-      found.push(JSON.parse(slice));
-    } catch {
-      residual += slice;
-    }
-    i = end + 1;
-  }
-  // Пріоритет: (1) обгортка {reply,card}; (2) обʼєкт із валідним type;
-  // (3) перший знайдений. Тоді при двох JSON з type card вибирається один,
-  // а другий не тече в reply.
-  const wrapper = found.find((o) =>
-    o && typeof o === 'object' && 'reply' in (o as object) && 'card' in (o as object),
-  );
-  const card = found.find((o) => {
-    const t = (o as { type?: unknown } | null)?.type;
-    return typeof t === 'string' && CARD_TYPES.includes(t);
-  });
-  return { parsed: wrapper ?? card ?? found[0] ?? null, residualText: residual.trim() };
-}
-
-// Індекс парної '}' для '{' на позиції start; -1 якщо не знайдено.
-function matchBrace(text: string, start: number): number {
-  let depth = 0, inString = false, escaped = false;
-  for (let i = start; i < text.length; i++) {
-    const c = text[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (c === '\\') escaped = true;
-      else if (c === '"') inString = false;
-      continue;
-    }
-    if (c === '"') { inString = true; continue; }
-    if (c === '{') depth++;
-    else if (c === '}' && --depth === 0) return i;
-  }
-  return -1;
-}
 
 // Обгортка для випадків, де нам потрібен лише parsed (у callAttachmentParse).
 function tryParse(text: string): unknown {

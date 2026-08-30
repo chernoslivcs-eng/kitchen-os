@@ -192,7 +192,7 @@ export interface ShoppingItemRow {
 
 // ----- Облік токенів ----------------------------------------------------
 
-export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen' | 'recipe_import' | 'pantry_search';
+export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen';
 export type ModelProfile = 'fast' | 'smart' | 'stub';
 export type CallMode = 'live' | 'stub';
 

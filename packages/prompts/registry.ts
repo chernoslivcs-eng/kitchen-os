@@ -5,17 +5,22 @@ import { dirname, join, resolve } from 'node:path';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VERSIONS_DIR = resolve(HERE, 'versions');
 
+// Тільки те, що справді викликається. `recipe_import` і `pantry_search` тут
+// були задекларовані наперед — із маніфестом, профілем моделі й гілкою в
+// eval-клієнті, — але маршруту й репозиторію не мали жодного дня. Конфіг,
+// який описує неіснуюче, дезінформує того, хто прийде читати код. Повернути,
+// коли зʼявиться реалізація.
 export type CallName =
   | 'chat'
   | 'recipe_gen'
-  | 'attachment_parse'
-  | 'recipe_import'
-  | 'pantry_search';
+  | 'attachment_parse';
 
 export interface CallSpec {
+  // `profile` — ЄДИНЕ джерело того, яка модель обслуговує виклик. Раніше
+  // мапінг дублювався в model.ts і в eval, вони розійшлись, і QA5-12 знайшов
+  // маніфест, який казав "fast" там, де код брав smart.
   profile: 'fast' | 'smart';
   compose: string[];
-  cache_prefix: string[];
   temperature?: number;
   notes?: string;
 }

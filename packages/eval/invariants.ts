@@ -218,6 +218,118 @@ export const registry: Record<string, Invariant> = {
       ? pass()
       : fail('алерген не названо вголос у reply/rk — правило «ніколи не подавай як звичайний інгредієнт» порушене');
   },
+
+  // === Знахідки QA-4/5/6 ===
+  // Кожен інваріант названий за багом. Прогін `pnpm eval` займає хвилини й
+  // ловить те, на що йшло по два години ручного QA.
+
+  'has-card': (out) => out.card
+    ? pass(`card.type=${out.card.type ?? out.card.kind}`)
+    : fail('картки немає — людині нема куди тапнути'),
+
+  'no-markdown': (out) => {
+    const reply = String(out.reply ?? '');
+    const hits = [
+      /\*\*/.test(reply) && '**жирний**',
+      /^#{1,6}\s/m.test(reply) && '## заголовок',
+      /^\s*[-*]\s/m.test(reply) && '- список',
+      /`/.test(reply) && '`код`',
+    ].filter(Boolean);
+    return hits.length === 0
+      ? pass()
+      : fail(`маркдаун у reply (інтерфейс рендерить plain text): ${hits.join(', ')}`);
+  },
+
+  // QA-4/5/6: правило «час дієслова» — картка ще не застосована, дія в майбутньому.
+  'future-tense-with-card': (out) => {
+    if (!out.card) return pass('картки немає — правило не застосовне');
+    const reply = String(out.reply ?? '').toLowerCase();
+    const claimed = reply.match(
+      /\b(записав|записала|записую|прибрав|прибрала|прибираю|видалив|видалила|видаляю|додав|додала|додаю)\b/,
+    );
+    return claimed
+      ? fail(`«${claimed[0]}» стверджує доконану дію, а картку ще не застосовано`)
+      : pass();
+  },
+
+  // QA-5: продукт послідовно на «ти».
+  'addresses-informally': (out) => {
+    const reply = String(out.reply ?? '');
+    const formal = reply.match(/\b(Ви|Вас|Вам|Ваш\w*|зніміть|скажіть|оберіть|додайте|спробуйте)\b/);
+    return formal
+      ? fail(`звертання на «ви»: «${formal[0]}» — продукт усюди на «ти»`)
+      : pass();
+  },
+
+  // QA-6: «купив» — завжди intake_diff, навіть на нехарчове.
+  'is-intake-not-shopping': (out) => {
+    const t = out.card?.type ?? out.card?.kind;
+    if (t === 'intake_diff' || t === 'receipt') return pass();
+    return fail(`«купив» дало card.type=${t ?? '(null)'} — людина сказала, що вже купила`);
+  },
+
+  // QA-6: reply не обіцяє більше, ніж є в картці.
+  'reply-matches-card': (out) => {
+    const ops = opsOfIntake(out);
+    if (!ops) return pass('не intake — правило не застосовне');
+    const reply = String(out.reply ?? '').toLowerCase();
+    const labels = ops.map((o: any) => String(o.label ?? '').toLowerCase()).filter(Boolean);
+    // Грубо: кожне значиме слово з reply, схоже на продукт, має мати відповідник в ops.
+    // Хибні спрацювання можливі, тому дивимось лише на явний перелік через кому/«і».
+    const listed = reply.split(/[,.]|\bі\b|\bй\b/).map((s) => s.trim()).filter((s) => s.length > 3);
+    const orphans = listed.filter((phrase) => {
+      const looksLikeProduct = /^[а-яїєі\s]+$/.test(phrase) && phrase.split(/\s+/).length <= 2;
+      if (!looksLikeProduct) return false;
+      const stem = phrase.slice(0, Math.max(4, phrase.length - 2));
+      return !labels.some((l) => l.includes(stem));
+    });
+    // Поріг: одна «сирота» — це шум формулювання, дві й більше — розбіжність.
+    return orphans.length < 2
+      ? pass()
+      : fail(`reply називає те, чого немає в ops: ${orphans.slice(0, 2).join(', ')}`);
+  },
+
+  // QA5-01: алерген не має зʼявлятись у пропозиції, яку модель робить сама.
+  'no-almond-in-proposal': (out) => {
+    const card = out.card;
+    if (card?.type !== 'proposal') return pass('не proposal');
+    const hay = JSON.stringify(card).toLowerCase() + ' ' + String(out.reply ?? '').toLowerCase();
+    // корінь «мигдал» ловить і «мигдаль», і «мигдалем», і «мигдальний»
+    return /мигдал|арахіс|горіх|кеш|фундук/.test(hay)
+      ? fail('алерген у власній пропозиції моделі — правило «сам не пропонуй» порушене')
+      : pass();
+  },
+
+  // QA5-02: незастосована картка нічого не змінила.
+  'denies-unapplied-card': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const claims = /\b(так,|вже в коморі|записав|записано|є в коморі)\b/.test(reply);
+    const denies = /\bні\b|ще не|не застосов|не натиснув|чекає|треба підтвердити/.test(reply);
+    if (claims && !denies) {
+      return fail('стверджує, що позиція в коморі, хоча картка [НЕ ЗАСТОСОВАНО]');
+    }
+    return denies ? pass() : fail('не сказала прямо, що картку ще не застосовано');
+  },
+
+  // QA6-01: онбординг має спитати про обмеження сам.
+  'asks-about-restrictions': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const asks = /алерг|не їси|не їсиш|обмеж|дієт|нелюб|чого не/.test(reply) && reply.includes('?');
+    return asks
+      ? pass()
+      : fail('stage=2 з порожнім профілем — модель не спитала про обмеження; профіль не наповниться ніколи');
+  },
+
+  // QA-5/6: не стверджувати, що чогось немає, коли просто не бачиш.
+  'admits-not-seeing': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const denies = /\b(не було|нічого не купував|немає покупок|порожній|порожньо)\b/.test(reply);
+    const admits = /не пам['ʼ]ятаю|не бачу|давно|не згадаю/.test(reply);
+    if (denies && !admits) {
+      return fail('стверджує відсутність факту замість «не пам\'ятаю так далеко»');
+    }
+    return pass();
+  },
 };
 
 // Параметричні: `topic-holds:плескавиц`, `mentions-allergen-out-loud:мідії`, `needs-mentions-креветк`.

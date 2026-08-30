@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractJson } from '../src/model.js';
+import { extractJson, parseModelResponse } from './model-response.js';
 
 // FIX-05: модель іноді видає ДВА верхньорівневі JSON-обʼєкти в одній відповіді.
 // Раніше брали перший — другий тікав у reply сирим {…}. Тепер вибираємо той,
@@ -45,5 +45,34 @@ describe('extractJson', () => {
     const r = extractJson('привіт, як справи?');
     expect(r.parsed).toBeNull();
     expect(r.residualText).toBe('привіт, як справи?');
+  });
+});
+
+describe('parseModelResponse', () => {
+  // Знайдено першим реальним прогоном eval: sonnet обгортає JSON у ```json
+  // навіть коли просять чистий. Беклапки доходили до людини як текст.
+  it('знімає ```json-огорожу', () => {
+    const raw = '```json\n{"reply":"Запишу","card":{"type":"intake_diff","ops":[]}}\n```';
+    const { reply, card } = parseModelResponse(raw);
+    expect(reply).toBe('Запишу');
+    expect(card?.type).toBe('intake_diff');
+    expect(reply).not.toContain('`');
+  });
+
+  it('знімає огорожу без мовної мітки', () => {
+    const { card } = parseModelResponse('```\n{"type":"proposal","items":[]}\n```');
+    expect(card?.type).toBe('proposal');
+  });
+
+  it('гола картка без обгортки', () => {
+    const { card, reply } = parseModelResponse('Ось варіанти: {"type":"proposal","items":[{"title":"X"}]}');
+    expect(card?.type).toBe('proposal');
+    expect(reply).toContain('Ось варіанти');
+  });
+
+  it('без JSON — усе в reply, картки немає', () => {
+    const { card, reply } = parseModelResponse('Не бачу так далеко.');
+    expect(card).toBeNull();
+    expect(reply).toBe('Не бачу так далеко.');
   });
 });

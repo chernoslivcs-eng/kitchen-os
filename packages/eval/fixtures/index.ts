@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-export type FixtureKind = 'attachment_parse' | 'recipe_import' | 'chat';
+export type FixtureKind = 'attachment_parse' | 'chat';
 
 export interface Fixture {
   id: string;
@@ -16,6 +16,8 @@ export interface Fixture {
   profile?: unknown;
   audience?: unknown;
   conversation?: { role: 'user' | 'assistant'; content: string }[];
+  stage?: 1 | 2;
+  shopping?: unknown[];
   skip?: string;
 }
 
@@ -73,8 +75,10 @@ export function loadFixtures(): Fixture[] {
     })(),
     {
       id: 'recipe-freeform',
+      // Був call:'recipe_import', якого ніколи не існувало — ні маршруту, ні
+      // репозиторію. Розбір вставленого тексту робить той самий attachment_parse.
       description: 'Вставлений рецепт без кількостей — картка з наповненими {N} у кроках',
-      call: 'recipe_import',
+      call: 'attachment_parse',
       invariants: [
         'all-placeholders-substituted',
         'no-pantry-ids-in-user-text',
@@ -86,6 +90,15 @@ export function loadFixtures(): Fixture[] {
     readJson('topic-continuity.json'),
     readJson('missing-ingredient.json'),
     readJson('allergen-conflict.json'),
+
+    // Регресії з ручних QA-прогонів. Кожна — баг, який знайшла людина за
+    // дві години; тут він перевіряється за секунди. Додавати сюди кожну
+    // нову знахідку, замість того щоб ловити її наступним прогоном.
+    readJson('qa5-allergen-proactive.json'),
+    readJson('qa5-allergen-on-request.json'),
+    readJson('qa5-unapplied-card-truth.json'),
+    readJson('qa6-nonfood-purchase.json'),
+    readJson('qa6-onboarding-asks.json'),
   ];
   return list;
 }

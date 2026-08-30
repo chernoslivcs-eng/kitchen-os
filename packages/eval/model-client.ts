@@ -1,61 +1,86 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
+import { buildKitchenContext, parseModelResponse } from '@kitchen/domain';
+import type { PantryBatch, Profile, ShoppingItemRow } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
-// Модельні профілі: fast для парсингу/пошуку, smart для судження.
-// Тільки одна дефолтна прив'язка тут — щоб її було легко замінити з .env.
-const PROFILES = {
-  fast: process.env.MODEL_FAST ?? 'claude-haiku-4-5-20251001',
-  smart: process.env.MODEL_SMART ?? 'claude-sonnet-5',
-} as const;
+// Той самий системний промпт, що у проді: composed-промпт + контекст кухні
+// з @kitchen/domain. Фікстури описують стан спрощено (без household_id,
+// added_at тощо) — добиваємо дефолтами, форма важлива, не значення.
+function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): string {
+  const base = compose(call, prompt, { stage: fx.stage });
+  if (call !== 'chat' && call !== 'recipe_gen') return base;
 
-const CALL_TO_PROFILE = (call: CallName): 'fast' | 'smart' => {
-  switch (call) {
-    case 'chat':
-    case 'attachment_parse':
-    case 'pantry_search':
-      return 'fast';
-    case 'recipe_gen':
-    case 'recipe_import':
-      return 'smart';
-  }
-};
+  const pantry = ((fx.pantry ?? []) as Partial<PantryBatch>[]).map((b, i) => ({
+    id: b.id ?? `p${i}`,
+    household_id: 'h1',
+    catalog_key: b.catalog_key ?? null,
+    label: b.label ?? '',
+    zone: b.zone ?? 'dry',
+    // фікстури пишуть v/u, домен чекає value/unit
+    value: b.value ?? (b as { v?: number }).v ?? null,
+    unit: b.unit ?? ((b as { u?: string }).u as PantryBatch['unit']) ?? null,
+    state: b.state ?? 'sealed',
+    opened_at: b.opened_at ?? null,
+    expires_at: b.expires_at ?? null,
+    best_before_opened_days: null,
+    added_at: new Date().toISOString(),
+    depleted_at: null,
+    confidence: 1,
+    provenance: 'user_statement',
+    staple: false,
+    last_by: null,
+    last_action: null,
+  } as PantryBatch));
 
-// Дуже дешеве лагодження: якщо модель повернула текст із JSON, витягуємо перший об'єкт.
-// Прототип має repairJSON, який дорізає обірваний. Для eval — не критично: інваріант просто впаде.
-function tryParse(text: string): any | null {
-  const trimmed = text.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {}
-  const match = trimmed.match(/\{[\s\S]*\}$|\{[\s\S]*?\}/);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]);
-  } catch {
-    return null;
-  }
+  const p = fx.profile as Partial<Profile> | undefined;
+  const profile: Profile | null = p
+    ? {
+        user_id: 'u1',
+        allergies: p.allergies ?? [],
+        wishes: p.wishes ?? [],
+        antipatterns: p.antipatterns ?? [],
+        equipment: p.equipment ?? {},
+      }
+    : null;
+
+  return base + buildKitchenContext({
+    pantry,
+    profile,
+    shopping: (fx.shopping ?? []) as ShoppingItemRow[],
+  });
 }
+
+// Провайдер той самий, що в проді: OpenRouter, якщо є його ключ (українські
+// картки Anthropic не приймає), інакше прямий Anthropic. Без цього eval
+// скіпав усі фікстури — перевіряв ANTHROPIC_API_KEY, якого в нас немає.
+const isOpenRouter = () => !!process.env.OPENROUTER_API_KEY;
+const apiKey = () => process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY;
+const baseURL = () => (isOpenRouter() ? 'https://openrouter.ai/api' : undefined);
+
+// Дефолти дзеркалять services/api/src/model.ts. Профіль виклику бере з
+// маніфесту — там єдине джерело, щоб eval і прод не розійшлись.
+const PROFILES = () => ({
+  fast: process.env.MODEL_FAST
+    ?? (isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001'),
+  smart: process.env.MODEL_SMART
+    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-4.5' : 'claude-sonnet-5'),
+});
 
 function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
   if (fx.call === 'chat') {
-    // Комора, профіль і адресати підклеюються тут же — вони частина промпту в проді,
-    // але для eval лишаємо простий тред, а стан кладемо як префікс до першого user-повідомлення.
-    const stateBlock = [
-      fx.pantry ? `[КОМОРА]\n${JSON.stringify(fx.pantry, null, 0)}` : '',
-      fx.profile ? `[ПРОФІЛЬ]\n${JSON.stringify(fx.profile, null, 0)}` : '',
-      fx.audience ? `[АДРЕСАТИ]\n${JSON.stringify(fx.audience, null, 0)}` : '',
-    ].filter(Boolean).join('\n\n');
-
-    const turns = (fx.conversation ?? []).map((m, i): Anthropic.MessageParam => ({
+    // Стан НЕ підклеюється сюди — він іде в системний промпт через
+    // buildKitchenContext(), рівно як у проді (див. composeWithContext).
+    // Раніше eval клав комору як JSON у user-turn і через це перевіряв інший
+    // промпт, ніж працює насправді: зелений eval нічого не означав.
+    return (fx.conversation ?? []).map((m): Anthropic.MessageParam => ({
       role: m.role,
-      content: i === 0 && stateBlock ? `${stateBlock}\n\n${m.content}` : m.content,
+      content: m.content,
     }));
-    return turns;
   }
 
-  if (fx.call === 'attachment_parse' || fx.call === 'recipe_import') {
+  if (fx.call === 'attachment_parse') {
     const parts: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = [];
     if (fx.attachment?.kind === 'text' && fx.attachment.content) {
       parts.push({ type: 'text', text: fx.attachment.content });
@@ -80,23 +105,22 @@ export interface RunResult extends ModelOutput {
 export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResult> {
   const started = Date.now();
   const call = fx.call as CallName;
-  const profile = CALL_TO_PROFILE(call);
-  const model = PROFILES[profile];
-  const system = compose(call, prompt);
+  const model = PROFILES()[prompt.manifest.calls[call].profile];
+  const system = composeWithContext(call, prompt, fx);
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  const key = apiKey();
+  if (!key) {
     return {
       raw: '',
       promptVersion: prompt.version,
       model,
       call,
       latencyMs: 0,
-      error: 'SKIPPED (no ANTHROPIC_API_KEY)',
+      error: 'SKIPPED (no OPENROUTER_API_KEY / ANTHROPIC_API_KEY)',
     };
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey: key, baseURL: baseURL() });
   const spec = prompt.manifest.calls[call];
 
   try {
@@ -111,18 +135,9 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
-    const parsed = tryParse(text);
-
-    // Схема реального прототипу: reply — це текст перед/поза JSON, card — сам JSON.
-    // Для eval нам потрібне і те, і те, тому спробуємо розділити.
-    let reply: string | undefined;
-    let card: any = parsed;
-    if (parsed && typeof parsed === 'object' && 'reply' in parsed && 'card' in parsed) {
-      reply = parsed.reply;
-      card = parsed.card;
-    } else if (!parsed) {
-      reply = text;
-    }
+    // Той самий парсер, що у проді: знімає ```-огорожу, бачить кілька JSON,
+    // розрізняє {reply,card} і голу картку.
+    const { reply, card } = parseModelResponse(text);
 
     return {
       raw: text,
