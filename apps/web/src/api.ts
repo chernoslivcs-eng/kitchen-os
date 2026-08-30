@@ -87,11 +87,13 @@ export interface PantryList {
 }
 
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link';
   ops?: unknown[];
   items?: unknown[];
   recipe?: Recipe;                     // тільки для type: 'recipe' — імпорт із вкладення
   run_id?: string;                     // cook_photo
+  recipe_id?: string;                  // recipe_link
+  title?: string;                      // recipe_link
   recipe_title?: string;               // cook_photo
 }
 
@@ -157,10 +159,10 @@ export const api = {
     // recipe може прийти null — тоді модель відповіла прозою замість JSON
     // (напр. «400 г лосося — це мало на шістьох»). Показуємо `reply` як
     // репліку кухаря, а не як помилку.
-    generate: (title: string, context?: string) =>
+    generate: (title: string, context?: string, session_id?: string) =>
       req<{ id?: string; recipe: Recipe | null; reply?: string; meta: unknown; usage: unknown }>(
         '/v1/recipes/generate',
-        { method: 'POST', body: JSON.stringify({ title, context }) },
+        { method: 'POST', body: JSON.stringify({ title, context, session_id }) },
       ),
   },
 

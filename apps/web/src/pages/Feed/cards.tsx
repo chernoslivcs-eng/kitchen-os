@@ -2,6 +2,7 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
+import { Link } from 'react-router-dom';
 import type { ChatCard, Recipe } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
@@ -323,6 +324,37 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
   );
 }
 
+// ----- Recipe link ----------------------------------------------------------
+
+// «◇ Борщ · Рецепт →» — слід згенерованого рецепта в розмові (компроміс Р-3).
+// Це не картка-дія: застосовувати нічого, кнопок «Так/Ні» немає — просто
+// постійний рядок, щоб «я вийшов і не можу знайти те, що щойно дивився»
+// перестало існувати.
+export function RecipeLinkCard({ card }: CardProps) {
+  if (!card.recipe_id) return null;
+  return (
+    <Link
+      to={`/recipe/${card.recipe_id}`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 0',
+        color: 'inherit', textDecoration: 'none',
+      }}
+    >
+      <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)' }}>◇</span>
+      <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>
+        {card.title ?? 'Рецепт'}
+      </span>
+      <span style={{
+        fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em',
+        textTransform: 'uppercase', color: 'var(--accent)',
+      }}>
+        Рецепт →
+      </span>
+    </Link>
+  );
+}
+
 export function Card(props: CardProps) {
   switch (props.card.type) {
     case 'intake_diff': return <IntakeCard {...props} />;
@@ -331,6 +363,7 @@ export function Card(props: CardProps) {
     case 'profile':     return <ProfileCard {...props} />;
     case 'recipe':      return <RecipeCard {...props} />;
     case 'cook_photo':  return <CookPhotoCard {...props} />;
+    case 'recipe_link': return <RecipeLinkCard {...props} />;
     default:            return null;
   }
 }
@@ -361,6 +394,8 @@ export function labelFor(
   undone?: boolean,
   dismissed?: boolean,
 ): { text: string; tone: 'pending' | 'applied' | 'muted' } {
+  // Слід рецепта — не дія: жодного «ОЧІКУЄ», просто мітка.
+  if (type === 'recipe_link') return { text: 'РЕЦЕПТ', tone: 'muted' };
   if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
   if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.
