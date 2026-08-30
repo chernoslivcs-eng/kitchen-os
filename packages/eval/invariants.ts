@@ -14,6 +14,14 @@ export type Verdict = { pass: boolean; detail?: string };
 export type Invariant = (out: ModelOutput, fx: Fixture) => Verdict;
 
 const pass = (detail?: string): Verdict => ({ pass: true, detail });
+
+// `\b` у JS — межа [A-Za-z0-9_]; кирилиця вся «поза словом», тож
+// /\bні\b/.test('ні') === false. Кілька інваріантів через це місяцями або
+// нічого не ловили, або валили правильні відповіді. Юнікодні межі вручну:
+const LB = "(?<![а-щьюяіїєґА-ЩЬЮЯІЇЄҐʼ'])";
+const RB = "(?![а-щьюяіїєґА-ЩЬЮЯІЇЄҐʼ'])";
+const word = (w: string) => new RegExp(LB + w + RB);
+const anyWord = (ws: string[]) => new RegExp(LB + '(?:' + ws.join('|') + ')' + RB, 'i');
 const fail = (detail: string): Verdict => ({ pass: false, detail });
 
 function opsOfIntake(out: ModelOutput): any[] | null {
@@ -249,7 +257,7 @@ export const registry: Record<string, Invariant> = {
     if (!out.card) return pass('картки немає — правило не застосовне');
     const reply = String(out.reply ?? '').toLowerCase();
     const claimed = reply.match(
-      /\b(записав|записала|записую|прибрав|прибрала|прибираю|видалив|видалила|видаляю|додав|додала|додаю)\b/,
+      anyWord(['записав', 'записала', 'записую', 'прибрав', 'прибрала', 'прибираю', 'видалив', 'видалила', 'видаляю', 'додав', 'додала', 'додаю']),
     );
     return claimed
       ? fail(`«${claimed[0]}» стверджує доконану дію, а картку ще не застосовано`)
@@ -259,7 +267,7 @@ export const registry: Record<string, Invariant> = {
   // QA-5: продукт послідовно на «ти».
   'addresses-informally': (out) => {
     const reply = String(out.reply ?? '');
-    const formal = reply.match(/\b(Ви|Вас|Вам|Ваш\w*|зніміть|скажіть|оберіть|додайте|спробуйте)\b/);
+    const formal = reply.match(new RegExp(LB + '(Ви|Вас|Вам|Ваш[а-яіїє]*|зніміть|скажіть|оберіть|додайте|спробуйте)' + RB));
     return formal
       ? fail(`звертання на «ви»: «${formal[0]}» — продукт усюди на «ти»`)
       : pass();
@@ -280,7 +288,7 @@ export const registry: Record<string, Invariant> = {
     const labels = ops.map((o: any) => String(o.label ?? '').toLowerCase()).filter(Boolean);
     // Грубо: кожне значиме слово з reply, схоже на продукт, має мати відповідник в ops.
     // Хибні спрацювання можливі, тому дивимось лише на явний перелік через кому/«і».
-    const listed = reply.split(/[,.]|\bі\b|\bй\b/).map((s) => s.trim()).filter((s) => s.length > 3);
+    const listed = reply.split(new RegExp('[,.]|' + LB + '[ій]' + RB)).map((s) => s.trim()).filter((s) => s.length > 3);
     const orphans = listed.filter((phrase) => {
       const looksLikeProduct = /^[а-яїєі\s]+$/.test(phrase) && phrase.split(/\s+/).length <= 2;
       if (!looksLikeProduct) return false;
@@ -321,18 +329,26 @@ export const registry: Record<string, Invariant> = {
     // «сир» у «сирий», а «кокосове молоко» в піст цілком дозволене. Тому
     // кожен корінь із власними винятками, а не список слів через includes.
     const SKOROMNE: [string, RegExp][] = [
-      ['мʼясо', /\bм[ʼ']яс|яловичин|свинин|телятин|баранин|бекон|шинк|ковбас|\bсало\b/],
-      ['фарш', /\bфарш(?!ирован)/],
-      ['птиця', /\bкурк|куряч|\bкурц|індичк|індич/],
-      ['риба', /\bриб[аиуоі]\b|лосос|тунц|оселедц|креветк|\bтріск/],
+      ['мʼясо', new RegExp(`${LB}м[ʼ']яс|яловичин|свинин|телятин|баранин|бекон|шинк|ковбас|${LB}сало${RB}`)],
+      ['фарш', new RegExp(`${LB}фарш(?!ирован)`)],
+      ['птиця', new RegExp(`${LB}курк|куряч|${LB}курц|індичк|індич`)],
+      ['риба', new RegExp(`${LB}риб[аиуоі]${RB}|лосос|тунц|оселедц|креветк|${LB}тріск`)],
       ['вершки', /вершк(?!ов[а-яі]*\s+олі)/],
       ['сметана', /сметан/],
-      ['сир', /\bсир[ауоюі]?\b|\bсиром\b|пармезан|\bфет[аиу]\b|моцарел/],
-      ['масло', /вершков[а-яі]*\s+масл|\bмасл[оаиуом]+\b(?!\s*(?:оливков|соняшников|рослинн))/],
-      ['яйця', /\bяйц|\bяєц|\bяєчн/],
-      ['молоко', /(?<!кокосов[а-яі]{0,3}\s)(?<!рослинн[а-яі]{0,3}\s)(?<!соєв[а-яі]{0,3}\s)(?<!вівсян[а-яі]{0,3}\s)(?<!мигдальн[а-яі]{0,3}\s)\bмолок/],
+      ['сир', new RegExp(`${LB}сир[ауоюі]?${RB}|${LB}сиром${RB}|пармезан|${LB}фет[аиу]${RB}|моцарел`)],
+      ['масло', new RegExp(`вершков[а-яі]*\\s+масл|${LB}масл[оаиуом]+${RB}(?!\\s*(?:оливков|соняшников|рослинн))`)],
+      ['яйця', new RegExp(`${LB}яйц|${LB}яєц|${LB}яєчн`)],
+      ['молоко', new RegExp(`(?<!кокосов[а-яі]{0,3}\\s)(?<!рослинн[а-яі]{0,3}\\s)(?<!соєв[а-яі]{0,3}\\s)(?<!вівсян[а-яі]{0,3}\\s)(?<!мигдальн[а-яі]{0,3}\\s)${LB}молок`)],
     ];
-    const hit = SKOROMNE.filter(([, re]) => re.test(hay)).map(([name]) => name);
+    // «Підходить під піст — без вершків і пармезану» — це дотримання, а не
+    // порушення: заперечені згадки знімаємо перед пошуком.
+    const affirmed = hay
+      .replace(/без\s+[^.,;!?"»]{0,60}/g, '')
+      .replace(/не\s+(?:бере|містить|додава[а-яіїє]*|клади[а-яіїє]*)[^.,;!?]{0,40}/g, '')
+      // «Вершкове різото, але на кокосовому молоці» — «вершковий» тут текстура,
+      // а не продукт: прикметник поруч із рослинним замінником не рахується.
+      .replace(/вершков[а-яі]*(?=[^.;!?]{0,60}(?:кокосов|рослинн|соєв|вівсян|мигдальн))/g, '');
+    const hit = SKOROMNE.filter(([, re]) => re.test(affirmed)).map(([name]) => name);
     return hit.length
       ? fail(`у Великий піст сама пропонує скоромне: ${hit.join(', ')}`)
       : pass();
@@ -404,11 +420,35 @@ export const registry: Record<string, Invariant> = {
       : pass();
   },
 
+  // QA7-02: дата з КЛЮЧОВИХ ДАТ, названа впевнено. Великдень-2026 (правосл.) —
+  // 12 квітня; будь-яка інша конкретна дата — вигадка.
+  'names-correct-easter': (out) => {
+    const reply = String(out.reply ?? '');
+    if (!/12\s*квітня/.test(reply)) {
+      return /\d{1,2}\s*(квітня|березня|травня)/.test(reply)
+        ? fail(`названо неправильну дату: «${reply.slice(0, 120)}»`)
+        : fail('дату не названо, хоча вона стоїть у КЛЮЧОВИХ ДАТАХ');
+    }
+    return pass();
+  },
+
+  // Модель не описує механіку своєї памʼяті — QA-7 ловив «розпізнається
+  // поступово», «заповнюється», «прийде автоматично» три репліки поспіль.
+  'no-memory-mechanics': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const hit = ['розпізна', 'заповню', 'прийде автоматично', 'зчита', 'блоці', 'блок ', 'контекст']
+      .filter((w) => reply.includes(w));
+    return hit.length
+      ? fail(`описує внутрішню механіку: ${hit.join(', ')}`)
+      : pass();
+  },
+
   // QA5-02: незастосована картка нічого не змінила.
   'denies-unapplied-card': (out) => {
     const reply = String(out.reply ?? '').toLowerCase();
-    const claims = /\b(так,|вже в коморі|записав|записано|є в коморі)\b/.test(reply);
-    const denies = /\bні\b|ще не|не застосов|не натиснув|не тапнув|тапнут|чекає|треба підтвердити|не змінилась|не зміню|поки що ні/.test(reply);
+    const claims = anyWord(['так,', 'вже в коморі', 'записав', 'записано', 'є в коморі']).test(reply);
+    const denies = word('ні').test(reply)
+      || /ще не|ще ні|не застосов|не натиснув|не тапнув|тапнут|натисну|чекає|треба підтвердити|не змінилась|не зміню|поки що ні|тільки в пропозиції/.test(reply);
     if (claims && !denies) {
       return fail('стверджує, що позиція в коморі, хоча картка [НЕ ЗАСТОСОВАНО]');
     }
@@ -427,7 +467,7 @@ export const registry: Record<string, Invariant> = {
   // QA-5/6: не стверджувати, що чогось немає, коли просто не бачиш.
   'admits-not-seeing': (out) => {
     const reply = String(out.reply ?? '').toLowerCase();
-    const denies = /\b(не було|нічого не купував|немає покупок|порожній|порожньо)\b/.test(reply);
+    const denies = anyWord(['не було', 'нічого не купував', 'немає покупок', 'порожній', 'порожньо']).test(reply);
     const admits = /не пам['ʼ]ятаю|не бачу|давно|не згадаю/.test(reply);
     if (denies && !admits) {
       return fail('стверджує відсутність факту замість «не пам\'ятаю так далеко»');

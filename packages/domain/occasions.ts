@@ -277,6 +277,55 @@ export function serializeOccasions(now = new Date(), wishes: string[] = []): str
       `${o.title} — ${o.meaning}${o.buy?.length ? ` Варто докупити: ${o.buy.join(', ')}.` : ''}`
     ).join('\n'));
   }
+  // QA7-02: без цього блок із розпізнаною традицією побайтово збігався з
+  // блоком без неї (найближче свято — за межами 21-денного горизонту), і
+  // модель на пряме «Коли Великдень?» відповідала «ще не розпізнано», а потім
+  // вигадувала дати. Ключові дати року — завжди, коли традиція відома.
+  if (trads.length) {
+    const y = now.getFullYear();
+    const fmt = (dt: Date) => dt.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+    const anchors: string[] = [];
+    for (const t of trads) {
+      if (t !== 'orthodox' && t !== 'catholic') continue;
+      const label = t === 'catholic' ? 'катол.' : 'правосл.';
+      for (const yr of [y, y + 1]) {
+        const e = easterDate(yr, t);
+        if (e.getTime() < now.getTime() && yr === y) continue;  // торішній не потрібен
+        const lent = new Date(e);
+        lent.setDate(lent.getDate() - 48);
+        anchors.push(`Великдень ${yr} (${label}) — ${fmt(e)}; Великий піст — з ${fmt(lent)}`);
+      }
+    }
+    // Місячні — тільки з позначкою орієнтовності; губити її не можна.
+    // Кожен якір — тільки найближче майбутнє входження: шість рядків Рамадану
+    // на два роки вперед — це шум, а не памʼять.
+    if (trads.includes('islamic')) {
+      for (const a of ISLAMIC_ANCHORS) {
+        for (let k = 0; k < 4; k++) {
+          const at = a.base + k * LUNAR_YEAR;
+          if (at > now.getTime()) {
+            anchors.push(`${a.title} — ${fmt(new Date(at))} ${new Date(at).getFullYear()} (орієнтовно, місячний календар)`);
+            break;
+          }
+        }
+      }
+    }
+    if (trads.includes('jewish')) {
+      for (const a of JEWISH_ANCHORS) {
+        for (let k = 0; k < 4; k++) {
+          const at = a.base + k * 365.25 * DAY;
+          if (at > now.getTime()) {
+            anchors.push(`${a.title} — ${fmt(new Date(at))} ${new Date(at).getFullYear()} (орієнтовно)`);
+            break;
+          }
+        }
+      }
+    }
+    if (anchors.length) {
+      parts.push('КЛЮЧОВІ ДАТИ (пораховані точно, називай упевнено; «орієнтовно» переказуй як орієнтовно):\n'
+        + anchors.join('\n'));
+    }
+  }
   if (soon.length) {
     parts.push('ПОПЕРЕДУ: ' + soon.map((e) =>
       `${whenLabel(e.at, now.getTime())}: ${e.title}${e.approx ? ' (орієнтовно, місячний календар)' : ''}`
@@ -284,7 +333,8 @@ export function serializeOccasions(now = new Date(), wishes: string[] = []): str
   }
   return '\n\n[СЕЗОН І СВЯТА]\n' + parts.join('\n')
     + '\nСезони й свята — привід, а не обовʼязок: згадуй лише коли доречно, одним реченням усередині відповіді.'
-    + ' Не починай розмову з календаря. Якщо традиції не розпізнано — свят тут не буде, і вигадувати їх не можна.'
+    + ' Не починай розмову з календаря. Дати, яких тут немає, не вигадуй — скажи, що не знаєш.'
+    + ' Ніколи не описуй, як улаштована твоя памʼять: ні «розпізнається», ні «заповнюється», ні «прийде автоматично» — людині це нічого не дає й звучить як відмовка.'
     + ' Обмеження вище — виняток: воно діє, поки триває, і не залежить від доречності.';
 }
 

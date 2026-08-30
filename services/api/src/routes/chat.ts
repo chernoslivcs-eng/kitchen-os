@@ -102,7 +102,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const started = Date.now();
       const call = await callAttachmentParse(payloads);
       await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
-      const card_id = call.card ? randomUUID() : null;
+    const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
       }
@@ -202,6 +202,23 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
 
+    // Копі-звіти QA-4…7: час дієслова коливається (1/6 → 10/11 → 9/14 → 7/13),
+    // і QA-7 вперше побачив закономірність — правило тримається на картках про
+    // людину (profile/member/note: 6/8) і розсипається на картках про речі
+    // (intake_diff: 0/3). Правило переписували двічі; втретє не переписуємо —
+    // рахуємо на реальних даних із розбивкою за типом, і через тиждень логів
+    // буде видно, чи гіпотеза правильна і чи варто ставити пост-процесор.
+    // Увага: \b тут не можна — у JS це межа [A-Za-z0-9_], кирилиця вся
+    // «поза словом», і /\bзаписав\b/.test('записав') === false. Лічильник
+    // із \b мовчав би вічно і читався б як «порушень нема».
+    const TENSE_CLAIMS = new RegExp(
+    "(?<![а-щьюяіїєґА-ЩЬЮЯІЇЄҐʼ'])(записав|записала|записую|прибрав|прибрала|прибираю|додав|додала|додаю|видалив|видалила|видаляю)(?![а-щьюяіїєґА-ЩЬЮЯІЇЄҐʼ'])",
+    'i',
+    );
+    if (call.card && TENSE_CLAIMS.test(call.reply ?? '')) {
+    req.log.warn({ card_type: call.card.type, reply: call.reply }, 'tense-violation');
+    }
+
     // Гвардія: юзер явно попросив рецепт/ідею, а модель не вернула картку.
     // Логуємо як промах промпту — воно ловиться в token_usage-логах, потім
     // потрапляє в eval-фікстуру, а не мовчить у проді. Не блокуємо відповідь
@@ -217,9 +234,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // QA5-01: чи не проліз алерген у пропозицію. Збіг за підрядком дає хибні
     // спрацювання, тому це лог, а не блок — але без нього ніхто не дізнається,
     // як часто це стається у проді.
-    if (profile?.allergies.length) {
+    // QA7-06: алергії домашніх — у той самий детектор, з імʼям.
+    const houseAllergies = [
+      ...(profile?.allergies ?? []).map((a) => ({ label: a, who: 'owner' })),
+      ...eaters.flatMap((e) => e.allergies.map((a) => ({ label: a, who: e.name }))),
+    ].filter((a) => a.label);
+    if (houseAllergies.length) {
       const hay = ((call.reply ?? '') + JSON.stringify(call.card ?? {})).toLowerCase();
-      const hit = profile.allergies.filter((a) => a && hay.includes(a.toLowerCase()));
+      const hit = houseAllergies.filter((a) => hay.includes(a.label.toLowerCase()));
       if (hit.length) {
         req.log.warn({ hit, user_id, model: call.meta.model }, 'response-contains-allergen');
       }
