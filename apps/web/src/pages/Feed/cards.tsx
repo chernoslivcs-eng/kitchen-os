@@ -254,7 +254,7 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
   const meta = [
     r.st?.length ? `${r.st.length} КРОКІВ` : null,
     r.tm ? `${r.tm}ХВ` : null,
-    r.sv ? `${r.sv} ПОРЦІЇ` : null,
+    r.sv ? `${r.sv} ${plural(r.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
     r.ing?.length ? `${r.ing.length} ІНГР` : null,
   ].filter(Boolean).join(' · ');
 
@@ -370,7 +370,7 @@ export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds, onN
 
   const summary = [
     r.tm ? `${r.tm}ХВ` : null,
-    r.sv ? `${r.sv} ПОРЦІЇ` : null,
+    r.sv ? `${r.sv} ${plural(r.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
     r.nu?.kcal ? `${r.nu.kcal}ККАЛ` : null,
   ].filter(Boolean).join(' · ');
 

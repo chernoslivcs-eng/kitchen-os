@@ -117,6 +117,18 @@ export function CookPage() {
       setStepIdx(saved.stepIdx);
       setSecondsLeft(saved.secondsLeft);
       setRunning(false);   // таймер на паузі — час не відмотується
+    } else if (saved && recipe && saved.recipe.t !== recipe.t) {
+      // QA8-07: тут живе ІНШЕ незавершене готування. Мовчки затерти його —
+      // втратити чиїсь пів рецепта. Питаємо; відмова повертає до стрічки,
+      // де рядок «Готування триває» веде до старої сесії.
+      const drop = window.confirm(
+        `Триває готування «${saved.recipe.t}» (крок ${saved.stepIdx + 1}/${saved.recipe.st.length}). Кинути його й почати «${recipe.t}»?`,
+      );
+      if (!drop) {
+        navigate(-1);
+        return;
+      }
+      clearCookSession();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -178,6 +190,9 @@ export function CookPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secondsLeft === 0]);
 
+
+  // QA8-20: guard стоїть ПІСЛЯ всіх хуків — кількість викликаних хуків
+  // не залежить від наявності рецепта (Rules of Hooks).
   if (!recipe) {
     return (
       <div className={styles.screen}>
@@ -338,6 +353,12 @@ export function CookPage() {
               <div
                 role="dialog"
                 aria-modal="true"
+                ref={(el) => {
+                  // QA8-09: без фокусу всередині діалог не чує клавіатури.
+                  if (el && !el.contains(document.activeElement)) {
+                    el.querySelector<HTMLElement>('button, input, [tabindex]')?.focus();
+                  }
+                }}
                 onKeyDown={(e) => {
                   // DA2-09: Escape — безпечний вихід (нічого не списувати,
                   // все відкочується undo). Tab тримаємо всередині діалогу.
@@ -417,7 +438,7 @@ export function CookPage() {
                             <span style={{ flex: 1 }}>{v.label}</span>
                             {v.value != null && v.unit && (
                               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)' }}>
-                                {v.value}{v.unit}
+                                {v.value}{v.unit === 'g' ? 'г' : v.unit === 'ml' ? 'мл' : v.unit === 'pcs' ? 'шт' : v.unit === 'pack' ? 'уп' : v.unit}
                               </span>
                             )}
                           </label>
@@ -752,7 +773,7 @@ export function CookPage() {
             )}
           </div>
         )}
-        <div className={styles.offline}>Працює без мережі · тап по смузі = крок назад</div>
+        <div className={styles.offline}>{done ? "Працює без мережі" : "Працює без мережі · смуга вгорі вертає на крок"}</div>
       </div>
     </div>
   );

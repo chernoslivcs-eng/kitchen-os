@@ -512,7 +512,7 @@ export function Feed() {
           >
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
             <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
-              Готування триває · {cookLive.recipe.t.toLowerCase()} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
+              Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
             </span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
               Продовжити ›
@@ -570,27 +570,35 @@ export function Feed() {
               усе через підтвердження.
             </p>
             {pantryCount === 0 && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  marginTop: 18,
-                  padding: '14px 20px',
-                  background: 'var(--accent-bg)',
-                  border: '1px solid var(--accent)',
-                  borderRadius: 'var(--r)',
-                  color: 'var(--accent)',
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                📷 Сфотографуй чек — я розкладу
-              </button>
+              <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                {/* QA8-14 / хендоф №03: три входи, не один. Людина з відкритим
+                    холодильником і без чека теж має куди тапнути. */}
+                {[
+                  { label: '📷 Сфотографувати полицю', action: () => fileInputRef.current?.click() },
+                  { label: '🧾 Кинути чек', action: () => fileInputRef.current?.click() },
+                  { label: 'Перелічити текстом', action: () => composerInputRef.current?.focus() },
+                ].map((cta, i) => (
+                  <button
+                    key={cta.label}
+                    type="button"
+                    onClick={cta.action}
+                    style={{
+                      padding: '12px 20px',
+                      minWidth: 260,
+                      background: i === 0 ? 'var(--accent-bg)' : 'transparent',
+                      border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border-strong)',
+                      borderRadius: 'var(--r)',
+                      color: i === 0 ? 'var(--accent)' : 'var(--fg-muted)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {cta.label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -791,12 +799,12 @@ export function Feed() {
             ))}
           </div>
         )}
-        {turns.some((t) => t.card && !t.applied && !t.undone && !t.dismissed) && (
+        {turns.some((t) => t.card && t.card.type !== 'recipe_link' && !t.applied && !t.undone && !t.dismissed) && (
           <div className={styles['rail-block']}>
             <div className={styles['rail-title']}>
-              ОЧІКУЮТЬ РІШЕННЯ · {turns.filter((t) => t.card && !t.applied && !t.undone && !t.dismissed).length}
+              ОЧІКУЮТЬ РІШЕННЯ · {turns.filter((t) => t.card && t.card.type !== 'recipe_link' && !t.applied && !t.undone && !t.dismissed).length}
             </div>
-            {turns.filter((t) => t.card && !t.applied && !t.undone && !t.dismissed).slice(-4).map((t) => (
+            {turns.filter((t) => t.card && t.card.type !== 'recipe_link' && !t.applied && !t.undone && !t.dismissed).slice(-4).map((t) => (
               <button
                 key={t.id}
                 className={styles['rail-row']}

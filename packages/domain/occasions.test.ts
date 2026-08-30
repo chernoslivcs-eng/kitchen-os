@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   easterDate, traditionsFrom, activeOccasions, upcomingEvents,
-  whenLabel, serializeOccasions,
+  whenLabel, serializeOccasions, isFastingRestricted, fastingActive,
 } from './occasions.js';
 
 const d = (y: number, m: number, day: number) => new Date(y, m - 1, day);
@@ -232,5 +232,30 @@ describe('блок для промпта', () => {
     const orth = serializeOccasions(d(2026, 4, 12), ['постуємо']);
     expect(plain).not.toContain('Великдень');
     expect(orth).toContain('Великдень');
+  });
+});
+
+// Третій flap calendar-lent: модель ігнорує блок обмеження в середині
+// контексту і «рятує» фарш тефтелями в піст. QA5-01 довів: правило далеко
+// від даних не працює — мітка мусить стояти в рядку партії. Той самий
+// механізм, що вже двічі рятував з алергенами.
+describe('скоромні партії маркуються в піст', () => {
+  it('фарш і вершки отримують мітку посту', () => {
+    expect(isFastingRestricted('Свинячий фарш')).toBe(true);
+    expect(isFastingRestricted('Вершки 30%')).toBe(true);
+    expect(isFastingRestricted('Яйця')).toBe(true);
+  });
+
+  it('пісне мітки не отримує — рослинні аналоги теж', () => {
+    expect(isFastingRestricted('Нут сушений')).toBe(false);
+    expect(isFastingRestricted('Кокосове молоко')).toBe(false);
+    expect(isFastingRestricted('Гриби печериці')).toBe(false);
+    expect(isFastingRestricted('Оливкова олія')).toBe(false);
+  });
+
+  it('fastingActive: піст триває у березні для православних', () => {
+    expect(fastingActive(d(2026, 3, 5), ['постуємо'])).toBe(true);
+    expect(fastingActive(d(2026, 8, 30), ['постуємо'])).toBe(false);
+    expect(fastingActive(d(2026, 3, 5), [])).toBe(false);
   });
 });

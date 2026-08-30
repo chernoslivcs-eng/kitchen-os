@@ -21,6 +21,17 @@ import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
 
+
+// QA8-19: pg віддає date-колонку як JS Date опівночі ЛОКАЛЬНОГО часу, а
+// toISOString() зсуває в UTC — для UTC+3 «2026-08-30» ставав «2026-08-29».
+// Форматуємо локально, без подорожей через часові пояси.
+function dayString(d: unknown): string {
+  if (d instanceof Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return String(d);
+}
+
 function rowToRecipe(r: Row): RecipeRow {
   return {
     id: r.id as string,
@@ -604,7 +615,7 @@ export class PostgresRepo implements Repo {
       const r = existing[0];
       return {
         id: r.id, user_id: r.user_id, title: r.title ?? null,
-        day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+        day: dayString(r.day),
         created_at: new Date(r.created_at).toISOString(),
       };
     }
@@ -620,7 +631,7 @@ export class PostgresRepo implements Repo {
     const r = rows[0]!;
     return {
       id: r.id, user_id: r.user_id, title: r.title ?? null,
-      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      day: dayString(r.day),
       created_at: new Date(r.created_at).toISOString(),
     };
   }
@@ -631,7 +642,7 @@ export class PostgresRepo implements Repo {
     if (!r) return null;
     return {
       id: r.id, user_id: r.user_id, title: r.title ?? null,
-      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      day: dayString(r.day),
       created_at: new Date(r.created_at).toISOString(),
     };
   }
@@ -655,7 +666,7 @@ export class PostgresRepo implements Repo {
     );
     return rows.map((r) => ({
       id: r.id, user_id: r.user_id, title: r.title ?? null,
-      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day,
+      day: dayString(r.day),
       created_at: new Date(r.created_at).toISOString(),
       message_count: Number(r.message_count),
     }));
