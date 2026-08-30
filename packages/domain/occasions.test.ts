@@ -140,7 +140,8 @@ describe('whenLabel', () => {
     expect(whenLabel(now + 86400000, now)).toBe('завтра');
     expect(whenLabel(now + 3 * 86400000, now)).toBe('за 3 дні');
     expect(whenLabel(now + 10 * 86400000, now)).toBe('за тиждень');
-    expect(whenLabel(now + 21 * 86400000, now)).toBe('3 тижні');
+    expect(whenLabel(now + 21 * 86400000, now)).toBe('за 3 тижні');
+    expect(whenLabel(now + 38 * 86400000, now)).toBe('за 5 тижнів');
   });
   it('далеке — конкретна дата', () => {
     expect(whenLabel(now + 90 * 86400000, now)).toMatch(/\d/);

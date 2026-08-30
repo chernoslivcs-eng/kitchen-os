@@ -234,7 +234,10 @@ export function whenLabel(at: number, now = Date.now()): string {
   if (d === 1) return 'завтра';
   if (d < 7) return `за ${d} дні`;
   if (d < 14) return 'за тиждень';
-  if (d < 45) return `${Math.round(d / 7)} тижні`;
+  if (d < 45) {
+    const w = Math.round(d / 7);
+    return `за ${w} ${w < 5 ? 'тижні' : 'тижнів'}`;
+  }
   return new Date(at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
 }
 
@@ -256,7 +259,7 @@ export function serializeOccasions(now = new Date(), wishes: string[] = []): str
   }
   if (soon.length) {
     parts.push('ПОПЕРЕДУ: ' + soon.map((e) =>
-      `${whenLabel(e.at, now.getTime())} — ${e.title}${e.approx ? ' (орієнтовно, місячний календар)' : ''}`
+      `${whenLabel(e.at, now.getTime())}: ${e.title}${e.approx ? ' (орієнтовно, місячний календар)' : ''}`
     ).join('; '));
   }
   return '\n\n[СЕЗОН І СВЯТА]\n' + parts.join('\n')
