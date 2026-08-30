@@ -21,6 +21,38 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
     return { household_id, count: unchecked, total: items.length, items };
   });
 
+  // Бриф-3 п.8: «+ у список» інлайн на бракуючому інгредієнті. До цього
+  // (QA7-01) позицію руками було не додати взагалі — тільки карткою моделі.
+  // Правило продукту не порушено: пише людина через інтерфейс, не модель.
+  app.post<{ Body: { label?: string; v?: number; u?: string; reason?: string } }>(
+    '/v1/shopping',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id, household_id } = requireUser(req);
+      const label = req.body?.label?.trim();
+      if (!label) return reply.code(400).send({ error: 'label required' });
+      // Дубль за назвою — не помилка і не друга позиція.
+      const existing = (await repo.listShoppingItems(household_id))
+        .find((i) => i.label.trim().toLowerCase() === label.toLowerCase());
+      if (existing) return reply.code(200).send({ item: existing, already: true });
+      const item = {
+        id: randomUUID(),
+        household_id,
+        label,
+        reason: req.body?.reason?.trim() || null,
+        value: typeof req.body?.v === 'number' && req.body.v > 0 ? req.body.v : null,
+        unit: req.body?.u ?? null,
+        zone: resolveLabelToZone(label),
+        checked: false,
+        added_by: user_id,
+        source: 'user' as const,
+        created_at: new Date().toISOString(),
+      };
+      await repo.insertShoppingItem(item);
+      return reply.code(201).send({ item });
+    },
+  );
+
   app.post<{
     Params: { id: string };
     Body: { checked?: boolean };
