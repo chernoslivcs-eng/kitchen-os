@@ -37,10 +37,10 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
   };
 
   app.post<{
-    Body: { title?: string; context?: string };
+    Body: { title?: string; context?: string; session_id?: string };
   }>('/v1/recipes/generate', { preHandler: [authenticated(repo), genLimit] }, async (req, reply) => {
     const ctx = requireUser(req);
-    const { title, context } = req.body ?? {};
+    const { title, context, session_id } = req.body ?? {};
     if (!title || !title.trim()) return reply.code(400).send({ error: 'title required' });
 
     const pantry = await repo.listBatches(ctx.household_id);
@@ -96,6 +96,20 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       created_at: new Date().toISOString(),
       saved_at: null,
     });
+
+    // Слід у розмові: «Рецепт →» більше не зникає зі стрічки (DA2-30).
+    // Чужу чи неіснуючу сесію мовчки ігноруємо — рецепт важливіший за слід.
+    if (session_id) {
+      const session = await repo.getSession(session_id);
+      if (session && session.user_id === ctx.user_id) {
+        await repo.saveMessage({
+          id: randomUUID(), session_id: session.id, role: 'assistant',
+          text: null,
+          card: { type: 'recipe_link', recipe_id: draft_id, title: call.recipe.t },
+          applied: 0, created_at: new Date().toISOString(),
+        });
+      }
+    }
 
     return { id: draft_id, recipe: call.recipe, meta: call.meta, usage: call.usage };
   });

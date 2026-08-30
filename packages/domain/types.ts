@@ -120,7 +120,17 @@ export interface CookPhotoCard {
   attachment_id: string;
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard;
+// Слід рецепта в розмові: «◇ Борщ · Рецепт →». Не дія — застосовувати нічого,
+// тому в apply гілки немає і модель цей тип не породжує (немає в CARD_TYPES
+// парсера). Компроміс Р-3 з design-audit-2: рецепт живе окремим екраном, але
+// більше не зникає з розмови.
+export interface RecipeLinkCard {
+  type: 'recipe_link';
+  recipe_id: string;
+  title: string;
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard;
 
 // ----- Стан «на застосуванні» ------
 

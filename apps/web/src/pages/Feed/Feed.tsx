@@ -348,7 +348,7 @@ export function Feed() {
     setOpeningRecipe(true);
     setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…', persist: true });
     try {
-      const { id, recipe, reply } = await api.recipes.generate(pick.title, pick.desc);
+      const { id, recipe, reply } = await api.recipes.generate(pick.title, pick.desc, sessionId ?? undefined);
       setToast(null);
       if (!recipe) {
         // Модель відповіла прозою замість рецепта — зазвичай бо запит
@@ -359,6 +359,13 @@ export function Feed() {
           text: reply || 'Не вийшло скласти рецепт. Спробуй сформулювати конкретніше.',
         }]);
         return;
+      }
+      // Слід у розмові одразу, без рефетча — сервер уже записав повідомлення.
+      if (id) {
+        setTurns((prev) => [...prev, {
+          id: newId(), role: 'assistant', time: hhmm(),
+          card: { type: 'recipe_link', recipe_id: id, title: recipe.t },
+        }]);
       }
       // Р-3: адреса замість state — state лишаємо кешем першого рендера.
       navigate(id ? `/recipe/${id}` : '/recipe', { state: { recipe } });

@@ -266,3 +266,80 @@ describe('адреса рецепта', () => {
     expect(list.json().recipes.map((r: { id: string }) => r.id)).toContain(id);
   });
 });
+
+// «Рецепт наразі не видається в чаті?» — не видавався: після «Рецепт →»
+// розмова не мала сліду, повернувся в стрічку — не знайдеш, що щойно дивився
+// (DA2-30). Компроміс із design-audit-2 Р-3: постійний рядок-посилання
+// «◇ {назва} · Рецепт →» у стрічці. Генерація з session_id пише в розмову
+// повідомлення з карткою recipe_link.
+describe('слід рецепта в розмові', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  it('generate із session_id лишає recipe_link-повідомлення в сесії', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    // сесія дня — з першої репліки
+    await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'що приготувати?' },
+    });
+    const { session } = (await app.inject({
+      method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie },
+    })).json();
+
+    const gen = await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie },
+      payload: { title: 'Борщ', session_id: session.id },
+    });
+    expect(gen.statusCode).toBe(200);
+    const { id } = gen.json();
+
+    const { messages } = (await app.inject({
+      method: 'GET', url: `/v1/sessions/${session.id}`, headers: { cookie: me.cookie },
+    })).json();
+    const link = messages.find((m: { card?: { type?: string } }) => m.card?.type === 'recipe_link');
+    expect(link).toBeTruthy();
+    expect(link.card.recipe_id).toBe(id);
+    expect(link.card.title).toBe('Борщ');
+  });
+
+  it('без session_id — як раніше, нічого в розмову не пише', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const gen = await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: me.cookie }, payload: { title: 'Борщ' },
+    });
+    expect(gen.statusCode).toBe(200);
+  });
+
+  it('чужий session_id мовчки ігнорується — рецепт генерується без сліду', async () => {
+    const alice = await signIn(app, mailer, 'alice@example.com');
+    const bob = await signIn(app, mailer, 'bob@example.com');
+    await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: alice.cookie },
+      payload: { text: 'привіт' },
+    });
+    const { session } = (await app.inject({
+      method: 'GET', url: '/v1/session/today', headers: { cookie: alice.cookie },
+    })).json();
+
+    const gen = await app.inject({
+      method: 'POST', url: '/v1/recipes/generate',
+      headers: { cookie: bob.cookie }, payload: { title: 'Борщ', session_id: session.id },
+    });
+    expect(gen.statusCode).toBe(200);
+    const { messages } = (await app.inject({
+      method: 'GET', url: `/v1/sessions/${session.id}`, headers: { cookie: alice.cookie },
+    })).json();
+    expect(messages.some((m: { card?: { type?: string } }) => m.card?.type === 'recipe_link')).toBe(false);
+  });
+});
