@@ -287,6 +287,8 @@ export interface CookRunRow {
   photo_url: string | null;
   changes: CookRunChanges | null;
   undone_at: string | null;
+  // Правка №11: сесія, з якої запустили готування — журнал веде назад у розмову.
+  session_id?: string | null;
 }
 
 export interface CookRunWithRecipe extends CookRunRow {

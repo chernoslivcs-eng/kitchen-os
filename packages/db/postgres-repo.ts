@@ -66,6 +66,7 @@ function rowToCookRun(r: Row): CookRunRow {
     photo_url: (r.photo_url as string | null) ?? null,
     changes: (r.changes as CookRunChanges | null) ?? null,
     undone_at: r.undone_at ? new Date(r.undone_at as string).toISOString() : null,
+    session_id: (r.session_id as string | null) ?? null,
   };
 }
 
@@ -783,13 +784,13 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO cook_run
          (id, household_id, user_id, recipe_id, servings, started_at, finished_at,
-          rating, verdict, photo_url, changes, undone_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          rating, verdict, photo_url, changes, undone_at, session_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [
         run.id, run.household_id, run.user_id, run.recipe_id, run.servings,
         run.started_at, run.finished_at, run.rating, run.verdict, run.photo_url,
         run.changes ? JSON.stringify(run.changes) : null,
-        run.undone_at,
+        run.undone_at, run.session_id ?? null,
       ],
     );
   }

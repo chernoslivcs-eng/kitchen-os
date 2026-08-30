@@ -77,6 +77,75 @@
   color: var(--fg-dim);
 }
 .spacer { display: none; }
+
+/* Правка №1: блок сесій — тільки десктоп (мобайл має сегмент «Історія»). */
+.sessions { display: none; }
+.sessions-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 4px 10px;
+}
+.session-new {
+  display: flex;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.session-new:hover { background: var(--bg-hover); }
+.session {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.session:hover { background: var(--bg-hover); }
+.session.active { background: var(--bg-hover); }
+.session-when {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--fg-dim);
+}
+.session-title {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--fg-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session.active .session-title { color: var(--fg-strong); }
+.session-archive {
+  display: flex;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: left;
+}
+.session-archive:hover { background: var(--bg-hover); color: var(--fg); }
 .user {
   display: none;
   align-items: center;
@@ -113,6 +182,14 @@
 
 @media (min-width: 1024px) {
   .desktop-only { display: flex; }
+  /* Правка №1: сесії видимі; довгий список скролиться всередині блока. */
+  .sessions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    overflow-y: auto;
+  }
   .wrap {
     position: fixed;
     top: 0; left: 0; bottom: 0;

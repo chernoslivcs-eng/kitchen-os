@@ -19,6 +19,9 @@ interface CookLocationState {
   startAt?: number;
   // UX9-11: id чернетки зі стрічки — cook-run реюзає її замість другого рядка.
   recipeId?: string;
+  // Правка №5: Cook Mode — поп-ап над місцем запуску; вихід веде назад у ту
+  // саму сесію, не в дефолтну «сесію дня».
+  returnSessionId?: string | null;
 }
 
 function formatMS(secondsLeft: number): string {
@@ -41,6 +44,15 @@ export function CookPage() {
   // Бриф-3 п.1: повернення на пройдений крок — тап по смузі або ↩.
   // Таймер при поверненні стає на паузу (він не «відмотує час», людина
   // сама вирішить, чи запускати).
+  // Правка №5: усі виходи ведуть у точку запуску.
+  function exitToOrigin() {
+    if (state.returnSessionId) {
+      navigate('/app', { state: { sessionId: state.returnSessionId, at: Date.now() } });
+    } else {
+      navigate('/app');
+    }
+  }
+
   function goToStep(n: number) {
     if (n >= stepIdx) return;
     stopAlarm();
@@ -216,7 +228,7 @@ export function CookPage() {
   useEffect(() => {
     if (!recipe) return;
     if (done) { clearCookSession(); return; }
-    saveCookSession({ recipe, stepIdx, secondsLeft, recipeId: state.recipeId });
+    saveCookSession({ recipe, stepIdx, secondsLeft, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx, running, done]);
   // QA8-06: «Вийти» за 20 секунд до кінця повертало повний таймер — запис
@@ -225,7 +237,7 @@ export function CookPage() {
     if (!recipe) return;
     return () => {
       const snap = sessionSnapRef.current;
-      if (!snap.done) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft, recipeId: state.recipeId });
+      if (!snap.done) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.t]);
@@ -268,6 +280,7 @@ export function CookPage() {
       keep: [...keepMap].map(([id, v]) => (v != null ? { id, v } : id)),
       skip_pantry: skipPantry || undefined,
       recipe_id: state.recipeId,
+      session_id: state.returnSessionId ?? undefined,
     })
       .then((r) => {
         setDepleted(r.depleted); setPartial(r.partial); setOpened(r.opened);
@@ -374,7 +387,7 @@ export function CookPage() {
           зліва, мета в центрі, прогрес-смуга справа (220px). На мобільному
           прогрес переносом падає на другий рядок на всю ширину. */}
       <div className={styles.head}>
-        <button className={styles.exit} onClick={() => navigate(-1)}>✕ Вийти</button>
+        <button className={styles.exit} onClick={exitToOrigin}>✕ Вийти</button>
         <MonoLabel className={styles['head-meta']}>
           {recipe.t.toUpperCase()} · {done ? 'ГОТОВО' : `КРОК ${stepIdx + 1}/${total}`}
         </MonoLabel>
@@ -806,7 +819,7 @@ export function CookPage() {
             <button
               className={styles.main}
               style={{ flex: 1 }}
-              onClick={() => navigate('/app')}
+              onClick={exitToOrigin}
             >
               У стрічку
             </button>

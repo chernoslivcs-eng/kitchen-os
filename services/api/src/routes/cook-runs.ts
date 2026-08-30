@@ -56,6 +56,8 @@ interface CookRunBody {
   // UX9-11: рецепт зі стрічки вже персистований чернеткою (recipe_link.recipe_id).
   // Передали id — реюзаємо рядок, не плодимо другий («У рецепти» давало дубль).
   recipe_id?: string;
+  // Правка №11: сесія, з якої запустили Cook Mode — журнал поведе назад у неї.
+  session_id?: string;
 }
 
 export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
@@ -64,7 +66,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
     { preHandler: authenticated(repo) },
     async (req, reply) => {
       const { user_id, household_id } = requireUser(req);
-      const { recipe, servings, rating, verdict, keep, dry_run, skip_pantry, recipe_id: clientRecipeId } = req.body ?? {};
+      const { recipe, servings, rating, verdict, keep, dry_run, skip_pantry, recipe_id: clientRecipeId, session_id } = req.body ?? {};
       // #7 (план 2026-08-30): «щось лишилось» — id партій, які людина зняла з
       // повного списання в модалці підтвердження. Замість depleted → opened із
       // невідомою кількістю: чесне «не знаю» замість вигаданого залишку.
@@ -265,6 +267,8 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         photo_url: null,
         changes: changes.length ? { batches: changes } : null,
         undone_at: null,
+        // Чужу/неіснуючу сесію мовчки не пишемо — журнал важливіший за слід.
+        session_id: session_id && (await repo.getSession(session_id))?.user_id === user_id ? session_id : null,
       });
 
       return reply.code(201).send({

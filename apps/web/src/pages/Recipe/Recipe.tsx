@@ -133,12 +133,29 @@ export function RecipePage() {
       <div className={styles.head}>
         <button className={styles.iconbtn} onClick={() => navigate(-1)} aria-label="Назад">←</button>
         <MonoLabel className={styles['head-meta']}>РЕЦЕПТ · КРОК {Math.min(currentStep + 1, recipe.st.length)}/{recipe.st.length}</MonoLabel>
-        <Button
-          variant="secondary"
-          onClick={() => navigate('/cook', { state: { recipe, recipeId: id } })}
-        >
-          Cook Mode
-        </Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* Правка №10: екран — тонка адресна сторінка (F5/закладки); робота
+              з рецептом живе в розмові. */}
+          {id && (
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                try {
+                  const { session } = await api.session.fresh(id);
+                  navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
+                } catch {/* тихо */}
+              }}
+            >
+              Відкрити в чаті
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/cook', { state: { recipe, recipeId: id } })}
+          >
+            Cook Mode
+          </Button>
+        </div>
       </div>
 
       <div className={styles.body}>

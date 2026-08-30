@@ -37,6 +37,33 @@
 }
 .head-actions .head-meta { white-space: nowrap; }
 
+/* Правка №1: «+» нова сесія — іконка 40px у правому куті (мобайл). */
+.new-session-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+.new-session-btn:hover { background: var(--bg-hover); color: var(--fg); }
+
+.segments {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px 8px;
+}
+
+/* Правка №1: на десктопі сесіями керує сайдбар — сегменти і «+» зайві. */
+@media (min-width: 1024px) {
+  :global(body.with-sidebar) .segments { display: none; }
+  :global(body.with-sidebar) .new-session-btn { display: none; }
+}
+
 /* ----- Timeline ------------------------------------------------------- */
 /* Правка №7: скрол-контейнер — ВСЯ центральна зона (курсор будь-де в зоні
    крутить стрічку), а вузька колонка контенту центрується дітьми. */

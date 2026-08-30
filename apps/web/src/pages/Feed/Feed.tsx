@@ -13,6 +13,7 @@ import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor, appliedToast } from './cards';
 import { useAuth } from '../../store/auth';
+import { useSessionStore } from '../../store/session';
 import { Avatar } from '../../components/Avatar/Avatar';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
@@ -230,24 +231,36 @@ export function Feed() {
   }, []);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // Правка №1: сайдбар знає активну сесію і перечитує список, коли тут
+  // щось міняється.
+  const sessionStore = useSessionStore();
+  function activate(id: string | null) {
+    setSessionId(id);
+    sessionStore.setActive(id);
+  }
 
   useEffect(() => {
     // Гідратуємо стрічку з сесії дня. Показуємо кожне message як окремий turn.
     // Cards із applied>0 показуються в стані «застосовано» (без Apply-кнопки).
+    // Правка №1: якщо прийшли з сайдбара/бібліотеки з конкретною сесією —
+    // location-ефект нижче переграє це завантаження.
     (async () => {
       try {
         const { session, messages } = await api.session.today();
-        setSessionId(session.id);
+        activate(session.id);
         setTurns(messages.map((m) => messageToTurn(m)));
       } catch {/* offline: залишаємо порожню стрічку */}
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startFreshSession() {
     try {
       const { session } = await api.session.fresh();
-      setSessionId(session.id);
+      activate(session.id);
       setTurns([]);
+      setHistoryOpen(false);
+      sessionStore.bump();
     } catch {/* тихо: наступним разом */}
   }
 
@@ -267,11 +280,23 @@ export function Feed() {
   async function loadHistorySession(id: string) {
     try {
       const { session, messages } = await api.session.get(id);
-      setSessionId(session.id);
+      activate(session.id);
       setTurns(messages.map((m) => messageToTurn(m)));
       setHistoryOpen(false);
     } catch {/* тихо */}
   }
+
+  // Правка №1: команди з сайдбара (і №10/11 — з бібліотеки/журналу) приходять
+  // через location.state. `at` — щоб повторний клік по тому ж пункту
+  // спрацьовував знову.
+  useEffect(() => {
+    const st = location.state as { sessionId?: string; freshSession?: boolean; openHistory?: boolean; at?: number } | null;
+    if (!st) return;
+    if (st.sessionId) void loadHistorySession(st.sessionId);
+    else if (st.freshSession) void startFreshSession();
+    else if (st.openHistory) void openHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   // QA8-04: smooth-скрол у цьому контейнері мовчки не працював (виміряно:
   // scrollTop лишався 0), і вимір scrollHeight ішов до розкладки високого
@@ -370,6 +395,8 @@ export function Feed() {
         cardId: res.card_id,
       };
       setTurns((prev) => [...prev, turn]);
+      // Правка №1: перша репліка дала сесії назву — сайдбар перечитає список.
+      sessionStore.bump();
     } catch (err) {
       const raw = (err as Error).message;
       const human = raw === 'model_unavailable'
@@ -497,38 +524,26 @@ export function Feed() {
           </div>
         </div>
         <div className={styles['head-actions']}>
-
-          {turns.length > 0 && (
-            <button
-              onClick={startFreshSession}
-              title="Почати новий чат"
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--r-pill)',
-                padding: '5px 10px',
-                color: 'var(--fg-muted)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 10,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}
-            >
-              + Новий
-            </button>
-          )}
           {pantryCount !== null && (
             <MonoLabel className={styles['head-meta']}>
               КОМОРА {pantryCount}{shoppingCount > 0 ? ` · СПИСОК ${shoppingCount}` : ''}
             </MonoLabel>
           )}
           <Avatar name={meName} />
+          {/* Правка №1: «+» — іконкою в самому правому куті шапки (мобайл;
+              на десктопі новий чат живе в сайдбарі). */}
+          <button
+            onClick={startFreshSession}
+            title="Нова сесія"
+            aria-label="Нова сесія"
+            className={styles['new-session-btn']}
+          >+</button>
         </div>
       </div>
 
-      {/* Бриф-2 п.2: журнал сесій живе сегментом «Історія» всередині Стрічки. */}
-      <div style={{ display: 'flex', gap: 4, padding: '0 16px 8px' }}>
+      {/* Бриф-2 п.2: журнал сесій — сегментом «Історія» (мобайл; на десктопі
+          сесії в сайдбарі, сегменти сховані CSS-ом). */}
+      <div className={styles.segments}>
         <button
           onClick={() => setHistoryOpen(false)}
           className={!historyOpen ? styles['seg-active'] : styles.seg}
@@ -545,6 +560,17 @@ export function Feed() {
             шапкою, як у макеті 1б, а не bottom sheet поверх стрічки. */}
         {historyOpen && (
           <div>
+            {/* Правка №1: контекстний вхід у нову сесію — там, де список сесій. */}
+            <button
+              onClick={startFreshSession}
+              style={{
+                display: 'flex', width: '100%', padding: '13px 16px', marginBottom: 8,
+                border: '1px dashed var(--border-strong)', borderRadius: 14,
+                background: 'transparent', color: 'var(--accent)',
+                fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >+ Нова сесія</button>
             {historyLoading && <SkeletonRows rows={4} />}
             {!historyLoading && historySessions.length === 0 && (
               <div style={{ color: 'var(--fg-muted)', padding: '20px 0', fontSize: 14 }}>
@@ -674,7 +700,7 @@ export function Feed() {
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onRefine={t.card.type === 'proposal' ? startRefine : undefined}
-                onCook={(r, rid) => navigate('/cook', { state: { recipe: r, recipeId: rid } })}
+                onCook={(r, rid) => navigate('/cook', { state: { recipe: r, recipeId: rid, returnSessionId: sessionId } })}
                 onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
                 onSaveRecipe={saveRecipeForLater}
                 savedRecipeIds={savedRecipeIds}
@@ -701,7 +727,7 @@ export function Feed() {
             композитором: видиме завжди, доки готування живе. */}
         {cookLive && !historyOpen && (
           <button
-            onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe, recipeId: cookLive.recipeId } })}
+            onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId } })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               border: '1px solid var(--accent-border)', borderRadius: 14,

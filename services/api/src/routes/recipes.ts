@@ -163,6 +163,27 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     },
   );
 
+  // Правка №11: журнал/бібліотека ведуть у СЕСІЮ рецепта. Шукаємо найсвіжішу
+  // сесію юзера, де цей рецепт лежить recipe_link-ходом; немає — клієнт
+  // створить нову через POST /v1/session {recipe_id}.
+  app.get<{ Params: { id: string } }>(
+    '/v1/recipes/:id/session',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const row = await repo.getRecipe(req.params.id);
+      if (!row || row.owner_id !== user_id) return reply.code(404).send({ error: 'not_found' });
+      const sessions = await repo.listSessionsForUser(user_id, 50);
+      for (const s of sessions) {
+        const msgs = await repo.listMessages(s.id);
+        if (msgs.some((m) => m.card?.type === 'recipe_link' && (m.card as { recipe_id?: string }).recipe_id === row.id)) {
+          return { session_id: s.id };
+        }
+      }
+      return { session_id: null };
+    },
+  );
+
   // «На потім» для рецепта, який уже має адресу: не плодимо другий рядок.
   app.patch<{ Params: { id: string }; Body: { saved?: boolean } }>(
     '/v1/recipes/:id',

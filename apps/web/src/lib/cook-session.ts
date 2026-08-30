@@ -18,6 +18,8 @@ export interface CookSession {
   // UX9-11: id чернетки рецепта — щоб фініш після resume реюзав той самий
   // рядок, а не плодив другий.
   recipeId?: string;
+  // Правка №5: сесія, з якої запустили готування — вихід повертає туди.
+  returnSessionId?: string | null;
 }
 
 export function saveCookSession(s: Omit<CookSession, 'savedAt'>): void {

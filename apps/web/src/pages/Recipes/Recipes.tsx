@@ -181,7 +181,16 @@ export function RecipesPage() {
             <div key={r.id} style={{ position: 'relative' }}>
               <button
                 className={styles.card}
-                onClick={() => navigate(`/recipe/${r.id}`, { state: { recipe: r.payload } })}
+                /* Правка №10: рецепт — хід розмови. Тап відкриває сесію з
+                   рецептом у чаті (близнюк реюзається на бекенді), не екран. */
+                onClick={async () => {
+                  try {
+                    const { session } = await api.session.fresh(r.id);
+                    navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
+                  } catch {
+                    navigate(`/recipe/${r.id}`, { state: { recipe: r.payload } });
+                  }
+                }}
               >
                 <div className={styles.info}>
                   <div className={styles.dish}>{r.title}</div>

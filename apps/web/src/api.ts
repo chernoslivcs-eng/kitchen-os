@@ -181,16 +181,20 @@ export const api = {
 
   session: {
     today: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session/today'),
-    fresh: () => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session', {
-      method: 'POST', body: '{}',
+    // Правки №10/11: recipe_id → сесія, де рецепт лежить першим ходом
+    // (сесія-близнюк реюзається на бекенді).
+    fresh: (recipe_id?: string) => req<{ session: SessionInfo; messages: MessageInfo[] }>('/v1/session', {
+      method: 'POST', body: JSON.stringify(recipe_id ? { recipe_id } : {}),
     }),
+    findByRecipe: (recipe_id: string) =>
+      req<{ session_id: string | null }>(`/v1/recipes/${recipe_id}/session`),
     list: () => req<{ sessions: (SessionInfo & { message_count: number })[] }>('/v1/sessions'),
     get: (id: string) => req<{ session: SessionInfo; messages: MessageInfo[] }>(`/v1/sessions/${id}`),
   },
 
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
-    save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string }) =>
+    save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string; session_id?: string }) =>
       req<{ id: string; recipe_id: string; depleted: number; partial: number; opened: number; depleted_batch_ids: string[]; depleted_labels?: string[]; partial_labels?: string[]; opened_labels?: string[] }>('/v1/cook-runs', {
         method: 'POST',
         body: JSON.stringify({ recipe, ...opts }),
@@ -433,6 +437,7 @@ export interface CookRunWithRecipe {
   verdict: string | null;
   photo_url: string | null;
   changes: { batches: CookRunBatchChange[] } | null;
+  session_id?: string | null;
   undone_at: string | null;
   recipe: {
     id: string;

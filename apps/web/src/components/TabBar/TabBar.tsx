@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
-import { api } from '../../api';
+import { api, type SessionInfo } from '../../api';
 import { useAuth } from '../../store/auth';
+import { useSessionStore } from '../../store/session';
 import styles from './TabBar.module.css';
+
+// Правка №1: підпис сесії в сайдбарі — «дата · час · запит». Дата/час із
+// created_at, запит — назва сесії (перша репліка або назва рецепта).
+function sessionLabel(s: SessionInfo): { when: string; title: string } {
+  const d = new Date(s.created_at);
+  const when = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return { when, title: s.title ?? 'без назви' };
+}
 
 interface TabDef {
   path: string;
@@ -61,6 +70,28 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
 
   const initial = (meName?.trim()[0] ?? '·').toUpperCase();
 
+  // Правка №1: сесії — у сайдбарі (тільки десктоп: блок схований у мобільній
+  // верстці CSS-ом, як brand/user). Список оновлюється, коли Feed сіпає
+  // version (нове повідомлення дало назву, нова сесія, тощо).
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const version = useSessionStore((s) => s.version);
+  const [sessions, setSessions] = useState<(SessionInfo & { message_count: number })[]>([]);
+  useEffect(() => {
+    api.session.list()
+      .then(({ sessions: all }) => setSessions(all.filter((s) => s.message_count > 0).slice(0, 6)))
+      .catch(() => {/* сайдбар без сесій — не трагедія */});
+  }, [version, pathname]);
+
+  function openSession(id: string) {
+    navigate('/app', { state: { sessionId: id, at: Date.now() } });
+  }
+  function newSession() {
+    navigate('/app', { state: { freshSession: true, at: Date.now() } });
+  }
+  function openArchive() {
+    navigate('/app', { state: { openHistory: true, at: Date.now() } });
+  }
+
   return (
     <div className={`${styles.wrap} ${desktopOnly ? styles['desktop-only'] : ''}`}>
       {/* Д01: знак + вордмарк угорі сайдбара. На мобільному приховано. */}
@@ -84,6 +115,29 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
           </button>
         );
       })}
+
+      {/* Правка №1: сесії — частина навігації. Нова сесія → останні → архів. */}
+      <div className={styles.sessions}>
+        <div className={styles['sessions-divider']} />
+        <button className={styles['session-new']} onClick={newSession}>+ Нова сесія</button>
+        {sessions.map((s) => {
+          const { when, title } = sessionLabel(s);
+          return (
+            <button
+              key={s.id}
+              className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`}
+              onClick={() => openSession(s.id)}
+              title={`${when} · ${title}`}
+            >
+              <span className={styles['session-when']}>{when}</span>
+              <span className={styles['session-title']}>{title}</span>
+            </button>
+          );
+        })}
+        {sessions.length > 0 && (
+          <button className={styles['session-archive']} onClick={openArchive}>Історія →</button>
+        )}
+      </div>
 
       {/* Д01: спейсер + блок користувача внизу; активний, коли відкрито профіль. */}
       <div className={styles.spacer} />

@@ -593,4 +593,24 @@ describe('POST /v1/cook-runs · keep із залишком', () => {
     expect(batch.state).toBe('sealed');
     expect(batch.value).toBe(200);
   });
+  // Правка №11: готування пам'ятає сесію запуску — журнал веде назад у
+  // розмову навколо готування, без пошуку по повідомленнях.
+  it('session_id зберігається в run і повертається списком', async () => {
+    const me = await signIn(app, mailer, 'sess@example.com');
+    const b = await seed(me, 'Сир', 100);
+    const session = await repo.createFreshSession(me.user_id, '2026-08-31');
+    const sid = session.id;
+
+    const res = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: { t: 'Сирники', ing: [{ p: b, v: 50, u: 'g' }], st: [] },
+        session_id: sid,
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const runs = (await app.inject({ method: 'GET', url: '/v1/cook-runs', headers: { cookie: me.cookie } }))
+      .json() as { runs: { session_id?: string | null }[] };
+    expect(runs.runs[0]!.session_id).toBe(sid);
+  });
 });

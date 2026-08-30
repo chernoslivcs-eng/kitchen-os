@@ -161,7 +161,19 @@ export function CookLogPage() {
                   <div key={r.id} style={{ position: 'relative' }}>
                     <button
                       className={styles.card}
-                      onClick={() => navigate('/recipe', { state: { recipe: r.recipe.payload } })}
+                      /* Правка №11: запис журналу веде в СЕСІЮ, де рецепт
+                         народився (сесія запуску готування → пошук за
+                         recipe_link → нова сесія з рецептом як фолбек). */
+                      onClick={async () => {
+                        try {
+                          let sid = r.session_id ?? null;
+                          if (!sid) sid = (await api.session.findByRecipe(r.recipe_id)).session_id;
+                          if (!sid) sid = (await api.session.fresh(r.recipe_id)).session.id;
+                          navigate('/app', { state: { sessionId: sid, at: Date.now() } });
+                        } catch {
+                          navigate('/recipe', { state: { recipe: r.recipe.payload } });
+                        }
+                      }}
                     >
                       {r.photo_url && !undone ? (
                         <img
