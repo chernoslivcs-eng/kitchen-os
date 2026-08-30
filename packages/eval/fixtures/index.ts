@@ -112,6 +112,7 @@ export function loadFixtures(): Fixture[] {
     readJson('calendar-easter-date.json'),
     readJson('own-recipe-text.json'),
     readJson('generated-recipe-memory.json'),
+    readJson('recipe-edit-move.json'),
     readJson('shared-meal-allergen.json'),
   ];
   return list;

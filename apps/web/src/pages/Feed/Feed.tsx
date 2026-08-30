@@ -604,7 +604,7 @@ export function Feed() {
         )}
 
         {!historyOpen && turns.map((t) => (
-          <div key={t.id} id={`turn-${t.id}`} className={styles.turn}>
+          <div key={t.id} id={`turn-${t.id}`} className={`${styles.turn} ${t.role === 'user' ? styles['turn-user'] : ''}`}>
             <MonoLabel tone="muted">
               {t.time} {t.role === 'user' ? 'ТИ' : t.card ? (
                 (() => {

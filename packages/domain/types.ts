@@ -134,7 +134,19 @@ export interface RecipeLinkCard {
   recipe?: Recipe;
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard;
+// QA9-02: «поміняй в рецепті багет на батон». Модель НЕ переписує рецепт сама —
+// показує пальцем (назва) і передає інструкцію; сервер регенерує рецепт із
+// базовим payload і кидає НОВИЙ recipe_link-хід у стрічку. Старе повідомлення
+// не редагується — правка це відповідь, а не втручання в минуле (канон Бриф-3:
+// «наступна репліка може змінити рецепт»). Ця картка ніколи не доходить до
+// клієнта і не має apply-гілки: chat-роут перехоплює її синхронно.
+export interface RecipeEditCard {
+  type: 'recipe_edit';
+  title: string;         // назва рецепта з розмови — по ній шукаємо базовий
+  instruction: string;   // що змінити, словами людини
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard;
 
 // ----- Стан «на застосуванні» ------
 

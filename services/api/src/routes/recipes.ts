@@ -5,7 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { matchRecipe, type RecipeIngredient } from '@kitchen/domain';
+import { matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
 import { callRecipe } from '../model.js';
 import type { Recipe, RecipeIng } from '@kitchen/domain';
@@ -92,6 +92,11 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       (i: RecipeIng) => 'q' in (i as object) || (i.v != null && typeof i.v !== 'number'),
     );
     if (bad.length) req.log.warn({ bad, title }, 'recipe-ing-schema-violation');
+
+    // QA9-01: назва партії вморожується в payload зараз — рендер більше не
+    // залежить від живої комори. Партію спишуть чи перейменують — рецепт
+    // читається як і читався: «Багет», а не «з комори» / «Інгредієнт».
+    call.recipe = resolveRecipeLabels(call.recipe, pantry);
 
     // Р-3 (design-audit-2): рецепт одразу пишеться чернеткою і отримує адресу.
     // saved_at: null → у бібліотеці не видно; «☆ На потім» стає PATCH saved,

@@ -5,6 +5,7 @@ export * from './apply.js';
 export * from './context.js';
 export * from './model-response.js';
 export * from './recipe-match.js';
+export * from './recipe-labels.js';
 export * from './occasions.js';
 export * from './session-title.js';
 export * from './auth.js';

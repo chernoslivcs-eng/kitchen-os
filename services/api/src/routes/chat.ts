@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { callChat, callAttachmentParse, type AttachmentPayload } from '../model.js';
-import { createPending, deriveSessionTitle, type Repo, type Card } from '@kitchen/domain';
+import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
+import { createPending, deriveSessionTitle, resolveRecipeLabels, type Repo, type Card, type Recipe } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -30,6 +30,18 @@ function summarizeCard(c: Card): string {
   }
   if (c.type === 'profile') {
     return '[картка: профіль] ' + c.ops.map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
+  }
+  // QA9-02: recipe_link в історії був безликим «[картка]» — модель не бачила,
+  // що рецепт лежить у стрічці, і на «поміняв?» відповідала навмання.
+  if (c.type === 'recipe_link') {
+    const ing = (c.recipe?.ing ?? [])
+      .map((i) => i.n)
+      .filter((n): n is string => !!n)
+      .join(', ');
+    return `[рецепт у стрічці: «${c.title}»${ing ? ` — ${ing}` : ''}]`;
+  }
+  if (c.type === 'recipe_edit') {
+    return `[картка: правка рецепта «${c.title}»]`;
   }
   return '[картка]';
 }
@@ -167,7 +179,13 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         const parts: string[] = [];
         if (m.text) parts.push(m.text);
         if (m.card) {
-          parts.push(summarizeCard(m.card) + (m.applied > 0 ? ' [ЗАСТОСОВАНО]' : ' [НЕ ЗАСТОСОВАНО]'));
+          // recipe_link — не pending-дія, а доконаний факт: рецепт УЖЕ в
+          // стрічці. Суфікс [НЕ ЗАСТОСОВАНО] тут читався моделлю як «система
+          // ще не оновила рецепт» — і вона чесно відмовлялась від зробленого.
+          const status = m.card.type === 'recipe_link'
+            ? ''
+            : (m.applied > 0 ? ' [ЗАСТОСОВАНО]' : ' [НЕ ЗАСТОСОВАНО]');
+          parts.push(summarizeCard(m.card) + status);
         }
         return { role: m.role, content: parts.join('\n') };
       })
@@ -287,6 +305,81 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       if (hit.length) {
         req.log.warn({ hit, user_id, model: call.meta.model }, 'response-contains-allergen');
       }
+    }
+
+    // QA9-02: правка рецепта. Модель показала пальцем (назва + інструкція) —
+    // сервер регенерує рецепт із базовим payload і кидає НОВИЙ recipe_link-хід
+    // у стрічку. Старе повідомлення не редагується: правка — це відповідь,
+    // не втручання в минуле. Картка recipe_edit до клієнта не доходить.
+    if (call.card?.type === 'recipe_edit') {
+      const wanted = call.card.title.trim().toLowerCase();
+      const recent = await repo.listRecentRecipes(user_id, 40);
+      const base = recent.find((r) =>
+        r.title.trim().toLowerCase() === wanted
+        || r.requested_title?.trim().toLowerCase() === wanted);
+
+      if (!base || !base.payload) {
+        // Чесна відмова замість «замінив»: рецепта з такою назвою поруч нема.
+        const reply = `Не бачу поруч рецепта «${call.card.title}» — назви його точніше, і я оновлю.`;
+        await repo.saveMessage({
+          id: randomUUID(), session_id: session.id, role: 'assistant',
+          text: reply, card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+        return { reply, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+
+      const genStarted = Date.now();
+      const gen = await callRecipe({
+        title: base.title,
+        context:
+          'Це ПРАВКА наявного рецепта, не нова страва. Базовий рецепт (JSON):\n'
+          + JSON.stringify(base.payload)
+          + `\n\nВнеси зміну: ${call.card.instruction}\n`
+          + 'Решту складу, кількостей і кроків збережи без змін, включно з привʼязками "p" до партій комори. '
+          + 'Якщо заміна стосується інгредієнта, зміни і кроки, де він згаданий.',
+        pantry,
+        profile,
+      });
+      await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted);
+
+      if (!gen.recipe) {
+        // Модель відповіла прозою (неоднозначна правка) — віддаємо як репліку.
+        const clean = gen.raw.replace(/\*\*/g, '').replace(/`/g, '').replace(/\n{2,}/g, ' ').trim().slice(0, 400);
+        const reply = clean || `Не зміг оновити «${base.title}» — сформулюй правку інакше.`;
+        await repo.saveMessage({
+          id: randomUUID(), session_id: session.id, role: 'assistant',
+          text: reply, card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+        return { reply, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+
+      const updated: Recipe = resolveRecipeLabels(gen.recipe, pantry);
+      const draft_id = randomUUID();
+      await repo.saveRecipe({
+        id: draft_id,
+        owner_id: user_id,
+        origin: 'generated',
+        title: updated.t,
+        // Спадкоємність дедупу: наступний тап «Рецепт» на цю назву має
+        // повернути САМЕ оновлену версію, а не базову.
+        requested_title: base.requested_title ?? base.title,
+        descr: updated.d ?? null,
+        character: updated.ch ?? null,
+        risk: updated.rk ?? null,
+        base_servings: updated.sv ?? 2,
+        time_total: updated.tm ?? null,
+        nutrition: updated.nu ?? null,
+        payload: updated,
+        created_at: new Date().toISOString(),
+        saved_at: null,
+      });
+
+      const linkCard: Card = { type: 'recipe_link', recipe_id: draft_id, title: updated.t, recipe: updated };
+      await repo.saveMessage({
+        id: randomUUID(), session_id: session.id, role: 'assistant',
+        text: call.reply ?? null, card: linkCard, applied: 0, created_at: new Date().toISOString(),
+      });
+      return { reply: call.reply, card: linkCard, card_id: null, usage: call.usage, meta: call.meta };
     }
 
     const card_id = call.card ? randomUUID() : null;

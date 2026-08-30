@@ -16,3 +16,9 @@
 .avatar:hover {
   background: var(--border-strong);
 }
+
+/* QA9-05: на десктопі профіль — юзер-блок унизу сайдбара (Д01). Аватар у
+   шапці лишається мобільним входом; два входи поруч плутають. */
+@media (min-width: 1024px) {
+  .avatar { display: none; }
+}

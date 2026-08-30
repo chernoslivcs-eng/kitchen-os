@@ -54,6 +54,18 @@
   color: var(--fg-mono);
 }
 
+/* QA9-04 / канон Бриф-3: репліки людини — справа, в баблі (surface + бордер,
+   r14, до 80% ширини). Мітка «ТИ» вирівнюється разом із баблом через flex-end. */
+.turn-user { align-items: flex-end; }
+.turn-user .turn-text {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  max-width: 80%;
+  color: var(--fg);
+}
+
 /* ----- Card (спільне) ------------------------------------------------- */
 .card {
   display: flex;

@@ -481,6 +481,23 @@ export const registry: Record<string, Invariant> = {
     return pass();
   },
 
+  // QA9-02 (скріни з тостом): «поміняй в рецепті багет на батон» ішло в
+  // комору (intake_diff «+батон −багет»), а модель брехала «замінив у
+  // рецепті». Правка рецепта зі стрічки — це recipe_edit: назва + інструкція,
+  // рецепт оновлює сервер.
+  'is-recipe-edit-card': (out) => {
+    const card = out.card;
+    if (!card) return fail('картки немає — правка рецепта загубилась у прозі');
+    if (card.type === 'intake_diff') {
+      return fail('правка рецепта поїхала в комору (intake_diff) — точний баг зі скрінів');
+    }
+    if (card.type !== 'recipe_edit') return fail(`очікували recipe_edit, отримали ${card.type}`);
+    const c = card as { title?: string; instruction?: string };
+    if (!c.title?.trim()) return fail('recipe_edit без назви рецепта — сервер не знайде базовий');
+    if (!c.instruction?.trim()) return fail('recipe_edit без інструкції — нема чого міняти');
+    return pass();
+  },
+
   // QA8-08: спільна трапеза — алерген їдця виключає страву, а не маркує.
   'shared-meal-no-eater-allergen': (out) => {
     const card = out.card;

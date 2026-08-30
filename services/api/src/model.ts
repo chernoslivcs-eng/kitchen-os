@@ -122,6 +122,20 @@ export interface ChatCall {
 // Стаб для тестів і локального дев без ключа. Повертає передбачувану intake_diff-картку
 // на текст із «купив X». Все інше — просто reply без картки.
 function stub(args: ChatArgs, promptVersion: string): ChatCall {
+  // «поміняй в рецепті «X» …» → recipe_edit. Назва — в лапках «» або "".
+  // Правило стоїть ПЕРЕД «купив»: репліка про правку рецепта може містити
+  // згадку покупки («тільки шо купив») — пріоритет у рецепта.
+  if (/(поміняй|заміни|прибери|додай)[^.!?]*рецепт/i.test(args.text)) {
+    const q = /[«"]([^»"]+)[»"]/.exec(args.text);
+    if (q) {
+      return {
+        reply: `Заміню в рецепті — зараз оновлю.`,
+        card: { type: 'recipe_edit', title: q[1]!.trim(), instruction: args.text },
+        usage: { input: 0, output: 0 },
+        meta: { promptVersion, model: 'stub', mode: 'stub' },
+      };
+    }
+  }
   const m = /куп(?:ив|ила|или)\s+(.+)/i.exec(args.text);
   if (m) {
     const label = m[1]!.trim().replace(/[.!?].*$/, '');
@@ -199,7 +213,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     if ('reply' in o && 'card' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = (o.card ?? null) as Card | null;
-    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile'].includes(o.type)) {
+    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit'].includes(o.type)) {
       card = o as unknown as Card;
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }
@@ -221,8 +235,14 @@ export interface RecipeCall {
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
 
-function recipeStub(title: string, promptVersion: string): RecipeCall {
-  // Мінімальний рецепт для тестів без ключа. Не намагається бути «розумним».
+function recipeStub(title: string, promptVersion: string, pantry?: PantryBatch[]): RecipeCall {
+  // Мінімальний рецепт для тестів без ключа. Не намагається бути «розумним»,
+  // але імітує головну механіку живої моделі: якщо партія з комори згадана в
+  // назві — «показує пальцем» через p БЕЗ n (QA9-01 перевіряє, що сервер
+  // вморожує назву сам).
+  const pointed = pantry?.find(
+    (b) => b.state !== 'depleted' && title.toLowerCase().includes(b.label.toLowerCase()),
+  );
   return {
     recipe: {
       t: title,
@@ -232,7 +252,7 @@ function recipeStub(title: string, promptVersion: string): RecipeCall {
       d: 'Простий сценарій під те, що ти назвав.',
       rk: 'ПРИМІТКА: не пересолити на початку — краще досолити наприкінці.',
       ing: [
-        { n: title, v: 200, u: 'g' },
+        pointed ? { p: pointed.id, v: 200, u: 'g' } : { n: title, v: 200, u: 'g' },
       ],
       st: [
         { t: 'Підготувати', c: 'Розкласти інгредієнти на робочому місці.' },
@@ -254,7 +274,7 @@ export async function callRecipe(args: {
 }): Promise<RecipeCall> {
   const prompt = loadPrompt();
   const client = makeClient();
-  if (!client) return recipeStub(args.title, prompt.version);
+  if (!client) return recipeStub(args.title, prompt.version, args.pantry);
 
   const model = modelForCall('recipe_gen', prompt);
   const pantryBlock = args.pantry

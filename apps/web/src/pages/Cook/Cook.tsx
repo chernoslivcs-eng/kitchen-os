@@ -314,34 +314,73 @@ export function CookPage() {
     finally { setUploadingPhoto(false); }
   }
 
+  // Кнопки кроку — одні на два лейаути: мобільний футер і десктопна права
+  // колонка (Д05: ↩ і «Крок готово ✓» живуть під таймером).
+  const stepButtons = !done && (
+    <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+      {stepIdx > 0 && (
+        /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
+        <button
+          className={styles.main}
+          style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)' }}
+          aria-label="Крок назад"
+          onClick={() => goToStep(stepIdx - 1)}
+        >↩</button>
+      )}
+      <button
+        className={styles.main}
+        style={{ flex: 1 }}
+        disabled={stepLocked}
+        onClick={advanceStep}
+      >
+        {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
+            дії, а не навігація «Далі →». */}
+        {stepIdx === total - 1 ? 'Приготували' : 'Крок готово ✓'}
+      </button>
+      {stepIdx < total - 1 && (
+        /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
+        <button
+          className={styles.main}
+          style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
+          disabled={stepLocked}
+          onClick={() => { stopAlarm(); setStepIdx(total); }}
+        >
+          Приготували
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.screen}>
+      {/* QA9-03 / Д05: шапка одна на обидва лейаути — ✕ Вийти з САМОГО краю
+          зліва, мета в центрі, прогрес-смуга справа (220px). На мобільному
+          прогрес переносом падає на другий рядок на всю ширину. */}
       <div className={styles.head}>
         <button className={styles.exit} onClick={() => navigate(-1)}>✕ Вийти</button>
         <MonoLabel className={styles['head-meta']}>
           {recipe.t.toUpperCase()} · {done ? 'ГОТОВО' : `КРОК ${stepIdx + 1}/${total}`}
         </MonoLabel>
+        {/* Бриф-3 п.1: тап по сегменту смуги = перейти на пройдений крок.
+            Сегмент 4px — не тап-зона, тому кожен обгорнутий кнопкою з
+            вертикальним padding ≥44px сумарної висоти. */}
+        <div className={styles.progress}>
+          {recipe.st.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={styles['progress-hit']}
+              disabled={i >= stepIdx || done}
+              aria-label={`Повернутись до кроку ${i + 1}`}
+              onClick={() => goToStep(i)}
+            >
+              <div className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Бриф-3 п.1: тап по сегменту смуги = перейти на пройдений крок.
-          Сегмент 4px — не тап-зона, тому кожен обгорнутий кнопкою з
-          вертикальним padding ≥44px сумарної висоти. */}
-      <div className={styles.progress}>
-        {recipe.st.map((_, i) => (
-          <button
-            key={i}
-            type="button"
-            className={styles['progress-hit']}
-            disabled={i >= stepIdx || done}
-            aria-label={`Повернутись до кроку ${i + 1}`}
-            onClick={() => goToStep(i)}
-          >
-            <div className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.body}>
+      <div className={`${styles.body} ${!done ? styles['body-steps'] : ''}`}>
         {done ? (
           <>
             <div className={styles['step-title']}>Готово. Смачного.</div>
@@ -659,69 +698,80 @@ export function CookPage() {
           </>
         ) : (
           <>
-            <div className={styles['step-title']}>
-              {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, batchLabels)}
+            {/* QA9-03: обгортки колонок. Мобільний їх не бачить
+                (display:contents + order), десктоп кладе крок зліва,
+                таймер+кнопки справа за бордюром — Д05. */}
+            <div className={styles['col-main']}>
+              <div className={styles['step-title']}>
+                {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, batchLabels)}
+              </div>
+
+              {/* DA2-05: «НА ЦЬОМУ КРОЦІ» — прив'язка кроку до партій з комори,
+                  «скільки саме з мого». Стоїть у 4 еталонах. */}
+              {step && stepIngredients(step.c ?? '', recipe.ing).length > 0 && (
+                <div className={styles.section}>
+                  <MonoLabel>НА ЦЬОМУ КРОЦІ</MonoLabel>
+                  <div className={styles.next}>
+                    {stepIngredients(step.c ?? '', recipe.ing).map((ing, i) => (
+                      <span key={i}>
+                        {i > 0 && ' · '}
+                        {resolveIngName(ing, batchLabels)}
+                        {ing.v != null && ing.u ? ` — ${formatQty(ing.v, ing.u)}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {nextStep && (
+                <div className={styles.section}>
+                  <MonoLabel>ДАЛІ</MonoLabel>
+                  <div className={styles.next}>
+                    {stepIdx + 2} · {nextStep.t}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {!!step?.s && (
-              <div className={styles.timer}>
-                <div className={`${styles['timer-value']} ${secondsLeft === 0 ? styles.done : ''}`}>
-                  {formatMS(secondsLeft)}
+            <div className={styles['col-side']}>
+              {!!step?.s && (
+                <div className={styles.timer}>
+                  <div className={`${styles['timer-value']} ${secondsLeft === 0 ? styles.done : ''}`}>
+                    {formatMS(secondsLeft)}
+                  </div>
+                  <div className={styles['timer-actions']}>
+                    <button
+                      className={styles.primary}
+                      onClick={() => {
+                        stopAlarm();
+                        if (secondsLeft === 0) { setSecondsLeft(step.s ?? 0); setRunning(true); return; }
+                        setRunning((r) => !r);
+                      }}
+                    >
+                      {secondsLeft === 0 ? 'Спочатку' : running ? 'Пауза' : 'Пуск'}
+                    </button>
+                    <button
+                      className={styles.secondary}
+                      onClick={() => {
+                        if (deadlineRef.current != null) deadlineRef.current += 60_000;
+                        setSecondsLeft((s) => s + 60);
+                      }}
+                    >
+                      +1 хв
+                    </button>
+                  </div>
                 </div>
-                <div className={styles['timer-actions']}>
-                  <button
-                    className={styles.primary}
-                    onClick={() => {
-                      stopAlarm();
-                      if (secondsLeft === 0) { setSecondsLeft(step.s ?? 0); setRunning(true); return; }
-                      setRunning((r) => !r);
-                    }}
-                  >
-                    {secondsLeft === 0 ? 'Спочатку' : running ? 'Пауза' : 'Пуск'}
-                  </button>
-                  <button
-                    className={styles.secondary}
-                    onClick={() => {
-                      if (deadlineRef.current != null) deadlineRef.current += 60_000;
-                      setSecondsLeft((s) => s + 60);
-                    }}
-                  >
-                    +1 хв
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* DA2-05: «НА ЦЬОМУ КРОЦІ» — прив'язка кроку до партій з комори,
-                «скільки саме з мого». Стоїть у 4 еталонах. */}
-            {step && stepIngredients(step.c ?? '', recipe.ing).length > 0 && (
-              <div className={styles.section}>
-                <MonoLabel>НА ЦЬОМУ КРОЦІ</MonoLabel>
-                <div className={styles.next}>
-                  {stepIngredients(step.c ?? '', recipe.ing).map((ing, i) => (
-                    <span key={i}>
-                      {i > 0 && ' · '}
-                      {resolveIngName(ing, batchLabels)}
-                      {ing.v != null && ing.u ? ` — ${formatQty(ing.v, ing.u)}` : ''}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {nextStep && (
-              <div className={styles.section}>
-                <MonoLabel>ДАЛІ</MonoLabel>
-                <div className={styles.next}>
-                  {stepIdx + 2} · {nextStep.t}
-                </div>
-              </div>
-            )}
+              )}
+              <div className={styles['side-actions']}>{stepButtons}</div>
+              <div className={styles['side-hint']}>Працює без мережі · смуга вгорі вертає на крок</div>
+            </div>
           </>
         )}
       </div>
 
-      <div className={styles.foot}>
+      {/* На десктопі в step-режимі кнопки живуть у правій колонці (Д05) —
+          футер ховається. Done-екран тримає футер на всіх ширинах. */}
+      <div className={`${styles.foot} ${!done ? styles['foot-steps'] : ''}`}>
         {done ? (
           <div style={{ display: 'flex', gap: 10 }}>
             <button
@@ -739,40 +789,7 @@ export function CookPage() {
               У стрічку
             </button>
           </div>
-        ) : (
-          <div style={{ display: 'flex', gap: 10 }}>
-            {stepIdx > 0 && (
-              /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
-              <button
-                className={styles.main}
-                style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)' }}
-                aria-label="Крок назад"
-                onClick={() => goToStep(stepIdx - 1)}
-              >↩</button>
-            )}
-            <button
-              className={styles.main}
-              style={{ flex: 1 }}
-              disabled={stepLocked}
-              onClick={advanceStep}
-            >
-              {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
-                  дії, а не навігація «Далі →». */}
-              {stepIdx === total - 1 ? 'Приготували' : 'Крок готово ✓'}
-            </button>
-            {stepIdx < total - 1 && (
-              /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
-              <button
-                className={styles.main}
-                style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
-                disabled={stepLocked}
-                onClick={() => { stopAlarm(); setStepIdx(total); }}
-              >
-                Приготували
-              </button>
-            )}
-          </div>
-        )}
+        ) : stepButtons}
         <div className={styles.offline}>{done ? "Працює без мережі" : "Працює без мережі · смуга вгорі вертає на крок"}</div>
       </div>
     </div>
