@@ -385,6 +385,7 @@ export interface NoteInfo {
   rating: number | null;
   pinned: boolean;
   created_at: string;
+  kind?: 'lesson' | 'intent';
 }
 
 export interface EaterInfo {

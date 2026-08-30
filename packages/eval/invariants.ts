@@ -44,6 +44,16 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Пул-2 №6: «тримай в голові» → profile-картка з op kind:"intent".
+  'intent-op': (out) => {
+    const c = out.card;
+    if (!c || c.type !== 'profile') return fail(`card.type=${c?.type ?? 'null'} — очікував profile`);
+    const ops = (c.ops ?? []) as { kind?: string; label?: string }[];
+    const hit = ops.find((o) => o.kind === 'intent');
+    if (!hit) return fail(`kind-и в ops: ${ops.map((o) => o.kind).join(',')} — intent немає`);
+    return /рол|рисов|креветк/i.test(hit.label ?? '') ? pass(hit.label) : fail(`label не про роли: ${hit.label}`);
+  },
+
   // Черга Д (№2): тегер. Кожен add-оп чека несе трійку (мінімум product);
   // молочне мусить отримати allergens з коренем «молок». Ліміт 70% — чек
   // містить нехарчове/неоднозначне, де трійка може бути голим product.

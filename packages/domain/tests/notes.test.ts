@@ -179,3 +179,54 @@ describe('серіалізація висновків для моделі', () =
     expect(s).toContain('закріплено');
   });
 });
+
+// Пул-2 №6: наміри — другий вид нотатки («тунець → seared», «рисовий папір →
+// роли»). Той самий механізм profile-картки (kind:"intent"), той самий
+// memory_note; у контексті — окремим блоком [НАМІРИ], щоб модель могла
+// нагадати в слушний момент.
+describe('наміри (kind:intent)', () => {
+  let repo: InMemoryRepo;
+  beforeEach(() => { repo = new InMemoryRepo(); });
+
+  const intent = (label: string) =>
+    ({ type: 'profile', ops: [{ op: 'add' as const, kind: 'intent' as const, label }] }) as ProfileCard;
+
+  it('картка з kind:intent пише нотатку виду intent', async () => {
+    const r = await apply(repo, intent('тунець стейки — seared, рожевий всередині'));
+    expect(r.applied).toBe(1);
+    const notes = await repo.listNotes(USER);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]!.kind).toBe('intent');
+  });
+
+  it('remove працює і для наміру', async () => {
+    await apply(repo, intent('роли з рисового паперу'));
+    const r = await apply(repo, { type: 'profile', ops: [{ op: 'remove', kind: 'intent', label: 'роли з рисового паперу' }] } as ProfileCard);
+    expect(r.applied).toBe(1);
+    expect(await repo.listNotes(USER)).toHaveLength(0);
+  });
+
+  it('серіалізація: наміри окремим блоком [НАМІРИ], висновки не змішуються', () => {
+    const lesson: MemoryNote = {
+      id: 'n1', user_id: USER, text: 'фует знімати, щойно краї хрусткі',
+      recipe_title: null, rating: null, pinned: false, created_at: '2026-08-01T10:00:00.000Z',
+    };
+    const idea: MemoryNote = { ...lesson, id: 'n2', text: 'тунець — seared, окрема страва', kind: 'intent' };
+    const s = serializeNotes([lesson, idea]);
+    expect(s).toContain('[ВИСНОВКИ З ГОТУВАННЯ]');
+    expect(s).toContain('[НАМІРИ]');
+    const lessonsBlock = s.split('[НАМІРИ]')[0]!;
+    expect(lessonsBlock).not.toContain('тунець — seared');
+    expect(s.split('[НАМІРИ]')[1]).toContain('тунець — seared');
+  });
+
+  it('самі наміри без висновків — блок висновків не рендериться', () => {
+    const idea: MemoryNote = {
+      id: 'n2', user_id: USER, text: 'роли з креветками', recipe_title: null,
+      rating: null, pinned: false, created_at: '2026-08-01T10:00:00.000Z', kind: 'intent',
+    };
+    const s = serializeNotes([idea]);
+    expect(s).not.toContain('[ВИСНОВКИ З ГОТУВАННЯ]');
+    expect(s).toContain('[НАМІРИ]');
+  });
+});

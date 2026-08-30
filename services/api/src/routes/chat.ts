@@ -304,7 +304,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Висновки, які людина сама зробила про свою кухню: «фует знімати, щойно
     // краї хрусткі». Закріплені згори.
-    const notes = await repo.listNotes(user_id, 12);
+    const notes = await repo.listNotes(user_id, 20);
     // Їдці дому: страва готується на всіх, хто за столом.
     const eaters = await repo.listEaters(ctx.household_id);
     // Останні згенеровані рецепти — щоб модель бачила, що вже пропонувала,

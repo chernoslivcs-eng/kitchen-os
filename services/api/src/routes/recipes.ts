@@ -66,7 +66,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     const products = await repo.listProducts(ctx.household_id);
     const profile = await repo.getProfile(ctx.user_id);
     // Г-1: висновки людини йдуть у генерацію — «урок вбудовується в крок».
-    const notes = await repo.listNotes(ctx.user_id, 12);
+    const notes = await repo.listNotes(ctx.user_id, 20);
     const started = Date.now();
     // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
     let call: Awaited<ReturnType<typeof callRecipe>>;

@@ -74,7 +74,7 @@ export interface ShoppingCard {
   }[];
 }
 
-export type ProfileKind = 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member';
+export type ProfileKind = 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member' | 'intent';
 
 export interface ProfileCard {
   type: 'profile';
@@ -205,6 +205,9 @@ export interface MemoryNote {
   rating: number | null;
   pinned: boolean;
   created_at: string;
+  // Пул-2 №6: 'lesson' (висновок з готування, як було) або 'intent' — намір
+  // («тунець → seared»), який модель нагадує в слушний момент.
+  kind?: 'lesson' | 'intent';
 }
 
 // Їдець без акаунта: «зі мною живе Оксана, вона веганка». Не user і не

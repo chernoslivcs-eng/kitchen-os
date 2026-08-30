@@ -54,12 +54,13 @@ const KIND_LABELS: Record<string, string> = {
   anti: 'АНТИ',
   equip: 'ТЕХНІКА',
   note: 'НОТАТКА',
+  intent: 'НАМІР',
   member: 'ДОМАШНІ',
 };
 
 type ProfileItem = {
   op?: 'add' | 'remove';
-  kind?: 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member';
+  kind?: 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member' | 'intent';
   label?: string;
   // UX9-32: обмеження member-опа мають бути ВИДИМІ до підтвердження.
   diet?: string;

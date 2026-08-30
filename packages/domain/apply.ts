@@ -163,8 +163,8 @@ export async function applyCard(
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      if (op.kind === 'note') {
-        if (await applyNoteOp(repo, actor_user_id, op, added_note_ids)) landed++;
+      if (op.kind === 'note' || op.kind === 'intent') {
+        if (await applyNoteOp(repo, actor_user_id, op, added_note_ids, op.kind === 'intent' ? 'intent' : 'lesson')) landed++;
         continue;
       }
       if (op.kind === 'member') {
@@ -443,6 +443,7 @@ async function applyNoteOp(
   user_id: string,
   op: { op?: 'add' | 'remove'; label?: string; pin?: boolean; [k: string]: unknown },
   added: string[],
+  kind: 'lesson' | 'intent' = 'lesson',
 ): Promise<boolean> {
   const text = (op.label ?? '').trim();
   if (!text) return false;
@@ -462,6 +463,7 @@ async function applyNoteOp(
     rating: typeof op.rating === 'number' ? op.rating : null,
     pinned: op.pin === true,
     created_at: new Date().toISOString(),
+    kind,
   });
   added.push(id);
   return true;

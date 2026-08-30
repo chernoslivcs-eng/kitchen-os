@@ -342,16 +342,34 @@ export function ProfilePage() {
           )}
         </div>
 
+        {/* Пул-2 №6: наміри — «що хочу спробувати», окремо від висновків. */}
+        {notes.some((n) => n.kind === 'intent') && (
+          <div className={styles.section}>
+            <div className={styles['section-label']}>Наміри</div>
+            <div className={styles.hint}>
+              Ідеї, відкладені на потім. Кухар нагадає, коли складники будуть у коморі. Додаються і прибираються через чат.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {notes.filter((n) => n.kind === 'intent').map((n) => (
+                <div key={n.id} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--accent)', flex: 'none' }}>⏳</span>
+                  <div style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)' }}>{n.text}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Висновки з готування. Єдине в профілі, що написала не система про
             людину, а людина про свою кухню — тому окремим блоком. */}
-        {notes.length > 0 && (
+        {notes.some((n) => (n.kind ?? 'lesson') === 'lesson') && (
           <div className={styles.section}>
             <div className={styles['section-label']}>Висновки з готування</div>
             <div className={styles.hint}>
               Те, що ти зрозумів про свою кухню. Памʼятається назавжди і враховується в кожному рецепті. ★ — закріплене, згадується завжди.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {notes.map((n) => (
+              {notes.filter((n) => (n.kind ?? 'lesson') === 'lesson').map((n) => (
                 <div
                   key={n.id}
                   style={{

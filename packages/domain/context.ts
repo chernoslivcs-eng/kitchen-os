@@ -250,13 +250,23 @@ export function serializeRecentRecipes(rows: RecipeRow[]): string {
 // окремим блоком, а не тонуть у профілі серед побажань.
 export function serializeNotes(notes: MemoryNote[]): string {
   if (!notes.length) return '';
-  const lines = notes.map((n) => {
+  const line = (n: MemoryNote) => {
     const parts = [n.text];
     if (n.recipe_title) parts.push(`до «${n.recipe_title}»`);
     if (n.pinned) parts.push('закріплено');
     return '— ' + parts.join(' · ');
-  });
-  return '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lines.join('\n');
+  };
+  // Пул-2 №6: наміри — окремий блок. Висновок каже «як не помилитись»,
+  // намір — «що заплановано»; змішані вони читались би як одна каша.
+  const lessons = notes.filter((n) => (n.kind ?? 'lesson') === 'lesson');
+  const intents = notes.filter((n) => n.kind === 'intent');
+  let out = '';
+  if (lessons.length) out += '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lessons.map(line).join('\n');
+  if (intents.length) {
+    out += '\n\n[НАМІРИ] (ідеї, які людина відклала на потім — нагадай, коли складники в наявності або момент слушний)\n'
+      + intents.map(line).join('\n');
+  }
+  return out;
 }
 
 // Повний блок стану, який іде в системний промпт після composed-промпту.

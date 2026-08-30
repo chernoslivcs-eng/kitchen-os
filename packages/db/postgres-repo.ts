@@ -108,6 +108,7 @@ function noteRow(r: Row): MemoryNote {
     rating: r.rating == null ? null : Number(r.rating),
     pinned: r.pinned as boolean,
     created_at: new Date(r.created_at as string).toISOString(),
+    kind: (r.kind as 'lesson' | 'intent' | null) ?? 'lesson',
   };
 }
 
@@ -356,9 +357,9 @@ export class PostgresRepo implements Repo {
 
   async insertNote(n: MemoryNote): Promise<void> {
     await this.pool.query(
-      `INSERT INTO memory_note (id, user_id, text, recipe_title, rating, pinned, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [n.id, n.user_id, n.text, n.recipe_title, n.rating, n.pinned, n.created_at],
+      `INSERT INTO memory_note (id, user_id, text, recipe_title, rating, pinned, created_at, kind)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [n.id, n.user_id, n.text, n.recipe_title, n.rating, n.pinned, n.created_at, n.kind ?? 'lesson'],
     );
   }
 
