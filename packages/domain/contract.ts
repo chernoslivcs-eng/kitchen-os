@@ -188,6 +188,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         payload: { t: 'Смок-рецепт', ing: [], st: [] }, created_at: now, saved_at: now,
       });
       expect((await repo.listRecipes(user_id)).some((r) => r.id === recipe_id)).toBe(true);
+      expect((await repo.listRecentRecipes(user_id)).some((r) => r.id === recipe_id)).toBe(true);
 
       await repo.saveCookRun({
         id: randomUUID(), household_id, user_id, recipe_id, servings: 2,

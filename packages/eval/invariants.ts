@@ -329,7 +329,8 @@ export const registry: Record<string, Invariant> = {
     // «сир» у «сирий», а «кокосове молоко» в піст цілком дозволене. Тому
     // кожен корінь із власними винятками, а не список слів через includes.
     const SKOROMNE: [string, RegExp][] = [
-      ['мʼясо', new RegExp(`${LB}м[ʼ']яс|яловичин|свинин|телятин|баранин|бекон|шинк|ковбас|${LB}сало${RB}`)],
+      // (?!ист) — «гриби дають мʼясистість» це текстура, не мʼясо.
+      ['мʼясо', new RegExp(`${LB}м[ʼ']яс(?!ист)|яловичин|свинин|телятин|баранин|бекон|шинк|ковбас|${LB}сало${RB}`)],
       ['фарш', new RegExp(`${LB}фарш(?!ирован)`)],
       ['птиця', new RegExp(`${LB}курк|куряч|${LB}курц|індичк|індич`)],
       ['риба', new RegExp(`${LB}риб[аиуоі]${RB}|лосос|тунц|оселедц|креветк|${LB}тріск`)],
@@ -456,6 +457,18 @@ export const registry: Record<string, Invariant> = {
     if (card.type !== 'recipe') return fail(`очікували recipe, отримали ${card.type}`);
     const r = (card as { recipe?: { ing?: unknown[]; st?: unknown[] } }).recipe;
     if (!r?.ing?.length || !r?.st?.length) return fail('recipe без ing або st — структури немає');
+    return pass();
+  },
+
+  // Модель памʼятає ВЛАСНИЙ рецепт: склад із [ЗГЕНЕРОВАНІ РЕЦЕПТИ], а не
+  // нова вигадка. Скріни: яловичина → свинина на ту саму назву.
+  'recalls-own-recipe': (out) => {
+    const hay = (String(out.reply ?? '') + ' ' + JSON.stringify(out.card ?? {})).toLowerCase();
+    if (!hay.includes('яловичин')) {
+      return hay.includes('свинин') || hay.includes('курк')
+        ? fail('вигадала нове мʼясо замість того, що в її ж рецепті')
+        : fail('не назвала склад із власного рецепта');
+    }
     return pass();
   },
 

@@ -37,11 +37,26 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
   };
 
   app.post<{
-    Body: { title?: string; context?: string; session_id?: string };
+    Body: { title?: string; context?: string; session_id?: string; regenerate?: boolean };
   }>('/v1/recipes/generate', { preHandler: [authenticated(repo), genLimit] }, async (req, reply) => {
     const ctx = requireUser(req);
-    const { title, context, session_id } = req.body ?? {};
+    const { title, context, session_id, regenerate } = req.body ?? {};
     if (!title || !title.trim()) return reply.code(400).send({ error: 'title required' });
+
+    // Ідемпотентність: та сама назва в межах доби → той самий рецепт, без
+    // виклику моделі. Інакше кожен тап «Рецепт» вигадує страву заново — два
+    // «Бабусин борщ» з різним мʼясом і різними калоріями на сусідніх скрінах.
+    // regenerate: true — свідомий «дай інший підхід».
+    if (!regenerate) {
+      const dayAgo = Date.now() - 24 * 3600_000;
+      const recent = await repo.listRecentRecipes(ctx.user_id, 20);
+      const same = recent.find((r) =>
+        r.title.trim().toLowerCase() === title.trim().toLowerCase()
+        && new Date(r.created_at).getTime() > dayAgo);
+      if (same) {
+        return { id: same.id, recipe: same.payload, reused: true, meta: null, usage: null };
+      }
+    }
 
     const pantry = await repo.listBatches(ctx.household_id);
     const profile = await repo.getProfile(ctx.user_id);
@@ -105,7 +120,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
         await repo.saveMessage({
           id: randomUUID(), session_id: session.id, role: 'assistant',
           text: null,
-          card: { type: 'recipe_link', recipe_id: draft_id, title: call.recipe.t },
+          card: { type: 'recipe_link', recipe_id: draft_id, title: call.recipe.t, recipe: call.recipe },
           applied: 0, created_at: new Date().toISOString(),
         });
       }

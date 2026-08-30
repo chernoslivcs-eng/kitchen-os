@@ -354,6 +354,14 @@ export class InMemoryRepo implements Repo {
       .sort((a, b) => (b.saved_at ?? b.created_at).localeCompare(a.saved_at ?? a.created_at))
       .slice(0, limit);
   }
+  async listRecentRecipes(user_id: string, limit = 5): Promise<RecipeRow[]> {
+    return [...this.recipes.values()]
+      .filter((r) => r.owner_id === user_id)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, limit)
+      .map((r) => ({ ...r }));
+  }
+
   async setRecipeSaved(id: string, saved_at: string | null): Promise<void> {
     const cur = this.recipes.get(id);
     if (cur) this.recipes.set(id, { ...cur, saved_at });

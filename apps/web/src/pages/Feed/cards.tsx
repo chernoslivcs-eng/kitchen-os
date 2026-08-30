@@ -71,6 +71,10 @@ export interface CardProps {
   // розмови — головну промптову болячку QA-3…6 («тема не тримається») він
   // закриває з боку інтерфейсу, а не вмовляннями в промпті.
   onRefine?: (title: string) => void;
+  // recipe_link: рецепт живе в розмові — готуємо і зберігаємо прямо звідси.
+  onCook?: (recipe: Recipe) => void;
+  onSaveRecipe?: (recipe_id: string) => void;
+  savedRecipeIds?: Set<string>;
 }
 
 function stateClass(applied?: boolean, undone?: boolean): string {
@@ -326,33 +330,127 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 
 // ----- Recipe link ----------------------------------------------------------
 
-// «◇ Борщ · Рецепт →» — слід згенерованого рецепта в розмові (компроміс Р-3).
-// Це не картка-дія: застосовувати нічого, кнопок «Так/Ні» немає — просто
-// постійний рядок, щоб «я вийшов і не можу знайти те, що щойно дивився»
-// перестало існувати.
-export function RecipeLinkCard({ card }: CardProps) {
-  if (!card.recipe_id) return null;
+// Рішення Пилипа: рецепт — це хід розмови, а не екран. Повна страва
+// рендериться в стрічці «гілкою» (лівий бордюр 2px — патерн Бриф-2 1а):
+// інгредієнти, кроки, «Готуємо» і «На потім» — усе тут. Тап «Рецепт»
+// нікуди не веде; окремий екран лишився бібліотеці й шерингу.
+export function RecipeLinkCard({ card, onCook, onSaveRecipe, savedRecipeIds }: CardProps) {
+  const r = card.recipe as Recipe | undefined;
+  const rid = card.recipe_id;
+  if (!rid) return null;
+  const saved = savedRecipeIds?.has(rid) ?? false;
+
+  // Старі повідомлення (до цього рішення) мають тільки посилання — для них
+  // лишаємо рядок-слід.
+  if (!r) {
+    return (
+      <Link
+        to={`/recipe/${rid}`}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
+          color: 'inherit', textDecoration: 'none',
+        }}
+      >
+        <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)' }}>◇</span>
+        <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>
+          {card.title ?? 'Рецепт'}
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+          Рецепт →
+        </span>
+      </Link>
+    );
+  }
+
+  const summary = [
+    r.tm ? `${r.tm}ХВ` : null,
+    r.sv ? `${r.sv} ПОРЦ` : null,
+    r.nu?.kcal ? `${r.nu.kcal}ККАЛ` : null,
+  ].filter(Boolean).join(' · ');
+
   return (
-    <Link
-      to={`/recipe/${card.recipe_id}`}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 0',
-        color: 'inherit', textDecoration: 'none',
-      }}
-    >
-      <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)' }}>◇</span>
-      <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>
-        {card.title ?? 'Рецепт'}
-      </span>
-      <span style={{
-        fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em',
-        textTransform: 'uppercase', color: 'var(--accent)',
-      }}>
-        Рецепт →
-      </span>
-    </Link>
+    <div style={{ borderLeft: '2px solid var(--border-strong)', paddingLeft: 14, marginLeft: 2 }}>
+      <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)', lineHeight: 1.25 }}>
+        {r.t}
+      </div>
+      {summary && (
+        <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)' }}>{summary}</div>
+      )}
+      {r.d && (
+        <div style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.45 }}>{r.d}</div>
+      )}
+      {r.rk && (
+        <div style={{
+          marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--amber)',
+          fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45,
+        }}>{r.rk}</div>
+      )}
+
+      <div style={{ marginTop: 12 }}>
+        <MonoLabel>ІНГРЕДІЄНТИ</MonoLabel>
+        <div style={{ marginTop: 4 }}>
+          {r.ing.map((ing, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'baseline', gap: 10,
+              padding: '7px 0', borderBottom: '1px solid var(--border)',
+              fontFamily: 'var(--font-body)', fontSize: 14,
+            }}>
+              <span style={{ color: ing.p ? 'var(--accent)' : 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                {ing.p ? '●' : '○'}
+              </span>
+              <span style={{ flex: 1, color: 'var(--fg)' }}>{ing.n ?? 'з комори'}</span>
+              {ing.v != null && ing.u && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-dim)' }}>{formatQty(ing.v, ing.u)}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <MonoLabel>КРОКИ</MonoLabel>
+        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {r.st.map((step, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, fontFamily: 'var(--font-body)', fontSize: 14, lineHeight: 1.5 }}>
+              <span style={{
+                width: 22, height: 22, borderRadius: '50%', flex: 'none',
+                border: '1px solid var(--border-strong)', color: 'var(--fg-dim)',
+                display: 'grid', placeItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 11,
+              }}>{i + 1}</span>
+              <span style={{ color: 'var(--fg)' }}>
+                {step.t}. {renderStepInline(step.c, r.ing)}
+                {!!step.s && (
+                  <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
+                    ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
+                  </span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
+        {onCook && <Button variant="primary" onClick={() => onCook(r)}>Готуємо</Button>}
+        {onSaveRecipe && (
+          <Button variant="secondary" onClick={() => onSaveRecipe(rid)} disabled={saved}>
+            {saved ? '✓ Збережено' : '☆ На потім'}
+          </Button>
+        )}
+        <Link
+          to={`/recipe/${rid}`}
+          style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-dim)', textDecoration: 'none' }}
+        >
+          Відкрити →
+        </Link>
+      </div>
+    </div>
   );
+}
+
+// Плейсхолдери {N} у тексті кроку → назви інгредієнтів.
+function renderStepInline(content: string, ing: Recipe['ing']): string {
+  return content.replace(/\{(\d+)\}/g, (_, n) => ing[Number(n)]?.n ?? 'інгредієнт');
 }
 
 export function Card(props: CardProps) {

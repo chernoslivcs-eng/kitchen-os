@@ -1,0 +1,35 @@
+{
+  "id": "generated-recipe-memory",
+  "description": "Скріни Пилипа: два «Бабусин борщ» з різним мʼясом і калоріями — модель не бачила власних рецептів і на кожне повернення вигадувала новий підхід. Тепер [ЗГЕНЕРОВАНІ РЕЦЕПТИ] в контексті: на «нагадай, що за борщ» модель відповідає ТИМ складом, не новим.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"p1","label":"Буряк","zone":"fresh","v":500,"u":"g","state":"sealed"}
+  ],
+  "recentRecipes": [
+    {
+      "id": "r1", "owner_id": "u1", "origin": "generated", "title": "Бабусин борщ",
+      "descr": null, "character": null, "risk": null, "base_servings": 1,
+      "time_total": 90, "nutrition": null,
+      "payload": {
+        "t": "Бабусин борщ", "sv": 1, "tm": 90, "ch": "", "d": "", "rk": "",
+        "ing": [
+          {"n": "яловичина на кістці", "v": 400, "u": "g"},
+          {"n": "буряк середній", "v": 2, "u": "pcs"},
+          {"n": "капуста біла", "v": 300, "u": "g"}
+        ],
+        "st": [{"t": "Бульйон", "c": "Варити годину"}]
+      },
+      "created_at": "2026-09-10T12:00:00.000Z", "saved_at": null
+    }
+  ],
+  "conversation": [
+    { "role": "user", "content": "Нагадай, що за борщ ти мені пропонував?" }
+  ],
+  "invariants": [
+    "recalls-own-recipe",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

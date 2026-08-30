@@ -12,7 +12,7 @@ import {
   type RecentCookRunSummary,
 } from '@kitchen/domain';
 import type {
-  Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow,
+  Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow,
   Recipe, RecipeIng, RecipeStep,
 } from '@kitchen/domain';
 // Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
@@ -104,6 +104,7 @@ export interface ChatArgs {
   shopping?: ShoppingItemRow[];
   notes?: MemoryNote[];
   eaters?: EaterRow[];
+  recentRecipes?: RecipeRow[];
 }
 
 export interface ChatCall {
@@ -157,6 +158,7 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     recentCookRuns: args.recentCookRuns,
     notes: args.notes,
     eaters: args.eaters,
+    recentRecipes: args.recentRecipes,
   });
 }
 

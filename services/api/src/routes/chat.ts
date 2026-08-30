@@ -205,6 +205,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const notes = await repo.listNotes(user_id, 12);
     // Їдці дому: страва готується на всіх, хто за столом.
     const eaters = await repo.listEaters(ctx.household_id);
+    // Останні згенеровані рецепти — щоб модель бачила, що вже пропонувала,
+    // і трималась названого складу замість нового підходу на кожен тап.
+    const recentRecipes = await repo.listRecentRecipes(user_id, 5);
 
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
@@ -218,7 +221,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     const call = await callChat({
       user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-      history, profile, shopping, notes, eaters,
+      history, profile, shopping, notes, eaters, recentRecipes,
     });
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
 

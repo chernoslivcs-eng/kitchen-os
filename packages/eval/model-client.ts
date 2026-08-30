@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import { buildKitchenContext, parseModelResponse, parseAttachmentResponse } from '@kitchen/domain';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow } from '@kitchen/domain';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
@@ -53,6 +53,7 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
     notes: (fx.notes ?? []) as MemoryNote[],
     eaters: (fx.eaters ?? []) as EaterRow[],
+    recentRecipes: (fx.recentRecipes ?? []) as RecipeRow[],
     now: fx.now ? new Date(fx.now) : undefined,
   });
 }
