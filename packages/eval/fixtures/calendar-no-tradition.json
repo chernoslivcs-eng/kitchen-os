@@ -1,0 +1,19 @@
+{
+  "id": "calendar-no-tradition",
+  "description": "Традиції не розпізнано, тож блоку свят у контексті немає. На пряме питання про дату модель не має вгадувати: православний і католицький Великдень 2026 розходяться на тиждень (5 і 12 квітня), і назвати один навмання — гірше, ніж спитати.",
+  "call": "chat",
+  "now": "2026-03-05T18:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"p1","label":"Яйця","zone":"fridge","v":10,"u":"pcs","state":"sealed"},
+    {"id":"p2","label":"Борошно","zone":"dry","v":1000,"u":"g","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Коли цього року Великдень? Хочу заздалегідь спланувати паску." }
+  ],
+  "invariants": [
+    "no-invented-feast-date",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

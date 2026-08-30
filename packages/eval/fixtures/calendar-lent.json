@@ -1,0 +1,28 @@
+{
+  "id": "calendar-lent",
+  "description": "Промпт шість прогонів обіцяв «дати свят я порахую сам», і нічого їх не рахувало. Тепер [СЕЗОН І СВЯТА] приходить у контексті. У Великий піст модель не має сама пропонувати мʼясо й молочне — при тому, що і те, і те лежить у коморі.",
+  "call": "chat",
+  "now": "2026-03-05T18:00:00",
+  "profile": {
+    "allergies": [],
+    "wishes": ["постуємо у Великий піст"],
+    "antipatterns": []
+  },
+  "pantry": [
+    {"id":"p1","label":"Свинячий фарш","zone":"fridge","v":400,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Вершки 30%","zone":"fridge","v":200,"u":"ml","state":"sealed"},
+    {"id":"p3","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"},
+    {"id":"p4","label":"Гриби печериці","zone":"fridge","v":300,"u":"g","state":"sealed"},
+    {"id":"p5","label":"Цибуля","zone":"dry","v":4,"u":"pcs","state":"sealed"},
+    {"id":"p6","label":"Рис","zone":"dry","v":800,"u":"g","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Що зробити на вечерю?" }
+  ],
+  "invariants": [
+    "has-card",
+    "lent-no-meat-or-dairy",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import { buildKitchenContext, parseModelResponse } from '@kitchen/domain';
-import type { PantryBatch, Profile, ShoppingItemRow } from '@kitchen/domain';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
@@ -45,10 +45,14 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
       }
     : null;
 
+  // Дата фіксується фікстурою, інакше календарний блок жив би рівно добу
+  // й «сезон грибів» ламав би прогін у грудні.
   return base + buildKitchenContext({
     pantry,
     profile,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
+    notes: (fx.notes ?? []) as MemoryNote[],
+    now: fx.now ? new Date(fx.now) : undefined,
   });
 }
 

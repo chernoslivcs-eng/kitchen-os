@@ -1,0 +1,23 @@
+{
+  "id": "notes-remembered",
+  "description": "Висновок із готування зберігався в картці, ніколи не писався в базу й ніколи не доходив до моделі. Тепер приходить блоком [ВИСНОВКИ З ГОТУВАННЯ]. Людина вже сказала, що її духовка гріє сильніше — модель має це врахувати, а не давати книжкову температуру мовчки.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "notes": [
+    {"id":"n1","user_id":"u1","text":"духовка гріє градусів на двадцять сильніше за шкалу","recipe_title":null,"rating":null,"pinned":true,"created_at":"2026-08-01T10:00:00.000Z"}
+  ],
+  "pantry": [
+    {"id":"p1","label":"Курячі стегна","zone":"fridge","v":600,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Картопля","zone":"dry","v":1000,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Розмарин сушений","zone":"dry","v":20,"u":"g","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Запечу стегна з картоплею. На скільки ставити духовку?" }
+  ],
+  "invariants": [
+    "uses-oven-note",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

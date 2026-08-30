@@ -18,6 +18,8 @@ export interface Fixture {
   conversation?: { role: 'user' | 'assistant'; content: string }[];
   stage?: 1 | 2;
   shopping?: unknown[];
+  notes?: unknown[];
+  now?: string;               // фіксована дата — інакше календарні фікстури живуть один день
   skip?: string;
 }
 
@@ -99,6 +101,11 @@ export function loadFixtures(): Fixture[] {
     readJson('qa5-unapplied-card-truth.json'),
     readJson('qa6-nonfood-purchase.json'),
     readJson('qa6-onboarding-asks.json'),
+    readJson('calendar-lent.json'),
+    readJson('calendar-no-tradition.json'),
+    readJson('calendar-season.json'),
+    readJson('notes-remembered.json'),
+    readJson('notes-no-duplicate.json'),
   ];
   return list;
 }

@@ -1,0 +1,22 @@
+{
+  "id": "calendar-season",
+  "description": "Сезон працює без жодної традиції: у вересні йдуть білі гриби, і це привід, а не обовʼязок. Перевіряємо й зворотне — що модель не починає відповідь із календаря і не читає лекцію про сезон замість страви.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"p1","label":"Білі гриби свіжі","zone":"fridge","v":300,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Рис арборіо","zone":"dry","v":500,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Вершки 30%","zone":"fridge","v":200,"u":"ml","state":"sealed"},
+    {"id":"p4","label":"Пармезан","zone":"fridge","v":100,"u":"g","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Щось на вечерю" }
+  ],
+  "invariants": [
+    "has-card",
+    "no-markdown",
+    "addresses-informally",
+    "no-calendar-opening"
+  ]
+}

@@ -26,6 +26,11 @@ interface Snapshot {
     invariants: Record<string, { pass: boolean; detail?: string }>;
     error?: string;
     usage?: { input: number; output: number };
+    // Сама відповідь моделі. Без неї провалений інваріант неможливо розсудити:
+    // не видно, чи помилилась модель, чи інваріант ловить не те. Двічі
+    // доводилось платити за повторний прогін, щоб просто побачити текст.
+    reply?: string;
+    card?: unknown;
   }[];
 }
 
@@ -52,6 +57,8 @@ function toSnapshot(prompt: string, runs: FixtureRun[]): Snapshot {
       ),
       error: r.result.error,
       usage: r.result.usage,
+      reply: r.result.reply,
+      card: r.result.card,
     })),
   };
 }
