@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractJson, parseModelResponse } from './model-response.js';
+import { extractJson, parseModelResponse, parseAttachmentResponse } from './model-response.js';
 
 // FIX-05: модель іноді видає ДВА верхньорівневі JSON-обʼєкти в одній відповіді.
 // Раніше брали перший — другий тікав у reply сирим {…}. Тепер вибираємо той,
@@ -74,5 +74,59 @@ describe('parseModelResponse', () => {
     const { card, reply } = parseModelResponse('Не бачу так далеко.');
     expect(card).toBeNull();
     expect(reply).toBe('Не бачу так далеко.');
+  });
+});
+
+// ImportSheet із прототипу: людина показує рецепт із книжки чи скрін із
+// телеграму, і він має лягти в бібліотеку. Парсер вкладень розпізнавав
+// kind:"recipe" від першого дня — і прод свідомо не будував із нього картку
+// («recipe-картка буде на наступному кроці»). Наступний крок не наставав шість
+// QA-прогонів, а eval-фікстура recipe-freeform перевіряла саме це й не могла
+// позеленіти в принципі.
+describe('вкладення з рецептом', () => {
+  const RECIPE_JSON = JSON.stringify({
+    kind: 'recipe',
+    note: 'плескавиця з камбоцолою — сербська котлета з сиром усередині',
+    recipe: {
+      t: 'Плескавиця з камбоцолою',
+      sv: 2, tm: 40, ch: '40 хвилин, з них 15 активно',
+      d: 'Соковита, сир тече', rk: 'Не притискати лопаткою',
+      ing: [{ n: 'фарш', v: 500, u: 'g' }, { n: 'камбоцола', v: 80, u: 'g' }],
+      st: [{ t: 'Змішати', c: 'Фарш із сіллю' }, { t: 'Смажити', c: 'По 4 хв з боку', s: 240 }],
+    },
+  });
+
+  it('дає картку рецепта, а не порожнечу', () => {
+    const { card, raw_kind } = parseAttachmentResponse(RECIPE_JSON);
+    expect(raw_kind).toBe('recipe');
+    expect(card).not.toBeNull();
+    expect(card!.type).toBe('recipe');
+  });
+
+  it('рецепт усередині картки цілий', () => {
+    const { card } = parseAttachmentResponse(RECIPE_JSON);
+    const r = (card as { recipe: { t: string; ing: unknown[]; st: unknown[] } }).recipe;
+    expect(r.t).toBe('Плескавиця з камбоцолою');
+    expect(r.ing).toHaveLength(2);
+    expect(r.st).toHaveLength(2);
+  });
+
+  it('note стає реплікою — людина читає речення, не JSON', () => {
+    const { reply } = parseAttachmentResponse(RECIPE_JSON);
+    expect(reply).toContain('плескавиця');
+    expect(reply).not.toContain('{');
+  });
+
+  it('рецепт без назви картки не дає — нема чого зберігати', () => {
+    const { card, raw_kind } = parseAttachmentResponse(
+      JSON.stringify({ kind: 'recipe', note: 'не розібрав', recipe: { ing: [], st: [] } }),
+    );
+    expect(raw_kind).toBe('recipe');
+    expect(card).toBeNull();
+  });
+
+  it('kind:recipe без recipe взагалі — теж без картки', () => {
+    const { card } = parseAttachmentResponse(JSON.stringify({ kind: 'recipe', note: 'щось' }));
+    expect(card).toBeNull();
   });
 });

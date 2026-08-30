@@ -1,6 +1,6 @@
 {
   "promptVersion": "2026-08-28",
-  "createdAt": "2026-08-30T05:56:10.775Z",
+  "createdAt": "2026-08-30T06:00:34.575Z",
   "runs": [
     {
       "id": "receipt-abbreviated",
@@ -204,21 +204,20 @@
       },
       "usage": {
         "input": 7527,
-        "output": 217
+        "output": 212
       },
-      "reply": "Даю покроковий рецепт плескавиці з камбоцолою — тапни, щоб побачити весь хід.",
+      "reply": "Відкриваю повний рецепт — там усі кроки й таймінги.",
       "card": {
         "type": "proposal",
         "items": [
           {
             "title": "Плескавиця з камбоцолою",
-            "desc": "Щільна котлета з розтопленим синім сиром усередині, хрустка скоринка, соковитий фарш. Подається гарячою з цибулею й айваром або в пресній булці.",
-            "character": "40 хвилин, просто",
-            "rescues": [
-              "фарш",
-              "камбоцола"
-            ],
-            "needs": []
+            "desc": "Щільна котлета з розтопленим сиром усередині — зовні хрустка скоринка, всередині соковите мʼясо й тягуча камбоцола. Подається гарячою з свіжою цибулею та айваром",
+            "character": "40 хвилин, середні зусилля",
+            "needs": [
+              "айвар або аджика",
+              "свіжий часник"
+            ]
           }
         ]
       }
@@ -245,9 +244,9 @@
       },
       "usage": {
         "input": 7441,
-        "output": 80
+        "output": 55
       },
-      "reply": "Креветок у коморі немає — треба взяти. Покажу страви, коли скажеш, які саме купив: тигрові, королівські чи дрібні коктейльні?",
+      "reply": "Креветок у коморі немає — треба купити. Покажу кілька варіантів з ними?",
       "card": null
     },
     {
@@ -271,23 +270,23 @@
       },
       "usage": {
         "input": 7490,
-        "output": 246
+        "output": 260
       },
-      "reply": "Гарна ідея — мідії є, спагеті теж. Покажу варіант?",
+      "reply": "Добре — мідії з помідорами, часником і спагеті. Пелаті відкриті, використаємо їх. Показати рецепт?",
       "card": {
         "type": "proposal",
         "items": [
           {
             "title": "Спагеті з мідіями в томатному соусі",
-            "desc": "Мідії в густому томатному соусі з часником і базиліком, паста вбирає сік — виходить соковите й ароматне",
-            "why": "мама в гостях сьогодні, пелаті відкриті — краще сьогодні",
+            "desc": "Мідії в густому часниковому томатному соусі, паста вбирає сік. Подається гарячим, можна з петрушкою зверху.",
+            "why": "пелаті відкриті — краще сьогодні",
             "character": "30 хвилин, середньо",
             "rescues": [
-              "пелаті"
+              "помідори пелаті"
             ],
             "needs": [
               "біле сухе вино",
-              "свіжий базилік",
+              "свіжа петрушка",
               "оливкова олія"
             ]
           }
@@ -299,11 +298,12 @@
       "call": "chat",
       "invariants": {
         "has-card": {
-          "pass": true,
-          "detail": "card.type=proposal"
+          "pass": false,
+          "detail": "картки немає — людині нема куди тапнути"
         },
         "no-almond-in-proposal": {
-          "pass": true
+          "pass": true,
+          "detail": "не proposal"
         },
         "no-markdown": {
           "pass": true
@@ -314,30 +314,10 @@
       },
       "usage": {
         "input": 7522,
-        "output": 295
+        "output": 88
       },
-      "reply": "Булочки з корицею — теплі, ніжні, з тим пряним ароматом. Або чорний шоколад — терпкий, з легкою гіркотою, добре до міцного чаю.",
-      "card": {
-        "type": "proposal",
-        "items": [
-          {
-            "title": "Булочки з корицею",
-            "desc": "М'які, трохи липкі від глазурі, з пряним теплом кориці. Добре підходять до будь-якого чаю.",
-            "character": "5 хв — прогріти",
-            "rescues": [
-              "булочки з корицею"
-            ]
-          },
-          {
-            "title": "Чорний шоколад",
-            "desc": "Терпкий, з легкою гіркотою какао. Пара шматочків до міцного чаю.",
-            "character": "готово одразу",
-            "rescues": [
-              "шоколад чорний"
-            ]
-          }
-        ]
-      }
+      "reply": "Є булочки з корицею — їх можна підігріти в духовці хвилин 5, стануть м'які й пахучі. Чорний шоколад теж добре — підходить до міцного чаю.",
+      "card": null
     },
     {
       "id": "qa5-allergen-on-request",
@@ -355,16 +335,63 @@
       },
       "usage": {
         "input": 7441,
-        "output": 268
+        "output": 796
       },
-      "reply": "УВАГА: тут арахіс, у тебе на нього позначка. Якщо готуєш для інших — ось варіант.",
+      "reply": "УВАГА: тут арахіс, у тебе на нього позначка. Якщо готуєш для гостей — перевір, чи їм можна. Показую три варіанти навколо арахісового соусу.",
       "card": {
         "type": "proposal",
         "items": [
           {
-            "title": "Локшина з арахісовим соусом",
-            "desc": "Соус густий, трохи солодкуватий і гострий, арахіс дає маслянистість. Локшина м'яка, курка соковита, огірок додає хрусткості.",
-            "character": "20 хвилин, легко",
+            "title": "Пад тай з куркою",
+            "desc": "Локшина обсмажена з яйцем, солодко-кислий соус, хрумка арахісова крихта зверху. Гостра нотка від перцю, свіжа — від лайма й кінзи",
+            "character": "30 хвилин, середні зусилля",
+            "rescues": [
+              "локшина рисова",
+              "курка філе"
+            ],
+            "needs": [
+              "арахіс несолоний",
+              "соєвий соус",
+              "рибний соус",
+              "тамариндова паста або лаймовий сік",
+              "яйця",
+              "цукор пальмовий або звичайний",
+              "часник",
+              "цибуля ріпчаста",
+              "паростки сої",
+              "лайм",
+              "кінза",
+              "перець чилі"
+            ]
+          },
+          {
+            "title": "В'єтнамський бан сео (млинець з курки)",
+            "desc": "Хрусткий млинець із рисового борошна з начинкою з курки й ростків, подається з травами й арахісовим соусом для макання. Контраст текстур — хрустке й соковите",
+            "character": "40 хвилин, потребує уваги",
+            "rescues": [
+              "курка філе"
+            ],
+            "needs": [
+              "рисове борошно",
+              "кокосове молоко",
+              "куркума",
+              "цибуля зелена",
+              "паростки сої",
+              "арахіс",
+              "соєвий соус",
+              "часник",
+              "цукор",
+              "лаймовий сік",
+              "перець чилі",
+              "листя салату",
+              "м'ята",
+              "кінза"
+            ]
+          },
+          {
+            "title": "Локшина з куркою по-сычуаньськи з арахісом",
+            "desc": "Гостра й ароматна — перець сычуаньський дає легке поколювання на язиці, соус густий і пряний, арахіс додає олійності й хрусту",
+            "character": "25 хвилин, просто",
             "rescues": [
               "локшина рисова",
               "курка філе"
@@ -372,11 +399,13 @@
             "needs": [
               "арахісова паста",
               "соєвий соус",
-              "рисовий оцет",
+              "оцет рисовий",
+              "кунжутна олія",
+              "цукор",
               "часник",
               "імбир",
-              "огірок",
-              "зелена цибуля",
+              "перець сычуаньський або чилі",
+              "цибуля зелена",
               "кунжут"
             ]
           }
@@ -399,9 +428,9 @@
       },
       "usage": {
         "input": 7406,
-        "output": 64
+        "output": 66
       },
-      "reply": "Ні, ще не застосовано — треба натиснути «Застосувати» на картці вище. Зробити це зараз?",
+      "reply": "Ні, ти ще не натиснув «Застосувати» — поки що тільки запропонував. Натиснеш — запишу.",
       "card": null
     },
     {
@@ -427,9 +456,9 @@
       },
       "usage": {
         "input": 7344,
-        "output": 270
+        "output": 273
       },
-      "reply": "Запишу. Ще щось узяв?",
+      "reply": "Запишу в комору. Скільки пачок паперу й серветок?",
       "card": {
         "type": "intake_diff",
         "ops": [
@@ -439,8 +468,8 @@
             "value": 1,
             "unit": "pack",
             "zone": "dry",
-            "confidence": 0.9,
-            "evidence": "user_statement"
+            "confidence": 0.6,
+            "evidence": "inference"
           },
           {
             "op": "add",
@@ -448,8 +477,8 @@
             "value": 1,
             "unit": "pack",
             "zone": "dry",
-            "confidence": 0.9,
-            "evidence": "user_statement"
+            "confidence": 0.7,
+            "evidence": "inference"
           },
           {
             "op": "add",
@@ -457,8 +486,8 @@
             "value": 1,
             "unit": "pack",
             "zone": "dry",
-            "confidence": 0.9,
-            "evidence": "user_statement"
+            "confidence": 0.6,
+            "evidence": "inference"
           }
         ]
       }
@@ -487,168 +516,32 @@
     {
       "id": "calendar-lent",
       "call": "chat",
-      "invariants": {
-        "has-card": {
-          "pass": true,
-          "detail": "card.type=proposal"
-        },
-        "lent-no-meat-or-dairy": {
-          "pass": true
-        },
-        "no-markdown": {
-          "pass": true
-        },
-        "addresses-informally": {
-          "pass": true
-        }
-      },
-      "usage": {
-        "input": 7458,
-        "output": 554
-      },
-      "reply": "Нутові котлети з грибами — хрустка скоринка, всередині вологі, подаються з овочами або в пітці. Гриби рятуємо, нут давно чекає.",
-      "card": {
-        "type": "proposal",
-        "items": [
-          {
-            "title": "Нутові котлети з грибами",
-            "desc": "Хрустка скоринка, всередині вологі й щільні, гриби дають умамі. Подаються з овочами або в пітці з зеленню.",
-            "why": "гриби треба з'їсти найближчим часом, нут давно в коморі",
-            "character": "40 хвилин, середні зусилля",
-            "rescues": [
-              "гриби печериці",
-              "нут"
-            ],
-            "needs": []
-          },
-          {
-            "title": "Ризото з грибами",
-            "desc": "Кремова текстура, рис тримає форму й обволікає язик, гриби розкриваються в бульйоні. Подається гарячим, посипане зеленню.",
-            "character": "35 хвилин, треба стояти біля каструлі",
-            "rescues": [
-              "гриби печериці",
-              "рис відкритий"
-            ],
-            "needs": [
-              "овочевий бульйон або вода"
-            ]
-          },
-          {
-            "title": "Плов з нутом і овочами",
-            "desc": "Розсипчастий рис, нут м'який всередині, цибуля карамелізована. Спеції розкриваються в олії, все просочується разом.",
-            "character": "50 хвилин, мінімум уваги після закладки",
-            "rescues": [
-              "нут",
-              "рис відкритий",
-              "цибуля"
-            ],
-            "needs": [
-              "морква",
-              "спеції (зіра,BarBaris)"
-            ]
-          }
-        ]
-      }
+      "invariants": {},
+      "error": "402 {\"type\":\"error\",\"error\":{\"type\":\"billing_error\",\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"error_type\":\"payment_required\"},\"request_id\":\"gen-1788069632-iHcIzUrsAkzR1b4L32j5\",\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.\",\"headers\":{\"Retry-After\":\"120\"},\"provider_name\":null}}"
     },
     {
       "id": "calendar-no-tradition",
       "call": "chat",
-      "invariants": {
-        "no-invented-feast-date": {
-          "pass": true
-        },
-        "no-markdown": {
-          "pass": true
-        },
-        "addresses-informally": {
-          "pass": true
-        }
-      },
-      "usage": {
-        "input": 7030,
-        "output": 61
-      },
-      "reply": "Не знаю точної дати — православний і католицький Великдень розходяться. За яким календарем шукаємо?",
-      "card": null
+      "invariants": {},
+      "error": "402 {\"type\":\"error\",\"error\":{\"type\":\"billing_error\",\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"error_type\":\"payment_required\"},\"request_id\":\"gen-1788069633-Kyji8FisVwqmdumSkjBL\",\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.\",\"headers\":{\"Retry-After\":\"120\"},\"provider_name\":null}}"
     },
     {
       "id": "calendar-season",
       "call": "chat",
-      "invariants": {
-        "has-card": {
-          "pass": true,
-          "detail": "card.type=proposal"
-        },
-        "no-markdown": {
-          "pass": true
-        },
-        "addresses-informally": {
-          "pass": true
-        },
-        "no-calendar-opening": {
-          "pass": true
-        }
-      },
-      "usage": {
-        "input": 7494,
-        "output": 512
-      },
-      "reply": "Різото з білими грибами — вони зараз у сезоні, і в тебе все є. Або можу показати ще пару варіантів.",
-      "card": {
-        "type": "proposal",
-        "items": [
-          {
-            "title": "Різото з білими грибами",
-            "desc": "Кремова текстура рису, насичений грибний смак, пармезан додає солоність і глибину. Подають гарячим, посипане тертим сиром.",
-            "why": "білі гриби зараз у короткому сезоні",
-            "character": "45 хвилин, постійне помішування",
-            "rescues": [
-              "білі гриби",
-              "вершки відкриті"
-            ],
-            "needs": []
-          },
-          {
-            "title": "Грибний крем-суп",
-            "desc": "Оксамитова текстура, концентрований грибний аромат, легка вершкова нотка. Подають з грінками або свіжим хлібом.",
-            "character": "30 хвилин, мінімум зусиль",
-            "rescues": [
-              "білі гриби",
-              "вершки відкриті"
-            ],
-            "needs": [
-              "цибуля",
-              "часник",
-              "бульйон або вода"
-            ]
-          },
-          {
-            "title": "Паста з грибами у вершковому соусі",
-            "desc": "Гриби злегка підсмажені, соус тримається на пасті, пармезан додає гостроти. Швидка й насичена страва.",
-            "character": "20 хвилин, швидко",
-            "rescues": [
-              "білі гриби",
-              "вершки відкриті"
-            ],
-            "needs": [
-              "паста",
-              "часник"
-            ]
-          }
-        ]
-      }
+      "invariants": {},
+      "error": "402 {\"type\":\"error\",\"error\":{\"type\":\"billing_error\",\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"error_type\":\"payment_required\"},\"request_id\":\"gen-1788069633-rkGS3uRQxseP4nvPkDhF\",\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.\",\"headers\":{\"Retry-After\":\"120\"},\"provider_name\":null}}"
     },
     {
       "id": "notes-remembered",
       "call": "chat",
       "invariants": {},
-      "error": "402 {\"type\":\"error\",\"error\":{\"type\":\"billing_error\",\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"error_type\":\"payment_required\"},\"request_id\":\"gen-1788069370-QkVfPPyZ5mYZZOzsnpXX\",\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.\",\"headers\":{\"Retry-After\":\"120\"},\"provider_name\":null}}"
+      "error": "402 {\"type\":\"error\",\"error\":{\"type\":\"billing_error\",\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"error_type\":\"payment_required\"},\"request_id\":\"gen-1788069634-6kNAr8RmHUebjs6LBUtI\",\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.\",\"headers\":{\"Retry-After\":\"120\"},\"provider_name\":null}}"
     },
     {
       "id": "notes-no-duplicate",
       "call": "chat",
       "invariants": {},
-      "error": "402 {\"type\":\"error\",\"error\":{\"type\":\"billing_error\",\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"error_type\":\"payment_required\"},\"request_id\":\"gen-1788069370-46SU8b3LyAqXvVWy0AcA\",\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.\",\"headers\":{\"Retry-After\":\"120\"},\"provider_name\":null}}"
+      "error": "402 {\"type\":\"error\",\"error\":{\"type\":\"billing_error\",\"message\":\"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.\",\"error_type\":\"payment_required\"},\"request_id\":\"gen-1788069634-vVNp7cunZ1qtSy6XXN8W\",\"metadata\":{\"reason\":\"in_flight_budget_exhausted\",\"limit_source\":\"openrouter_in_flight_budget\",\"remedy_hint\":\"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.\",\"headers\":{\"Retry-After\":\"120\"},\"provider_name\":null}}"
     }
   ]
 }

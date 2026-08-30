@@ -340,6 +340,9 @@ export class InMemoryRepo implements Repo {
     const cur = this.recipes.get(id);
     if (cur) this.recipes.set(id, { ...cur, saved_at });
   }
+  async deleteRecipe(id: string): Promise<void> {
+    this.recipes.delete(id);
+  }
   async saveCookRun(run: CookRunRow): Promise<void> {
     this.cookRuns.set(run.id, { ...run });
   }

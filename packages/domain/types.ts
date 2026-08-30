@@ -78,7 +78,40 @@ export interface ProfileCard {
   }[];
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard;
+export interface RecipeIng {
+  p?: string;   // id партії з комори — модель показує пальцем
+  n?: string;   // назва, коли продукту нема в коморі
+  v?: number;
+  u?: string;
+}
+
+export interface RecipeStep {
+  t: string;    // короткий тайтл кроку
+  c: string;    // дія з плейсхолдерами {0}, {1} за індексом інгредієнта
+  s?: number;   // секунди таймера, якщо крок часовий
+}
+
+export interface Recipe {
+  t: string;                                      // title
+  sv: number;                                     // servings
+  tm: number;                                     // total minutes
+  ch: string;                                     // характер (час і зусилля)
+  d: string;                                      // description
+  rk: string;                                     // ключова помилка (не застереження)
+  nu?: { kcal: number; p: number; f: number; c: number };
+  op?: string[];                                  // варіанти замін
+  ing: RecipeIng[];
+  st: RecipeStep[];
+}
+
+// Картка рецепта з вкладення: людина показала сторінку книжки чи скрін —
+// ми показуємо розібраний рецепт і питаємо, чи класти в бібліотеку.
+export interface RecipeCard {
+  type: 'recipe';
+  recipe: Recipe;
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard;
 
 // ----- Стан «на застосуванні» ------
 
@@ -98,7 +131,7 @@ export interface PendingCard {
 // Знімок ДО застосування: чого досить, щоб відкотити.
 // Для intake — попередні партії (при correct/rename/open/deplete) + список створених id (add).
 export interface UndoSnapshot {
-  kind: 'intake_diff' | 'shopping' | 'profile';
+  kind: 'intake_diff' | 'shopping' | 'profile' | 'recipe';
   before: {
     created_batch_ids?: string[];       // add: створені партії — видалити при undo
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
@@ -106,6 +139,7 @@ export interface UndoSnapshot {
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     profile_before?: Profile;           // profile: повернути весь блок
     added_note_ids?: string[];          // note: висновки лише додаються, тож undo — це видалення
+    added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється
   };
 }
 

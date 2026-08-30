@@ -11,7 +11,13 @@ import {
   serializeProfile as ctxSerializeProfile,
   type RecentCookRunSummary,
 } from '@kitchen/domain';
-import type { Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote } from '@kitchen/domain';
+import type {
+  Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote,
+  Recipe, RecipeIng, RecipeStep,
+} from '@kitchen/domain';
+// Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
+// а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.
+export type { Recipe, RecipeIng, RecipeStep } from '@kitchen/domain';
 
 // Один провайдер моделі — або прямий Anthropic, або OpenRouter (той самий формат
 // повідомлень, лише інший baseURL і префіксовані model-id). Обирає autonomly:
@@ -204,32 +210,6 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
 
 // ---------- генерація рецепта ----------
 
-export interface RecipeIng {
-  p?: string;   // id партії з комори — модель показує пальцем
-  n?: string;   // назва, коли продукту нема в коморі
-  v?: number;
-  u?: string;
-}
-
-export interface RecipeStep {
-  t: string;    // короткий тайтл кроку
-  c: string;    // дія з плейсхолдерами {0}, {1} за індексом інгредієнта
-  s?: number;   // секунди таймера, якщо крок часовий
-}
-
-export interface Recipe {
-  t: string;                                      // title
-  sv: number;                                     // servings
-  tm: number;                                     // total minutes
-  ch: string;                                     // характер (час і зусилля)
-  d: string;                                      // description
-  rk: string;                                     // ключова помилка (не застереження)
-  nu?: { kcal: number; p: number; f: number; c: number };
-  op?: string[];                                  // варіанти замін
-  ing: RecipeIng[];
-  st: RecipeStep[];
-}
-
 export interface RecipeCall {
   recipe: Recipe | null;
   raw: string;
@@ -336,6 +316,29 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
       card: {
         type: 'intake_diff',
         ops: [{ op: 'add', label, evidence: 'receipt_line', confidence: 0.9 }],
+      },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  // Другий впізнаваний випадок: текст без «хN», але з назвою в першому рядку
+  // й дієсловами готування — рецепт. Стаб тримає той самий контракт, що модель,
+  // інакше інтеграційні тести перевіряли б неіснуючий шлях.
+  const recipeish = atts.find((a) =>
+    a.kind === 'text' && /змішати|смажити|варити|запікати|подавати/i.test(a.buffer.toString('utf-8')));
+  if (recipeish) {
+    const text = recipeish.buffer.toString('utf-8');
+    const title = (text.split('\n').find((l) => l.trim()) ?? 'Рецепт').trim();
+    return {
+      reply: `${title.toLowerCase()} — розібрав. Лишити в рецептах?`,
+      raw_kind: 'recipe',
+      card: {
+        type: 'recipe',
+        recipe: {
+          t: title, sv: 2, tm: 40, ch: 'стаб', d: 'стаб', rk: 'стаб',
+          ing: [{ n: 'фарш', v: 500, u: 'g' }],
+          st: [{ t: 'Готувати', c: text.slice(0, 120) }],
+        },
       },
       usage: { input: 0, output: 0 },
       meta: { promptVersion, model: 'stub', mode: 'stub' },

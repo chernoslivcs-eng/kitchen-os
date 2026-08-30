@@ -1,11 +1,12 @@
-// Три типи карток: intake_diff, proposal, shopping, profile. Кожна — компонент.
+// Типи карток: intake_diff, proposal, shopping, profile, recipe. Кожна — компонент.
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
-import type { ChatCard } from '../../api';
+import type { ChatCard, Recipe } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { formatQty } from '../../lib/units';
+import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
 
 // ----- Спільні типи op/item, які модель кладе в картку -------------------
@@ -214,14 +215,75 @@ export function ProfileCard({ card, applied, applying, dismissed, undone, onAppl
 
 // ----- Диспатчер за типом --------------------------------------------------
 
+// ----- Recipe --------------------------------------------------------------
+
+// Рецепт, розібраний із вкладення: сторінка книжки, скрін із телеграму.
+// Показуємо, що саме розібрали, до того як людина погодиться зберігати —
+// інакше «Так» це кнопка в темряву.
+export function RecipeCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
+  const r = card.recipe as Recipe | undefined;
+  if (!r) return null;
+  const meta = [
+    r.tm ? `${r.tm}ХВ` : null,
+    r.sv ? `${r.sv} ПОРЦ` : null,
+    r.ing?.length ? `${r.ing.length} ІНГР` : null,
+    r.st?.length ? `${r.st.length} КРОК` : null,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <div className={stateClass(applied, undone)}>
+      <div className={styles.ops}>
+        <div className={styles.op}>
+          <span className={styles['op-sign']}>+</span>
+          <span className={styles['op-label']}>{r.t}</span>
+        </div>
+      </div>
+      {meta && <MonoLabel>{meta}</MonoLabel>}
+      {r.d && (
+        <div style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45 }}>
+          {r.d}
+        </div>
+      )}
+      {!applied && !undone && !dismissed && onApply && (
+        <div className={styles['card-actions']}>
+          <Button variant="primary" onClick={onApply} loading={applying}>У рецепти</Button>
+          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
+        </div>
+      )}
+      {applied && !undone && undoAvailable && onUndo && (
+        <div className={styles['card-actions']}>
+          <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Card(props: CardProps) {
   switch (props.card.type) {
     case 'intake_diff': return <IntakeCard {...props} />;
     case 'proposal':    return <ProposalCard {...props} />;
     case 'shopping':    return <ShoppingCard {...props} />;
     case 'profile':     return <ProfileCard {...props} />;
+    case 'recipe':      return <RecipeCard {...props} />;
     default:            return null;
   }
+}
+
+// Текст тосту після «Так». Жив інлайном у Feed і рахував «ops або items»
+// з формами «у коморі»/«у списку» — картка рецепта давала «0 позицій у коморі».
+export function appliedToast(card: ChatCard): string {
+  if (card.type === 'recipe') {
+    const t = (card.recipe as Recipe | undefined)?.t;
+    return t ? `«${t}» — у рецептах` : 'Рецепт збережено';
+  }
+  const count = card.type === 'shopping' || card.type === 'proposal'
+    ? (card.items?.length ?? 0)
+    : (card.ops?.length ?? 0);
+  const forms: [string, string, string] = card.type === 'shopping'
+    ? ['позиція у списку', 'позиції у списку', 'позицій у списку']
+    : ['позиція у коморі', 'позиції у коморі', 'позицій у коморі'];
+  return `${count} ${plural(count, forms)}`;
 }
 
 // Мета-мітка перед карткою, залежно від типу й стану — на кшталт «КОМОРА · ◌ ОЧІКУЄ».
@@ -238,6 +300,8 @@ export function labelFor(
   const base = type === 'intake_diff' ? 'КОМОРА'
     : type === 'shopping' ? 'СПИСОК'
     : type === 'profile' ? 'ПРОФІЛЬ'
+    // Імпорт із книжки — не вигадка моделі, і мітка має це розрізняти.
+    : type === 'recipe' ? 'РЕЦЕПТ'
     : 'ПРОПОЗИЦІЯ';
   return { text: `${base} · ◌ ОЧІКУЄ`, tone: 'pending' };
 }

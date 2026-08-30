@@ -12,7 +12,7 @@ import { TabBar } from '../../components/TabBar/TabBar';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
-import { Card, labelFor } from './cards';
+import { Card, labelFor, appliedToast } from './cards';
 import styles from './Feed.module.css';
 
 interface Turn {
@@ -270,16 +270,10 @@ export function Feed() {
       ));
       // Оновлюємо лічильники для комори/списку — profile тепер теж може змінити те, що показуємо
       await refreshCounts();
-      const count = turn.card?.type === 'intake_diff'
-        ? ((turn.card.ops as unknown[] | undefined)?.length ?? 0)
-        : ((turn.card?.items as unknown[] | undefined)?.length ?? 0);
-      const forms: [string, string, string] = turn.card?.type === 'shopping'
-        ? ['позиція у списку', 'позиції у списку', 'позицій у списку']
-        : ['позиція у коморі', 'позиції у коморі', 'позицій у коморі'];
       setToast({
         id: Date.now(),
         kind: 'ok',
-        text: `${count} ${plural(count, forms)}`,
+        text: turn.card ? appliedToast(turn.card) : 'Готово',
         onUndo: () => undo(turnId, r.undo_token),
       });
     } catch (err) {

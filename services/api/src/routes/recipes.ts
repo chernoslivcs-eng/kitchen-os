@@ -7,7 +7,8 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { matchRecipe, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
-import { callRecipe, type Recipe } from '../model.js';
+import { callRecipe } from '../model.js';
+import type { Recipe, RecipeIng } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter } from '../rate-limit.js';
@@ -69,7 +70,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     // QA4-03: модель вигадує схему `ing`, коли промпт її не описує. Логуємо
     // порушення — це сигнал, що правило в recipe-generator.md знову поїхало.
     const bad = call.recipe.ing.filter(
-      (i) => 'q' in (i as object) || (i.v != null && typeof i.v !== 'number'),
+      (i: RecipeIng) => 'q' in (i as object) || (i.v != null && typeof i.v !== 'number'),
     );
     if (bad.length) req.log.warn({ bad, title }, 'recipe-ing-schema-violation');
 

@@ -165,6 +165,38 @@ export async function applyCard(
     return { applied: landed, undo_token, already: false };
   }
 
+  if (card.type === 'recipe') {
+    const r = card.recipe;
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    await repo.saveRecipe({
+      id,
+      owner_id: actor_user_id,
+      // Те, що людина принесла з книжки, і те, що вигадала модель, — різні речі.
+      origin: 'imported',
+      title: r.t,
+      descr: r.d ?? null,
+      character: r.ch ?? null,
+      risk: r.rk ?? null,
+      base_servings: r.sv ?? 2,
+      time_total: r.tm ?? null,
+      nutrition: r.nu ?? null,
+      payload: r,
+      created_at: now,
+      // Імпорт — це і є намір зберегти; окремого «на потім» тут не питаємо.
+      saved_at: now,
+    });
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: now,
+      applied_ops: [0],
+      undo_token,
+      undo_snapshot: { kind: 'recipe', before: { added_recipe_ids: [id] } },
+    });
+    await repo.markMessageApplied(pc.id, 1);
+    return { applied: 1, undo_token, already: false };
+  }
+
   throw new Error(`apply not implemented for card type: ${(card as { type: string }).type}`);
 }
 
@@ -419,6 +451,11 @@ export async function undoCard(
   // Висновки: точковий відкат — видаляємо рівно те, що ця картка додала.
   for (const id of snap.before.added_note_ids ?? []) {
     await repo.deleteNote(id);
+  }
+  // Імпортований рецепт: прибираємо рядок цілком — на нього ще ніщо не
+  // посилається, і «незбережений» привид у базі нікому не потрібен.
+  for (const id of snap.before.added_recipe_ids ?? []) {
+    await repo.deleteRecipe(id);
   }
   // Profile: повертаємо блок як був до застосування картки.
   if (snap.before.profile_before) {

@@ -87,9 +87,10 @@ export interface PantryList {
 }
 
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe';
   ops?: unknown[];
   items?: unknown[];
+  recipe?: Recipe;                     // тільки для type: 'recipe' — імпорт із вкладення
 }
 
 export interface ChatResponse {

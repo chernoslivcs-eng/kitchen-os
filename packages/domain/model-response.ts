@@ -5,9 +5,9 @@
 // не знімав ```json-огорожі й не бачив другого обʼєкта — і через це давав
 // вердикти по тексту, якого користувач ніколи не побачить.
 
-import type { Card } from './types.js';
+import type { Card, Recipe } from './types.js';
 
-const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile'];
+const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe'];
 
 // Витягає ВСІ верхньорівневі JSON-обʼєкти з тексту й обирає карту з валідним
 // `type`. Модель іноді пише два обʼєкти в одну відповідь («ось intake для
@@ -113,8 +113,13 @@ export function parseAttachmentResponse(text: string): {
     raw_kind = parsed.kind;
     // Схема моделі — attachment-parser.md; валідація полів робиться в apply.
     if (Array.isArray(parsed.ops)) card = { type: 'intake_diff', ops: parsed.ops as never };
+  } else if (parsed?.kind === 'recipe') {
+    raw_kind = 'recipe';
+    const r = parsed.recipe as Recipe | undefined;
+    // Без назви зберігати нічого: картка була б кнопкою в порожнечу.
+    if (r?.t) card = { type: 'recipe', recipe: r };
   } else if (parsed?.kind) {
-    // recipe/dish/other картки не дають: recipe-картка — окремий крок.
+    // dish/other картки не дають: людина показала результат, не завдання.
     raw_kind = parsed.kind;
   }
   return { reply: parsed?.note ?? text, card, raw_kind };

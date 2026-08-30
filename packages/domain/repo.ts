@@ -104,6 +104,9 @@ export interface Repo {
   // і ті, які вже готували — з лічильником готувань.
   listRecipes(user_id: string, limit?: number): Promise<RecipeListItem[]>;
   setRecipeSaved(id: string, saved_at: string | null): Promise<void>;
+  // Undo імпорту прибирає рядок цілком: на щойно імпортований рецепт ще ніщо
+  // не посилається, і лишати «незбережений» привид у базі нема сенсу.
+  deleteRecipe(id: string): Promise<void>;
   saveCookRun(run: CookRunRow): Promise<void>;
   getCookRun(id: string): Promise<CookRunRow | null>;
   updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict' | 'photo_url'>>): Promise<void>;

@@ -700,6 +700,10 @@ export class PostgresRepo implements Repo {
     await this.pool.query('UPDATE recipe SET saved_at = $1 WHERE id = $2', [saved_at, id]);
   }
 
+  async deleteRecipe(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM recipe WHERE id = $1', [id]);
+  }
+
   async getRecipe(id: string): Promise<RecipeRow | null> {
     const { rows } = await this.pool.query('SELECT * FROM recipe WHERE id = $1', [id]);
     const r = rows[0];
