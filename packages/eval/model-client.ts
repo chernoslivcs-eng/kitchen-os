@@ -11,9 +11,12 @@ import type { ModelOutput } from './invariants.js';
 // Той самий системний промпт, що у проді: composed-промпт + контекст кухні
 // з @kitchen/domain. Фікстури описують стан спрощено (без household_id,
 // added_at тощо) — добиваємо дефолтами, форма важлива, не значення.
-function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): string {
+// TOKEN_AUDIT п.1: та сама кеш-межа, що в проді (model.ts cachedSystem) —
+// stable = складені правила, dynamic = контекст кухні. Розбіжність тут
+// означала б, що eval міряє інший конвеєр, ніж працює насправді.
+function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
   const base = compose(call, prompt, { stage: fx.stage });
-  if (call !== 'chat' && call !== 'recipe_gen') return base;
+  if (call !== 'chat' && call !== 'recipe_gen') return { stable: base };
 
   const pantry = ((fx.pantry ?? []) as Partial<PantryBatch>[]).map((b, i) => ({
     id: b.id ?? `p${i}`,
@@ -54,15 +57,15 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
   if (call === 'recipe_gen') {
     const alias = buildAliasMap(pantry);
     const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
-    return base
-      + serializeProfile(profile)
+    const dynamic = serializeProfile(profile)
       + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias)
       + serializeNotes((fx.notes ?? []) as MemoryNote[]);
+    return { stable: base, dynamic };
   }
 
   // Дата фіксується фікстурою, інакше календарний блок жив би рівно добу
   // й «сезон грибів» ламав би прогін у грудні.
-  return base + buildKitchenContext({
+  const dynamic = buildKitchenContext({
     pantry,
     profile,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
@@ -74,6 +77,7 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     recentCookRuns: (fx.recentCookRuns ?? []) as RecentCookRunSummary[],
     now: fx.now ? new Date(fx.now) : undefined,
   });
+  return { stable: base, dynamic };
 }
 
 // Провайдер той самий, що в проді: OpenRouter, якщо є його ключ (українські
@@ -130,9 +134,19 @@ export interface RunResult extends ModelOutput {
   promptVersion: string;
   model: string;
   call: CallName;
-  usage?: { input: number; output: number };
+  usage?: { input: number; output: number; cached?: number; cache_write?: number };
   latencyMs: number;
   error?: string;
+}
+
+// Дзеркало прод-хелпера cachedSystem (model.ts): stable з cache_control,
+// динаміка окремим блоком без нього.
+function cachedSystem(stable: string, dynamic?: string): Anthropic.TextBlockParam[] {
+  const blocks: Anthropic.TextBlockParam[] = [
+    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
+  ];
+  if (dynamic) blocks.push({ type: 'text', text: dynamic });
+  return blocks;
 }
 
 export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResult> {
@@ -161,7 +175,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       model,
       max_tokens: 4096,
       temperature: spec.temperature ?? (call === 'attachment_parse' ? 0 : 1),
-      system,
+      system: cachedSystem(system.stable, system.dynamic),
       messages: fixtureAsUserTurn(fx),
     });
     const text = resp.content
@@ -191,10 +205,18 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       promptVersion: prompt.version,
       model,
       call,
-      usage: {
-        input: resp.usage.input_tokens,
-        output: resp.usage.output_tokens,
-      },
+      usage: (() => {
+        const u = resp.usage as typeof resp.usage & {
+          cache_read_input_tokens?: number | null;
+          cache_creation_input_tokens?: number | null;
+        };
+        return {
+          input: u.input_tokens,
+          output: u.output_tokens,
+          cached: u.cache_read_input_tokens ?? 0,
+          cache_write: u.cache_creation_input_tokens ?? 0,
+        };
+      })(),
       latencyMs: Date.now() - started,
     };
   } catch (err) {

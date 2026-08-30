@@ -104,8 +104,9 @@ async function main() {
   //   pnpm eval -- --only=pantry-truth,calendar-lent
   // Відфільтрований прогін НЕ пише снапшот і не рахує діф — він для ітерації,
   // базлайн просувається тільки повним чистим прогоном.
-  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
-  const only = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map((s) => s.trim())) : null;
+  // `--fixture=` — синонім (за ТЗ оптимізації токенів), обидва comma-separated.
+  const onlyArg = process.argv.find((a) => a.startsWith('--only=') || a.startsWith('--fixture='));
+  const only = onlyArg ? new Set(onlyArg.replace(/^--(only|fixture)=/, '').split(',').map((s) => s.trim())) : null;
   const version = process.env.PROMPT_VERSION;
   const prompt = loadPrompt(version);
 
@@ -159,6 +160,13 @@ async function main() {
     for (const [name, v] of Object.entries(verdicts)) {
       if (!v.pass) console.log(`      ✗ ${name}  ${v.detail ?? ''}`);
       else if (v.detail) console.log(`      ✓ ${name}  ${v.detail}`);
+    }
+    // Верифікація кешування очима: перший прогін пише кеш (cache_write>0),
+    // повторний у межах TTL — читає (cached>0). Обидва 0 на живому виклику =
+    // провайдер не прокидає поля.
+    const u = result.usage;
+    if (u && ((u.cached ?? 0) > 0 || (u.cache_write ?? 0) > 0)) {
+      console.log(`      кеш: read=${u.cached ?? 0} write=${u.cache_write ?? 0} input=${u.input}`);
     }
   }
 

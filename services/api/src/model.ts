@@ -22,6 +22,32 @@ import type {
 // а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.
 export type { Recipe, RecipeIng, RecipeStep } from '@kitchen/domain';
 
+// TOKEN_AUDIT п.1: системний промпт (10-15k символів стабільного тексту) їхав
+// повним інпутом з КОЖНИМ викликом. cache_control на стабільному префіксі
+// (правила з packages/prompts) ріже його ціну до ~10% на кеш-хітах; динаміка
+// (комора, профіль, висновки) — окремим блоком БЕЗ кешу, інакше кожен запит
+// плодив би новий кеш-запис.
+export function cachedSystem(stable: string, dynamic?: string): Anthropic.TextBlockParam[] {
+  const blocks: Anthropic.TextBlockParam[] = [
+    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
+  ];
+  if (dynamic) blocks.push({ type: 'text', text: dynamic });
+  return blocks;
+}
+
+// Cache-поля відповіді: прямий Anthropic їх віддає завжди; чи прокидає їх
+// OpenRouter — перевіряється живим викликом (обидва 0 = не прокидає, фіксуємо
+// як знахідку, не підганяємо).
+export function usageFrom(u: Anthropic.Usage): { input: number; output: number; cached: number; cache_write: number } {
+  const ext = u as Anthropic.Usage & { cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null };
+  return {
+    input: u.input_tokens,
+    output: u.output_tokens,
+    cached: ext.cache_read_input_tokens ?? 0,
+    cache_write: ext.cache_creation_input_tokens ?? 0,
+  };
+}
+
 // Один провайдер моделі — або прямий Anthropic, або OpenRouter (той самий формат
 // повідомлень, лише інший baseURL і префіксовані model-id). Обирає autonomly:
 //   OPENROUTER_API_KEY у env → OpenRouter (baseURL, префікс anthropic/)
@@ -113,7 +139,7 @@ export interface ChatArgs {
 export interface ChatCall {
   reply: string;
   card: Card | null;
-  usage: { input: number; output: number; cached?: number };
+  usage: { input: number; output: number; cached?: number; cache_write?: number };
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
 
@@ -185,7 +211,19 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   if (!client) return stub(args, prompt.version);
 
   const model = modelForCall('chat', prompt);
-  const system = buildChatSystem(args, compose('chat', prompt, { stage: args.stage }));
+  // Кеш-межа: складені правила (role+card-rules+proposal-flow+onboarding) —
+  // стабільний префікс; buildKitchenContext — динаміка. buildChatSystem
+  // лишається конкатенацією тих самих двох частин для тестів контексту.
+  const stable = compose('chat', prompt, { stage: args.stage });
+  const dynamic = buildKitchenContext({
+    pantry: args.pantry,
+    profile: args.profile,
+    shopping: args.shopping,
+    recentCookRuns: args.recentCookRuns,
+    notes: args.notes,
+    eaters: args.eaters,
+    recentRecipes: args.recentRecipes,
+  });
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
   const messages = [
@@ -198,7 +236,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     // Температура з маніфесту: на 1.0 (дефолт) поведінка фліпала між
     // запусками — фікстури падали через раз на тих самих правилах.
     temperature: prompt.manifest.calls.chat.temperature,
-    system,
+    system: cachedSystem(stable, dynamic),
     messages,
   }));
   const text = resp.content
@@ -227,7 +265,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   return {
     reply,
     card,
-    usage: { input: resp.usage.input_tokens, output: resp.usage.output_tokens },
+    usage: usageFrom(resp.usage),
     meta: { promptVersion: prompt.version, model, mode: 'live' },
   };
 }
@@ -237,7 +275,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
 export interface RecipeCall {
   recipe: Recipe | null;
   raw: string;
-  usage: { input: number; output: number };
+  usage: { input: number; output: number; cached?: number; cache_write?: number };
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
 
@@ -293,8 +331,9 @@ export async function callRecipe(args: {
   const pantryBlock = args.pantry
     ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias)
     : '';
-  const system = compose('recipe_gen', prompt)
-    + ctxSerializeProfile(args.profile)
+  // Кеш-межа: role+recipe-generator стабільні; профіль/комора/висновки — динаміка.
+  const stable = compose('recipe_gen', prompt);
+  const dynamic = ctxSerializeProfile(args.profile)
     + pantryBlock
     + ctxSerializeNotes(args.notes ?? []);
   const userText = args.context
@@ -304,7 +343,7 @@ export async function callRecipe(args: {
     model,
     max_tokens: 3072,
     temperature: prompt.manifest.calls.recipe_gen.temperature,
-    system,
+    system: cachedSystem(stable, dynamic),
     messages: [{ role: 'user', content: userText }],
   }));
   const text = resp.content
@@ -319,7 +358,7 @@ export async function callRecipe(args: {
   return {
     recipe,
     raw: text,
-    usage: { input: resp.usage.input_tokens, output: resp.usage.output_tokens },
+    usage: usageFrom(resp.usage),
     meta: { promptVersion: prompt.version, model, mode: 'live' },
   };
 }
@@ -337,7 +376,7 @@ export interface AttachmentCall {
   reply: string;
   card: Card | null;
   raw_kind: 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other' | null;
-  usage: { input: number; output: number };
+  usage: { input: number; output: number; cached?: number; cache_write?: number };
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
 
@@ -444,7 +483,8 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     model,
     max_tokens: 4096,
     temperature: 0,
-    system,
+    // System тут повністю статичний — кешується цілком, без динаміки.
+    system: cachedSystem(system),
     messages: [{ role: 'user', content: parts }],
   }));
   const text = resp.content
@@ -459,7 +499,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     reply,
     card,
     raw_kind,
-    usage: { input: resp.usage.input_tokens, output: resp.usage.output_tokens },
+    usage: usageFrom(resp.usage),
     meta: { promptVersion: prompt.version, model, mode: 'live' },
   };
 }
