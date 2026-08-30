@@ -272,3 +272,158 @@ describe('GET /v1/r/:id (public)', () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+// #7 з плану 2026-08-30: списання лишається «на око», але позиції, що зникнуть
+// з комори ПОВНІСТЮ, людина підтверджує. Кейс власника: відкрив банку, не
+// тримався рецепта, щось лишив — а продукт мовчки депляцував усю партію.
+// `keep` — id партій, які людина познячила «щось лишилось»: замість depleted
+// вони стають opened.
+describe('POST /v1/cook-runs · keep: «щось лишилось»', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  async function seed(me: { household_id: string }, label: string, value: number | null) {
+    const id = randomUUID();
+    await repo.insertBatch({
+      id, household_id: me.household_id, catalog_key: null, label, zone: 'fridge',
+      value, unit: value != null ? 'g' : null, state: 'sealed', opened_at: null,
+      expires_at: null, best_before_opened_days: null, added_at: new Date().toISOString(),
+      depleted_at: null, confidence: 1, provenance: 'user_statement',
+      staple: false, last_by: null, last_action: null,
+    });
+    return id;
+  }
+
+  it('без keep партія, вжита повністю, депляцується — як і було', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Томатна паста', 200);
+    await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: { recipe: { t: 'Соус', ing: [{ p: b, v: 200, u: 'g' }], st: [] } },
+    });
+    expect((await repo.getBatch(b))!.state).toBe('depleted');
+  });
+
+  it('keep рятує партію: opened замість depleted', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Томатна паста', 200);
+    const r = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: { recipe: { t: 'Соус', ing: [{ p: b, v: 200, u: 'g' }], st: [] }, keep: [b] },
+    });
+    expect(r.statusCode).toBe(201);
+    const batch = (await repo.getBatch(b))!;
+    expect(batch.state).toBe('opened');
+    expect(batch.depleted_at).toBeNull();
+    // Скільки насправді лишилось — невідомо; чесне «не знаю», не вигадана цифра.
+    expect(batch.value).toBeNull();
+  });
+
+  it('keep не чіпає часткове списання — воно і так лишає партію', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Вершки', 400);
+    await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: { recipe: { t: 'Соус', ing: [{ p: b, v: 100, u: 'g' }], st: [] }, keep: [b] },
+    });
+    const batch = (await repo.getBatch(b))!;
+    expect(batch.state).toBe('opened');
+    expect(batch.value).toBe(300);
+  });
+
+  it('undo після keep повертає партію в sealed з кількістю', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Томатна паста', 200);
+    const run = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: { recipe: { t: 'Соус', ing: [{ p: b, v: 200, u: 'g' }], st: [] }, keep: [b] },
+    });
+    await app.inject({
+      method: 'POST', url: `/v1/cook-runs/${run.json().id}/undo`,
+      headers: { cookie: me.cookie }, payload: {},
+    });
+    const batch = (await repo.getBatch(b))!;
+    expect(batch.state).toBe('sealed');
+    expect(batch.value).toBe(200);
+  });
+
+  it('чужий id у keep ігнорується мовчки', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const b = await seed(me, 'Томатна паста', 200);
+    const r = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: { t: 'Соус', ing: [{ p: b, v: 200, u: 'g' }], st: [] },
+        keep: [randomUUID()],
+      },
+    });
+    expect(r.statusCode).toBe(201);
+    expect((await repo.getBatch(b))!.state).toBe('depleted');
+  });
+});
+
+// Модалка «Партія зникне з комори» має знати список ДО списання — і рахувати
+// його мусить той самий код, що списує, інакше фронтова копія розійдеться.
+describe('POST /v1/cook-runs · dry_run', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+  });
+
+  async function seed(me: { household_id: string }, label: string, value: number | null) {
+    const id = randomUUID();
+    await repo.insertBatch({
+      id, household_id: me.household_id, catalog_key: null, label, zone: 'fridge',
+      value, unit: value != null ? 'g' : null, state: 'sealed', opened_at: null,
+      expires_at: null, best_before_opened_days: null, added_at: new Date().toISOString(),
+      depleted_at: null, confidence: 1, provenance: 'user_statement',
+      staple: false, last_by: null, last_action: null,
+    });
+    return id;
+  }
+
+  it('віддає, що зникне повністю, і нічого не пише', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const full = await seed(me, 'Томатна паста', 200);   // вжито все → зникне
+    const part = await seed(me, 'Вершки', 400);          // частина → лишиться
+    const r = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: {
+        recipe: { t: 'Соус', ing: [{ p: full, v: 200, u: 'g' }, { p: part, v: 100, u: 'g' }], st: [] },
+        dry_run: true,
+      },
+    });
+    expect(r.statusCode).toBe(200);
+    const { would_deplete } = r.json();
+    expect(would_deplete).toHaveLength(1);
+    expect(would_deplete[0].id).toBe(full);
+    expect(would_deplete[0].label).toBe('Томатна паста');
+    // Нічого не записано і не списано:
+    expect((await repo.getBatch(full))!.state).toBe('sealed');
+    expect(await repo.listCookRuns(me.user_id)).toHaveLength(0);
+  });
+
+  it('порожній прогноз — теж 200 із порожнім списком', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const part = await seed(me, 'Вершки', 400);
+    const r = await app.inject({
+      method: 'POST', url: '/v1/cook-runs', headers: { cookie: me.cookie },
+      payload: { recipe: { t: 'Соус', ing: [{ p: part, v: 100, u: 'g' }], st: [] }, dry_run: true },
+    });
+    expect(r.json().would_deplete).toEqual([]);
+  });
+});

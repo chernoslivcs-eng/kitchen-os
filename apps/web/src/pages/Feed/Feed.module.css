@@ -322,3 +322,9 @@
   font-size: 17px;
   color: var(--fg);
 }
+
+/* Пульс диктування — той самий breathe 1.2s із моушн-токенів */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}

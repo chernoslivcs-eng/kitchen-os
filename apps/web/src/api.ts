@@ -87,10 +87,12 @@ export interface PantryList {
 }
 
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo';
   ops?: unknown[];
   items?: unknown[];
   recipe?: Recipe;                     // тільки для type: 'recipe' — імпорт із вкладення
+  run_id?: string;                     // cook_photo
+  recipe_title?: string;               // cook_photo
 }
 
 export interface ChatResponse {
@@ -180,10 +182,16 @@ export const api = {
 
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
-    save: (recipe: Recipe, servings?: number, rating?: number, verdict?: string) =>
+    save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: string[] }) =>
       req<{ id: string; recipe_id: string; depleted: number; partial: number; opened: number; depleted_batch_ids: string[] }>('/v1/cook-runs', {
         method: 'POST',
-        body: JSON.stringify({ recipe, servings, rating, verdict }),
+        body: JSON.stringify({ recipe, ...opts }),
+      }),
+    // Прогноз для модалки «Партія зникне з комори»: що спишеться повністю.
+    dryRun: (recipe: Recipe) =>
+      req<{ would_deplete: { id: string; label: string; value: number | null; unit: string | null }[] }>('/v1/cook-runs', {
+        method: 'POST',
+        body: JSON.stringify({ recipe, dry_run: true }),
       }),
     undo: (id: string) =>
       req<{ undone: boolean; already: boolean; restored: number }>(`/v1/cook-runs/${id}/undo`, {

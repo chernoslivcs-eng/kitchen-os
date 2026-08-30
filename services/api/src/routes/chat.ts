@@ -102,7 +102,27 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const started = Date.now();
       const call = await callAttachmentParse(payloads);
       await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
-    const card_id = call.card ? randomUUID() : null;
+
+      // #5: фото готової страви. Якщо є недавнє готування без фото — картка
+      // cook_photo: тап, і фото в журналі. Старше доби не чіпаємо (це вже не
+      // «щойно приготував»), наявне фото мовчки не перезаписуємо.
+      if (call.raw_kind === 'dish' && !call.card && attachments.length === 1) {
+        const runs = await repo.listCookRuns(user_id, 5);
+        const fresh = runs.find((r) =>
+          !r.undone_at && !r.photo_url
+          && Date.now() - new Date(r.finished_at ?? r.started_at).getTime() < 24 * 3600_000);
+        if (fresh) {
+          call.card = {
+            type: 'cook_photo',
+            run_id: fresh.id,
+            recipe_title: fresh.recipe.title,
+            attachment_id: attachments[0]!.id,
+          };
+          call.reply = `Гарний вигляд. Це «${fresh.recipe.title}» — прикріпити фото до запису в журналі?`;
+        }
+      }
+
+      const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
       }

@@ -44,6 +44,8 @@ interface CookRunBody {
   servings?: number;
   rating?: number;
   verdict?: string;
+  keep?: string[];   // партії, з яких «щось лишилось» — не депляцувати, а відкрити
+  dry_run?: boolean; // тільки прогноз would_deplete, без запису
 }
 
 export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
@@ -52,7 +54,11 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
     { preHandler: authenticated(repo) },
     async (req, reply) => {
       const { user_id, household_id } = requireUser(req);
-      const { recipe, servings, rating, verdict } = req.body ?? {};
+      const { recipe, servings, rating, verdict, keep, dry_run } = req.body ?? {};
+      // #7 (план 2026-08-30): «щось лишилось» — id партій, які людина зняла з
+      // повного списання в модалці підтвердження. Замість depleted → opened із
+      // невідомою кількістю: чесне «не знаю» замість вигаданого залишку.
+      const keepSet = new Set(Array.isArray(keep) ? keep.filter((k) => typeof k === 'string') : []);
       if (!recipe || !recipe.t || !Array.isArray(recipe.ing)) {
         return reply.code(400).send({ error: 'recipe with t and ing[] required' });
       }
@@ -104,6 +110,24 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       // або одиниці несумісні) — раніше депляцували ВСЮ партію. Для пляшки олії
       // й «2 ст.л» це знищувало пляшку. Тепер у такому разі просто позначаємо
       // партію відкритою: недосписання чесніше за тихе знищення.
+      // Прогноз для модалки «Партія зникне з комори» — той самий прохід, що
+      // нижче списує, тільки без запису. Рахувати це на фронті означало б
+      // тримати копію normalizeForBatch, яка неминуче розійдеться.
+      if (dry_run) {
+        const would_deplete: { id: string; label: string; value: number | null; unit: string | null }[] = [];
+        for (const ing of recipe.ing ?? []) {
+          if (!ing.p) continue;
+          const batch = await repo.getBatch(ing.p);
+          if (!batch || batch.household_id !== household_id) continue;
+          if (batch.state === 'depleted') continue;
+          const used = normalizeForBatch(ing.v ?? null, ing.u ?? null, batch.unit);
+          if (used == null) continue;                       // невідома кількість → opened, не deplete
+          if (batch.value != null && batch.value > used) continue;  // часткове
+          would_deplete.push({ id: batch.id, label: batch.label, value: batch.value, unit: batch.unit });
+        }
+        return reply.code(200).send({ would_deplete });
+      }
+
       let depleted = 0;
       let partial = 0;
       let opened = 0;
@@ -157,6 +181,24 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
             last_action: 'cook',
           });
           partial++;
+        } else if (keepSet.has(batch.id)) {
+          // Людина сказала «щось лишилось»: партія відкрита, кількість невідома.
+          changes.push({
+            id: batch.id,
+            op: 'subtract',
+            amount: 0,
+            prev_state: batch.state,
+            prev_value: batch.value,
+            prev_opened_at: batch.opened_at,
+          });
+          await repo.updateBatch(batch.id, {
+            state: 'opened',
+            opened_at: batch.opened_at ?? now,
+            value: null,
+            last_by: user_id,
+            last_action: 'cook',
+          });
+          opened++;
         } else {
           // Вжили не менше залишку → партія справді закінчилась.
           changes.push({

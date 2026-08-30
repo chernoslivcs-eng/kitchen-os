@@ -111,7 +111,16 @@ export interface RecipeCard {
   recipe: Recipe;
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard;
+// Фото готової страви з чату → в журнал, до конкретного готування. Картка,
+// а не тихий запис: фото могло бути не тієї страви.
+export interface CookPhotoCard {
+  type: 'cook_photo';
+  run_id: string;
+  recipe_title: string;
+  attachment_id: string;
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard;
 
 // ----- Стан «на застосуванні» ------
 
@@ -131,7 +140,7 @@ export interface PendingCard {
 // Знімок ДО застосування: чого досить, щоб відкотити.
 // Для intake — попередні партії (при correct/rename/open/deplete) + список створених id (add).
 export interface UndoSnapshot {
-  kind: 'intake_diff' | 'shopping' | 'profile' | 'recipe';
+  kind: 'intake_diff' | 'shopping' | 'profile' | 'recipe' | 'cook_photo';
   before: {
     created_batch_ids?: string[];       // add: створені партії — видалити при undo
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
@@ -141,6 +150,7 @@ export interface UndoSnapshot {
     added_note_ids?: string[];          // note: висновки лише додаються, тож undo — це видалення
     added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється
     added_eater_ids?: string[];         // member add: undo видаляє
+    photo_before?: { run_id: string; photo_url: string | null };  // cook_photo: повернути як було
     removed_eaters?: EaterRow[];        // member remove: undo повертає повний рядок
   };
 }

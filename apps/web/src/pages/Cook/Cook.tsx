@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
+import { Button } from '../../components/Button/Button';
 import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { renderStepContent, type BatchLabels } from '../../lib/recipe';
@@ -93,16 +94,33 @@ export function CookPage() {
   const [runId, setRunId] = useState<string | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
   const [undone, setUndone] = useState<boolean>(false);
+  // #7 (план 2026-08-30): списання «на око», але те, що зникне з комори
+  // ПОВНІСТЮ, людина підтверджує — кейс «відкрив банку, не тримався рецепта,
+  // щось лишив». Прогноз рахує бекенд тим самим кодом, що списує.
+  const [vanish, setVanish] = useState<{ id: string; label: string }[] | null>(null);
+  const [keepIds, setKeepIds] = useState<Set<string>>(new Set());
+  const [confirmed, setConfirmed] = useState(false);
+
   useEffect(() => {
-    if (done) {
-      api.cookRuns.save(recipe)
-        .then((r) => {
-          setDepleted(r.depleted); setPartial(r.partial); setOpened(r.opened);
-          setRunId(r.id); setRecipeId(r.recipe_id);
-        })
-        .catch(() => {/* offline: наступним разом */});
-    }
+    if (!done) return;
+    api.cookRuns.dryRun(recipe)
+      .then((r) => {
+        if (r.would_deplete.length === 0) setConfirmed(true);   // нема про що питати
+        else setVanish(r.would_deplete);
+      })
+      .catch(() => setConfirmed(true));   // offline: поводимось як раніше
   }, [done, recipe]);
+
+  useEffect(() => {
+    if (!done || !confirmed) return;
+    api.cookRuns.save(recipe, { keep: [...keepIds] })
+      .then((r) => {
+        setDepleted(r.depleted); setPartial(r.partial); setOpened(r.opened);
+        setRunId(r.id); setRecipeId(r.recipe_id);
+      })
+      .catch(() => {/* offline: наступним разом */});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done, confirmed]);
 
   async function undoCook() {
     if (!runId || undone) return;
@@ -172,6 +190,71 @@ export function CookPage() {
         {done ? (
           <>
             <div className={styles['step-title']}>Готово. Смачного.</div>
+
+            {/* Модалка з UI-кіта («Списати молоко повністю? Партія зникне з
+                комори»): підтвердження повного списання. Знята галочка =
+                «щось лишилось» → партія стає відкритою з невідомою кількістю. */}
+            {vanish && !confirmed && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Підтвердження списання"
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 60,
+                  background: 'rgba(0,0,0,0.55)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+                }}
+              >
+                <div style={{
+                  background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
+                  borderRadius: 'var(--r-lg, 14px)', padding: 20, maxWidth: 420, width: '100%',
+                  boxShadow: 'var(--shadow-panel)',
+                }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 600, color: 'var(--fg-strong)' }}>
+                    {vanish.length === 1 ? `Списати ${vanish[0]!.label.toLowerCase()} повністю?` : 'Списати повністю?'}
+                  </div>
+                  <div style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                    {vanish.length === 1 ? 'Партія зникне з комори.' : 'Ці партії зникнуть з комори.'} Якщо щось лишилось — зніми позначку, партія стане відкритою.
+                  </div>
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {vanish.map((v) => {
+                      const kept = keepIds.has(v.id);
+                      return (
+                        <label
+                          key={v.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '9px 0', borderBottom: '1px solid var(--border)',
+                            fontFamily: 'var(--font-body)', fontSize: 14,
+                            color: kept ? 'var(--fg-muted)' : 'var(--fg)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!kept}
+                            onChange={() => {
+                              setKeepIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(v.id)) next.delete(v.id); else next.add(v.id);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span style={{ flex: 1 }}>{v.label}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: kept ? 'var(--amber)' : 'var(--fg-dim)', textTransform: 'uppercase' }}>
+                            {kept ? '◔ лишилось' : 'списати'}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
+                    <Button variant="primary" onClick={() => setConfirmed(true)}>Готово</Button>
+                  </div>
+                </div>
+              </div>
+            )}
             {depleted != null && (depleted > 0 || partial > 0 || opened > 0) && (
               <div className={styles.section}>
                 <MonoLabel className={styles['section-label']}>З КОМОРИ</MonoLabel>

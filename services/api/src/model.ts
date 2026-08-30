@@ -346,6 +346,16 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // Фото в стабі — «готова страва»: дає інтеграційним тестам шлях dish → журнал.
+  if (atts.some((a) => a.kind === 'image')) {
+    return {
+      reply: 'Виглядає як готова страва.',
+      card: null,
+      raw_kind: 'dish',
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   return {
     reply: `[STUB без ANTHROPIC_API_KEY] отримав ${atts.length} вкладень.`,
     card: null,

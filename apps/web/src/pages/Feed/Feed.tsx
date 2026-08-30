@@ -13,6 +13,7 @@ import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor, appliedToast } from './cards';
+import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import styles from './Feed.module.css';
 
 interface Turn {
@@ -92,6 +93,30 @@ export function Feed() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerInputRef = useRef<HTMLInputElement>(null);
+
+  // #9: голосовий ввід. Кнопка є лише там, де браузер уміє SpeechRecognition;
+  // interim-текст летить прямо в поле, щоб людина бачила, що її чують.
+  const [listening, setListening] = useState(false);
+  const dictationRef = useRef<Dictation | null>(null);
+  function toggleVoice() {
+    if (listening) {
+      dictationRef.current?.stop();
+      return;
+    }
+    const d = startDictation({
+      onText: (t) => setInput(t),
+      onDone: (t) => setInput(t),
+      onEnd: () => { setListening(false); dictationRef.current = null; composerInputRef.current?.focus(); },
+    });
+    if (d) { dictationRef.current = d; setListening(true); }
+  }
+
+    // «Уточнити» на пропозиції: префілимо композитор назвою страви з тире —
+  // відповідь механічно привʼязана до неї. Прототипний startRefine.
+  function startRefine(title: string) {
+    setInput(`${title} — `);
+    composerInputRef.current?.focus();
+  }
 
   async function refreshCounts() {
     try {
@@ -494,6 +519,7 @@ export function Feed() {
                 onDismiss={() => dismissCard(t.id)}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
+                onRefine={t.card.type === 'proposal' ? startRefine : undefined}
               />
             )}
           </div>
@@ -574,6 +600,19 @@ export function Feed() {
           >
             📎
           </button>
+          {speechSupported() && (
+            <button
+              type="button"
+              className={styles['attach-btn']}
+              onClick={toggleVoice}
+              disabled={sending}
+              aria-label={listening ? 'Зупинити диктування' : 'Продиктувати'}
+              aria-pressed={listening}
+              style={listening ? { color: 'var(--danger)', animation: 'pulse 1.2s ease-in-out infinite' } : undefined}
+            >
+              {listening ? '●' : '🎙'}
+            </button>
+          )}
           <input
             ref={composerInputRef}
             type="text"

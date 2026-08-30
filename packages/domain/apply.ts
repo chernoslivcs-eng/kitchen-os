@@ -216,6 +216,25 @@ export async function applyCard(
     return { applied: 1, undo_token, already: false };
   }
 
+  if (card.type === 'cook_photo') {
+    const run = await repo.getCookRun(card.run_id);
+    if (!run || run.user_id !== actor_user_id) throw new Error('forbidden');
+    const att = await repo.getAttachment(card.attachment_id);
+    if (!att) throw new Error('attachment not found');
+    const now = new Date().toISOString();
+    const snapshot: UndoSnapshot = {
+      kind: 'cook_photo',
+      before: { photo_before: { run_id: run.id, photo_url: run.photo_url } },
+    };
+    await repo.updateCookRun(run.id, { photo_url: att.url });
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: now, applied_ops: [0], undo_token, undo_snapshot: snapshot,
+    });
+    await repo.markMessageApplied(pc.id, 1);
+    return { applied: 1, undo_token, already: false };
+  }
+
   throw new Error(`apply not implemented for card type: ${(card as { type: string }).type}`);
 }
 
@@ -518,6 +537,9 @@ export async function undoCard(
   // Видалений їдець повертається з усіма обмеженнями — знімок повний.
   for (const e of snap.before.removed_eaters ?? []) {
     await repo.insertEater(e);
+  }
+  if (snap.before.photo_before) {
+    await repo.updateCookRun(snap.before.photo_before.run_id, { photo_url: snap.before.photo_before.photo_url });
   }
   // Імпортований рецепт: прибираємо рядок цілком — на нього ще ніщо не
   // посилається, і «незбережений» привид у базі нікому не потрібен.

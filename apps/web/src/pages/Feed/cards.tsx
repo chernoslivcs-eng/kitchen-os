@@ -55,6 +55,11 @@ export interface CardProps {
   onDismiss?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
+  // Уточнення до конкретної страви: тап префілить композитор «{title} — » і
+  // ставить фокус. Прототипний startRefine: префікс механічно тримає тему
+  // розмови — головну промптову болячку QA-3…6 («тема не тримається») він
+  // закриває з боку інтерфейсу, а не вмовляннями в промпті.
+  onRefine?: (title: string) => void;
 }
 
 function stateClass(applied?: boolean, undone?: boolean): string {
@@ -106,7 +111,7 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
 
 // ----- Proposal ------------------------------------------------------------
 
-export function ProposalCard({ card, onOpen }: CardProps) {
+export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
   const items = (card.items as ProposalItem[] | undefined ?? []);
   return (
     <div className={styles.card}>
@@ -143,9 +148,12 @@ export function ProposalCard({ card, onOpen }: CardProps) {
               <div className={styles['proposal-desc']}>{it.why}</div>
             </div>
           )}
-          {onOpen && (
+          {(onOpen || onRefine) && (
             <div className={styles['card-actions']}>
-              <Button variant="positive" onClick={() => onOpen(i)}>Рецепт →</Button>
+              {onOpen && <Button variant="positive" onClick={() => onOpen(i)}>Рецепт →</Button>}
+              {onRefine && it.title && (
+                <Button variant="secondary" onClick={() => onRefine(it.title!)}>Уточнити</Button>
+              )}
             </div>
           )}
         </div>
@@ -259,6 +267,31 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
   );
 }
 
+// Фото страви → журнал. Мінімальна картка: назва готування і дві кнопки.
+export function CookPhotoCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
+  return (
+    <div className={stateClass(applied, undone)}>
+      <div className={styles.ops}>
+        <div className={styles.op}>
+          <span className={styles['op-sign']}>📷</span>
+          <span className={styles['op-label']}>{card.recipe_title ?? 'Готування'}</span>
+        </div>
+      </div>
+      {!applied && !undone && !dismissed && onApply && (
+        <div className={styles['card-actions']}>
+          <Button variant="primary" onClick={onApply} loading={applying}>У журнал</Button>
+          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
+        </div>
+      )}
+      {applied && !undone && undoAvailable && onUndo && (
+        <div className={styles['card-actions']}>
+          <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Card(props: CardProps) {
   switch (props.card.type) {
     case 'intake_diff': return <IntakeCard {...props} />;
@@ -266,6 +299,7 @@ export function Card(props: CardProps) {
     case 'shopping':    return <ShoppingCard {...props} />;
     case 'profile':     return <ProfileCard {...props} />;
     case 'recipe':      return <RecipeCard {...props} />;
+    case 'cook_photo':  return <CookPhotoCard {...props} />;
     default:            return null;
   }
 }
@@ -273,6 +307,9 @@ export function Card(props: CardProps) {
 // Текст тосту після «Так». Жив інлайном у Feed і рахував «ops або items»
 // з формами «у коморі»/«у списку» — картка рецепта давала «0 позицій у коморі».
 export function appliedToast(card: ChatCard): string {
+  if (card.type === 'cook_photo') {
+    return card.recipe_title ? `Фото до «${card.recipe_title}» — у журналі` : 'Фото в журналі';
+  }
   if (card.type === 'recipe') {
     const t = (card.recipe as Recipe | undefined)?.t;
     return t ? `«${t}» — у рецептах` : 'Рецепт збережено';
@@ -302,6 +339,7 @@ export function labelFor(
     : type === 'profile' ? 'ПРОФІЛЬ'
     // Імпорт із книжки — не вигадка моделі, і мітка має це розрізняти.
     : type === 'recipe' ? 'РЕЦЕПТ'
+    : type === 'cook_photo' ? 'ЖУРНАЛ'
     : 'ПРОПОЗИЦІЯ';
   return { text: `${base} · ◌ ОЧІКУЄ`, tone: 'pending' };
 }
