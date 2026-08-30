@@ -138,6 +138,18 @@ export class InMemoryRepo implements Repo {
     this.pending.set(id, { ...cur, ...patch });
   }
 
+  async listOpenPending(household_id: string, limit = 20): Promise<Array<PendingCard & { session_id: string | null; created_at: string | null }>> {
+    const out: Array<PendingCard & { session_id: string | null; created_at: string | null }> = [];
+    for (const pc of this.pending.values()) {
+      if (pc.household_id !== household_id) continue;
+      if (pc.applied_at || pc.undone_at) continue;
+      const msg = await this.getMessage(pc.message_id);
+      out.push({ ...pc, session_id: msg?.session_id ?? null, created_at: msg?.created_at ?? null });
+    }
+    out.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+    return out.slice(0, limit);
+  }
+
   async saveAttachment(a: AttachmentRecord): Promise<void> {
     this.attachments.set(a.id, { ...a });
   }

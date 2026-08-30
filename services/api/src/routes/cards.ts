@@ -5,6 +5,25 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { WRITEOFF_CARD_REPLY, FEEDBACK_PROMPT } from '../post-cook.js';
 
 export function cardsRoutes(app: FastifyInstance, repo: Repo) {
+  // Черга Г (№3): панель ОЧІКУЮТЬ дивиться на всі незакриті картки дому.
+  // Віддаємо лише те, що панелі треба: тип, сесію (для переходу) і час.
+  app.get('/v1/cards/pending', { preHandler: authenticated(repo) }, async (req) => {
+    const { household_id } = requireUser(req);
+    // proposal — не рішення, а меню моменту: його не «застосовують», тож у
+    // черзі рішень воно висіло б вічно. Показуємо тільки дійові картки.
+    const open = (await repo.listOpenPending(household_id, 40))
+      .filter((pc) => pc.card.type !== 'proposal')
+      .slice(0, 12);
+    return {
+      cards: open.map((pc) => ({
+        id: pc.id,
+        type: pc.card.type,
+        session_id: pc.session_id,
+        created_at: pc.created_at,
+      })),
+    };
+  });
+
   // POST /v1/cards/:id/apply  { selected?: [op_index] }
   //   → { applied, undo_token, already, followup? }
   app.post<{

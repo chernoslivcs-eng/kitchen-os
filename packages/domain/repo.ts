@@ -58,6 +58,9 @@ export interface Repo {
   savePending(pc: PendingCard): Promise<void>;
   getPending(id: string): Promise<PendingCard | null>;
   updatePending(id: string, patch: Partial<PendingCard>): Promise<void>;
+  // Черга Г (№3): панель ОЧІКУЮТЬ дивиться на ВСІ незакриті картки дому.
+  // session_id/created_at — з повідомлення-носія (id картки = id повідомлення).
+  listOpenPending(household_id: string, limit?: number): Promise<Array<PendingCard & { session_id: string | null; created_at: string | null }>>;
 
   // Вкладення
   saveAttachment(a: AttachmentRecord): Promise<void>;

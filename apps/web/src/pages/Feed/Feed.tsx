@@ -188,12 +188,24 @@ export function Feed() {
     composerInputRef.current?.focus();
   }
 
+  // Черга Г (№3): дані правої панелі — незакриті картки дому і неоцінене
+  // недавнє готування. Живуть поруч із лічильниками й оновлюються разом.
+  const [housePending, setHousePending] = useState<{ id: string; type: string; session_id: string | null }[]>([]);
+  const [unratedRun, setUnratedRun] = useState<{ id: string; title: string; session_id: string | null } | null>(null);
+
   async function refreshCounts() {
     try {
-      const [p, s] = await Promise.all([
+      const [p, s, pend, runs] = await Promise.all([
         api.pantry(),
         api.shopping.list().catch(() => ({ count: 0 })),
+        api.cards.pending().catch(() => ({ cards: [] as { id: string; type: string; session_id: string | null; created_at: string | null }[] })),
+        api.cookRuns.list().catch(() => ({ runs: [] })),
       ]);
+      setHousePending(pend.cards);
+      const fresh = runs.runs.find((r) =>
+        !r.undone_at && r.rating == null
+        && Date.now() - new Date(r.finished_at ?? r.started_at).getTime() < 48 * 3600_000);
+      setUnratedRun(fresh ? { id: fresh.id, title: fresh.recipe.title, session_id: fresh.session_id ?? null } : null);
       setPantryCount(p.count);
       // Мапа id→label: рецепт-повідомлення показує «Вершки 33%», а не «з комори».
       setBatchLabels(new Map(p.batches.map((b) => [b.id, b.label])));
@@ -909,15 +921,31 @@ export function Feed() {
         </form>
       </div>
 
-      {/* Бриф-3 п.3: права панель — навігатор стану на десктопі.
-          ГОРИТЬ = живий зріз комори; ОЧІКУЮТЬ = pending-картки розмови.
-          «Вечеря сьогодні» знята дизайном — її зміст живе в ранковій картці. */}
+      {/* Черга Г (№3): права панель — навігатор стану на десктопі (≥1280).
+          Порожні секції не рендеряться. Кожен рядок — місток: продовжити
+          готування, префіл композитора, скрол до картки, перехід у сесію. */}
       <aside className={styles.rail}>
-        {staleBatches.length > 0 && (
+        {cookLive && (
           <div className={styles['rail-block']}>
-            <div className={styles['rail-title']} style={{ color: 'var(--amber)' }}>
-              ГОРИТЬ · {staleBatches.length}
-            </div>
+            <div className={styles['rail-title']} style={{ color: 'var(--accent)' }}>ГОТУВАННЯ ТРИВАЄ</div>
+            <button
+              className={styles['rail-row']}
+              onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId } })}
+            >
+              <span className={styles['rail-label']}>{cookLive.recipe.t}</span>
+              <span className={styles['rail-meta']} style={{ color: 'var(--accent)' }}>
+                {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length} ›
+              </span>
+            </button>
+          </div>
+        )}
+        {pantryCount !== null && pantryCount > 0 && (
+          <div className={styles['rail-block']}>
+            <div className={styles['rail-title']}>СТАТУС КОМОРИ</div>
+            <button className={styles['rail-row']} onClick={() => navigate('/pantry')}>
+              <span className={styles['rail-label']}>Позицій у домі</span>
+              <span className={styles['rail-meta']}>{pantryCount}</span>
+            </button>
             {staleBatches.slice(0, 4).map((b) => (
               <button
                 key={b.id}
@@ -932,23 +960,87 @@ export function Feed() {
             ))}
           </div>
         )}
-        {turns.some((t) => t.card && t.card.type !== 'recipe_link' && !t.applied && !t.undone && !t.dismissed) && (
+        {(() => {
+          // Пропозиції цієї сесії — назвами страв, не «ПРОПОЗИЦІЯ, ПРОПОЗИЦІЯ».
+          const dishes = turns.flatMap((t) => {
+            if (t.card?.type === 'proposal') {
+              return ((t.card.items as { title?: string }[] | undefined) ?? [])
+                .map((it) => ({ turnId: t.id, title: it.title ?? '' }));
+            }
+            if (t.card?.type === 'recipe_link') {
+              return [{ turnId: t.id, title: (t.card.title as string | undefined) ?? '' }];
+            }
+            return [];
+          }).filter((d) => d.title);
+          if (!dishes.length) return null;
+          return (
+            <div className={styles['rail-block']}>
+              <div className={styles['rail-title']}>ПРОПОЗИЦІЇ ЦІЄЇ СЕСІЇ</div>
+              {dishes.slice(-5).map((d, i) => (
+                <button
+                  key={`${d.turnId}-${i}`}
+                  className={styles['rail-row']}
+                  onClick={() => document.getElementById(`turn-${d.turnId}`)?.scrollIntoView({ block: 'center' })}
+                >
+                  <span className={styles['rail-label']}>{d.title}</span>
+                  <span className={styles['rail-meta']}>↧</span>
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+        {housePending.length > 0 && (
           <div className={styles['rail-block']}>
             <div className={styles['rail-title']}>
-              ОЧІКУЮТЬ РІШЕННЯ · {turns.filter((t) => t.card && t.card.type !== 'recipe_link' && !t.applied && !t.undone && !t.dismissed).length}
+              ОЧІКУЮТЬ РІШЕННЯ · {housePending.length}
             </div>
-            {turns.filter((t) => t.card && t.card.type !== 'recipe_link' && !t.applied && !t.undone && !t.dismissed).slice(-4).map((t) => (
+            {housePending.slice(0, 4).map((pc) => (
               <button
-                key={t.id}
+                key={pc.id}
                 className={styles['rail-row']}
                 onClick={() => {
-                  document.getElementById(`turn-${t.id}`)?.scrollIntoView({ block: 'center' });
+                  // Картка з поточної розмови — скрол; з іншої — перехід у ту сесію.
+                  const turn = turns.find((t) => t.cardId === pc.id);
+                  if (turn) {
+                    document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
+                  } else if (pc.session_id) {
+                    void loadHistorySession(pc.session_id);
+                  }
                 }}
               >
-                <span className={styles['rail-label']}>{labelFor(t.card!.type).text.replace(' · ◌ ОЧІКУЄ', '')}</span>
+                <span className={styles['rail-label']}>{labelFor(pc.type as never).text.replace(' · ◌ ОЧІКУЄ', '')}</span>
                 <span className={styles['rail-meta']} style={{ color: 'var(--amber)' }}>◌</span>
               </button>
             ))}
+          </div>
+        )}
+        {shoppingCount > 0 && (
+          <div className={styles['rail-block']}>
+            <div className={styles['rail-title']}>ДО МАГАЗИНУ</div>
+            <button className={styles['rail-row']} onClick={() => navigate('/list')}>
+              <span className={styles['rail-label']}>У списку</span>
+              <span className={styles['rail-meta']}>{shoppingCount}</span>
+            </button>
+          </div>
+        )}
+        {unratedRun && !cookLive && (
+          <div className={styles['rail-block']}>
+            <div className={styles['rail-title']}>ОЦІНИ ВЧОРАШНЄ</div>
+            <button
+              className={styles['rail-row']}
+              onClick={() => {
+                // Ведемо в сесію готування (там найчастіше висить «Як вийшло?» —
+                // відповідь ляже у verdict) і префілимо композитор назвою.
+                if (unratedRun.session_id && unratedRun.session_id !== sessionId) {
+                  void loadHistorySession(unratedRun.session_id);
+                }
+                setInput(`«${unratedRun.title}» — `);
+                composerInputRef.current?.focus();
+              }}
+            >
+              <span className={styles['rail-label']}>{unratedRun.title}</span>
+              <span className={styles['rail-meta']}>★</span>
+            </button>
           </div>
         )}
       </aside>

@@ -334,6 +334,23 @@ export class PostgresRepo implements Repo {
     );
   }
 
+  async listOpenPending(household_id: string, limit = 20): Promise<Array<PendingCard & { session_id: string | null; created_at: string | null }>> {
+    const { rows } = await this.pool.query(
+      `SELECT cp.*, m.session_id AS msg_session_id, m.created_at AS msg_created_at
+         FROM card_pending cp
+         LEFT JOIN message m ON m.id = cp.message_id
+        WHERE cp.household_id = $1 AND cp.applied_at IS NULL AND cp.undone_at IS NULL
+        ORDER BY m.created_at DESC NULLS LAST
+        LIMIT $2`,
+      [household_id, limit],
+    );
+    return rows.map((r) => ({
+      ...rowToPending(r),
+      session_id: r.msg_session_id ?? null,
+      created_at: r.msg_created_at ? new Date(r.msg_created_at).toISOString() : null,
+    }));
+  }
+
   async getPending(id: string): Promise<PendingCard | null> {
     const { rows } = await this.pool.query('SELECT * FROM card_pending WHERE id = $1', [id]);
     return rows[0] ? rowToPending(rows[0]) : null;

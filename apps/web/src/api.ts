@@ -143,6 +143,11 @@ export const api = {
     }),
 
   cards: {
+    // Черга Г (№3): панель ОЧІКУЮТЬ — всі незакриті картки дому.
+    pending: () =>
+      req<{ cards: { id: string; type: string; session_id: string | null; created_at: string | null }[] }>(
+        '/v1/cards/pending',
+      ),
     apply: (id: string, selected?: number[]) =>
       req<{ applied: number; undo_token: string; already: boolean; followup?: string }>(
         `/v1/cards/${id}/apply`,
