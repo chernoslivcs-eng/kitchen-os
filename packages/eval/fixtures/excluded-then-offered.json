@@ -1,0 +1,24 @@
+{
+  "id": "excluded-then-offered",
+  "description": "UX9-30: «приготуй нам вечерю на всіх» при непереносимості Олі давало попередження і зустрічне «дати щось інше?» — БЕЗ жодної страви. Виключив — запропонуй заміну в тій самій картці.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "eaters": [
+    { "id": "e1", "household_id": "h1", "name": "Оля", "diet": null,
+      "allergies": ["молоко", "вершки", "сметана", "йогурт", "кефір", "вершкове масло"],
+      "antipatterns": [], "wishes": [], "created_at": "2026-09-01T10:00:00.000Z" }
+  ],
+  "pantry": [
+    {"id":"b1","label":"вершки 33%","zone":"fridge","v":200,"u":"ml"},
+    {"id":"b2","label":"гарбуз","zone":"fresh","v":800,"u":"g"},
+    {"id":"b3","label":"рис","zone":"dry","v":500,"u":"g"},
+    {"id":"b4","label":"куряче філе","zone":"fridge","v":400,"u":"g"},
+    {"id":"b5","label":"цибуля","zone":"fresh","v":3,"u":"pcs"},
+    {"id":"b6","label":"помідори","zone":"fresh","v":400,"u":"g"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "приготуй нам сьогодні вечерю на всіх" }
+  ],
+  "invariants": ["excluded-offers-alternative", "no-markdown", "addresses-informally"]
+}

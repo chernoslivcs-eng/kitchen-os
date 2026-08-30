@@ -1,7 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { compose, type CallName, type LoadedPrompt } from '@kitchen/prompts';
-import { buildKitchenContext, parseModelResponse, parseAttachmentResponse } from '@kitchen/domain';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow } from '@kitchen/domain';
+import {
+  buildKitchenContext, parseModelResponse, parseAttachmentResponse,
+  buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
+} from '@kitchen/domain';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
@@ -45,6 +48,18 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
       }
     : null;
 
+  // recipe_gen дзеркалить прод callRecipe: профіль + [КОМОРА] з АЛІАСАМИ
+  // p1..pN + [ВИСНОВКИ З ГОТУВАННЯ]. Не buildKitchenContext — у проді
+  // генерація рецепта не бачить список покупок, журнал і домашніх.
+  if (call === 'recipe_gen') {
+    const alias = buildAliasMap(pantry);
+    const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
+    return base
+      + serializeProfile(profile)
+      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias)
+      + serializeNotes((fx.notes ?? []) as MemoryNote[]);
+  }
+
   // Дата фіксується фікстурою, інакше календарний блок жив би рівно добу
   // й «сезон грибів» ламав би прогін у грудні.
   return base + buildKitchenContext({
@@ -54,6 +69,9 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     notes: (fx.notes ?? []) as MemoryNote[],
     eaters: (fx.eaters ?? []) as EaterRow[],
     recentRecipes: (fx.recentRecipes ?? []) as RecipeRow[],
+    // UX9-28: [ОСТАННІ ГОТУВАННЯ] в eval раніше не було взагалі — фікстури
+    // на памʼять готувань не могли існувати.
+    recentCookRuns: (fx.recentCookRuns ?? []) as RecentCookRunSummary[],
     now: fx.now ? new Date(fx.now) : undefined,
   });
 }
@@ -84,6 +102,11 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
       role: m.role,
       content: m.content,
     }));
+  }
+
+  if (fx.call === 'recipe_gen') {
+    // Дослівно як у проді (callRecipe): user = title (+context одним рядком).
+    return [{ role: 'user', content: fx.request ?? '' }];
   }
 
   if (fx.call === 'attachment_parse') {
@@ -149,9 +172,17 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
     // Чат віддає {reply, card}, вкладення — {kind, note, ops}. Поки eval гнав
     // обидва через чатовий парсер, фікстури на чеки не могли позеленіти
     // в принципі: він шукав card, не знаходив, і клав уламок JSON у reply.
+    // recipe_gen віддає голий JSON рецепта — загортаємо в card {type:'recipe'},
+    // щоб інваріанти читали його тим самим шляхом, що продиктований рецепт.
     const { reply, card } = call === 'attachment_parse'
       ? parseAttachmentResponse(text)
-      : parseModelResponse(text);
+      : call === 'recipe_gen'
+        ? (() => {
+            const { parsed } = extractJson(text);
+            const ok = parsed && typeof parsed === 'object' && 't' in parsed && 'ing' in parsed;
+            return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null };
+          })()
+        : parseModelResponse(text);
 
     return {
       raw: text,

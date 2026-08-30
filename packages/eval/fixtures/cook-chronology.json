@@ -1,0 +1,18 @@
+{
+  "id": "cook-chronology",
+  "description": "UX9-28: дві пасти за день — модель переплутала, яка була першою і кому належить ★4. Тепер журнал несе час і позначку (останнє); переплутане гірше за забуте.",
+  "call": "chat",
+  "now": "2026-09-10T19:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"b1","label":"спагеті","zone":"dry","v":1,"u":"pack"}
+  ],
+  "recentCookRuns": [
+    { "title": "Паста з томатним соусом і вершками", "rating": null, "verdict": null, "finished_at": "2026-09-10T15:48:00" },
+    { "title": "Паста з томатним соусом і пармезаном", "rating": 4, "verdict": "соусу забракло, наступного разу півтори банки помідорів", "finished_at": "2026-09-10T15:24:00" }
+  ],
+  "conversation": [
+    { "role": "user", "content": "яку з двох паст я сьогодні готував першою?" }
+  ],
+  "invariants": ["chronology-first-parmesan", "no-markdown", "addresses-informally"]
+}

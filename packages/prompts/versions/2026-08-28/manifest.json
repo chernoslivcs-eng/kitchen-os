@@ -4,11 +4,13 @@
   "calls": {
     "chat": {
       "profile": "smart",
-      "compose": ["role", "onboarding-stage1?", "onboarding-stage2?", "card-rules"],
+      "temperature": 0.4,
+      "compose": ["role", "onboarding-stage1?", "onboarding-stage2?", "card-rules", "proposal-flow"],
       "notes": "Порядок системного промпту: compose(role → [onboarding] → card-rules) + buildKitchenContext() з @kitchen/domain, який дає [ПРОФІЛЬ] → [СЬОГОДНІ] → [КОМОРА] → [СПИСОК ПОКУПОК] → [ОСТАННІ ГОТУВАННЯ]. Обмеження перед інвентарем свідомо (QA5-01). Модель smart, а не fast: copy-report-4 зафіксував 8 мовних дефектів на haiku проти 3 на sonnet."
     },
     "recipe_gen": {
       "profile": "smart",
+      "temperature": 0.6,
       "compose": ["role", "recipe-generator"]
     },
     "attachment_parse": {

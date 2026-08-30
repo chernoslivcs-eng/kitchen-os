@@ -9,6 +9,9 @@ import {
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
   serializeProfile as ctxSerializeProfile,
+  serializeNotes as ctxSerializeNotes,
+  buildAliasMap,
+  unaliasRecipeIds,
   type RecentCookRunSummary,
 } from '@kitchen/domain';
 import type {
@@ -192,6 +195,9 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const resp = await withRetry(() => client.messages.create({
     model,
     max_tokens: 2048,
+    // Температура з маніфесту: на 1.0 (дефолт) поведінка фліпала між
+    // запусками — фікстури падали через раз на тих самих правилах.
+    temperature: prompt.manifest.calls.chat.temperature,
     system,
     messages,
   }));
@@ -271,22 +277,33 @@ export async function callRecipe(args: {
   context?: string;
   pantry?: PantryBatch[];
   profile?: Profile | null;
+  // Г-1: без цього recipe_gen НЕ БАЧИВ [ВИСНОВКИ З ГОТУВАННЯ] — щоденник
+  // помилок лежав на кухні, а кухар писав рецепти в сусідній кімнаті.
+  notes?: MemoryNote[];
 }): Promise<RecipeCall> {
   const prompt = loadPrompt();
   const client = makeClient();
   if (!client) return recipeStub(args.title, prompt.version, args.pantry);
 
   const model = modelForCall('recipe_gen', prompt);
+  // UX9-03: модель бачить ТІЛЬКИ короткі p1..pN — голі uuid вона переписувала
+  // з помилками (спагеті ставали фуетом), а вморожування впевнено підписувало
+  // помилку. Переклад назад — детермінований; невідомий аліас → дроп p.
+  const alias = buildAliasMap(args.pantry ?? []);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile)
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias)
     : '';
-  const system = compose('recipe_gen', prompt) + ctxSerializeProfile(args.profile) + pantryBlock;
+  const system = compose('recipe_gen', prompt)
+    + ctxSerializeProfile(args.profile)
+    + pantryBlock
+    + ctxSerializeNotes(args.notes ?? []);
   const userText = args.context
     ? `${args.title}\n\n${args.context}`
     : args.title;
   const resp = await withRetry(() => client.messages.create({
     model,
     max_tokens: 3072,
+    temperature: prompt.manifest.calls.recipe_gen.temperature,
     system,
     messages: [{ role: 'user', content: userText }],
   }));
@@ -297,7 +314,7 @@ export async function callRecipe(args: {
   const { parsed } = extractJson(text);
   let recipe: Recipe | null = null;
   if (parsed && typeof parsed === 'object' && 't' in parsed && 'ing' in parsed && 'st' in parsed) {
-    recipe = parsed as Recipe;
+    recipe = unaliasRecipeIds(parsed as Recipe, alias.toId);
   }
   return {
     recipe,

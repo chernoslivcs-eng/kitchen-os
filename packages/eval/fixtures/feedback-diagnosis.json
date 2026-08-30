@@ -1,0 +1,19 @@
+{
+  "id": "feedback-diagnosis",
+  "description": "Порт cooking-assistant: на «пересолив» модель має дати діагноз із причиною (солоні складові склались) і конкретний план, а не ввічливе «врахую».",
+  "call": "chat",
+  "now": "2026-09-10T20:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"b1","label":"анчоуси","zone":"fridge","v":50,"u":"g","state":"opened"},
+    {"id":"b2","label":"каперси","zone":"fridge","v":80,"u":"g","state":"opened"},
+    {"id":"b3","label":"пармезан","zone":"fridge","v":60,"u":"g"}
+  ],
+  "recentCookRuns": [
+    { "title": "Путанеска з анчоусами й каперсами", "rating": null, "verdict": null, "finished_at": "2026-09-10T19:30:00" }
+  ],
+  "conversation": [
+    { "role": "user", "content": "пересолив путанеску, хоча воду солив як завжди. що не так?" }
+  ],
+  "invariants": ["diagnosis-names-cause", "no-markdown", "addresses-informally"]
+}

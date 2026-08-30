@@ -1,0 +1,18 @@
+{
+  "id": "rescues-fit",
+  "description": "UX9-23: у пропозиції «Французькі тости» блок РЯТУЄ містив фует (сирокопчену ковбасу) — при живому багеті. Rescues — обіцянка «страва це використає», не сміттєзбірник догоряючого.",
+  "call": "chat",
+  "now": "2026-09-10T09:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"b1","label":"багет","zone":"fresh","v":1,"u":"pcs"},
+    {"id":"b2","label":"фует (сирокопчена ковбаса)","zone":"fridge","v":1,"u":"pcs","state":"opened","expires_at":"2026-09-12T00:00:00"},
+    {"id":"b3","label":"молоко","zone":"fridge","v":1000,"u":"ml"},
+    {"id":"b4","label":"яйця","zone":"fridge","v":6,"u":"pcs"},
+    {"id":"b5","label":"вершкове масло","zone":"fridge","v":150,"u":"g"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "щось солодке на сніданок із багета?" }
+  ],
+  "invariants": ["no-sausage-in-toast-rescues", "no-markdown", "addresses-informally"]
+}

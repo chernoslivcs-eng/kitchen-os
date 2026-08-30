@@ -498,6 +498,98 @@ export const registry: Record<string, Invariant> = {
     return pass();
   },
 
+  // UX9-03 (скріни: «фует варити до аль денте»): правка рецепта не сміє
+  // мовчки міняти акторський склад. Пармезан→вершки НЕ чіпає спагеті.
+  'edit-keeps-cast': (out) => {
+    const r = (out.card as { recipe?: { ing?: { p?: string; n?: string }[]; st?: { c?: string; t?: string }[] } } | null)?.recipe;
+    if (!r?.ing?.length) return fail('рецепта немає — правка не відбулась');
+    const hay = (i: { p?: string; n?: string }) => (i.n ?? '').toLowerCase();
+    const hasSpaghetti = r.ing.some((i) => hay(i).includes('спагет') || i.p === 'p5');
+    if (!hasSpaghetti) return fail('спагеті зникли з рецепта — саме баг зі скрінів');
+    const hasFuet = r.ing.some((i) => hay(i).includes('фует'))
+      || (r.st ?? []).some((s) => `${s.t} ${s.c}`.toLowerCase().includes('фует'));
+    if (hasFuet) return fail('фует пробрався в пасту — переплутаний вказівник');
+    const hasCream = r.ing.some((i) => hay(i).includes('вершк') || i.p === 'p1');
+    if (!hasCream) return fail('вершки не зʼявились — правку не виконано');
+    const hasParm = r.ing.some((i) => hay(i).includes('пармезан'));
+    if (hasParm) return fail('пармезан лишився — правку не виконано');
+    return pass();
+  },
+
+  // UX9-13: «зроби на чотирьох» = sv:4 і кількості ×2 від бази, не тільки ×2.
+  'servings-scaled': (out) => {
+    const r = (out.card as { recipe?: { sv?: number; ing?: { v?: number }[] } } | null)?.recipe;
+    if (!r) return fail('рецепта немає');
+    if (r.sv !== 4) return fail(`sv=${r.sv} — табличку на дверях не переписано (очікували 4)`);
+    const scaled = (r.ing ?? []).some((i) => i.v === 400);
+    return scaled ? pass() : fail('кількості не перераховані від базових (немає 400 після 200×2)');
+  },
+
+  // UX9-04: [КОМОРА] — єдине джерело правди про стан; історія — події.
+  'pantry-truth-100': (out) => {
+    const reply = String(out.reply ?? '');
+    if (/500/.test(reply)) return fail('назвала 500 г з історії — блок каже 100');
+    if (!/100/.test(reply)) return fail('не назвала 100 г із [КОМОРА]');
+    return pass();
+  },
+
+  // UX9-28: перша страва дня — з пармезаном (15:24), модель плутала порядок.
+  // Порівнюємо ПОЗИЦІЇ згадок: правильна відповідь називає пармезан раніше
+  // за вершки («Першою була з пармезаном, потім з вершками»).
+  'chronology-first-parmesan': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const iParm = reply.indexOf('пармезан');
+    const iCream = reply.indexOf('вершк');
+    if (iParm < 0) return fail('не назвала першу страву (з пармезаном)');
+    if (iCream >= 0 && iCream < iParm) return fail('назвала пасту з вершками першою — хронологію перевернуто');
+    return pass();
+  },
+
+  // UX9-30: виключив через алерген → заміна в ТІЙ ЖЕ відповіді, не питання.
+  'excluded-offers-alternative': (out) => {
+    const card = out.card as { type?: string; items?: unknown[] } | null;
+    if (card?.type !== 'proposal' || !card.items?.length) {
+      return fail('виключення без заміни: proposal-картки немає — зустрічне питання замість страв');
+    }
+    // «Кремова текстура БЕЗ вершків» — заперечення, не порушення.
+    const hay = JSON.stringify(card).toLowerCase()
+      .replace(/без\s+[а-яіїєʼ']*(вершк|молок|молоч|сметан|йогурт|кефір|сир)[а-яіїєʼ']*/g, '');
+    const dairy = ['молок', 'вершк', 'сметан', 'йогурт', 'кефір', 'сир '].filter((w) => hay.includes(w));
+    return dairy.length ? fail(`молочне в пропозиції для Олі: ${dairy.join(', ')}`) : pass();
+  },
+
+  // UX9-23: rescues — обіцянка «страва це використає», ковбаса — не хліб.
+  'no-sausage-in-toast-rescues': (out) => {
+    const card = out.card as { type?: string; items?: { title?: string; rescues?: string[] }[] } | null;
+    if (card?.type !== 'proposal') return pass('не proposal');
+    for (const it of card.items ?? []) {
+      const toasty = /тост|грінк|перду|крутон/i.test(it.title ?? '');
+      if (toasty && (it.rescues ?? []).some((r) => /фует|ковбас/i.test(r))) {
+        return fail(`«${it.title}»: ковбаса в rescues страви з хліба — точний кейс тостів`);
+      }
+    }
+    return pass();
+  },
+
+  // Г: «урок вбудовується в крок» — захист у ТЕКСТІ кроку, не блоком порад.
+  'lesson-into-step': (out) => {
+    const r = (out.card as { recipe?: { st?: { c?: string }[] } } | null)?.recipe;
+    if (!r?.st?.length) return fail('рецепта немає');
+    const embedded = r.st.some((s) => /зсіда|зменшен[а-яіїє]* вогн|не кипʼят|не кип'ят/i.test(s.c ?? ''));
+    return embedded
+      ? pass()
+      : fail('захист про вершки не вбудований у жоден крок — висновок людини проігноровано');
+  },
+
+  // Г: фідбек — діагноз із причиною, не «врахую».
+  'diagnosis-names-cause': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const cause = /анчоус|каперс|солон[а-яіїє]* (склал|склад|додал)|кілька солоних|вже солон/.test(reply);
+    return cause
+      ? pass()
+      : fail('причину пересолу (солоні складові склались) не названо — співчуття замість діагнозу');
+  },
+
   // QA8-08: спільна трапеза — алерген їдця виключає страву, а не маркує.
   'shared-meal-no-eater-allergen': (out) => {
     const card = out.card;

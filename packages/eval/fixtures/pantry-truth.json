@@ -1,0 +1,20 @@
+{
+  "id": "pantry-truth",
+  "description": "UX9-04: модель переказувала комору з ІСТОРІЇ (купив 500 г, [ЗАСТОСОВАНО]) замість блока [КОМОРА] (лишилось 100 г після готування). Блок — єдине джерело правди про стан.",
+  "call": "chat",
+  "now": "2026-09-10T19:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"b1","label":"помідори","zone":"fresh","v":100,"u":"g","state":"opened"},
+    {"id":"b2","label":"спагеті","zone":"dry","v":1,"u":"pack"}
+  ],
+  "recentCookRuns": [
+    { "title": "Паста з томатним соусом", "rating": null, "verdict": null, "finished_at": "2026-09-10T17:30:00" }
+  ],
+  "conversation": [
+    { "role": "user", "content": "[14:50] купив помідори 500 г" },
+    { "role": "assistant", "content": "[14:50] Запишу пів кіла помідорів.\n[картка: комора] add помідори [ЗАСТОСОВАНО — ефект уже врахований у поточному [КОМОРА], не додавай]" },
+    { "role": "user", "content": "[19:00] скільки в мене зараз помідорів?" }
+  ],
+  "invariants": ["pantry-truth-100", "no-markdown", "addresses-informally"]
+}

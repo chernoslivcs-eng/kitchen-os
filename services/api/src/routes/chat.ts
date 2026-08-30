@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
-import { createPending, deriveSessionTitle, resolveRecipeLabels, type Repo, type Card, type Recipe } from '@kitchen/domain';
+import { createPending, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, type Repo, type Card, type Recipe } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -184,14 +184,27 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       .slice(-20)
       .map((m) => {
         const parts: string[] = [];
-        if (m.text) parts.push(m.text);
+        // Час кожного ходу: без нього модель не могла впорядкувати події
+        // розмови проти [ОСТАННІ ГОТУВАННЯ] («купив 500 г» — до готування чи
+        // після?) і трактувала свіжу згадку числа як свіжий стан (UX9-04).
+        const d = new Date(m.created_at);
+        const stamp = `[${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}]`;
+        if (m.text) parts.push(`${stamp} ${m.text}`);
         if (m.card) {
           // recipe_link — не pending-дія, а доконаний факт: рецепт УЖЕ в
           // стрічці. Суфікс [НЕ ЗАСТОСОВАНО] тут читався моделлю як «система
           // ще не оновила рецепт» — і вона чесно відмовлялась від зробленого.
+          // «Творча бухгалтерія» (eval pantry-truth): застосована intake-картка
+          // в історії читалась як ЩЕ ОДИН запас поверх [КОМОРА] — модель
+          // складала 500 з розмови й 100 з блока в «600 г». Кажемо прямо:
+          // ефект цієї події ВЖЕ в блоці, рахувати її вдруге не можна.
           const status = m.card.type === 'recipe_link'
             ? ''
-            : (m.applied > 0 ? ' [ЗАСТОСОВАНО]' : ' [НЕ ЗАСТОСОВАНО]');
+            : (m.applied > 0
+              ? (m.card.type === 'intake_diff'
+                ? ' [ЗАСТОСОВАНО — ефект уже врахований у поточному [КОМОРА], не додавай]'
+                : ' [ЗАСТОСОВАНО]')
+              : ' [НЕ ЗАСТОСОВАНО]');
           parts.push(summarizeCard(m.card) + status);
         }
         return { role: m.role, content: parts.join('\n') };
@@ -345,18 +358,29 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       }
 
       const genStarted = Date.now();
+      // UX9-03: у контекст правки базовий рецепт іде з АЛІАСАМИ p1..pN (тим
+      // самим мапом, що й [КОМОРА] всередині callRecipe — порядок партій
+      // однаковий, обидва будуються з цього ж pantry). Модель ніколи не
+      // бачить uuid і не може їх переплутати.
+      const editAlias = buildAliasMap(pantry);
+      const aliasedBase = aliasRecipeIds(base.payload as Recipe, editAlias.toAlias);
       let gen: Awaited<ReturnType<typeof callRecipe>>;
       try {
         gen = await callRecipe({
           title: base.title,
           context:
             'Це ПРАВКА наявного рецепта, не нова страва. Базовий рецепт (JSON):\n'
-            + JSON.stringify(base.payload)
+            + JSON.stringify(aliasedBase)
             + `\n\nВнеси зміну: ${call.card.instruction}\n`
-            + 'Решту складу, кількостей і кроків збережи без змін, включно з привʼязками "p" до партій комори. '
-            + 'Якщо заміна стосується інгредієнта, зміни і кроки, де він згаданий.',
+            + 'ЗАЛІЗНІ ПРАВИЛА ПРАВКИ:\n'
+            + '1. Вказівники "p" існуючих інгредієнтів КОПІЮЙ ДОСЛІВНО з базового рецепта. Не перепризначай їх.\n'
+            + '2. Міняй ТІЛЬКИ те, що названо в правці. Решта складу, кількостей і кроків — без змін.\n'
+            + '3. Якщо правка про порції («на чотирьох») — постав нове sv і перерахуй УСІ v пропорційно від базових; nu лишається на порцію.\n'
+            + '4. Якщо заміна стосується інгредієнта — зміни й кроки, де він згаданий.\n'
+            + '5. Сумніваєшся щодо вказівника — дай "n" з назвою без "p".',
           pantry,
           profile,
+          notes,
         });
       } catch (err) {
         req.log.error({ err, user_id }, 'recipe-edit-model-call-failed');
@@ -375,7 +399,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         return { reply, card: null, card_id: null, usage: call.usage, meta: call.meta };
       }
 
-      const updated: Recipe = resolveRecipeLabels(gen.recipe, pantry);
+      // Захист «база перемагає»: інгредієнт, чий p ІСНУЄ в базовому рецепті,
+      // не може мовчки змінити назву — n форсується з бази. Модель, що
+      // переплутала вказівник, тепер бодай не перепідпише збережений продукт.
+      const baseNByP = new Map(
+        ((base.payload as Recipe).ing ?? [])
+          .filter((i) => i.p && i.n)
+          .map((i) => [i.p!, i.n!]),
+      );
+      const guarded: Recipe = {
+        ...gen.recipe,
+        ing: gen.recipe.ing.map((i) => (i.p && baseNByP.has(i.p) ? { ...i, n: baseNByP.get(i.p)! } : i)),
+      };
+      const updated: Recipe = resolveRecipeLabels(guarded, pantry);
       const draft_id = randomUUID();
       await repo.saveRecipe({
         id: draft_id,

@@ -73,6 +73,11 @@ export function serializePantry(
   now = Date.now(),
   eaters: EaterRow[] = [],
   fasting = false,
+  // UX9-03/04: як показувати id партій. За замовчуванням — сирі uuid (як
+  // було); Map uuid→alias — короткі p1..pN для recipe_gen (переписувати 36
+  // символів модель не вміє); 'none' — без id взагалі (чат ними не
+  // користується, це чистий шум і токени).
+  ids: 'uuid' | 'none' | Map<string, string> = 'uuid',
 ): string {
   const allergens = [
     ...(p?.allergies ?? []).map((a) => ({ label: a, who: '' })),
@@ -83,7 +88,8 @@ export function serializePantry(
   return bs
     .filter((b) => b.state !== 'depleted')
     .map((b) => {
-      const parts = [b.id, b.label, b.zone];
+      const shownId = ids === 'uuid' ? b.id : ids === 'none' ? null : (ids.get(b.id) ?? null);
+      const parts = [...(shownId ? [shownId] : []), b.label, b.zone];
       if (b.value && b.unit) parts.push(`${b.value}${b.unit}`);
       if (b.state === 'opened') parts.push('вдкр');
       if (b.expires_at) {
@@ -94,7 +100,9 @@ export function serializePantry(
       const hit = allergens
         .filter((a) => words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w)))
         .map((a) => a.label + a.who);
-      if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй; просять прямо — дай і назви алергію першою фразою reply`);
+      // «...теж є, але не беру» — теж пропозиція: людина щойно прочитала
+      // спокусу. Тому «не згадуй ВЗАГАЛІ», а не лише «не пропонуй».
+      if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй і НЕ ЗГАДУЙ цю позицію взагалі (навіть «є, але не беру»); просять прямо — дай і назви алергію першою фразою reply`);
       // Третій flap calendar-lent: правило посту в середині контексту модель
       // ігнорувала і «рятувала» фарш тефтелями. Мітка в рядку партії — той
       // самий механізм, що двічі рятував з алергенами.
@@ -121,10 +129,15 @@ export function serializeShopping(items: ShoppingItemRow[]): string {
 
 // QA4-08: Math.round давав «0дн тому» для готування 20 хвилин тому, і модель
 // казала «вчора» — продукт брехав про факт із життя людини.
-export function serializeCookRun(r: RecentCookRunSummary, now = Date.now()): string {
-  const days = Math.floor((now - new Date(r.finished_at).getTime()) / 86_400_000);
-  const when = days === 0 ? 'сьогодні' : days === 1 ? 'вчора' : `${days} дн тому`;
-  const parts = [r.title, when];
+// UX9-28: дві страви за день без часу — модель вгадувала порядок і вгадала
+// навпаки. Сьогодні/вчора несуть HH:MM, найсвіжіший запис позначений явно:
+// переплутане гірше за забуте, бо переплутаного не видно.
+export function serializeCookRun(r: RecentCookRunSummary, now = Date.now(), latest = false): string {
+  const d = new Date(r.finished_at);
+  const days = Math.floor((now - d.getTime()) / 86_400_000);
+  const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const when = days === 0 ? `сьогодні ${hhmm}` : days === 1 ? `вчора ${hhmm}` : `${days} дн тому`;
+  const parts = [r.title, latest ? `${when} (останнє)` : when];
   if (r.rating != null) parts.push(`★${r.rating}/5`);
   if (r.verdict) parts.push(`«${r.verdict}»`);
   return parts.join(' · ');
@@ -146,6 +159,8 @@ export function serializeEaters(eaters: EaterRow[]): string {
     + '\nСтрава готується на всіх за столом: обмеження домашніх враховуй нарівні з профілем.'
     + ' Якщо трапеза СПІЛЬНА («на нас», «на двох», «на сімʼю», «на вечерю всім») — алерген будь-кого з домашніх'
     + ' ВИКЛЮЧАЄ страву з пропозицій, а не додає позначку: за спільним столом «позначка, не заборона» не працює.'
+    + ' Виключення покриває і НЕДОКУПЛЕНЕ: класти алерген у needs («докупити пармезан») для спільної страви так само не можна —'
+    + ' підбирай страви, яким алерген не потрібен узагалі.'
     + ' Попередження про алерген ЗАВЖДИ перша фраза reply, ніколи не в why/desc — why це слот переконування, не безпеки.';
 }
 
@@ -188,14 +203,21 @@ export function buildKitchenContext(ctx: KitchenContext): string {
   const now = ctx.now ?? new Date();
   const cookLog = ctx.recentCookRuns?.length
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n'
-      + ctx.recentCookRuns.map((r) => serializeCookRun(r, now.getTime())).join('\n')
+      + ctx.recentCookRuns.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
     : '';
   return serializeProfile(ctx.profile)
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
     + serializeOccasions(now, ctx.profile?.wishes ?? [])
-    + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []))
+    // UX9-04: чат-модель id партій не вживає НІДЕ — а отримувала uuid першим
+    // словом кожного рядка. Шум і токени; вказівники бачить лише recipe_gen
+    // (окрема серіалізація в callRecipe, з аліасами p1..pN).
+    // UX9-04, «творча бухгалтерія»: модель додавала числа з історії до чисел
+    // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
+    // самому блоці — той самий механізм, що рятував з алергенами й постом.
+    + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування)\n'
+    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none')
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [])

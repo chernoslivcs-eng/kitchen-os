@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-export type FixtureKind = 'attachment_parse' | 'chat';
+export type FixtureKind = 'attachment_parse' | 'chat' | 'recipe_gen';
 
 export interface Fixture {
   id: string;
@@ -21,7 +21,11 @@ export interface Fixture {
   notes?: unknown[];
   eaters?: unknown[];
   recentRecipes?: unknown[];
+  recentCookRuns?: unknown[];
   now?: string;               // фіксована дата — інакше календарні фікстури живуть один день
+  // recipe_gen: user-хід генерації — назва страви (+ опційний edit-контекст),
+  // одним рядком, як у проді callRecipe (title\n\ncontext).
+  request?: string;
   skip?: string;
 }
 
@@ -113,6 +117,14 @@ export function loadFixtures(): Fixture[] {
     readJson('own-recipe-text.json'),
     readJson('generated-recipe-memory.json'),
     readJson('recipe-edit-move.json'),
+    readJson('recipe-edit-keeps-cast.json'),
+    readJson('servings-scale.json'),
+    readJson('pantry-truth.json'),
+    readJson('cook-chronology.json'),
+    readJson('excluded-then-offered.json'),
+    readJson('rescues-fit.json'),
+    readJson('lesson-into-step.json'),
+    readJson('feedback-diagnosis.json'),
     readJson('shared-meal-allergen.json'),
   ];
   return list;
