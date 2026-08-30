@@ -60,10 +60,24 @@ export function serializeProfile(p?: Profile | null): string {
 // QA5-01: алерген позначається ПРЯМО В РЯДКУ ПАРТІЇ, а не окремим правилом —
 // правило за пів промпту від даних ігнорувалось. Збіг за коренем, не за
 // підрядком: «шоколад з мигдалем».includes('мигдаль') дає false через відмінок.
-export function serializePantry(bs: PantryBatch[], p?: Profile | null, now = Date.now()): string {
-  const allergens = (p?.allergies ?? [])
-    .filter(Boolean)
-    .map((a) => ({ label: a, root: root(a) }));
+// QA7-06: алергія домашнього — така сама тверда межа, як алергія власника,
+// і позначається так само в рядку партії. Раніше мітка ставилась тільки за
+// профілем власника, а алергії їдців лежали в блоці [ДОМАШНІ] в кінці промпту
+// — і модель пропонувала арахісову пасту на сніданок для дому, де живе людина
+// з алергією на арахіс. Той самий урок, що QA5-01: правило далеко від даних
+// не працює, мітка мусить стояти там, куди модель дивиться.
+export function serializePantry(
+  bs: PantryBatch[],
+  p?: Profile | null,
+  now = Date.now(),
+  eaters: EaterRow[] = [],
+): string {
+  const allergens = [
+    ...(p?.allergies ?? []).map((a) => ({ label: a, who: '' })),
+    ...eaters.flatMap((e) => e.allergies.map((a) => ({ label: a, who: ` в ${e.name}` }))),
+  ]
+    .filter((a) => a.label)
+    .map((a) => ({ ...a, root: root(a.label) }));
   return bs
     .filter((b) => b.state !== 'depleted')
     .map((b) => {
@@ -77,7 +91,7 @@ export function serializePantry(bs: PantryBatch[], p?: Profile | null, now = Dat
       const words = meaningfulWords(b.label).map(root);
       const hit = allergens
         .filter((a) => words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w)))
-        .map((a) => a.label);
+        .map((a) => a.label + a.who);
       if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй; просять прямо — дай і назви алергію першою фразою reply`);
       return parts.join(' · ');
     })
@@ -151,7 +165,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
     + serializeOccasions(now, ctx.profile?.wishes ?? [])
-    + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime())
+    + '\n\n[КОМОРА]\n' + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [])
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [])

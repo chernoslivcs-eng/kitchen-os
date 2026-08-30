@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryRepo } from '../in-memory-repo.js';
 import { createPending, applyCard, undoCard } from '../apply.js';
-import { serializeEaters } from '../context.js';
-import type { ProfileCard, EaterRow } from '../types.js';
+import { serializeEaters, serializePantry, buildKitchenContext } from '../context.js';
+import type { ProfileCard, EaterRow, PantryBatch } from '../types.js';
 import { randomUUID } from 'node:crypto';
 
 // «Зі мною живе Оксана, вона веганка» — їдець без акаунта. Прототип тримав
@@ -112,5 +112,63 @@ describe('їдці в контексті моделі', () => {
     const s = serializeEaters([eater({ allergies: ['арахіс'] })]);
     expect(s).toContain('АЛЕРГІЯ');
     expect(s).toContain('арахіс');
+  });
+});
+
+// QA7-06: алергія домашнього не позначалась у рядку партії — ⚠АЛЕРГЕН ставився
+// тільки за алергіями власника, а блок [ДОМАШНІ] приклеювався останнім, після
+// комори. Наслідок на живому: Оксана з алергією на арахіс у eaters, арахісова
+// паста в коморі → «зроби нам сніданок» → «рисова каша з арахісовою пастою»
+// першим пунктом. Рівно та сама конструкція, яку QA-5 визнав неробочою для
+// власника, — фікс тоді не продублювали для їдців.
+describe('алергія їдця в рядку партії (QA7-06)', () => {
+  const batch = (label: string): PantryBatch => ({
+    id: 'p1', household_id: HOUSE, catalog_key: null, label, zone: 'dry',
+    value: 350, unit: 'g', state: 'sealed', opened_at: null, expires_at: null,
+    best_before_opened_days: null, added_at: '2026-08-01T10:00:00.000Z',
+    depleted_at: null, confidence: 1, provenance: 'user_statement',
+    staple: false, last_by: null, last_action: null,
+  });
+  const oksana = (): EaterRow => ({
+    id: 'e1', household_id: HOUSE, name: 'Оксана',
+    allergies: ['арахіс'], wishes: [], antipatterns: [],
+    created_at: '2026-08-01T10:00:00.000Z',
+  });
+
+  it('партія з алергеном їдця несе ⚠АЛЕРГЕН з імʼям', () => {
+    const s = serializePantry([batch('Арахісова паста')], null, Date.now(), [oksana()]);
+    expect(s).toContain('⚠АЛЕРГЕН');
+    expect(s).toContain('Оксан');       // «в Оксани» — відмінок
+    expect(s).toContain('арахіс');
+  });
+
+  it('відмінок не ховає збіг: «з арахісом» теж ловиться', () => {
+    const s = serializePantry([batch('Шоколад з арахісом')], null, Date.now(), [oksana()]);
+    expect(s).toContain('⚠АЛЕРГЕН');
+  });
+
+  it('алергії власника і їдця зливаються в одну мітку', () => {
+    const owner = { user_id: USER, allergies: ['селера'], wishes: [], antipatterns: [], equipment: {} };
+    const s = serializePantry(
+      [batch('Селера'), batch('Арахісова паста')], owner, Date.now(), [oksana()],
+    );
+    expect(s).toContain('селера');
+    expect(s).toContain('Оксан');
+  });
+
+  it('без збігу мітки немає', () => {
+    const s = serializePantry([batch('Рис')], null, Date.now(), [oksana()]);
+    expect(s).not.toContain('⚠АЛЕРГЕН');
+  });
+
+  it('buildKitchenContext прокидає їдців у комору', () => {
+    const s = buildKitchenContext({
+      pantry: [batch('Арахісова паста')],
+      eaters: [oksana()],
+      now: new Date('2026-06-10'),
+    });
+    // Мітка мусить стояти В РЯДКУ ПАРТІЇ (блок [КОМОРА]), а не тільки в [ДОМАШНІ].
+    const pantryBlock = s.split('[КОМОРА]')[1]!.split('[ДОМАШНІ]')[0]!;
+    expect(pantryBlock).toContain('⚠АЛЕРГЕН');
   });
 });

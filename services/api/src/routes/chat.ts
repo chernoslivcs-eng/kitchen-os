@@ -217,9 +217,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // QA5-01: чи не проліз алерген у пропозицію. Збіг за підрядком дає хибні
     // спрацювання, тому це лог, а не блок — але без нього ніхто не дізнається,
     // як часто це стається у проді.
-    if (profile?.allergies.length) {
+    // QA7-06: алергії домашніх — у той самий детектор, з імʼям.
+    const houseAllergies = [
+      ...(profile?.allergies ?? []).map((a) => ({ label: a, who: 'owner' })),
+      ...eaters.flatMap((e) => e.allergies.map((a) => ({ label: a, who: e.name }))),
+    ].filter((a) => a.label);
+    if (houseAllergies.length) {
       const hay = ((call.reply ?? '') + JSON.stringify(call.card ?? {})).toLowerCase();
-      const hit = profile.allergies.filter((a) => a && hay.includes(a.toLowerCase()));
+      const hit = houseAllergies.filter((a) => hay.includes(a.label.toLowerCase()));
       if (hit.length) {
         req.log.warn({ hit, user_id, model: call.meta.model }, 'response-contains-allergen');
       }
