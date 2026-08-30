@@ -748,8 +748,11 @@ export function Feed() {
         {/* UX9-09: «Готування триває» жило В САМОМУ ВЕРХУ стрічки — на момент
             виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
             композитором: видиме завжди, доки готування живе. */}
+        {/* Пул-2 №2: на десктопі фрейм живе в сайдбарі (TabBar) — цей банер
+            лишається тільки для мобільної верстки (клас ховає його ≥1024). */}
         {cookLive && !historyOpen && (
           <button
+            className={styles['cook-banner-mobile']}
             onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId } })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
@@ -930,20 +933,6 @@ export function Feed() {
           Порожні секції не рендеряться. Кожен рядок — місток: продовжити
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
       <aside className={styles.rail}>
-        {cookLive && (
-          <div className={styles['rail-block']}>
-            <div className={styles['rail-title']} style={{ color: 'var(--accent)' }}>ГОТУВАННЯ ТРИВАЄ</div>
-            <button
-              className={styles['rail-row']}
-              onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId } })}
-            >
-              <span className={styles['rail-label']}>{cookLive.recipe.t}</span>
-              <span className={styles['rail-meta']} style={{ color: 'var(--accent)' }}>
-                {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length} ›
-              </span>
-            </button>
-          </div>
-        )}
         {pantryCount !== null && pantryCount > 0 && (
           <div className={styles['rail-block']}>
             <div className={styles['rail-title']}>СТАТУС КОМОРИ</div>

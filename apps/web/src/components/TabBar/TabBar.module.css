@@ -85,6 +85,42 @@
   background: var(--border);
   margin: 14px 4px 10px;
 }
+/* Пул-2 №2: «Готування триває» над сесіями — акцентний фрейм, як банер у
+   стрічці, але компактний під ширину сайдбара. */
+.cook-live {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  margin-bottom: 6px;
+  border: 1px solid var(--accent-border, var(--accent));
+  border-radius: var(--r);
+  background: var(--accent-bg);
+  cursor: pointer;
+  text-align: left;
+}
+.cook-live:hover { filter: brightness(0.97); }
+.cook-live-dot { color: var(--accent); font-size: 9px; line-height: 1.7; flex: none; }
+.cook-live-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cook-live-title {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cook-live-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.75;
+}
+
 .session-new {
   display: flex;
   width: 100%;

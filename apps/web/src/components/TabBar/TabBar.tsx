@@ -4,6 +4,7 @@ import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo } from '../../api';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
+import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import styles from './TabBar.module.css';
 
 // Правка №1: підпис сесії в сайдбарі — «дата · час · запит». Дата/час із
@@ -82,6 +83,21 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
       .catch(() => {/* сайдбар без сесій — не трагедія */});
   }, [version, pathname]);
 
+  // Пул-2 №2: «Готування триває» живе в сайдбарі над сесіями (десктоп).
+  // Перечитуємо на зміні маршруту й поверненні фокуса — готування могло
+  // завершитись в іншій вкладці.
+  const [cookLive, setCookLive] = useState<CookSession | null>(() => loadCookSession());
+  useEffect(() => {
+    setCookLive(loadCookSession());
+    const onVis = () => setCookLive(loadCookSession());
+    window.addEventListener('focus', onVis);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', onVis);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [pathname]);
+
   function openSession(id: string) {
     navigate('/app', { state: { sessionId: id, at: Date.now() } });
   }
@@ -119,6 +135,27 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
       {/* Правка №1: сесії — частина навігації. Нова сесія → останні → архів. */}
       <div className={styles.sessions}>
         <div className={styles['sessions-divider']} />
+        {/* Пул-2 №2: фрейм «Готування триває» — над сесіями. */}
+        {cookLive && (
+          <button
+            className={styles['cook-live']}
+            onClick={() => navigate('/cook', {
+              state: {
+                recipe: cookLive.recipe,
+                recipeId: cookLive.recipeId,
+                returnSessionId: cookLive.returnSessionId ?? activeSessionId,
+              },
+            })}
+          >
+            <span className={styles['cook-live-dot']}>●</span>
+            <span className={styles['cook-live-text']}>
+              <span className={styles['cook-live-title']}>{cookLive.recipe.t}</span>
+              <span className={styles['cook-live-meta']}>
+                крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length} · продовжити ›
+              </span>
+            </span>
+          </button>
+        )}
         <button className={styles['session-new']} onClick={newSession}>+ Нова сесія</button>
         {sessions.map((s) => {
           const { when, title } = sessionLabel(s);

@@ -81,11 +81,22 @@
   max-width: 720px;
 }
 .turn { display: flex; flex-direction: column; gap: 6px; }
+
+/* Пул-2 №2: банер готування в стрічці — тільки мобайл; на десктопі
+   (сайдбарна верстка) фрейм живе в лівому сайдбарі. */
+@media (min-width: 1024px) {
+  /* !important: у кнопки інлайновий display:flex — стилю з файлу він б'є. */
+  :global(body.with-sidebar) .cook-banner-mobile { display: none !important; }
+}
 .turn-text {
   font-family: var(--font-body);
   font-size: 16px;
   line-height: var(--lh-body);
   color: var(--fg-mono);
+  /* Пул-2 №1: вставлений багаторядковий текст (інвентар) зберігає переноси —
+     без цього список зливався в одну простиню. */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 /* QA9-04 / канон Бриф-3: репліки людини — справа, в баблі (surface + бордер,
