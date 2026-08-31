@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import {
-  buildKitchenContext, parseModelResponse, parseAttachmentResponse,
+  buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
   buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
 } from '@kitchen/domain';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary } from '@kitchen/domain';
@@ -104,9 +104,12 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
     // buildKitchenContext(), рівно як у проді (див. composeWithContext).
     // Раніше eval клав комору як JSON у user-turn і через це перевіряв інший
     // промпт, ніж працює насправді: зелений eval нічого не означав.
-    return (fx.conversation ?? []).map((m): Anthropic.MessageParam => ({
+    // Пул-3, pantry-truth: як у проді — кількості запасів у ІСТОРИЧНИХ ходах
+    // маскуються; поточна (остання) репліка йде як є.
+    const conv = fx.conversation ?? [];
+    return conv.map((m, i): Anthropic.MessageParam => ({
       role: m.role,
-      content: m.content,
+      content: i === conv.length - 1 ? m.content : maskHistoryQuantities(m.content),
     }));
   }
 

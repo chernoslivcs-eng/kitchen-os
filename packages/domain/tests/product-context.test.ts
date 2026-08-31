@@ -6,7 +6,7 @@
 //    тегом allergens продукту — «камбоцола» без слова «молоко» теж ловиться.
 
 import { describe, it, expect } from 'vitest';
-import { serializePantry, type PantryBatch, type Profile, type HouseholdProduct } from '../index.js';
+import { serializePantry, maskHistoryQuantities, type PantryBatch, type Profile, type HouseholdProduct } from '../index.js';
 
 const DAY = 86_400_000;
 const NOW = Date.parse('2026-08-31T12:00:00Z');
@@ -108,5 +108,24 @@ describe('serializePantry: кеп і відбір', () => {
     const out = serializePantry(bs, null, NOW, [], false, 'none', 120, []);
     expect(out).toContain('…і ще');
     expect(out).toContain('продукт 0');
+  });
+});
+
+// Пул-3, pantry-truth: числа-про-запаси в РЕПЛІКАХ ІСТОРІЇ — головний
+// конкурент блока [КОМОРА] («купив 500 г» перемагало «100g» з блока чотири
+// промпт-ітерації поспіль). Прибираємо спокусу механічно: кількості з
+// одиницями ваги/обʼєму/штук маскуються в історичних ходах. Поточна репліка
+// не чіпається ніколи.
+describe('maskHistoryQuantities', () => {
+  it('вирізає кількості з одиницями, лишає текст читабельним', () => {
+    expect(maskHistoryQuantities('купив 500 г спагеті і 2 л молока')).toBe('купив спагеті і молока');
+    expect(maskHistoryQuantities('додай вершки 200мл і 3 шт яйця')).toBe('додай вершки і яйця');
+    expect(maskHistoryQuantities('взяв 1.5 кг борошна')).toBe('взяв борошна');
+  });
+
+  it('не чіпає числа без одиниць запасу: порції, час, температуру', () => {
+    expect(maskHistoryQuantities('зроби на 4 порції за 20 хвилин при 180 градусах'))
+      .toBe('зроби на 4 порції за 20 хвилин при 180 градусах');
+    expect(maskHistoryQuantities('вершки 33% і сир 48%')).toBe('вершки 33% і сир 48%');
   });
 });

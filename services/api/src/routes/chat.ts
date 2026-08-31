@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
-import { createPending, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, type Repo, type Card, type Recipe } from '@kitchen/domain';
+import { createPending, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, maskHistoryQuantities, type Repo, type Card, type Recipe } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -253,7 +253,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // після?) і трактувала свіжу згадку числа як свіжий стан (UX9-04).
         const d = new Date(m.created_at);
         const stamp = `[${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}]`;
-        if (m.text) parts.push(`${stamp} ${m.text}`);
+        // Пул-3, pantry-truth: кількості запасів у репліках історії маскуються —
+        // єдине число про запас, яке бачить модель, живе в [КОМОРА].
+        if (m.text) parts.push(`${stamp} ${maskHistoryQuantities(m.text)}`);
         if (m.card) {
           // recipe_link — не pending-дія, а доконаний факт: рецепт УЖЕ в
           // стрічці. Суфікс [НЕ ЗАСТОСОВАНО] тут читався моделлю як «система
