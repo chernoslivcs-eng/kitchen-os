@@ -194,6 +194,32 @@ export function PantryPage() {
           </div>
         )}
 
+        {(() => {
+          // Пул-6 №1: «СПОЧАТКУ ГОРИТЬ» — завжди зверху, на всю ширину сітки.
+          const burning = filtered.filter((b) => {
+            const d = daysLeft(b.expires_at);
+            return d != null && d <= 3;
+          });
+          if (!burning.length) return null;
+          return (
+            <div className={styles['burn-section']}>
+              <div className={styles['section-label']} style={{ color: 'var(--amber)' }}>
+                СПОЧАТКУ ГОРИТЬ
+              </div>
+              {burning.map((b) => {
+                const days = daysLeft(b.expires_at)!;
+                return (
+                  <button key={b.id} className={styles['burn-row']} onClick={() => setEditing(b)}>
+                    <span style={{ color: 'var(--amber)' }}>◔</span>
+                    <span className={styles['burn-label']}>{b.label}</span>
+                    <span className={styles['burn-days']}>{days <= 0 ? 'СЬОГОДНІ' : `≈${days} ${days === 1 ? 'ДЕНЬ' : days < 5 ? 'ДНІ' : 'ДНІВ'}`}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         {ZONE_ORDER.map((zone) => {
           const items = byZone.get(zone);
           if (!items?.length) return null;

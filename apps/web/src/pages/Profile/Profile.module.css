@@ -244,3 +244,8 @@
   border-bottom: 1px solid var(--border-strong);
   cursor: pointer;
 }
+
+/* Пул-6 №4: fs-2 26 — заголовки екранів на ≥1024. */
+@media (min-width: 1024px) {
+  .title { font-size: 26px; }
+}

@@ -369,3 +369,35 @@ button.main {
   2.2% { transform: scale(1); }
   100% { transform: scale(1); }
 }
+
+/* Пул-6 №3: ландшафт телефона (844×390 і подібні) — два стовпці, як десктоп:
+   крок зліва, таймер+кнопки справа за бордюром. Умова по ВИСОТІ, не ширині. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .body-steps {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    column-gap: 28px;
+    align-items: center;
+    padding-top: 12px;
+  }
+  .body-steps .col-main { display: flex; flex-direction: column; gap: 12px; }
+  .body-steps .col-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border-left: 1px solid var(--border);
+    padding-left: 28px;
+  }
+  .step-title { font-size: 21px; line-height: 1.35; order: 0; }
+  .timer { order: 0; border: 0; padding: 0; }
+  .timer-value { font-size: 52px; }
+  .timer-actions button { height: 40px; padding: 0 18px; font-size: 13px; }
+  /* Смуга вже в шапці (.progress-top) — компактніша. */
+  .progress-top { padding: 6px 14px 4px; }
+  /* Футеру нема місця — навігація тапами по краях лишається. */
+  .foot-buttons { display: none; }
+  .finish-mobile { display: block; width: 100%; }
+  .section { display: none; }             /* «НА ЦЬОМУ КРОЦІ» — тільки портрет */
+  .tap-zone { top: 30px; bottom: 20px; }
+}

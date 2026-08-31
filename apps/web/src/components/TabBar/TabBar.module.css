@@ -280,3 +280,47 @@
 }
 
 
+
+/* Пул-6 №1: планшет 768–1023 — вузький сайдбар: іконки 44×44 без підписів,
+   бейдж цифрою в куті, аватар знизу. Сесії/лічильники — тільки ≥1024. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .desktop-only { display: flex; }
+  .wrap {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 64px;
+    padding: 16px 10px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    border-top: 0;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    z-index: 5;
+  }
+  .brand { display: flex; padding: 0 0 12px; }
+  .brand-name { display: none; }
+  .tab {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    flex-direction: row;
+    justify-content: center;
+    position: relative;
+  }
+  .tab .glyph { font-size: 17px; }
+  .tab > span:nth-child(2) { display: none; }
+  .count { display: none; }
+  .badge {
+    position: absolute;
+    top: 3px; right: 3px;
+    margin: 0;
+    font-size: 9px;
+    padding: 1px 5px;
+  }
+  .spacer { display: block; flex: 1; }
+  .user { display: flex; width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .user > span:nth-child(2) { display: none; }
+}

@@ -139,3 +139,20 @@
     margin-right: auto;
   }
 }
+
+/* Пул-6 №5: сітка рецептів — 2 колонки з 768, заповнення по рядках. */
+.grid { display: flex; flex-direction: column; gap: 8px; }
+@media (min-width: 768px) {
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+    row-gap: 0;
+    align-items: start;
+  }
+}
+
+/* Пул-6 №4: fs-2 26 — заголовки екранів на ≥1024. */
+@media (min-width: 1024px) {
+  .title { font-size: 26px; }
+}

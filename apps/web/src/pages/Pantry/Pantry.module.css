@@ -169,7 +169,8 @@
 /* Wide-mode: на десктопі й планшетах ≥1024 показуємо дві колонки зон.
  * Кожна зона (свіже, холодильник, ...) стає окремою карткою в grid.
  * Пошук лишається на всю ширину зверху, empty state теж. */
-@media (min-width: 1024px) {
+/* Пул-6 №1: дві колонки вже з планшета 768 (було 1024). */
+@media (min-width: 768px) {
   .head, .body { max-width: 1080px; }
   .body {
     display: grid;
@@ -179,7 +180,8 @@
     align-items: start;
   }
   .body > input,           /* поле пошуку — на дві колонки */
-  .body > .empty {
+  .body > .empty,
+  .body > .burn-section {  /* «ГОРИТЬ» — завжди на всю ширину */
     grid-column: 1 / -1;
   }
 }
@@ -205,4 +207,34 @@
 @keyframes row-flash {
   from { background: color-mix(in srgb, var(--accent) 16%, transparent); }
   to   { background: transparent; }
+}
+
+
+/* Пул-6 №1: секція «СПОЧАТКУ ГОРИТЬ». */
+.burn-section { display: flex; flex-direction: column; }
+.burn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--fg);
+}
+.burn-label { flex: 1; }
+.burn-days {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--amber);
+}
+
+/* Пул-6 №4: fs-2 26 — заголовки екранів на ≥1024. */
+@media (min-width: 1024px) {
+  .title { font-size: 26px; }
 }

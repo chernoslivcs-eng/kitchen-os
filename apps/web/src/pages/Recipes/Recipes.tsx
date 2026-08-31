@@ -175,6 +175,8 @@ export function RecipesPage() {
           </div>
         )}
 
+        {/* Пул-6 №5: ≥768 — 2 колонки тими самими рядками, row-wise. */}
+        <div className={styles.grid}>
         {sorted.map((r) => {
           const chip = statusChip(r);
           return (
@@ -273,6 +275,7 @@ export function RecipesPage() {
             </div>
           );
         })}
+        </div>
       </div>
 
       <TabBar shoppingCount={shoppingCount} />

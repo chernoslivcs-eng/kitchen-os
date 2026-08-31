@@ -155,6 +155,11 @@
 @media (min-width: 1024px) {
   body.with-sidebar { padding-left: 232px; }  /* Д01: сайдбар 232, не 200 */
 }
+/* Пул-6 №1: планшет 768–1023 — вузький сайдбар 64px (іконки без підписів),
+   нижній таб-бар зникає вже тут. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  body.with-sidebar { padding-left: 64px; }
+}
 
 /* --- Radii + spacing ---------------------------------------------------- */
 :root {

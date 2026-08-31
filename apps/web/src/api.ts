@@ -268,7 +268,7 @@ export const api = {
       const text = await res.text();
       const payload: unknown = text ? safeParse(text) : null;
       if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
-      return payload as AttachmentUploaded;
+      return { ...(payload as AttachmentUploaded), name: file.name };
     },
   },
 
@@ -371,6 +371,8 @@ export interface AttachmentUploaded {
   kind: 'image' | 'pdf' | 'text';
   bytes: number;
   content_type: string;
+  /* Пул-6 №4: ім'я файла живе тільки на клієнті — для чіпа в композиторі. */
+  name?: string;
 }
 
 export interface ProfileData {

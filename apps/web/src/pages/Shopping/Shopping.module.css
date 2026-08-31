@@ -153,3 +153,8 @@
   from { opacity: 1; max-height: 64px; }
   to   { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
 }
+
+/* Пул-6 №4: fs-2 26 — заголовки екранів на ≥1024. */
+@media (min-width: 1024px) {
+  .title { font-size: 26px; }
+}

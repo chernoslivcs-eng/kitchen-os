@@ -213,6 +213,24 @@ export function Feed() {
   // Черга Г (№3): дані правої панелі — незакриті картки дому і неоцінене
   // недавнє готування. Живуть поруч із лічильниками й оновлюються разом.
   const [housePending, setHousePending] = useState<{ id: string; type: string; session_id: string | null }[]>([]);
+  // Пул-6 №2: rail згортається. 1024–1279 — смужка 56px, клік розгортає
+  // оверлеєм; ≥1280 — розгорнутий, але ‹ ховає (стан пам'ятається).
+  const [railOpen, setRailOpen] = useState(false);
+  const [railHidden, setRailHidden] = useState(() => {
+    try { return localStorage.getItem('kos-rail-hidden') === '1'; } catch { return false; }
+  });
+  function setRailHiddenPersist(v: boolean) {
+    setRailHidden(v);
+    try { localStorage.setItem('kos-rail-hidden', v ? '1' : '0'); } catch { /* ок */ }
+  }
+  function miniRailClick() {
+    if (window.matchMedia('(min-width: 1280px)').matches) setRailHiddenPersist(false);
+    else setRailOpen(true);
+  }
+  function railCollapse() {
+    if (window.matchMedia('(min-width: 1280px)').matches) setRailHiddenPersist(true);
+    else setRailOpen(false);
+  }
   const [unratedRun, setUnratedRun] = useState<{ id: string; title: string; session_id: string | null } | null>(null);
 
   async function refreshCounts() {
@@ -927,6 +945,8 @@ export function Feed() {
                 ) : (
                   <span className={styles['att-ext']}>{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
                 )}
+                {/* Пул-6 №4: назва файла, ellipsis — «чек-сільпо.jpg». */}
+                {a.name && <span className={styles['att-name']}>{a.name}</span>}
                 <button
                   type="button"
                   className={styles['att-remove']}
@@ -1062,7 +1082,8 @@ export function Feed() {
       {/* Черга Г (№3): права панель — навігатор стану на десктопі (≥1280).
           Порожні секції не рендеряться. Кожен рядок — місток: продовжити
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
-      <aside className={styles.rail}>
+      <aside className={`${styles.rail} ${railOpen ? styles['rail-open'] : ''} ${railHidden ? styles['rail-hidden'] : ''}`}>
+        <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
         {pantryCount !== null && pantryCount > 0 && (
           <div className={styles['rail-block']}>
             <div className={styles['rail-title']}>СТАТУС КОМОРИ</div>
@@ -1168,6 +1189,24 @@ export function Feed() {
           </div>
         )}
       </aside>
+      {railOpen && <div className={styles['rail-scrim']} onClick={() => setRailOpen(false)} />}
+      {/* Пул-6 №2: смужка 56px — ◔ горить · ◌ очікують · ★ оцінити. */}
+      <div className={`${styles['rail-mini']} ${railHidden ? styles['rail-mini-show'] : ''}`}>
+        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Горить">
+          <span style={{ color: 'var(--amber)' }}>◔</span>
+          <span className={styles['rail-mini-count']} style={{ color: staleBatches.length ? 'var(--amber)' : undefined }}>{staleBatches.length}</span>
+        </button>
+        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Очікують рішення">
+          <span style={{ color: 'var(--amber)' }}>◌</span>
+          <span className={styles['rail-mini-count']}>{housePending.length}</span>
+        </button>
+        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Оцінити вчорашнє">
+          <span>★</span>
+          <span className={styles['rail-mini-count']}>{unratedRun ? 1 : 0}</span>
+        </button>
+        <div style={{ flex: 1 }} />
+        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} aria-label="Розгорнути панель">›</button>
+      </div>
 
       <TabBar shoppingCount={shoppingCount} />
 
