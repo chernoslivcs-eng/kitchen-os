@@ -158,7 +158,15 @@ export interface RecipeEditCard {
   instruction: string;   // що змінити, словами людини
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard;
+// Пул-5 №6: «людина ЯВНО обрала страву і погодилась готувати». Як recipe_edit —
+// службовий маркер: до клієнта не доходить, chat-роут перехоплює синхронно і
+// сам ганяє генератор. Ліки від «давай → ще одна пропозиція».
+export interface CookGoCard {
+  type: 'cook_go';
+  title: string;         // назва обраної страви — дослівно з пропозиції
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard;
 
 // ----- Стан «на застосуванні» ------
 

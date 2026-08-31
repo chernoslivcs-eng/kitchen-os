@@ -122,6 +122,17 @@ export const registry: Record<string, Invariant> = {
   },
 
   // «Рідко буває в магазинах» — модель не оцінює досяжність продуктів.
+  // Пул-5 №4: замусорений ввід (диктовка задублювала текст ×3) → інтейк без
+  // дублів: кожен продукт — один op.
+  'intake-no-dup': (out) => {
+    const c = out.card;
+    if (!c || c.type !== 'intake_diff') return fail(`card.type=${c?.type ?? 'null'} — очікував intake_diff`);
+    const labels = ((c.ops ?? []) as { label?: string }[])
+      .map((o) => (o.label ?? '').toLowerCase().trim()).filter(Boolean);
+    const dup = labels.find((l, i) => labels.indexOf(l) !== i);
+    return dup ? fail(`дубльований op: «${dup}»`) : pass(`${labels.length} унікальних ops`);
+  },
+
   'no-availability-excuse': (out) => {
     const r = out.reply ?? '';
     const hit = /рідко (буває|зустрічається|трапляється)|важко (знайти|дістати)|не буває в магазин|складно (знайти|дістати)/i.exec(r);
@@ -776,6 +787,35 @@ export const registry: Record<string, Invariant> = {
 // тобто перевірка була мертва з дня написання.
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
+
+  // Пул-5 №6: згода на страву → cook_go з дослівною назвою (аргумент —
+  // обов'язковий фрагмент title, і назви страви, і механіки: `cook-go-card:сковород`).
+  if (base === 'cook-go-card') {
+    return (out) => {
+      const c = out.card;
+      if (!c || c.type !== 'cook_go') return fail(`card.type=${c?.type ?? 'null'} — очікував cook_go`);
+      const title = String((c as { title?: string }).title ?? '').toLowerCase();
+      return title.includes((arg ?? '').toLowerCase())
+        ? pass(`title: ${title}`)
+        : fail(`title «${title}» не містить «${arg}»`);
+    };
+  }
+
+  // Пул-5 №4: `intake-count:банан=3` — op із фрагментом назви має value N
+  // (повтори тексту не множать кількість).
+  if (base === 'intake-count') {
+    return (out) => {
+      const [frag, wantRaw] = (arg ?? '').split('=');
+      const want = Number(wantRaw);
+      const c = out.card;
+      if (!c || c.type !== 'intake_diff') return fail(`card.type=${c?.type ?? 'null'} — очікував intake_diff`);
+      const hit = ((c.ops ?? []) as { label?: string; value?: number; v?: number }[])
+        .find((o) => (o.label ?? '').toLowerCase().includes((frag ?? '').toLowerCase()));
+      if (!hit) return fail(`немає op з «${frag}»`);
+      const val = hit.value ?? hit.v;
+      return val === want ? pass(`${frag}=${val}`) : fail(`${frag}: value=${val}, очікував ${want}`);
+    };
+  }
 
   if (base === 'topic-holds') {
     return (out) => {

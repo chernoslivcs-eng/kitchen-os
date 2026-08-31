@@ -116,6 +116,9 @@ export function loadFixtures(): Fixture[] {
     readJson('exotic-ingredient-request.json'),
     readJson('shopping-open-question.json'),
     readJson('recipe-context-carries.json'),
+    // Пул-5: №6 «давай» після пропозиції → cook_go; №4 замусорена диктовка.
+    readJson('chat-cook-go.json'),
+    readJson('chat-dictation-dup.json'),
     readJson('qa6-onboarding-asks.json'),
     readJson('calendar-lent.json'),
     readJson('calendar-no-tradition.json'),

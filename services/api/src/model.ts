@@ -169,6 +169,16 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       };
     }
   }
+  // Пул-5 №6: явна згода готувати конкретну страву → cook_go.
+  const go = /готуємо\s+[«"]([^»"]+)[»"]/i.exec(args.text);
+  if (go) {
+    return {
+      reply: 'Тримай рецепт.',
+      card: { type: 'cook_go', title: go[1]!.trim() },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   const m = /куп(?:ив|ила|или)\s+(.+)/i.exec(args.text);
   if (m) {
     const label = m[1]!.trim().replace(/[.!?].*$/, '');

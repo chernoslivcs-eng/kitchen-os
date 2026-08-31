@@ -415,6 +415,71 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // сервер регенерує рецепт із базовим payload і кидає НОВИЙ recipe_link-хід
     // у стрічку. Старе повідомлення не редагується: правка — це відповідь,
     // не втручання в минуле. Картка recipe_edit до клієнта не доходить.
+    // Пул-5 №6: людина погодилась готувати конкретну страву — не показуємо
+    // їй службову картку, а одразу генеруємо рецепт і віддаємо recipe_link
+    // тим самим ходом. «давай» після пропозиції = рецепт, не нове коло торгу.
+    if (call.card?.type === 'cook_go') {
+      const wantedTitle = call.card.title.trim();
+      // Дедуп той самий, що в POST /v1/recipes/generate: та сама назва в межах
+      // доби → той самий рецепт без виклику моделі.
+      const dayAgo = Date.now() - 24 * 3600_000;
+      const recent = await repo.listRecentRecipes(user_id, 40);
+      const wanted = wantedTitle.toLowerCase();
+      const same = recent.find((r) =>
+        (r.title.trim().toLowerCase() === wanted
+          || r.requested_title?.trim().toLowerCase() === wanted)
+        && new Date(r.created_at).getTime() > dayAgo);
+      let goRecipe: Recipe | null = null;
+      let goId: string | null = null;
+      if (same?.payload) {
+        goRecipe = same.payload as Recipe;
+        goId = same.id;
+      } else {
+        const genStarted = Date.now();
+        let gen: Awaited<ReturnType<typeof callRecipe>>;
+        try {
+          gen = await callRecipe({
+            title: wantedTitle,
+            pantry, profile, notes, products,
+            conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
+          });
+        } catch (err) {
+          req.log.error({ err, user_id }, 'cook-go-model-call-failed');
+          return reply.code(502).send({ error: 'model_unavailable' });
+        }
+        await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted);
+        if (gen.recipe) {
+          const resolved = resolveRecipeLabels(gen.recipe, pantry);
+          goId = randomUUID();
+          await repo.saveRecipe({
+            id: goId, owner_id: user_id, origin: 'generated',
+            title: resolved.t, requested_title: wantedTitle,
+            descr: resolved.d ?? null, character: resolved.ch ?? null, risk: resolved.rk ?? null,
+            base_servings: resolved.sv ?? 2, time_total: resolved.tm ?? null,
+            nutrition: resolved.nu ?? null, payload: resolved,
+            created_at: new Date().toISOString(), saved_at: null,
+          });
+          goRecipe = resolved;
+        } else {
+          // Модель відповіла прозою (неоднозначно) — чесна репліка замість картки.
+          const clean = gen.raw.replace(/\*\*/g, '').replace(/`/g, '').replace(/\n{2,}/g, ' ').trim().slice(0, 400);
+          const proseReply = clean || `Не зміг скласти «${wantedTitle}» — уточни, що саме готуємо.`;
+          await repo.saveMessage({
+            id: randomUUID(), session_id: session.id, role: 'assistant',
+            text: proseReply, card: null, applied: 0, created_at: new Date().toISOString(),
+          });
+          return { reply: proseReply, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        }
+      }
+      const goCard: Card = { type: 'recipe_link', recipe_id: goId!, title: goRecipe!.t, recipe: goRecipe! };
+      const goReply = call.reply || 'Тримай рецепт.';
+      await repo.saveMessage({
+        id: randomUUID(), session_id: session.id, role: 'assistant',
+        text: goReply, card: goCard, applied: 0, created_at: new Date().toISOString(),
+      });
+      return { reply: goReply, card: goCard, card_id: null, usage: call.usage, meta: call.meta };
+    }
+
     if (call.card?.type === 'recipe_edit') {
       const wanted = call.card.title.trim().toLowerCase();
       const recent = await repo.listRecentRecipes(user_id, 40);
