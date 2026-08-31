@@ -1,11 +1,15 @@
+// Пул-6 №8: вхід «кільце замикається». Зліва — шавлієве інтерактивне поле
+// (RingField: курсор з'єднує три інгредієнти — кільця замикаються в страву),
+// справа — панель входу. Мобайл: поле — статичний кадр-шапка 220px без
+// анімації; reduced motion вимикає анімацію і на десктопі.
+
 import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
-import { Logo } from '../../components/Logo/Logo';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { useAuth } from '../../store/auth';
 import { api, ApiError } from '../../api';
+import { RingField } from './RingField';
 import styles from './SignIn.module.css';
 
 // Кольоровий «G» — офіційна чотириколірна марка Google, обов'язкова для
@@ -21,18 +25,35 @@ function GoogleMark() {
   );
 }
 
+function Mark({ size = 30, color = '#f2f4f0' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <circle cx="24" cy="24" r="19" stroke={color} strokeWidth="3.5" strokeLinecap="round" strokeDasharray="104 15" transform="rotate(-58 24 24)" />
+      <circle cx="24" cy="24" r="6" fill={color} />
+    </svg>
+  );
+}
+
 export function SignIn() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleOn, setGoogleOn] = useState(false);
-  useEffect(() => {
-    api.auth.providers().then((p) => setGoogleOn(p.google)).catch(() => setGoogleOn(false));
-  }, []);
   const requestMagicLink = useAuth((s) => s.requestMagicLink);
   const navigate = useNavigate();
   const loc = useLocation();
   const next = new URLSearchParams(loc.search).get('next');
+
+  useEffect(() => {
+    api.auth.providers().then((p) => setGoogleOn(p.google)).catch(() => setGoogleOn(false));
+  }, []);
+
+  // Анімація поля — тільки десктоп без reduced motion (бриф: мобайл —
+  // статичний кадр). Резайз через межу — рідкість, не відстежуємо.
+  const [animateField] = useState(() =>
+    typeof window !== 'undefined'
+    && window.matchMedia('(min-width: 1024px)').matches
+    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -57,17 +78,32 @@ export function SignIn() {
     }
   }
 
-  const content = (
-    <>
-      <div className={styles.head}>
-        <Logo size={40} />
-        <MonoLabel className={styles.mono}>Kitchen OS · вхід</MonoLabel>
+  return (
+    <div className={styles.screen}>
+      <div className={styles['field-panel']}>
+        <RingField animate={animateField} />
+        <div className={styles['field-shade']} />
+        <div className={styles['field-content']}>
+          <div className={styles['field-logo']}>
+            <Mark />
+            <span>Kitchen OS</span>
+          </div>
+          <div className={styles['field-hero']}>
+            <h1 className={styles['field-title']}>Не «що б поїсти».<br />А «що приготувати з того, що є».</h1>
+            <p className={styles['field-sub']}>
+              Вона бачить твою комору і збирає вечерю з того, що є — і того, що скоро зіпсується.
+            </p>
+          </div>
+          <div className={styles['field-foot']}>◌ ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
+        </div>
       </div>
-      <div className={styles.hero}>
-        <h1 className={styles.title}>Кухня, що памʼятає, що в тебе є</h1>
-        <p className={styles.sub}>
-          Кажеш, що купив — вона веде комору, рятує продукти від псування й пропонує, що приготувати.
-        </p>
+
+      <div className={styles['form-panel']}>
+        <div className={styles['form-head']}>
+          <span className={styles.mono}>ВХІД · БЕЗ ПАРОЛЯ</span>
+          <h2 className={styles['form-title']}>Почнімо з комори</h2>
+          <p className={styles['form-sub']}>Лінк на пошту — клік — і ти всередині.</p>
+        </div>
         <form className={styles.form} onSubmit={submit} noValidate>
           <Input
             type="email"
@@ -85,7 +121,7 @@ export function SignIn() {
         </form>
         {googleOn && (
           <>
-            <div className={styles.divider}><span>або</span></div>
+            <div className={styles.divider}><span>АБО</span></div>
             <Button
               type="button"
               variant="secondary"
@@ -97,17 +133,11 @@ export function SignIn() {
             </Button>
           </>
         )}
+        <div className={styles['form-foot']}>
+          <span>Пароля немає. Лінк діє 15 хвилин, одноразовий.</span>
+          <span className={styles['foot-mono']}>V1.0 · ПРАЦЮЄ ОФЛАЙН ПІСЛЯ ВХОДУ</span>
+        </div>
       </div>
-      <p className={styles.foot}>Пароля немає. Лінк діє 15 хвилин, одноразовий.</p>
-        <p className={styles.foot} style={{ marginTop: 4 }}>v1.0 · працює офлайн після входу</p>
-    </>
-  );
-
-  // На десктопі — панель у центрі; на мобайлі — вертикальний стек на екран
-  // (.panel має display:contents, тож flex-ланцюг проходить наскрізь).
-  return (
-    <div className={styles.screen}>
-      <div className={styles.panel}>{content}</div>
     </div>
   );
 }

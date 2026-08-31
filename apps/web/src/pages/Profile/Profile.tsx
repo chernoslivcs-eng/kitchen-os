@@ -167,14 +167,23 @@ export function ProfilePage() {
               cursor: 'pointer', fontSize: 16,
             }}
           >←</button>
-          <div className={styles.title}>Профіль</div>
+          <div className={styles.title}>{me ? `Кухня ${me.user.name}` : 'Профіль'}</div>
         </div>
-        {me && <div className={styles.who}>{me.user.email}</div>}
+        {me && (
+          <div className={styles['head-right']}>
+            <span className={styles.who}>{me.user.email}</span>
+            <button type="button" className={styles['head-logout']} onClick={() => logout()}>ВИЙТИ</button>
+          </div>
+        )}
       </div>
 
       <div className={styles.body}>
+        {/* Пул-6 №7 (v2): чотири зони журнального ритму — лінія + ■-мітка. */}
+        <div className={styles.zone}>
+        <div className={styles['zone-label']}><span style={{ color: 'var(--danger)' }}>■</span> ЇЖА</div>
+        <div className={styles['zone-grid']}>
         <div className={styles.section}>
-          <div className={styles['section-label']}>Алергії</div>
+          <div className={styles['section-label']} style={{ color: '#7c352c' }}>Алергії · жорстке</div>
           <div className={styles.hint}>
             Конкретними назвами. «Молюски» не помітять «мідії» — тому виписуємо всі назви, під якими продукт зустрічається.
           </div>
@@ -253,8 +262,13 @@ export function ProfilePage() {
             зʼявлялась тут лише після того, як людина сама згадала її в чаті
             (QA6-09) — тобто список був порожній рівно тоді, коли він
             найпотрібніший. */}
+        </div>
+        </div>
+
+        <div className={styles.zone}>
+        <div className={styles['zone-label']}><span style={{ color: 'var(--accent)' }}>■</span> ТЕХНІКА <span className={styles['zone-hint']}>ТАП ЦИКЛОМ ○ → ● Є → ✕ НЕМАЄ</span></div>
         <div className={styles.section}>
-          <div className={styles['section-label']}>Техніка</div>
+          <div className={styles['section-label']} style={{ display: 'none' }}>Техніка</div>
           <div className={styles.hint}>
             Базове — пательня, каструля, ніж — вважається наявним. ● є · ✕ немає · ○ невідомо.
           </div>
@@ -357,6 +371,9 @@ export function ProfilePage() {
           )}
         </div>
 
+        </div>
+        <div className={styles.zone}>
+        <div className={styles['zone-label']}><span style={{ color: 'var(--amber)' }}>■</span> ПАМ'ЯТЬ КУХНІ</div>
         {/* Пул-2 №6: наміри — «що хочу спробувати», окремо від висновків. */}
         {notes.some((n) => n.kind === 'intent') && (
           <div className={styles.section}>
@@ -430,9 +447,11 @@ export function ProfilePage() {
           </div>
         )}
 
+        </div>
+        <div className={styles.zone}>
+        <div className={styles['zone-label']}><span style={{ color: 'var(--fg-dim)' }}>■</span> ДІМ</div>
         {me && me.household.members.length > 0 && (
           <div className={styles.section}>
-            <div className={styles['section-label']}>Дім · {me.household.name}</div>
             <div className={styles.members}>
               {me.household.members.map((mem) => {
                 const isMe = mem.user_id === me.user.id;
@@ -559,8 +578,8 @@ export function ProfilePage() {
           </div>
         )}
 
+        </div>
         <div className={styles.logout}>
-          <Button variant="secondary" onClick={() => logout()}>Вийти</Button>
           <button
             type="button"
             className={styles['delete-account']}

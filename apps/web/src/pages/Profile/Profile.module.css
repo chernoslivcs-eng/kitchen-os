@@ -199,3 +199,48 @@
     margin-right: auto;
   }
 }
+
+/* Пул-6 №7 (v2): журнальний ритм — зони з лініями замість карток. */
+.zone {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px 0;
+  border-top: 1px solid var(--border-strong);
+}
+.zone-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.zone-hint {
+  font-size: 10px;
+  color: var(--fg-dim);
+  letter-spacing: 0.08em;
+}
+.zone-grid { display: flex; flex-direction: column; gap: 18px; }
+@media (min-width: 720px) {
+  .zone-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 44px;
+    row-gap: 18px;
+  }
+}
+.head-right { display: flex; align-items: baseline; gap: 14px; }
+.head-logout {
+  border: 0;
+  background: none;
+  padding: 0 0 1px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border-strong);
+  cursor: pointer;
+}
