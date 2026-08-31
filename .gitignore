@@ -13,3 +13,5 @@ services/api/storage/
 .qa-magic-links.log
 e2e/.auth/
 test-results/
+.vercel
+api-dist/
