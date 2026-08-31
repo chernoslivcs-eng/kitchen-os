@@ -121,6 +121,13 @@ export interface Repo {
   deleteSession(id: string): Promise<void>;
   markMessageApplied(id: string, applied: number): Promise<void>;
 
+  // Пул-5 №1: повне видалення акаунта. Зносить юзера і доми, де він був
+  // ЄДИНИМ членом (каскади прибирають решту); членства в чужих домах просто
+  // зникають. Опитувальник живе окремо від юзера.
+  deleteUserAccount(user_id: string): Promise<void>;
+  recordExitSurvey(s: { email: string; reason: string; comment?: string | null }): Promise<void>;
+  listExitSurveys(): Promise<{ email: string; reason: string; comment: string | null; created_at: string }[]>;
+
   // Рецепти й приготування
   saveRecipe(recipe: RecipeRow): Promise<void>;
   getRecipe(id: string): Promise<RecipeRow | null>;

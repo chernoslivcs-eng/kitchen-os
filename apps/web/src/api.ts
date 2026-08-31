@@ -134,6 +134,12 @@ export const api = {
   },
 
   me: () => req<Me>('/v1/me'),
+  // Пул-5 №1: повне видалення акаунта з причиною (опитувальник виходу).
+  deleteAccount: (reason: string, comment?: string) =>
+    req<null>('/v1/me', {
+      method: 'DELETE',
+      body: JSON.stringify(comment ? { reason, comment } : { reason }),
+    }),
 
   pantry: () => req<PantryList>('/v1/pantry'),
 

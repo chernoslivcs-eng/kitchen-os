@@ -6,6 +6,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Repo } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { COOKIE_NAME } from './auth.js';
 
 export function meRoute(app: FastifyInstance, repo: Repo) {
   app.get('/v1/me', { preHandler: authenticated(repo) }, async (req, reply) => {
@@ -33,4 +34,25 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
       session_id,
     };
   });
+
+  // Пул-5 №1: повне видалення акаунта. Опитувальник — до видалення (щоб мати
+  // email), сам delete зносить доми-де-єдиний-член каскадами. 204 і мертва кука.
+  app.delete<{ Body: { reason?: string; comment?: string } }>(
+    '/v1/me',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const user = await repo.getUser(user_id);
+      if (user) {
+        await repo.recordExitSurvey({
+          email: user.email,
+          reason: (req.body?.reason ?? '').trim() || 'unspecified',
+          comment: req.body?.comment?.trim() || null,
+        });
+      }
+      await repo.deleteUserAccount(user_id);
+      reply.clearCookie(COOKIE_NAME, { path: '/' });
+      return reply.code(204).send();
+    },
+  );
 }

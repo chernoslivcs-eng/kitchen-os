@@ -380,6 +380,38 @@ export class InMemoryRepo implements Repo {
     }
   }
 
+  private exitSurveys: { email: string; reason: string; comment: string | null; created_at: string }[] = [];
+
+  async recordExitSurvey(s: { email: string; reason: string; comment?: string | null }): Promise<void> {
+    this.exitSurveys.push({ email: s.email, reason: s.reason, comment: s.comment ?? null, created_at: new Date().toISOString() });
+  }
+
+  async listExitSurveys() {
+    return [...this.exitSurveys];
+  }
+
+  async deleteUserAccount(user_id: string): Promise<void> {
+    // Доми, де юзер — єдиний член.
+    const own = new Set(
+      this.members.filter((m) => m.user_id === user_id).map((m) => m.household_id)
+        .filter((hh) => this.members.every((m) => m.household_id !== hh || m.user_id === user_id)),
+    );
+    this.members = this.members.filter((m) => m.user_id !== user_id);
+    for (const hh of own) {
+      this.households.delete(hh);
+      for (const [id, b] of this.batches) if (b.household_id === hh) this.batches.delete(id);
+    }
+    // Чат-сесії йдуть за юзером (SessionRow прив'язана до user_id, не до дому).
+    for (const [id, s] of this.chatSessions) {
+      if (s.user_id === user_id) await this.deleteSession(id);
+    }
+    const u = this.users.get(user_id);
+    if (u) this.usersByEmail.delete(u.email);
+    this.users.delete(user_id);
+    for (const [hash, s] of this.sessions) if (s.user_id === user_id) this.sessions.delete(hash);
+    this.profiles.delete(user_id);
+  }
+
   async getMessage(id: string): Promise<MessageRow | null> {
     for (const arr of this.messages.values()) {
       const m = arr.find((x) => x.id === id);

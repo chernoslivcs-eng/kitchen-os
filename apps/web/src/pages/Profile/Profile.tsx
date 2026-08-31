@@ -17,6 +17,15 @@ import { Input } from '../../components/Input/Input';
 import { useAuth } from '../../store/auth';
 import styles from './Profile.module.css';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { Sheet } from '../../components/Sheet/Sheet';
+
+// Пул-5 №1: причини виходу — легкий опитувальник перед видаленням.
+const EXIT_REASONS: Array<{ code: string; label: string }> = [
+  { code: 'unused', label: 'Не користуюсь' },
+  { code: 'hard', label: 'Незручно або складно' },
+  { code: 'privacy', label: 'Питання приватності' },
+  { code: 'other', label: 'Інше' },
+];
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -28,6 +37,12 @@ export function ProfilePage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  // Пул-5 №1: стан поп-апа видалення акаунта.
+  const [exitOpen, setExitOpen] = useState(false);
+  const [exitReason, setExitReason] = useState<string | null>(null);
+  const [exitComment, setExitComment] = useState('');
+  const [exitBusy, setExitBusy] = useState(false);
+  const [exitError, setExitError] = useState<string | null>(null);
   const [notes, setNotes] = useState<NoteInfo[]>([]);
   const [eaters, setEaters] = useState<EaterInfo[]>([]);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -546,8 +561,73 @@ export function ProfilePage() {
 
         <div className={styles.logout}>
           <Button variant="secondary" onClick={() => logout()}>Вийти</Button>
+          <button
+            type="button"
+            className={styles['delete-account']}
+            onClick={() => { setExitOpen(true); setExitReason(null); setExitComment(''); setExitError(null); }}
+          >
+            Видалити акаунт
+          </button>
         </div>
       </div>
+
+      {exitOpen && (
+        <Sheet onClose={() => !exitBusy && setExitOpen(false)} ariaLabel="Видалення акаунта">
+          <div className={styles['exit-sheet']}>
+            <h2 className={styles['exit-title']}>Видалити акаунт назавжди?</h2>
+            <p className={styles['exit-sub']}>
+              Зникне все: комора, рецепти, журнал готувань, профіль смаків. Це не «вийти» —
+              відновити буде неможливо. Розкажи чому — одна відповідь дуже допоможе.
+            </p>
+            <div className={styles['exit-reasons']}>
+              {EXIT_REASONS.map((r) => (
+                <label key={r.code} className={styles['exit-reason']}>
+                  <input
+                    type="radio"
+                    name="exit-reason"
+                    checked={exitReason === r.code}
+                    onChange={() => setExitReason(r.code)}
+                  />
+                  <span>{r.label}</span>
+                </label>
+              ))}
+            </div>
+            {exitReason === 'other' && (
+              <Input
+                placeholder="Кілька слів — що саме?"
+                value={exitComment}
+                onChange={(e) => setExitComment(e.target.value)}
+              />
+            )}
+            {exitError && <p className={styles['exit-error']}>{exitError}</p>}
+            <div className={styles['exit-actions']}>
+              <Button variant="secondary" block onClick={() => setExitOpen(false)} disabled={exitBusy}>
+                Лишаюсь
+              </Button>
+              <button
+                type="button"
+                className={styles['exit-confirm']}
+                disabled={exitBusy || !exitReason}
+                onClick={async () => {
+                  if (!exitReason) return;
+                  setExitBusy(true);
+                  setExitError(null);
+                  try {
+                    await api.deleteAccount(exitReason, exitComment.trim() || undefined);
+                    await logout().catch(() => {/* кука вже мертва — ок */});
+                    navigate('/', { replace: true });
+                  } catch (err) {
+                    setExitError((err as Error).message);
+                    setExitBusy(false);
+                  }
+                }}
+              >
+                {exitBusy ? 'Видаляю…' : 'Видалити назавжди'}
+              </button>
+            </div>
+          </div>
+        </Sheet>
+      )}
 
       {/* Д03/Д06: на десктопі сайдбар є всюди, крім Cook Mode. */}
       <TabBar desktopOnly />

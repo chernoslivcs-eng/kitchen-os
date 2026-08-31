@@ -128,7 +128,59 @@
 .logout {
   align-self: flex-start;
   margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
 }
+/* Пул-5 №1: видалення акаунта — тихий небезпечний лінк поруч із «Вийти». */
+.delete-account {
+  border: 0;
+  background: transparent;
+  color: var(--danger, #b3453a);
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 2px;
+  opacity: 0.85;
+}
+.delete-account:hover { opacity: 1; text-decoration: underline; }
+
+.exit-sheet { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px 8px; }
+.exit-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.exit-sub { font-size: 14px; line-height: 1.5; color: var(--fg-muted); margin: 0; }
+.exit-reasons { display: flex; flex-direction: column; gap: 8px; }
+.exit-reason {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.exit-reason:has(input:checked) { border-color: var(--fg); }
+.exit-error { color: var(--danger, #b3453a); font-size: 13px; margin: 0; }
+.exit-actions { display: flex; gap: 10px; margin-top: 4px; }
+.exit-actions > * { flex: 1; }
+.exit-confirm {
+  border: 0;
+  border-radius: var(--r);
+  background: var(--danger, #b3453a);
+  color: #fff;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.exit-confirm:disabled { opacity: 0.5; cursor: default; }
 
 @media (min-width: 720px) {
   .head, .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
