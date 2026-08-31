@@ -233,17 +233,6 @@
   }
 }
 .head-right { display: flex; align-items: baseline; gap: 14px; }
-.head-logout {
-  border: 0;
-  background: none;
-  padding: 0 0 1px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--fg-muted);
-  border-bottom: 1px solid var(--border-strong);
-  cursor: pointer;
-}
 
 /* Пул-6 №4: fs-2 26 — заголовки екранів на ≥1024. */
 @media (min-width: 1024px) {
