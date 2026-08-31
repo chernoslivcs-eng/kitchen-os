@@ -5,6 +5,7 @@ import { api, type SessionInfo } from '../../api';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
+import { RollingNumber } from '../RollingNumber/RollingNumber';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import styles from './TabBar.module.css';
 import { useCookStore } from '../../store/cook';
@@ -144,8 +145,8 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
           >
             <span className={styles.glyph}>{t.glyph}</span>
             <span>{t.label}</span>
-            {t.count != null && <span className={styles.count}>{t.count}</span>}
-            {t.badge != null && t.badge > 0 && <span className={styles.badge}>{t.badge}</span>}
+            {t.count != null && <span className={styles.count}><RollingNumber value={t.count} /></span>}
+            {t.badge != null && t.badge > 0 && <span className={styles.badge}><RollingNumber value={t.badge} /></span>}
           </button>
         );
       })}

@@ -16,6 +16,7 @@ import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { Avatar } from '../../components/Avatar/Avatar';
+import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
@@ -584,7 +585,9 @@ export function Feed() {
         <div className={styles['head-actions']}>
           {pantryCount !== null && (
             <MonoLabel className={styles['head-meta']}>
-              КОМОРА {pantryCount}{shoppingCount > 0 ? ` · СПИСОК ${shoppingCount}` : ''}
+              {/* Моушн-кіт §03: цифра прокручується вертикально при зміні. */}
+              КОМОРА <RollingNumber value={pantryCount} />
+              {shoppingCount > 0 && <> · СПИСОК <RollingNumber value={shoppingCount} /></>}
             </MonoLabel>
           )}
           <Avatar name={meName} />

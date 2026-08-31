@@ -197,3 +197,12 @@
     margin-right: auto;
   }
 }
+
+/* Моушн-кіт §03: флеш зміненого рядка — тінт шавлії 16%, гасне 700ms. */
+.row-flash {
+  animation: row-flash 700ms var(--ease-standard, ease) both;
+}
+@keyframes row-flash {
+  from { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  to   { background: transparent; }
+}

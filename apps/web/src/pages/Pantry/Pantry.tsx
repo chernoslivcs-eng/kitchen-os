@@ -69,9 +69,26 @@ export function PantryPage() {
     } catch { /* тихо */ }
   }
 
+  // Моушн-кіт §03: після apply/готування змінений рядок підсвічується тінтом
+  // шавлії 700ms — порівнюємо value/state зі знімком перед перечитуванням.
+  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+  const prevSnapshot = useRef<Map<string, string>>(new Map());
   async function refresh() {
     try {
       const [p, s] = await Promise.all([api.pantry(), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
+      const prev = prevSnapshot.current;
+      if (prev.size) {
+        const changed = new Set<string>();
+        for (const b of p.batches) {
+          const sig = `${b.value}|${b.unit}|${b.state}`;
+          if (prev.has(b.id) && prev.get(b.id) !== sig) changed.add(b.id);
+        }
+        if (changed.size) {
+          setFlashIds(changed);
+          window.setTimeout(() => setFlashIds(new Set()), 800);
+        }
+      }
+      prevSnapshot.current = new Map(p.batches.map((b) => [b.id, `${b.value}|${b.unit}|${b.state}`]));
       setBatches(p.batches);
       setProducts(p.products ?? []);
       setShoppingCount(s.count);
@@ -189,7 +206,7 @@ export function PantryPage() {
                 return (
                   /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
                      ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
-                  <div key={b.id} className={styles.row} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div key={b.id} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
                     <button
                       className={styles['row-main']}
                       onClick={() => setEditing(b)}

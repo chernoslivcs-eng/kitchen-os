@@ -48,7 +48,12 @@ export function ShoppingPage() {
     try {
       await api.shopping.add(label);
       setNewLabel('');
-      setItems((await api.shopping.list()).items);
+      const fresh = (await api.shopping.list()).items;
+      // Моушн-кіт §03: новий рядок в'їжджає (height 0→auto + fade), сусіди
+      // з'їжджають. Позначаємо тільки прибулі id — F5 не анімує весь список.
+      const known = new Set(items.map((x) => x.id));
+      setFreshIds(new Set(fresh.filter((x) => !known.has(x.id)).map((x) => x.id)));
+      setItems(fresh);
     } catch { /* рядок лишиться в полі — видно, що не додалось */ }
     finally { setAdding(false); }
   }
@@ -63,8 +68,15 @@ export function ShoppingPage() {
     }
   }
 
+  // Моушн-кіт §03: видалення — колапс 250ms exit, потім рядок зникає з DOM.
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   async function remove(it: ShoppingItem) {
-    setItems((prev) => prev.filter((x) => x.id !== it.id));
+    setLeavingIds((prev) => new Set(prev).add(it.id));
+    setTimeout(() => {
+      setItems((prev) => prev.filter((x) => x.id !== it.id));
+      setLeavingIds((prev) => { const n = new Set(prev); n.delete(it.id); return n; });
+    }, 250);
     try { await api.shopping.remove(it.id); } catch {
       // Повертаємо; але порядок може загубитись — простіше перечитати список.
       const fresh = await api.shopping.list();
@@ -151,7 +163,10 @@ export function ShoppingPage() {
         )}
 
         {items.map((it) => (
-          <div key={it.id} className={styles.row}>
+          <div
+            key={it.id}
+            className={`${styles.row} ${freshIds.has(it.id) ? styles['row-fresh'] : ''} ${leavingIds.has(it.id) ? styles['row-leave'] : ''}`}
+          >
             <button
               className={`${styles.check} ${it.checked ? styles.checked : ''}`}
               onClick={() => toggle(it)}

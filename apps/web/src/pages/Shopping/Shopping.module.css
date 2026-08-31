@@ -134,3 +134,22 @@
     margin-right: auto;
   }
 }
+
+/* Моушн-кіт §03: рядок в'їжджає (висота+fade), видалення — колапс 250ms exit. */
+.row-fresh {
+  animation: row-in var(--dur-base, 250ms) var(--ease-enter, ease) both;
+  overflow: hidden;
+}
+@keyframes row-in {
+  from { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
+  to   { opacity: 1; max-height: 64px; }
+}
+.row-leave {
+  animation: row-out var(--dur-base, 250ms) var(--ease-exit, ease) both;
+  overflow: hidden;
+  pointer-events: none;
+}
+@keyframes row-out {
+  from { opacity: 1; max-height: 64px; }
+  to   { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
+}

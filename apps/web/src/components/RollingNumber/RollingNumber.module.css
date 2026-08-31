@@ -1,0 +1,20 @@
+.roll {
+  display: inline-grid;
+  overflow: hidden;
+  vertical-align: bottom;
+  line-height: inherit;
+}
+.digit {
+  grid-area: 1 / 1;
+  display: inline-block;
+}
+.out { animation: roll-out var(--dur-base, 250ms) var(--ease-standard, ease) forwards; }
+.in  { animation: roll-in  var(--dur-base, 250ms) var(--ease-standard, ease) both; }
+@keyframes roll-out {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(-100%); opacity: 0; }
+}
+@keyframes roll-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
