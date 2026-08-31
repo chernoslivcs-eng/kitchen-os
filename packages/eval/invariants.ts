@@ -191,7 +191,7 @@ export const registry: Record<string, Invariant> = {
       // Обсяги ≠ ціни: «0,25 л», «1,5» — дробові < 10 це фасування; ціни
       // в labels практично завжди ≥ 10 із двома знаками після коми.
       const suspicious = [...label.matchAll(/(\d+)[,.](\d+)/g)]
-        .filter((m) => Number(m[1]) >= 10 && m[2].length === 2);
+        .filter((m) => Number(m[1]) >= 10 && (m[2] ?? '').length === 2);
       return suspicious.length > 0 || label.includes('грн') || label.includes('uah');
     });
     return withPrice.length === 0
