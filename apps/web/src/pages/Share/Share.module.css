@@ -147,3 +147,39 @@
 @media (min-width: 720px) {
   .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
 }
+
+/* Пул-5 №7: canvas-прев'ю (той самий код, що експорт) + перемикачі. */
+.preview {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  background: #101317;
+  border-radius: var(--r-2xl);
+  box-shadow: var(--shadow-panel);
+  cursor: pointer;
+  display: block;
+}
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.seg {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.seg-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  border-radius: var(--r-pill);
+  padding: 8px 14px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.seg-on {
+  background: var(--fg);
+  color: var(--bg-surface);
+  border-color: var(--fg);
+}
+.actions { display: flex; gap: 10px; justify-content: center; }
