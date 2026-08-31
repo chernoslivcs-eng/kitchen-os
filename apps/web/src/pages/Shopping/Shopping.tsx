@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react';
 import { api, type ShoppingItem } from '../../api';
-import { TabBar } from '../../components/TabBar/TabBar';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import styles from './Shopping.module.css';
@@ -192,7 +191,6 @@ export function ShoppingPage() {
         ))}
       </div>
 
-      <TabBar shoppingCount={unchecked} />
     </div>
   );
 }

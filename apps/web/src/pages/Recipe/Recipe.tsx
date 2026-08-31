@@ -11,7 +11,6 @@ import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
-import { TabBar } from '../../components/TabBar/TabBar';
 import { useCookStore } from '../../store/cook';
 
 interface RecipeLocationState {
@@ -281,7 +280,6 @@ export function RecipePage() {
           Готуємо
         </Button>
       </div>
-      <TabBar desktopOnly />
     </div>
   );
 }

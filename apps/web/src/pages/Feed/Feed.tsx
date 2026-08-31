@@ -8,7 +8,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import { TabBar } from '../../components/TabBar/TabBar';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, labelFor, appliedToast } from './cards';
@@ -42,6 +41,8 @@ interface Turn {
   // Моушн-кіт §02: щойно отримана відповідь з'являється «чанками по фразі».
   // Історичні ходи (F5, зміна сесії) — без цього, інакше стрічка мерехтить.
   fresh?: boolean;
+  // Пул-7 №4: щойно застосована — картка спалахує шавлією 700ms.
+  justApplied?: boolean;
 }
 
 // Фрази для стрімінг-подачі: розріз по кінцях речень, коротке лишається цілим.
@@ -527,7 +528,7 @@ export function Feed() {
     try {
       const r = await api.cards.apply(turn.cardId, selected);
       setTurns((prev) => prev.map((t) => t.id === turnId
-        ? { ...t, applied: true, applying: false, undoToken: r.undo_token }
+        ? { ...t, applied: true, applying: false, undoToken: r.undo_token, justApplied: true }
         : t,
       ));
       // Правка №6: застосована пост-кук картка списання продовжує розмову
@@ -665,7 +666,7 @@ export function Feed() {
       {/* Моушн-2 №6: перемикання Сьогодні⇄Історія — crossfade + X±10 (key
           перемонтовує контейнер), скрол-позиція кожної вкладки пам'ятається. */}
       <div
-        key={historyOpen ? 'history' : 'today'}
+        key={historyOpen ? 'history' : `today:${sessionId ?? ''}`}
         className={`${styles.timeline} ${historyOpen ? styles['seg-view-hist'] : styles['seg-view-today']}`}
         ref={timelineRef}
         onScroll={(e) => { segScroll.current[historyOpen ? 'h' : 't'] = e.currentTarget.scrollTop; }}
@@ -827,6 +828,11 @@ export function Feed() {
                   {splitPhrases(t.text).map((ph, i) => (
                     <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{ph}{' '}</span>
                   ))}
+                  {/* Пул-7 №4: каретка блимає, ПОКИ фрази стрімляться, і гасне. */}
+                  <span
+                    className={styles['stream-caret']}
+                    style={{ animationDelay: `0ms, ${splitPhrases(t.text).length * 150 + 1200}ms` }}
+                  />
                 </div>
               ) : (
                 <div className={styles['turn-text']}>{t.text}</div>
@@ -852,7 +858,7 @@ export function Feed() {
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={styles.doccard}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''}`}>
               <Card
                 card={t.card}
                 applied={t.applied}
@@ -881,9 +887,19 @@ export function Feed() {
         {!historyOpen && sending && (
           <div className={styles.turn} aria-live="polite">
             <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
-            <div className={styles.thinking}>
-              <span /><span /><span />
-            </div>
+            {thinkingVerb === 'РОЗБИРАЮ' ? (
+              /* Пул-7 №4, кіт: розбір — спінер з текстом дії, не «думаю»-крапки. */
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                <span className={styles['parse-spinner']} />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)' }}>
+                  Розбираю вкладення…
+                </span>
+              </div>
+            ) : (
+              <div className={styles.thinking}>
+                <span /><span /><span />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1211,7 +1227,6 @@ export function Feed() {
         <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} aria-label="Розгорнути панель">›</button>
       </div>
 
-      <TabBar shoppingCount={shoppingCount} />
 
       {toast && (
         <div className={styles.toast}>

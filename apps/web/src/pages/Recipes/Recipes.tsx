@@ -10,7 +10,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type SavedRecipe } from '../../api';
-import { TabBar } from '../../components/TabBar/TabBar';
 import { plural } from '../../lib/plural';
 import styles from './Recipes.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
@@ -278,7 +277,6 @@ export function RecipesPage() {
         </div>
       </div>
 
-      <TabBar shoppingCount={shoppingCount} />
     </div>
   );
 }

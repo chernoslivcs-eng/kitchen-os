@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { SignIn } from './pages/SignIn/SignIn';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
@@ -16,6 +16,25 @@ import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
 import { useAuth } from './store/auth';
+import { TabBar } from './components/TabBar/TabBar';
+
+// Пул-7 №6: сайдбар — спільний каркас, не елемент сторінки. TabBar живе тут
+// ОДИН раз (кінець блиманню і повторним фетчам на кожній навігації), сторінки
+// рендеряться в Outlet. Обгортка з key=pathname дає перехід розділу
+// (crossfade + X10, канон табів). /share — свідомо поза каркасом.
+const MOBILE_TAB_ROUTES = new Set(['/app', '/pantry', '/recipes', '/list']);
+
+function Shell() {
+  const { pathname } = useLocation();
+  return (
+    <>
+      <TabBar desktopOnly={!MOBILE_TAB_ROUTES.has(pathname)} />
+      <div key={pathname} className="screen-view">
+        <Outlet />
+      </div>
+    </>
+  );
+}
 
 function Boot({ children }: { children: React.ReactNode }) {
   const refresh = useAuth((s) => s.refresh);
@@ -63,16 +82,18 @@ export function App() {
         <Routes>
           <Route path="/" element={<RedirectIfSignedIn><SignIn /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
-          <Route path="/app" element={<RequireAuth><Feed /></RequireAuth>} />
-          <Route path="/pantry" element={<RequireAuth><PantryPage /></RequireAuth>} />
-          <Route path="/list" element={<RequireAuth><ShoppingPage /></RequireAuth>} />
-          <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
-          <Route path="/recipe" element={<RequireAuth><RecipePage /></RequireAuth>} />
-          {/* Р-3: стабільна адреса — рецепт більше не живе тільки в router state. */}
-          <Route path="/recipe/:id" element={<RequireAuth><RecipePage /></RequireAuth>} />
+          <Route element={<RequireAuth><Shell /></RequireAuth>}>
+            <Route path="/app" element={<Feed />} />
+            <Route path="/pantry" element={<PantryPage />} />
+            <Route path="/list" element={<ShoppingPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/recipe" element={<RecipePage />} />
+            {/* Р-3: стабільна адреса — рецепт більше не живе тільки в router state. */}
+            <Route path="/recipe/:id" element={<RecipePage />} />
+            <Route path="/cooklog" element={<CookLogPage />} />
+            <Route path="/recipes" element={<RecipesPage />} />
+          </Route>
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
-          <Route path="/cooklog" element={<RequireAuth><CookLogPage /></RequireAuth>} />
-          <Route path="/recipes" element={<RequireAuth><RecipesPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />
           <Route path="/invite" element={<InvitePage />} />
           <Route path="*" element={<NotFoundPage />} />

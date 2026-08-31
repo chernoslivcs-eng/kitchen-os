@@ -4,7 +4,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
-import { TabBar } from '../../components/TabBar/TabBar';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -86,6 +85,16 @@ export function PantryPage() {
         if (changed.size) {
           setFlashIds(changed);
           window.setTimeout(() => setFlashIds(new Set()), 800);
+          // Пул-7 №4 (кіт): скрол до зміненого рядка, якщо він поза екраном.
+          const firstId = [...changed][0]!;
+          window.setTimeout(() => {
+            const el = document.getElementById(`batch-${firstId}`);
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            if (r.top < 0 || r.bottom > window.innerHeight) {
+              el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+          }, 50);
         }
       }
       prevSnapshot.current = new Map(p.batches.map((b) => [b.id, `${b.value}|${b.unit}|${b.state}`]));
@@ -232,7 +241,7 @@ export function PantryPage() {
                 return (
                   /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
                      ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
-                  <div key={b.id} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div key={b.id} id={`batch-${b.id}`} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
                     <button
                       className={styles['row-main']}
                       onClick={() => setEditing(b)}
@@ -292,7 +301,6 @@ export function PantryPage() {
         />
       )}
 
-      <TabBar shoppingCount={shoppingCount} />
     </div>
   );
 }

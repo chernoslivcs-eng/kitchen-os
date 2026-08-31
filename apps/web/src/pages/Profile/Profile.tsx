@@ -16,7 +16,6 @@ import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { useAuth } from '../../store/auth';
 import styles from './Profile.module.css';
-import { TabBar } from '../../components/TabBar/TabBar';
 import { Sheet } from '../../components/Sheet/Sheet';
 
 // Пул-5 №1: причини виходу — легкий опитувальник перед видаленням.
@@ -649,7 +648,6 @@ export function ProfilePage() {
       )}
 
       {/* Д03/Д06: на десктопі сайдбар є всюди, крім Cook Mode. */}
-      <TabBar desktopOnly />
     </div>
   );
 }

@@ -39,6 +39,8 @@ interface Props {
 let pantryCountCache: { value: number; at: number } | null = null;
 // Пул-7 №5: лічильник збережених рецептів — той самий патерн кешу.
 let recipesCountCache: { value: number; at: number } | null = null;
+// Пул-7 №6: TabBar живе в каркасі й сам знає лічильник списку.
+let shoppingCountCache: { value: number; at: number } | null = null;
 
 export function TabBar({ shoppingCount, desktopOnly }: Props) {
   const navigate = useNavigate();
@@ -57,6 +59,19 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
         setPantryCount(count);
       })
       .catch(() => {/* сайдбар без лічильника — не трагедія */});
+  }, [pathname, pantryVersion]);
+
+  // Пул-7 №6: лічильник списку — свій фетч (сторінки більше не передають);
+  // bump від pantryStore слугує загальним сигналом «лічильники змінились».
+  const [shopCount, setShopCount] = useState<number | null>(shoppingCountCache?.value ?? null);
+  useEffect(() => {
+    if (pantryVersion === 0 && shoppingCountCache && Date.now() - shoppingCountCache.at < 60_000) return;
+    api.shopping.list()
+      .then(({ count }) => {
+        shoppingCountCache = { value: count, at: Date.now() };
+        setShopCount(count);
+      })
+      .catch(() => {/* тихо */});
   }, [pathname, pantryVersion]);
 
   // Пул-7 №5: загальна кількість рецептів на табі.
@@ -86,7 +101,7 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
     { path: '/app', glyph: '◉', label: 'Стрічка' },
     { path: '/pantry', glyph: '▤', label: 'Комора', count: pantryCount ?? undefined },
     { path: '/recipes', glyph: '❋', label: 'Рецепти', count: recipesCount ?? undefined },
-    { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount },
+    { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount ?? shopCount ?? undefined },
   ];
 
   const initial = (meName?.trim()[0] ?? '·').toUpperCase();
