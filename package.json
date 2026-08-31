@@ -10,7 +10,7 @@
     "test": "pnpm -r --parallel test",
     "typecheck": "pnpm -r --parallel typecheck",
     "smoke": "bash scripts/smoke.sh",
-    "build:vercel-fn": "esbuild services/api/src/vercel-handler.ts --bundle --platform=node --format=esm --target=node20 --external:pg-native --banner:js='import { createRequire } from \"node:module\"; const require = createRequire(import.meta.url);' --outfile=api-dist/server.mjs && cp -R packages/prompts/versions api-dist/versions"
+    "build:vercel-fn": "esbuild services/api/src/vercel-handler.ts --bundle --platform=node --format=esm --target=node20 --external:pg-native --banner:js='import { createRequire } from \"node:module\"; const require = createRequire(import.meta.url);' --outfile=api-dist/server.mjs && rm -rf api-dist/versions && cp -R packages/prompts/versions api-dist/versions"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
