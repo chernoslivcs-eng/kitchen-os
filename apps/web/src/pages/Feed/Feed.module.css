@@ -872,7 +872,9 @@
   }
 }
 @media (min-width: 1280px) {
-  .rail { position: relative; }
+  /* position:fixed з базового правила лишається — він і є контекстом для
+     absolute-кнопки ‹. Перебивати його relative було помилкою: rail падав
+     у потік під чат. */
   .rail .rail-collapse { display: block; }
   .rail-hidden { display: none !important; }
   .rail-mini-show {
@@ -888,4 +890,10 @@
     gap: 10px;
     z-index: 6;
   }
+}
+
+
+/* Пул-6 №2: коли rail схований — чат забирає його місце (лишається 56px смужки). */
+@media (min-width: 1280px) {
+  :global(body.with-sidebar) .screen.rail-off { padding-right: 56px; }
 }

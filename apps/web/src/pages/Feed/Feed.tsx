@@ -619,7 +619,7 @@ export function Feed() {
   }
 
   return (
-    <div className={styles.screen}>
+    <div className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''}`}>
       <div className={styles.head}>
         <div className={styles['head-left']}>
           {/* DA-29: хендоф дає шапці заголовок «Кухня», не вордмарк — бренд

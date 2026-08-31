@@ -324,3 +324,13 @@
   .user { display: flex; width: 44px; height: 44px; padding: 0; justify-content: center; }
   .user > span:nth-child(2) { display: none; }
 }
+
+/* Фокус-кільце в щільному списку сесій — всередину рядка (offset -2), інакше
+   воно наповзає на hover-фон сусіда і форми конфліктують. Радіус той самий. */
+.session:focus-visible,
+.session-x:focus-visible,
+.session-new:focus-visible,
+.session-archive:focus-visible,
+.cook-live:focus-visible {
+  outline-offset: -2px;
+}
