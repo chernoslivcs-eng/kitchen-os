@@ -11,6 +11,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173',
     locale: 'uk-UA',
+    // Моушн-пас: тести не чекають анімацій і не флапають від них — апка
+    // поважає prefers-reduced-motion і вимикає всі переходи.
+    reducedMotion: 'reduce',
   },
   projects: [
     { name: 'setup', testMatch: /auth\.setup\.ts/ },

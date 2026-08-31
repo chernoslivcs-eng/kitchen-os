@@ -37,6 +37,15 @@ interface Turn {
   undone?: boolean;
   // UX9-02: відповідь не прийшла — хід позначений, під ним «↻ Повторити».
   failed?: boolean;
+  // Моушн-кіт §02: щойно отримана відповідь з'являється «чанками по фразі».
+  // Історичні ходи (F5, зміна сесії) — без цього, інакше стрічка мерехтить.
+  fresh?: boolean;
+}
+
+// Фрази для стрімінг-подачі: розріз по кінцях речень, коротке лишається цілим.
+function splitPhrases(text: string): string[] {
+  const parts = text.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  return parts.length ? parts : [text];
 }
 
 interface Toast {
@@ -431,6 +440,7 @@ export function Feed() {
       const turn: Turn = {
         id: newId(),
         role: 'assistant',
+        fresh: true,
         time: hhmm(),
         text: res.reply || undefined,
         card: res.card,
@@ -475,7 +485,7 @@ export function Feed() {
       // детермінованим «Як вийшло?» — сервер уже записав його в сесію,
       // нам лишається показати хід без перезавантаження історії.
       if (r.followup) {
-        setTurns((prev) => [...prev, { id: newId(), role: 'assistant', time: hhmm(), text: r.followup! }]);
+        setTurns((prev) => [...prev, { id: newId(), role: 'assistant', time: hhmm(), fresh: true, text: r.followup! }]);
       }
       // Оновлюємо лічильники для комори/списку — profile тепер теж може змінити те, що показуємо
       await refreshCounts();
@@ -516,7 +526,7 @@ export function Feed() {
         // неоднозначний («меню на 6 осіб»). Показуємо як репліку кухаря
         // у стрічці, щоб людина могла уточнити.
         setTurns((prev) => [...prev, {
-          id: newId(), role: 'assistant', time: hhmm(),
+          id: newId(), role: 'assistant', time: hhmm(), fresh: true,
           text: reply || 'Не вийшло скласти рецепт. Спробуй сформулювати конкретніше.',
         }]);
         return;
@@ -534,7 +544,7 @@ export function Feed() {
           return;
         }
         setTurns((prev) => [...prev, {
-          id: newId(), role: 'assistant', time: hhmm(),
+          id: newId(), role: 'assistant', time: hhmm(), fresh: true,
           card: { type: 'recipe_link', recipe_id: id, title: recipe.t, recipe },
         }]);
       } else {
@@ -753,7 +763,17 @@ export function Feed() {
                 })()
               ) : 'КУХНЯ'}
             </MonoLabel>
-            {t.text && <div className={styles['turn-text']}>{t.text}</div>}
+            {t.text && (
+              t.role === 'assistant' && t.fresh ? (
+                <div className={`${styles['turn-text']} ${styles['reply-phrases']}`}>
+                  {splitPhrases(t.text).map((ph, i) => (
+                    <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{ph}{' '}</span>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles['turn-text']}>{t.text}</div>
+              )
+            )}
             {t.failed && (
               /* UX9-02: людина писала в мертвий продукт і не знала. Тепер хід
                  без відповіді позначений, повтор — одним тапом. */

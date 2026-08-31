@@ -115,6 +115,15 @@
 /* QA9-04 / канон Бриф-3: репліки людини — справа, в баблі (surface + бордер,
    r14, до 80% ширини). Мітка «ТИ» вирівнюється разом із баблом через flex-end. */
 .turn-user { align-items: flex-end; }
+/* Моушн-кіт §02: надсилання — Y+14 · scale .97→1 · 250ms enter «з поля вводу». */
+.turn-user .turn-text {
+  animation: bubble-send var(--dur-base) var(--ease-enter);
+  transform-origin: bottom right;
+}
+@keyframes bubble-send {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
 .turn-user .turn-text {
   /* QA9-add: саме --bg-surface-2 (#f8f9fa) — біла підложка канону, --bg-surface
      зливалась із тлом стрічки. */
@@ -124,6 +133,23 @@
   padding: 10px 14px;
   max-width: 80%;
   color: var(--fg);
+}
+
+/* Моушн-кіт §02: «стрімінг» відповіді — фрази з'являються по черзі (fade
+   150ms, stagger через inline animation-delay). Бек віддає текст цілком;
+   це подача, не транспорт — текст не смикається по літері. */
+.reply-phrases span {
+  opacity: 0;
+  animation: phrase-in var(--dur-fast) var(--ease-enter) forwards;
+}
+@keyframes phrase-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Токени зануляють тривалість, але stagger живе в inline animation-delay —
+     тут гасимо і його, інакше фрази все одно скрапують по 150ms. */
+  .reply-phrases span { animation-delay: 0ms !important; }
 }
 
 /* ----- Card (спільне) ------------------------------------------------- */
