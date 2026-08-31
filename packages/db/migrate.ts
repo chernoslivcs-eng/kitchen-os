@@ -8,7 +8,11 @@ import { config as loadDotenv } from 'dotenv';
 import { makePool, type Pool } from './pool.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_DIR = resolve(HERE, '../../migrations');
+// У пребандлі (api-dist/server.mjs) import.meta.url їде з packages/db у
+// api-dist і відносний шлях хибить на рівень. Локальний емулятор задає
+// MIGRATIONS_DIR явно (prod-serve.ts); на Vercel міграції ганяє buildCommand
+// зі source — туди ця гілка не потрапляє.
+const DEFAULT_DIR = process.env.MIGRATIONS_DIR ?? resolve(HERE, '../../migrations');
 
 export interface MigrationResult {
   applied: string[];

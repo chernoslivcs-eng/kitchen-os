@@ -15,6 +15,9 @@ process.chdir(resolve(import.meta.dirname, '../../..'));
 // шлях лог-файлу магік-лінків у mailer.ts їде від import.meta.url бандла.
 // Явний env повертає лог у корінь репо — auth.setup e2e читає саме його.
 process.env.MAGIC_LINK_LOG ??= resolve('.qa-magic-links.log');
+// Той самий клас проблеми, що з лог-файлом: шлях migrations/ у бандлі їде
+// від import.meta.url — повертаємо явним env у корінь репо.
+process.env.MIGRATIONS_DIR ??= resolve('migrations');
 
 const { default: handler } = await import('../../../api/index.js');
 const DIST = resolve('apps/web/dist');

@@ -62,17 +62,29 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
       // Пул-5 №2: лист веде на фронтову сторінку — там людина бачить, куди її
       // запрошують, і приймає явним кліком. Токен споживається тільки тоді.
       const link = `${baseUrl()}/invite?token=${encodeURIComponent(raw_token)}`;
-      await mailer.sendMagicLink({
-        to: email,
-        link,
-        expires_in_min: Math.round(INVITE_TTL_MS / 60_000),
-      });
+      // Пул-8: мертвий мейлер (Resend без домену) — не привід валити роут:
+      // запрошення створене, лінк повертаємо власнику, він передасть сам.
+      // Сирий токен живе тільки в цій відповіді (у БД — хеш), тому лінк
+      // віддається рівно раз — у момент створення.
+      let mail_sent = true;
+      try {
+        await mailer.sendMagicLink({
+          to: email,
+          link,
+          expires_in_min: Math.round(INVITE_TTL_MS / 60_000),
+        });
+      } catch (err) {
+        mail_sent = false;
+        app.log.warn({ err, email }, 'invite mail failed — link returned to owner');
+      }
       return reply.code(201).send({
         id: invite.id,
         household_id: invite.household_id,
         email: invite.email,
         role: invite.role,
         expires_at: invite.expires_at,
+        link,
+        mail_sent,
       });
     },
   );

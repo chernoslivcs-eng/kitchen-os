@@ -344,6 +344,10 @@ export interface InviteCreated {
   email: string;
   role: 'owner' | 'member';
   expires_at: string;
+  // Пул-8: сирий токен живе тільки в цій відповіді — лінк показується
+  // власнику один раз, далі тільки лист (або месенджер руками).
+  link: string;
+  mail_sent: boolean;
 }
 
 export interface ShoppingItem {

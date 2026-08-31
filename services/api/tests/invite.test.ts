@@ -323,6 +323,44 @@ describe('DELETE /v1/households/:hid/members/:uid', () => {
     expect(res.statusCode).toBe(403);
   });
 
+  // Пул-8: лінк запрошення — в інтерфейс. Створення віддає link + mail_sent,
+  // а мертвий мейлер (Resend без домену) більше не валить роут п'ятисоткою —
+  // власник передає лінк сам.
+  it('create віддає link, яким можна прийняти запрошення', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    const inv = await app.inject({
+      method: 'POST',
+      url: `/v1/households/${A.household_id}/invite`,
+      headers: { cookie: A.cookie },
+      payload: { email: 'b@example.com' },
+    });
+    expect(inv.statusCode).toBe(201);
+    const body = inv.json();
+    expect(body.mail_sent).toBe(true);
+    expect(body.link).toBe(mailer.last()!.link);
+
+    const tok = new URL(body.link).searchParams.get('token')!;
+    const accept = await app.inject({ method: 'GET', url: `/v1/invites/accept?token=${encodeURIComponent(tok)}` });
+    expect(accept.statusCode).toBe(200);
+  });
+
+  it('мейлер упав → 201 з mail_sent:false, лінк живий', async () => {
+    const A = await signIn(app, mailer, 'a@example.com');
+    mailer.sendMagicLink = async () => { throw new Error('smtp 403: unverified domain'); };
+    const inv = await app.inject({
+      method: 'POST',
+      url: `/v1/households/${A.household_id}/invite`,
+      headers: { cookie: A.cookie },
+      payload: { email: 'b@example.com' },
+    });
+    expect(inv.statusCode).toBe(201);
+    const body = inv.json();
+    expect(body.mail_sent).toBe(false);
+    const tok = new URL(body.link).searchParams.get('token')!;
+    const accept = await app.inject({ method: 'GET', url: `/v1/invites/accept?token=${encodeURIComponent(tok)}` });
+    expect(accept.statusCode).toBe(200);
+  });
+
   it('останній власник не може вийти', async () => {
     const A = await signIn(app, mailer, 'a@example.com');
     const del = await app.inject({
