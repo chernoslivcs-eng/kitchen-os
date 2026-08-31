@@ -796,6 +796,46 @@ export class PostgresRepo implements Repo {
     await this.pool.query('DELETE FROM session WHERE id = $1', [id]);
   }
 
+  async recordExitSurvey(s: { email: string; reason: string; comment?: string | null }): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO account_exit_survey (email, reason, comment) VALUES ($1, $2, $3)',
+      [s.email, s.reason, s.comment ?? null],
+    );
+  }
+
+  async listExitSurveys() {
+    const { rows } = await this.pool.query<{ email: string; reason: string; comment: string | null; created_at: string }>(
+      'SELECT email, reason, comment, created_at FROM account_exit_survey ORDER BY created_at',
+    );
+    return rows;
+  }
+
+  async deleteUserAccount(user_id: string): Promise<void> {
+    // Той самий патерн, що ганявся руками на проді при обміні акаунтів:
+    // доми, де юзер — єдиний член, ідуть із ним; каскади прибирають решту.
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `DELETE FROM household h
+         WHERE EXISTS (SELECT 1 FROM household_member m
+                       WHERE m.household_id = h.id AND m.user_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM household_member m2
+                           WHERE m2.household_id = h.id AND m2.user_id <> $1)`,
+        [user_id],
+      );
+      // card_pending без FK на message — підчистити картки юзера вручну.
+      await client.query('DELETE FROM card_pending WHERE user_id = $1', [user_id]);
+      await client.query('DELETE FROM "user" WHERE id = $1', [user_id]);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
   async getMessage(id: string): Promise<MessageRow | null> {
     const { rows } = await this.pool.query('SELECT * FROM message WHERE id = $1', [id]);
     const r = rows[0];
