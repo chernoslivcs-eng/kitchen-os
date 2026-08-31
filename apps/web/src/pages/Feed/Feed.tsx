@@ -17,6 +17,7 @@ import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { Avatar } from '../../components/Avatar/Avatar';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
+import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
@@ -952,15 +953,19 @@ export function Feed() {
             </svg>
           </button>
           {listening ? (
-            <button
-              type="button"
-              className={styles['mic-live']}
-              onClick={toggleVoice}
-              aria-label="Зупинити диктування"
-              aria-pressed="true"
-            >
-              <span className={styles['mic-stop']} />
-            </button>
+            <>
+              {/* Моушн-кіт §04: жива хвиля від амплітуди + таймер запису. */}
+              <VoiceWave />
+              <button
+                type="button"
+                className={styles['mic-live']}
+                onClick={toggleVoice}
+                aria-label="Зупинити диктування"
+                aria-pressed="true"
+              >
+                <span className={styles['mic-stop']} />
+              </button>
+            </>
           ) : (input.trim() || pending.length > 0) ? (
             <>
               {/* UX9-05: мікрофон НЕ зникає при тексті — інакше додиктувати

@@ -343,3 +343,14 @@ button.main {
   }
   .foot-steps { display: none; }
 }
+
+/* Моушн-кіт §02: зміна кроку — вертикальний слайд 400ms slow.
+   Обгортка на мобілці display:contents (без бокса) — анімуємо ДІТЕЙ:
+   вони справжні бокси в обох розкладках і їдуть разом. */
+.step-slide > * {
+  animation: step-slide var(--dur-slow, 400ms) var(--ease-standard, ease);
+}
+@keyframes step-slide {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

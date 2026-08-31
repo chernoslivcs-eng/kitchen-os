@@ -343,7 +343,10 @@ export function CookOverlay() {
             {/* QA9-03: обгортки колонок. Мобільний їх не бачить
                 (display:contents + order), десктоп кладе крок зліва,
                 таймер+кнопки справа за бордюром — Д05. */}
-            <div className={styles['col-main']}>
+            {/* Моушн-кіт §02: зміна кроку — вертикальний слайд 400ms; key
+                перемонтовує колонку, анімація їде від CSS. Інших анімацій у
+                Cook Mode свідомо нема (правила кита). */}
+            <div key={stepIdx} className={`${styles['col-main']} ${styles['step-slide']}`}>
               <div className={styles['step-title']}>
                 {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, stepLabels)}
               </div>

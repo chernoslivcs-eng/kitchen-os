@@ -11,6 +11,10 @@ import { config as loadDotenv } from 'dotenv';
 
 loadDotenv({ path: resolve(import.meta.dirname, '../../../.env') });
 process.chdir(resolve(import.meta.dirname, '../../..'));
+// Моушн-пас: хендлер тепер пребандлений (api-dist/server.mjs), і відносний
+// шлях лог-файлу магік-лінків у mailer.ts їде від import.meta.url бандла.
+// Явний env повертає лог у корінь репо — auth.setup e2e читає саме його.
+process.env.MAGIC_LINK_LOG ??= resolve('.qa-magic-links.log');
 
 const { default: handler } = await import('../../../api/index.js');
 const DIST = resolve('apps/web/dist');

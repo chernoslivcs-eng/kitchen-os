@@ -390,6 +390,17 @@
   padding: 8px 0;                 /* однорядкова = 38px, як кнопки поруч */
 }
 .composer-input::placeholder { color: var(--fg-dim); }
+/* Моушн-кіт §04: морф 🎙⇄↑⇄■ — кнопка дії з'являється scale .6→1 + fade
+   150ms при зміні стану поля (ternary перемонтовує елемент — цього досить). */
+.frame-btn,
+.frame-btn-solid {
+  animation: btn-morph var(--dur-fast, 150ms) var(--ease-enter, ease);
+}
+@keyframes btn-morph {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 .frame-btn,
 .frame-btn-ghost,
 .frame-btn-solid {
@@ -572,7 +583,10 @@
   place-items: center;
   cursor: pointer;
   flex: none;
-  animation: micpulse var(--dur-breathe, 1.2s) ease-out infinite;
+  /* Морф появи + пульс REC — паралельно, не замість одне одного. */
+  animation:
+    btn-morph var(--dur-fast, 150ms) var(--ease-enter, ease),
+    micpulse var(--dur-breathe, 1.2s) ease-out infinite;
 }
 .mic-stop {
   width: 12px;
