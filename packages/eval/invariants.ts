@@ -76,6 +76,12 @@ export const registry: Record<string, Invariant> = {
     const has = (re: RegExp) => hay.some((h) => re.test(h));
     const bad: string[] = [];
     if (!has(/вод/) || !has(/моршин/)) bad.push('М/в1.5МоршинН/газ не стала водою Моршинська');
+    // «Н/газ» = НЕгазована — обрізок небезпечний: прочитаний як «газована»
+    // він каже протилежне. Вимагаємо явного «негазован», і щоб газованість
+    // без заперечення ніде при воді не стояла.
+    const water = ops.map((o: any) => `${o.label ?? ''} ${o.variant ?? ''}`.toLowerCase()).filter((h) => /вод|моршин/.test(h));
+    if (!water.some((h) => /негазован|без газу/.test(h))) bad.push('«Н/газ» не розгорнуто в «негазована»');
+    if (water.some((h) => /(?<!не)газован/.test(h) && !/негазован/.test(h))) bad.push('вода стала ГАЗОВАНОЮ — протилежність!');
     if (!has(/ковбас/)) bad.push('КовбКг… не стала ковбасою');
     if (!has(/пиво|kronen/)) bad.push('П0.33Kronenb не стало пивом');
     if (!has(/квас/)) bad.push('квас загубився');
@@ -182,9 +188,11 @@ export const registry: Record<string, Invariant> = {
     const ops = opsOfIntake(out) ?? [];
     const withPrice = ops.filter((o: any) => {
       const label = String(o.label ?? '').toLowerCase();
-      // «0,25 л» — обсяг, не ціна: число з одиницею поруч не рахуємо.
-      const stripped = label.replace(/\d+[,.]\d+\s*(л|мл|кг|г|шт)(?![а-яіїє])/g, '');
-      return /\d+[,.]\d{2}/.test(stripped) || label.includes('грн') || label.includes('uah');
+      // Обсяги ≠ ціни: «0,25 л», «1,5» — дробові < 10 це фасування; ціни
+      // в labels практично завжди ≥ 10 із двома знаками після коми.
+      const suspicious = [...label.matchAll(/(\d+)[,.](\d+)/g)]
+        .filter((m) => Number(m[1]) >= 10 && m[2].length === 2);
+      return suspicious.length > 0 || label.includes('грн') || label.includes('uah');
     });
     return withPrice.length === 0
       ? pass()
