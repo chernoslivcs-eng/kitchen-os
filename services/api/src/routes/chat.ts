@@ -11,7 +11,7 @@ import {
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
   FEEDBACK_MARKERS,
 } from '../post-cook.js';
-import { looksLikeModelDebris, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
+import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
 
 function today(): string {
   const d = new Date();
@@ -338,6 +338,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     }
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
 
+    // Пул-4 №4а: службові [HH:MM] з історії не протікають у відповідь.
+    if (call.reply) call.reply = stripHistoryStamps(call.reply);
+
     // Пул-2 №5: те саме для чату — сирий JSON у стрічку не протікає ніколи.
     if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
       req.log.warn({ user_id, raw: (call.reply ?? '').slice(0, 300) }, 'chat-reply-debris');
@@ -454,6 +457,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           profile,
           notes,
           products,
+          conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
         });
       } catch (err) {
         req.log.error({ err, user_id }, 'recipe-edit-model-call-failed');

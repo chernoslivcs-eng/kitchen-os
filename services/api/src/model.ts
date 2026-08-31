@@ -13,6 +13,7 @@ import {
   serializeNotes as ctxSerializeNotes,
   buildAliasMap,
   unaliasRecipeIds,
+  unaliasProse,
   type RecentCookRunSummary,
 } from '@kitchen/domain';
 import type {
@@ -347,6 +348,9 @@ export async function callRecipe(args: {
   // помилок лежав на кухні, а кухар писав рецепти в сусідній кімнаті.
   notes?: MemoryNote[];
   products?: HouseholdProduct[];
+  // Пул-4 №4б: recipe_gen сліпий до розмови — «Арборіо є?» → «Буде»
+  // губилось між викликами. Хвіст діалогу їде в user-запит (НЕ в кеш).
+  conversation?: string;
 }): Promise<RecipeCall> {
   const prompt = loadPrompt();
   const client = makeClient();
@@ -365,9 +369,12 @@ export async function callRecipe(args: {
   const dynamic = ctxSerializeProfile(args.profile)
     + pantryBlock
     + ctxSerializeNotes(args.notes ?? []);
+  const convBlock = args.conversation
+    ? `\n\n[ОСТАННІ РЕПЛІКИ РОЗМОВИ — рішення з них уже ухвалені, не перепитуй]\n${args.conversation}`
+    : '';
   const userText = args.context
-    ? `${args.title}\n\n${args.context}`
-    : args.title;
+    ? `${args.title}${convBlock}\n\n${args.context}`
+    : `${args.title}${convBlock}`;
   const resp = await withRetry(() => client.messages.create({
     model,
     max_tokens: 3072,
@@ -384,9 +391,16 @@ export async function callRecipe(args: {
   if (parsed && typeof parsed === 'object' && 't' in parsed && 'ing' in parsed && 'st' in parsed) {
     recipe = unaliasRecipeIds(parsed as Recipe, alias.toId);
   }
+  // Пул-4 №4в: прозова відповідь (recipe null) могла нести аліаси «(р21)» —
+  // людина бачила нутрощі. Розіменовуємо на назви партій.
+  const aliasLabels = new Map<string, string>();
+  for (const b of args.pantry ?? []) {
+    const a = alias.toAlias.get(b.id);
+    if (a) aliasLabels.set(a, b.label);
+  }
   return {
     recipe,
-    raw: text,
+    raw: recipe ? text : unaliasProse(text, aliasLabels),
     usage: usageFrom(resp.usage),
     meta: {
       promptVersion: prompt.version, model, mode: 'live',

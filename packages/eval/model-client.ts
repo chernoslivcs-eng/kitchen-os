@@ -114,8 +114,13 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
   }
 
   if (fx.call === 'recipe_gen') {
-    // Дослівно як у проді (callRecipe): user = title (+context одним рядком).
-    return [{ role: 'user', content: fx.request ?? '' }];
+    // Дослівно як у проді (callRecipe): user = title (+ хвіст розмови, як
+    // пул-4 №4б, + context одним рядком).
+    const conv = (fx.conversation ?? [])
+      .map((m) => `${m.role === 'user' ? 'людина' : 'кухар'}: ${m.content}`)
+      .join('\n');
+    const convBlock = conv ? `\n\n[ОСТАННІ РЕПЛІКИ РОЗМОВИ — рішення з них уже ухвалені, не перепитуй]\n${conv}` : '';
+    return [{ role: 'user', content: `${fx.request ?? ''}${convBlock}` }];
   }
 
   if (fx.call === 'attachment_parse') {

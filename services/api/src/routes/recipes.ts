@@ -5,7 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
+import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
 import { callRecipe } from '../model.js';
 import type { Recipe, RecipeIng } from '@kitchen/domain';
@@ -67,11 +67,25 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     const profile = await repo.getProfile(ctx.user_id);
     // Г-1: висновки людини йдуть у генерацію — «урок вбудовується в крок».
     const notes = await repo.listNotes(ctx.user_id, 20);
+    // Пул-4 №4б: хвіст розмови в генерацію — «Буде» на «Арборіо є?» не
+    // губиться між викликами. Кількості маскуються, як у чат-історії.
+    let conversation: string | undefined;
+    const sid = (req.body as { session_id?: string })?.session_id;
+    if (sid) {
+      const sess = await repo.getSession(sid);
+      if (sess && sess.user_id === ctx.user_id) {
+        const tail = (await repo.listMessages(sid)).slice(-6);
+        conversation = tail
+          .filter((m) => m.text)
+          .map((m) => `${m.role === 'user' ? 'людина' : 'кухар'}: ${maskHistoryQuantities(m.text!)}`)
+          .join('\n') || undefined;
+      }
+    }
     const started = Date.now();
     // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
     let call: Awaited<ReturnType<typeof callRecipe>>;
     try {
-      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products });
+      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products, conversation });
     } catch (err) {
       req.log.error({ err }, 'recipe-model-call-failed');
       return reply.code(502).send({ error: 'model_unavailable' });

@@ -44,6 +44,23 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Пул-4 №4б/в: генерація з хвостом розмови.
+  'recipe-returned': (out) => {
+    const c = out.card;
+    const r = c?.recipe ?? (c && c.t && c.ing ? c : null);
+    return r ? pass(r.t) : fail(`рецепта немає — модель відповіла прозою: ${String(out.reply ?? out.raw).slice(0, 120)}`);
+  },
+  'no-rice-interrogation': (out) => {
+    const hay = String(out.reply ?? '') + String(out.raw ?? '');
+    const hit = /рис.{0,30}(є\?|у тебе|в тебе|маєш)/i.exec(hay);
+    return hit ? fail(`перепитує вже вирішене: «${hit[0]}»`) : pass();
+  },
+  'no-alias-leak': (out) => {
+    const hay = String(out.reply ?? out.raw ?? '');
+    const hit = /\(?[pр]\d{1,3}\)?/i.exec(hay.replace(/"[pр]\d+"/g, ''));   // JSON-поля p1 — легальні
+    return hit && !/"/.test(hit[0]) ? fail(`аліас протік у текст: «${hit[0]}»`) : pass();
+  },
+
   // Чек Сільпо: вагові рядки «0.114 X 899.00» — вага в кг × ціна/кг.
   // Вага мусить стати value у ГРАМАХ (114/502/488), ціна — ніколи.
   'silpo-weights': (out) => {

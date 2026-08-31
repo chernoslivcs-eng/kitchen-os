@@ -16,3 +16,10 @@ export function looksLikeModelDebris(text: string): boolean {
   if (!startsJsonish) return false;
   return /"(reply|card|ops|op|type|kind|label)"\s*:/.test(t);
 }
+
+// Пул-4 №4а: [HH:MM]-префікси історії протікали в reply (живий кейс:
+// «[19:05] Тоді ризото підходить»). Формат службовий — у людському тексті
+// час у квадратних дужках не пишуть, стрипаємо всі входження.
+export function stripHistoryStamps(text: string): string {
+  return text.replace(/\[\d{1,2}:\d{2}\]\s*/g, '').replace(/\s{2,}/g, ' ').trim();
+}

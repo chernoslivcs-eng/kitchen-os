@@ -56,3 +56,13 @@ export function aliasRecipeIds(recipe: Recipe, toAlias: Map<string, string>): Re
     }),
   };
 }
+
+// Пул-4 №4в: коли recipe_gen відповідає ПРОЗОЮ (неоднозначний запит),
+// аліаси p1..pN протікали в текст як «(р21)» — людина бачила нутрощі.
+// Замінюємо на назву партії; модель пише і латинське p, і кириличне р.
+// labels: 'p21' → людська назва (будується з aliasMap + pantry).
+export function unaliasProse(text: string, labels: Map<string, string>): string {
+  return text.replace(/(?<![a-zа-яіїєґ0-9])[pр](\d{1,3})(?![0-9])/gi, (match, num: string) => {
+    return labels.get(`p${num}`) ?? match;
+  });
+}

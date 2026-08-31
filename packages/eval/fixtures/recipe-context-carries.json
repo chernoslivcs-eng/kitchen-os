@@ -1,0 +1,22 @@
+{
+  "id": "recipe-context-carries",
+  "description": "Пул-4 №4б, живий кейс ризото: кухар спитав «Арборіо є?», людина відповіла «Буде» — а recipe_gen, сліпий до розмови, перепитував «рис у тебе є?». Тепер хвіст діалогу їде в генерацію: рішення ухвалене, рецепт видається З арборіо (як needs), без повторного допиту.",
+  "call": "recipe_gen",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    { "label": "помідори рожеві", "zone": "fresh", "value": 400, "unit": "g" },
+    { "label": "пармезан тертий", "zone": "fridge", "value": 100, "unit": "g" },
+    { "label": "цибуля", "zone": "fresh", "value": 300, "unit": "g" },
+    { "label": "олія оливкова", "zone": "dry", "value": 500, "unit": "ml" }
+  ],
+  "conversation": [
+    { "role": "assistant", "content": "Арборіо є? Без нього кремовості не буде." },
+    { "role": "user", "content": "Буде, завтра куплю." }
+  ],
+  "request": "Ризото з томатами й пармезаном",
+  "invariants": [
+    "recipe-returned",
+    "no-rice-interrogation",
+    "no-alias-leak"
+  ]
+}

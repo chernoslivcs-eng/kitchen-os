@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAliasMap, aliasRecipeIds, unaliasRecipeIds } from './pantry-alias.js';
+import { buildAliasMap, aliasRecipeIds, unaliasRecipeIds , unaliasProse } from './pantry-alias.js';
 import { serializePantry } from './context.js';
 import type { PantryBatch, Recipe } from './types.js';
 
@@ -123,5 +123,21 @@ describe('serializePantry: хард-кеп', () => {
     bs[1] = batch('id-1', 'Відкриті вершки', { added_at: new Date(2026, 0, 2).toISOString(), state: 'opened' });
     const s = serializePantry(bs, null, Date.now(), [], false, 'none', 60);
     expect(s).toContain('Відкриті вершки');
+  });
+});
+
+// Пул-4 №4в: аліас p21 протікав у ПРОЗОВУ відповідь recipe_gen («краще
+// взяти перлову крупу (р21)») — для JSON unalias був, для тексту ні.
+// Модель пише і латиницею, і кирилицею («р21»).
+describe('unaliasProse', () => {
+  const labels = new Map([['p21', 'крупа ячмінна перлова Сквирянка'], ['p3', 'вершки 20%']]);
+  it('замінює латинські й кириличні аліаси на назви партій', () => {
+    expect(unaliasProse('краще взяти перлову крупу (р21), або пасту', labels))
+      .toBe('краще взяти перлову крупу (крупа ячмінна перлова Сквирянка), або пасту');
+    expect(unaliasProse('додай p3 у соус', labels)).toBe('додай вершки 20% у соус');
+  });
+  it('невідомий номер і випадкові збіги не чіпаються', () => {
+    expect(unaliasProse('візьми p99', labels)).toBe('візьми p99');
+    expect(unaliasProse('слово парк21 не аліас', labels)).toBe('слово парк21 не аліас');
   });
 });

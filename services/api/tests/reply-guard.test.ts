@@ -3,7 +3,7 @@
 // чесний фолбек «кинь файлом або частинами».
 
 import { describe, it, expect } from 'vitest';
-import { looksLikeModelDebris, INTAKE_TOO_BIG_REPLY } from '../src/reply-guard.js';
+import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../src/reply-guard.js';
 
 describe('looksLikeModelDebris', () => {
   it('ловить обірвані/сирі JSON-відповіді', () => {
@@ -29,5 +29,18 @@ describe('looksLikeModelDebris', () => {
   it('фолбек-репліка існує і людська', () => {
     expect(INTAKE_TOO_BIG_REPLY).toMatch(/файлом|частинами/);
     expect(INTAKE_TOO_BIG_REPLY).not.toMatch(/[{}"]/);
+  });
+});
+
+// Пул-4 №4а: службові таймстемпи історії ([HH:MM]) протікали в reply —
+// модель копіювала формат. Стрип детермінований, не вмовляння.
+describe('stripHistoryStamps', () => {
+  it('прибирає [HH:MM] на початку і всередині', () => {
+    expect(stripHistoryStamps('[19:05] Тоді ризото підходить — готуємо?'))
+      .toBe('Тоді ризото підходить — готуємо?');
+    expect(stripHistoryStamps('Так. [10:58] А ще салат.')).toBe('Так. А ще салат.');
+  });
+  it('не чіпає час у людському сенсі', () => {
+    expect(stripHistoryStamps('Вечеря о 19:05, таймер 2:00')).toBe('Вечеря о 19:05, таймер 2:00');
   });
 });
