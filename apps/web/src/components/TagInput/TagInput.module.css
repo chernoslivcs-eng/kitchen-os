@@ -1,10 +1,30 @@
+/* Канон v3 «поле + полиця» (пул-7 №4): поле — завжди порожній один рядок,
+   теги — окремим wrap-рядом ПІД ним. Шари прибираються незалежно. */
+
 .wrap {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.chips {
+.input {
+  height: 46px;
+  padding: 0 14px;
+  border-radius: var(--r-md, 12px);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+.input::placeholder { color: var(--fg-dim); }
+.input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+.input:disabled { opacity: 0.5; }
+
+.shelf {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -13,12 +33,29 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 8px 7px 12px;
+  gap: 4px;
+  padding: 6px 8px 6px 13px;
   border-radius: var(--r-pill);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
+}
+
+/* Пул-7 №4: тег падає на полицю (tag-in) і стискається на виході (tag-out). */
+.chip-in { animation: tag-in var(--dur-base, 250ms) var(--ease-enter, ease-out); }
+.chip-out {
+  animation: tag-out 200ms var(--ease-exit, ease-in) forwards;
+  pointer-events: none;
+}
+@keyframes tag-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tag-out {
+  to { opacity: 0; transform: scale(0.85); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip-in, .chip-out { animation-duration: 1ms; }
 }
 
 .allergy {
@@ -31,10 +68,17 @@
   border: 1px solid var(--accent-border);
   color: var(--accent);
 }
+/* «не їм …» — принцип: слива. */
 .anti {
   background: var(--plum-bg);
   border: 1px solid var(--plum-border);
   color: var(--plum);
+}
+/* «не люблю …» — смак: рівний сірий, без сливової ваги. */
+.anti-taste {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--fg-muted);
 }
 .neutral {
   background: var(--bg-surface-2);
@@ -43,13 +87,13 @@
 }
 
 /* Хрестик приглушений і проявляється на hover: список читають частіше,
-   ніж правлять, і ряд яскравих × перетворив би профіль на панель керування. */
+   ніж правлять. 24px — але хіт-зона добивається паддингом чипа. */
 .x {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -65,82 +109,3 @@
   background: color-mix(in srgb, currentColor 18%, transparent);
 }
 .x:disabled { cursor: default; opacity: 0.2; }
-
-.empty {
-  padding: 7px 12px;
-  border-radius: var(--r-pill);
-  background: var(--bg-surface-2);
-  border: 1px dashed var(--border-strong);
-  color: var(--fg-dim);
-  font-family: var(--font-body);
-  font-size: 13px;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.input {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 12px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--bg-surface-2);
-  color: var(--fg);
-  font-family: var(--font-body);
-  font-size: 14px;
-}
-.input::placeholder { color: var(--fg-dim); }
-.input:focus {
-  outline: none;
-  border-color: var(--border-strong);
-}
-.input:disabled { opacity: 0.5; }
-
-.add {
-  flex: none;
-  padding: 9px 14px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.add:disabled { opacity: 0.5; cursor: default; }
-
-
-/* Канон Бриф-2: один контейнер-поле, чипи всередині. */
-.field {
-  min-height: 48px;
-  border-radius: var(--r-md, 12px);
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  flex-wrap: wrap;
-  cursor: text;
-}
-.field:focus-within {
-  border-color: var(--border-strong);
-}
-.inline {
-  flex: 1;
-  min-width: 90px;
-  border: 0;
-  background: transparent;
-  color: var(--fg);
-  font-family: var(--font-body);
-  font-size: 14px;
-  padding: 4px 0;
-}
-.inline::placeholder { color: var(--fg-dim); }
-.inline:focus { outline: none; }
