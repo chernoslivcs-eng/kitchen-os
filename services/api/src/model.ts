@@ -197,6 +197,11 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
 // Сам контекст живе в @kitchen/domain — його ділять прод і eval. Поки він сидів
 // тут, eval складав власний промпт і перевіряв не те, що працює у проді.
 export function buildChatSystem(args: ChatArgs, promptText: string): string {
+  // Пул-3: згадане в розмові — гарантовано в кепі комори.
+  const queryText = [
+    args.text,
+    ...(args.history ?? []).filter((h) => h.role === 'user').slice(-3).map((h) => h.content),
+  ].join('\n');
   return promptText + buildKitchenContext({
     pantry: args.pantry,
     profile: args.profile,
@@ -206,6 +211,7 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
+    queryText,
   });
 }
 
@@ -219,6 +225,11 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   // стабільний префікс; buildKitchenContext — динаміка. buildChatSystem
   // лишається конкатенацією тих самих двох частин для тестів контексту.
   const stable = compose('chat', prompt, { stage: args.stage });
+  // Пул-3: згадане в розмові — гарантовано в кепі комори.
+  const queryText = [
+    args.text,
+    ...(args.history ?? []).filter((h) => h.role === 'user').slice(-3).map((h) => h.content),
+  ].join('\n');
   const dynamic = buildKitchenContext({
     pantry: args.pantry,
     profile: args.profile,
@@ -228,6 +239,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
+    queryText,
   });
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
@@ -346,7 +358,7 @@ export async function callRecipe(args: {
   // помилку. Переклад назад — детермінований; невідомий аліас → дроп p.
   const alias = buildAliasMap(args.pantry ?? []);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 60, args.products ?? [])
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`)
     : '';
   // Кеш-межа: role+recipe-generator стабільні; профіль/комора/висновки — динаміка.
   const stable = compose('recipe_gen', prompt);

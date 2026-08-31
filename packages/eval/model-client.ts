@@ -59,7 +59,7 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     const alias = buildAliasMap(pantry);
     const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
     const dynamic = serializeProfile(profile)
-      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias)
+      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '')
       + serializeNotes((fx.notes ?? []) as MemoryNote[]);
     return { stable: base, dynamic };
   }
@@ -71,6 +71,7 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     profile,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
     notes: (fx.notes ?? []) as MemoryNote[],
+    queryText: (fx.conversation ?? []).filter((m) => m.role === 'user').slice(-3).map((m) => m.content).join('\n'),
     eaters: (fx.eaters ?? []) as EaterRow[],
     recentRecipes: (fx.recentRecipes ?? []) as RecipeRow[],
     // UX9-28: [ОСТАННІ ГОТУВАННЯ] в eval раніше не було взагалі — фікстури

@@ -31,6 +31,8 @@ export interface KitchenContext {
   recentRecipes?: RecipeRow[];
   // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈».
   products?: HouseholdProduct[];
+  // Пул-3: текст поточної розмови — згадані позиції гарантовано в кепі комори.
+  queryText?: string;
   now?: Date;                            // для тестів — інакше Date.now()
 }
 
@@ -86,10 +88,17 @@ export function serializePantry(
   // позначені (⚠алерген/⚠піст) — ЗАВЖДИ, поза кепом (важіль якості: модель
   // бачить і може попередити); далі термінові (відкриті/догоряють); далі
   // свіжіші за added_at. Порядок рендера — вихідний (мінімум пертурбацій).
-  cap = 60,
+  // Пул-3: кеп піднято 60→120 — реальна комора дому ~110-150 позицій
+  // (виміряно на живому інвентарі), 60 ховало майже половину.
+  cap = 120,
   // Черга Д (№2): продукти дому — подвійний алерген-захист (тег АБО корінь
   // у назві) і приблизний «вжити до» з shelf_open_days тегів.
   products: HouseholdProduct[] = [],
+  // Пул-3: запито-залежний відбір. Текст поточної розмови (репліка + свіжі
+  // ходи): згадані в ньому позиції гарантовано їдуть у кеп — «скільки в мене
+  // спагеті?» ніколи не впирається у сховану позицію. Тільки додає рядки,
+  // ніколи не віднімає — класу «не поклали потрібне» тут не буває.
+  queryText = '',
 ): string {
   const allergens = [
     ...(p?.allergies ?? []).map((a) => ({ label: a, who: '' })),
@@ -134,11 +143,31 @@ export function serializePantry(
   if (scored.length > cap) {
     const picked = new Set<string>();
     for (const s of scored) if (s.marked) picked.add(s.b.id);           // поза кепом
+    // Ярус 1: згадане в розмові — той самий кореневий збіг, що ловить алергени.
+    const queryRoots = meaningfulWords(queryText).map(root);
+    if (queryRoots.length) {
+      for (const s of scored) {
+        const words = meaningfulWords(s.b.label).map(root);
+        if (words.some((w) => queryRoots.some((q) => w === q || w.startsWith(q) || q.startsWith(w)))) {
+          picked.add(s.b.id);
+        }
+      }
+    }
     const byRecency = [...scored].sort((a, b2) => b2.b.added_at.localeCompare(a.b.added_at));
+    // Ярус 2: термінові (відкриті/догоряють).
     for (const s of byRecency) {
       if (picked.size >= cap) break;
       if (s.urgent) picked.add(s.b.id);
     }
+    // Ярус 3: квота залежаним — 10 найстаріших активних. Мости «що купити?»
+    // будуються саме від них; сортування за свіжістю ховало їх першими.
+    const byAge = [...scored].sort((a, b2) => a.b.added_at.localeCompare(b2.b.added_at));
+    let idleQuota = 10;
+    for (const s of byAge) {
+      if (idleQuota <= 0 || picked.size >= cap) break;
+      if (!picked.has(s.b.id)) { picked.add(s.b.id); idleQuota--; }
+    }
+    // Ярус 4: решта — за свіжістю, до кепа.
     for (const s of byRecency) {
       if (picked.size >= cap) break;
       picked.add(s.b.id);
@@ -289,7 +318,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
     // самому блоці — той самий механізм, що рятував з алергенами й постом.
     + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування. «~строк≈» — приблизна оцінка від відкриття: згадуй мʼяко — «варто передивитись», точні дні називай лише для «!Nдн»)\n'
-    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none', 60, ctx.products ?? [])
+    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none', 120, ctx.products ?? [], ctx.queryText ?? '')
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [])

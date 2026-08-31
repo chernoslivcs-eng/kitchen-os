@@ -72,3 +72,41 @@ describe('serializePantry × продукт дому', () => {
     expect(bare).not.toContain('⚠АЛЕРГЕН');
   });
 });
+
+// Пул-3: запито-залежний відбір у кеп. Яруси: ⚠ завжди → згадане в розмові →
+// термінові → квота залежаним → свіжі. Depleted не існує для промпту ніколи.
+describe('serializePantry: кеп і відбір', () => {
+  const many = (n: number, patch: (i: number) => Partial<PantryBatch>) =>
+    Array.from({ length: n }, (_, i) => batch({ id: `b${i}`, label: `продукт ${i}`, ...patch(i) }));
+
+  it('depleted не потрапляє в контекст ніколи, навіть згаданий', () => {
+    const b = batch({ label: 'кімчі', state: 'depleted' });
+    const out = serializePantry([b], null, NOW, [], false, 'none', 120, [], 'а де моє кімчі?');
+    expect(out).not.toContain('кімчі');
+  });
+
+  it('згадана в розмові позиція гарантовано в кепі, навіть найстаріша', () => {
+    const bs = [
+      batch({ id: 'old', label: 'спагеті', added_at: new Date(NOW - 40 * DAY).toISOString() }),
+      ...many(130, (i) => ({ added_at: new Date(NOW - i * 3600_000).toISOString() })),
+    ];
+    const out = serializePantry(bs, null, NOW, [], false, 'none', 120, [], 'скільки в мене спагеті?');
+    expect(out).toContain('спагеті');
+  });
+
+  it('квота залежаним: найстаріші активні виживають у кепі при переповненні', () => {
+    const bs = [
+      batch({ id: 'idle', label: 'маш', added_at: new Date(NOW - 30 * DAY).toISOString() }),
+      ...many(130, (i) => ({ added_at: new Date(NOW - i * 3600_000).toISOString() })),
+    ];
+    const out = serializePantry(bs, null, NOW, [], false, 'none', 120, []);
+    expect(out).toContain('маш');
+  });
+
+  it('без запиту і квот — поведінка як була: свіжі перемагають, хвіст числом', () => {
+    const bs = many(130, (i) => ({ added_at: new Date(NOW - i * DAY).toISOString() }));
+    const out = serializePantry(bs, null, NOW, [], false, 'none', 120, []);
+    expect(out).toContain('…і ще');
+    expect(out).toContain('продукт 0');
+  });
+});
