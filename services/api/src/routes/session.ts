@@ -17,7 +17,10 @@ export function sessionRoutes(app: FastifyInstance, repo: Repo) {
   app.get('/v1/session/today', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
     const session = await repo.getOrCreateSessionForDay(user_id, today());
-    const messages = await repo.listMessages(session.id);
+    // П.8 pre-deploy: recipe_link несе повний рецепт у кожному повідомленні —
+    // без кепа стара сесія важить мегабайти. 200 останніх вистачає будь-якому
+    // екрану; глибша історія — окрема задача пагінації, якщо знадобиться.
+    const messages = (await repo.listMessages(session.id)).slice(-200);
     return { session, messages };
   });
 
@@ -81,7 +84,7 @@ export function sessionRoutes(app: FastifyInstance, repo: Repo) {
       const session = await repo.getSession(req.params.id);
       if (!session) return reply.code(404).send({ error: 'not_found' });
       if (session.user_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
-      const messages = await repo.listMessages(session.id);
+      const messages = (await repo.listMessages(session.id)).slice(-200);
       return { session, messages };
     },
   );

@@ -16,7 +16,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'smoke',
-      testMatch: /smoke\.spec\.ts/,
+      testMatch: /(smoke|cook)\.spec\.ts/,
       dependencies: ['setup'],
       use: { storageState: 'e2e/.auth/state.json' },
     },

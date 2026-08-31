@@ -10,6 +10,17 @@ import react from '@vitejs/plugin-react';
 const BUILD_ID = Date.now().toString(36);
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // П.8 pre-deploy: react-рантайм окремим чанком — кешується між
+        // деплоями, бо міняється рідше за код продукту.
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
   plugins: [react()],
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
