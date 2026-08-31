@@ -90,6 +90,7 @@ export interface HouseholdProduct {
   unit: 'g' | 'ml' | 'pcs' | null;
   pack_size: number | null;
   tags: Record<string, unknown>;
+  search_terms?: string[];
 }
 
 export interface PantryList {

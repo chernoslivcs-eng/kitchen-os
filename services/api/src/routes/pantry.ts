@@ -16,6 +16,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit, BatchState } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { BY_KEY } from '@kitchen/catalog/seed';
 
 function urgencyScore(b: PantryBatch): number {
   // Менше — терміновіше. Відкрите з датою → перше. Свіже — до `expires_at`. Інше — далеко.
@@ -33,7 +34,16 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     active.sort((a, b) => urgencyScore(a) - urgencyScore(b));
     // Черга Д (№2/№4а): продукти дому — клієнту для «повна назва в
     // інгредієнтах, тільки product у кроках».
-    const products = await repo.listProducts(household_id);
+    // Пул-3, пошук: до продукту з каталожним ключем доклеюються search_terms
+    // (категорії + аліаси) — «сир» знаходить моцарелу/камбоцолу/пармезан,
+    // «моцарелла» російською — теж. Кілька слів на продукт, копійки трафіку;
+    // сід каталогу на клієнт не тягнемо (то сотні кілобайт).
+    const products = (await repo.listProducts(household_id)).map((p) => {
+      const cat = p.catalog_key ? BY_KEY.get(p.catalog_key) : undefined;
+      return cat
+        ? { ...p, search_terms: [...new Set([...cat.categories, ...cat.aliases, cat.name.toLowerCase()])] }
+        : p;
+    });
     return {
       household_id,
       count: active.length,

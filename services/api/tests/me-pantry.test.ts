@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildApp } from '../src/server.js';
-import { InMemoryRepo } from '@kitchen/domain';
+import { InMemoryRepo, createPending, applyCard } from '@kitchen/domain';
+import { randomUUID } from 'node:crypto';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
@@ -224,5 +225,29 @@ describe('GET /v1/me + /v1/pantry', () => {
     // Але вона є в repo із state=depleted
     const raw = await repo.getBatch(batchId);
     expect(raw?.state).toBe('depleted');
+  });
+});
+
+// Пул-3, пошук у коморі: «сир» має знаходити моцарелу/камбоцолу/пармезан.
+// Сервер віддає до продукту search_terms з каталогу (категорії + аліаси) —
+// клієнт шукає по них, не тільки по назві.
+describe('GET /v1/pantry: search_terms з каталогу', () => {
+  it('продукт із catalog_key несе категорії й аліаси', async () => {
+    const repo = new InMemoryRepo();
+    const mailer = new ConsoleMailer();
+    const app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+    const me = await signIn(app, mailer, 'st1@example.com');
+    const mid = randomUUID();
+    await createPending(repo, { message_id: mid, household_id: me.household_id, user_id: me.user_id, card: {
+      type: 'intake_diff', ops: [{ op: 'add', label: 'камбоцола', value: 200, unit: 'g', zone: 'fridge', product: 'камбоцола' }],
+    } });
+    await applyCard(repo, mid, [], me.user_id);
+
+    const res = await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } });
+    const { products } = res.json() as { products: { product: string; search_terms?: string[] }[] };
+    const camb = products.find((p) => p.product === 'камбоцола')!;
+    expect(camb.search_terms).toContain('сир');
+    expect(camb.search_terms).toContain('молочне');
   });
 });

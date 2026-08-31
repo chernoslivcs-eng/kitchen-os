@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderStepContent, resolveIngName, stepIngredients, stepLabelsFrom, scaleRecipe, type BatchLabels } from './recipe.js';
+import { renderStepContent, resolveIngName, stepIngredients, stepLabelsFrom, scaleRecipe, batchMatchesQuery, type BatchLabels } from './recipe.js';
 
 describe('resolveIngName', () => {
   const labels: BatchLabels = new Map([['b1', 'Моцарела'], ['b2', 'Пелаті']]);
@@ -163,5 +163,23 @@ describe('scaleRecipe', () => {
     const x1 = scaleRecipe(base, 1);
     expect(x1.ing[0]!.v).toBe(120);
     expect(scaleRecipe({ sv: 3, ing: [{ v: 100 }] }, 2).ing[0]!.v).toBe(66.7);
+  });
+});
+
+// Пул-3, пошук комори: «сир» знаходить камбоцолу через search_terms каталогу.
+describe('batchMatchesQuery', () => {
+  const prod = { id: 'p1', product: 'камбоцола', brand: null, variant: null, search_terms: ['сир', 'блакитний сир', 'молочне', 'cambozola'] };
+  const byId = new Map([[prod.id, prod]]);
+  const b = { label: 'камбоцола', product_id: 'p1' };
+  it('назва, трійка, терміни каталогу', () => {
+    expect(batchMatchesQuery('камбо', b, byId)).toBe(true);
+    expect(batchMatchesQuery('сир', b, byId)).toBe(true);
+    expect(batchMatchesQuery('сиру', b, byId)).toBe(true);       // відмінок: запит містить термін
+    expect(batchMatchesQuery('cambozola', b, byId)).toBe(true);
+    expect(batchMatchesQuery('ковбаса', b, byId)).toBe(false);
+  });
+  it('без продукту — тільки назва, як раніше', () => {
+    expect(batchMatchesQuery('сир', { label: 'сіль', product_id: null }, byId)).toBe(false);
+    expect(batchMatchesQuery('сіль', { label: 'сіль', product_id: null }, byId)).toBe(true);
   });
 });

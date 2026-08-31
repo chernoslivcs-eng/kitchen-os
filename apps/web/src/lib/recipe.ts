@@ -96,3 +96,33 @@ export function scaleRecipe<T extends { sv: number; ing: { v?: number }[] }>(rec
     ing: recipe.ing.map((i) => (i.v == null ? { ...i } : { ...i, v: Math.round(i.v * f * 10) / 10 })),
   };
 }
+
+// Пул-3, пошук комори: збіг за назвою партії АБО трійкою продукту АБО
+// search_terms з каталогу (категорії/аліаси, приходять з /v1/pantry) —
+// «сир» знаходить моцарелу, камбоцолу й пармезан, «моцарелла» російською
+// теж. Двосторонній includes на термінах пробачає відмінки («сиру» ⊃ «сир»).
+export interface SearchableProduct {
+  id: string;
+  product: string;
+  brand?: string | null;
+  variant?: string | null;
+  search_terms?: string[];
+}
+
+export function batchMatchesQuery(
+  q: string,
+  batch: { label: string; product_id?: string | null },
+  productsById: Map<string, SearchableProduct>,
+): boolean {
+  const query = q.trim().toLowerCase();
+  if (!query) return true;
+  if (batch.label.toLowerCase().includes(query)) return true;
+  const prod = batch.product_id ? productsById.get(batch.product_id) : undefined;
+  if (!prod) return false;
+  const fields = [prod.product, prod.brand ?? '', prod.variant ?? ''].join(' ').toLowerCase();
+  if (fields.includes(query)) return true;
+  return (prod.search_terms ?? []).some((t) => {
+    const term = t.toLowerCase();
+    return term.includes(query) || query.includes(term);
+  });
+}

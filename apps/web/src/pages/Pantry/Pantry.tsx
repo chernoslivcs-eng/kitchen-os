@@ -12,6 +12,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
+import { batchMatchesQuery } from '../../lib/recipe';
 import styles from './Pantry.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { Avatar } from '../../components/Avatar/Avatar';
@@ -95,8 +96,11 @@ export function PantryPage() {
   }, []);
 
   const q = query.trim().toLowerCase();
+  // Пул-3: пошук бачить і невидиме — трійку продукту і категорії/аліаси
+  // каталогу («сир» → моцарела, камбоцола, пармезан).
+  const productsById = new Map(products.map((p) => [p.id, p]));
   const filtered = q
-    ? batches.filter((b) => b.label.toLowerCase().includes(q))
+    ? batches.filter((b) => batchMatchesQuery(q, b, productsById))
     : batches;
   const byZone = new Map<PantryBatch['zone'], PantryBatch[]>();
   for (const b of filtered) {
