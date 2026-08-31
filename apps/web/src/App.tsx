@@ -7,7 +7,8 @@ import { PantryPage } from './pages/Pantry/Pantry';
 import { ShoppingPage } from './pages/Shopping/Shopping';
 import { ProfilePage } from './pages/Profile/Profile';
 import { RecipePage } from './pages/Recipe/Recipe';
-import { CookPage } from './pages/Cook/Cook';
+import { CookOverlay } from './pages/Cook/Cook';
+import { useCookStore } from './store/cook';
 import { SharePage } from './pages/Share/Share';
 import { CookLogPage } from './pages/CookLog/CookLog';
 import { RecipesPage } from './pages/Recipes/Recipes';
@@ -46,6 +47,14 @@ function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function CookHost() {
+  // Пул-3: Cook Mode — поп-ап поверх будь-якого екрана. key скидає стан
+  // кроків/таймера, коли відкривають ІНШЕ готування.
+  const args = useCookStore((s) => s.args);
+  if (!args) return null;
+  return <CookOverlay key={`${args.recipeId ?? args.recipe.t}:${args.startAt ?? 0}`} />;
+}
+
 export function App() {
   return (
     <BrowserRouter>
@@ -60,13 +69,13 @@ export function App() {
           <Route path="/recipe" element={<RequireAuth><RecipePage /></RequireAuth>} />
           {/* Р-3: стабільна адреса — рецепт більше не живе тільки в router state. */}
           <Route path="/recipe/:id" element={<RequireAuth><RecipePage /></RequireAuth>} />
-          <Route path="/cook" element={<RequireAuth><CookPage /></RequireAuth>} />
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
           <Route path="/cooklog" element={<RequireAuth><CookLogPage /></RequireAuth>} />
           <Route path="/recipes" element={<RequireAuth><RecipesPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        <CookHost />
       </Boot>
     </BrowserRouter>
   );

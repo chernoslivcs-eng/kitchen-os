@@ -5,6 +5,11 @@
  * (хендоф №10, Д05). Планшет на підставці біля плити: контраст і нічна кухня
  * не мають залежати від системної теми. Тому не токени, а темні значення прямо. */
 .screen {
+  /* Пул-3: поп-ап поверх будь-якого екрана — нуль навігації. */
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow-y: auto;
   min-height: 100dvh;
   background: #101317;
   color: #e7eaec;
@@ -69,6 +74,32 @@
   display: flex;
   gap: 6px;
 }
+/* Пул-3: прогрес по верхньому краю поп-апа — на всю ширину, впритул. */
+.progress-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px 6px;
+  background: #101317;
+}
+.progress-top .progress-hit {
+  flex: 1;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.progress-top .progress-hit:disabled { cursor: default; }
+.progress-top .progress-hit > div {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.progress-top .progress-hit > div.done { background: var(--accent); }
+.progress-top .progress-hit > div.current { background: #f2f4f5; }
+
 .progress > div {
   flex: 1;
   height: 4px;

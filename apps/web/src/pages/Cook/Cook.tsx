@@ -4,25 +4,16 @@
 // подія списання, тут ми зберігаємо тільки локальний стан.
 
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Button } from '../../components/Button/Button';
 import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import { saveCookSession, loadCookSession, clearCookSession } from '../../lib/cook-session';
+import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
-
-interface CookLocationState {
-  recipe?: Recipe;
-  startAt?: number;
-  // UX9-11: id чернетки зі стрічки — cook-run реюзає її замість другого рядка.
-  recipeId?: string;
-  // Правка №5: Cook Mode — поп-ап над місцем запуску; вихід веде назад у ту
-  // саму сесію, не в дефолтну «сесію дня».
-  returnSessionId?: string | null;
-}
 
 function formatMS(secondsLeft: number): string {
   const s = Math.max(0, Math.floor(secondsLeft));
@@ -31,10 +22,11 @@ function formatMS(secondsLeft: number): string {
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
-export function CookPage() {
-  const location = useLocation();
+export function CookOverlay() {
   const navigate = useNavigate();
-  const state = (location.state as CookLocationState | null) ?? {};
+  // Пул-3: поп-ап. Стан приходить зі стора, не з навігації.
+  const state = useCookStore((s) => s.args) ?? {} as Partial<import('../../store/cook').CookOpenArgs>;
+  const closeOverlay = useCookStore((s) => s.close);
   const recipe = state.recipe ?? null;
   const [stepIdx, setStepIdx] = useState(state.startAt ?? 0);
   // DA2-03: подвійний тап мокрим пальцем перескакував крок (1 → 3). 400ms
@@ -44,13 +36,10 @@ export function CookPage() {
   // Бриф-3 п.1: повернення на пройдений крок — тап по смузі або ↩.
   // Таймер при поверненні стає на паузу (він не «відмотує час», людина
   // сама вирішить, чи запускати).
-  // Правка №5: усі виходи ведуть у точку запуску.
+  // Пул-3: «✕» — це закрити поп-ап. Людина лишається там, де була;
+  // прогрес живе в kos-cook-live, банери повернуть назад.
   function exitToOrigin() {
-    if (state.returnSessionId) {
-      navigate('/app', { state: { sessionId: state.returnSessionId, at: Date.now() } });
-    } else {
-      navigate('/app');
-    }
+    closeOverlay();
   }
 
   function goToStep(n: number) {
@@ -144,7 +133,7 @@ export function CookPage() {
         `Триває готування «${saved.recipe.t}» (крок ${saved.stepIdx + 1}/${saved.recipe.st.length}). Кинути його й почати «${recipe.t}»?`,
       );
       if (!drop) {
-        navigate(-1);
+        closeOverlay();   // поп-ап: відмова = просто закрити, людина де була
         return;
       }
       clearCookSession();
@@ -212,16 +201,7 @@ export function CookPage() {
 
   // QA8-20: guard стоїть ПІСЛЯ всіх хуків — кількість викликаних хуків
   // не залежить від наявності рецепта (Rules of Hooks).
-  if (!recipe) {
-    return (
-      <div className={styles.screen}>
-        <div style={{ padding: 20, color: 'var(--fg-muted)' }}>
-          <p>Cook Mode без рецепта не працює. Відкрий рецепт зі стрічки.</p>
-          <button className={styles.exit} onClick={() => navigate('/app')} style={{ marginTop: 12 }}>← У стрічку</button>
-        </div>
-      </div>
-    );
-  }
+  if (!recipe) return null;
 
   const total = recipe.st.length;
   const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
@@ -273,6 +253,7 @@ export function CookPage() {
         ask_writeoff: true,
       });
     } catch {/* offline: запис у журнал не вийшов — не тримаємо людину в пастці */}
+    closeOverlay();
     navigate('/app', sid ? { state: { sessionId: sid, at: Date.now() } } : undefined);
   }
 
@@ -318,28 +299,27 @@ export function CookPage() {
       {/* QA9-03 / Д05: шапка одна на обидва лейаути — ✕ Вийти з САМОГО краю
           зліва, мета в центрі, прогрес-смуга справа (220px). На мобільному
           прогрес переносом падає на другий рядок на всю ширину. */}
+      {/* Пул-3: прогрес — тонкі сегменти по верхньому краю поп-апа.
+          Тап по пройденому сегменту вертає на крок (Бриф-3 п.1). */}
+      <div className={styles['progress-top']}>
+        {recipe.st.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={styles['progress-hit']}
+            disabled={i >= stepIdx}
+            aria-label={`Повернутись до кроку ${i + 1}`}
+            onClick={() => goToStep(i)}
+          >
+            <div className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
+          </button>
+        ))}
+      </div>
       <div className={styles.head}>
         <button className={styles.exit} onClick={exitToOrigin}>✕ Вийти</button>
         <MonoLabel className={styles['head-meta']}>
           {recipe.t.toUpperCase()} · КРОК {stepIdx + 1}/{total}
         </MonoLabel>
-        {/* Бриф-3 п.1: тап по сегменту смуги = перейти на пройдений крок.
-            Сегмент 4px — не тап-зона, тому кожен обгорнутий кнопкою з
-            вертикальним padding ≥44px сумарної висоти. */}
-        <div className={styles.progress}>
-          {recipe.st.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              className={styles['progress-hit']}
-              disabled={i >= stepIdx}
-              aria-label={`Повернутись до кроку ${i + 1}`}
-              onClick={() => goToStep(i)}
-            >
-              <div className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className={`${styles.body} ${styles['body-steps']}`}>

@@ -6,6 +6,7 @@ import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import styles from './TabBar.module.css';
+import { useCookStore } from '../../store/cook';
 
 // Правка №1: підпис сесії в сайдбарі — «дата · час · запит». Дата/час із
 // created_at, запит — назва сесії (перша репліка або назва рецепта).
@@ -75,6 +76,8 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
   // верстці CSS-ом, як brand/user). Список оновлюється, коли Feed сіпає
   // version (нове повідомлення дало назву, нова сесія, тощо).
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const cookOpen = useCookStore((s) => s.open);
+  const cookArgs = useCookStore((s) => s.args);
   const version = useSessionStore((s) => s.version);
   const [sessions, setSessions] = useState<(SessionInfo & { message_count: number })[]>([]);
   useEffect(() => {
@@ -96,7 +99,8 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
       window.removeEventListener('focus', onVis);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [pathname]);
+    // cookArgs: поп-ап відкрили/закрили без навігації — фрейм мусить ожити одразу.
+  }, [pathname, cookArgs]);
 
   function openSession(id: string) {
     navigate('/app', { state: { sessionId: id, at: Date.now() } });
@@ -139,12 +143,10 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
         {cookLive && (
           <button
             className={styles['cook-live']}
-            onClick={() => navigate('/cook', {
-              state: {
-                recipe: cookLive.recipe,
-                recipeId: cookLive.recipeId,
-                returnSessionId: cookLive.returnSessionId ?? activeSessionId,
-              },
+            onClick={() => cookOpen({
+              recipe: cookLive.recipe,
+              recipeId: cookLive.recipeId,
+              returnSessionId: cookLive.returnSessionId ?? activeSessionId,
             })}
           >
             <span className={styles['cook-live-dot']}>●</span>

@@ -12,6 +12,7 @@ import { plural } from '../../lib/plural';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { useCookStore } from '../../store/cook';
 
 interface RecipeLocationState {
   recipe?: Recipe;
@@ -35,6 +36,7 @@ export function RecipePage() {
   const baseRecipe = (location.state as RecipeLocationState | null)?.recipe ?? fetched ?? null;
   // Порційник: детерміноване множення кількостей (0 токенів); складне — чатом.
   const [servings, setServings] = useState<number | null>(null);
+  const cookOpen = useCookStore((s) => s.open);
   const recipe = baseRecipe ? scaleRecipe(baseRecipe, servings ?? baseRecipe.sv ?? 1) : null;
   const [currentStep, setCurrentStep] = useState(0);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
@@ -160,7 +162,7 @@ export function RecipePage() {
           )}
           <Button
             variant="secondary"
-            onClick={() => navigate('/cook', { state: { recipe, recipeId: id } })}
+            onClick={() => cookOpen({ recipe: recipe!, recipeId: id })}
           >
             Cook Mode
           </Button>
@@ -247,7 +249,7 @@ export function RecipePage() {
                       {step.t}. {renderStepContent(step.c, recipe.ing, stepLabels)}
                     </div>
                     {!!step.s && (
-                      <button className={styles['step-timer']} onClick={() => navigate('/cook', { state: { recipe, startAt: i, recipeId: id } })}>
+                      <button className={styles['step-timer']} onClick={() => cookOpen({ recipe: recipe!, startAt: i, recipeId: id })}>
                         ▷ {formatSeconds(step.s)}
                       </button>
                     )}
@@ -274,7 +276,7 @@ export function RecipePage() {
         <Button
           variant="primary"
           size="lg"
-          onClick={() => navigate('/cook', { state: { recipe, startAt: currentStep, recipeId: id } })}
+          onClick={() => cookOpen({ recipe: recipe!, startAt: currentStep, recipeId: id })}
         >
           Готуємо
         </Button>

@@ -10,6 +10,7 @@ import { api, type CookRunWithRecipe } from '../../api';
 import { plural } from '../../lib/plural';
 import styles from './CookLog.module.css';
 import { TabBar } from '../../components/TabBar/TabBar';
+import { useCookStore } from '../../store/cook';
 
 const WEEKDAYS = ['НД', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
 const MONTHS = ['СІЧ', 'ЛЮТ', 'БЕР', 'КВІ', 'ТРА', 'ЧЕР', 'ЛИП', 'СЕР', 'ВЕР', 'ЖОВ', 'ЛИС', 'ГРУ'];
@@ -33,6 +34,7 @@ function timeLabel(iso: string): string {
 
 export function CookLogPage() {
   const navigate = useNavigate();
+  const cookOpen = useCookStore((s) => s.open);
   const [runs, setRuns] = useState<CookRunWithRecipe[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -222,7 +224,7 @@ export function CookLogPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           /* UX9-11: реюз рядка рецепта — «ЗНОВУ» не плодить дубль. */
-                          navigate('/cook', { state: { recipe: r.recipe.payload, recipeId: r.recipe_id } });
+                          cookOpen({ recipe: r.recipe.payload as never, recipeId: r.recipe_id });
                         }}
                         style={{
                           position: 'absolute',

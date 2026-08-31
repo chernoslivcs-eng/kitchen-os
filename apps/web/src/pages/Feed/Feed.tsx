@@ -20,6 +20,7 @@ import { speechSupported, startDictation, type Dictation } from '../../lib/speec
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { stepLabelsFrom } from '../../lib/recipe';
 import styles from './Feed.module.css';
+import { useCookStore } from '../../store/cook';
 
 interface Turn {
   id: string;
@@ -139,8 +140,10 @@ export function Feed() {
   // Бриф-3 п.2: перерване готування живе — рядок над таймлайном веде назад
   // на той самий крок. Перечитуємо при поверненні фокуса (могло завершитись
   // в іншій вкладці).
+  const cookArgs = useCookStore((s) => s.args);
   const [cookLive, setCookLive] = useState<CookSession | null>(() => loadCookSession());
   useEffect(() => {
+    setCookLive(loadCookSession());
     const onVis = () => setCookLive(loadCookSession());
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('focus', onVis);
@@ -148,7 +151,8 @@ export function Feed() {
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('focus', onVis);
     };
-  }, []);
+    // Поп-ап закрився без навігації — банер оживає одразу.
+  }, [cookArgs]);
 
     // «+ Імпорт» з екрана Рецептів приходить сюди з префіксом — той самий
   // механізм, що startRefine: композитор веде, канал вводу один.
@@ -250,6 +254,7 @@ export function Feed() {
   // Правка №1: сайдбар знає активну сесію і перечитує список, коли тут
   // щось міняється.
   const sessionStore = useSessionStore();
+  const cookOpen = useCookStore((s) => s.open);
   function activate(id: string | null) {
     setSessionId(id);
     sessionStore.setActive(id);
@@ -739,7 +744,7 @@ export function Feed() {
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onRefine={t.card.type === 'proposal' ? startRefine : undefined}
-                onCook={(r, rid) => navigate('/cook', { state: { recipe: r, recipeId: rid, returnSessionId: sessionId } })}
+                onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
                 onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
                 onSaveRecipe={saveRecipeForLater}
                 savedRecipeIds={savedRecipeIds}
@@ -770,7 +775,7 @@ export function Feed() {
         {cookLive && !historyOpen && (
           <button
             className={styles['cook-banner-mobile']}
-            onClick={() => navigate('/cook', { state: { recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId } })}
+            onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               border: '1px solid var(--accent-border)', borderRadius: 14,
