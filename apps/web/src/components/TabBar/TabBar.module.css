@@ -121,6 +121,23 @@
   opacity: 0.75;
 }
 
+.session-row { position: relative; }
+.session-row .session { width: 100%; }
+.session-x {
+  position: absolute;
+  top: 50%; right: 4px;
+  transform: translateY(-50%);
+  width: 26px; height: 26px;
+  border: 0; border-radius: 8px;
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+}
+.session-row:hover .session-x { opacity: 1; }
+.session-x:hover { background: var(--bg-hover); color: var(--fg); }
+
 .session-new {
   display: flex;
   width: 100%;

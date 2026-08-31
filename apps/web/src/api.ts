@@ -209,6 +209,7 @@ export const api = {
       req<{ session_id: string | null }>(`/v1/recipes/${recipe_id}/session`),
     list: () => req<{ sessions: (SessionInfo & { message_count: number })[] }>('/v1/sessions'),
     get: (id: string) => req<{ session: SessionInfo; messages: MessageInfo[] }>(`/v1/sessions/${id}`),
+    remove: (id: string) => req<{ deleted: true }>(`/v1/sessions/${id}`, { method: 'DELETE' }),
   },
 
   cookRuns: {

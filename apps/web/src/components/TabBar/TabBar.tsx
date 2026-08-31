@@ -111,6 +111,16 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
   function openArchive() {
     navigate('/app', { state: { openHistory: true, at: Date.now() } });
   }
+  // Пул-4 №1: видалення сесії. Активна видалена → свіжа сесія.
+  async function removeSession(e: React.MouseEvent, id: string, title: string | null) {
+    e.stopPropagation();
+    if (!confirm(`Видалити сесію${title ? ` «${title}»` : ''}? Розмова зникне; журнал готувань лишиться.`)) return;
+    try {
+      await api.session.remove(id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      if (id === activeSessionId) navigate('/app', { state: { freshSession: true, at: Date.now() } });
+    } catch {/* тихо: рядок лишиться, повторний тап спробує ще */}
+  }
 
   return (
     <div className={`${styles.wrap} ${desktopOnly ? styles['desktop-only'] : ''}`}>
@@ -162,15 +172,21 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
         {sessions.map((s) => {
           const { when, title } = sessionLabel(s);
           return (
-            <button
-              key={s.id}
-              className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`}
-              onClick={() => openSession(s.id)}
-              title={`${when} · ${title}`}
-            >
-              <span className={styles['session-when']}>{when}</span>
-              <span className={styles['session-title']}>{title}</span>
-            </button>
+            <div key={s.id} className={styles['session-row']}>
+              <button
+                className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`}
+                onClick={() => openSession(s.id)}
+                title={`${when} · ${title}`}
+              >
+                <span className={styles['session-when']}>{when}</span>
+                <span className={styles['session-title']}>{title}</span>
+              </button>
+              <button
+                className={styles['session-x']}
+                aria-label={`Видалити сесію «${title}»`}
+                onClick={(e) => void removeSession(e, s.id, s.title)}
+              >✕</button>
+            </div>
           );
         })}
         {sessions.length > 0 && (

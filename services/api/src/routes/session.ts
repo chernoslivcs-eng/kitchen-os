@@ -88,4 +88,20 @@ export function sessionRoutes(app: FastifyInstance, repo: Repo) {
       return { session, messages };
     },
   );
+
+  // Пул-4 №1: видалити сесію. Повідомлення й незакриті картки зникають,
+  // журнал лишається (cook_run.session_id відвʼязується). Жорстко і свідомо:
+  // сесія — розмова, не запас.
+  app.delete<{ Params: { id: string } }>(
+    '/v1/sessions/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const session = await repo.getSession(req.params.id);
+      if (!session) return reply.code(404).send({ error: 'not_found' });
+      if (session.user_id !== user_id) return reply.code(403).send({ error: 'not_yours' });
+      await repo.deleteSession(session.id);
+      return { deleted: true };
+    },
+  );
 }

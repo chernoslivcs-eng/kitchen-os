@@ -786,6 +786,16 @@ export class PostgresRepo implements Repo {
     }));
   }
 
+  async deleteSession(id: string): Promise<void> {
+    // pending без FK на message — чистимо вручну; message і cook_run
+    // прибирає/відвʼязує схема (CASCADE / SET NULL).
+    await this.pool.query(
+      'DELETE FROM card_pending WHERE message_id IN (SELECT id FROM message WHERE session_id = $1)',
+      [id],
+    );
+    await this.pool.query('DELETE FROM session WHERE id = $1', [id]);
+  }
+
   async getMessage(id: string): Promise<MessageRow | null> {
     const { rows } = await this.pool.query('SELECT * FROM message WHERE id = $1', [id]);
     const r = rows[0];

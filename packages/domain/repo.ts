@@ -116,6 +116,9 @@ export interface Repo {
   // Правка №6: cards-роут шукає повідомлення застосованої картки, щоб пост-кук
   // списання відповіло в ту саму сесію детермінованим «Як вийшло?».
   getMessage(id: string): Promise<MessageRow | null>;
+  // Пул-4 №1: видалення сесії — розмова зникає з повідомленнями і незакритими
+  // картками; журнал (cook_run) лишається, session_id відвʼязується.
+  deleteSession(id: string): Promise<void>;
   markMessageApplied(id: string, applied: number): Promise<void>;
 
   // Рецепти й приготування

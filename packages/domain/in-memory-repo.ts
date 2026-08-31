@@ -368,6 +368,18 @@ export class InMemoryRepo implements Repo {
   async listMessages(session_id: string): Promise<MessageRow[]> {
     return (this.messages.get(session_id) ?? []).map((m) => ({ ...m }));
   }
+  async deleteSession(id: string): Promise<void> {
+    const msgs = this.messages.get(id) ?? [];
+    for (const m of msgs) this.pending.delete(m.id);
+    this.messages.delete(id);
+    const sess = this.chatSessions.get(id);
+    if (sess) this.chatSessionsByUserDay.delete(`${sess.user_id}:${sess.day}`);
+    this.chatSessions.delete(id);
+    for (const [rid, run] of this.cookRuns) {
+      if (run.session_id === id) this.cookRuns.set(rid, { ...run, session_id: null });
+    }
+  }
+
   async getMessage(id: string): Promise<MessageRow | null> {
     for (const arr of this.messages.values()) {
       const m = arr.find((x) => x.id === id);

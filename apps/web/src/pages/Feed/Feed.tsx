@@ -668,6 +668,21 @@ export function Feed() {
                       {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
                     </div>
                   </div>
+                  {/* Пул-4 №1: видалення сесії просто з Історії. */}
+                  <span
+                    role="button"
+                    aria-label={`Видалити сесію «${s.title ?? dayLabel}»`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!confirm(`Видалити сесію «${s.title ?? dayLabel}»? Розмова зникне; журнал готувань лишиться.`)) return;
+                      void api.session.remove(s.id).then(() => {
+                        setHistorySessions((prev) => prev.filter((x) => x.id !== s.id));
+                        sessionStore.bump();
+                        if (s.id === sessionId) void startFreshSession();
+                      }).catch(() => {/* тихо */});
+                    }}
+                    style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
+                  >✕</span>
                   <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>
                 </button>
               );
