@@ -10,8 +10,9 @@
 // алергени, не дійшовши до обмеження (QA5-01).
 
 import { root, meaningfulWords } from '@kitchen/catalog';
+import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe } from './types.js';
-import type { HouseholdProduct } from './product.js';
+import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted } from './occasions.js';
 
 export interface RecentCookRunSummary {
@@ -113,8 +114,12 @@ export function serializePantry(
   const scored = active.map((b) => {
     const prod = b.product_id ? prodById.get(b.product_id) : undefined;
     const words = meaningfulWords(b.label).map(root);
-    // Тег АБО корінь: «камбоцола» без слова «молоко» ловиться тегом продукту.
-    const tagRoots = (prod?.tags.allergens ?? []).map(root);
+    // Три джерела ⚠: корінь у назві АБО тег продукту АБО алерген-групи
+    // каталогу через catalog_key («мідії» → «молюски» без жодного кореня).
+    const catGroups = prod?.catalog_key
+      ? catalogGroupsToAllergens(BY_KEY.get(prod.catalog_key)?.allergen_groups ?? [])
+      : [];
+    const tagRoots = [...(prod?.tags.allergens ?? []), ...catGroups].map(root);
     const hit = allergens
       .filter((a) =>
         words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w))

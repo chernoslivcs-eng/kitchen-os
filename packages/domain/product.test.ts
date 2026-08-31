@@ -3,7 +3,7 @@
 // трійки; нормалізація ловить регістр/пробіли, але не «схожість».
 
 import { describe, it, expect } from 'vitest';
-import { normalizeTriple, tripleKey, displayName } from './product.js';
+import { normalizeTriple, tripleKey, displayName, catalogGroupsToAllergens } from './product.js';
 
 describe('normalizeTriple', () => {
   it('трімить, стискає пробіли, порожнє → null', () => {
@@ -49,5 +49,21 @@ describe('normalizeTriple: плейсхолдери моделі — це null',
       expect(normalizeTriple({ product: 'молоко', brand: junk, variant: junk }).brand).toBe(null);
     }
     expect(normalizeTriple({ product: 'молоко', brand: 'Galbani' }).brand).toBe('Galbani');
+  });
+});
+
+// Каталог, крок 3: групи каталогу → канонічні теги тегера. Словники трьох
+// систем (каталог «молочне», тегер «молоко», профіль «лактоза») мусять
+// бачити одне одного — місток зводить їх до тегерових канонів.
+describe('catalogGroupsToAllergens', () => {
+  it('зводить синоніми до канону тегера', () => {
+    expect(catalogGroupsToAllergens(['молочне', 'лактоза'])).toEqual(['молоко']);
+    expect(catalogGroupsToAllergens(['глютен', 'яйця'])).toEqual(['глютен', 'яйця']);
+    expect(catalogGroupsToAllergens(['молюски', 'морепродукти', 'ракоподібні']))
+      .toEqual(['молюски', 'морепродукти', 'ракоподібні']);
+  });
+  it('порожнє і невідоме — без вигадок', () => {
+    expect(catalogGroupsToAllergens([])).toEqual([]);
+    expect(catalogGroupsToAllergens(['щось-нове'])).toEqual(['щось-нове']);
   });
 });

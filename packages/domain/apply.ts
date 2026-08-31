@@ -7,9 +7,10 @@
 // нічого в базу другого разу не запишеться. Це критично: сітка мобільна, повтори бувають.
 
 import { randomUUID } from 'node:crypto';
-import { resolveLabelToZone } from '@kitchen/catalog';
+import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
+import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
-import { normalizeTriple, displayName, type HouseholdProduct } from './product.js';
+import { normalizeTriple, displayName, catalogGroupsToAllergens, isCatalogFasting, type HouseholdProduct, type ProductTags } from './product.js';
 import type {
   Card,
   IntakeCard,
@@ -299,14 +300,28 @@ async function applyIntakeOp(
     if (triple.product) {
       product = await repo.findProductByTriple(household_id, triple);
       if (!product) {
+        // Каталог (кроки 2-3): key по аліасах + дефолти в ДІРКИ тегів.
+        // Межа жорстка: каталог дає властивості КЛАСУ (алергени,
+        // скоромність), ніколи екземпляра — бренд/варіант/назву не чіпає;
+        // модельні теги завжди перемагають каталожні.
+        const key = resolveLabelToKey(triple.product) ?? resolveLabelToKey(op.label);
+        const cat = key ? BY_KEY.get(key) : undefined;
+        const tags: ProductTags = { ...(op.tags ?? {}) };
+        if (cat) {
+          if (tags.allergens === undefined) {
+            const fromCat = catalogGroupsToAllergens(cat.allergen_groups);
+            if (fromCat.length) tags.allergens = fromCat;
+          }
+          if (tags.fasting === undefined && isCatalogFasting(cat)) tags.fasting = true;
+        }
         product = {
           id: randomUUID(),
           household_id,
           ...triple,
           unit: norm.unit === 'pack' ? null : norm.unit,
           pack_size: null,
-          tags: op.tags ?? {},
-          catalog_key: null,
+          tags,
+          catalog_key: key ?? null,
           created_at: new Date().toISOString(),
         };
         await repo.insertProduct(product);

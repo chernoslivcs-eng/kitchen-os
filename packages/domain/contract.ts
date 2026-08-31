@@ -143,6 +143,45 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(prod!.tags.allergens).toEqual(['молоко']);   // не затерлось
     });
 
+    // Каталог, кроки 2-3: продукт при народженні отримує catalog_key
+    // (резолвер по аліасах) і каталог-дефолти в ДІРКИ тегів. Межа жорстка:
+    // каталог дає властивості КЛАСУ (алергени, скоромність), ніколи —
+    // екземпляра (бренд/варіант/назву).
+    it('add: каталог дає key і алерген-дефолт, але не чіпає трійку і модельні теги', async () => {
+      const mid = randomUUID();
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card: {
+        type: 'intake_diff', ops: [
+          { op: 'add', label: 'камбоцола', value: 200, unit: 'g', zone: 'fridge', product: 'камбоцола' },
+        ],
+      } });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+      const b = (await ctx.repo.listBatches(ctx.household_id))[0]!;
+      const prod = (await ctx.repo.getProduct(b.product_id!))!;
+      expect(prod.catalog_key).toBe('cambozola_cheese');
+      expect(prod.tags.allergens).toContain('молоко');       // «молочне» → канон тегера
+      expect(prod.tags.fasting).toBe(true);                  // категорія «тваринне» → скоромне
+      // властивості екземпляра з каталогу НЕ приходять
+      expect(prod.brand).toBe(null);
+      expect(prod.variant).toBe(null);
+      expect(b.label).toBe('камбоцола');                     // слово юзера, не каталожна назва
+    });
+
+    it('add: модельні теги перемагають каталожні дефолти', async () => {
+      const mid = randomUUID();
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card: {
+        type: 'intake_diff', ops: [
+          { op: 'add', label: 'камбоцола', value: 200, unit: 'g', zone: 'fridge',
+            product: 'камбоцола', tags: { allergens: ['молоко'], lactose: 'low', fasting: false } },
+        ],
+      } });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+      const b = (await ctx.repo.listBatches(ctx.household_id))[0]!;
+      const prod = (await ctx.repo.getProduct(b.product_id!))!;
+      expect(prod.tags.lactose).toBe('low');
+      expect(prod.tags.fasting).toBe(false);                 // модель сказала — каталог мовчить
+      expect(prod.catalog_key).toBe('cambozola_cheese');     // key все одно резолвиться
+    });
+
     it('add без трійки: продукт формується з label (product=label, без бренду)', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [

@@ -129,3 +129,16 @@ describe('maskHistoryQuantities', () => {
     expect(maskHistoryQuantities('вершки 33% і сир 48%')).toBe('вершки 33% і сир 48%');
   });
 });
+
+// Каталог, крок 4: третє джерело ⚠ — алерген-групи каталогу через
+// catalog_key продукту. «М'ясо мідій» не містить кореня «молюск» у назві,
+// а продукт міг народитися без тегів (ручне додавання) — каталог страхує.
+describe('serializePantry: алерген з каталогу', () => {
+  it('«мідії» ловляться профільною алергією «молюски» через catalog_key', () => {
+    const p: Profile = { user_id: 'u1', allergies: ['молюски'], wishes: [], antipatterns: [], equipment: {} };
+    const prod = product({ id: 'pm', product: 'мʼясо мідій', tags: {}, catalog_key: 'mussel_meat' });
+    const b = batch({ label: 'Karolina мʼясо мідій', product_id: 'pm', zone: 'freezer' });
+    const out = serializePantry([b], p, NOW, [], false, 'none', 120, [prod]);
+    expect(out).toContain('⚠АЛЕРГЕН');
+  });
+});
