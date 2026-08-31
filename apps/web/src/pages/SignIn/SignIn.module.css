@@ -36,6 +36,30 @@
 }
 
 .form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+
+/* Google-вхід: розділювач «або» + кнопка з кольоровою G-маркою. */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 12px;
+  color: var(--fg-dim);
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
 .foot {
   font-family: var(--font-body);
   font-size: 12px;

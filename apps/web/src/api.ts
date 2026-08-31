@@ -130,6 +130,7 @@ export const api = {
         body: JSON.stringify(next ? { email, next } : { email }),
       }),
     logout: () => req<null>('/v1/auth/logout', { method: 'POST', body: '{}' }),
+    providers: () => req<{ google: boolean }>('/v1/auth/providers'),
   },
 
   me: () => req<Me>('/v1/me'),

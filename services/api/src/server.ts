@@ -20,6 +20,7 @@ import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
+import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
 
 export interface BuildAppOpts {
   rateLimits?: {
@@ -28,6 +29,7 @@ export interface BuildAppOpts {
     chat?: RateLimitCfg;
     shopping?: RateLimitCfg;
   };
+  google?: GoogleAuthOpts;
 }
 
 export function buildApp(
@@ -53,6 +55,7 @@ export function buildApp(
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
   authRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.authRequest });
+  googleAuthRoutes(app, repo, opts.google);
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
   pantryRoute(app, repo);
@@ -128,7 +131,10 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
   }
   const store: AttachmentStore = pickStore();
   const mailer: Mailer = pickMailer();
-  return buildApp(repo, store, mailer);
+  const google = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET }
+    : undefined;
+  return buildApp(repo, store, mailer, { google });
 }
 
 // entrypoint

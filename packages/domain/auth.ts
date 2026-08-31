@@ -99,7 +99,21 @@ export async function verifyChallenge(repo: Repo, raw_token: string, ip?: string
 
   await repo.consumeChallenge(challenge.id);
 
-  const existing = await repo.findUserByEmail(challenge.email);
+  const result = await signInWithVerifiedEmail(repo, challenge.email, challenge.email.split('@')[0] ?? 'Anon', ip, user_agent);
+  return { ok: true, result };
+}
+
+// Спільне ядро входу для будь-якого способу, що ДОВІВ володіння мейлом
+// (magic-link, Google OAuth). Знайти юзера або створити з власним домом,
+// відкрити сесію.
+export async function signInWithVerifiedEmail(
+  repo: Repo,
+  email: string,
+  displayName: string,
+  ip?: string | null,
+  user_agent?: string | null,
+): Promise<VerifyChallengeResult> {
+  const existing = await repo.findUserByEmail(email);
   let user_id: string;
   let household_id: string;
   if (existing) {
@@ -112,13 +126,13 @@ export async function verifyChallenge(repo: Repo, raw_token: string, ip?: string
   } else {
     // Перший вхід за власним email == оформлення підписки: створюємо власний дім,
     // юзер там owner. У майбутньому ця гілка привʼяжеться до оплати; зараз безкоштовно.
-    const created = await repo.createUserWithHousehold(challenge.email, challenge.email.split('@')[0] ?? 'Anon');
+    const created = await repo.createUserWithHousehold(email, displayName);
     user_id = created.user_id;
     household_id = created.household_id;
   }
 
   const { session, raw_cookie } = await openSession(repo, user_id, ip, user_agent);
-  return { ok: true, result: { session, raw_cookie, user_id, household_id } };
+  return { session, raw_cookie, user_id, household_id };
 }
 
 // Читає cookie, повертає активний контекст. Прокручує expires_at, коли сесія жива —
