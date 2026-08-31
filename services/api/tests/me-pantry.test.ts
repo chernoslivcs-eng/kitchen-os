@@ -43,8 +43,8 @@ describe('GET /v1/me + /v1/pantry', () => {
       headers: { cookie: A.cookie },
       payload: { email: 'b@example.com' },
     });
-    const url = new URL(mailer.last()!.link);
-    const accept = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    const tok = new URL(mailer.last()!.link).searchParams.get('token')!;
+    const accept = await app.inject({ method: 'GET', url: `/v1/invites/accept?token=${encodeURIComponent(tok)}` });
     const setCookie = accept.headers['set-cookie']!;
     const bCookie = (Array.isArray(setCookie) ? setCookie[0]! : setCookie).split(';')[0]!;
 
@@ -110,8 +110,8 @@ describe('GET /v1/me + /v1/pantry', () => {
       method: 'POST', url: `/v1/households/${A.household_id}/invite`,
       headers: { cookie: A.cookie }, payload: { email: 'b@example.com' },
     });
-    const url = new URL(mailer.last()!.link);
-    const accept = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    const tok = new URL(mailer.last()!.link).searchParams.get('token')!;
+    const accept = await app.inject({ method: 'GET', url: `/v1/invites/accept?token=${encodeURIComponent(tok)}` });
     const setCookie = accept.headers['set-cookie']!;
     const bCookie = (Array.isArray(setCookie) ? setCookie[0]! : setCookie).split(';')[0]!;
 

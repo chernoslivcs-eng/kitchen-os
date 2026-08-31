@@ -312,6 +312,13 @@ export const api = {
   invites: {
     revoke: (id: string) =>
       req<null>(`/v1/invites/${id}/revoke`, { method: 'POST', body: '{}' }),
+    // Пул-5 №2: сторінка /invite — read-only інфо і явне прийняття.
+    info: (token: string) =>
+      req<{ email: string; household_name: string; role: string }>(
+        `/v1/invites/info?token=${encodeURIComponent(token)}`),
+    accept: (token: string) =>
+      req<{ ok: true; user_id: string; household_id: string }>(
+        `/v1/invites/accept?token=${encodeURIComponent(token)}`),
   },
 };
 

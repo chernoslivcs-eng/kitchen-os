@@ -13,6 +13,7 @@ import { SharePage } from './pages/Share/Share';
 import { CookLogPage } from './pages/CookLog/CookLog';
 import { RecipesPage } from './pages/Recipes/Recipes';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
+import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
 import { useAuth } from './store/auth';
 
@@ -73,6 +74,7 @@ export function App() {
           <Route path="/cooklog" element={<RequireAuth><CookLogPage /></RequireAuth>} />
           <Route path="/recipes" element={<RequireAuth><RecipesPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />
+          <Route path="/invite" element={<InvitePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         <CookHost />

@@ -91,9 +91,18 @@ export function buildApp(
       db = 'error';
     }
     if (db === 'error') return reply.code(503).send({ ok: false, db });
+    // Пул-5 №3: промпти вантажимо РЕАЛЬНО. Інцидент versions/versions на
+    // проді: чат лежав, а health друкував константу і брехав, що все ок.
+    let promptVersion: string;
+    try {
+      const { loadPrompt } = await import('@kitchen/prompts');
+      promptVersion = loadPrompt().version;
+    } catch (e) {
+      return reply.code(503).send({ ok: false, db, prompt_error: (e as Error).message });
+    }
     return {
       ok: true,
-      prompt: process.env.PROMPT_VERSION ?? '(latest)',
+      prompt: promptVersion,
       model_provider: provider,
       attachments: attachmentMode,
       mailer: mailerMode,

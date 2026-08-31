@@ -9,7 +9,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo, HouseholdRole } from '@kitchen/domain';
-import { createInvite, acceptInvite, INVITE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
+import { createInvite, acceptInvite, inviteInfo, INVITE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { COOKIE_NAME } from './auth.js';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -59,7 +59,9 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
       const { invite, raw_token } = await createInvite(repo, {
         household_id, invited_by: user_id, email, role,
       });
-      const link = `${baseUrl()}/v1/invites/accept?token=${encodeURIComponent(raw_token)}`;
+      // Пул-5 №2: лист веде на фронтову сторінку — там людина бачить, куди її
+      // запрошують, і приймає явним кліком. Токен споживається тільки тоді.
+      const link = `${baseUrl()}/invite?token=${encodeURIComponent(raw_token)}`;
       await mailer.sendMagicLink({
         to: email,
         link,
@@ -180,9 +182,22 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
     },
   );
 
+  // Read-only інфо для сторінки /invite: без побічних ефектів, скільки завгодно разів.
+  app.get<{ Querystring: { token?: string } }>('/v1/invites/info', async (req, reply) => {
+    const raw = req.query.token;
+    if (!raw) return reply.code(400).send({ error: 'token required' });
+    const info = await inviteInfo(repo, raw);
+    if (!info) return reply.code(404).send({ error: 'invite not available' });
+    return reply.send(info);
+  });
+
   app.get<{ Querystring: { token?: string; next?: string } }>('/v1/invites/accept', async (req, reply) => {
     const raw = req.query.token;
     if (!raw) return reply.code(400).send({ error: 'token required' });
+    // Браузерний клік по старому лінку з листа — НЕ споживаємо токен, ведемо
+    // на сторінку рішення. Програмний accept (фронт/тести) іде без text/html.
+    const wantsHtml = /text\/html/i.test(String(req.headers.accept ?? ''));
+    if (wantsHtml) return reply.redirect(`/invite?token=${encodeURIComponent(raw)}`);
     const out = await acceptInvite(repo, raw, req.ip, req.headers['user-agent'] ?? null);
     if (!out.ok) {
       const code = out.reason === 'expired' ? 410

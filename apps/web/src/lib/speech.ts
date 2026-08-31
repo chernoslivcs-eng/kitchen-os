@@ -76,8 +76,19 @@ export function startDictation(handlers: {
   let sessionFinal = '';        // фінали поточного сеансу
   let rec: SpeechRecognitionLike | null = null;
 
-  const compose = (interim = '') =>
-    `${accumulated} ${sessionFinal} ${interim}`.replace(/\s+/g, ' ').trim();
+  // Пул-5 №4: захист від дублювання. (а) Після авто-рестарту деякі браузери
+  // (iOS Safari) віддають ПОВНИЙ транскрипт знову — якщо новий сеанс уже
+  // містить накопичене як префікс, він ЗАМІНЮЄ накопичене, а не додається.
+  const compose = (interim = '') => {
+    const a = accumulated.trim();
+    const s = sessionFinal.trim();
+    let base: string;
+    if (!a) base = s;
+    else if (!s) base = a;
+    else if (s === a || s.startsWith(`${a} `)) base = s;   // кумулятивний повтор
+    else base = `${a} ${s}`;
+    return `${base} ${interim}`.replace(/\s+/g, ' ').trim();
+  };
 
   function spawn(): boolean {
     const r = new C!();
@@ -96,7 +107,17 @@ export function startDictation(handlers: {
         if (res.isFinal) finals.set(e.resultIndex + i, res[0].transcript);
         else interim += res[0].transcript;
       }
-      sessionFinal = [...finals.entries()].sort((a, b) => a[0] - b[0]).map(([, t]) => t).join(' ');
+      // (б) iOS повторює той самий фінал під новими індексами — сусідні
+      // ідентичні сегменти схлопуємо: людина, що двічі каже одне й те саме
+      // РЕЧЕННЯ поспіль без паузи, у диктовці покупок не трапляється, а
+      // браузерний дубль — постійно.
+      const ordered = [...finals.entries()].sort((a, b) => a[0] - b[0]).map(([, t]) => t.trim()).filter(Boolean);
+      const deduped: string[] = [];
+      for (const seg of ordered) {
+        if (deduped.length && deduped[deduped.length - 1] === seg) continue;
+        deduped.push(seg);
+      }
+      sessionFinal = deduped.join(' ');
       handlers.onText(compose(interim));
     };
 

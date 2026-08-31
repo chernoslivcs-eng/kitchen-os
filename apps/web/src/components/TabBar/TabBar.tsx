@@ -4,6 +4,7 @@ import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo } from '../../api';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
+import { usePantryStore } from '../../store/pantry';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import styles from './TabBar.module.css';
 import { useCookStore } from '../../store/cook';
@@ -42,15 +43,18 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
   const meName = useAuth((s) => s.me?.user?.name ?? null);
 
   const [pantryCount, setPantryCount] = useState<number | null>(pantryCountCache?.value ?? null);
+  // Пул-5 №5: bump від Feed (apply/undo картки) скидає кеш — лічильник у
+  // сайдбарі оновлюється одразу, а не за 60с чи по зміні маршруту.
+  const pantryVersion = usePantryStore((s) => s.version);
   useEffect(() => {
-    if (pantryCountCache && Date.now() - pantryCountCache.at < 60_000) return;
+    if (pantryVersion === 0 && pantryCountCache && Date.now() - pantryCountCache.at < 60_000) return;
     api.pantry()
       .then(({ count }) => {
         pantryCountCache = { value: count, at: Date.now() };
         setPantryCount(count);
       })
       .catch(() => {/* сайдбар без лічильника — не трагедія */});
-  }, [pathname]);
+  }, [pathname, pantryVersion]);
 
   // На десктопі таб-бар стає sidebar-ом ліворуч. Ставимо клас на <body> щоб
   // головні screens зсунулись праворуч (див. tokens.css). Знімаємо при

@@ -59,6 +59,23 @@ export type AcceptOutcome =
   | { ok: true; result: AcceptInviteResult }
   | { ok: false; reason: 'not_found' | 'expired' | 'consumed' | 'revoked' };
 
+// Пул-5 №2: read-only інфо для фронтової сторінки /invite — людина бачить,
+// куди і кого запрошують, ПЕРЕД рішенням. Токен не споживається.
+export interface InviteInfo {
+  email: string;
+  household_name: string;
+  role: string;
+}
+
+export async function inviteInfo(repo: Repo, raw_token: string): Promise<InviteInfo | null> {
+  const inv = await repo.getInviteByHash(hashToken(raw_token));
+  if (!inv || inv.revoked_at || inv.consumed_at) return null;
+  if (new Date(inv.expires_at).getTime() < Date.now()) return null;
+  const hh = await repo.getHousehold(inv.household_id);
+  if (!hh) return null;
+  return { email: inv.email, household_name: hh.name, role: inv.role };
+}
+
 export async function acceptInvite(
   repo: Repo,
   raw_token: string,

@@ -14,6 +14,7 @@ import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type Me
 import { Card, labelFor, appliedToast } from './cards';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
+import { usePantryStore } from '../../store/pantry';
 import { Avatar } from '../../components/Avatar/Avatar';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
@@ -214,6 +215,9 @@ export function Feed() {
         && Date.now() - new Date(r.finished_at ?? r.started_at).getTime() < 48 * 3600_000);
       setUnratedRun(fresh ? { id: fresh.id, title: fresh.recipe.title, session_id: fresh.session_id ?? null } : null);
       setPantryCount(p.count);
+      // Пул-5 №5: сайдбар теж дізнається про свіжий лічильник — bump скидає
+      // його кеш і TabBar перечитує (патерн useSessionStore).
+      usePantryStore.getState().bump();
       // Мапа id→label: рецепт-повідомлення показує «Вершки 33%», а не «з комори».
       setBatchLabels(new Map(p.batches.map((b) => [b.id, b.label])));
       setStepLabels(stepLabelsFrom(p.batches, p.products));

@@ -6,8 +6,10 @@ import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
 
 async function acceptInvite(app: ReturnType<typeof buildApp>, mailer: ConsoleMailer): Promise<string> {
-  const url = new URL(mailer.last()!.link);
-  const res = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+  // Пул-5 №2: лист веде на фронтову сторінку /invite — тест дістає токен і
+  // приймає програмно, як робить кнопка «Прийняти» на тій сторінці.
+  const token = new URL(mailer.last()!.link).searchParams.get('token')!;
+  const res = await app.inject({ method: 'GET', url: `/v1/invites/accept?token=${encodeURIComponent(token)}` });
   const setCookie = res.headers['set-cookie']!;
   const cookieRaw = Array.isArray(setCookie) ? setCookie[0]! : setCookie;
   return cookieRaw.split(';')[0]!;
@@ -42,8 +44,8 @@ describe('household invite', () => {
     const invBody = inv.json();
     expect(invBody.email).toBe('b@example.com');
 
-    const url = new URL(mailer.last()!.link);
-    const accept = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    const tok = new URL(mailer.last()!.link).searchParams.get('token')!;
+    const accept = await app.inject({ method: 'GET', url: `/v1/invites/accept?token=${encodeURIComponent(tok)}` });
     expect(accept.statusCode).toBe(200);
     const body = accept.json();
     expect(body.household_id).toBe(A.household_id);
@@ -99,7 +101,7 @@ describe('household invite', () => {
       payload: { email: 'b@example.com' },
     });
     const { id } = inv.json();
-    const link = mailer.last()!.link;
+    const link = `/v1/invites/accept?token=${encodeURIComponent(new URL(mailer.last()!.link).searchParams.get('token')!)}`;
 
     const rev = await app.inject({
       method: 'POST',
@@ -108,8 +110,7 @@ describe('household invite', () => {
     });
     expect(rev.statusCode).toBe(204);
 
-    const url = new URL(link);
-    const accept = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    const accept = await app.inject({ method: 'GET', url: link });
     expect(accept.statusCode).toBe(410);
     expect(accept.json().error).toBe('revoked');
   });
@@ -123,10 +124,11 @@ describe('household invite', () => {
       headers: { cookie: A.cookie },
       payload: { email: 'b@example.com' },
     });
-    const url = new URL(mailer.last()!.link);
-    const first = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    const tok = new URL(mailer.last()!.link).searchParams.get('token')!;
+    const acceptUrl = `/v1/invites/accept?token=${encodeURIComponent(tok)}`;
+    const first = await app.inject({ method: 'GET', url: acceptUrl });
     expect(first.statusCode).toBe(200);
-    const second = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    const second = await app.inject({ method: 'GET', url: acceptUrl });
     expect(second.statusCode).toBe(410);
   });
 
@@ -188,8 +190,8 @@ describe('household invite', () => {
       headers: { cookie: A.cookie },
       payload: { email: 'b@example.com' },
     });
-    const url = new URL(mailer.last()!.link);
-    const accept = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}` });
+    const tok = new URL(mailer.last()!.link).searchParams.get('token')!;
+    const accept = await app.inject({ method: 'GET', url: `/v1/invites/accept?token=${encodeURIComponent(tok)}` });
     expect(accept.statusCode).toBe(200);
     expect(accept.json().already_member).toBe(true);
   });
