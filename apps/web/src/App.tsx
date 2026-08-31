@@ -17,6 +17,7 @@ import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
 import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
+import { GlobalCookAlarm } from './lib/cook-watch';
 
 // Пул-7 №6: сайдбар — спільний каркас, не елемент сторінки. TabBar живе тут
 // ОДИН раз (кінець блиманню і повторним фетчам на кожній навігації), сторінки
@@ -99,6 +100,8 @@ export function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         <CookHost />
+        {/* Пул-7 №1: таймер, що вибіг поза Cook Mode, дзвонить звідусіль. */}
+        <GlobalCookAlarm />
       </Boot>
     </BrowserRouter>
   );

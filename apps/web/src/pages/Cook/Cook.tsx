@@ -90,7 +90,11 @@ export function CookOverlay() {
   // а заморожена вкладка наздоганяє час першим же тіком. Це ж робить точним
   // відновлення сесії (QA8-06): зберігаємо залишок, порахований з дедлайну.
   const deadlineRef = useRef<number | null>(null);
+  // Пул-7 №1: дзеркало running для unmount-запису — стан у cleanup замкнутий,
+  // а знімок рендера дедлайну ще не бачить (ефект ставить його ПІСЛЯ рендера).
+  const runningRef = useRef(false);
   useEffect(() => {
+    runningRef.current = running;
     if (!running) {
       if (tickRef.current != null) window.clearInterval(tickRef.current);
       tickRef.current = null;
@@ -123,8 +127,17 @@ export function CookOverlay() {
     const saved = loadCookSession();
     if (saved && recipe && saved.recipe.t === recipe.t && saved.stepIdx < recipe.st.length) {
       setStepIdx(saved.stepIdx);
-      setSecondsLeft(saved.secondsLeft);
-      setRunning(false);   // таймер на паузі — час не відмотується
+      // Пул-7 №1: дедлайн живий → рахунок ішов увесь цей час і продовжує йти;
+      // дедлайн минув → 0:00, алярм наздожене ефектом нуля. Пауза (без
+      // дедлайна) — як і раніше, з збереженим залишком.
+      if (saved.deadline) {
+        const left = Math.max(0, Math.ceil((saved.deadline - Date.now()) / 1000));
+        setSecondsLeft(left);
+        setRunning(left > 0);
+      } else {
+        setSecondsLeft(saved.secondsLeft);
+        setRunning(false);
+      }
     } else if (saved && recipe && saved.recipe.t !== recipe.t) {
       // QA8-07: тут живе ІНШЕ незавершене готування. Мовчки затерти його —
       // втратити чиїсь пів рецепта. Питаємо; відмова повертає до стрічки,
@@ -162,6 +175,44 @@ export function CookOverlay() {
       void lock?.release().catch(() => {});
     };
   }, []);
+
+  // Пул-7 №1: звуковий супровід відліку — ДУЖЕ легкий (юзер: «дуууже
+  // легкі»): тік щосекунди ледь чутний, 5-кратні трохи помітніші, межа
+  // хвилини — м'який подвійний. Тільки поки таймер біжить і попап відкритий.
+  const softTick = (kind: 'sec' | 'five' | 'minute') => {
+    try {
+      type AC = typeof AudioContext;
+      const Ctx: AC | undefined = window.AudioContext
+        ?? (window as { webkitAudioContext?: AC }).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const blip = (at: number, freq: number, gain: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+        g.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + at + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + dur);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(ctx.currentTime + at); osc.stop(ctx.currentTime + at + dur + 0.02);
+      };
+      if (kind === 'sec') blip(0, 2100, 0.012, 0.03);
+      else if (kind === 'five') blip(0, 1400, 0.025, 0.05);
+      else { blip(0, 1000, 0.04, 0.06); blip(0.09, 1400, 0.04, 0.06); }
+      window.setTimeout(() => void ctx.close(), 400);
+    } catch { /* без звуку */ }
+  };
+  const prevSecRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!running || secondsLeft <= 0) { prevSecRef.current = secondsLeft; return; }
+    if (prevSecRef.current !== null && secondsLeft !== prevSecRef.current) {
+      if (secondsLeft % 60 === 0) softTick('minute');
+      else if (secondsLeft % 5 === 0) softTick('five');
+      else softTick('sec');
+    }
+    prevSecRef.current = secondsLeft;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft, running]);
 
   // DA2-08: таймер, який мовчить, — це таймер, якого немає. Кіт: сигнал
   // повторюється кожні 30с, поки людина не підтвердить (будь-яка дія кроку).
@@ -220,7 +271,8 @@ export function CookOverlay() {
   sessionSnapRef.current = { stepIdx, secondsLeft };
   useEffect(() => {
     if (!recipe || finishedRef.current) return;
-    saveCookSession({ recipe, stepIdx, secondsLeft, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+    // Пул-7 №1: running → пишемо дедлайн, рахунок живе поза попапом.
+    saveCookSession({ recipe, stepIdx, secondsLeft, deadline: running ? deadlineRef.current : null, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIdx, running]);
   // QA8-06: «Вийти» за 20 секунд до кінця повертало повний таймер — запис
@@ -229,7 +281,11 @@ export function CookOverlay() {
     if (!recipe) return;
     return () => {
       const snap = sessionSnapRef.current;
-      if (!finishedRef.current) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: snap.secondsLeft, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+      // Пул-7 №1: дедлайн беремо з рефів у момент виходу (знімок рендера
+      // відстає на один ефект — вихід одразу після «Пуск» губив би рахунок).
+      const dl = runningRef.current ? deadlineRef.current : null;
+      const left = dl != null ? Math.max(0, Math.ceil((dl - Date.now()) / 1000)) : snap.secondsLeft;
+      if (!finishedRef.current) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: left, deadline: dl, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.t]);
@@ -414,7 +470,12 @@ export function CookOverlay() {
                     <button
                       className={styles.secondary}
                       onClick={() => {
-                        if (deadlineRef.current != null) deadlineRef.current += 60_000;
+                        if (deadlineRef.current != null) {
+                          deadlineRef.current += 60_000;
+                          // Пул-7 №1: сесія несе дедлайн — банери/вартовий
+                          // мусять побачити +хвилину одразу, не на паузі.
+                          saveCookSession({ recipe, stepIdx, secondsLeft: secondsLeft + 60, deadline: deadlineRef.current, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+                        }
                         setSecondsLeft((s) => s + 60);
                       }}
                     >

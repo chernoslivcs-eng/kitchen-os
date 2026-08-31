@@ -20,6 +20,7 @@ import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
+import { CookCountdown } from '../../lib/cook-watch';
 import { stepLabelsFrom } from '../../lib/recipe';
 import styles from './Feed.module.css';
 import { useCookStore } from '../../store/cook';
@@ -687,6 +688,7 @@ export function Feed() {
             <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
             <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
               Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
+              <CookCountdown deadline={cookLive.deadline} />
             </span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
               Продовжити ›

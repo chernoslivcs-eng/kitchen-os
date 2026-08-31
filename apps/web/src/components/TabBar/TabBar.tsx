@@ -7,6 +7,7 @@ import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { RollingNumber } from '../RollingNumber/RollingNumber';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
+import { CookCountdown } from '../../lib/cook-watch';
 import styles from './TabBar.module.css';
 import { useCookStore } from '../../store/cook';
 
@@ -197,7 +198,8 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
             <span className={styles['cook-live-text']}>
               <span className={styles['cook-live-title']}>{cookLive.recipe.t}</span>
               <span className={styles['cook-live-meta']}>
-                крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length} · продовжити ›
+                крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
+                <CookCountdown deadline={cookLive.deadline} /> · продовжити ›
               </span>
             </span>
           </button>

@@ -54,3 +54,32 @@ test('таймер точний, кроки ходять, resume після ви
   await page.evaluate(() => localStorage.removeItem('kos-cook-live'));
   await page.request.delete(`/v1/recipes/${id}`);
 });
+
+// Пул-7 №1: «не зупиняти таймер». Вихід із запущеним таймером зберігає
+// ДЕДЛАЙН; повернення відновлює живий рахунок (кнопка «Пауза», залишок
+// зменшився), а не паузу.
+test('глобальний таймер: вихід не зупиняє рахунок, resume продовжує', async ({ page }) => {
+  const created = await page.request.post('/v1/recipes', { data: { recipe: RECIPE } });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+
+  await page.goto(`/recipe/${id}`);
+  await page.getByRole('button', { name: 'Cook Mode' }).click();
+  await page.getByRole('button', { name: 'Пуск' }).click();
+  await page.getByRole('button', { name: /Вийти/ }).click();
+
+  const raw = await page.evaluate(() => localStorage.getItem('kos-cook-live'));
+  const saved = JSON.parse(raw!) as { deadline?: number | null };
+  expect(typeof saved.deadline).toBe('number');
+  expect(saved.deadline!).toBeGreaterThan(Date.now());
+
+  // ~3с поза попапом — рахунок ішов далі
+  await page.waitForTimeout(3100);
+  await page.getByRole('button', { name: 'Cook Mode' }).click();
+  await expect(page.getByRole('button', { name: 'Пауза' })).toBeVisible();
+  const val = await page.locator('div', { hasText: /^1:5\d$/ }).last().textContent();
+  expect(Number(val!.split(':')[1])).toBeLessThanOrEqual(58);
+
+  await page.evaluate(() => localStorage.removeItem('kos-cook-live'));
+  await page.request.delete(`/v1/recipes/${id}`);
+});
