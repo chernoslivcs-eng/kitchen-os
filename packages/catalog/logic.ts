@@ -81,9 +81,15 @@ export function itemMatchesAntipattern(item: CatalogItem, phrase: string): boole
 //   pantry   — посилання на партію (перевірка належності, без здогадок)
 //   catalog  — канонічний ключ (точний збіг за нормалізованою назвою чи аліасом)
 //   external — назва з кулінарного світу (евристика; тут — те саме alias-match зі score)
+// priority — тай-брейкер за рівного score (див. CatalogItem.priority).
+// Потрібен, бо на 2000+ позиціях той самий аліас іноді ведуть дві позиції
+// («розмарин» — свіжий і сушений). За рівних score і priority виграє той, хто
+// раніше в масиві, — тобто стартові 131 завжди попереду.
+const prio = (item: CatalogItem): number => item.priority ?? 0;
+
 export function resolveLabelToKey(label: string, catalog = CATALOG): string | null {
   const norm = normalize(label);
-  let best: { key: string; score: number } | null = null;
+  let best: { key: string; score: number; priority: number } | null = null;
   for (const item of catalog) {
     const candidates = [item.name, ...item.aliases].map(normalize);
     for (const c of candidates) {
@@ -92,7 +98,10 @@ export function resolveLabelToKey(label: string, catalog = CATALOG): string | nu
       if (c === norm) score = 100;
       else if (norm.includes(c)) score = 60 + c.length; // «Karolina — мʼясо мідій» містить «мʼясо мідій»
       else if (c.includes(norm)) score = 40 + norm.length;
-      if (score > (best?.score ?? 0)) best = { key: item.key, score };
+      if (score <= 0) continue;
+      if (!best || score > best.score || (score === best.score && prio(item) > best.priority)) {
+        best = { key: item.key, score, priority: prio(item) };
+      }
     }
   }
   return best && best.score >= 40 ? best.key : null;
@@ -136,5 +145,6 @@ export function search(query: string, catalog = CATALOG): SearchHit[] {
       hits.push({ item, layer: 'root', score: 50 });
     }
   }
-  return hits.sort((a, b) => b.score - a.score);
+  // За рівного score вирішує priority; за рівного priority — порядок у масиві (sort стабільний).
+  return hits.sort((a, b) => b.score - a.score || prio(b.item) - prio(a.item));
 }

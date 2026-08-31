@@ -1,0 +1,615 @@
+{
+ "files": {
+  "01-meat.ndjson": {
+   "read": 150,
+   "kept": 150,
+   "dropped": 0
+  },
+  "02-charcuterie.ndjson": {
+   "read": 110,
+   "kept": 110,
+   "dropped": 0
+  },
+  "03-fish.ndjson": {
+   "read": 120,
+   "kept": 120,
+   "dropped": 0
+  },
+  "04-cheese.ndjson": {
+   "read": 110,
+   "kept": 110,
+   "dropped": 0
+  },
+  "05-dairy.ndjson": {
+   "read": 110,
+   "kept": 110,
+   "dropped": 0
+  },
+  "06-veg.ndjson": {
+   "read": 130,
+   "kept": 130,
+   "dropped": 0
+  },
+  "07-fruit.ndjson": {
+   "read": 110,
+   "kept": 110,
+   "dropped": 0
+  },
+  "08-greens-legumes.ndjson": {
+   "read": 84,
+   "kept": 84,
+   "dropped": 0
+  },
+  "09-grain.ndjson": {
+   "read": 180,
+   "kept": 180,
+   "dropped": 0
+  },
+  "10-nuts-oils.ndjson": {
+   "read": 80,
+   "kept": 80,
+   "dropped": 0
+  },
+  "11-spices.ndjson": {
+   "read": 150,
+   "kept": 150,
+   "dropped": 0
+  },
+  "12-sauces.ndjson": {
+   "read": 93,
+   "kept": 93,
+   "dropped": 0
+  },
+  "13-canned.ndjson": {
+   "read": 100,
+   "kept": 100,
+   "dropped": 0
+  },
+  "14-frozen.ndjson": {
+   "read": 80,
+   "kept": 80,
+   "dropped": 0
+  },
+  "15-sweets.ndjson": {
+   "read": 150,
+   "kept": 150,
+   "dropped": 0
+  },
+  "16-coffee-tea.ndjson": {
+   "read": 90,
+   "kept": 90,
+   "dropped": 0
+  },
+  "17-drinks.ndjson": {
+   "read": 110,
+   "kept": 110,
+   "dropped": 0
+  },
+  "18-alcohol.ndjson": {
+   "read": 108,
+   "kept": 108,
+   "dropped": 0
+  },
+  "19-baby.ndjson": {
+   "read": 60,
+   "kept": 60,
+   "dropped": 0
+  },
+  "20-household.ndjson": {
+   "read": 120,
+   "kept": 120,
+   "dropped": 0
+  }
+ },
+ "dropped": [],
+ "renamedKeys": [],
+ "strippedAliases": [],
+ "collisions": [
+  [
+   "шийка свиняча",
+   "pork_neck",
+   [
+    "smoked_neck_pork"
+   ]
+  ],
+  [
+   "корейка свиняча",
+   "pork_loin",
+   [
+    "smoked_loin_pork"
+   ]
+  ],
+  [
+   "корейка",
+   "pork_loin",
+   [
+    "smoked_loin_pork"
+   ]
+  ],
+  [
+   "окіст свинячий",
+   "pork_ham_leg",
+   [
+    "smoked_ham_hock"
+   ]
+  ],
+  [
+   "окіст",
+   "pork_ham_leg",
+   [
+    "smoked_ham_hock"
+   ]
+  ],
+  [
+   "окосту",
+   "pork_ham_leg",
+   [
+    "smoked_ham_hock"
+   ]
+  ],
+  [
+   "грудинка свиняча",
+   "pork_belly",
+   [
+    "smoked_brisket_pork"
+   ]
+  ],
+  [
+   "рулька свиняча",
+   "pork_knuckle",
+   [
+    "smoked_knuckle"
+   ]
+  ],
+  [
+   "рулька",
+   "pork_knuckle",
+   [
+    "smoked_knuckle"
+   ]
+  ],
+  [
+   "грудинка яловича",
+   "beef_brisket",
+   [
+    "smoked_beef_brisket"
+   ]
+  ],
+  [
+   "brisket",
+   "beef_brisket",
+   [
+    "smoked_beef_brisket"
+   ]
+  ],
+  [
+   "magret",
+   "duck_breast",
+   [
+    "smoked_duck_breast"
+   ]
+  ],
+  [
+   "язик яловичий",
+   "offal_beef_tongue",
+   [
+    "ham_beef_tongue"
+   ]
+  ],
+  [
+   "яловичий язик",
+   "offal_beef_tongue",
+   [
+    "ham_beef_tongue"
+   ]
+  ],
+  [
+   "язика яловичого",
+   "offal_beef_tongue",
+   [
+    "ham_beef_tongue"
+   ]
+  ],
+  [
+   "beef tongue",
+   "offal_beef_tongue",
+   [
+    "ham_beef_tongue"
+   ]
+  ],
+  [
+   "балик",
+   "smoked_balyk",
+   [
+    "fish_balyk_salmon"
+   ]
+  ],
+  [
+   "balyk",
+   "smoked_balyk",
+   [
+    "fish_balyk_salmon"
+   ]
+  ],
+  [
+   "розмарин",
+   "herb_rosemary_fresh",
+   [
+    "spice_rosemary_dried"
+   ]
+  ],
+  [
+   "розмарину",
+   "herb_rosemary_fresh",
+   [
+    "spice_rosemary_dried"
+   ]
+  ],
+  [
+   "rosemary",
+   "herb_rosemary_fresh",
+   [
+    "spice_rosemary_dried"
+   ]
+  ],
+  [
+   "чебрець",
+   "herb_thyme_fresh",
+   [
+    "spice_thyme_dried"
+   ]
+  ],
+  [
+   "чебрецю",
+   "herb_thyme_fresh",
+   [
+    "spice_thyme_dried"
+   ]
+  ],
+  [
+   "тимян",
+   "herb_thyme_fresh",
+   [
+    "spice_thyme_dried"
+   ]
+  ],
+  [
+   "thyme",
+   "herb_thyme_fresh",
+   [
+    "spice_thyme_dried"
+   ]
+  ],
+  [
+   "майоран",
+   "spice_marjoram_dried",
+   [
+    "herb_marjoram_fresh"
+   ]
+  ],
+  [
+   "майорану",
+   "spice_marjoram_dried",
+   [
+    "herb_marjoram_fresh"
+   ]
+  ],
+  [
+   "майораном",
+   "spice_marjoram_dried",
+   [
+    "herb_marjoram_fresh"
+   ]
+  ],
+  [
+   "marjoram",
+   "spice_marjoram_dried",
+   [
+    "herb_marjoram_fresh"
+   ]
+  ],
+  [
+   "шавлія",
+   "herb_sage_fresh",
+   [
+    "spice_sage_dried"
+   ]
+  ],
+  [
+   "шавлії",
+   "herb_sage_fresh",
+   [
+    "spice_sage_dried"
+   ]
+  ],
+  [
+   "sage",
+   "herb_sage_fresh",
+   [
+    "spice_sage_dried"
+   ]
+  ],
+  [
+   "естрагон",
+   "herb_tarragon_fresh",
+   [
+    "spice_tarragon_dried"
+   ]
+  ],
+  [
+   "естрагону",
+   "herb_tarragon_fresh",
+   [
+    "spice_tarragon_dried"
+   ]
+  ],
+  [
+   "tarragon",
+   "herb_tarragon_fresh",
+   [
+    "spice_tarragon_dried"
+   ]
+  ],
+  [
+   "любисток",
+   "herb_lovage_fresh",
+   [
+    "spice_lovage_dried"
+   ]
+  ],
+  [
+   "любистку",
+   "herb_lovage_fresh",
+   [
+    "spice_lovage_dried"
+   ]
+  ],
+  [
+   "lovage",
+   "herb_lovage_fresh",
+   [
+    "spice_lovage_dried"
+   ]
+  ],
+  [
+   "лемонграс",
+   "herb_lemongrass_fresh",
+   [
+    "spice_lemongrass_dried"
+   ]
+  ],
+  [
+   "лемонграсу",
+   "herb_lemongrass_fresh",
+   [
+    "spice_lemongrass_dried"
+   ]
+  ],
+  [
+   "lemongrass",
+   "herb_lemongrass_fresh",
+   [
+    "spice_lemongrass_dried"
+   ]
+  ],
+  [
+   "чабер",
+   "herb_savory_fresh",
+   [
+    "spice_savory_dried"
+   ]
+  ],
+  [
+   "чаберу",
+   "herb_savory_fresh",
+   [
+    "spice_savory_dried"
+   ]
+  ],
+  [
+   "savory",
+   "herb_savory_fresh",
+   [
+    "spice_savory_dried"
+   ]
+  ],
+  [
+   "гірчиця в зернах",
+   "spice_mustard_seeds",
+   [
+    "sauce_mustard_wholegrain"
+   ]
+  ],
+  [
+   "chimichurri",
+   "sauce_chimichurri",
+   [
+    "spice_chimichurri_dry"
+   ]
+  ],
+  [
+   "суміш для супу",
+   "frz_veg_soup_mix",
+   [
+    "spice_soup_mix"
+   ]
+  ]
+ ],
+ "merged": [
+  [
+   "smoked_salo_salted",
+   "fat_salo_salted",
+   "ok"
+  ],
+  [
+   "smoked_salo_paprika",
+   "fat_salo_spiced",
+   "ok"
+  ],
+  [
+   "smoked_smalets",
+   "fat_lard",
+   "ok"
+  ],
+  [
+   "herb_italian_mix",
+   "spice_italian_herbs",
+   "ok"
+  ],
+  [
+   "herb_herbes_provence",
+   "spice_provence_herbs",
+   "ok"
+  ],
+  [
+   "herb_khmeli_suneli",
+   "spice_khmeli_suneli",
+   "ok"
+  ],
+  [
+   "herb_parsley_dried",
+   "spice_parsley_dried",
+   "ok"
+  ],
+  [
+   "herb_basil_dried",
+   "spice_basil_dried",
+   "ok"
+  ],
+  [
+   "herb_celery_dried",
+   "spice_celery_dried",
+   "ok"
+  ],
+  [
+   "herb_dill_dried",
+   "spice_dill_dried",
+   "ok"
+  ],
+  [
+   "herb_mint_dried",
+   "spice_mint_dried",
+   "ok"
+  ],
+  [
+   "herb_thyme_dried",
+   "spice_thyme_dried",
+   "ok"
+  ],
+  [
+   "herb_rosemary_dried",
+   "spice_rosemary_dried",
+   "ok"
+  ],
+  [
+   "herb_sage_dried",
+   "spice_sage_dried",
+   "ok"
+  ],
+  [
+   "herb_tarragon_dried",
+   "spice_tarragon_dried",
+   "ok"
+  ],
+  [
+   "herb_lovage_dried",
+   "spice_lovage_dried",
+   "ok"
+  ],
+  [
+   "herb_savory_dried",
+   "spice_savory_dried",
+   "ok"
+  ],
+  [
+   "herb_lemongrass_dried",
+   "spice_lemongrass_dried",
+   "ok"
+  ],
+  [
+   "herb_marjoram_dried",
+   "spice_marjoram_dried",
+   "ok"
+  ],
+  [
+   "legume_falafel_frozen",
+   "frz_falafel",
+   "ok"
+  ],
+  [
+   "paste_miso",
+   "legume_miso_paste",
+   "ok"
+  ],
+  [
+   "paste_hummus",
+   "legume_hummus",
+   "ok"
+  ],
+  [
+   "paste_tahini",
+   "seed_tahini",
+   "ok"
+  ],
+  [
+   "dairy_cottage_cheese_5",
+   "cheese_curd_5",
+   "ok"
+  ],
+  [
+   "dairy_cottage_cheese_9",
+   "cheese_curd_9",
+   "ok"
+  ],
+  [
+   "dairy_cottage_cheese_low_fat",
+   "cheese_curd_0",
+   "ok"
+  ],
+  [
+   "dairy_cottage_cheese_farm",
+   "cheese_curd_homemade",
+   "ok"
+  ],
+  [
+   "dairy_cottage_granular",
+   "cheese_curd_grained",
+   "ok"
+  ],
+  [
+   "dairy_curd_mass",
+   "cheese_curd_mass",
+   "ok"
+  ],
+  [
+   "dairy_glazed_curd",
+   "cheese_syrok_glazed",
+   "ok"
+  ],
+  [
+   "dairy_cream_cheese",
+   "cheese_cream_cheese",
+   "ok"
+  ],
+  [
+   "veg_avocado",
+   "fruit_avocado",
+   "ok"
+  ],
+  [
+   "pork_kupaty",
+   "saus_kupaty",
+   "ok"
+  ],
+  [
+   "pork_grill_sausages",
+   "saus_grill_pork",
+   "ok"
+  ],
+  [
+   "chicken_sausages_grill",
+   "saus_grill_chicken",
+   "ok"
+  ]
+ ]
+}

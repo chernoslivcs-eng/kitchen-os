@@ -1,0 +1,4918 @@
+{
+ "_": "Ручний список алергенів. Кожен запис — явний, поіменний, із підставою. basis=ідентичність: алерген і є продукт (сир → молочне). basis=рецептура: класична рецептура містить алерген, можливе брендове відхилення (майонез → яйця). Порожній allergen_groups у seed.ts означає «не перевірено людиною», а не «алергенів немає». Файл перезбирається node data/build-allergens.mjs, але правки руками в ньому легітимні: скрипт лише розгортає список, авторитет — цей файл.",
+ "alc_beer_ale": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Ель"
+ },
+ "alc_beer_apa": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво APA"
+ },
+ "alc_beer_chernihivske": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво Чернігівське"
+ },
+ "alc_beer_craft": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво крафтове"
+ },
+ "alc_beer_dark": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво темне"
+ },
+ "alc_beer_ipa": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво IPA"
+ },
+ "alc_beer_lager_pale": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво світле лагер"
+ },
+ "alc_beer_lvivske": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво Львівське"
+ },
+ "alc_beer_obolon": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво Оболонь"
+ },
+ "alc_beer_porter": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Портер"
+ },
+ "alc_beer_pravda": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво Правда"
+ },
+ "alc_beer_stout": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Стаут"
+ },
+ "alc_beer_unfiltered": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво нефільтроване"
+ },
+ "alc_beer_varvar": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво Варвар"
+ },
+ "alc_beer_wheat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво пшеничне"
+ },
+ "alc_cream_liqueur": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Лікер вершковий"
+ },
+ "alc_vodka_rye": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Горілка житня"
+ },
+ "alc_vodka_wheat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Горілка пшенична"
+ },
+ "alc_whiskey_irish": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Віскі ірландське"
+ },
+ "alc_whiskey_rye": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Віскі житнє"
+ },
+ "alc_whisky_blended": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Віскі шотландське купажоване"
+ },
+ "alc_whisky_single_malt": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Віскі односолодове"
+ },
+ "baby_bagel_rings": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Бублики дитячі"
+ },
+ "baby_biscuits": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво дитяче"
+ },
+ "baby_cottage_cheese": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сир дитячий кисломолочний"
+ },
+ "baby_formula_antireflux": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш антирефлюксна"
+ },
+ "baby_formula_fermented": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш кисломолочна"
+ },
+ "baby_formula_follow_on": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш молочна наступна 6-12 міс"
+ },
+ "baby_formula_goat": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш на козячому молоці"
+ },
+ "baby_formula_hypoallergenic": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш гіпоалергенна"
+ },
+ "baby_formula_lactose_free": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш безлактозна"
+ },
+ "baby_formula_soy": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш соєва"
+ },
+ "baby_formula_starter": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш молочна початкова 0-6 міс"
+ },
+ "baby_formula_toddler_12": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш молочна 12+ міс"
+ },
+ "baby_kefir": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Кефір дитячий"
+ },
+ "baby_milk_dessert": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Десерт молочний дитячий"
+ },
+ "baby_porridge_bedtime": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Каша дитяча перед сном"
+ },
+ "baby_porridge_fruit": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Каша молочна з фруктами дитяча"
+ },
+ "baby_porridge_milk_buckwheat": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Каша молочна гречана дитяча"
+ },
+ "baby_porridge_milk_multigrain": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Каша молочна мультизлакова дитяча"
+ },
+ "baby_porridge_milk_oat": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Каша молочна вівсяна дитяча"
+ },
+ "baby_porridge_milk_rice": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Каша молочна рисова дитяча"
+ },
+ "baby_puree_hake_veg": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Пюре дитяче хек з овочами"
+ },
+ "baby_puree_salmon_veg": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Пюре дитяче лосось з овочами"
+ },
+ "baby_yogurt_jar": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Йогурт дитячий у баночці"
+ },
+ "bake_amaretti": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Амаретті"
+ },
+ "bake_biscotti": {
+  "groups": [
+   "глютен",
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Біскотті"
+ },
+ "bake_biscuit_roll": {
+  "groups": [
+   "глютен",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Рулет бісквітний"
+ },
+ "bake_brownie": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Брауні"
+ },
+ "bake_butter_cookies": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво здобне"
+ },
+ "bake_cake_biscuit": {
+  "groups": [
+   "глютен",
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Торт бісквітний"
+ },
+ "bake_cake_carrot": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Торт морквяний"
+ },
+ "bake_cake_kyivskyi": {
+  "groups": [
+   "горіхи",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Торт «Київський»"
+ },
+ "bake_cake_layers": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Коржі для торта"
+ },
+ "bake_cake_medovyk": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Торт медовик"
+ },
+ "bake_cake_napoleon": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Торт «Наполеон»"
+ },
+ "bake_cake_praha": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Торт «Прага»"
+ },
+ "bake_cake_sacher": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Торт «Захер»"
+ },
+ "bake_caramel_sauce": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Соус карамельний"
+ },
+ "bake_cheese_casserole": {
+  "groups": [
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Запіканка сирна"
+ },
+ "bake_cheesecake_base": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво для основи чізкейка"
+ },
+ "bake_choc_chip_cookies": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво з шоколадними краплями"
+ },
+ "bake_cracker": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Крекер"
+ },
+ "bake_croissant_filled": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Круасан з начинкою"
+ },
+ "bake_cupcake": {
+  "groups": [
+   "глютен",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Кекс"
+ },
+ "bake_custard_mix": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Крем заварний сухий"
+ },
+ "bake_donut": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пончик"
+ },
+ "bake_eclair": {
+  "groups": [
+   "глютен",
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Еклер"
+ },
+ "bake_galette": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво галетне"
+ },
+ "bake_gingerbread": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво імбирне"
+ },
+ "bake_kurabie": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво курабʼє"
+ },
+ "bake_macaron": {
+  "groups": [
+   "горіхи",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Макарон"
+ },
+ "bake_marzipan": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Марципан"
+ },
+ "bake_muffin": {
+  "groups": [
+   "глютен",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Маффін"
+ },
+ "bake_oat_cookies": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво вівсяне"
+ },
+ "bake_pastry": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Тістечко"
+ },
+ "bake_profiteroles": {
+  "groups": [
+   "глютен",
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Профітролі"
+ },
+ "bake_pryanyk": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пряник"
+ },
+ "bake_puff_sugar": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Слойка з цукром"
+ },
+ "bake_rogalyk": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Рогалик з повидлом"
+ },
+ "bake_sandwich_cookies": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво-сендвіч з кремом"
+ },
+ "bake_savoiardi": {
+  "groups": [
+   "глютен",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Савоярді"
+ },
+ "bake_shortbread": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Печиво пісочне"
+ },
+ "bake_strudel_apple": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Штрудель яблучний"
+ },
+ "bake_wafer_cake": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Торт вафельний"
+ },
+ "bake_wafer_sheets": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Коржі вафельні"
+ },
+ "bake_wafers": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Вафлі"
+ },
+ "bake_waffle_belgian": {
+  "groups": [
+   "глютен",
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Вафлі бельгійські"
+ },
+ "bread_bagel": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Бейгл"
+ },
+ "bread_baguette": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Багет"
+ },
+ "bread_baton": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Батон нарізний"
+ },
+ "bread_borodino": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб бородинський"
+ },
+ "bread_bran": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб з висівками"
+ },
+ "bread_brioche": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Бріош"
+ },
+ "bread_bublik": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Бублик"
+ },
+ "bread_bun_milk": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Булочка молочна"
+ },
+ "bread_burger_bun": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Булочка для бургера"
+ },
+ "bread_burger_bun_brioche": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Булочка бріош для бургера"
+ },
+ "bread_challah": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хала"
+ },
+ "bread_cheburek": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Чебурек смажений"
+ },
+ "bread_ciabatta": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Чіабата"
+ },
+ "bread_crispbread_multigrain": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хлібці мультизлакові"
+ },
+ "bread_crispbread_rye": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хлібці житні"
+ },
+ "bread_croissant": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Круасан"
+ },
+ "bread_croutons": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Грінки"
+ },
+ "bread_darnytskyi": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб Дарницький"
+ },
+ "bread_dough_filo": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тісто філо охолоджене"
+ },
+ "bread_dough_pizza": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тісто для піци охолоджене"
+ },
+ "bread_dough_puff": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тісто листкове охолоджене"
+ },
+ "bread_dough_puff_yeast": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тісто листкове дріжджове"
+ },
+ "bread_dough_shortcrust": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тісто пісочне"
+ },
+ "bread_dough_vareniki": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тісто для вареників"
+ },
+ "bread_dough_yeast": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тісто дріжджове охолоджене"
+ },
+ "bread_focaccia": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Фокача"
+ },
+ "bread_grissini": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Грісіні"
+ },
+ "bread_hotdog_bun": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Булочка для хот-дога"
+ },
+ "bread_kaiser_bun": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Булочка кайзер"
+ },
+ "bread_khachapuri": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Хачапурі"
+ },
+ "bread_lavash_armenian": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Лаваш вірменський"
+ },
+ "bread_lavash_thin": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Лаваш тонкий"
+ },
+ "bread_matzo": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Маца"
+ },
+ "bread_multigrain": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб мультизерновий"
+ },
+ "bread_naan": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Наан"
+ },
+ "bread_pampushky": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пампушки часникові"
+ },
+ "bread_panko": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Сухарі панко"
+ },
+ "bread_pita": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Піта"
+ },
+ "bread_puff_slice": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Слойка"
+ },
+ "bread_pyrizhok": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиріжок"
+ },
+ "bread_rusks": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Сухарі"
+ },
+ "bread_rye": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб житній"
+ },
+ "bread_rye_riga": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб Ризький"
+ },
+ "bread_rye_wheat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб житньо-пшеничний"
+ },
+ "bread_samsa": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Самса"
+ },
+ "bread_sausage_roll": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Сосиска в тісті"
+ },
+ "bread_selianskyi": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб Селянський"
+ },
+ "bread_sourdough": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб на заквасці"
+ },
+ "bread_sushka": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Сушка"
+ },
+ "bread_toast": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб тостовий"
+ },
+ "bread_toast_rye": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб тостовий житній"
+ },
+ "bread_toast_wholegrain": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб тостовий цільнозерновий"
+ },
+ "bread_tortilla_wheat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тортилья пшенична"
+ },
+ "bread_ukrainian": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб Український"
+ },
+ "bread_wheat_white": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Хліб пшеничний білий"
+ },
+ "butter_72": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Масло вершкове 72.5%"
+ },
+ "butter_82": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Масло вершкове 82.5%"
+ },
+ "butter_chocolate": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Масло шоколадне"
+ },
+ "butter_garlic": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Масло часникове"
+ },
+ "butter_ghee": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Масло топлене"
+ },
+ "butter_salted": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Масло вершкове солоне"
+ },
+ "butter_spread": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Спред вершково-рослинний"
+ },
+ "can_soy_asparagus_korean": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Спаржа соєва по-корейськи"
+ },
+ "cereal_instant_porridge_rice": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Каша рисова молочна швидка"
+ },
+ "cereal_porridge_semolina": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Каша манна швидкого приготування"
+ },
+ "cereal_puffed_wheat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Пшениця повітряна"
+ },
+ "cheese_adyghe": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Адигейський сир"
+ },
+ "cheese_assorted": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сирне асорті"
+ },
+ "cheese_atlet": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Атлет"
+ },
+ "cheese_blue_generic": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир з блакитною пліснявою"
+ },
+ "cheese_brie_de_meaux": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Брі де Мо"
+ },
+ "cheese_brie_truffle": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Брі з трюфелем"
+ },
+ "cheese_brynza": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Бринза"
+ },
+ "cheese_brynza_sheep": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Бринза овеча"
+ },
+ "cheese_bukovynskyi": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Буковинський"
+ },
+ "cheese_burrata": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Буратта"
+ },
+ "cheese_burrina": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Бурріна"
+ },
+ "cheese_caciotta": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Качотта"
+ },
+ "cheese_camembert_normandy": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Камамбер де Норманді"
+ },
+ "cheese_chechil": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Чечіль"
+ },
+ "cheese_chechil_smoked": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Чечіль копчений"
+ },
+ "cheese_cheddar": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Чеддер"
+ },
+ "cheese_cheddar_grated": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Чеддер тертий"
+ },
+ "cheese_cheddar_mature": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Чеддер витриманий"
+ },
+ "cheese_cheddar_red": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Чеддер червоний"
+ },
+ "cheese_cheddar_slices": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Чеддер скибками"
+ },
+ "cheese_chevre": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Шевр"
+ },
+ "cheese_comte": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Конте"
+ },
+ "cheese_cream_cheese": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кремчиз"
+ },
+ "cheese_cream_cheese_herbs": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кремчиз з зеленню"
+ },
+ "cheese_cream_cheese_salmon": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Крем-сир з лососем"
+ },
+ "cheese_crisps": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сирні чипси"
+ },
+ "cheese_curd_0": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир кисломолочний 0%"
+ },
+ "cheese_curd_5": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир кисломолочний 5%"
+ },
+ "cheese_curd_9": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир кисломолочний 9%"
+ },
+ "cheese_curd_grained": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир зернений"
+ },
+ "cheese_curd_homemade": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир домашній"
+ },
+ "cheese_curd_mass": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сиркова маса"
+ },
+ "cheese_curd_soft": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Творожний сир"
+ },
+ "cheese_dor_blu": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Дор Блю"
+ },
+ "cheese_dutch": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Голландський"
+ },
+ "cheese_edam": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Едам"
+ },
+ "cheese_emmental": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Ементаль"
+ },
+ "cheese_feta": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Фета"
+ },
+ "cheese_feta_oil": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Фета кубиками в олії"
+ },
+ "cheese_feta_sheep": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Фета овеча"
+ },
+ "cheese_fondue": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир для фондю"
+ },
+ "cheese_goat_brie": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Брі козячий"
+ },
+ "cheese_goat_brynza": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Бринза козяча"
+ },
+ "cheese_goat_cream": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Крем-сир козячий"
+ },
+ "cheese_goat_hard": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир козячий твердий"
+ },
+ "cheese_goat_soft": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир козячий мʼякий"
+ },
+ "cheese_gorgonzola": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Горгонзола"
+ },
+ "cheese_gorgonzola_dolce": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Горгонзола дольче"
+ },
+ "cheese_gorgonzola_mascarpone": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Горгонзола з маскарпоне"
+ },
+ "cheese_gouda_aged": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Гауда витримана"
+ },
+ "cheese_gouda_smoked": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Гауда копчена"
+ },
+ "cheese_grana_padano": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Грана Падано"
+ },
+ "cheese_grill": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир для гриля"
+ },
+ "cheese_gruyere": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Грюєр"
+ },
+ "cheese_halloumi": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Халумі"
+ },
+ "cheese_hard_generic": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир твердий"
+ },
+ "cheese_havarti": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Хаварті"
+ },
+ "cheese_imeretinsky": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Імеретинський сир"
+ },
+ "cheese_kostroma": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Костромський"
+ },
+ "cheese_labneh": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Лабне"
+ },
+ "cheese_maasdam": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Маасдам"
+ },
+ "cheese_manchego": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Манчего"
+ },
+ "cheese_marble": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Мармуровий"
+ },
+ "cheese_mascarpone": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Маскарпоне"
+ },
+ "cheese_mascarpone_tiramisu": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Маскарпоне для тірамісу"
+ },
+ "cheese_mozzarella_brine": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Моцарела в розсолі"
+ },
+ "cheese_mozzarella_buffalo": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Моцарела буфала"
+ },
+ "cheese_mozzarella_mini": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Моцарела міні"
+ },
+ "cheese_paneer": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Панір"
+ },
+ "cheese_parmesan_grated": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Пармезан тертий"
+ },
+ "cheese_parmigiano_reggiano": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Пармеджано Реджано"
+ },
+ "cheese_pecorino": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Пекоріно"
+ },
+ "cheese_pecorino_romano": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Пекоріно Романо"
+ },
+ "cheese_philadelphia": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Філадельфія"
+ },
+ "cheese_pizza_mix_grated": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сирна суміш для піци терта"
+ },
+ "cheese_platter_slices": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сирна нарізка"
+ },
+ "cheese_poshekhonsky": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Пошехонський"
+ },
+ "cheese_processed_bacon": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений з беконом"
+ },
+ "cheese_processed_cream": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений вершковий"
+ },
+ "cheese_processed_druzhba": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений Дружба"
+ },
+ "cheese_processed_greens": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений з зеленню"
+ },
+ "cheese_processed_ham": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений з шинкою"
+ },
+ "cheese_processed_mushroom": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений з грибами"
+ },
+ "cheese_processed_sausage": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир ковбасний копчений"
+ },
+ "cheese_processed_slices": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений скибками"
+ },
+ "cheese_processed_triangles": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений трикутнички"
+ },
+ "cheese_processed_tub": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений у ванночці"
+ },
+ "cheese_processed_yantar": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир плавлений Янтар"
+ },
+ "cheese_provolone": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Проволоне"
+ },
+ "cheese_quark": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кварк"
+ },
+ "cheese_raclette": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир для раклету"
+ },
+ "cheese_radamer": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Радамер"
+ },
+ "cheese_ricotta": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Рікота"
+ },
+ "cheese_roquefort": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Рокфор"
+ },
+ "cheese_russian": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Російський"
+ },
+ "cheese_scamorza": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Скаморца копчена"
+ },
+ "cheese_sheep": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир овечий"
+ },
+ "cheese_smetankovyi": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Сметанковий"
+ },
+ "cheese_smoked_sticks": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сирні палички копчені"
+ },
+ "cheese_stilton": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Стілтон"
+ },
+ "cheese_suluguni": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сулугуні"
+ },
+ "cheese_suluguni_smoked": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сулугуні копчений"
+ },
+ "cheese_swiss": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Швейцарський"
+ },
+ "cheese_syrok_glazed": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сирок глазурований"
+ },
+ "cheese_taleggio": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Таледжо"
+ },
+ "cheese_tete_de_moine": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Тет де Муан"
+ },
+ "cheese_tilsiter": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Тільзітер"
+ },
+ "cheese_toast": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сир для тостів"
+ },
+ "cheese_ukrainian_hard": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир Український твердий"
+ },
+ "cheese_white_mold_generic": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сир з білою пліснявою"
+ },
+ "choc_aerated": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад пористий"
+ },
+ "choc_avk": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад АВК"
+ },
+ "choc_bar_bounty": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Батончик Bounty"
+ },
+ "choc_bar_kitkat": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Батончик KitKat"
+ },
+ "choc_bar_mars": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Батончик Mars"
+ },
+ "choc_bar_snickers": {
+  "groups": [
+   "арахіс",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Батончик Snickers"
+ },
+ "choc_bar_twix": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Батончик Twix"
+ },
+ "choc_box_assorted": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Цукерки шоколадні в коробці"
+ },
+ "choc_dragee": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Драже шоколадне"
+ },
+ "choc_egg_surprise": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколадне яйце з сюрпризом"
+ },
+ "choc_figures": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколадні фігурки"
+ },
+ "choc_filled": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад з начинкою"
+ },
+ "choc_korona": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад Корона"
+ },
+ "choc_milk_classic": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад молочний класичний"
+ },
+ "choc_millennium": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад Millennium"
+ },
+ "choc_paste": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Паста шоколадна"
+ },
+ "choc_roshen_bar": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад Roshen"
+ },
+ "choc_ruby": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад рубіновий"
+ },
+ "choc_svitoch": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад Світоч"
+ },
+ "choc_truffles": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Трюфелі шоколадні"
+ },
+ "choc_white": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад білий"
+ },
+ "choc_with_nuts": {
+  "groups": [
+   "горіхи",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад з горіхами"
+ },
+ "choc_with_raisins": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколад з родзинками"
+ },
+ "coffee_latte_ready": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Кавовий напій латте готовий"
+ },
+ "dairy_acidophilus": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Ацидофілін"
+ },
+ "dairy_bifidokefir": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Біфідокефір"
+ },
+ "dairy_cream_10": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки 10%"
+ },
+ "dairy_cream_15": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки 15%"
+ },
+ "dairy_cream_35": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки 35%"
+ },
+ "dairy_cream_coffee": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки порційні для кави"
+ },
+ "dairy_cream_culinary": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки кулінарні"
+ },
+ "dairy_cream_powder": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки сухі"
+ },
+ "dairy_cream_whipped_can": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Вершки збиті в балоні"
+ },
+ "dairy_cream_whipping": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки для збивання 30%"
+ },
+ "dairy_creme_fraiche": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Крем-фреш"
+ },
+ "dairy_curd_dessert": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Десерт сирковий"
+ },
+ "dairy_kefir_1": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кефір 1%"
+ },
+ "dairy_kefir_25": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кефір 2.5%"
+ },
+ "dairy_kefir_32": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кефір 3.2%"
+ },
+ "dairy_kefir_farm": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кефір домашній"
+ },
+ "dairy_kefir_lactose_free": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Кефір безлактозний"
+ },
+ "dairy_matsoni": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Мацоні"
+ },
+ "dairy_prostokvasha": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Простокваша"
+ },
+ "dairy_pudding_milk": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Пудинг молочний"
+ },
+ "dairy_ryazhanka_25": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Ряжанка 2.5%"
+ },
+ "dairy_ryazhanka_4": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Ряжанка 4%"
+ },
+ "dairy_snowball": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Снєжок"
+ },
+ "dairy_sour_cream_10": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сметана 10%"
+ },
+ "dairy_sour_cream_15": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сметана 15%"
+ },
+ "dairy_sour_cream_20": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сметана 20%"
+ },
+ "dairy_sour_cream_25": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сметана 25%"
+ },
+ "dairy_sour_cream_30": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сметана 30%"
+ },
+ "dairy_sour_cream_farm": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сметана домашня"
+ },
+ "dairy_starter": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Закваска кисломолочна"
+ },
+ "dairy_tan": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Тан"
+ },
+ "dairy_whey": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сироватка молочна"
+ },
+ "drink_beer_nonalcoholic_wheat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиво пшеничне безалкогольне"
+ },
+ "egg_boiled": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Яйце варене"
+ },
+ "egg_chicken_c1": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Яйця курячі С1"
+ },
+ "egg_chicken_c2": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Яйця курячі С2"
+ },
+ "egg_chicken_farm": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Яйця домашні"
+ },
+ "egg_chicken_select": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Яйця курячі відбірні"
+ },
+ "egg_duck": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Яйця качині"
+ },
+ "egg_melange": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Меланж яєчний"
+ },
+ "egg_powder": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Яєчний порошок"
+ },
+ "egg_quail": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Яйця перепелині"
+ },
+ "egg_white": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Білок яєчний"
+ },
+ "egg_yolk": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Жовток яєчний"
+ },
+ "fish_balyk_salmon": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Балик лососевий"
+ },
+ "fish_bream": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Лящ"
+ },
+ "fish_bream_dried": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Лящ вʼялений"
+ },
+ "fish_butterfish_smoked": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Масляна риба холодного копчення"
+ },
+ "fish_capelin": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Мойва"
+ },
+ "fish_capelin_smoked": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Мойва копчена"
+ },
+ "fish_carp": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Короп"
+ },
+ "fish_carp_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе коропа"
+ },
+ "fish_catfish": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Сом"
+ },
+ "fish_cod": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Тріска"
+ },
+ "fish_cod_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе тріски"
+ },
+ "fish_cod_liver_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Печінка тріски"
+ },
+ "fish_crab_sticks": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Крабові палички"
+ },
+ "fish_crucian": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Карась"
+ },
+ "fish_cutlets_frozen": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Котлети рибні заморожені"
+ },
+ "fish_dorado": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Дорадо"
+ },
+ "fish_dried_snack": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Риба сушена солона"
+ },
+ "fish_eel_smoked": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Вугор копчений"
+ },
+ "fish_flounder": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Камбала"
+ },
+ "fish_forshmak": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Форшмак"
+ },
+ "fish_goby": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Бички"
+ },
+ "fish_goby_tomato_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Бички в томаті"
+ },
+ "fish_grass_carp": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Білий амур"
+ },
+ "fish_grenadier": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Макрурус"
+ },
+ "fish_haddock": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Пікша"
+ },
+ "fish_hake": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Хек"
+ },
+ "fish_hake_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе хека"
+ },
+ "fish_halibut": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Палтус"
+ },
+ "fish_halibut_cold_smoked": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Палтус холодного копчення"
+ },
+ "fish_hamsa_salted": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Хамса солона"
+ },
+ "fish_herring_frozen": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Оселедець свіжоморожений"
+ },
+ "fish_herring_marinated": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Оселедець маринований"
+ },
+ "fish_herring_mustard_sauce": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Оселедець у гірчичному соусі"
+ },
+ "fish_herring_oil_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Оселедець філе в олії"
+ },
+ "fish_horse_mackerel": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ставрида"
+ },
+ "fish_keta": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Кета"
+ },
+ "fish_mackerel": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Скумбрія"
+ },
+ "fish_mackerel_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Скумбрія консервована"
+ },
+ "fish_mackerel_cold_smoked": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Скумбрія холодного копчення"
+ },
+ "fish_mackerel_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе скумбрії"
+ },
+ "fish_mackerel_hot_smoked": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Скумбрія гарячого копчення"
+ },
+ "fish_mince": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Фарш рибний"
+ },
+ "fish_notothenia": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Нототенія"
+ },
+ "fish_pangasius_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе пангасіуса"
+ },
+ "fish_perch_river": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Окунь річковий"
+ },
+ "fish_perch_sea": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Окунь морський"
+ },
+ "fish_pike": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Щука"
+ },
+ "fish_pikeperch": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Судак"
+ },
+ "fish_pikeperch_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе судака"
+ },
+ "fish_pink_salmon": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Горбуша"
+ },
+ "fish_pink_salmon_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Горбуша консервована"
+ },
+ "fish_pollock": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Минтай"
+ },
+ "fish_pollock_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе минтая"
+ },
+ "fish_red_mullet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Барабуля"
+ },
+ "fish_roach": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Плотва"
+ },
+ "fish_salmon_belly": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Черево лосося"
+ },
+ "fish_salmon_cold_smoked": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Лосось холодного копчення"
+ },
+ "fish_salmon_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе лосося"
+ },
+ "fish_salmon_lightly_salted": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Лосось слабосолоний"
+ },
+ "fish_salmon_soup_set": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Суповий набір з лосося"
+ },
+ "fish_salmon_steak": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Стейк лосося"
+ },
+ "fish_sardine": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Сардина"
+ },
+ "fish_sardines_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Сардини в олії"
+ },
+ "fish_saury_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Сайра консервована"
+ },
+ "fish_seabass": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Сібас"
+ },
+ "fish_silver_carp": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Товстолоб"
+ },
+ "fish_smelt": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Корюшка"
+ },
+ "fish_sole": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Морський язик"
+ },
+ "fish_sprat": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Кілька"
+ },
+ "fish_sprat_pate": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Паштет шпротний"
+ },
+ "fish_sprat_tomato": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Кілька в томатному соусі"
+ },
+ "fish_sprats_canned": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Шпроти в олії"
+ },
+ "fish_sticks_frozen": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Рибні палички"
+ },
+ "fish_sturgeon": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Осетр"
+ },
+ "fish_surimi": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Сурімі"
+ },
+ "fish_taran": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Тарань вʼялена"
+ },
+ "fish_tilapia_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе тілапії"
+ },
+ "fish_trout_fillet": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе форелі"
+ },
+ "fish_trout_lightly_salted": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Форель слабосолона"
+ },
+ "fish_trout_rainbow": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Форель райдужна"
+ },
+ "fish_trout_steak": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Стейк форелі"
+ },
+ "fish_tuna_in_oil": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Тунець в олії"
+ },
+ "fish_tuna_loin": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Філе тунця"
+ },
+ "fish_tuna_own_juice": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Тунець у власному соку"
+ },
+ "fish_tyulka": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Тюлька"
+ },
+ "fish_wolffish": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Зубатка"
+ },
+ "flour_bread_mix": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Суміш для випікання хліба"
+ },
+ "flour_gluten": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Глютен пшеничний"
+ },
+ "flour_manitoba": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно Манітоба"
+ },
+ "flour_pancake_mix": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Суміш для млинців"
+ },
+ "flour_pizza_00": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно тип 00 для піци"
+ },
+ "flour_rye_obdyrne": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно житнє обдирне"
+ },
+ "flour_rye_peklyovane": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно житнє пеклеване"
+ },
+ "flour_rye_wholemeal": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно житнє обійне"
+ },
+ "flour_semolina_durum": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно з твердих сортів пшениці"
+ },
+ "flour_spelt": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно спельтове"
+ },
+ "flour_wheat_first": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно пшеничне першого ґатунку"
+ },
+ "flour_wheat_premium": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно пшеничне вищого ґатунку"
+ },
+ "flour_wheat_wholegrain": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Борошно пшеничне цільнозернове"
+ },
+ "frz_baguette_bake": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Багет для допікання"
+ },
+ "frz_bake_off_buns": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Булочки для випікання"
+ },
+ "frz_cheburek": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Чебуреки заморожені"
+ },
+ "frz_cheese_sticks": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сирні палички заморожені"
+ },
+ "frz_cheesecake": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Чізкейк заморожений"
+ },
+ "frz_crepes_cheese": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Млинці з сиром"
+ },
+ "frz_crepes_cherry": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Млинці з вишнею"
+ },
+ "frz_crepes_meat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Млинці з мʼясом"
+ },
+ "frz_croissant_dough": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Тісто для круасанів"
+ },
+ "frz_croissants": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Круасани заморожені"
+ },
+ "frz_filo_pastry": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Тісто філо"
+ },
+ "frz_garlic_bread": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Хліб часниковий заморожений"
+ },
+ "frz_gelato": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Джелато"
+ },
+ "frz_halushky": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Галушки заморожені"
+ },
+ "frz_ice_cream_cone": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Морозиво ріжок"
+ },
+ "frz_ice_cream_eskimo": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Морозиво ескімо"
+ },
+ "frz_ice_cream_plombir": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Морозиво пломбір"
+ },
+ "frz_ice_cream_tub": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Морозиво відро"
+ },
+ "frz_khinkali": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Хінкалі"
+ },
+ "frz_lasagna": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Лазанья заморожена"
+ },
+ "frz_manti": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Манти"
+ },
+ "frz_pelmeni": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пельмені"
+ },
+ "frz_pelmeni_pork": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пельмені свинячі"
+ },
+ "frz_pies": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Пиріжки заморожені"
+ },
+ "frz_pizza": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Піца заморожена"
+ },
+ "frz_pizza_dough": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Тісто для піци"
+ },
+ "frz_puff_pastry": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Тісто листкове"
+ },
+ "frz_ravioli": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Равіолі"
+ },
+ "frz_soy_cutlets": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Котлети соєві"
+ },
+ "frz_strudel": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Штрудель заморожений"
+ },
+ "frz_syrniki": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Сирники заморожені"
+ },
+ "frz_tiramisu": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Тірамісу заморожене"
+ },
+ "frz_tortellini": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Тортеліні"
+ },
+ "frz_vareniki_cabbage": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Вареники з капустою"
+ },
+ "frz_vareniki_cheese": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Вареники з сиром"
+ },
+ "frz_vareniki_cherry": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Вареники з вишнею"
+ },
+ "frz_vareniki_meat": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Вареники з мʼясом"
+ },
+ "frz_vareniki_potato": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Вареники з картоплею"
+ },
+ "frz_yeast_dough": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "рецептура",
+  "name": "Тісто дріжджове"
+ },
+ "grain_artek": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Крупа Артек"
+ },
+ "grain_barley_flakes": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Ячмінні пластівці"
+ },
+ "grain_barley_ground": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Ячна крупа"
+ },
+ "grain_bulgur_coarse": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Булгур крупний"
+ },
+ "grain_bulgur_fine": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Булгур дрібний"
+ },
+ "grain_couscous": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Кускус"
+ },
+ "grain_couscous_israeli": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Кускус перловий"
+ },
+ "grain_freekeh": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Фріке"
+ },
+ "grain_pearl_barley": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Перловка"
+ },
+ "grain_rye_flakes": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Житні пластівці"
+ },
+ "grain_semolina": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Манка"
+ },
+ "grain_spelt": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Спельта"
+ },
+ "grain_wheat_bran": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Висівки пшеничні"
+ },
+ "grain_wheat_flakes": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Пшеничні пластівці"
+ },
+ "grain_wheat_groats": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Пшенична крупа"
+ },
+ "grain_wheat_kernel": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Пшениця ціла"
+ },
+ "jam_lemon_curd": {
+  "groups": [
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Курд лимонний"
+ },
+ "jam_walnut": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Варення з зелених горіхів"
+ },
+ "legume_edamame": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Едамаме"
+ },
+ "legume_miso_paste": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Місо паста"
+ },
+ "legume_natto": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Натто"
+ },
+ "legume_soy_meat": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Соєве мʼясо"
+ },
+ "legume_soy_textured": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Соя текстурована"
+ },
+ "legume_soybeans": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Соя боби"
+ },
+ "legume_tempeh": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Темпе"
+ },
+ "legume_tofu_firm": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Тофу класичний"
+ },
+ "legume_tofu_silken": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Тофу шовковий"
+ },
+ "legume_tofu_smoked": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Тофу копчений"
+ },
+ "milk_baked": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко топлене"
+ },
+ "milk_buttermilk": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Маслянка"
+ },
+ "milk_chocolate_drink": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Молоко шоколадне"
+ },
+ "milk_condensed_boiled": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Згущене молоко варене"
+ },
+ "milk_condensed_cocoa": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Згущене молоко з какао"
+ },
+ "milk_condensed_unsweetened": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Молоко згущене без цукру"
+ },
+ "milk_cow_1": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко коровʼяче 1%"
+ },
+ "milk_cow_15": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко коровʼяче 1.5%"
+ },
+ "milk_cow_32": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко коровʼяче 3.2%"
+ },
+ "milk_cow_36": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко відбірне 3.6%"
+ },
+ "milk_farm": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко фермерське"
+ },
+ "milk_formula_baby": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Суміш молочна дитяча"
+ },
+ "milk_goat": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко козяче"
+ },
+ "milk_lactose_free": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко безлактозне"
+ },
+ "milk_powder_skim": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сухе молоко знежирене"
+ },
+ "milk_powder_whole": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Сухе молоко цільне"
+ },
+ "milk_shake": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Коктейль молочний"
+ },
+ "milk_uht_25": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко ультрапастеризоване 2.5%"
+ },
+ "nut_almond_blanched": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Мигдаль бланшований"
+ },
+ "nut_almond_butter": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Мигдальна паста"
+ },
+ "nut_almond_flakes": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Мигдальні пелюстки"
+ },
+ "nut_almond_flour": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Мигдальне борошно"
+ },
+ "nut_almond_raw": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Мигдаль сирий"
+ },
+ "nut_almond_roasted": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Мигдаль смажений"
+ },
+ "nut_brazil": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Бразильський горіх"
+ },
+ "nut_cashew_butter": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Паста кешʼю"
+ },
+ "nut_cashew_raw": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Кешʼю сирий"
+ },
+ "nut_cashew_roasted": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Кешʼю смажений"
+ },
+ "nut_cashew_salted": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Кешʼю солоний"
+ },
+ "nut_choco_hazelnut_spread": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Шоколадно-горіхова паста"
+ },
+ "nut_hazelnut": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Фундук"
+ },
+ "nut_hazelnut_ground": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Фундук мелений"
+ },
+ "nut_hazelnut_roasted": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Фундук смажений"
+ },
+ "nut_honey_mix": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Горіхи в меду"
+ },
+ "nut_macadamia": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Макадамія"
+ },
+ "nut_mix": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Горіхова суміш"
+ },
+ "nut_mix_dried_fruit": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Суміш горіхів із сухофруктами"
+ },
+ "nut_peanut_butter_crunchy": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "ідентичність",
+  "name": "Арахісова паста з шматочками"
+ },
+ "nut_peanut_butter_smooth": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "ідентичність",
+  "name": "Арахісова паста гладка"
+ },
+ "nut_peanut_glazed": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "рецептура",
+  "name": "Арахіс у глазурі"
+ },
+ "nut_peanut_in_shell": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "ідентичність",
+  "name": "Арахіс у шкаралупі"
+ },
+ "nut_peanut_raw": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "ідентичність",
+  "name": "Арахіс сирий"
+ },
+ "nut_peanut_roasted": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "ідентичність",
+  "name": "Арахіс смажений"
+ },
+ "nut_peanut_salted": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "ідентичність",
+  "name": "Арахіс солоний"
+ },
+ "nut_pecan": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Пекан"
+ },
+ "nut_pine": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Кедрові горішки"
+ },
+ "nut_pistachio_butter": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Фісташкова паста"
+ },
+ "nut_pistachio_peeled": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Фісташки чищені"
+ },
+ "nut_pistachio_salted": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Фісташки солоні"
+ },
+ "nut_walnut": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Горіх волоський"
+ },
+ "nut_walnut_halves": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Волоський горіх половинками"
+ },
+ "oil_peanut": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "ідентичність",
+  "name": "Олія арахісова"
+ },
+ "oil_sesame": {
+  "groups": [
+   "кунжут"
+  ],
+  "basis": "ідентичність",
+  "name": "Олія кунжутна"
+ },
+ "oil_soybean": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Олія соєва"
+ },
+ "oil_walnut": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Олія горіхова"
+ },
+ "olive_stuffed_anchovy": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Оливки фаршировані анчоусом"
+ },
+ "pasta_cannelloni": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Каннелоні"
+ },
+ "pasta_capellini": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Капеліні"
+ },
+ "pasta_conchiglie": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Конкільє"
+ },
+ "pasta_dumplings_dry": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Галушки сухі"
+ },
+ "pasta_fusilli": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Фузілі"
+ },
+ "pasta_gnocchi_potato": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Ньокі картопляні"
+ },
+ "pasta_lasagna_sheets": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Листи для лазаньї"
+ },
+ "pasta_linguine": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Лінгвіні"
+ },
+ "pasta_nests": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Макарони гнізда"
+ },
+ "pasta_noodles_egg": {
+  "groups": [
+   "глютен",
+   "яйця"
+  ],
+  "basis": "ідентичність",
+  "name": "Локшина яєчна"
+ },
+ "pasta_noodles_homemade": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Локшина домашня"
+ },
+ "pasta_orecchiette": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Орек'єте"
+ },
+ "pasta_pappardelle": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Паппарделле"
+ },
+ "pasta_penne": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Пенне"
+ },
+ "pasta_penne_wholegrain": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Пенне цільнозернове"
+ },
+ "pasta_ramen": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Локшина рамен"
+ },
+ "pasta_rigatoni": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Ріґатоні"
+ },
+ "pasta_rozhky": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Ріжки"
+ },
+ "pasta_spaghetti_no7": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Спагеті №7"
+ },
+ "pasta_spaghetti_wholegrain": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Спагеті цільнозернові"
+ },
+ "pasta_spaghettini_no3": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Спагетіні №3"
+ },
+ "pasta_spirali": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Макарони спіральки"
+ },
+ "pasta_tagliatelle": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Тальятелє"
+ },
+ "pasta_tortellini_dry": {
+  "groups": [
+   "глютен",
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Тортеліні сухі"
+ },
+ "pasta_vermicelli": {
+  "groups": [
+   "глютен"
+  ],
+  "basis": "ідентичність",
+  "name": "Вермішель"
+ },
+ "plantmilk_almond": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко мигдальне"
+ },
+ "plantmilk_almond_barista": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко мигдальне бариста"
+ },
+ "plantmilk_cashew": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко кешʼю"
+ },
+ "plantmilk_cream_soy": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Вершки соєві"
+ },
+ "plantmilk_hazelnut": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко фундукове"
+ },
+ "plantmilk_soy": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко соєве"
+ },
+ "plantmilk_soy_barista": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко соєве бариста"
+ },
+ "plantmilk_walnut": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Молоко горіхове"
+ },
+ "roe_black": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра чорна"
+ },
+ "roe_capelin": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра мойви"
+ },
+ "roe_cod": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра тріски"
+ },
+ "roe_masago": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра масаго"
+ },
+ "roe_pike": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра щуки"
+ },
+ "roe_pollock": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра минтая"
+ },
+ "roe_red": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра червона"
+ },
+ "roe_tobiko": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра тобіко"
+ },
+ "roe_trout": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "ідентичність",
+  "name": "Ікра форелі"
+ },
+ "sauce_aioli": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Соус айолі"
+ },
+ "sauce_alfredo": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Соус альфредо"
+ },
+ "sauce_bechamel": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Соус бешамель"
+ },
+ "sauce_black_bean": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соус чорний бобовий"
+ },
+ "sauce_caesar": {
+  "groups": [
+   "риба",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Соус цезар"
+ },
+ "sauce_carbonara": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Соус карбонара готовий"
+ },
+ "sauce_cheese": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Соус сирний"
+ },
+ "sauce_cream_base": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Соус вершковий"
+ },
+ "sauce_fish": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Рибний соус"
+ },
+ "sauce_gochujang": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Кочуджан"
+ },
+ "sauce_hoisin": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соус хойсін"
+ },
+ "sauce_hollandaise": {
+  "groups": [
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Соус голландський"
+ },
+ "sauce_mayo_homemade": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Майонез домашній"
+ },
+ "sauce_mayo_light": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Майонез легкий"
+ },
+ "sauce_mayo_olive": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Майонез оливковий"
+ },
+ "sauce_mayo_provencal": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Майонез Провансаль"
+ },
+ "sauce_mushroom": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Соус грибний"
+ },
+ "sauce_mustard_american": {
+  "groups": [
+   "гірчиця"
+  ],
+  "basis": "рецептура",
+  "name": "Гірчиця американська"
+ },
+ "sauce_mustard_dijon": {
+  "groups": [
+   "гірчиця"
+  ],
+  "basis": "рецептура",
+  "name": "Гірчиця діжонська"
+ },
+ "sauce_mustard_honey": {
+  "groups": [
+   "гірчиця"
+  ],
+  "basis": "рецептура",
+  "name": "Гірчиця медова"
+ },
+ "sauce_mustard_hot": {
+  "groups": [
+   "гірчиця"
+  ],
+  "basis": "рецептура",
+  "name": "Гірчиця гостра"
+ },
+ "sauce_mustard_table": {
+  "groups": [
+   "гірчиця"
+  ],
+  "basis": "рецептура",
+  "name": "Гірчиця столова"
+ },
+ "sauce_mustard_wholegrain": {
+  "groups": [
+   "гірчиця"
+  ],
+  "basis": "рецептура",
+  "name": "Гірчиця зерниста"
+ },
+ "sauce_oyster": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "рецептура",
+  "name": "Устричний соус"
+ },
+ "sauce_pesto_rosso": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Песто червоне"
+ },
+ "sauce_pesto_rucola": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Песто з рукколи"
+ },
+ "sauce_ponzu": {
+  "groups": [
+   "риба",
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соус понзу"
+ },
+ "sauce_satay": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "рецептура",
+  "name": "Соус сатай арахісовий"
+ },
+ "sauce_soy_dark": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соєвий соус темний"
+ },
+ "sauce_soy_light": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соєвий соус світлий"
+ },
+ "sauce_soy_sushi": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соєвий соус для суші"
+ },
+ "sauce_tartar": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Соус тартар"
+ },
+ "sauce_teriyaki": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соус теріякі"
+ },
+ "sauce_thousand_islands": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Соус тисяча островів"
+ },
+ "sauce_unagi": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "рецептура",
+  "name": "Соус унагі"
+ },
+ "sauce_worcestershire": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Соус вустерський"
+ },
+ "seafood_crab": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "ідентичність",
+  "name": "Краб"
+ },
+ "seafood_crab_meat_canned": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "рецептура",
+  "name": "Мʼясо краба консервоване"
+ },
+ "seafood_crayfish": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "ідентичність",
+  "name": "Раки річкові"
+ },
+ "seafood_langoustine": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "ідентичність",
+  "name": "Лангустини"
+ },
+ "seafood_mussels_marinated": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Мідії мариновані"
+ },
+ "seafood_mussels_shell": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Мідії в мушлі"
+ },
+ "seafood_octopus": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Восьминіг"
+ },
+ "seafood_octopus_baby": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Восьминіжки"
+ },
+ "seafood_oysters": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Устриці"
+ },
+ "seafood_scallops": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Гребінці морські"
+ },
+ "seafood_shrimp_breaded": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "рецептура",
+  "name": "Креветки в паніровці"
+ },
+ "seafood_shrimp_king": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "ідентичність",
+  "name": "Креветка королівська"
+ },
+ "seafood_shrimp_northern": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "ідентичність",
+  "name": "Креветка північна"
+ },
+ "seafood_shrimp_peeled": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "ідентичність",
+  "name": "Креветка чищена"
+ },
+ "seafood_shrimp_tiger": {
+  "groups": [
+   "ракоподібні"
+  ],
+  "basis": "ідентичність",
+  "name": "Креветка тигрова"
+ },
+ "seafood_snails": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Равлики"
+ },
+ "seafood_squid_dried": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "рецептура",
+  "name": "Кальмар сушений"
+ },
+ "seafood_squid_rings": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Кальмар кільця"
+ },
+ "seafood_squid_rings_breaded": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "рецептура",
+  "name": "Кальмари в паніровці"
+ },
+ "seafood_squid_tube": {
+  "groups": [
+   "молюски"
+  ],
+  "basis": "ідентичність",
+  "name": "Кальмар тушка"
+ },
+ "seed_sesame_black": {
+  "groups": [
+   "кунжут"
+  ],
+  "basis": "ідентичність",
+  "name": "Кунжут чорний"
+ },
+ "seed_sesame_white": {
+  "groups": [
+   "кунжут"
+  ],
+  "basis": "ідентичність",
+  "name": "Кунжут білий"
+ },
+ "seed_tahini": {
+  "groups": [
+   "кунжут"
+  ],
+  "basis": "ідентичність",
+  "name": "Тахіні"
+ },
+ "spice_celery_dried": {
+  "groups": [
+   "селера"
+  ],
+  "basis": "ідентичність",
+  "name": "Селера сушена"
+ },
+ "spice_dashi_powder": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Даші порошок"
+ },
+ "spice_katsuobushi": {
+  "groups": [
+   "риба"
+  ],
+  "basis": "рецептура",
+  "name": "Стружка тунця"
+ },
+ "sweet_bird_milk": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Цукерки «Пташине молоко»"
+ },
+ "sweet_cheesecake": {
+  "groups": [
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Чізкейк Нью-Йорк"
+ },
+ "sweet_choc_zefir": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Зефір у шоколаді"
+ },
+ "sweet_creme_brulee": {
+  "groups": [
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Крем-брюле"
+ },
+ "sweet_grilyazh": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Грильяж"
+ },
+ "sweet_halva_tahini": {
+  "groups": [
+   "кунжут"
+  ],
+  "basis": "рецептура",
+  "name": "Халва тахінна"
+ },
+ "sweet_hazelnut_choc": {
+  "groups": [
+   "горіхи",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Фундук у шоколаді"
+ },
+ "sweet_korivka": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Цукерки «Корівка»"
+ },
+ "sweet_kozinak_peanut": {
+  "groups": [
+   "арахіс"
+  ],
+  "basis": "рецептура",
+  "name": "Козинак арахісовий"
+ },
+ "sweet_kyiv_vechirniy": {
+  "groups": [
+   "горіхи",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Цукерки «Київ вечірній»"
+ },
+ "sweet_meringue": {
+  "groups": [
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Безе"
+ },
+ "sweet_mousse": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Мус шоколадний"
+ },
+ "sweet_nougat": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "рецептура",
+  "name": "Нуга"
+ },
+ "sweet_panna_cotta": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Панакота"
+ },
+ "sweet_pudding_caramel": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Пудинг карамельний"
+ },
+ "sweet_raisins_choc": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Родзинки в шоколаді"
+ },
+ "sweet_romashka": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Цукерки «Ромашка»"
+ },
+ "sweet_sherbet": {
+  "groups": [
+   "арахіс",
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Щербет"
+ },
+ "sweet_souffle": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Цукерки суфле"
+ },
+ "sweet_tiramisu": {
+  "groups": [
+   "молочне",
+   "яйця"
+  ],
+  "basis": "рецептура",
+  "name": "Тірамісу класичне"
+ },
+ "sweet_toffee": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Ірис"
+ },
+ "veg_celery_root": {
+  "groups": [
+   "селера"
+  ],
+  "basis": "ідентичність",
+  "name": "Селера корінь"
+ },
+ "veg_celery_stalk": {
+  "groups": [
+   "селера"
+  ],
+  "basis": "ідентичність",
+  "name": "Селера стебло"
+ },
+ "veg_soy_sprouts": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Паростки сої"
+ },
+ "yog_almond": {
+  "groups": [
+   "горіхи"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт мигдальний"
+ },
+ "yog_bifido": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Біфідойогурт"
+ },
+ "yog_cream": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт вершковий"
+ },
+ "yog_drinkable_kids": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Йогурт питний дитячий"
+ },
+ "yog_fruit": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Йогурт з наповнювачем"
+ },
+ "yog_greek": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт грецький"
+ },
+ "yog_kids": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "рецептура",
+  "name": "Йогурт дитячий"
+ },
+ "yog_lactose_free": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт безлактозний"
+ },
+ "yog_natural": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт натуральний"
+ },
+ "yog_protein": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт протеїновий"
+ },
+ "yog_skyr": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Скір"
+ },
+ "yog_soy": {
+  "groups": [
+   "соя"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт соєвий"
+ },
+ "yog_thermostatic": {
+  "groups": [
+   "молочне"
+  ],
+  "basis": "ідентичність",
+  "name": "Йогурт термостатний"
+ }
+}
