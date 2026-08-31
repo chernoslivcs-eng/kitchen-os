@@ -12,9 +12,10 @@
     "smoke": "bash scripts/smoke.sh"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^22.7.5",
     "tsx": "^4.19.1",
-    "vitest": "^2.1.4",
-    "@types/node": "^22.7.5"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }

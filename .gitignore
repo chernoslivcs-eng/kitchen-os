@@ -11,3 +11,5 @@ coverage
 packages/eval/snapshots/*.local.json
 services/api/storage/
 .qa-magic-links.log
+e2e/.auth/
+test-results/
