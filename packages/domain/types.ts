@@ -38,7 +38,9 @@ export type IntakeOp =
   // збирає їх РАЗ при додаванні (той самий виклик парсу). Знайома трійка
   // реюзається з БД, модельні теги тоді ігноруються.
   | { op: 'add'; label: string; value?: number; unit?: Unit; zone?: Zone; confidence?: number; evidence?: string; catalog_key?: string;
-      product?: string; brand?: string; variant?: string; tags?: import('./product.js').ProductTags }
+      product?: string; brand?: string; variant?: string; tags?: import('./product.js').ProductTags;
+      // «(початке)» в інвентарі: партія народжується вже відкритою.
+      state?: 'sealed' | 'opened' }
   | { op: 'deplete'; label: string }
   | { op: 'open'; label: string }
   | { op: 'rename'; label: string; to: string }

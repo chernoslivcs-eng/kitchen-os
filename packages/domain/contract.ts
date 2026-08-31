@@ -182,6 +182,20 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(prod.catalog_key).toBe('cambozola_cheese');     // key все одно резолвиться
     });
 
+    // «(початке)» з інвентаря: add-оп може одразу позначити партію відкритою.
+    it('add зі state:opened — партія народжується відкритою', async () => {
+      const mid = randomUUID();
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card: {
+        type: 'intake_diff', ops: [
+          { op: 'add', label: 'вершки 20%', value: 200, unit: 'g', zone: 'fridge', state: 'opened' },
+        ],
+      } });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+      const b = (await ctx.repo.listBatches(ctx.household_id))[0]!;
+      expect(b.state).toBe('opened');
+      expect(b.opened_at).toBeTruthy();
+    });
+
     it('add без трійки: продукт формується з label (product=label, без бренду)', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [

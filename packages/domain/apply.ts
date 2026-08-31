@@ -340,8 +340,10 @@ async function applyIntakeOp(
       zone: (op.zone ?? resolveLabelToZone(op.label) ?? 'dry') as Zone,
       value: norm.value,
       unit: norm.unit,
-      state: 'sealed',
-      opened_at: null,
+      // «(початке)»: інвентар описує і відкриті упаковки — інакше стан
+      // губився і годинник «вжити до» не стартував.
+      state: op.state === 'opened' ? 'opened' : 'sealed',
+      opened_at: op.state === 'opened' ? new Date().toISOString() : null,
       expires_at: null,
       // «відкр., дн» з тегів продукту — джерело м'якого «вжити до».
       best_before_opened_days: product?.tags.shelf_open_days ?? null,
