@@ -381,8 +381,8 @@ export function Feed() {
     }
   }
 
-  async function pickFiles(list: FileList | null) {
-    if (!list?.length) return;
+  async function pickFiles(list: FileList | File[] | null) {
+    if (!list || !('length' in list) || !list.length) return;
     if (pending.length + list.length > 5) {
       setToast({ id: Date.now(), kind: 'err', text: 'Максимум 5 вкладень за раз' });
       return;
@@ -880,6 +880,14 @@ export function Feed() {
               }
             }}
             onPaste={(e) => {
+              // Пул-3: Cmd/Ctrl+V зображенням (скрін чека, фото полиці) —
+              // одразу стає вкладенням, тим самим шляхом, що скріпка.
+              const images = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
+              if (images.length) {
+                e.preventDefault();
+                void pickFiles(images);
+                return;
+              }
               const text = e.clipboardData.getData('text/plain');
               if (text.length > 1500 && text.includes('\n') && pending.length < 5) {
                 e.preventDefault();
