@@ -1,0 +1,16 @@
+{
+  "id": "receipt-silpo",
+  "description": "Живий чек Сільпо (наданий юзером): склеєні обрубки (КовбКгУППСілМіланСв), вагові рядки «0.114 X 899.00» (кг × ціна/кг — вагу взяти в грамах, ціну проігнорувати), бренд у каші (М/в1.5МоршинН/газ), нехарчове (дрова, розпал, гриль).",
+  "call": "attachment_parse",
+  "invariants": [
+    "silpo-weights",
+    "silpo-expansions",
+    "no-prices",
+    "includes-nonfood",
+    "no-markdown"
+  ],
+  "attachment": {
+    "kind": "text",
+    "path": "receipt-silpo.txt"
+  }
+}

@@ -44,6 +44,44 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Чек Сільпо: вагові рядки «0.114 X 899.00» — вага в кг × ціна/кг.
+  // Вага мусить стати value у ГРАМАХ (114/502/488), ціна — ніколи.
+  'silpo-weights': (out) => {
+    const ops = opsOfIntake(out) ?? [];
+    const val = (o: any) => o.value ?? o.v;
+    const findW = (re: RegExp) => ops.find((o: any) => re.test(String(o.label ?? '') + String(o.product ?? '')));
+    const checks: [string, RegExp, number][] = [
+      ['ковбаса', /ковб|мілан/i, 114],
+      ['яловичина', /ялович|портерхаус|стейк/i, 502],
+      ['томати', /томат|помідор/i, 488],
+    ];
+    const bad: string[] = [];
+    for (const [name, re, grams] of checks) {
+      const op = findW(re);
+      if (!op) { bad.push(`${name}: не знайдено`); continue; }
+      const v = val(op); const u = String(op.unit ?? op.u ?? '');
+      const okG = Math.abs((v ?? 0) - grams) <= 2 && /^g|г/.test(u);
+      const okKg = Math.abs((v ?? 0) - grams / 1000) < 0.01 && /kg|кг/.test(u);
+      if (!okG && !okKg) bad.push(`${name}: v=${v}${u} (чекав ${grams} г)`);
+    }
+    const priceLeak = ops.filter((o: any) => [899, 1799, 903.1, 102.49].includes(val(o)));
+    if (priceLeak.length) bad.push(`ціна протекла у value: ${priceLeak.map((o: any) => o.label).join(', ')}`);
+    return bad.length ? fail(bad.join(' · ')) : pass();
+  },
+
+  // Розгортання склеєних обрубків у людські назви + бренд із каші.
+  'silpo-expansions': (out) => {
+    const ops = opsOfIntake(out) ?? [];
+    const hay = ops.map((o: any) => `${o.label ?? ''} ${o.product ?? ''} ${o.brand ?? ''}`.toLowerCase());
+    const has = (re: RegExp) => hay.some((h) => re.test(h));
+    const bad: string[] = [];
+    if (!has(/вод/) || !has(/моршин/)) bad.push('М/в1.5МоршинН/газ не стала водою Моршинська');
+    if (!has(/ковбас/)) bad.push('КовбКг… не стала ковбасою');
+    if (!has(/пиво|kronen/)) bad.push('П0.33Kronenb не стало пивом');
+    if (!has(/квас/)) bad.push('квас загубився');
+    return bad.length ? fail(bad.join(' · ')) : pass(`${ops.length} ops`);
+  },
+
   // Пул-2 №8: юзер назвав страву з відсутнім інгредієнтом — картка мусить
   // бути ПРО НЕЇ (страус у title або needs), а не про заміну з комори.
   'ostrich-dish-offered': (out) => {
@@ -144,7 +182,9 @@ export const registry: Record<string, Invariant> = {
     const ops = opsOfIntake(out) ?? [];
     const withPrice = ops.filter((o: any) => {
       const label = String(o.label ?? '').toLowerCase();
-      return /\d+[,.]\d{2}/.test(label) || label.includes('грн') || label.includes('uah');
+      // «0,25 л» — обсяг, не ціна: число з одиницею поруч не рахуємо.
+      const stripped = label.replace(/\d+[,.]\d+\s*(л|мл|кг|г|шт)(?![а-яіїє])/g, '');
+      return /\d+[,.]\d{2}/.test(stripped) || label.includes('грн') || label.includes('uah');
     });
     return withPrice.length === 0
       ? pass()
@@ -159,7 +199,7 @@ export const registry: Record<string, Invariant> = {
 
   'includes-nonfood': (out) => {
     const ops = opsOfIntake(out) ?? [];
-    const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет/i;
+    const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет|дрова|розпал|гриль|пакет|хустин/i;
     const count = ops.filter((o: any) => nonfoodWords.test(String(o.label ?? ''))).length;
     return count >= 3 ? pass(`${count} нехарчових позицій`) : fail(`лише ${count} нехарчових — очікували ≥3`);
   },

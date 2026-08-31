@@ -63,6 +63,10 @@ export function loadFixtures(): Fixture[] {
       ],
       attachment: { kind: 'text', path: 'receipt-nonfood.txt', content: readText('receipt-nonfood.txt') },
     },
+    {
+      ...readJson('receipt-silpo.json'),
+      attachment: { kind: 'text' as const, path: 'receipt-silpo.txt', content: readText('receipt-silpo.txt') },
+    },
     (() => {
       const imgPath = join(HERE, 'shelf-photo.jpg');
       if (!existsSync(imgPath)) {
