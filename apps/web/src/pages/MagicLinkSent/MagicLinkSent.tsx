@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
-import { Logo } from '../../components/Logo/Logo';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api } from '../../api';
-import styles from './MagicLinkSent.module.css';
+import { RingField } from '../SignIn/RingField';
+import { Mark } from '../SignIn/SignIn';
+import styles from '../SignIn/SignIn.module.css';
+import own from './MagicLinkSent.module.css';
 
 interface LinkState { email?: string }
 
@@ -16,6 +17,8 @@ export function maskEmail(email: string): string {
   return `${user[0]}***@${domain}`;
 }
 
+// Пул-8: верстка — канон входу «кільце замикається» (як /invite). Стара
+// власна колонка розсипалась після редизайну пул-6 №8.
 export function MagicLinkSent() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,47 +46,67 @@ export function MagicLinkSent() {
   const mm = Math.floor(left / 60);
   const ss = String(left % 60).padStart(2, '0');
 
+  const [animateField] = useState(() =>
+    typeof window !== 'undefined'
+    && window.matchMedia('(min-width: 1024px)').matches
+    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
   return (
     <div className={styles.screen}>
-      <div className={styles.panel}>
-        <div className={styles.head}>
-          <Logo size={40} />
-          <MonoLabel tone="pending">◌ ЛІНК ЛЕТИТЬ</MonoLabel>
-        </div>
-        <div className={styles.hero}>
-          <h1 className={styles.title}>Перевір пошту</h1>
-          {email && <p className={styles.mail}>{maskEmail(email)}</p>}
-          <p className={styles.sub}>
-            Посилання діє 15 хвилин і працює один раз.
-          </p>
-          <div className={styles.actions}>
-            <Button
-              variant="secondary"
-              size="lg"
-              block
-              onClick={() => navigate('/', { replace: true })}
-            >
-              Змінити email
-            </Button>
+      <div className={styles['field-panel']}>
+        <RingField animate={animateField} />
+        <div className={styles['field-shade']} />
+        <div className={styles['field-content']}>
+          <div className={styles['field-logo']}>
+            <Mark />
+            <span>Kitchen OS</span>
           </div>
+          <div className={styles['field-hero']}>
+            <h1 className={styles['field-title']}>Не «що б поїсти».<br />А «що приготувати з того, що є».</h1>
+            <p className={styles['field-sub']}>
+              Вона бачить твою комору і збирає вечерю з того, що є — і того, що скоро зіпсується.
+            </p>
+          </div>
+          <div className={styles['field-foot']}>◌ ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
         </div>
-        <p className={styles.foot}>
-          {resent && 'Надіслали ще раз. '}
-          НЕ ПРИЙШЛО?{' '}
-          {left > 0 ? (
-            <span>Надіслати ще раз · {mm}:{ss}</span>
-          ) : (
-            <button
-              onClick={() => void resend()}
-              style={{
-                background: 'none', border: 0, padding: 0, cursor: 'pointer',
-                color: 'var(--accent)', font: 'inherit', textDecoration: 'underline',
-              }}
-            >
-              Надіслати ще раз
-            </button>
-          )}
-        </p>
+      </div>
+
+      <div className={styles['form-panel']}>
+        <div className={styles['form-head']}>
+          <span className={styles.mono}>◌ ЛІНК ЛЕТИТЬ</span>
+          <h2 className={styles['form-title']}>Перевір пошту</h2>
+          {email && <p className={own.mail}>{maskEmail(email)}</p>}
+          <p className={styles['form-sub']}>Посилання діє 15 хвилин і працює один раз.</p>
+        </div>
+        <div className={styles.form}>
+          <Button
+            variant="secondary"
+            size="lg"
+            block
+            onClick={() => navigate('/', { replace: true })}
+          >
+            Змінити email
+          </Button>
+        </div>
+        <div className={styles['form-foot']}>
+          <span>
+            {resent && 'Надіслали ще раз. '}
+            Не прийшло?{' '}
+            {left > 0 ? (
+              <span>Надіслати ще раз · {mm}:{ss}</span>
+            ) : (
+              <button
+                onClick={() => void resend()}
+                style={{
+                  background: 'none', border: 0, padding: 0, cursor: 'pointer',
+                  color: 'var(--accent)', font: 'inherit', textDecoration: 'underline',
+                }}
+              >
+                Надіслати ще раз
+              </button>
+            )}
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -25,7 +25,7 @@ function GoogleMark() {
   );
 }
 
-function Mark({ size = 30, color = '#f2f4f0' }: { size?: number; color?: string }) {
+export function Mark({ size = 30, color = '#f2f4f0' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <circle cx="24" cy="24" r="19" stroke={color} strokeWidth="3.5" strokeLinecap="round" strokeDasharray="104 15" transform="rotate(-58 24 24)" />

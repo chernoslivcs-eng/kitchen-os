@@ -2,6 +2,10 @@
 // сирий JSON, а сесія мовчки перемикалась. Тепер людина бачить, КУДИ її
 // запрошують і ЯКИМ акаунтом зайде, і приймає явним кліком.
 //
+// Пул-8: верстка — той самий канон, що вхід «кільце замикається» (пул-6 №8):
+// зліва шавлієве поле з кільцями, справа панель дії. Після редизайну входу
+// ця сторінка лишалась на старих класах і розсипалась.
+//
 // Важлива семантика: прийняти інвайт == увійти юзером мейла, на який він
 // висланий (find-or-create в домені). Якщо в браузері зараз інша сесія —
 // чесно попереджаємо, що вона зміниться.
@@ -9,10 +13,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
-import { Logo } from '../../components/Logo/Logo';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api } from '../../api';
 import { useAuth } from '../../store/auth';
+import { RingField } from '../SignIn/RingField';
+import { Mark } from '../SignIn/SignIn';
 import styles from '../SignIn/SignIn.module.css';
 
 type State =
@@ -37,6 +41,11 @@ export function InvitePage() {
       .catch(() => setState({ kind: 'dead' }));
   }, [token]);
 
+  const [animateField] = useState(() =>
+    typeof window !== 'undefined'
+    && window.matchMedia('(min-width: 1024px)').matches
+    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
   async function accept() {
     if (state.kind !== 'ready') return;
     setState({ ...state, kind: 'accepting' });
@@ -55,40 +64,73 @@ export function InvitePage() {
 
   return (
     <div className={styles.screen}>
-      <div className={styles.panel}>
-        <div className={styles.head}>
-          <Logo size={40} />
-          <MonoLabel className={styles.mono}>Kitchen OS · запрошення</MonoLabel>
+      <div className={styles['field-panel']}>
+        <RingField animate={animateField} />
+        <div className={styles['field-shade']} />
+        <div className={styles['field-content']}>
+          <div className={styles['field-logo']}>
+            <Mark />
+            <span>Kitchen OS</span>
+          </div>
+          <div className={styles['field-hero']}>
+            <h1 className={styles['field-title']}>Одна комора<br />на весь дім.</h1>
+            <p className={styles['field-sub']}>
+              Що є вдома — бачать усі. Хто що зʼїв — теж. Кухар збирає страви з урахуванням кожного.
+            </p>
+          </div>
+          <div className={styles['field-foot']}>◌ ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
         </div>
-        <div className={styles.hero}>
-          {state.kind === 'loading' && <p className={styles.sub}>Перевіряю запрошення…</p>}
-          {state.kind === 'dead' && (
-            <>
-              <h1 className={styles.title}>Запрошення недійсне</h1>
-              <p className={styles.sub}>Лінк протух, уже використаний або відкликаний. Попроси надіслати новий.</p>
+      </div>
+
+      <div className={styles['form-panel']}>
+        {state.kind === 'loading' && (
+          <div className={styles['form-head']}>
+            <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ</span>
+            <p className={styles['form-sub']}>Перевіряю запрошення…</p>
+          </div>
+        )}
+
+        {state.kind === 'dead' && (
+          <>
+            <div className={styles['form-head']}>
+              <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ</span>
+              <h2 className={styles['form-title']}>Запрошення недійсне</h2>
+              <p className={styles['form-sub']}>
+                Лінк протух, уже використаний або відкликаний. Попроси надіслати новий.
+              </p>
+            </div>
+            <div className={styles.form}>
               <Button size="lg" block onClick={() => navigate('/')}>На головну</Button>
-            </>
-          )}
-          {(state.kind === 'ready' || state.kind === 'accepting') && (
-            <>
-              <h1 className={styles.title}>Тебе запрошують у «{state.household}»</h1>
-              <p className={styles.sub}>
+            </div>
+          </>
+        )}
+
+        {(state.kind === 'ready' || state.kind === 'accepting') && (
+          <>
+            <div className={styles['form-head']}>
+              <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ · БЕЗ ПАРОЛЯ</span>
+              <h2 className={styles['form-title']}>Тебе запрошують у «{state.household}»</h2>
+              <p className={styles['form-sub']}>
                 Запрошення для <strong>{state.email}</strong> — після прийняття ти працюватимеш
                 у спільній коморі цього дому саме цим акаунтом.
                 {currentEmail && currentEmail !== state.email && (
                   <> Зараз ти в сесії <strong>{currentEmail}</strong> — вона зміниться.</>
                 )}
               </p>
-              <div className={styles.form}>
-                <Button size="lg" block loading={state.kind === 'accepting'} onClick={accept}>
-                  Прийняти запрошення
-                </Button>
-                {error && <p className={styles.sub} style={{ color: 'var(--danger, #b3453a)' }}>{error}</p>}
-              </div>
-            </>
-          )}
+            </div>
+            <div className={styles.form}>
+              <Button size="lg" block loading={state.kind === 'accepting'} onClick={accept}>
+                Прийняти запрошення
+              </Button>
+              {error && <p className={styles['form-sub']} style={{ color: 'var(--danger, #b3453a)' }}>{error}</p>}
+            </div>
+          </>
+        )}
+
+        <div className={styles['form-foot']}>
+          <span>Не просив запрошення — просто закрий сторінку, нічого не станеться.</span>
+          <span className={styles['foot-mono']}>ЛІНК ОДНОРАЗОВИЙ · ДІЄ 72 ГОД</span>
         </div>
-        <p className={styles.foot}>Не просив запрошення — просто закрий сторінку, нічого не станеться.</p>
       </div>
     </div>
   );
