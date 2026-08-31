@@ -37,6 +37,8 @@ interface Props {
 // Лічильник комори для сайдбара (Д01). Модульний кеш, щоб чотири екрани не
 // смикали /v1/pantry на кожен mount.
 let pantryCountCache: { value: number; at: number } | null = null;
+// Пул-7 №5: лічильник збережених рецептів — той самий патерн кешу.
+let recipesCountCache: { value: number; at: number } | null = null;
 
 export function TabBar({ shoppingCount, desktopOnly }: Props) {
   const navigate = useNavigate();
@@ -57,6 +59,18 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
       .catch(() => {/* сайдбар без лічильника — не трагедія */});
   }, [pathname, pantryVersion]);
 
+  // Пул-7 №5: загальна кількість рецептів на табі.
+  const [recipesCount, setRecipesCount] = useState<number | null>(recipesCountCache?.value ?? null);
+  useEffect(() => {
+    if (recipesCountCache && Date.now() - recipesCountCache.at < 60_000) return;
+    api.savedRecipes.list()
+      .then(({ recipes }) => {
+        recipesCountCache = { value: recipes.length, at: Date.now() };
+        setRecipesCount(recipes.length);
+      })
+      .catch(() => {/* тихо */});
+  }, [pathname]);
+
   // На десктопі таб-бар стає sidebar-ом ліворуч. Ставимо клас на <body> щоб
   // головні screens зсунулись праворуч (див. tokens.css). Знімаємо при
   // unmount — Cook/Share/SignIn сайдбара не мають.
@@ -71,7 +85,7 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
   const tabs: TabDef[] = [
     { path: '/app', glyph: '◉', label: 'Стрічка' },
     { path: '/pantry', glyph: '▤', label: 'Комора', count: pantryCount ?? undefined },
-    { path: '/recipes', glyph: '❋', label: 'Рецепти' },
+    { path: '/recipes', glyph: '❋', label: 'Рецепти', count: recipesCount ?? undefined },
     { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount },
   ];
 

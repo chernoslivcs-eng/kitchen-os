@@ -369,8 +369,8 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .composer-recording {
-  border-color: var(--danger) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent) !important;
   /* Моушн-2 №3: цегляний бордер в'їжджає, а не вмикається (150ms enter). */
   transition: border-color var(--dur-fast, 150ms) var(--ease-enter, ease),
               box-shadow var(--dur-fast, 150ms) var(--ease-enter, ease);
@@ -580,7 +580,8 @@
   height: 38px;
   border: 0;
   border-radius: 10px;
-  background: var(--danger);
+  /* Пул-7 №3: запис — шавлія, не цегла («червоний — небезпека»). */
+  background: var(--accent);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -598,12 +599,12 @@
   display: block;
 }
 @keyframes micpulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 40%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
   60% { box-shadow: 0 0 0 9px transparent; }
 }
 .input-recording {
-  border-color: var(--danger) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent);
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 

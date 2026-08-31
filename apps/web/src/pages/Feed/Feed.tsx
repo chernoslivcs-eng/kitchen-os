@@ -515,6 +515,8 @@ export function Feed() {
     setInput('');
     const attachments = pending.map((p) => ({ id: p.id }));
     setPending([]);
+    // Пул-7 №2: фокус лишається в полі — наступне повідомлення без кліку.
+    composerInputRef.current?.focus();
     await dispatchChat(text, attachments);
   }
 
@@ -974,6 +976,9 @@ export function Feed() {
             style={{ display: 'none' }}
             onChange={(e) => pickFiles(e.target.files)}
           />
+          {/* Пул-7 №3: під час запису — таймер + жива хвиля на ЛІВОМУ краю
+              (канон моушн-кіта §04-2), стоп ■ лишається справа. */}
+          {listening && <VoiceWave />}
           {/* Правка №8: textarea з авторостом угору, 1→8 рядків, далі скрол.
               Enter = надіслати, Shift+Enter = новий рядок. */}
           <textarea
@@ -1020,8 +1025,6 @@ export function Feed() {
           </button>
           {listening ? (
             <>
-              {/* Моушн-кіт §04: жива хвиля від амплітуди + таймер запису. */}
-              <VoiceWave />
               <button
                 type="button"
                 className={styles['mic-live']}

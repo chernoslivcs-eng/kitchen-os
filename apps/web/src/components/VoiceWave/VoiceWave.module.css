@@ -3,7 +3,7 @@
   align-items: center;
   gap: 8px;
   flex: none;
-  color: var(--danger, #b3453a);
+  color: var(--accent, #58754e);
 }
 .wave { display: block; }
 .rec {
