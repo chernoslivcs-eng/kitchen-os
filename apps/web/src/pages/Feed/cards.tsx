@@ -431,6 +431,8 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
   // Порційник: детерміноване множення кількостей, 0 токенів. Складне
   // («на чотирьох, але соусу більше») — як і раніше, через чат.
   const [servings, setServings] = useState<number | null>(null);
+  // Канон B: «2 порції ▾» у мета-рядку відкриває ряд чіпів 1/2/3/4/6/8.
+  const [pickServings, setPickServings] = useState(false);
   if (!rid) return null;
   const saved = savedRecipeIds?.has(rid) ?? false;
 
@@ -457,43 +459,56 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 
   const sv = servings ?? r.sv ?? 1;
   const scaled = scaleRecipe(r, sv);
-  const summary = [
-    r.tm ? `${r.tm}ХВ` : null,
-    r.nu?.kcal ? `${r.nu.kcal}ККАЛ/ПОРЦІЮ` : null,
-  ].filter(Boolean).join(' · ');
 
   // Моушн-2 №8: рендеримо ВСІ кроки завжди; хвіст живе в контейнері з
   // анімованою висотою — розгортка/згортання їдуть, а не стрибають.
   const firstSteps = scaled.st.slice(0, 3);
   const restSteps = scaled.st.slice(3);
 
-  const stepBtn: React.CSSProperties = {
-    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--border-strong)',
-    background: 'transparent', color: 'var(--fg)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
-  };
-  const stepper = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-      <button type="button" style={stepBtn} aria-label="Менше порцій"
-        disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}>−</button>
-      <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--fg-strong)' }}>{sv}</span>
-      <button type="button" style={stepBtn} aria-label="Більше порцій"
-        disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}>+</button>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-dim)' }}>
-        {plural(sv, ['порція', 'порції', 'порцій'])}{sv !== (r.sv ?? 1) ? ` · база ${r.sv}` : ''}
-      </span>
-    </div>
-  );
 
   return (
     <div className={styles['recipe-msg']}>
       <div>
-        <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 21, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)', lineHeight: 1.25 }}>
+        {/* Канон B: назва 22/Onest, мета людською мовою, порції — «N порцій ▾». */}
+        <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 22, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)', lineHeight: 1.2 }}>
           {r.t}
         </div>
-        {summary && (
-          <div style={{ marginTop: 3, fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.04em', color: 'var(--fg-dim)' }}>{summary}</div>
+        <div style={{ marginTop: 5, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)' }}>
+          {r.tm ? <span>{r.tm} хв</span> : null}
+          {r.nu?.kcal ? <span>{r.nu.kcal} ккал</span> : null}
+          <button
+            type="button"
+            onClick={() => setPickServings((v) => !v)}
+            style={{
+              border: 0, background: 'none', padding: '0 0 1px', cursor: 'pointer',
+              fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)',
+              borderBottom: '1px dashed var(--border-strong)',
+            }}
+          >
+            {sv} {plural(sv, ['порція', 'порції', 'порцій'])} ▾
+          </button>
+        </div>
+        {pickServings && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+            {[1, 2, 3, 4, 6, 8].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => { setServings(n); setPickServings(false); }}
+                style={{
+                  height: 32, padding: '0 13px', borderRadius: 999, cursor: 'pointer',
+                  border: n === sv ? '1px solid var(--fg)' : '1px solid var(--border-strong)',
+                  background: n === sv ? 'var(--fg)' : 'transparent',
+                  color: n === sv ? 'var(--bg-surface)' : 'var(--fg-muted)',
+                  fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                }}
+              >{n}</button>
+            ))}
+            {sv !== (r.sv ?? 1) && (
+              <span style={{ alignSelf: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>база {r.sv}</span>
+            )}
+          </div>
         )}
-        {stepper}
         {r.rk && (
           <div style={{
             marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--amber)',
@@ -544,17 +559,49 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
                 </div>
               );
             })}
+            {(() => {
+              // Канон B: підсумковий рядок браку + «+ усі в список» разом.
+              const missIdx = scaled.ing.map((ing, i) => (!ing.p && ing.n ? i : -1)).filter((i) => i >= 0);
+              const left = missIdx.filter((i) => !listed.has(i));
+              if (!missIdx.length || !onNeedToList) return null;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0 0' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--amber)' }}>
+                    ○ БРАКУЄ {missIdx.length}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!left.length}
+                    onClick={() => {
+                      left.forEach((i) => {
+                        const ing = scaled.ing[i]!;
+                        onNeedToList(ing.n!, ing.v, ing.u, r.t);
+                      });
+                      setListed((prev) => new Set([...prev, ...left]));
+                    }}
+                    style={{
+                      border: 0, background: 'none', padding: 0, cursor: left.length ? 'pointer' : 'default',
+                      color: left.length ? 'var(--accent)' : 'var(--fg-dim)',
+                      fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                      textDecoration: left.length ? 'underline' : 'none', textUnderlineOffset: 3,
+                    }}
+                  >
+                    {left.length ? '+ усі в список' : '✓ усі в списку'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
         <div>
-          <MonoLabel>КРОКИ · {r.st.length}</MonoLabel>
+          <MonoLabel>ПЛАН</MonoLabel>
           <div style={{ marginTop: 2 }}>
             {firstSteps.map((step: typeof scaled.st[number], i: number) => (
               <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
-                <span style={{ color: 'var(--fg)' }}>
-                  {step.t}. {renderStepContent(step.c, scaled.ing, stepLabels ?? batchLabels)}
+                <span style={{ flex: 1, color: 'var(--fg)' }}>
+                  {step.t}
                   {!!step.s && (
                     <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
                       ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
@@ -569,8 +616,8 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
                   {restSteps.map((step, i) => (
                     <div key={i + 3} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 4}</span>
-                      <span style={{ color: 'var(--fg)' }}>
-                        {step.t}. {renderStepContent(step.c, scaled.ing, stepLabels ?? batchLabels)}
+                      <span style={{ flex: 1, color: 'var(--fg)' }}>
+                        {step.t}
                         {!!step.s && (
                           <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
                             ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
@@ -602,15 +649,32 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
       {/* Правка №4б: «Готуємо» — на всю ширину, як «Рецепт →» у пропозиції;
           «У рецепти» і «Поділитись» — вузькі другорядні (№6: шеринг тепер
           живе тут, а не на фініші Cook Mode). */}
-      <div className={styles['recipe-actions']}>
+      <div className={styles['recipe-actions']} style={{ alignItems: 'center', gap: 16 }}>
         {onCook && <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>}
         {onSaveRecipe && (
-          <Button variant="secondary" onClick={() => onSaveRecipe(rid)} disabled={saved}>
+          <button
+            type="button"
+            disabled={saved}
+            onClick={() => onSaveRecipe(rid)}
+            style={{
+              border: 0, background: 'none', padding: 0, cursor: saved ? 'default' : 'pointer',
+              color: saved ? 'var(--fg-dim)' : 'var(--fg-muted)', fontFamily: 'var(--font-body)',
+              fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
+            }}
+          >
             {saved ? '✓ У рецептах' : 'У рецепти'}
-          </Button>
+          </button>
         )}
         {onShare && (
-          <Button variant="secondary" onClick={() => onShare(scaled, rid)}>Поділитись</Button>
+          <button
+            type="button"
+            onClick={() => onShare(scaled, rid)}
+            title="Поділитись"
+            style={{
+              border: 0, background: 'none', padding: 0, cursor: 'pointer',
+              color: 'var(--fg-muted)', fontSize: 17, lineHeight: 1,
+            }}
+          >↗</button>
         )}
       </div>
     </div>

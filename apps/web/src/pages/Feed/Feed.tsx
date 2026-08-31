@@ -830,6 +830,9 @@ export function Feed() {
               </button>
             )}
             {t.card && (
+              /* Пул-6 №6, канон B: структуровані повідомлення системи — на
+                 світлій «документ»-картці; службове (час/статус) лишається НАД. */
+              <div className={styles.doccard}>
               <Card
                 card={t.card}
                 applied={t.applied}
@@ -850,6 +853,7 @@ export function Feed() {
                 batchLabels={batchLabels}
                 stepLabels={stepLabels}
               />
+              </div>
             )}
           </div>
         ))}

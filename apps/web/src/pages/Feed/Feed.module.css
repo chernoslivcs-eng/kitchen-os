@@ -86,14 +86,11 @@
 
 /* Пул-4 №2а: ряд кнопок рецепта — на вузьких екранах головна на всю
    ширину, другорядні рядком під нею; текст у пілюлях не переноситься. */
-.recipe-actions { display: flex; gap: 10px; }
+/* Канон B: другорядні дії тепер текстові й вузькі — все в один рядок,
+   зелена «Готуємо» тягнеться, wrap на мобілці більше не потрібен. */
+.recipe-actions { display: flex; gap: 10px; align-items: center; }
 .recipe-actions button { white-space: nowrap; }
 .recipe-actions button:first-child { flex: 1; }
-@media (max-width: 560px) {
-  .recipe-actions { flex-wrap: wrap; }
-  .recipe-actions button:first-child { flex: 1 1 100%; }
-  .recipe-actions button:not(:first-child) { flex: 1 1 calc(50% - 5px); }
-}
 
 /* Пул-2 №2: банер готування в стрічці — тільки мобайл; на десктопі
    (сайдбарна верстка) фрейм живе в лівому сайдбарі. */
@@ -773,3 +770,14 @@
   transition: transform var(--dur-base, 250ms) var(--ease-standard, ease);
 }
 .chev-open { transform: rotate(180deg); }
+
+/* Пул-6 №6 · канон B: «документ»-картка для структурованих повідомлень.
+   Внутрішні лінії — на тон світліші (тло вже світле), тому --border
+   локально перевизначений. Службове (час/статус) живе НАД карткою. */
+.doccard {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  --border: #e3e6e8;
+}
