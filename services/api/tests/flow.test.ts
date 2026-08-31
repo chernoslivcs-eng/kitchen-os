@@ -35,23 +35,15 @@ describe('POST /v1/chat → /apply → /undo (authenticated)', () => {
     const body = chat.json();
     expect(body.card?.type).toBe('intake_diff');
     expect(body.card_id).toBeTruthy();
-    expect(await repo.listBatches(me.household_id)).toHaveLength(0);
-
-    const apply = await app.inject({
-      method: 'POST',
-      url: `/v1/cards/${body.card_id}/apply`,
-      headers: { cookie: me.cookie },
-      payload: { selected: [] },
-    });
-    expect(apply.statusCode).toBe(200);
-    const applyBody = apply.json();
-    expect(applyBody.applied).toBe(1);
-    expect(applyBody.undo_token).toBeTruthy();
-
+    // Пул-8 №2: intake_diff застосовується ОДРАЗУ на сервері — «Застосувати»
+    // більше не існує, запобіжник тепер undo.
+    expect(body.auto_applied).toBe(true);
+    expect(body.undo_token).toBeTruthy();
     const batches = await repo.listBatches(me.household_id);
     expect(batches).toHaveLength(1);
     expect(batches[0]!.label.toLowerCase()).toContain('моцарел');
 
+    // Ручний apply — ідемпотентний повтор з тим самим токеном.
     const apply2 = await app.inject({
       method: 'POST',
       url: `/v1/cards/${body.card_id}/apply`,
@@ -59,14 +51,14 @@ describe('POST /v1/chat → /apply → /undo (authenticated)', () => {
       payload: {},
     });
     expect(apply2.json().already).toBe(true);
-    expect(apply2.json().undo_token).toBe(applyBody.undo_token);
+    expect(apply2.json().undo_token).toBe(body.undo_token);
     expect(await repo.listBatches(me.household_id)).toHaveLength(1);
 
     const undo = await app.inject({
       method: 'POST',
       url: `/v1/cards/${body.card_id}/undo`,
       headers: { cookie: me.cookie },
-      payload: { undo_token: applyBody.undo_token },
+      payload: { undo_token: body.undo_token },
     });
     expect(undo.statusCode).toBe(200);
     expect(undo.json().undone).toBe(true);

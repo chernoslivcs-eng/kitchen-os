@@ -494,8 +494,25 @@ export function Feed() {
         text: res.reply || undefined,
         card: res.card,
         cardId: res.card_id,
+        // Пул-8 №2: intake-картка приходить уже застосованою — показуємо як
+        // звіт зі «Скасувати», без «Застосувати/Ні».
+        ...(res.auto_applied ? { applied: true, justApplied: true, undoToken: res.undo_token } : {}),
       };
       setTurns((prev) => [...prev, turn]);
+      if (res.followup) {
+        setTurns((prev) => [...prev, { id: newId(), role: 'assistant', time: hhmm(), fresh: true, text: res.followup! }]);
+      }
+      if (res.auto_applied) {
+        await refreshCounts();
+        setToast({
+          id: Date.now(),
+          kind: 'ok',
+          text: res.card ? appliedToast(res.card) : 'Готово',
+          onUndo: res.undo_token && res.card_id
+            ? () => undo(turn.id, res.undo_token!)
+            : undefined,
+        });
+      }
       // Правка №1: перша репліка дала сесії назву — сайдбар перечитає список.
       sessionStore.bump();
     } catch (err) {

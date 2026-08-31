@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
-import { createPending, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, maskHistoryQuantities, type Repo, type Card, type Recipe } from '@kitchen/domain';
+import { createPending, applyCard, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, maskHistoryQuantities, type Repo, type Card, type Recipe } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -9,7 +9,7 @@ import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import {
   isYes, isNo, extractRating, buildWriteoffOps, latestRunInSession,
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
-  FEEDBACK_MARKERS,
+  FEEDBACK_MARKERS, FEEDBACK_PROMPT,
 } from '../post-cook.js';
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
 
@@ -161,8 +161,17 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
         text: call.reply ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
       });
+      // Пул-8 №2: розібраний чек/фото полиці — теж одразу в комору, undo є.
+      let att_auto = false;
+      let att_undo: string | undefined;
+      if (call.card?.type === 'intake_diff' && card_id) {
+        const r = await applyCard(repo, card_id, [], user_id);
+        att_auto = true;
+        att_undo = r.undo_token;
+      }
       return {
         reply: call.reply, card: call.card, card_id,
+        auto_applied: att_auto, undo_token: att_undo,
         raw_kind: call.raw_kind, usage: call.usage, meta: call.meta,
       };
     }
@@ -201,7 +210,18 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         const card_id = randomUUID();
         await createPending(repo, { message_id: card_id, household_id, user_id, card });
         await saveTurn(WRITEOFF_CARD_REPLY, card, card_id);
-        return { reply: WRITEOFF_CARD_REPLY, card, card_id, usage: zeroUsage, meta: detMeta };
+        // Пул-8 №2: списання застосовується одразу; «Як вийшло?» (раніше
+        // followup ручного apply в cards.ts) їде тим самим ходом.
+        const applied = await applyCard(repo, card_id, [], user_id);
+        await repo.saveMessage({
+          id: randomUUID(), session_id: session.id, role: 'assistant',
+          text: FEEDBACK_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+        return {
+          reply: WRITEOFF_CARD_REPLY, card, card_id,
+          auto_applied: true, undo_token: applied.undo_token, followup: FEEDBACK_PROMPT,
+          usage: zeroUsage, meta: detMeta,
+        };
       }
       // складна відповідь → модель (питання лишиться в історії — вона побачить контекст)
     }
@@ -590,8 +610,20 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
       text: call.reply ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
     });
+    // Пул-8 №2: intake_diff застосовується ОДРАЗУ — підтвердження «Застосувати»
+    // навантажувало кожен побутовий хід. Запобіжник переїхав у undo: картка в
+    // стрічці лишається звітом зі «Скасувати». Інші типи карток (рецепт,
+    // покупки, профіль) — як були: там підтвердження і є розмова.
+    let auto_applied = false;
+    let undo_token: string | undefined;
+    if (call.card?.type === 'intake_diff' && card_id) {
+      const r = await applyCard(repo, card_id, [], user_id);
+      auto_applied = true;
+      undo_token = r.undo_token;
+    }
     return {
       reply: call.reply, card: call.card, card_id,
+      auto_applied, undo_token,
       usage: call.usage, meta: call.meta,
     };
   });

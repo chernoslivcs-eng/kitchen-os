@@ -115,6 +115,12 @@ export interface ChatResponse {
   reply: string;
   card: ChatCard | null;
   card_id: string | null;
+  // Пул-8 №2: intake_diff сервер застосовує одразу — картка приходить уже
+  // виконаною, з токеном скасування; followup — детермінований хід услід
+  // (пост-кук «Як вийшло?»).
+  auto_applied?: boolean;
+  undo_token?: string;
+  followup?: string;
   raw_kind?: string | null;
   usage: { input: number; output: number; cached?: number };
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };

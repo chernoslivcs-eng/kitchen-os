@@ -3,8 +3,9 @@
 // відкриті pending-картки з session_id — клік у панелі веде в ту розмову.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { buildApp } from '../src/server.js';
-import { InMemoryRepo } from '@kitchen/domain';
+import { InMemoryRepo, createPending } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
@@ -37,21 +38,33 @@ describe('GET /v1/cards/pending', () => {
     const me = await signIn(app, mailer, 'cp1@example.com');
     const a = await repo.createFreshSession(me.user_id, '2026-08-31');
     const b = await repo.createFreshSession(me.user_id, '2026-08-31');
-    const cardA = await chatIntake(me.cookie, a.id, 'купив молоко');
-    const cardB = await chatIntake(me.cookie, b.id, 'купив хліб');
+    // Пул-8 №2: intake_diff застосовується одразу — в «ОЧІКУЮТЬ» не потрапляє.
+    await chatIntake(me.cookie, a.id, 'купив молоко');
+    await chatIntake(me.cookie, b.id, 'купив хліб');
 
     // чужий дім — своя картка, нам не світиться
     const other = await signIn(app, mailer, 'cp2@example.com');
     const c = await repo.createFreshSession(other.user_id, '2026-08-31');
     await chatIntake(other.cookie, c.id, 'купив сир');
 
-    // застосовуємо одну зі своїх
-    const apply = await app.inject({
-      method: 'POST', url: `/v1/cards/${cardA}/apply`,
-      headers: { cookie: me.cookie }, payload: {},
+    const empty = await app.inject({
+      method: 'GET', url: '/v1/cards/pending',
+      headers: { cookie: me.cookie },
     });
-    expect(apply.statusCode).toBe(200);
+    expect(empty.statusCode).toBe(200);
+    expect(empty.json().cards).toHaveLength(0);
 
+    // Типи з підтвердженням (shopping) — досі чекають у панелі.
+    const shopId = randomUUID();
+    await createPending(repo, {
+      message_id: shopId, household_id: me.household_id, user_id: me.user_id,
+      card: { type: 'shopping', items: [{ label: 'олія' }] },
+    });
+    await repo.saveMessage({
+      id: shopId, session_id: b.id, role: 'assistant',
+      text: 'Додати в список?', card: { type: 'shopping', items: [{ label: 'олія' }] },
+      applied: 0, created_at: new Date().toISOString(),
+    });
     const res = await app.inject({
       method: 'GET', url: '/v1/cards/pending',
       headers: { cookie: me.cookie },
@@ -59,6 +72,6 @@ describe('GET /v1/cards/pending', () => {
     expect(res.statusCode).toBe(200);
     const { cards } = res.json() as { cards: { id: string; type: string; session_id: string | null }[] };
     expect(cards).toHaveLength(1);
-    expect(cards[0]).toMatchObject({ id: cardB, type: 'intake_diff', session_id: b.id });
+    expect(cards[0]).toMatchObject({ id: shopId, type: 'shopping', session_id: b.id });
   });
 });

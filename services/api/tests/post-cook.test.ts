@@ -126,18 +126,25 @@ describe('post-cook флоу в чаті', () => {
     expect(ops.find((o) => o.label === 'вершки 33%')).toMatchObject({ op: 'deplete' });
     expect(body.usage.input).toBe(0);   // 0 токенів
 
-    // apply картки → комора змінилась + у сесії «Як вийшло?» + followup у відповіді.
+    // Пул-8 №2: картка списання застосована ОДРАЗУ — комора змінилась без
+    // «Застосувати», відповідь несе undo_token і followup «Як вийшло?».
+    expect(body.auto_applied).toBe(true);
+    expect(body.undo_token).toBeTruthy();
+    expect(body.followup).toBe(FEEDBACK_PROMPT);
+    expect((await repo.getBatch(partialId))?.value).toBe(180);
+    expect((await repo.getBatch(fullId))?.state).toBe('depleted');
+    const msgs = await repo.listMessages(session.id);
+    expect(msgs[msgs.length - 1]!.text).toBe(FEEDBACK_PROMPT);
+
+    // Ручний apply тепер ідемпотентний повтор — без другого followup-ходу.
     const apply = await app.inject({
       method: 'POST', url: `/v1/cards/${body.card_id}/apply`,
       headers: { cookie: me.cookie },
       payload: {},
     });
     expect(apply.statusCode).toBe(200);
-    expect(apply.json().followup).toBe(FEEDBACK_PROMPT);
-    expect((await repo.getBatch(partialId))?.value).toBe(180);
-    expect((await repo.getBatch(fullId))?.state).toBe('depleted');
-    const msgs = await repo.listMessages(session.id);
-    expect(msgs[msgs.length - 1]!.text).toBe(FEEDBACK_PROMPT);
+    expect(apply.json().already).toBe(true);
+    expect((await repo.listMessages(session.id)).filter((m) => m.text === FEEDBACK_PROMPT)).toHaveLength(1);
   });
 
   it('«ні» → детерміноване «Як вийшло?», комора недоторкана, без картки', async () => {
