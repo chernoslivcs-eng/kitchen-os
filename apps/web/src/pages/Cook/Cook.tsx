@@ -315,6 +315,23 @@ export function CookOverlay() {
           </button>
         ))}
       </div>
+      {/* Пул-4 №3: сторіз-навігація на мобілці — тапи по краях екрана.
+          Зони вузькі (18%), кнопки таймера в центрі поза ними; лок 400мс
+          прощає подвійний тап. На десктопі сховані CSS-ом. */}
+      <button
+        type="button"
+        className={`${styles['tap-zone']} ${styles['tap-left']}`}
+        aria-label="Попередній крок"
+        disabled={stepIdx === 0}
+        onClick={() => goToStep(stepIdx - 1)}
+      />
+      <button
+        type="button"
+        className={`${styles['tap-zone']} ${styles['tap-right']}`}
+        aria-label="Наступний крок"
+        disabled={stepIdx >= total - 1}
+        onClick={advanceStep}
+      />
       <div className={styles.head}>
         <button className={styles.exit} onClick={exitToOrigin}>✕ Вийти</button>
         <MonoLabel className={styles['head-meta']}>
@@ -394,8 +411,19 @@ export function CookOverlay() {
 
       {/* Правка №6: done-екрана немає — футер завжди степовий. */}
       <div className={`${styles.foot} ${styles['foot-steps']}`}>
-        {stepButtons}
-        <div className={styles.offline}>Працює без мережі · смуга вгорі вертає на крок</div>
+        <div className={styles['foot-buttons']}>{stepButtons}</div>
+        {/* Пул-4 №3: на мобілці кроки ходять тапами по краях — кнопки кроків
+            зайві; «Приготували» зʼявляється лише на останньому слайді. */}
+        {stepIdx === total - 1 && (
+          <button
+            className={`${styles.main} ${styles['finish-mobile']}`}
+            disabled={finishing}
+            onClick={finish}
+          >
+            {finishing ? 'Зберігаю…' : 'Приготували'}
+          </button>
+        )}
+        <div className={styles.offline}>Тапи по краях гортають кроки · працює без мережі</div>
       </div>
     </div>
   );

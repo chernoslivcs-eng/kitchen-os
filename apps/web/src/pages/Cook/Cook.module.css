@@ -123,6 +123,38 @@
    порядок дітей відновлюється order-ом: заголовок кроку → таймер → секції.
    Кнопки і хінт правої колонки на мобільному не існують — їх дає футер. */
 .col-main, .col-side { display: contents; }
+/* Пул-4 №3: сторіз-зони тапів (мобілка). Прозорі, поверх контенту країв,
+   нижче за progress-top і футер. */
+.tap-zone {
+  position: fixed;
+  top: 56px;
+  bottom: 96px;
+  width: 18%;
+  z-index: 3;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.tap-zone:disabled { cursor: default; }
+.tap-left { left: 0; }
+.tap-right { right: 0; }
+
+/* Мобілка: менший крок, більший таймер; кнопки кроків ховаються —
+   навігація тапами; «Приготували» — окремою кнопкою на останньому слайді. */
+.foot-buttons { display: block; }
+.finish-mobile { display: none; }
+@media (max-width: 1023px) {
+  .step-title { font-size: 21px; line-height: 1.35; }
+  .timer-value { font-size: 92px; }
+  .foot-buttons { display: none; }
+  .finish-mobile { display: block; width: 100%; }
+}
+@media (min-width: 1024px) {
+  .tap-zone { display: none; }
+  .finish-mobile { display: none; }
+}
+
 .step-title { order: -2; }
 .timer { order: -1; }
 .side-actions, .side-hint { display: none; }
