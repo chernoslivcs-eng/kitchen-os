@@ -215,6 +215,11 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       if (!recipe?.t || !Array.isArray(recipe.ing)) {
         return reply.code(400).send({ error: 'recipe with t and ing[] required' });
       }
+      // П.6 pre-deploy: payload їде в БД і в кожне recipe_link-повідомлення —
+      // 64KB вистачає будь-якій страві, але зупиняє сміттєвоз.
+      if (JSON.stringify(recipe).length > 64_000) {
+        return reply.code(413).send({ error: 'recipe_too_large' });
+      }
       const now = new Date().toISOString();
       const id = randomUUID();
       await repo.saveRecipe({

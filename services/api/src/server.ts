@@ -26,6 +26,7 @@ export interface BuildAppOpts {
     authRequest?: RateLimitCfg;
     invite?: RateLimitCfg;
     chat?: RateLimitCfg;
+    shopping?: RateLimitCfg;
   };
 }
 
@@ -40,6 +41,14 @@ export function buildApp(
       : process.env.NODE_ENV === 'production' ? { level: 'warn' }
       : true,
   });
+  // П.6 pre-deploy: базові security-заголовки на кожній відповіді API.
+  // CSP для статики живе у vercel.json (headers) — тут лише API-шар.
+  app.addHook('onSend', (_req, reply, payload, done) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    done(null, payload);
+  });
   app.register(cookie);
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -47,7 +56,7 @@ export function buildApp(
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
   pantryRoute(app, repo);
-  shoppingRoutes(app, repo);
+  shoppingRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   profileRoutes(app, repo);
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);

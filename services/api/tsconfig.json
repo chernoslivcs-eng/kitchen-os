@@ -4,5 +4,11 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["**/*.ts"]
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "scripts/prod-serve.ts",
+    "scripts/vercel-smoke.ts"
+  ]
 }

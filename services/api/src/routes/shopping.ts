@@ -5,12 +5,23 @@
 //                                 як checked стає партіями в коморі й вибуває зі списку.
 
 import { randomUUID } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit } from '@kitchen/domain';
 import { resolveLabelToZone } from '@kitchen/catalog';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
-export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
+export function shoppingRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit?: RateLimitCfg } = {}) {
+  // П.6 pre-deploy: мутації списку були без ліміту. 60/хв — людина не
+  // впирається, скрипт — так. Ключ — user_id.
+  const limiter = makeRateLimiter(opts.rateLimit ?? { max: 60, windowMs: 60_000 });
+  const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
+    const { user_id } = requireUser(req);
+    if (!limiter.check(user_id)) {
+      reply.code(429).send({ error: 'too many requests' });
+      return reply;
+    }
+  };
   app.get('/v1/shopping', { preHandler: authenticated(repo) }, async (req) => {
     const { household_id } = requireUser(req);
     const items = await repo.listShoppingItems(household_id);
@@ -26,7 +37,7 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
   // Правило продукту не порушено: пише людина через інтерфейс, не модель.
   app.post<{ Body: { label?: string; v?: number; u?: string; reason?: string } }>(
     '/v1/shopping',
-    { preHandler: authenticated(repo) },
+    { preHandler: [authenticated(repo), limitCheck] },
     async (req, reply) => {
       const { user_id, household_id } = requireUser(req);
       const label = req.body?.label?.trim();
@@ -78,7 +89,7 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo) {
   const UNITS: Unit[] = ['g', 'ml', 'pcs', 'pack'];
   const ZONES: Zone[] = ['dry', 'fridge', 'freezer', 'fresh', 'spices', 'drinks'];
 
-  app.post('/v1/shopping/unpack', { preHandler: authenticated(repo) }, async (req) => {
+  app.post('/v1/shopping/unpack', { preHandler: [authenticated(repo), limitCheck] }, async (req) => {
     const { user_id, household_id } = requireUser(req);
     const items = await repo.listShoppingItems(household_id);
     const checked = items.filter((it) => it.checked);

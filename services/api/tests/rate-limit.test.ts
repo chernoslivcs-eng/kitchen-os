@@ -115,3 +115,54 @@ describe('rate limit', () => {
     expect(r.statusCode).toBe(429);
   });
 });
+
+// П.6 pre-deploy: shopping і attachments були без лімітів.
+describe('rate limit: shopping і attachments', () => {
+  it('POST /v1/shopping ріжеться після стелі', async () => {
+    const repo = new InMemoryRepo();
+    const mailer = new ConsoleMailer();
+    const app = buildApp(repo, new InMemoryStore(), mailer, { rateLimits: { shopping: { max: 3, windowMs: 60_000 } } });
+    await app.ready();
+    const me = await signIn(app, mailer, 'rl-shop@example.com');
+    let last = 0;
+    for (let i = 0; i < 5; i++) {
+      const r = await app.inject({
+        method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+        payload: { label: `позиція ${i}` },
+      });
+      last = r.statusCode;
+    }
+    expect(last).toBe(429);
+  });
+});
+
+// Розмір рецепта обмежений: 64KB JSON — щедро для будь-якої страви, але
+// зупиняє «рецепт»-сміттєвоз у БД (payload їде в кожне recipe_link-повідомлення).
+describe('recipe payload cap', () => {
+  it('POST /v1/recipes із роздутим payload → 413', async () => {
+    const repo = new InMemoryRepo();
+    const mailer = new ConsoleMailer();
+    const app = buildApp(repo, new InMemoryStore(), mailer);
+    await app.ready();
+    const me = await signIn(app, mailer, 'cap@example.com');
+    const fat = { t: 'Жирний', sv: 2, tm: 5, ch: '', d: 'x'.repeat(80_000), rk: '', ing: [], st: [] };
+    const r = await app.inject({
+      method: 'POST', url: '/v1/recipes', headers: { cookie: me.cookie },
+      payload: { recipe: fat },
+    });
+    expect(r.statusCode).toBe(413);
+  });
+});
+
+// Security-заголовки на кожній відповіді API.
+describe('security headers', () => {
+  it('nosniff / frame-deny / referrer-policy присутні', async () => {
+    const repo = new InMemoryRepo();
+    const app = buildApp(repo, new InMemoryStore(), new ConsoleMailer());
+    await app.ready();
+    const r = await app.inject({ method: 'GET', url: '/health' });
+    expect(r.headers['x-content-type-options']).toBe('nosniff');
+    expect(r.headers['x-frame-options']).toBe('DENY');
+    expect(r.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+  });
+});
