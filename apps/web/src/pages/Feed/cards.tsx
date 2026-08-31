@@ -462,7 +462,10 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
     r.nu?.kcal ? `${r.nu.kcal}ККАЛ/ПОРЦІЮ` : null,
   ].filter(Boolean).join(' · ');
 
-  const shownSteps = allSteps ? scaled.st : scaled.st.slice(0, 3);
+  // Моушн-2 №8: рендеримо ВСІ кроки завжди; хвіст живе в контейнері з
+  // анімованою висотою — розгортка/згортання їдуть, а не стрибають.
+  const firstSteps = scaled.st.slice(0, 3);
+  const restSteps = scaled.st.slice(3);
 
   const stepBtn: React.CSSProperties = {
     width: 32, height: 32, borderRadius: 10, border: '1px solid var(--border-strong)',
@@ -547,7 +550,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         <div>
           <MonoLabel>КРОКИ · {r.st.length}</MonoLabel>
           <div style={{ marginTop: 2 }}>
-            {shownSteps.map((step, i) => (
+            {firstSteps.map((step: typeof scaled.st[number], i: number) => (
               <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
                 <span style={{ color: 'var(--fg)' }}>
@@ -560,18 +563,37 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
                 </span>
               </div>
             ))}
-            {r.st.length > 3 && !allSteps && (
-              <button
-                type="button"
-                onClick={() => setAllSteps(true)}
-                style={{
-                  border: 0, background: 'none', padding: '6px 0 0',
-                  color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-                  textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer',
-                }}
-              >
-                Показати всі {r.st.length} кроків
-              </button>
+            {restSteps.length > 0 && (
+              <>
+                <div className={`${styles['steps-rest']} ${allSteps ? styles['steps-rest-open'] : ''}`}>
+                  {restSteps.map((step, i) => (
+                    <div key={i + 3} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 4}</span>
+                      <span style={{ color: 'var(--fg)' }}>
+                        {step.t}. {renderStepContent(step.c, scaled.ing, stepLabels ?? batchLabels)}
+                        {!!step.s && (
+                          <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
+                            ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAllSteps((v) => !v)}
+                  style={{
+                    border: 0, background: 'none', padding: '6px 0 0',
+                    color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                    textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  {allSteps ? 'Згорнути кроки' : `Показати всі ${r.st.length} кроків`}
+                  <span className={`${styles.chev} ${allSteps ? styles['chev-open'] : ''}`}>▾</span>
+                </button>
+              </>
             )}
           </div>
         </div>

@@ -184,6 +184,15 @@ export function CookOverlay() {
       osc.onended = () => void ctx.close();
     } catch { /* без звуку — лишається вібро */ }
     try { navigator.vibrate?.([200, 100, 200]); } catch { /* desktop */ }
+    // Моушн-2 №7: вкладка згорнута — системна нотифікація, звук сам не доб'ється.
+    try {
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification('Kitchen OS · таймер', {
+          body: `${step?.t ?? 'Крок'} — час вийшов`,
+          tag: 'kitchen-os-timer',
+        });
+      }
+    } catch { /* нотифікації не критичні */ }
   };
   const stopAlarm = () => {
     if (alarmRef.current != null) { window.clearInterval(alarmRef.current); alarmRef.current = null; }
@@ -389,6 +398,13 @@ export function CookOverlay() {
                       className={styles.primary}
                       onClick={() => {
                         stopAlarm();
+                        // Моушн-2 №7: дозвіл на нотифікації питаємо в момент
+                        // юзер-жесту старту таймера; відмова = просто без них.
+                        try {
+                          if ('Notification' in window && Notification.permission === 'default') {
+                            void Notification.requestPermission();
+                          }
+                        } catch { /* ок */ }
                         if (secondsLeft === 0) { setSecondsLeft(step.s ?? 0); setRunning(true); return; }
                         setRunning((r) => !r);
                       }}

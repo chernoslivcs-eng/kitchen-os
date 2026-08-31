@@ -1,0 +1,37 @@
+/* Моушн-2 №1: sheet «знизу підіймається» — як обіцяв коментар компонента. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+  animation: backdrop-in var(--dur-base, 250ms) var(--ease-enter, ease);
+}
+.backdrop-out {
+  animation: backdrop-out var(--dur-base, 250ms) var(--ease-exit, ease) forwards;
+}
+@keyframes backdrop-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+
+.panel {
+  width: 100%;
+  max-width: 720px;
+  background: var(--bg-surface);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  animation: sheet-in var(--dur-slow, 400ms) var(--ease-enter, ease);
+  /* Пружина назад після недотягнутого драгу. */
+  transition: transform var(--dur-base, 250ms) var(--ease-standard, ease);
+}
+.panel-out {
+  animation: sheet-out var(--dur-base, 250ms) var(--ease-exit, ease) forwards;
+}
+@keyframes sheet-in  { from { transform: translateY(105%); } to { transform: translateY(0); } }
+@keyframes sheet-out { from { transform: translateY(0); } to { transform: translateY(105%); } }

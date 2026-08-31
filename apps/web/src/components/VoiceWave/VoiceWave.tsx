@@ -44,12 +44,17 @@ export function VoiceWave() {
           const bw = 3, gap = (cv.width - BARS * bw) / (BARS - 1);
           const color = getComputedStyle(cv).color;
           ctx.fillStyle = color;
+          let sum = 0;
           for (let i = 0; i < BARS; i++) {
             // Кожен бар — свій зріз спектра; мінімум 2px, щоб тиша дихала.
             const v = data[Math.floor((i / BARS) * data.length)]! / 255;
+            sum += v;
             const bh = Math.max(2, v * cv.height);
             ctx.fillRect(i * (bw + gap), (cv.height - bh) / 2, bw, bh);
           }
+          // Моушн-2 №3: тиша → хвиля пригашена, мова → повна. CSS-transition
+          // 250ms робить crossfade, клас сіпаємо тільки на перетині порогу.
+          cv.classList.toggle(styles.loud!, sum / BARS > 0.06);
           raf = requestAnimationFrame(draw);
         };
         draw();

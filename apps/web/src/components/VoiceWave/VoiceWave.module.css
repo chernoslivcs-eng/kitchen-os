@@ -17,3 +17,10 @@
   color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
+
+/* Моушн-2 №3: у тиші хвиля пригашена, на мові — повна (crossfade 250ms). */
+.wave {
+  opacity: 0.35;
+  transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease);
+}
+.loud { opacity: 1; }

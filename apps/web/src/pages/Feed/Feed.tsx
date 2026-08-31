@@ -105,6 +105,9 @@ export function Feed() {
   const [thinkingVerb, setThinkingVerb] = useState('ДУМАЮ');
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
+  // Моушн-2 №4: рядок rail, що змінився після apply/готування — флеш шавлією.
+  const [railFlash, setRailFlash] = useState<Set<string>>(new Set());
+  const prevStale = useRef<Map<string, number>>(new Map());
   const [batchLabels, setBatchLabels] = useState<Map<string, string>>(new Map());
   // №4а: кроки рецептів у стрічці — тільки product.
   const [stepLabels, setStepLabels] = useState<Map<string, string>>(new Map());
@@ -247,6 +250,18 @@ export function Feed() {
         .filter((b) => b.days <= 3)
         .sort((a, b) => a.days - b.days)
         .slice(0, 3);
+      {
+        // Флеш рядків rail, чиї дні змінились (готування/списання зачепило партію).
+        const prev = prevStale.current;
+        if (prev.size) {
+          const changed = new Set(stale.filter((b) => prev.has(b.id) && prev.get(b.id) !== b.days).map((b) => b.id));
+          if (changed.size) {
+            setRailFlash(changed);
+            window.setTimeout(() => setRailFlash(new Set()), 800);
+          }
+        }
+        prevStale.current = new Map(stale.map((b) => [b.id, b.days]));
+      }
       setStaleBatches(stale);
     } catch { /* offline: лишаємо старе значення */ }
   }
@@ -301,6 +316,12 @@ export function Feed() {
   }
 
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Моушн-2 №6: скрол кожної вкладки живе окремо і відновлюється при поверненні.
+  const segScroll = useRef<{ t: number; h: number }>({ t: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = timelineRef.current;
+    if (el) el.scrollTop = segScroll.current[historyOpen ? 'h' : 't'];
+  }, [historyOpen]);
   const [historySessions, setHistorySessions] = useState<{ id: string; title: string | null; day: string; created_at: string; message_count: number }[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   async function openHistory() {
@@ -416,8 +437,14 @@ export function Feed() {
     }
   }
 
+  // Моушн-2 №2: видалення чіпа — колапс 250ms exit, потім геть з DOM.
+  const [leavingAtt, setLeavingAtt] = useState<Set<string>>(new Set());
   function removePending(id: string) {
-    setPending((p) => p.filter((x) => x.id !== id));
+    setLeavingAtt((prev) => new Set(prev).add(id));
+    window.setTimeout(() => {
+      setPending((p) => p.filter((x) => x.id !== id));
+      setLeavingAtt((prev) => { const n = new Set(prev); n.delete(id); return n; });
+    }, 250);
   }
 
   // UX9-02: серцевина відправки — спільна для першої спроби і «↻ Повторити».
@@ -615,12 +642,19 @@ export function Feed() {
       </div>
 
 
-      <div className={styles.timeline} ref={timelineRef}>
+      {/* Моушн-2 №6: перемикання Сьогодні⇄Історія — crossfade + X±10 (key
+          перемонтовує контейнер), скрол-позиція кожної вкладки пам'ятається. */}
+      <div
+        key={historyOpen ? 'history' : 'today'}
+        className={`${styles.timeline} ${historyOpen ? styles['seg-view-hist'] : styles['seg-view-today']}`}
+        ref={timelineRef}
+        onScroll={(e) => { segScroll.current[historyOpen ? 'h' : 't'] = e.currentTarget.scrollTop; }}
+      >
         {/* Пул-2 №2: на десктопі фрейм живе в сайдбарі (TabBar) — цей банер
             лишається тільки для мобільної верстки (клас ховає його ≥1024). */}
         {cookLive && !historyOpen && (
           <button
-            className={styles['cook-banner-mobile']}
+            className={`${styles['cook-banner-mobile']} ${styles['banner-in']}`}
             onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
@@ -629,7 +663,7 @@ export function Feed() {
               cursor: 'pointer', textAlign: 'left', width: '100%',
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
+            <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
             <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
               Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
             </span>
@@ -879,7 +913,11 @@ export function Feed() {
             {/* Правка №9: квадратик-прев'ю замість назви й ваги. Зображення —
                 мініатюра, решта — розширення. */}
             {pending.map((a) => (
-              <span key={a.id} className={styles['att-chip']} title={a.content_type}>
+              <span
+                key={a.id}
+                className={`${styles['att-chip']} ${leavingAtt.has(a.id) ? styles['att-leave'] : ''}`}
+                title={a.content_type}
+              >
                 {a.kind === 'image' ? (
                   <img src={`/v1/attachments/${a.id}/bytes`} alt="" className={styles['att-thumb']} />
                 ) : (
@@ -893,7 +931,11 @@ export function Feed() {
                 >×</button>
               </span>
             ))}
-            {uploading && <span className={styles['att-chip']}><span className={styles['att-ext']}>…</span></span>}
+            {uploading && (
+              <span className={`${styles['att-chip']} ${styles['att-uploading']}`}>
+                <span className={styles['att-ext']}>…</span>
+              </span>
+            )}
           </div>
         )}
         {/* Бриф-3 п.6 — канон композитора: одна пілюля, 📎 (ghost) і 🎙
@@ -1022,12 +1064,12 @@ export function Feed() {
             <div className={styles['rail-title']}>СТАТУС КОМОРИ</div>
             <button className={styles['rail-row']} onClick={() => navigate('/pantry')}>
               <span className={styles['rail-label']}>Позицій у домі</span>
-              <span className={styles['rail-meta']}>{pantryCount}</span>
+              <span className={styles['rail-meta']}><RollingNumber value={pantryCount} /></span>
             </button>
             {staleBatches.slice(0, 4).map((b) => (
               <button
                 key={b.id}
-                className={styles['rail-row']}
+                className={`${styles['rail-row']} ${railFlash.has(b.id) ? styles['rail-flash'] : ''}`}
                 onClick={() => { setInput(`Що зробити з ${b.label}?`); composerInputRef.current?.focus(); }}
               >
                 <span className={styles['rail-label']}>{b.label}</span>

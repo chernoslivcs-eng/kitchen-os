@@ -284,6 +284,8 @@
 /* Правка №9: чип = квадратик-прев'ю + хрестик. Без назв і кілобайтів. */
 .att-chip {
   position: relative;
+  /* Моушн-2 №2: вхід чіпа — scale .85→1 + fade + ширина 0→auto. */
+  animation: chip-in var(--dur-base, 250ms) var(--ease-enter, ease);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -372,6 +374,9 @@
 .composer-recording {
   border-color: var(--danger) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent) !important;
+  /* Моушн-2 №3: цегляний бордер в'їжджає, а не вмикається (150ms enter). */
+  transition: border-color var(--dur-fast, 150ms) var(--ease-enter, ease),
+              box-shadow var(--dur-fast, 150ms) var(--ease-enter, ease);
 }
 .composer-input {
   flex: 1;
@@ -697,3 +702,74 @@
     padding-right: 320px;
   }
 }
+
+/* Моушн-2 №2: чіпи вкладень. */
+@keyframes chip-in {
+  from { opacity: 0; transform: scale(0.85); max-width: 0; }
+  to   { opacity: 1; transform: scale(1); max-width: 80px; }
+}
+.att-leave {
+  animation: chip-out var(--dur-base, 250ms) var(--ease-exit, ease) both;
+  pointer-events: none;
+  overflow: hidden;
+}
+@keyframes chip-out {
+  from { opacity: 1; transform: scale(1); max-width: 80px; }
+  to   { opacity: 0; transform: scale(0.85); max-width: 0; border-width: 0; }
+}
+.att-uploading .att-ext {
+  animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite;
+}
+
+/* Моушн-2 №6: crossfade вкладок Сьогодні⇄Історія — контент, не весь екран. */
+.seg-view-today { animation: seg-in-left var(--dur-base, 250ms) var(--ease-standard, ease); }
+.seg-view-hist  { animation: seg-in-right var(--dur-base, 250ms) var(--ease-standard, ease); }
+@keyframes seg-in-left {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes seg-in-right {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Моушн-2 №5: банер «готування триває» — вхід height+fade+Y, крапка дихає. */
+.banner-in {
+  animation: banner-in var(--dur-base, 250ms) var(--ease-enter, ease);
+  overflow: hidden;
+}
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(8px); max-height: 0; padding-top: 0; padding-bottom: 0; }
+  to   { opacity: 1; transform: translateY(0); max-height: 72px; }
+}
+.banner-dot { animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite; }
+
+/* Моушн-2 №4: rail — нові рядки в'їжджають, змінені спалахують шавлією. */
+.rail-row { animation: rail-row-in var(--dur-base, 250ms) var(--ease-enter, ease); }
+@keyframes rail-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rail-flash { animation: row-flash-rail 700ms var(--ease-standard, ease) both; }
+@keyframes row-flash-rail {
+  from { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  to   { background: transparent; }
+}
+
+/* Моушн-2 №8: хвіст кроків рецепта — висота 0→auto + fade, шеврон крутиться. */
+.steps-rest {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height var(--dur-base, 250ms) var(--ease-standard, ease),
+              opacity var(--dur-base, 250ms) var(--ease-standard, ease);
+}
+.steps-rest-open {
+  max-height: 1200px;
+  opacity: 1;
+}
+.chev {
+  display: inline-block;
+  transition: transform var(--dur-base, 250ms) var(--ease-standard, ease);
+}
+.chev-open { transform: rotate(180deg); }
