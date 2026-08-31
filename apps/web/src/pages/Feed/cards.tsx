@@ -580,8 +580,8 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
       {/* Правка №4б: «Готуємо» — на всю ширину, як «Рецепт →» у пропозиції;
           «У рецепти» і «Поділитись» — вузькі другорядні (№6: шеринг тепер
           живе тут, а не на фініші Cook Mode). */}
-      <div style={{ display: 'flex', gap: 10 }}>
-        {onCook && <Button variant="positive" style={{ flex: 1 }} onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>}
+      <div className={styles['recipe-actions']}>
+        {onCook && <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>}
         {onSaveRecipe && (
           <Button variant="secondary" onClick={() => onSaveRecipe(rid)} disabled={saved}>
             {saved ? '✓ У рецептах' : 'У рецепти'}

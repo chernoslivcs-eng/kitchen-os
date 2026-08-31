@@ -82,6 +82,19 @@
 }
 .turn { display: flex; flex-direction: column; gap: 6px; }
 
+.seg-new { color: var(--accent); font-weight: 600; }
+
+/* Пул-4 №2а: ряд кнопок рецепта — на вузьких екранах головна на всю
+   ширину, другорядні рядком під нею; текст у пілюлях не переноситься. */
+.recipe-actions { display: flex; gap: 10px; }
+.recipe-actions button { white-space: nowrap; }
+.recipe-actions button:first-child { flex: 1; }
+@media (max-width: 560px) {
+  .recipe-actions { flex-wrap: wrap; }
+  .recipe-actions button:first-child { flex: 1 1 100%; }
+  .recipe-actions button:not(:first-child) { flex: 1 1 calc(50% - 5px); }
+}
+
 /* Пул-2 №2: банер готування в стрічці — тільки мобайл; на десктопі
    (сайдбарна верстка) фрейм живе в лівому сайдбарі. */
 @media (min-width: 1024px) {

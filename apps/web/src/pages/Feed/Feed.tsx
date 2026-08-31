@@ -574,14 +574,6 @@ export function Feed() {
             </MonoLabel>
           )}
           <Avatar name={meName} />
-          {/* Правка №1: «+» — іконкою в самому правому куті шапки (мобайл;
-              на десктопі новий чат живе в сайдбарі). */}
-          <button
-            onClick={startFreshSession}
-            title="Нова сесія"
-            aria-label="Нова сесія"
-            className={styles['new-session-btn']}
-          >+</button>
         </div>
       </div>
 
@@ -596,10 +588,39 @@ export function Feed() {
           onClick={openHistory}
           className={historyOpen ? styles['seg-active'] : styles.seg}
         >Історія</button>
+        {/* Пул-4 №5: «+ Нова» — дія того ж рангу, що сегменти сесій; аватар
+            лишається сам у куті (плутанина «профіль поруч із +» знята). */}
+        <button
+          onClick={startFreshSession}
+          className={`${styles.seg} ${styles['seg-new']}`}
+        >+ Нова</button>
       </div>
 
 
       <div className={styles.timeline} ref={timelineRef}>
+        {/* Пул-2 №2: на десктопі фрейм живе в сайдбарі (TabBar) — цей банер
+            лишається тільки для мобільної верстки (клас ховає його ≥1024). */}
+        {cookLive && !historyOpen && (
+          <button
+            className={styles['cook-banner-mobile']}
+            onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              border: '1px solid var(--accent-border)', borderRadius: 14,
+              padding: '13px 16px', margin: '0 0 8px', background: 'var(--bg-surface)',
+              cursor: 'pointer', textAlign: 'left', width: '100%',
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
+            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
+              Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
+              Продовжити ›
+            </span>
+          </button>
+        )}
+
         {/* DA2-37: сегмент «Історія» показує сесії ПРЯМО ТУТ — контент під
             шапкою, як у макеті 1б, а не bottom sheet поверх стрічки. */}
         {historyOpen && (
@@ -770,28 +791,7 @@ export function Feed() {
         {/* UX9-09: «Готування триває» жило В САМОМУ ВЕРХУ стрічки — на момент
             виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
             композитором: видиме завжди, доки готування живе. */}
-        {/* Пул-2 №2: на десктопі фрейм живе в сайдбарі (TabBar) — цей банер
-            лишається тільки для мобільної верстки (клас ховає його ≥1024). */}
-        {cookLive && !historyOpen && (
-          <button
-            className={styles['cook-banner-mobile']}
-            onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              border: '1px solid var(--accent-border)', borderRadius: 14,
-              padding: '13px 16px', margin: '0 0 8px', background: 'var(--bg-surface)',
-              cursor: 'pointer', textAlign: 'left', width: '100%',
-            }}
-          >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
-            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
-              Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
-            </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
-              Продовжити ›
-            </span>
-          </button>
-        )}
+
         {staleBatches.length > 0 && (
           <button
             type="button"
