@@ -29,10 +29,13 @@ function Shell() {
   const { pathname } = useLocation();
   return (
     <>
-      <TabBar desktopOnly={!MOBILE_TAB_ROUTES.has(pathname)} />
+      {/* TabBar — ПІСЛЯ контенту: на мобілці він sticky bottom і липне від
+          свого місця в потоці (перед контентом опинявся вгорі екрана);
+          на десктопі він fixed — порядок байдужий. */}
       <div key={pathname} className="screen-view">
         <Outlet />
       </div>
+      <TabBar desktopOnly={!MOBILE_TAB_ROUTES.has(pathname)} />
     </>
   );
 }
