@@ -81,3 +81,18 @@ export function stepLabelsFrom(
   const byId = new Map((products ?? []).map((p) => [p.id, p.product]));
   return new Map(batches.map((b) => [b.id, (b.product_id && byId.get(b.product_id)) || b.label]));
 }
+
+// Порційник: детерміноване масштабування — множення, не модель (0 токенів).
+// Множаться ТІЛЬКИ кількості інгредієнтів; kcal — на порцію, лишається;
+// таймери й текст кроків не чіпаються (кількостей у кроках немає — QA5-09).
+// Складне («на чотирьох, але соусу більше») — як і раніше, через чат.
+export function scaleRecipe<T extends { sv: number; ing: { v?: number }[] }>(recipe: T, servings: number): T {
+  const baseSv = recipe.sv || 1;
+  if (servings === baseSv) return recipe;
+  const f = servings / baseSv;
+  return {
+    ...recipe,
+    sv: servings,
+    ing: recipe.ing.map((i) => (i.v == null ? { ...i } : { ...i, v: Math.round(i.v * f * 10) / 10 })),
+  };
+}

@@ -8,7 +8,7 @@ import type { ChatCard, Recipe } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { formatQty } from '../../lib/units';
-import { renderStepContent } from '../../lib/recipe';
+import { renderStepContent, scaleRecipe } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
 
@@ -428,6 +428,9 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
   const rid = card.recipe_id;
   const [allSteps, setAllSteps] = useState(false);
   const [listed, setListed] = useState<Set<number>>(new Set());
+  // Порційник: детерміноване множення кількостей, 0 токенів. Складне
+  // («на чотирьох, але соусу більше») — як і раніше, через чат.
+  const [servings, setServings] = useState<number | null>(null);
   if (!rid) return null;
   const saved = savedRecipeIds?.has(rid) ?? false;
 
@@ -452,13 +455,31 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
     );
   }
 
+  const sv = servings ?? r.sv ?? 1;
+  const scaled = scaleRecipe(r, sv);
   const summary = [
     r.tm ? `${r.tm}ХВ` : null,
-    r.sv ? `${r.sv} ${plural(r.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
-    r.nu?.kcal ? `${r.nu.kcal}ККАЛ` : null,
+    r.nu?.kcal ? `${r.nu.kcal}ККАЛ/ПОРЦІЮ` : null,
   ].filter(Boolean).join(' · ');
 
-  const shownSteps = allSteps ? r.st : r.st.slice(0, 3);
+  const shownSteps = allSteps ? scaled.st : scaled.st.slice(0, 3);
+
+  const stepBtn: React.CSSProperties = {
+    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--border-strong)',
+    background: 'transparent', color: 'var(--fg)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
+  };
+  const stepper = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+      <button type="button" style={stepBtn} aria-label="Менше порцій"
+        disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}>−</button>
+      <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--fg-strong)' }}>{sv}</span>
+      <button type="button" style={stepBtn} aria-label="Більше порцій"
+        disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}>+</button>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-dim)' }}>
+        {plural(sv, ['порція', 'порції', 'порцій'])}{sv !== (r.sv ?? 1) ? ` · база ${r.sv}` : ''}
+      </span>
+    </div>
+  );
 
   return (
     <div className={styles['recipe-msg']}>
@@ -469,6 +490,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         {summary && (
           <div style={{ marginTop: 3, fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.04em', color: 'var(--fg-dim)' }}>{summary}</div>
         )}
+        {stepper}
         {r.rk && (
           <div style={{
             marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--amber)',
@@ -481,7 +503,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         <div>
           <MonoLabel>ІНГРЕДІЄНТИ · ● З КОМОРИ</MonoLabel>
           <div style={{ marginTop: 2 }}>
-            {r.ing.map((ing, i) => {
+            {scaled.ing.map((ing, i) => {
               const missing = !ing.p;
               const added = listed.has(i);
               return (
@@ -529,7 +551,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
               <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
                 <span style={{ color: 'var(--fg)' }}>
-                  {step.t}. {renderStepContent(step.c, r.ing, stepLabels ?? batchLabels)}
+                  {step.t}. {renderStepContent(step.c, scaled.ing, stepLabels ?? batchLabels)}
                   {!!step.s && (
                     <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
                       ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
@@ -559,14 +581,14 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           «У рецепти» і «Поділитись» — вузькі другорядні (№6: шеринг тепер
           живе тут, а не на фініші Cook Mode). */}
       <div style={{ display: 'flex', gap: 10 }}>
-        {onCook && <Button variant="positive" style={{ flex: 1 }} onClick={() => onCook(r, rid)}>Готуємо → Cook Mode</Button>}
+        {onCook && <Button variant="positive" style={{ flex: 1 }} onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>}
         {onSaveRecipe && (
           <Button variant="secondary" onClick={() => onSaveRecipe(rid)} disabled={saved}>
             {saved ? '✓ У рецептах' : 'У рецепти'}
           </Button>
         )}
         {onShare && (
-          <Button variant="secondary" onClick={() => onShare(r, rid)}>Поділитись</Button>
+          <Button variant="secondary" onClick={() => onShare(scaled, rid)}>Поділитись</Button>
         )}
       </div>
     </div>

@@ -9,7 +9,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe } from '../../api';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
-import { resolveIngName, renderStepContent, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
+import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
 import { TabBar } from '../../components/TabBar/TabBar';
 
@@ -32,7 +32,10 @@ export function RecipePage() {
       .then((r) => { setFetched(r.recipe); setFetchedSaved(r.saved_at); })
       .catch(() => setNotFound(true));
   }, [id]);
-  const recipe = (location.state as RecipeLocationState | null)?.recipe ?? fetched ?? null;
+  const baseRecipe = (location.state as RecipeLocationState | null)?.recipe ?? fetched ?? null;
+  // Порційник: детерміноване множення кількостей (0 токенів); складне — чатом.
+  const [servings, setServings] = useState<number | null>(null);
+  const recipe = baseRecipe ? scaleRecipe(baseRecipe, servings ?? baseRecipe.sv ?? 1) : null;
   const [currentStep, setCurrentStep] = useState(0);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [allergies, setAllergies] = useState<{ label: string; who: string | null }[]>([]);
@@ -125,10 +128,14 @@ export function RecipePage() {
 
   const summary = [
     recipe.tm ? `${recipe.tm}ХВ` : null,
-    recipe.sv ? `${recipe.sv} ${plural(recipe.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
-    recipe.nu?.kcal ? `${recipe.nu.kcal}ККАЛ` : null,
+    recipe.nu?.kcal ? `${recipe.nu.kcal}ККАЛ/ПОРЦІЮ` : null,
     recipe.nu ? `Б${Math.round(recipe.nu.p)} Ж${Math.round(recipe.nu.f)} В${Math.round(recipe.nu.c)}` : null,
   ].filter(Boolean).join(' · ');
+  const sv = recipe.sv ?? 1;
+  const stepBtn: React.CSSProperties = {
+    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--border-strong)',
+    background: 'transparent', color: 'var(--fg)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
+  };
 
   return (
     <div className={styles.screen}>
@@ -163,6 +170,14 @@ export function RecipePage() {
       <div className={styles.body}>
         <h1 className={styles.title}>{recipe.t}</h1>
         {summary && <div className={styles.summary}>{summary}</div>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+          <button type="button" style={stepBtn} aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}>−</button>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--fg-strong)' }}>{sv}</span>
+          <button type="button" style={stepBtn} aria-label="Більше порцій" disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}>+</button>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-dim)' }}>
+            {plural(sv, ['порція', 'порції', 'порцій'])}{baseRecipe && sv !== (baseRecipe.sv ?? 1) ? ` · база ${baseRecipe.sv}` : ''}
+          </span>
+        </div>
         {recipe.d && <div className={styles.desc}>{recipe.d}</div>}
         {recipe.rk && <div className={styles.rk}>{recipe.rk}</div>}
 

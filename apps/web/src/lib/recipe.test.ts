@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderStepContent, resolveIngName, stepIngredients, stepLabelsFrom, type BatchLabels } from './recipe.js';
+import { renderStepContent, resolveIngName, stepIngredients, stepLabelsFrom, scaleRecipe, type BatchLabels } from './recipe.js';
 
 describe('resolveIngName', () => {
   const labels: BatchLabels = new Map([['b1', 'Моцарела'], ['b2', 'Пелаті']]);
@@ -132,5 +132,36 @@ describe('stepLabelsFrom — базова назва для кроків', () =>
     );
     expect(labels.get('b1')).toBe('пармезан');
     expect(labels.get('b2')).toBe('сіль');
+  });
+});
+
+// Порційник: детерміноване масштабування без моделі. Множаться ТІЛЬКИ
+// кількості інгредієнтів; kcal лишається на порцію, таймери й текст кроків
+// не чіпаються (кількостей у кроках немає — QA5-09).
+describe('scaleRecipe', () => {
+  const base = {
+    t: 'Бургер', sv: 2, tm: 25, ch: 'швидко', d: '', rk: '',
+    nu: { kcal: 680, p: 30, f: 40, c: 45 },
+    ing: [
+      { n: 'котлети яловичі', v: 240, u: 'g' },
+      { n: 'булки', v: 2, u: 'pcs' },
+      { n: 'сіль' },
+    ],
+    st: [{ t: 'Смаж', c: 'Смаж {0}', s: 240 }],
+  };
+  it('множить v пропорційно, решту не чіпає', () => {
+    const x4 = scaleRecipe(base, 4);
+    expect(x4.sv).toBe(4);
+    expect(x4.ing[0]!.v).toBe(480);
+    expect(x4.ing[1]!.v).toBe(4);
+    expect(x4.ing[2]!.v).toBeUndefined();
+    expect(x4.nu!.kcal).toBe(680);          // на порцію
+    expect(x4.st[0]!.s).toBe(240);          // таймер не залежить
+    expect(base.ing[0]!.v).toBe(240);       // вихідний не мутується
+  });
+  it('вниз теж працює, округлення людське', () => {
+    const x1 = scaleRecipe(base, 1);
+    expect(x1.ing[0]!.v).toBe(120);
+    expect(scaleRecipe({ sv: 3, ing: [{ v: 100 }] }, 2).ing[0]!.v).toBe(66.7);
   });
 });
