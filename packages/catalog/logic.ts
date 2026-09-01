@@ -75,6 +75,22 @@ export function itemMatchesAntipattern(item: CatalogItem, phrase: string): boole
   return false;
 }
 
+// ---------- сумісність категорій (фільтр альтернатив retail-пошуку) ----------
+
+// 01.09: живий репро — пошук «Original Bitter Lemon» (безалкогольний тонік)
+// у Сільпо повернув алкогольні бітери й косметику як «схожі» товари (наївний
+// повнотекстовий пошук мережі не бачить категорій). Корені, де помилка НЕ
+// прощається: якщо кандидат — алкоголь чи нехарчове, а оригінал — ні,
+// категорично інший тип товару, показувати не можна.
+const EXCLUSIVE_ROOTS = ['алкоголь', 'нехарчове'];
+
+export function categoriesCompatible(sourceCategories: string[], candidateCategories: string[]): boolean {
+  for (const r of EXCLUSIVE_ROOTS) {
+    if (candidateCategories.includes(r) && !sourceCategories.includes(r)) return false;
+  }
+  return true;
+}
+
 // ---------- резолвер: партія комори → catalog_key ----------
 
 // Три джерела зіставлення (див. 01-product.html § S1):

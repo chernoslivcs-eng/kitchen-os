@@ -656,3 +656,69 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   };
 }
 
+// 01.09: фільтр альтернатив кошика Сільпо — вузька класифікація «кандидат
+// категорично інший тип товару чи ні». Каталог (packages/catalog) уже
+// відсіює те, що впізнав; сюди доходить тільки те, чого каталог НЕ впізнав
+// узагалі (resolveLabelToKey → null) — справжня сіра зона.
+export interface AltFilterPair { source: string; candidate: string }
+export interface AltFilterCall {
+  keep: boolean[]; // той самий порядок/довжина, що вхідні pairs
+  usage: { input: number; output: number; cached?: number };
+  meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+}
+
+function altFilterStub(pairs: AltFilterPair[], promptVersion: string): AltFilterCall {
+  const ALC = /бітер|лікер|віскі|вермут|коньяк|\bром\b|горілк|\bвино\b|\bпиво\b|шампанськ/i;
+  const NONFOOD = /крем|бальзам|шампунь|\bмило\b|засіб для|гель для/i;
+  const bad = (s: string) => ALC.test(s) || NONFOOD.test(s);
+  const keep = pairs.map((p) => !(bad(p.candidate) && !bad(p.source)));
+  return { keep, usage: { input: 0, output: 0 }, meta: { promptVersion, model: 'stub', mode: 'stub' } };
+}
+
+export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCall> {
+  const prompt = loadPrompt();
+  if (!pairs.length) {
+    return { keep: [], usage: { input: 0, output: 0 }, meta: { promptVersion: prompt.version, model: 'stub', mode: 'stub' } };
+  }
+  const client = makeClient();
+  if (!client) return altFilterStub(pairs, prompt.version);
+
+  // Збагачення, не критичний шлях: будь-яка проблема (мережа, зламаний JSON) —
+  // fail-open, «залишити все як є» (та сама поведінка, що без фільтра),
+  // а не звалити збірку кошика через додаткову перевірку.
+  try {
+    const model = modelForCall('alt_filter', prompt);
+    const system = compose('alt_filter', prompt);
+    const query = pairs.map((p, i) => `${i}. «${p.source}» → «${p.candidate}»`).join('\n');
+
+    const resp = await withRetry(() => client.messages.create({
+      model,
+      max_tokens: 4096,
+      temperature: 0,
+      system: cachedSystem(system),
+      messages: [{ role: 'user', content: query }],
+    }));
+    const text = resp.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n');
+    const { parsed } = extractJson(text);
+    const results = (parsed && typeof parsed === 'object' && 'results' in parsed)
+      ? ((parsed as { results?: unknown }).results as { i?: number; keep?: boolean }[] | undefined) ?? []
+      : [];
+    const keep = pairs.map((_, i) => results.find((r) => r?.i === i)?.keep ?? true);
+
+    return {
+      keep,
+      usage: usageFrom(resp.usage),
+      meta: { promptVersion: prompt.version, model, mode: 'live' },
+    };
+  } catch {
+    return {
+      keep: pairs.map(() => true),
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion: prompt.version, model: 'error-fallback', mode: 'live' },
+    };
+  }
+}
+

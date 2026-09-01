@@ -15,14 +15,15 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo, Card, CartCard, CartCardRow, RetailConnectionRow } from '@kitchen/domain';
 import { createPending } from '@kitchen/domain';
-import { resolveLabelToKey } from '@kitchen/catalog';
+import { resolveLabelToKey, categoriesCompatible } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { makeTokenCipher } from '../retail/crypto.js';
-import { SilpoProvider, RetailAuthError, type RetailFoundRow } from '../retail/silpo-provider.js';
+import { SilpoProvider, RetailAuthError, type RetailFoundRow, type RetailProduct } from '../retail/silpo-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
+import { callAltFilter } from '../model.js';
 
 export interface SilpoTokens {
   access_token: string;
@@ -435,7 +436,11 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
           }
         }
 
-        const outRows: CartCardRow[] = [];
+        // Крок 1: зібрати сирі рядки й кандидатів (ще не відфільтрованих).
+        const rawRows: Array<{
+          it: (typeof items)[number]; hit: RetailProduct | null; quantity: number;
+          rawAlts: RetailProduct[];
+        }> = [];
         const toAdd: Array<{ productId: string; companyId: string; branchId: string; quantity: number }> = [];
         for (const it of items) {
           const foundRow = found.get(it.label);
@@ -452,19 +457,61 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
           // проміс лишає ВСІ candidates як кнопки заміни, включно з тим, що
           // раніше був єдиним altHit — нічого ще не додано в кошик мережі.
           const candidateSource = hit ? foundRow?.candidates : altRow?.candidates;
-          const alternatives = (candidateSource ?? [])
-            .filter((c) => c.id !== hit?.id)
-            .slice(0, ALT_CAP)
+          const rawAlts = (candidateSource ?? []).filter((c) => c.id !== hit?.id).slice(0, ALT_CAP);
+          rawRows.push({ it, hit, quantity, rawAlts });
+        }
+
+        // Крок 2: фільтр за категоріями каталогу — живий репро 01.09: пошук
+        // «Original Bitter Lemon» (безалкогольний тонік) повернув алкогольні
+        // бітери й косметику як «схожі» (наївний повнотекстовий пошук мережі
+        // не бачить категорій). Каталог знає — фільтруємо БЕЗКОШТОВНО, без
+        // ЛЛМ, там, де впізнав обидві назви.
+        type Verdict = 'keep' | 'reject' | 'unknown';
+        const verdicts: Verdict[][] = rawRows.map(({ it, rawAlts }) => {
+          const sourceKey = resolveLabelToKey(it.label);
+          const sourceCategories = sourceKey ? BY_KEY.get(sourceKey)?.categories ?? [] : [];
+          return rawAlts.map((c) => {
+            const candKey = resolveLabelToKey(c.name);
+            if (!candKey) return 'unknown' as const;
+            const candCategories = BY_KEY.get(candKey)?.categories ?? [];
+            return categoriesCompatible(sourceCategories, candCategories) ? 'keep' as const : 'reject' as const;
+          });
+        });
+
+        // Крок 3: те, чого каталог не впізнав узагалі — одним пакетним
+        // викликом ЛЛМ на всю картку (не на кожен рядок окремо).
+        const unknownRefs: { rowIdx: number; altIdx: number }[] = [];
+        const pairs: { source: string; candidate: string }[] = [];
+        verdicts.forEach((rowVerdicts, rowIdx) => {
+          rowVerdicts.forEach((v, altIdx) => {
+            if (v === 'unknown') {
+              unknownRefs.push({ rowIdx, altIdx });
+              pairs.push({ source: rawRows[rowIdx]!.it.label, candidate: rawRows[rowIdx]!.rawAlts[altIdx]!.name });
+            }
+          });
+        });
+        const llmKeep = unknownRefs.length ? (await callAltFilter(pairs)).keep : [];
+        const llmMap = new Map<string, boolean>();
+        unknownRefs.forEach((ref, i) => llmMap.set(`${ref.rowIdx}:${ref.altIdx}`, llmKeep[i] ?? true));
+
+        // Крок 4: зібрати фінальні рядки з відфільтрованими alternatives.
+        const outRows: CartCardRow[] = rawRows.map(({ it, hit, quantity, rawAlts }, rowIdx) => {
+          const alternatives = rawAlts
+            .filter((_, altIdx) => {
+              const v = verdicts[rowIdx]![altIdx]!;
+              if (v !== 'unknown') return v === 'keep';
+              return llmMap.get(`${rowIdx}:${altIdx}`) ?? true;
+            })
             .map((c) => ({
               product_id: c.id, company_id: c.companyId, branch_id: c.branchId,
               name: c.name, price: c.price, weighted: c.weighted, quantity: qtyFor(c, it),
             }));
-          outRows.push({
+          return {
             label: it.label, item_id: it.id, v: it.value, u: it.unit,
             product: hit ? { name: hit.name, price: hit.price, weighted: hit.weighted, quantity } : null,
             alternatives,
-          });
-        }
+          };
+        });
         if (toAdd.length) await provider.addToCart(toAdd);
         return outRows;
       });
