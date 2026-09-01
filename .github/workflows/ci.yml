@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # retail/** — довга робоча гілка M13 (Сільпо): Postgres-контракт мусить
+    # ганятись на кожен пуш, не тільки при мерджі в main.
+    branches: [main, 'retail/**']
   pull_request:
     branches: [main]
 
