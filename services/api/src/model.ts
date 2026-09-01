@@ -24,6 +24,32 @@ import type {
 // а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.
 export type { Recipe, RecipeIng, RecipeStep } from '@kitchen/domain';
 
+// Живий репро 01.09: модель повернула {"type":"shopping","ops":[...]}
+// замість items — shopping.items і intake_diff/profile.ops мають майже
+// однакову форму елемента ({op,label,...}), тож плутанина природна.
+// Ненормалізована картка доходила до summarizeCard/applyCard і кидала
+// TypeError на .map() у НАСТУПНОМУ ході (де читається історія) —
+// одна погана відповідь моделі блокувала розмову назавжди.
+// Перекладаємо в правильне поле замість вигадування даних; якщо рятувати
+// нічим (жодного масиву під жодною назвою) — повертаємо як є, це вже
+// справа summarizeCard/applyCard деградувати чемно (`?? []`), не тут.
+const ITEMS_TYPES = new Set(['shopping']);
+const OPS_TYPES = new Set(['intake_diff', 'profile']);
+export function normalizeCard(raw: unknown): Card | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.type !== 'string') return null;
+  if (ITEMS_TYPES.has(o.type) && !Array.isArray(o.items) && Array.isArray(o.ops)) {
+    const { ops, ...rest } = o;
+    return { ...rest, items: ops } as unknown as Card;
+  }
+  if (OPS_TYPES.has(o.type) && !Array.isArray(o.ops) && Array.isArray(o.items)) {
+    const { items, ...rest } = o;
+    return { ...rest, ops: items } as unknown as Card;
+  }
+  return o as unknown as Card;
+}
+
 // TOKEN_AUDIT п.1: системний промпт (10-15k символів стабільного тексту) їхав
 // повним інпутом з КОЖНИМ викликом. cache_control на стабільному префіксі
 // (правила з packages/prompts) ріже його ціну до ~10% на кеш-хітах; динаміка
@@ -203,6 +229,30 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // Явна команда зі списком («додай X у список», «прибери X зі списку») —
+  // для тестів auto-apply нижче (card-rules.md: shopping лише на прямий
+  // запит про покупки, ніколи пропозиція моделі — тому auto-apply безпечний
+  // так само, як для intake_diff).
+  const listAdd = /додай\s+(.+?)\s+(?:у|в)\s+список/i.exec(args.text);
+  if (listAdd) {
+    const label = listAdd[1]!.trim();
+    return {
+      reply: `Додав ${label} у список.`,
+      card: { type: 'shopping', items: [{ op: 'add', label }] },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  const listRemove = /прибери\s+(.+?)\s+зі\s+списку/i.exec(args.text);
+  if (listRemove) {
+    const label = listRemove[1]!.trim();
+    return {
+      reply: `Прибрав ${label} зі списку.`,
+      card: { type: 'shopping', items: [{ op: 'remove', label }] },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   const m = /куп(?:ив|ила|или)\s+(.+)/i.exec(args.text);
   if (m) {
     const label = m[1]!.trim().replace(/[.!?].*$/, '');
@@ -312,9 +362,9 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     //   що модель написала поруч із JSON у тому ж повідомленні
     if ('reply' in o && 'card' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
-      card = (o.card ?? null) as Card | null;
+      card = normalizeCard(o.card ?? null);
     } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit'].includes(o.type)) {
-      card = o as unknown as Card;
+      card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }
   }

@@ -82,7 +82,12 @@ export async function applyCard(
 
   // Кожен тип картки має власний обробник і власний знімок для undo.
   if (card.type === 'intake_diff') {
-    const chosen = selected.length ? selected : card.ops.map((_, i) => i);
+    // Захист від малформленої картки моделі (живий репро 01.09: shopping
+    // прийшла з ops замість items) — `?? []` тут і на трьох інших типах
+    // нижче: клік «Застосувати» на такій картці деградує до «0 застосовано»,
+    // а не 500. TS думає card.ops завжди масив — жива відповідь моделі цю
+    // гарантію не тримає.
+    const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
     const snapshot: UndoSnapshot = { kind: 'intake_diff', before: { created_batch_ids: [], modified_batches: [], checked_shopping_ids: [] } };
     for (const idx of chosen) {
       const op = card.ops[idx];
@@ -116,8 +121,8 @@ export async function applyCard(
   }
 
   if (card.type === 'shopping') {
-    const chosen = selected.length ? selected : card.items.map((_, i) => i);
-    const snapshot: UndoSnapshot = { kind: 'shopping', before: { added_shopping_ids: [], removed_shopping_ids: [] } };
+    const chosen = selected.length ? selected : (card.items ?? []).map((_, i) => i);
+    const snapshot: UndoSnapshot = { kind: 'shopping', before: { added_shopping_ids: [], removed_shopping_items: [] } };
     for (const idx of chosen) {
       const item = card.items[idx];
       if (!item) continue;
@@ -135,7 +140,7 @@ export async function applyCard(
   }
 
   if (card.type === 'profile') {
-    const chosen = selected.length ? selected : card.ops.map((_, i) => i);
+    const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
     const before = await repo.getProfile(actor_user_id);
     // QA4-04: {...before} — поверхнева копія, next.allergies це ТОЙ САМИЙ масив,
     // що before.allergies. applyProfileOp робить push і мутує масив, на який
@@ -425,8 +430,10 @@ async function applyShoppingOp(
     const existing = await repo.findShoppingItemByLabel(household_id, item.label);
     if (existing) {
       await repo.deleteShoppingItem(existing.id);
-      snap.before.removed_shopping_ids ??= [];
-      snap.before.removed_shopping_ids.push(existing.id);
+      // Повний рядок, не тільки id — після delete рядка вже нема в БД,
+      // undo мусить його ВІДТВОРИТИ, не просто «знати, що він був».
+      snap.before.removed_shopping_items ??= [];
+      snap.before.removed_shopping_items.push(existing);
     }
     return;
   }
@@ -592,11 +599,15 @@ export async function undoCard(
   for (const b of snap.before.modified_batches ?? []) {
     await repo.updateBatch(b.id, b);
   }
-  // Shopping: додані ідуть на видалення. Видалені лишаються видаленими —
-  // ми не тримаємо їх «повного тіла» на цьому кроці. Це прийнятне спрощення
-  // для MVP: undo після «прибери X» не поверне X назад.
+  // Shopping: додані ідуть на видалення.
   for (const id of snap.before.added_shopping_ids ?? []) {
     await repo.deleteShoppingItem(id);
+  }
+  // M13 01.09: видалені відтворюються повним рядком (той самий id — знову
+  // тим самим рецептом, що removed_eaters нижче). auto-apply зробив цей
+  // шлях живим щодня, тому «undo не повертає X» більше не прийнятне.
+  for (const row of snap.before.removed_shopping_items ?? []) {
+    await repo.insertShoppingItem(row);
   }
   // UX9-27: intake відмітив куплене — undo повертає галочку назад.
   for (const id of snap.before.checked_shopping_ids ?? []) {

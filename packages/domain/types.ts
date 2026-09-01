@@ -248,7 +248,11 @@ export interface UndoSnapshot {
   before: {
     created_batch_ids?: string[];       // add: створені партії — видалити при undo
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
-    removed_shopping_ids?: string[];    // shopping remove: повернути назад (потрібне окреме сховище — пізніше)
+    // M13 01.09: auto-apply shopping зробив undo remove живим шляхом (раніше
+    // requires-click ховав цю дірку) — повний рядок, не тільки id, той самий
+    // патерн, що removed_eaters нижче: видалений рядок треба ВІДТВОРИТИ, id
+    // саме по собі для цього не досить.
+    removed_shopping_items?: ShoppingItemRow[];
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     checked_shopping_ids?: string[];    // UX9-27: intake add відмітив куплене — undo знімає галочку
     profile_before?: Profile;           // profile: повернути весь блок
