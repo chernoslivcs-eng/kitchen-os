@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { serializeShopping, serializeProfile } from '../context.js';
+import {
+  serializeShopping, serializeProfile, serializeEaters,
+  serializeRecentRecipes, serializeNotes, buildKitchenContext,
+} from '../context.js';
 import type { ShoppingItemRow, Profile } from '../types.js';
 
 // M13-ROLE-VOICE п.1. Порожній блок і ВІДСУТНІЙ блок — різні речі.
@@ -69,5 +72,34 @@ describe('[ПРОФІЛЬ] присутній завжди', () => {
     expect(s).toContain('АЛЕРГІЇ');
     expect(s).toContain('арахіс');
     expect(s).not.toMatch(/порожн/i);
+  });
+});
+
+describe('решта стан-блоків присутні завжди', () => {
+  it('[ДОМАШНІ] — порожньо означає «крім власника нікого не записано»', () => {
+    const s = serializeEaters([]);
+    expect(s).toContain('[ДОМАШНІ]');
+    expect(s).toMatch(/не записано/i);
+  });
+
+  it('[ЗГЕНЕРОВАНІ РЕЦЕПТИ] — порожньо', () => {
+    const s = serializeRecentRecipes([]);
+    expect(s).toContain('[ЗГЕНЕРОВАНІ РЕЦЕПТИ]');
+    expect(s).toMatch(/не генерував|порожн/i);
+  });
+
+  // card-rules.md наказує «не пропонуй записати те, що вже там є». Без блока
+  // модель не мала з чим звірятись — і пропонувала дублі висновків.
+  it('[ВИСНОВКИ З ГОТУВАННЯ] і [НАМІРИ] — обидва при порожньому вході', () => {
+    const s = serializeNotes([]);
+    expect(s).toContain('[ВИСНОВКИ З ГОТУВАННЯ]');
+    expect(s).toContain('[НАМІРИ]');
+    expect(s).toMatch(/не записано|порожн/i);
+  });
+
+  it('[ОСТАННІ ГОТУВАННЯ] — порожньо в повному контексті', () => {
+    const s = buildKitchenContext({ pantry: [], now: new Date('2026-09-01T12:00:00') });
+    expect(s).toContain('[ОСТАННІ ГОТУВАННЯ]');
+    expect(s).toMatch(/жодного|ще не готув|порожн/i);
   });
 });

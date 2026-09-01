@@ -272,7 +272,11 @@ export function serializeCookRun(r: RecentCookRunSummary, now = Date.now(), late
 // хто за столом, тому алергія їдця — така сама тверда межа, як алергія
 // власника, і позначається тими самими словами.
 export function serializeEaters(eaters: EaterRow[]): string {
-  if (!eaters.length) return '';
+  // M13-ROLE-VOICE п.1: порожньо — це «крім власника нікого не записано»,
+  // а не «нікого немає». Різниця та сама, що в профілі: могли не спитати.
+  if (!eaters.length) {
+    return '\n\n[ДОМАШНІ] порожньо — крім власника, їдців не записано.';
+  }
   const lines = eaters.map((e) => {
     const parts = [e.name];
     if (e.allergies.length) parts.push(`АЛЕРГІЯ (тверда межа — ніколи не пропонуй сам): ${e.allergies.join(', ')}`);
@@ -294,7 +298,9 @@ export function serializeEaters(eaters: EaterRow[]): string {
 // заново, з іншим мʼясом і іншими калоріями (скріни Пилипа: 280 ккал з
 // яловичиною проти 180 зі свининою на ту саму назву).
 export function serializeRecentRecipes(rows: RecipeRow[]): string {
-  if (!rows.length) return '';
+  if (!rows.length) {
+    return '\n\n[ЗГЕНЕРОВАНІ РЕЦЕПТИ] порожньо — у цьому домі ти ще не генерував рецептів.';
+  }
   const lines = rows.map((r) => {
     const payload = r.payload as Recipe | null;
     const ing = (payload?.ing ?? [])
@@ -312,7 +318,6 @@ export function serializeRecentRecipes(rows: RecipeRow[]): string {
 // людина про свою кухню: «фует знімати, щойно краї хрусткі». Тому вони йдуть
 // окремим блоком, а не тонуть у профілі серед побажань.
 export function serializeNotes(notes: MemoryNote[]): string {
-  if (!notes.length) return '';
   const line = (n: MemoryNote) => {
     const parts = [n.text];
     if (n.recipe_title) parts.push(`до «${n.recipe_title}»`);
@@ -323,12 +328,16 @@ export function serializeNotes(notes: MemoryNote[]): string {
   // намір — «що заплановано»; змішані вони читались би як одна каша.
   const lessons = notes.filter((n) => (n.kind ?? 'lesson') === 'lesson');
   const intents = notes.filter((n) => n.kind === 'intent');
-  let out = '';
-  if (lessons.length) out += '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lessons.map(line).join('\n');
-  if (intents.length) {
-    out += '\n\n[НАМІРИ] (ідеї, які людина відклала на потім — нагадай, коли складники в наявності або момент слушний)\n'
-      + intents.map(line).join('\n');
-  }
+  // M13-ROLE-VOICE п.1: обидва підблоки присутні завжди. Для висновків це не
+  // косметика — card-rules.md наказує «не пропонуй записати те, що вже там є»,
+  // а без блока звіряти було ні з чим, і модель пропонувала дублі.
+  let out = lessons.length
+    ? '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lessons.map(line).join('\n')
+    : '\n\n[ВИСНОВКИ З ГОТУВАННЯ] порожньо — висновків про техніку ще не записано.';
+  out += intents.length
+    ? '\n\n[НАМІРИ] (ідеї, які людина відклала на потім — нагадай, коли складники в наявності або момент слушний)\n'
+      + intents.map(line).join('\n')
+    : '\n\n[НАМІРИ] порожньо — відкладених ідей не записано.';
   return out;
 }
 
@@ -339,7 +348,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
   const cookLog = ctx.recentCookRuns?.length
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n'
       + ctx.recentCookRuns.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
-    : '';
+    : '\n\n[ОСТАННІ ГОТУВАННЯ] порожньо — жодного завершеного готування ще немає.';
   return serializeProfile(ctx.profile)
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
