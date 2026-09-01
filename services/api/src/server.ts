@@ -58,7 +58,7 @@ export function buildApp(
 
   authRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.authRequest });
   googleAuthRoutes(app, repo, opts.google);
-  retailRoutes(app, repo, opts.retail);
+  const retail = retailRoutes(app, repo, opts.retail);
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
   pantryRoute(app, repo);
@@ -67,7 +67,7 @@ export function buildApp(
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);
-  chatRoute(app, repo, store, { rateLimit: opts.rateLimits?.chat });
+  chatRoute(app, repo, store, { rateLimit: opts.rateLimits?.chat, retailCart: retail?.attemptBuildCart });
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);
 

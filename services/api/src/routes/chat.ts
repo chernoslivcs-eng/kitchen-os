@@ -12,6 +12,7 @@ import {
   FEEDBACK_MARKERS, FEEDBACK_PROMPT,
 } from '../post-cook.js';
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
+import type { RetailCartAttempt } from './retail.js';
 
 function today(): string {
   const d = new Date();
@@ -61,6 +62,11 @@ function summarizeCard(c: Card): string {
 
 export interface ChatRouteOpts {
   rateLimit?: RateLimitCfg;
+  // M13: «асистент повинен мати руки» — та сама дія, що кнопка «Зібрати
+  // кошик», доступна словами. Інʼєкція з retailRoutes() (server.ts) —
+  // chat.ts не знає нічого про Сільпо, цифри/крипту/withRetryAuth, тільки
+  // «спробуй, скажи як пройшло».
+  retailCart?: (user_id: string, household_id: string) => Promise<RetailCartAttempt>;
 }
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
@@ -333,6 +339,15 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // і трималась названого складу замість нового підходу на кожен тап.
     const recentRecipes = await repo.listRecentRecipes(user_id, 5);
 
+    // M13: [МЕРЕЖІ] у промпті — тільки коли інтеграція взагалі сконфігурована
+    // на сервері (retailCart переданий). Статус читаємо напряму з repo:
+    // chat.ts не знає про шифрування/провайдера, тільки «активна чи ні».
+    let retailConnected: boolean | undefined;
+    if (opts.retailCart) {
+      const conn = await repo.getRetailConnection(user_id, 'silpo');
+      retailConnected = !!conn && conn.status === 'active' && new Date(conn.expires_at).getTime() > Date.now();
+    }
+
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
     // «у тебе немає покупок на початку», хоча вони були за межею вікна. Кажемо прямо.
@@ -350,7 +365,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profile, shopping, notes, eaters, recentRecipes, products,
+        history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');
@@ -438,6 +453,42 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Пул-5 №6: людина погодилась готувати конкретну страву — не показуємо
     // їй службову картку, а одразу генеруємо рецепт і віддаємо recipe_link
     // тим самим ходом. «давай» після пропозиції = рецепт, не нове коло торгу.
+    // M13: «замов через сільпо» — модель лише маркує намір (cart_go), сервер
+    // сам виконує РІВНО той код, що кнопка «Зібрати кошик» (attemptBuildCart,
+    // спільний з retail.ts), і підміняє картку на справжній cart. Три чесні
+    // виходи без картки: не сконфігуровано на сервері / мережа не підключена
+    // / список порожній — людині кажемо людською мовою, не мовчимо і не
+    // вигадуємо картку, якої нема чим наповнити.
+    if (call.card?.type === 'cart_go') {
+      const saveTurn = async (text: string, card: Card | null) => {
+        const id = randomUUID();
+        await repo.saveMessage({
+          id, session_id: session.id, role: 'assistant',
+          text, card, applied: 0, created_at: new Date().toISOString(),
+        });
+        return card ? id : null;
+      };
+      if (!opts.retailCart) {
+        const msg = 'Замовлення через мережу тут ще не підключене.';
+        await saveTurn(msg, null);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const attempt = await opts.retailCart(user_id, household_id);
+      if (!attempt.ok) {
+        const msg = attempt.error === 'not_connected'
+          ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
+          : attempt.error === 'empty_list'
+          ? 'Список покупок порожній — нема що замовляти.'
+          : 'Сільпо зараз не відповідає — спробуй за хвилину.';
+        await saveTurn(msg, null);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const card = attempt.card!;
+      const cartReply = call.reply || `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`;
+      const card_id = await saveTurn(cartReply, card);
+      return { reply: cartReply, card, card_id, usage: call.usage, meta: call.meta };
+    }
+
     if (call.card?.type === 'cook_go') {
       const wantedTitle = call.card.title.trim();
       // Дедуп той самий, що в POST /v1/recipes/generate: та сама назва в межах

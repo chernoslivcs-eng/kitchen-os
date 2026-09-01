@@ -13,7 +13,7 @@
 
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { Repo, Card, CartCardRow } from '@kitchen/domain';
+import type { Repo, Card, CartCard, CartCardRow, RetailConnectionRow } from '@kitchen/domain';
 import { createPending, applyCard } from '@kitchen/domain';
 import { resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
@@ -107,7 +107,21 @@ function makeRealRefresh(clientId: string) {
   };
 }
 
-export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts) {
+// M13: «людина попросила словами» (card_go:cart_go з чату) виконує РІВНО той
+// самий код, що кнопка «Зібрати кошик» — attemptBuildCart не знає, хто її
+// покликав. card відсутній лише коли ok:false; error пояснює чому, людською
+// мовою це перекладає вже викликач (Fastify-роут або chat.ts).
+export interface RetailCartAttempt {
+  ok: boolean;
+  card?: CartCard;
+  error?: 'not_connected' | 'empty_list' | 'retail_auth';
+}
+
+export interface RetailHandle {
+  attemptBuildCart(user_id: string, household_id: string): Promise<RetailCartAttempt>;
+}
+
+export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts): RetailHandle | undefined {
   const silpo = opts?.silpo;
 
   app.get('/v1/retail', { preHandler: authenticated(repo) }, async (req) => {
@@ -126,7 +140,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     };
   });
 
-  if (!silpo) return;
+  if (!silpo) return undefined;
   const cipher = makeTokenCipher(silpo.tokenSecret);
   const exchange = silpo.exchange ?? makeRealExchange(silpo.clientId);
   const refreshTokens = silpo.refresh ?? makeRealRefresh(silpo.clientId);
@@ -139,7 +153,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // днів, тож спершу пробуємо refresh_token (якщо він є) РІВНО раз; якщо і
   // це кидає RetailAuthError — людина справді має зайти заново.
   async function withRetailAuth<T>(
-    conn: import('@kitchen/domain').RetailConnectionRow,
+    conn: RetailConnectionRow,
     fn: (provider: ReturnType<typeof makeProvider>) => Promise<T>,
   ): Promise<T> {
     try {
@@ -341,13 +355,17 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // резолвер знає, що «стейк з лосося» — це лосось). Знайдене ОДРАЗУ лягає
   // в кошик акаунта Сільпо — «Оформити ↗» на картці веде в уже зібраний
   // кошик; чекаут цілком їхній.
-  app.post('/v1/retail/silpo/build-cart', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
-    const { user_id, household_id } = requireUser(req);
+  //
+  // Витягнуто з роуту в перевикористовувану функцію (RetailHandle) — той
+  // самий код виконує і кнопка «Зібрати кошик», і card_go:cart_go з чату
+  // (chat.ts): жодних дублікатів логіки пошуку/addToCart, тільки різне
+  // «що сказати людині» у викликача.
+  async function attemptBuildCart(user_id: string, household_id: string): Promise<RetailCartAttempt> {
     const conn = await repo.getRetailConnection(user_id, 'silpo');
-    if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
+    if (!conn || conn.status !== 'active') return { ok: false, error: 'not_connected' };
 
     const items = (await repo.listShoppingItems(household_id)).filter((i) => !i.checked);
-    if (!items.length) return reply.code(409).send({ error: 'empty_list' });
+    if (!items.length) return { ok: false, error: 'empty_list' };
 
     // Кількість у кошик: вагове — кг із наших грамів (мінімум 0.1), штучне — 1.
     const qtyFor = (p: { weighted: boolean; step: number }, it: { unit: string | null; value: number | null }) =>
@@ -423,12 +441,12 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         return outRows;
       });
     } catch (e) {
-      if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+      if (e instanceof RetailAuthError) return { ok: false, error: 'retail_auth' };
       throw e;
     }
 
     const foundRows = rows.filter((r) => r.product);
-    const card: Card = {
+    const card: CartCard = {
       type: 'cart', provider: 'silpo', list_label: null,
       rows,
       total: Math.round(foundRows.reduce((s, r) => s + (r.product!.price * (r.product!.weighted ? r.product!.quantity : r.product!.quantity)), 0)),
@@ -437,6 +455,16 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       // живе попапом на будь-якій сторінці — ведемо на головну.
       cart_url: 'https://silpo.ua',
     };
+    return { ok: true, card };
+  }
+
+  app.post('/v1/retail/silpo/build-cart', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
+    const { user_id, household_id } = requireUser(req);
+    const attempt = await attemptBuildCart(user_id, household_id);
+    if (!attempt.ok) {
+      return reply.code(attempt.error === 'retail_auth' ? 401 : 409).send({ error: attempt.error });
+    }
+    const card = attempt.card!;
     const card_id = randomUUID();
     const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
     await repo.saveMessage({
@@ -482,4 +510,6 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       return { card, card_id };
     },
   );
+
+  return { attemptBuildCart };
 }

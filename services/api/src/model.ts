@@ -138,6 +138,8 @@ export interface ChatArgs {
   recentRecipes?: RecipeRow[];
   // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈» комори.
   products?: HouseholdProduct[];
+  // M13: чи підключена мережа — гейтить card_go:cart_go в системному промпті.
+  retailConnected?: boolean;
 }
 
 export interface ChatCall {
@@ -168,6 +170,28 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
         meta: { promptVersion, model: 'stub', mode: 'stub' },
       };
     }
+  }
+  // M13: явне прохання оформити список через мережу → cart_go. Тільки коли
+  // мережа підключена — інакше стаб (як і живий промпт) веде в Профіль
+  // прозою, картки не дає.
+  // Корінь «збер»/«зібр» покриває всю парадигму (зберіть/збери/зберемо/
+  // зібрати/зібрав) — «збери» самою формою пропускала «зберіть» (і/и
+  // чергування в укр. дієслові), і живий тест це впіймав.
+  if (/(замов|оформ|збер|зібр)[^.!?]*(сільпо|кошик)/i.test(args.text)) {
+    if (args.retailConnected) {
+      return {
+        reply: 'Зараз гляну ціни й наявність.',
+        card: { type: 'cart_go' },
+        usage: { input: 0, output: 0 },
+        meta: { promptVersion, model: 'stub', mode: 'stub' },
+      };
+    }
+    return {
+      reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
+      card: null,
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
   }
   // Пул-5 №6: явна згода готувати конкретну страву → cook_go.
   const go = /готуємо\s+[«"]([^»"]+)[»"]/i.exec(args.text);
@@ -222,6 +246,7 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
+    retailConnected: args.retailConnected,
     queryText,
   });
 }
@@ -250,6 +275,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
+    retailConnected: args.retailConnected,
     queryText,
   });
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:

@@ -216,7 +216,15 @@ export interface CartCard {
   cart_url: string;
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard;
+// M13: «людина явно попросила оформити список через мережу» — той самий
+// принцип, що CookGoCard («страва обрана»): модель лише МАРКУЄ намір,
+// сервер сам виконує (attemptBuildCart) і підміняє картку на справжній
+// CartCard. Без полів — сервер бере активну мережу й поточний список сам.
+export interface CartGoCard {
+  type: 'cart_go';
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard;
 
 // ----- Стан «на застосуванні» ------
 
