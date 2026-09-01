@@ -126,7 +126,15 @@ export interface CartRow {
   item_id: string | null;
   v: number | null;
   u: string | null;
-  product: { name: string; price: number; weighted: boolean; quantity: number } | null;
+  // 01.09 картка v2: product_id/company_id/branch_id — щоб степер міг
+  // змінити кількість (cart-update-qty). package_ml — обсяг упаковки з
+  // назви товару («0,33 л» → 330), null коли не розпізнано чи вагове —
+  // разом з v/u рядка дає видиму математику «× 0,33 л ≈ 0,99 л».
+  product: {
+    product_id: string; company_id: string; branch_id: string;
+    name: string; price: number; weighted: boolean; quantity: number;
+    package_ml: number | null;
+  } | null;
   // 01.09 рівень 1: інші варіанти того самого пошуку. Хіт — інформаційно
   // («ще є: …», без тапу); проміс — кнопки «замінити» (в кошик їде тільки
   // тапом, index у масиві = alt_index для /cart-swap).
@@ -204,6 +212,12 @@ export const api = {
       req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-add-alt', {
         method: 'POST', body: JSON.stringify({ card_id, row_index, alt_index }),
       }),
+    // 01.09 картка v2: степер кількості на рядку — сервер округлює за типом
+    // (вагове/кількісне/обсягове), оновлює живий кошик Сільпо, рахує total.
+    cartUpdateQty: (card_id: string, row_index: number, quantity: number) =>
+      req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-update-qty', {
+        method: 'POST', body: JSON.stringify({ card_id, row_index, quantity }),
+      }),
     syncReceipts: () => req<{
       up_to_date: boolean;
       cards: Array<{
@@ -260,6 +274,13 @@ export const api = {
       req<{ undone: boolean; already: boolean }>(
         `/v1/cards/${id}/undo`,
         { method: 'POST', body: JSON.stringify({ undo_token }) },
+      ),
+    // 01.09 картка v2: «уточнити» на невпізнаному рядку чека — переносить
+    // його з source.unmatched у ops (той самий список, той самий чекбокс).
+    clarifyLine: (id: string, unmatched_index: number, value: number, unit: string) =>
+      req<{ card: ChatCard }>(
+        `/v1/cards/${id}/clarify-line`,
+        { method: 'POST', body: JSON.stringify({ unmatched_index, value, unit }) },
       ),
   },
 
