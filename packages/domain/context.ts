@@ -59,20 +59,29 @@ export function todayLabel(now = new Date()): string {
 
 // Профіль. QA4-02: до цього алергії зберігались, показувались у UI — і не
 // впливали ні на що; модель двічі пропонувала мигдаль людині з алергією.
+// M13-ROLE-VOICE п.1: порожній профіль — НЕ дозвіл. Людину могли ще не
+// спитати (саме на порожньому профілі вмикається онбординг stage 2), і тиша
+// не сміє читатись як підтверджене «обмежень немає»: ціна цієї підміни —
+// алерген у пропозиції. Тому блок присутній завжди і несе різницю явно.
 export function serializeProfile(p?: Profile | null): string {
-  if (!p) return '';
   const parts: string[] = [];
-  if (p.allergies.length) {
-    parts.push('АЛЕРГІЇ (тверда межа — ніколи не пропонуй сам): ' + p.allergies.join(', '));
+  if (p) {
+    if (p.allergies.length) {
+      parts.push('АЛЕРГІЇ (тверда межа — ніколи не пропонуй сам): ' + p.allergies.join(', '));
+    }
+    if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
+    if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
+    const eq = Object.entries(p.equipment ?? {});
+    const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
+    const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
+    if (has.length) parts.push('Є ТЕХНІКА: ' + has.join(', '));
+    if (lacks.length) parts.push('НЕМАЄ ТЕХНІКИ: ' + lacks.join(', '));
   }
-  if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
-  if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
-  const eq = Object.entries(p.equipment ?? {});
-  const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
-  const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
-  if (has.length) parts.push('Є ТЕХНІКА: ' + has.join(', '));
-  if (lacks.length) parts.push('НЕМАЄ ТЕХНІКИ: ' + lacks.join(', '));
-  return parts.length ? '\n\n[ПРОФІЛЬ]\n' + parts.join('\n') : '';
+  if (!parts.length) {
+    return '\n\n[ПРОФІЛЬ] порожній — обмежень, алергій і побажань ще не записано.'
+      + ' Це НЕ означає, що їх немає: найімовірніше, ще не питали.';
+  }
+  return '\n\n[ПРОФІЛЬ]\n' + parts.join('\n');
 }
 
 // Комора: id · назва · зона · кількість · стан. Термін догоряння як «!Nдн»,
