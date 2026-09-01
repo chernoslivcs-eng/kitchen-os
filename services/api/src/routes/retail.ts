@@ -426,13 +426,20 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     // обсяг покрив заявлений (округлення ВГОРУ — частину пляшки не купиш).
     // 01.09: раніше обсягове мовчки падало в гілку «штучне» (1 шт) — живий
     // репро «хочу літр, а додається 0.33».
+    // 01.09 картка v2: shopping-позиція з чату несе «l», не «ml» — так модель
+    // і пише за card-rules.md («2 літри молока» → v:2, u:"l"), applyShoppingOp
+    // це свідомо НЕ конвертує (щоб список показував людські «2 л»). Тому тут,
+    // на споживанні, приводимо і «ml», і «l» до мл для розрахунку пляшок.
     const qtyFor = (p: { weighted: boolean; step: number; name: string }, it: { unit: string | null; value: number | null }) => {
       if (p.weighted && it.unit === 'g' && it.value) {
         return Math.max(0.1, Math.round((it.value / 1000) * 100) / 100);
       }
-      if (!p.weighted && it.unit === 'ml' && it.value) {
-        const packageMl = parsePackageMl(p.name);
-        if (packageMl) return Math.max(1, Math.ceil(it.value / packageMl));
+      if (!p.weighted && it.value) {
+        const requestedMl = it.unit === 'ml' ? it.value : it.unit === 'l' ? it.value * 1000 : null;
+        if (requestedMl) {
+          const packageMl = parsePackageMl(p.name);
+          if (packageMl) return Math.max(1, Math.ceil(requestedMl / packageMl));
+        }
       }
       return Math.max(1, p.step || 1);
     };

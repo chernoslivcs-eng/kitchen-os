@@ -54,6 +54,44 @@ describe('retail: обсягове рахує кількість пляшок в
     expect(cartAdds).toEqual([{ productId: 'id-tonic', companyId: 'c1', branchId: 'b1', quantity: 4 }]);
   });
 
+  it('«2 літри» з чату (u:"l", НЕ "ml" — так модель і пише за card-rules.md) → рахує пляшки', async () => {
+    const repo = new InMemoryRepo();
+    const mailer = new ConsoleMailer();
+    const found = [product('id-schweppes', 'Напій соковмісний Schweppes Classic Mojito, 0,33 л', 33)];
+    const cartAdds: { productId: string; quantity: number }[] = [];
+    const app = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: {
+        silpo: {
+          clientId: 'c', tokenSecret: 's', devAccessToken: 'dev-token',
+          makeProvider: () => ({
+            receipts: async () => [],
+            findBatch: async (queries: string[]) => queries.map((q) => ({ query: q, candidates: found, product: found[0] ?? null })),
+            addToCart: async (items: { productId: string; quantity: number }[]) => { cartAdds.push(...items); },
+          }),
+        },
+      },
+    });
+    await app.ready();
+    const me = await signIn(app, mailer, 'me@example.com');
+    await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
+    // Точно те, що applyShoppingOp кладе для «додай швепс 2 літри у список»
+    // (card-rules.md: «Постав два літри молока» → {"v":2,"u":"l"}) — літри,
+    // НЕ мілілітри, без конвертації на шляху shopping.
+    await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: 'швепс', v: 2, u: 'l' },
+    });
+
+    const r = await app.inject({
+      method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
+    });
+    const row = r.json().card.rows[0];
+    // ceil(2000/330) = 7 — 6 банок (1980мл) не покрили б заявлені 2л.
+    expect(row.product.quantity).toBe(7);
+    expect(row.product.package_ml).toBe(330);
+    expect(cartAdds).toEqual([{ productId: 'id-schweppes', companyId: 'c1', branchId: 'b1', quantity: 7 }]);
+  });
+
   it('без заявленого обсягу — package_ml все одно розпізнається (для видимої математики), кількість лишається 1', async () => {
     const repo = new InMemoryRepo();
     const mailer = new ConsoleMailer();
