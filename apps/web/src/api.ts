@@ -127,6 +127,8 @@ export interface CartRow {
   v: number | null;
   u: string | null;
   product: { name: string; price: number; weighted: boolean; quantity: number } | null;
+  // Кандидат-заміна для промаху; в кошик їде тільки тапом «замінити».
+  alternative?: { name: string; price: number; weighted: boolean; quantity: number } | null;
 }
 
 export interface ChatCard {
@@ -190,6 +192,10 @@ export const api = {
     disconnect: () => req<{ status: string }>('/v1/retail/silpo/disconnect', { method: 'POST', body: '{}' }),
     reconnect: () => req<{ status: string }>('/v1/retail/silpo/reconnect', { method: 'POST', body: '{}' }),
     buildCart: () => req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/build-cart', { method: 'POST', body: '{}' }),
+    cartSwap: (card_id: string, row_index: number) =>
+      req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-swap', {
+        method: 'POST', body: JSON.stringify({ card_id, row_index }),
+      }),
     syncReceipts: () => req<{
       up_to_date: boolean;
       cards: Array<{

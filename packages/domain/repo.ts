@@ -5,7 +5,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, MemoryNote, EaterRow,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
-  SessionRow, MessageRow, RetailConnectionRow,
+  SessionRow, MessageRow, RetailConnectionRow, Card,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 
@@ -120,6 +120,8 @@ export interface Repo {
   // картками; журнал (cook_run) лишається, session_id відвʼязується.
   deleteSession(id: string): Promise<void>;
   markMessageApplied(id: string, applied: number): Promise<void>;
+  // M13: заміна в картці кошика мусить пережити F5 — картка правиться в БД.
+  updateMessageCard(id: string, card: Card): Promise<void>;
 
   // Пул-5 №1: повне видалення акаунта. Зносить юзера і доми, де він був
   // ЄДИНИМ членом (каскади прибирають решту); членства в чужих домах просто

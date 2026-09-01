@@ -71,6 +71,8 @@ type ProfileItem = {
 
 export interface CardProps {
   card: ChatCard;
+  // M13: cart-swap правиться на сервері за id повідомлення-картки.
+  cardId?: string;
   applied?: boolean;
   applying?: boolean;
   dismissed?: boolean;
@@ -784,8 +786,20 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 // назва Сільпо — другим рядком mono, як «паспортні дані» товару.
 // «Немає в цій філії» — бурштин-факт, не error. Кнопка темна з ↗ — вихід
 // назовні, не наша шавлієва дія; чекаут цілком на боці мережі.
-export function RetailCartCard({ card }: CardProps) {
+export function RetailCartCard({ card: initial, cardId }: CardProps) {
+  // Заміна правиться на сервері (updateMessageCard) — локальний стан лише
+  // віддзеркалює оновлену картку з відповіді.
+  const [card, setCard] = useState(initial);
+  const [swapping, setSwapping] = useState<number | null>(null);
   const rows = card.rows ?? [];
+  async function swap(i: number) {
+    if (!cardId || swapping !== null) return;
+    setSwapping(i);
+    try {
+      const r = await api.retail.cartSwap(cardId, i);
+      setCard(r.card);
+    } catch { /* рядок лишається з пропозицією */ } finally { setSwapping(null); }
+  }
   return (
     <div className={styles.card}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
@@ -815,6 +829,21 @@ export function RetailCartCard({ card }: CardProps) {
               <span className={styles['op-qty']} style={{ color: 'var(--fg)' }}>
                 {Math.round(r.product.price * (r.product.weighted ? r.product.quantity : 1))}₴
               </span>
+            )}
+            {!r.product && r.alternative && (
+              <button
+                type="button"
+                disabled={swapping !== null}
+                onClick={() => void swap(i)}
+                style={{
+                  border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
+                  color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                  textDecoration: 'underline', textUnderlineOffset: 3, flex: 'none', textAlign: 'right',
+                  opacity: swapping === i ? 0.5 : 1,
+                }}
+              >
+                замінити: {r.alternative.name} · {Math.round(r.alternative.price * (r.alternative.weighted ? r.alternative.quantity : 1))}₴
+              </button>
             )}
           </div>
         ))}

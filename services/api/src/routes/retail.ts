@@ -259,6 +259,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
 
     const provider = makeProvider(cipher.dec(conn.access_token_enc));
     let found: Map<string, RetailFoundRow>;
+    let altFound = new Map<string, RetailFoundRow>();
     try {
       const phase1 = await provider.findBatch(items.map((i) => i.label));
       found = new Map(phase1.map((r) => [r.query, r]));
@@ -278,26 +279,50 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
           if (original && r.product) found.set(original, r);
         }
       }
+      // Фаза 3 — досі промахи: головне слово канонічного імені («Рис арборіо»
+      // → «рис»). Результат стає ПРОПОЗИЦІЄЮ заміни, не покупкою: «не
+      // вгадувати» — в кошик вона їде тільки тапом «замінити» (cart-swap).
+      const alt = new Map<string, string>(); // head → original label
+      for (const it of items) {
+        if (found.get(it.label)?.product) continue;
+        const key = resolveLabelToKey(it.label);
+        const head = (key ? BY_KEY.get(key)?.name : null)?.split(/\s+/)[0]?.toLowerCase();
+        if (head && head !== it.label.toLowerCase()) alt.set(head, it.label);
+      }
+      if (alt.size) {
+        const phase3 = await provider.findBatch([...alt.keys()]);
+        for (const r of phase3) {
+          const original = alt.get(r.query);
+          if (original && r.product) altFound.set(original, r);
+        }
+      }
     } catch (e) {
       if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
       throw e;
     }
 
     // Кількість у кошик: вагове — кг із наших грамів (мінімум 0.1), штучне — 1.
+    const qtyFor = (p: { weighted: boolean; step: number }, it: { unit: string | null; value: number | null }) =>
+      p.weighted && it.unit === 'g' && it.value
+        ? Math.max(0.1, Math.round((it.value / 1000) * 100) / 100)
+        : Math.max(1, p.step || 1);
     const rows: CartCardRow[] = [];
     const toAdd: Array<{ productId: string; companyId: string; branchId: string; quantity: number }> = [];
     for (const it of items) {
       const hit = found.get(it.label)?.product ?? null;
       let quantity = 0;
       if (hit) {
-        quantity = hit.weighted && it.unit === 'g' && it.value
-          ? Math.max(0.1, Math.round((it.value / 1000) * 100) / 100)
-          : Math.max(1, hit.step || 1);
+        quantity = qtyFor(hit, it);
         toAdd.push({ productId: hit.id, companyId: hit.companyId, branchId: hit.branchId, quantity });
       }
+      const altHit = hit ? null : altFound.get(it.label)?.product ?? null;
       rows.push({
         label: it.label, item_id: it.id, v: it.value, u: it.unit,
         product: hit ? { name: hit.name, price: hit.price, weighted: hit.weighted, quantity } : null,
+        alternative: altHit ? {
+          product_id: altHit.id, company_id: altHit.companyId, branch_id: altHit.branchId,
+          name: altHit.name, price: altHit.price, weighted: altHit.weighted, quantity: qtyFor(altHit, it),
+        } : null,
       });
     }
     if (toAdd.length) {
@@ -313,7 +338,9 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       rows,
       total: Math.round(foundRows.reduce((s, r) => s + (r.product!.price * (r.product!.weighted ? r.product!.quantity : r.product!.quantity)), 0)),
       found: foundRows.length, of: rows.length,
-      cart_url: 'https://silpo.ua/cart',
+      // Не /cart: мережа прибрала цю сторінку (404 «Отакої»), кошик у них
+      // живе попапом на будь-якій сторінці — ведемо на головну.
+      cart_url: 'https://silpo.ua',
     };
     const card_id = randomUUID();
     const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
@@ -324,4 +351,40 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     });
     return { card, card_id };
   });
+
+  // Тап «замінити» на бурштиновому рядку: альтернатива їде в кошик мережі,
+  // картка правиться в БД — заміна переживає перезавантаження.
+  app.post<{ Body: { card_id?: string; row_index?: number } }>(
+    '/v1/retail/silpo/cart-swap',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const conn = await repo.getRetailConnection(user_id, 'silpo');
+      if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
+      const { card_id, row_index } = req.body ?? {};
+      if (!card_id || row_index == null) return reply.code(400).send({ error: 'card_id and row_index required' });
+      const msg = await repo.getMessage(card_id);
+      const card = msg?.card;
+      if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
+      const row = card.rows[row_index];
+      if (!row?.alternative) return reply.code(409).send({ error: 'no_alternative' });
+
+      const a = row.alternative;
+      try {
+        await makeProvider(cipher.dec(conn.access_token_enc)).addToCart([
+          { productId: a.product_id, companyId: a.company_id, branchId: a.branch_id, quantity: a.quantity },
+        ]);
+      } catch (e) {
+        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+        throw e;
+      }
+      row.product = { name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity };
+      row.alternative = null;
+      card.found = card.rows.filter((r) => r.product).length;
+      card.total = Math.round(card.rows.reduce(
+        (s, r) => s + (r.product ? r.product.price * (r.product.weighted ? r.product.quantity : 1) : 0), 0));
+      await repo.updateMessageCard(card_id, card);
+      return { card, card_id };
+    },
+  );
 }

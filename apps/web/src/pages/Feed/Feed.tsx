@@ -902,6 +902,7 @@ export function Feed() {
               <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''}`}>
               <Card
                 card={t.card}
+                cardId={t.cardId ?? undefined}
                 applied={t.applied}
                 applying={t.applying}
                 dismissed={t.dismissed}

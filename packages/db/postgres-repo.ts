@@ -855,6 +855,10 @@ export class PostgresRepo implements Repo {
     await this.pool.query('UPDATE message SET applied = $2 WHERE id = $1', [id, applied]);
   }
 
+  async updateMessageCard(id: string, card: Card): Promise<void> {
+    await this.pool.query('UPDATE message SET card = $2 WHERE id = $1', [id, JSON.stringify(card)]);
+  }
+
   // ----- Рецепти й приготування ------------------------------------------
 
   async saveRecipe(recipe: RecipeRow): Promise<void> {

@@ -401,6 +401,22 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await repo.getRetailConnection(user_id, 'silpo')).toBeNull();
     });
 
+    it('updateMessageCard: заміна в кошику переживає перезавантаження', async () => {
+      const { repo, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-01');
+      const mid = randomUUID();
+      await repo.saveMessage({
+        id: mid, session_id: session.id, role: 'assistant', text: 'Кошик',
+        card: { type: 'cart', provider: 'silpo', list_label: null, rows: [], total: 0, found: 0, of: 1, cart_url: 'https://silpo.ua' },
+        applied: 0, created_at: new Date().toISOString(),
+      });
+      await repo.updateMessageCard(mid, {
+        type: 'cart', provider: 'silpo', list_label: null, rows: [], total: 72, found: 1, of: 1, cart_url: 'https://silpo.ua',
+      });
+      const msg = (await repo.listMessages(session.id)).find((m) => m.id === mid);
+      expect((msg?.card as { total?: number })?.total).toBe(72);
+    });
+
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

@@ -271,6 +271,60 @@ describe('retail routes · silpo', () => {
     expect((msg?.card as { type?: string })?.type).toBe('cart');
   });
 
+  it('build-cart: промах отримує заміну третьою фазою (головне слово каталогу)', async () => {
+    await connect();
+    await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: 'рис арборіо' },
+    });
+    const findCalls: string[][] = [];
+    const cartAdds: Array<{ productId: string }> = [];
+    providerImpl = () => ({
+      receipts: async () => [],
+      findBatch: async (queries: string[]) => {
+        findCalls.push(queries);
+        return queries.map((q) => ({
+          query: q, candidates: [],
+          // Точного арборіо немає ніде; на «рис» (голова) — є круглозернистий.
+          product: q === 'рис' ? {
+            id: 'id-rice', name: 'Рис круглозернистий «Хуторок»', slug: 'rice', price: 89, oldPrice: null,
+            stock: true, available: true, weighted: false, step: 1, companyId: 'c1', branchId: 'b1',
+          } : null,
+        }));
+      },
+      addToCart: async (items: Array<{ productId: string }>) => { cartAdds.push(...items); },
+    });
+
+    const r = await app.inject({
+      method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
+    });
+    const body = r.json();
+    // Лінк «Оформити» — на головну: silpo.ua/cart мережа прибрала (404),
+    // кошик у них живе попапом на будь-якій сторінці.
+    expect(body.card.cart_url).toBe('https://silpo.ua');
+    const row = body.card.rows[0];
+    // Заміну НЕ кладемо в кошик самі — «не вгадувати»: пропозиція під тапом.
+    expect(row.product).toBeNull();
+    expect(row.alternative).toMatchObject({ name: 'Рис круглозернистий «Хуторок»', price: 89 });
+    expect(cartAdds).toHaveLength(0);
+
+    // Тап «замінити»: альтернатива їде в кошик мережі, картка правиться в БД.
+    const swap = await app.inject({
+      method: 'POST', url: '/v1/retail/silpo/cart-swap', headers: { cookie: me.cookie },
+      payload: { card_id: body.card_id, row_index: 0 },
+    });
+    expect(swap.statusCode).toBe(200);
+    expect(cartAdds.map((a) => a.productId)).toEqual(['id-rice']);
+    const patched = swap.json().card;
+    expect(patched.rows[0].product).toMatchObject({ name: 'Рис круглозернистий «Хуторок»' });
+    expect(patched.found).toBe(1);
+    expect(patched.total).toBe(89);
+
+    const { id } = await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10));
+    const msg = (await repo.listMessages(id)).find((m) => m.id === body.card_id);
+    expect((msg?.card as { found?: number })?.found).toBe(1);
+  });
+
   it('build-cart без жодної позиції — 409 empty_list, нічого не створюється', async () => {
     await connect();
     const r = await app.inject({

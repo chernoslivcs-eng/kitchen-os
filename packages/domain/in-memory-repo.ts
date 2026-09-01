@@ -3,7 +3,7 @@ import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js'
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
-  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
+  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow, Card,
   SessionRow, MessageRow, MemoryNote, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
@@ -424,6 +424,13 @@ export class InMemoryRepo implements Repo {
     for (const arr of this.messages.values()) {
       const m = arr.find((x) => x.id === id);
       if (m) { m.applied = applied; return; }
+    }
+  }
+
+  async updateMessageCard(id: string, card: Card): Promise<void> {
+    for (const arr of this.messages.values()) {
+      const m = arr.find((x) => x.id === id);
+      if (m) { m.card = card; return; }
     }
   }
 

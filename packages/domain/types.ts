@@ -197,6 +197,12 @@ export interface CartCardRow {
   v: number | null;
   u: string | null;
   product: { name: string; price: number; weighted: boolean; quantity: number } | null;
+  // Промах із кандидатом-заміною (третя фаза: головне слово каталогу).
+  // У кошик НЕ кладеться сама — «не вгадувати»; тап «замінити» → cart-swap.
+  alternative?: {
+    product_id: string; company_id: string; branch_id: string;
+    name: string; price: number; weighted: boolean; quantity: number;
+  } | null;
 }
 
 export interface CartCard {
