@@ -520,11 +520,10 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       const card = msg?.card;
       if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
       const row = card.rows[row_index];
-      // 01.09 рівень 1: хіт-рядок уже має товар у кошику мережі — тап-заміна
-      // сюди заборонена на сервері, не тільки прихована в UI. Наша інтеграція
-      // вміє лише addToCart, без видалення: заміна хіта задвоїла б позицію
-      // в живому кошику Сільпо, а картка брехала б, що старе прибрано.
-      if (row?.product) return reply.code(409).send({ error: 'already_matched' });
+      // 01.09: тап-заміна дозволена і на хіт-рядку (людина явно попросила
+      // «переключити позицію, яку запропонував ЛЛМ»). Наша інтеграція вміє
+      // лише addToCart, без видалення — стара позиція технічно може лишитись
+      // у живому кошику Сільпо; попередження про це — відповідальність UI.
       const a = row?.alternatives?.[alt_index];
       if (!a) return reply.code(409).send({ error: 'no_alternative' });
 
@@ -540,6 +539,49 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       // Решта кандидатів того самого пошуку лишається — тепер уже
       // інформаційно (рядок став хітом), той самий перелік «ще є».
       row.alternatives = (row.alternatives ?? []).filter((_, i) => i !== alt_index);
+      card.found = card.rows.filter((r) => r.product).length;
+      card.total = Math.round(card.rows.reduce(
+        (s, r) => s + (r.product ? r.product.price * (r.product.weighted ? r.product.quantity : 1) : 0), 0));
+      await repo.updateMessageCard(card_id, card);
+      return { card, card_id };
+    },
+  );
+
+  // 01.09: «замовляю літр швепса, і раптом бачу банановий швепс серед
+  // альтернатив — хочу замовити ще й його». НЕ заміна: оригінальний рядок
+  // не чіпається, альтернатива їде окремим НОВИМ рядком (і в кошик мережі).
+  app.post<{ Body: { card_id?: string; row_index?: number; alt_index?: number } }>(
+    '/v1/retail/silpo/cart-add-alt',
+    { preHandler: [authenticated(repo), limitCheck] },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const conn = await repo.getRetailConnection(user_id, 'silpo');
+      if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
+      const { card_id, row_index, alt_index } = req.body ?? {};
+      if (!card_id || row_index == null || alt_index == null) {
+        return reply.code(400).send({ error: 'card_id, row_index and alt_index required' });
+      }
+      const msg = await repo.getMessage(card_id);
+      const card = msg?.card;
+      if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
+      const row = card.rows[row_index];
+      const a = row?.alternatives?.[alt_index];
+      if (!a) return reply.code(409).send({ error: 'no_alternative' });
+
+      try {
+        await withRetailAuth(conn, (provider) => provider.addToCart([
+          { productId: a.product_id, companyId: a.company_id, branchId: a.branch_id, quantity: a.quantity },
+        ]));
+      } catch (e) {
+        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+        throw e;
+      }
+      row.alternatives = (row.alternatives ?? []).filter((_, i) => i !== alt_index);
+      card.rows.push({
+        label: a.name, item_id: null, v: null, u: null,
+        product: { name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity },
+        alternatives: [],
+      });
       card.found = card.rows.filter((r) => r.product).length;
       card.total = Math.round(card.rows.reduce(
         (s, r) => s + (r.product ? r.product.price * (r.product.weighted ? r.product.quantity : 1) : 0), 0));

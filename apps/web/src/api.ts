@@ -198,6 +198,12 @@ export const api = {
       req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-swap', {
         method: 'POST', body: JSON.stringify({ card_id, row_index, alt_index }),
       }),
+    // 01.09: додає альтернативу ОКРЕМИМ рядком (не заміна) — «побачив
+    // банановий Швепс серед альтернатив, хочу і його теж».
+    cartAddAlt: (card_id: string, row_index: number, alt_index: number) =>
+      req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-add-alt', {
+        method: 'POST', body: JSON.stringify({ card_id, row_index, alt_index }),
+      }),
     syncReceipts: () => req<{
       up_to_date: boolean;
       cards: Array<{

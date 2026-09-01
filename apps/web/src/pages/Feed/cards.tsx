@@ -817,20 +817,35 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   // віддзеркалює оновлену картку з відповіді.
   const [card, setCard] = useState(initial);
   const [swapping, setSwapping] = useState<number | null>(null);
+  // 01.09: «додати окремо» — інша дія, свій індикатор завантаження, щоб
+  // не блокувати сусідні кнопки заміни/додавання на тому самому рядку.
+  const [adding, setAdding] = useState<number | null>(null);
   // Кіт: заміна щойно записалась у стан — рядок і футер мусять це показати,
   // не просто перемалюватись мовчки.
   const [justSwapped, setJustSwapped] = useState<number | null>(null);
-  // 01.09 рівень 1: «ще є» на хіт-рядку показує перші 2, решта — під тапом.
+  // 01.09 рівень 1: альтернативи показують перші кілька, решта — під тапом.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const rows = card.rows ?? [];
+  const busy = swapping !== null || adding !== null;
   async function swap(i: number, altIndex: number) {
-    if (!cardId || swapping !== null) return;
+    if (!cardId || busy) return;
     setSwapping(i);
     try {
       const r = await api.retail.cartSwap(cardId, i, altIndex);
       setCard(r.card);
       setJustSwapped(i);
     } catch { /* рядок лишається з пропозицією */ } finally { setSwapping(null); }
+  }
+  // 01.09: додає альтернативу ОКРЕМИМ рядком, оригінал не чіпає — «побачив
+  // банановий Швепс серед альтернатив, хочу і його теж».
+  async function addAlt(i: number, altIndex: number) {
+    if (!cardId || busy) return;
+    setAdding(i);
+    try {
+      const r = await api.retail.cartAddAlt(cardId, i, altIndex);
+      setCard(r.card);
+      setJustSwapped((r.card.rows ?? []).length - 1);
+    } catch { /* рядок лишається з пропозицією */ } finally { setAdding(null); }
   }
   function toggleExpanded(i: number) {
     setExpanded((prev) => {
@@ -851,7 +866,9 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
         {rows.map((r, i) => {
           const alts = r.alternatives ?? [];
           const isExpanded = expanded.has(i);
-          const visibleAlts = r.product && !isExpanded ? alts.slice(0, 2) : alts;
+          // 01.09: показуємо перші 4 (2×2 у табличці), решта — під тапом.
+          const VISIBLE_ALT_COUNT = 4;
+          const visibleAlts = isExpanded ? alts : alts.slice(0, VISIBLE_ALT_COUNT);
           return (
             <div
               key={i}
@@ -880,49 +897,69 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                   {Math.round(r.product.price * (r.product.weighted ? r.product.quantity : 1))}₴
                 </span>
               )}
-              {!r.product && alts.length > 0 && (
-                // width:100% — flex:none без ширини рахується за max-content (усі
-                // кнопки в один рядок), і власний flex-wrap не встигає спрацювати
-                // раніше, ніж рядок вилізе за межі картки. Живий репро: 5+ кнопок
-                // «замінити» тікали вбік замість переносу.
-                <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {alts.map((a, ai) => (
-                    <button
-                      key={ai}
-                      type="button"
-                      disabled={swapping !== null}
-                      onClick={() => void swap(i, ai)}
-                      style={{
-                        border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
-                        color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                        textDecoration: 'underline', textUnderlineOffset: 3, textAlign: 'right',
-                        opacity: swapping === i ? 0.5 : 1,
-                      }}
-                    >
-                      замінити: {a.name} · {Math.round(a.price * (a.weighted ? a.quantity : 1))}₴
-                    </button>
-                  ))}
-                </div>
-              )}
-              {/* 01.09 рівень 1: хіт-рядок — товар уже в кошику мережі, тап-заміну
-                  не даємо (наша інтеграція не вміє видаляти з живого кошика),
-                  тільки показуємо, що ще шукалось по цьому запиту. */}
-              {r.product && alts.length > 0 && (
-                <div style={{
-                  width: '100%', fontFamily: 'var(--font-body)', fontSize: 12,
-                  color: 'var(--fg-dim)', marginTop: 2,
-                }}>
-                  ще є: {visibleAlts.map((a) => `${a.name} · ${Math.round(a.price * (a.weighted ? a.quantity : 1))}₴`).join(', ')}
-                  {alts.length > 2 && (
+              {alts.length > 0 && (
+                <div style={{ width: '100%', marginTop: 4 }}>
+                  {/* 01.09: заміна на хіт-рядку дозволена (людина явно попросила),
+                      але наша інтеграція вміє лише addToCart, без видалення —
+                      попереджаємо чесно замість мовчати. */}
+                  {r.product && (
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--fg-dim)', marginBottom: 6 }}>
+                      «замінити» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
+                    {visibleAlts.map((a, ai) => (
+                      <div
+                        key={ai}
+                        style={{
+                          border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px',
+                          display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0,
+                        }}
+                      >
+                        <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--fg)', lineHeight: 1.3 }}>
+                          {a.name}
+                        </span>
+                        <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--fg-dim)' }}>
+                          {Math.round(a.price * (a.weighted ? a.quantity : 1))}₴
+                        </span>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void swap(i, ai)}
+                            style={{
+                              border: 0, background: 'transparent', cursor: 'pointer', padding: 0,
+                              color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+                              textDecoration: 'underline', textUnderlineOffset: 3,
+                              opacity: swapping === i ? 0.5 : 1,
+                            }}
+                          >замінити</button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void addAlt(i, ai)}
+                            style={{
+                              border: 0, background: 'transparent', cursor: 'pointer', padding: 0,
+                              color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+                              textDecoration: 'underline', textUnderlineOffset: 3,
+                              opacity: adding === i ? 0.5 : 1,
+                            }}
+                          >+ додати</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {alts.length > VISIBLE_ALT_COUNT && (
                     <button
                       type="button"
                       onClick={() => toggleExpanded(i)}
                       style={{
-                        border: 0, background: 'transparent', cursor: 'pointer', padding: 0, marginLeft: 4,
-                        color: 'var(--accent)', font: 'inherit', textDecoration: 'underline',
+                        border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0 0',
+                        color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 12,
+                        textDecoration: 'underline', textUnderlineOffset: 3,
                       }}
                     >
-                      {isExpanded ? 'згорнути' : `+${alts.length - 2} ще`}
+                      {isExpanded ? 'згорнути' : `+${alts.length - VISIBLE_ALT_COUNT} ще`}
                     </button>
                   )}
                 </div>
