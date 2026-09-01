@@ -19,13 +19,16 @@ export function ShoppingPage() {
   const [loading, setLoading] = useState(true);
   // M13 (канвас М6): кнопка «Зібрати кошик» зʼявляється лише коли мережа
   // підключена і в списку є хоч одна незакрита позиція. Не панічна CTA —
-  // шавлієва вторинна над таббаром.
-  const [retailReady, setRetailReady] = useState(false);
+  // шавлієва вторинна над таббаром. Для непідключеного/протухлого —
+  // мʼякший вхід (лінк на connect), не саму дію: авторизація живе в момент
+  // наміру оформити кошик, не на вході в застосунок.
+  const [retailStatus, setRetailStatus] = useState<'loading' | 'unavailable' | 'none' | 'active' | 'expired' | 'disconnected'>('loading');
+  const retailReady = retailStatus === 'active';
   const [building, setBuilding] = useState(false);
   useEffect(() => {
     void api.retail.status()
-      .then((r) => setRetailReady(r.silpo.status === 'active'))
-      .catch(() => setRetailReady(false));
+      .then((r) => setRetailStatus(r.silpo.status))
+      .catch(() => setRetailStatus('unavailable'));
   }, []);
   async function buildCart() {
     if (building) return;
@@ -230,6 +233,24 @@ export function ShoppingPage() {
             <span>{building ? 'Збираю кошик…' : 'Зібрати кошик у Сільпо'}</span>
             <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} →</span>
           </button>
+        )}
+
+        {/* M13: авторизація — не на вході в застосунок, а в момент наміру
+            оформити кошик (питання користувача про доцільність). ?next
+            повертає сюди ж після OAuth-круга, а не на /profile. */}
+        {!retailReady && unchecked > 0 && (retailStatus === 'none' || retailStatus === 'expired' || retailStatus === 'disconnected') && (
+          <a
+            href={`/v1/retail/silpo/connect?next=${encodeURIComponent('/list')}`}
+            style={{
+              width: '100%', height: 44, marginTop: 14, boxSizing: 'border-box',
+              border: '1px solid var(--border-strong)', borderRadius: 12,
+              background: 'transparent', color: 'var(--fg-muted)', textDecoration: 'none',
+              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            {retailStatus === 'none' ? 'Підключити Сільпо, щоб зібрати кошик' : 'Увійти в Сільпо, щоб зібрати кошик'} →
+          </a>
         )}
       </div>
 

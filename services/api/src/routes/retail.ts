@@ -160,37 +160,52 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   }
   const secure = process.env.NODE_ENV === 'production';
   const oauthCookie = { httpOnly: true, sameSite: 'lax' as const, secure, path: '/', maxAge: 600 };
+  const NEXT_COOKIE = 'kos_retail_next';
 
-  app.get('/v1/retail/silpo/connect', { preHandler: authenticated(repo) }, async (_req, reply) => {
-    if (silpo.devAccessToken && process.env.NODE_ENV !== 'production') {
-      const { user_id } = requireUser(_req);
-      const prev = await repo.getRetailConnection(user_id, 'silpo');
-      const now = new Date();
-      await repo.upsertRetailConnection({
-        id: randomUUID(), user_id, provider: 'silpo',
-        access_token_enc: cipher.enc(silpo.devAccessToken), refresh_token_enc: null,
-        expires_at: new Date(now.getTime() + 30 * 86_400_000).toISOString(),
-        status: 'active', connected_at: now.toISOString(), updated_at: now.toISOString(),
-        last_receipt_at: prev?.last_receipt_at ?? null,
-      });
-      return reply.redirect('/profile?retail=connected');
-    }
-    const state = b64url(randomBytes(24));
-    const verifier = b64url(randomBytes(48));
-    const challenge = b64url(createHash('sha256').update(verifier).digest());
-    const url = new URL(AUTHORIZE_URL);
-    url.search = new URLSearchParams({
-      response_type: 'code',
-      client_id: silpo.clientId,
-      redirect_uri: redirectUri(),
-      code_challenge: challenge,
-      code_challenge_method: 'S256',
-      state,
-    }).toString();
-    reply.setCookie(STATE_COOKIE, state, oauthCookie);
-    reply.setCookie(VERIFIER_COOKIE, verifier, oauthCookie);
-    return reply.redirect(url.toString());
-  });
+  // Куди повернути людину після OAuth-круга. Той самий ?next=/… патерн, що
+  // magic-link auth (services/api/src/routes/auth.ts): валідний лише
+  // абсолютний шлях у межах нашого домену — інакше open-redirect.
+  const safeNext = (raw: string | undefined): string | null =>
+    raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
+  const withRetailParam = (path: string, value: 'connected' | 'declined') =>
+    `${path}${path.includes('?') ? '&' : '?'}retail=${value}`;
+
+  app.get<{ Querystring: { next?: string } }>(
+    '/v1/retail/silpo/connect',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const next = safeNext(req.query.next);
+      if (silpo.devAccessToken && process.env.NODE_ENV !== 'production') {
+        const { user_id } = requireUser(req);
+        const prev = await repo.getRetailConnection(user_id, 'silpo');
+        const now = new Date();
+        await repo.upsertRetailConnection({
+          id: randomUUID(), user_id, provider: 'silpo',
+          access_token_enc: cipher.enc(silpo.devAccessToken), refresh_token_enc: null,
+          expires_at: new Date(now.getTime() + 30 * 86_400_000).toISOString(),
+          status: 'active', connected_at: now.toISOString(), updated_at: now.toISOString(),
+          last_receipt_at: prev?.last_receipt_at ?? null,
+        });
+        return reply.redirect(withRetailParam(next ?? '/profile', 'connected'));
+      }
+      const state = b64url(randomBytes(24));
+      const verifier = b64url(randomBytes(48));
+      const challenge = b64url(createHash('sha256').update(verifier).digest());
+      const url = new URL(AUTHORIZE_URL);
+      url.search = new URLSearchParams({
+        response_type: 'code',
+        client_id: silpo.clientId,
+        redirect_uri: redirectUri(),
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        state,
+      }).toString();
+      reply.setCookie(STATE_COOKIE, state, oauthCookie);
+      reply.setCookie(VERIFIER_COOKIE, verifier, oauthCookie);
+      if (next) reply.setCookie(NEXT_COOKIE, next, oauthCookie);
+      return reply.redirect(url.toString());
+    },
+  );
 
   app.get<{ Querystring: { code?: string; state?: string; error?: string } }>(
     '/v1/retail/silpo/callback',
@@ -198,9 +213,11 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     async (req, reply) => {
       const { user_id } = requireUser(req);
       const cookies = req.cookies as Record<string, string | undefined>;
+      const next = safeNext(cookies[NEXT_COOKIE]);
       reply.clearCookie(STATE_COOKIE, { path: '/' });
       reply.clearCookie(VERIFIER_COOKIE, { path: '/' });
-      if (req.query.error) return reply.redirect('/profile?retail=declined');
+      reply.clearCookie(NEXT_COOKIE, { path: '/' });
+      if (req.query.error) return reply.redirect(withRetailParam(next ?? '/profile', 'declined'));
       const { code, state } = req.query;
       const verifier = cookies[VERIFIER_COOKIE];
       if (!code || !state || !verifier || state !== cookies[STATE_COOKIE]) {
@@ -223,7 +240,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         connected_at: now.toISOString(),
         updated_at: now.toISOString(),
       });
-      return reply.redirect('/profile?retail=connected');
+      return reply.redirect(withRetailParam(next ?? '/profile', 'connected'));
     },
   );
 

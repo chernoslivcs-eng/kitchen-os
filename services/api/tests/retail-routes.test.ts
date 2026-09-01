@@ -89,6 +89,52 @@ describe('retail routes · silpo', () => {
     expect(conn?.access_token_enc).not.toContain('dev-token-123');
   });
 
+  it('connect(?next=/list) переживає весь OAuth-круг і повертає туди, звідки прийшли', async () => {
+    const start = await app.inject({
+      method: 'GET', url: '/v1/retail/silpo/connect?next=%2Flist', headers: { cookie: me.cookie },
+    });
+    const loc = new URL(start.headers.location as string);
+    const state = loc.searchParams.get('state')!;
+    const oauthCookies = ([] as string[]).concat(start.headers['set-cookie'] as string[])
+      .map((c) => c.split(';')[0]).join('; ');
+    const cb = await app.inject({
+      method: 'GET',
+      url: `/v1/retail/silpo/callback?code=good-code&state=${state}`,
+      headers: { cookie: `${me.cookie}; ${oauthCookies}` },
+    });
+    expect(cb.statusCode).toBe(302);
+    expect(cb.headers.location).toBe('/list?retail=connected');
+  });
+
+  it('next, що не починається з "/" (open redirect), ігнорується — фолбек на профіль', async () => {
+    const start = await app.inject({
+      method: 'GET', url: '/v1/retail/silpo/connect?next=' + encodeURIComponent('//evil.example.com'),
+      headers: { cookie: me.cookie },
+    });
+    const loc = new URL(start.headers.location as string);
+    const state = loc.searchParams.get('state')!;
+    const oauthCookies = ([] as string[]).concat(start.headers['set-cookie'] as string[])
+      .map((c) => c.split(';')[0]).join('; ');
+    const cb = await app.inject({
+      method: 'GET',
+      url: `/v1/retail/silpo/callback?code=good-code&state=${state}`,
+      headers: { cookie: `${me.cookie}; ${oauthCookies}` },
+    });
+    expect(cb.headers.location).toBe('/profile?retail=connected');
+  });
+
+  it('dev-connect теж поважає ?next= (синхронний шлях, без круга)', async () => {
+    const devApp = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: { silpo: { clientId: 'c', tokenSecret: 's', devAccessToken: 'dev-token-123' } },
+    });
+    await devApp.ready();
+    const who = await signIn(devApp, mailer, 'dev3@example.com');
+    const r = await devApp.inject({
+      method: 'GET', url: '/v1/retail/silpo/connect?next=%2Flist', headers: { cookie: who.cookie },
+    });
+    expect(r.headers.location).toBe('/list?retail=connected');
+  });
+
   it('без підключення статус none; connect+callback → active, токен у БД шифрований', async () => {
     const before = await app.inject({ method: 'GET', url: '/v1/retail', headers: { cookie: me.cookie } });
     expect(before.json()).toMatchObject({ silpo: { status: 'none' } });
