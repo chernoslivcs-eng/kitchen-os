@@ -45,7 +45,7 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'salami_milano_pork',
     name: 'Ковбаса Міланська',
-    aliases: ['ковбаса міланська', 'міланська', 'salami milano', 'salame milano', 'мілано'],
+    aliases: ['ковбаса міланська', 'міланська', 'salami milano', 'salame milano', 'мілано', 'ковбаса мілано'],
     categories: ['ковбаса', 'сирокопчене', 'свинина', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',

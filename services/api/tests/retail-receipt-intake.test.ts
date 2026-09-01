@@ -39,6 +39,45 @@ describe('receiptLinesToIntake', () => {
     expect(r.unmatched.map((l) => l.name)).toEqual(["Дрова Pen'ok Початок вогню №2"]);
   });
 
+  // Живий чек 23.08 (перший прогін на проді Сільпо): фаззі-підрядки давали
+  // впевнену брехню — «Портерхаус» ставав пивом портер, «Сільпо» — сіллю.
+  // Канон «не вгадувати»: чесний unmatched кращий за вигадку з confidence 1.
+  it('шумні назви мережі не матчаться підрядком/відмінком — ідуть в unmatched', () => {
+    const noisy = [
+      'Яловичий стейк Портерхаус Dry Aged в/у',   // «портер» ⊄ цілим словом
+      'Пакет Сільпо Пакет з Пакетів 18кг',         // «сіль» ⊄ цілим словом
+      'Булочка з корицею',                          // аліас-відмінок «корицею» ≠ булочка
+    ];
+    const r = receiptLinesToIntake(noisy.map((n) => line(n, 1, 'шт')));
+    expect(r.ops).toHaveLength(0);
+    expect(r.unmatched.map((l) => l.name)).toEqual(noisy);
+  });
+
+  it('справжні збіги лишаються живими після посилення матчера', () => {
+    const r = receiptLinesToIntake([
+      line('Квас Квас Тарас Хлібний з/б', 1, 'шт'),
+      line('Вода мінеральна Моршинська н/газ', 1, 'шт'),
+      line('Багет подовий гречаний міні', 1, 'шт'),
+      line("Чипси Lay's картопляні зі смаком сиру", 1, 'шт'),  // повне імʼя «Чипси зі смаком сиру» ⊆
+      line('Напій Schweppes Pink Tonic б/алк сил/газ скло', 1, 'шт'), // латинський бренд без голови
+    ]);
+    expect(r.unmatched).toHaveLength(0);
+    expect(r.ops).toHaveLength(5);
+    expect(r.ops.map((o) => 'catalog_key' in o && o.catalog_key)).toContain('chips_cheese');
+  });
+
+  it('ковбаса Мілано з живого чека матчиться через аліас із головою', () => {
+    const r = receiptLinesToIntake([line('Ковбаса Укрпромпостач для Сільпо Мілано с/в', 0.114, 'кг')]);
+    expect(r.ops).toHaveLength(1);
+    expect(r.ops[0]).toMatchObject({ catalog_key: 'salami_milano_pork', value: 114, unit: 'g' });
+  });
+
+  it('нехарчове ловиться і на живих назвах (хустинки)', () => {
+    const r = receiptLinesToIntake([line('Хустинки носові Ruta Mini Tissues б/аром 2-шарові', 1, 'шт')]);
+    expect(r.ops).toHaveLength(0);
+    expect(r.nonfood).toHaveLength(1);
+  });
+
   it('змішаний чек розкладається по трьох кошиках за один прохід', () => {
     const r = receiptLinesToIntake([
       line('Філе куряче охолоджене', 0.64, 'кг'),
