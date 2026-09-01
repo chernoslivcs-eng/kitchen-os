@@ -79,6 +79,39 @@ describe('чат: retail_search_go → живий пошук наявності 
     expect(await repo.listShoppingItems(me.household_id)).toHaveLength(0);
   });
 
+  // Живий репро 01.09: «який там вибір?» на швепс повертав ВСІ знайдені
+  // (аж 15) одним суцільним реченням через кому — нечитабельний дамп.
+  // Репліка мусить бути компактним списком (перенос рядка на позицію) і
+  // чесно казати «і ще N», рахуючи саме те, що НЕ показала, а не тільки
+  // те, що відсіклось на внутрішньому SEARCH_CAP.
+  it('багато варіантів — репліка компактна (перенос рядків, обмежена кількість), чесне «і ще N»', async () => {
+    await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
+    const many = Array.from({ length: 9 }, (_, i) =>
+      product(`id-many-${i}`, `Напій Schweppes смак ${i + 1}`, 30 + i));
+    app = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: {
+        silpo: {
+          clientId: 'c', tokenSecret: 's', devAccessToken: 'dev-token',
+          makeProvider: () => ({
+            receipts: async () => [],
+            findBatch: async (queries: string[]) => queries.map((q) => ({ query: q, candidates: many, product: many[0] ?? null })),
+            addToCart: async () => {},
+          }),
+        },
+      },
+    });
+    const r = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'а які ще опції в сільпо є по швепсу?' },
+    });
+    const body = r.json();
+    const lines = body.reply.split('\n');
+    // Заголовок + не більше 6 позицій + «і ще N» — не всі 9 одним рядком.
+    expect(lines.length).toBeLessThanOrEqual(8);
+    expect(body.reply).toMatch(/і ще 3/);
+    expect(body.reply).not.toMatch(/смак 9/); // за межею капу на показ
+  });
+
   it('нічого не знайдено — чесно каже, не мовчить і не вигадує', async () => {
     await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
     app = buildApp(repo, new InMemoryStore(), mailer, {

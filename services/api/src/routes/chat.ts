@@ -537,9 +537,16 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       }
       const products = attempt.products ?? [];
       const total = attempt.total ?? products.length;
-      const msg = products.length
-        ? `У Сільпо є: ${products.map((p) => `${p.name} · ${Math.round(p.price)}₴`).join(', ')}`
-          + (total > products.length ? ` — і ще ${total - products.length}, показав перші ${products.length}` : '')
+      // 01.09: суцільне речення через кому на 15 позицій читалось як сирий
+      // дамп бекенда. Компактний список (перенос рядка), капнутий значно
+      // нижче внутрішнього SEARCH_CAP, з чесним «і ще N» — рахує ВСЕ, що не
+      // показано, не тільки те, що відсіклось до цього на пошуку.
+      const REPLY_CAP = 6;
+      const shown = products.slice(0, REPLY_CAP);
+      const restCount = total - shown.length;
+      const msg = shown.length
+        ? `У Сільпо є:\n${shown.map((p) => `— ${p.name} · ${Math.round(p.price)}₴`).join('\n')}`
+          + (restCount > 0 ? `\n— і ще ${restCount}` : '')
         : `У Сільпо не знайшов нічого по «${call.card.query}».`;
       await saveTurn(msg);
       return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
