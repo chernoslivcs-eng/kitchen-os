@@ -254,7 +254,11 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
-  const listRemove = /прибери\s+(.+?)\s+зі\s+списку/i.exec(args.text);
+  const listRemove = /прибери\s+(.+?)\s+зі\s+списку/i.exec(args.text)
+    // 01.09: живий репро — «прибери X з замовлення/кошика», не «зі списку».
+    // Порядок слів інший (лейбл ПІСЛЯ «з замовлення», не перед «зі списку»),
+    // тому окремий патерн, не один спільний.
+    ?? /прибери\s+з\s+(?:замовлення|кошика)\s+(.+)/i.exec(args.text);
   if (listRemove) {
     const label = listRemove[1]!.trim();
     return {

@@ -491,7 +491,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
       }
       const card = attempt.card!;
-      const cartReply = call.reply || `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`;
+      let cartReply = call.reply || `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`;
+      // 01.09 комент #3: explicit items — це ЧАСТИНА списку (людина показала
+      // пальцем на конкретне). Решта [СПИСОК ПОКУПОК] лишається поза
+      // замовленням, і людина може забути, що вона там є — нагадуємо тим
+      // самим ходом, а не мовчки.
+      if (call.card.items?.length) {
+        const ordered = new Set(call.card.items.map((s) => s.trim().toLowerCase()));
+        const rest = (await repo.listShoppingItems(household_id))
+          .filter((i) => !i.checked && !ordered.has(i.label.trim().toLowerCase()));
+        if (rest.length) {
+          cartReply = `${cartReply} У списку ще є ${rest.map((i) => i.label).join(', ')} — додати їх теж?`;
+        }
+      }
       const card_id = await saveTurn(cartReply, card);
       return { reply: cartReply, card, card_id, usage: call.usage, meta: call.meta };
     }
@@ -664,9 +676,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
     }
+    // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
+    // зібрано — сам список ми виправили (shopping-remove нижче), але наша
+    // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.
+    // Чесний наступний крок — запропонувати зібрати кошик заново (новим
+    // cart_go), а не мовчати чи прикидатись, що кошик у Сільпо теж оновився.
+    let replyText = call.reply;
+    if (call.card?.type === 'shopping' && call.card.items?.some((i) => i.op === 'remove')) {
+      const hadCart = (await repo.listMessages(session.id)).some((m) => (m.card as Card | null)?.type === 'cart');
+      if (hadCart) replyText = `${replyText ?? ''} Зібрати кошик заново?`.trim();
+    }
     await repo.saveMessage({
       id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
-      text: call.reply ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
+      text: replyText ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
     });
     // Пул-8 №2: intake_diff застосовується ОДРАЗУ — підтвердження «Застосувати»
     // навантажувало кожен побутовий хід. Запобіжник переїхав у undo: картка в
@@ -687,7 +709,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       undo_token = r.undo_token;
     }
     return {
-      reply: call.reply, card: call.card, card_id,
+      reply: replyText, card: call.card, card_id,
       auto_applied, undo_token,
       usage: call.usage, meta: call.meta,
     };
