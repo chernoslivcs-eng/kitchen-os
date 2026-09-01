@@ -13,7 +13,8 @@ CREATE TABLE retail_connection (
   expires_at        timestamptz NOT NULL,
   status            text NOT NULL DEFAULT 'active',  -- active | disconnected
   connected_at      timestamptz NOT NULL,
-  updated_at        timestamptz NOT NULL
+  updated_at        timestamptz NOT NULL,
+  last_receipt_at   timestamptz            -- водяний знак синку чеків (ідемпотентність)
 );
 
 -- Одне підключення на пару користувач+мережа; refresh — перезапис, не другий рядок.

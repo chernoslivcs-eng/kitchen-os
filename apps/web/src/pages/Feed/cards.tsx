@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ChatCard, Recipe } from '../../api';
+import { api, type ChatCard, type Recipe, type ReceiptLeftover } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { formatQty } from '../../lib/units';
@@ -110,6 +110,45 @@ function stateClass(applied?: boolean, undone?: boolean): string {
 
 // ----- Intake --------------------------------------------------------------
 
+// M13, канон М2: шапка-джерело чека. Дати як у канвасі — «23.08».
+function receiptDate(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Сірий рядок «додати руками»: назва в лапках ЯК У ЧЕКУ (не вгадуємо, чим це
+// є) + один тап кладе в комору штучну партію. Після додавання — тихий ✓.
+function UnmatchedRow({ line }: { line: ReceiptLeftover }) {
+  const [state, setState] = useState<'idle' | 'busy' | 'added'>('idle');
+  return (
+    <div className={styles.op} style={{ color: 'var(--fg-dim)' }}>
+      <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>?</span>
+      <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>«{line.name}»</span>
+      {state === 'added' ? (
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', flex: 'none' }}>✓ У КОМОРІ</span>
+      ) : (
+        <button
+          type="button"
+          disabled={state === 'busy'}
+          onClick={async () => {
+            setState('busy');
+            try {
+              await api.batches.create({ label: line.name });
+              setState('added');
+            } catch { setState('idle'); }
+          }}
+          style={{
+            border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
+            color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+            textDecoration: 'underline', textUnderlineOffset: 3, flex: 'none',
+            opacity: state === 'busy' ? 0.5 : 1,
+          }}
+        >додати руками</button>
+      )}
+    </div>
+  );
+}
+
 export function IntakeCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
   // UX9-17: rename/correct ФІЛЬТРУВАЛИСЬ — картка перейменування стояла без
   // жодного предметного рядка, людина тиснула «Застосувати» наосліп.
@@ -131,8 +170,22 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
     if (op === 'correct') return '✎';
     return '+';
   };
+  // M13: intake з чека мережі — шапка-джерело, сірі «додати руками»,
+  // згорнуте «не для комори». apply/undo — той самий шлях, що у всіх intake.
+  const receipt = card.source?.kind === 'retail_receipt' ? card.source : null;
+  const [nonfoodOpen, setNonfoodOpen] = useState(false);
   return (
     <div className={stateClass(applied, undone)}>
+      {receipt && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
+            Чек Сільпо
+          </div>
+          <MonoLabel>
+            {receiptDate(receipt.at)} · {receipt.shop} · {Math.round(receipt.total)}₴
+          </MonoLabel>
+        </div>
+      )}
       <div className={styles.ops}>
         {ops.map((op, i) => (
           <div
@@ -172,7 +225,51 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
             )}
           </div>
         ))}
+        {receipt && receipt.unmatched.map((l, i) => <UnmatchedRow key={`u${i}`} line={l} />)}
       </div>
+      {receipt && receipt.nonfood.length > 0 && (
+        <div style={{ marginTop: 2 }}>
+          <button
+            type="button"
+            onClick={() => setNonfoodOpen((v) => !v)}
+            style={{
+              border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
+              color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            <span style={{ width: 18, textAlign: 'center' }}>{nonfoodOpen ? '⌄' : '›'}</span>
+            ще {receipt.nonfood.length} не для комори
+          </button>
+          {nonfoodOpen && receipt.nonfood.map((l, i) => (
+            <div key={i} className={styles.op} style={{ color: 'var(--fg-dim)' }}>
+              <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>·</span>
+              <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>{l.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {receipt && applied && !undone && ops.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 8,
+        }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)' }}>
+            ● {ops.length} {plural(ops.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])} У КОМОРІ
+          </span>
+          {undoAvailable && onUndo && (
+            <button
+              type="button"
+              onClick={onUndo}
+              style={{
+                border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
+                color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                textDecoration: 'underline', textUnderlineOffset: 3,
+              }}
+            >Скасувати ↩</button>
+          )}
+        </div>
+      )}
       {actionable && (
         <div className={styles['card-actions']}>
           <Button
@@ -186,7 +283,7 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
-      {applied && !undone && undoAvailable && onUndo && (
+      {!receipt && applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
           <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
         </div>

@@ -82,6 +82,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         status: conn.status === 'disconnected' ? 'disconnected' : expired ? 'expired' : 'active',
         connected_at: conn.connected_at,
         expires_at: conn.expires_at,
+        last_receipt_at: conn.last_receipt_at,
       },
     };
   });
@@ -121,7 +122,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       const cookies = req.cookies as Record<string, string | undefined>;
       reply.clearCookie(STATE_COOKIE, { path: '/' });
       reply.clearCookie(VERIFIER_COOKIE, { path: '/' });
-      if (req.query.error) return reply.redirect('/app/profile?retail=declined');
+      if (req.query.error) return reply.redirect('/profile?retail=declined');
       const { code, state } = req.query;
       const verifier = cookies[VERIFIER_COOKIE];
       if (!code || !state || !verifier || state !== cookies[STATE_COOKIE]) {
@@ -129,7 +130,11 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       }
       const tokens = await exchange(code, redirectUri(), verifier);
       const now = new Date();
+      // Повторний OAuth (протух токен) не скидає водяний знак синку —
+      // інакше старі чеки поїхали б у комору вдруге.
+      const prev = await repo.getRetailConnection(user_id, 'silpo');
       await repo.upsertRetailConnection({
+        last_receipt_at: prev?.last_receipt_at ?? null,
         id: randomUUID(),
         user_id,
         provider: 'silpo',
@@ -140,7 +145,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         connected_at: now.toISOString(),
         updated_at: now.toISOString(),
       });
-      return reply.redirect('/app/profile?retail=connected');
+      return reply.redirect('/profile?retail=connected');
     },
   );
 
@@ -173,28 +178,49 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
       throw e;
     }
-    const receipt = receipts[0];
-    if (!receipt) return { receipt: null, card: null, ops: [], nonfood: [], unmatched: [] };
 
-    const { ops, nonfood, unmatched } = receiptLinesToIntake(receipt.lines);
-    const meta = { shop: receipt.shop, city: receipt.city, at: receipt.at, total: receipt.total };
-    if (!ops.length) return { receipt: meta, card: null, nonfood, unmatched };
+    // Водяний знак: беремо тільки новіші за last_receipt_at. Перший синк —
+    // лише найсвіжіший чек (не тягнемо історію в комору заднім числом).
+    const watermark = conn.last_receipt_at ? new Date(conn.last_receipt_at).getTime() : null;
+    const fresh = watermark === null
+      ? receipts.slice(0, 1)
+      : receipts.filter((rc) => new Date(rc.at).getTime() > watermark);
+    if (!fresh.length) return { up_to_date: true, cards: [] };
 
-    // Той самий шлях, що чек-фото в чаті (пул-8 №2): картка в сесію дня,
-    // застосування одразу, undo — страховка.
-    const card: Card = { type: 'intake_diff', ops };
-    const card_id = randomUUID();
     const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
-    await createPending(repo, { message_id: card_id, household_id, user_id, card });
-    await repo.saveMessage({
-      id: card_id, session_id: session.id, role: 'assistant',
-      text: `Чек Сільпо · ${receipt.shop}`, card, applied: 0, created_at: new Date().toISOString(),
+    const cards = [];
+    // Старіші першими — у стрічці чеки лягають хронологічно.
+    for (const receipt of [...fresh].reverse()) {
+      const { ops, nonfood, unmatched } = receiptLinesToIntake(receipt.lines);
+      const card: Card = {
+        type: 'intake_diff', ops,
+        source: {
+          kind: 'retail_receipt', provider: 'silpo',
+          shop: receipt.shop, at: receipt.at, total: receipt.total,
+          nonfood, unmatched,
+        },
+      };
+      // Той самий шлях, що чек-фото в чаті (пул-8 №2): картка в сесію дня,
+      // застосування одразу, undo — страховка. Чек без жодного op'а теж
+      // лишається в стрічці — «не для комори»/«додати руками» видно людині.
+      const card_id = randomUUID();
+      await createPending(repo, { message_id: card_id, household_id, user_id, card });
+      await repo.saveMessage({
+        id: card_id, session_id: session.id, role: 'assistant',
+        text: `Чек Сільпо · ${receipt.shop}`, card, applied: 0, created_at: new Date().toISOString(),
+      });
+      const applied = ops.length ? await applyCard(repo, card_id, [], user_id) : null;
+      cards.push({
+        card, card_id,
+        auto_applied: Boolean(applied), undo_token: applied?.undo_token,
+        receipt: { shop: receipt.shop, city: receipt.city, at: receipt.at, total: receipt.total },
+        nonfood, unmatched,
+      });
+    }
+    const newest = fresh.reduce((m, rc) => Math.max(m, new Date(rc.at).getTime()), 0);
+    await repo.upsertRetailConnection({
+      ...conn, last_receipt_at: new Date(newest).toISOString(), updated_at: new Date().toISOString(),
     });
-    const applied = await applyCard(repo, card_id, [], user_id);
-    return {
-      receipt: meta, card, card_id,
-      auto_applied: true, undo_token: applied.undo_token,
-      nonfood, unmatched,
-    };
+    return { up_to_date: false, cards };
   });
 }

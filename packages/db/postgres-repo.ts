@@ -1026,16 +1026,17 @@ export class PostgresRepo implements Repo {
   async upsertRetailConnection(c: RetailConnectionRow): Promise<void> {
     await this.pool.query(
       `INSERT INTO retail_connection
-         (id, user_id, provider, access_token_enc, refresh_token_enc, expires_at, status, connected_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         (id, user_id, provider, access_token_enc, refresh_token_enc, expires_at, status, connected_at, updated_at, last_receipt_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (user_id, provider) DO UPDATE SET
          access_token_enc = EXCLUDED.access_token_enc,
          refresh_token_enc = EXCLUDED.refresh_token_enc,
          expires_at = EXCLUDED.expires_at,
          status = EXCLUDED.status,
-         updated_at = EXCLUDED.updated_at`,
+         updated_at = EXCLUDED.updated_at,
+         last_receipt_at = EXCLUDED.last_receipt_at`,
       [c.id, c.user_id, c.provider, c.access_token_enc, c.refresh_token_enc,
-       c.expires_at, c.status, c.connected_at, c.updated_at],
+       c.expires_at, c.status, c.connected_at, c.updated_at, c.last_receipt_at],
     );
   }
 
@@ -1056,6 +1057,7 @@ export class PostgresRepo implements Repo {
       status: r.status as RetailConnectionRow['status'],
       connected_at: new Date(r.connected_at as string).toISOString(),
       updated_at: new Date(r.updated_at as string).toISOString(),
+      last_receipt_at: r.last_receipt_at == null ? null : new Date(r.last_receipt_at as string).toISOString(),
     };
   }
 

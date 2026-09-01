@@ -48,9 +48,30 @@ export type IntakeOp =
   // лактози») — мердж, не заміна; редагування тегів існує ТІЛЬКИ цим шляхом.
   | { op: 'correct'; label: string; value?: number; unit?: Unit; zone?: Zone; tags?: import('./product.js').ProductTags };
 
+// M13: рядок чека, який НЕ став op'ом — сірий «додати руками» (unmatched)
+// або згорнутий «не для комори» (nonfood). Живе в source картки, щоб стрічка
+// малювала канон М2 і після перезавантаження, не лише з відповіді синку.
+export interface ReceiptLeftover {
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  image: string | null;
+}
+
 export interface IntakeCard {
   type: 'intake_diff';
   ops: IntakeOp[];
+  // Джерело-чек (M13). Відсутнє — звичайна intake-картка; apply/undo однакові.
+  source?: {
+    kind: 'retail_receipt';
+    provider: string;
+    shop: string;
+    at: string;
+    total: number;
+    nonfood: ReceiptLeftover[];
+    unmatched: ReceiptLeftover[];
+  };
 }
 
 export interface ProposalCard {
@@ -333,6 +354,9 @@ export interface RetailConnectionRow {
   status: 'active' | 'disconnected';
   connected_at: string;
   updated_at: string;
+  // Водяний знак «чеки → комора»: найновіший createdAt імпортованого чека.
+  // Синк бере тільки новіші — повторний виклик не дублює партії.
+  last_receipt_at: string | null;
 }
 
 export interface ShoppingItemRow {

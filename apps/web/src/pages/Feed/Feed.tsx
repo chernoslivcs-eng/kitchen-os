@@ -321,6 +321,28 @@ export function Feed() {
         activate(session.id);
         setTurns(messages.map((m) => messageToTurn(m)));
       } catch {/* offline: залишаємо порожню стрічку */}
+      // M13: тихий синк чеків при відкритті стрічки. Не частіше ніж раз на
+      // 10 хв (sessionStorage), 409 «не підключено» — мовчазний no-op:
+      // «інформація — репліка», порожній синк не породжує жодного UI.
+      try {
+        const last = Number(sessionStorage.getItem('kos_retail_sync_at') ?? 0);
+        if (Date.now() - last < 10 * 60_000) return;
+        sessionStorage.setItem('kos_retail_sync_at', String(Date.now()));
+        const sync = await api.retail.syncReceipts();
+        if (!sync.cards.length) return;
+        // Нові картки — свіжими ходами в кінець стрічки, з живим undo.
+        setTurns((prev) => [
+          ...prev,
+          ...sync.cards.map((c): Turn => ({
+            id: newId(), role: 'assistant',
+            time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+            text: `Чек Сільпо · ${c.receipt.shop}`,
+            card: c.card, cardId: c.card_id,
+            applied: c.auto_applied, undoToken: c.undo_token,
+            fresh: true, justApplied: c.auto_applied,
+          })),
+        ]);
+      } catch {/* не підключено / мережа — стрічка живе як жила */}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -373,6 +373,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         id: randomUUID(), user_id, provider: 'silpo',
         access_token_enc: 'enc-v1', refresh_token_enc: 'enc-r1',
         expires_at: now, status: 'active' as const, connected_at: now, updated_at: now,
+        last_receipt_at: null,
       };
       await repo.upsertRetailConnection(base);
       const got = await repo.getRetailConnection(user_id, 'silpo');
@@ -387,6 +388,11 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       // Мʼяке відключення: status змінюється, токен лишається (undo без нового OAuth).
       await repo.upsertRetailConnection({ ...refreshed!, status: 'disconnected' });
       expect((await repo.getRetailConnection(user_id, 'silpo'))?.status).toBe('disconnected');
+
+      // Водяний знак синку чеків: last_receipt_at живе в рядку (ідемпотентність).
+      await repo.upsertRetailConnection({ ...refreshed!, last_receipt_at: '2026-08-23T10:54:48.000Z' });
+      expect((await repo.getRetailConnection(user_id, 'silpo'))?.last_receipt_at)
+        .toBe('2026-08-23T10:54:48.000Z');
 
       // Інший провайдер — окремий рядок, не перетирається.
       expect(await repo.getRetailConnection(user_id, 'atb')).toBeNull();

@@ -100,10 +100,31 @@ export interface PantryList {
   products?: HouseholdProduct[];
 }
 
+// M13: рядок чека поза коморою — сірий «додати руками» або «не для комори».
+export interface ReceiptLeftover {
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  image: string | null;
+}
+
+// M13: intake-картка з чека мережі несе джерело — стрічка малює канон М2.
+export interface ReceiptSource {
+  kind: 'retail_receipt';
+  provider: string;
+  shop: string;
+  at: string;
+  total: number;
+  nonfood: ReceiptLeftover[];
+  unmatched: ReceiptLeftover[];
+}
+
 export interface ChatCard {
   type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link';
   ops?: unknown[];
   items?: unknown[];
+  source?: ReceiptSource;              // intake_diff з чека мережі (M13)
   recipe?: Recipe;                     // тільки для type: 'recipe' — імпорт із вкладення
   run_id?: string;                     // cook_photo
   recipe_id?: string;                  // recipe_link
@@ -140,6 +161,31 @@ export const api = {
   },
 
   me: () => req<Me>('/v1/me'),
+
+  // M13 «Мережі»: стан підключення і синк чеків. connect — не fetch, а
+  // навігація на /v1/retail/silpo/connect (OAuth-редирект наскрізь браузером).
+  retail: {
+    status: () => req<{
+      silpo: {
+        status: 'unavailable' | 'none' | 'active' | 'expired' | 'disconnected';
+        connected_at?: string;
+        expires_at?: string;
+        last_receipt_at?: string | null;
+      };
+    }>('/v1/retail'),
+    disconnect: () => req<{ status: string }>('/v1/retail/silpo/disconnect', { method: 'POST', body: '{}' }),
+    reconnect: () => req<{ status: string }>('/v1/retail/silpo/reconnect', { method: 'POST', body: '{}' }),
+    syncReceipts: () => req<{
+      up_to_date: boolean;
+      cards: Array<{
+        card: ChatCard;
+        card_id: string;
+        auto_applied: boolean;
+        undo_token?: string;
+        receipt: { shop: string; city: string; at: string; total: number };
+      }>;
+    }>('/v1/retail/silpo/sync-receipts', { method: 'POST', body: '{}' }),
+  },
   // Пул-5 №1: повне видалення акаунта з причиною (опитувальник виходу).
   deleteAccount: (reason: string, comment?: string) =>
     req<null>('/v1/me', {
