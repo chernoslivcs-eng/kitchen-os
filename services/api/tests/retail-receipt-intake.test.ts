@@ -40,14 +40,13 @@ describe('receiptLinesToIntake', () => {
   });
 
   // Живий чек 23.08 (перший прогін на проді Сільпо): фаззі-підрядки давали
-  // впевнену брехню — «Портерхаус» ставав пивом портер, «Сільпо» — сіллю.
-  // Канон «не вгадувати»: чесний unmatched кращий за вигадку з confidence 1.
-  it('шумні назви мережі не матчаться підрядком/відмінком — ідуть в unmatched', () => {
-    const noisy = [
-      'Яловичий стейк Портерхаус Dry Aged в/у',   // «портер» ⊄ цілим словом
-      'Пакет Сільпо Пакет з Пакетів 18кг',         // «сіль» ⊄ цілим словом
-      'Булочка з корицею',                          // аліас-відмінок «корицею» ≠ булочка
-    ];
+  // впевнену брехню — «Сільпо» ставав сіллю. Канон «не вгадувати»: чесний
+  // unmatched кращий за вигадку з confidence 1.
+  // 01.09: round2-розширення каталогу (2342→4983) додало реальні позиції
+  // «Стейк Портерхаус» і «Булочка з корицею» — колишні noisy-приклади тепер
+  // ЧЕСНІ повнойменні збіги, не фаззі-підрядок; перенесено в позитивний тест.
+  it('шумні назви мережі не матчаться підрядком — ідуть в unmatched', () => {
+    const noisy = ['Пакет Сільпо Пакет з Пакетів 18кг'];   // «сіль» ⊄ цілим словом
     const r = receiptLinesToIntake(noisy.map((n) => line(n, 1, 'шт')));
     expect(r.ops).toHaveLength(0);
     expect(r.unmatched.map((l) => l.name)).toEqual(noisy);
@@ -60,10 +59,14 @@ describe('receiptLinesToIntake', () => {
       line('Багет подовий гречаний міні', 1, 'шт'),
       line("Чипси Lay's картопляні зі смаком сиру", 1, 'шт'),  // повне імʼя «Чипси зі смаком сиру» ⊆
       line('Напій Schweppes Pink Tonic б/алк сил/газ скло', 1, 'шт'), // латинський бренд без голови
+      line('Яловичий стейк Портерхаус Dry Aged в/у', 1, 'шт'), // round2: r2mt_beef_porterhouse
+      line('Булочка з корицею', 1, 'шт'), // round2: r2bk_bun_cinnamon, повний збіг назви
     ]);
     expect(r.unmatched).toHaveLength(0);
-    expect(r.ops).toHaveLength(5);
+    expect(r.ops).toHaveLength(7);
     expect(r.ops.map((o) => 'catalog_key' in o && o.catalog_key)).toContain('chips_cheese');
+    expect(r.ops.map((o) => 'catalog_key' in o && o.catalog_key)).toContain('r2mt_beef_porterhouse');
+    expect(r.ops.map((o) => 'catalog_key' in o && o.catalog_key)).toContain('r2bk_bun_cinnamon');
   });
 
   it('ковбаса Мілано з живого чека матчиться через аліас із головою', () => {
