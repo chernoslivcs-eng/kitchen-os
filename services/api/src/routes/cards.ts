@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { applyCard, undoCard, type Repo } from '@kitchen/domain';
+import { applyCard, undoCard, type Repo, type Unit } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { WRITEOFF_CARD_REPLY, FEEDBACK_PROMPT } from '../post-cook.js';
 
@@ -53,6 +53,44 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
       if (msg.startsWith('card not found')) return reply.code(404).send({ error: msg });
       return reply.code(409).send({ error: msg });
     }
+  });
+
+  // 01.09 картка v2: «уточнити» на невпізнаному рядку чека — степер +
+  // одиниця, тап «ок» переносить рядок із source.unmatched у ops, тим
+  // самим шляхом, що впізнане каталогом. Один список, одна дія — не
+  // окремий потік «додати руками». Пишемо і в pending (те, що реально
+  // читає applyCard), і в message (те, що рендериться після F5) — та
+  // сама пара сховищ, що cart-swap/cart-add-alt тримають для cart-карток.
+  app.post<{
+    Params: { id: string };
+    Body: { unmatched_index?: number; value?: number; unit?: Unit };
+  }>('/v1/cards/:id/clarify-line', { preHandler: authenticated(repo) }, async (req, reply) => {
+    const { user_id } = requireUser(req);
+    const { unmatched_index, value, unit } = req.body ?? {};
+    if (unmatched_index == null) return reply.code(400).send({ error: 'unmatched_index required' });
+
+    const pc = await repo.getPending(req.params.id);
+    if (!pc) return reply.code(404).send({ error: `card not found: ${req.params.id}` });
+    if (pc.user_id !== user_id) return reply.code(403).send({ error: 'forbidden' });
+    if (pc.applied_at || pc.undone_at) return reply.code(409).send({ error: 'card already closed' });
+
+    const card = pc.card;
+    if (card.type !== 'intake_diff' || !card.source) {
+      return reply.code(409).send({ error: 'not a receipt card' });
+    }
+    const line = card.source.unmatched[unmatched_index];
+    if (!line) return reply.code(409).send({ error: 'unmatched_index out of range' });
+
+    card.source.unmatched = card.source.unmatched.filter((_, i) => i !== unmatched_index);
+    card.ops = [...card.ops, {
+      op: 'add', label: line.name,
+      value: value ?? line.quantity, unit: unit ?? (line.unit as Unit | undefined),
+      confidence: 1, evidence: 'user_clarified',
+    }];
+
+    await repo.updatePending(req.params.id, { card });
+    await repo.updateMessageCard(req.params.id, card);
+    return { card };
   });
 
   // POST /v1/cards/:id/undo  { undo_token }

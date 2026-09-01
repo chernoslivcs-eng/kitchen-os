@@ -62,6 +62,30 @@ const VERIFIER_COOKIE = 'kos_retail_verifier';
 
 const b64url = (b: Buffer) => b.toString('base64url');
 
+// 01.09 картка v2: сума по картці — price × quantity завжди, незалежно
+// від типу товару (вагове: quantity=кг, кількісне/обсягове: quantity=шт).
+// Раніше в двох місцях (cart-swap, cart-add-alt) невагове множилось на 1
+// замість quantity — непомітно, поки степер не робив quantity ≠ 1.
+function cartTotal(rows: CartCardRow[]): number {
+  return Math.round(rows.reduce((s, r) => s + (r.product ? r.product.price * r.product.quantity : 0), 0));
+}
+
+// 01.09 картка v2: обсяг упаковки з назви товару Сільпо («0,33 л», «1 л»,
+// «500 мл») — Сільпо не віддає це структурним полем (RetailProduct), тільки
+// в назві. null — формат не впізнаний (штучний товар без обсягу в назві,
+// чи незнайомий запис). Без коми/крапки як роздільника — «0,33» і «0.33»
+// обидва трапляються в живих назвах.
+function parsePackageMl(name: string): number | null {
+  // \b тут не працює — кирилиця не \w у JS-regex без /u, тож межа слова
+  // після «л»/«мл» ніколи не спрацьовує. Негативний lookahead замість:
+  // не дозволяємо ще одну літеру одразу після (щоб не зловити «лохиновий»).
+  const m = name.match(/(\d+(?:[.,]\d+)?)\s*(л|мл)(?![а-яіїєґ'ʼa-z])/i);
+  if (!m) return null;
+  const num = parseFloat(m[1]!.replace(',', '.'));
+  if (!Number.isFinite(num) || num <= 0) return null;
+  return Math.round(m[2]!.toLowerCase() === 'л' ? num * 1000 : num);
+}
+
 function apiBase(): string {
   return process.env.APP_URL ?? 'http://localhost:3000';
 }
@@ -397,11 +421,21 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         : (await repo.listShoppingItems(household_id)).filter((i) => !i.checked);
     if (!items.length) return { ok: false, error: 'empty_list' };
 
-    // Кількість у кошик: вагове — кг із наших грамів (мінімум 0.1), штучне — 1.
-    const qtyFor = (p: { weighted: boolean; step: number }, it: { unit: string | null; value: number | null }) =>
-      p.weighted && it.unit === 'g' && it.value
-        ? Math.max(0.1, Math.round((it.value / 1000) * 100) / 100)
-        : Math.max(1, p.step || 1);
+    // Кількість у кошик: вагове — кг із наших грамів (мінімум 0.1). Обсягове
+    // («літр чи більше» на пляшку 0,33л) — кількість пляшок, щоб сумарний
+    // обсяг покрив заявлений (округлення ВГОРУ — частину пляшки не купиш).
+    // 01.09: раніше обсягове мовчки падало в гілку «штучне» (1 шт) — живий
+    // репро «хочу літр, а додається 0.33».
+    const qtyFor = (p: { weighted: boolean; step: number; name: string }, it: { unit: string | null; value: number | null }) => {
+      if (p.weighted && it.unit === 'g' && it.value) {
+        return Math.max(0.1, Math.round((it.value / 1000) * 100) / 100);
+      }
+      if (!p.weighted && it.unit === 'ml' && it.value) {
+        const packageMl = parsePackageMl(p.name);
+        if (packageMl) return Math.max(1, Math.ceil(it.value / packageMl));
+      }
+      return Math.max(1, p.step || 1);
+    };
 
     // Пошук (3 фази) і addToCart — В ОДНОМУ withRetailAuth-виклику: якщо
     // токен протух, refresh стається до першого мережевого запиту в
@@ -520,7 +554,11 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
             }));
           return {
             label: it.label, item_id: it.id, v: it.value, u: it.unit,
-            product: hit ? { name: hit.name, price: hit.price, weighted: hit.weighted, quantity } : null,
+            product: hit ? {
+              product_id: hit.id, company_id: hit.companyId, branch_id: hit.branchId,
+              name: hit.name, price: hit.price, weighted: hit.weighted, quantity,
+              package_ml: hit.weighted ? null : parsePackageMl(hit.name),
+            } : null,
             alternatives,
           };
         });
@@ -536,7 +574,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     const card: CartCard = {
       type: 'cart', provider: 'silpo', list_label: null,
       rows,
-      total: Math.round(foundRows.reduce((s, r) => s + (r.product!.price * (r.product!.weighted ? r.product!.quantity : r.product!.quantity)), 0)),
+      total: cartTotal(rows),
       found: foundRows.length, of: rows.length,
       // Не /cart: мережа прибрала цю сторінку (404 «Отакої»), кошик у них
       // живе попапом на будь-якій сторінці — ведемо на головну.
@@ -594,13 +632,57 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
         throw e;
       }
-      row.product = { name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity };
+      row.product = {
+        product_id: a.product_id, company_id: a.company_id, branch_id: a.branch_id,
+        name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity,
+        package_ml: a.weighted ? null : parsePackageMl(a.name),
+      };
       // Решта кандидатів того самого пошуку лишається — тепер уже
       // інформаційно (рядок став хітом), той самий перелік «ще є».
       row.alternatives = (row.alternatives ?? []).filter((_, i) => i !== alt_index);
       card.found = card.rows.filter((r) => r.product).length;
-      card.total = Math.round(card.rows.reduce(
-        (s, r) => s + (r.product ? r.product.price * (r.product.weighted ? r.product.quantity : 1) : 0), 0));
+      card.total = cartTotal(card.rows);
+      await repo.updateMessageCard(card_id, card);
+      return { card, card_id };
+    },
+  );
+
+  // 01.09 картка v2: степер кількості на рядку кошика (до «Оформити»).
+  // quantity округлюється за типом товару — вагове: крок 0.1, мінімум 0.1;
+  // кількісне/обсягове: ціле, мінімум 1. Той самий productId у addToCart
+  // ОНОВЛЮЄ кількість у живому кошику Сільпо (add_or_update), не дублює.
+  app.post<{ Body: { card_id?: string; row_index?: number; quantity?: number } }>(
+    '/v1/retail/silpo/cart-update-qty',
+    { preHandler: [authenticated(repo), limitCheck] },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const conn = await repo.getRetailConnection(user_id, 'silpo');
+      if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
+      const { card_id, row_index, quantity } = req.body ?? {};
+      if (!card_id || row_index == null || quantity == null) {
+        return reply.code(400).send({ error: 'card_id, row_index and quantity required' });
+      }
+      const msg = await repo.getMessage(card_id);
+      const card = msg?.card;
+      if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
+      const row = card.rows[row_index];
+      if (!row?.product) return reply.code(409).send({ error: 'no_product' });
+
+      const step = row.product.weighted ? 0.1 : 1;
+      const min = row.product.weighted ? 0.1 : 1;
+      const rounded = Math.max(min, Math.round(quantity / step) * step);
+      const newQuantity = row.product.weighted ? Math.round(rounded * 100) / 100 : Math.round(rounded);
+
+      try {
+        await withRetailAuth(conn, (provider) => provider.addToCart([
+          { productId: row.product!.product_id, companyId: row.product!.company_id, branchId: row.product!.branch_id, quantity: newQuantity },
+        ]));
+      } catch (e) {
+        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+        throw e;
+      }
+      row.product.quantity = newQuantity;
+      card.total = cartTotal(card.rows);
       await repo.updateMessageCard(card_id, card);
       return { card, card_id };
     },
@@ -638,12 +720,15 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       row.alternatives = (row.alternatives ?? []).filter((_, i) => i !== alt_index);
       card.rows.push({
         label: a.name, item_id: null, v: null, u: null,
-        product: { name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity },
+        product: {
+          product_id: a.product_id, company_id: a.company_id, branch_id: a.branch_id,
+          name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity,
+          package_ml: a.weighted ? null : parsePackageMl(a.name),
+        },
         alternatives: [],
       });
       card.found = card.rows.filter((r) => r.product).length;
-      card.total = Math.round(card.rows.reduce(
-        (s, r) => s + (r.product ? r.product.price * (r.product.weighted ? r.product.quantity : 1) : 0), 0));
+      card.total = cartTotal(card.rows);
       await repo.updateMessageCard(card_id, card);
       return { card, card_id };
     },

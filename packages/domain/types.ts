@@ -196,7 +196,19 @@ export interface CartCardRow {
   item_id: string | null;
   v: number | null;
   u: string | null;
-  product: { name: string; price: number; weighted: boolean; quantity: number } | null;
+  // 01.09 картка v2: product_id/company_id/branch_id — щоб степер міг
+  // пізніше змінити кількість (cart-update-qty) без повторного пошуку.
+  // package_ml — розпізнаний обсяг упаковки (мл), тільки для НЕ вагових
+  // товарів, де назва містить впізнаваний об'єм («0,33 л», «500 мл»).
+  // null — не вдалось розпізнати (штучний товар без обсягу, чи формат
+  // назви незнайомий); тоді товар — кількісне, не обсягове. Разом з `v`/`u`
+  // рядка (заявлений обсяг зі списку покупок) дає видиму математику
+  // «× 0,33 л ≈ 0,99 л» замість мовчазного «1 шт».
+  product: {
+    product_id: string; company_id: string; branch_id: string;
+    name: string; price: number; weighted: boolean; quantity: number;
+    package_ml: number | null;
+  } | null;
   // 01.09 рівень 1: інші знайдені варіанти по тому самому пошуку (Сільпо й
   // так їх повертає — раніше просто відкидались). Значення поля залежить
   // від того, чи product заповнений:
