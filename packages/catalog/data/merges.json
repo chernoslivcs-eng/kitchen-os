@@ -34,5 +34,10 @@
   "veg_avocado": "fruit_avocado",
   "pork_kupaty": "saus_kupaty",
   "pork_grill_sausages": "saus_grill_pork",
-  "chicken_sausages_grill": "saus_grill_chicken"
+  "chicken_sausages_grill": "saus_grill_chicken",
+  "r2hh_baby_powder": "r2bb_baby_powder",
+  "r2hh_shampoo_kids": "r2bb_baby_shampoo",
+  "r2hh_toothpaste_kids": "r2bb_baby_toothpaste",
+  "r2no_pumpkin_seed_flour": "r2gr_flour_pumpkin_seed",
+  "r2no_hemp_flour": "r2gr_flour_hemp"
 }

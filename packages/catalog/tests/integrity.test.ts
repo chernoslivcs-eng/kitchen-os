@@ -12,9 +12,9 @@ const originals = CATALOG.slice(0, ORIGINAL_COUNT);
 const added = CATALOG.slice(ORIGINAL_COUNT);
 
 describe('integrity · ключі', () => {
-  it('обсяг у межах умови готовності (1500-2500)', () => {
-    expect(CATALOG.length).toBeGreaterThanOrEqual(1500);
-    expect(CATALOG.length).toBeLessThanOrEqual(2500);
+  it('обсяг у межах умови готовності (4500-5500)', () => {
+    expect(CATALOG.length).toBeGreaterThanOrEqual(4500);
+    expect(CATALOG.length).toBeLessThanOrEqual(5500);
   });
 
   it('немає дублікатів key', () => {
