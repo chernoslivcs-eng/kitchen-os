@@ -856,7 +856,11 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                 </span>
               )}
               {!r.product && alts.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 'none' }}>
+                // width:100% — flex:none без ширини рахується за max-content (усі
+                // кнопки в один рядок), і власний flex-wrap не встигає спрацювати
+                // раніше, ніж рядок вилізе за межі картки. Живий репро: 5+ кнопок
+                // «замінити» тікали вбік замість переносу.
+                <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {alts.map((a, ai) => (
                     <button
                       key={ai}
