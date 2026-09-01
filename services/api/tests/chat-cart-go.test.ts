@@ -83,4 +83,28 @@ describe('чат: cart_go → живий кошик одним ходом', () =
     const msg = (await repo.listMessages(id)).find((m) => m.id === body.card_id);
     expect((msg?.card as { type?: string })?.type).toBe('cart');
   });
+
+  // Живий репро 01.09: «замов це в сільпо» після перегляду чека — у списку
+  // покупок лежав тільки кунжут, а замовити хотіли позиції з чека, яких у
+  // списку ще не було. cart_go без полів бачить лише персистований список —
+  // тому картка тепер може нести items: явні лейбли з розмови, і сервер шукає
+  // саме їх, ігноруючи список.
+  it('cart_go з явними позиціями (items) — шукає саме їх, а не персистований список', async () => {
+    await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
+    await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: 'кунжут' },
+    });
+    const r = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'замов лосось і рис в сільпо' },
+    });
+    const body = r.json();
+    expect(body.card?.type).toBe('cart');
+    expect(body.card?.found).toBe(2);
+    expect(body.card?.of).toBe(2);
+    const labels = (body.card?.rows ?? []).map((row: { label: string }) => row.label.toLowerCase());
+    expect(labels).toEqual(expect.arrayContaining(['лосось', 'рис']));
+    expect(labels).not.toContain('кунжут');
+  });
 });

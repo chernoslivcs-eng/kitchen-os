@@ -203,11 +203,22 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
   // Корінь «збер»/«зібр» покриває всю парадигму (зберіть/збери/зберемо/
   // зібрати/зібрав) — «збери» самою формою пропускала «зберіть» (і/и
   // чергування в укр. дієслові), і живий тест це впіймав.
-  if (/(замов|оформ|збер|зібр)[^.!?]*(сільпо|кошик)/i.test(args.text)) {
+  const cartGoMatch = args.text.match(/(замов|оформ|збер|зібр)\S*\s+(.+?)\s+(?:в|у)\s+(сільпо|кошик)/i);
+  if (cartGoMatch) {
     if (args.retailConnected) {
+      // 01.09: якщо людина назвала конкретні позиції («замов лосось і рис»),
+      // а не вжила загальне слово («це», «кошик», «замовлення», «список»),
+      // передаємо їх дослівно — cart_go шукає саме їх, а не персистований
+      // список.
+      const rawItems = cartGoMatch[2] ?? '';
+      const middle = rawItems.trim().toLowerCase();
+      const generic = new Set(['це', 'кошик', 'замовлення', 'список', 'їх', 'все', 'усе', 'то']);
+      const items = generic.has(middle)
+        ? undefined
+        : rawItems.split(/\s*(?:,|і|та)\s+/i).map((s) => s.trim()).filter(Boolean);
       return {
         reply: 'Зараз гляну ціни й наявність.',
-        card: { type: 'cart_go' },
+        card: items?.length ? { type: 'cart_go', items } : { type: 'cart_go' },
         usage: { input: 0, output: 0 },
         meta: { promptVersion, model: 'stub', mode: 'stub' },
       };

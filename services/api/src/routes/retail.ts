@@ -118,7 +118,7 @@ export interface RetailCartAttempt {
 }
 
 export interface RetailHandle {
-  attemptBuildCart(user_id: string, household_id: string): Promise<RetailCartAttempt>;
+  attemptBuildCart(user_id: string, household_id: string, explicitItems?: string[]): Promise<RetailCartAttempt>;
 }
 
 export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts): RetailHandle | undefined {
@@ -360,11 +360,20 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // самий код виконує і кнопка «Зібрати кошик», і card_go:cart_go з чату
   // (chat.ts): жодних дублікатів логіки пошуку/addToCart, тільки різне
   // «що сказати людині» у викликача.
-  async function attemptBuildCart(user_id: string, household_id: string): Promise<RetailCartAttempt> {
+  async function attemptBuildCart(
+    user_id: string, household_id: string, explicitItems?: string[],
+  ): Promise<RetailCartAttempt> {
     const conn = await repo.getRetailConnection(user_id, 'silpo');
     if (!conn || conn.status !== 'active') return { ok: false, error: 'not_connected' };
 
-    const items = (await repo.listShoppingItems(household_id)).filter((i) => !i.checked);
+    // 01.09: cart_go.items — модель вказала конкретні позиції з розмови, яких
+    // може ще не бути в персистованому списку («замов лосось і рис»). Це
+    // вільний текст, як shopping.items — id тут нема чим наповнити, позицій
+    // ще нема в базі.
+    const items: { id: string | null; label: string; value: number | null; unit: string | null }[] =
+      explicitItems?.length
+        ? explicitItems.map((label) => ({ id: null, label, value: null, unit: null }))
+        : (await repo.listShoppingItems(household_id)).filter((i) => !i.checked);
     if (!items.length) return { ok: false, error: 'empty_list' };
 
     // Кількість у кошик: вагове — кг із наших грамів (мінімум 0.1), штучне — 1.

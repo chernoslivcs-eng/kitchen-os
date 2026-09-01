@@ -220,8 +220,15 @@ export interface CartCard {
 // принцип, що CookGoCard («страва обрана»): модель лише МАРКУЄ намір,
 // сервер сам виконує (attemptBuildCart) і підміняє картку на справжній
 // CartCard. Без полів — сервер бере активну мережу й поточний список сам.
+// items — 01.09: людина назвала конкретні позиції з розмови (напр. з чека),
+// яких ще нема в персистованому списку покупок («замов лосось і рис» тоді,
+// коли в списку лежить тільки кунжут). Модель вказує лейбли дослівно —
+// вільний текст, як shopping.items, а не id (позицій ще нема в базі,
+// вказати ідентифікатором нічим). Порожньо/відсутнє — сервер бере активний
+// список цілком, як і раніше.
 export interface CartGoCard {
   type: 'cart_go';
+  items?: string[];
 }
 
 export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard;

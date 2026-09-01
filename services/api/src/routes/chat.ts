@@ -73,7 +73,7 @@ export interface ChatRouteOpts {
   // кошик», доступна словами. Інʼєкція з retailRoutes() (server.ts) —
   // chat.ts не знає нічого про Сільпо, цифри/крипту/withRetryAuth, тільки
   // «спробуй, скажи як пройшло».
-  retailCart?: (user_id: string, household_id: string) => Promise<RetailCartAttempt>;
+  retailCart?: (user_id: string, household_id: string, explicitItems?: string[]) => Promise<RetailCartAttempt>;
 }
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
@@ -480,7 +480,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         await saveTurn(msg, null);
         return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
       }
-      const attempt = await opts.retailCart(user_id, household_id);
+      const attempt = await opts.retailCart(user_id, household_id, call.card.items);
       if (!attempt.ok) {
         const msg = attempt.error === 'not_connected'
           ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
