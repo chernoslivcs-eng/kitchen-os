@@ -366,6 +366,35 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect((await repo.getProfile(user_id))?.allergies).toEqual(['селера']);
     });
 
+    it('retail-підключення: upsert по (user, provider), мʼяке відключення, delete', async () => {
+      const { repo, user_id } = ctx;
+      const now = new Date().toISOString();
+      const base = {
+        id: randomUUID(), user_id, provider: 'silpo',
+        access_token_enc: 'enc-v1', refresh_token_enc: 'enc-r1',
+        expires_at: now, status: 'active' as const, connected_at: now, updated_at: now,
+      };
+      await repo.upsertRetailConnection(base);
+      const got = await repo.getRetailConnection(user_id, 'silpo');
+      expect(got?.access_token_enc).toBe('enc-v1');
+      expect(got?.status).toBe('active');
+
+      // Повторний upsert тієї ж пари — перезапис, не другий рядок (refresh токена).
+      await repo.upsertRetailConnection({ ...base, id: randomUUID(), access_token_enc: 'enc-v2' });
+      const refreshed = await repo.getRetailConnection(user_id, 'silpo');
+      expect(refreshed?.access_token_enc).toBe('enc-v2');
+
+      // Мʼяке відключення: status змінюється, токен лишається (undo без нового OAuth).
+      await repo.upsertRetailConnection({ ...refreshed!, status: 'disconnected' });
+      expect((await repo.getRetailConnection(user_id, 'silpo'))?.status).toBe('disconnected');
+
+      // Інший провайдер — окремий рядок, не перетирається.
+      expect(await repo.getRetailConnection(user_id, 'atb')).toBeNull();
+
+      await repo.deleteRetailConnection(user_id, 'silpo');
+      expect(await repo.getRetailConnection(user_id, 'silpo')).toBeNull();
+    });
+
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

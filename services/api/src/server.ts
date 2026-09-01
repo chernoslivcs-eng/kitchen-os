@@ -21,6 +21,7 @@ import { sessionRoutes } from './routes/session.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
+import { retailRoutes, type RetailOpts } from './routes/retail.js';
 
 export interface BuildAppOpts {
   rateLimits?: {
@@ -30,6 +31,7 @@ export interface BuildAppOpts {
     shopping?: RateLimitCfg;
   };
   google?: GoogleAuthOpts;
+  retail?: RetailOpts;
 }
 
 export function buildApp(
@@ -56,6 +58,7 @@ export function buildApp(
 
   authRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.authRequest });
   googleAuthRoutes(app, repo, opts.google);
+  retailRoutes(app, repo, opts.retail);
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
   pantryRoute(app, repo);
@@ -143,7 +146,12 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
   const google = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
     ? { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET }
     : undefined;
-  return buildApp(repo, store, mailer, { google });
+  // M13: client_id — разова динамічна реєстрація на mcp.silpo.ua/register
+  // (SILPO-MCP-RECON.md), секрет шифрування токенів — власний, довільний рядок.
+  const retail = process.env.SILPO_CLIENT_ID && process.env.RETAIL_TOKEN_SECRET
+    ? { silpo: { clientId: process.env.SILPO_CLIENT_ID, tokenSecret: process.env.RETAIL_TOKEN_SECRET } }
+    : undefined;
+  return buildApp(repo, store, mailer, { google, retail });
 }
 
 // entrypoint

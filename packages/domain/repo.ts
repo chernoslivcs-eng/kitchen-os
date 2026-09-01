@@ -5,7 +5,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, MemoryNote, EaterRow,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
-  SessionRow, MessageRow,
+  SessionRow, MessageRow, RetailConnectionRow,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 
@@ -156,6 +156,11 @@ export interface Repo {
   toggleShoppingItem(id: string, checked: boolean): Promise<void>;
   deleteShoppingItem(id: string): Promise<void>;
   findShoppingItemByLabel(household_id: string, label: string): Promise<ShoppingItemRow | null>;
+
+  // Мережі (M13): підключення до retail-провайдера. Upsert по (user_id, provider).
+  upsertRetailConnection(c: RetailConnectionRow): Promise<void>;
+  getRetailConnection(user_id: string, provider: string): Promise<RetailConnectionRow | null>;
+  deleteRetailConnection(user_id: string, provider: string): Promise<void>;
 
   // Дом-membership і запрошення
   isMember(household_id: string, user_id: string): Promise<boolean>;

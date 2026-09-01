@@ -12,7 +12,7 @@ import type {
   Repo, UserRow, HouseholdRow, HouseholdMemberRow,
   PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
-  HouseholdInvite, HouseholdRole, ShoppingItemRow,
+  HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
   SessionRow, MessageRow, MemoryNote, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
@@ -1019,6 +1019,51 @@ export class PostgresRepo implements Repo {
       [household_id, label],
     );
     return rows[0] ? rowToShopping(rows[0]) : null;
+  }
+
+  // ----- Мережі (M13) ------------------------------------------------------
+
+  async upsertRetailConnection(c: RetailConnectionRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO retail_connection
+         (id, user_id, provider, access_token_enc, refresh_token_enc, expires_at, status, connected_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (user_id, provider) DO UPDATE SET
+         access_token_enc = EXCLUDED.access_token_enc,
+         refresh_token_enc = EXCLUDED.refresh_token_enc,
+         expires_at = EXCLUDED.expires_at,
+         status = EXCLUDED.status,
+         updated_at = EXCLUDED.updated_at`,
+      [c.id, c.user_id, c.provider, c.access_token_enc, c.refresh_token_enc,
+       c.expires_at, c.status, c.connected_at, c.updated_at],
+    );
+  }
+
+  async getRetailConnection(user_id: string, provider: string): Promise<RetailConnectionRow | null> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM retail_connection WHERE user_id = $1 AND provider = $2',
+      [user_id, provider],
+    );
+    const r = rows[0] as Row | undefined;
+    if (!r) return null;
+    return {
+      id: r.id as string,
+      user_id: r.user_id as string,
+      provider: r.provider as string,
+      access_token_enc: r.access_token_enc as string,
+      refresh_token_enc: (r.refresh_token_enc as string | null) ?? null,
+      expires_at: new Date(r.expires_at as string).toISOString(),
+      status: r.status as RetailConnectionRow['status'],
+      connected_at: new Date(r.connected_at as string).toISOString(),
+      updated_at: new Date(r.updated_at as string).toISOString(),
+    };
+  }
+
+  async deleteRetailConnection(user_id: string, provider: string): Promise<void> {
+    await this.pool.query(
+      'DELETE FROM retail_connection WHERE user_id = $1 AND provider = $2',
+      [user_id, provider],
+    );
   }
 
   // ----- Дом-membership і запрошення --------------------------------------

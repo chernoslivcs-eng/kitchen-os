@@ -58,11 +58,11 @@ describe('GET /v1/cards/pending', () => {
     const shopId = randomUUID();
     await createPending(repo, {
       message_id: shopId, household_id: me.household_id, user_id: me.user_id,
-      card: { type: 'shopping', items: [{ label: 'олія' }] },
+      card: { type: 'shopping', items: [{ op: 'add', label: 'олія' }] },
     });
     await repo.saveMessage({
       id: shopId, session_id: b.id, role: 'assistant',
-      text: 'Додати в список?', card: { type: 'shopping', items: [{ label: 'олія' }] },
+      text: 'Додати в список?', card: { type: 'shopping', items: [{ op: 'add', label: 'олія' }] },
       applied: 0, created_at: new Date().toISOString(),
     });
     const res = await app.inject({

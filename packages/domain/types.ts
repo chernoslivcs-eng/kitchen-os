@@ -318,6 +318,23 @@ export interface CookRunWithRecipe extends CookRunRow {
   recipe: RecipeRow;
 }
 
+// M13: підключення мережі (Сільпо перша, не єдина). Токени сюди приходять
+// уже зашифрованими (AES-GCM в API-шарі) — домен і БД бачать тільки шифротекст.
+// Один рядок на пару (user_id, provider); повторний upsert перезаписує.
+// status='disconnected' — мʼяке відключення (тост «Повернути ↩» з дизайн-канону):
+// токен ще живий у рядку, undo повертає 'active' без нового OAuth.
+export interface RetailConnectionRow {
+  id: string;
+  user_id: string;
+  provider: string;
+  access_token_enc: string;
+  refresh_token_enc: string | null;
+  expires_at: string;
+  status: 'active' | 'disconnected';
+  connected_at: string;
+  updated_at: string;
+}
+
 export interface ShoppingItemRow {
   id: string;
   household_id: string;
