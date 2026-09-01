@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d9dcdf;font-family:'Golos Text',system-ui,sans-serif;color:#1d2126}
+a{color:#58754e;text-decoration:none}a:hover{color:#3f5837;text-decoration:underline}
+.mono{font-family:'IBM Plex Mono',monospace}
+.slab{font:600 13px 'Golos Text',sans-serif;color:#454b52;line-height:1.5}
+.scol{display:flex;flex-direction:column;gap:10px}
+.note{font:400 12px/1.55 'Golos Text',sans-serif;color:#5c646d}
+.phone{width:390px;background:#eef0f1;border-radius:24px;box-shadow:0 12px 40px rgba(29,33,38,.2);padding:22px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
+.doccard{background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.mrow{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #e3e6e8;font:400 15px 'Golos Text',sans-serif}
+.crow{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid #e3e6e8;font:400 15px 'Golos Text',sans-serif}
+.thumb{width:30px;height:30px;border-radius:8px;background:#e3e6e8;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px}
+.q{margin-left:auto;font:400 12px 'IBM Plex Mono',monospace;color:#7b838b;white-space:nowrap}
+.lnk{border:0;background:none;padding:0;color:#58754e;font:600 14px 'Golos Text',sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.two b{display:block;font:500 15px 'Golos Text',sans-serif;color:#1d2126}
+.two i{display:block;font:400 12px 'IBM Plex Mono',monospace;color:#7b838b;font-style:normal;padding-top:1px}
+@keyframes kpulse{0%,100%{opacity:1}50%{opacity:.35}}
+.dk{width:1280px;background:#e6e9eb;border-radius:20px;overflow:hidden;box-shadow:0 12px 40px rgba(29,33,38,.2);display:flex;height:832px;color:#1d2126}
+.side{width:232px;flex:none;border-right:1px solid #dde0e2;background:#eef0f1;display:flex;flex-direction:column;padding:20px 14px}
+.sit{display:flex;align-items:center;gap:11px;height:42px;padding:0 12px;border-radius:12px;font:600 14px 'Golos Text',sans-serif;color:#5c646d}
+.sit.on{background:#e3e6e8;color:#1d2126}
+.main{flex:1;display:flex;flex-direction:column;background:#eef0f1;min-width:0}
+.rail{width:320px;flex:none;border-left:1px solid #dde0e2;background:#f8f9fa;display:flex;flex-direction:column;padding:24px 22px;gap:18px;overflow:hidden}
+</style>
+</helmet>
+<div style="padding:44px;display:flex;flex-direction:column;gap:40px">
+<header style="display:flex;flex-direction:column;gap:6px">
+  <div class="mono" style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#6a727a">Kitchen OS · M13 Сільпо · 01.09.2026</div>
+  <div style="font:400 15px/1.5 'Golos Text',sans-serif;color:#454b52;max-width:900px">Чотири поверхні на живому контракті MCP. Відповіді на відкриті питання: <b>фото</b> — так, 30px мініатюри в чеку (маркер, не hero; у кошику — ні, там і так два імені); <b>підключення</b> — буденний жест, без ринг-канону (ринг лишається брендовим моментом входу); <b>«Зібрати кошик»</b> — обидва: кнопка на Списку + пропозиція Кухні реплікою; <b>бонуси</b> — показуємо як тихий факт (число з чека, `bonusTotal`), без маркетингових рядків `chequeMagicName`.</div>
+</header>
+
+<div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+
+  <!-- 1 МЕРЕЖІ -->
+  <div class="scol" data-screen-label="М1 Мережі у профілі">
+    <div class="slab">1 · Профіль → «Мережі» — п'ять станів одного рядка</div>
+    <div class="phone">
+      <div class="doccard" style="gap:0">
+        <div class="mono" style="font-size:11px;color:#7b838b;padding-bottom:6px">МЕРЕЖІ</div>
+        <div class="mrow">
+          <span style="color:#7b838b;font-size:15px">◌</span>
+          <span>Сільпо</span>
+          <button class="lnk" style="margin-left:auto;text-decoration:none">Підключити →</button>
+        </div>
+        <div class="mrow">
+          <span style="color:#7b838b;font-size:15px;animation:kpulse 1.2s ease infinite">◌</span>
+          <span>Сільпо</span>
+          <span class="mono" style="margin-left:auto;font-size:12px;color:#7b838b">підключаю…</span>
+        </div>
+        <div class="mrow">
+          <span style="color:#58754e;font-size:15px">●</span>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <span>Сільпо</span>
+            <span class="mono" style="font-size:11px;color:#7b838b">синхронізовано сьогодні 14:20</span>
+          </div>
+          <span class="mono" style="margin-left:auto;font-size:12px;color:#5c646d">412 бонусів</span>
+          <button style="border:0;background:none;padding:2px;color:#7b838b;font-size:14px;cursor:pointer" title="Відключити">✕</button>
+        </div>
+        <div class="mrow">
+          <span style="color:#96712c;font-size:15px">◌</span>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <span>Сільпо</span>
+            <span class="mono" style="font-size:11px;color:#96712c">сесія закінчилась</span>
+          </div>
+          <button class="lnk" style="margin-left:auto;color:#96712c;text-decoration:none">Увійти знову →</button>
+        </div>
+        <div class="mrow" style="border-bottom:0;color:#7b838b">
+          <span style="font-size:15px">◌</span>
+          <span>АТБ</span>
+          <span class="mono" style="margin-left:auto;font-size:11px">скоро</span>
+        </div>
+      </div>
+      <div style="align-self:center;display:flex;align-items:center;gap:12px;background:#1d2126;color:#eef0f1;border-radius:12px;padding:10px 16px;font:500 14px 'Golos Text',sans-serif;box-shadow:0 8px 24px rgba(29,33,38,.25)">
+        Сільпо відключено
+        <button style="border:0;background:none;color:#a8c49e;font:600 14px 'Golos Text',sans-serif;cursor:pointer;padding:0">Повернути ↩</button>
+      </div>
+    </div>
+    <div class="note" style="max-width:390px">Стан мережі — той самий ●/◌ бренд-глиф: ● підключено (шавлія), ◌ очікує. Протухлий токен (раз на ~30 днів) — бурштин, тон «рутина», не помилка. Відключення — одразу, з тостом-відкатом (патерн pool-8), без модалки. OAuth веде назовні; повернення з редиректу — стан «підключаю…».</div>
+  </div>
+
+  <!-- 2 ЧЕК -->
+  <div class="scol" data-screen-label="М2 Чек у комору">
+    <div class="slab">2 · Картка «Чек → комора» — канон B + auto-apply</div>
+    <div class="phone">
+      <span class="mono" style="font-size:11px;color:#7b838b">09:12 КУХНЯ · ЧЕК</span>
+      <div class="doccard">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <div style="font:700 19px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Чек Сільпо</div>
+          <div style="font:400 13px 'Golos Text',sans-serif;color:#5c646d">23.08 · вул. Київська, 10 · 1 284₴</div>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div class="crow"><span class="thumb">🥛</span><span>молоко 2,5%</span><span class="q">1 шт</span><span style="color:#58754e;font-size:13px">✓</span></div>
+          <div class="crow"><span class="thumb">🍗</span><span>філе куряче</span><span class="q">0,64 кг</span><span style="color:#58754e;font-size:13px">✓</span></div>
+          <div class="crow"><span class="thumb">🍚</span><span>рис круглий</span><span class="q">1 шт</span><span style="color:#58754e;font-size:13px">✓</span></div>
+          <div class="crow" style="color:#7b838b"><span class="thumb" style="background:#eceeef">?</span><span>«Хліб Салтівський особл.»</span><button class="lnk" style="margin-left:auto;font-size:13px">додати руками</button></div>
+          <div class="crow" style="border-bottom:0;color:#7b838b;font-size:14px;cursor:pointer"><span style="width:30px;text-align:center;flex:none">›</span>ще 3 не для комори</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e3e6e8;padding-top:12px">
+          <span class="mono" style="font-size:11px;color:#58754e">● 11 ПОЗИЦІЙ У КОМОРІ</span>
+          <button class="lnk" style="color:#5c646d">Скасувати ↩</button>
+        </div>
+      </div>
+    </div>
+    <div class="note" style="max-width:390px">Шапка-джерело з живих полів (`filialName`, `createdAt`, `sumReg`). Фото 30px тримає канон «документ» — рядок лишається текстовим. Позиція без збігу (`catalogProduct: null`) — сіра, назва в лапках як у чеку, «додати руками». Нехарчове не зникає мовчки — згорнутий рядок «ще 3 ›». Комора вже поповнена (auto-apply) — футер каже факт + відкат, без кнопки «застосувати».</div>
+  </div>
+
+  <!-- 3 КОШИК -->
+  <div class="scol" data-screen-label="М3 Кошик">
+    <div class="slab">3 · Картка «Кошик» — два імені однієї речі</div>
+    <div class="phone">
+      <span class="mono" style="font-size:11px;color:#7b838b">17:40 КУХНЯ · КОШИК</span>
+      <div class="doccard">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <div style="font:700 19px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Кошик у Сільпо</div>
+          <div style="font:400 13px 'Golos Text',sans-serif;color:#5c646d">вул. Київська, 10 · зі списку «На тиждень»</div>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div class="crow two"><div style="flex:1"><b>лосось стейк</b><i>Стейк лосося охолодж., 300 г</i></div><span class="q" style="color:#3c4249">319₴</span></div>
+          <div class="crow two"><div style="flex:1"><b>рис</b><i>Рис круглозерний «Хуторок», 1 кг</i></div><span class="q" style="color:#3c4249">89₴</span></div>
+          <div class="crow two"><div style="flex:1"><b>соус терияки</b><i>Соус Kikkoman Teriyaki, 250 мл</i></div><span class="q" style="color:#3c4249">164₴</span></div>
+          <div class="crow two" style="align-items:flex-start">
+            <div style="flex:1"><b style="color:#7b838b">кунжут</b><i style="color:#96712c">немає в цій філії</i></div>
+            <button class="lnk" style="font-size:13px;flex:none">замінити: суміш насіння · 56₴</button>
+          </div>
+          <div class="crow" style="border-bottom:0;color:#7b838b;font-size:14px"><span style="flex:1">імбир свіжий — не знайшов, шукаю інакше…</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;border-top:1px solid #e3e6e8;padding-top:12px">
+          <span style="font:600 16px 'Onest',sans-serif">572₴ · 3 з 5</span>
+          <button style="margin-left:auto;height:44px;padding:0 18px;border:0;border-radius:12px;background:#1d2126;color:#eef0f1;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Оформити в Сільпо ↗</button>
+        </div>
+      </div>
+    </div>
+    <div class="note" style="max-width:390px">Наше ім'я — головне (те, що людина писала в список); назва Сільпо — другим рядком, mono, як «паспортні дані» товару. Частковий збіг — норма (60–70%): «немає в цій філії» — бурштин-факт, не error; поруч чесна заміна одним тапом. Підсумок каже «3 з 5» — скільки реально поїде в чекаут. Кнопка темна з ↗ — вихід назовні, не наша шавлієва дія.</div>
+  </div>
+
+  <!-- 4 ЗБОЇ -->
+  <div class="scol" data-screen-label="М4 Стани збоїв" style="max-width:390px">
+    <div class="slab">4 · Збої — тихі, з автоповтором</div>
+    <div class="phone" style="gap:16px">
+      <div class="doccard" style="gap:8px">
+        <div class="mono" style="font-size:11px;color:#7b838b">ПРОТУХЛИЙ СЛОТ → НУЛІ</div>
+        <div style="display:flex;align-items:center;gap:10px;font:400 15px 'Golos Text',sans-serif;color:#5c646d">
+          <span style="color:#96712c;animation:kpulse 1.2s ease infinite">◌</span>
+          Оновлюю дані магазину…
+        </div>
+        <div class="note">Тотальні нулі пошуку = підозра на протухлий таймслот, не «товарів немає». Мовчки беремо свіжий слот і повторюємо — людина бачить лише коротке очікування.</div>
+      </div>
+      <div class="doccard" style="gap:8px">
+        <div class="mono" style="font-size:11px;color:#7b838b">СІЛЬПО НЕДОСТУПНЕ → ДЕГРАДАЦІЯ</div>
+        <div style="display:flex;flex-direction:column">
+          <div class="crow"><span>лосось стейк</span><span class="q">300г</span></div>
+          <div class="crow"><span>рис</span><span class="q">1кг</span></div>
+          <div class="crow" style="border-bottom:0"><span>соус терияки</span><span class="q">250мл</span></div>
+        </div>
+        <div class="note">Картка кошика стає звичайним списком без цін. Внизу — тихий рядок: «Сільпо зараз не відповідає — покажу ціни, щойно з'явиться».</div>
+      </div>
+      <div class="doccard" style="gap:8px">
+        <div class="mono" style="font-size:11px;color:#7b838b">401 ПОСЕРЕД ДІЇ</div>
+        <div style="display:flex;align-items:center;gap:10px;background:#f5efe2;border:1px solid #e5d9bd;border-radius:12px;padding:10px 14px;font:400 14px 'Golos Text',sans-serif;color:#5c646d">
+          <span style="color:#96712c">◌</span>
+          <span style="flex:1">Сесія Сільпо закінчилась</span>
+          <button class="lnk" style="color:#96712c;text-decoration:none;flex:none">Увійти знову →</button>
+        </div>
+        <div class="note">Інлайн у тій самій картці, флоу не переривається: після повторного входу дія продовжується з місця зупинки. Червоного немає ніде — всі три збої відкотні й рутинні.</div>
+      </div>
+    </div>
+    <div class="note" style="max-width:390px">Сирі zod-помилки tools ніколи не показуємо — мапимо на три ці стани.</div>
+  </div>
+
+  <!-- 5 РОЗТАШУВАННЯ У ПРОФІЛІ -->
+  <div class="scol" data-screen-label="М5 Мережі у структурі профілю">
+    <div class="slab">5 · Де живуть «Мережі» — зона профілю між ДІМ і підвалом</div>
+    <div style="width:640px;background:#eef0f1;border-radius:16px;box-shadow:0 12px 40px rgba(29,33,38,.2);padding:26px 36px 20px;box-sizing:border-box;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px">
+        <div style="font:700 22px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня Пилипа</div>
+        <span class="mono" style="font-size:11px;color:#7b838b">CHERNOSLIV.CS@GMAIL.COM · ВИЙТИ</span>
+      </div>
+      <div style="padding:14px 0;border-top:1px solid #ced3d6;display:flex;align-items:baseline;gap:12px"><span class="mono" style="font-size:11px;color:#a8483d">■ ЇЖА</span><span class="mono" style="font-size:11px;color:#b9bec3">АЛЕРГІЇ · НЕ ЇМ · ДІЄТИ · ПОБАЖАННЯ</span></div>
+      <div style="padding:14px 0;border-top:1px solid #ced3d6;display:flex;align-items:baseline;gap:12px"><span class="mono" style="font-size:11px;color:#58754e">■ ТЕХНІКА</span><span class="mono" style="font-size:11px;color:#b9bec3">18 ЧІПІВ</span></div>
+      <div style="padding:14px 0;border-top:1px solid #ced3d6;display:flex;align-items:baseline;gap:12px"><span class="mono" style="font-size:11px;color:#96712c">■ ВИСНОВКИ З ГОТУВАННЯ</span><span class="mono" style="font-size:11px;color:#b9bec3">9 ЗАПИСІВ</span></div>
+      <div style="padding:14px 0;border-top:1px solid #ced3d6;display:flex;align-items:baseline;gap:12px"><span class="mono" style="font-size:11px;color:#7b838b">■ ДІМ UX9</span><span class="mono" style="font-size:11px;color:#b9bec3">ПИЛИП · ОЛЯ · ЗАПРОСИТИ</span></div>
+      <div style="display:flex;flex-direction:column;gap:2px;padding:18px 0 8px;border-top:1px solid #ced3d6">
+        <div class="mono" style="font-size:11px;color:#5c646d">■ МЕРЕЖІ</div>
+        <div class="mrow">
+          <span style="color:#58754e;font-size:15px">●</span>
+          <div style="display:flex;flex-direction:column;gap:1px"><span>Сільпо</span><span class="mono" style="font-size:11px;color:#7b838b">синхронізовано сьогодні 14:20</span></div>
+          <span class="mono" style="margin-left:auto;font-size:12px;color:#5c646d">412 бонусів</span>
+          <button style="border:0;background:none;padding:2px;color:#7b838b;font-size:14px;cursor:pointer">✕</button>
+        </div>
+        <div class="mrow" style="border-bottom:0;color:#7b838b">
+          <span style="font-size:15px">◌</span><span>АТБ</span><span class="mono" style="margin-left:auto;font-size:11px">скоро</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;padding-top:14px;border-top:1px solid #ced3d6"><span class="mono" style="font-size:11px;color:#b9bec3">ВИДАЛИТИ АКАУНТ</span></div>
+    </div>
+    <div class="note" style="max-width:640px">П'ята зона в наявній структурі профілю (ЇЖА · ТЕХНІКА · ВИСНОВКИ · ДІМ · <b>МЕРЕЖІ</b>) — остання перед підвалом: це інфраструктура акаунта, як і ДІМ, а не кулінарний контекст. На мобайлі — та сама зона в тому ж порядку скролу.</div>
+  </div>
+
+  <!-- 6 ЗІБРАТИ КОШИК -->
+  <div class="scol" data-screen-label="М6 Зібрати кошик у Списку">
+    <div class="slab">6 · «Зібрати кошик» — кнопка в Списку + репліка Кухні</div>
+    <div class="phone" style="padding:0;overflow:hidden;gap:0">
+      <div style="padding:24px 26px 12px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font:700 21px 'Onest',sans-serif;letter-spacing:-0.02em">Список</div>
+        <span class="mono" style="font-size:11px;color:#58754e;letter-spacing:.06em;cursor:pointer">КОПІЮВАТИ ТЕКСТОМ</span>
+      </div>
+      <div style="padding:4px 26px 0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #dde0e2">
+          <span style="width:24px;height:24px;border-radius:8px;border:1px solid #b9bec3;flex:none"></span>
+          <div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Лосось стейк</div><div class="mono" style="font-size:11px;color:#7b838b">ДЛЯ: ЛОСОСЬ ТЕРИЯКИ</div></div>
+          <span class="mono" style="font-size:13px;color:#7b838b">300г</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #dde0e2">
+          <span style="width:24px;height:24px;border-radius:8px;border:1px solid #b9bec3;flex:none"></span>
+          <div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Соус терияки</div></div>
+          <span class="mono" style="font-size:13px;color:#7b838b">250мл</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0">
+          <span style="width:24px;height:24px;border-radius:8px;border:1px solid #b9bec3;flex:none"></span>
+          <div style="flex:1"><div style="font:400 16px 'Golos Text',sans-serif">Кунжут</div></div>
+          <span class="mono" style="font-size:13px;color:#7b838b">1шт</span>
+        </div>
+      </div>
+      <div style="padding:10px 26px 6px"><div style="height:48px;border-radius:12px;background:#f8f9fa;border:1px solid #dde0e2;display:flex;align-items:center;padding:0 16px"><span class="mono" style="font-size:13px;color:#7b838b">+ додати в список…</span></div></div>
+      <div style="padding:0 26px 14px">
+        <button style="width:100%;height:48px;border:1px solid #c2d3b8;border-radius:12px;background:#e4ecdf;color:#3f5837;font:600 15px 'Golos Text',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 16px;box-sizing:border-box">
+          <span>Зібрати кошик у Сільпо</span><span style="font-weight:400">5 позицій →</span>
+        </button>
+      </div>
+      <div style="display:flex;justify-content:space-around;border-top:1px solid #dde0e2;background:#f8f9fa;padding:10px 8px 14px">
+        <span class="mono" style="font-size:11px;color:#7b838b">◉ Стрічка</span>
+        <span class="mono" style="font-size:11px;color:#7b838b">▤ Комора</span>
+        <span class="mono" style="font-size:11px;color:#7b838b">✎ Рецепти</span>
+        <span class="mono" style="font-size:11px;color:#1d2126;background:#e3e6e8;border-radius:8px;padding:2px 8px">☰ Список</span>
+      </div>
+    </div>
+    <div class="phone" style="gap:8px">
+      <span class="mono" style="font-size:11px;color:#7b838b">17:38 КУХНЯ</span>
+      <div style="font:400 15px/1.5 'Golos Text',sans-serif;color:#3c4249;max-width:320px">У списку «На тиждень» 5 позицій, Сільпо підключено. Зібрати кошик — гляну ціни й наявність на Київській, 10?</div>
+      <div style="display:flex;gap:10px;padding-top:2px">
+        <button style="height:40px;padding:0 16px;border:0;border-radius:12px;background:#58754e;color:#f2f4f0;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Зібрати</button>
+        <button style="height:40px;padding:0 16px;border:1px solid #ced3d6;border-radius:12px;background:none;color:#5c646d;font:600 14px 'Golos Text',sans-serif;cursor:pointer">Не зараз</button>
+      </div>
+    </div>
+    <div class="note" style="max-width:390px">Обидва входи ведуть до однієї картки «Кошик» (<a href="#" style="pointer-events:none">арт 3</a>). У Списку — постійна кнопка над таббаром, шавлієва вторинна (не панічна CTA): з'являється лише коли мережа підключена і в списку ≥1 позиція. У чаті — Кухня пропонує реплікою в моменти сенсу (список щойно поповнився рецептом, вечір перед закупівлею). Кнопка веде не в чекаут, а до збирання: картка кошика з цінами приходить у стрічку.</div>
+  </div>
+
+</div>
+
+<!-- ДЕСКТОП -->
+<div class="scol" data-screen-label="М7 Десктоп Shell">
+  <div class="slab">7 · Десктоп ≥1024 — ті самі картки в журналі 680, контекст мережі в правій панелі</div>
+  <div class="dk">
+    <div class="side">
+      <div style="display:flex;align-items:center;gap:10px;padding:0 12px 22px"><svg width="26" height="26" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="19" stroke="#1d2126" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="104 15" transform="rotate(-58 24 24)"></circle><circle cx="24" cy="24" r="6" fill="#58754e"></circle></svg><span style="font:700 17px 'Onest',sans-serif;letter-spacing:-0.02em">Kitchen OS</span></div>
+      <div class="sit on"><span>◉</span>Стрічка</div>
+      <div class="sit"><span>▤</span>Комора <span class="mono" style="margin-left:auto;font-size:11px;color:#7b838b">34</span></div>
+      <div class="sit"><span>✎</span>Рецепти</div>
+      <div class="sit"><span>☰</span>Список <span class="mono" style="margin-left:auto;font-size:11px;background:#58754e;color:#f2f4f0;border-radius:999px;padding:1px 7px">5</span></div>
+      <div style="flex:1"></div>
+      <div class="sit"><div style="width:26px;height:26px;border-radius:999px;background:#e3e6e8;display:grid;place-items:center;font:600 11px 'Golos Text',sans-serif;color:#3c4249">П</div>Пилип</div>
+    </div>
+    <div class="main">
+      <div style="padding:24px 36px 12px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #dde0e2">
+        <div style="font:700 22px 'Onest',sans-serif;letter-spacing:-0.02em">Кухня</div>
+        <div class="mono" style="font-size:11px;color:#7b838b;letter-spacing:.06em">ВТ 1 ВЕР · СИНХРОН ОК</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:22px 36px 0;display:flex;flex-direction:column;gap:22px;max-width:680px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span class="mono" style="font-size:11px;color:#7b838b">09:12 КУХНЯ · ЧЕК</span>
+          <div class="doccard" style="gap:10px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="font:700 18px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Чек Сільпо</div>
+              <div style="font:400 13px 'Golos Text',sans-serif;color:#5c646d">23.08 · вул. Київська, 10 · 1 284₴</div>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <div class="crow"><span class="thumb">🥛</span><span>молоко 2,5%</span><span class="q">1 шт</span><span style="color:#58754e;font-size:13px">✓</span></div>
+              <div class="crow"><span class="thumb">🍗</span><span>філе куряче</span><span class="q">0,64 кг</span><span style="color:#58754e;font-size:13px">✓</span></div>
+              <div class="crow" style="border-bottom:0;color:#7b838b;font-size:14px;cursor:pointer"><span style="width:30px;text-align:center;flex:none">›</span>ще 8 позицій · 3 не для комори</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e3e6e8;padding-top:10px">
+              <span class="mono" style="font-size:11px;color:#58754e">● 11 ПОЗИЦІЙ У КОМОРІ</span>
+              <button class="lnk" style="color:#5c646d">Скасувати ↩</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span class="mono" style="font-size:11px;color:#7b838b">17:40 КУХНЯ · КОШИК</span>
+          <div class="doccard" style="gap:10px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="font:700 18px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Кошик у Сільпо</div>
+              <div style="font:400 13px 'Golos Text',sans-serif;color:#5c646d">вул. Київська, 10 · зі списку «На тиждень»</div>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <div class="crow two"><div style="flex:1"><b>лосось стейк</b><i>Стейк лосося охолодж., 300 г</i></div><span class="q" style="color:#3c4249">319₴</span></div>
+              <div class="crow two"><div style="flex:1"><b>рис</b><i>Рис круглозерний «Хуторок», 1 кг</i></div><span class="q" style="color:#3c4249">89₴</span></div>
+              <div class="crow two" style="align-items:flex-start;border-bottom:0">
+                <div style="flex:1"><b style="color:#7b838b">кунжут</b><i style="color:#96712c">немає в цій філії</i></div>
+                <button class="lnk" style="font-size:13px;flex:none">замінити: суміш насіння · 56₴</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;border-top:1px solid #e3e6e8;padding-top:10px">
+              <span style="font:600 15px 'Onest',sans-serif">572₴ · 3 з 5</span>
+              <button style="margin-left:auto;height:40px;padding:0 16px;border:0;border-radius:12px;background:#1d2126;color:#eef0f1;font:600 13px 'Golos Text',sans-serif;cursor:pointer">Оформити в Сільпо ↗</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px 36px 24px;max-width:680px;box-sizing:border-box;width:100%"><div style="height:52px;border-radius:14px;background:#f8f9fa;border:1px solid #dde0e2;display:flex;align-items:center;padding:0 16px"><span class="mono" style="font-size:13px;color:#7b838b">Напиши Кухні…</span></div></div>
+    </div>
+    <div class="rail">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b">МЕРЕЖІ</div>
+        <div style="display:flex;align-items:center;gap:10px;font:400 14px 'Golos Text',sans-serif">
+          <span style="color:#58754e;font-size:14px">●</span>
+          <div style="display:flex;flex-direction:column"><span>Сільпо</span><span class="mono" style="font-size:10px;color:#7b838b">СИНХРОН 14:20 · 412 БОНУСІВ</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid #e3e6e8;padding-top:16px">
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#96712c">ОЧІКУЄ · 1</div>
+        <div style="font:400 14px/1.45 'Golos Text',sans-serif;color:#3c4249">Кошик зібрано на 3 з 5 — глянь заміну кунжуту</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid #e3e6e8;padding-top:16px">
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:#7b838b">СПИСОК · 5</div>
+        <button style="align-self:flex-start;height:40px;padding:0 14px;border:1px solid #c2d3b8;border-radius:12px;background:#e4ecdf;color:#3f5837;font:600 13px 'Golos Text',sans-serif;cursor:pointer">Зібрати кошик у Сільпо →</button>
+      </div>
+    </div>
+  </div>
+  <div class="note" style="max-width:1280px">Ті самі картки без переверстки — журнал лишається колонкою 680 (канон десктопа). Права панель бере на себе стан інтеграції: рядок «Мережі» (● Сільпо + синхрон + бонуси — дублює профіль, тап веде туди), pending про часткові збіги, і «Зібрати кошик» у блоці СПИСОК — третій вхід тим самим жестом, що кнопка на екрані Списку. На 600–1024 панель зникає — лишаються кнопка в Списку і репліка в чаті.</div>
+</div>
+</div>
+</x-dc>
+</body>
+</html>
