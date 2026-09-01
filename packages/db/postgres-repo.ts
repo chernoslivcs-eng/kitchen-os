@@ -760,12 +760,14 @@ export class PostgresRepo implements Repo {
 
   async saveMessage(msg: MessageRow): Promise<void> {
     await this.pool.query(
-      `INSERT INTO message (id, session_id, role, text, card, applied, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      `INSERT INTO message (id, session_id, role, text, card, applied, created_at, source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [
         msg.id, msg.session_id, msg.role, msg.text,
         msg.card == null ? null : JSON.stringify(msg.card),
         msg.applied, msg.created_at,
+        // NULL = написала модель; підпис ставиться лише винятком (серверна проза).
+        msg.source ?? null,
       ],
     );
   }
@@ -783,6 +785,10 @@ export class PostgresRepo implements Repo {
       card: r.card ?? null,
       applied: r.applied ?? 0,
       created_at: new Date(r.created_at).toISOString(),
+      // Поле опційне: NULL у базі → undefined у типі, а не null. Інакше
+      // `m.source ?` в chat-history.ts брав би порожню гілку правильно, але
+      // рядок віз би зайве null у кожному ході історії.
+      ...(r.source ? { source: r.source as MessageRow['source'] } : {}),
     }));
   }
 

@@ -14,6 +14,7 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted } from './occasions.js';
+import { serializeModes, type KitchenMode } from './modes.js';
 
 export interface RecentCookRunSummary {
   title: string;
@@ -38,6 +39,13 @@ export interface KitchenContext {
   // M13: чи підключена мережа (Сільпо). undefined = інтеграція не
   // сконфігурована на сервері — блок мовчить, модель про неї не знає.
   retailConnected?: boolean;
+  // №4: що зараз відкрито (кошик, свіжий рецепт, неоцінене готування).
+  // Рахує сервер із повідомлень сесії — модель більше не виводить ситуацію
+  // з двадцяти рядків історії.
+  modes?: KitchenMode[];
+  // 8b: чи обрізані блоки з лімітом на рівні репозиторію.
+  notesTruncated?: boolean;
+  recipesTruncated?: boolean;
 }
 
 // M13: без цього блока модель на «замов через сільпо» відповідала categorичною
@@ -59,20 +67,29 @@ export function todayLabel(now = new Date()): string {
 
 // Профіль. QA4-02: до цього алергії зберігались, показувались у UI — і не
 // впливали ні на що; модель двічі пропонувала мигдаль людині з алергією.
+// M13-ROLE-VOICE п.1: порожній профіль — НЕ дозвіл. Людину могли ще не
+// спитати (саме на порожньому профілі вмикається онбординг stage 2), і тиша
+// не сміє читатись як підтверджене «обмежень немає»: ціна цієї підміни —
+// алерген у пропозиції. Тому блок присутній завжди і несе різницю явно.
 export function serializeProfile(p?: Profile | null): string {
-  if (!p) return '';
   const parts: string[] = [];
-  if (p.allergies.length) {
-    parts.push('АЛЕРГІЇ (тверда межа — ніколи не пропонуй сам): ' + p.allergies.join(', '));
+  if (p) {
+    if (p.allergies.length) {
+      parts.push('АЛЕРГІЇ (тверда межа — ніколи не пропонуй сам): ' + p.allergies.join(', '));
+    }
+    if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
+    if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
+    const eq = Object.entries(p.equipment ?? {});
+    const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
+    const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
+    if (has.length) parts.push('Є ТЕХНІКА: ' + has.join(', '));
+    if (lacks.length) parts.push('НЕМАЄ ТЕХНІКИ: ' + lacks.join(', '));
   }
-  if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
-  if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
-  const eq = Object.entries(p.equipment ?? {});
-  const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
-  const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
-  if (has.length) parts.push('Є ТЕХНІКА: ' + has.join(', '));
-  if (lacks.length) parts.push('НЕМАЄ ТЕХНІКИ: ' + lacks.join(', '));
-  return parts.length ? '\n\n[ПРОФІЛЬ]\n' + parts.join('\n') : '';
+  if (!parts.length) {
+    return '\n\n[ПРОФІЛЬ] порожній — обмежень, алергій і побажань ще не записано.'
+      + ' Це НЕ означає, що їх немає: найімовірніше, ще не питали.';
+  }
+  return '\n\n[ПРОФІЛЬ]\n' + parts.join('\n');
 }
 
 // Комора: id · назва · зона · кількість · стан. Термін догоряння як «!Nдн»,
@@ -226,8 +243,14 @@ export function serializePantry(
 
 // QA6-04: без списку в контексті модель у новій сесії казала «порожній» при
 // двох позиціях і додавала дубль за один тап.
+//
+// M13-ROLE-VOICE п.1: порожній список — це ВІДПОВІДЬ, а не відсутність даних.
+// Поки блок зникав, модель не мала куди подивитись (role.md наказує «подивись
+// у блок» і забороняє казати «блок порожній») і добудовувала стан із розмови.
 export function serializeShopping(items: ShoppingItemRow[]): string {
-  if (!items.length) return '';
+  if (!items.length) {
+    return '\n\n[СПИСОК ПОКУПОК] порожній — жодної позиції не записано.';
+  }
   const lines = items.map((i) => {
     const parts = [i.label];
     if (i.value != null && i.unit) parts.push(`${i.value}${i.unit}`);
@@ -257,7 +280,11 @@ export function serializeCookRun(r: RecentCookRunSummary, now = Date.now(), late
 // хто за столом, тому алергія їдця — така сама тверда межа, як алергія
 // власника, і позначається тими самими словами.
 export function serializeEaters(eaters: EaterRow[]): string {
-  if (!eaters.length) return '';
+  // M13-ROLE-VOICE п.1: порожньо — це «крім власника нікого не записано»,
+  // а не «нікого немає». Різниця та сама, що в профілі: могли не спитати.
+  if (!eaters.length) {
+    return '\n\n[ДОМАШНІ] порожньо — крім власника, їдців не записано.';
+  }
   const lines = eaters.map((e) => {
     const parts = [e.name];
     if (e.allergies.length) parts.push(`АЛЕРГІЯ (тверда межа — ніколи не пропонуй сам): ${e.allergies.join(', ')}`);
@@ -278,8 +305,15 @@ export function serializeEaters(eaters: EaterRow[]): string {
 // рецептів: «а що ти там пропонував з борщем?» — і вона вигадувала борщ
 // заново, з іншим мʼясом і іншими калоріями (скріни Пилипа: 280 ккал з
 // яловичиною проти 180 зі свининою на ту саму назву).
-export function serializeRecentRecipes(rows: RecipeRow[]): string {
-  if (!rows.length) return '';
+// 8b: `truncated` — «показано не все». Комора має чесний хвіст «…і ще N
+// позицій» від першого дня; решта блоків обрізалась мовчки, і модель бачила
+// обрізане як ПОВНЕ. Числа тут немає навмисно: репозиторій віддає лише
+// перші N, точна кількість решти невідома — вигадувати її означало б лікувати
+// одну неправду іншою.
+export function serializeRecentRecipes(rows: RecipeRow[], truncated = false): string {
+  if (!rows.length) {
+    return '\n\n[ЗГЕНЕРОВАНІ РЕЦЕПТИ] порожньо — у цьому домі ти ще не генерував рецептів.';
+  }
   const lines = rows.map((r) => {
     const payload = r.payload as Recipe | null;
     const ing = (payload?.ing ?? [])
@@ -290,14 +324,14 @@ export function serializeRecentRecipes(rows: RecipeRow[]): string {
   });
   return '\n\n[ЗГЕНЕРОВАНІ РЕЦЕПТИ]\n' + lines.join('\n')
     + '\nЯкщо людина повертається до однієї з цих страв — тримайся ЦЬОГО складу, не вигадуй новий підхід.'
-    + ' Хоче інакше — вона скаже прямо.';
+    + ' Хоче інакше — вона скаже прямо.'
+    + (truncated ? '\nПоказано не всі — є й інші, раніші. Спитай, якщо треба.' : '');
 }
 
 // Висновки з готування. Це єдине в контексті, що написала не система, а сама
 // людина про свою кухню: «фует знімати, щойно краї хрусткі». Тому вони йдуть
 // окремим блоком, а не тонуть у профілі серед побажань.
-export function serializeNotes(notes: MemoryNote[]): string {
-  if (!notes.length) return '';
+export function serializeNotes(notes: MemoryNote[], truncated = false): string {
   const line = (n: MemoryNote) => {
     const parts = [n.text];
     if (n.recipe_title) parts.push(`до «${n.recipe_title}»`);
@@ -308,12 +342,19 @@ export function serializeNotes(notes: MemoryNote[]): string {
   // намір — «що заплановано»; змішані вони читались би як одна каша.
   const lessons = notes.filter((n) => (n.kind ?? 'lesson') === 'lesson');
   const intents = notes.filter((n) => n.kind === 'intent');
-  let out = '';
-  if (lessons.length) out += '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lessons.map(line).join('\n');
-  if (intents.length) {
-    out += '\n\n[НАМІРИ] (ідеї, які людина відклала на потім — нагадай, коли складники в наявності або момент слушний)\n'
-      + intents.map(line).join('\n');
+  // M13-ROLE-VOICE п.1: обидва підблоки присутні завжди. Для висновків це не
+  // косметика — card-rules.md наказує «не пропонуй записати те, що вже там є»,
+  // а без блока звіряти було ні з чим, і модель пропонувала дублі.
+  let out = lessons.length
+    ? '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lessons.map(line).join('\n')
+    : '\n\n[ВИСНОВКИ З ГОТУВАННЯ] порожньо — висновків про техніку ще не записано.';
+  if (lessons.length && truncated) {
+    out += '\nПоказано не всі — є й інші, раніші. Спитай, якщо треба.';
   }
+  out += intents.length
+    ? '\n\n[НАМІРИ] (ідеї, які людина відклала на потім — нагадай, коли складники в наявності або момент слушний)\n'
+      + intents.map(line).join('\n')
+    : '\n\n[НАМІРИ] порожньо — відкладених ідей не записано.';
   return out;
 }
 
@@ -324,7 +365,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
   const cookLog = ctx.recentCookRuns?.length
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n'
       + ctx.recentCookRuns.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
-    : '';
+    : '\n\n[ОСТАННІ ГОТУВАННЯ] порожньо — жодного завершеного готування ще немає.';
   return serializeProfile(ctx.profile)
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
@@ -340,10 +381,13 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none', 120, ctx.products ?? [], ctx.queryText ?? '')
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
-    + serializeNotes(ctx.notes ?? [])
+    + serializeNotes(ctx.notes ?? [], ctx.notesTruncated)
     + serializeEaters(ctx.eaters ?? [])
-    + serializeRecentRecipes(ctx.recentRecipes ?? [])
-    + serializeRetail(ctx.retailConnected);
+    + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
+    + serializeRetail(ctx.retailConnected)
+    // Режим — ОСТАННІМ: це найлетючіше й найдієвіше, що є в контексті, і
+    // читається безпосередньо перед тим, як модель обирає хід.
+    + serializeModes(ctx.modes ?? []);
 }
 
 // Пул-3, pantry-truth: «творча бухгалтерія» — модель брала «500 г» з живої

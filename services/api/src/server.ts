@@ -71,6 +71,7 @@ export function buildApp(
     rateLimit: opts.rateLimits?.chat,
     retailCart: retail?.attemptBuildCart,
     retailSearch: retail?.attemptSearch,
+    retailCartExtend: retail?.attemptExtendCart,
   });
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);

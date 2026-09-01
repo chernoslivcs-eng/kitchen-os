@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
-import { createPending, applyCard, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, maskHistoryQuantities, type Repo, type Card, type Recipe } from '@kitchen/domain';
+import { createPending, applyCard, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
+import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -13,52 +14,7 @@ import {
 } from '../post-cook.js';
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
 import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
-
-function today(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// QA5-03: в історію йшов тільки m.text. Уся суть картки — назви страв, позиції комори —
-// лишалась за бортом, а при `proposal` reply це часто один рядок («Три варіанти:»).
-// Наслідок: модель не пам'ятала, що сама запропонувала, і вигадувала третій варіант.
-// Гірше — картка без прози зберігалась із text:'' і випадала з історії цілком, лишаючи
-// юзерську репліку без відповіді; наступного разу модель її «переграла» і згенерувала
-// повторний intake. Це найімовірніша причина дублів у коморі.
-// Захист від малформленої картки моделі: живий репро 01.09 — модель
-// повернула {"type":"shopping","ops":[...]} замість items (плутанина з
-// intake_diff/profile, де саме ops), картка збереглась як є (model.ts не
-// валідує форму), і НАСТУПНИЙ /v1/chat падав 500 тут же, при читанні
-// історії. TS думає *.items/*.ops завжди масив — жива відповідь моделі
-// цю гарантію не тримає, тому `?? []` на кожному полі, не тільки тут:
-// одна погана картка більше не мусить блокувати всю розмову назавжди.
-function summarizeCard(c: Card): string {
-  if (c.type === 'proposal') {
-    return '[картка: пропозиції] ' + (c.items ?? []).map((i) => i.title).join(' · ');
-  }
-  if (c.type === 'intake_diff') {
-    return '[картка: комора] ' + (c.ops ?? []).map((o) => `${o.op ?? 'add'} ${o.label}`).join(' · ');
-  }
-  if (c.type === 'shopping') {
-    return '[картка: покупки] ' + (c.items ?? []).map((i) => `${i.op ?? 'add'} ${i.label}`).join(' · ');
-  }
-  if (c.type === 'profile') {
-    return '[картка: профіль] ' + (c.ops ?? []).map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
-  }
-  // QA9-02: recipe_link в історії був безликим «[картка]» — модель не бачила,
-  // що рецепт лежить у стрічці, і на «поміняв?» відповідала навмання.
-  if (c.type === 'recipe_link') {
-    const ing = (c.recipe?.ing ?? [])
-      .map((i) => i.n)
-      .filter((n): n is string => !!n)
-      .join(', ');
-    return `[рецепт у стрічці: «${c.title}»${ing ? ` — ${ing}` : ''}]`;
-  }
-  if (c.type === 'recipe_edit') {
-    return `[картка: правка рецепта «${c.title}»]`;
-  }
-  return '[картка]';
-}
+import { localDay } from '../local-day.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -77,6 +33,9 @@ export interface ChatRouteOpts {
   // 01.09: «що є в наявності по X» — read-only пошук, той самий принцип
   // ін'єкції, що retailCart.
   retailSearch?: (user_id: string, query: string) => Promise<RetailSearchAttempt>;
+  // №4: «додай X» при відкритому кошику — дописати рядок у ТУ САМУ картку,
+  // а не перезбирати кошик і не підміняти його однією позицією.
+  retailCartExtend?: (user_id: string, card_id: string, items: string[]) => Promise<RetailCartAttempt>;
 }
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
@@ -111,7 +70,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // валідуємо володіння й використовуємо його. Інакше — сесія дня.
     let session = clientSessionId ? await repo.getSession(clientSessionId) : null;
     if (session && session.user_id !== user_id) session = null;
-    if (!session) session = await repo.getOrCreateSessionForDay(user_id, today());
+    if (!session) session = await repo.getOrCreateSessionForDay(user_id, localDay());
 
     if (attachments?.length) {
       const payloads: AttachmentPayload[] = [];
@@ -276,42 +235,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // (потрапить і в history, і в messages як поточний user-turn).
     // Ліміт 20 останніх: вистачає щоб тримати нитку, не рознесе вхідні токени.
     //
-    // Картка йде в історію разом зі статусом: модель має розрізняти «я це
-    // запропонувала» і «людина це застосувала». Без мітки вона вірила власному
-    // «Запишу» й казала «так, вже в коморі», коли нічого не записано (QA5-02).
+    // Сама серіалізація — у chat-history.ts: це МЕЖА між продуктом і моделлю,
+    // і вона мусить бути перевіряльна на рядку, без мережі (tests/history-provenance).
     const allMessages = preMessages;
-    const history = allMessages
-      .slice(-20)
-      .map((m) => {
-        const parts: string[] = [];
-        // Час кожного ходу: без нього модель не могла впорядкувати події
-        // розмови проти [ОСТАННІ ГОТУВАННЯ] («купив 500 г» — до готування чи
-        // після?) і трактувала свіжу згадку числа як свіжий стан (UX9-04).
-        const d = new Date(m.created_at);
-        const stamp = `[${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}]`;
-        // Пул-3, pantry-truth: кількості запасів у репліках історії маскуються —
-        // єдине число про запас, яке бачить модель, живе в [КОМОРА].
-        if (m.text) parts.push(`${stamp} ${maskHistoryQuantities(m.text)}`);
-        if (m.card) {
-          // recipe_link — не pending-дія, а доконаний факт: рецепт УЖЕ в
-          // стрічці. Суфікс [НЕ ЗАСТОСОВАНО] тут читався моделлю як «система
-          // ще не оновила рецепт» — і вона чесно відмовлялась від зробленого.
-          // «Творча бухгалтерія» (eval pantry-truth): застосована intake-картка
-          // в історії читалась як ЩЕ ОДИН запас поверх [КОМОРА] — модель
-          // складала 500 з розмови й 100 з блока в «600 г». Кажемо прямо:
-          // ефект цієї події ВЖЕ в блоці, рахувати її вдруге не можна.
-          const status = m.card.type === 'recipe_link'
-            ? ''
-            : (m.applied > 0
-              ? (m.card.type === 'intake_diff'
-                ? ' [ЗАСТОСОВАНО — ефект уже врахований у поточному [КОМОРА], не додавай]'
-                : ' [ЗАСТОСОВАНО]')
-              : ' [НЕ ЗАСТОСОВАНО]');
-          parts.push(summarizeCard(m.card) + status);
-        }
-        return { role: m.role, content: parts.join('\n') };
-      })
-      .filter((m) => m.content);
+    const history = buildChatHistory(allMessages.slice(-20));
     const truncated = allMessages.length > 20;
 
     await repo.saveMessage({
@@ -342,12 +269,21 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Висновки, які людина сама зробила про свою кухню: «фует знімати, щойно
     // краї хрусткі». Закріплені згори.
-    const notes = await repo.listNotes(user_id, 20);
+    // 8b: беремо на один більше за ліміт. Зайвий у промпт не йде — він лише
+    // доводить, що показано не все. Точної кількості решти не знаємо й не
+    // вигадуємо: чесне «є й інші» краще за вигадане число.
+    const NOTES_CAP = 20;
+    const notesRaw = await repo.listNotes(user_id, NOTES_CAP + 1);
+    const notesTruncated = notesRaw.length > NOTES_CAP;
+    const notes = notesRaw.slice(0, NOTES_CAP);
     // Їдці дому: страва готується на всіх, хто за столом.
     const eaters = await repo.listEaters(ctx.household_id);
     // Останні згенеровані рецепти — щоб модель бачила, що вже пропонувала,
     // і трималась названого складу замість нового підходу на кожен тап.
-    const recentRecipes = await repo.listRecentRecipes(user_id, 5);
+    const RECIPES_CAP = 5;
+    const recipesRaw = await repo.listRecentRecipes(user_id, RECIPES_CAP + 1);
+    const recipesTruncated = recipesRaw.length > RECIPES_CAP;
+    const recentRecipes = recipesRaw.slice(0, RECIPES_CAP);
 
     // M13: [МЕРЕЖІ] у промпті — тільки коли інтеграція взагалі сконфігурована
     // на сервері (retailCart переданий). Статус читаємо напряму з repo:
@@ -357,6 +293,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const conn = await repo.getRetailConnection(user_id, 'silpo');
       retailConnected = !!conn && conn.status === 'active' && new Date(conn.expires_at).getTime() > Date.now();
     }
+
+    // №4: ситуація рахується сервером із повідомлень сесії — той самий факт,
+    // який досі жив усередині гілки видалення й нікому не казався.
+    const modes = detectModes(preMessages, recentCookRuns);
+    const openCart = modes.find((m) => m.kind === 'cart_open');
 
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
@@ -376,6 +317,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
         history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected,
+        // №4: ситуація рахується сервером із повідомлень сесії — той самий
+        // факт, який досі жив усередині гілки видалення й нікому не казався.
+        modes,
+        notesTruncated, recipesTruncated,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');
@@ -478,6 +423,21 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         });
         return card ? id : null;
       };
+      // Відкритий кошик + названі позиції = РОЗШИРЕННЯ. Без items («збери
+      // кошик», «замов список») — перезбирання, як раніше: людина просить
+      // саме зібрати заново.
+      if (openCart?.ref && call.card.items?.length && opts.retailCartExtend) {
+        const ext = await opts.retailCartExtend(user_id, openCart.ref, call.card.items);
+        if (ext.ok && ext.card) {
+          const reply = call.reply || `Додав. У кошику ${ext.card.found} позицій на ${ext.card.total} ₴.`;
+          await repo.saveMessage({
+            id: randomUUID(), session_id: session.id, role: 'assistant',
+            text: reply, card: null, applied: 0, created_at: new Date().toISOString(),
+          });
+          return { reply, card: ext.card, card_id: openCart.ref, usage: call.usage, meta: call.meta };
+        }
+        // Не вийшло — падаємо у звичайне збирання нижче, а не мовчимо.
+      }
       if (!opts.retailCart) {
         const msg = 'Замовлення через мережу тут ще не підключене.';
         await saveTurn(msg, null);
@@ -516,10 +476,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // (attemptSearch — read-only, жоден addToCart) і сам формує репліку з
     // реальних даних. Картки нема навмисно: це відповідь-репліка, не дія.
     if (call.card?.type === 'retail_search_go') {
-      const saveTurn = async (text: string) => {
+      // M13-ROLE-VOICE п.2: `source` ставиться ТІЛЬКИ на справжню видачу
+      // мережі. Чесні відмови («Сільпо не відповідає», «спершу підключи») —
+      // не асортимент, і підписувати їх асортиментом означало б брехати
+      // моделі в інший бік.
+      const saveTurn = async (text: string, source?: MessageRow['source']) => {
         await repo.saveMessage({
           id: randomUUID(), session_id: session.id, role: 'assistant',
-          text, card: null, applied: 0, created_at: new Date().toISOString(),
+          text, card: null, applied: 0, created_at: new Date().toISOString(), source,
         });
       };
       if (!opts.retailSearch) {
@@ -548,7 +512,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         ? `У Сільпо є:\n${shown.map((p) => `— ${p.name} · ${Math.round(p.price)}₴`).join('\n')}`
           + (restCount > 0 ? `\n— і ще ${restCount}` : '')
         : `У Сільпо не знайшов нічого по «${call.card.query}».`;
-      await saveTurn(msg);
+      await saveTurn(msg, 'retail_search');
       return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
     }
 

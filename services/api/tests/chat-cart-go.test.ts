@@ -10,6 +10,7 @@ import { InMemoryRepo } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn, type Signed } from './helpers.js';
+import { localDay } from '../src/local-day.js';
 
 describe('чат: cart_go → живий кошик одним ходом', () => {
   let repo: InMemoryRepo;
@@ -79,7 +80,7 @@ describe('чат: cart_go → живий кошик одним ходом', () =
     expect(body.card_id).toBeTruthy();
 
     // Картка лягла в сесію дня — переживає F5, як і кнопка зі Списку.
-    const { id } = await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10));
+    const { id } = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     const msg = (await repo.listMessages(id)).find((m) => m.id === body.card_id);
     expect((msg?.card as { type?: string })?.type).toBe('cart');
   });

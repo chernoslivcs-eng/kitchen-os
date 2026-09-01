@@ -1,0 +1,27 @@
+{
+  "id": "cart-extend-mode",
+  "description": "№4 / M13-ROLE-VOICE п.3: кошик відкритий, людина каже «додай колу». Це розширення ВІДКРИТОГО кошика (cart_go з items), а не список покупок і не перезбирання. До блока [РЕЖИМ] модель вела це в shopping — вона просто не знала ситуації.",
+  "call": "chat",
+  "now": "2026-09-02T17:45:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"b1","label":"спагеті","zone":"dry","v":500,"u":"g"}
+  ],
+  "shopping": [
+    {"id":"s1","label":"кунжут","v":1,"u":"pcs","checked":false}
+  ],
+  "modes": [
+    {
+      "kind": "cart_open",
+      "at": "2026-09-02T17:40:00",
+      "ref": "msg-cart-1",
+      "label": "Кошик у Сільпо зібраний о 17:40, позицій: 8."
+    }
+  ],
+  "conversation": [
+    { "role": "user", "content": "[17:40] збери кошик у сільпо" },
+    { "role": "assistant", "content": "[17:40] Кошик у Сільпо: знайшов 8 з 8" },
+    { "role": "user", "content": "[17:45] додай колу" }
+  ],
+  "invariants": ["cart-extend-not-shopping", "no-markdown", "addresses-informally"]
+}

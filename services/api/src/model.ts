@@ -6,6 +6,7 @@ import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt }
 import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
 import {
   buildKitchenContext,
+  type KitchenMode,
   extractJson,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
@@ -166,6 +167,12 @@ export interface ChatArgs {
   products?: HouseholdProduct[];
   // M13: чи підключена мережа — гейтить card_go:cart_go в системному промпті.
   retailConnected?: boolean;
+  // №4: що зараз відкрито. Рахує маршрут (він має повідомлення сесії),
+  // модель отримує готовий факт замість виведення з історії.
+  modes?: KitchenMode[];
+  // 8b: блоки з лімітом на рівні репозиторію показані не повністю.
+  notesTruncated?: boolean;
+  recipesTruncated?: boolean;
 }
 
 export interface ChatCall {
@@ -263,6 +270,24 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // №4: «додай X» ПРИ ВІДКРИТОМУ КОШИКУ — це розширення кошика, не список.
+  // Стаб повторює правило промпту: без блока [РЕЖИМ] модель цього не знала й
+  // вела все в shopping (живий репро M13 п.3). Явне «у список» лишається
+  // списком — людина сказала прямо, і ситуація цього не перебиває.
+  if (args.modes?.some((m) => m.kind === 'cart_open') && !/списк/i.test(args.text)) {
+    const cartAdd = /(?:додай|додати|додайте|і ще|й ще)\s+(.+)/i.exec(args.text);
+    if (cartAdd) {
+      const items = cartAdd[1]!.split(/\s*(?:,|і|та)\s+/i).map((x) => x.trim()).filter(Boolean);
+      if (items.length) {
+        return {
+          reply: 'Додаю в кошик.',
+          card: { type: 'cart_go', items },
+          usage: { input: 0, output: 0 },
+          meta: { promptVersion, model: 'stub', mode: 'stub' },
+        };
+      }
+    }
+  }
   // Явна команда зі списком («додай X у список», «прибери X зі списку») —
   // для тестів auto-apply нижче (card-rules.md: shopping лише на прямий
   // запит про покупки, ніколи пропозиція моделі — тому auto-apply безпечний
@@ -335,6 +360,9 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     recentRecipes: args.recentRecipes,
     products: args.products,
     retailConnected: args.retailConnected,
+    modes: args.modes,
+    notesTruncated: args.notesTruncated,
+    recipesTruncated: args.recipesTruncated,
     queryText,
   });
 }

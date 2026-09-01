@@ -12,6 +12,7 @@ import { InMemoryRepo } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn, type Signed } from './helpers.js';
+import { localDay } from '../src/local-day.js';
 
 describe('чат переживає малформлену картку в історії', () => {
   let repo: InMemoryRepo;
@@ -28,7 +29,7 @@ describe('чат переживає малформлену картку в іс�
   });
 
   it('shopping-картка з ops замість items у минулому ході — наступний чат не 500', async () => {
-    const session = await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10));
+    const session = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     // Точна форма з живого репро: модель переплутала items↔ops.
     const malformed = { type: 'shopping', ops: [{ op: 'remove', label: 'Напій Schweppes Pink Tonic' }] } as never;
     await repo.saveMessage({
@@ -44,7 +45,7 @@ describe('чат переживає малформлену картку в іс�
   });
 
   it('intake_diff-картка з items замість ops у минулому ході — теж не 500', async () => {
-    const session = await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10));
+    const session = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     const malformed = { type: 'intake_diff', items: [{ op: 'add', label: 'молоко' }] } as never;
     await repo.saveMessage({
       id: randomUUID(), session_id: session.id, role: 'assistant',

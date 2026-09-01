@@ -24,6 +24,7 @@ import { makeTokenCipher } from '../retail/crypto.js';
 import { SilpoProvider, RetailAuthError, type RetailFoundRow, type RetailProduct } from '../retail/silpo-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
 import { callAltFilter } from '../model.js';
+import { localDay } from '../local-day.js';
 
 export interface SilpoTokens {
   access_token: string;
@@ -66,6 +67,26 @@ const b64url = (b: Buffer) => b.toString('base64url');
 // від типу товару (вагове: quantity=кг, кількісне/обсягове: quantity=шт).
 // Раніше в двох місцях (cart-swap, cart-add-alt) невагове множилось на 1
 // замість quantity — непомітно, поки степер не робив quantity ≠ 1.
+// №4: кількість за типом товару. Було всередині attemptBuildCart — підняте на
+// рівень модуля, щоб розширення кошика рахувало ТИМ САМИМ правилом, а не
+// власною копією (дві копії розійшлись би на першій же правці).
+function qtyFor(
+  p: { weighted: boolean; step: number; name: string },
+  it: { unit: string | null; value: number | null },
+): number {
+  if (p.weighted && it.unit === 'g' && it.value) {
+    return Math.max(0.1, Math.round((it.value / 1000) * 100) / 100);
+  }
+  if (!p.weighted && it.value) {
+    const requestedMl = it.unit === 'ml' ? it.value : it.unit === 'l' ? it.value * 1000 : null;
+    if (requestedMl) {
+      const packageMl = parsePackageMl(p.name);
+      if (packageMl) return Math.max(1, Math.ceil(requestedMl / packageMl));
+    }
+  }
+  return Math.max(1, p.step || 1);
+}
+
 function cartTotal(rows: CartCardRow[]): number {
   return Math.round(rows.reduce((s, r) => s + (r.product ? r.product.price * r.product.quantity : 0), 0));
 }
@@ -156,6 +177,7 @@ export interface RetailSearchAttempt {
 export interface RetailHandle {
   attemptBuildCart(user_id: string, household_id: string, explicitItems?: string[]): Promise<RetailCartAttempt>;
   attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt>;
+  attemptExtendCart(user_id: string, card_id: string, items: string[]): Promise<RetailCartAttempt>;
 }
 
 export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts): RetailHandle | undefined {
@@ -350,7 +372,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       : receipts.filter((rc) => new Date(rc.at).getTime() > watermark);
     if (!fresh.length) return { up_to_date: true, cards: [] };
 
-    const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
+    const session = await repo.getOrCreateSessionForDay(user_id, localDay());
     const cards = [];
     // Старіші першими — у стрічці чеки лягають хронологічно.
     for (const receipt of [...fresh].reverse()) {
@@ -430,20 +452,6 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     // і пише за card-rules.md («2 літри молока» → v:2, u:"l"), applyShoppingOp
     // це свідомо НЕ конвертує (щоб список показував людські «2 л»). Тому тут,
     // на споживанні, приводимо і «ml», і «l» до мл для розрахунку пляшок.
-    const qtyFor = (p: { weighted: boolean; step: number; name: string }, it: { unit: string | null; value: number | null }) => {
-      if (p.weighted && it.unit === 'g' && it.value) {
-        return Math.max(0.1, Math.round((it.value / 1000) * 100) / 100);
-      }
-      if (!p.weighted && it.value) {
-        const requestedMl = it.unit === 'ml' ? it.value : it.unit === 'l' ? it.value * 1000 : null;
-        if (requestedMl) {
-          const packageMl = parsePackageMl(p.name);
-          if (packageMl) return Math.max(1, Math.ceil(requestedMl / packageMl));
-        }
-      }
-      return Math.max(1, p.step || 1);
-    };
-
     // Пошук (3 фази) і addToCart — В ОДНОМУ withRetailAuth-виклику: якщо
     // токен протух, refresh стається до першого мережевого запиту в
     // переважній більшості випадків (findBatch іде першим), і весь блок
@@ -598,7 +606,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     }
     const card = attempt.card!;
     const card_id = randomUUID();
-    const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
+    const session = await repo.getOrCreateSessionForDay(user_id, localDay());
     await repo.saveMessage({
       id: card_id, session_id: session.id, role: 'assistant',
       text: `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`, card, applied: 0,
@@ -785,5 +793,67 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     };
   }
 
-  return { attemptBuildCart, attemptSearch };
+  // №4 / M13-ROLE-VOICE п.3: «додай колу», коли кошик уже відкритий.
+  //
+  // НЕ перезбирання: attemptBuildCart шукає ВЕСЬ список заново (і ганяє
+  // LLM-фільтр на невпізнаних), а з explicitItems узагалі збудував би кошик
+  // з однієї коли й підмінив картку — людина втратила б решту рядків з очей.
+  //
+  // Тут той самий механізм, що кнопка «додати альтернативу» (cart-add-alt):
+  // знайти один товар, addToCart, дописати рядок, updateMessageCard. Картка
+  // лишається тим самим повідомленням — жодної нової сутності.
+  async function attemptExtendCart(
+    user_id: string,
+    card_id: string,
+    items: string[],
+  ): Promise<RetailCartAttempt> {
+    const conn = await repo.getRetailConnection(user_id, 'silpo');
+    if (!conn || conn.status !== 'active') return { ok: false, error: 'not_connected' };
+    const msg = await repo.getMessage(card_id);
+    const card = msg?.card;
+    if (!card || card.type !== 'cart') return { ok: false, error: 'empty_list' };
+
+    const wanted = items.map((s) => s.trim()).filter(Boolean);
+    if (!wanted.length) return { ok: false, error: 'empty_list' };
+
+    let found: Array<{ label: string; p: RetailProduct }>;
+    try {
+      found = await withRetailAuth(conn, async (provider) => {
+        const rows = await provider.findBatch(wanted);
+        const hits = rows
+          .map((r) => (r.product ? { label: r.query, p: r.product } : null))
+          .filter((x): x is { label: string; p: RetailProduct } => x !== null);
+        if (hits.length) {
+          await provider.addToCart(hits.map(({ p }) => ({
+            productId: p.id, companyId: p.companyId, branchId: p.branchId,
+            quantity: qtyFor(p, { unit: null, value: null }),
+          })));
+        }
+        return hits;
+      });
+    } catch (e) {
+      if (e instanceof RetailAuthError) return { ok: false, error: 'retail_auth' };
+      throw e;
+    }
+
+    for (const { label, p } of found) {
+      const quantity = qtyFor(p, { unit: null, value: null });
+      card.rows.push({
+        label, item_id: null, v: null, u: null,
+        product: {
+          product_id: p.id, company_id: p.companyId, branch_id: p.branchId,
+          name: p.name, price: p.price, weighted: p.weighted, quantity,
+          package_ml: p.weighted ? null : parsePackageMl(p.name),
+        },
+        alternatives: [],
+      });
+    }
+    card.found = card.rows.filter((r) => r.product).length;
+    card.of = card.rows.length;
+    card.total = cartTotal(card.rows);
+    await repo.updateMessageCard(card_id, card);
+    return { ok: true, card };
+  }
+
+  return { attemptBuildCart, attemptSearch, attemptExtendCart };
 }

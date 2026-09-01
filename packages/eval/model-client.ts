@@ -78,6 +78,10 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     // на памʼять готувань не могли існувати.
     recentCookRuns: (fx.recentCookRuns ?? []) as RecentCookRunSummary[],
     now: fx.now ? new Date(fx.now) : undefined,
+    // №4: ситуація («кошик відкритий», «рецепт свіжий»). У проді її рахує
+    // маршрут із повідомлень сесії; фікстура описує напряму, бо історія в
+    // eval подається текстом, а не рядками message.
+    modes: fx.modes as never,
   });
   return { stable: base, dynamic };
 }

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d9dcdf;font-family:'Golos Text',system-ui,sans-serif;color:#1d2126}
+a{color:#58754e;text-decoration:none}a:hover{color:#3f5837;text-decoration:underline}
+.grp{background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;overflow:hidden}
+.hd{padding:11px 18px;border-bottom:1px solid #dde0e2;display:flex;align-items:baseline;gap:10px}
+.hdl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.hds{font:400 12px 'Golos Text',sans-serif;color:#5c646d}
+.row{display:grid;grid-template-columns:172px 1fr 128px;gap:16px;align-items:start;padding:12px 18px;border-bottom:1px solid #e3e6e8}
+.row:last-child{border-bottom:0}
+.nm{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#3c4249}
+.ds{font:400 13px/1.45 'Golos Text',sans-serif;color:#5c646d}
+.vd{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+</style>
+</helmet>
+<div style="padding:44px;display:flex;flex-direction:column;gap:26px">
+
+<header style="display:flex;flex-direction:column;gap:6px">
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#6a727a">Kitchen OS · інвентар карток · 12 типів у Card-union</div>
+  <div style="font:400 15px/1.5 'Golos Text',sans-serif;color:#454b52;max-width:900px">В одному полі <code>card</code> живуть чотири різні за природою речі, і саме тому за єдиний візуальний слот доводиться писати попарні правила пріоритету. Справжніх карток, де людина щось вирішує, — <b>три</b>. П'ять узагалі невидимі: сервер їх перехоплює й підміняє результатом. Дві перестали бути картками, коли ми ввели авто-застосування — це вже чеки постфактум.</div>
+</header>
+
+<div style="display:flex;flex-direction:column;gap:16px;max-width:900px">
+
+  <div class="grp">
+    <div class="hd" style="background:#e4ecdf;border-bottom-color:#c2d3b8">
+      <span class="hdl" style="color:#3f5837">Справжні картки — людина вирішує</span>
+      <span class="hds">лишаються у стрічці</span>
+    </div>
+    <div class="row"><span class="nm">proposal</span><span class="ds">2-3 страви, тап відкриває рецепт. Репліка кухаря в моменті — доречно старіє.</span><span class="vd" style="color:#58754e">стрічка</span></div>
+    <div class="row"><span class="nm">profile</span><span class="ds">Зміни профілю з підтвердженням. Рідкісна, ціна помилки висока.</span><span class="vd" style="color:#58754e">стрічка</span></div>
+    <div class="row"><span class="nm">recipe</span><span class="ds">Продиктований людиною рецепт → у бібліотеку.</span><span class="vd" style="color:#58754e">стрічка</span></div>
+  </div>
+
+  <div class="grp">
+    <div class="hd" style="background:#f5efe2;border-bottom-color:#e5d9bd">
+      <span class="hdl" style="color:#96712c">Тривалий стан — кандидати на переїзд</span>
+      <span class="hds">існують поза розмовою</span>
+    </div>
+    <div class="row"><span class="nm">cart</span><span class="ds">Кошик у Сільпо. Єдина жива річ — дві копії у стрічці завжди суперечать одна одній.</span><span class="vd" style="color:#96712c">панель</span></div>
+    <div class="row"><span class="nm">recipe_link</span><span class="ds">Згенерований рецепт. Довго читається, до нього вертаються, за ним готують — але рецептів може бути багато, і два в стрічці не суперечать.</span><span class="vd" style="color:#96712c">відкрите</span></div>
+  </div>
+
+  <div class="grp">
+    <div class="hd">
+      <span class="hdl" style="color:#5c646d">Звіти про вже зроблене</span>
+      <span class="hds">авто-застосовані, тапати нема чого</span>
+    </div>
+    <div class="row"><span class="nm">intake_diff</span><span class="ds">Зміни комори. Застосовується одразу; картка — це чек зі «Скасувати».</span><span class="vd" style="color:#7b838b">рядок + undo</span></div>
+    <div class="row"><span class="nm">shopping</span><span class="ds">Зміни списку. Те саме.</span><span class="vd" style="color:#7b838b">рядок + undo</span></div>
+  </div>
+
+  <div class="grp">
+    <div class="hd">
+      <span class="hdl" style="color:#5c646d">Не картки взагалі — виклики інструментів</span>
+      <span class="hds">сервер перехоплює, людина не бачить</span>
+    </div>
+    <div class="row"><span class="nm">cook_go</span><span class="ds">«Готуємо цю» → сервер генерує рецепт і кладе recipe_link.</span><span class="vd" style="color:#9aa0a6">невидиме</span></div>
+    <div class="row"><span class="nm">cart_go</span><span class="ds">«Замов у Сільпо» → сервер збирає кошик.</span><span class="vd" style="color:#9aa0a6">невидиме</span></div>
+    <div class="row"><span class="nm">retail_search_go</span><span class="ds">«Що є в мережі» → сервер шукає й відповідає текстом.</span><span class="vd" style="color:#9aa0a6">невидиме</span></div>
+    <div class="row"><span class="nm">recipe_edit</span><span class="ds">«Поміняй багет на батон» → сервер регенерує рецепт.</span><span class="vd" style="color:#9aa0a6">невидиме</span></div>
+    <div class="row"><span class="nm">cook_photo</span><span class="ds">Малює сервер, модель не повертає.</span><span class="vd" style="color:#9aa0a6">невидиме</span></div>
+  </div>
+
+</div>
+
+<div style="background:#f5efe2;border:1px solid #e5d9bd;border-radius:16px;padding:16px 20px;max-width:900px">
+  <div class="hdl" style="color:#96712c;margin-bottom:8px">Це скасовує попереднє рішення</div>
+  <div style="font:400 13px/1.5 'Golos Text',sans-serif;color:#454b52">У коді стоїть коментар: «Бриф-3 п.3: права панель — тільки десктоп. <b>Живий зріз, не дашборд</b>». Панель свідомо робили вітриною статусу, а не місцем роботи. Якщо тривалий стан переїжджає — мандат змінюється, і це варто вирішити явно, а не по дорозі.</div>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>

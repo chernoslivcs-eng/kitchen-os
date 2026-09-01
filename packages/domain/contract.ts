@@ -417,6 +417,33 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect((msg?.card as { total?: number })?.total).toBe(72);
     });
 
+    // M13-ROLE-VOICE п.2: підпис серверної прози мусить переживати
+    // перезавантаження. InMemoryRepo пропускає поле сам собою (спред обʼєкта),
+    // Postgres — ні: без колонки й без мапінгу воно тихо зникає, і в проді
+    // модель знову читає видачу мережі як власні слова. Тому перевірка живе
+    // саме в контракті — вона однаково обовʼязкова для обох реалізацій.
+    it('source серверної репліки переживає перезавантаження (і NULL лишається порожнім)', async () => {
+      const { repo, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-02');
+      const serverId = randomUUID();
+      const modelId = randomUUID();
+      await repo.saveMessage({
+        id: serverId, session_id: session.id, role: 'assistant',
+        text: 'У Сільпо є: — Напій Schweppes Pink Tonic · 34₴',
+        card: null, applied: 0, created_at: new Date().toISOString(),
+        source: 'retail_search',
+      });
+      await repo.saveMessage({
+        id: modelId, session_id: session.id, role: 'assistant',
+        text: 'Зробимо пасту.', card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+
+      const msgs = await repo.listMessages(session.id);
+      expect(msgs.find((m) => m.id === serverId)?.source).toBe('retail_search');
+      // Репліка моделі підпису не має — інакше підпис втрачає сенс.
+      expect(msgs.find((m) => m.id === modelId)?.source).toBeUndefined();
+    });
+
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

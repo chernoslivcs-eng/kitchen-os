@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d9dcdf;font-family:'Golos Text',system-ui,sans-serif;color:#1d2126}
+a{color:#58754e;text-decoration:none}a:hover{color:#3f5837;text-decoration:underline}
+.cap{font:400 12px/1.55 'Golos Text',sans-serif;color:#5c646d;max-width:440px}
+.ttl{font:600 13px 'Golos Text',sans-serif;color:#454b52}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#7b838b}
+.frame{width:440px;background:#eef0f1;border-radius:24px;box-shadow:0 12px 40px rgba(29,33,38,.2);padding:22px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
+.phone{width:390px;background:#eef0f1;border-radius:24px;box-shadow:0 12px 40px rgba(29,33,38,.2);padding:22px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
+.zone{border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-align:center}
+.nav{background:#e3e6e8;color:#7b838b}
+.chat{background:#f8f9fa;border:1px dashed #ced3d6;color:#7b838b}
+.panel{background:#e4ecdf;border:1px solid #c2d3b8;color:#3f5837}
+</style>
+</helmet>
+<div style="padding:44px;display:flex;flex-direction:column;gap:36px">
+
+<header style="display:flex;flex-direction:column;gap:6px">
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#6a727a">Kitchen OS · права панель як робоча поверхня · штормінг · 01.09.2026</div>
+  <div style="font:400 15px/1.5 'Golos Text',sans-serif;color:#454b52;max-width:900px">Питання одне: чи переїжджає тривалий стан — кошик, список, рецепт — зі стрічки в праву панель. Принцип, з якого виходимо: не «картки → панель», а <b>ефемерне лишається, тривале переїжджає</b>. Пропозиція страв — репліка в моменті, вона доречно старіє і лишається у стрічці; кошик — вікно в єдину живу річ, і дві його копії у стрічці завжди суперечать одна одній. Рішення не прийняте: нижче стан «як є» і два напрями по осі «панель завжди / на виклик».</div>
+</header>
+
+<div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start">
+
+  <!-- П1 ЯК Є -->
+  <div style="display:flex;flex-direction:column;gap:10px" data-screen-label="П1 Як є — панель поза потоком">
+    <div class="ttl">1 · Як є — панель не в потоці</div>
+    <div class="frame">
+      <span class="eyebrow">≥1280 · position: fixed</span>
+      <div style="background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="position:relative;height:190px">
+          <div style="display:flex;gap:6px;height:100%">
+            <div class="zone nav" style="width:64px">НАВ<br>232</div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative">
+              <div class="zone chat" style="width:150px;height:100%">ЧАТ 720<br>центр вікна</div>
+            </div>
+          </div>
+          <div class="zone panel" style="position:absolute;top:0;right:0;bottom:0;width:88px;box-shadow:-8px 0 20px rgba(29,33,38,.16)">ПАНЕЛЬ 320<br>fixed, зверху</div>
+          <div style="position:absolute;top:50%;left:70px;right:88px;height:1px;background:#a8483d;opacity:.5"></div>
+          <div style="position:absolute;top:calc(50% - 9px);left:50%;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:9px;color:#a8483d;background:#f8f9fa;padding:0 4px">центр ≠ центр</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;border-top:1px solid #e3e6e8;padding-top:10px">
+          <span style="width:18px;height:18px;border-radius:5px;background:#f5dcd7;color:#a8483d;display:flex;align-items:center;justify-content:center;font-size:11px;flex:none">!</span>
+          <span style="font:400 12px/1.4 'Golos Text',sans-serif;color:#5c646d">кошик прокручується вгору й губиться</span>
+        </div>
+      </div>
+    </div>
+    <div class="cap">Панель <code>position: fixed</code> — вона не входить у потік, тож центральна колонка центрується у ВСЬОМУ вікні й візуально з'їжджає під панель. Це і є «центрування чату» з брифу. Друга біда — стрічкова: кошик прокручується вгору, і панель уже має кнопку «прокрутити до картки», тобто латку на цю саму проблему.</div>
+  </div>
+
+  <!-- П2 A -->
+  <div style="display:flex;flex-direction:column;gap:10px" data-screen-label="П2 A — полиця, панель завжди">
+    <div class="ttl">2 · A · Полиця — панель завжди</div>
+    <div class="frame">
+      <span class="eyebrow">≥1280 · три колонки в потоці</span>
+      <div style="background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:6px;height:190px">
+          <div class="zone nav" style="width:64px">НАВ<br>232</div>
+          <div class="zone chat" style="flex:1">ЧАТ<br>центр СВОЄЇ колонки</div>
+          <div class="zone panel" style="width:96px;flex-direction:column;gap:6px">
+            <span style="background:#58754e;color:#f2f4f0;border-radius:999px;padding:2px 8px;font-size:9px">Кошик</span>
+            <span style="opacity:.5">Рецепт</span>
+            <span style="opacity:.5">Список</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;border-top:1px solid #e3e6e8;padding-top:10px">
+          <span style="width:18px;height:18px;border-radius:5px;background:#e4ecdf;color:#3f5837;display:flex;align-items:center;justify-content:center;font-size:11px;flex:none">✓</span>
+          <span style="font:400 12px/1.4 'Golos Text',sans-serif;color:#5c646d">стан не зникає ніколи</span>
+        </div>
+      </div>
+    </div>
+    <div class="cap">Панель у гріді, не поверх — чат центрується у своїй колонці, з'їзд зникає механічно. Кілька тривалих артефактів живуть вкладками в одній панелі. <b>Ціна:</b> 320-340px зайнято назавжди, чат стискається до ~560px на 1440 — а він і на 720 не широкий. Підходить, якщо кошик і рецепт справді потрібні на очах постійно.</div>
+  </div>
+
+  <!-- П3 B -->
+  <div style="display:flex;flex-direction:column;gap:10px" data-screen-label="П3 B — на виклик, згортається в пігулку">
+    <div class="ttl">3 · B · На виклик — згортається</div>
+    <div class="frame">
+      <span class="eyebrow">≥1280 · панель плаває, чат тримає ширину</span>
+      <div style="background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="position:relative;height:190px;display:flex;gap:6px">
+          <div class="zone nav" style="width:64px">НАВ</div>
+          <div class="zone chat" style="flex:1">ЧАТ<br>ширший, коли панель згорнута</div>
+          <div class="zone panel" style="position:absolute;top:8px;right:8px;bottom:8px;width:92px;border-radius:10px;box-shadow:0 10px 28px rgba(29,33,38,.2)">КОШИК<br>плаває</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;border-top:1px solid #e3e6e8;padding-top:10px">
+          <div style="background:#1d2126;color:#f2f4f0;border-radius:999px;padding:5px 11px;font:500 11px 'Golos Text',sans-serif">Кошик · 9 · 412 ₴</div>
+          <span style="font:400 12px/1.4 'Golos Text',sans-serif;color:#5c646d">згорнутий стан</span>
+        </div>
+      </div>
+    </div>
+    <div class="cap">Панель викликається й згортається в пігулку зі станом — цифри на очах навіть згорнутою. Чат отримує повну ширину, коли артефакт не потрібен. <b>Ціна:</b> рух і питання «а куди воно поділось»; плюс пігулка займає той самий нижній край, що й композер. Той самий згорнутий стан працює на планшеті й телефоні — це аргумент за спільну поведінку.</div>
+  </div>
+
+  <!-- П4 ПЛАНШЕТ -->
+  <div style="display:flex;flex-direction:column;gap:10px" data-screen-label="П4 Планшет — діра 1024–1279">
+    <div class="ttl">4 · Планшет — діра 1024–1279</div>
+    <div class="frame">
+      <span class="eyebrow">нав від 1024 · панель від 1280 · між ними 256px</span>
+      <div style="background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;gap:3px;height:74px">
+              <div class="zone chat" style="flex:1;font-size:9px">чат</div>
+              <div class="zone panel" style="width:26px;font-size:8px">260</div>
+            </div>
+            <span style="font:500 10px 'Golos Text',sans-serif;color:#454b52">вужча панель</span>
+            <span style="font:400 10px/1.35 'Golos Text',sans-serif;color:#7b838b">чат до ~500</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+            <div style="position:relative;height:74px">
+              <div class="zone chat" style="position:absolute;inset:0;font-size:9px">чат</div>
+              <div class="zone panel" style="position:absolute;top:0;right:0;bottom:0;width:34px;font-size:8px;box-shadow:-6px 0 14px rgba(29,33,38,.14)">шух</div>
+            </div>
+            <span style="font:500 10px 'Golos Text',sans-serif;color:#454b52">шухляда</span>
+            <span style="font:400 10px/1.35 'Golos Text',sans-serif;color:#7b838b">криє розмову</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+            <div style="position:relative;height:74px">
+              <div class="zone chat" style="position:absolute;inset:0;font-size:9px">чат</div>
+              <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:7px;background:#1d2126;color:#f2f4f0;border-radius:999px;padding:3px 8px;font:500 9px 'Golos Text',sans-serif;white-space:nowrap">Кошик · 9</div>
+            </div>
+            <span style="font:500 10px 'Golos Text',sans-serif;color:#3f5837">пігулка ✓</span>
+            <span style="font:400 10px/1.35 'Golos Text',sans-serif;color:#7b838b">як на мобайлі</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">Ліва навігація вмикається на 1024, панель — аж на 1280. У проміжку 256px кухня лишається без жодного вікна в тривалий стан. З трьох варіантів пігулка єдина дає <b>одну поведінку на планшет і телефон</b> — менше коду й менше сюрпризів при зміні ширини. Вужча панель зберігає все видимим, але дотискає чат нижче комфортного.</div>
+  </div>
+
+  <!-- П5 МОБІЛЬНИЙ ЗГОРНУТО -->
+  <div style="display:flex;flex-direction:column;gap:10px" data-screen-label="П5 Мобільний — згорнуто">
+    <div class="ttl">5 · Мобільний — стан на очах</div>
+    <div class="phone">
+      <span class="eyebrow">&lt;1024 · панелі немає</span>
+      <div style="background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:14px;position:relative;min-height:300px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font:700 19px/1.25 'Onest',sans-serif;letter-spacing:-0.015em">Кухня</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7b838b">КОМОРА 16</span>
+        </div>
+        <div style="align-self:flex-end;background:#eef0f1;border:1px solid #dde0e2;border-radius:14px;padding:9px 14px;font:400 15px 'Golos Text',sans-serif;max-width:78%">хочу колу додати</div>
+        <div style="font:400 15px/1.5 'Golos Text',sans-serif">Додав колу — у кошику 9 позицій на 412 ₴.</div>
+        <div style="margin-top:auto;background:#1d2126;color:#f2f4f0;border-radius:999px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font:500 15px 'Golos Text',sans-serif">Кошик · 9</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:14px">412 ₴</span>
+        </div>
+      </div>
+    </div>
+    <div class="cap">Пігулка тримає стан на очах постійно — сума й кількість видні без жодного тапу. Вона сидить над композером, не замість нього. Це той самий згорнутий стан, що в напрямі B на десктопі: поділ за природою, а не за розміром екрана, тому й поведінка одна.</div>
+  </div>
+
+  <!-- П6 МОБІЛЬНИЙ РОЗГОРНУТО -->
+  <div style="display:flex;flex-direction:column;gap:10px" data-screen-label="П6 Мобільний — шторка">
+    <div class="ttl">6 · Мобільний — шторка на половину</div>
+    <div class="phone">
+      <span class="eyebrow">розмова лишається видимою</span>
+      <div style="background:#f8f9fa;border:1px solid #dde0e2;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;position:relative;min-height:300px;overflow:hidden">
+        <div style="opacity:.4;font:400 15px/1.5 'Golos Text',sans-serif">Додав колу — у кошику 9 позицій на 412 ₴.</div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:222px;background:#eef0f1;border-top:1px solid #ced3d6;border-radius:18px 18px 0 0;box-shadow:0 -12px 32px rgba(29,33,38,.18);padding:10px 18px 16px;display:flex;flex-direction:column;gap:10px">
+          <div style="align-self:center;width:34px;height:4px;border-radius:999px;background:#ced3d6"></div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid #dde0e2;padding-bottom:8px">
+            <span style="font:700 16px 'Onest',sans-serif">Кошик у Сільпо</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7b838b">9 З 9</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font:400 14px 'Golos Text',sans-serif;border-bottom:1px solid #dde0e2;padding-bottom:7px"><span>Schweppes Pink Tonic</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px">34 ₴</span></div>
+          <div style="display:flex;justify-content:space-between;background:#e4ecdf;margin:0 -8px;padding:6px 8px;border-radius:6px;font:500 14px 'Golos Text',sans-serif"><span>Кока-Кола 0,5 л</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#3f5837">28 ₴</span></div>
+          <div style="margin-top:auto;display:flex;align-items:center;gap:10px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500">412 ₴</span>
+            <div style="flex:1;background:#1d2126;color:#f2f4f0;border-radius:999px;padding:11px;text-align:center;font:500 14px 'Golos Text',sans-serif">Оформити ↗</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">Шторка займає половину екрана, не весь: розмова лишається видимою над нею, і людина не втрачає контекст, заради якого відкривала кошик. Свіжододана позиція підсвічена шавлієвим — той самий сигнал «щойно змінилось», що й у картці v2. Кнопка «Оформити» лишається в шторці, а не в пігулці: дія на живий кошик Сільпо потребує підтвердженого наміру, не випадкового тапу.</div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>
