@@ -17,7 +17,9 @@ import type { Repo, Card, CartCardRow } from '@kitchen/domain';
 import { createPending, applyCard } from '@kitchen/domain';
 import { resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { makeTokenCipher } from '../retail/crypto.js';
 import { SilpoProvider, RetailAuthError, type RetailFoundRow } from '../retail/silpo-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
@@ -44,6 +46,11 @@ export interface RetailOpts {
     // підключення на кожен рестарт, і без цього кожна ітерація коду коштувала
     // людського кліку згоди. У production ігнорується.
     devAccessToken?: string;
+    // П.6 pre-deploy принцип: мутуючі роути без ліміту — script, не людина.
+    // build-cart/sync-receipts/cart-swap роблять 1-4 виклики до MCP мережі
+    // кожен — дешевше не пускати скрипт, ніж потім розбиратись із рахунком
+    // за наш серверний токен. 20/хв — людина не впирається.
+    rateLimit?: RateLimitCfg;
   };
 }
 
@@ -162,6 +169,15 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   const oauthCookie = { httpOnly: true, sameSite: 'lax' as const, secure, path: '/', maxAge: 600 };
   const NEXT_COOKIE = 'kos_retail_next';
 
+  const limiter = makeRateLimiter(silpo.rateLimit ?? { max: 20, windowMs: 60_000 });
+  const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
+    const { user_id } = requireUser(req);
+    if (!limiter.check(user_id)) {
+      reply.code(429).send({ error: 'too many requests' });
+      return reply;
+    }
+  };
+
   // Куди повернути людину після OAuth-круга. Той самий ?next=/… патерн, що
   // magic-link auth (services/api/src/routes/auth.ts): валідний лише
   // абсолютний шлях у межах нашого домену — інакше open-redirect.
@@ -244,7 +260,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     },
   );
 
-  app.post('/v1/retail/silpo/disconnect', { preHandler: authenticated(repo) }, async (req, reply) => {
+  app.post('/v1/retail/silpo/disconnect', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
     const { user_id } = requireUser(req);
     const conn = await repo.getRetailConnection(user_id, 'silpo');
     if (!conn) return reply.code(404).send({ error: 'not_connected' });
@@ -252,7 +268,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     return { status: 'disconnected' };
   });
 
-  app.post('/v1/retail/silpo/reconnect', { preHandler: authenticated(repo) }, async (req, reply) => {
+  app.post('/v1/retail/silpo/reconnect', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
     const { user_id } = requireUser(req);
     const conn = await repo.getRetailConnection(user_id, 'silpo');
     if (!conn) return reply.code(404).send({ error: 'not_connected' });
@@ -260,7 +276,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     return { status: 'active' };
   });
 
-  app.post('/v1/retail/silpo/sync-receipts', { preHandler: authenticated(repo) }, async (req, reply) => {
+  app.post('/v1/retail/silpo/sync-receipts', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
     const { user_id, household_id } = requireUser(req);
     const conn = await repo.getRetailConnection(user_id, 'silpo');
     if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
@@ -325,7 +341,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // резолвер знає, що «стейк з лосося» — це лосось). Знайдене ОДРАЗУ лягає
   // в кошик акаунта Сільпо — «Оформити ↗» на картці веде в уже зібраний
   // кошик; чекаут цілком їхній.
-  app.post('/v1/retail/silpo/build-cart', { preHandler: authenticated(repo) }, async (req, reply) => {
+  app.post('/v1/retail/silpo/build-cart', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
     const { user_id, household_id } = requireUser(req);
     const conn = await repo.getRetailConnection(user_id, 'silpo');
     if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
@@ -435,7 +451,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // картка правиться в БД — заміна переживає перезавантаження.
   app.post<{ Body: { card_id?: string; row_index?: number } }>(
     '/v1/retail/silpo/cart-swap',
-    { preHandler: authenticated(repo) },
+    { preHandler: [authenticated(repo), limitCheck] },
     async (req, reply) => {
       const { user_id } = requireUser(req);
       const conn = await repo.getRetailConnection(user_id, 'silpo');

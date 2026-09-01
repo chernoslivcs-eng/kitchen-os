@@ -371,6 +371,44 @@ describe('retail routes · silpo', () => {
     expect((msg?.card as { found?: number })?.found).toBe(1);
   });
 
+  it('мутуючі retail-роути мають ліміт: 429 після вичерпання, ключ — user_id', async () => {
+    const limitedApp = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: {
+        silpo: {
+          clientId: 'test-client', tokenSecret: 'test-secret',
+          rateLimit: { max: 2, windowMs: 60_000 },
+          exchange: async () => ({ access_token: 'live-token', refresh_token: 'live-refresh', expires_in: 2592000 }),
+          makeProvider: () => ({
+            receipts: async () => [],
+            findBatch: async () => [],
+            addToCart: async () => {},
+          }),
+        },
+      },
+    });
+    await limitedApp.ready();
+    const who = await signIn(limitedApp, mailer, 'ratelimited@example.com');
+    // connect/callback НЕ лімітовані (браузерна навігація, не JSON-мутація);
+    // лічильник має рахувати саме sync-receipts.
+    const start = await limitedApp.inject({
+      method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: who.cookie },
+    });
+    const loc = new URL(start.headers.location as string);
+    const state = loc.searchParams.get('state')!;
+    const oauthCookies = ([] as string[]).concat(start.headers['set-cookie'] as string[])
+      .map((c) => c.split(';')[0]).join('; ');
+    await limitedApp.inject({
+      method: 'GET', url: `/v1/retail/silpo/callback?code=x&state=${state}`,
+      headers: { cookie: `${who.cookie}; ${oauthCookies}` },
+    });
+
+    const r1 = await limitedApp.inject({ method: 'POST', url: '/v1/retail/silpo/sync-receipts', headers: { cookie: who.cookie } });
+    const r2 = await limitedApp.inject({ method: 'POST', url: '/v1/retail/silpo/sync-receipts', headers: { cookie: who.cookie } });
+    const r3 = await limitedApp.inject({ method: 'POST', url: '/v1/retail/silpo/sync-receipts', headers: { cookie: who.cookie } });
+    expect([r1.statusCode, r2.statusCode]).toEqual([200, 200]);
+    expect(r3.statusCode).toBe(429);
+  });
+
   it('build-cart без жодної позиції — 409 empty_list, нічого не створюється', async () => {
     await connect();
     const r = await app.inject({
