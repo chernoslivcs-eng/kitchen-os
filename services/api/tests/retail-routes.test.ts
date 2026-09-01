@@ -25,7 +25,9 @@ describe('retail routes · silpo', () => {
   let app: ReturnType<typeof buildApp>;
   let me: Signed;
   let providerTokens: string[];
-  let providerImpl: (token: string) => { receipts(): Promise<RetailReceipt[]> };
+  // Розширюваний фейк: тести кошика докидають findBatch/addToCart.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let providerImpl: (token: string) => any;
 
   beforeEach(async () => {
     repo = new InMemoryRepo();
@@ -70,6 +72,22 @@ describe('retail routes · silpo', () => {
     });
     expect(cb.statusCode).toBe(302);
   }
+
+  it('dev-токен: connect підключає без OAuth (тільки поза production)', async () => {
+    const devApp = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: { silpo: { clientId: 'c', tokenSecret: 's', devAccessToken: 'dev-token-123' } },
+    });
+    await devApp.ready();
+    const who = await signIn(devApp, mailer, 'dev@example.com');
+    const r = await devApp.inject({
+      method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: who.cookie },
+    });
+    expect(r.statusCode).toBe(302);
+    expect(r.headers.location).toBe('/profile?retail=connected');
+    const conn = await repo.getRetailConnection(who.user_id, 'silpo');
+    expect(conn?.status).toBe('active');
+    expect(conn?.access_token_enc).not.toContain('dev-token-123');
+  });
 
   it('без підключення статус none; connect+callback → active, токен у БД шифрований', async () => {
     const before = await app.inject({ method: 'GET', url: '/v1/retail', headers: { cookie: me.cookie } });
@@ -186,6 +204,80 @@ describe('retail routes · silpo', () => {
     });
     expect(on.statusCode).toBe(200);
     expect((await repo.getRetailConnection(me.user_id, 'silpo'))?.status).toBe('active');
+  });
+
+  it('build-cart: список → пошук (двофазний) → кошик мережі → картка в стрічці', async () => {
+    await connect();
+    // Список: лосось знайдеться другою фазою (канонічним імʼям з каталогу),
+    // кунжут — чесний misс, вода — перша фаза.
+    for (const [label, v, u] of [
+      ['Стейк з лосося охолоджений', 300, 'g'],
+      ['кунжут', null, null],
+      ['вода мінеральна', null, null],
+    ] as const) {
+      await app.inject({
+        method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+        payload: { label, ...(v ? { v, u } : {}) },
+      });
+    }
+
+    const findCalls: string[][] = [];
+    const cartAdds: Array<{ productId: string; quantity: number }> = [];
+    providerImpl = () => ({
+      receipts: async () => [],
+      findBatch: async (queries: string[]) => {
+        findCalls.push(queries);
+        return queries.map((q) => ({
+          query: q,
+          candidates: [],
+          product: (q === 'вода мінеральна' || q === 'Лосось охолоджений')
+            ? {
+                id: `id-${q}`, name: `Сільпо: ${q}`, slug: q, price: 200, oldPrice: null,
+                stock: true, available: true, weighted: q === 'Лосось охолоджений', step: 1,
+                companyId: 'c1', branchId: 'b1',
+              }
+            : null,
+        }));
+      },
+      addToCart: async (items: Array<{ productId: string; quantity: number; companyId: string; branchId: string }>) => {
+        cartAdds.push(...items);
+      },
+    });
+
+    const r = await app.inject({
+      method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
+    });
+    expect(r.statusCode).toBe(200);
+    const body = r.json();
+
+    // Друга фаза пішла канонічним іменем каталогу тільки для промахів.
+    expect(findCalls[0]).toEqual(['Стейк з лосося охолоджений', 'кунжут', 'вода мінеральна']);
+    expect(findCalls[1]).toEqual(['Лосось охолоджений', 'Кунжут білий']);
+    expect(findCalls[1]).not.toContain('вода мінеральна');
+
+    expect(body.card.type).toBe('cart');
+    expect(body.card.found).toBe(2);
+    expect(body.card.of).toBe(3);
+    expect(body.card.total).toBe(260); // вода 200 + лосось 200грн/кг × 0.3кг
+    const rows = body.card.rows as Array<{ label: string; product: { name: string; quantity: number } | null }>;
+    expect(rows.find((x) => x.label === 'кунжут')?.product).toBeNull();
+    // Ваговий лосось: 300 г → 0.3 кг у кошику мережі.
+    expect(cartAdds.find((a) => a.productId === 'id-Лосось охолоджений')?.quantity).toBeCloseTo(0.3);
+    expect(cartAdds).toHaveLength(2);
+
+    // Картка лягла в сесію дня — стрічка її покаже.
+    const { id } = await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10));
+    const msg = (await repo.listMessages(id)).find((m) => m.id === body.card_id);
+    expect((msg?.card as { type?: string })?.type).toBe('cart');
+  });
+
+  it('build-cart без жодної позиції — 409 empty_list, нічого не створюється', async () => {
+    await connect();
+    const r = await app.inject({
+      method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
+    });
+    expect(r.statusCode).toBe(409);
+    expect(r.json().error).toBe('empty_list');
   });
 
   it('протухлий токен у мережі → 401 retail_auth (сигнал «Увійти знову», не 500)', async () => {

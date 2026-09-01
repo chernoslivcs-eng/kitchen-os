@@ -149,7 +149,11 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
   // M13: client_id — разова динамічна реєстрація на mcp.silpo.ua/register
   // (SILPO-MCP-RECON.md), секрет шифрування токенів — власний, довільний рядок.
   const retail = process.env.SILPO_CLIENT_ID && process.env.RETAIL_TOKEN_SECRET
-    ? { silpo: { clientId: process.env.SILPO_CLIENT_ID, tokenSecret: process.env.RETAIL_TOKEN_SECRET } }
+    ? { silpo: {
+        clientId: process.env.SILPO_CLIENT_ID,
+        tokenSecret: process.env.RETAIL_TOKEN_SECRET,
+        devAccessToken: process.env.SILPO_DEV_ACCESS_TOKEN,
+      } }
     : undefined;
   return buildApp(repo, store, mailer, { google, retail });
 }

@@ -13,11 +13,13 @@
 
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { Repo, Card } from '@kitchen/domain';
+import type { Repo, Card, CartCardRow } from '@kitchen/domain';
 import { createPending, applyCard } from '@kitchen/domain';
+import { resolveLabelToKey } from '@kitchen/catalog';
+import { BY_KEY } from '@kitchen/catalog/seed';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeTokenCipher } from '../retail/crypto.js';
-import { SilpoProvider, RetailAuthError } from '../retail/silpo-provider.js';
+import { SilpoProvider, RetailAuthError, type RetailFoundRow } from '../retail/silpo-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
 
 export interface SilpoTokens {
@@ -31,7 +33,12 @@ export interface RetailOpts {
     clientId: string;
     tokenSecret: string;
     exchange?: (code: string, redirectUri: string, verifier: string) => Promise<SilpoTokens>;
-    makeProvider?: (accessToken: string) => Pick<SilpoProvider, 'receipts'>;
+    makeProvider?: (accessToken: string) => Pick<SilpoProvider, 'receipts' | 'findBatch' | 'addToCart'>;
+    // Дев-шорткат: готовий access-токен (напр. із розвідувального OAuth) —
+    // connect підключає без походу в Сільпо. In-memory бекенд губить
+    // підключення на кожен рестарт, і без цього кожна ітерація коду коштувала
+    // людського кліку згоди. У production ігнорується.
+    devAccessToken?: string;
   };
 }
 
@@ -97,6 +104,19 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   const oauthCookie = { httpOnly: true, sameSite: 'lax' as const, secure, path: '/', maxAge: 600 };
 
   app.get('/v1/retail/silpo/connect', { preHandler: authenticated(repo) }, async (_req, reply) => {
+    if (silpo.devAccessToken && process.env.NODE_ENV !== 'production') {
+      const { user_id } = requireUser(_req);
+      const prev = await repo.getRetailConnection(user_id, 'silpo');
+      const now = new Date();
+      await repo.upsertRetailConnection({
+        id: randomUUID(), user_id, provider: 'silpo',
+        access_token_enc: cipher.enc(silpo.devAccessToken), refresh_token_enc: null,
+        expires_at: new Date(now.getTime() + 30 * 86_400_000).toISOString(),
+        status: 'active', connected_at: now.toISOString(), updated_at: now.toISOString(),
+        last_receipt_at: prev?.last_receipt_at ?? null,
+      });
+      return reply.redirect('/profile?retail=connected');
+    }
     const state = b64url(randomBytes(24));
     const verifier = b64url(randomBytes(48));
     const challenge = b64url(createHash('sha256').update(verifier).digest());
@@ -222,5 +242,86 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       ...conn, last_receipt_at: new Date(newest).toISOString(), updated_at: new Date().toISOString(),
     });
     return { up_to_date: false, cards };
+  });
+
+  // «Список → кошик» (канвас М3/М6). Двофазний пошук: спершу сирі лейбли,
+  // для промахів — канонічне імʼя з каталогу (їхній пошук буквальний, наш
+  // резолвер знає, що «стейк з лосося» — це лосось). Знайдене ОДРАЗУ лягає
+  // в кошик акаунта Сільпо — «Оформити ↗» на картці веде в уже зібраний
+  // кошик; чекаут цілком їхній.
+  app.post('/v1/retail/silpo/build-cart', { preHandler: authenticated(repo) }, async (req, reply) => {
+    const { user_id, household_id } = requireUser(req);
+    const conn = await repo.getRetailConnection(user_id, 'silpo');
+    if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
+
+    const items = (await repo.listShoppingItems(household_id)).filter((i) => !i.checked);
+    if (!items.length) return reply.code(409).send({ error: 'empty_list' });
+
+    const provider = makeProvider(cipher.dec(conn.access_token_enc));
+    let found: Map<string, RetailFoundRow>;
+    try {
+      const phase1 = await provider.findBatch(items.map((i) => i.label));
+      found = new Map(phase1.map((r) => [r.query, r]));
+
+      // Фаза 2 — тільки промахи, тільки якщо каталог дає ІНШЕ імʼя.
+      const retry = new Map<string, string>(); // canonical → original label
+      for (const it of items) {
+        if (found.get(it.label)?.product) continue;
+        const key = resolveLabelToKey(it.label);
+        const canonical = key ? BY_KEY.get(key)?.name : null;
+        if (canonical && canonical.toLowerCase() !== it.label.toLowerCase()) retry.set(canonical, it.label);
+      }
+      if (retry.size) {
+        const phase2 = await provider.findBatch([...retry.keys()]);
+        for (const r of phase2) {
+          const original = retry.get(r.query);
+          if (original && r.product) found.set(original, r);
+        }
+      }
+    } catch (e) {
+      if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+      throw e;
+    }
+
+    // Кількість у кошик: вагове — кг із наших грамів (мінімум 0.1), штучне — 1.
+    const rows: CartCardRow[] = [];
+    const toAdd: Array<{ productId: string; companyId: string; branchId: string; quantity: number }> = [];
+    for (const it of items) {
+      const hit = found.get(it.label)?.product ?? null;
+      let quantity = 0;
+      if (hit) {
+        quantity = hit.weighted && it.unit === 'g' && it.value
+          ? Math.max(0.1, Math.round((it.value / 1000) * 100) / 100)
+          : Math.max(1, hit.step || 1);
+        toAdd.push({ productId: hit.id, companyId: hit.companyId, branchId: hit.branchId, quantity });
+      }
+      rows.push({
+        label: it.label, item_id: it.id, v: it.value, u: it.unit,
+        product: hit ? { name: hit.name, price: hit.price, weighted: hit.weighted, quantity } : null,
+      });
+    }
+    if (toAdd.length) {
+      try { await provider.addToCart(toAdd); } catch (e) {
+        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+        throw e;
+      }
+    }
+
+    const foundRows = rows.filter((r) => r.product);
+    const card: Card = {
+      type: 'cart', provider: 'silpo', list_label: null,
+      rows,
+      total: Math.round(foundRows.reduce((s, r) => s + (r.product!.price * (r.product!.weighted ? r.product!.quantity : r.product!.quantity)), 0)),
+      found: foundRows.length, of: rows.length,
+      cart_url: 'https://silpo.ua/cart',
+    };
+    const card_id = randomUUID();
+    const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
+    await repo.saveMessage({
+      id: card_id, session_id: session.id, role: 'assistant',
+      text: `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`, card, applied: 0,
+      created_at: new Date().toISOString(),
+    });
+    return { card, card_id };
   });
 }

@@ -3,6 +3,7 @@
 // Клік на × — видаляємо запис без confirm; помилку показуємо тост-ом.
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type ShoppingItem } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
@@ -13,8 +14,30 @@ import { useAuth } from '../../store/auth';
 
 export function ShoppingPage() {
   const meName = useAuth((st) => st.me?.user?.name ?? null);
+  const navigate = useNavigate();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // M13 (канвас М6): кнопка «Зібрати кошик» зʼявляється лише коли мережа
+  // підключена і в списку є хоч одна незакрита позиція. Не панічна CTA —
+  // шавлієва вторинна над таббаром.
+  const [retailReady, setRetailReady] = useState(false);
+  const [building, setBuilding] = useState(false);
+  useEffect(() => {
+    void api.retail.status()
+      .then((r) => setRetailReady(r.silpo.status === 'active'))
+      .catch(() => setRetailReady(false));
+  }, []);
+  async function buildCart() {
+    if (building) return;
+    setBuilding(true);
+    try {
+      await api.retail.buildCart();
+      // Картка з цінами приходить у стрічку — ведемо людину до неї.
+      navigate('/app');
+    } catch {
+      setBuilding(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -189,6 +212,25 @@ export function ShoppingPage() {
             <button className={styles.delete} onClick={() => remove(it)} aria-label="Видалити">×</button>
           </div>
         ))}
+
+        {retailReady && unchecked > 0 && (
+          <button
+            onClick={() => void buildCart()}
+            disabled={building}
+            style={{
+              width: '100%', height: 48, marginTop: 14,
+              border: '1px solid var(--accent-border)', borderRadius: 12,
+              background: 'var(--accent-bg)', color: 'var(--accent)',
+              fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
+              cursor: building ? 'wait' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 16px', opacity: building ? 0.6 : 1,
+            }}
+          >
+            <span>{building ? 'Збираю кошик…' : 'Зібрати кошик у Сільпо'}</span>
+            <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} →</span>
+          </button>
+        )}
       </div>
 
     </div>

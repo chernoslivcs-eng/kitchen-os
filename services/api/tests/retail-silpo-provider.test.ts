@@ -18,6 +18,8 @@ function tool(result: unknown) {
   return { structuredContent: result, content: [{ type: 'text', text: JSON.stringify(result) }] };
 }
 
+const FRESH_SLOT = { start: '2026-09-01T09:00:00+00:00', end: '2026-09-01T09:30:00+00:00' };
+
 // Фейковий MCP: відповідає як живий сервер, і записує, з якими аргументами
 // його викликали — щоб тест перевіряв ланцюжок, а не тільки фінальну форму.
 function makeFakeSilpo({ sse = false }: { sse?: boolean } = {}) {
@@ -50,6 +52,37 @@ function makeFakeSilpo({ sse = false }: { sse?: boolean } = {}) {
           },
           loyalty: { bonusTotal: 25.02 },
         });
+      } else if (name === 'silpo_get_time_slots') {
+        // Жива форма: поле зветься `slots` (пастка, з'їла перший прогін кошика).
+        result = tool({ success: true, slots: [
+          { ...FRESH_SLOT, available: true, deliveryType: 'DeliveryHome' },
+        ] });
+      } else if (name === 'silpo_find_products_batch') {
+        // Пастка з розвідки: із протухлим слотом (з кошика, 27.08) — мовчазні
+        // нулі; зі свіжим — результат. Фейк відтворює це буквально.
+        const fresh = args.timeslotStart === FRESH_SLOT.start;
+        const products = (args.products as string[]) ?? [];
+        result = tool({
+          success: true,
+          queries: products.map((q) => ({
+            query: q,
+            totalFound: fresh && q !== 'кунжут' ? 1 : 0,
+            products: fresh && q !== 'кунжут' ? [{
+              id: `id-${q}`, name: `Товар ${q}`, slug: q, price: 100, oldPrice: null,
+              stock: true, available: true, weighted: false, step: 1,
+              companyId: 'c1', branchId: args.branchId, externalProductId: `ext-${q}`,
+            }] : [],
+          })),
+        });
+      } else if (name === 'silpo_add_or_update_cart_products') {
+        // Жива вимога: без shoppingCartId — zod-помилка (прод, 01.09).
+        if (typeof args.shoppingCartId !== 'string') {
+          result = tool({ success: false });
+          return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: {
+            isError: true, content: [{ type: 'text', text: 'MCP error -32602: shoppingCartId required' }],
+          } }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+        result = tool({ success: true });
       } else if (name === 'silpo_get_my_offline_orders') {
         result = tool({
           success: true,
@@ -106,6 +139,34 @@ describe('SilpoProvider.receipts', () => {
     const fake = makeFakeSilpo({ sse: true });
     const p = new SilpoProvider({ accessToken: 'good-token', fetchFn: fake.fetchFn });
     expect((await p.receipts())[0]!.city).toBe('Стоянка');
+  });
+
+  it('findBatch бере СВІЖИЙ слот (не протухлий з кошика) і мапить результати', async () => {
+    const fake = makeFakeSilpo();
+    const p = new SilpoProvider({ accessToken: 'good-token', fetchFn: fake.fetchFn });
+    const rows = await p.findBatch(['молоко', 'кунжут']);
+
+    // Пошук пішов зі слотом із get_time_slots, а не з кошика (27.08 → нулі).
+    const search = fake.calls.find((c) => c.tool === 'silpo_find_products_batch');
+    expect(search?.args.timeslotStart).toBe(FRESH_SLOT.start);
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      query: 'молоко',
+      product: { name: 'Товар молоко', price: 100, companyId: 'c1' },
+    });
+    expect(rows[1]).toMatchObject({ query: 'кунжут', product: null });
+  });
+
+  it('addToCart кладе знайдене у кошик мережі трійкою productId+companyId+branchId', async () => {
+    const fake = makeFakeSilpo();
+    const p = new SilpoProvider({ accessToken: 'good-token', fetchFn: fake.fetchFn });
+    await p.addToCart([{ productId: 'id-молоко', companyId: 'c1', branchId: 'b1', quantity: 2 }]);
+    const call = fake.calls.find((c) => c.tool === 'silpo_add_or_update_cart_products');
+    expect(call?.args.shoppingCartId).toBe(CART_ID);
+    expect(call?.args.products).toEqual([
+      { productId: 'id-молоко', companyId: 'c1', branchId: 'b1', quantity: 2 },
+    ]);
   });
 
   it('401 → RetailAuthError, щоб роут показав «Увійти знову», а не 500', async () => {

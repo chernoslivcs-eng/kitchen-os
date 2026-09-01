@@ -24,6 +24,29 @@ export interface RetailReceipt {
   lines: RetailReceiptLine[];
 }
 
+// Товар із e-commerce пошуку — рівно ті поля, що віддає живий сервер.
+// Трійка productId(id)+companyId+branchId — те, що приймає кошик.
+export interface RetailProduct {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  oldPrice: number | null;
+  stock: boolean;
+  available: boolean;
+  weighted: boolean;
+  step: number;
+  companyId: string;
+  branchId: string;
+  externalProductId?: string;
+}
+
+export interface RetailFoundRow {
+  query: string;
+  product: RetailProduct | null;
+  candidates: RetailProduct[];
+}
+
 interface SilpoOpts {
   accessToken: string;
   fetchFn?: typeof fetch;
@@ -107,10 +130,20 @@ export class SilpoProvider {
     return JSON.parse(r.content?.[0]?.text ?? '{}') as T;
   }
 
-  private async cartCtx(): Promise<CartCtx> {
+  // Кошик один на акаунт — id кешуємо на життя провайдера (один запит).
+  private cartId: string | null = null;
+
+  private async myCartId(): Promise<string> {
+    if (this.cartId) return this.cartId;
     const { shoppingCartId } = await this.tool<{ shoppingCartId: string }>(
       'silpo_get_my_shopping_cart', {},
     );
+    this.cartId = shoppingCartId;
+    return shoppingCartId;
+  }
+
+  private async cartCtx(): Promise<CartCtx> {
+    const shoppingCartId = await this.myCartId();
     const { cart } = await this.tool<{
       cart: {
         deliveryType: string;
@@ -130,6 +163,47 @@ export class SilpoProvider {
       timeslotStart: cart.timeslot.start,
       timeslotEnd: cart.timeslot.end,
     };
+  }
+
+  // Свіжий таймслот для пошуку. Слот із кошика буває протухлим, а протухлий
+  // слот = мовчазні нулі по всіх запитах (пастка №3 розвідки) — тому перед
+  // find завжди беремо перший доступний слот із get_time_slots.
+  private async freshSlot(branchId: string, deliveryType: string): Promise<{ start: string; end: string }> {
+    // Жива форма віддає масив у полі `slots` (перевірено на проді 01.09);
+    // `timeslots` лишається фолбеком на випадок зміни контракту.
+    const res = await this.tool<{
+      slots?: Array<{ start: string; end: string; available: boolean; deliveryType?: string }>;
+      timeslots?: Array<{ start: string; end: string; available: boolean; deliveryType?: string }>;
+    }>('silpo_get_time_slots', { branchId, deliveryType });
+    const slots = res.slots ?? res.timeslots ?? [];
+    const slot = slots.find((s) => s.available && (!s.deliveryType || s.deliveryType === deliveryType))
+      ?? slots.find((s) => s.available)
+      ?? slots[0];
+    if (!slot) throw new Error('silpo: no time slots for branch');
+    return { start: slot.start, end: slot.end };
+  }
+
+  async findBatch(queries: string[]): Promise<RetailFoundRow[]> {
+    const { branchId, deliveryType } = await this.cartCtx();
+    const slot = await this.freshSlot(branchId, deliveryType);
+    const res = await this.tool<{
+      queries: Array<{ query: string; totalFound: number; products: RetailProduct[] }>;
+    }>('silpo_find_products_batch', {
+      branchId, deliveryType,
+      timeslotStart: slot.start, timeslotEnd: slot.end,
+      products: queries,
+    });
+    return (res.queries ?? []).map((q) => ({
+      query: q.query,
+      product: q.products?.[0] ?? null,
+      candidates: q.products ?? [],
+    }));
+  }
+
+  async addToCart(items: Array<{ productId: string; companyId: string; branchId: string; quantity: number }>): Promise<void> {
+    // Жива вимога: без shoppingCartId інструмент відбиває zod-помилкою.
+    const shoppingCartId = await this.myCartId();
+    await this.tool('silpo_add_or_update_cart_products', { shoppingCartId, products: items });
   }
 
   async receipts(limit = 10): Promise<RetailReceipt[]> {

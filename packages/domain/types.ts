@@ -187,7 +187,30 @@ export interface CookGoCard {
   title: string;         // назва обраної страви — дослівно з пропозиції
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard;
+// M13 зріз 3: картка «Кошик у Сільпо» (канвас М3). НЕ підтверджувальна:
+// apply/undo не мають сенсу — кошик уже зібраний у мережі, CTA веде назовні.
+// Два імені однієї речі: label — як людина писала в список, product.name —
+// «паспортна» назва мережі.
+export interface CartCardRow {
+  label: string;
+  item_id: string | null;
+  v: number | null;
+  u: string | null;
+  product: { name: string; price: number; weighted: boolean; quantity: number } | null;
+}
+
+export interface CartCard {
+  type: 'cart';
+  provider: string;
+  list_label: string | null;
+  rows: CartCardRow[];
+  total: number;
+  found: number;
+  of: number;
+  cart_url: string;
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard;
 
 // ----- Стан «на застосуванні» ------
 

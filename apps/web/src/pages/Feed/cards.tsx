@@ -779,9 +779,73 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 }
 
 
+// ----- Cart (M13, канвас М3) -----------------------------------------------
+// Два імені однієї речі: наше — головне (те, що людина писала в список),
+// назва Сільпо — другим рядком mono, як «паспортні дані» товару.
+// «Немає в цій філії» — бурштин-факт, не error. Кнопка темна з ↗ — вихід
+// назовні, не наша шавлієва дія; чекаут цілком на боці мережі.
+export function RetailCartCard({ card }: CardProps) {
+  const rows = card.rows ?? [];
+  return (
+    <div className={styles.card}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
+          Кошик у Сільпо
+        </div>
+        <MonoLabel>ЗІ СПИСКУ ПОКУПОК</MonoLabel>
+      </div>
+      <div className={styles.ops}>
+        {rows.map((r, i) => (
+          <div key={i} className={styles.op} style={{ alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <span className={styles['op-label']} style={r.product ? undefined : { color: 'var(--fg-dim)' }}>
+                {r.label}
+              </span>
+              {r.product ? (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
+                  {r.product.name}{r.product.weighted ? ` · ${r.product.quantity} кг` : ''}
+                </span>
+              ) : (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
+                  немає в цій філії
+                </span>
+              )}
+            </div>
+            {r.product && (
+              <span className={styles['op-qty']} style={{ color: 'var(--fg)' }}>
+                {Math.round(r.product.price * (r.product.weighted ? r.product.quantity : 1))}₴
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 6,
+      }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16 }}>
+          {card.total}₴ · {card.found} з {card.of}
+        </span>
+        <a
+          href={card.cart_url}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            marginLeft: 'auto', height: 44, padding: '0 18px', borderRadius: 12,
+            background: 'var(--fg)', color: 'var(--bg-body)', textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center',
+            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+          }}
+        >Оформити в Сільпо ↗</a>
+      </div>
+    </div>
+  );
+}
+
 export function Card(props: CardProps) {
   switch (props.card.type) {
     case 'intake_diff': return <IntakeCard {...props} />;
+    case 'cart':        return <RetailCartCard {...props} />;
     case 'proposal':    return <ProposalCard {...props} />;
     case 'shopping':    return <ShoppingCard {...props} />;
     case 'profile':     return <ProfileCard {...props} />;
@@ -820,6 +884,8 @@ export function labelFor(
 ): { text: string; tone: 'pending' | 'applied' | 'muted' } {
   // Слід рецепта — не дія: жодного «ОЧІКУЄ», просто мітка.
   if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
+  // M13: кошик — теж не дія в нас: він уже зібраний у мережі, CTA веде назовні.
+  if (type === 'cart') return { text: 'КОШИК · СІЛЬПО', tone: 'muted' };
   if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
   if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.

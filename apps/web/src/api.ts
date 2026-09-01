@@ -120,11 +120,25 @@ export interface ReceiptSource {
   unmatched: ReceiptLeftover[];
 }
 
+// M13 зріз 3: рядок картки кошика — два імені однієї речі.
+export interface CartRow {
+  label: string;
+  item_id: string | null;
+  v: number | null;
+  u: string | null;
+  product: { name: string; price: number; weighted: boolean; quantity: number } | null;
+}
+
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart';
   ops?: unknown[];
   items?: unknown[];
   source?: ReceiptSource;              // intake_diff з чека мережі (M13)
+  rows?: CartRow[];                    // cart (M13): позиції з цінами
+  total?: number;                      // cart: сума знайденого
+  found?: number;                      // cart: скільки реально поїде
+  of?: number;                         // cart: скільки було в списку
+  cart_url?: string;                   // cart: «Оформити в Сільпо ↗»
   recipe?: Recipe;                     // тільки для type: 'recipe' — імпорт із вкладення
   run_id?: string;                     // cook_photo
   recipe_id?: string;                  // recipe_link
@@ -175,6 +189,7 @@ export const api = {
     }>('/v1/retail'),
     disconnect: () => req<{ status: string }>('/v1/retail/silpo/disconnect', { method: 'POST', body: '{}' }),
     reconnect: () => req<{ status: string }>('/v1/retail/silpo/reconnect', { method: 'POST', body: '{}' }),
+    buildCart: () => req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/build-cart', { method: 'POST', body: '{}' }),
     syncReceipts: () => req<{
       up_to_date: boolean;
       cards: Array<{

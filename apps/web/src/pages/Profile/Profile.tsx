@@ -142,7 +142,7 @@ function NetworksSection() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12, marginTop: 12,
             padding: '10px 14px', borderRadius: 12,
-            background: 'var(--fg)', color: 'var(--bg)',
+            background: 'var(--fg)', color: 'var(--bg-body)',
             fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
           }}>
             Сільпо відключено
