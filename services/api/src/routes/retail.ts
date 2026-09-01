@@ -360,6 +360,10 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // самий код виконує і кнопка «Зібрати кошик», і card_go:cart_go з чату
   // (chat.ts): жодних дублікатів логіки пошуку/addToCart, тільки різне
   // «що сказати людині» у викликача.
+  // 01.09 рівень 1: скільки інших варіантів по одному пошуку показувати —
+  // Сільпо може повернути десятки, картка лишається компактною.
+  const ALT_CAP = 10;
+
   async function attemptBuildCart(
     user_id: string, household_id: string, explicitItems?: string[],
   ): Promise<RetailCartAttempt> {
@@ -430,20 +434,31 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         const outRows: CartCardRow[] = [];
         const toAdd: Array<{ productId: string; companyId: string; branchId: string; quantity: number }> = [];
         for (const it of items) {
-          const hit = found.get(it.label)?.product ?? null;
+          const foundRow = found.get(it.label);
+          const hit = foundRow?.product ?? null;
           let quantity = 0;
           if (hit) {
             quantity = qtyFor(hit, it);
             toAdd.push({ productId: hit.id, companyId: hit.companyId, branchId: hit.branchId, quantity });
           }
-          const altHit = hit ? null : altFound.get(it.label)?.product ?? null;
+          const altRow = hit ? null : altFound.get(it.label);
+          // 01.09 рівень 1: candidates — усі знайдені варіанти того самого
+          // пошуку (findBatch і так їх повертає, product — просто перший).
+          // Хіт виключає себе зі списку (нижче він інформаційний, не тап);
+          // проміс лишає ВСІ candidates як кнопки заміни, включно з тим, що
+          // раніше був єдиним altHit — нічого ще не додано в кошик мережі.
+          const candidateSource = hit ? foundRow?.candidates : altRow?.candidates;
+          const alternatives = (candidateSource ?? [])
+            .filter((c) => c.id !== hit?.id)
+            .slice(0, ALT_CAP)
+            .map((c) => ({
+              product_id: c.id, company_id: c.companyId, branch_id: c.branchId,
+              name: c.name, price: c.price, weighted: c.weighted, quantity: qtyFor(c, it),
+            }));
           outRows.push({
             label: it.label, item_id: it.id, v: it.value, u: it.unit,
             product: hit ? { name: hit.name, price: hit.price, weighted: hit.weighted, quantity } : null,
-            alternative: altHit ? {
-              product_id: altHit.id, company_id: altHit.companyId, branch_id: altHit.branchId,
-              name: altHit.name, price: altHit.price, weighted: altHit.weighted, quantity: qtyFor(altHit, it),
-            } : null,
+            alternatives,
           });
         }
         if (toAdd.length) await provider.addToCart(toAdd);
@@ -486,22 +501,29 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
 
   // Тап «замінити» на бурштиновому рядку: альтернатива їде в кошик мережі,
   // картка правиться в БД — заміна переживає перезавантаження.
-  app.post<{ Body: { card_id?: string; row_index?: number } }>(
+  app.post<{ Body: { card_id?: string; row_index?: number; alt_index?: number } }>(
     '/v1/retail/silpo/cart-swap',
     { preHandler: [authenticated(repo), limitCheck] },
     async (req, reply) => {
       const { user_id } = requireUser(req);
       const conn = await repo.getRetailConnection(user_id, 'silpo');
       if (!conn || conn.status !== 'active') return reply.code(409).send({ error: 'not_connected' });
-      const { card_id, row_index } = req.body ?? {};
-      if (!card_id || row_index == null) return reply.code(400).send({ error: 'card_id and row_index required' });
+      const { card_id, row_index, alt_index } = req.body ?? {};
+      if (!card_id || row_index == null || alt_index == null) {
+        return reply.code(400).send({ error: 'card_id, row_index and alt_index required' });
+      }
       const msg = await repo.getMessage(card_id);
       const card = msg?.card;
       if (!card || card.type !== 'cart') return reply.code(404).send({ error: 'cart_not_found' });
       const row = card.rows[row_index];
-      if (!row?.alternative) return reply.code(409).send({ error: 'no_alternative' });
+      // 01.09 рівень 1: хіт-рядок уже має товар у кошику мережі — тап-заміна
+      // сюди заборонена на сервері, не тільки прихована в UI. Наша інтеграція
+      // вміє лише addToCart, без видалення: заміна хіта задвоїла б позицію
+      // в живому кошику Сільпо, а картка брехала б, що старе прибрано.
+      if (row?.product) return reply.code(409).send({ error: 'already_matched' });
+      const a = row?.alternatives?.[alt_index];
+      if (!a) return reply.code(409).send({ error: 'no_alternative' });
 
-      const a = row.alternative;
       try {
         await withRetailAuth(conn, (provider) => provider.addToCart([
           { productId: a.product_id, companyId: a.company_id, branchId: a.branch_id, quantity: a.quantity },
@@ -511,7 +533,9 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         throw e;
       }
       row.product = { name: a.name, price: a.price, weighted: a.weighted, quantity: a.quantity };
-      row.alternative = null;
+      // Решта кандидатів того самого пошуку лишається — тепер уже
+      // інформаційно (рядок став хітом), той самий перелік «ще є».
+      row.alternatives = (row.alternatives ?? []).filter((_, i) => i !== alt_index);
       card.found = card.rows.filter((r) => r.product).length;
       card.total = Math.round(card.rows.reduce(
         (s, r) => s + (r.product ? r.product.price * (r.product.weighted ? r.product.quantity : 1) : 0), 0));

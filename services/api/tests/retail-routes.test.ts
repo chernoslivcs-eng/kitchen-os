@@ -329,14 +329,17 @@ describe('retail routes · silpo', () => {
       receipts: async () => [],
       findBatch: async (queries: string[]) => {
         findCalls.push(queries);
-        return queries.map((q) => ({
-          query: q, candidates: [],
-          // Точного арборіо немає ніде; на «рис» (голова) — є круглозернистий.
-          product: q === 'рис' ? {
-            id: 'id-rice', name: 'Рис круглозернистий «Хуторок»', slug: 'rice', price: 89, oldPrice: null,
-            stock: true, available: true, weighted: false, step: 1, companyId: 'c1', branchId: 'b1',
-          } : null,
-        }));
+        return queries.map((q) => {
+          // Точного арборіо немає ніде; на «рис» (голова) — є два варіанти.
+          // Живий провайдер бере product = candidates[0] — стаб дзеркалить це.
+          const products = q === 'рис' ? [
+            { id: 'id-rice', name: 'Рис круглозернистий «Хуторок»', slug: 'rice', price: 89, oldPrice: null,
+              stock: true, available: true, weighted: false, step: 1, companyId: 'c1', branchId: 'b1' },
+            { id: 'id-rice-basmati', name: 'Рис басматі', slug: 'rice-basmati', price: 145, oldPrice: null,
+              stock: true, available: true, weighted: false, step: 1, companyId: 'c1', branchId: 'b1' },
+          ] : [];
+          return { query: q, candidates: products, product: products[0] ?? null };
+        });
       },
       addToCart: async (items: Array<{ productId: string }>) => { cartAdds.push(...items); },
     });
@@ -350,19 +353,25 @@ describe('retail routes · silpo', () => {
     expect(body.card.cart_url).toBe('https://silpo.ua');
     const row = body.card.rows[0];
     // Заміну НЕ кладемо в кошик самі — «не вгадувати»: пропозиція під тапом.
+    // Проміс лишає ВСІ кандидати того самого пошуку як кнопки заміни.
     expect(row.product).toBeNull();
-    expect(row.alternative).toMatchObject({ name: 'Рис круглозернистий «Хуторок»', price: 89 });
+    expect(row.alternatives).toMatchObject([
+      { name: 'Рис круглозернистий «Хуторок»', price: 89 },
+      { name: 'Рис басматі', price: 145 },
+    ]);
     expect(cartAdds).toHaveLength(0);
 
-    // Тап «замінити»: альтернатива їде в кошик мережі, картка правиться в БД.
+    // Тап «замінити» на першому варіанті: він їде в кошик мережі, картка
+    // правиться в БД, другий кандидат лишається — тепер інформаційно.
     const swap = await app.inject({
       method: 'POST', url: '/v1/retail/silpo/cart-swap', headers: { cookie: me.cookie },
-      payload: { card_id: body.card_id, row_index: 0 },
+      payload: { card_id: body.card_id, row_index: 0, alt_index: 0 },
     });
     expect(swap.statusCode).toBe(200);
     expect(cartAdds.map((a) => a.productId)).toEqual(['id-rice']);
     const patched = swap.json().card;
     expect(patched.rows[0].product).toMatchObject({ name: 'Рис круглозернистий «Хуторок»' });
+    expect(patched.rows[0].alternatives).toMatchObject([{ name: 'Рис басматі', price: 145 }]);
     expect(patched.found).toBe(1);
     expect(patched.total).toBe(89);
 

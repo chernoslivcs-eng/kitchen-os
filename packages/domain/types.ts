@@ -197,12 +197,19 @@ export interface CartCardRow {
   v: number | null;
   u: string | null;
   product: { name: string; price: number; weighted: boolean; quantity: number } | null;
-  // Промах із кандидатом-заміною (третя фаза: головне слово каталогу).
-  // У кошик НЕ кладеться сама — «не вгадувати»; тап «замінити» → cart-swap.
-  alternative?: {
+  // 01.09 рівень 1: інші знайдені варіанти по тому самому пошуку (Сільпо й
+  // так їх повертає — раніше просто відкидались). Значення поля залежить
+  // від того, чи product заповнений:
+  // - product є (хіт) — це ІНФОРМАЦІЙНИЙ перелік («ще є: X, Y»), без тапу:
+  //   товар уже поїхав у кошик мережі, а наша інтеграція вміє тільки
+  //   addToCart, не видалення — тап-заміна залишила б задвоєння.
+  // - product нема (проміс) — це кнопки «замінити» (тап → cart-swap,
+  //   alt_index — індекс у цьому масиві); нічого ще не додано в кошик,
+  //   тому заміна безпечна.
+  alternatives?: {
     product_id: string; company_id: string; branch_id: string;
     name: string; price: number; weighted: boolean; quantity: number;
-  } | null;
+  }[];
 }
 
 export interface CartCard {

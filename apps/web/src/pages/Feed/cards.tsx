@@ -795,15 +795,24 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   // Кіт: заміна щойно записалась у стан — рядок і футер мусять це показати,
   // не просто перемалюватись мовчки.
   const [justSwapped, setJustSwapped] = useState<number | null>(null);
+  // 01.09 рівень 1: «ще є» на хіт-рядку показує перші 2, решта — під тапом.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const rows = card.rows ?? [];
-  async function swap(i: number) {
+  async function swap(i: number, altIndex: number) {
     if (!cardId || swapping !== null) return;
     setSwapping(i);
     try {
-      const r = await api.retail.cartSwap(cardId, i);
+      const r = await api.retail.cartSwap(cardId, i, altIndex);
       setCard(r.card);
       setJustSwapped(i);
     } catch { /* рядок лишається з пропозицією */ } finally { setSwapping(null); }
+  }
+  function toggleExpanded(i: number) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
   }
   return (
     <div className={styles.card}>
@@ -814,51 +823,84 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
         <MonoLabel>ЗІ СПИСКУ ПОКУПОК</MonoLabel>
       </div>
       <div className={styles.ops}>
-        {rows.map((r, i) => (
-          <div
-            key={i}
-            className={`${styles.op} ${justSwapped === i ? styles['row-changed'] : ''}`}
-            style={{ alignItems: 'flex-start' }}
-          >
+        {rows.map((r, i) => {
+          const alts = r.alternatives ?? [];
+          const isExpanded = expanded.has(i);
+          const visibleAlts = r.product && !isExpanded ? alts.slice(0, 2) : alts;
+          return (
             <div
-              className={justSwapped === i ? styles['row-text-in'] : undefined}
-              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}
+              key={i}
+              className={`${styles.op} ${justSwapped === i ? styles['row-changed'] : ''}`}
+              style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}
             >
-              <span className={styles['op-label']} style={r.product ? undefined : { color: 'var(--fg-dim)' }}>
-                {r.label}
-              </span>
-              {r.product ? (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
-                  {r.product.name}{r.product.weighted ? ` · ${r.product.quantity} кг` : ''}
+              <div
+                className={justSwapped === i ? styles['row-text-in'] : undefined}
+                style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}
+              >
+                <span className={styles['op-label']} style={r.product ? undefined : { color: 'var(--fg-dim)' }}>
+                  {r.label}
                 </span>
-              ) : (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
-                  немає в цій філії
+                {r.product ? (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
+                    {r.product.name}{r.product.weighted ? ` · ${r.product.quantity} кг` : ''}
+                  </span>
+                ) : (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
+                    немає в цій філії
+                  </span>
+                )}
+              </div>
+              {r.product && (
+                <span className={styles['op-qty']} style={{ color: 'var(--fg)' }}>
+                  {Math.round(r.product.price * (r.product.weighted ? r.product.quantity : 1))}₴
                 </span>
               )}
+              {!r.product && alts.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 'none' }}>
+                  {alts.map((a, ai) => (
+                    <button
+                      key={ai}
+                      type="button"
+                      disabled={swapping !== null}
+                      onClick={() => void swap(i, ai)}
+                      style={{
+                        border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
+                        color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                        textDecoration: 'underline', textUnderlineOffset: 3, textAlign: 'right',
+                        opacity: swapping === i ? 0.5 : 1,
+                      }}
+                    >
+                      замінити: {a.name} · {Math.round(a.price * (a.weighted ? a.quantity : 1))}₴
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* 01.09 рівень 1: хіт-рядок — товар уже в кошику мережі, тап-заміну
+                  не даємо (наша інтеграція не вміє видаляти з живого кошика),
+                  тільки показуємо, що ще шукалось по цьому запиту. */}
+              {r.product && alts.length > 0 && (
+                <div style={{
+                  width: '100%', fontFamily: 'var(--font-body)', fontSize: 12,
+                  color: 'var(--fg-dim)', marginTop: 2,
+                }}>
+                  ще є: {visibleAlts.map((a) => `${a.name} · ${Math.round(a.price * (a.weighted ? a.quantity : 1))}₴`).join(', ')}
+                  {alts.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(i)}
+                      style={{
+                        border: 0, background: 'transparent', cursor: 'pointer', padding: 0, marginLeft: 4,
+                        color: 'var(--accent)', font: 'inherit', textDecoration: 'underline',
+                      }}
+                    >
+                      {isExpanded ? 'згорнути' : `+${alts.length - 2} ще`}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            {r.product && (
-              <span className={styles['op-qty']} style={{ color: 'var(--fg)' }}>
-                {Math.round(r.product.price * (r.product.weighted ? r.product.quantity : 1))}₴
-              </span>
-            )}
-            {!r.product && r.alternative && (
-              <button
-                type="button"
-                disabled={swapping !== null}
-                onClick={() => void swap(i)}
-                style={{
-                  border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
-                  color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                  textDecoration: 'underline', textUnderlineOffset: 3, flex: 'none', textAlign: 'right',
-                  opacity: swapping === i ? 0.5 : 1,
-                }}
-              >
-                замінити: {r.alternative.name} · {Math.round(r.alternative.price * (r.alternative.weighted ? r.alternative.quantity : 1))}₴
-              </button>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
