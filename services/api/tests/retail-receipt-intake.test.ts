@@ -52,6 +52,21 @@ describe('receiptLinesToIntake', () => {
     expect(r.unmatched.map((l) => l.name)).toEqual(noisy);
   });
 
+  // Живий чек 01.09: «Пиво Kronenbourg Бланк з/б» лишалось unmatched —
+  // каталог мав запис на пшеничне пиво, але без аліасу «бланк» (стандартне
+  // маркування Сільпо для цього стилю). «Крем-брускетта Ponti» — окремо,
+  // такого запису в каталозі не було взагалі.
+  it('пиво «Бланк» і крем-брускетта з живого чека — впізнаються після каталожних доповнень', () => {
+    const r = receiptLinesToIntake([
+      line('Пиво Kronenbourg Бланк з/б', 1, 'шт'),
+      line('Крем-брускетта Ponti з чорних оливок', 1, 'шт'),
+    ]);
+    expect(r.unmatched).toHaveLength(0);
+    expect(r.ops).toHaveLength(2);
+    expect(r.ops.map((o) => 'catalog_key' in o && o.catalog_key)).toContain('alc_beer_wheat');
+    expect(r.ops.map((o) => 'catalog_key' in o && o.catalog_key)).toContain('bruschetta_cream_olive');
+  });
+
   it('справжні збіги лишаються живими після посилення матчера', () => {
     const r = receiptLinesToIntake([
       line('Квас Квас Тарас Хлібний з/б', 1, 'шт'),

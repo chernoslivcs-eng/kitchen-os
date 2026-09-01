@@ -11828,6 +11828,15 @@ const CATALOG_4: CatalogItem[] = [
     nutrition: { kcal: 300, p: 2, f: 30, c: 5 },
   },
   {
+    key: 'bruschetta_cream_olive',
+    name: 'Крем-брускетта з чорних оливок',
+    aliases: ['крем-брускетта', 'крем брускетта', 'брускетта з оливок', 'bruschetta', 'крем-брускетта оливкова', 'паста брускетта'],
+    categories: ['оливки', 'соус', 'рослинне'],
+    allergen_groups: [],
+    zone_default: 'dry',
+    nutrition: { kcal: 280, p: 2, f: 27, c: 6 },
+  },
+  {
     key: 'nut_pistachio_butter',
     name: 'Фісташкова паста',
     aliases: ['фісташкова паста', 'паста фісташкова', 'паста з фісташок', 'фісташкового крему', 'pistachio paste', 'pistachio butter'],
@@ -18971,7 +18980,7 @@ const CATALOG_7: CatalogItem[] = [
   {
     key: 'alc_beer_wheat',
     name: 'Пиво пшеничне',
-    aliases: ['пшеничне пиво', 'пиво пшеничне', 'пива пшеничного', 'вайсбір', 'weissbier', 'hefeweizen'],
+    aliases: ['пшеничне пиво', 'пиво пшеничне', 'пива пшеничного', 'вайсбір', 'weissbier', 'hefeweizen', 'бланк', 'blanc', 'пиво бланк'],
     categories: ['пиво', 'алкоголь', 'напої', 'пшениця', 'ячмінь', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
