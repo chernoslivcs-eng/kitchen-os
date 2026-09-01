@@ -112,6 +112,29 @@ describe('чат: retail_search_go → живий пошук наявності 
     expect(body.reply).not.toMatch(/смак 9/); // за межею капу на показ
   });
 
+  // M13-ROLE-VOICE п.2: цю репліку склав СЕРВЕР, не модель. Наступного ходу
+  // вона їде в модель як частина історії — і без підпису читається як власні
+  // слова кухаря («у Сільпо є два» → «у тебе є два»). Підпис зберігається
+  // окремим полем, а не в тексті: text рендериться людині в чаті.
+  it('серверна репліка підписана джерелом, але людина підпису не бачить', async () => {
+    await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
+    const r = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'а які ще опції в сільпо є по швепсу?' },
+    });
+    const body = r.json();
+
+    const sessions = await repo.listSessionsForUser(me.user_id);
+    const msgs = await repo.listMessages(sessions[0]!.id);
+    const searchTurn = msgs.find((m) => m.role === 'assistant' && m.text?.includes('Pink Tonic'));
+
+    expect(searchTurn).toBeDefined();
+    expect(searchTurn!.source).toBe('retail_search');
+    // Підпис живе в полі, не в тексті — інакше людина прочитала б його в чаті.
+    expect(searchTurn!.text).not.toMatch(/службова відповідь|асортимент мережі/i);
+    expect(body.reply).not.toMatch(/службова відповідь|асортимент мережі/i);
+  });
+
   it('нічого не знайдено — чесно каже, не мовчить і не вигадує', async () => {
     await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
     app = buildApp(repo, new InMemoryStore(), mailer, {
