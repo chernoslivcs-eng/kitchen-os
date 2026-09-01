@@ -16,3 +16,7 @@ test-results/
 .vercel
 api-dist/
 .worktrees/
+
+# Канва збирається зі скриптом із .dc.html — 2.4МБ згенерованого не тримаємо
+design/*.html
+!design/*.dc.html
