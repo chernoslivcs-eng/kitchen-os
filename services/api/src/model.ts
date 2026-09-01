@@ -230,6 +230,29 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // 01.09: питання про наявність («які опції є в сільпо по X», «що є з X»)
+  // — НЕ замовлення (cart_go) і НЕ список (shopping), сервер сам шукає
+  // живцем і відповідає текстом (attemptSearch, chat.ts).
+  const searchGoMatch = args.text.match(
+    /(?:опці\w*|варіант\w*|смак\w*)[^.!?]*?(?:сільпо|мереж\w*)[^.!?]*?по\s+([а-яіїєґ'ʼ\s-]+)/i,
+  );
+  if (searchGoMatch) {
+    const query = (searchGoMatch[1] ?? '').trim();
+    if (args.retailConnected && query) {
+      return {
+        reply: 'Зараз гляну, що є.',
+        card: { type: 'retail_search_go', query },
+        usage: { input: 0, output: 0 },
+        meta: { promptVersion, model: 'stub', mode: 'stub' },
+      };
+    }
+    return {
+      reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
+      card: null,
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   // Пул-5 №6: явна згода готувати конкретну страву → cook_go.
   const go = /готуємо\s+[«"]([^»"]+)[»"]/i.exec(args.text);
   if (go) {

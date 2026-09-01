@@ -12,7 +12,7 @@ import {
   FEEDBACK_MARKERS, FEEDBACK_PROMPT,
 } from '../post-cook.js';
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
-import type { RetailCartAttempt } from './retail.js';
+import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
 
 function today(): string {
   const d = new Date();
@@ -74,6 +74,9 @@ export interface ChatRouteOpts {
   // chat.ts не знає нічого про Сільпо, цифри/крипту/withRetryAuth, тільки
   // «спробуй, скажи як пройшло».
   retailCart?: (user_id: string, household_id: string, explicitItems?: string[]) => Promise<RetailCartAttempt>;
+  // 01.09: «що є в наявності по X» — read-only пошук, той самий принцип
+  // ін'єкції, що retailCart.
+  retailSearch?: (user_id: string, query: string) => Promise<RetailSearchAttempt>;
 }
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
@@ -506,6 +509,40 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       }
       const card_id = await saveTurn(cartReply, card);
       return { reply: cartReply, card, card_id, usage: call.usage, meta: call.meta };
+    }
+
+    // 01.09: «які ще опції в сільпо є по X» — питання про наявність, не
+    // замовлення. Модель маркує намір (query), сервер шукає живцем
+    // (attemptSearch — read-only, жоден addToCart) і сам формує репліку з
+    // реальних даних. Картки нема навмисно: це відповідь-репліка, не дія.
+    if (call.card?.type === 'retail_search_go') {
+      const saveTurn = async (text: string) => {
+        await repo.saveMessage({
+          id: randomUUID(), session_id: session.id, role: 'assistant',
+          text, card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+      };
+      if (!opts.retailSearch) {
+        const msg = 'Пошук у мережі тут ще не підключений.';
+        await saveTurn(msg);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const attempt = await opts.retailSearch(user_id, call.card.query);
+      if (!attempt.ok) {
+        const msg = attempt.error === 'not_connected'
+          ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
+          : 'Сільпо зараз не відповідає — спробуй за хвилину.';
+        await saveTurn(msg);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const products = attempt.products ?? [];
+      const total = attempt.total ?? products.length;
+      const msg = products.length
+        ? `У Сільпо є: ${products.map((p) => `${p.name} · ${Math.round(p.price)}₴`).join(', ')}`
+          + (total > products.length ? ` — і ще ${total - products.length}, показав перші ${products.length}` : '')
+        : `У Сільпо не знайшов нічого по «${call.card.query}».`;
+      await saveTurn(msg);
+      return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
     }
 
     if (call.card?.type === 'cook_go') {

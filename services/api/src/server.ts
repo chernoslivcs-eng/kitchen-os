@@ -67,7 +67,11 @@ export function buildApp(
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);
-  chatRoute(app, repo, store, { rateLimit: opts.rateLimits?.chat, retailCart: retail?.attemptBuildCart });
+  chatRoute(app, repo, store, {
+    rateLimit: opts.rateLimits?.chat,
+    retailCart: retail?.attemptBuildCart,
+    retailSearch: retail?.attemptSearch,
+  });
   cardsRoutes(app, repo);
   attachmentsRoutes(app, repo, store);
 

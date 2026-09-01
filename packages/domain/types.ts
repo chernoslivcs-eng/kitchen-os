@@ -238,7 +238,18 @@ export interface CartGoCard {
   items?: string[];
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard;
+// 01.09: «що є в наявності по X» — питання, не замовлення. НЕ cart_go
+// (нічого не додається в кошик мережі) і НЕ shopping (нічого не додається
+// в список покупок) — людина просто питає, сервер шукає живцем і показує
+// реальні варіанти текстом (reply), без жодної картки. Той самий принцип
+// маркування наміру, що cart_go/cook_go — query дослівно, сервер робить
+// пошук (attemptSearch) і сам будує reply з живих даних.
+export interface RetailSearchGoCard {
+  type: 'retail_search_go';
+  query: string;
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard;
 
 // ----- Стан «на застосуванні» ------
 

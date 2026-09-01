@@ -118,8 +118,20 @@ export interface RetailCartAttempt {
   error?: 'not_connected' | 'empty_list' | 'retail_auth';
 }
 
+// 01.09: «що є в наявності по X» — read-only пошук, не замовлення. products
+// уже пройшли гібридний фільтр категорій і обрізані до 15; total — скільки
+// РЕАЛЬНО релевантних знайшлось (до обрізання), щоб reply міг чесно сказати
+// «і ще N», а не мовчки показати перші 15 як повний список.
+export interface RetailSearchAttempt {
+  ok: boolean;
+  products?: { name: string; price: number }[];
+  total?: number;
+  error?: 'not_connected' | 'retail_auth';
+}
+
 export interface RetailHandle {
   attemptBuildCart(user_id: string, household_id: string, explicitItems?: string[]): Promise<RetailCartAttempt>;
+  attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt>;
 }
 
 export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts): RetailHandle | undefined {
@@ -637,5 +649,49 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     },
   );
 
-  return { attemptBuildCart };
+  // 01.09: «що є в наявності по X» — питання, не замовлення. Read-only:
+  // жоден addToCart тут не викликається, нічого не летить у кошик мережі
+  // й не пишеться в список покупок. Той самий гібридний фільтр категорій,
+  // що альтернативи кошика (crossreference не випадковий — та сама
+  // причина: наївний повнотекстовий пошук Сільпо плутає категорії).
+  async function attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt> {
+    const conn = await repo.getRetailConnection(user_id, 'silpo');
+    if (!conn || conn.status !== 'active') return { ok: false, error: 'not_connected' };
+
+    let candidates: RetailProduct[];
+    try {
+      candidates = await withRetailAuth(conn, async (provider) => {
+        const [row] = await provider.findBatch([query]);
+        return row?.candidates ?? [];
+      });
+    } catch (e) {
+      if (e instanceof RetailAuthError) return { ok: false, error: 'retail_auth' };
+      throw e;
+    }
+
+    const sourceKey = resolveLabelToKey(query);
+    const sourceCategories = sourceKey ? BY_KEY.get(sourceKey)?.categories ?? [] : [];
+    const verdicts: ('keep' | 'reject' | 'unknown')[] = candidates.map((c) => {
+      const candKey = resolveLabelToKey(c.name);
+      if (!candKey) return 'unknown';
+      const candCategories = BY_KEY.get(candKey)?.categories ?? [];
+      return categoriesCompatible(sourceCategories, candCategories) ? 'keep' : 'reject';
+    });
+    const unknownIdx = verdicts.reduce<number[]>((acc, v, i) => (v === 'unknown' ? [...acc, i] : acc), []);
+    const pairs = unknownIdx.map((i) => ({ source: query, candidate: candidates[i]!.name }));
+    const llmKeep = pairs.length ? (await callAltFilter(pairs)).keep : [];
+    const keepSet = new Set<number>();
+    verdicts.forEach((v, i) => { if (v === 'keep') keepSet.add(i); });
+    unknownIdx.forEach((i, j) => { if (llmKeep[j] ?? true) keepSet.add(i); });
+    const kept = candidates.filter((_, i) => keepSet.has(i));
+
+    const SEARCH_CAP = 15;
+    return {
+      ok: true,
+      products: kept.slice(0, SEARCH_CAP).map((c) => ({ name: c.name, price: c.price })),
+      total: kept.length,
+    };
+  }
+
+  return { attemptBuildCart, attemptSearch };
 }
