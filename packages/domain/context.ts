@@ -226,8 +226,14 @@ export function serializePantry(
 
 // QA6-04: без списку в контексті модель у новій сесії казала «порожній» при
 // двох позиціях і додавала дубль за один тап.
+//
+// M13-ROLE-VOICE п.1: порожній список — це ВІДПОВІДЬ, а не відсутність даних.
+// Поки блок зникав, модель не мала куди подивитись (role.md наказує «подивись
+// у блок» і забороняє казати «блок порожній») і добудовувала стан із розмови.
 export function serializeShopping(items: ShoppingItemRow[]): string {
-  if (!items.length) return '';
+  if (!items.length) {
+    return '\n\n[СПИСОК ПОКУПОК] порожній — жодної позиції не записано.';
+  }
   const lines = items.map((i) => {
     const parts = [i.label];
     if (i.value != null && i.unit) parts.push(`${i.value}${i.unit}`);
