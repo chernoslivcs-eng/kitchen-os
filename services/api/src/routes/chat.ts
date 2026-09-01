@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
-import { createPending, applyCard, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
+import { createPending, applyCard, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -14,11 +14,7 @@ import {
 } from '../post-cook.js';
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
 import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
-
-function today(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import { localDay } from '../local-day.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -71,7 +67,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // валідуємо володіння й використовуємо його. Інакше — сесія дня.
     let session = clientSessionId ? await repo.getSession(clientSessionId) : null;
     if (session && session.user_id !== user_id) session = null;
-    if (!session) session = await repo.getOrCreateSessionForDay(user_id, today());
+    if (!session) session = await repo.getOrCreateSessionForDay(user_id, localDay());
 
     if (attachments?.length) {
       const payloads: AttachmentPayload[] = [];
@@ -304,6 +300,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
         history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected,
+        // №4: ситуація рахується сервером із повідомлень сесії — той самий
+        // факт, який досі жив усередині гілки видалення й нікому не казався.
+        modes: detectModes(preMessages, recentCookRuns),
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');

@@ -14,6 +14,7 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted } from './occasions.js';
+import { serializeModes, type KitchenMode } from './modes.js';
 
 export interface RecentCookRunSummary {
   title: string;
@@ -38,6 +39,10 @@ export interface KitchenContext {
   // M13: чи підключена мережа (Сільпо). undefined = інтеграція не
   // сконфігурована на сервері — блок мовчить, модель про неї не знає.
   retailConnected?: boolean;
+  // №4: що зараз відкрито (кошик, свіжий рецепт, неоцінене готування).
+  // Рахує сервер із повідомлень сесії — модель більше не виводить ситуацію
+  // з двадцяти рядків історії.
+  modes?: KitchenMode[];
 }
 
 // M13: без цього блока модель на «замов через сільпо» відповідала categorичною
@@ -367,7 +372,10 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializeNotes(ctx.notes ?? [])
     + serializeEaters(ctx.eaters ?? [])
     + serializeRecentRecipes(ctx.recentRecipes ?? [])
-    + serializeRetail(ctx.retailConnected);
+    + serializeRetail(ctx.retailConnected)
+    // Режим — ОСТАННІМ: це найлетючіше й найдієвіше, що є в контексті, і
+    // читається безпосередньо перед тим, як модель обирає хід.
+    + serializeModes(ctx.modes ?? []);
 }
 
 // Пул-3, pantry-truth: «творча бухгалтерія» — модель брала «500 г» з живої

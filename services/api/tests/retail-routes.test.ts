@@ -9,6 +9,7 @@ import { ConsoleMailer } from '../src/mailer.js';
 import { signIn, type Signed } from './helpers.js';
 import type { RetailReceipt } from '../src/retail/silpo-provider.js';
 import { RetailAuthError } from '../src/retail/silpo-provider.js';
+import { localDay } from '../src/local-day.js';
 
 const RECEIPT: RetailReceipt = {
   shop: 'вул. Київська, буд. 10', city: 'Стоянка', at: '2026-08-23T10:54:48', total: 2644,
@@ -201,7 +202,7 @@ describe('retail routes · silpo', () => {
 
     // Збережене повідомлення несе ту саму картку з source — стрічці є що малювати.
     const messages = await repo.listMessages(
-      (await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10))).id,
+      (await repo.getOrCreateSessionForDay(me.user_id, localDay())).id,
     );
     const msg = messages.find((m) => m.id === c.card_id);
     expect((msg?.card as { source?: { kind?: string } })?.source?.kind).toBe('retail_receipt');
@@ -325,7 +326,7 @@ describe('retail routes · silpo', () => {
     expect(cartAdds).toHaveLength(2);
 
     // Картка лягла в сесію дня — стрічка її покаже.
-    const { id } = await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10));
+    const { id } = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     const msg = (await repo.listMessages(id)).find((m) => m.id === body.card_id);
     expect((msg?.card as { type?: string })?.type).toBe('cart');
   });
@@ -388,7 +389,7 @@ describe('retail routes · silpo', () => {
     expect(patched.found).toBe(1);
     expect(patched.total).toBe(89);
 
-    const { id } = await repo.getOrCreateSessionForDay(me.user_id, new Date().toISOString().slice(0, 10));
+    const { id } = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     const msg = (await repo.listMessages(id)).find((m) => m.id === body.card_id);
     expect((msg?.card as { found?: number })?.found).toBe(1);
   });

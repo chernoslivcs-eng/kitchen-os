@@ -24,6 +24,7 @@ import { makeTokenCipher } from '../retail/crypto.js';
 import { SilpoProvider, RetailAuthError, type RetailFoundRow, type RetailProduct } from '../retail/silpo-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
 import { callAltFilter } from '../model.js';
+import { localDay } from '../local-day.js';
 
 export interface SilpoTokens {
   access_token: string;
@@ -350,7 +351,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       : receipts.filter((rc) => new Date(rc.at).getTime() > watermark);
     if (!fresh.length) return { up_to_date: true, cards: [] };
 
-    const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
+    const session = await repo.getOrCreateSessionForDay(user_id, localDay());
     const cards = [];
     // Старіші першими — у стрічці чеки лягають хронологічно.
     for (const receipt of [...fresh].reverse()) {
@@ -598,7 +599,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     }
     const card = attempt.card!;
     const card_id = randomUUID();
-    const session = await repo.getOrCreateSessionForDay(user_id, new Date().toISOString().slice(0, 10));
+    const session = await repo.getOrCreateSessionForDay(user_id, localDay());
     await repo.saveMessage({
       id: card_id, session_id: session.id, role: 'assistant',
       text: `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`, card, applied: 0,

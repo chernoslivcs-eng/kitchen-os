@@ -6,6 +6,7 @@ import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt }
 import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
 import {
   buildKitchenContext,
+  type KitchenMode,
   extractJson,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
@@ -166,6 +167,9 @@ export interface ChatArgs {
   products?: HouseholdProduct[];
   // M13: чи підключена мережа — гейтить card_go:cart_go в системному промпті.
   retailConnected?: boolean;
+  // №4: що зараз відкрито. Рахує маршрут (він має повідомлення сесії),
+  // модель отримує готовий факт замість виведення з історії.
+  modes?: KitchenMode[];
 }
 
 export interface ChatCall {
@@ -335,6 +339,7 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     recentRecipes: args.recentRecipes,
     products: args.products,
     retailConnected: args.retailConnected,
+    modes: args.modes,
     queryText,
   });
 }
