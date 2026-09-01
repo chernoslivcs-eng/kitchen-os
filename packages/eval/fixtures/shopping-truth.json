@@ -1,0 +1,22 @@
+{
+  "id": "shopping-truth",
+  "description": "M13-ROLE-VOICE п.2/п.1, живий репро 01.09: модель сказала «у тебе зараз два: Pink Tonic і Bitter Lemon», хоча в списку покупок не було жодного тоніка. Обидва тоніки лежали в КОМОРІ (приїхали з чеків Сільпо) — модель приписала позиції з одного стан-блока іншому. Кожен блок відповідає тільки за своє.",
+  "call": "chat",
+  "now": "2026-09-01T19:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"b1","label":"Напій Schweppes Pink Tonic б/алк сил/газ скло","zone":"drinks","v":1,"u":"pcs"},
+    {"id":"b2","label":"Напій Schweppes Original Bitter Lemon сил/газ скло","zone":"drinks","v":1,"u":"pcs"},
+    {"id":"b3","label":"спагеті","zone":"dry","v":500,"u":"g"}
+  ],
+  "shopping": [
+    {"id":"s1","label":"молоко","v":1,"u":"l","checked":false},
+    {"id":"s2","label":"хліб","v":1,"u":"pcs","checked":false}
+  ],
+  "conversation": [
+    { "role": "user", "content": "[18:40] що таке швепс?" },
+    { "role": "assistant", "content": "[18:40] Гіркуватий тонік на хініні — добре йде з джином і сам по собі." },
+    { "role": "user", "content": "[19:00] а що в мене зараз у списку покупок?" }
+  ],
+  "invariants": ["shopping-truth-no-pantry-leak", "no-markdown", "addresses-informally"]
+}

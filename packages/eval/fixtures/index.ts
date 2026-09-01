@@ -133,6 +133,7 @@ export function loadFixtures(): Fixture[] {
     readJson('recipe-edit-keeps-cast.json'),
     readJson('servings-scale.json'),
     readJson('pantry-truth.json'),
+    readJson('shopping-truth.json'),
     readJson('cook-chronology.json'),
     readJson('excluded-then-offered.json'),
     readJson('rescues-fit.json'),

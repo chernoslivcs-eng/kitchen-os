@@ -674,6 +674,18 @@ export const registry: Record<string, Invariant> = {
   },
 
   // UX9-04: [КОМОРА] — єдине джерело правди про стан; історія — події.
+  // M13-ROLE-VOICE: тоніки лежать у КОМОРІ (приїхали з чеків), у списку —
+  // молоко й хліб. Питання саме про список. Назвати тоніки тут означає
+  // приписати позиції одного стан-блока іншому — той самий живий баг 01.09.
+  'shopping-truth-no-pantry-leak': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    if (/tonic|швепс|schweppes|bitter lemon/.test(reply)) {
+      return fail('назвала тоніки з [КОМОРА] як вміст списку покупок');
+    }
+    if (!/молок|хліб/.test(reply)) return fail('не назвала те, що справді в списку (молоко, хліб)');
+    return pass();
+  },
+
   'pantry-truth-100': (out) => {
     const reply = String(out.reply ?? '');
     if (/500/.test(reply)) return fail('назвала 500 г з історії — блок каже 100');
