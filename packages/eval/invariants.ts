@@ -686,6 +686,19 @@ export const registry: Record<string, Invariant> = {
     return pass();
   },
 
+  // №4: кошик відкритий (блок [РЕЖИМ]), «додай колу» → розширення кошика.
+  // Головна помилка, яку ловимо, — shopping: саме так система поводилась,
+  // поки модель не знала ситуації (живий репро M13 п.3).
+  'cart-extend-not-shopping': (out) => {
+    const t = out.card?.type;
+    if (t === 'shopping') return fail('повела в список покупок замість розширити відкритий кошик');
+    if (t !== 'cart_go') return fail(`очікували cart_go, отримали ${t ?? 'нічого'}`);
+    const items = (out.card as { items?: string[] }).items ?? [];
+    if (!items.length) return fail('cart_go без items — це перезбирання, а не розширення');
+    if (!items.some((i) => /кол/i.test(i))) return fail('у items немає коли');
+    return pass();
+  },
+
   'pantry-truth-100': (out) => {
     const reply = String(out.reply ?? '');
     if (/500/.test(reply)) return fail('назвала 500 г з історії — блок каже 100');

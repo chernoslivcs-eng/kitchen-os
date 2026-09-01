@@ -33,6 +33,9 @@ export interface ChatRouteOpts {
   // 01.09: «що є в наявності по X» — read-only пошук, той самий принцип
   // ін'єкції, що retailCart.
   retailSearch?: (user_id: string, query: string) => Promise<RetailSearchAttempt>;
+  // №4: «додай X» при відкритому кошику — дописати рядок у ТУ САМУ картку,
+  // а не перезбирати кошик і не підміняти його однією позицією.
+  retailCartExtend?: (user_id: string, card_id: string, items: string[]) => Promise<RetailCartAttempt>;
 }
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
@@ -282,6 +285,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       retailConnected = !!conn && conn.status === 'active' && new Date(conn.expires_at).getTime() > Date.now();
     }
 
+    // №4: ситуація рахується сервером із повідомлень сесії — той самий факт,
+    // який досі жив усередині гілки видалення й нікому не казався.
+    const modes = detectModes(preMessages, recentCookRuns);
+    const openCart = modes.find((m) => m.kind === 'cart_open');
+
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
     // «у тебе немає покупок на початку», хоча вони були за межею вікна. Кажемо прямо.
@@ -302,7 +310,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
-        modes: detectModes(preMessages, recentCookRuns),
+        modes,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');
@@ -405,6 +413,21 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         });
         return card ? id : null;
       };
+      // Відкритий кошик + названі позиції = РОЗШИРЕННЯ. Без items («збери
+      // кошик», «замов список») — перезбирання, як раніше: людина просить
+      // саме зібрати заново.
+      if (openCart?.ref && call.card.items?.length && opts.retailCartExtend) {
+        const ext = await opts.retailCartExtend(user_id, openCart.ref, call.card.items);
+        if (ext.ok && ext.card) {
+          const reply = call.reply || `Додав. У кошику ${ext.card.found} позицій на ${ext.card.total} ₴.`;
+          await repo.saveMessage({
+            id: randomUUID(), session_id: session.id, role: 'assistant',
+            text: reply, card: null, applied: 0, created_at: new Date().toISOString(),
+          });
+          return { reply, card: ext.card, card_id: openCart.ref, usage: call.usage, meta: call.meta };
+        }
+        // Не вийшло — падаємо у звичайне збирання нижче, а не мовчимо.
+      }
       if (!opts.retailCart) {
         const msg = 'Замовлення через мережу тут ще не підключене.';
         await saveTurn(msg, null);

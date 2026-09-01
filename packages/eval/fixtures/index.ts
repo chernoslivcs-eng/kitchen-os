@@ -21,6 +21,8 @@ export interface Fixture {
   notes?: unknown[];
   eaters?: unknown[];
   recentRecipes?: unknown[];
+  // №4: що відкрито зараз — кошик, свіжий рецепт, неоцінене готування.
+  modes?: unknown[];
   recentCookRuns?: unknown[];
   now?: string;               // фіксована дата — інакше календарні фікстури живуть один день
   // recipe_gen: user-хід генерації — назва страви (+ опційний edit-контекст),
@@ -134,6 +136,7 @@ export function loadFixtures(): Fixture[] {
     readJson('servings-scale.json'),
     readJson('pantry-truth.json'),
     readJson('shopping-truth.json'),
+    readJson('cart-extend-mode.json'),
     readJson('cook-chronology.json'),
     readJson('excluded-then-offered.json'),
     readJson('rescues-fit.json'),
