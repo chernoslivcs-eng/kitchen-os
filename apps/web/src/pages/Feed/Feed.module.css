@@ -928,6 +928,22 @@
   to   { background: var(--bg-surface-2); }
 }
 
+/* M13: рядок чека/кошика щойно змінив стан руками людини (додала «зі свого»,
+   прийняла заміну) — той самий принцип, менший масштаб: рядок, не картка. */
+.row-changed { animation: row-changed-flash var(--dur-base, 250ms) var(--ease-standard, ease); }
+@keyframes row-changed-flash {
+  from { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  to   { background: transparent; }
+}
+.row-text-in { animation: row-text-in var(--dur-base, 250ms) var(--ease-enter, ease); }
+@keyframes row-text-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-changed, .row-text-in { animation-duration: 1ms; }
+}
+
 /* Пул-7 №4: розбір вкладення — спінер з текстом дії, не «думаю»-крапки. */
 .parse-spinner {
   width: 16px;

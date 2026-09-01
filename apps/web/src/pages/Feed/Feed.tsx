@@ -44,6 +44,11 @@ interface Turn {
   fresh?: boolean;
   // Пул-7 №4: щойно застосована — картка спалахує шавлією 700ms.
   justApplied?: boolean;
+  // M13 (канвас М6): «список щойно поповнився рецептом» — Кухня пропонує
+  // зібрати кошик реплікою. Ephemeral: не персиститься на сервер, живе
+  // тільки в цій сесії стрічки (як toast) — старий хід при F5 не воскресає.
+  cartNudge?: boolean;
+  cartNudgeBusy?: boolean;
 }
 
 // Фрази для стрімінг-подачі: розріз по кінцях речень, коротке лишається цілим.
@@ -100,6 +105,13 @@ export function Feed() {
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
+  // M13 (канвас М6): чи можна пропонувати «зібрати кошик» — мережа активна.
+  // cartNudgeShown — раз за сесію стрічки, не на кожен доданий інгредієнт.
+  const [retailActive, setRetailActive] = useState(false);
+  const cartNudgeShown = useRef(false);
+  // shoppingCount у стейті застарілий одразу після await refreshCounts()
+  // (React ще не перерендерив) — ref синхронізується в тому ж місці.
+  const shoppingCountRef = useRef(0);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   // DA-02: дев'ять секунд тиші на кожну відповідь моделі. Кіт: три крапки зі
@@ -192,9 +204,49 @@ export function Feed() {
     try {
       await api.shopping.add(label, v, u, `для: ${forDish}`);
       await refreshCounts();
+      maybeNudgeCart();
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     }
+  }
+
+  // M13 (канвас М6): «список щойно поповнився рецептом» — Кухня пропонує
+  // зібрати кошик реплікою, а не постійним блоком («інформація — репліка»).
+  // Раз за сесію стрічки (ref, не sessionStorage — навмисно: новий візит у
+  // стрічку може знову мати сенс нагадати, на відміну від синку чеків).
+  function maybeNudgeCart() {
+    const count = shoppingCountRef.current;
+    if (cartNudgeShown.current || !retailActive || count <= 0) return;
+    cartNudgeShown.current = true;
+    setTurns((prev) => [...prev, {
+      id: newId(), role: 'assistant',
+      time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+      text: `У списку ${count} ${plural(count, ['позиція', 'позиції', 'позицій'])}, Сільпо підключено. Зібрати кошик — гляну ціни й наявність?`,
+      cartNudge: true, fresh: true,
+    }]);
+  }
+
+  async function acceptCartNudge(turnId: string) {
+    setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, cartNudgeBusy: true } : t));
+    try {
+      const r = await api.retail.buildCart();
+      setTurns((prev) => [
+        ...prev.map((t) => t.id === turnId ? { ...t, cartNudge: false, cartNudgeBusy: false } : t),
+        {
+          id: newId(), role: 'assistant',
+          time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+          text: `Кошик у Сільпо: знайшов ${r.card.found} з ${r.card.of}`,
+          card: r.card, cardId: r.card_id, fresh: true,
+        },
+      ]);
+    } catch (err) {
+      setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, cartNudgeBusy: false } : t));
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+  function dismissCartNudge(turnId: string) {
+    setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, cartNudge: false } : t));
   }
 
     async function saveRecipeForLater(recipe_id: string) {
@@ -256,6 +308,7 @@ export function Feed() {
       setBatchLabels(new Map(p.batches.map((b) => [b.id, b.label])));
       setStepLabels(stepLabelsFrom(p.batches, p.products));
       setShoppingCount(s.count);
+      shoppingCountRef.current = s.count;
       // Догоряння: беремо активні партії з expires_at ≤ 3 днів. Показуємо 3 перших.
       // Це «підказка одним рядком», не панель — юзер може її ігнорувати або тапнути,
       // щоб модель сама запропонувала, що з ними зробити.
@@ -287,6 +340,10 @@ export function Feed() {
   }
 
   useEffect(() => { void refreshCounts(); }, []);
+  // M13: чи підключена мережа — гейтить репліку «зібрати кошик?» нижче.
+  useEffect(() => {
+    void api.retail.status().then((r) => setRetailActive(r.silpo.status === 'active')).catch(() => {});
+  }, []);
 
   // UX9-15: застарілі лічильники другого вікна — перечитуємо на фокусі.
   useEffect(() => {
@@ -321,6 +378,28 @@ export function Feed() {
         activate(session.id);
         setTurns(messages.map((m) => messageToTurn(m)));
       } catch {/* offline: залишаємо порожню стрічку */}
+      // M13: тихий синк чеків при відкритті стрічки. Не частіше ніж раз на
+      // 10 хв (sessionStorage), 409 «не підключено» — мовчазний no-op:
+      // «інформація — репліка», порожній синк не породжує жодного UI.
+      try {
+        const last = Number(sessionStorage.getItem('kos_retail_sync_at') ?? 0);
+        if (Date.now() - last < 10 * 60_000) return;
+        sessionStorage.setItem('kos_retail_sync_at', String(Date.now()));
+        const sync = await api.retail.syncReceipts();
+        if (!sync.cards.length) return;
+        // Нові картки — свіжими ходами в кінець стрічки, з живим undo.
+        setTurns((prev) => [
+          ...prev,
+          ...sync.cards.map((c): Turn => ({
+            id: newId(), role: 'assistant',
+            time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+            text: c.text,
+            card: c.card, cardId: c.card_id,
+            applied: c.auto_applied, undoToken: c.undo_token,
+            fresh: true, justApplied: c.auto_applied,
+          })),
+        ]);
+      } catch {/* не підключено / мережа — стрічка живе як жила */}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -560,7 +639,7 @@ export function Feed() {
       setToast({
         id: Date.now(),
         kind: 'ok',
-        text: turn.card ? appliedToast(turn.card) : 'Готово',
+        text: turn.card ? appliedToast(turn.card, r.applied) : 'Готово',
         onUndo: () => undo(turnId, r.undo_token),
       });
     } catch (err) {
@@ -874,12 +953,23 @@ export function Feed() {
                 НЕ НАДІСЛАЛОСЬ · ↻ ПОВТОРИТИ
               </button>
             )}
+            {t.cartNudge && (
+              <div style={{ display: 'flex', gap: 10, paddingTop: 2 }}>
+                <Button variant="primary" onClick={() => void acceptCartNudge(t.id)} loading={t.cartNudgeBusy}>
+                  Зібрати
+                </Button>
+                <Button variant="secondary" onClick={() => dismissCartNudge(t.id)} disabled={t.cartNudgeBusy}>
+                  Не зараз
+                </Button>
+              </div>
+            )}
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
               <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''}`}>
               <Card
                 card={t.card}
+                cardId={t.cardId ?? undefined}
                 applied={t.applied}
                 applying={t.applying}
                 dismissed={t.dismissed}

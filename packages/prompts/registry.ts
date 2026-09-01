@@ -21,7 +21,8 @@ const VERSIONS_DIR = resolve(HERE, 'versions');
 export type CallName =
   | 'chat'
   | 'recipe_gen'
-  | 'attachment_parse';
+  | 'attachment_parse'
+  | 'alt_filter';
 
 export interface CallSpec {
   // `profile` — ЄДИНЕ джерело того, яка модель обслуговує виклик. Раніше

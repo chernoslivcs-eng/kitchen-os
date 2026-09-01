@@ -17,6 +17,12 @@
       "profile": "fast",
       "temperature": 0,
       "compose": ["role", "attachment-parser"]
+    },
+    "alt_filter": {
+      "profile": "fast",
+      "temperature": 0,
+      "compose": ["alt-filter"],
+      "notes": "01.09: фільтр альтернатив кошика Сільпо — вузька структурована класифікація (keep/reject пар запит/кандидат), без ролі кухаря — вона тільки б заважала."
     }
   }
 }

@@ -3,7 +3,7 @@ import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js'
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
-  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
+  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow, Card,
   SessionRow, MessageRow, MemoryNote, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
@@ -28,6 +28,7 @@ export class InMemoryRepo implements Repo {
   private invites = new Map<string, HouseholdInvite>();          // by id
   private inviteByHash = new Map<string, string>();              // token_hash → id
   private shopping = new Map<string, ShoppingItemRow>();          // by id
+  private retail = new Map<string, RetailConnectionRow>();        // `${user_id}:${provider}`
   private recipes = new Map<string, RecipeRow>();
   private cookRuns = new Map<string, CookRunRow>();
   private chatSessions = new Map<string, SessionRow>();
@@ -426,6 +427,13 @@ export class InMemoryRepo implements Repo {
     }
   }
 
+  async updateMessageCard(id: string, card: Card): Promise<void> {
+    for (const arr of this.messages.values()) {
+      const m = arr.find((x) => x.id === id);
+      if (m) { m.card = card; return; }
+    }
+  }
+
   async saveRecipe(recipe: RecipeRow): Promise<void> {
     this.recipes.set(recipe.id, { ...recipe });
   }
@@ -514,6 +522,17 @@ export class InMemoryRepo implements Repo {
       if (it.household_id === household_id && it.label.toLowerCase() === label.toLowerCase()) return it;
     }
     return null;
+  }
+
+  async upsertRetailConnection(c: RetailConnectionRow): Promise<void> {
+    this.retail.set(`${c.user_id}:${c.provider}`, { ...c });
+  }
+  async getRetailConnection(user_id: string, provider: string): Promise<RetailConnectionRow | null> {
+    const c = this.retail.get(`${user_id}:${provider}`);
+    return c ? { ...c } : null;
+  }
+  async deleteRetailConnection(user_id: string, provider: string): Promise<void> {
+    this.retail.delete(`${user_id}:${provider}`);
   }
 
   async isMember(household_id: string, user_id: string): Promise<boolean> {

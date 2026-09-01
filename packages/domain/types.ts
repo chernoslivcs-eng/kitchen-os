@@ -48,9 +48,30 @@ export type IntakeOp =
   // лактози») — мердж, не заміна; редагування тегів існує ТІЛЬКИ цим шляхом.
   | { op: 'correct'; label: string; value?: number; unit?: Unit; zone?: Zone; tags?: import('./product.js').ProductTags };
 
+// M13: рядок чека, який НЕ став op'ом — сірий «додати руками» (unmatched)
+// або згорнутий «не для комори» (nonfood). Живе в source картки, щоб стрічка
+// малювала канон М2 і після перезавантаження, не лише з відповіді синку.
+export interface ReceiptLeftover {
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  image: string | null;
+}
+
 export interface IntakeCard {
   type: 'intake_diff';
   ops: IntakeOp[];
+  // Джерело-чек (M13). Відсутнє — звичайна intake-картка; apply/undo однакові.
+  source?: {
+    kind: 'retail_receipt';
+    provider: string;
+    shop: string;
+    at: string;
+    total: number;
+    nonfood: ReceiptLeftover[];
+    unmatched: ReceiptLeftover[];
+  };
 }
 
 export interface ProposalCard {
@@ -166,7 +187,81 @@ export interface CookGoCard {
   title: string;         // назва обраної страви — дослівно з пропозиції
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard;
+// M13 зріз 3: картка «Кошик у Сільпо» (канвас М3). НЕ підтверджувальна:
+// apply/undo не мають сенсу — кошик уже зібраний у мережі, CTA веде назовні.
+// Два імені однієї речі: label — як людина писала в список, product.name —
+// «паспортна» назва мережі.
+export interface CartCardRow {
+  label: string;
+  item_id: string | null;
+  v: number | null;
+  u: string | null;
+  // 01.09 картка v2: product_id/company_id/branch_id — щоб степер міг
+  // пізніше змінити кількість (cart-update-qty) без повторного пошуку.
+  // package_ml — розпізнаний обсяг упаковки (мл), тільки для НЕ вагових
+  // товарів, де назва містить впізнаваний об'єм («0,33 л», «500 мл»).
+  // null — не вдалось розпізнати (штучний товар без обсягу, чи формат
+  // назви незнайомий); тоді товар — кількісне, не обсягове. Разом з `v`/`u`
+  // рядка (заявлений обсяг зі списку покупок) дає видиму математику
+  // «× 0,33 л ≈ 0,99 л» замість мовчазного «1 шт».
+  product: {
+    product_id: string; company_id: string; branch_id: string;
+    name: string; price: number; weighted: boolean; quantity: number;
+    package_ml: number | null;
+  } | null;
+  // 01.09 рівень 1: інші знайдені варіанти по тому самому пошуку (Сільпо й
+  // так їх повертає — раніше просто відкидались). Значення поля залежить
+  // від того, чи product заповнений:
+  // - product є (хіт) — це ІНФОРМАЦІЙНИЙ перелік («ще є: X, Y»), без тапу:
+  //   товар уже поїхав у кошик мережі, а наша інтеграція вміє тільки
+  //   addToCart, не видалення — тап-заміна залишила б задвоєння.
+  // - product нема (проміс) — це кнопки «замінити» (тап → cart-swap,
+  //   alt_index — індекс у цьому масиві); нічого ще не додано в кошик,
+  //   тому заміна безпечна.
+  alternatives?: {
+    product_id: string; company_id: string; branch_id: string;
+    name: string; price: number; weighted: boolean; quantity: number;
+  }[];
+}
+
+export interface CartCard {
+  type: 'cart';
+  provider: string;
+  list_label: string | null;
+  rows: CartCardRow[];
+  total: number;
+  found: number;
+  of: number;
+  cart_url: string;
+}
+
+// M13: «людина явно попросила оформити список через мережу» — той самий
+// принцип, що CookGoCard («страва обрана»): модель лише МАРКУЄ намір,
+// сервер сам виконує (attemptBuildCart) і підміняє картку на справжній
+// CartCard. Без полів — сервер бере активну мережу й поточний список сам.
+// items — 01.09: людина назвала конкретні позиції з розмови (напр. з чека),
+// яких ще нема в персистованому списку покупок («замов лосось і рис» тоді,
+// коли в списку лежить тільки кунжут). Модель вказує лейбли дослівно —
+// вільний текст, як shopping.items, а не id (позицій ще нема в базі,
+// вказати ідентифікатором нічим). Порожньо/відсутнє — сервер бере активний
+// список цілком, як і раніше.
+export interface CartGoCard {
+  type: 'cart_go';
+  items?: string[];
+}
+
+// 01.09: «що є в наявності по X» — питання, не замовлення. НЕ cart_go
+// (нічого не додається в кошик мережі) і НЕ shopping (нічого не додається
+// в список покупок) — людина просто питає, сервер шукає живцем і показує
+// реальні варіанти текстом (reply), без жодної картки. Той самий принцип
+// маркування наміру, що cart_go/cook_go — query дослівно, сервер робить
+// пошук (attemptSearch) і сам будує reply з живих даних.
+export interface RetailSearchGoCard {
+  type: 'retail_search_go';
+  query: string;
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard;
 
 // ----- Стан «на застосуванні» ------
 
@@ -190,7 +285,11 @@ export interface UndoSnapshot {
   before: {
     created_batch_ids?: string[];       // add: створені партії — видалити при undo
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
-    removed_shopping_ids?: string[];    // shopping remove: повернути назад (потрібне окреме сховище — пізніше)
+    // M13 01.09: auto-apply shopping зробив undo remove живим шляхом (раніше
+    // requires-click ховав цю дірку) — повний рядок, не тільки id, той самий
+    // патерн, що removed_eaters нижче: видалений рядок треба ВІДТВОРИТИ, id
+    // саме по собі для цього не досить.
+    removed_shopping_items?: ShoppingItemRow[];
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     checked_shopping_ids?: string[];    // UX9-27: intake add відмітив куплене — undo знімає галочку
     profile_before?: Profile;           // profile: повернути весь блок
@@ -316,6 +415,26 @@ export interface CookRunRow {
 
 export interface CookRunWithRecipe extends CookRunRow {
   recipe: RecipeRow;
+}
+
+// M13: підключення мережі (Сільпо перша, не єдина). Токени сюди приходять
+// уже зашифрованими (AES-GCM в API-шарі) — домен і БД бачать тільки шифротекст.
+// Один рядок на пару (user_id, provider); повторний upsert перезаписує.
+// status='disconnected' — мʼяке відключення (тост «Повернути ↩» з дизайн-канону):
+// токен ще живий у рядку, undo повертає 'active' без нового OAuth.
+export interface RetailConnectionRow {
+  id: string;
+  user_id: string;
+  provider: string;
+  access_token_enc: string;
+  refresh_token_enc: string | null;
+  expires_at: string;
+  status: 'active' | 'disconnected';
+  connected_at: string;
+  updated_at: string;
+  // Водяний знак «чеки → комора»: найновіший createdAt імпортованого чека.
+  // Синк бере тільки новіші — повторний виклик не дублює партії.
+  last_receipt_at: string | null;
 }
 
 export interface ShoppingItemRow {

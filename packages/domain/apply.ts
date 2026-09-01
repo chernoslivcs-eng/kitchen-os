@@ -82,7 +82,12 @@ export async function applyCard(
 
   // Кожен тип картки має власний обробник і власний знімок для undo.
   if (card.type === 'intake_diff') {
-    const chosen = selected.length ? selected : card.ops.map((_, i) => i);
+    // Захист від малформленої картки моделі (живий репро 01.09: shopping
+    // прийшла з ops замість items) — `?? []` тут і на трьох інших типах
+    // нижче: клік «Застосувати» на такій картці деградує до «0 застосовано»,
+    // а не 500. TS думає card.ops завжди масив — жива відповідь моделі цю
+    // гарантію не тримає.
+    const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
     const snapshot: UndoSnapshot = { kind: 'intake_diff', before: { created_batch_ids: [], modified_batches: [], checked_shopping_ids: [] } };
     for (const idx of chosen) {
       const op = card.ops[idx];
@@ -116,8 +121,8 @@ export async function applyCard(
   }
 
   if (card.type === 'shopping') {
-    const chosen = selected.length ? selected : card.items.map((_, i) => i);
-    const snapshot: UndoSnapshot = { kind: 'shopping', before: { added_shopping_ids: [], removed_shopping_ids: [] } };
+    const chosen = selected.length ? selected : (card.items ?? []).map((_, i) => i);
+    const snapshot: UndoSnapshot = { kind: 'shopping', before: { added_shopping_ids: [], removed_shopping_items: [] } };
     for (const idx of chosen) {
       const item = card.items[idx];
       if (!item) continue;
@@ -135,7 +140,7 @@ export async function applyCard(
   }
 
   if (card.type === 'profile') {
-    const chosen = selected.length ? selected : card.ops.map((_, i) => i);
+    const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
     const before = await repo.getProfile(actor_user_id);
     // QA4-04: {...before} — поверхнева копія, next.allergies це ТОЙ САМИЙ масив,
     // що before.allergies. applyProfileOp робить push і мутує масив, на який
@@ -277,6 +282,27 @@ function normalizeUnit(value: number | undefined | null, unit: string | undefine
   // Невідома одиниця — value лишаємо як міру-без-одиниці немає сенсу, ставимо null.
   // Це рідкий випадок; якщо стане частим — розширимо словник, а не check constraint.
   return { value: null, unit: null };
+}
+
+// 01.09 живий репро: «Кроненбург 0.5 давай до замовлення» лягло в shopping-
+// картку як { label: "Пиво Kronenbourg 0.5 л", v: null, u: null } — модель
+// не витягла кількість у v/u, впаяла її текстом у саму назву. label потім
+// іде БУКВАЛЬНИМ пошуковим запитом до Сільпо (retail.ts findBatch) — «0.5 л»
+// не входить у жодну реальну назву товару, тому чесний товар не знаходиться,
+// хоча чистий запит без хвоста його знаходить. Страхуємось тут, на вставці:
+// якщо v/u НЕ прийшли з картки окремо, а в кінці label є «ЧИСЛО ОДИНИЦЯ» —
+// переносимо в v/u (тим самим normalizeUnit), відрізаємо хвіст від label.
+// Якщо v/u вже прийшли з картки — label не займаємо, навіть якщо там теж
+// випадково є число-одиниця (могло бути частиною реальної назви SKU).
+const TRAILING_QTY = /\s+(\d+(?:[.,]\d+)?)\s*(л|мл|кг|г|шт)\.?\s*$/i;
+
+function extractTrailingQuantity(label: string): { label: string; value: number | null; unit: Unit | null } {
+  const m = label.match(TRAILING_QTY);
+  if (!m) return { label, value: null, unit: null };
+  const rawValue = parseFloat(m[1]!.replace(',', '.'));
+  const { value, unit } = normalizeUnit(rawValue, m[2]);
+  if (value == null || unit == null) return { label, value: null, unit: null };
+  return { label: label.slice(0, m.index).trim(), value, unit };
 }
 
 async function applyIntakeOp(
@@ -425,21 +451,28 @@ async function applyShoppingOp(
     const existing = await repo.findShoppingItemByLabel(household_id, item.label);
     if (existing) {
       await repo.deleteShoppingItem(existing.id);
-      snap.before.removed_shopping_ids ??= [];
-      snap.before.removed_shopping_ids.push(existing.id);
+      // Повний рядок, не тільки id — після delete рядка вже нема в БД,
+      // undo мусить його ВІДТВОРИТИ, не просто «знати, що він був».
+      snap.before.removed_shopping_items ??= [];
+      snap.before.removed_shopping_items.push(existing);
     }
     return;
   }
-  // Дефолт — add. Якщо вже є з тим самим label — не дублюємо.
-  const existing = await repo.findShoppingItemByLabel(household_id, item.label);
+  // Дефолт — add. v/u не прийшли окремо — перевіряємо, чи кількість не
+  // впаялась текстом у хвіст label (живий репро «Kronenbourg 0.5 л»).
+  const extracted = item.v == null && item.u == null
+    ? extractTrailingQuantity(item.label)
+    : { label: item.label, value: item.v ?? null, unit: item.u ?? null };
+  // Якщо вже є з тим самим (очищеним) label — не дублюємо.
+  const existing = await repo.findShoppingItemByLabel(household_id, extracted.label);
   if (existing) return;
   const id = randomUUID();
   await repo.insertShoppingItem({
     id, household_id,
-    label: item.label,
+    label: extracted.label,
     reason: item.note ?? null,
-    value: item.v ?? null,
-    unit: item.u ?? null,
+    value: extracted.value,
+    unit: extracted.unit,
     zone: null,
     checked: false,
     added_by: actor,
@@ -592,11 +625,15 @@ export async function undoCard(
   for (const b of snap.before.modified_batches ?? []) {
     await repo.updateBatch(b.id, b);
   }
-  // Shopping: додані ідуть на видалення. Видалені лишаються видаленими —
-  // ми не тримаємо їх «повного тіла» на цьому кроці. Це прийнятне спрощення
-  // для MVP: undo після «прибери X» не поверне X назад.
+  // Shopping: додані ідуть на видалення.
   for (const id of snap.before.added_shopping_ids ?? []) {
     await repo.deleteShoppingItem(id);
+  }
+  // M13 01.09: видалені відтворюються повним рядком (той самий id — знову
+  // тим самим рецептом, що removed_eaters нижче). auto-apply зробив цей
+  // шлях живим щодня, тому «undo не повертає X» більше не прийнятне.
+  for (const row of snap.before.removed_shopping_items ?? []) {
+    await repo.insertShoppingItem(row);
   }
   // UX9-27: intake відмітив куплене — undo повертає галочку назад.
   for (const id of snap.before.checked_shopping_ids ?? []) {

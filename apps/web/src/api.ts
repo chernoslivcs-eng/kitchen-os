@@ -100,10 +100,57 @@ export interface PantryList {
   products?: HouseholdProduct[];
 }
 
+// M13: рядок чека поза коморою — сірий «додати руками» або «не для комори».
+export interface ReceiptLeftover {
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  image: string | null;
+}
+
+// M13: intake-картка з чека мережі несе джерело — стрічка малює канон М2.
+export interface ReceiptSource {
+  kind: 'retail_receipt';
+  provider: string;
+  shop: string;
+  at: string;
+  total: number;
+  nonfood: ReceiptLeftover[];
+  unmatched: ReceiptLeftover[];
+}
+
+// M13 зріз 3: рядок картки кошика — два імені однієї речі.
+export interface CartRow {
+  label: string;
+  item_id: string | null;
+  v: number | null;
+  u: string | null;
+  // 01.09 картка v2: product_id/company_id/branch_id — щоб степер міг
+  // змінити кількість (cart-update-qty). package_ml — обсяг упаковки з
+  // назви товару («0,33 л» → 330), null коли не розпізнано чи вагове —
+  // разом з v/u рядка дає видиму математику «× 0,33 л ≈ 0,99 л».
+  product: {
+    product_id: string; company_id: string; branch_id: string;
+    name: string; price: number; weighted: boolean; quantity: number;
+    package_ml: number | null;
+  } | null;
+  // 01.09 рівень 1: інші варіанти того самого пошуку. Хіт — інформаційно
+  // («ще є: …», без тапу); проміс — кнопки «замінити» (в кошик їде тільки
+  // тапом, index у масиві = alt_index для /cart-swap).
+  alternatives?: { name: string; price: number; weighted: boolean; quantity: number }[];
+}
+
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart';
   ops?: unknown[];
   items?: unknown[];
+  source?: ReceiptSource;              // intake_diff з чека мережі (M13)
+  rows?: CartRow[];                    // cart (M13): позиції з цінами
+  total?: number;                      // cart: сума знайденого
+  found?: number;                      // cart: скільки реально поїде
+  of?: number;                         // cart: скільки було в списку
+  cart_url?: string;                   // cart: «Оформити в Сільпо ↗»
   recipe?: Recipe;                     // тільки для type: 'recipe' — імпорт із вкладення
   run_id?: string;                     // cook_photo
   recipe_id?: string;                  // recipe_link
@@ -140,6 +187,49 @@ export const api = {
   },
 
   me: () => req<Me>('/v1/me'),
+
+  // M13 «Мережі»: стан підключення і синк чеків. connect — не fetch, а
+  // навігація на /v1/retail/silpo/connect (OAuth-редирект наскрізь браузером).
+  retail: {
+    status: () => req<{
+      silpo: {
+        status: 'unavailable' | 'none' | 'active' | 'expired' | 'disconnected';
+        connected_at?: string;
+        expires_at?: string;
+        last_receipt_at?: string | null;
+      };
+    }>('/v1/retail'),
+    disconnect: () => req<{ status: string }>('/v1/retail/silpo/disconnect', { method: 'POST', body: '{}' }),
+    reconnect: () => req<{ status: string }>('/v1/retail/silpo/reconnect', { method: 'POST', body: '{}' }),
+    buildCart: () => req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/build-cart', { method: 'POST', body: '{}' }),
+    cartSwap: (card_id: string, row_index: number, alt_index: number) =>
+      req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-swap', {
+        method: 'POST', body: JSON.stringify({ card_id, row_index, alt_index }),
+      }),
+    // 01.09: додає альтернативу ОКРЕМИМ рядком (не заміна) — «побачив
+    // банановий Швепс серед альтернатив, хочу і його теж».
+    cartAddAlt: (card_id: string, row_index: number, alt_index: number) =>
+      req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-add-alt', {
+        method: 'POST', body: JSON.stringify({ card_id, row_index, alt_index }),
+      }),
+    // 01.09 картка v2: степер кількості на рядку — сервер округлює за типом
+    // (вагове/кількісне/обсягове), оновлює живий кошик Сільпо, рахує total.
+    cartUpdateQty: (card_id: string, row_index: number, quantity: number) =>
+      req<{ card: ChatCard; card_id: string }>('/v1/retail/silpo/cart-update-qty', {
+        method: 'POST', body: JSON.stringify({ card_id, row_index, quantity }),
+      }),
+    syncReceipts: () => req<{
+      up_to_date: boolean;
+      cards: Array<{
+        card: ChatCard;
+        card_id: string;
+        text: string;
+        auto_applied: boolean;
+        undo_token?: string;
+        receipt: { shop: string; city: string; at: string; total: number };
+      }>;
+    }>('/v1/retail/silpo/sync-receipts', { method: 'POST', body: '{}' }),
+  },
   // Пул-5 №1: повне видалення акаунта з причиною (опитувальник виходу).
   deleteAccount: (reason: string, comment?: string) =>
     req<null>('/v1/me', {
@@ -184,6 +274,13 @@ export const api = {
       req<{ undone: boolean; already: boolean }>(
         `/v1/cards/${id}/undo`,
         { method: 'POST', body: JSON.stringify({ undo_token }) },
+      ),
+    // 01.09 картка v2: «уточнити» на невпізнаному рядку чека — переносить
+    // його з source.unmatched у ops (той самий список, той самий чекбокс).
+    clarifyLine: (id: string, unmatched_index: number, value: number, unit: string) =>
+      req<{ card: ChatCard }>(
+        `/v1/cards/${id}/clarify-line`,
+        { method: 'POST', body: JSON.stringify({ unmatched_index, value, unit }) },
       ),
   },
 

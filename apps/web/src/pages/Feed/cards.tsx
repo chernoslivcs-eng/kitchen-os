@@ -4,10 +4,11 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ChatCard, Recipe } from '../../api';
+import { api, type ChatCard, type Recipe, type ReceiptLeftover } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import { formatQty } from '../../lib/units';
+import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
+import { formatQty, formatUnit } from '../../lib/units';
 import { renderStepContent, scaleRecipe } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
@@ -71,6 +72,8 @@ type ProfileItem = {
 
 export interface CardProps {
   card: ChatCard;
+  // M13: cart-swap правиться на сервері за id повідомлення-картки.
+  cardId?: string;
   applied?: boolean;
   applying?: boolean;
   dismissed?: boolean;
@@ -110,10 +113,89 @@ function stateClass(applied?: boolean, undone?: boolean): string {
 
 // ----- Intake --------------------------------------------------------------
 
-export function IntakeCard({ card, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
+// M13, канон М2: шапка-джерело чека. Дати як у канвасі — «23.08».
+function receiptDate(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// 01.09 картка v2: невпізнаний рядок чека — «уточнити» розкриває степер +
+// одиницю ПРЯМО на місці (без переходу в інший потік). «ок» переносить
+// рядок у card.ops тим самим шляхом, що впізнане каталогом — рахується в
+// те саме «Застосувати N», не окремий «додати руками».
+function ClarifyRow({
+  line, cardId, index, onClarified,
+}: { line: ReceiptLeftover; cardId?: string; index: number; onClarified: (card: ChatCard) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(Math.max(1, Math.round(line.quantity)));
+  const [busy, setBusy] = useState(false);
+  if (!editing) {
+    return (
+      <div className={styles.op}>
+        <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>?</span>
+        <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>«{line.name}»</span>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          style={{
+            border: '1px solid var(--border)', background: 'none', borderRadius: 999,
+            padding: '4px 10px', color: 'var(--fg-dim)', fontFamily: 'var(--font-body)',
+            fontSize: 12, fontWeight: 500, cursor: 'pointer', flex: 'none',
+          }}
+        >уточнити</button>
+      </div>
+    );
+  }
+  return (
+    <div className={styles.op} style={{ background: 'var(--accent-bg)', margin: '0 -20px', padding: '11px 20px' }}>
+      <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>?</span>
+      <span className={styles['op-label']}>«{line.name}»</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)',
+          border: '1px solid var(--accent-border)', borderRadius: 8, padding: '3px 8px',
+        }}>
+          <button
+            type="button" disabled={busy} onClick={() => setValue((v) => Math.max(1, v - 1))}
+            style={{ border: 0, background: 'none', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
+          >−</button>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 14, textAlign: 'center' }}>{value}</span>
+          <button
+            type="button" disabled={busy} onClick={() => setValue((v) => v + 1)}
+            style={{ border: 0, background: 'none', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
+          >+</button>
+        </div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)' }}>{formatUnit(line.unit)}</span>
+        <button
+          type="button"
+          disabled={busy || !cardId}
+          onClick={async () => {
+            if (!cardId) return;
+            setBusy(true);
+            try {
+              const r = await api.cards.clarifyLine(cardId, index, value, line.unit);
+              onClarified(r.card);
+            } catch { setBusy(false); }
+          }}
+          style={{
+            border: 0, background: 'var(--accent)', color: 'var(--accent-fg-on)', borderRadius: 999,
+            padding: '5px 10px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+            cursor: 'pointer', opacity: busy ? 0.6 : 1,
+          }}
+        >ок</button>
+      </div>
+    </div>
+  );
+}
+
+export function IntakeCard({ card, cardId, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
+  // 01.09 картка v2: «уточнити» переносить рядок із source.unmatched у ops
+  // на сервері — локальна копія картки віддзеркалює це без переходу в
+  // інший потік (той самий принцип, що RetailCartCard тримає для кошика).
+  const [liveCard, setLiveCard] = useState(card);
   // UX9-17: rename/correct ФІЛЬТРУВАЛИСЬ — картка перейменування стояла без
   // жодного предметного рядка, людина тиснула «Застосувати» наосліп.
-  const ops = (card.ops as IntakeOp[] | undefined ?? []);
+  const ops = (liveCard.ops as IntakeOp[] | undefined ?? []);
   // №6: чекбокси позицій — «щось лишилось» знімається галочкою, решта
   // застосовується. Дефолт — усе увімкнено; актуально насамперед для
   // пост-кук списання, але працює на будь-якій intake-картці.
@@ -131,48 +213,136 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
     if (op === 'correct') return '✎';
     return '+';
   };
+  // M13: intake з чека мережі — шапка-джерело, сірі «додати руками»,
+  // згорнуте «не для комори». apply/undo — той самий шлях, що у всіх intake.
+  const receipt = liveCard.source?.kind === 'retail_receipt' ? liveCard.source : null;
+  const [nonfoodOpen, setNonfoodOpen] = useState(false);
+  // 01.09: чек — не auto-apply, а картка на підтвердження зі стрикаутом.
+  // Повний список одразу — «звалище»: чек легко несе 10+ позицій. Згорнуто
+  // за замовчуванням, як «не для комори» нижче; для звичайного (короткого)
+  // intake_diff з чату список і так короткий — розгорнутий одразу.
+  const [opsOpen, setOpsOpen] = useState(!receipt);
   return (
     <div className={stateClass(applied, undone)}>
-      <div className={styles.ops}>
-        {ops.map((op, i) => (
-          <div
-            key={i}
-            className={styles.op}
-            onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
-            style={actionable && ops.length > 1
-              ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
-              : undefined}
-          >
-            {actionable && ops.length > 1 && (
-              <span
-                role="checkbox"
-                aria-checked={!off.has(i)}
-                style={{
-                  width: 18, height: 18, borderRadius: 6, flex: 'none',
-                  display: 'inline-grid', placeItems: 'center',
-                  background: off.has(i) ? 'transparent' : 'var(--accent)',
-                  border: off.has(i) ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
-                  color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 11,
-                }}
-              >{off.has(i) ? '' : '✓'}</span>
-            )}
-            <span className={styles['op-sign']}>{signFor(op.op)}</span>
-            <span className={styles['op-label']}>
-              {op.op === 'rename'
-                ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
-                : op.label ?? '—'}
-              {op.op === 'correct' && (op as { zone?: string }).zone && (
-                <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
-                </span>
-              )}
-            </span>
-            {op.value != null && op.unit && (
-              <span className={styles['op-qty']}>{op.op === 'correct' ? '→ ' : ''}{formatQty(op.value, op.unit)}</span>
-            )}
+      {receipt && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
+            Чек Сільпо
           </div>
-        ))}
-      </div>
+          <MonoLabel>
+            {receiptDate(receipt.at)} · {receipt.shop} · {Math.round(receipt.total)}₴
+          </MonoLabel>
+        </div>
+      )}
+      {receipt && (
+        <button
+          type="button"
+          onClick={() => setOpsOpen((v) => !v)}
+          style={{
+            border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
+            color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}
+        >
+          <span style={{ width: 18, textAlign: 'center' }}>{opsOpen ? '⌄' : '›'}</span>
+          {ops.length} {plural(ops.length, ['позиція', 'позиції', 'позицій'])}
+          {receipt.unmatched.length > 0 ? ` + ${receipt.unmatched.length} без пари` : ''}
+          {opsOpen ? ' · згорнути' : ' · показати'}
+        </button>
+      )}
+      {opsOpen && (
+        <div className={styles.ops}>
+          {ops.map((op, i) => (
+            <div
+              key={i}
+              className={styles.op}
+              onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
+              style={actionable && ops.length > 1
+                ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
+                : undefined}
+            >
+              {actionable && ops.length > 1 && (
+                <span
+                  role="checkbox"
+                  aria-checked={!off.has(i)}
+                  style={{
+                    width: 18, height: 18, borderRadius: 6, flex: 'none',
+                    display: 'inline-grid', placeItems: 'center',
+                    background: off.has(i) ? 'transparent' : 'var(--accent)',
+                    border: off.has(i) ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
+                    color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 11,
+                  }}
+                >{off.has(i) ? '' : '✓'}</span>
+              )}
+              <span className={styles['op-sign']}>{signFor(op.op)}</span>
+              <span className={styles['op-label']}>
+                {op.op === 'rename'
+                  ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
+                  : op.label ?? '—'}
+                {op.op === 'correct' && (op as { zone?: string }).zone && (
+                  <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
+                  </span>
+                )}
+              </span>
+              {op.value != null && op.unit && (
+                <span className={styles['op-qty']}>{op.op === 'correct' ? '→ ' : ''}{formatQty(op.value, op.unit)}</span>
+              )}
+            </div>
+          ))}
+          {/* Ключ за назвою, не індексом: «ок» вирізає рядок із unmatched і
+              зсуває позиції решти — індексний key чіпляв editing-стан
+              одного товару на назву наступного після зсуву. */}
+          {receipt && receipt.unmatched.map((l, i) => (
+            <ClarifyRow key={l.name} line={l} cardId={cardId} index={i} onClarified={setLiveCard} />
+          ))}
+        </div>
+      )}
+      {receipt && receipt.nonfood.length > 0 && (
+        <div style={{ marginTop: 2 }}>
+          <button
+            type="button"
+            onClick={() => setNonfoodOpen((v) => !v)}
+            style={{
+              border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
+              color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            <span style={{ width: 18, textAlign: 'center' }}>{nonfoodOpen ? '⌄' : '›'}</span>
+            ще {receipt.nonfood.length} не для комори
+          </button>
+          {nonfoodOpen && receipt.nonfood.map((l, i) => (
+            <div key={i} className={styles.op} style={{ color: 'var(--fg-dim)' }}>
+              <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>·</span>
+              <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>{l.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {receipt && applied && !undone && ops.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 8,
+        }}>
+          {/* 01.09: рахуємо застосовану кількість (мінус викреслені), не
+              весь ops.length — інакше бейдж бреше про число після стрикауту. */}
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)' }}>
+            ● {ops.length - off.size} {plural(ops.length - off.size, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])} У КОМОРІ
+          </span>
+          {undoAvailable && onUndo && (
+            <button
+              type="button"
+              onClick={onUndo}
+              style={{
+                border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
+                color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                textDecoration: 'underline', textUnderlineOffset: 3,
+              }}
+            >Скасувати ↩</button>
+          )}
+        </div>
+      )}
       {actionable && (
         <div className={styles['card-actions']}>
           <Button
@@ -186,7 +356,7 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
-      {applied && !undone && undoAvailable && onUndo && (
+      {!receipt && applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
           <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
         </div>
@@ -682,9 +852,263 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 }
 
 
+// ----- Cart (M13, канвас М3) -----------------------------------------------
+// Два імені однієї речі: наше — головне (те, що людина писала в список),
+// назва Сільпо — другим рядком mono, як «паспортні дані» товару.
+// «Немає в цій філії» — бурштин-факт, не error. Кнопка темна з ↗ — вихід
+// назовні, не наша шавлієва дія; чекаут цілком на боці мережі.
+export function RetailCartCard({ card: initial, cardId }: CardProps) {
+  // Заміна правиться на сервері (updateMessageCard) — локальний стан лише
+  // віддзеркалює оновлену картку з відповіді.
+  const [card, setCard] = useState(initial);
+  const [swapping, setSwapping] = useState<number | null>(null);
+  // 01.09: «додати окремо» — інша дія, свій індикатор завантаження, щоб
+  // не блокувати сусідні кнопки заміни/додавання на тому самому рядку.
+  const [adding, setAdding] = useState<number | null>(null);
+  // 01.09 картка v2: степер кількості — теж свій індикатор, той самий
+  // принцип: одна активна мутація на всю картку одночасно.
+  const [qtyBusy, setQtyBusy] = useState<number | null>(null);
+  // Кіт: заміна щойно записалась у стан — рядок і футер мусять це показати,
+  // не просто перемалюватись мовчки.
+  const [justSwapped, setJustSwapped] = useState<number | null>(null);
+  // 01.09 рівень 1: альтернативи показують перші кілька, решта — під тапом.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const rows = card.rows ?? [];
+  const busy = swapping !== null || adding !== null || qtyBusy !== null;
+  async function swap(i: number, altIndex: number) {
+    if (!cardId || busy) return;
+    setSwapping(i);
+    try {
+      const r = await api.retail.cartSwap(cardId, i, altIndex);
+      setCard(r.card);
+      setJustSwapped(i);
+    } catch { /* рядок лишається з пропозицією */ } finally { setSwapping(null); }
+  }
+  // 01.09: додає альтернативу ОКРЕМИМ рядком, оригінал не чіпає — «побачив
+  // банановий Швепс серед альтернатив, хочу і його теж».
+  async function addAlt(i: number, altIndex: number) {
+    if (!cardId || busy) return;
+    setAdding(i);
+    try {
+      const r = await api.retail.cartAddAlt(cardId, i, altIndex);
+      setCard(r.card);
+      setJustSwapped((r.card.rows ?? []).length - 1);
+    } catch { /* рядок лишається з пропозицією */ } finally { setAdding(null); }
+  }
+  // 01.09 картка v2: степер — сервер сам округлює за типом (вагове 0.1,
+  // кількісне/обсягове ціле) і перераховує ціну/total.
+  async function updateQty(i: number, next: number) {
+    if (!cardId || busy || next <= 0) return;
+    setQtyBusy(i);
+    try {
+      const r = await api.retail.cartUpdateQty(cardId, i, next);
+      setCard(r.card);
+    } catch { /* лишається зі старою кількістю */ } finally { setQtyBusy(null); }
+  }
+  function toggleExpanded(i: number) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  }
+  return (
+    <div className={styles.card}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
+          Кошик у Сільпо
+        </div>
+        <MonoLabel>ЗІ СПИСКУ ПОКУПОК</MonoLabel>
+      </div>
+      <div className={styles.ops}>
+        {rows.map((r, i) => {
+          const alts = r.alternatives ?? [];
+          const isExpanded = expanded.has(i);
+          const p = r.product;
+          const step = p?.weighted ? 0.1 : 1;
+          const qtyLabel = p ? (p.weighted ? p.quantity.toLocaleString('uk-UA', { maximumFractionDigits: 2 }) : String(p.quantity)) : '';
+          // Обсягове: скільки всього виходить при поточній кількості пляшок.
+          const totalMl = p?.package_ml ? p.package_ml * p.quantity : null;
+          return (
+            <div key={i}>
+              <div
+                className={`${styles.op} ${justSwapped === i ? styles['row-changed'] : ''}`}
+                style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}
+              >
+                <div
+                  className={justSwapped === i ? styles['row-text-in'] : undefined}
+                  style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}
+                >
+                  <span className={styles['op-label']} style={p ? undefined : { color: 'var(--fg-dim)' }}>
+                    {r.label}
+                  </span>
+                  {p ? (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
+                      {p.name}
+                    </span>
+                  ) : (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
+                      немає в цій філії
+                    </span>
+                  )}
+                </div>
+                {p && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flex: 'none' }}>
+                    <span className={styles['op-qty']} style={{ color: 'var(--fg)' }}>
+                      {Math.round(p.price * p.quantity)}₴
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)',
+                        border: '1px solid var(--border)', borderRadius: 10, padding: '0 6px', height: 32,
+                      }}>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void updateQty(i, Math.round((p.quantity - step) * 100) / 100)}
+                          style={{ width: 20, height: 20, border: 0, background: 'none', color: 'var(--fg)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: qtyBusy === i ? 0.5 : 1 }}
+                        >−</button>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 30, textAlign: 'center' }}>
+                          {qtyLabel}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void updateQty(i, Math.round((p.quantity + step) * 100) / 100)}
+                          style={{ width: 20, height: 20, border: 0, background: 'none', color: 'var(--fg)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: qtyBusy === i ? 0.5 : 1 }}
+                        >+</button>
+                      </div>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
+                        {p.weighted ? 'кг' : 'шт'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {/* 01.09 картка v2: обсягове — математика завжди видима, не лише
+                    коли є розбіжність із заявленим. «1л чи більше» більше не
+                    мовчазна 1 шт. */}
+                {p?.package_ml && totalMl != null && (
+                  <div style={{ width: '100%', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
+                    × {(p.package_ml / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л ≈ {(totalMl / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л всього
+                  </div>
+                )}
+                {/* 01.09 картка v2: альтернативи — компактний рядок, не плитка.
+                    Кіт: список 3+ позицій із розгорнутими альтернативами
+                    засмічував екран — за замовчуванням згорнуто, тап
+                    розкриває (та сама механіка, що «ще N не для комори»). */}
+                {alts.length > 0 && (
+                  <div style={{ width: '100%', marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(i)}
+                      style={{
+                        border: 0, background: 'transparent', cursor: 'pointer', padding: '4px 0',
+                        color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 12,
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}
+                    >
+                      <span style={{ width: 14, textAlign: 'center' }}>{isExpanded ? '⌄' : '›'}</span>
+                      альтернативи ({alts.length})
+                    </button>
+                    {isExpanded && (
+                    <>
+                    {p && (
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--fg-dim)', marginBottom: 4 }}>
+                        «⇄» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
+                      </div>
+                    )}
+                    <div style={{
+                      background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12,
+                      padding: '0 12px',
+                    }}>
+                      {alts.map((a, ai) => (
+                        <div
+                          key={ai}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
+                            borderBottom: ai < alts.length - 1 ? '1px solid var(--border)' : 0,
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{
+                              fontFamily: 'var(--font-body)', fontSize: 13, lineHeight: 1.3,
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block',
+                            }} title={a.name}>
+                              {a.name}
+                            </span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-dim)' }}>
+                              {Math.round(a.price * a.quantity)}₴
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void swap(i, ai)}
+                                aria-label={`замінити на ${a.name}`}
+                                style={{
+                                  width: 28, height: 28, borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                                  border: '1px solid var(--accent-border)', background: 'var(--accent-bg)', color: 'var(--accent)',
+                                  opacity: swapping === i ? 0.5 : 1,
+                                }}
+                              >⇄</button>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--fg-dim)' }}>замінити</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void addAlt(i, ai)}
+                                aria-label={`додати ${a.name} окремо`}
+                                style={{
+                                  width: 28, height: 28, borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                                  border: '1px solid var(--border)', background: 'none', color: 'var(--fg-dim)',
+                                  opacity: adding === i ? 0.5 : 1,
+                                }}
+                              >+</button>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--fg-dim)' }}>додати</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 6,
+      }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16 }}>
+          <RollingNumber value={card.total ?? 0} />₴ · <RollingNumber value={card.found ?? 0} /> з {card.of}
+        </span>
+        <a
+          href={card.cart_url}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            marginLeft: 'auto', height: 44, padding: '0 18px', borderRadius: 12,
+            background: 'var(--fg)', color: 'var(--bg-body)', textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center',
+            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+          }}
+        >Оформити в Сільпо ↗</a>
+      </div>
+    </div>
+  );
+}
+
 export function Card(props: CardProps) {
   switch (props.card.type) {
     case 'intake_diff': return <IntakeCard {...props} />;
+    case 'cart':        return <RetailCartCard {...props} />;
     case 'proposal':    return <ProposalCard {...props} />;
     case 'shopping':    return <ShoppingCard {...props} />;
     case 'profile':     return <ProfileCard {...props} />;
@@ -697,7 +1121,10 @@ export function Card(props: CardProps) {
 
 // Текст тосту після «Так». Жив інлайном у Feed і рахував «ops або items»
 // з формами «у коморі»/«у списку» — картка рецепта давала «0 позицій у коморі».
-export function appliedToast(card: ChatCard): string {
+// appliedCount — 01.09: реальна кількість, яку повернув сервер (applyCard).
+// Без цього тост завжди рахував card.ops.length — ПОВНИЙ список, ігноруючи
+// стрикаут: «Застосувати 9» тиснеш, а тост і бейдж кажуть «10».
+export function appliedToast(card: ChatCard, appliedCount?: number): string {
   if (card.type === 'cook_photo') {
     return card.recipe_title ? `Фото до «${card.recipe_title}» — у журналі` : 'Фото в журналі';
   }
@@ -705,9 +1132,9 @@ export function appliedToast(card: ChatCard): string {
     const t = (card.recipe as Recipe | undefined)?.t;
     return t ? `«${t}» — у рецептах` : 'Рецепт збережено';
   }
-  const count = card.type === 'shopping' || card.type === 'proposal'
+  const count = appliedCount ?? (card.type === 'shopping' || card.type === 'proposal'
     ? (card.items?.length ?? 0)
-    : (card.ops?.length ?? 0);
+    : (card.ops?.length ?? 0));
   const forms: [string, string, string] = card.type === 'shopping'
     ? ['позиція у списку', 'позиції у списку', 'позицій у списку']
     : ['позиція у коморі', 'позиції у коморі', 'позицій у коморі'];
@@ -723,6 +1150,8 @@ export function labelFor(
 ): { text: string; tone: 'pending' | 'applied' | 'muted' } {
   // Слід рецепта — не дія: жодного «ОЧІКУЄ», просто мітка.
   if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
+  // M13: кошик — теж не дія в нас: він уже зібраний у мережі, CTA веде назовні.
+  if (type === 'cart') return { text: 'КОШИК · СІЛЬПО', tone: 'muted' };
   if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
   if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.

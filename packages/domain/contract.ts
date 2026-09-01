@@ -366,6 +366,57 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect((await repo.getProfile(user_id))?.allergies).toEqual(['селера']);
     });
 
+    it('retail-підключення: upsert по (user, provider), мʼяке відключення, delete', async () => {
+      const { repo, user_id } = ctx;
+      const now = new Date().toISOString();
+      const base = {
+        id: randomUUID(), user_id, provider: 'silpo',
+        access_token_enc: 'enc-v1', refresh_token_enc: 'enc-r1',
+        expires_at: now, status: 'active' as const, connected_at: now, updated_at: now,
+        last_receipt_at: null,
+      };
+      await repo.upsertRetailConnection(base);
+      const got = await repo.getRetailConnection(user_id, 'silpo');
+      expect(got?.access_token_enc).toBe('enc-v1');
+      expect(got?.status).toBe('active');
+
+      // Повторний upsert тієї ж пари — перезапис, не другий рядок (refresh токена).
+      await repo.upsertRetailConnection({ ...base, id: randomUUID(), access_token_enc: 'enc-v2' });
+      const refreshed = await repo.getRetailConnection(user_id, 'silpo');
+      expect(refreshed?.access_token_enc).toBe('enc-v2');
+
+      // Мʼяке відключення: status змінюється, токен лишається (undo без нового OAuth).
+      await repo.upsertRetailConnection({ ...refreshed!, status: 'disconnected' });
+      expect((await repo.getRetailConnection(user_id, 'silpo'))?.status).toBe('disconnected');
+
+      // Водяний знак синку чеків: last_receipt_at живе в рядку (ідемпотентність).
+      await repo.upsertRetailConnection({ ...refreshed!, last_receipt_at: '2026-08-23T10:54:48.000Z' });
+      expect((await repo.getRetailConnection(user_id, 'silpo'))?.last_receipt_at)
+        .toBe('2026-08-23T10:54:48.000Z');
+
+      // Інший провайдер — окремий рядок, не перетирається.
+      expect(await repo.getRetailConnection(user_id, 'atb')).toBeNull();
+
+      await repo.deleteRetailConnection(user_id, 'silpo');
+      expect(await repo.getRetailConnection(user_id, 'silpo')).toBeNull();
+    });
+
+    it('updateMessageCard: заміна в кошику переживає перезавантаження', async () => {
+      const { repo, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-01');
+      const mid = randomUUID();
+      await repo.saveMessage({
+        id: mid, session_id: session.id, role: 'assistant', text: 'Кошик',
+        card: { type: 'cart', provider: 'silpo', list_label: null, rows: [], total: 0, found: 0, of: 1, cart_url: 'https://silpo.ua' },
+        applied: 0, created_at: new Date().toISOString(),
+      });
+      await repo.updateMessageCard(mid, {
+        type: 'cart', provider: 'silpo', list_label: null, rows: [], total: 72, found: 1, of: 1, cart_url: 'https://silpo.ua',
+      });
+      const msg = (await repo.listMessages(session.id)).find((m) => m.id === mid);
+      expect((msg?.card as { total?: number })?.total).toBe(72);
+    });
+
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

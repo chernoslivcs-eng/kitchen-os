@@ -24,6 +24,32 @@ import type {
 // а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.
 export type { Recipe, RecipeIng, RecipeStep } from '@kitchen/domain';
 
+// Живий репро 01.09: модель повернула {"type":"shopping","ops":[...]}
+// замість items — shopping.items і intake_diff/profile.ops мають майже
+// однакову форму елемента ({op,label,...}), тож плутанина природна.
+// Ненормалізована картка доходила до summarizeCard/applyCard і кидала
+// TypeError на .map() у НАСТУПНОМУ ході (де читається історія) —
+// одна погана відповідь моделі блокувала розмову назавжди.
+// Перекладаємо в правильне поле замість вигадування даних; якщо рятувати
+// нічим (жодного масиву під жодною назвою) — повертаємо як є, це вже
+// справа summarizeCard/applyCard деградувати чемно (`?? []`), не тут.
+const ITEMS_TYPES = new Set(['shopping']);
+const OPS_TYPES = new Set(['intake_diff', 'profile']);
+export function normalizeCard(raw: unknown): Card | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.type !== 'string') return null;
+  if (ITEMS_TYPES.has(o.type) && !Array.isArray(o.items) && Array.isArray(o.ops)) {
+    const { ops, ...rest } = o;
+    return { ...rest, items: ops } as unknown as Card;
+  }
+  if (OPS_TYPES.has(o.type) && !Array.isArray(o.ops) && Array.isArray(o.items)) {
+    const { items, ...rest } = o;
+    return { ...rest, ops: items } as unknown as Card;
+  }
+  return o as unknown as Card;
+}
+
 // TOKEN_AUDIT п.1: системний промпт (10-15k символів стабільного тексту) їхав
 // повним інпутом з КОЖНИМ викликом. cache_control на стабільному префіксі
 // (правила з packages/prompts) ріже його ціну до ~10% на кеш-хітах; динаміка
@@ -138,6 +164,8 @@ export interface ChatArgs {
   recentRecipes?: RecipeRow[];
   // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈» комори.
   products?: HouseholdProduct[];
+  // M13: чи підключена мережа — гейтить card_go:cart_go в системному промпті.
+  retailConnected?: boolean;
 }
 
 export interface ChatCall {
@@ -169,12 +197,96 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       };
     }
   }
+  // M13: явне прохання оформити список через мережу → cart_go. Тільки коли
+  // мережа підключена — інакше стаб (як і живий промпт) веде в Профіль
+  // прозою, картки не дає.
+  // Корінь «збер»/«зібр» покриває всю парадигму (зберіть/збери/зберемо/
+  // зібрати/зібрав) — «збери» самою формою пропускала «зберіть» (і/и
+  // чергування в укр. дієслові), і живий тест це впіймав.
+  const cartGoMatch = args.text.match(/(замов|оформ|збер|зібр)\S*\s+(.+?)\s+(?:в|у)\s+(сільпо|кошик)/i);
+  if (cartGoMatch) {
+    if (args.retailConnected) {
+      // 01.09: якщо людина назвала конкретні позиції («замов лосось і рис»),
+      // а не вжила загальне слово («це», «кошик», «замовлення», «список»),
+      // передаємо їх дослівно — cart_go шукає саме їх, а не персистований
+      // список.
+      const rawItems = cartGoMatch[2] ?? '';
+      const middle = rawItems.trim().toLowerCase();
+      const generic = new Set(['це', 'кошик', 'замовлення', 'список', 'їх', 'все', 'усе', 'то']);
+      const items = generic.has(middle)
+        ? undefined
+        : rawItems.split(/\s*(?:,|і|та)\s+/i).map((s) => s.trim()).filter(Boolean);
+      return {
+        reply: 'Зараз гляну ціни й наявність.',
+        card: items?.length ? { type: 'cart_go', items } : { type: 'cart_go' },
+        usage: { input: 0, output: 0 },
+        meta: { promptVersion, model: 'stub', mode: 'stub' },
+      };
+    }
+    return {
+      reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
+      card: null,
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  // 01.09: питання про наявність («які опції є в сільпо по X», «що є з X»)
+  // — НЕ замовлення (cart_go) і НЕ список (shopping), сервер сам шукає
+  // живцем і відповідає текстом (attemptSearch, chat.ts).
+  const searchGoMatch = args.text.match(
+    /(?:опці\w*|варіант\w*|смак\w*)[^.!?]*?(?:сільпо|мереж\w*)[^.!?]*?по\s+([а-яіїєґ'ʼ\s-]+)/i,
+  );
+  if (searchGoMatch) {
+    const query = (searchGoMatch[1] ?? '').trim();
+    if (args.retailConnected && query) {
+      return {
+        reply: 'Зараз гляну, що є.',
+        card: { type: 'retail_search_go', query },
+        usage: { input: 0, output: 0 },
+        meta: { promptVersion, model: 'stub', mode: 'stub' },
+      };
+    }
+    return {
+      reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
+      card: null,
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   // Пул-5 №6: явна згода готувати конкретну страву → cook_go.
   const go = /готуємо\s+[«"]([^»"]+)[»"]/i.exec(args.text);
   if (go) {
     return {
       reply: 'Тримай рецепт.',
       card: { type: 'cook_go', title: go[1]!.trim() },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  // Явна команда зі списком («додай X у список», «прибери X зі списку») —
+  // для тестів auto-apply нижче (card-rules.md: shopping лише на прямий
+  // запит про покупки, ніколи пропозиція моделі — тому auto-apply безпечний
+  // так само, як для intake_diff).
+  const listAdd = /додай\s+(.+?)\s+(?:у|в)\s+список/i.exec(args.text);
+  if (listAdd) {
+    const label = listAdd[1]!.trim();
+    return {
+      reply: `Додав ${label} у список.`,
+      card: { type: 'shopping', items: [{ op: 'add', label }] },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  const listRemove = /прибери\s+(.+?)\s+зі\s+списку/i.exec(args.text)
+    // 01.09: живий репро — «прибери X з замовлення/кошика», не «зі списку».
+    // Порядок слів інший (лейбл ПІСЛЯ «з замовлення», не перед «зі списку»),
+    // тому окремий патерн, не один спільний.
+    ?? /прибери\s+з\s+(?:замовлення|кошика)\s+(.+)/i.exec(args.text);
+  if (listRemove) {
+    const label = listRemove[1]!.trim();
+    return {
+      reply: `Прибрав ${label} зі списку.`,
+      card: { type: 'shopping', items: [{ op: 'remove', label }] },
       usage: { input: 0, output: 0 },
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
@@ -222,6 +334,7 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
+    retailConnected: args.retailConnected,
     queryText,
   });
 }
@@ -250,6 +363,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
+    retailConnected: args.retailConnected,
     queryText,
   });
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
@@ -286,9 +400,9 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     //   що модель написала поруч із JSON у тому ж повідомленні
     if ('reply' in o && 'card' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
-      card = (o.card ?? null) as Card | null;
+      card = normalizeCard(o.card ?? null);
     } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit'].includes(o.type)) {
-      card = o as unknown as Card;
+      card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }
   }
@@ -563,5 +677,71 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
       prompt_hash: hashPromptText(system), prompt_chars: system.length,
     },
   };
+}
+
+// 01.09: фільтр альтернатив кошика Сільпо — вузька класифікація «кандидат
+// категорично інший тип товару чи ні». Каталог (packages/catalog) уже
+// відсіює те, що впізнав; сюди доходить тільки те, чого каталог НЕ впізнав
+// узагалі (resolveLabelToKey → null) — справжня сіра зона.
+export interface AltFilterPair { source: string; candidate: string }
+export interface AltFilterCall {
+  keep: boolean[]; // той самий порядок/довжина, що вхідні pairs
+  usage: { input: number; output: number; cached?: number };
+  meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+}
+
+function altFilterStub(pairs: AltFilterPair[], promptVersion: string): AltFilterCall {
+  const ALC = /бітер|лікер|віскі|вермут|коньяк|\bром\b|горілк|\bвино\b|\bпиво\b|шампанськ/i;
+  const NONFOOD = /крем|бальзам|шампунь|\bмило\b|засіб для|гель для/i;
+  const bad = (s: string) => ALC.test(s) || NONFOOD.test(s);
+  const keep = pairs.map((p) => !(bad(p.candidate) && !bad(p.source)));
+  return { keep, usage: { input: 0, output: 0 }, meta: { promptVersion, model: 'stub', mode: 'stub' } };
+}
+
+export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCall> {
+  const prompt = loadPrompt();
+  if (!pairs.length) {
+    return { keep: [], usage: { input: 0, output: 0 }, meta: { promptVersion: prompt.version, model: 'stub', mode: 'stub' } };
+  }
+  const client = makeClient();
+  if (!client) return altFilterStub(pairs, prompt.version);
+
+  // Збагачення, не критичний шлях: будь-яка проблема (мережа, зламаний JSON) —
+  // fail-open, «залишити все як є» (та сама поведінка, що без фільтра),
+  // а не звалити збірку кошика через додаткову перевірку.
+  try {
+    const model = modelForCall('alt_filter', prompt);
+    const system = compose('alt_filter', prompt);
+    const query = pairs.map((p, i) => `${i}. «${p.source}» → «${p.candidate}»`).join('\n');
+
+    const resp = await withRetry(() => client.messages.create({
+      model,
+      max_tokens: 4096,
+      temperature: 0,
+      system: cachedSystem(system),
+      messages: [{ role: 'user', content: query }],
+    }));
+    const text = resp.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n');
+    const { parsed } = extractJson(text);
+    const results = (parsed && typeof parsed === 'object' && 'results' in parsed)
+      ? ((parsed as { results?: unknown }).results as { i?: number; keep?: boolean }[] | undefined) ?? []
+      : [];
+    const keep = pairs.map((_, i) => results.find((r) => r?.i === i)?.keep ?? true);
+
+    return {
+      keep,
+      usage: usageFrom(resp.usage),
+      meta: { promptVersion: prompt.version, model, mode: 'live' },
+    };
+  } catch {
+    return {
+      keep: pairs.map(() => true),
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion: prompt.version, model: 'error-fallback', mode: 'live' },
+    };
+  }
 }
 

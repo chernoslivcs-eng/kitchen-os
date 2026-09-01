@@ -3,6 +3,7 @@
 // Клік на × — видаляємо запис без confirm; помилку показуємо тост-ом.
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type ShoppingItem } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
@@ -13,8 +14,33 @@ import { useAuth } from '../../store/auth';
 
 export function ShoppingPage() {
   const meName = useAuth((st) => st.me?.user?.name ?? null);
+  const navigate = useNavigate();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // M13 (канвас М6): кнопка «Зібрати кошик» зʼявляється лише коли мережа
+  // підключена і в списку є хоч одна незакрита позиція. Не панічна CTA —
+  // шавлієва вторинна над таббаром. Для непідключеного/протухлого —
+  // мʼякший вхід (лінк на connect), не саму дію: авторизація живе в момент
+  // наміру оформити кошик, не на вході в застосунок.
+  const [retailStatus, setRetailStatus] = useState<'loading' | 'unavailable' | 'none' | 'active' | 'expired' | 'disconnected'>('loading');
+  const retailReady = retailStatus === 'active';
+  const [building, setBuilding] = useState(false);
+  useEffect(() => {
+    void api.retail.status()
+      .then((r) => setRetailStatus(r.silpo.status))
+      .catch(() => setRetailStatus('unavailable'));
+  }, []);
+  async function buildCart() {
+    if (building) return;
+    setBuilding(true);
+    try {
+      await api.retail.buildCart();
+      // Картка з цінами приходить у стрічку — ведемо людину до неї.
+      navigate('/app');
+    } catch {
+      setBuilding(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -189,6 +215,43 @@ export function ShoppingPage() {
             <button className={styles.delete} onClick={() => remove(it)} aria-label="Видалити">×</button>
           </div>
         ))}
+
+        {retailReady && unchecked > 0 && (
+          <button
+            onClick={() => void buildCart()}
+            disabled={building}
+            style={{
+              width: '100%', height: 48, marginTop: 14,
+              border: '1px solid var(--accent-border)', borderRadius: 12,
+              background: 'var(--accent-bg)', color: 'var(--accent)',
+              fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
+              cursor: building ? 'wait' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 16px', opacity: building ? 0.6 : 1,
+            }}
+          >
+            <span>{building ? 'Збираю кошик…' : 'Зібрати кошик у Сільпо'}</span>
+            <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} →</span>
+          </button>
+        )}
+
+        {/* M13: авторизація — не на вході в застосунок, а в момент наміру
+            оформити кошик (питання користувача про доцільність). ?next
+            повертає сюди ж після OAuth-круга, а не на /profile. */}
+        {!retailReady && unchecked > 0 && (retailStatus === 'none' || retailStatus === 'expired' || retailStatus === 'disconnected') && (
+          <a
+            href={`/v1/retail/silpo/connect?next=${encodeURIComponent('/list')}`}
+            style={{
+              width: '100%', height: 44, marginTop: 14, boxSizing: 'border-box',
+              border: '1px solid var(--border-strong)', borderRadius: 12,
+              background: 'transparent', color: 'var(--fg-muted)', textDecoration: 'none',
+              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            {retailStatus === 'none' ? 'Підключити Сільпо, щоб зібрати кошик' : 'Увійти в Сільпо, щоб зібрати кошик'} →
+          </a>
+        )}
       </div>
 
     </div>

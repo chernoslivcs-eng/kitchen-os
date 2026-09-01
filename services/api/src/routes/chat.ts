@@ -12,6 +12,7 @@ import {
   FEEDBACK_MARKERS, FEEDBACK_PROMPT,
 } from '../post-cook.js';
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
+import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
 
 function today(): string {
   const d = new Date();
@@ -24,18 +25,25 @@ function today(): string {
 // Гірше — картка без прози зберігалась із text:'' і випадала з історії цілком, лишаючи
 // юзерську репліку без відповіді; наступного разу модель її «переграла» і згенерувала
 // повторний intake. Це найімовірніша причина дублів у коморі.
+// Захист від малформленої картки моделі: живий репро 01.09 — модель
+// повернула {"type":"shopping","ops":[...]} замість items (плутанина з
+// intake_diff/profile, де саме ops), картка збереглась як є (model.ts не
+// валідує форму), і НАСТУПНИЙ /v1/chat падав 500 тут же, при читанні
+// історії. TS думає *.items/*.ops завжди масив — жива відповідь моделі
+// цю гарантію не тримає, тому `?? []` на кожному полі, не тільки тут:
+// одна погана картка більше не мусить блокувати всю розмову назавжди.
 function summarizeCard(c: Card): string {
   if (c.type === 'proposal') {
-    return '[картка: пропозиції] ' + c.items.map((i) => i.title).join(' · ');
+    return '[картка: пропозиції] ' + (c.items ?? []).map((i) => i.title).join(' · ');
   }
   if (c.type === 'intake_diff') {
-    return '[картка: комора] ' + c.ops.map((o) => `${o.op ?? 'add'} ${o.label}`).join(' · ');
+    return '[картка: комора] ' + (c.ops ?? []).map((o) => `${o.op ?? 'add'} ${o.label}`).join(' · ');
   }
   if (c.type === 'shopping') {
-    return '[картка: покупки] ' + c.items.map((i) => `${i.op ?? 'add'} ${i.label}`).join(' · ');
+    return '[картка: покупки] ' + (c.items ?? []).map((i) => `${i.op ?? 'add'} ${i.label}`).join(' · ');
   }
   if (c.type === 'profile') {
-    return '[картка: профіль] ' + c.ops.map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
+    return '[картка: профіль] ' + (c.ops ?? []).map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
   }
   // QA9-02: recipe_link в історії був безликим «[картка]» — модель не бачила,
   // що рецепт лежить у стрічці, і на «поміняв?» відповідала навмання.
@@ -61,6 +69,14 @@ function summarizeCard(c: Card): string {
 
 export interface ChatRouteOpts {
   rateLimit?: RateLimitCfg;
+  // M13: «асистент повинен мати руки» — та сама дія, що кнопка «Зібрати
+  // кошик», доступна словами. Інʼєкція з retailRoutes() (server.ts) —
+  // chat.ts не знає нічого про Сільпо, цифри/крипту/withRetryAuth, тільки
+  // «спробуй, скажи як пройшло».
+  retailCart?: (user_id: string, household_id: string, explicitItems?: string[]) => Promise<RetailCartAttempt>;
+  // 01.09: «що є в наявності по X» — read-only пошук, той самий принцип
+  // ін'єкції, що retailCart.
+  retailSearch?: (user_id: string, query: string) => Promise<RetailSearchAttempt>;
 }
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
@@ -333,6 +349,15 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // і трималась названого складу замість нового підходу на кожен тап.
     const recentRecipes = await repo.listRecentRecipes(user_id, 5);
 
+    // M13: [МЕРЕЖІ] у промпті — тільки коли інтеграція взагалі сконфігурована
+    // на сервері (retailCart переданий). Статус читаємо напряму з repo:
+    // chat.ts не знає про шифрування/провайдера, тільки «активна чи ні».
+    let retailConnected: boolean | undefined;
+    if (opts.retailCart) {
+      const conn = await repo.getRetailConnection(user_id, 'silpo');
+      retailConnected = !!conn && conn.status === 'active' && new Date(conn.expires_at).getTime() > Date.now();
+    }
+
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
     // «у тебе немає покупок на початку», хоча вони були за межею вікна. Кажемо прямо.
@@ -350,7 +375,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profile, shopping, notes, eaters, recentRecipes, products,
+        history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');
@@ -438,6 +463,95 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Пул-5 №6: людина погодилась готувати конкретну страву — не показуємо
     // їй службову картку, а одразу генеруємо рецепт і віддаємо recipe_link
     // тим самим ходом. «давай» після пропозиції = рецепт, не нове коло торгу.
+    // M13: «замов через сільпо» — модель лише маркує намір (cart_go), сервер
+    // сам виконує РІВНО той код, що кнопка «Зібрати кошик» (attemptBuildCart,
+    // спільний з retail.ts), і підміняє картку на справжній cart. Три чесні
+    // виходи без картки: не сконфігуровано на сервері / мережа не підключена
+    // / список порожній — людині кажемо людською мовою, не мовчимо і не
+    // вигадуємо картку, якої нема чим наповнити.
+    if (call.card?.type === 'cart_go') {
+      const saveTurn = async (text: string, card: Card | null) => {
+        const id = randomUUID();
+        await repo.saveMessage({
+          id, session_id: session.id, role: 'assistant',
+          text, card, applied: 0, created_at: new Date().toISOString(),
+        });
+        return card ? id : null;
+      };
+      if (!opts.retailCart) {
+        const msg = 'Замовлення через мережу тут ще не підключене.';
+        await saveTurn(msg, null);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const attempt = await opts.retailCart(user_id, household_id, call.card.items);
+      if (!attempt.ok) {
+        const msg = attempt.error === 'not_connected'
+          ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
+          : attempt.error === 'empty_list'
+          ? 'Список покупок порожній — нема що замовляти.'
+          : 'Сільпо зараз не відповідає — спробуй за хвилину.';
+        await saveTurn(msg, null);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const card = attempt.card!;
+      let cartReply = call.reply || `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`;
+      // 01.09 комент #3: explicit items — це ЧАСТИНА списку (людина показала
+      // пальцем на конкретне). Решта [СПИСОК ПОКУПОК] лишається поза
+      // замовленням, і людина може забути, що вона там є — нагадуємо тим
+      // самим ходом, а не мовчки.
+      if (call.card.items?.length) {
+        const ordered = new Set(call.card.items.map((s) => s.trim().toLowerCase()));
+        const rest = (await repo.listShoppingItems(household_id))
+          .filter((i) => !i.checked && !ordered.has(i.label.trim().toLowerCase()));
+        if (rest.length) {
+          cartReply = `${cartReply} У списку ще є ${rest.map((i) => i.label).join(', ')} — додати їх теж?`;
+        }
+      }
+      const card_id = await saveTurn(cartReply, card);
+      return { reply: cartReply, card, card_id, usage: call.usage, meta: call.meta };
+    }
+
+    // 01.09: «які ще опції в сільпо є по X» — питання про наявність, не
+    // замовлення. Модель маркує намір (query), сервер шукає живцем
+    // (attemptSearch — read-only, жоден addToCart) і сам формує репліку з
+    // реальних даних. Картки нема навмисно: це відповідь-репліка, не дія.
+    if (call.card?.type === 'retail_search_go') {
+      const saveTurn = async (text: string) => {
+        await repo.saveMessage({
+          id: randomUUID(), session_id: session.id, role: 'assistant',
+          text, card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+      };
+      if (!opts.retailSearch) {
+        const msg = 'Пошук у мережі тут ще не підключений.';
+        await saveTurn(msg);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const attempt = await opts.retailSearch(user_id, call.card.query);
+      if (!attempt.ok) {
+        const msg = attempt.error === 'not_connected'
+          ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
+          : 'Сільпо зараз не відповідає — спробуй за хвилину.';
+        await saveTurn(msg);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      const products = attempt.products ?? [];
+      const total = attempt.total ?? products.length;
+      // 01.09: суцільне речення через кому на 15 позицій читалось як сирий
+      // дамп бекенда. Компактний список (перенос рядка), капнутий значно
+      // нижче внутрішнього SEARCH_CAP, з чесним «і ще N» — рахує ВСЕ, що не
+      // показано, не тільки те, що відсіклось до цього на пошуку.
+      const REPLY_CAP = 6;
+      const shown = products.slice(0, REPLY_CAP);
+      const restCount = total - shown.length;
+      const msg = shown.length
+        ? `У Сільпо є:\n${shown.map((p) => `— ${p.name} · ${Math.round(p.price)}₴`).join('\n')}`
+          + (restCount > 0 ? `\n— і ще ${restCount}` : '')
+        : `У Сільпо не знайшов нічого по «${call.card.query}».`;
+      await saveTurn(msg);
+      return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+    }
+
     if (call.card?.type === 'cook_go') {
       const wantedTitle = call.card.title.trim();
       // Дедуп той самий, що в POST /v1/recipes/generate: та сама назва в межах
@@ -606,23 +720,40 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
     }
+    // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
+    // зібрано — сам список ми виправили (shopping-remove нижче), але наша
+    // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.
+    // Чесний наступний крок — запропонувати зібрати кошик заново (новим
+    // cart_go), а не мовчати чи прикидатись, що кошик у Сільпо теж оновився.
+    let replyText = call.reply;
+    if (call.card?.type === 'shopping' && call.card.items?.some((i) => i.op === 'remove')) {
+      const hadCart = (await repo.listMessages(session.id)).some((m) => (m.card as Card | null)?.type === 'cart');
+      if (hadCart) replyText = `${replyText ?? ''} Зібрати кошик заново?`.trim();
+    }
     await repo.saveMessage({
       id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
-      text: call.reply ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
+      text: replyText ?? null, card: call.card, applied: 0, created_at: new Date().toISOString(),
     });
     // Пул-8 №2: intake_diff застосовується ОДРАЗУ — підтвердження «Застосувати»
     // навантажувало кожен побутовий хід. Запобіжник переїхав у undo: картка в
-    // стрічці лишається звітом зі «Скасувати». Інші типи карток (рецепт,
-    // покупки, профіль) — як були: там підтвердження і є розмова.
+    // стрічці лишається звітом зі «Скасувати».
+    // M13 01.09: shopping — та сама підстава. card-rules.md дозволяє
+    // shopping-картку ЛИШЕ на прямий запит людини про покупки («додай»,
+    // «прибери») — модель ніколи не пропонує список сама, на відміну від
+    // proposal/profile. Раніше картка чекала «У список»/«Ні», і виявився
+    // живий баг: reply писав «Прибрав X» (доконаний вид), а список фізично
+    // не змінювався, поки хтось не тисне кнопку — модель брехала про
+    // зроблене. Profile/recipe_edit лишаються з підтвердженням: там і
+    // пропозиція моделі трапляється, і ціна помилки вища (профіль стійкий).
     let auto_applied = false;
     let undo_token: string | undefined;
-    if (call.card?.type === 'intake_diff' && card_id) {
+    if ((call.card?.type === 'intake_diff' || call.card?.type === 'shopping') && card_id) {
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;
     }
     return {
-      reply: call.reply, card: call.card, card_id,
+      reply: replyText, card: call.card, card_id,
       auto_applied, undo_token,
       usage: call.usage, meta: call.meta,
     };

@@ -35,6 +35,20 @@ export interface KitchenContext {
   // Пул-3: текст поточної розмови — згадані позиції гарантовано в кепі комори.
   queryText?: string;
   now?: Date;                            // для тестів — інакше Date.now()
+  // M13: чи підключена мережа (Сільпо). undefined = інтеграція не
+  // сконфігурована на сервері — блок мовчить, модель про неї не знає.
+  retailConnected?: boolean;
+}
+
+// M13: без цього блока модель на «замов через сільпо» відповідала categorичною
+// відмовою — «це робиться в додатку Сільпо», хоча build-cart уже вміє це
+// зробити сама. Обидва стани явні: підключено → модель має руки (card_go
+// cart_go); не підключено → веде людину в Профіль, а не мовчить і не бреше.
+export function serializeRetail(connected: boolean | undefined): string {
+  if (connected === undefined) return '';
+  return connected
+    ? '\n\n[МЕРЕЖІ] Сільпо: підключено. Список можна оформити карткою cart_go — сервер сам зіставить позиції з мережею.'
+    : '\n\n[МЕРЕЖІ] Сільпо: не підключено. На прохання замовити через мережу — одним реченням направ у Профіль → Мережі → Підключити, картку НЕ повертай.';
 }
 
 export function todayLabel(now = new Date()): string {
@@ -328,7 +342,8 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + cookLog
     + serializeNotes(ctx.notes ?? [])
     + serializeEaters(ctx.eaters ?? [])
-    + serializeRecentRecipes(ctx.recentRecipes ?? []);
+    + serializeRecentRecipes(ctx.recentRecipes ?? [])
+    + serializeRetail(ctx.retailConnected);
 }
 
 // Пул-3, pantry-truth: «творча бухгалтерія» — модель брала «500 г» з живої
