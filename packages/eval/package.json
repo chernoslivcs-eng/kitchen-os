@@ -6,7 +6,8 @@
   "main": "./runner.ts",
   "scripts": {
     "start": "tsx runner.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@kitchen/prompts": "workspace:*",

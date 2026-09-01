@@ -2,6 +2,7 @@ import './env.js';                      // MUST BE FIRST — заселяє proc
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { runOutcome } from './verdict.js';
 import { loadFixtures, type Fixture } from './fixtures/index.js';
 import { resolve as resolveInvariant, type Verdict } from './invariants.js';
 import { loadPrompt } from '@kitchen/prompts';
@@ -157,7 +158,10 @@ async function main() {
       const passed = Object.values(verdicts).every((v) => v.pass);
       process.stdout.write(passed ? 'PASS\n' : 'FAIL\n');
     }
-    const allPassed = Object.values(verdicts).every((v) => v.pass);
+    // Порожня істина: `[].every()` = true, тому фікстура, що впала з
+    // помилкою (402, обрив мережі), рахувалась УСПІШНОЮ. Живий випадок
+    // 02.09: 35 із 41 упали з 402, звіт сказав «провалено: 0», вихід 0.
+    const allPassed = runOutcome(verdicts, result.error).ok;
     runs.push({ fixture: fx, result, verdicts, allPassed });
 
     for (const [name, v] of Object.entries(verdicts)) {
@@ -194,6 +198,22 @@ async function main() {
     console.log('\n=== ДІФ до baseline ===');
     if (diff.length === 0) console.log('  (без змін)');
     for (const l of diff) console.log(l);
+  }
+
+  // Підсумок, який неможливо прочитати як «усе добре», коли нічого не
+  // виконалось: спершу СКІЛЬКИ виконалось, і лише потім скільки зелених.
+  const executed = runs.filter((r) => Object.keys(r.verdicts).length > 0);
+  const errored = runs.filter((r) => r.result.error && !r.result.error.startsWith('SKIPPED'));
+  const skipped = runs.filter((r) => r.result.error?.startsWith('SKIPPED'));
+  console.log('');
+  console.log('Виконано: ' + executed.length + ' з ' + runs.length + ' фікстур'
+    + (skipped.length ? ' · свідомо пропущено ' + skipped.length : ''));
+  if (errored.length) {
+    console.log('ПОМИЛОК: ' + errored.length + ' — ці фікстури НЕ перевірено:');
+    for (const r of errored) {
+      console.log('  x ' + r.fixture.id + ': ' + (String(r.result.error).split('\n')[0] ?? '').slice(0, 140));
+    }
+    console.log('Прогін НЕ можна вважати зеленим.');
   }
 
   const anyFail = runs.some((r) => !r.allPassed && !r.result.error?.startsWith('SKIPPED'));
