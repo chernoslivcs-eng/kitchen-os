@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { api, type ChatCard, type Recipe, type ReceiptLeftover } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
+import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { formatQty } from '../../lib/units';
 import { renderStepContent, scaleRecipe } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
@@ -123,11 +124,11 @@ function receiptDate(iso: string): string {
 function UnmatchedRow({ line }: { line: ReceiptLeftover }) {
   const [state, setState] = useState<'idle' | 'busy' | 'added'>('idle');
   return (
-    <div className={styles.op} style={{ color: 'var(--fg-dim)' }}>
+    <div className={`${styles.op} ${state === 'added' ? styles['row-changed'] : ''}`} style={{ color: 'var(--fg-dim)' }}>
       <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>?</span>
       <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>«{line.name}»</span>
       {state === 'added' ? (
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', flex: 'none' }}>✓ У КОМОРІ</span>
+        <span className={styles['row-text-in']} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', flex: 'none' }}>✓ У КОМОРІ</span>
       ) : (
         <button
           type="button"
@@ -791,6 +792,9 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   // віддзеркалює оновлену картку з відповіді.
   const [card, setCard] = useState(initial);
   const [swapping, setSwapping] = useState<number | null>(null);
+  // Кіт: заміна щойно записалась у стан — рядок і футер мусять це показати,
+  // не просто перемалюватись мовчки.
+  const [justSwapped, setJustSwapped] = useState<number | null>(null);
   const rows = card.rows ?? [];
   async function swap(i: number) {
     if (!cardId || swapping !== null) return;
@@ -798,6 +802,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
     try {
       const r = await api.retail.cartSwap(cardId, i);
       setCard(r.card);
+      setJustSwapped(i);
     } catch { /* рядок лишається з пропозицією */ } finally { setSwapping(null); }
   }
   return (
@@ -810,8 +815,15 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
       </div>
       <div className={styles.ops}>
         {rows.map((r, i) => (
-          <div key={i} className={styles.op} style={{ alignItems: 'flex-start' }}>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <div
+            key={i}
+            className={`${styles.op} ${justSwapped === i ? styles['row-changed'] : ''}`}
+            style={{ alignItems: 'flex-start' }}
+          >
+            <div
+              className={justSwapped === i ? styles['row-text-in'] : undefined}
+              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}
+            >
               <span className={styles['op-label']} style={r.product ? undefined : { color: 'var(--fg-dim)' }}>
                 {r.label}
               </span>
@@ -853,7 +865,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
         borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 6,
       }}>
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16 }}>
-          {card.total}₴ · {card.found} з {card.of}
+          <RollingNumber value={card.total ?? 0} />₴ · <RollingNumber value={card.found ?? 0} /> з {card.of}
         </span>
         <a
           href={card.cart_url}

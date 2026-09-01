@@ -334,6 +334,33 @@
 }
 .lessons-more:hover { color: var(--fg-muted); }
 
+/* M13: рядок мережі щойно змінив стан (підключено/протухло/відключено) —
+   короткий акцентний спалах, той самий принцип, що доккард-флеш у стрічці:
+   зміна в стані завжди має видимий перехід, не миттєвий стрибок тексту. */
+.network-changed { animation: network-flash var(--dur-base, 250ms) var(--ease-standard, ease); }
+@keyframes network-flash {
+  from { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  to   { background: transparent; }
+}
+
+/* Тост відключення — той самий в'їзд, що Feed .toast (слайд знизу), і
+   симетричний вихід при «Повернути» (клас тримається DUR_BASE, тоді щезає). */
+.network-toast {
+  animation: network-toast-in var(--dur-base, 250ms) var(--ease-enter, ease);
+}
+.network-toast.leaving {
+  animation: network-toast-out var(--dur-base, 250ms) var(--ease-exit, ease) both;
+}
+@keyframes network-toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes network-toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(10px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .diet-on, .equip-tick, .lesson-row { animation-duration: 1ms; }
+  .network-changed, .network-toast, .network-toast.leaving { animation-duration: 1ms; }
 }

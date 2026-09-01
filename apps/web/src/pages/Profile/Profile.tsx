@@ -41,8 +41,15 @@ function fmtSync(iso: string | null | undefined): string {
 function NetworksSection() {
   const [status, setStatus] = useState<RetailSilpoStatus>('loading');
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
-  const [toast, setToast] = useState(false);
+  // Тост живе окремо від «чи показувати» — leaving тримає рядок у DOM на
+  // час exit-анімації (той самий патерн, що row-fresh/row-leave у Списку).
+  const [toast, setToast] = useState<'in' | 'leaving' | null>(null);
   const [busy, setBusy] = useState(false);
+  // Кіт: будь-яка зміна стану має видимий перехід. Пропускаємо перший рендер
+  // (initial fetch — не «зміна», а показ поточного стану) і рахуємо статус
+  // fresh рівно один такт, доки CSS-анімація не встигне запуститись.
+  const [rowFresh, setRowFresh] = useState(false);
+  const mounted = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -57,6 +64,13 @@ function NetworksSection() {
       .catch(() => { if (alive) setStatus('unavailable'); });
     return () => { alive = false; };
   }, []);
+
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    setRowFresh(true);
+    const t = setTimeout(() => setRowFresh(false), 260);
+    return () => clearTimeout(t);
+  }, [status]);
 
   // Мережа не сконфігурована на сервері — зони просто немає, без пояснень.
   if (status === 'loading' || status === 'unavailable') return null;
@@ -81,7 +95,7 @@ function NetworksSection() {
     try {
       await api.retail.disconnect();
       setStatus('disconnected');
-      setToast(true);
+      setToast('in');
     } catch { /* рядок лишається як був */ } finally { setBusy(false); }
   }
   async function reconnect() {
@@ -90,7 +104,12 @@ function NetworksSection() {
     try {
       await api.retail.reconnect();
       setStatus('active');
-      setToast(false);
+      // Тост виходить, не зникає стрибком: leaving тримає DOM на dur-base,
+      // потім прибираємо зовсім.
+      if (toast) {
+        setToast('leaving');
+        setTimeout(() => setToast(null), 260);
+      }
     } catch { /* nop */ } finally { setBusy(false); }
   }
 
@@ -101,7 +120,7 @@ function NetworksSection() {
       </div>
       <div className={styles.section}>
         <div className={styles.members}>
-          <div className={styles.member}>
+          <div className={`${styles.member} ${rowFresh ? styles['network-changed'] : ''}`}>
             {status === 'active' && glyph('var(--accent)')}
             {status === 'none' && glyph('var(--fg-dim)')}
             {status === 'expired' && glyph('var(--amber)')}
@@ -139,12 +158,15 @@ function NetworksSection() {
           </div>
         </div>
         {toast && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12, marginTop: 12,
-            padding: '10px 14px', borderRadius: 12,
-            background: 'var(--fg)', color: 'var(--bg-body)',
-            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
-          }}>
+          <div
+            className={`${styles['network-toast']} ${toast === 'leaving' ? styles.leaving : ''}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12, marginTop: 12,
+              padding: '10px 14px', borderRadius: 12,
+              background: 'var(--fg)', color: 'var(--bg-body)',
+              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
+            }}
+          >
             Сільпо відключено
             <button
               type="button"
