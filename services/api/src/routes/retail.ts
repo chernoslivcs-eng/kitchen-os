@@ -1,12 +1,12 @@
 // M13 «Мережі», зріз 1: підключення Сільпо (OAuth 2.1 + PKCE, токен тільки
-// серверно і тільки шифротекстом) + «чеки → комора» через канон auto-apply.
+// серверно і тільки шифротекстом) + «чеки → комора» на явне підтвердження.
 //
 //   GET  /v1/retail                      → стан підключень для блоку «Мережі»
 //   GET  /v1/retail/silpo/connect        → 302 на authorize Сільпо (PKCE у куках)
 //   GET  /v1/retail/silpo/callback       → code → токени → шифр → upsert → редирект
 //   POST /v1/retail/silpo/disconnect     → мʼяке (status), тост «Повернути ↩»
 //   POST /v1/retail/silpo/reconnect      → undo тосту, без нового OAuth
-//   POST /v1/retail/silpo/sync-receipts  → останній чек → intake-картка → комора
+//   POST /v1/retail/silpo/sync-receipts  → останній чек → intake-картка на підтвердження
 //
 // Обмін коду і фабрика провайдера інʼєктуються (патерн GoogleAuthOpts.exchange):
 // тести тримають справжню криптографію PKCE/AES, але не ходять у мережу.
@@ -14,7 +14,7 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo, Card, CartCard, CartCardRow, RetailConnectionRow } from '@kitchen/domain';
-import { createPending, applyCard } from '@kitchen/domain';
+import { createPending } from '@kitchen/domain';
 import { resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { FastifyRequest, FastifyReply } from 'fastify';
@@ -326,19 +326,23 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
           nonfood, unmatched,
         },
       };
-      // Той самий шлях, що чек-фото в чаті (пул-8 №2): картка в сесію дня,
-      // застосування одразу, undo — страховка. Чек без жодного op'а теж
-      // лишається в стрічці — «не для комори»/«додати руками» видно людині.
+      // 01.09: чек — НЕ auto-apply, на відміну від чек-фото в чаті (пул-8
+      // №2) чи ручного intake. Людина тут нічого не казала — сервер сам
+      // прочитав чек мережі; auto-apply ховав би від неї, ЩО саме поїхало
+      // в комору. Картка лишається на явне підтвердження зі стрикаутом
+      // позицій (той самий чекбоксовий UI, що в будь-якій intake_diff).
       const card_id = randomUUID();
       await createPending(repo, { message_id: card_id, household_id, user_id, card });
+      const text = ops.length
+        ? `Чек Сільпо · ${receipt.shop}. Додати до комори ці покупки?`
+        : `Чек Сільпо · ${receipt.shop}`;
       await repo.saveMessage({
         id: card_id, session_id: session.id, role: 'assistant',
-        text: `Чек Сільпо · ${receipt.shop}`, card, applied: 0, created_at: new Date().toISOString(),
+        text, card, applied: 0, created_at: new Date().toISOString(),
       });
-      const applied = ops.length ? await applyCard(repo, card_id, [], user_id) : null;
       cards.push({
-        card, card_id,
-        auto_applied: Boolean(applied), undo_token: applied?.undo_token,
+        card, card_id, text,
+        auto_applied: false, undo_token: undefined,
         receipt: { shop: receipt.shop, city: receipt.city, at: receipt.at, total: receipt.total },
         nonfood, unmatched,
       });

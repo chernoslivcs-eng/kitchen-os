@@ -177,6 +177,11 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
   // згорнуте «не для комори». apply/undo — той самий шлях, що у всіх intake.
   const receipt = card.source?.kind === 'retail_receipt' ? card.source : null;
   const [nonfoodOpen, setNonfoodOpen] = useState(false);
+  // 01.09: чек — не auto-apply, а картка на підтвердження зі стрикаутом.
+  // Повний список одразу — «звалище»: чек легко несе 10+ позицій. Згорнуто
+  // за замовчуванням, як «не для комори» нижче; для звичайного (короткого)
+  // intake_diff з чату список і так короткий — розгорнутий одразу.
+  const [opsOpen, setOpsOpen] = useState(!receipt);
   return (
     <div className={stateClass(applied, undone)}>
       {receipt && (
@@ -189,47 +194,65 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
           </MonoLabel>
         </div>
       )}
-      <div className={styles.ops}>
-        {ops.map((op, i) => (
-          <div
-            key={i}
-            className={styles.op}
-            onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
-            style={actionable && ops.length > 1
-              ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
-              : undefined}
-          >
-            {actionable && ops.length > 1 && (
-              <span
-                role="checkbox"
-                aria-checked={!off.has(i)}
-                style={{
-                  width: 18, height: 18, borderRadius: 6, flex: 'none',
-                  display: 'inline-grid', placeItems: 'center',
-                  background: off.has(i) ? 'transparent' : 'var(--accent)',
-                  border: off.has(i) ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
-                  color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 11,
-                }}
-              >{off.has(i) ? '' : '✓'}</span>
-            )}
-            <span className={styles['op-sign']}>{signFor(op.op)}</span>
-            <span className={styles['op-label']}>
-              {op.op === 'rename'
-                ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
-                : op.label ?? '—'}
-              {op.op === 'correct' && (op as { zone?: string }).zone && (
-                <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
-                </span>
+      {receipt && (
+        <button
+          type="button"
+          onClick={() => setOpsOpen((v) => !v)}
+          style={{
+            border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
+            color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}
+        >
+          <span style={{ width: 18, textAlign: 'center' }}>{opsOpen ? '⌄' : '›'}</span>
+          {ops.length} {plural(ops.length, ['позиція', 'позиції', 'позицій'])}
+          {receipt.unmatched.length > 0 ? ` + ${receipt.unmatched.length} без пари` : ''}
+          {opsOpen ? ' · згорнути' : ' · показати'}
+        </button>
+      )}
+      {opsOpen && (
+        <div className={styles.ops}>
+          {ops.map((op, i) => (
+            <div
+              key={i}
+              className={styles.op}
+              onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}
+              style={actionable && ops.length > 1
+                ? { cursor: 'pointer', opacity: off.has(i) ? 0.45 : 1 }
+                : undefined}
+            >
+              {actionable && ops.length > 1 && (
+                <span
+                  role="checkbox"
+                  aria-checked={!off.has(i)}
+                  style={{
+                    width: 18, height: 18, borderRadius: 6, flex: 'none',
+                    display: 'inline-grid', placeItems: 'center',
+                    background: off.has(i) ? 'transparent' : 'var(--accent)',
+                    border: off.has(i) ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
+                    color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 11,
+                  }}
+                >{off.has(i) ? '' : '✓'}</span>
               )}
-            </span>
-            {op.value != null && op.unit && (
-              <span className={styles['op-qty']}>{op.op === 'correct' ? '→ ' : ''}{formatQty(op.value, op.unit)}</span>
-            )}
-          </div>
-        ))}
-        {receipt && receipt.unmatched.map((l, i) => <UnmatchedRow key={`u${i}`} line={l} />)}
-      </div>
+              <span className={styles['op-sign']}>{signFor(op.op)}</span>
+              <span className={styles['op-label']}>
+                {op.op === 'rename'
+                  ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
+                  : op.label ?? '—'}
+                {op.op === 'correct' && (op as { zone?: string }).zone && (
+                  <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
+                  </span>
+                )}
+              </span>
+              {op.value != null && op.unit && (
+                <span className={styles['op-qty']}>{op.op === 'correct' ? '→ ' : ''}{formatQty(op.value, op.unit)}</span>
+              )}
+            </div>
+          ))}
+          {receipt && receipt.unmatched.map((l, i) => <UnmatchedRow key={`u${i}`} line={l} />)}
+        </div>
+      )}
       {receipt && receipt.nonfood.length > 0 && (
         <div style={{ marginTop: 2 }}>
           <button
@@ -257,8 +280,10 @@ export function IntakeCard({ card, applied, applying, dismissed, undone, undoAva
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 8,
         }}>
+          {/* 01.09: рахуємо застосовану кількість (мінус викреслені), не
+              весь ops.length — інакше бейдж бреше про число після стрикауту. */}
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)' }}>
-            ● {ops.length} {plural(ops.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])} У КОМОРІ
+            ● {ops.length - off.size} {plural(ops.length - off.size, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])} У КОМОРІ
           </span>
           {undoAvailable && onUndo && (
             <button
@@ -945,7 +970,10 @@ export function Card(props: CardProps) {
 
 // Текст тосту після «Так». Жив інлайном у Feed і рахував «ops або items»
 // з формами «у коморі»/«у списку» — картка рецепта давала «0 позицій у коморі».
-export function appliedToast(card: ChatCard): string {
+// appliedCount — 01.09: реальна кількість, яку повернув сервер (applyCard).
+// Без цього тост завжди рахував card.ops.length — ПОВНИЙ список, ігноруючи
+// стрикаут: «Застосувати 9» тиснеш, а тост і бейдж кажуть «10».
+export function appliedToast(card: ChatCard, appliedCount?: number): string {
   if (card.type === 'cook_photo') {
     return card.recipe_title ? `Фото до «${card.recipe_title}» — у журналі` : 'Фото в журналі';
   }
@@ -953,9 +981,9 @@ export function appliedToast(card: ChatCard): string {
     const t = (card.recipe as Recipe | undefined)?.t;
     return t ? `«${t}» — у рецептах` : 'Рецепт збережено';
   }
-  const count = card.type === 'shopping' || card.type === 'proposal'
+  const count = appliedCount ?? (card.type === 'shopping' || card.type === 'proposal'
     ? (card.items?.length ?? 0)
-    : (card.ops?.length ?? 0);
+    : (card.ops?.length ?? 0));
   const forms: [string, string, string] = card.type === 'shopping'
     ? ['позиція у списку', 'позиції у списку', 'позицій у списку']
     : ['позиція у коморі', 'позиції у коморі', 'позицій у коморі'];

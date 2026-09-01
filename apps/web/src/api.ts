@@ -203,6 +203,7 @@ export const api = {
       cards: Array<{
         card: ChatCard;
         card_id: string;
+        text: string;
         auto_applied: boolean;
         undo_token?: string;
         receipt: { shop: string; city: string; at: string; total: number };

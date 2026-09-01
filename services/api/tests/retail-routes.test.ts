@@ -164,7 +164,7 @@ describe('retail routes · silpo', () => {
     expect(await repo.getRetailConnection(me.user_id, 'silpo')).toBeNull();
   });
 
-  it('sync-receipts: чек → auto-apply в комору, метадані чека живуть у картці', async () => {
+  it('sync-receipts: чек → картка на підтвердження (НЕ auto-apply), метадані чека живуть у картці', async () => {
     await connect();
     const r = await app.inject({
       method: 'POST', url: '/v1/retail/silpo/sync-receipts', headers: { cookie: me.cookie },
@@ -178,9 +178,13 @@ describe('retail routes · silpo', () => {
     expect(body.up_to_date).toBe(false);
     expect(body.cards).toHaveLength(1);
     const c = body.cards[0];
-    expect(c.auto_applied).toBe(true);
-    expect(c.undo_token).toBeTruthy();
+    // 01.09: чек — не intake з чату (людина ще нічого не сказала), а дані
+    // мережі. Auto-apply тут ховає від людини, ЩО саме поїхало в комору —
+    // тому чек лишається на явне підтвердження, зі стрикаутом позицій.
+    expect(c.auto_applied).toBe(false);
+    expect(c.undo_token).toBeFalsy();
     expect(c.card.type).toBe('intake_diff');
+    expect(c.text).toBe('Чек Сільпо · вул. Київська, буд. 10. Додати до комори ці покупки?');
     // Метадані джерела — В КАРТЦІ (не тільки у відповіді): стрічка рендерить
     // шапку «Чек Сільпо · …», сірі рядки і «не для комори» після перезавантаження.
     expect(c.card.source).toMatchObject({
@@ -192,9 +196,8 @@ describe('retail routes · silpo', () => {
     expect(c.card.source.unmatched.map((l: { name: string }) => l.name))
       .toEqual(["Дрова Pen'ok Початок вогню №2"]);
 
-    const batches = await repo.listBatches(me.household_id);
-    const chicken = batches.find((b) => b.label === 'Філе куряче охолоджене');
-    expect(chicken).toMatchObject({ value: 640, unit: 'g', provenance: 'receipt_line' });
+    // Нічого не застосовано, поки людина не тисне «Застосувати».
+    expect(await repo.listBatches(me.household_id)).toHaveLength(0);
 
     // Збережене повідомлення несе ту саму картку з source — стрічці є що малювати.
     const messages = await repo.listMessages(
@@ -202,6 +205,16 @@ describe('retail routes · silpo', () => {
     );
     const msg = messages.find((m) => m.id === c.card_id);
     expect((msg?.card as { source?: { kind?: string } })?.source?.kind).toBe('retail_receipt');
+    expect(msg?.text).toBe('Чек Сільпо · вул. Київська, буд. 10. Додати до комори ці покупки?');
+
+    // Явне підтвердження — тим самим шляхом, що будь-яка intake_diff-картка.
+    const applyRes = await app.inject({
+      method: 'POST', url: `/v1/cards/${c.card_id}/apply`, headers: { cookie: me.cookie }, payload: {},
+    });
+    expect(applyRes.statusCode).toBe(200);
+    const batches = await repo.listBatches(me.household_id);
+    const chicken = batches.find((b) => b.label === 'Філе куряче охолоджене');
+    expect(chicken).toMatchObject({ value: 640, unit: 'g', provenance: 'receipt_line' });
   });
 
   it('повторний sync не дублює: водяний знак last_receipt_at', async () => {
@@ -216,8 +229,10 @@ describe('retail routes · silpo', () => {
     });
     expect(again.json()).toMatchObject({ up_to_date: true, cards: [] });
 
-    const batches = await repo.listBatches(me.household_id);
-    expect(batches.filter((b) => b.label === 'Філе куряче охолоджене')).toHaveLength(1);
+    // Чек не auto-apply — водяний знак рахується від чеків, які СИНКНУЛИСЬ,
+    // не від тих, що людина підтвердила. Перевіряємо саме дедуп синку.
+    expect(first.json().cards[0].card.ops.some((o: { label: string }) => o.label === 'Філе куряче охолоджене'))
+      .toBe(true);
 
     // Зʼявився новіший чек — імпортується ТІЛЬКИ він.
     const fresh = { ...RECEIPT, at: '2026-08-30T09:00:00', shop: 'Нова філія', lines: [RECEIPT.lines[0]!] };
@@ -228,8 +243,6 @@ describe('retail routes · silpo', () => {
     const body3 = third.json();
     expect(body3.cards).toHaveLength(1);
     expect(body3.cards[0].card.source.shop).toBe('Нова філія');
-    expect((await repo.listBatches(me.household_id)).filter((b) => b.label === 'Філе куряче охолоджене'))
-      .toHaveLength(2);
   });
 
   it('disconnect мʼякий: sync блокується 409, reconnect повертає без нового OAuth', async () => {

@@ -393,7 +393,7 @@ export function Feed() {
           ...sync.cards.map((c): Turn => ({
             id: newId(), role: 'assistant',
             time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
-            text: `Чек Сільпо · ${c.receipt.shop}`,
+            text: c.text,
             card: c.card, cardId: c.card_id,
             applied: c.auto_applied, undoToken: c.undo_token,
             fresh: true, justApplied: c.auto_applied,
@@ -639,7 +639,7 @@ export function Feed() {
       setToast({
         id: Date.now(),
         kind: 'ok',
-        text: turn.card ? appliedToast(turn.card) : 'Готово',
+        text: turn.card ? appliedToast(turn.card, r.applied) : 'Готово',
         onUndo: () => undo(turnId, r.undo_token),
       });
     } catch (err) {
