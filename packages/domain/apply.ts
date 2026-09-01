@@ -284,6 +284,27 @@ function normalizeUnit(value: number | undefined | null, unit: string | undefine
   return { value: null, unit: null };
 }
 
+// 01.09 живий репро: «Кроненбург 0.5 давай до замовлення» лягло в shopping-
+// картку як { label: "Пиво Kronenbourg 0.5 л", v: null, u: null } — модель
+// не витягла кількість у v/u, впаяла її текстом у саму назву. label потім
+// іде БУКВАЛЬНИМ пошуковим запитом до Сільпо (retail.ts findBatch) — «0.5 л»
+// не входить у жодну реальну назву товару, тому чесний товар не знаходиться,
+// хоча чистий запит без хвоста його знаходить. Страхуємось тут, на вставці:
+// якщо v/u НЕ прийшли з картки окремо, а в кінці label є «ЧИСЛО ОДИНИЦЯ» —
+// переносимо в v/u (тим самим normalizeUnit), відрізаємо хвіст від label.
+// Якщо v/u вже прийшли з картки — label не займаємо, навіть якщо там теж
+// випадково є число-одиниця (могло бути частиною реальної назви SKU).
+const TRAILING_QTY = /\s+(\d+(?:[.,]\d+)?)\s*(л|мл|кг|г|шт)\.?\s*$/i;
+
+function extractTrailingQuantity(label: string): { label: string; value: number | null; unit: Unit | null } {
+  const m = label.match(TRAILING_QTY);
+  if (!m) return { label, value: null, unit: null };
+  const rawValue = parseFloat(m[1]!.replace(',', '.'));
+  const { value, unit } = normalizeUnit(rawValue, m[2]);
+  if (value == null || unit == null) return { label, value: null, unit: null };
+  return { label: label.slice(0, m.index).trim(), value, unit };
+}
+
 async function applyIntakeOp(
   repo: Repo,
   op: IntakeOp,
@@ -437,16 +458,21 @@ async function applyShoppingOp(
     }
     return;
   }
-  // Дефолт — add. Якщо вже є з тим самим label — не дублюємо.
-  const existing = await repo.findShoppingItemByLabel(household_id, item.label);
+  // Дефолт — add. v/u не прийшли окремо — перевіряємо, чи кількість не
+  // впаялась текстом у хвіст label (живий репро «Kronenbourg 0.5 л»).
+  const extracted = item.v == null && item.u == null
+    ? extractTrailingQuantity(item.label)
+    : { label: item.label, value: item.v ?? null, unit: item.u ?? null };
+  // Якщо вже є з тим самим (очищеним) label — не дублюємо.
+  const existing = await repo.findShoppingItemByLabel(household_id, extracted.label);
   if (existing) return;
   const id = randomUUID();
   await repo.insertShoppingItem({
     id, household_id,
-    label: item.label,
+    label: extracted.label,
     reason: item.note ?? null,
-    value: item.v ?? null,
-    unit: item.u ?? null,
+    value: extracted.value,
+    unit: extracted.unit,
     zone: null,
     checked: false,
     added_by: actor,
