@@ -924,9 +924,6 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
         {rows.map((r, i) => {
           const alts = r.alternatives ?? [];
           const isExpanded = expanded.has(i);
-          // 01.09: показуємо перші 4, решта — під тапом «+N ще».
-          const VISIBLE_ALT_COUNT = 4;
-          const visibleAlts = isExpanded ? alts : alts.slice(0, VISIBLE_ALT_COUNT);
           const p = r.product;
           const step = p?.weighted ? 0.1 : 1;
           const qtyLabel = p ? (p.weighted ? p.quantity.toLocaleString('uk-UA', { maximumFractionDigits: 2 }) : String(p.quantity)) : '';
@@ -996,10 +993,25 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                   </div>
                 )}
                 {/* 01.09 картка v2: альтернативи — компактний рядок, не плитка.
-                    Хіт-рядок попереджає перед списком (тап-заміна на хіт
-                    дозволена, але не видаляє старе з живого кошика Сільпо). */}
+                    Кіт: список 3+ позицій із розгорнутими альтернативами
+                    засмічував екран — за замовчуванням згорнуто, тап
+                    розкриває (та сама механіка, що «ще N не для комори»). */}
                 {alts.length > 0 && (
                   <div style={{ width: '100%', marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(i)}
+                      style={{
+                        border: 0, background: 'transparent', cursor: 'pointer', padding: '4px 0',
+                        color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 12,
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}
+                    >
+                      <span style={{ width: 14, textAlign: 'center' }}>{isExpanded ? '⌄' : '›'}</span>
+                      альтернативи ({alts.length})
+                    </button>
+                    {isExpanded && (
+                    <>
                     {p && (
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--fg-dim)', marginBottom: 4 }}>
                         «⇄» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
@@ -1009,12 +1021,12 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                       background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12,
                       padding: '0 12px',
                     }}>
-                      {visibleAlts.map((a, ai) => (
+                      {alts.map((a, ai) => (
                         <div
                           key={ai}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
-                            borderBottom: ai < visibleAlts.length - 1 ? '1px solid var(--border)' : 0,
+                            borderBottom: ai < alts.length - 1 ? '1px solid var(--border)' : 0,
                           }}
                         >
                           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1061,18 +1073,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                         </div>
                       ))}
                     </div>
-                    {alts.length > VISIBLE_ALT_COUNT && (
-                      <button
-                        type="button"
-                        onClick={() => toggleExpanded(i)}
-                        style={{
-                          border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0 0',
-                          color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 12,
-                          textDecoration: 'underline', textUnderlineOffset: 3,
-                        }}
-                      >
-                        {isExpanded ? 'згорнути' : `+${alts.length - VISIBLE_ALT_COUNT} ще`}
-                      </button>
+                    </>
                     )}
                   </div>
                 )}
