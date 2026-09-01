@@ -103,3 +103,32 @@ describe('решта стан-блоків присутні завжди', () =>
     expect(s).toMatch(/жодного|ще не готув|порожн/i);
   });
 });
+
+// 8b: мовчазне обрізання. Комора чесна — показує 120 рядків і додає «…і ще N
+// позицій — спитай, якщо треба». Висновки капляться на 20, рецепти на 5, і
+// модель бачить обрізане як ПОВНЕ. Це ламає вже наявне правило: card-rules
+// наказує «не пропонуй записати те, що вже там є» — при 25 висновках модель
+// звірить із двадцятьма й запропонує дубль, формально не винна.
+describe('обрізані блоки кажуть, що вони обрізані', () => {
+  const note = (id: string, text: string) => ({
+    id, user_id: 'u1', text, recipe_title: null, rating: null,
+    pinned: false, created_at: '2026-08-01T10:00:00.000Z', kind: 'lesson' as const,
+  });
+
+  it('[ВИСНОВКИ З ГОТУВАННЯ] — хвіст, коли є ще', () => {
+    const s = serializeNotes([note('n1', 'фует знімати, щойно краї хрусткі')], true);
+    expect(s).toContain('фует');
+    expect(s).toMatch(/є й інші|ще|спитай/i);
+  });
+
+  it('без обрізання хвоста немає — інакше він бреше в інший бік', () => {
+    const s = serializeNotes([note('n1', 'фует знімати, щойно краї хрусткі')], false);
+    expect(s).not.toMatch(/є й інші|спитай/i);
+  });
+
+  it('[ЗГЕНЕРОВАНІ РЕЦЕПТИ] — так само', () => {
+    const row = { id: 'r1', owner_id: 'u1', origin: 'generated', title: 'Карі', payload: null } as never;
+    expect(serializeRecentRecipes([row], true)).toMatch(/є й інші|ще|спитай/i);
+    expect(serializeRecentRecipes([row], false)).not.toMatch(/є й інші|спитай/i);
+  });
+});

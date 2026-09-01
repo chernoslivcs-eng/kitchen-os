@@ -24,6 +24,8 @@ export interface KitchenMode {
   at: string;
   /** id повідомлення (кошик) або назва (рецепт, готування). */
   ref?: string;
+  /** Сесія щойно почалась — ця відповідь буде першою в ній. */
+  sessionOpening?: boolean;
 }
 
 const hhmm = (iso: string) => {
@@ -76,6 +78,11 @@ export function detectModes(
       kind: 'unrated_run',
       at: fresh.finished_at,
       ref: fresh.title,
+      // Порожня історія = ця відповідь буде першою в сесії. Дизайн панелі
+      // забирає зріз, де жив блок «ОЦІНИ ВЧОРАШНЄ», а асистент першим НЕ
+      // пише (механізму немає) — тож єдине місце, де це може прозвучати,
+      // саме перша відповідь.
+      sessionOpening: messages.length === 0,
       label: `«${fresh.title}» приготовано о ${hhmm(fresh.finished_at)}, і людина ще не сказала, як вийшло.`,
     });
   }
@@ -98,11 +105,20 @@ const RULE: Record<ModeKind, string> = {
     + ' сама не пішла в інше. Не починай з цього кожну репліку.',
 };
 
+// Те саме, але коли відповідь буде першою в сесії. Різниця не косметична:
+// далі в розмові питання про вчорашнє — доречність, а на відкритті — єдина
+// нагода, бо потім розмова піде своїм руслом і вже не повернеться.
+const OPENING_RULE: Partial<Record<ModeKind, string>> = {
+  unrated_run:
+    'ПОЧАТОК СЕСІЇ — саме тут про це варто спитати одним реченням, перш ніж'
+    + ' переходити до того, про що спитали. Далі в розмові вже не нагадуй.',
+};
+
 export function serializeModes(modes: KitchenMode[]): string {
   if (!modes.length) {
     return '\n\n[РЕЖИМ] нічого не відкрито — ні кошика, ні свіжого рецепта.';
   }
   return '\n\n[РЕЖИМ] (над чим ви працюєте ЗАРАЗ, найсвіжіше першим. Це не стан кухні —'
     + ' стан у своїх блоках; це ситуація, у якій звучить наступна репліка)\n'
-    + modes.map((m) => `— ${m.label} ${RULE[m.kind]}`).join('\n');
+    + modes.map((m) => `— ${m.label} ${(m.sessionOpening && OPENING_RULE[m.kind]) || RULE[m.kind]}`).join('\n');
 }

@@ -170,6 +170,9 @@ export interface ChatArgs {
   // №4: що зараз відкрито. Рахує маршрут (він має повідомлення сесії),
   // модель отримує готовий факт замість виведення з історії.
   modes?: KitchenMode[];
+  // 8b: блоки з лімітом на рівні репозиторію показані не повністю.
+  notesTruncated?: boolean;
+  recipesTruncated?: boolean;
 }
 
 export interface ChatCall {
@@ -358,6 +361,8 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     products: args.products,
     retailConnected: args.retailConnected,
     modes: args.modes,
+    notesTruncated: args.notesTruncated,
+    recipesTruncated: args.recipesTruncated,
     queryText,
   });
 }

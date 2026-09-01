@@ -269,12 +269,21 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Висновки, які людина сама зробила про свою кухню: «фует знімати, щойно
     // краї хрусткі». Закріплені згори.
-    const notes = await repo.listNotes(user_id, 20);
+    // 8b: беремо на один більше за ліміт. Зайвий у промпт не йде — він лише
+    // доводить, що показано не все. Точної кількості решти не знаємо й не
+    // вигадуємо: чесне «є й інші» краще за вигадане число.
+    const NOTES_CAP = 20;
+    const notesRaw = await repo.listNotes(user_id, NOTES_CAP + 1);
+    const notesTruncated = notesRaw.length > NOTES_CAP;
+    const notes = notesRaw.slice(0, NOTES_CAP);
     // Їдці дому: страва готується на всіх, хто за столом.
     const eaters = await repo.listEaters(ctx.household_id);
     // Останні згенеровані рецепти — щоб модель бачила, що вже пропонувала,
     // і трималась названого складу замість нового підходу на кожен тап.
-    const recentRecipes = await repo.listRecentRecipes(user_id, 5);
+    const RECIPES_CAP = 5;
+    const recipesRaw = await repo.listRecentRecipes(user_id, RECIPES_CAP + 1);
+    const recipesTruncated = recipesRaw.length > RECIPES_CAP;
+    const recentRecipes = recipesRaw.slice(0, RECIPES_CAP);
 
     // M13: [МЕРЕЖІ] у промпті — тільки коли інтеграція взагалі сконфігурована
     // на сервері (retailCart переданий). Статус читаємо напряму з repo:
@@ -311,6 +320,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
+        notesTruncated, recipesTruncated,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');

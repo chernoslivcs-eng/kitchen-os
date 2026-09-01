@@ -7,16 +7,12 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Repo, Recipe, RecipeLinkCard } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
-
-function today(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import { localDay } from '../local-day.js';
 
 export function sessionRoutes(app: FastifyInstance, repo: Repo) {
   app.get('/v1/session/today', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
-    const session = await repo.getOrCreateSessionForDay(user_id, today());
+    const session = await repo.getOrCreateSessionForDay(user_id, localDay());
     // П.8 pre-deploy: recipe_link несе повний рецепт у кожному повідомленні —
     // без кепа стара сесія важить мегабайти. 200 останніх вистачає будь-якому
     // екрану; глибша історія — окрема задача пагінації, якщо знадобиться.
@@ -35,7 +31,7 @@ export function sessionRoutes(app: FastifyInstance, repo: Repo) {
       const { user_id } = requireUser(req);
       const recipe_id = req.body?.recipe_id;
       if (!recipe_id) {
-        const session = await repo.createFreshSession(user_id, today());
+        const session = await repo.createFreshSession(user_id, localDay());
         return { session, messages: [] };
       }
 
@@ -53,7 +49,7 @@ export function sessionRoutes(app: FastifyInstance, repo: Repo) {
         }
       }
 
-      const session = await repo.createFreshSession(user_id, today());
+      const session = await repo.createFreshSession(user_id, localDay());
       const message = {
         id: randomUUID(), session_id: session.id, role: 'assistant' as const,
         text: null,

@@ -43,6 +43,9 @@ export interface KitchenContext {
   // Рахує сервер із повідомлень сесії — модель більше не виводить ситуацію
   // з двадцяти рядків історії.
   modes?: KitchenMode[];
+  // 8b: чи обрізані блоки з лімітом на рівні репозиторію.
+  notesTruncated?: boolean;
+  recipesTruncated?: boolean;
 }
 
 // M13: без цього блока модель на «замов через сільпо» відповідала categorичною
@@ -302,7 +305,12 @@ export function serializeEaters(eaters: EaterRow[]): string {
 // рецептів: «а що ти там пропонував з борщем?» — і вона вигадувала борщ
 // заново, з іншим мʼясом і іншими калоріями (скріни Пилипа: 280 ккал з
 // яловичиною проти 180 зі свининою на ту саму назву).
-export function serializeRecentRecipes(rows: RecipeRow[]): string {
+// 8b: `truncated` — «показано не все». Комора має чесний хвіст «…і ще N
+// позицій» від першого дня; решта блоків обрізалась мовчки, і модель бачила
+// обрізане як ПОВНЕ. Числа тут немає навмисно: репозиторій віддає лише
+// перші N, точна кількість решти невідома — вигадувати її означало б лікувати
+// одну неправду іншою.
+export function serializeRecentRecipes(rows: RecipeRow[], truncated = false): string {
   if (!rows.length) {
     return '\n\n[ЗГЕНЕРОВАНІ РЕЦЕПТИ] порожньо — у цьому домі ти ще не генерував рецептів.';
   }
@@ -316,13 +324,14 @@ export function serializeRecentRecipes(rows: RecipeRow[]): string {
   });
   return '\n\n[ЗГЕНЕРОВАНІ РЕЦЕПТИ]\n' + lines.join('\n')
     + '\nЯкщо людина повертається до однієї з цих страв — тримайся ЦЬОГО складу, не вигадуй новий підхід.'
-    + ' Хоче інакше — вона скаже прямо.';
+    + ' Хоче інакше — вона скаже прямо.'
+    + (truncated ? '\nПоказано не всі — є й інші, раніші. Спитай, якщо треба.' : '');
 }
 
 // Висновки з готування. Це єдине в контексті, що написала не система, а сама
 // людина про свою кухню: «фует знімати, щойно краї хрусткі». Тому вони йдуть
 // окремим блоком, а не тонуть у профілі серед побажань.
-export function serializeNotes(notes: MemoryNote[]): string {
+export function serializeNotes(notes: MemoryNote[], truncated = false): string {
   const line = (n: MemoryNote) => {
     const parts = [n.text];
     if (n.recipe_title) parts.push(`до «${n.recipe_title}»`);
@@ -339,6 +348,9 @@ export function serializeNotes(notes: MemoryNote[]): string {
   let out = lessons.length
     ? '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lessons.map(line).join('\n')
     : '\n\n[ВИСНОВКИ З ГОТУВАННЯ] порожньо — висновків про техніку ще не записано.';
+  if (lessons.length && truncated) {
+    out += '\nПоказано не всі — є й інші, раніші. Спитай, якщо треба.';
+  }
   out += intents.length
     ? '\n\n[НАМІРИ] (ідеї, які людина відклала на потім — нагадай, коли складники в наявності або момент слушний)\n'
       + intents.map(line).join('\n')
@@ -369,9 +381,9 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none', 120, ctx.products ?? [], ctx.queryText ?? '')
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
-    + serializeNotes(ctx.notes ?? [])
+    + serializeNotes(ctx.notes ?? [], ctx.notesTruncated)
     + serializeEaters(ctx.eaters ?? [])
-    + serializeRecentRecipes(ctx.recentRecipes ?? [])
+    + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
     + serializeRetail(ctx.retailConnected)
     // Режим — ОСТАННІМ: це найлетючіше й найдієвіше, що є в контексті, і
     // читається безпосередньо перед тим, як модель обирає хід.
