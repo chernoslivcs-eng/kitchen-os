@@ -33,6 +33,11 @@ export interface RetailOpts {
     clientId: string;
     tokenSecret: string;
     exchange?: (code: string, redirectUri: string, verifier: string) => Promise<SilpoTokens>;
+    // Обмін refresh_token на нову пару токенів (grant_type=refresh_token).
+    // 401 (RetailAuthError) від провайдера НЕ означає одразу «увійди знову» —
+    // access-токен живе 30 днів і мусить оновлюватись тихо, поки живий
+    // refresh_token. Людина бачить «Увійти знову» тільки коли й це не рятує.
+    refresh?: (refreshToken: string) => Promise<SilpoTokens>;
     makeProvider?: (accessToken: string) => Pick<SilpoProvider, 'receipts' | 'findBatch' | 'addToCart'>;
     // Дев-шорткат: готовий access-токен (напр. із розвідувального OAuth) —
     // connect підключає без походу в Сільпо. In-memory бекенд губить
@@ -75,6 +80,26 @@ function makeRealExchange(clientId: string) {
   };
 }
 
+// Прод-рефреш: grant_type=refresh_token — той самий /token endpoint.
+function makeRealRefresh(clientId: string) {
+  return async (refreshToken: string): Promise<SilpoTokens> => {
+    const res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+      }),
+    });
+    const data = (await res.json()) as SilpoTokens & { error?: string };
+    if (!res.ok || !data.access_token) {
+      throw new Error(`silpo token refresh failed: ${res.status} ${JSON.stringify(data).slice(0, 200)}`);
+    }
+    return data;
+  };
+}
+
 export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts) {
   const silpo = opts?.silpo;
 
@@ -97,9 +122,42 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   if (!silpo) return;
   const cipher = makeTokenCipher(silpo.tokenSecret);
   const exchange = silpo.exchange ?? makeRealExchange(silpo.clientId);
+  const refreshTokens = silpo.refresh ?? makeRealRefresh(silpo.clientId);
   const makeProvider = silpo.makeProvider
     ?? ((accessToken: string) => new SilpoProvider({ accessToken }));
   const redirectUri = () => `${apiBase()}/v1/retail/silpo/callback`;
+
+  // Один retail-виклик з тихим оновленням протухлого токена. RetailAuthError
+  // від провайдера НЕ означає одразу «Увійти знову» — access-токен живе 30
+  // днів, тож спершу пробуємо refresh_token (якщо він є) РІВНО раз; якщо і
+  // це кидає RetailAuthError — людина справді має зайти заново.
+  async function withRetailAuth<T>(
+    conn: import('@kitchen/domain').RetailConnectionRow,
+    fn: (provider: ReturnType<typeof makeProvider>) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await fn(makeProvider(cipher.dec(conn.access_token_enc)));
+    } catch (e) {
+      if (!(e instanceof RetailAuthError) || !conn.refresh_token_enc) throw e;
+      let tokens: SilpoTokens;
+      try {
+        tokens = await refreshTokens(cipher.dec(conn.refresh_token_enc));
+      } catch {
+        // Мережа відкликала refresh_token — не наша справа розбиратись, чому.
+        throw new RetailAuthError();
+      }
+      const now = new Date();
+      const updated = {
+        ...conn,
+        access_token_enc: cipher.enc(tokens.access_token),
+        refresh_token_enc: tokens.refresh_token ? cipher.enc(tokens.refresh_token) : conn.refresh_token_enc,
+        expires_at: new Date(now.getTime() + tokens.expires_in * 1000).toISOString(),
+        updated_at: now.toISOString(),
+      };
+      await repo.upsertRetailConnection(updated);
+      return await fn(makeProvider(cipher.dec(updated.access_token_enc)));
+    }
+  }
   const secure = process.env.NODE_ENV === 'production';
   const oauthCookie = { httpOnly: true, sameSite: 'lax' as const, secure, path: '/', maxAge: 600 };
 
@@ -192,9 +250,10 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
 
     let receipts;
     try {
-      receipts = await makeProvider(cipher.dec(conn.access_token_enc)).receipts();
+      receipts = await withRetailAuth(conn, (p) => p.receipts());
     } catch (e) {
-      // Протухлий токен — бурштиновий стан «Увійти знову», не 500.
+      // Протухлий токен, і refresh не врятував — бурштиновий стан
+      // «Увійти знову», не 500.
       if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
       throw e;
     }
@@ -257,79 +316,82 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     const items = (await repo.listShoppingItems(household_id)).filter((i) => !i.checked);
     if (!items.length) return reply.code(409).send({ error: 'empty_list' });
 
-    const provider = makeProvider(cipher.dec(conn.access_token_enc));
-    let found: Map<string, RetailFoundRow>;
-    let altFound = new Map<string, RetailFoundRow>();
-    try {
-      const phase1 = await provider.findBatch(items.map((i) => i.label));
-      found = new Map(phase1.map((r) => [r.query, r]));
-
-      // Фаза 2 — тільки промахи, тільки якщо каталог дає ІНШЕ імʼя.
-      const retry = new Map<string, string>(); // canonical → original label
-      for (const it of items) {
-        if (found.get(it.label)?.product) continue;
-        const key = resolveLabelToKey(it.label);
-        const canonical = key ? BY_KEY.get(key)?.name : null;
-        if (canonical && canonical.toLowerCase() !== it.label.toLowerCase()) retry.set(canonical, it.label);
-      }
-      if (retry.size) {
-        const phase2 = await provider.findBatch([...retry.keys()]);
-        for (const r of phase2) {
-          const original = retry.get(r.query);
-          if (original && r.product) found.set(original, r);
-        }
-      }
-      // Фаза 3 — досі промахи: головне слово канонічного імені («Рис арборіо»
-      // → «рис»). Результат стає ПРОПОЗИЦІЄЮ заміни, не покупкою: «не
-      // вгадувати» — в кошик вона їде тільки тапом «замінити» (cart-swap).
-      const alt = new Map<string, string>(); // head → original label
-      for (const it of items) {
-        if (found.get(it.label)?.product) continue;
-        const key = resolveLabelToKey(it.label);
-        const head = (key ? BY_KEY.get(key)?.name : null)?.split(/\s+/)[0]?.toLowerCase();
-        if (head && head !== it.label.toLowerCase()) alt.set(head, it.label);
-      }
-      if (alt.size) {
-        const phase3 = await provider.findBatch([...alt.keys()]);
-        for (const r of phase3) {
-          const original = alt.get(r.query);
-          if (original && r.product) altFound.set(original, r);
-        }
-      }
-    } catch (e) {
-      if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
-      throw e;
-    }
-
     // Кількість у кошик: вагове — кг із наших грамів (мінімум 0.1), штучне — 1.
     const qtyFor = (p: { weighted: boolean; step: number }, it: { unit: string | null; value: number | null }) =>
       p.weighted && it.unit === 'g' && it.value
         ? Math.max(0.1, Math.round((it.value / 1000) * 100) / 100)
         : Math.max(1, p.step || 1);
-    const rows: CartCardRow[] = [];
-    const toAdd: Array<{ productId: string; companyId: string; branchId: string; quantity: number }> = [];
-    for (const it of items) {
-      const hit = found.get(it.label)?.product ?? null;
-      let quantity = 0;
-      if (hit) {
-        quantity = qtyFor(hit, it);
-        toAdd.push({ productId: hit.id, companyId: hit.companyId, branchId: hit.branchId, quantity });
-      }
-      const altHit = hit ? null : altFound.get(it.label)?.product ?? null;
-      rows.push({
-        label: it.label, item_id: it.id, v: it.value, u: it.unit,
-        product: hit ? { name: hit.name, price: hit.price, weighted: hit.weighted, quantity } : null,
-        alternative: altHit ? {
-          product_id: altHit.id, company_id: altHit.companyId, branch_id: altHit.branchId,
-          name: altHit.name, price: altHit.price, weighted: altHit.weighted, quantity: qtyFor(altHit, it),
-        } : null,
+
+    // Пошук (3 фази) і addToCart — В ОДНОМУ withRetailAuth-виклику: якщо
+    // токен протух, refresh стається до першого мережевого запиту в
+    // переважній більшості випадків (findBatch іде першим), і весь блок
+    // повторюється з новим токеном без подвійного addToCart. Побічний ефект
+    // (запис у кошик) лишається останнім кроком навмисно.
+    let rows: CartCardRow[];
+    try {
+      rows = await withRetailAuth(conn, async (provider) => {
+        const phase1 = await provider.findBatch(items.map((i) => i.label));
+        const found = new Map(phase1.map((r) => [r.query, r]));
+
+        // Фаза 2 — тільки промахи, тільки якщо каталог дає ІНШЕ імʼя.
+        const retry = new Map<string, string>(); // canonical → original label
+        for (const it of items) {
+          if (found.get(it.label)?.product) continue;
+          const key = resolveLabelToKey(it.label);
+          const canonical = key ? BY_KEY.get(key)?.name : null;
+          if (canonical && canonical.toLowerCase() !== it.label.toLowerCase()) retry.set(canonical, it.label);
+        }
+        if (retry.size) {
+          const phase2 = await provider.findBatch([...retry.keys()]);
+          for (const r of phase2) {
+            const original = retry.get(r.query);
+            if (original && r.product) found.set(original, r);
+          }
+        }
+        // Фаза 3 — досі промахи: головне слово канонічного імені («Рис
+        // арборіо» → «рис»). Результат — ПРОПОЗИЦІЯ заміни, не покупка: «не
+        // вгадувати» — в кошик вона їде тільки тапом «замінити» (cart-swap).
+        const alt = new Map<string, string>(); // head → original label
+        for (const it of items) {
+          if (found.get(it.label)?.product) continue;
+          const key = resolveLabelToKey(it.label);
+          const head = (key ? BY_KEY.get(key)?.name : null)?.split(/\s+/)[0]?.toLowerCase();
+          if (head && head !== it.label.toLowerCase()) alt.set(head, it.label);
+        }
+        const altFound = new Map<string, RetailFoundRow>();
+        if (alt.size) {
+          const phase3 = await provider.findBatch([...alt.keys()]);
+          for (const r of phase3) {
+            const original = alt.get(r.query);
+            if (original && r.product) altFound.set(original, r);
+          }
+        }
+
+        const outRows: CartCardRow[] = [];
+        const toAdd: Array<{ productId: string; companyId: string; branchId: string; quantity: number }> = [];
+        for (const it of items) {
+          const hit = found.get(it.label)?.product ?? null;
+          let quantity = 0;
+          if (hit) {
+            quantity = qtyFor(hit, it);
+            toAdd.push({ productId: hit.id, companyId: hit.companyId, branchId: hit.branchId, quantity });
+          }
+          const altHit = hit ? null : altFound.get(it.label)?.product ?? null;
+          outRows.push({
+            label: it.label, item_id: it.id, v: it.value, u: it.unit,
+            product: hit ? { name: hit.name, price: hit.price, weighted: hit.weighted, quantity } : null,
+            alternative: altHit ? {
+              product_id: altHit.id, company_id: altHit.companyId, branch_id: altHit.branchId,
+              name: altHit.name, price: altHit.price, weighted: altHit.weighted, quantity: qtyFor(altHit, it),
+            } : null,
+          });
+        }
+        if (toAdd.length) await provider.addToCart(toAdd);
+        return outRows;
       });
-    }
-    if (toAdd.length) {
-      try { await provider.addToCart(toAdd); } catch (e) {
-        if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
-        throw e;
-      }
+    } catch (e) {
+      if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
+      throw e;
     }
 
     const foundRows = rows.filter((r) => r.product);
@@ -371,9 +433,9 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
 
       const a = row.alternative;
       try {
-        await makeProvider(cipher.dec(conn.access_token_enc)).addToCart([
+        await withRetailAuth(conn, (provider) => provider.addToCart([
           { productId: a.product_id, companyId: a.company_id, branchId: a.branch_id, quantity: a.quantity },
-        ]);
+        ]));
       } catch (e) {
         if (e instanceof RetailAuthError) return reply.code(401).send({ error: 'retail_auth' });
         throw e;

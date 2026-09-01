@@ -334,6 +334,98 @@ describe('retail routes · silpo', () => {
     expect(r.json().error).toBe('empty_list');
   });
 
+  it('протухлий access-токен автоматично оновлюється через refresh_token — людина нічого не бачить', async () => {
+    await connect();
+    let refreshCalls = 0;
+    const refreshApp = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: {
+        silpo: {
+          clientId: 'test-client',
+          tokenSecret: 'test-secret',
+          refresh: async (refreshToken) => {
+            refreshCalls++;
+            expect(refreshToken).toBe('live-refresh'); // саме той, що зберігся при connect()
+            return { access_token: 'refreshed-token', refresh_token: 'refreshed-refresh', expires_in: 2592000 };
+          },
+          makeProvider: (token) => {
+            providerTokens.push(token);
+            // Старий токен ще «в мережі» вважається протухлим — RetailAuthError;
+            // новий, отриманий через refresh, працює одразу.
+            if (token === 'refreshed-token') return providerImpl(token);
+            return { receipts: async () => { throw new RetailAuthError(); } };
+          },
+        },
+      },
+    });
+    await refreshApp.ready();
+
+    const r = await refreshApp.inject({
+      method: 'POST', url: '/v1/retail/silpo/sync-receipts', headers: { cookie: me.cookie },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().cards).toHaveLength(1);
+    expect(refreshCalls).toBe(1);
+    expect(providerTokens).toEqual(['live-token', 'refreshed-token']);
+
+    // Нові токени лягли в БД шифровано, старий refresh_token замінений.
+    const conn = await repo.getRetailConnection(me.user_id, 'silpo');
+    expect(conn?.access_token_enc).not.toContain('refreshed-token');
+    expect(conn?.refresh_token_enc).not.toContain('refreshed-refresh');
+  });
+
+  it('refresh не рятує (токен відкликаний мережею) → 401 retail_auth, не 500, і без нескінченного циклу', async () => {
+    await connect();
+    let refreshCalls = 0;
+    const refreshApp = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: {
+        silpo: {
+          clientId: 'test-client',
+          tokenSecret: 'test-secret',
+          refresh: async () => { refreshCalls++; throw new Error('invalid_grant'); },
+          makeProvider: () => ({
+            receipts: async () => { throw new RetailAuthError(); },
+            findBatch: async () => { throw new RetailAuthError(); },
+            addToCart: async () => { throw new RetailAuthError(); },
+          }),
+        },
+      },
+    });
+    await refreshApp.ready();
+
+    const r = await refreshApp.inject({
+      method: 'POST', url: '/v1/retail/silpo/sync-receipts', headers: { cookie: me.cookie },
+    });
+    expect(r.statusCode).toBe(401);
+    expect(r.json().error).toBe('retail_auth');
+    expect(refreshCalls).toBe(1); // рівно раз — без ретраю в петлі
+  });
+
+  it('немає refresh_token (dev-конект) — 401 без спроби рефрешу', async () => {
+    let refreshCalls = 0;
+    const devApp = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: {
+        silpo: {
+          clientId: 'c', tokenSecret: 's', devAccessToken: 'dev-token-xyz',
+          refresh: async () => { refreshCalls++; throw new Error('should not be called'); },
+          makeProvider: () => ({
+            receipts: async () => { throw new RetailAuthError(); },
+            findBatch: async () => { throw new RetailAuthError(); },
+            addToCart: async () => { throw new RetailAuthError(); },
+          }),
+        },
+      },
+    });
+    await devApp.ready();
+    const who = await signIn(devApp, mailer, 'dev2@example.com');
+    await devApp.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: who.cookie } });
+
+    const r = await devApp.inject({
+      method: 'POST', url: '/v1/retail/silpo/sync-receipts', headers: { cookie: who.cookie },
+    });
+    expect(r.statusCode).toBe(401);
+    expect(refreshCalls).toBe(0);
+  });
+
   it('протухлий токен у мережі → 401 retail_auth (сигнал «Увійти знову», не 500)', async () => {
     await connect();
     providerImpl = () => ({ receipts: async () => { throw new RetailAuthError(); } });
