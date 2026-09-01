@@ -99,11 +99,160 @@
    "read": 120,
    "kept": 120,
    "dropped": 0
+  },
+  "round2-alcohol.ndjson": {
+   "read": 122,
+   "kept": 122,
+   "dropped": 0
+  },
+  "round2-baby.ndjson": {
+   "read": 85,
+   "kept": 85,
+   "dropped": 0
+  },
+  "round2-bakery.ndjson": {
+   "read": 102,
+   "kept": 102,
+   "dropped": 0
+  },
+  "round2-canned.ndjson": {
+   "read": 102,
+   "kept": 102,
+   "dropped": 0
+  },
+  "round2-charcuterie.ndjson": {
+   "read": 114,
+   "kept": 114,
+   "dropped": 0
+  },
+  "round2-cheese.ndjson": {
+   "read": 124,
+   "kept": 124,
+   "dropped": 0
+  },
+  "round2-coffee-tea.ndjson": {
+   "read": 90,
+   "kept": 90,
+   "dropped": 0
+  },
+  "round2-dairy.ndjson": {
+   "read": 104,
+   "kept": 104,
+   "dropped": 0
+  },
+  "round2-drinks.ndjson": {
+   "read": 124,
+   "kept": 124,
+   "dropped": 0
+  },
+  "round2-fish.ndjson": {
+   "read": 115,
+   "kept": 115,
+   "dropped": 0
+  },
+  "round2-frozen-b.ndjson": {
+   "read": 80,
+   "kept": 80,
+   "dropped": 0
+  },
+  "round2-frozen.ndjson": {
+   "read": 45,
+   "kept": 45,
+   "dropped": 0
+  },
+  "round2-fruit.ndjson": {
+   "read": 103,
+   "kept": 103,
+   "dropped": 0
+  },
+  "round2-grain.ndjson": {
+   "read": 90,
+   "kept": 90,
+   "dropped": 0
+  },
+  "round2-greens-legumes.ndjson": {
+   "read": 104,
+   "kept": 104,
+   "dropped": 0
+  },
+  "round2-household.ndjson": {
+   "read": 133,
+   "kept": 133,
+   "dropped": 0
+  },
+  "round2-meat.ndjson": {
+   "read": 128,
+   "kept": 128,
+   "dropped": 0
+  },
+  "round2-nuts-oils.ndjson": {
+   "read": 78,
+   "kept": 78,
+   "dropped": 0
+  },
+  "round2-petfood.ndjson": {
+   "read": 95,
+   "kept": 95,
+   "dropped": 0
+  },
+  "round2-plant-milk.ndjson": {
+   "read": 40,
+   "kept": 40,
+   "dropped": 0
+  },
+  "round2-ready-meals.ndjson": {
+   "read": 95,
+   "kept": 95,
+   "dropped": 0
+  },
+  "round2-sauces-b.ndjson": {
+   "read": 32,
+   "kept": 32,
+   "dropped": 0
+  },
+  "round2-sauces.ndjson": {
+   "read": 73,
+   "kept": 73,
+   "dropped": 0
+  },
+  "round2-snacks.ndjson": {
+   "read": 115,
+   "kept": 115,
+   "dropped": 0
+  },
+  "round2-spices-b.ndjson": {
+   "read": 24,
+   "kept": 24,
+   "dropped": 0
+  },
+  "round2-spices.ndjson": {
+   "read": 79,
+   "kept": 79,
+   "dropped": 0
+  },
+  "round2-sweets.ndjson": {
+   "read": 125,
+   "kept": 125,
+   "dropped": 0
+  },
+  "round2-veg.ndjson": {
+   "read": 125,
+   "kept": 125,
+   "dropped": 0
   }
  },
  "dropped": [],
  "renamedKeys": [],
- "strippedAliases": [],
+ "strippedAliases": [
+  [
+   "r2gr_pasta_rice_paper",
+   "рисовий папір"
+  ],
+  [
+   "r2sc_pesto_classic",
+   "песто"
+  ]
+ ],
  "collisions": [
   [
    "шийка свиняча",
@@ -433,6 +582,412 @@
    [
     "spice_soup_mix"
    ]
+  ],
+  [
+   "сухарики зі смаком часнику",
+   "r2bk_crouton_garlic",
+   [
+    "r2sn_croutons_rye_garlic"
+   ]
+  ],
+  [
+   "сухарики зі смаком сиру",
+   "r2bk_crouton_cheese",
+   [
+    "r2sn_croutons_rye_cheese"
+   ]
+  ],
+  [
+   "глазуровані пряники",
+   "r2bk_gingerbread_glazed",
+   [
+    "r2sw_bake_pryanyk_glazed"
+   ]
+  ],
+  [
+   "фрикадельки мясні",
+   "r2fz_frikadelky",
+   [
+    "r2cn_frikadelky_can"
+   ]
+  ],
+  [
+   "курячі джерки",
+   "r2ch_saus_chicken_jerky",
+   [
+    "r2sn_jerky_chicken"
+   ]
+  ],
+  [
+   "сир кисломолочний 2%",
+   "r2cz_curd_2",
+   [
+    "r2dy_cottage_cheese_2"
+   ]
+  ],
+  [
+   "творог 2%",
+   "r2cz_curd_2",
+   [
+    "r2dy_cottage_cheese_2"
+   ]
+  ],
+  [
+   "сир 2%",
+   "r2cz_curd_2",
+   [
+    "r2dy_cottage_cheese_2"
+   ]
+  ],
+  [
+   "сир кисломолочний 18%",
+   "r2cz_curd_18",
+   [
+    "r2dy_cottage_cheese_18"
+   ]
+  ],
+  [
+   "сир 18%",
+   "r2cz_curd_18",
+   [
+    "r2dy_cottage_cheese_18"
+   ]
+  ],
+  [
+   "глазурований сирок ванільний",
+   "r2cz_syrok_glazed_vanilla",
+   [
+    "r2dy_glazed_curd_vanilla"
+   ]
+  ],
+  [
+   "глазурований сирок кокосовий",
+   "r2cz_syrok_glazed_coconut",
+   [
+    "r2dy_glazed_curd_coconut"
+   ]
+  ],
+  [
+   "сирок зі згущеним молоком",
+   "r2cz_syrok_glazed_condensed_milk",
+   [
+    "r2dy_glazed_curd_condensed"
+   ]
+  ],
+  [
+   "глазурований сирок згущенка",
+   "r2cz_syrok_glazed_condensed_milk",
+   [
+    "r2dy_glazed_curd_condensed"
+   ]
+  ],
+  [
+   "сирок глазурований згущене молоко",
+   "r2cz_syrok_glazed_condensed_milk",
+   [
+    "r2dy_glazed_curd_condensed"
+   ]
+  ],
+  [
+   "вялена чехоня",
+   "r2fs_chekhon_dried",
+   [
+    "r2sn_dried_fish_chekhon"
+   ]
+  ],
+  [
+   "вобла",
+   "r2fs_vobla_dried",
+   [
+    "r2sn_dried_fish_vobla"
+   ]
+  ],
+  [
+   "воблу",
+   "r2fs_vobla_dried",
+   [
+    "r2sn_dried_fish_vobla"
+   ]
+  ],
+  [
+   "бички вялені",
+   "r2fs_goby_dried",
+   [
+    "r2sn_dried_fish_bychky_dried"
+   ]
+  ],
+  [
+   "асорті сушеної риби",
+   "r2fs_dried_fish_assorted",
+   [
+    "r2sn_dried_fish_assorted"
+   ]
+  ],
+  [
+   "ожина заморожена",
+   "r2fr_blackberry_frozen",
+   [
+    "r2fz_blackberry_frozen"
+   ]
+  ],
+  [
+   "заморожена ожина",
+   "r2fr_blackberry_frozen",
+   [
+    "r2fz_blackberry_frozen"
+   ]
+  ],
+  [
+   "ожина морожена",
+   "r2fr_blackberry_frozen",
+   [
+    "r2fz_blackberry_frozen"
+   ]
+  ],
+  [
+   "агрус заморожений",
+   "r2fz_gooseberry_frozen",
+   [
+    "r2fr_gooseberry_frozen"
+   ]
+  ],
+  [
+   "frozen apricot",
+   "r2fr_apricot_frozen",
+   [
+    "r2fz_apricot_frozen"
+   ]
+  ],
+  [
+   "слива заморожена",
+   "r2fr_plum_frozen",
+   [
+    "r2fz_plum_frozen"
+   ]
+  ],
+  [
+   "заморожена слива",
+   "r2fr_plum_frozen",
+   [
+    "r2fz_plum_frozen"
+   ]
+  ],
+  [
+   "frozen plum",
+   "r2fr_plum_frozen",
+   [
+    "r2fz_plum_frozen"
+   ]
+  ],
+  [
+   "персик заморожений",
+   "r2fr_peach_frozen",
+   [
+    "r2fz_peach_frozen"
+   ]
+  ],
+  [
+   "заморожений персик",
+   "r2fr_peach_frozen",
+   [
+    "r2fz_peach_frozen"
+   ]
+  ],
+  [
+   "frozen peach",
+   "r2fr_peach_frozen",
+   [
+    "r2fz_peach_frozen"
+   ]
+  ],
+  [
+   "щавель заморожений",
+   "r2fz_sorrel_frozen",
+   [
+    "r2gl_sorrel_frozen"
+   ]
+  ],
+  [
+   "заморожений щавель",
+   "r2fz_sorrel_frozen",
+   [
+    "r2gl_sorrel_frozen"
+   ]
+  ],
+  [
+   "frozen sorrel",
+   "r2fz_sorrel_frozen",
+   [
+    "r2gl_sorrel_frozen"
+   ]
+  ],
+  [
+   "кріп заморожений",
+   "r2fz_dill_frozen",
+   [
+    "r2gl_dill_frozen_chopped"
+   ]
+  ],
+  [
+   "заморожений кріп",
+   "r2fz_dill_frozen",
+   [
+    "r2gl_dill_frozen_chopped"
+   ]
+  ],
+  [
+   "frozen dill",
+   "r2fz_dill_frozen",
+   [
+    "r2gl_dill_frozen_chopped"
+   ]
+  ],
+  [
+   "петрушка заморожена",
+   "r2fz_parsley_frozen",
+   [
+    "r2gl_parsley_frozen_chopped"
+   ]
+  ],
+  [
+   "заморожена петрушка",
+   "r2fz_parsley_frozen",
+   [
+    "r2gl_parsley_frozen_chopped"
+   ]
+  ],
+  [
+   "frozen parsley",
+   "r2fz_parsley_frozen",
+   [
+    "r2gl_parsley_frozen_chopped"
+   ]
+  ],
+  [
+   "суміш для темпури",
+   "r2gr_flour_tempura_mix",
+   [
+    "r2sc_tempura_mix"
+   ]
+  ],
+  [
+   "борошно для темпури",
+   "r2gr_flour_tempura_mix",
+   [
+    "r2sc_tempura_mix"
+   ]
+  ],
+  [
+   "крохмаль модифікований",
+   "r2gr_starch_modified",
+   [
+    "r2sp_modified_starch"
+   ]
+  ],
+  [
+   "модифікований крохмаль",
+   "r2gr_starch_modified",
+   [
+    "r2sp_modified_starch"
+   ]
+  ],
+  [
+   "modified starch",
+   "r2gr_starch_modified",
+   [
+    "r2sp_modified_starch"
+   ]
+  ],
+  [
+   "аджика зелена",
+   "r2gl_green_adjika",
+   [
+    "r2sc_adjika_green"
+   ]
+  ],
+  [
+   "зелена аджика",
+   "r2gl_green_adjika",
+   [
+    "r2sc_adjika_green"
+   ]
+  ],
+  [
+   "green adjika",
+   "r2gl_green_adjika",
+   [
+    "r2sc_adjika_green"
+   ]
+  ],
+  [
+   "хумус буряковий",
+   "r2gl_hummus_beet",
+   [
+    "r2sc_hummus_beet"
+   ]
+  ],
+  [
+   "буряковий хумус",
+   "r2gl_hummus_beet",
+   [
+    "r2sc_hummus_beet"
+   ]
+  ],
+  [
+   "хумус з буряком",
+   "r2gl_hummus_beet",
+   [
+    "r2sc_hummus_beet"
+   ]
+  ],
+  [
+   "beet hummus",
+   "r2gl_hummus_beet",
+   [
+    "r2sc_hummus_beet"
+   ]
+  ],
+  [
+   "суміш для фалафелю",
+   "r2gl_falafel_mix_dry",
+   [
+    "r2sp_falafel_spice_mix"
+   ]
+  ],
+  [
+   "козинак кунжутний",
+   "r2no_kozinak_sesame",
+   [
+    "r2sw_sweet_kozinak_sesame"
+   ]
+  ],
+  [
+   "кунжутний козинак",
+   "r2no_kozinak_sesame",
+   [
+    "r2sw_sweet_kozinak_sesame"
+   ]
+  ],
+  [
+   "яблучна пастила",
+   "r2sn_pastila_apple",
+   [
+    "r2sw_sweet_pastila_apple"
+   ]
+  ],
+  [
+   "пастила з яблук",
+   "r2sn_pastila_apple",
+   [
+    "r2sw_sweet_pastila_apple"
+   ]
+  ],
+  [
+   "солодка соломка",
+   "r2sw_bake_sweet_straws",
+   [
+    "r2sn_bread_sticks_sweet"
+   ]
   ]
  ],
  "merged": [
@@ -609,6 +1164,31 @@
   [
    "chicken_sausages_grill",
    "saus_grill_chicken",
+   "ok"
+  ],
+  [
+   "r2hh_baby_powder",
+   "r2bb_baby_powder",
+   "ok"
+  ],
+  [
+   "r2hh_shampoo_kids",
+   "r2bb_baby_shampoo",
+   "ok"
+  ],
+  [
+   "r2hh_toothpaste_kids",
+   "r2bb_baby_toothpaste",
+   "ok"
+  ],
+  [
+   "r2no_pumpkin_seed_flour",
+   "r2gr_flour_pumpkin_seed",
+   "ok"
+  ],
+  [
+   "r2no_hemp_flour",
+   "r2gr_flour_hemp",
    "ok"
   ]
  ]
