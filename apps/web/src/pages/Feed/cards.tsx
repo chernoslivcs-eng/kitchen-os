@@ -873,6 +873,9 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   const [justSwapped, setJustSwapped] = useState<number | null>(null);
   // 01.09 рівень 1: альтернативи показують перші кілька, решта — під тапом.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  // V3: розкритий список показує три найближчі, решта — під «ще N ▾».
+  // Два стани, а не один: «відкрито взагалі» і «відкрито повністю».
+  const [showAllAlts, setShowAllAlts] = useState<Set<number>>(new Set());
   const rows = card.rows ?? [];
   const busy = swapping !== null || adding !== null || qtyBusy !== null;
   async function swap(i: number, altIndex: number) {
@@ -930,154 +933,128 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
           // Обсягове: скільки всього виходить при поточній кількості пляшок.
           const totalMl = p?.package_ml ? p.package_ml * p.quantity : null;
           return (
-            <div key={i}>
-              <div
-                className={`${styles.op} ${justSwapped === i ? styles['row-changed'] : ''}`}
-                style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}
-              >
-                <div
-                  className={justSwapped === i ? styles['row-text-in'] : undefined}
-                  style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}
+            <div
+              key={i}
+              className={`${styles['cart-item']} ${justSwapped === i ? styles['row-changed'] : ''}`}
+            >
+              {/* Рівень 1: наше імʼя · степер · одиниця · ціна. */}
+              <div className={styles['cart-item-top']}>
+                <span
+                  className={`${styles['cart-name']} ${justSwapped === i ? styles['row-text-in'] : ''}`}
+                  style={p ? undefined : { color: 'var(--fg-dim)' }}
                 >
-                  <span className={styles['op-label']} style={p ? undefined : { color: 'var(--fg-dim)' }}>
-                    {r.label}
-                  </span>
-                  {p ? (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
-                      {p.name}
-                    </span>
-                  ) : (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
-                      немає в цій філії
-                    </span>
-                  )}
-                </div>
+                  {r.label}
+                </span>
                 {p && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flex: 'none' }}>
-                    <span className={styles['op-qty']} style={{ color: 'var(--fg)' }}>
-                      {Math.round(p.price * p.quantity)}₴
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)',
-                        border: '1px solid var(--border)', borderRadius: 10, padding: '0 6px', height: 32,
-                      }}>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void updateQty(i, Math.round((p.quantity - step) * 100) / 100)}
-                          style={{ width: 20, height: 20, border: 0, background: 'none', color: 'var(--fg)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: qtyBusy === i ? 0.5 : 1 }}
-                        >−</button>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 30, textAlign: 'center' }}>
-                          {qtyLabel}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void updateQty(i, Math.round((p.quantity + step) * 100) / 100)}
-                          style={{ width: 20, height: 20, border: 0, background: 'none', color: 'var(--fg)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: qtyBusy === i ? 0.5 : 1 }}
-                        >+</button>
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
-                        {p.weighted ? 'кг' : 'шт'}
-                      </span>
+                  <>
+                    <div className={styles['cart-stp']}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void updateQty(i, Math.round((p.quantity - step) * 100) / 100)}
+                        aria-label="менше"
+                        style={{ opacity: qtyBusy === i ? 0.5 : 1 }}
+                      >−</button>
+                      <span className={styles['cart-qty']}>{qtyLabel}</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void updateQty(i, Math.round((p.quantity + step) * 100) / 100)}
+                        aria-label="більше"
+                        style={{ opacity: qtyBusy === i ? 0.5 : 1 }}
+                      >+</button>
                     </div>
-                  </div>
-                )}
-                {/* 01.09 картка v2: обсягове — математика завжди видима, не лише
-                    коли є розбіжність із заявленим. «1л чи більше» більше не
-                    мовчазна 1 шт. */}
-                {p?.package_ml && totalMl != null && (
-                  <div style={{ width: '100%', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
-                    × {(p.package_ml / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л ≈ {(totalMl / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л всього
-                  </div>
-                )}
-                {/* 01.09 картка v2: альтернативи — компактний рядок, не плитка.
-                    Кіт: список 3+ позицій із розгорнутими альтернативами
-                    засмічував екран — за замовчуванням згорнуто, тап
-                    розкриває (та сама механіка, що «ще N не для комори»). */}
-                {alts.length > 0 && (
-                  <div style={{ width: '100%', marginTop: 4 }}>
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(i)}
-                      style={{
-                        border: 0, background: 'transparent', cursor: 'pointer', padding: '4px 0',
-                        color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 12,
-                        display: 'flex', alignItems: 'center', gap: 6,
-                      }}
-                    >
-                      <span style={{ width: 14, textAlign: 'center' }}>{isExpanded ? '⌄' : '›'}</span>
-                      альтернативи ({alts.length})
-                    </button>
-                    {isExpanded && (
-                    <>
-                    {p && (
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--fg-dim)', marginBottom: 4 }}>
-                        «⇄» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
-                      </div>
-                    )}
-                    <div style={{
-                      background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12,
-                      padding: '0 12px',
-                    }}>
-                      {alts.map((a, ai) => (
-                        <div
-                          key={ai}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
-                            borderBottom: ai < alts.length - 1 ? '1px solid var(--border)' : 0,
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span style={{
-                              fontFamily: 'var(--font-body)', fontSize: 13, lineHeight: 1.3,
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block',
-                            }} title={a.name}>
-                              {a.name}
-                            </span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-dim)' }}>
-                              {Math.round(a.price * a.quantity)}₴
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => void swap(i, ai)}
-                                aria-label={`замінити на ${a.name}`}
-                                style={{
-                                  width: 28, height: 28, borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                                  border: '1px solid var(--accent-border)', background: 'var(--accent-bg)', color: 'var(--accent)',
-                                  opacity: swapping === i ? 0.5 : 1,
-                                }}
-                              >⇄</button>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--fg-dim)' }}>замінити</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => void addAlt(i, ai)}
-                                aria-label={`додати ${a.name} окремо`}
-                                style={{
-                                  width: 28, height: 28, borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                                  border: '1px solid var(--border)', background: 'none', color: 'var(--fg-dim)',
-                                  opacity: adding === i ? 0.5 : 1,
-                                }}
-                              >+</button>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--fg-dim)' }}>додати</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    </>
-                    )}
-                  </div>
+                    <span className={styles['cart-unit']}>{p.weighted ? 'кг' : 'шт'}</span>
+                    <span className={styles['cart-price']}>{Math.round(p.price * p.quantity)}₴</span>
+                  </>
                 )}
               </div>
+
+              {/* Рівень 2: паспортна назва одним рядком · вхід в альтернативи.
+                  Наше імʼя («молоко») не ріжеться ніколи — воно коротке за
+                  природою; ріжеться саме паспортна назва, а повна лишається
+                  в title і в розкритому списку. */}
+              <div className={styles['cart-item-sub']}>
+                <span
+                  className={styles['cart-passport']}
+                  style={p ? undefined : { color: 'var(--amber)' }}
+                  title={p ? p.name : undefined}
+                >
+                  {p ? p.name : 'немає в цій філії'}
+                </span>
+                {alts.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles['cart-swap-link']}
+                    onClick={() => toggleExpanded(i)}
+                    aria-expanded={isExpanded}
+                  >
+                    ЗАМІНИТИ {alts.length} {isExpanded ? '⌄' : '›'}
+                  </button>
+                )}
+              </div>
+
+              {p?.package_ml && totalMl != null && (
+                <div className={styles['cart-vol']}>
+                  × {(p.package_ml / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л
+                  {' ≈ '}
+                  {(totalMl / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л всього
+                </div>
+              )}
+
+              {/* Альтернативи розкриваються ВСЕРЕДИНІ позиції, а не окремим
+                  екраном. Перші три, решта під «ще N ▾»: у макеті так лише
+                  на 480, але поведінка одна на всі ширини — панель тепер
+                  тягнеться, і робити її вміст різним за шириною означало б
+                  два різні продукти в одному вікні. */}
+              {isExpanded && alts.length > 0 && (
+                <div className={styles['cart-alts']}>
+                  {p && (
+                    <div className={styles['cart-alt-warn']}>
+                      «⇄» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
+                    </div>
+                  )}
+                  {(showAllAlts.has(i) ? alts : alts.slice(0, 3)).map((a, ai) => (
+                    <div key={ai} className={styles['cart-alt']}>
+                      <span className={styles['cart-alt-name']} title={a.name}>{a.name}</span>
+                      <span className={styles['cart-alt-price']}>{Math.round(a.price * a.quantity)}₴</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void swap(i, ai)}
+                        className={styles['cart-alt-btn']}
+                        title="замінити цією"
+                        aria-label={`замінити на ${a.name}`}
+                        style={{
+                          border: '1px solid var(--accent-border)', background: 'var(--accent-bg)',
+                          color: 'var(--accent)', opacity: swapping === i ? 0.5 : 1,
+                        }}
+                      >⇄</button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void addAlt(i, ai)}
+                        className={styles['cart-alt-btn']}
+                        title="додати окремим рядком"
+                        aria-label={`додати ${a.name} окремо`}
+                        style={{
+                          border: '1px solid var(--border)', background: 'none',
+                          color: 'var(--fg-dim)', opacity: adding === i ? 0.5 : 1,
+                        }}
+                      >+</button>
+                    </div>
+                  ))}
+                  {alts.length > 3 && !showAllAlts.has(i) && (
+                    <button
+                      type="button"
+                      className={styles['cart-alt-more']}
+                      onClick={() => setShowAllAlts((prev) => new Set(prev).add(i))}
+                    >
+                      ЩЕ {alts.length - 3} ▾
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

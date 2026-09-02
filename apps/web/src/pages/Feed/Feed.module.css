@@ -1194,3 +1194,143 @@
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* ── Крок 2.2: позиція кошика у два рівні (V3) ────────────────────────
+   Було чотири рядки: назва, паспортна назва в чотири переноси збоку від
+   степера, ціна, акордеон альтернатив. Опису лишалось ~130px, бо він
+   ділив смугу зі степером.
+   Стало два. Рівень 1 — наше імʼя · степер · одиниця · ціна: ціна крайня
+   права колонка сталої ширини, тож три позиції читаються як таблиця, а не
+   як три різні картки. Рівень 2 — паспортна назва одним рядком з ellipsis
+   і «замінити N ›» праворуч; повна назва в title і в розкритих
+   альтернативах, де вона й потрібна для порівняння. */
+.cart-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cart-item:last-child { border-bottom: 0; }
+.cart-item-top { display: flex; align-items: center; gap: 10px; }
+.cart-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.cart-stp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 30px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-surface);
+}
+.cart-stp button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+.cart-stp button:disabled { cursor: default; }
+/* 26px, а не 16 як у макеті: вагові показують «0,64» — на 16 воно б різалось. */
+.cart-qty { font-family: var(--font-mono); font-size: 13px; min-width: 26px; text-align: center; }
+.cart-unit { flex: none; width: 20px; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+.cart-price {
+  flex: none;
+  min-width: 46px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+.cart-item-sub { display: flex; align-items: baseline; gap: 8px; }
+.cart-passport {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cart-swap-link {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+/* Обсягова математика. У макеті V3 її немає, але вона там і не малювалась:
+   правило «математика завжди видима» старше за цей документ (01.09), і
+   мовчазна «1 шт» замість «1 л чи більше» — саме той обман, проти якого
+   його писали. Тому третій рівень, і тільки коли є що показати. */
+.cart-vol { font-family: var(--font-mono); font-size: 11px; color: var(--amber); }
+.cart-alts { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
+.cart-alt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  margin: 0 -10px;
+  border-radius: 8px;
+}
+.cart-alt:hover { background: var(--bg-hover); }
+/* Тут назва НЕ ріжеться, на відміну від рівня 2. Обрізана вона робила з
+   десяти альтернатив десять однакових «Молоко пастеризоване …» — а список
+   існує рівно для того, щоб їх порівняти. Ellipsis доречний там, де назва
+   лише підписує вибір; тут вона і є вибором. */
+.cart-alt-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.3;
+}
+.cart-alt { align-items: flex-start; }
+.cart-alt-price, .cart-alt-btn { margin-top: 1px; }
+.cart-alt-price { flex: none; font-family: var(--font-mono); font-size: 12px; }
+.cart-alt-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.cart-alt-more {
+  align-self: flex-start;
+  padding: 6px 0 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.cart-alt-warn {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--fg-dim);
+  padding-top: 2px;
+}
