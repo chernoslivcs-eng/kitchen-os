@@ -965,31 +965,64 @@
    живі кошики з двома сумами видно одночасно — рівно те, проти чого
    писався дизайн. */
 .cart-in-feed { display: none; }
-.cart-trace {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    align-self: flex-start;
-    padding: 8px 12px;
-    margin-left: -12px;
-    border: 0;
-    border-radius: 10px;
-    background: var(--bg-hover);
-    color: var(--fg-muted);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    cursor: pointer;
-    text-align: left;
-}
-.cart-trace:hover { color: var(--fg); }
 
-@media (min-width: 1200px) {
-  /* Панель у потоці — тут артефакт видно завжди, без відкривання. */
-  :global(body.with-sidebar) .rail-artifact { display: flex; }
+/* ── Крок 3.1: слід у стрічці, варіант A (V6) ────────────────────────
+   Було: #e3e6e8 на #eef0f1 — різниця 4%, заливка зливалася з фоном, усе
+   одним моно-кеглем, а ознакою дії було саме слово «розгорнути» в тексті.
+   Стало: шавлієва заливка з рамкою і два рівні ієрархії.
+
+   Чому шавлієвий, а не чорнильний. Слід — це вхід в артефакт, тобто
+   навігація, а не головна дія. Чорнильна заливка в системі означає
+   «остаточна дія» (Оформити, Застосувати); віддати її слідам — і кнопки
+   в панелі перестануть бути найважчим елементом на екрані. */
+.trace {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  background: var(--accent-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: background 150ms ease, border-color 150ms ease;
 }
-.cart-trace-dot { color: var(--accent); }
-.cart-trace-go { color: var(--accent); }
+.trace:hover { background: var(--accent-bg-strong, var(--accent-bg)); border-color: var(--accent); }
+/* Відкрито — той артефакт, що зараз у панелі. Рамка в акценті: слід і
+   панель говорять про одне, і це має бути видно, не здогадуватись. */
+.trace-on { border-color: var(--accent); }
+.trace-dot { color: var(--accent-strong); font-size: 13px; line-height: 1; flex: none; }
+.trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* Метадані — моно 10, і саме вони мутед. */
+.trace-kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent-dim, var(--fg-muted));
+}
+/* Суть — те, по що клікають. */
+.trace-value {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--accent-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Стрілка на краю блока замість слова «розгорнути» в тексті: коротше, не
+   конкурує з назвою й одразу читається як «веде кудись». */
+.trace-go {
+  flex: none;
+  padding-left: 4px;
+  color: var(--accent-strong);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+}
 /* Ширина навмисно НЕ краденa з падінгу панелі: картка отримує рівно ті
    ~284px, які порахував бриф, і обмеження лишається видимим. Внутрішнє
    картки під цю ширину (степер у два рівні) — окремий крок. */
@@ -997,6 +1030,14 @@
   display: none;
   /* Риску знизу прибрано: після кроку 1.2 артефакт займає панель цілком,
      а межу між тілом і діями малює вже .rail-foot. */
+}
+/* Панель у потоці — тут артефакт видно завжди, без відкривання.
+   ВІДНОВЛЕНО: у кроці 3.1 я замінював сусідній блок діапазоном і зніс це
+   правило разом із ним. Наслідок був німий — панель лишилась на місці,
+   рівно 320px, але порожньою: артефакт мав display:none і нульову висоту.
+   Скріншот показував білу колонку, а не помилку. */
+@media (min-width: 1200px) {
+  :global(body.with-sidebar) .rail-artifact { display: flex; }
 }
 
 /* Рецепт у панелі — В ОДНУ КОЛОНКУ.

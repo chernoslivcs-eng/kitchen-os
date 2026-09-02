@@ -28,7 +28,9 @@
   --accent:         #93b48b;
   --accent-strong:  #a9c6a1;
   --accent-bg:      #20291f;
+  --accent-bg-strong: #2a352a;   /* ховер шавлієвої заливки (слід у стрічці) */
   --accent-border:  #3a4a3a;
+  --accent-dim:     #7e9877;     /* моно-метадані на шавлієвій заливці */
   --accent-fg-on:   #141a12;
 
   /* бурштин — pending, opened */
@@ -78,7 +80,9 @@
   --accent:         #58754e;
   --accent-strong:  #3f5837;
   --accent-bg:      #e4ecdf;
+  --accent-bg-strong: #d9e6d2;   /* ховер шавлієвої заливки (слід у стрічці) */
   --accent-border:  #c2d3b8;
+  --accent-dim:     #5c7355;     /* моно-метадані на шавлієвій заливці */
   --accent-fg-on:   #f2f4f0;
 
   --amber:          #96712c;

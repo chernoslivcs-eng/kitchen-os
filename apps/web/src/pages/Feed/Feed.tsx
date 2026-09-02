@@ -446,7 +446,17 @@ export function Feed() {
     // Нижче 1200 панелі в потоці немає — там артефакт живе у шторці
     // знизу. Один і той самий слід мусить відкривати те, що на цій
     // ширині справді існує.
-    if (!window.matchMedia(RAIL_IN_FLOW).matches) setRailOpen(true);
+    if (window.matchMedia(RAIL_IN_FLOW).matches) {
+      // Панель згорнута в смугу — розгортаємо. Тап по сліду це явне
+      // прохання побачити артефакт; лишати панель згорнутою означало б,
+      // що слід підсвітився «відкрито», а не відкрилось нічого.
+      // Правилу V8 «панель ніколи не згортається сама» це не суперечить:
+      // воно про НОВИЙ артефакт, який не має розгортати панель поверх
+      // читання, а не про явний тап людини.
+      setRailHiddenPersist(false);
+    } else {
+      setRailOpen(true);
+    }
     requestAnimationFrame(() => {
       document.getElementById(`rail-${key}`)?.scrollIntoView({ block: 'nearest' });
     });
@@ -1159,16 +1169,25 @@ export function Feed() {
             )}
             {t.card?.type === 'cart' && (
               /* Крок 2: слід кошика у стрічці. Повне подання — завжди в
-                 панелі, шухляді або шторці, на будь-якій ширині. Обидва
-                 подання в DOM, вибирає CSS. */
+                 панелі або шторці, на будь-якій ширині. Обидва подання
+                 в DOM, вибирає CSS.
+                 Крок 3.1: два рівні. Тип і кількість — моно 10 мутед
+                 (метадані), суть — Golos 15 medium ink (те, по що клікають).
+                 Раніше все було однаковим моно-кеглем, і оку не було за що
+                 зачепитись. */
               <button
                 type="button"
-                className={styles['cart-trace']}
+                className={`${styles.trace} ${latestCart?.id === t.id && shownArtifact?.key === 'cart' ? styles['trace-on'] : ''}`}
                 onClick={() => openArtifact('cart')}
               >
-                <span className={styles['cart-trace-dot']}>●</span>
-                <span>КОШИК · {t.card.rows?.length ?? 0} ПОЗИЦІЙ · {Math.round(t.card.total ?? 0)} ₴</span>
-                <span className={styles['cart-trace-go']}>РОЗГОРНУТИ →</span>
+                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-body']}>
+                  <span className={styles['trace-kind']}>
+                    КОШИК · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                  </span>
+                  <span className={styles['trace-value']}>{Math.round(t.card.total ?? 0)} ₴</span>
+                </span>
+                <span className={styles['trace-go']}>→</span>
               </button>
             )}
             {t.card?.type === 'recipe_link' && (
@@ -1178,12 +1197,15 @@ export function Feed() {
                  тільки останній. */
               <button
                 type="button"
-                className={styles['cart-trace']}
+                className={`${styles.trace} ${latestRecipe?.id === t.id && shownArtifact?.key === 'recipe' ? styles['trace-on'] : ''}`}
                 onClick={() => openArtifact('recipe')}
               >
-                <span className={styles['cart-trace-dot']}>●</span>
-                <span>РЕЦЕПТ · {(t.card.title ?? '').toUpperCase()}</span>
-                <span className={styles['cart-trace-go']}>РОЗГОРНУТИ →</span>
+                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-body']}>
+                  <span className={styles['trace-kind']}>РЕЦЕПТ</span>
+                  <span className={styles['trace-value']}>{t.card.title ?? 'Рецепт'}</span>
+                </span>
+                <span className={styles['trace-go']}>→</span>
               </button>
             )}
             {t.card && (
