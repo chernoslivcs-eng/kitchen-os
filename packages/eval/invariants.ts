@@ -244,6 +244,35 @@ export const registry: Record<string, Invariant> = {
   // картка показує label — тобто огризок. По-друге, tripleKey — суворий
   // збіг: бренд, що гуляє між brand і variant, дає РІЗНІ ключі, і той самий
   // Schweppes наступного разу народить другий «продукт дому» замість злиття.
+  // 02.09 (гілка catalog/resolver): «купив мʼясо» — це категорія, а не
+  // продукт. Каталог міряє її широту (categoryBreadth: «мʼясо» 560 позицій),
+  // і комора малює таку партію позначкою «?рід». Промпт має на це реагувати
+  // ОДНИМ уточненням поряд із карткою — не замість неї і не анкетою на
+  // двадцять рядків.
+  //
+  // Перевіряємо три речі разом, бо поодинці кожна проходить хибно: картка
+  // мусить лишитись; питання мусить бути; питань мусить бути НЕ БІЛЬШЕ
+  // одного. Найчастіший провал тут не «не спитала», а «спитала про все».
+  'generic-label-asks-once': (out) => {
+    const ops = opsOfIntake(out) ?? [];
+    if (!ops.length) return fail('немає ops — картка мала лишитись, уточнення її не заміняє');
+    const GENERIC = ['мʼясо', 'мясо', 'риба', 'сир', 'овочі', 'фрукти', 'зелень', 'крупа', 'молочне', 'консерви'];
+    const generic = (ops as any[]).filter((o) => {
+      const base = String(o.product ?? o.label ?? '').trim().toLowerCase();
+      return GENERIC.includes(base);
+    });
+    if (!generic.length) return { pass: true };
+    const reply = stripHtmlish(String(out.reply ?? ''));
+    const questions = (reply.match(/\?/g) ?? []).length;
+    if (questions === 0) {
+      return fail(`родове «${generic[0].product ?? generic[0].label}» записано без жодного уточнення`);
+    }
+    if (questions > 1) {
+      return fail(`${questions} питань в одній репліці — уточнення має бути ОДНЕ, не анкета`);
+    }
+    return { pass: true };
+  },
+
   'triple-discipline': (out) => {
     const ops = opsOfIntake(out) ?? [];
     if (!ops.length) return fail('немає ops');

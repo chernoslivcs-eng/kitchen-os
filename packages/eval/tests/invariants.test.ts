@@ -102,3 +102,58 @@ describe('triple-discipline', () => {
     expect(v.detail).toMatch(/galbani/i);
   });
 });
+
+// Уточнення на родовому слові. Правило додане 02.09 в обидва шляхи —
+// attachment-parser (розбір чека) і card-routing (звичайний чат). Інваріант
+// перевіряє не «спитала чи ні», а всі три умови разом: картка лишилась,
+// питання є, і воно ОДНЕ. Найчастіший провал тут не мовчання, а анкета.
+describe('generic-label-asks-once', () => {
+  const inv = registry['generic-label-asks-once']!;
+  const card = (ops: unknown[]) => ({ type: 'intake_diff', ops });
+
+  it('родове слово без уточнення — провал', () => {
+    const v = inv({ reply: 'Запишу мʼясо.', card: card([{ op: 'add', label: 'мʼясо', product: 'мʼясо' }]) } as never, {} as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/без жодного уточнення/);
+  });
+
+  it('родове слово з одним питанням — норма', () => {
+    const v = inv({
+      reply: 'Запишу. Яке саме мʼясо — щоб потім запропонувати вдале?',
+      card: card([{ op: 'add', label: 'мʼясо', product: 'мʼясо' }]),
+    } as never, {} as never);
+    expect(v.pass).toBe(true);
+  });
+
+  it('анкета з кількох питань — провал, навіть якщо всі доречні', () => {
+    const v = inv({
+      reply: 'Записав. Мʼясо яке саме? А сир? І риба свіжа чи морожена?',
+      card: card([
+        { op: 'add', label: 'мʼясо', product: 'мʼясо' },
+        { op: 'add', label: 'сир', product: 'сир' },
+        { op: 'add', label: 'риба', product: 'риба' },
+      ]),
+    } as never, {} as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/не анкета/);
+  });
+
+  it('конкретні назви питань не потребують', () => {
+    const v = inv({
+      reply: 'Запишу покупки.',
+      card: card([
+        { op: 'add', label: 'Крем-брускетта Ponti з чорних оливок', product: 'крем-брускетта' },
+        { op: 'add', label: 'Камбоцола 70%', product: 'камбоцола' },
+      ]),
+    } as never, {} as never);
+    expect(v.pass).toBe(true);
+  });
+
+  it('уточнення ЗАМІСТЬ картки — провал: позиція мусить записатись', () => {
+    // Живий ризик правила: модель починає питати й не робити. Той самий
+    // клас, що «зустрічна вилка замість картки» в proposal-flow.
+    const v = inv({ reply: 'Яке саме мʼясо?', card: null } as never, {} as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/картка мала лишитись/);
+  });
+});

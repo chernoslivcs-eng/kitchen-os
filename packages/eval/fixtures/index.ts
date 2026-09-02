@@ -143,6 +143,7 @@ export function loadFixtures(): Fixture[] {
     readJson('lesson-into-step.json'),
     readJson('feedback-diagnosis.json'),
     readJson('shared-meal-allergen.json'),
+    readJson('generic-label-ask.json'),
   ];
   return list;
 }
