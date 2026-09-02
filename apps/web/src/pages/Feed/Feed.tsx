@@ -424,6 +424,13 @@ export function Feed() {
   const [activeArtifact, setActiveArtifact] = useState<string | null>(null);
   // Крок 1.4: у згорнутій смузі — активний маркер і «інші» списком по тапу.
   const [miniListOpen, setMiniListOpen] = useState(false);
+  // Крок 5 (V9): новий артефакт НЕ розгортає панель поверх читання — він
+  // лише позначає себе в згорнутій смузі. Спалах 400ms, а при
+  // prefers-reduced-motion замість нього лишається статична шавлієва
+  // крапка: інакше в того, хто вимкнув рух, новий артефакт не давав би
+  // взагалі жодного сигналу.
+  const seenArtifacts = useRef<Set<string> | null>(null);
+  const [freshArtifact, setFreshArtifact] = useState(false);
   // Вибір артефактів живе в ./artifacts і покритий тестом: перевірити його
   // на екрані можна лише тоді, коли в сесії випадково є потрібна картка,
   // а чек мережі трапляється раз на похід у магазин.
@@ -479,6 +486,19 @@ export function Feed() {
   // «Інші» — усе, крім того, що відкриється від «›». Закритий артефакт
   // зі списку зникає; лишився один — кнопка «інші» зникає; не лишилось
   // жодного — зникає вся смуга (нижче, через hasPanel).
+  const artifactKeys = openArtifacts.map((a) => a.key).join(',');
+  useEffect(() => {
+    const now = new Set(openArtifacts.map((a) => a.key));
+    const first = seenArtifacts.current === null;
+    const added = first ? [] : [...now].filter((k) => !seenArtifacts.current!.has(k));
+    seenArtifacts.current = now;
+    // Перший рендер не «новий артефакт»: усе, що вже було в сесії, людина
+    // бачила. Інакше кожне перезавантаження блимало б смугою.
+    if (added.length && railHidden) setFreshArtifact(true);
+    if (!railHidden) setFreshArtifact(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artifactKeys, railHidden]);
+
   const miniOthers = openArtifacts.filter((a) => a.key !== shownArtifact?.key);
   // V8·A: порожня сесія — панелі НЕМА ВЗАГАЛІ. Ані колонки, ані згорнутої
   // смуги, ані ручки: порожня панель читається як «тут щось зламалось»
@@ -1682,7 +1702,11 @@ export function Feed() {
             </div>
             {/* Зона 2 — тіло. ЄДИНА зона скролу в панелі. */}
             <div className={styles['rail-body']} ref={setBodyEl}>
-              <div ref={setBodyContentEl}>
+              {/* key по артефакту: перемикання вкладки — це кросфейд 150ms
+                  БЕЗ зсуву вбік. Вкладки — одна сутність, і горизонтальний
+                  слайд брехав би про «перехід кудись». Шапка й низ поза цим
+                  вузлом і стоять нерухомо. */}
+              <div key={shownArtifact.key} className={styles['rail-swap']} ref={setBodyContentEl}>
               {/* Чекаємо на слот, перш ніж малювати картку. Без цього перший
                   кадр рендерить її низ УСЕРЕДИНІ тіла (слота ще немає), тіло
                   на цей кадр вище — і тінь ловить саме його, а тоді лишається
@@ -1798,9 +1822,9 @@ export function Feed() {
         {shownArtifact && (
           <button
             type="button"
-            className={`${styles['mini-marker']} ${styles['mini-marker-on']}`}
+            className={`${styles['mini-marker']} ${styles['mini-marker-on']} ${freshArtifact ? styles['mini-fresh'] : ''}`}
             onClick={miniRailClick}
-            aria-label={`Відкрити: ${shownArtifact.label}`}
+            aria-label={`Відкрити: ${shownArtifact.label}${freshArtifact ? ' (нове)' : ''}`}
           >
             <span className={styles['mini-glyph']}>{ARTIFACT_GLYPH[shownArtifact.key]}</span>
             {shownArtifact.meta && <span className={styles['mini-badge']}>{shownArtifact.meta}</span>}
