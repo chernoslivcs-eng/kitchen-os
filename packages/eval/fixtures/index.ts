@@ -68,19 +68,19 @@ export function loadFixtures(): Fixture[] {
       // зображення (у model-client.ts стояв TODO). Тепер уміє.
       //
       // Файл до репозиторію не кладемо — це фото чека з приватними даними.
-      // Поклади знімок у packages/eval/fixtures/receipt-till-photo.jpg, і
+      // Поклади знімок у packages/eval/fixtures/receipt-till-photo.png, і
       // фікстура ввімкнеться сама; без нього вона чесно скіпається, як
       // shelf-photo.
-      const img = join(HERE, 'receipt-till-photo.jpg');
+      const img = join(HERE, 'receipt-till-photo.png');
       const expect_products = ["хустинки", "багет", "туалетн", "шоколад", "брускетта", "чипси", "ковбаса", "томат"];
       if (!existsSync(img)) {
         return {
           id: 'receipt-till-photo',
-          description: 'Паперовий чек Сільпо ФОТОГРАФІЄЮ (плейсхолдер — поклади receipt-till-photo.jpg)',
+          description: 'Паперовий чек Сільпо ФОТОГРАФІЄЮ (плейсхолдер — поклади receipt-till-photo.png)',
           call: 'attachment_parse' as const,
           invariants: ['receipt-coverage-80', 'expected-expansions', 'triple-discipline'],
           expect_products,
-          skip: 'no image (receipt-till-photo.jpg not present)',
+          skip: 'no image (receipt-till-photo.png not present)',
         };
       }
       return {
@@ -89,7 +89,7 @@ export function loadFixtures(): Fixture[] {
         call: 'attachment_parse' as const,
         invariants: ['receipt-coverage-80', 'expected-expansions', 'triple-discipline'],
         expect_products,
-        attachment: { kind: 'image' as const, path: 'receipt-till-photo.jpg' },
+        attachment: { kind: 'image' as const, path: 'receipt-till-photo.png' },
       };
     })(),
     {
