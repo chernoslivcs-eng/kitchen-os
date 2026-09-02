@@ -287,12 +287,21 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect((await ctx.repo.getBatch(seeded.id))?.value).toBe(400);
     });
 
-    it('deplete на неіснуючу назву: тихий no-op (модель НЕ пише в стан напряму)', async () => {
+    it('deplete на неіснуючу назву: стан не чіпаємо І не рапортуємо про зміну', async () => {
+      // 02.09: очікування applied=1 тут було СТАРИМ і хибним. Стан справді не
+      // мінявся — це правильно, модель не пише в стан напряму, — але картка
+      // рапортувала «1 позиція», і репліка казала «Запишу». Людина читала
+      // підтвердження зміни, якої не сталось.
+      //
+      // Той самий принцип уже стояв поруч, у гілці профілю (QA4-05: «рахуємо
+      // те, що СПРАВДІ лягло»); комора його не мала. Тепер має, а промах
+      // називається в `missed` — щоб було що побачити в лозі.
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'deplete', label: 'ковбаса, якої нема' }] };
       await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
-      const { applied } = await applyCard(ctx.repo, mid, [], ctx.user_id);
-      expect(applied).toBe(1);
+      const { applied, missed } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+      expect(applied, 'нічого не лягло — нічого й не рапортуємо').toBe(0);
+      expect(missed).toEqual(['deplete «ковбаса, якої нема»']);
       expect(await ctx.repo.listBatches(ctx.household_id)).toHaveLength(0);
     });
 

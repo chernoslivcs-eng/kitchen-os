@@ -58,9 +58,14 @@ export async function createPending(repo: Repo, args: CreatePendingArgs): Promis
 // ---------- застосування ----------
 
 export interface ApplyResult {
-  applied: number;   // скільки ops дійсно застосовано в цьому виклику
+  applied: number;   // скільки ops дійсно ЛЯГЛО в стан у цьому виклику
   undo_token: string;
   already: boolean;  // true = повторний виклик, змін не було
+  /** Мітки операцій, які не знайшли своєї позиції й нічого не зробили.
+   *  Порожньо в переважній більшості випадків; непорожньо — привід
+   *  подивитись у лог, бо людині сказали «Запишу», а стан не змінився.
+   *  Заповнює поки лише гілка intake_diff. */
+  missed?: string[];
 }
 
 export async function applyCard(
@@ -89,10 +94,18 @@ export async function applyCard(
     // гарантію не тримає.
     const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
     const snapshot: UndoSnapshot = { kind: 'intake_diff', before: { created_batch_ids: [], modified_batches: [], checked_shopping_ids: [] } };
+    // QA4-05 сформулював це для профілю: «рахуємо те, що СПРАВДІ лягло».
+    // Гілка комори цього не робила — рахувала, скільки операцій ВИБРАЛИ.
+    // Різниця видна, коли ціль зникла: deplete/correct/rename на неіснуючу
+    // позицію тихо виходять, а картка рапортувала «1 позиція» і репліка
+    // казала «Запишу». Тепер картка каже правду, а промахи їдуть у `missed`.
+    let landed = 0;
+    const missed: string[] = [];
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot);
+      if (await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot)) landed++;
+      else missed.push(`${op.op} «${op.label}»`);
     }
     // UX9-27: «купив X» закриває X у списку покупок. Інакше продукт одночасно
     // вважав, що олія В КОМОРІ і що олію ТРЕБА купити. Збіг — точний за назвою
@@ -120,8 +133,8 @@ export async function applyCard(
     // Картку треба зберегти саме тут: applyIntakeOp щойно проставив у неї
     // batch_id, і без цього вказівники жили б лише в памʼяті процесу.
     await repo.updateMessageCard(pc.id, card);
-    await repo.markMessageApplied(pc.id, chosen.length);
-    return { applied: chosen.length, undo_token, already: false };
+    await repo.markMessageApplied(pc.id, landed);
+    return { applied: landed, undo_token, already: false, missed };
   }
 
   if (card.type === 'shopping') {
@@ -363,7 +376,9 @@ async function applyIntakeOp(
   household_id: string,
   actor: string,
   snap: UndoSnapshot,
-): Promise<void> {
+  // Повертає true, якщо операція справді змінила стан. false означає, що
+  // ціль не знайшлась — і тоді картка НЕ має рапортувати про зміну.
+): Promise<boolean> {
   if (op.op === 'add') {
     const id = randomUUID();
     const provenance: Provenance = (op.evidence as Provenance) ?? 'user_statement';
@@ -408,7 +423,7 @@ async function applyIntakeOp(
     // позиція про картку не знає. Тому сесію можна видалити — зникне вікно,
     // не вміст холодильника.
     op.batch_id = id;
-    return;
+    return true;
   }
 
   // Вказівник сильніший за назву. Хто знає позицію — адресує її точно; назва
@@ -420,9 +435,10 @@ async function applyIntakeOp(
     ? byId
     : await repo.findBatchByLabel(household_id, op.label);
   if (!target) {
-    // Мовчки не створюємо: «модель не пише в стан напряму» стосується і одруківок.
-    // Якщо треба додати — це має бути окрема op:add.
-    return;
+    // Мовчки не СТВОРЮЄМО — це правильно: одруківка моделі не має народжувати
+    // позиції з повітря. Але й мовчки РАПОРТУВАТИ про зміну не можна: далі
+    // false доходить до лічильника, і картка каже правду замість «застосовано».
+    return false;
   }
   snap.before.modified_batches!.push({ ...target });
 
@@ -488,6 +504,7 @@ async function applyIntakeOp(
       if (prod) await repo.updateProduct(prod.id, { tags: { ...prod.tags, ...op.tags } });
     }
   }
+  return true;
 }
 
 async function applyShoppingOp(

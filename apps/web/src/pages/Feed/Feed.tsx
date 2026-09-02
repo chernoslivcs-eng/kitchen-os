@@ -11,7 +11,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
 import { Card, PanelFootSlot, PanelHeadSlot, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
-import { ARTIFACT_GLYPH, isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines } from './artifacts';
+import { ARTIFACT_GLYPH, isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff} from './artifacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -1378,7 +1378,18 @@ export function Feed() {
                 )}
               </div>
             )}
-            {isIntakeArtifact(t) && (
+            {isWriteOff(t) && t.applied && !t.undone && (
+              /* Списання — подія, не річ. Артефакта в нього немає (нічого не
+                 додалось), тож пігулка зі стрілкою вела в порожнечу. Замість
+                 мертвої кнопки — рядок тексту: що саме пішло з комори.
+                 Дельту не пишемо: у картці лежить нове значення, а старого
+                 вона не несе, і вигадувати «−200 г» ми не будемо. */
+              <div className={styles['writeoff-line']}>
+                Списано з комори: {((t.card?.ops ?? []) as { label?: string }[])
+                  .map((o) => o.label).filter(Boolean).join(', ')}
+              </div>
+            )}
+            {isIntakeArtifact(t) && !isWriteOff(t) && (
               /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
                  застосовано, він не стан, а рішення, якого чекають. Після
                  «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
