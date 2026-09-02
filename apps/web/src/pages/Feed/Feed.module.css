@@ -964,7 +964,9 @@
    на вузьких ширинах, вважаючи, що затемнення її сховає. Не ховає: два
    живі кошики з двома сумами видно одночасно — рівно те, проти чого
    писався дизайн. */
-.cart-in-feed { display: none; }
+/* Перейменовано з .cart-in-feed (крок 4.1): клас ховає вже не тільки
+   кошик, а будь-який артефакт — рецепт і чек теж. */
+.artifact-in-feed { display: none; }
 
 /* ── Крок 3.1: слід у стрічці, варіант A (V6) ────────────────────────
    Було: #e3e6e8 на #eef0f1 — різниця 4%, заливка зливалася з фоном, усе
@@ -993,6 +995,15 @@
 /* Відкрито — той артефакт, що зараз у панелі. Рамка в акценті: слід і
    панель говорять про одне, і це має бути видно, не здогадуватись. */
 .trace-on { border-color: var(--accent); }
+/* Бурштиновий слід — рішення, якого чекають, а не стан. Той самий блок,
+   лише інша температура: так «чекає рішення» видно прямо в потоці, без
+   окремої стрічки в панелі (V6). */
+.trace-pending { background: var(--amber-bg); border-color: var(--amber-border); }
+.trace-pending:hover { border-color: var(--amber); }
+.trace-pending .trace-dot,
+.trace-pending .trace-kind,
+.trace-pending .trace-go { color: var(--amber); }
+.trace-pending .trace-value { color: var(--fg); }
 .trace-dot { color: var(--accent-strong); font-size: 13px; line-height: 1; flex: none; }
 .trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 /* Метадані — моно 10, і саме вони мутед. */

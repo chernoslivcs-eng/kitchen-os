@@ -11,6 +11,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
 import { Card, PanelFootSlot, PanelHeadSlot, labelFor, appliedToast } from './cards';
+import { isReceipt, pickArtifacts, receiptLines } from './artifacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -419,15 +420,13 @@ export function Feed() {
   const [activeArtifact, setActiveArtifact] = useState<string | null>(null);
   // Крок 1.4: у згорнутій смузі — активний маркер і «інші» списком по тапу.
   const [miniListOpen, setMiniListOpen] = useState(false);
-  const latestCart = [...turns].reverse().find((t) => t.card?.type === 'cart' && t.cardId);
-  // Той самий принцип для рецепта: у панелі живе АКТИВНИЙ (останній), архів —
-  // у розділі «Рецепти». Двох рецептів у панелі не буває: наступний заміщає
-  // попередній у тій самій вкладці (рішення дизайну про життєвий цикл).
-  const latestRecipe = [...turns].reverse().find((t) => t.card?.type === 'recipe_link');
-  const artifacts = [
-    latestCart && { key: 'cart', label: 'Кошик', meta: String(latestCart.card?.rows?.length ?? ''), turn: latestCart },
-    latestRecipe && { key: 'recipe', label: (latestRecipe.card?.title as string | undefined) ?? 'Рецепт', meta: '', turn: latestRecipe },
-  ].filter(Boolean) as { key: string; label: string; meta: string; turn: NonNullable<typeof latestCart> }[];
+  // Вибір артефактів живе в ./artifacts і покритий тестом: перевірити його
+  // на екрані можна лише тоді, коли в сесії випадково є потрібна картка,
+  // а чек мережі трапляється раз на похід у магазин.
+  const artifacts = pickArtifacts(turns);
+  const latestCart = artifacts.find((a) => a.key === 'cart')?.turn;
+  const latestRecipe = artifacts.find((a) => a.key === 'recipe')?.turn;
+  const latestReceipt = artifacts.find((a) => a.key === 'receipt')?.turn;
   const openArtifacts = artifacts.filter((a) => !closedArtifacts.has(a.key));
   const shownArtifact = openArtifacts.find((a) => a.key === activeArtifact) ?? openArtifacts[0];
   const RAIL_IN_FLOW = '(min-width: 1200px)';
@@ -1208,10 +1207,33 @@ export function Feed() {
                 <span className={styles['trace-go']}>→</span>
               </button>
             )}
+            {isReceipt(t) && (
+              /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
+                 застосовано, він не стан, а рішення, якого чекають. Після
+                 «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
+              <button
+                type="button"
+                className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${latestReceipt?.id === t.id && shownArtifact?.key === 'receipt' ? styles['trace-on'] : ''}`}
+                onClick={() => openArtifact('receipt')}
+              >
+                <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
+                <span className={styles['trace-body']}>
+                  <span className={styles['trace-kind']}>
+                    ЧЕК · {receiptLines(t)} {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                  </span>
+                  <span className={styles['trace-value']}>
+                    {t.undone ? 'Скасовано'
+                      : t.applied ? `${t.card?.ops?.length ?? 0} у комору`
+                      : 'Чекає рішення'}
+                  </span>
+                </span>
+                {!t.undone && <span className={styles['trace-go']}>→</span>}
+              </button>
+            )}
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' ? styles['cart-in-feed'] : ''}`}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isReceipt(t) ? styles['artifact-in-feed'] : ''}`}>
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}
@@ -1526,21 +1548,31 @@ export function Feed() {
               {footSlot && (
               <PanelHeadSlot.Provider value={headSlot}>
               <PanelFootSlot.Provider value={footSlot}>
-                {shownArtifact.key === 'cart'
-                  ? <Card card={shownArtifact.turn.card!} cardId={shownArtifact.turn.cardId ?? undefined} />
-                  : (
-                    <Card
-                      card={shownArtifact.turn.card!}
-                      cardId={shownArtifact.turn.cardId ?? undefined}
-                      onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
-                      onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
-                      onSaveRecipe={saveRecipeForLater}
-                      savedRecipeIds={savedRecipeIds}
-                      onNeedToList={addNeedToList}
-                      batchLabels={batchLabels}
-                      stepLabels={stepLabels}
-                    />
-                  )}
+                {/* Крок 4.1: одна гілка на всі артефакти замість трьох.
+                    Чек потребує onApply/onUndo, яких у кошика й рецепта
+                    немає, — тримати для кожного свій набір пропсів означало
+                    б додавати гілку на кожен новий артефакт. */}
+                <Card
+                  card={shownArtifact.turn.card!}
+                  cardId={shownArtifact.turn.cardId ?? undefined}
+                  applied={shownArtifact.turn.applied}
+                  applying={shownArtifact.turn.applying}
+                  dismissed={shownArtifact.turn.dismissed}
+                  undone={shownArtifact.turn.undone}
+                  undoAvailable={!!shownArtifact.turn.undoToken}
+                  onApply={(selected) => apply(shownArtifact.turn.id, selected)}
+                  onDismiss={() => dismissCard(shownArtifact.turn.id)}
+                  onUndo={shownArtifact.turn.undoToken
+                    ? () => undo(shownArtifact.turn.id, shownArtifact.turn.undoToken!)
+                    : undefined}
+                  onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
+                  onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
+                  onSaveRecipe={saveRecipeForLater}
+                  savedRecipeIds={savedRecipeIds}
+                  onNeedToList={addNeedToList}
+                  batchLabels={batchLabels}
+                  stepLabels={stepLabels}
+                />
               </PanelFootSlot.Provider>
               </PanelHeadSlot.Provider>
               )}
