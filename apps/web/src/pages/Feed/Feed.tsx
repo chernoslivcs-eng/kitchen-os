@@ -435,9 +435,10 @@ export function Feed() {
   // на екрані можна лише тоді, коли в сесії випадково є потрібна картка,
   // а чек мережі трапляється раз на похід у магазин.
   const artifacts = pickArtifacts(turns, listOpen ? shoppingItems.length : null);
-  const latestCart = artifacts.find((a) => a.key === 'cart')?.turn;
-  const latestRecipe = artifacts.find((a) => a.key === 'recipe')?.turn;
-  const latestReceipt = artifacts.find((a) => a.key === 'receipt')?.turn;
+  // Слід відкриває СВІЙ артефакт, а не останній свого роду. Раніше в сесії
+  // з двома чеками обидва сліди вели на другий, і перший ставав недосяжним:
+  // кнопка є, а веде не туди.
+  const artifactKeyOf = (t: Turn) => artifacts.find((a) => a.turn?.id === t.id)?.key;
   const openArtifacts = artifacts.filter((a) => !closedArtifacts.has(a.key));
   const shownArtifact = openArtifacts.find((a) => a.key === activeArtifact) ?? openArtifacts[0];
   const RAIL_IN_FLOW = '(min-width: 1200px)';
@@ -1273,8 +1274,8 @@ export function Feed() {
                  зачепитись. */
               <button
                 type="button"
-                className={`${styles.trace} ${latestCart?.id === t.id && shownArtifact?.key === 'cart' ? styles['trace-on'] : ''}`}
-                onClick={() => openArtifact('cart')}
+                className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
                 <span className={styles['trace-dot']}>●</span>
                 <span className={styles['trace-body']}>
@@ -1293,8 +1294,8 @@ export function Feed() {
                  тільки останній. */
               <button
                 type="button"
-                className={`${styles.trace} ${latestRecipe?.id === t.id && shownArtifact?.key === 'recipe' ? styles['trace-on'] : ''}`}
-                onClick={() => openArtifact('recipe')}
+                className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
                 <span className={styles['trace-dot']}>●</span>
                 <span className={styles['trace-body']}>
@@ -1314,7 +1315,7 @@ export function Feed() {
               <div className={styles['trace-wrap']}>
                 <button
                   type="button"
-                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.key === 'list' ? styles['trace-on'] : ''}`}
+                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.kind === 'list' ? styles['trace-on'] : ''}`}
                   onClick={() => openArtifact('list')}
                   disabled={t.undone}
                 >
@@ -1342,8 +1343,8 @@ export function Feed() {
                  «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
               <button
                 type="button"
-                className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${latestReceipt?.id === t.id && shownArtifact?.key === 'receipt' ? styles['trace-on'] : ''}`}
-                onClick={() => openArtifact('receipt')}
+                className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
                 <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
                 <span className={styles['trace-body']}>
@@ -1673,7 +1674,7 @@ export function Feed() {
                     aria-label={a.label}
                     aria-current={a.key === shownArtifact.key}
                   >
-                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH[a.key]}</span>
+                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH[a.kind]}</span>
                     {a.meta && <span className={styles['rail-tab-badge']}>{a.meta}</span>}
                   </button>
                 ))}
@@ -1722,7 +1723,7 @@ export function Feed() {
                 {/* Список — єдиний артефакт без ходу: він читає живий стан
                     дому, а не картку сесії. Тип це й показав — саме через
                     turn: T | null компілятор змусив написати цю гілку. */}
-                {shownArtifact.key === 'list' ? (
+                {shownArtifact.kind === 'list' ? (
                   <ShoppingListCard
                     items={shoppingItems}
                     sessionStartedAt={sessionStartedAt}
@@ -1830,7 +1831,7 @@ export function Feed() {
             onClick={miniRailClick}
             aria-label={`Відкрити: ${shownArtifact.label}${freshArtifact ? ' (нове)' : ''}`}
           >
-            <span className={styles['mini-glyph']}>{ARTIFACT_GLYPH[shownArtifact.key]}</span>
+            <span className={styles['mini-glyph']}>{ARTIFACT_GLYPH[shownArtifact.kind]}</span>
             {shownArtifact.meta && <span className={styles['mini-badge']}>{shownArtifact.meta}</span>}
             <span className={styles['mini-hint']}>{shownArtifact.label}</span>
           </button>

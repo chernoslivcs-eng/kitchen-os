@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INTAKE_ARTIFACT_MIN, isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn } from './artifacts';
+import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn } from './artifacts';
 import type { ChatCard } from '../../api';
 
 const turn = (id: string, card: Partial<ChatCard> | null, cardId: string | null = id): ArtifactTurn =>
@@ -34,17 +34,11 @@ describe('isIntakeArtifact', () => {
   // Межа: артефактом стає ДОКУМЕНТ, а не подія. «Поклав молоко» і списання
   // після готування лишаються картками у стрічці — інакше кожна побутова
   // дія відкривала б вкладку в панелі.
-  it('коротка intake-картка артефактом не стає', () => {
-    const short = { type: 'intake_diff', ops: Array.from({ length: INTAKE_ARTIFACT_MIN - 1 }, () => ({ op: 'add' })) } as Partial<ChatCard>;
-    expect(isIntakeArtifact(turn('a', short))).toBe(false);
-  });
-
-  // А от довга — стає, і без жодного джерела. Живий репро 02.09: чек,
-  // вставлений ТЕКСТОМ у поле вводу, raw_kind не має взагалі, і двадцять
-  // рядків гортались разом із розмовою.
-  it('довгий перелік без джерела — стає, бо він документ', () => {
-    const long = { type: 'intake_diff', ops: Array.from({ length: INTAKE_ARTIFACT_MIN }, () => ({ op: 'add' })) } as Partial<ChatCard>;
-    expect(isIntakeArtifact(turn('a', long))).toBe(true);
+  // Порогів за кількістю рядків більше немає: «три банана» — такий самий
+  // документ, як чек на двадцять, просто коротший.
+  it('коротка intake-картка теж артефакт', () => {
+    const short = { type: 'intake_diff', ops: [{ op: 'add' }, { op: 'add' }, { op: 'add' }] } as Partial<ChatCard>;
+    expect(isIntakeArtifact(turn('a', short))).toBe(true);
   });
 
   it('інші типи карток — ні', () => {
@@ -73,36 +67,55 @@ describe('pickArtifacts', () => {
     expect(pickArtifacts([turn('a', { type: 'proposal' })])).toEqual([]);
   });
 
-  it('бере ОСТАННІЙ свого роду, а не перший', () => {
+  // Головна зміна 02.09: артефакт це КАРТКА, а не рід. Три рецепти в сесії —
+  // три артефакти. Заміщення «наступний займає ту саму вкладку» знято: воно
+  // робило старий слід брехливим, бо він відкривав новіший документ.
+  it('три рецепти в сесії — три артефакти, кожен свій', () => {
     const got = pickArtifacts([
-      turn('c1', { type: 'cart', rows: [{}, {}] as never }),
-      turn('c2', { type: 'cart', rows: [{}, {}, {}] as never }),
+      turn('r1', { type: 'recipe_link', title: 'Борщ' }),
+      turn('r2', { type: 'recipe_link', title: 'Плов' }),
+      turn('r3', { type: 'recipe_link', title: 'Сирники' }),
     ]);
-    expect(got).toHaveLength(1);
-    expect(got[0]!.turn!.id).toBe('c2');
-    expect(got[0]!.meta).toBe('3');
+    expect(got.map((a) => a.label)).toEqual(['Борщ', 'Плов', 'Сирники']);
+    expect(new Set(got.map((a) => a.key)).size).toBe(3);
+    expect(got.every((a) => a.kind === 'recipe')).toBe(true);
   });
 
-  it('довгий перелік без джерела зветься «Комора», а не «Чек»', () => {
-    const long = { type: 'intake_diff', ops: Array.from({ length: 20 }, () => ({ op: 'add' })) } as Partial<ChatCard>;
-    const got = pickArtifacts([turn('d', long)]);
-    expect(got.map((a) => a.label)).toEqual(['Комора']);
-    expect(got[0]!.meta).toBe('20');
-  });
-
-  it('три роди разом — і порядок сталий: кошик, рецепт, чек', () => {
+  it('два чеки в сесії — два артефакти', () => {
     const got = pickArtifacts([
-      turn('r', { type: 'recipe_link', title: 'Стейк портерхаус' }),
+      turn('c1', receiptCard(11, 5, 3)),
+      turn('c2', receiptCard(4, 0, 0)),
+    ]);
+    expect(got).toHaveLength(2);
+    expect(got.map((a) => a.turn?.id)).toEqual(['c1', 'c2']);
+    expect(got.map((a) => a.meta)).toEqual(['19', '4']);
+  });
+
+  it('порядок — хронологічний, як у стрічці', () => {
+    const got = pickArtifacts([
+      turn('r', { type: 'recipe_link', title: 'Борщ' }),
       turn('k', { type: 'cart', rows: [{}] as never }),
       turn('ch', receiptCard(11, 5, 3)),
     ]);
-    expect(got.map((a) => a.key)).toEqual(['cart', 'recipe', 'receipt']);
-    expect(got.map((a) => a.label)).toEqual(['Кошик', 'Стейк портерхаус', 'Чек']);
-    expect(got[2]!.meta).toBe('19');
+    expect(got.map((a) => a.kind)).toEqual(['recipe', 'cart', 'receipt']);
   });
 
-  // cardId — це адреса, за якою правлять рядок. Без нього ані степер
-  // кошика, ані «уточнити» в чеку не мають куди звертатись.
+  it('чек зветься «Чек», перелік без джерела — «Комора»', () => {
+    const bare = { type: 'intake_diff', ops: [{ op: 'add' }, { op: 'add' }] } as Partial<ChatCard>;
+    expect(pickArtifacts([turn('a', bare)]).map((a) => a.label)).toEqual(['Комора']);
+    expect(pickArtifacts([turn('b', receiptCard(2, 0, 0))]).map((a) => a.label)).toEqual(['Чек']);
+  });
+
+  // Межа: артефакт — те, що ДОДАЄ. Правка наявного і списання після
+  // готування це дії над уже наявним, а не документи; вони лишаються
+  // карткою у стрічці й вкладки не відкривають.
+  it('правка і списання артефактами не стають', () => {
+    const rename = { type: 'intake_diff', ops: [{ op: 'rename', label: 'хліб', to: 'батон' }] } as Partial<ChatCard>;
+    const writeoff = { type: 'intake_diff', ops: [{ op: 'deplete' }, { op: 'deplete' }] } as Partial<ChatCard>;
+    expect(pickArtifacts([turn('a', rename)])).toEqual([]);
+    expect(pickArtifacts([turn('b', writeoff)])).toEqual([]);
+  });
+
   it('кошик і чек без cardId не стають артефактами', () => {
     expect(pickArtifacts([turn('k', { type: 'cart', rows: [{}] as never }, null)])).toEqual([]);
     expect(pickArtifacts([turn('ch', receiptCard(2, 0, 0), null)])).toEqual([]);
@@ -110,7 +123,7 @@ describe('pickArtifacts', () => {
 
   it('рецепт без cardId — стає: він читається за recipe_id, не за карткою', () => {
     const got = pickArtifacts([turn('r', { type: 'recipe_link', title: 'Борщ' }, null)]);
-    expect(got.map((a) => a.key)).toEqual(['recipe']);
+    expect(got.map((a) => a.kind)).toEqual(['recipe']);
   });
 });
 
@@ -118,18 +131,18 @@ describe('список як артефакт', () => {
   // Список не з'являється сам: інакше кожна сесія починалася б із вкладки,
   // якої ніхто не просив. Його відкривають — слідом або ярликом.
   it('без відкриття вкладки списку немає', () => {
-    expect(pickArtifacts([turn('k', { type: 'cart', rows: [{}] as never })]).map((a) => a.key))
+    expect(pickArtifacts([turn('k', { type: 'cart', rows: [{}] as never })]).map((a) => a.kind))
       .toEqual(['cart']);
   });
 
   it('відкритий список стає останньою вкладкою і не має ходу', () => {
     const got = pickArtifacts([turn('k', { type: 'cart', rows: [{}] as never })], 9);
-    expect(got.map((a) => a.key)).toEqual(['cart', 'list']);
+    expect(got.map((a) => a.kind)).toEqual(['cart', 'list']);
     expect(got[1]!.meta).toBe('9');
     expect(got[1]!.turn).toBe(null);
   });
 
   it('порожній список — це теж відкритий список, а не його відсутність', () => {
-    expect(pickArtifacts([], 0).map((a) => a.key)).toEqual(['list']);
+    expect(pickArtifacts([], 0).map((a) => a.kind)).toEqual(['list']);
   });
 });

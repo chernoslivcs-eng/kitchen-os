@@ -15,7 +15,13 @@ export interface ArtifactTurn {
 }
 
 export interface Artifact<T extends ArtifactTurn> {
-  key: ArtifactKey;
+  // Ключ — це КАРТКА, а не рід. Три рецепти в сесії це три артефакти, два
+  // чеки — два. Заміщення «наступний рецепт займає ту саму вкладку» знято:
+  // воно робило старий слід у стрічці брехливим — він відкривав новіший
+  // документ, а не свій власний.
+  key: string;
+  // Рід дає іконку й назву, більше нічого.
+  kind: ArtifactKey;
   label: string;
   meta: string;
   // Список — єдиний артефакт БЕЗ ходу: він не картка сесії, а стан дому,
@@ -23,24 +29,6 @@ export interface Artifact<T extends ArtifactTurn> {
   // списку, тож ходу за ним немає й бути не може.
   turn: T | null;
 }
-
-// Скільки позицій робить intake-картку ДОКУМЕНТОМ, а не подією.
-//
-// Це число не зі стелі, і межу видно в самих даних продукту:
-//   «поклав молоко в холодильник»           — 1-3 позиції
-//   списання після готування                — стільки, скільки інгредієнтів
-//                                             рецепта лежить у коморі, тобто
-//                                             рідко більше восьми
-//   чек, показаний або вставлений у чат     — 14-20 і більше
-// Десять лягає в цей проміжок із запасом з обох боків.
-//
-// Спершу я вимагав сигналу від сервера (raw_kind моделі) і відмовлявся
-// рахувати рядки. Це виявилось помилкою двічі: raw_kind існує ЛИШЕ на шляху
-// розбору вкладення, а чек, вставлений текстом у поле вводу, його не має
-// взагалі — і двадцять рядків гортались разом із розмовою. Довжина тут не
-// евристика-замінник, а сама причина: артефакт існує рівно тому, що довгий
-// документ не має гортатися разом із розмовою.
-export const INTAKE_ARTIFACT_MIN = 10;
 
 // Артефактом стає intake-картка, яка є ДОКУМЕНТОМ: чек будь-якого роду або
 // будь-який довгий перелік. Спільне в них те, заради чого артефакт і
@@ -53,8 +41,7 @@ export const INTAKE_ARTIFACT_MIN = 10;
 export function isIntakeArtifact(t: ArtifactTurn): boolean {
   if (t.card?.type !== 'intake_diff') return false;
   const kind = t.card.source?.kind;
-  if (kind === 'retail_receipt' || kind === 'chat_receipt') return true;
-  return (t.card.ops?.length ?? 0) >= INTAKE_ARTIFACT_MIN;
+  return true;
 }
 
 // Чек називається чеком, решта — тим, чим є. «Це додав в комору: дрова,
@@ -80,40 +67,50 @@ export function receiptLines(t: ArtifactTurn | undefined): number {
   return ops + vetoed + src.nonfood.length + src.unmatched.length;
 }
 
-// Актуальний артефакт — ОСТАННІЙ свого роду. Кошик у Сільпо один за
-// визначенням; рецепт заміщається наступним у тій самій вкладці; чек —
-// той, який зараз розбирають. Попередні лишаються слідами у стрічці.
+// Артефакт — це КАРТКА, і набір належить сесії.
+//
+// Рішення Пилипа (02.09): «Новий рецепт — це ще один рецепт. А "ти
+// неправильно розібрав чек" — це робота з поточним чеком». Тобто вибір між
+// «створити новий» і «правити наявний» робиться ВИЩЕ — тим, чи народжується
+// нова картка. Панель просто показує те, що є, і нічого не заміщає.
+//
+// Звідси й межа: артефактом стає картка, яка щось ДОДАЄ. Правка (rename,
+// correct) і списання після готування (deplete) — не документи, а дії над
+// уже наявним; вони лишаються карткою у стрічці й вкладки не відкривають.
+// Порогів за кількістю рядків більше немає: «три банана» це такий самий
+// документ, як чек на двадцять, просто коротший.
+function intakeAdds(t: ArtifactTurn): boolean {
+  const ops = (t.card?.ops ?? []) as { op?: string }[];
+  return ops.some((o) => o.op === 'add');
+}
+
 export function pickArtifacts<T extends ArtifactTurn>(
   turns: T[],
-  // Кількість позицій списку, якщо його ВІДКРИЛИ. null — вкладки списку
-  // немає: він «сам не з'являється й сам не тримається» (V4), інакше
-  // кожна сесія починалася б із вкладки, якої ніхто не просив.
+  // Кількість позицій списку, якщо його ВІДКРИЛИ. null — вкладки немає:
+  // список «сам не з'являється й сам не тримається» (V4).
   listCount: number | null = null,
 ): Artifact<T>[] {
-  const back = [...turns].reverse();
-  const cart = back.find((t) => t.card?.type === 'cart' && t.cardId);
-  const recipe = back.find((t) => t.card?.type === 'recipe_link');
-  const intakeDoc = back.find((t) => isIntakeArtifact(t) && t.cardId);
   const out: Artifact<T>[] = [];
-  if (cart) out.push({ key: 'cart', label: 'Кошик', meta: String(cart.card?.rows?.length ?? ''), turn: cart });
-  if (recipe) out.push({ key: 'recipe', label: recipe.card?.title ?? 'Рецепт', meta: '', turn: recipe });
-  if (intakeDoc) {
-    out.push({
-      key: 'receipt',
-      label: isReceiptSourced(intakeDoc) ? 'Чек' : 'Комора',
-      meta: String(receiptLines(intakeDoc)),
-      turn: intakeDoc,
-    });
+  for (const t of turns) {
+    const type = t.card?.type;
+    if (type === 'cart' && t.cardId) {
+      out.push({ key: t.cardId, kind: 'cart', label: 'Кошик', meta: String(t.card?.rows?.length ?? ''), turn: t });
+    } else if (type === 'recipe_link') {
+      out.push({ key: t.cardId ?? t.id, kind: 'recipe', label: t.card?.title ?? 'Рецепт', meta: '', turn: t });
+    } else if (isIntakeArtifact(t) && t.cardId && intakeAdds(t)) {
+      out.push({
+        key: t.cardId,
+        kind: 'receipt',
+        label: isReceiptSourced(t) ? 'Чек' : 'Комора',
+        meta: String(receiptLines(t)),
+        turn: t,
+      });
+    }
   }
-  if (listCount !== null) out.push({ key: 'list', label: 'Список', meta: String(listCount), turn: null });
+  if (listCount !== null) out.push({ key: 'list', kind: 'list', label: 'Список', meta: String(listCount), turn: null });
   return out;
 }
 
-// Гліф артефакта — одна мова для вкладок і для згорнутої смуги. Раніше
-// смуга малювала всім ◈ «якийсь артефакт», а вкладки писали назву; тепер
-// і там, і там та сама позначка, і око не мусить перекладати.
-// Словник узято з наявного в продукті: ✳ рецепти і ☰ список — ті самі,
-// що в бічному меню.
 export const ARTIFACT_GLYPH: Record<ArtifactKey, string> = {
   cart: '◈',
   recipe: '✳',
