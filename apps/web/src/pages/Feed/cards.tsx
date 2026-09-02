@@ -2,7 +2,7 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type ChatCard, type Recipe, type ReceiptLeftover } from '../../api';
 import { Button } from '../../components/Button/Button';
@@ -596,8 +596,8 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels, stepLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
-  const [allSteps, setAllSteps] = useState(false);
   const [listed, setListed] = useState<Set<number>>(new Set());
+  const pressTimer = useRef<number | null>(null);
   // Порційник: детерміноване множення кількостей, 0 токенів. Складне
   // («на чотирьох, але соусу більше») — як і раніше, через чат.
   const [servings, setServings] = useState<number | null>(null);
@@ -630,10 +630,31 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
   const sv = servings ?? r.sv ?? 1;
   const scaled = scaleRecipe(r, sv);
 
-  // Моушн-2 №8: рендеримо ВСІ кроки завжди; хвіст живе в контейнері з
-  // анімованою висотою — розгортка/згортання їдуть, а не стрибають.
-  const firstSteps = scaled.st.slice(0, 3);
-  const restSteps = scaled.st.slice(3);
+  // Наявність — тоном, а не гліфом (V2). Те, що вже вдома, іде вниз мутед-
+  // сірим: так «БРАКУЄ N» у низу читається просто проти верху списку, і
+  // око не мусить вишукувати ○ серед ●. Порядок приготування живе в
+  // кроках, не в переліку інгредієнтів, — переставляти тут безпечно.
+  const ordered = scaled.ing
+    .map((ing, i) => ({ ing, i }))
+    .sort((a, b) => Number(!!a.ing.p) - Number(!!b.ing.p));
+  const missIdx = scaled.ing.map((ing, i) => (!ing.p && ing.n ? i : -1)).filter((i) => i >= 0);
+  const leftToList = missIdx.filter((i) => !listed.has(i));
+
+  function addOne(i: number) {
+    const ing = scaled.ing[i];
+    if (!ing?.n || !onNeedToList) return;
+    onNeedToList(ing.n, ing.v, ing.u, r!.t);
+    setListed((prev) => new Set(prev).add(i));
+  }
+  function pressStart(i: number) {
+    pressTimer.current = window.setTimeout(() => { addOne(i); pressTimer.current = null; }, 500);
+  }
+  function pressEnd() {
+    if (pressTimer.current !== null) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  }
+  function addAllMissing() {
+    leftToList.forEach(addOne);
+  }
 
 
   return (
@@ -679,173 +700,118 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
             )}
           </div>
         )}
+        {/* Підказка — просто абзац мутед-кольору під метаданими. Бурштинова
+            риска робила з поради попередження; тон і місце вже кажуть, що
+            це репліка Кухні. */}
         {r.rk && (
           <div style={{
-            marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--amber)',
-            fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45,
+            marginTop: 8,
+            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.5,
           }}>{r.rk}</div>
         )}
       </div>
 
+      {/* Секції розділяє відстань, а не заголовок: 20px між блоками проти
+          9px між рядками. Нумерація 1-4 і так каже, що це план, а список без
+          цифр — що це інгредієнти. Підписи ІНГРЕДІЄНТИ / ПЛАН прибрані. */}
       <div className={styles['recipe-msg-cols']}>
-        <div>
-          <MonoLabel>ІНГРЕДІЄНТИ · ● З КОМОРИ</MonoLabel>
-          <div style={{ marginTop: 2 }}>
-            {scaled.ing.map((ing, i) => {
-              const missing = !ing.p;
-              const added = listed.has(i);
-              return (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'baseline', gap: 10,
-                  padding: '7px 0', borderBottom: '1px solid var(--border)',
-                  fontFamily: 'var(--font-body)', fontSize: 15,
-                }}>
-                  <span style={{ color: missing ? 'var(--fg-dim)' : 'var(--accent)', fontSize: 11 }}>
-                    {missing ? '○' : '●'}
-                  </span>
-                  <span style={{ flex: 1, color: 'var(--fg)' }}>
-                    {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
-                    {missing && ing.n && onNeedToList && (
-                      /* Канон п.8: бракує → «+ у список» просто тут. */
-                      <button
-                        type="button"
-                        disabled={added}
-                        onClick={() => { onNeedToList(ing.n!, ing.v, ing.u, r.t); setListed((prev) => new Set(prev).add(i)); }}
-                        style={{
-                          border: 0, background: 'none', padding: 0, marginLeft: 8,
-                          color: added ? 'var(--fg-dim)' : 'var(--accent)',
-                          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                          textDecoration: added ? 'none' : 'underline', textUnderlineOffset: 3,
-                          cursor: added ? 'default' : 'pointer',
-                        }}
-                      >
-                        {added ? '✓ у списку' : '+ у список'}
-                      </button>
-                    )}
-                  </span>
-                  {ing.v != null && ing.u && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)' }}>{formatQty(ing.v, ing.u)}</span>
-                  )}
-                </div>
-              );
-            })}
-            {(() => {
-              // Канон B: підсумковий рядок браку + «+ усі в список» разом.
-              const missIdx = scaled.ing.map((ing, i) => (!ing.p && ing.n ? i : -1)).filter((i) => i >= 0);
-              const left = missIdx.filter((i) => !listed.has(i));
-              if (!missIdx.length || !onNeedToList) return null;
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0 0' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--amber)' }}>
-                    ○ БРАКУЄ {missIdx.length}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={!left.length}
-                    onClick={() => {
-                      left.forEach((i) => {
-                        const ing = scaled.ing[i]!;
-                        onNeedToList(ing.n!, ing.v, ing.u, r.t);
-                      });
-                      setListed((prev) => new Set([...prev, ...left]));
-                    }}
-                    style={{
-                      border: 0, background: 'none', padding: 0, cursor: left.length ? 'pointer' : 'default',
-                      color: left.length ? 'var(--accent)' : 'var(--fg-dim)',
-                      fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-                      textDecoration: left.length ? 'underline' : 'none', textUnderlineOffset: 3,
-                    }}
-                  >
-                    {left.length ? '+ усі в список' : '✓ усі в списку'}
-                  </button>
-                </div>
-              );
-            })()}
-          </div>
+        <div className={styles['recipe-list']}>
+          {ordered.map(({ ing, i }) => {
+            const missing = !ing.p;
+            const added = listed.has(i);
+            return (
+              <div
+                key={i}
+                className={styles['recipe-ing']}
+                /* Точкове додавання — довгий тап по рядку. Рідкісний випадок
+                   не заслуговує на постійну колонку «+» у кожному рядку. */
+                title={missing && !added ? 'Довге натискання — додати лише це' : undefined}
+                onPointerDown={missing && !added && onNeedToList ? () => pressStart(i) : undefined}
+                onPointerUp={pressEnd}
+                onPointerLeave={pressEnd}
+                style={missing ? undefined : { color: 'var(--fg-dim)' }}
+              >
+                <span className={styles['recipe-ing-name']}>
+                  {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
+                  {added && <span className={styles['recipe-ing-added']}> ✓ у списку</span>}
+                </span>
+                {ing.v != null && ing.u
+                  ? <span className={styles['recipe-ing-qty']}>{formatQty(ing.v, ing.u)}</span>
+                  : !missing ? <span className={styles['recipe-ing-qty']}>є вдома</span> : null}
+              </div>
+            );
+          })}
         </div>
 
-        <div>
-          <MonoLabel>ПЛАН</MonoLabel>
-          <div style={{ marginTop: 2 }}>
-            {firstSteps.map((step: typeof scaled.st[number], i: number) => (
-              <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
-                <span style={{ flex: 1, color: 'var(--fg)' }}>
-                  {step.t}
-                  {!!step.s && (
-                    <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
-                      ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-            {restSteps.length > 0 && (
-              <>
-                <div className={`${styles['steps-rest']} ${allSteps ? styles['steps-rest-open'] : ''}`}>
-                  {restSteps.map((step, i) => (
-                    <div key={i + 3} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 4}</span>
-                      <span style={{ flex: 1, color: 'var(--fg)' }}>
-                        {step.t}
-                        {!!step.s && (
-                          <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
-                            ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAllSteps((v) => !v)}
-                  style={{
-                    border: 0, background: 'none', padding: '6px 0 0',
-                    color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-                    textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                  }}
-                >
-                  {allSteps ? 'Згорнути кроки' : `Показати всі ${r.st.length} кроків`}
-                  <span className={`${styles.chev} ${allSteps ? styles['chev-open'] : ''}`}>▾</span>
-                </button>
-              </>
-            )}
-          </div>
+        <div className={styles['recipe-list']}>
+          {/* Усі кроки одразу. «Показати всі N» прибрано: тіло панелі
+              скролиться саме́, і ховати від людини половину плану заради
+              економії висоти в скрольованій колонці немає сенсу. */}
+          {scaled.st.map((step: typeof scaled.st[number], i: number) => (
+            <div key={i} className={styles['recipe-step']}>
+              <span className={styles['recipe-step-n']}>{i + 1}</span>
+              <span className={styles['recipe-step-t']}>
+                {step.t}
+                {!!step.s && (
+                  <span className={styles['recipe-step-s']}>
+                    {' '}▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
+                  </span>
+                )}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Правка №4б: «Готуємо» — на всю ширину, як «Рецепт →» у пропозиції;
           «У рецепти» і «Поділитись» — вузькі другорядні (№6: шеринг тепер
           живе тут, а не на фініші Cook Mode). */}
-      <div className={styles['recipe-actions']} style={{ alignItems: 'center', gap: 16 }}>
-        {onCook && <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>}
-        {onSaveRecipe && (
-          <button
-            type="button"
-            disabled={saved}
-            onClick={() => onSaveRecipe(rid)}
-            style={{
-              border: 0, background: 'none', padding: 0, cursor: saved ? 'default' : 'pointer',
-              color: saved ? 'var(--fg-dim)' : 'var(--fg-muted)', fontFamily: 'var(--font-body)',
-              fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
-            }}
-          >
-            {saved ? '✓ У рецептах' : 'У рецепти'}
-          </button>
+      {/* V7 «на 320»: стан окремим рядком, головна дія на всю ширину,
+          другорядні під нею. Повна уніфікація низу (одна смуга, максимум
+          дві кнопки, «У рецепти» іконкою в шапці) — крок 2.1; тут лише
+          не даємо чотирьом діям налазити одна на одну. */}
+      <div className={styles['recipe-actions']}>
+        {/* Дія одна на весь список: «У список» додає все, чого бракує.
+            «+» у кожному рядку прибрано (V2) — точкове лишилось довгим тапом. */}
+        {missIdx.length > 0 && onNeedToList && (
+          <span className={styles['recipe-miss']}>○ БРАКУЄ {missIdx.length}</span>
         )}
-        {onShare && (
-          <button
-            type="button"
-            onClick={() => onShare(scaled, rid)}
-            title="Поділитись"
-            style={{
-              border: 0, background: 'none', padding: 0, cursor: 'pointer',
-              color: 'var(--fg-muted)', fontSize: 17, lineHeight: 1,
-            }}
-          >↗</button>
+        {onCook && (
+          <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>
         )}
+        <div className={styles['recipe-actions-sub']}>
+          {missIdx.length > 0 && onNeedToList && (
+            <button
+              type="button"
+              disabled={!leftToList.length}
+              onClick={addAllMissing}
+              className={styles['recipe-tolist']}
+              style={leftToList.length ? undefined : { color: 'var(--fg-dim)', cursor: 'default' }}
+            >
+              {leftToList.length ? 'У список' : '✓ у списку'}
+            </button>
+          )}
+          {onSaveRecipe && (
+            <button
+              type="button"
+              disabled={saved}
+              onClick={() => onSaveRecipe(rid)}
+              className={styles['recipe-tolist']}
+              style={saved ? { color: 'var(--fg-dim)', cursor: 'default' } : undefined}
+            >
+              {saved ? '✓ У рецептах' : 'У рецепти'}
+            </button>
+          )}
+          {onShare && (
+            <button
+              type="button"
+              onClick={() => onShare(scaled, rid)}
+              title="Поділитись"
+              className={styles['recipe-tolist']}
+              style={{ marginLeft: 'auto', fontSize: 17, lineHeight: 1 }}
+            >↗</button>
+          )}
+        </div>
       </div>
     </div>
   );
