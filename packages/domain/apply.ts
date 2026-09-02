@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
-import { normalizeTriple, displayName, catalogGroupsToAllergens, isCatalogFasting, type HouseholdProduct, type ProductTags } from './product.js';
+import { normalizeTriple, displayName, catalogGroupsToAllergens, isCatalogFasting, type HouseholdProduct, type ProductTags, type ProductTriple } from './product.js';
 import type {
   Card,
   IntakeCard,
@@ -305,6 +305,54 @@ function extractTrailingQuantity(label: string): { label: string; value: number 
   return { label: label.slice(0, m.index).trim(), value, unit };
 }
 
+// Продукт дому за трійкою: знайомий реюзається, новий створюється з
+// каталожними дефолтами в ДІРКИ тегів. Винесено з гілки `add` 02.09, бо
+// знадобилось і для `rename`: перейменування «мʼясо» → «свинина» міняло
+// лише видимий рядок, а партія й далі показувала на продукт «мʼясо» з його
+// порожніми тегами. Людина відповідала на уточнення — і знання не додавалось.
+//
+// Продукт при undo партії НЕ видаляється: це довідник, наступна покупка тієї
+// ж трійки має його знайти.
+async function ensureProduct(
+  repo: Repo,
+  household_id: string,
+  triple: ProductTriple,
+  fallbackLabel: string,
+  modelTags: ProductTags | undefined,
+  unit: Unit | null,
+): Promise<HouseholdProduct | null> {
+  if (!triple.product) return null;
+  const known = await repo.findProductByTriple(household_id, triple);
+  // Знайома трійка — її теги істина дому, модельні ігноруються.
+  if (known) return known;
+  // Каталог (кроки 2-3): key по аліасах + дефолти в ДІРКИ тегів.
+  // Межа жорстка: каталог дає властивості КЛАСУ (алергени, скоромність),
+  // ніколи екземпляра — бренд/варіант/назву не чіпає; модельні теги
+  // завжди перемагають каталожні.
+  const key = resolveLabelToKey(triple.product) ?? resolveLabelToKey(fallbackLabel);
+  const cat = key ? BY_KEY.get(key) : undefined;
+  const tags: ProductTags = { ...(modelTags ?? {}) };
+  if (cat) {
+    if (tags.allergens === undefined) {
+      const fromCat = catalogGroupsToAllergens(cat.allergen_groups);
+      if (fromCat.length) tags.allergens = fromCat;
+    }
+    if (tags.fasting === undefined && isCatalogFasting(cat)) tags.fasting = true;
+  }
+  const product: HouseholdProduct = {
+    id: randomUUID(),
+    household_id,
+    ...triple,
+    unit: unit === 'pack' ? null : unit,
+    pack_size: null,
+    tags,
+    catalog_key: key ?? null,
+    created_at: new Date().toISOString(),
+  };
+  await repo.insertProduct(product);
+  return product;
+}
+
 async function applyIntakeOp(
   repo: Repo,
   op: IntakeOp,
@@ -318,41 +366,9 @@ async function applyIntakeOp(
     const norm = normalizeUnit(op.value, op.unit);
 
     // Черга Д (№2): партія показує на «продукт дому». Трійка з op (фолбек —
-    // label як product); знайома трійка реюзається, і тоді її теги — істина
-    // дому, модельні ігноруються. Продукт при undo партії НЕ видаляється:
-    // це довідник, наступна покупка тієї ж трійки має його знайти.
+    // label як product).
     const triple = normalizeTriple({ product: op.product ?? op.label, brand: op.brand, variant: op.variant });
-    let product: HouseholdProduct | null = null;
-    if (triple.product) {
-      product = await repo.findProductByTriple(household_id, triple);
-      if (!product) {
-        // Каталог (кроки 2-3): key по аліасах + дефолти в ДІРКИ тегів.
-        // Межа жорстка: каталог дає властивості КЛАСУ (алергени,
-        // скоромність), ніколи екземпляра — бренд/варіант/назву не чіпає;
-        // модельні теги завжди перемагають каталожні.
-        const key = resolveLabelToKey(triple.product) ?? resolveLabelToKey(op.label);
-        const cat = key ? BY_KEY.get(key) : undefined;
-        const tags: ProductTags = { ...(op.tags ?? {}) };
-        if (cat) {
-          if (tags.allergens === undefined) {
-            const fromCat = catalogGroupsToAllergens(cat.allergen_groups);
-            if (fromCat.length) tags.allergens = fromCat;
-          }
-          if (tags.fasting === undefined && isCatalogFasting(cat)) tags.fasting = true;
-        }
-        product = {
-          id: randomUUID(),
-          household_id,
-          ...triple,
-          unit: norm.unit === 'pack' ? null : norm.unit,
-          pack_size: null,
-          tags,
-          catalog_key: key ?? null,
-          created_at: new Date().toISOString(),
-        };
-        await repo.insertProduct(product);
-      }
-    }
+    const product = await ensureProduct(repo, household_id, triple, op.label, op.tags, norm.unit);
 
     const batch: PantryBatch = {
       id,
@@ -413,11 +429,31 @@ async function applyIntakeOp(
       last_action: 'open',
     });
   } else if (op.op === 'rename') {
-    await repo.updateBatch(target.id, {
-      label: op.to,
+    // Перейменування — це не виправлення одруківки, а заява «це інший
+    // продукт, ніж я сказав». Тому переобчислюємо трійку й продукт дому так
+    // само, як на `add`: інакше «мʼясо» → «свинина» міняло тільки рядок на
+    // екрані, а під ним лишався продукт «мʼясо» з порожніми тегами — без
+    // алергенів, скоромності й ключа каталогу. Саме ці поля потім вирішують,
+    // що асистент запропонує готувати, тож без цього уточнення в людини
+    // питали дарма.
+    const triple = normalizeTriple({ product: op.to });
+    const product = await ensureProduct(repo, household_id, triple, op.to, undefined, target.unit);
+    const patch: Partial<PantryBatch> = {
+      label: product ? displayName(product) : op.to,
+      product_id: product?.id ?? target.product_id ?? null,
       last_by: actor,
       last_action: 'rename',
-    });
+    };
+    // «Вжити до» йде за продуктом: партія тепер ІНША річ, і старий строк
+    // описував не її. Але тільки коли новий продукт має що сказати —
+    // затирати відоме порожнім гірше, ніж лишити як було.
+    if (product?.tags.shelf_open_days != null) {
+      patch.best_before_opened_days = product.tags.shelf_open_days;
+    }
+    // Зону НЕ чіпаємо навмисно. Вона має власну операцію (`correct` із
+    // zone), і мовчазний переїзд партії з холодильника в морозилку через
+    // перейменування був би сюрпризом, якого людина не просила.
+    await repo.updateBatch(target.id, patch);
   } else if (op.op === 'correct') {
     const patch: Partial<PantryBatch> = { last_by: actor, last_action: 'correct' };
     if (op.value !== undefined || op.unit !== undefined) {
