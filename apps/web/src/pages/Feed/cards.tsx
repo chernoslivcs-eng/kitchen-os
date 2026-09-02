@@ -1082,11 +1082,15 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
           );
         })}
       </div>
+      {/* Крок 2 панелі: у стрічці підвал має 720px і лягає в рядок, у панелі —
+          284px, і сума з кнопкою разом дають ~290. Раніше без wrap ламалась
+          САМА сума («3 з ⏎ 3») — тепер вона нерозривна, а на вузькому підвал
+          чесно стає двома рядками: сума, під нею кнопка праворуч. */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 14,
+        display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', rowGap: 10,
         borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 6,
       }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16 }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap' }}>
           <RollingNumber value={card.total ?? 0} />₴ · <RollingNumber value={card.found ?? 0} /> з {card.of}
         </span>
         <a
@@ -1095,6 +1099,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
           rel="noreferrer"
           style={{
             marginLeft: 'auto', height: 44, padding: '0 18px', borderRadius: 12,
+            whiteSpace: 'nowrap',
             background: 'var(--fg)', color: 'var(--bg-body)', textDecoration: 'none',
             display: 'inline-flex', alignItems: 'center',
             fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
