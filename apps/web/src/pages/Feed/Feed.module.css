@@ -830,20 +830,36 @@
 }
 
 /* Пул-6 №2: rail — смужка/оверлей/колапс. */
+/* Керування панеллю — ліворуч, артефакти — праворуч. Кнопка в тій самій
+   геометрії, що вкладки (34px, radius 10), інакше вона читалась як
+   випадковий гліф, а не як контрол: раніше це був ‹ на 16px, приліплений
+   absolute у правий кут, де він ще й ділив місце з іконками артефактів. */
 .rail-collapse {
   display: none;
-  position: absolute;
-  top: 12px;
-  right: 10px;
-  width: 32px;
-  height: 44px;      /* тач-правило: хіт 44 */
-  border: 0;
-  background: transparent;
-  color: var(--fg-dim);
-  font-size: 16px;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  margin-right: 8px;
+  /* Рамка ПОСТІЙНА, не по ховеру: без неї це був просто гліф на тлі, і
+     кнопкою не читався. І форма інша, ніж у вкладок: коло — керування
+     панеллю, квадрат — артефакт. Одного погляду досить, щоб не плутати. */
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1;
   cursor: pointer;
 }
-.rail-collapse:hover { color: var(--fg); }
+.rail-collapse:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+/* Вкладки притискаються праворуч — див. margin у самому .rail-tabs-scroll
+   нижче. Окремим правилом тут це не працює: там стоїть margin: -7px
+   скороченою формою, і вона перебиває margin-left. */
 .rail-mini { display: none; }
 .rail-mini-item {
   width: 44px;
@@ -869,7 +885,7 @@
   /* position:fixed з базового правила лишається — він і є контекстом для
      absolute-кнопки ‹. Перебивати його relative було помилкою: rail падав
      у потік під чат. */
-  .rail .rail-collapse { display: block; }
+  .rail .rail-collapse { display: grid; }
   .rail-hidden { display: none !important; }
   .rail-mini-show {
     display: flex;
@@ -1133,6 +1149,11 @@
     overflow: hidden;
     z-index: 30;
   }
+  /* Кнопка згортання у шторці. Її правило зникло в кроці 1.1 разом із
+     блоком шухляди, а ✕ прибрано сьогодні — і шторку не стало чим
+     закрити, крім тапу по затемненню. Тап по затемненню лишається, але
+     він неочевидний, і покладатись на нього одного не можна. */
+  .rail-open .rail-collapse { display: grid; }
   .rail-open .rail-artifact {
     display: flex;
     border-bottom: 0;
@@ -1495,6 +1516,9 @@
 }
 
 /* Іконки навігації в шапці артефакта. */
+/* auto тут і ТІЛЬКИ тут: це перший елемент правої групи, і він забирає всю
+   порожнечу. Другий auto на вкладках ділив би її навпіл — вкладки зупинялись
+   посеред шапки замість правого краю. */
 .rail-head-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
 .head-act {
   width: 28px;
@@ -1812,6 +1836,9 @@
      вкладки далі різався справа. Відʼємний зовнішній відступ повертає
      рядок на місце. */
   padding: 7px 7px 7px 7px;
+  /* Відʼємні поля компенсують падінг, який дає лічильникам місце всередині
+     області відсікання. Праворуч вкладки притискає auto на .rail-head-actions
+     — першому елементі правої групи. */
   margin: -7px;
 }
 .rail-tabs-scroll::-webkit-scrollbar { display: none; }

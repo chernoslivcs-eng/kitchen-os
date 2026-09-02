@@ -1638,12 +1638,22 @@ export function Feed() {
           <span className={styles['rail-handle-bar']} />
           {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
         </div>
-        <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
         {shownArtifact && (
           <div id={`rail-${shownArtifact.key}`} className={styles['rail-artifact']}>
             {/* Зона 1 — шапка. Не скролиться: вкладки мусять лишатись на
                 місці, інакше на довгому кошику зникає спосіб перемкнутись. */}
             <div className={styles['rail-tabs']}>
+              {/* Згорнути — ЗЛІВА і в тій самій геометрії, що вкладки.
+                  Раніше це був гліф 16px, приліплений absolute у правий
+                  кут: він не читався як кнопка й ділив кут із артефактами.
+                  Тепер ліворуч керування панеллю, праворуч — самі артефакти. */}
+              <button
+                type="button"
+                className={styles['rail-collapse']}
+                onClick={railCollapse}
+                title="Згорнути панель"
+                aria-label="Згорнути панель"
+              >‹</button>
               {/* Крок 4.5: вкладок стало більше трьох, і на 320px вони
                   перестали влазити — «Список 4» різався до «Сп…». Правило
                   «неактивна не стискається» тут уже не рятує: воно про дві
@@ -1655,6 +1665,9 @@ export function Feed() {
                   Сільпо», «Список покупок»), тож пілюлі з текстом повторювали
                   її і при трьох артефактах переставали влазити в 320px.
                   Гліф той самий, що в згорнутій смузі, — одна мова. */}
+              {/* Навігаційні дії артефакта (V7) — перед вкладками: права
+                  група це артефакти, і самі вкладки в ній крайні праворуч. */}
+              <div className={styles['rail-head-actions']} ref={setHeadSlot} />
               <div className={styles['rail-tabs-scroll']}>
                 {openArtifacts.map((a) => (
                   <button
@@ -1688,8 +1701,6 @@ export function Feed() {
                   </button>
                 )}
               </div>
-              {/* Навігаційні дії артефакта — сюди (V7). */}
-              <div className={styles['rail-head-actions']} ref={setHeadSlot} />
             </div>
             {/* Зона 2 — тіло. ЄДИНА зона скролу в панелі. */}
             <div className={styles['rail-body']} ref={setBodyEl}>
