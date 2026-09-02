@@ -271,6 +271,10 @@
 .composer-wrap {
   border-top: 1px solid var(--border);
   background: var(--bg-surface);
+  /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
+     а не від низу вікна. Композер росте разом із текстом, і фіксований
+     відступ від краю рано чи пізно на нього наліз би. */
+  position: relative;
 }
 .pending-attachments {
   padding: 10px 22px 0;
@@ -868,6 +872,11 @@
   /* Оверлей повного rail поверх чату. */
   .rail-open {
     display: flex !important;
+    /* flex-direction лишалось типовим row: діти шухляди ставали колонками
+       поруч і вилазили за 320px. У порожній шухляді це не було видно —
+       побачилось, щойно в неї переїхав артефакт. */
+    flex-direction: column;
+    gap: 18px;
     position: fixed;
     top: 0; right: 0; bottom: 0;
     width: 320px;
@@ -976,12 +985,13 @@
    завжди суперечать одна одній, тому в стрічці лишається слід, а повне
    подання переїжджає в панель. Обидва в DOM: нижче 1440 панелі немає, і без
    картки в стрічці кошик зник би зовсім. */
-.cart-trace { display: none; }
-.cart-in-feed { display: block; }
-
-@media (min-width: 1440px) {
-  :global(body.with-sidebar) .cart-in-feed { display: none; }
-  :global(body.with-sidebar) .cart-trace {
+/* Правило одне на всіх ширинах: у стрічці — слід, повне подання — у
+   панелі (≥1440), шухляді (1024-1439) або шторці (мобайл). Спершу я
+   лишив був картку в стрічці нижче 1440, вважаючи, що затемнення шухляди
+   її сховає. Не ховає: два живі кошики з двома сумами видно одночасно —
+   рівно те, проти чого писався дизайн «Панель A». */
+.cart-in-feed { display: none; }
+.cart-trace {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -997,11 +1007,11 @@
     letter-spacing: 0.06em;
     cursor: pointer;
     text-align: left;
-  }
-  :global(body.with-sidebar) .cart-trace:hover { color: var(--fg); }
-  /* Панель показує кошик лише там, де сама є в потоці. На 1280-1439 вона ще
-     накладена (крок 5), і кошик там лишається карткою у стрічці — інакше
-     вийшли б дві копії одночасно. */
+}
+.cart-trace:hover { color: var(--fg); }
+
+@media (min-width: 1440px) {
+  /* Панель у потоці — тут артефакт видно завжди, без відкривання. */
   :global(body.with-sidebar) .rail-artifact { display: block; }
 }
 .cart-trace-dot { color: var(--accent); }
@@ -1083,4 +1093,75 @@
 .rail-artifact .recipe-msg-cols > div:first-child,
 .rail-artifact .recipe-msg-cols > div:last-child {
   flex: initial;
+}
+
+/* ── Крок 5б: мобайл. Пігулка + шторка ───────────────────────────────
+   Нижче 1024 панелі не буде ніколи — місця немає. Але правило «артефакт
+   живе в одному місці» лишається тим самим на всіх ширинах: у стрічці
+   слід, повне подання — у шторці. Інакше на мобайлі кошик існував би
+   двічі: карткою в стрічці і в шторці одночасно. */
+.rail-pill { display: none; }
+
+@media (max-width: 1023px) {
+  .rail-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(100% + 10px);
+    z-index: 12;
+    max-width: calc(100% - 32px);
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-surface);
+    box-shadow: 0 6px 20px rgba(29, 33, 38, 0.16);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .rail-pill-dot { color: var(--accent); flex: none; }
+  .rail-pill-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rail-pill-meta,
+  .rail-pill-more { color: var(--fg-dim); flex: none; }
+
+  /* Шторка — той самий <aside>, що й панель. Розмітку вкладок, ✕ і саму
+     картку не дублюємо: змінюється лише геометрія. */
+  .rail-open {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    max-height: 82vh;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    z-index: 30;
+  }
+  .rail-open .rail-artifact {
+    display: block;
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  /* Рецепт у шторці — знову в одну колонку: ширина екрана тут вузька
+     так само, як була вузькою панель. */
+  .rail-open .recipe-msg-cols { flex-direction: column; gap: 14px; }
+  .rail-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 29;
+  }
 }

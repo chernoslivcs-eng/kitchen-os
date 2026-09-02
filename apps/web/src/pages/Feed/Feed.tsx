@@ -281,7 +281,6 @@ export function Feed() {
   // від 1440; нижче вона шухляда. Поки тут стояло 1280, на 1280-1439 кнопка
   // «›» знімала railHidden з панелі, якої на цій ширині взагалі немає, —
   // і не робила рівно нічого.
-  const RAIL_IN_FLOW = '(min-width: 1440px)';
   function miniRailClick() {
     if (window.matchMedia(RAIL_IN_FLOW).matches) setRailHiddenPersist(false);
     else setRailOpen(true);
@@ -309,6 +308,7 @@ export function Feed() {
   ].filter(Boolean) as { key: string; label: string; meta: string; turn: NonNullable<typeof latestCart> }[];
   const openArtifacts = artifacts.filter((a) => !closedArtifacts.has(a.key));
   const shownArtifact = openArtifacts.find((a) => a.key === activeArtifact) ?? openArtifacts[0];
+  const RAIL_IN_FLOW = '(min-width: 1440px)';
   // Слід у стрічці — це не якір, а відкриття. Після ✕ артефакт зникає з
   // панелі, і скрол по id вів би в порожнечу: кнопка виглядала б робочою,
   // а не робила б нічого. Тому спершу повертаємо його в панель, і лише
@@ -321,6 +321,10 @@ export function Feed() {
       return next;
     });
     setActiveArtifact(key);
+    // Нижче 1440 панелі в потоці немає — там артефакт живе в шухляді
+    // (1024-1439) або в шторці знизу (мобайл). Один і той самий слід
+    // мусить відкривати те, що на цій ширині справді існує.
+    if (!window.matchMedia(RAIL_IN_FLOW).matches) setRailOpen(true);
     requestAnimationFrame(() => {
       document.getElementById(`rail-${key}`)?.scrollIntoView({ block: 'nearest' });
     });
@@ -1011,9 +1015,9 @@ export function Feed() {
               </div>
             )}
             {t.card?.type === 'cart' && (
-              /* Крок 2: слід кошика у стрічці. Показується лише там, де є
-                 панель (≥1440) — нижче лишається повна картка, інакше кошик
-                 зник би зовсім. Обидва подання в DOM, вибирає медіазапит. */
+              /* Крок 2: слід кошика у стрічці. Повне подання — завжди в
+                 панелі, шухляді або шторці, на будь-якій ширині. Обидва
+                 подання в DOM, вибирає CSS. */
               <button
                 type="button"
                 className={styles['cart-trace']}
@@ -1025,10 +1029,10 @@ export function Feed() {
               </button>
             )}
             {t.card?.type === 'recipe_link' && (
-              /* Слід рецепта — той самий принцип, що кошик: у стрічці згортка,
-                 у панелі повне подання. Різниця в тому, що рецептів МОЖЕ бути
-                 багато й вони не суперечать один одному — тому слід лишається
-                 назавжди, а в панелі живе тільки останній. */
+              /* Слід рецепта — той самий принцип, що кошик. Різниця в тому,
+                 що рецептів МОЖЕ бути багато й вони не суперечать один
+                 одному — тому слід лишається назавжди, а в панелі живе
+                 тільки останній. */
               <button
                 type="button"
                 className={styles['cart-trace']}
@@ -1090,6 +1094,24 @@ export function Feed() {
       </div>
 
       <div className={styles['composer-wrap']}>
+        {/* Крок 5б: мобільна пігулка. На вузькому екрані панелі немає взагалі,
+            і кошик — єдина річ, що живе довше за одну прокрутку, — зникав
+            угору стрічки без дороги назад. Пігулка і є та дорога: вона
+            відкриває ту саму шторку з тими самими вкладками. */}
+        {openArtifacts.length > 0 && !railOpen && shownArtifact && (
+          <button
+            type="button"
+            className={styles['rail-pill']}
+            onClick={() => openArtifact(shownArtifact.key)}
+          >
+            <span className={styles['rail-pill-dot']}>●</span>
+            <span className={styles['rail-pill-label']}>{shownArtifact.label}</span>
+            {shownArtifact.meta && <span className={styles['rail-pill-meta']}>{shownArtifact.meta}</span>}
+            {openArtifacts.length > 1 && (
+              <span className={styles['rail-pill-more']}>+{openArtifacts.length - 1}</span>
+            )}
+          </button>
+        )}
         {/* UX9-09: «Готування триває» жило В САМОМУ ВЕРХУ стрічки — на момент
             виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
             композитором: видиме завжди, доки готування живе. */}
