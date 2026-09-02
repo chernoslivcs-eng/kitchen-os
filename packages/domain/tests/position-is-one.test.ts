@@ -111,3 +111,60 @@ describe('картка вказує на позицію, не навпаки', (
     expect(b.label).toBe('свинина');
   });
 });
+
+// Списання після готування знає ТОЧНУ позицію: рецепт тримає палець на
+// партії (ing.p → batch id). Досі цей палець перетворювався на назву, а
+// назва шукалась findBatchByLabel — перший збіг без сортування. При двох
+// однойменних позиціях списувалась не та, яку взяв рецепт.
+describe('позицію адресує вказівник, а не назва', () => {
+  const who = () => ({ household_id: randomUUID(), user_id: randomUUID() });
+
+  it('дві однойменні позиції: списується саме та, на яку вказали', async () => {
+    const repo = new InMemoryRepo();
+    const w = who();
+    const first: IntakeCard = {
+      type: 'intake_diff', ops: [{ op: 'add', label: 'мʼясо', value: 500, unit: 'g' }],
+    };
+    const second: IntakeCard = {
+      type: 'intake_diff', ops: [{ op: 'add', label: 'мʼясо', value: 300, unit: 'g' }],
+    };
+    await apply(repo, w, first);
+    await apply(repo, w, second);
+    const targetId = adds(second)[0]!.batch_id!;
+
+    await apply(repo, w, {
+      type: 'intake_diff', ops: [{ op: 'deplete', label: 'мʼясо', batch_id: targetId }],
+    });
+
+    const live = (await repo.listBatches(w.household_id)).filter((b) => b.state !== 'depleted');
+    expect(live, 'лишилась одна').toHaveLength(1);
+    expect(live[0]!.id, 'вижила ПЕРША, бо списували другу').toBe(adds(first)[0]!.batch_id);
+    expect(live[0]!.value).toBe(500);
+  });
+
+  it('без вказівника працює по назві, як і раніше', async () => {
+    // Модель id не бачить, тож її операції мусять і далі проходити.
+    const repo = new InMemoryRepo();
+    const w = who();
+    await apply(repo, w, { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко', value: 1000, unit: 'ml' }] });
+    await apply(repo, w, { type: 'intake_diff', ops: [{ op: 'deplete', label: 'молоко' }] });
+    const live = (await repo.listBatches(w.household_id)).filter((b) => b.state !== 'depleted');
+    expect(live).toHaveLength(0);
+  });
+
+  it('чужий вказівник ігнорується — не можна списати позицію іншого дому', async () => {
+    const repo = new InMemoryRepo();
+    const mine = who();
+    const other = who();
+    await apply(repo, other, { type: 'intake_diff', ops: [{ op: 'add', label: 'мʼясо', value: 900, unit: 'g' }] });
+    const stolen = (await repo.listBatches(other.household_id))[0]!.id;
+    await apply(repo, mine, { type: 'intake_diff', ops: [{ op: 'add', label: 'мʼясо', value: 500, unit: 'g' }] });
+
+    await apply(repo, mine, {
+      type: 'intake_diff', ops: [{ op: 'deplete', label: 'мʼясо', batch_id: stolen }],
+    });
+
+    const theirs = (await repo.listBatches(other.household_id))[0]!;
+    expect(theirs.state, 'чужа позиція недоторкана').not.toBe('depleted');
+  });
+});

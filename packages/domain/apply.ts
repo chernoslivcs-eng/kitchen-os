@@ -411,7 +411,14 @@ async function applyIntakeOp(
     return;
   }
 
-  const target = await repo.findBatchByLabel(household_id, op.label);
+  // Вказівник сильніший за назву. Хто знає позицію — адресує її точно; назва
+  // лишається фолбеком для того, хто не знає (модель). Без цього палець
+  // рецепта на партію (ing.p) перетворювався на рядок і губився в
+  // findBatchByLabel, який бере ПЕРШИЙ збіг без сортування.
+  const byId = op.batch_id ? await repo.getBatch(op.batch_id) : null;
+  const target = byId?.household_id === household_id
+    ? byId
+    : await repo.findBatchByLabel(household_id, op.label);
   if (!target) {
     // Мовчки не створюємо: «модель не пише в стан напряму» стосується і одруківок.
     // Якщо треба додати — це має бути окрема op:add.

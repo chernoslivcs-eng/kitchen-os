@@ -108,18 +108,19 @@ export async function buildWriteoffOps(
     if (batch.state === 'depleted') continue;
     const used = normalizeForBatch(ing.v ?? null, ing.u ?? null, batch.unit);
     if (used == null) {
-      if (batch.state === 'sealed') ops.push({ op: 'open', label: batch.label });
+      if (batch.state === 'sealed') ops.push({ op: 'open', label: batch.label, batch_id: batch.id });
       continue;
     }
     if (batch.value != null && batch.value > used) {
       ops.push({
         op: 'correct',
         label: batch.label,
+        batch_id: batch.id,
         value: Math.round((batch.value - used) * 100) / 100,
         unit: batch.unit ?? undefined,
       });
     } else {
-      ops.push({ op: 'deplete', label: batch.label });
+      ops.push({ op: 'deplete', label: batch.label, batch_id: batch.id });
     }
   }
   return ops;

@@ -46,12 +46,17 @@ export type IntakeOp =
       product?: string; brand?: string; variant?: string; tags?: import('./product.js').ProductTags;
       // «(початке)» в інвентарі: партія народжується вже відкритою.
       state?: 'sealed' | 'opened' }
-  | { op: 'deplete'; label: string }
-  | { op: 'open'; label: string }
-  | { op: 'rename'; label: string; to: string }
+  // batch_id і тут — коли той, хто складає операцію, ЗНАЄ позицію. Списання
+  // після готування знає: рецепт тримає палець на партії (ing.p). Раніше цей
+  // палець перетворювався на назву, а назва шукалась findBatchByLabel — перший
+  // збіг без сортування, — і при двох однойменних позиціях списувалась не та.
+  // Модель id не бачить і не заповнює: для неї лишається label, як було.
+  | { op: 'deplete'; label: string; batch_id?: string }
+  | { op: 'open'; label: string; batch_id?: string }
+  | { op: 'rename'; label: string; to: string; batch_id?: string }
   // correct може правити й невидимі теги продукту партії («камбоцола без
   // лактози») — мердж, не заміна; редагування тегів існує ТІЛЬКИ цим шляхом.
-  | { op: 'correct'; label: string; value?: number; unit?: Unit; zone?: Zone; tags?: import('./product.js').ProductTags };
+  | { op: 'correct'; label: string; batch_id?: string; value?: number; unit?: Unit; zone?: Zone; tags?: import('./product.js').ProductTags };
 
 // M13: рядок чека, який НЕ став op'ом — сірий «додати руками» (unmatched)
 // або згорнутий «не для комори» (nonfood). Живе в source картки, щоб стрічка
