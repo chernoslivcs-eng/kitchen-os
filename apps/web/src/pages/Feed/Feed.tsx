@@ -305,10 +305,26 @@ export function Feed() {
   const [bodyContentEl, setBodyContentEl] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!bodyEl) return;
-    const check = () => setBodyScrolled(
-      bodyEl.scrollTop + bodyEl.clientHeight < bodyEl.scrollHeight - 1,
-    );
+    // Заміряємо НА НАСТУПНОМУ КАДРІ, а не в момент події. ResizeObserver
+    // будить нас посеред перерозкладки: коли відкривається шторка, він
+    // спрацьовує на проміжному розмірі й більше не повторюється — тінь
+    // застрягала увімкненою на вмісті, який насправді влазить цілком
+    // (заміряно: предикат false, а тінь горить). rAF відкладає замір до
+    // моменту, коли розкладка вже сіла.
+    let raf = 0;
+    const check = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setBodyScrolled(
+        bodyEl.scrollTop + bodyEl.clientHeight < bodyEl.scrollHeight - 1,
+      ));
+    };
     check();
+    // Ще один замір після осідання. ResizeObserver звітує РОЗМІР, який
+    // бачив у тій самій розкладці; дрібне осідання після неї (шрифти,
+    // останні 4px висоти) він уже не помічає, і тінь лишається від
+    // проміжного кадру. Заміряно: вміст 523 → 519, предикат перевернувся,
+    // тінь не змінилась.
+    const settle = window.setTimeout(check, 250);
     bodyEl.addEventListener('scroll', check, { passive: true });
     // Самого onScroll мало: вміст росте мовчки. Розкрив альтернативи —
     // висота стрибнула, події скролу не було, і тінь брехала б, що читати
@@ -316,8 +332,18 @@ export function Feed() {
     const ro = new ResizeObserver(check);
     ro.observe(bodyEl);
     if (bodyContentEl) ro.observe(bodyContentEl);
-    return () => { bodyEl.removeEventListener('scroll', check); ro.disconnect(); };
-  }, [bodyEl, bodyContentEl]);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(settle);
+      bodyEl.removeEventListener('scroll', check);
+      ro.disconnect();
+    };
+    // railOpen і ключ артефакта — теж залежності: коли відкривається шторка
+    // або перемикається вкладка, розкладка змінюється цілком, а самі вузли
+    // лишаються ті самі. Без них ефект не перезапускався, і тінь на секунду
+    // застрягала від попередньої розкладки (заміряно на шторці: предикат
+    // false, тінь горить).
+  }, [bodyEl, bodyContentEl, railOpen]);
   const [vw, setVw] = useState(() => window.innerWidth);
   useEffect(() => {
     const onResize = () => setVw(window.innerWidth);
@@ -334,11 +360,22 @@ export function Feed() {
     setRailWidth(px);
     try { localStorage.setItem('kos-rail-width', String(px)); } catch { /* ок */ }
   }
+  // Подвійне натискання рахуємо САМІ, а не через onDoubleClick. Браузер
+  // його не дає: setPointerCapture перехоплює вказівник, і сумісний click
+  // не синтезується — а без click немає й dblclick. Заміряно на видимій
+  // вкладці: дабл-клік по ручці не робив нічого.
+  const lastDown = useRef(0);
   function onHandleDown(e: React.PointerEvent<HTMLDivElement>) {
-    // БЕЗ preventDefault. Він тут здається безпечним, але глушить сумісні
-    // мишачі події — а без click не буває dblclick, і дабл-клік «повернути
-    // 320» мовчки помирав. Виділення тексту під час драгу знімає
-    // user-select: none на .rail-dragging, не preventDefault.
+    const now = Date.now();
+    const isDouble = now - lastDown.current < 400;
+    lastDown.current = now;
+    if (isDouble) {
+      persistRailWidth(RAIL_DEFAULT);
+      return;   // друге натискання не починає драг
+    }
+    // БЕЗ preventDefault: він глушить сумісні мишачі події. Виділення тексту
+    // під час драгу знімає user-select: none на .rail-dragging — перевірено
+    // справжнім драгом, виділяється нуль символів.
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const startX = e.clientX;
     const startW = railEffective;
@@ -411,6 +448,17 @@ export function Feed() {
       document.getElementById(`rail-${key}`)?.scrollIntoView({ block: 'nearest' });
     });
   }
+  // Перемикання вкладки міняє вміст тіла повністю. Вузли ті самі, тож ані
+  // ResizeObserver, ані ефект вище про це не дізнаються — штовхаємо перевірку
+  // тіні вручну. Оголошено тут, а не в тому ефекті: shownArtifact існує
+  // нижче за нього.
+  useEffect(() => {
+    if (!bodyEl) return;
+    const id = requestAnimationFrame(() => setBodyScrolled(
+      bodyEl.scrollTop + bodyEl.clientHeight < bodyEl.scrollHeight - 1,
+    ));
+    return () => cancelAnimationFrame(id);
+  }, [bodyEl, shownArtifact?.key]);
   function closeArtifact(key: string) {
     // Артефакт не вмирає — він і далі повідомлення у стрічці, і слід повертає
     // його тапом. Тому ✕ не потребує підтвердження.
@@ -1400,7 +1448,6 @@ export function Feed() {
         <div
           className={styles['rail-handle']}
           onPointerDown={onHandleDown}
-          onDoubleClick={() => persistRailWidth(RAIL_DEFAULT)}
           role="separator"
           aria-orientation="vertical"
           aria-label="Ширина панелі"
@@ -1436,6 +1483,12 @@ export function Feed() {
             {/* Зона 2 — тіло. ЄДИНА зона скролу в панелі. */}
             <div className={styles['rail-body']} ref={setBodyEl}>
               <div ref={setBodyContentEl}>
+              {/* Чекаємо на слот, перш ніж малювати картку. Без цього перший
+                  кадр рендерить її низ УСЕРЕДИНІ тіла (слота ще немає), тіло
+                  на цей кадр вище — і тінь ловить саме його, а тоді лишається
+                  ввімкненою на вмісті, який насправді влазить. Заміряно на
+                  кошику: 302/302, предикат false, тінь горить. */}
+              {footSlot && (
               <PanelFootSlot.Provider value={footSlot}>
                 {shownArtifact.key === 'cart'
                   ? <Card card={shownArtifact.turn.card!} cardId={shownArtifact.turn.cardId ?? undefined} />
@@ -1453,6 +1506,7 @@ export function Feed() {
                     />
                   )}
               </PanelFootSlot.Provider>
+              )}
               </div>
             </div>
             {/* Зона 3 — низ. Не скролиться; сюди картка порталить свої дії. */}
