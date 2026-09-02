@@ -23,7 +23,7 @@ import { resolveReceiptKey } from '../src/retail/receipt-intake.js';
 interface Corpus {
   pairs: { raw: string; expanded: string; expect: string }[];
   traps: { src: string; line: string; expect: string | null; never: string; why: string }[];
-  must_resolve: { src: string; line: string; expect: string; strict_silent: boolean }[];
+  must_resolve: { src: string; line: string; expect: string; strict_silent: boolean; silent_cause?: string }[];
   corpus: Record<string, string[]>;
 }
 
@@ -57,42 +57,50 @@ describe('суворий резолвер: мовчить, але не бреш�
   });
 });
 
-describe('порівняння на корпусі: скільки відповідей і скільки браку', () => {
-  it('поблажливий дає більше відповідей, і частина з них хибна', () => {
+describe('два резолвери на одному корпусі', () => {
+  it('після правки вони дають ІДЕНТИЧНИЙ результат на всіх 125 рядках', () => {
+    // Це і є висновок гілки. До правки вони розходились принципово:
+    // поблажливий відповідав частіше й брехав, суворий мовчав і не брехав.
+    // Тепер, коли межі слова й голова стоять в обох, різниці немає жодної —
+    // отже, дві функції більше не мають підстав існувати окремо.
+    //
+    // Наступний крок (не тут): звести їх в одну з рівнем збігу, і хай
+    // споживач ставить планку. resolveLabel(minTier) для цього вже готовий.
     const lines = [...c.corpus['silpo-till']!, ...c.corpus['metro-pdf']!];
-    const loose = lines.filter((l) => resolveLabelToKey(l) !== null).length;
-    const strict = lines.filter((l) => resolveReceiptKey(l) !== null).length;
-    // Поблажливий «покриває» більше — саме тому його колись і поставили.
-    expect(loose).toBeGreaterThan(strict);
-    // Але серед пасток кожна його відповідь — підміна продукту.
-    const wrong = c.traps.filter((t) => resolveLabelToKey(t.line) === t.never).length;
-    expect(wrong).toBe(c.traps.length);
+    const diff = lines.filter((l) => resolveLabelToKey(l) !== resolveReceiptKey(l));
+    expect(diff, `розійшлись: ${diff.slice(0, 5).join(' | ')}`).toHaveLength(0);
+  });
+
+  it('жоден із них не повертає підмінений ключ на пастках', () => {
+    for (const t of c.traps) {
+      expect(resolveLabelToKey(t.line), `поблажливий: ${t.line}`).not.toBe(t.never);
+      expect(resolveReceiptKey(t.line), `суворий: ${t.line}`).not.toBe(t.never);
+    }
   });
 });
 
-describe('суворий недобирає: голова береться першим словом', () => {
-  // METRO ставить бренд ПЕРШИМ словом, а правило вимагає, щоб аліас містив
-  // саме перше слово назви (або мав латинський токен ≥4). «MC ПАРМІДЖАНО
-  // РЕДЖАНО» → голова «mc», аліас «пармеджано реджано» її не містить →
-  // відкинуто, хоча всі слова аліаса в назві стоять.
-  //
-  // Бренд-префікс сам по собі вироку не виносить: «MC САЛАТ БЕБІ МІКС»
-  // проходить, бо там аліас коротший і збігається інакше. Тому мовчазні
-  // рядки перелічені у фікстурі прапорцем strict_silent, а не вгадуються
-  // тут за першою літерою — інакше тест ловив би не те, що описує.
-  for (const m of c.must_resolve.filter((x) => x.strict_silent)) {
-    // ОЧІКУВАННЯ НАВМИСНЕ ХИБНЕ — знімок поточної поведінки. Коли голову
-    // навчать пропускати бренд-префікс, тест впаде: тоді strict_silent
-    // знімають, і рядок їде у блок «влучає».
-    it(`«${m.line}» поки мовчить, хоча ${m.expect} у каталозі є`, () => {
-      expect(BY_KEY.get(m.expect), m.expect).toBeDefined();
-      expect(resolveReceiptKey(m.line)).toBeNull();
-    });
-  }
-
-  it('решта METRO-рядків із бренд-префіксом уже влучає — це не регресія', () => {
+describe('голова тепер пропускає бренд-префікс', () => {
+  // METRO ставить бренд ПЕРШИМ словом, і на «буквально перше слово» головою
+  // ставало «mc» чи «kaserei» — правильні збіги гинули, хоча всі слова
+  // аліаса в назві стояли. Тепер голова — перше КИРИЛИЧНЕ слово.
+  it('METRO-рядки з бренд-префіксом резолвляться правильно', () => {
     for (const m of c.must_resolve.filter((x) => x.src === 'metro-pdf' && !x.strict_silent)) {
       expect(resolveReceiptKey(m.line), m.line).toBe(m.expect);
     }
   });
+
+  // Два рядки мовчать і після правки — з РІЗНИХ причин, і жодна з них не
+  // «голова не спрацювала». Причини записані у фікстурі полем silent_cause,
+  // щоб наступний, хто сюди прийде, не почав послаблювати правило навмання:
+  //   · КАМБОЦОЛА — голова «сир» родова, аліас видовий. Потрібне окреме
+  //     правило про родові голови, і воно проєктується окремо.
+  //   · ПАРМІДЖАНО — METRO пише через «і», каталог через «е». Це дірка в
+  //     аліасах, лікується аліасом, а не резолвером.
+  for (const m of c.must_resolve.filter((x) => x.strict_silent)) {
+    it(`«${m.line}» поки мовчить: ${m.silent_cause?.split('.')[0]}`, () => {
+      expect(BY_KEY.get(m.expect), m.expect).toBeDefined();
+      expect(m.silent_cause, 'причина мовчання має бути записана').toBeTruthy();
+      expect(resolveReceiptKey(m.line)).toBeNull();
+    });
+  }
 });

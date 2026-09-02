@@ -56,63 +56,72 @@
       "line": "Пакет18СільпоПакЗПак",
       "expect": null,
       "never": "spice_salt_table",
-      "why": "назва мережі «Сільпо» містить підрядок «сіль»"
+      "why": "назва мережі «Сільпо» містить підрядок «сіль»",
+      "after": null
     },
     {
       "src": "silpo-till",
       "line": "Булоч100Корицею",
       "expect": "r2bk_bun_cinnamon",
       "never": "spice_cinnamon_ground",
-      "why": "модифікатор «корицею» перемагає голову «булочка»"
+      "why": "модифікатор «корицею» перемагає голову «булочка»",
+      "after": null
     },
     {
       "src": "silpo-till",
       "line": "ЯлКгСтПортерDryAgВ/у",
       "expect": "r2mt_beef_porterhouse",
       "never": "alc_beer_porter",
-      "why": "«портерхаус» містить підрядок «портер»"
+      "why": "«портерхаус» містить підрядок «портер»",
+      "after": null
     },
     {
       "src": "silpo-till",
       "line": "Нап0.25SchwOrBitLem",
       "expect": null,
       "never": "sweet_gum",
-      "why": "латинський огризок збігся з аліасом жуйки"
+      "why": "латинський огризок збігся з аліасом жуйки",
+      "after": null
     },
     {
       "src": "model-expanded",
       "line": "розпал Jarrkof гель",
       "expect": "hh_firelighter",
       "never": "alc_beer_ale",
-      "why": "«гель» містить підрядок «ель» — назву пива (спрацьовує вже на РОЗГОРНУТІЙ назві — тобто на виході моделі, який іде в apply.ts)"
+      "why": "«гель» містить підрядок «ель» — назву пива (спрацьовує вже на РОЗГОРНУТІЙ назві — тобто на виході моделі, який іде в apply.ts)",
+      "after": null
     },
     {
       "src": "model-expanded",
       "line": "дрова",
       "expect": null,
       "never": "r2no_oil_cedar",
-      "why": "«дрова» підрядком влучає в кедрову олію (спрацьовує вже на РОЗГОРНУТІЙ назві — тобто на виході моделі, який іде в apply.ts)"
+      "why": "«дрова» підрядком влучає в кедрову олію (спрацьовує вже на РОЗГОРНУТІЙ назві — тобто на виході моделі, який іде в apply.ts)",
+      "after": null
     },
     {
       "src": "silpo-app",
       "line": "Чипси Lay’s картопляні зі смаком сиру",
       "expect": "chips_cheese",
       "never": "potato",
-      "why": "прикметник «картопляні» перемагає голову «чипси»"
+      "why": "прикметник «картопляні» перемагає голову «чипси»",
+      "after": "chips_cheese"
     },
     {
       "src": "metro-pdf",
       "line": "MC ОЛИВ ОЛІЯ ЧАСНИК 0,25Л",
       "expect": null,
       "never": "garlic",
-      "why": "модифікатор «часник» перемагає голову «олія»"
+      "why": "модифікатор «часник» перемагає голову «олія»",
+      "after": null
     },
     {
       "src": "metro-pdf",
       "line": "FEVER TREE ТОНІК ОГІРОК 0.2Л",
       "expect": "tonic_cucumber",
       "never": "veg_cucumber_short",
-      "why": "модифікатор «огірок» перемагає голову «тонік»"
+      "why": "модифікатор «огірок» перемагає голову «тонік»",
+      "after": "drink_tonic"
     }
   ],
   "must_resolve": [
@@ -162,19 +171,21 @@
       "src": "metro-pdf",
       "line": "KASEREI СИР КАМБОЦОЛА 70%",
       "expect": "cambozola_cheese",
-      "strict_silent": true
+      "strict_silent": true,
+      "silent_cause": "голова «сир» — родове слово категорії, а аліас несе видову назву («камбоцола»). Правило вимагає голову в аліасі, і специфічний аліас відкидається. Потрібне окреме правило про родові голови — не робилось тут."
     },
     {
       "src": "metro-pdf",
       "line": "MC ПАРМІДЖАНО РЕДЖАНО 100Г",
       "expect": "cheese_parmigiano_reggiano",
-      "strict_silent": true
+      "strict_silent": true,
+      "silent_cause": "орфографія: METRO друкує «ПАРМІДЖАНО», каталог має «пармеджано». Це дірка в аліасах каталогу, а не дефект резолвера — лікується аліасом, не послабленням правила."
     },
     {
       "src": "metro-pdf",
       "line": "MC НАГЕТСИ КУРЯЧІ 1КГ",
       "expect": "chicken_nuggets",
-      "strict_silent": true
+      "strict_silent": false
     }
   ],
   "corpus": {
@@ -307,5 +318,47 @@
       "MC ТОМАТИ ЧЕРІ Ж/Б 400Г",
       "FL ВОЛ СЕРВ АНТИБАКТЕР 90ШТ"
     ]
-  }
+  },
+  "human_names": [
+    {
+      "line": "булочка з корицею",
+      "expect": "r2bk_bun_cinnamon"
+    },
+    {
+      "line": "стейк портерхаус",
+      "expect": "r2mt_beef_porterhouse"
+    },
+    {
+      "line": "розпалювач вогню",
+      "expect": "hh_firelighter"
+    },
+    {
+      "line": "вугілля деревне",
+      "expect": "hh_grill_charcoal"
+    },
+    {
+      "line": "туалетний папір",
+      "expect": "hh_toilet_paper"
+    },
+    {
+      "line": "хустинки паперові",
+      "expect": "hh_facial_tissues"
+    },
+    {
+      "line": "сіль кухонна",
+      "expect": "spice_salt_table"
+    },
+    {
+      "line": "кориця мелена",
+      "expect": "spice_cinnamon_ground"
+    },
+    {
+      "line": "часник",
+      "expect": "garlic"
+    },
+    {
+      "line": "картопля",
+      "expect": "potato"
+    }
+  ]
 }

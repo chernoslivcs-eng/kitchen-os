@@ -290,10 +290,10 @@ describe('retail routes · silpo', () => {
         return queries.map((q) => ({
           query: q,
           candidates: [],
-          product: (q === 'вода мінеральна' || q === 'Лосось охолоджений')
+          product: (q === 'вода мінеральна' || q === 'Стейк лосося')
             ? {
                 id: `id-${q}`, name: `Сільпо: ${q}`, slug: q, price: 200, oldPrice: null,
-                stock: true, available: true, weighted: q === 'Лосось охолоджений', step: 1,
+                stock: true, available: true, weighted: q === 'Стейк лосося', step: 1,
                 companyId: 'c1', branchId: 'b1',
               }
             : null,
@@ -311,8 +311,16 @@ describe('retail routes · silpo', () => {
     const body = r.json();
 
     // Друга фаза пішла канонічним іменем каталогу тільки для промахів.
+    //
+    // 02.09 (catalog/resolver): канонічне ім'я для «Стейк з лосося
+    // охолоджений» змінилось із «Лосось охолоджений» на «Стейк лосося».
+    // Раніше резолвер брав загальну позицію підрядком; тепер голова мітки
+    // («стейк») мусить стояти в аліасі, і виграє саме стейк лосося — те, що
+    // людина й записала в список. Наслідок реальний: у мережу піде інший
+    // запит, і чи знайде його пошук Сільпо — питання до живої видачі, не до
+    // цього мока.
     expect(findCalls[0]).toEqual(['Стейк з лосося охолоджений', 'кунжут', 'вода мінеральна']);
-    expect(findCalls[1]).toEqual(['Лосось охолоджений', 'Кунжут білий']);
+    expect(findCalls[1]).toEqual(['Стейк лосося', 'Кунжут білий']);
     expect(findCalls[1]).not.toContain('вода мінеральна');
 
     expect(body.card.type).toBe('cart');
@@ -322,7 +330,7 @@ describe('retail routes · silpo', () => {
     const rows = body.card.rows as Array<{ label: string; product: { name: string; quantity: number } | null }>;
     expect(rows.find((x) => x.label === 'кунжут')?.product).toBeNull();
     // Ваговий лосось: 300 г → 0.3 кг у кошику мережі.
-    expect(cartAdds.find((a) => a.productId === 'id-Лосось охолоджений')?.quantity).toBeCloseTo(0.3);
+    expect(cartAdds.find((a) => a.productId === 'id-Стейк лосося')?.quantity).toBeCloseTo(0.3);
     expect(cartAdds).toHaveLength(2);
 
     // Картка лягла в сесію дня — стрічка її покаже.

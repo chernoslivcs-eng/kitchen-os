@@ -103,24 +103,80 @@ export function categoriesCompatible(sourceCategories: string[], candidateCatego
 // раніше в масиві, — тобто стартові 131 завжди попереду.
 const prio = (item: CatalogItem): number => item.priority ?? 0;
 
-export function resolveLabelToKey(label: string, catalog = CATALOG): string | null {
+// Рівень збігу. Раніше суворість була властивістю ФУНКЦІЇ: поблажливий
+// resolveLabelToKey роздавав алергени, суворий resolveReceiptKey стеріг вето
+// нехарчового — тобто вгадування стояло там, де помилка небезпечна, а
+// прискіпливість там, де вона дешева. Тепер планку ставить той, хто питає:
+// тільки він знає ціну помилки.
+//   exact    — нормалізована назва збіглася цілком
+//   anchored — усі слова аліаса стоять цілими словами І аліас несе ГОЛОВУ
+//              мітки (або латинський бренд-токен, який ідентифікує товар)
+//   words    — усі слова аліаса стоять цілими словами, голови немає
+export type MatchTier = 'exact' | 'anchored' | 'words';
+const TIER_RANK: Record<MatchTier, number> = { words: 1, anchored: 2, exact: 3 };
+
+// Слова мітки. CamelCase НЕ розбиваємо навмисно: касовий рядок
+// «Кр135БрусPontЧорОлив» справді не має меж слів, і вигадувати їх — значить
+// повернути те саме вгадування. Мовчання на такому рядку чесніше за здогад;
+// розгортати скорочення — робота моделі, каталог починається після неї.
+function wordsOf(s: string): string[] {
+  return normalize(s).split(/[^\p{L}\p{N}%]+/u).filter(Boolean);
+}
+
+// Голова — перше слово з кирилицею, а не буквально перше. METRO ставить
+// бренд попереду («MC ПАРМІДЖАНО РЕДЖАНО», «KASEREI СИР КАМБОЦОЛА 70%»), і
+// на «перше слово» правильні збіги гинули.
+function headOf(ws: string[]): string | undefined {
+  return ws.find((w) => /[а-яіїєґ]/.test(w)) ?? ws[0];
+}
+
+export function resolveLabel(
+  label: string,
+  minTier: MatchTier = 'anchored',
+  catalog = CATALOG,
+): { key: string; tier: MatchTier } | null {
   const norm = normalize(label);
-  let best: { key: string; score: number; priority: number } | null = null;
+  const ws = wordsOf(label);
+  const set = new Set(ws);
+  const head = headOf(ws);
+  let best: { key: string; tier: MatchTier; score: number; priority: number } | null = null;
   for (const item of catalog) {
-    const candidates = [item.name, ...item.aliases].map(normalize);
-    for (const c of candidates) {
+    for (const cand of [item.name, ...item.aliases]) {
+      const c = normalize(cand);
       if (!c) continue;
-      let score = 0;
-      if (c === norm) score = 100;
-      else if (norm.includes(c)) score = 60 + c.length; // «Karolina — мʼясо мідій» містить «мʼясо мідій»
-      else if (c.includes(norm)) score = 40 + norm.length;
-      if (score <= 0) continue;
+      let tier: MatchTier | null = null;
+      let weight = 0;
+      if (c === norm) { tier = 'exact'; weight = c.length; }
+      else {
+        const cw = wordsOf(cand);
+        // Кожне слово аліаса — цілим словом у мітці. Саме це вбиває цілий
+        // рід підмін: «Сільпо» містить «сіль», «портерхаус» — «портер»,
+        // «гель» — «ель», «картопляні» — «картопля», «кедрова» — «дрова».
+        if (cw.length && cw.every((w) => set.has(w))) {
+          const anchored = (head !== undefined && cw.includes(head))
+            // Латинський бренд ідентифікує товар з будь-якої позиції.
+            || cw.some((w) => /^[a-z0-9'’-]{4,}$/.test(w));
+          tier = anchored ? 'anchored' : 'words';
+          weight = cw.reduce((s, w) => s + w.length, 0);
+        }
+      }
+      if (!tier || TIER_RANK[tier] < TIER_RANK[minTier]) continue;
+      const score = TIER_RANK[tier] * 1000 + weight;
       if (!best || score > best.score || (score === best.score && prio(item) > best.priority)) {
-        best = { key: item.key, score, priority: prio(item) };
+        best = { key: item.key, tier, score, priority: prio(item) };
       }
     }
   }
-  return best && best.score >= 40 ? best.key : null;
+  return best ? { key: best.key, tier: best.tier } : null;
+}
+
+// Планка за замовчуванням — `anchored`, бо найгарячіший споживач цієї
+// функції (apply.ts) добирає нею АЛЕРГЕНИ в дірки тегів. Ціна хибного
+// збігу там — чужий алерген на продукті, тож мовчання дешевше за здогад.
+// Кому потрібна ширина (пошук, підказки, де людина дивиться очима) — кличе
+// resolveLabel напряму з `words`.
+export function resolveLabelToKey(label: string, catalog = CATALOG): string | null {
+  return resolveLabel(label, 'anchored', catalog)?.key ?? null;
 }
 
 // Зона зберігання за назвою продукту. Використовується там, де зону не вказали
