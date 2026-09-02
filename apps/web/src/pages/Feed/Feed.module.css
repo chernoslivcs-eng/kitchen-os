@@ -841,20 +841,18 @@
   height: 34px;
   place-items: center;
   margin-right: 8px;
-  /* Рамка ПОСТІЙНА, не по ховеру: без неї це був просто гліф на тлі, і
-     кнопкою не читався. І форма інша, ніж у вкладок: коло — керування
-     панеллю, квадрат — артефакт. Одного погляду досить, щоб не плутати. */
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-surface);
+  /* Своєї рамки не носить: її носила порожня «‹», якій бракувало
+     значення. Іконка панелі читається сама, а зайвий контур поруч із
+     квадратними вкладками тільки додавав шуму. Хром — на ховері. */
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
   color: var(--fg-muted);
-  font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1;
   cursor: pointer;
 }
 .rail-collapse:hover {
-  border-color: var(--border-strong);
+  background: var(--bg-hover);
+  border-color: var(--border);
   color: var(--fg);
 }
 /* Вкладки притискаються праворуч — див. margin у самому .rail-tabs-scroll
