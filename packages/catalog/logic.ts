@@ -111,9 +111,18 @@ const prio = (item: CatalogItem): number => item.priority ?? 0;
 //   exact    — нормалізована назва збіглася цілком
 //   anchored — усі слова аліаса стоять цілими словами І аліас несе ГОЛОВУ
 //              мітки (або латинський бренд-токен, який ідентифікує товар)
-//   words    — усі слова аліаса стоять цілими словами, голови немає
-export type MatchTier = 'exact' | 'anchored' | 'words';
-const TIER_RANK: Record<MatchTier, number> = { words: 1, anchored: 2, exact: 3 };
+//   generic  — навпаки: мітка ВУЖЧА за аліас («сир» проти «сир твердий»).
+//              Родове слово знаходить видову позицію. Потрібне зоні
+//              зберігання: «сметана», «риба», «стейк» окремими позиціями в
+//              каталозі не стоять, а зона в усіх однакова, тож здогад тут
+//              безпечний.
+//   words    — усі слова аліаса стоять цілими словами, але голови немає.
+//              НАЙНИЖЧИЙ рівень, і це не описка: саме тут модифікатор
+//              перемагає голову («олія ЧАСНИК» → часник). Рівні не на одній
+//              осі — generic про НАПРЯМОК вкладення, words про брак якоря, —
+//              тож ладдер упорядкований за ЦІНОЮ помилки, не за широтою.
+export type MatchTier = 'exact' | 'anchored' | 'generic' | 'words';
+const TIER_RANK: Record<MatchTier, number> = { words: 1, generic: 2, anchored: 3, exact: 4 };
 
 // Слова мітки. CamelCase НЕ розбиваємо навмисно: касовий рядок
 // «Кр135БрусPontЧорОлив» справді не має меж слів, і вигадувати їх — значить
@@ -158,6 +167,18 @@ export function resolveLabel(
             || cw.some((w) => /^[a-z0-9'’-]{4,}$/.test(w));
           tier = anchored ? 'anchored' : 'words';
           weight = cw.reduce((s, w) => s + w.length, 0);
+        } else if (ws.length && ws.every((w) => new Set(cw).has(w))) {
+          // Зворотний бік: мітка вужча за аліас. «сир» ⊂ «сир твердий».
+          // Межі слова стережуть і тут — «дрова» не входить у слова аліаса
+          // «олія кедрова», тому стара підміна не повертається.
+          tier = 'generic';
+          // Вага НУЛЬОВА навмисно: усі родові збіги рівні, і вирішує
+          // priority — тобто стартові 131 позиції, які і є щоденні
+          // продукти дому. Спроба ранжувати довжиною аліаса давала
+          // випадкового переможця: «масло» знаходило соняшникову олію
+          // замість вершкового, «ковбаски» — сирокопчені замість свіжих,
+          // і зона з'їжджала в dry.
+          weight = 0;
         }
       }
       if (!tier || TIER_RANK[tier] < TIER_RANK[minTier]) continue;
@@ -183,9 +204,14 @@ export function resolveLabelToKey(label: string, catalog = CATALOG): string | nu
 // явно — unpack списку покупок, intake_diff без zone. Без цього все падало в
 // `dry`, і молоко переїжджало в комору замість холодильника (QA6-06).
 export function resolveLabelToZone(label: string, catalog = CATALOG): CatalogItem['zone_default'] | null {
-  const key = resolveLabelToKey(label, catalog);
-  if (!key) return null;
-  return catalog.find((c) => c.key === key)?.zone_default ?? null;
+  // Планка НИЖЧА, ніж у resolveLabelToKey, і це навмисно. Людина каже «купив
+  // сир», «сметана», «стейк» — окремих позицій під ці родові слова в
+  // каталозі немає, а зона в усіх сирів однакова. Ціна помилки тут — одна
+  // правка зони; ціна мовчання — падіння в `dry`, тобто сметана в сухій
+  // коморі (QA6-06, проти чого ця функція й писалась).
+  const hit = resolveLabel(label, 'generic', catalog);
+  if (!hit) return null;
+  return catalog.find((c) => c.key === hit.key)?.zone_default ?? null;
 }
 
 // ---------- пошук ----------
