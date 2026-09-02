@@ -267,8 +267,9 @@ export function Feed() {
   // Черга Г (№3): дані правої панелі — незакриті картки дому і неоцінене
   // недавнє готування. Живуть поруч із лічильниками й оновлюються разом.
   const [housePending, setHousePending] = useState<{ id: string; type: string; session_id: string | null }[]>([]);
-  // Пул-6 №2: rail згортається. 1024–1279 — смужка 56px, клік розгортає
-  // оверлеєм; ≥1280 — розгорнутий, але ‹ ховає (стан пам'ятається).
+  // Пул-6 №2: rail згортається. Нижче 1200 панелі немає — там шторка,
+  // яку відкриває пігулка; ≥1200 панель у потоці, і ‹ її ховає в смужку
+  // 56px (стан памʼятається).
   const [railOpen, setRailOpen] = useState(false);
   const [railHidden, setRailHidden] = useState(() => {
     try { return localStorage.getItem('kos-rail-hidden') === '1'; } catch { return false; }
@@ -277,11 +278,67 @@ export function Feed() {
     setRailHidden(v);
     try { localStorage.setItem('kos-rail-hidden', v ? '1' : '0'); } catch { /* ок */ }
   }
-  // Крок 1.1 (02.09): поріг 1200, синхронно з CSS. Виведений із брифу:
-  // 232 (меню, заміряно) + 640 (мінімум журналу) + 280 (мінімум панелі).
-  // Це число мусить збігатися з медіазапитами у Feed.module.css — інакше
-  // повторюється помилка, коли JS звіряв 1280, а CSS уже 1440, і кнопка
-  // «›» знімала railHidden з панелі, якої на тій ширині не існувало.
+
+  // ── Крок 1.3: ручка ресайзу (V1 + V9) ────────────────────────────────
+  // Межі з брифу: 280 (нижче ламається рядок кошика) … 560 (вище журнал
+  // стає вужчим за 640). Стеля залежить від вікна: накладні в нас 276,
+  // мінімум журналу 640, отже панель не може бути ширшою за vw − 916.
+  const RAIL_MIN = 280;
+  const RAIL_MAX = 560;
+  const RAIL_DEFAULT = 320;
+  const RAIL_OVERHEAD = 916;  // 276 накладних + 640 мінімум журналу
+  const [railWidth, setRailWidth] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem('kos-rail-width'));
+      return Number.isFinite(v) && v >= RAIL_MIN && v <= RAIL_MAX ? v : RAIL_DEFAULT;
+    } catch { return RAIL_DEFAULT; }
+  });
+  const [dragging, setDragging] = useState(false);
+  const [vw, setVw] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  // V9 «затиск — не запис»: коли вікно завузьке, панель стискається, але
+  // збережене число НЕ перезаписується — інакше одне випадкове звуження
+  // вікна назавжди відбирало б у людини її ширину. Перезаписує лише драг.
+  const railCeiling = Math.max(RAIL_MIN, Math.min(RAIL_MAX, vw - RAIL_OVERHEAD));
+  const railEffective = Math.min(railWidth, railCeiling);
+
+  function persistRailWidth(px: number) {
+    setRailWidth(px);
+    try { localStorage.setItem('kos-rail-width', String(px)); } catch { /* ок */ }
+  }
+  function onHandleDown(e: React.PointerEvent<HTMLDivElement>) {
+    // БЕЗ preventDefault. Він тут здається безпечним, але глушить сумісні
+    // мишачі події — а без click не буває dblclick, і дабл-клік «повернути
+    // 320» мовчки помирав. Виділення тексту під час драгу знімає
+    // user-select: none на .rail-dragging, не preventDefault.
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = railEffective;
+    setDragging(true);
+    let last = startW;
+    const move = (ev: PointerEvent) => {
+      // Панель праворуч: тягнемо ВЛІВО — ширшає.
+      last = Math.round(Math.max(RAIL_MIN, Math.min(railCeiling, startW - (ev.clientX - startX))));
+      setRailWidth(last);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDragging(false);
+      persistRailWidth(last);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+  // Крок 1.1 (02.09): поріг 1200, синхронно з CSS. Число заміряне, не взяте
+  // з брифу: накладні в нас 276 (меню 232 + падінги журналу 22+22), а не 232,
+  // тож 276 + 640 + 280 = 1196. Мусить збігатися з медіазапитами у
+  // Feed.module.css — інакше повторюється помилка, коли JS звіряв 1280,
+  // а CSS уже 1440, і «›» знімала railHidden з панелі, якої там не існувало.
   function miniRailClick() {
     if (window.matchMedia(RAIL_IN_FLOW).matches) setRailHiddenPersist(false);
     else setRailOpen(true);
@@ -771,7 +828,10 @@ export function Feed() {
   }
 
   return (
-    <div className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''}`}>
+    <div
+      className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''} ${dragging ? styles['rail-dragging'] : ''}`}
+      style={{ ['--rail-w' as string]: `${railEffective}px` }}
+    >
       <div className={styles.head}>
         <div className={styles['head-left']}>
           {/* DA-29: хендоф дає шапці заголовок «Кухня», не вордмарк — бренд
@@ -1310,6 +1370,20 @@ export function Feed() {
           Порожні секції не рендеряться. Кожен рядок — місток: продовжити
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
       <aside className={`${styles.rail} ${railOpen ? styles['rail-open'] : ''} ${railHidden ? styles['rail-hidden'] : ''}`}>
+        {/* Ручка. Дабл-клік — єдине повернення до 320 (V9). Ширину під час
+            драгу не зберігаємо: пише лише відпускання, тож перерваний драг
+            не лишає по собі випадкового числа. */}
+        <div
+          className={styles['rail-handle']}
+          onPointerDown={onHandleDown}
+          onDoubleClick={() => persistRailWidth(RAIL_DEFAULT)}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Ширина панелі"
+        >
+          <span className={styles['rail-handle-bar']} />
+          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
+        </div>
         <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
         {shownArtifact && (
           <div id={`rail-${shownArtifact.key}`} className={styles['rail-artifact']}>
