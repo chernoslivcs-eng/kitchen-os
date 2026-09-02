@@ -16,18 +16,10 @@
 .head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 22px 22px 12px;
   gap: 12px;
   min-width: 0;
-}
-.head-left { min-width: 0; }
-.head-meta {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
 }
 .head-actions {
   display: flex;
@@ -35,7 +27,6 @@
   align-items: center;
   flex: none;
 }
-.head-actions .head-meta { white-space: nowrap; }
 
 /* Правка №1: «+» нова сесія — іконка 40px у правому куті (мобайл). */
 .new-session-btn {
@@ -88,9 +79,7 @@
    ширину, другорядні рядком під нею; текст у пілюлях не переноситься. */
 /* Канон B: другорядні дії тепер текстові й вузькі — все в один рядок,
    зелена «Готуємо» тягнеться, wrap на мобілці більше не потрібен. */
-.recipe-actions { display: flex; gap: 10px; align-items: center; }
-.recipe-actions button { white-space: nowrap; }
-.recipe-actions button:first-child { flex: 1; }
+.recipe-actions { display: contents; }
 
 /* Пул-2 №2: банер готування в стрічці — тільки мобайл; на десктопі
    (сайдбарна верстка) фрейм живе в лівому сайдбарі. */
@@ -271,6 +260,10 @@
 .composer-wrap {
   border-top: 1px solid var(--border);
   background: var(--bg-surface);
+  /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
+     а не від низу вікна. Композер росте разом із текстом, і фіксований
+     відступ від краю рано чи пізно на нього наліз би. */
+  position: relative;
 }
 .pending-attachments {
   padding: 10px 22px 0;
@@ -612,7 +605,6 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-
 /* Правка №7: колишнє притискання вліво (margin-left:36 + композитор зі своїм
    краєм) скасоване — колонка чату (таймлайн-діти + композитор) центрована в
    зоні між сайдбаром (padding-left body) і панеллю (padding-right .screen).
@@ -646,20 +638,46 @@
   .recipe-msg-cols > div:last-child { flex: 1.2; }
 }
 
-/* Бриф-3 п.3: права панель — тільки десктоп. Живий зріз, не дашборд. */
+/* Бриф-3 п.3 казав: «права панель — тільки десктоп. Живий зріз, не дашборд».
+   Мандат переглянуто (дизайн «Панель A», 02.09): панель стає робочою
+   поверхнею для тривалого стану — кошика, відкритого рецепта. Причина —
+   кошик у Сільпо це ОДНА жива річ, і дві його картки у стрічці з різними
+   сумами завжди суперечать одна одній. Зріз розселяється (крок 4). */
 .rail { display: none; }
-@media (min-width: 1280px) {
+/* Поріг 1200 (v3, крок 1.1). Виведений із заміряних чисел, не з брифу.
+   Бриф рахує накладні як 232 (бічне меню) — насправді їх 276: меню 232
+   ПЛЮС падінги журналу 22+22, які бриф не бачив. Заміряно живцем на 1220:
+   журнал вийшов 624, а не 640.
+
+     мінімум = 276 + 640 (мінімум журналу, V1) + 280 (мінімум панелі) = 1196
+
+   Тому 1200, із запасом у 4px. Наслідок, який треба знати: на 1200 дефолтні
+   320 не влазять (журнал упав би до 604), і панель там мусить затискатись
+   до ~284. Це не баг порогу, а рівно механізм V9 «затиск — не запис»; він
+   приходить із ручкою ресайзу (крок 1.3). Стеля ручки: vw − 916.
+
+   Шухляди 1024-1439 більше немає: V8 каже, що на планшеті роль смуги
+   виконує пігулка, і тримати три геометрії замість двох дорожче, ніж
+   викинути середню. */
+@media (min-width: 1200px) {
   .rail {
     display: flex;
     flex-direction: column;
     gap: 18px;
     position: fixed;
     top: 0; right: 0; bottom: 0;
-    width: 320px;  /* Д01: 320, не 250 (QA8-17) */
+    /* Крок 1.3: ширину задає --rail-w зі стану (дефолт 320 — Д01, не 250,
+       QA8-17). Фолбек у var() потрібен: нижче 1200 змінної немає сенсу,
+       а шторка має власну геометрію. */
+    width: var(--rail-w, 320px);
+    transition: width 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
     border-left: 1px solid var(--border);
     background: var(--bg-surface-2);
     padding: 22px 18px;
-    overflow-y: auto;
+    /* Крок 1.2: скролить ТІЛО, не панель. Поки скролилась панель цілком,
+       разом із вмістом їхали й вкладки, і «Оформити» — на довгому кошику
+       зникав і спосіб перемкнутись, і сама дія. */
+    overflow: hidden;
   }
 }
 .rail-block { display: flex; flex-direction: column; gap: 2px; }
@@ -699,10 +717,16 @@
   flex: none;
 }
 /* Правка №7: зона чату закінчується перед панеллю — відступ на РІВНІ ЕКРАНА,
-   щоб колонка центрувалась у зоні, а скрол-зона лишалась суцільною. */
-@media (min-width: 1280px) {
+   щоб колонка центрувалась у зоні, а скрол-зона лишалась суцільною.
+   Крок 1.1 (02.09): поріг 1200. Нижче панелі немає взагалі — там пігулка
+   зі шторкою, і резервувати під неї місце не можна: журнал лишився б
+   зсунутим під порожнечу.
+   Крок 1.3: резерв читає ту саму --rail-w, що й сама панель. Одне джерело
+   числа на обидва правила — інакше драг рухав би панель, а журнал стояв. */
+@media (min-width: 1200px) {
   :global(body.with-sidebar) .screen {
-    padding-right: 320px;
+    padding-right: var(--rail-w, 320px);
+    transition: padding-right 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
 
@@ -806,20 +830,34 @@
 }
 
 /* Пул-6 №2: rail — смужка/оверлей/колапс. */
+/* Керування панеллю — ліворуч, артефакти — праворуч. Кнопка в тій самій
+   геометрії, що вкладки (34px, radius 10), інакше вона читалась як
+   випадковий гліф, а не як контрол: раніше це був ‹ на 16px, приліплений
+   absolute у правий кут, де він ще й ділив місце з іконками артефактів. */
 .rail-collapse {
   display: none;
-  position: absolute;
-  top: 12px;
-  right: 10px;
-  width: 32px;
-  height: 44px;      /* тач-правило: хіт 44 */
-  border: 0;
-  background: transparent;
-  color: var(--fg-dim);
-  font-size: 16px;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  margin-right: 8px;
+  /* Своєї рамки не носить: її носила порожня «‹», якій бракувало
+     значення. Іконка панелі читається сама, а зайвий контур поруч із
+     квадратними вкладками тільки додавав шуму. Хром — на ховері. */
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--fg-muted);
   cursor: pointer;
 }
-.rail-collapse:hover { color: var(--fg); }
+.rail-collapse:hover {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--fg);
+}
+/* Вкладки притискаються праворуч — див. margin у самому .rail-tabs-scroll
+   нижче. Окремим правилом тут це не працює: там стоїть margin: -7px
+   скороченою формою, і вона перебиває margin-left. */
 .rail-mini { display: none; }
 .rail-mini-item {
   width: 44px;
@@ -841,53 +879,17 @@
 .rail-mini-count { font-size: 11px; }
 .rail-scrim { display: none; }
 
-@media (min-width: 1024px) and (max-width: 1279px) {
-  .rail-mini {
-    display: flex;
-    position: fixed;
-    top: 0; right: 0; bottom: 0;
-    width: 56px;
-    border-left: 1px solid var(--border);
-    background: var(--bg-surface-2);
-    flex-direction: column;
-    align-items: center;
-    padding: 16px 0;
-    gap: 10px;
-    z-index: 6;
-  }
-  /* Оверлей повного rail поверх чату. */
-  .rail-open {
-    display: flex !important;
-    position: fixed;
-    top: 0; right: 0; bottom: 0;
-    width: 320px;
-    background: var(--bg-surface);
-    border-left: 1px solid var(--border);
-    box-shadow: -12px 0 40px rgba(29, 33, 38, 0.14);
-    padding: 20px 18px;
-    overflow-y: auto;
-    z-index: 30;
-  }
-  .rail-open .rail-collapse { display: block; }
-  .rail-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.25);
-    z-index: 29;
-  }
-}
-@media (min-width: 1280px) {
+@media (min-width: 1200px) {
   /* position:fixed з базового правила лишається — він і є контекстом для
      absolute-кнопки ‹. Перебивати його relative було помилкою: rail падав
      у потік під чат. */
-  .rail .rail-collapse { display: block; }
+  .rail .rail-collapse { display: grid; }
   .rail-hidden { display: none !important; }
   .rail-mini-show {
     display: flex;
     position: fixed;
     top: 0; right: 0; bottom: 0;
-    width: 56px;
+    width: 52px;   /* V8: смуга завжди 52 і сталої ширини */
     border-left: 1px solid var(--border);
     background: var(--bg-surface-2);
     flex-direction: column;
@@ -898,12 +900,10 @@
   }
 }
 
-
 /* Пул-6 №2: коли rail схований — чат забирає його місце (лишається 56px смужки). */
-@media (min-width: 1280px) {
-  :global(body.with-sidebar) .screen.rail-off { padding-right: 56px; }
+@media (min-width: 1200px) {
+  :global(body.with-sidebar) .screen.rail-off { padding-right: 52px; }
 }
-
 
 /* Пул-7 №4: каретка стрімінгу — блимає, поки фрази з'являються, потім гасне
    (тривалість життя задається inline animation-delay від кількості фраз). */
@@ -955,3 +955,992 @@
   flex: none;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ----- Крок 2: кошик — одне повідомлення, два подання ------------------- */
+/* Кошик у Сільпо — ОДНА жива річ. Дві його картки у стрічці з різними сумами
+   завжди суперечать одна одній, тому в стрічці лишається слід, а повне
+   подання переїжджає в панель. Обидва в DOM: нижче 1200 панелі немає, і без
+   картки в стрічці кошик зник би зовсім. */
+/* Правило одне на всіх ширинах: у стрічці — слід, повне подання — у
+   панелі (≥1200) або шторці (<1200). Спершу я лишив був картку в стрічці
+   на вузьких ширинах, вважаючи, що затемнення її сховає. Не ховає: два
+   живі кошики з двома сумами видно одночасно — рівно те, проти чого
+   писався дизайн. */
+/* Перейменовано з .cart-in-feed (крок 4.1): клас ховає вже не тільки
+   кошик, а будь-який артефакт — рецепт і чек теж. */
+.artifact-in-feed { display: none; }
+
+/* ── Крок 3.1: слід у стрічці, варіант A (V6) ────────────────────────
+   Було: #e3e6e8 на #eef0f1 — різниця 4%, заливка зливалася з фоном, усе
+   одним моно-кеглем, а ознакою дії було саме слово «розгорнути» в тексті.
+   Стало: шавлієва заливка з рамкою і два рівні ієрархії.
+
+   Чому шавлієвий, а не чорнильний. Слід — це вхід в артефакт, тобто
+   навігація, а не головна дія. Чорнильна заливка в системі означає
+   «остаточна дія» (Оформити, Застосувати); віддати її слідам — і кнопки
+   в панелі перестануть бути найважчим елементом на екрані. */
+.trace {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  background: var(--accent-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.trace:hover { background: var(--accent-bg-strong, var(--accent-bg)); border-color: var(--accent); }
+/* Відкрито — той артефакт, що зараз у панелі. Рамка в акценті: слід і
+   панель говорять про одне, і це має бути видно, не здогадуватись. */
+.trace-on { border-color: var(--accent); }
+/* Бурштиновий слід — рішення, якого чекають, а не стан. Той самий блок,
+   лише інша температура: так «чекає рішення» видно прямо в потоці, без
+   окремої стрічки в панелі (V6). */
+.trace-pending { background: var(--amber-bg); border-color: var(--amber-border); }
+.trace-pending:hover { border-color: var(--amber); }
+.trace-pending .trace-dot,
+.trace-pending .trace-kind,
+.trace-pending .trace-go { color: var(--amber); }
+.trace-pending .trace-value { color: var(--fg); }
+.trace-dot { color: var(--accent-strong); font-size: 13px; line-height: 1; flex: none; }
+.trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* Метадані — моно 10, і саме вони мутед. */
+.trace-kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent-dim, var(--fg-muted));
+}
+/* Суть — те, по що клікають. */
+.trace-value {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--accent-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Стрілка на краю блока замість слова «розгорнути» в тексті: коротше, не
+   конкурує з назвою й одразу читається як «веде кудись». */
+.trace-go {
+  flex: none;
+  padding-left: 4px;
+  color: var(--accent-strong);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+}
+/* Ширина навмисно НЕ краденa з падінгу панелі: картка отримує рівно ті
+   ~284px, які порахував бриф, і обмеження лишається видимим. Внутрішнє
+   картки під цю ширину (степер у два рівні) — окремий крок. */
+.rail-artifact {
+  display: none;
+  /* Риску знизу прибрано: після кроку 1.2 артефакт займає панель цілком,
+     а межу між тілом і діями малює вже .rail-foot. */
+}
+/* Панель у потоці — тут артефакт видно завжди, без відкривання.
+   ВІДНОВЛЕНО: у кроці 3.1 я замінював сусідній блок діапазоном і зніс це
+   правило разом із ним. Наслідок був німий — панель лишилась на місці,
+   рівно 320px, але порожньою: артефакт мав display:none і нульову висоту.
+   Скріншот показував білу колонку, а не помилку. */
+@media (min-width: 1200px) {
+  :global(body.with-sidebar) .rail-artifact { display: flex; }
+}
+
+/* Рецепт у панелі — В ОДНУ КОЛОНКУ.
+   Вище .recipe-msg-cols стає рядком від 1024px, але той медіазапит дивиться
+   на ВІКНО, а панель вузька незалежно від вікна: заміряно 138 і 125 пікселів
+   на колонку, назви ламались на три рядки. Специфічність (0,2,0) перебиває
+   правило в медіазапиті (0,1,0) без !important.
+   Це той випадок, для якого існують container queries; descendant-перекриття
+   простіше й працює скрізь, а поведінка та сама. */
+/* Крок 3б: шапка артефакта. При одному — просто назва; вкладки зʼявляються
+   лише з другим (рішення дизайну: зайва хрома при одному артефакті). */
+.rail-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Крок 2.1: НЕ переносити. З появою іконок навігації в шапці рядок
+     почав ламатись надвоє, і ✕ їхав під вкладки. Вкладки стискаються
+     самі — у них уже є ellipsis; іконки й ✕ тримають свій розмір. */
+  flex-wrap: nowrap;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+/* Стара текстова пілюля прибрана разом із переходом на іконки (02.09).
+   Її overflow: hidden різав лічильник на вкладці — а сам ellipsis уже не
+   мав чого обрізати: тексту у вкладці немає. */
+
+.rail-artifact .recipe-msg-cols {
+  flex-direction: column;
+  gap: 14px;
+}
+.rail-artifact .recipe-msg-cols > div:first-child,
+.rail-artifact .recipe-msg-cols > div:last-child {
+  flex: initial;
+}
+
+/* ── Крок 5б: мобайл. Пігулка + шторка ───────────────────────────────
+   Нижче 1024 панелі не буде ніколи — місця немає. Але правило «артефакт
+   живе в одному місці» лишається тим самим на всіх ширинах: у стрічці
+   слід, повне подання — у шторці. Інакше на мобайлі кошик існував би
+   двічі: карткою в стрічці і в шторці одночасно. */
+.rail-pill { display: none; }
+
+@media (max-width: 1199px) {
+  .rail-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(100% + 10px);
+    z-index: 12;
+    max-width: calc(100% - 32px);
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-surface);
+    box-shadow: 0 6px 20px rgba(29, 33, 38, 0.16);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .rail-pill-dot { color: var(--accent); flex: none; }
+  .rail-pill-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rail-pill-meta,
+  .rail-pill-more { color: var(--fg-dim); flex: none; }
+
+  /* Шторка — той самий <aside>, що й панель. Розмітку вкладок, ✕ і саму
+     картку не дублюємо: змінюється лише геометрія. */
+  .rail-open {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    /* Шторку малювали під 390. Після перенесення порогу (1.1) вона накриває
+       і 1024-1199, де на всю ширину виглядає як розтягнутий рядок: степер
+       відлітає на 1100px від назви. Обмежуємо тією ж стелею, що й панель
+       (560 з V1), і центруємо — на телефоні це й далі повна ширина. */
+    max-width: 560px;
+    margin: 0 auto;
+    max-height: 82vh;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    overflow: hidden;
+    z-index: 30;
+  }
+  /* Кнопка згортання у шторці. Її правило зникло в кроці 1.1 разом із
+     блоком шухляди, а ✕ прибрано сьогодні — і шторку не стало чим
+     закрити, крім тапу по затемненню. Тап по затемненню лишається, але
+     він неочевидний, і покладатись на нього одного не можна. */
+  .rail-open .rail-collapse { display: grid; }
+  .rail-open .rail-artifact {
+    display: flex;
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  /* Рецепт у шторці — знову в одну колонку: ширина екрана тут вузька
+     так само, як була вузькою панель. */
+  .rail-open .recipe-msg-cols { flex-direction: column; gap: 14px; }
+  .rail-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 29;
+  }
+}
+
+/* ── Крок 1.3: ручка ресайзу ──────────────────────────────────────────
+   V9: під час драгу ширина йде за курсором БЕЗ transition; анімується
+   лише відпускання й дабл-клік. Інакше панель тягнулася б за мишею із
+   запізненням у чверть секунди й читалась як залипла. */
+.rail-dragging,
+.rail-dragging .rail { transition: none !important; }
+.rail-dragging { cursor: col-resize; user-select: none; }
+
+.rail-handle { display: none; }
+@media (min-width: 1200px) {
+  /* Ручки немає на планшеті й мобайлі (V1) — там немає й панелі. */
+  :global(body.with-sidebar) .rail:not(.rail-hidden) .rail-handle {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 0; bottom: 0;
+    left: -6px;
+    width: 12px;          /* зона захоплення ширша за саму риску */
+    cursor: col-resize;
+    z-index: 2;
+    touch-action: none;   /* інакше pointermove зʼїдає скрол сторінки */
+  }
+}
+.rail-handle-bar {
+  width: 4px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 150ms ease;
+}
+.rail-handle:hover .rail-handle-bar { background: var(--fg-dim); }
+.rail-dragging .rail-handle-bar {
+  background: var(--accent);
+  height: 100%;
+  border-radius: 0;
+}
+.rail-handle-tip {
+  position: absolute;
+  left: 18px;
+  top: 20px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--fg);
+  color: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Крок 2.2: позиція кошика у два рівні (V3) ────────────────────────
+   Було чотири рядки: назва, паспортна назва в чотири переноси збоку від
+   степера, ціна, акордеон альтернатив. Опису лишалось ~130px, бо він
+   ділив смугу зі степером.
+   Стало два. Рівень 1 — наше імʼя · степер · одиниця · ціна: ціна крайня
+   права колонка сталої ширини, тож три позиції читаються як таблиця, а не
+   як три різні картки. Рівень 2 — паспортна назва одним рядком з ellipsis
+   і «замінити N ›» праворуч; повна назва в title і в розкритих
+   альтернативах, де вона й потрібна для порівняння. */
+.cart-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cart-item:last-child { border-bottom: 0; }
+.cart-item-top { display: flex; align-items: center; gap: 10px; }
+.cart-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.cart-stp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 30px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-surface);
+}
+.cart-stp button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+.cart-stp button:disabled { cursor: default; }
+/* 26px, а не 16 як у макеті: вагові показують «0,64» — на 16 воно б різалось. */
+.cart-qty { font-family: var(--font-mono); font-size: 13px; min-width: 26px; text-align: center; }
+.cart-unit { flex: none; width: 20px; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+.cart-price {
+  flex: none;
+  min-width: 46px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+.cart-item-sub { display: flex; align-items: baseline; gap: 8px; }
+.cart-passport {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cart-swap-link {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+/* Обсягова математика. У макеті V3 її немає, але вона там і не малювалась:
+   правило «математика завжди видима» старше за цей документ (01.09), і
+   мовчазна «1 шт» замість «1 л чи більше» — саме той обман, проти якого
+   його писали. Тому третій рівень, і тільки коли є що показати. */
+.cart-vol { font-family: var(--font-mono); font-size: 11px; color: var(--amber); }
+.cart-alts { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
+.cart-alt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  margin: 0 -10px;
+  border-radius: 8px;
+}
+.cart-alt:hover { background: var(--bg-hover); }
+/* Тут назва НЕ ріжеться, на відміну від рівня 2. Обрізана вона робила з
+   десяти альтернатив десять однакових «Молоко пастеризоване …» — а список
+   існує рівно для того, щоб їх порівняти. Ellipsis доречний там, де назва
+   лише підписує вибір; тут вона і є вибором. */
+.cart-alt-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.3;
+}
+.cart-alt { align-items: flex-start; }
+.cart-alt-price, .cart-alt-btn { margin-top: 1px; }
+.cart-alt-price { flex: none; font-family: var(--font-mono); font-size: 12px; }
+.cart-alt-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.cart-alt-more {
+  align-self: flex-start;
+  padding: 6px 0 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.cart-alt-warn {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--fg-dim);
+  padding-top: 2px;
+}
+
+/* ── Крок 2.3: рецепт — менше поділок (V2) ───────────────────────────
+   Було шість рівнів графіки: лінійки між рядками, гліфи ○/● на кожному
+   інгредієнті, «+» у кожному рядку, підписи секцій, лічильник «● 3 з
+   комори», вертикальна риска підказки. Лишилось два: текст і кількість.
+   Секції розділяє відстань — 20px між блоками проти 9px між рядками. */
+.recipe-list { display: flex; flex-direction: column; gap: 9px; }
+.recipe-ing {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.3;
+}
+.recipe-ing-name { flex: 1; min-width: 0; }
+.recipe-ing-qty {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.recipe-ing-added { font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+.recipe-step {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.35;
+}
+.recipe-step-n {
+  flex: none;
+  width: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--border-strong);
+}
+.recipe-step-t { flex: 1; min-width: 0; }
+.recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim); }
+.recipe-miss {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--amber);
+}
+.recipe-tolist {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Крок 1.2: три зони панелі (V1) ──────────────────────────────────
+   Шапка з вкладками — не скролиться. Тіло — єдина зона скролу. Низ із
+   діями — не скролиться: «Оформити», «Готуємо → Cook Mode» і «У список»
+   стоять на місці, скільки б не було позицій. */
+/* display НЕ чіпаємо: базове .rail-artifact — display:none, і показують
+   його два окремі правила (панель ≥1200 і шторка). Перебити тут display
+   означало б показати артефакт там, де його ховають навмисно. */
+.rail-artifact {
+  flex-direction: column;
+  min-height: 0;   /* без цього flex-дитина не дає тілу стиснутись */
+  flex: 1;
+}
+.rail-tabs { flex: none; }
+.rail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rail-foot {
+  flex: none;
+  background: inherit;
+  transition: box-shadow 150ms ease;
+}
+/* Порожній низ не має малювати ні рамки, ні відступу — інакше під карткою
+   без дій висіла б самотня риска. :empty знімає це без окремого прапорця. */
+.rail-foot:not(:empty) {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+/* Тінь — не декор: вона є, лише поки під згином лишився вміст, і зникає
+   на верхівці. Так смуга сама каже, чи дочитано до кінця. */
+.rail-foot-shadow:not(:empty) { box-shadow: 0 -8px 20px rgba(29, 33, 38, 0.06); }
+/* У слоті геометрію малює .rail-foot; власні рамка й відступи картки тут
+   зайві — вони для стрічки, де підвал лишається всередині картки. */
+.rail-foot .card-foot,
+.rail-foot .recipe-actions { border-top: 0; padding-top: 0; margin-top: 0; }
+
+/* Підвал кошика — клас, а не інлайн: інакше .rail-foot не мала б чим його
+   перебити. */
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  row-gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 6px;
+}
+
+/* ── Крок 2.1: один закон низу панелі (V7) ───────────────────────────
+   Смуга однакова для всіх артефактів: стан ліворуч моно, дії праворуч у
+   порядку «другорядна → головна», головна завжди крайня права. Раніше в
+   рецепті була шавлієва кнопка з довгим написом і моно-посилання поруч,
+   у кошику чорнильна, і кожна зі своєю геометрією; тепер відмінність
+   лише в РІВНІ дії, не в розмірі й не в шрифті. */
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 6px;
+}
+/* Стан — моно, і саме він розтягується: кнопки тримають свій розмір,
+   порожнеча дістається тексту. */
+.strip-state {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.strip-state-dim { color: var(--fg-dim); font-size: 12px; font-weight: 400; }
+.strip-state-warn { color: var(--amber); font-size: 12px; font-weight: 400; }
+
+/* Чорнильна кнопка-посилання: та сама геометрія, що .btn.strip, але це
+   <a> — вихід назовні, не дія всередині продукту. */
+.strip-main {
+  flex: none;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: var(--fg);
+  color: var(--bg-body);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Іконки навігації в шапці артефакта. */
+/* auto тут і ТІЛЬКИ тут: це перший елемент правої групи, і він забирає всю
+   порожнечу. Другий auto на вкладках ділив би її навпіл — вкладки зупинялись
+   посеред шапки замість правого краю. */
+.rail-head-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.head-act {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.head-act:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg); }
+.head-act:disabled { cursor: default; color: var(--accent); }
+/* Немає слота шапки (стрічка) — навігаційні дії лишаються у смузі. */
+.strip-head-fallback { display: flex; align-items: center; gap: 2px; flex: none; }
+
+/* Вузька смуга: стан над кнопками, головна на всю ширину, друга під нею.
+   Container query, а не медіа: панель тягнеться незалежно від вікна, і
+   на 1500px вона може бути і 280, і 560 завширшки. */
+.rail-artifact { container-type: inline-size; }
+@container (max-width: 379px) {
+  .card-foot { flex-wrap: wrap; row-gap: 10px; }
+  /* Порядок за V7: стан → головна на всю ширину → друга під нею. У DOM
+     головна остання (щоб на широкому бути крайньою правою), тому тут
+     тягнемо її вперед через order, а не переставляємо розмітку. */
+  .card-foot > * { flex-basis: 100%; }
+  .card-foot .strip-state { order: -2; }
+  .card-foot > button:last-of-type,
+  .card-foot > .strip-main { order: -1; justify-content: center; }
+  .card-foot > .strip-main { justify-content: center; }
+}
+
+/* ── Крок 1.4: згорнута смуга і порожня сесія (V8) ───────────────────
+   Три стани за кількістю артефактів: немає — немає панелі; один — смуга
+   з одним маркером; кілька — активний і «інші». Смуга завжди 52px і не
+   росте від кількості. */
+:global(body.with-sidebar) .screen.rail-none { padding-right: 0; }
+
+.rail-mini-expand {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  /* Геометрія й колір — як у кнопки згортання в шапці: це та сама дія,
+     тільки з іншого боку. Шрифтових правил тут більше немає — усередині
+     іконка, а не гліф. */
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.rail-mini-expand:hover { background: var(--bg-hover); color: var(--fg); }
+.rail-mini-dot {
+  position: absolute;
+  /* Кнопка стала 34×34, і крапка на 3/5 налазила на кут рамки іконки. */
+  top: 4px; right: 4px;
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--amber);
+}
+
+.mini-marker {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.mini-marker:hover { border-color: var(--border-strong); }
+.mini-marker-on {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+}
+.mini-glyph { font-family: var(--font-mono); font-size: 14px; line-height: 1; }
+.mini-plus { font-family: var(--font-mono); font-size: 12px; line-height: 1; }
+.mini-badge {
+  position: absolute;
+  top: -5px; right: -5px;
+  min-width: 16px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg-on);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+}
+/* Наведення — підпис виїжджає вліво. Він absolute, тож смуга від нього
+   не росте: 52px лишаються 52px за будь-якої довжини назви. */
+.mini-hint {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--fg);
+  color: var(--bg-surface);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.mini-marker:hover .mini-hint { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+.mini-list {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 96px;
+  width: 200px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: 0 10px 28px rgba(29, 33, 38, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mini-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.mini-list-row:hover { background: var(--bg-hover); }
+.mini-list-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-list-meta { flex: none; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+
+/* ── Крок 4.1b: чек — групи замість суцільного списку (V4) ───────────
+   Чотири секції з лічильником у шапці: у комору · вже у списку · не для
+   комори · не впізнав. Панель показує СТРУКТУРУ рішення, а не всі 19
+   позицій одразу — кожна група згорнута до 4 рядків. */
+.rgroup { display: flex; flex-direction: column; }
+.rgroup + .rgroup { margin-top: 14px; }
+.rgroup-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.rgroup-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+/* Групова дія в шапці секції — саме та функціональність, якої бракувало:
+   не 19 окремих тапів, а один по групі. */
+.rgroup-act {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.rgroup-act:disabled { color: var(--fg-dim); cursor: default; }
+.rgroup-more {
+  align-self: flex-start;
+  padding: 9px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.rrow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.3;
+}
+.rrow:last-child { border-bottom: 0; }
+.rrow-name { flex: 1; min-width: 0; }
+.rrow-qty {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  text-align: right;
+}
+/* Чекбокс замість «+» без функції: стан ВИДНО до застосування, а не після.
+   Заповнений шавлієвий — піде в роботу; порожній — ні; пунктирний
+   бурштиновий — не впізнано й потребує уточнення. */
+.rbox {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--border-strong);
+  background: transparent;
+  color: var(--accent-fg-on);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.rbox-on { background: var(--accent); border-color: var(--accent); }
+.rbox-unknown { border-style: dashed; border-color: var(--amber); cursor: default; }
+.tone-accent { color: var(--accent); }
+.tone-amber { color: var(--amber); }
+.tone-muted { color: var(--fg-dim); }
+
+/* ── Крок 4.5: список покупок у панелі (V5) ──────────────────────────
+   Чекбокс тут означає «куплено», а не «взяти в роботу», як у чеку. Тому
+   позначене не зникає, а падає в нижню групу — і його можна прибрати
+   одним тапом по групі, а не по кожному рядку. */
+.rbox-bought { background: var(--fg-dim); border-color: var(--fg-dim); }
+/* Шавлієва підсвітка «щойно додано» — відповідь на питання, яке виникає
+   одразу після репліки Кухні: що саме зараз змінилось. */
+.srow-fresh { background: var(--accent-bg); margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
+.srow-done { color: var(--fg-dim); text-decoration: line-through; }
+.srow-src {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+}
+/* Низ у два поверхи: поле «додати» і рядок стану з виходом у кошик. */
+.slist-foot { display: flex; flex-direction: column; gap: 10px; }
+.slist-add input {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface-2);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+.slist-add input::placeholder { font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim); }
+.slist-add input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* У слоті панелі власну рамку низу малює .rail-foot — тут її знімаємо,
+   інакше під полем «додати» з'явилась би друга риска. */
+.rail-foot .slist-foot .card-foot { border-top: 0; padding-top: 0; margin-top: 0; }
+
+/* Слід зі скасуванням: посилання окремим рядком ПІД блоком, а не другою
+   дією всередині — у блока одна ціль натискання (V6). */
+.trace-wrap { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.trace-undo {
+  margin-left: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+}
+.trace-undo:hover { color: var(--fg); }
+/* Відкочено: блок гасне, значення закреслене, стрілки немає — вести вже
+   нікуди. */
+.trace-undone {
+  opacity: 0.6;
+  background: var(--bg-surface);
+  border-color: var(--border);
+  cursor: default;
+}
+.trace-undone .trace-dot,
+.trace-undone .trace-kind { color: var(--fg-dim); }
+.trace-undone .trace-value { color: var(--fg-dim); text-decoration: line-through; }
+
+/* Вкладки прокручуються, керування — ні. Смуга прокрутки схована: вона
+   тут була б третім елементом інтерфейсу в рядку, де й так тісно. */
+.rail-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* overflow-x: auto відсікає по ОБОХ осях. Лічильник висить на -5px від
+     кута вкладки, тож йому треба місце всередині області відсікання з усіх
+     чотирьох боків: спершу я дав його лише згори, і бейдж останньої
+     вкладки далі різався справа. Відʼємний зовнішній відступ повертає
+     рядок на місце. */
+  padding: 7px 7px 7px 7px;
+  /* Відʼємні поля компенсують падінг, який дає лічильникам місце всередині
+     області відсікання. Праворуч вкладки притискає auto на .rail-head-actions
+     — першому елементі правої групи. */
+  margin: -7px;
+}
+.rail-tabs-scroll::-webkit-scrollbar { display: none; }
+
+/* Шапки стрічки на десктопі немає: у ній лишався тільки аватар, а він там
+   і так display:none — аватар живе внизу бічного меню. Порожня смуга на
+   67px просто відсувала журнал від краю. */
+@media (min-width: 1024px) {
+  :global(body.with-sidebar) .head { display: none; }
+}
+
+/* ── Вкладки панелі — іконками (02.09) ───────────────────────────────
+   Назва активного артефакта стоїть заголовком одразу під шапкою, тож
+   пілюлі з текстом її повторювали, а при трьох артефактах переставали
+   влазити в 320px. Гліф той самий, що в згорнутій смузі. */
+.rail-tab {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.rail-tab:hover { border-color: var(--border-strong); color: var(--fg); }
+.rail-tab-on {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+}
+/* Приглушений — це вхід, а не вкладка: список «сам не з'являється». */
+.rail-tab-ghost { border-style: dashed; opacity: 0.7; }
+.rail-tab-ghost:hover { opacity: 1; }
+.rail-tab-glyph { font-family: var(--font-mono); font-size: 14px; line-height: 1; }
+.rail-tab-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+}
+.rail-tab-on .rail-tab-badge { background: var(--accent); color: var(--accent-fg-on); }
+
+/* ── Крок 5: моушн панелі (V9) ───────────────────────────────────────
+   Три тривалості з токенів, не голі мілісекунди: 150 — зміна стану,
+   250 — геометрія, 400 — повідомлення про подію. Токени вже обнуляються
+   при prefers-reduced-motion, тож окремих правил для нього тут немає —
+   крім спалаху, який без руху мусить лишити по собі хоч щось. */
+
+/* Перемикання вкладок — кросфейд без зсуву вбік. */
+.rail-swap { animation: rail-swap var(--dur-fast, 150ms) var(--ease-enter, ease); }
+@keyframes rail-swap {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Розгортання панелі: вміст проявляється зверху вниз кроком 40ms ПО
+   БЛОКАХ, а не по рядках — рядковий каскад на кошику з 19 позицій
+   перетворився б на хвилю. Ширина анімується окремо (крок 1.3). */
+.rail:not(.rail-hidden) .rail-artifact > * {
+  animation: rail-block-in var(--dur-base, 250ms) var(--ease-enter, ease) both;
+}
+.rail:not(.rail-hidden) .rail-artifact > *:nth-child(2) { animation-delay: 40ms; }
+.rail:not(.rail-hidden) .rail-artifact > *:nth-child(3) { animation-delay: 80ms; }
+@keyframes rail-block-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Новий артефакт у згорнутій смузі: спалах 400ms і збільшення числа.
+   Панель себе НЕ розгортає — жодного руху поверх читання. */
+.mini-fresh { animation: mini-flash var(--dur-slow, 400ms) var(--ease-standard, ease) 2; }
+@keyframes mini-flash {
+  0%   { background: var(--accent-bg); border-color: var(--accent-border); }
+  40%  { background: var(--accent); border-color: var(--accent); }
+  100% { background: var(--accent-bg); border-color: var(--accent-border); }
+}
+/* Без руху спалаху не видно взагалі (токени обнулені), тож новий артефакт
+   лишався б зовсім без сигналу. Замість нього — статична крапка, яка
+   зникає разом із класом, щойно панель відкрили. */
+@media (prefers-reduced-motion: reduce) {
+  .mini-fresh { animation: none; position: relative; }
+  .mini-fresh::after {
+    content: '';
+    position: absolute;
+    top: -3px; right: -3px;
+    width: 8px; height: 8px;
+    border-radius: 999px;
+    background: var(--accent);
+  }
+}

@@ -109,8 +109,12 @@ export interface ReceiptLeftover {
   image: string | null;
 }
 
-// M13: intake-картка з чека мережі несе джерело — стрічка малює канон М2.
-export interface ReceiptSource {
+// intake-картка з чека несе джерело — стрічка малює канон М2.
+// Два роди: чек мережі (сервер підтягнув сам, чекає підтвердження, має
+// розкладку каталогу) і чек із чату (людина показала фото чи текст,
+// розібрала модель, застосовується одразу). Спільне — обидва довгі
+// документи, а не події, тож обидва стають артефактом панелі.
+export interface RetailReceiptSource {
   kind: 'retail_receipt';
   provider: string;
   shop: string;
@@ -119,6 +123,11 @@ export interface ReceiptSource {
   nonfood: ReceiptLeftover[];
   unmatched: ReceiptLeftover[];
 }
+export interface ChatReceiptSource {
+  kind: 'chat_receipt';
+  at: string;
+}
+export type ReceiptSource = RetailReceiptSource | ChatReceiptSource;
 
 // M13 зріз 3: рядок картки кошика — два імені однієї речі.
 export interface CartRow {
@@ -144,6 +153,8 @@ export interface CartRow {
 export interface ChatCard {
   type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart';
   ops?: unknown[];
+  // Відсічене вето каталогу: нехарчове, що не поїхало в комору.
+  nonfood?: { label: string; value?: number | null; unit?: string | null }[];
   items?: unknown[];
   source?: ReceiptSource;              // intake_diff з чека мережі (M13)
   rows?: CartRow[];                    // cart (M13): позиції з цінами

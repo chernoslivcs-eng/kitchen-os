@@ -59,19 +59,49 @@ export interface ReceiptLeftover {
   image: string | null;
 }
 
+export type IntakeSource =
+  | {
+      kind: 'retail_receipt';
+      provider: string;
+      shop: string;
+      at: string;
+      total: number;
+      nonfood: ReceiptLeftover[];
+      unmatched: ReceiptLeftover[];
+    }
+  | { kind: 'chat_receipt'; at: string };
+
+// Позиція, яку каталог упізнав як НЕХАРЧОВУ і яка тому не поїхала в комору.
+// Окреме поле, а не частина source: вето за категорією не має нічого
+// спільного з тим, чек це чи звичайний intake, — дрова не місце в коморі
+// незалежно від того, звідки про них дізнались.
+export interface NonfoodOp {
+  label: string;
+  value?: number | null;
+  unit?: Unit | null;
+}
+
 export interface IntakeCard {
   type: 'intake_diff';
   ops: IntakeOp[];
-  // Джерело-чек (M13). Відсутнє — звичайна intake-картка; apply/undo однакові.
-  source?: {
-    kind: 'retail_receipt';
-    provider: string;
-    shop: string;
-    at: string;
-    total: number;
-    nonfood: ReceiptLeftover[];
-    unmatched: ReceiptLeftover[];
-  };
+  // Відсічене вето каталогу. Картка показує це людині окремою групою —
+  // мовчазний викид був би гіршим за помилку: людина не дізналась би, що
+  // частину покупок продукт свідомо не взяв.
+  nonfood?: NonfoodOp[];
+  // Джерело-чек. Відсутнє — звичайна intake-картка; apply/undo однакові
+  // для всіх трьох випадків, джерело впливає лише на подання.
+  //
+  // Два роди чеків, і різниця між ними не косметична:
+  //   retail_receipt — сервер сам підтягнув чек мережі. Людина нічого не
+  //     просила, тому картка ЧЕКАЄ підтвердження, і в неї є розкладка
+  //     каталогу на три кошики (у комору / не для комори / не впізнав).
+  //   chat_receipt — людина сама показала чек фото чи текстом. Розібрала
+  //     модель, розкладки каталогу немає, застосовується одразу (Пул-8 №2:
+  //     людина попросила — питання «застосувати?» тут зайве).
+  // Спільне в них те, заради чого це поле й розрізняється: обидва — довгий
+  // документ на десятки рядків, а не подія. Обидва стають артефактом
+  // панелі, обидва адресуються по card_id для правки одного рядка.
+  source?: IntakeSource;
 }
 
 export interface ProposalCard {

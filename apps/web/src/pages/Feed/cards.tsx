@@ -2,7 +2,8 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
-import { useState } from 'react';
+import { createContext, useContext, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { api, type ChatCard, type Recipe, type ReceiptLeftover } from '../../api';
 import { Button } from '../../components/Button/Button';
@@ -12,6 +13,24 @@ import { formatQty, formatUnit } from '../../lib/units';
 import { renderStepContent, scaleRecipe } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
+import { groupShopping, sourceLabel } from './shopping-groups';
+// Псевдонім навмисно: у цьому файлі вже є свій ShoppingItem — позиція
+// картки-ДЕЛЬТИ ({op, label, v, u}), яку модель прислала в розмову.
+// Рядок живого списку — інша річ: у нього є id, checked і джерело.
+import type { ShoppingItem as ListItem } from '../../api';
+
+// Крок 1.2: панель забирає низ картки собі. У трьох зонах (шапка · тіло ·
+// закріплений низ) дії не мусять їхати разом із вмістом: «Оформити» і
+// «Готуємо» стоять на місці, скільки б не було позицій.
+// Картку при цьому НЕ розщеплюємо на два компоненти — весь її стан
+// (кількості, заміни, порції) лишається в одному місці, а низ просто
+// рендериться в чужий вузол, якщо він заданий. Немає слота — немає й
+// змін: у стрічці низ лишається всередині картки, як був.
+export const PanelFootSlot = createContext<HTMLElement | null>(null);
+// V7: у смузі максимум ДВІ кнопки. Третя — та, що про навігацію, а не про
+// роботу з артефактом («У рецепти», «Поділитись») — переїжджає в шапку
+// іконкою. Той самий механізм слота, що й для низу.
+export const PanelHeadSlot = createContext<HTMLElement | null>(null);
 
 // ----- Спільні типи op/item, які модель кладе в картку -------------------
 
@@ -85,6 +104,14 @@ export interface CardProps {
   onDismiss?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
+  // Крок 4.2: назви незакреслених позицій списку покупок. Потрібні, щоб
+  // ПЕРЕД застосуванням сказати, скільки рядків чека закриють список.
+  // Той самий збіг рахує applyCard (UX9-27) — але вже після натискання,
+  // і людина дізнавалась про наслідок постфактум.
+  shoppingLabels?: Set<string>;
+  // Крок 4.3: «у список» на групі «не для комори». Нехарчове не має де
+  // жити в коморі, але має де в списку покупок.
+  onNonfoodToList?: (names: string[]) => void;
   // Уточнення до конкретної страви: тап префілить композитор «{title} — » і
   // ставить фокус. Прототипний startRefine: префікс механічно тримає тему
   // розмови — головну промптову болячку QA-3…6 («тема не тримається») він
@@ -188,7 +215,82 @@ function ClarifyRow({
   );
 }
 
-export function IntakeCard({ card, cardId, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
+// Секція чека: шапка з лічильником і груповою дією, рядки, «ще N ▾».
+// Згортання до чотирьох — не економія місця, а мета подання: панель має
+// показати СТРУКТУРУ рішення (скільки в комору, скільки в побут, скільки
+// не впізнано), а не всі дев'ятнадцять позицій одразу.
+function ReceiptGroup({
+  tone, glyph, title, count, action, actionLabel, actionDisabled, children, rows,
+}: {
+  tone: 'accent' | 'amber' | 'muted';
+  glyph: string;
+  title: string;
+  count: number;
+  action?: () => void;
+  actionLabel?: string;
+  actionDisabled?: boolean;
+  children?: React.ReactNode;
+  rows?: React.ReactNode[];
+}) {
+  const [all, setAll] = useState(false);
+  const shown = rows && !all ? rows.slice(0, 4) : rows;
+  const hidden = rows ? rows.length - (shown?.length ?? 0) : 0;
+  return (
+    <div className={styles.rgroup}>
+      <div className={styles['rgroup-head']}>
+        <span className={`${styles['rgroup-title']} ${styles[`tone-${tone}`]}`}>
+          {glyph} {title} · {count}
+        </span>
+        {action && actionLabel && (
+          <button
+            type="button"
+            className={`${styles['rgroup-act']} ${tone === 'amber' ? styles['tone-amber'] : ''}`}
+            onClick={action}
+            disabled={actionDisabled}
+          >{actionLabel}</button>
+        )}
+      </div>
+      {shown}
+      {children}
+      {hidden > 0 && (
+        <button type="button" className={styles['rgroup-more']} onClick={() => setAll(true)}>
+          ЩЕ {hidden} ▾
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Нехарчове, відсічене каталогом. Показуємо ЗАВЖДИ, коли воно є: мовчазний
+// викид гірший за помилку — людина не дізналась би, що частину покупок
+// продукт свідомо не взяв у комору.
+function NonfoodGroup({
+  rows, onNonfoodToList,
+}: { rows: { name: string; qty: string }[]; onNonfoodToList?: (names: string[]) => void }) {
+  const [sent, setSent] = useState(false);
+  return (
+    <ReceiptGroup
+      tone="amber"
+      glyph="◌"
+      title="НЕ ДЛЯ КОМОРИ"
+      count={rows.length}
+      action={onNonfoodToList && !sent
+        ? () => { onNonfoodToList(rows.map((r) => r.name)); setSent(true); }
+        : undefined}
+      actionLabel={sent ? '✓ У СПИСКУ' : 'У СПИСОК'}
+      actionDisabled={sent}
+      rows={rows.map((r, i) => (
+        <div key={i} className={styles.rrow} style={{ color: 'var(--fg-muted)' }}>
+          <span className={styles.rbox} />
+          <span className={styles['rrow-name']}>{r.name}</span>
+          {r.qty && <span className={styles['rrow-qty']}>{r.qty}</span>}
+        </div>
+      ))}
+    />
+  );
+}
+
+export function IntakeCard({ card, cardId, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo, shoppingLabels, onNonfoodToList }: CardProps) {
   // 01.09 картка v2: «уточнити» переносить рядок із source.unmatched у ops
   // на сервері — локальна копія картки віддзеркалює це без переходу в
   // інший потік (той самий принцип, що RetailCartCard тримає для кошика).
@@ -213,44 +315,176 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
     if (op === 'correct') return '✎';
     return '+';
   };
-  // M13: intake з чека мережі — шапка-джерело, сірі «додати руками»,
-  // згорнуте «не для комори». apply/undo — той самий шлях, що у всіх intake.
+  // M13: intake з чека — шапка-джерело, сірі «додати руками», згорнуте
+  // «не для комори». apply/undo — той самий шлях, що у всіх intake.
+  // Два роди чека: у мережевого є магазин, сума і розкладка каталогу;
+  // у показаного в чаті — тільки те, що розібрала модель.
   const receipt = liveCard.source?.kind === 'retail_receipt' ? liveCard.source : null;
-  const [nonfoodOpen, setNonfoodOpen] = useState(false);
+  const anyReceipt = liveCard.source?.kind === 'retail_receipt' || liveCard.source?.kind === 'chat_receipt';
+  // Нехарчове двома шляхами: у чека мережі його розклав каталог при
+  // розборі чека, у решти — вето каталогу над відповіддю моделі. Для
+  // людини це одне й те саме, тож і група одна.
+  const nonfoodRows: { name: string; qty: string }[] = [
+    ...(receipt?.nonfood ?? []).map((l) => ({ name: l.name, qty: `${l.quantity} ${l.unit}` })),
+    ...(liveCard.nonfood ?? []).map((l) => ({
+      name: l.label,
+      qty: l.value != null && l.unit ? formatQty(l.value, l.unit as never) : '',
+    })),
+  ];
   // 01.09: чек — не auto-apply, а картка на підтвердження зі стрикаутом.
   // Повний список одразу — «звалище»: чек легко несе 10+ позицій. Згорнуто
   // за замовчуванням, як «не для комори» нижче; для звичайного (короткого)
   // intake_diff з чату список і так короткий — розгорнутий одразу.
-  const [opsOpen, setOpsOpen] = useState(!receipt);
+  const [showInList, setShowInList] = useState(false);
+  // Крок 4.2: які рядки чека закриють позиції списку покупок. Той самий
+  // збіг (точний за назвою, trim+lower) рахує applyCard — але вже ПІСЛЯ
+  // натискання, і людина дізнавалась про наслідок постфактум. Тут вона
+  // бачить його до того, як вирішить.
+  const inList = new Set(
+    ops.map((op, i) => (
+      op.op === 'add' && op.label && shoppingLabels?.has(op.label.trim().toLowerCase()) ? i : -1
+    )).filter((i) => i >= 0),
+  );
+  // Низ чека за законом смуги (крок 2.1): стан ліворуч моно, дії праворуч
+  // у порядку «другорядна → головна». Лічильник у кнопці змінюється разом
+  // із чекбоксами, тож наслідок дії відомий заздалегідь, а не після.
+  const goingIn = ops.length - off.size;
+  const footSlot = useContext(PanelFootSlot);
+  const intakeFootRaw = anyReceipt && (actionable || (applied && !undone)) ? (
+    <div className={styles['card-foot']}>
+      <span className={styles['strip-state']}>
+        {goingIn} {applied && !undone ? 'у коморі' : 'у комору'}
+        {receipt && receipt.nonfood.length > 0 && (
+          <span className={styles['strip-state-dim']}> · {receipt.nonfood.length} у побут</span>
+        )}
+      </span>
+      {applied && !undone && undoAvailable && onUndo && (
+        <Button size="strip" variant="text" onClick={onUndo}>Скасувати ↩</Button>
+      )}
+      {actionable && <Button size="strip" variant="text" onClick={onDismiss}>Ні</Button>}
+      {actionable && (
+        <Button
+          size="strip"
+          variant="primary"
+          onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
+          loading={applying}
+          disabled={off.size === ops.length}
+        >Застосувати {goingIn}</Button>
+      )}
+    </div>
+  ) : null;
+  const intakeFoot = intakeFootRaw && footSlot ? createPortal(intakeFootRaw, footSlot) : intakeFootRaw;
+
   return (
     <div className={stateClass(applied, undone)}>
-      {receipt && (
+      {anyReceipt && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
-            Чек Сільпо
+            {receipt ? 'Чек Сільпо' : 'Чек'}
           </div>
+          {/* Мережевий чек знає магазин і суму; чек із чату — ні, і вигадувати
+              їх не будемо: підзаголовок чесно коротший. */}
           <MonoLabel>
-            {receiptDate(receipt.at)} · {receipt.shop} · {Math.round(receipt.total)}₴
+            {receipt
+              ? `${receiptDate(receipt.at)} · ${receipt.shop} · ${Math.round(receipt.total)}₴`
+              : receiptDate(liveCard.source!.at)}
           </MonoLabel>
         </div>
       )}
-      {receipt && (
-        <button
-          type="button"
-          onClick={() => setOpsOpen((v) => !v)}
-          style={{
-            border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
-            color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}
-        >
-          <span style={{ width: 18, textAlign: 'center' }}>{opsOpen ? '⌄' : '›'}</span>
-          {ops.length} {plural(ops.length, ['позиція', 'позиції', 'позицій'])}
-          {receipt.unmatched.length > 0 ? ` + ${receipt.unmatched.length} без пари` : ''}
-          {opsOpen ? ' · згорнути' : ' · показати'}
-        </button>
+      {/* ── Чек: чотири секції замість суцільного списку ──────────────
+          Групи відповідають на питання «як модель зрозуміла чек», і саме
+          тому вони є навіть тоді, коли всередині нічого нема: порожня
+          секція не малюється, але наявна каже, що розбір відбувся. */}
+      {anyReceipt && (
+        <>
+          <ReceiptGroup
+            tone="accent"
+            glyph="●"
+            title="У КОМОРУ"
+            count={ops.length - off.size}
+            action={actionable && ops.length > 1
+              ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
+              : undefined}
+            actionLabel={off.size === ops.length ? 'ПОВЕРНУТИ ВСІ' : 'ЗНЯТИ ВСІ'}
+            rows={ops.map((op, i) => (
+              <div key={i} className={styles.rrow} style={off.has(i) ? { opacity: 0.45 } : undefined}>
+                {actionable && ops.length > 1 ? (
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={!off.has(i)}
+                    aria-label={op.label ?? 'позиція'}
+                    className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
+                    onClick={() => toggle(i)}
+                  >{off.has(i) ? '' : '✓'}</button>
+                ) : (
+                  <span className={`${styles.rbox} ${styles['rbox-on']}`}>✓</span>
+                )}
+                <span className={styles['rrow-name']}>
+                  {op.op === 'rename'
+                    ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
+                    : op.label ?? '—'}
+                  {inList.has(i) && (
+                    <span className={styles['rrow-qty']} style={{ marginLeft: 8 }}>✓ У СПИСКУ</span>
+                  )}
+                </span>
+                {op.value != null && op.unit && (
+                  <span className={styles['rrow-qty']}>{formatQty(op.value, op.unit)}</span>
+                )}
+              </div>
+            ))}
+          />
+
+          {/* «Вже у списку» — НЕ п'ятий кошик рядків, а примітка про перетин.
+              Позиція, що є в списку покупок, усе одно їде в комору: винести
+              її окремою групою означало б прибрати її з першої. Тому тут
+              лічильник і «показати», а самі рядки позначені в секції вище. */}
+          {inList.size > 0 && (
+            <ReceiptGroup
+              tone="muted"
+              glyph="✓"
+              title="ВЖЕ У СПИСКУ"
+              count={inList.size}
+              action={() => setShowInList((v) => !v)}
+              actionLabel={showInList ? 'СХОВАТИ' : 'ПОКАЗАТИ'}
+            >
+              {showInList && (
+                <div className={styles.rrow} style={{ color: 'var(--fg-dim)' }}>
+                  <span className={styles['rrow-name']}>
+                    {[...inList].map((i) => ops[i]?.label).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+            </ReceiptGroup>
+          )}
+
+          {nonfoodRows.length > 0 && <NonfoodGroup rows={nonfoodRows} onNonfoodToList={onNonfoodToList} />}
+
+          {receipt && receipt.unmatched.length > 0 && (
+            <ReceiptGroup
+              tone="amber"
+              glyph="◌"
+              title="НЕ ВПІЗНАВ"
+              count={receipt.unmatched.length}
+            >
+              {/* Ключ за назвою, не індексом: «ок» вирізає рядок із unmatched
+                  і зсуває решту — індексний key чіпляв editing-стан одного
+                  товару на назву наступного після зсуву. */}
+              {receipt.unmatched.map((l, i) => (
+                <ClarifyRow key={l.name} line={l} cardId={cardId} index={i} onClarified={setLiveCard} />
+              ))}
+            </ReceiptGroup>
+          )}
+        </>
       )}
-      {opsOpen && (
+
+      {/* Вето каталогу спрацьовує на будь-якій intake-картці, не тільки на
+          чеку: дрова не місце в коморі незалежно від того, звідки про них
+          дізнались. Тож група показується і тут. */}
+      {!anyReceipt && nonfoodRows.length > 0 && (
+        <NonfoodGroup rows={nonfoodRows} onNonfoodToList={onNonfoodToList} />
+      )}
+      {!anyReceipt && (
         <div className={styles.ops}>
           {ops.map((op, i) => (
             <div
@@ -265,13 +499,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 <span
                   role="checkbox"
                   aria-checked={!off.has(i)}
-                  style={{
-                    width: 18, height: 18, borderRadius: 6, flex: 'none',
-                    display: 'inline-grid', placeItems: 'center',
-                    background: off.has(i) ? 'transparent' : 'var(--accent)',
-                    border: off.has(i) ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
-                    color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 11,
-                  }}
+                  className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
                 >{off.has(i) ? '' : '✓'}</span>
               )}
               <span className={styles['op-sign']}>{signFor(op.op)}</span>
@@ -290,72 +518,9 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               )}
             </div>
           ))}
-          {/* Ключ за назвою, не індексом: «ок» вирізає рядок із unmatched і
-              зсуває позиції решти — індексний key чіпляв editing-стан
-              одного товару на назву наступного після зсуву. */}
-          {receipt && receipt.unmatched.map((l, i) => (
-            <ClarifyRow key={l.name} line={l} cardId={cardId} index={i} onClarified={setLiveCard} />
-          ))}
         </div>
       )}
-      {receipt && receipt.nonfood.length > 0 && (
-        <div style={{ marginTop: 2 }}>
-          <button
-            type="button"
-            onClick={() => setNonfoodOpen((v) => !v)}
-            style={{
-              border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
-              color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}
-          >
-            <span style={{ width: 18, textAlign: 'center' }}>{nonfoodOpen ? '⌄' : '›'}</span>
-            ще {receipt.nonfood.length} не для комори
-          </button>
-          {nonfoodOpen && receipt.nonfood.map((l, i) => (
-            <div key={i} className={styles.op} style={{ color: 'var(--fg-dim)' }}>
-              <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>·</span>
-              <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>{l.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {receipt && applied && !undone && ops.length > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 8,
-        }}>
-          {/* 01.09: рахуємо застосовану кількість (мінус викреслені), не
-              весь ops.length — інакше бейдж бреше про число після стрикауту. */}
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)' }}>
-            ● {ops.length - off.size} {plural(ops.length - off.size, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])} У КОМОРІ
-          </span>
-          {undoAvailable && onUndo && (
-            <button
-              type="button"
-              onClick={onUndo}
-              style={{
-                border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
-                color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                textDecoration: 'underline', textUnderlineOffset: 3,
-              }}
-            >Скасувати ↩</button>
-          )}
-        </div>
-      )}
-      {actionable && (
-        <div className={styles['card-actions']}>
-          <Button
-            variant="primary"
-            onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
-            loading={applying}
-            disabled={off.size === ops.length}
-          >
-            {off.size ? `Застосувати ${ops.length - off.size}` : 'Застосувати'}
-          </Button>
-          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
-        </div>
-      )}
+      {intakeFoot}
       {!receipt && applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
           <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
@@ -446,6 +611,116 @@ export function ShoppingCard({ card, applied, applying, dismissed, undone, undoA
           <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ----- Список покупок (V5) -------------------------------------------------
+// Артефакт іншої природи, ніж решта: це не картка сесії, а стан дому, що
+// переживає сесію. Тому він читає живий список, а не card.items, і в нього
+// немає «застосувати» — це не рішення, а сховище. Чекбокс тут означає
+// «куплено», а не «взяти в роботу», як у чеку.
+export function ShoppingListCard({
+  items, sessionStartedAt, onToggle, onRemoveBought, onAdd, onBuildCart, buildingCart,
+}: {
+  items: ListItem[];
+  sessionStartedAt: string | null;
+  onToggle: (id: string, checked: boolean) => void;
+  onRemoveBought: (ids: string[]) => void;
+  onAdd: (label: string) => void;
+  onBuildCart?: () => void;
+  buildingCart?: boolean;
+}) {
+  const [draft, setDraft] = useState('');
+  const g = groupShopping(items, sessionStartedAt);
+  const footSlot = useContext(PanelFootSlot);
+
+  const row = (it: ListItem, tone?: 'fresh' | 'bought') => (
+    <div
+      key={it.id}
+      className={`${styles.rrow} ${tone === 'fresh' ? styles['srow-fresh'] : ''}`}
+    >
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={it.checked}
+        aria-label={it.label}
+        className={`${styles.rbox} ${it.checked ? styles['rbox-bought'] : ''}`}
+        onClick={() => onToggle(it.id, !it.checked)}
+      >{it.checked ? '✓' : ''}</button>
+      <span className={`${styles['rrow-name']} ${it.checked ? styles['srow-done'] : ''}`}>{it.label}</span>
+      {!it.checked && <span className={styles['srow-src']}>{sourceLabel(it)}</span>}
+      {it.value != null && it.unit && (
+        <span className={styles['rrow-qty']}>{formatQty(it.value, it.unit)}</span>
+      )}
+    </div>
+  );
+
+  const foot = (
+    <div className={styles['slist-foot']}>
+      {/* Поле «додати» — єдиний спосіб дописати руками, і воно завжди під
+          рукою, а не за кнопкою «додати позицію». */}
+      <form
+        className={styles['slist-add']}
+        onSubmit={(e) => { e.preventDefault(); const v = draft.trim(); if (v) { onAdd(v); setDraft(''); } }}
+      >
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="+ додати в список…"
+          aria-label="Додати в список"
+        />
+      </form>
+      <div className={styles['card-foot']}>
+        <span className={styles['strip-state']}>{g.toBuy} до купівлі</span>
+        {onBuildCart && (
+          /* Шавлієва ТОНОВАНА, не чорнильна: це перехід до збирання кошика,
+             а не чекаут. Чорнильна в системі означає остаточну дію. */
+          <Button size="strip" variant="soft" onClick={onBuildCart} loading={buildingCart} disabled={!g.toBuy}>
+            Зібрати кошик у Сільпо →
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={styles.card}>
+      {/* Мета під назвою, а не поруч: на 320 вони ділили рядок, і «Список
+          покупок» ламався надвоє. Той самий порядок, що в кошика й чека. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
+          Список покупок
+        </div>
+        <MonoLabel>
+          {items.length} {plural(items.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+          {g.bought.length > 0 ? ` · ${g.bought.length} КУПЛЕНО` : ''}
+        </MonoLabel>
+      </div>
+
+      {g.fresh.length > 0 && (
+        <ReceiptGroup tone="accent" glyph="●" title="ЩОЙНО ДОДАНО" count={g.fresh.length}
+          rows={g.fresh.map((it) => row(it, 'fresh'))} />
+      )}
+      {g.earlier.length > 0 && (
+        <ReceiptGroup tone="muted" glyph="·" title="РАНІШЕ" count={g.earlier.length}
+          rows={g.earlier.map((it) => row(it))} />
+      )}
+      {g.bought.length > 0 && (
+        <ReceiptGroup
+          tone="muted" glyph="✓" title="КУПЛЕНО" count={g.bought.length}
+          action={() => onRemoveBought(g.bought.map((i) => i.id))}
+          actionLabel="ПРИБРАТИ"
+          rows={g.bought.map((it) => row(it, 'bought'))}
+        />
+      )}
+      {items.length === 0 && (
+        <div style={{ padding: '10px 0', color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 15 }}>
+          Список порожній. Додай позицію нижче або попроси Кухню.
+        </div>
+      )}
+      {footSlot ? createPortal(foot, footSlot) : foot}
     </div>
   );
 }
@@ -596,8 +871,8 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels, stepLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
-  const [allSteps, setAllSteps] = useState(false);
   const [listed, setListed] = useState<Set<number>>(new Set());
+  const pressTimer = useRef<number | null>(null);
   // Порційник: детерміноване множення кількостей, 0 токенів. Складне
   // («на чотирьох, але соусу більше») — як і раніше, через чат.
   const [servings, setServings] = useState<number | null>(null);
@@ -630,11 +905,91 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
   const sv = servings ?? r.sv ?? 1;
   const scaled = scaleRecipe(r, sv);
 
-  // Моушн-2 №8: рендеримо ВСІ кроки завжди; хвіст живе в контейнері з
-  // анімованою висотою — розгортка/згортання їдуть, а не стрибають.
-  const firstSteps = scaled.st.slice(0, 3);
-  const restSteps = scaled.st.slice(3);
+  // Наявність — тоном, а не гліфом (V2). Те, що вже вдома, іде вниз мутед-
+  // сірим: так «БРАКУЄ N» у низу читається просто проти верху списку, і
+  // око не мусить вишукувати ○ серед ●. Порядок приготування живе в
+  // кроках, не в переліку інгредієнтів, — переставляти тут безпечно.
+  const ordered = scaled.ing
+    .map((ing, i) => ({ ing, i }))
+    .sort((a, b) => Number(!!a.ing.p) - Number(!!b.ing.p));
+  const missIdx = scaled.ing.map((ing, i) => (!ing.p && ing.n ? i : -1)).filter((i) => i >= 0);
+  const leftToList = missIdx.filter((i) => !listed.has(i));
 
+  function addOne(i: number) {
+    const ing = scaled.ing[i];
+    if (!ing?.n || !onNeedToList) return;
+    onNeedToList(ing.n, ing.v, ing.u, r!.t);
+    setListed((prev) => new Set(prev).add(i));
+  }
+  function pressStart(i: number) {
+    pressTimer.current = window.setTimeout(() => { addOne(i); pressTimer.current = null; }, 500);
+  }
+  function pressEnd() {
+    if (pressTimer.current !== null) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  }
+  function addAllMissing() {
+    leftToList.forEach(addOne);
+  }
+
+
+  const footSlot = useContext(PanelFootSlot);
+  const headSlot = useContext(PanelHeadSlot);
+
+  // V7: у смузі максимум ДВІ кнопки. «У рецепти» і «Поділитись» — про
+  // навігацію, а не про роботу з рецептом, тож вони їдуть у шапку
+  // артефакта іконками. Слота немає (стрічка) — лишаються в смузі, бо
+  // інакше зникли б зовсім.
+  const headRaw = (
+    <>
+      {onSaveRecipe && (
+        <button
+          type="button"
+          disabled={saved}
+          onClick={() => onSaveRecipe(rid)}
+          className={styles['head-act']}
+          title={saved ? 'Уже в рецептах' : 'У рецепти'}
+          aria-label={saved ? 'Уже в рецептах' : 'У рецепти'}
+        >{saved ? '✓' : '✎'}</button>
+      )}
+      {onShare && (
+        <button
+          type="button"
+          onClick={() => onShare(scaled, rid)}
+          className={styles['head-act']}
+          title="Поділитись"
+          aria-label="Поділитись"
+        >↗</button>
+      )}
+    </>
+  );
+
+  // Смуга: стан ліворуч, дії праворуч у порядку «другорядна → головна».
+  // Головна завжди крайня права — місце під великий палець і під очікування.
+  const footRaw = (
+    <div className={styles['card-foot']}>
+      {missIdx.length > 0 && onNeedToList && (
+        <span className={`${styles['strip-state']} ${styles['strip-state-warn']}`}>
+          ○ БРАКУЄ {missIdx.length}
+        </span>
+      )}
+      {missIdx.length > 0 && onNeedToList && (
+        <Button
+          size="strip"
+          variant="text"
+          disabled={!leftToList.length}
+          onClick={addAllMissing}
+        >{leftToList.length ? 'У список' : '✓ у списку'}</Button>
+      )}
+      {onCook && (
+        <Button size="strip" variant="positive" onClick={() => onCook(scaled, rid)}>
+          Готуємо → Cook Mode
+        </Button>
+      )}
+      {!headSlot && <span className={styles['strip-head-fallback']}>{headRaw}</span>}
+    </div>
+  );
+  const recipeFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
+  const recipeHead = headSlot ? createPortal(headRaw, headSlot) : null;
 
   return (
     <div className={styles['recipe-msg']}>
@@ -679,174 +1034,71 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
             )}
           </div>
         )}
+        {/* Підказка — просто абзац мутед-кольору під метаданими. Бурштинова
+            риска робила з поради попередження; тон і місце вже кажуть, що
+            це репліка Кухні. */}
         {r.rk && (
           <div style={{
-            marginTop: 8, paddingLeft: 10, borderLeft: '2px solid var(--amber)',
-            fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45,
+            marginTop: 8,
+            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.5,
           }}>{r.rk}</div>
         )}
       </div>
 
+      {/* Секції розділяє відстань, а не заголовок: 20px між блоками проти
+          9px між рядками. Нумерація 1-4 і так каже, що це план, а список без
+          цифр — що це інгредієнти. Підписи ІНГРЕДІЄНТИ / ПЛАН прибрані. */}
       <div className={styles['recipe-msg-cols']}>
-        <div>
-          <MonoLabel>ІНГРЕДІЄНТИ · ● З КОМОРИ</MonoLabel>
-          <div style={{ marginTop: 2 }}>
-            {scaled.ing.map((ing, i) => {
-              const missing = !ing.p;
-              const added = listed.has(i);
-              return (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'baseline', gap: 10,
-                  padding: '7px 0', borderBottom: '1px solid var(--border)',
-                  fontFamily: 'var(--font-body)', fontSize: 15,
-                }}>
-                  <span style={{ color: missing ? 'var(--fg-dim)' : 'var(--accent)', fontSize: 11 }}>
-                    {missing ? '○' : '●'}
-                  </span>
-                  <span style={{ flex: 1, color: 'var(--fg)' }}>
-                    {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
-                    {missing && ing.n && onNeedToList && (
-                      /* Канон п.8: бракує → «+ у список» просто тут. */
-                      <button
-                        type="button"
-                        disabled={added}
-                        onClick={() => { onNeedToList(ing.n!, ing.v, ing.u, r.t); setListed((prev) => new Set(prev).add(i)); }}
-                        style={{
-                          border: 0, background: 'none', padding: 0, marginLeft: 8,
-                          color: added ? 'var(--fg-dim)' : 'var(--accent)',
-                          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                          textDecoration: added ? 'none' : 'underline', textUnderlineOffset: 3,
-                          cursor: added ? 'default' : 'pointer',
-                        }}
-                      >
-                        {added ? '✓ у списку' : '+ у список'}
-                      </button>
-                    )}
-                  </span>
-                  {ing.v != null && ing.u && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)' }}>{formatQty(ing.v, ing.u)}</span>
-                  )}
-                </div>
-              );
-            })}
-            {(() => {
-              // Канон B: підсумковий рядок браку + «+ усі в список» разом.
-              const missIdx = scaled.ing.map((ing, i) => (!ing.p && ing.n ? i : -1)).filter((i) => i >= 0);
-              const left = missIdx.filter((i) => !listed.has(i));
-              if (!missIdx.length || !onNeedToList) return null;
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0 0' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--amber)' }}>
-                    ○ БРАКУЄ {missIdx.length}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={!left.length}
-                    onClick={() => {
-                      left.forEach((i) => {
-                        const ing = scaled.ing[i]!;
-                        onNeedToList(ing.n!, ing.v, ing.u, r.t);
-                      });
-                      setListed((prev) => new Set([...prev, ...left]));
-                    }}
-                    style={{
-                      border: 0, background: 'none', padding: 0, cursor: left.length ? 'pointer' : 'default',
-                      color: left.length ? 'var(--accent)' : 'var(--fg-dim)',
-                      fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-                      textDecoration: left.length ? 'underline' : 'none', textUnderlineOffset: 3,
-                    }}
-                  >
-                    {left.length ? '+ усі в список' : '✓ усі в списку'}
-                  </button>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-
-        <div>
-          <MonoLabel>ПЛАН</MonoLabel>
-          <div style={{ marginTop: 2 }}>
-            {firstSteps.map((step: typeof scaled.st[number], i: number) => (
-              <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 1}</span>
-                <span style={{ flex: 1, color: 'var(--fg)' }}>
-                  {step.t}
-                  {!!step.s && (
-                    <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
-                      ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
-                    </span>
-                  )}
+        <div className={styles['recipe-list']}>
+          {ordered.map(({ ing, i }) => {
+            const missing = !ing.p;
+            const added = listed.has(i);
+            return (
+              <div
+                key={i}
+                className={styles['recipe-ing']}
+                /* Точкове додавання — довгий тап по рядку. Рідкісний випадок
+                   не заслуговує на постійну колонку «+» у кожному рядку. */
+                title={missing && !added ? 'Довге натискання — додати лише це' : undefined}
+                onPointerDown={missing && !added && onNeedToList ? () => pressStart(i) : undefined}
+                onPointerUp={pressEnd}
+                onPointerLeave={pressEnd}
+                style={missing ? undefined : { color: 'var(--fg-dim)' }}
+              >
+                <span className={styles['recipe-ing-name']}>
+                  {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
+                  {added && <span className={styles['recipe-ing-added']}> ✓ у списку</span>}
                 </span>
+                {ing.v != null && ing.u
+                  ? <span className={styles['recipe-ing-qty']}>{formatQty(ing.v, ing.u)}</span>
+                  : !missing ? <span className={styles['recipe-ing-qty']}>є вдома</span> : null}
               </div>
-            ))}
-            {restSteps.length > 0 && (
-              <>
-                <div className={`${styles['steps-rest']} ${allSteps ? styles['steps-rest-open'] : ''}`}>
-                  {restSteps.map((step, i) => (
-                    <div key={i + 3} style={{ display: 'flex', gap: 12, padding: '6px 0', fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.5 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-dim)', flex: 'none', width: 14 }}>{i + 4}</span>
-                      <span style={{ flex: 1, color: 'var(--fg)' }}>
-                        {step.t}
-                        {!!step.s && (
-                          <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>
-                            ▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAllSteps((v) => !v)}
-                  style={{
-                    border: 0, background: 'none', padding: '6px 0 0',
-                    color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-                    textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                  }}
-                >
-                  {allSteps ? 'Згорнути кроки' : `Показати всі ${r.st.length} кроків`}
-                  <span className={`${styles.chev} ${allSteps ? styles['chev-open'] : ''}`}>▾</span>
-                </button>
-              </>
-            )}
-          </div>
+            );
+          })}
+        </div>
+
+        <div className={styles['recipe-list']}>
+          {/* Усі кроки одразу. «Показати всі N» прибрано: тіло панелі
+              скролиться саме́, і ховати від людини половину плану заради
+              економії висоти в скрольованій колонці немає сенсу. */}
+          {scaled.st.map((step: typeof scaled.st[number], i: number) => (
+            <div key={i} className={styles['recipe-step']}>
+              <span className={styles['recipe-step-n']}>{i + 1}</span>
+              <span className={styles['recipe-step-t']}>
+                {step.t}
+                {!!step.s && (
+                  <span className={styles['recipe-step-s']}>
+                    {' '}▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
+                  </span>
+                )}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Правка №4б: «Готуємо» — на всю ширину, як «Рецепт →» у пропозиції;
-          «У рецепти» і «Поділитись» — вузькі другорядні (№6: шеринг тепер
-          живе тут, а не на фініші Cook Mode). */}
-      <div className={styles['recipe-actions']} style={{ alignItems: 'center', gap: 16 }}>
-        {onCook && <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>}
-        {onSaveRecipe && (
-          <button
-            type="button"
-            disabled={saved}
-            onClick={() => onSaveRecipe(rid)}
-            style={{
-              border: 0, background: 'none', padding: 0, cursor: saved ? 'default' : 'pointer',
-              color: saved ? 'var(--fg-dim)' : 'var(--fg-muted)', fontFamily: 'var(--font-body)',
-              fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
-            }}
-          >
-            {saved ? '✓ У рецептах' : 'У рецепти'}
-          </button>
-        )}
-        {onShare && (
-          <button
-            type="button"
-            onClick={() => onShare(scaled, rid)}
-            title="Поділитись"
-            style={{
-              border: 0, background: 'none', padding: 0, cursor: 'pointer',
-              color: 'var(--fg-muted)', fontSize: 17, lineHeight: 1,
-            }}
-          >↗</button>
-        )}
-      </div>
+      {recipeHead}
+      {recipeFoot}
     </div>
   );
 }
@@ -873,6 +1125,9 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   const [justSwapped, setJustSwapped] = useState<number | null>(null);
   // 01.09 рівень 1: альтернативи показують перші кілька, решта — під тапом.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  // V3: розкритий список показує три найближчі, решта — під «ще N ▾».
+  // Два стани, а не один: «відкрито взагалі» і «відкрито повністю».
+  const [showAllAlts, setShowAllAlts] = useState<Set<number>>(new Set());
   const rows = card.rows ?? [];
   const busy = swapping !== null || adding !== null || qtyBusy !== null;
   async function swap(i: number, altIndex: number) {
@@ -912,6 +1167,31 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
       return next;
     });
   }
+  const footSlot = useContext(PanelFootSlot);
+  // Підвал кошика: сума нерозривна, на вузькому чесно стає двома рядками —
+  // сума, під нею кнопка праворуч (раніше без wrap ламалась сама сума,
+  // «3 з ⏎ 3»). Геометрію тепер задає клас, а не інлайн: у слоті панелі
+  // рамку й відступи малює .rail-foot, і інлайновий стиль її не перебиває.
+  const footRaw = (
+    <div className={styles['card-foot']}>
+      <span className={styles['strip-state']}>
+        <RollingNumber value={card.total ?? 0} />₴
+        <span className={styles['strip-state-dim']}>
+          {' · '}<RollingNumber value={card.found ?? 0} /> з {card.of}
+        </span>
+      </span>
+      {/* Чорнильна: вихід із продукту, чекаут цілком на боці мережі.
+          Одна на артефакт — другої дії в кошику немає. */}
+      <a
+        href={card.cart_url}
+        target="_blank"
+        rel="noreferrer"
+        className={styles['strip-main']}
+      >Оформити в Сільпо ↗</a>
+    </div>
+  );
+  const cartFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
+
   return (
     <div className={styles.card}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
@@ -930,177 +1210,133 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
           // Обсягове: скільки всього виходить при поточній кількості пляшок.
           const totalMl = p?.package_ml ? p.package_ml * p.quantity : null;
           return (
-            <div key={i}>
-              <div
-                className={`${styles.op} ${justSwapped === i ? styles['row-changed'] : ''}`}
-                style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}
-              >
-                <div
-                  className={justSwapped === i ? styles['row-text-in'] : undefined}
-                  style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}
+            <div
+              key={i}
+              className={`${styles['cart-item']} ${justSwapped === i ? styles['row-changed'] : ''}`}
+            >
+              {/* Рівень 1: наше імʼя · степер · одиниця · ціна. */}
+              <div className={styles['cart-item-top']}>
+                <span
+                  className={`${styles['cart-name']} ${justSwapped === i ? styles['row-text-in'] : ''}`}
+                  style={p ? undefined : { color: 'var(--fg-dim)' }}
                 >
-                  <span className={styles['op-label']} style={p ? undefined : { color: 'var(--fg-dim)' }}>
-                    {r.label}
-                  </span>
-                  {p ? (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
-                      {p.name}
-                    </span>
-                  ) : (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
-                      немає в цій філії
-                    </span>
-                  )}
-                </div>
+                  {r.label}
+                </span>
                 {p && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flex: 'none' }}>
-                    <span className={styles['op-qty']} style={{ color: 'var(--fg)' }}>
-                      {Math.round(p.price * p.quantity)}₴
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)',
-                        border: '1px solid var(--border)', borderRadius: 10, padding: '0 6px', height: 32,
-                      }}>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void updateQty(i, Math.round((p.quantity - step) * 100) / 100)}
-                          style={{ width: 20, height: 20, border: 0, background: 'none', color: 'var(--fg)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: qtyBusy === i ? 0.5 : 1 }}
-                        >−</button>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 30, textAlign: 'center' }}>
-                          {qtyLabel}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void updateQty(i, Math.round((p.quantity + step) * 100) / 100)}
-                          style={{ width: 20, height: 20, border: 0, background: 'none', color: 'var(--fg)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: qtyBusy === i ? 0.5 : 1 }}
-                        >+</button>
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
-                        {p.weighted ? 'кг' : 'шт'}
-                      </span>
+                  <>
+                    <div className={styles['cart-stp']}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void updateQty(i, Math.round((p.quantity - step) * 100) / 100)}
+                        aria-label="менше"
+                        style={{ opacity: qtyBusy === i ? 0.5 : 1 }}
+                      >−</button>
+                      <span className={styles['cart-qty']}>{qtyLabel}</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void updateQty(i, Math.round((p.quantity + step) * 100) / 100)}
+                        aria-label="більше"
+                        style={{ opacity: qtyBusy === i ? 0.5 : 1 }}
+                      >+</button>
                     </div>
-                  </div>
-                )}
-                {/* 01.09 картка v2: обсягове — математика завжди видима, не лише
-                    коли є розбіжність із заявленим. «1л чи більше» більше не
-                    мовчазна 1 шт. */}
-                {p?.package_ml && totalMl != null && (
-                  <div style={{ width: '100%', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber)' }}>
-                    × {(p.package_ml / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л ≈ {(totalMl / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л всього
-                  </div>
-                )}
-                {/* 01.09 картка v2: альтернативи — компактний рядок, не плитка.
-                    Кіт: список 3+ позицій із розгорнутими альтернативами
-                    засмічував екран — за замовчуванням згорнуто, тап
-                    розкриває (та сама механіка, що «ще N не для комори»). */}
-                {alts.length > 0 && (
-                  <div style={{ width: '100%', marginTop: 4 }}>
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(i)}
-                      style={{
-                        border: 0, background: 'transparent', cursor: 'pointer', padding: '4px 0',
-                        color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 12,
-                        display: 'flex', alignItems: 'center', gap: 6,
-                      }}
-                    >
-                      <span style={{ width: 14, textAlign: 'center' }}>{isExpanded ? '⌄' : '›'}</span>
-                      альтернативи ({alts.length})
-                    </button>
-                    {isExpanded && (
-                    <>
-                    {p && (
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--fg-dim)', marginBottom: 4 }}>
-                        «⇄» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
-                      </div>
-                    )}
-                    <div style={{
-                      background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12,
-                      padding: '0 12px',
-                    }}>
-                      {alts.map((a, ai) => (
-                        <div
-                          key={ai}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
-                            borderBottom: ai < alts.length - 1 ? '1px solid var(--border)' : 0,
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span style={{
-                              fontFamily: 'var(--font-body)', fontSize: 13, lineHeight: 1.3,
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block',
-                            }} title={a.name}>
-                              {a.name}
-                            </span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-dim)' }}>
-                              {Math.round(a.price * a.quantity)}₴
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => void swap(i, ai)}
-                                aria-label={`замінити на ${a.name}`}
-                                style={{
-                                  width: 28, height: 28, borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                                  border: '1px solid var(--accent-border)', background: 'var(--accent-bg)', color: 'var(--accent)',
-                                  opacity: swapping === i ? 0.5 : 1,
-                                }}
-                              >⇄</button>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--fg-dim)' }}>замінити</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => void addAlt(i, ai)}
-                                aria-label={`додати ${a.name} окремо`}
-                                style={{
-                                  width: 28, height: 28, borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                                  border: '1px solid var(--border)', background: 'none', color: 'var(--fg-dim)',
-                                  opacity: adding === i ? 0.5 : 1,
-                                }}
-                              >+</button>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--fg-dim)' }}>додати</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    </>
-                    )}
-                  </div>
+                    <span className={styles['cart-unit']}>{p.weighted ? 'кг' : 'шт'}</span>
+                    <span className={styles['cart-price']}>{Math.round(p.price * p.quantity)}₴</span>
+                  </>
                 )}
               </div>
+
+              {/* Рівень 2: паспортна назва одним рядком · вхід в альтернативи.
+                  Наше імʼя («молоко») не ріжеться ніколи — воно коротке за
+                  природою; ріжеться саме паспортна назва, а повна лишається
+                  в title і в розкритому списку. */}
+              <div className={styles['cart-item-sub']}>
+                <span
+                  className={styles['cart-passport']}
+                  style={p ? undefined : { color: 'var(--amber)' }}
+                  title={p ? p.name : undefined}
+                >
+                  {p ? p.name : 'немає в цій філії'}
+                </span>
+                {alts.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles['cart-swap-link']}
+                    onClick={() => toggleExpanded(i)}
+                    aria-expanded={isExpanded}
+                  >
+                    ЗАМІНИТИ {alts.length} {isExpanded ? '⌄' : '›'}
+                  </button>
+                )}
+              </div>
+
+              {p?.package_ml && totalMl != null && (
+                <div className={styles['cart-vol']}>
+                  × {(p.package_ml / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л
+                  {' ≈ '}
+                  {(totalMl / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л всього
+                </div>
+              )}
+
+              {/* Альтернативи розкриваються ВСЕРЕДИНІ позиції, а не окремим
+                  екраном. Перші три, решта під «ще N ▾»: у макеті так лише
+                  на 480, але поведінка одна на всі ширини — панель тепер
+                  тягнеться, і робити її вміст різним за шириною означало б
+                  два різні продукти в одному вікні. */}
+              {isExpanded && alts.length > 0 && (
+                <div className={styles['cart-alts']}>
+                  {p && (
+                    <div className={styles['cart-alt-warn']}>
+                      «⇄» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
+                    </div>
+                  )}
+                  {(showAllAlts.has(i) ? alts : alts.slice(0, 3)).map((a, ai) => (
+                    <div key={ai} className={styles['cart-alt']}>
+                      <span className={styles['cart-alt-name']} title={a.name}>{a.name}</span>
+                      <span className={styles['cart-alt-price']}>{Math.round(a.price * a.quantity)}₴</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void swap(i, ai)}
+                        className={styles['cart-alt-btn']}
+                        title="замінити цією"
+                        aria-label={`замінити на ${a.name}`}
+                        style={{
+                          border: '1px solid var(--accent-border)', background: 'var(--accent-bg)',
+                          color: 'var(--accent)', opacity: swapping === i ? 0.5 : 1,
+                        }}
+                      >⇄</button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void addAlt(i, ai)}
+                        className={styles['cart-alt-btn']}
+                        title="додати окремим рядком"
+                        aria-label={`додати ${a.name} окремо`}
+                        style={{
+                          border: '1px solid var(--border)', background: 'none',
+                          color: 'var(--fg-dim)', opacity: adding === i ? 0.5 : 1,
+                        }}
+                      >+</button>
+                    </div>
+                  ))}
+                  {alts.length > 3 && !showAllAlts.has(i) && (
+                    <button
+                      type="button"
+                      className={styles['cart-alt-more']}
+                      onClick={() => setShowAllAlts((prev) => new Set(prev).add(i))}
+                    >
+                      ЩЕ {alts.length - 3} ▾
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 6,
-      }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16 }}>
-          <RollingNumber value={card.total ?? 0} />₴ · <RollingNumber value={card.found ?? 0} /> з {card.of}
-        </span>
-        <a
-          href={card.cart_url}
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            marginLeft: 'auto', height: 44, padding: '0 18px', borderRadius: 12,
-            background: 'var(--fg)', color: 'var(--bg-body)', textDecoration: 'none',
-            display: 'inline-flex', alignItems: 'center',
-            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-          }}
-        >Оформити в Сільпо ↗</a>
-      </div>
+      {cartFoot}
     </div>
   );
 }

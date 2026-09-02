@@ -5,6 +5,7 @@
   "invariants": [
     "silpo-weights",
     "silpo-expansions",
+    "triple-discipline",
     "no-prices",
     "includes-nonfood",
     "no-markdown"

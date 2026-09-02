@@ -15,6 +15,9 @@ import {
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
 import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
 import { localDay } from '../local-day.js';
+import { stampChatReceipt } from '../receipt-source.js';
+import { patchReceiptRows } from '../receipt-patch.js';
+import { vetoNonfood } from '../nonfood-veto.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -128,6 +131,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         }
       }
 
+      stampChatReceipt(call.card, call.raw_kind);
+      vetoNonfood(call.card);
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -680,6 +685,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       return { reply: call.reply, card: linkCard, card_id: null, usage: call.usage, meta: call.meta };
     }
 
+    // Вето каталогу ДО збереження: картка має відповідати тому, що справді
+    // поїде в комору. Якщо відсікти після — і pending, і повідомлення
+    // казали б про позиції, яких у коморі не буде.
+    vetoNonfood(call.card);
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -715,6 +724,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;
+      // Крок 4.4: якщо це була правка («то не хліб салтівський, то батон»),
+      // приводимо у відповідність і рядок чека — інакше артефакт показував
+      // би стару назву й брехав про те, як він зрозумілий.
+      if (call.card.type === 'intake_diff') {
+        await patchReceiptRows(repo, session.id, call.card.ops);
+      }
     }
     return {
       reply: replyText, card: call.card, card_id,

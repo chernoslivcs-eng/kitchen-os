@@ -9,8 +9,9 @@ import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
-import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
-import { Card, labelFor, appliedToast } from './cards';
+import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
+import { Card, PanelFootSlot, PanelHeadSlot, ShoppingListCard, labelFor, appliedToast } from './cards';
+import { ARTIFACT_GLYPH, isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines } from './artifacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -98,6 +99,29 @@ function messageToTurn(m: MessageInfo): Turn {
 
 let nextId = 1;
 const newId = () => `t${nextId++}`;
+
+/* Відкрити й закрити панель — одна функція, тож і іконка одна. Раніше тут
+   стояли дві різні стрілки («‹» у шапці, «›» у мінірейці): вони казали
+   напрямок, а не предмет, і читались як дві окремі дії. Тепер обидві
+   кнопки показують саму панель — рамку з поділом праворуч від центру,
+   тобто ту колонку, якої стосується натискання. */
+function PanelIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <rect
+        x="2"
+        y="2"
+        width="12"
+        height="12"
+        rx="2.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+      <path d="M9.9 2V14" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
 
 export function Feed() {
   const meName = useAuth((st) => st.me?.user?.name ?? null);
@@ -267,8 +291,9 @@ export function Feed() {
   // Черга Г (№3): дані правої панелі — незакриті картки дому і неоцінене
   // недавнє готування. Живуть поруч із лічильниками й оновлюються разом.
   const [housePending, setHousePending] = useState<{ id: string; type: string; session_id: string | null }[]>([]);
-  // Пул-6 №2: rail згортається. 1024–1279 — смужка 56px, клік розгортає
-  // оверлеєм; ≥1280 — розгорнутий, але ‹ ховає (стан пам'ятається).
+  // Пул-6 №2: rail згортається. Нижче 1200 панелі немає — там шторка,
+  // яку відкриває пігулка; ≥1200 панель у потоці, і ‹ її ховає в смужку
+  // 56px (стан памʼятається).
   const [railOpen, setRailOpen] = useState(false);
   const [railHidden, setRailHidden] = useState(() => {
     try { return localStorage.getItem('kos-rail-hidden') === '1'; } catch { return false; }
@@ -277,29 +302,321 @@ export function Feed() {
     setRailHidden(v);
     try { localStorage.setItem('kos-rail-hidden', v ? '1' : '0'); } catch { /* ок */ }
   }
+
+  // ── Крок 1.3: ручка ресайзу (V1 + V9) ────────────────────────────────
+  // Межі з брифу: 280 (нижче ламається рядок кошика) … 560 (вище журнал
+  // стає вужчим за 640). Стеля залежить від вікна: накладні в нас 276,
+  // мінімум журналу 640, отже панель не може бути ширшою за vw − 916.
+  const RAIL_MIN = 280;
+  const RAIL_MAX = 560;
+  const RAIL_DEFAULT = 320;
+  const RAIL_OVERHEAD = 916;  // 276 накладних + 640 мінімум журналу
+  const [railWidth, setRailWidth] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem('kos-rail-width'));
+      return Number.isFinite(v) && v >= RAIL_MIN && v <= RAIL_MAX ? v : RAIL_DEFAULT;
+    } catch { return RAIL_DEFAULT; }
+  });
+  const [dragging, setDragging] = useState(false);
+  // Крок 1.2: три зони панелі. Низ картки їде в цей вузол через портал —
+  // сама картка лишається цілим компонентом зі своїм станом.
+  const [footSlot, setFootSlot] = useState<HTMLElement | null>(null);
+  const [headSlot, setHeadSlot] = useState<HTMLElement | null>(null);
+  // V9: тінь над закріпленим низом — не декор. Вона з'являється, лише коли
+  // під згином є ще вміст, і зникає на верхівках — так смуга сама каже,
+  // чи дочитано до кінця.
+  const [bodyScrolled, setBodyScrolled] = useState(false);
+  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
+  const [bodyContentEl, setBodyContentEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!bodyEl) return;
+    // Заміряємо НА НАСТУПНОМУ КАДРІ, а не в момент події. ResizeObserver
+    // будить нас посеред перерозкладки: коли відкривається шторка, він
+    // спрацьовує на проміжному розмірі й більше не повторюється — тінь
+    // застрягала увімкненою на вмісті, який насправді влазить цілком
+    // (заміряно: предикат false, а тінь горить). rAF відкладає замір до
+    // моменту, коли розкладка вже сіла.
+    let raf = 0;
+    const check = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setBodyScrolled(
+        bodyEl.scrollTop + bodyEl.clientHeight < bodyEl.scrollHeight - 1,
+      ));
+    };
+    check();
+    // Ще один замір після осідання. ResizeObserver звітує РОЗМІР, який
+    // бачив у тій самій розкладці; дрібне осідання після неї (шрифти,
+    // останні 4px висоти) він уже не помічає, і тінь лишається від
+    // проміжного кадру. Заміряно: вміст 523 → 519, предикат перевернувся,
+    // тінь не змінилась.
+    const settle = window.setTimeout(check, 250);
+    bodyEl.addEventListener('scroll', check, { passive: true });
+    // Самого onScroll мало: вміст росте мовчки. Розкрив альтернативи —
+    // висота стрибнула, події скролу не було, і тінь брехала б, що читати
+    // більше нема чого. Тому ще й ResizeObserver на самому вмісті.
+    const ro = new ResizeObserver(check);
+    ro.observe(bodyEl);
+    if (bodyContentEl) ro.observe(bodyContentEl);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(settle);
+      bodyEl.removeEventListener('scroll', check);
+      ro.disconnect();
+    };
+    // railOpen і ключ артефакта — теж залежності: коли відкривається шторка
+    // або перемикається вкладка, розкладка змінюється цілком, а самі вузли
+    // лишаються ті самі. Без них ефект не перезапускався, і тінь на секунду
+    // застрягала від попередньої розкладки (заміряно на шторці: предикат
+    // false, тінь горить).
+  }, [bodyEl, bodyContentEl, railOpen]);
+  const [vw, setVw] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  // V9 «затиск — не запис»: коли вікно завузьке, панель стискається, але
+  // збережене число НЕ перезаписується — інакше одне випадкове звуження
+  // вікна назавжди відбирало б у людини її ширину. Перезаписує лише драг.
+  const railCeiling = Math.max(RAIL_MIN, Math.min(RAIL_MAX, vw - RAIL_OVERHEAD));
+  const railEffective = Math.min(railWidth, railCeiling);
+
+  function persistRailWidth(px: number) {
+    setRailWidth(px);
+    try { localStorage.setItem('kos-rail-width', String(px)); } catch { /* ок */ }
+  }
+  // Подвійне натискання рахуємо САМІ, а не через onDoubleClick. Браузер
+  // його не дає: setPointerCapture перехоплює вказівник, і сумісний click
+  // не синтезується — а без click немає й dblclick. Заміряно на видимій
+  // вкладці: дабл-клік по ручці не робив нічого.
+  const lastDown = useRef(0);
+  function onHandleDown(e: React.PointerEvent<HTMLDivElement>) {
+    const now = Date.now();
+    const isDouble = now - lastDown.current < 400;
+    lastDown.current = now;
+    if (isDouble) {
+      persistRailWidth(RAIL_DEFAULT);
+      return;   // друге натискання не починає драг
+    }
+    // БЕЗ preventDefault: він глушить сумісні мишачі події. Виділення тексту
+    // під час драгу знімає user-select: none на .rail-dragging — перевірено
+    // справжнім драгом, виділяється нуль символів.
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = railEffective;
+    setDragging(true);
+    let last = startW;
+    const move = (ev: PointerEvent) => {
+      // Панель праворуч: тягнемо ВЛІВО — ширшає.
+      last = Math.round(Math.max(RAIL_MIN, Math.min(railCeiling, startW - (ev.clientX - startX))));
+      setRailWidth(last);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDragging(false);
+      persistRailWidth(last);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+  // Крок 1.1 (02.09): поріг 1200, синхронно з CSS. Число заміряне, не взяте
+  // з брифу: накладні в нас 276 (меню 232 + падінги журналу 22+22), а не 232,
+  // тож 276 + 640 + 280 = 1196. Мусить збігатися з медіазапитами у
+  // Feed.module.css — інакше повторюється помилка, коли JS звіряв 1280,
+  // а CSS уже 1440, і «›» знімала railHidden з панелі, якої там не існувало.
   function miniRailClick() {
-    if (window.matchMedia('(min-width: 1280px)').matches) setRailHiddenPersist(false);
+    if (window.matchMedia(RAIL_IN_FLOW).matches) setRailHiddenPersist(false);
     else setRailOpen(true);
   }
   function railCollapse() {
-    if (window.matchMedia('(min-width: 1280px)').matches) setRailHiddenPersist(true);
+    if (window.matchMedia(RAIL_IN_FLOW).matches) setRailHiddenPersist(true);
     else setRailOpen(false);
   }
-  const [unratedRun, setUnratedRun] = useState<{ id: string; title: string; session_id: string | null } | null>(null);
+  // Крок 2: кошик — ОДНЕ повідомлення, два подання. У стрічці воно
+  // згортається в моно-слід, у панелі рендериться повністю. Актуальний —
+  // ОСТАННІЙ: кошик у Сільпо один, і попередні картки вже не про нього.
+  // Крок 3б: вкладки. Зʼявляються ЛИШЕ з другим артефактом — при одному
+  // шапка просто називає його. Заміщення, не накопичення: кошик у Сільпо
+  // один, рецепт завжди останній, тож більше двох тут не буває.
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  // Список «сам не з'являється й сам не тримається» (V4): вкладка виникає
+  // лише коли її відкрили — слідом дельти або з порожньої панелі.
+  const [listOpen, setListOpen] = useState(false);
+  const [activeArtifact, setActiveArtifact] = useState<string | null>(null);
+  // Крок 1.4: у згорнутій смузі — активний маркер і «інші» списком по тапу.
+  const [miniListOpen, setMiniListOpen] = useState(false);
+  // Крок 5 (V9): новий артефакт НЕ розгортає панель поверх читання — він
+  // лише позначає себе в згорнутій смузі. Спалах 400ms, а при
+  // prefers-reduced-motion замість нього лишається статична шавлієва
+  // крапка: інакше в того, хто вимкнув рух, новий артефакт не давав би
+  // взагалі жодного сигналу.
+  const seenArtifacts = useRef<Set<string> | null>(null);
+  const [freshArtifact, setFreshArtifact] = useState(false);
+  // Вибір артефактів живе в ./artifacts і покритий тестом: перевірити його
+  // на екрані можна лише тоді, коли в сесії випадково є потрібна картка,
+  // а чек мережі трапляється раз на похід у магазин.
+  const artifacts = pickArtifacts(turns, listOpen ? shoppingItems.length : null);
+  // Слід відкриває СВІЙ артефакт, а не останній свого роду. Раніше в сесії
+  // з двома чеками обидва сліди вели на другий, і перший ставав недосяжним:
+  // кнопка є, а веде не туди.
+  const artifactKeyOf = (t: Turn) => artifacts.find((a) => a.turn?.id === t.id)?.key;
+  // Артефакти не «закриваються»: набір належить СЕСІЇ й описує те, що в ній
+  // сталося, а не список справ, які викреслюють. Панель живе, доки в сесії
+  // є хоч один артефакт; місце на екрані звільняє «‹» — згортання в смугу,
+  // і це вибір людини, а не зникнення.
+  // Кнопка ✕ прибрана 02.09: закриття ОСТАННЬОГО артефакта зносило панель
+  // цілком, і це читалось як поломка, а не як дія.
+  const openArtifacts = artifacts;
+  const shownArtifact = openArtifacts.find((a) => a.key === activeArtifact) ?? openArtifacts[0];
+  const RAIL_IN_FLOW = '(min-width: 1200px)';
+  // Слід у стрічці — це не якір, а відкриття. Після ✕ артефакт зникає з
+  // панелі, і скрол по id вів би в порожнечу: кнопка виглядала б робочою,
+  // а не робила б нічого. Тому спершу повертаємо його в панель, і лише
+  // потім скролимо — вже до того, що напевно існує.
+  function openArtifact(key: string) {
+    if (key === 'list') setListOpen(true);
+    setActiveArtifact(key);
+    // Нижче 1200 панелі в потоці немає — там артефакт живе у шторці
+    // знизу. Один і той самий слід мусить відкривати те, що на цій
+    // ширині справді існує.
+    if (window.matchMedia(RAIL_IN_FLOW).matches) {
+      // Панель згорнута в смугу — розгортаємо. Тап по сліду це явне
+      // прохання побачити артефакт; лишати панель згорнутою означало б,
+      // що слід підсвітився «відкрито», а не відкрилось нічого.
+      // Правилу V8 «панель ніколи не згортається сама» це не суперечить:
+      // воно про НОВИЙ артефакт, який не має розгортати панель поверх
+      // читання, а не про явний тап людини.
+      setRailHiddenPersist(false);
+    } else {
+      setRailOpen(true);
+    }
+    requestAnimationFrame(() => {
+      document.getElementById(`rail-${key}`)?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+  // Перемикання вкладки міняє вміст тіла повністю. Вузли ті самі, тож ані
+  // ResizeObserver, ані ефект вище про це не дізнаються — штовхаємо перевірку
+  // тіні вручну. Оголошено тут, а не в тому ефекті: shownArtifact існує
+  // нижче за нього.
+  useEffect(() => {
+    if (!bodyEl) return;
+    const id = requestAnimationFrame(() => setBodyScrolled(
+      bodyEl.scrollTop + bodyEl.clientHeight < bodyEl.scrollHeight - 1,
+    ));
+    return () => cancelAnimationFrame(id);
+  }, [bodyEl, shownArtifact?.key]);
+  // «Інші» — усе, крім того, що відкриється від «›». Закритий артефакт
+  // зі списку зникає; лишився один — кнопка «інші» зникає; не лишилось
+  // жодного — зникає вся смуга (нижче, через hasPanel).
+  const artifactKeys = openArtifacts.map((a) => a.key).join(',');
+  useEffect(() => {
+    const now = new Set(openArtifacts.map((a) => a.key));
+    const first = seenArtifacts.current === null;
+    const added = first ? [] : [...now].filter((k) => !seenArtifacts.current!.has(k));
+    seenArtifacts.current = now;
+    // Перший рендер не «новий артефакт»: усе, що вже було в сесії, людина
+    // бачила. Інакше кожне перезавантаження блимало б смугою.
+    if (added.length && railHidden) setFreshArtifact(true);
+    if (!railHidden) setFreshArtifact(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artifactKeys, railHidden]);
+
+  const miniOthers = openArtifacts.filter((a) => a.key !== shownArtifact?.key);
+  // V8·A: порожня сесія — панелі НЕМА ВЗАГАЛІ. Ані колонки, ані згорнутої
+  // смуги, ані ручки: порожня панель читається як «тут щось зламалось»
+  // або як дашборд, від якого ми відмовились. Pending поки теж тримає
+  // панель — він єдиний блок зрізу, що лишився.
+  const hasPanel = openArtifacts.length > 0 || housePending.length > 0;
+  const [shoppingLabels, setShoppingLabels] = useState<Set<string>>(new Set());
+
+  // Крок 4.3: нехарчове з чека їде у список покупок. Окремого «списку
+  // побуту» не заводимо: нехарчовість виводиться з каталогу (категорія
+  // «нехарчове»), тим самим шляхом, яким її вже визначає розбір чека, —
+  // отже нової колонки в даних не треба.
+  const [buildingCart, setBuildingCart] = useState(false);
+  // Той самий шлях, що й у нуджа «зібрати кошик»: кошик збирається зі
+  // списку на сервері, а в стрічці зʼявляється картка-кошик. Дублювати
+  // логіку не стали — різниця лише в тому, звідки натиснули.
+  async function buildCartFromList() {
+    setBuildingCart(true);
+    try {
+      const r = await api.retail.buildCart();
+      setTurns((prev) => [...prev, {
+        id: newId(), role: 'assistant',
+        time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+        text: `Кошик у Сільпо: знайшов ${r.card.found} з ${r.card.of}`,
+        card: r.card, cardId: r.card_id, fresh: true,
+      }]);
+      setActiveArtifact('cart');
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    } finally { setBuildingCart(false); }
+  }
+
+  async function toggleListItem(id: string, checked: boolean) {
+    // Оптимістично: галочка «куплено» має відповідати одразу, інакше тап
+    // по рядку в довгому списку читається як «не спрацювало».
+    setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked } : i)));
+    try {
+      await api.shopping.toggle(id, checked);
+      await refreshCounts();
+    } catch (err) {
+      setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !checked } : i)));
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+  async function removeBought(ids: string[]) {
+    try {
+      for (const id of ids) await api.shopping.remove(id);
+      await refreshCounts();
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+  async function addListItem(label: string) {
+    try {
+      await api.shopping.add(label);
+      await refreshCounts();
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+  async function addNonfoodToList(names: string[]) {
+    try {
+      for (const name of names) await api.shopping.add(name, undefined, undefined, 'з чека · не для комори');
+      await refreshCounts();
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
 
   async function refreshCounts() {
     try {
-      const [p, s, pend, runs] = await Promise.all([
+      // Крок 1.4: cookRuns звідси прибрано разом із маркером «★ оцінити»
+      // у смузі. Він лишався write-only станом — читати його вже нікому:
+      // «оціни вчорашнє» стало реплікою Кухні на початку сесії (modes.ts),
+      // а не блоком у панелі. Разом із ним пішов і зайвий запит на кожен
+      // refreshCounts.
+      const [p, s, pend] = await Promise.all([
         api.pantry(),
         api.shopping.list().catch(() => ({ count: 0 })),
         api.cards.pending().catch(() => ({ cards: [] as { id: string; type: string; session_id: string | null; created_at: string | null }[] })),
-        api.cookRuns.list().catch(() => ({ runs: [] })),
       ]);
       setHousePending(pend.cards);
-      const fresh = runs.runs.find((r) =>
-        !r.undone_at && r.rating == null
-        && Date.now() - new Date(r.finished_at ?? r.started_at).getTime() < 48 * 3600_000);
-      setUnratedRun(fresh ? { id: fresh.id, title: fresh.recipe.title, session_id: fresh.session_id ?? null } : null);
+      // Крок 4.2: тримаємо не тільки лічильник, а й назви незакреслених
+      // позицій — чек має сказати, скільки з нього закриє список, ДО
+      // застосування, а не після.
+      const listItems = (s as { items?: ShoppingItem[] }).items ?? [];
+      setShoppingItems(listItems);
+      setShoppingLabels(new Set(
+        ((s as { items?: { label: string; checked: boolean }[] }).items ?? [])
+          .filter((i) => !i.checked)
+          .map((i) => i.label.trim().toLowerCase()),
+      ));
       setPantryCount(p.count);
       // Пул-5 №5: сайдбар теж дізнається про свіжий лічильник — bump скидає
       // його кеш і TabBar перечитує (патерн useSessionStore).
@@ -358,12 +675,16 @@ export function Feed() {
   }, []);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // Межа групи «щойно додано» в списку — початок сесії, а не «останні N
+  // хвилин»: дельта має сенс саме в межах розмови, у якій її додали.
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
   // Правка №1: сайдбар знає активну сесію і перечитує список, коли тут
   // щось міняється.
   const sessionStore = useSessionStore();
   const cookOpen = useCookStore((s) => s.open);
-  function activate(id: string | null) {
+  function activate(id: string | null, startedAt?: string) {
     setSessionId(id);
+    setSessionStartedAt(startedAt ?? null);
     sessionStore.setActive(id);
   }
 
@@ -375,7 +696,7 @@ export function Feed() {
     (async () => {
       try {
         const { session, messages } = await api.session.today();
-        activate(session.id);
+        activate(session.id, session.created_at);
         setTurns(messages.map((m) => messageToTurn(m)));
       } catch {/* offline: залишаємо порожню стрічку */}
       // M13: тихий синк чеків при відкритті стрічки. Не частіше ніж раз на
@@ -407,7 +728,7 @@ export function Feed() {
   async function startFreshSession() {
     try {
       const { session } = await api.session.fresh();
-      activate(session.id);
+      activate(session.id, session.created_at);
       setTurns([]);
       setHistoryOpen(false);
       sessionStore.bump();
@@ -436,7 +757,7 @@ export function Feed() {
   async function loadHistorySession(id: string) {
     try {
       const { session, messages } = await api.session.get(id);
-      activate(session.id);
+      activate(session.id, session.created_at);
       setTurns(messages.map((m) => messageToTurn(m)));
       setHistoryOpen(false);
     } catch {/* тихо */}
@@ -719,23 +1040,18 @@ export function Feed() {
   }
 
   return (
-    <div className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''}`}>
+    <div
+      className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''} ${!hasPanel ? styles['rail-none'] : ''} ${dragging ? styles['rail-dragging'] : ''}`}
+      style={{ ['--rail-w' as string]: `${railEffective}px` }}
+    >
+      {/* Шапка лишилась тільки заради аватара на мобайлі. Заголовок «Кухня»
+          і лічильники «КОМОРА N · СПИСОК N» прибрані: обидва числа стоять у
+          бічному меню (на мобайлі — в нижній смузі), а назва екрана й так
+          відома тому, хто на ньому. На десктопі шапки немає взагалі — там
+          аватар живе внизу меню, і смуга лишалась би порожньою на 67px.
+          Ручний вхід у список переїхав у шапку панелі іконкою. */}
       <div className={styles.head}>
-        <div className={styles['head-left']}>
-          {/* DA-29: хендоф дає шапці заголовок «Кухня», не вордмарк — бренд
-              живе на вході й іконці. DA-05: обидва лічильники поруч. */}
-          <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg-strong)' }}>
-            Кухня
-          </div>
-        </div>
         <div className={styles['head-actions']}>
-          {pantryCount !== null && (
-            <MonoLabel className={styles['head-meta']}>
-              {/* Моушн-кіт §03: цифра прокручується вертикально при зміні. */}
-              КОМОРА <RollingNumber value={pantryCount} />
-              {shoppingCount > 0 && <> · СПИСОК <RollingNumber value={shoppingCount} /></>}
-            </MonoLabel>
-          )}
           <Avatar name={meName} />
         </div>
       </div>
@@ -963,10 +1279,110 @@ export function Feed() {
                 </Button>
               </div>
             )}
+            {t.card?.type === 'cart' && (
+              /* Крок 2: слід кошика у стрічці. Повне подання — завжди в
+                 панелі або шторці, на будь-якій ширині. Обидва подання
+                 в DOM, вибирає CSS.
+                 Крок 3.1: два рівні. Тип і кількість — моно 10 мутед
+                 (метадані), суть — Golos 15 medium ink (те, по що клікають).
+                 Раніше все було однаковим моно-кеглем, і оку не було за що
+                 зачепитись. */
+              <button
+                type="button"
+                className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+              >
+                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-body']}>
+                  <span className={styles['trace-kind']}>
+                    КОШИК · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                  </span>
+                  <span className={styles['trace-value']}>{Math.round(t.card.total ?? 0)} ₴</span>
+                </span>
+                <span className={styles['trace-go']}>→</span>
+              </button>
+            )}
+            {t.card?.type === 'recipe_link' && (
+              /* Слід рецепта — той самий принцип, що кошик. Різниця в тому,
+                 що рецептів МОЖЕ бути багато й вони не суперечать один
+                 одному — тому слід лишається назавжди, а в панелі живе
+                 тільки останній. */
+              <button
+                type="button"
+                className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+              >
+                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-body']}>
+                  <span className={styles['trace-kind']}>РЕЦЕПТ</span>
+                  <span className={styles['trace-value']}>{t.card.title ?? 'Рецепт'}</span>
+                </span>
+                <span className={styles['trace-go']}>→</span>
+              </button>
+            )}
+            {t.card?.type === 'shopping' && t.applied && (
+              /* Крок 4.5 + відкладений 3.2. Слід каже ДЕЛЬТУ, панель — стан:
+                 «+5 · разом 9» відповідає на «що модель узяла в роботу» без
+                 переліку, сам перелік — один тап праворуч.
+                 «Скасувати» — окреме моно-посилання в рядку ПІД слідом, а не
+                 друга дія всередині: у блока одна ціль натискання. І воно
+                 діє на цю дельту, а не на весь список. */
+              <div className={styles['trace-wrap']}>
+                <button
+                  type="button"
+                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.kind === 'list' ? styles['trace-on'] : ''}`}
+                  onClick={() => openArtifact('list')}
+                  disabled={t.undone}
+                >
+                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={styles['trace-body']}>
+                    <span className={styles['trace-kind']}>
+                      СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
+                    </span>
+                    <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
+                  </span>
+                  {!t.undone && <span className={styles['trace-go']}>→</span>}
+                </button>
+                {!t.undone && t.undoToken && (
+                  <button
+                    type="button"
+                    className={styles['trace-undo']}
+                    onClick={() => undo(t.id, t.undoToken!)}
+                  >СКАСУВАТИ</button>
+                )}
+              </div>
+            )}
+            {isIntakeArtifact(t) && (
+              /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
+                 застосовано, він не стан, а рішення, якого чекають. Після
+                 «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
+              <button
+                type="button"
+                className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+              >
+                <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
+                <span className={styles['trace-body']}>
+                  <span className={styles['trace-kind']}>
+                    {/* Чек називається чеком, решта — тим, чим є: «це додав
+                        в комору» не чек, і вигадувати за людину, що вона
+                        робила, ми не будемо. */}
+                    {isReceiptSourced(t) ? 'ЧЕК' : 'У КОМОРУ'} · {receiptLines(t)}{' '}
+                    {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                  </span>
+                  <span className={styles['trace-value']}>
+                    {t.undone ? 'Скасовано'
+                      : t.applied ? `${t.card?.ops?.length ?? 0} у комору`
+                      : 'Чекає рішення'}
+                  </span>
+                </span>
+                {!t.undone && <span className={styles['trace-go']}>→</span>}
+              </button>
+            )}
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''}`}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}
@@ -978,6 +1394,8 @@ export function Feed() {
                 onApply={(selected) => apply(t.id, selected)}
                 onDismiss={() => dismissCard(t.id)}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
+                shoppingLabels={shoppingLabels}
+                onNonfoodToList={addNonfoodToList}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onRefine={t.card.type === 'proposal' ? startRefine : undefined}
                 onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
@@ -1014,6 +1432,24 @@ export function Feed() {
       </div>
 
       <div className={styles['composer-wrap']}>
+        {/* Крок 5б: мобільна пігулка. На вузькому екрані панелі немає взагалі,
+            і кошик — єдина річ, що живе довше за одну прокрутку, — зникав
+            угору стрічки без дороги назад. Пігулка і є та дорога: вона
+            відкриває ту саму шторку з тими самими вкладками. */}
+        {openArtifacts.length > 0 && !railOpen && shownArtifact && (
+          <button
+            type="button"
+            className={styles['rail-pill']}
+            onClick={() => openArtifact(shownArtifact.key)}
+          >
+            <span className={styles['rail-pill-dot']}>●</span>
+            <span className={styles['rail-pill-label']}>{shownArtifact.label}</span>
+            {shownArtifact.meta && <span className={styles['rail-pill-meta']}>{shownArtifact.meta}</span>}
+            {openArtifacts.length > 1 && (
+              <span className={styles['rail-pill-more']}>+{openArtifacts.length - 1}</span>
+            )}
+          </button>
+        )}
         {/* UX9-09: «Готування триває» жило В САМОМУ ВЕРХУ стрічки — на момент
             виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
             композитором: видиме завжди, доки готування живе. */}
@@ -1210,58 +1646,158 @@ export function Feed() {
       {/* Черга Г (№3): права панель — навігатор стану на десктопі (≥1280).
           Порожні секції не рендеряться. Кожен рядок — місток: продовжити
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
+      {hasPanel && (
       <aside className={`${styles.rail} ${railOpen ? styles['rail-open'] : ''} ${railHidden ? styles['rail-hidden'] : ''}`}>
-        <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
-        {pantryCount !== null && pantryCount > 0 && (
-          <div className={styles['rail-block']}>
-            <div className={styles['rail-title']}>СТАТУС КОМОРИ</div>
-            <button className={styles['rail-row']} onClick={() => navigate('/pantry')}>
-              <span className={styles['rail-label']}>Позицій у домі</span>
-              <span className={styles['rail-meta']}><RollingNumber value={pantryCount} /></span>
-            </button>
-            {staleBatches.slice(0, 4).map((b) => (
+        {/* Ручка. Дабл-клік — єдине повернення до 320 (V9). Ширину під час
+            драгу не зберігаємо: пише лише відпускання, тож перерваний драг
+            не лишає по собі випадкового числа. */}
+        <div
+          className={styles['rail-handle']}
+          onPointerDown={onHandleDown}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Ширина панелі"
+        >
+          <span className={styles['rail-handle-bar']} />
+          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
+        </div>
+        {shownArtifact && (
+          <div id={`rail-${shownArtifact.key}`} className={styles['rail-artifact']}>
+            {/* Зона 1 — шапка. Не скролиться: вкладки мусять лишатись на
+                місці, інакше на довгому кошику зникає спосіб перемкнутись. */}
+            <div className={styles['rail-tabs']}>
+              {/* Згорнути — ЗЛІВА і в тій самій геометрії, що вкладки.
+                  Раніше це був гліф 16px, приліплений absolute у правий
+                  кут: він не читався як кнопка й ділив кут із артефактами.
+                  Тепер ліворуч керування панеллю, праворуч — самі артефакти. */}
               <button
-                key={b.id}
-                className={`${styles['rail-row']} ${railFlash.has(b.id) ? styles['rail-flash'] : ''}`}
-                onClick={() => { setInput(`Що зробити з ${b.label}?`); composerInputRef.current?.focus(); }}
+                type="button"
+                className={styles['rail-collapse']}
+                onClick={railCollapse}
+                title="Згорнути панель"
+                aria-label="Згорнути панель"
               >
-                <span className={styles['rail-label']}>{b.label}</span>
-                <span className={styles['rail-meta']} style={{ color: 'var(--amber)' }}>
-                  {b.days <= 0 ? 'СЬОГОДНІ' : `≈${b.days} ДН`}
-                </span>
+                <PanelIcon />
               </button>
-            ))}
+              {/* Крок 4.5: вкладок стало більше трьох, і на 320px вони
+                  перестали влазити — «Список 4» різався до «Сп…». Правило
+                  «неактивна не стискається» тут уже не рятує: воно про дві
+                  вкладки. Тому вкладки прокручуються збоку, а ✕ і навігація
+                  лишаються прибитими — керування не має їхати разом із
+                  вмістом. */}
+              {/* Вкладки — іконками, не назвами. Назва активного артефакта
+                  й так стоїть заголовком одразу під шапкою («Кошик у
+                  Сільпо», «Список покупок»), тож пілюлі з текстом повторювали
+                  її і при трьох артефактах переставали влазити в 320px.
+                  Гліф той самий, що в згорнутій смузі, — одна мова. */}
+              {/* Навігаційні дії артефакта (V7) — перед вкладками: права
+                  група це артефакти, і самі вкладки в ній крайні праворуч. */}
+              <div className={styles['rail-head-actions']} ref={setHeadSlot} />
+              <div className={styles['rail-tabs-scroll']}>
+                {openArtifacts.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    className={`${styles['rail-tab']} ${a.key === shownArtifact.key ? styles['rail-tab-on'] : ''}`}
+                    onClick={() => setActiveArtifact(a.key)}
+                    title={a.label}
+                    aria-label={a.label}
+                    aria-current={a.key === shownArtifact.key}
+                  >
+                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH[a.kind]}</span>
+                    {a.meta && <span className={styles['rail-tab-badge']}>{a.meta}</span>}
+                  </button>
+                ))}
+                {/* Ручний вхід у список. Він переїхав сюди з шапки стрічки
+                    разом із прибраними лічильниками: слід у стрічці буває
+                    лише тоді, коли модель щось у списку міняла, і без цього
+                    входу список не було б чим відкрити. Приглушений — це
+                    не вкладка, а саме вхід: список «сам не з'являється». */}
+                {!listOpen && shoppingItems.length > 0 && (
+                  <button
+                    type="button"
+                    className={`${styles['rail-tab']} ${styles['rail-tab-ghost']}`}
+                    onClick={() => openArtifact('list')}
+                    title="Відкрити список покупок"
+                    aria-label="Відкрити список покупок"
+                  >
+                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH.list}</span>
+                    <span className={styles['rail-tab-badge']}>{shoppingItems.length}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            {/* Зона 2 — тіло. ЄДИНА зона скролу в панелі. */}
+            <div className={styles['rail-body']} ref={setBodyEl}>
+              {/* key по артефакту: перемикання вкладки — це кросфейд 150ms
+                  БЕЗ зсуву вбік. Вкладки — одна сутність, і горизонтальний
+                  слайд брехав би про «перехід кудись». Шапка й низ поза цим
+                  вузлом і стоять нерухомо. */}
+              <div key={shownArtifact.key} className={styles['rail-swap']} ref={setBodyContentEl}>
+              {/* Чекаємо на слот, перш ніж малювати картку. Без цього перший
+                  кадр рендерить її низ УСЕРЕДИНІ тіла (слота ще немає), тіло
+                  на цей кадр вище — і тінь ловить саме його, а тоді лишається
+                  ввімкненою на вмісті, який насправді влазить. Заміряно на
+                  кошику: 302/302, предикат false, тінь горить. */}
+              {footSlot && (
+              <PanelHeadSlot.Provider value={headSlot}>
+              <PanelFootSlot.Provider value={footSlot}>
+                {/* Список — єдиний артефакт без ходу: він читає живий стан
+                    дому, а не картку сесії. Тип це й показав — саме через
+                    turn: T | null компілятор змусив написати цю гілку. */}
+                {shownArtifact.kind === 'list' ? (
+                  <ShoppingListCard
+                    items={shoppingItems}
+                    sessionStartedAt={sessionStartedAt}
+                    onToggle={toggleListItem}
+                    onRemoveBought={removeBought}
+                    onAdd={addListItem}
+                    onBuildCart={() => void buildCartFromList()}
+                    buildingCart={buildingCart}
+                  />
+                ) : shownArtifact.turn && (
+                <>
+                {/* Крок 4.1: одна гілка на всі артефакти замість трьох.
+                    Чек потребує onApply/onUndo, яких у кошика й рецепта
+                    немає, — тримати для кожного свій набір пропсів означало
+                    б додавати гілку на кожен новий артефакт. */}
+                <Card
+                  card={shownArtifact.turn!.card!}
+                  cardId={shownArtifact.turn!.cardId ?? undefined}
+                  applied={shownArtifact.turn!.applied}
+                  applying={shownArtifact.turn!.applying}
+                  dismissed={shownArtifact.turn!.dismissed}
+                  undone={shownArtifact.turn!.undone}
+                  undoAvailable={!!shownArtifact.turn!.undoToken}
+                  onApply={(selected) => apply(shownArtifact.turn!.id, selected)}
+                  onDismiss={() => dismissCard(shownArtifact.turn!.id)}
+                  onUndo={shownArtifact.turn!.undoToken
+                    ? () => undo(shownArtifact.turn!.id, shownArtifact.turn!.undoToken!)
+                    : undefined}
+                  shoppingLabels={shoppingLabels}
+                  onNonfoodToList={addNonfoodToList}
+                  onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
+                  onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
+                  onSaveRecipe={saveRecipeForLater}
+                  savedRecipeIds={savedRecipeIds}
+                  onNeedToList={addNeedToList}
+                  batchLabels={batchLabels}
+                  stepLabels={stepLabels}
+                />
+                </>
+                )}
+              </PanelFootSlot.Provider>
+              </PanelHeadSlot.Provider>
+              )}
+              </div>
+            </div>
+            {/* Зона 3 — низ. Не скролиться; сюди картка порталить свої дії. */}
+            <div
+              className={`${styles['rail-foot']} ${bodyScrolled ? styles['rail-foot-shadow'] : ''}`}
+              ref={setFootSlot}
+            />
           </div>
         )}
-        {(() => {
-          // Пропозиції цієї сесії — назвами страв, не «ПРОПОЗИЦІЯ, ПРОПОЗИЦІЯ».
-          const dishes = turns.flatMap((t) => {
-            if (t.card?.type === 'proposal') {
-              return ((t.card.items as { title?: string }[] | undefined) ?? [])
-                .map((it) => ({ turnId: t.id, title: it.title ?? '' }));
-            }
-            if (t.card?.type === 'recipe_link') {
-              return [{ turnId: t.id, title: (t.card.title as string | undefined) ?? '' }];
-            }
-            return [];
-          }).filter((d) => d.title);
-          if (!dishes.length) return null;
-          return (
-            <div className={styles['rail-block']}>
-              <div className={styles['rail-title']}>ПРОПОЗИЦІЇ ЦІЄЇ СЕСІЇ</div>
-              {dishes.slice(-5).map((d, i) => (
-                <button
-                  key={`${d.turnId}-${i}`}
-                  className={styles['rail-row']}
-                  onClick={() => document.getElementById(`turn-${d.turnId}`)?.scrollIntoView({ block: 'center' })}
-                >
-                  <span className={styles['rail-label']}>{d.title}</span>
-                  <span className={styles['rail-meta']}>↧</span>
-                </button>
-              ))}
-            </div>
-          );
-        })()}
         {housePending.length > 0 && (
           <div className={styles['rail-block']}>
             <div className={styles['rail-title']}>
@@ -1287,54 +1823,69 @@ export function Feed() {
             ))}
           </div>
         )}
-        {shoppingCount > 0 && (
-          <div className={styles['rail-block']}>
-            <div className={styles['rail-title']}>ДО МАГАЗИНУ</div>
-            <button className={styles['rail-row']} onClick={() => navigate('/list')}>
-              <span className={styles['rail-label']}>У списку</span>
-              <span className={styles['rail-meta']}>{shoppingCount}</span>
-            </button>
-          </div>
-        )}
-        {unratedRun && !cookLive && (
-          <div className={styles['rail-block']}>
-            <div className={styles['rail-title']}>ОЦІНИ ВЧОРАШНЄ</div>
-            <button
-              className={styles['rail-row']}
-              onClick={() => {
-                // Ведемо в сесію готування (там найчастіше висить «Як вийшло?» —
-                // відповідь ляже у verdict) і префілимо композитор назвою.
-                if (unratedRun.session_id && unratedRun.session_id !== sessionId) {
-                  void loadHistorySession(unratedRun.session_id);
-                }
-                setInput(`«${unratedRun.title}» — `);
-                composerInputRef.current?.focus();
-              }}
-            >
-              <span className={styles['rail-label']}>{unratedRun.title}</span>
-              <span className={styles['rail-meta']}>★</span>
-            </button>
-          </div>
-        )}
       </aside>
+      )}
       {railOpen && <div className={styles['rail-scrim']} onClick={() => setRailOpen(false)} />}
-      {/* Пул-6 №2: смужка 56px — ◔ горить · ◌ очікують · ★ оцінити. */}
+      {/* Крок 1.4: смуга 52px. Раніше вона показувала лічильники зрізу —
+          горить · очікують · оцінити, — але зрізу більше немає (крок 4
+          «Панелі A»), і лічильники дублювали бічне меню. Тепер вона про
+          артефакти: що відкриється зараз і що ще є в сесії.
+          Ніколи більше двох кнопок — інакше стовпчик плиток читається як
+          друга навігація поруч із лівою й змагається з нею за увагу. */}
+      {hasPanel && (
       <div className={`${styles['rail-mini']} ${railHidden ? styles['rail-mini-show'] : ''}`}>
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Горить">
-          <span style={{ color: 'var(--amber)' }}>◔</span>
-          <span className={styles['rail-mini-count']} style={{ color: staleBatches.length ? 'var(--amber)' : undefined }}>{staleBatches.length}</span>
+        <button
+          type="button"
+          className={styles['rail-mini-expand']}
+          onClick={miniRailClick}
+          aria-label="Розгорнути панель"
+        >
+          <PanelIcon />
+          {/* Бурштинова крапка, а не третя кнопка: «очікують рішення» — не
+              артефакт, і давати йому власний маркер означало б зламати
+              правило двох. Крапка зникне разом зі стрічкою pending. */}
+          {housePending.length > 0 && <span className={styles['rail-mini-dot']} />}
         </button>
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Очікують рішення">
-          <span style={{ color: 'var(--amber)' }}>◌</span>
-          <span className={styles['rail-mini-count']}>{housePending.length}</span>
-        </button>
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Оцінити вчорашнє">
-          <span>★</span>
-          <span className={styles['rail-mini-count']}>{unratedRun ? 1 : 0}</span>
-        </button>
-        <div style={{ flex: 1 }} />
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} aria-label="Розгорнути панель">›</button>
+        {shownArtifact && (
+          <button
+            type="button"
+            className={`${styles['mini-marker']} ${styles['mini-marker-on']} ${freshArtifact ? styles['mini-fresh'] : ''}`}
+            onClick={miniRailClick}
+            aria-label={`Відкрити: ${shownArtifact.label}${freshArtifact ? ' (нове)' : ''}`}
+          >
+            <span className={styles['mini-glyph']}>{ARTIFACT_GLYPH[shownArtifact.kind]}</span>
+            {shownArtifact.meta && <span className={styles['mini-badge']}>{shownArtifact.meta}</span>}
+            <span className={styles['mini-hint']}>{shownArtifact.label}</span>
+          </button>
+        )}
+        {miniOthers.length > 0 && (
+          <button
+            type="button"
+            className={styles['mini-marker']}
+            onClick={() => setMiniListOpen((v) => !v)}
+            aria-expanded={miniListOpen}
+            aria-label="Інші артефакти"
+          >
+            <span className={styles['mini-plus']}>+{miniOthers.length}</span>
+          </button>
+        )}
+        {miniListOpen && miniOthers.length > 0 && (
+          <div className={styles['mini-list']}>
+            {miniOthers.map((a) => (
+              <button
+                key={a.key}
+                type="button"
+                className={styles['mini-list-row']}
+                onClick={() => { setActiveArtifact(a.key); setMiniListOpen(false); setRailHiddenPersist(false); }}
+              >
+                <span className={styles['mini-list-name']}>{a.label}</span>
+                {a.meta && <span className={styles['mini-list-meta']}>{a.meta}</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+      )}
 
 
       {toast && (
