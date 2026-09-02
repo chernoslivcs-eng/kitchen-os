@@ -204,10 +204,27 @@ export const registry: Record<string, Invariant> = {
   'receipt-coverage-80': (out, fx) => {
     const ops = opsOfIntake(out);
     if (!ops) return fail('немає ops (card.type=intake_diff / kind=receipt) — раннер не побачив партій');
+    // У текстової фікстури рядки рахуються з самого вкладення; у фото тексту
+    // немає, і кількість мусить бути оголошена (expect_lines). Доти
+    // фотофікстура падала з «перевір формат» — це була вада інваріанта, а не
+    // розбору, і вона маскувала справжні провали поруч.
+    const declared = (fx as { expect_lines?: number }).expect_lines;
     const source = fx.attachment?.content ?? '';
-    const expected = countReceiptLines(source);
-    if (expected === 0) return fail('в фікстурі не знайдено рядків із «хN» — перевір формат');
+    const expected = declared ?? countReceiptLines(source);
+    if (!expected) {
+      return fail(fx.attachment?.kind === 'image'
+        ? 'фото-фікстура без expect_lines — скільки позицій має бути, знає тільки автор'
+        : 'у фікстурі не знайдено товарних рядків — перевір формат');
+    }
     const ratio = ops.length / expected;
+    // Перебір теж провал, і рівно він тут стався: на фото чека з 21 позицією
+    // модель нарахувала 23. Вигадані рядки в коморі гірші за пропущені —
+    // пропущене людина побачить і додасть, вигаданого вона не шукає.
+    // Одна зайва може бути чесно розділеним рядком; дві — вже вигадка.
+    // Частку тут не беремо навмисно: на короткому чеку 1.1 не спрацьовує.
+    if (ops.length - expected >= 2) {
+      return fail(`${ops.length}/${expected} — ${ops.length - expected} зайвих позицій, це вигадка`);
+    }
     return ratio >= 0.8
       ? pass(`${ops.length}/${expected} рядків (${Math.round(ratio * 100)}%)`)
       : fail(`${ops.length}/${expected} рядків (${Math.round(ratio * 100)}%) — нижче 80%`);

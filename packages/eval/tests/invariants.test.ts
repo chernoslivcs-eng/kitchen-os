@@ -231,3 +231,30 @@ describe('expected-expansions', () => {
     expect(v.detail).toMatch(/нема чого звіряти/);
   });
 });
+
+// Покриття чека. Фото-фікстура не має тексту, з якого можна порахувати
+// рядки, тому кількість оголошується (expect_lines). Доти вона падала з
+// «перевір формат» — вада інваріанта, яка маскувала справжні провали поруч.
+describe('receipt-coverage-80 на фото', () => {
+  const inv = registry['receipt-coverage-80']!;
+  const ops = (n: number) => ({ card: { type: 'intake_diff', ops: Array.from({ length: n }, (_, i) => ({ op: 'add', label: `p${i}` })) } });
+
+  it('оголошена кількість замінює підрахунок по тексту', () => {
+    const v = inv(ops(21) as never, { expect_lines: 21, attachment: { kind: 'image', path: 'x.png' } } as never);
+    expect(v.pass).toBe(true);
+    expect(v.detail).toMatch(/21\/21/);
+  });
+
+  it('перебір — теж провал: вигадані позиції гірші за пропущені', () => {
+    // Живий випадок 02.09: на фото чека з 21 позицією модель нарахувала 23.
+    const v = inv(ops(23) as never, { expect_lines: 21, attachment: { kind: 'image', path: 'x.png' } } as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/зайвих|вигадка/);
+  });
+
+  it('фото без expect_lines каже, чого бракує, а не «перевір формат»', () => {
+    const v = inv(ops(5) as never, { attachment: { kind: 'image', path: 'x.png' } } as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/expect_lines/);
+  });
+});

@@ -32,6 +32,9 @@ export interface Fixture {
    *  пари А↔Б із packages/catalog/tests/fixtures/receipt-corpus.json,
    *  зіставлені за ЦІНОЮ рядка (той самий чек на касі й у застосунку). */
   expect_products?: string[];
+  /** Скільки товарних позицій у чеку. Потрібне фото-фікстурам: тексту, з
+   *  якого можна порахувати, там немає. */
+  expect_lines?: number;
   skip?: string;
 }
 
@@ -72,6 +75,7 @@ export function loadFixtures(): Fixture[] {
       // фікстура ввімкнеться сама; без нього вона чесно скіпається, як
       // shelf-photo.
       const img = join(HERE, 'receipt-till-photo.png');
+      const expect_lines = 21;
       const expect_products = ["хустинки", "багет", "туалетн", "шоколад", "брускетта", "чипси", "ковбаса", "томат"];
       if (!existsSync(img)) {
         return {
@@ -80,6 +84,7 @@ export function loadFixtures(): Fixture[] {
           call: 'attachment_parse' as const,
           invariants: ['receipt-coverage-80', 'expected-expansions', 'triple-discipline'],
           expect_products,
+          expect_lines,
           skip: 'no image (receipt-till-photo.png not present)',
         };
       }
@@ -89,6 +94,7 @@ export function loadFixtures(): Fixture[] {
         call: 'attachment_parse' as const,
         invariants: ['receipt-coverage-80', 'expected-expansions', 'triple-discipline'],
         expect_products,
+        expect_lines,
         attachment: { kind: 'image' as const, path: 'receipt-till-photo.png' },
       };
     })(),
