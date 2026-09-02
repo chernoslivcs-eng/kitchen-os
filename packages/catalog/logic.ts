@@ -214,6 +214,44 @@ export function resolveLabelToZone(label: string, catalog = CATALOG): CatalogIte
   return catalog.find((c) => c.key === hit.key)?.zone_default ?? null;
 }
 
+// ---------- широта назви: продукт чи категорія? ----------
+
+// «Купив мʼясо» — це не продукт, це категорія: під нею 560 позицій каталогу.
+// «Камбоцола» — продукт. Різниця машинна, і рахує її каталог, а не модель.
+//
+// 02.09: спершу я взяв за ознаку `catalog_key === null` — мовляв, не впізнали,
+// отже обмаль. Хибно: «свинина» і «яловичина» теж не мають позиції з такою
+// назвою, хоч це цілком конкретні відповіді. Позначка трималась би вічно, і
+// асистент перепитував би після кожної відповіді. Правильна ознака — саме
+// категорійність: слово називає КЛАС, а не річ.
+//
+// Кількість позицій під категорією — міра широти, і вона дає порівнювати:
+// «мʼясо» 560 → «свинина» 250 → «стейк» 20. Рішення, коли саме питати, тут
+// НЕ ухвалюється: ця функція лише вимірює, а політику тримає той, хто питає.
+const CATEGORY_SIZE: Map<string, number> = (() => {
+  const m = new Map<string, number>();
+  for (const item of CATALOG) {
+    for (const c of item.categories) {
+      const k = normalize(c);
+      if (k) m.set(k, (m.get(k) ?? 0) + 1);
+    }
+  }
+  return m;
+})();
+
+const ITEM_NAMES: Set<string> = new Set(
+  CATALOG.flatMap((i) => [i.name, ...i.aliases]).map(normalize).filter(Boolean),
+);
+
+// Скільки позицій каталогу підпадає під цю назву, якщо вона — категорія.
+// null, якщо назва не категорія АБО водночас є назвою конкретного товару
+// («курка» — і категорія на 85 позицій, і «Курка ціла»; тоді це продукт).
+export function categoryBreadth(label: string): number | null {
+  const n = normalize(label);
+  if (!n || ITEM_NAMES.has(n)) return null;
+  return CATEGORY_SIZE.get(n) ?? null;
+}
+
 // ---------- пошук ----------
 
 export interface SearchHit {
