@@ -322,12 +322,21 @@ export const registry: Record<string, Invariant> = {
     if (!want.length) return pass('еталонів не задано — нема чого звіряти');
     const ops = opsOfIntake(out) ?? [];
     if (!ops.length) return fail('немає ops');
-    const hay = (ops as any[])
-      .map((o) => `${o.label ?? ''} ${o.product ?? ''} ${o.brand ?? ''} ${o.variant ?? ''}`.toLowerCase())
-      .join(' | ');
-    const missing = want.filter((w) => !hay.includes(w.toLowerCase()));
+    // Правопис не має вирішувати долю тесту. «Чипси» і «чіпси» — те саме
+    // слово, і модель законно пише то так, то так; апостроф теж буває трьох
+    // накреслень. Тому звіряємо на нормалізованому вигляді.
+    const norm = (x: string) => x.toLowerCase()
+      .replace(/[’'ʼ`]/g, '')
+      .replace(/[іїй]/g, 'и');
+    const hay = norm((ops as any[])
+      .map((o) => `${o.label ?? ''} ${o.product ?? ''} ${o.brand ?? ''} ${o.variant ?? ''}`)
+      .join(' | '));
+    const missing = want.filter((w) => !hay.includes(norm(w)));
     if (missing.length) {
-      return fail(`не впізнано ${missing.length} з ${want.length}: ${missing.slice(0, 4).join(', ')}`);
+      // Показуємо ЩО модель написала натомість — інакше «не впізнано: чипси»
+      // не діагностується без ручного читання сирого виходу.
+      const got = (ops as any[]).map((o) => o.product ?? o.label).filter(Boolean).slice(0, 8).join(', ');
+      return fail(`не впізнано ${missing.length} з ${want.length}: ${missing.slice(0, 4).join(', ')} · було: ${got}`);
     }
     return pass(`усі ${want.length} еталонних продуктів на місці`);
   },
@@ -337,13 +346,30 @@ export const registry: Record<string, Invariant> = {
     if (!ops.length) return fail('немає ops');
     const bad: string[] = [];
 
-    // 1. label — «людська назва цілком»: усе, що є в product і variant,
-    //    мусить у ньому бути. Інакше в картці лишається обрубок.
+    // 1. label — «людська назва цілком»: обрубок у ньому неприпустимий.
+    //
+    // 02.09, після переходу на smart: правило почало кричати на ПРАВИЛЬНІ
+    // розбори, і причини були дві, обидві мої.
+    //   · відмінок — variant «молочний з кокосом» проти label «…Кокос»;
+    //   · письмо — variant «тонік» проти label «…Pink Tonic».
+    // Модель обидва рази розібрала добре, а буквальне порівняння слів
+    // розсипалось. Сильніша модель пише багатші назви, і мірило під неї
+    // не годилось.
+    //
+    // Тому дві зміни. Порівнюємо за КОРЕНЕМ (той самий дешевий стемер, що в
+    // каталозі): «кокосом» і «Кокос» дають один корінь. І variant із
+    // перевірки прибрано — це вільний опис, який законно переформульовують
+    // («Pink Tonic» у назві, «тонік рожевий» у варіанті). Лишились product і
+    // brand: вони ідентифікують товар і мусять стояти в назві як є.
+    //
+    // Первісний дефект це ловить так само: label «папір» при product «папір
+    // туалетний» дає пропущене слово «туалетний».
+    const root = (w: string) => (w.length <= 4 ? w : w.slice(0, Math.max(4, w.length - 2)));
     const words = (s: unknown) => String(s ?? '').toLowerCase().split(/[^\p{L}\p{N}%]+/u).filter((w) => w.length > 2);
     for (const o of ops as any[]) {
-      const label = String(o.label ?? '').toLowerCase();
-      const missing = [...words(o.product), ...words(o.variant), ...words(o.brand)]
-        .filter((w) => !label.includes(w));
+      const labelRoots = words(o.label).map(root);
+      const missing = [...words(o.product), ...words(o.brand)]
+        .filter((w) => !labelRoots.includes(root(w)));
       if (missing.length) bad.push(`label «${o.label}» бідніший за трійку: бракує ${missing.slice(0, 3).join(', ')}`);
       if (bad.length >= 3) break;
     }
