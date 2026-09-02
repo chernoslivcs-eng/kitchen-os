@@ -103,33 +103,153 @@ export function categoriesCompatible(sourceCategories: string[], candidateCatego
 // раніше в масиві, — тобто стартові 131 завжди попереду.
 const prio = (item: CatalogItem): number => item.priority ?? 0;
 
-export function resolveLabelToKey(label: string, catalog = CATALOG): string | null {
+// Рівень збігу. Раніше суворість була властивістю ФУНКЦІЇ: поблажливий
+// resolveLabelToKey роздавав алергени, суворий resolveReceiptKey стеріг вето
+// нехарчового — тобто вгадування стояло там, де помилка небезпечна, а
+// прискіпливість там, де вона дешева. Тепер планку ставить той, хто питає:
+// тільки він знає ціну помилки.
+//   exact    — нормалізована назва збіглася цілком
+//   anchored — усі слова аліаса стоять цілими словами І аліас несе ГОЛОВУ
+//              мітки (або латинський бренд-токен, який ідентифікує товар)
+//   generic  — навпаки: мітка ВУЖЧА за аліас («сир» проти «сир твердий»).
+//              Родове слово знаходить видову позицію. Потрібне зоні
+//              зберігання: «сметана», «риба», «стейк» окремими позиціями в
+//              каталозі не стоять, а зона в усіх однакова, тож здогад тут
+//              безпечний.
+//   words    — усі слова аліаса стоять цілими словами, але голови немає.
+//              НАЙНИЖЧИЙ рівень, і це не описка: саме тут модифікатор
+//              перемагає голову («олія ЧАСНИК» → часник). Рівні не на одній
+//              осі — generic про НАПРЯМОК вкладення, words про брак якоря, —
+//              тож ладдер упорядкований за ЦІНОЮ помилки, не за широтою.
+export type MatchTier = 'exact' | 'anchored' | 'generic' | 'words';
+const TIER_RANK: Record<MatchTier, number> = { words: 1, generic: 2, anchored: 3, exact: 4 };
+
+// Слова мітки. CamelCase НЕ розбиваємо навмисно: касовий рядок
+// «Кр135БрусPontЧорОлив» справді не має меж слів, і вигадувати їх — значить
+// повернути те саме вгадування. Мовчання на такому рядку чесніше за здогад;
+// розгортати скорочення — робота моделі, каталог починається після неї.
+function wordsOf(s: string): string[] {
+  return normalize(s).split(/[^\p{L}\p{N}%]+/u).filter(Boolean);
+}
+
+// Голова — перше слово з кирилицею, а не буквально перше. METRO ставить
+// бренд попереду («MC ПАРМІДЖАНО РЕДЖАНО», «KASEREI СИР КАМБОЦОЛА 70%»), і
+// на «перше слово» правильні збіги гинули.
+function headOf(ws: string[]): string | undefined {
+  return ws.find((w) => /[а-яіїєґ]/.test(w)) ?? ws[0];
+}
+
+export function resolveLabel(
+  label: string,
+  minTier: MatchTier = 'anchored',
+  catalog = CATALOG,
+): { key: string; tier: MatchTier } | null {
   const norm = normalize(label);
-  let best: { key: string; score: number; priority: number } | null = null;
+  const ws = wordsOf(label);
+  const set = new Set(ws);
+  const head = headOf(ws);
+  let best: { key: string; tier: MatchTier; score: number; priority: number } | null = null;
   for (const item of catalog) {
-    const candidates = [item.name, ...item.aliases].map(normalize);
-    for (const c of candidates) {
+    for (const cand of [item.name, ...item.aliases]) {
+      const c = normalize(cand);
       if (!c) continue;
-      let score = 0;
-      if (c === norm) score = 100;
-      else if (norm.includes(c)) score = 60 + c.length; // «Karolina — мʼясо мідій» містить «мʼясо мідій»
-      else if (c.includes(norm)) score = 40 + norm.length;
-      if (score <= 0) continue;
+      let tier: MatchTier | null = null;
+      let weight = 0;
+      if (c === norm) { tier = 'exact'; weight = c.length; }
+      else {
+        const cw = wordsOf(cand);
+        // Кожне слово аліаса — цілим словом у мітці. Саме це вбиває цілий
+        // рід підмін: «Сільпо» містить «сіль», «портерхаус» — «портер»,
+        // «гель» — «ель», «картопляні» — «картопля», «кедрова» — «дрова».
+        if (cw.length && cw.every((w) => set.has(w))) {
+          const anchored = (head !== undefined && cw.includes(head))
+            // Латинський бренд ідентифікує товар з будь-якої позиції.
+            || cw.some((w) => /^[a-z0-9'’-]{4,}$/.test(w));
+          tier = anchored ? 'anchored' : 'words';
+          weight = cw.reduce((s, w) => s + w.length, 0);
+        } else if (ws.length && ws.every((w) => new Set(cw).has(w))) {
+          // Зворотний бік: мітка вужча за аліас. «сир» ⊂ «сир твердий».
+          // Межі слова стережуть і тут — «дрова» не входить у слова аліаса
+          // «олія кедрова», тому стара підміна не повертається.
+          tier = 'generic';
+          // Вага НУЛЬОВА навмисно: усі родові збіги рівні, і вирішує
+          // priority — тобто стартові 131 позиції, які і є щоденні
+          // продукти дому. Спроба ранжувати довжиною аліаса давала
+          // випадкового переможця: «масло» знаходило соняшникову олію
+          // замість вершкового, «ковбаски» — сирокопчені замість свіжих,
+          // і зона з'їжджала в dry.
+          weight = 0;
+        }
+      }
+      if (!tier || TIER_RANK[tier] < TIER_RANK[minTier]) continue;
+      const score = TIER_RANK[tier] * 1000 + weight;
       if (!best || score > best.score || (score === best.score && prio(item) > best.priority)) {
-        best = { key: item.key, score, priority: prio(item) };
+        best = { key: item.key, tier, score, priority: prio(item) };
       }
     }
   }
-  return best && best.score >= 40 ? best.key : null;
+  return best ? { key: best.key, tier: best.tier } : null;
+}
+
+// Планка за замовчуванням — `anchored`, бо найгарячіший споживач цієї
+// функції (apply.ts) добирає нею АЛЕРГЕНИ в дірки тегів. Ціна хибного
+// збігу там — чужий алерген на продукті, тож мовчання дешевше за здогад.
+// Кому потрібна ширина (пошук, підказки, де людина дивиться очима) — кличе
+// resolveLabel напряму з `words`.
+export function resolveLabelToKey(label: string, catalog = CATALOG): string | null {
+  return resolveLabel(label, 'anchored', catalog)?.key ?? null;
 }
 
 // Зона зберігання за назвою продукту. Використовується там, де зону не вказали
 // явно — unpack списку покупок, intake_diff без zone. Без цього все падало в
 // `dry`, і молоко переїжджало в комору замість холодильника (QA6-06).
 export function resolveLabelToZone(label: string, catalog = CATALOG): CatalogItem['zone_default'] | null {
-  const key = resolveLabelToKey(label, catalog);
-  if (!key) return null;
-  return catalog.find((c) => c.key === key)?.zone_default ?? null;
+  // Планка НИЖЧА, ніж у resolveLabelToKey, і це навмисно. Людина каже «купив
+  // сир», «сметана», «стейк» — окремих позицій під ці родові слова в
+  // каталозі немає, а зона в усіх сирів однакова. Ціна помилки тут — одна
+  // правка зони; ціна мовчання — падіння в `dry`, тобто сметана в сухій
+  // коморі (QA6-06, проти чого ця функція й писалась).
+  const hit = resolveLabel(label, 'generic', catalog);
+  if (!hit) return null;
+  return catalog.find((c) => c.key === hit.key)?.zone_default ?? null;
+}
+
+// ---------- широта назви: продукт чи категорія? ----------
+
+// «Купив мʼясо» — це не продукт, це категорія: під нею 560 позицій каталогу.
+// «Камбоцола» — продукт. Різниця машинна, і рахує її каталог, а не модель.
+//
+// 02.09: спершу я взяв за ознаку `catalog_key === null` — мовляв, не впізнали,
+// отже обмаль. Хибно: «свинина» і «яловичина» теж не мають позиції з такою
+// назвою, хоч це цілком конкретні відповіді. Позначка трималась би вічно, і
+// асистент перепитував би після кожної відповіді. Правильна ознака — саме
+// категорійність: слово називає КЛАС, а не річ.
+//
+// Кількість позицій під категорією — міра широти, і вона дає порівнювати:
+// «мʼясо» 560 → «свинина» 250 → «стейк» 20. Рішення, коли саме питати, тут
+// НЕ ухвалюється: ця функція лише вимірює, а політику тримає той, хто питає.
+const CATEGORY_SIZE: Map<string, number> = (() => {
+  const m = new Map<string, number>();
+  for (const item of CATALOG) {
+    for (const c of item.categories) {
+      const k = normalize(c);
+      if (k) m.set(k, (m.get(k) ?? 0) + 1);
+    }
+  }
+  return m;
+})();
+
+const ITEM_NAMES: Set<string> = new Set(
+  CATALOG.flatMap((i) => [i.name, ...i.aliases]).map(normalize).filter(Boolean),
+);
+
+// Скільки позицій каталогу підпадає під цю назву, якщо вона — категорія.
+// null, якщо назва не категорія АБО водночас є назвою конкретного товару
+// («курка» — і категорія на 85 позицій, і «Курка ціла»; тоді це продукт).
+export function categoryBreadth(label: string): number | null {
+  const n = normalize(label);
+  if (!n || ITEM_NAMES.has(n)) return null;
+  return CATEGORY_SIZE.get(n) ?? null;
 }
 
 // ---------- пошук ----------

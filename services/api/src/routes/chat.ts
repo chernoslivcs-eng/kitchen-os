@@ -16,7 +16,7 @@ import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '
 import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
 import { localDay } from '../local-day.js';
 import { stampChatReceipt } from '../receipt-source.js';
-import { patchReceiptRows } from '../receipt-patch.js';
+import { composeIntakeLabels } from '../intake-labels.js';
 import { vetoNonfood } from '../nonfood-veto.js';
 
 // POST /v1/chat
@@ -133,6 +133,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
       stampChatReceipt(call.card, call.raw_kind);
       vetoNonfood(call.card);
+      composeIntakeLabels(call.card);
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -689,6 +690,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // поїде в комору. Якщо відсікти після — і pending, і повідомлення
     // казали б про позиції, яких у коморі не буде.
     vetoNonfood(call.card);
+    composeIntakeLabels(call.card);
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -724,12 +726,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;
-      // Крок 4.4: якщо це була правка («то не хліб салтівський, то батон»),
-      // приводимо у відповідність і рядок чека — інакше артефакт показував
-      // би стару назву й брехав про те, як він зрозумілий.
-      if (call.card.type === 'intake_diff') {
-        await patchReceiptRows(repo, session.id, call.card.ops);
-      }
+      // Тут раніше стояв patchReceiptRows: після правки («то не хліб
+      // салтівський, то батон») він переписував рядок у збереженій картці,
+      // щоб артефакт не показував стару назву. Механізм пішов разом із
+      // другою копією — картка тепер дивиться на живу позицію, і правка
+      // видно в ній без жодної синхронізації.
     }
     return {
       reply: replyText, card: call.card, card_id,

@@ -1944,3 +1944,15 @@
     background: var(--accent);
   }
 }
+
+/* Тихий хвіст під списком позицій: скільки з них уже зʼїли. Чекова книжка
+   показує лише те, що лишилось, але порожній чек виглядав би зламаним —
+   тому число називаємо, а рядки не малюємо. */
+.rgroup-tail,
+.op-gone-tail {
+  padding: 6px 12px 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--fg-dim);
+}

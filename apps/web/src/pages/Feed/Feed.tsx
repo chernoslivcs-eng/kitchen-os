@@ -10,7 +10,7 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
-import { Card, PanelFootSlot, PanelHeadSlot, ShoppingListCard, labelFor, appliedToast } from './cards';
+import { Card, PanelFootSlot, PanelHeadSlot, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { ARTIFACT_GLYPH, isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines } from './artifacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
@@ -294,6 +294,32 @@ export function Feed() {
   // Пул-6 №2: rail згортається. Нижче 1200 панелі немає — там шторка,
   // яку відкриває пігулка; ≥1200 панель у потоці, і ‹ її ховає в смужку
   // 56px (стан памʼятається).
+  // Живі позиції для карток: id → те, що зараз у коморі.
+  //
+  // «Немає ні чека, ні комори — є позиції; комора і чек це просто місця їх
+  // відображення» (власник, 02.09). Картка чека тому не малює збережений
+  // знімок ops, а дивиться сюди: приготував — і в чеку кількість інша, без
+  // жодної синхронізації двох копій.
+  //
+  // Перечитуємо на bump комори — той самий сигнал, яким користується TabBar
+  // після apply/undo й після готування.
+  const pantryVersion = usePantryStore((st) => st.version);
+  const [livePositions, setLivePositions] = useState<Map<string, LivePosition>>(new Map());
+  useEffect(() => {
+    let alive = true;
+    api.pantry()
+      .then((p) => {
+        if (!alive) return;
+        const m = new Map<string, LivePosition>();
+        for (const b of p.batches ?? []) {
+          if (b.state === 'depleted') continue;
+          m.set(b.id, { label: b.label, value: b.value ?? null, unit: b.unit ?? null });
+        }
+        setLivePositions(m);
+      })
+      .catch(() => { /* комора недоступна — картки просто малюють знімок */ });
+    return () => { alive = false; };
+  }, [pantryVersion]);
   const [railOpen, setRailOpen] = useState(false);
   const [railHidden, setRailHidden] = useState(() => {
     try { return localStorage.getItem('kos-rail-hidden') === '1'; } catch { return false; }
@@ -1741,6 +1767,7 @@ export function Feed() {
                   кошику: 302/302, предикат false, тінь горить. */}
               {footSlot && (
               <PanelHeadSlot.Provider value={headSlot}>
+              <LivePositions.Provider value={livePositions}>
               <PanelFootSlot.Provider value={footSlot}>
                 {/* Список — єдиний артефакт без ходу: він читає живий стан
                     дому, а не картку сесії. Тип це й показав — саме через
@@ -1787,6 +1814,7 @@ export function Feed() {
                 </>
                 )}
               </PanelFootSlot.Provider>
+              </LivePositions.Provider>
               </PanelHeadSlot.Provider>
               )}
               </div>

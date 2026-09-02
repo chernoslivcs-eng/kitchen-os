@@ -41,7 +41,13 @@ export function resolveReceiptKey(name: string): string | null {
   // Головне слово: у назвах мережі продукт стоїть першим («Булочка з корицею»
   // — булочка, не кориця). Аліас без голови приймаємо лише за латинський
   // бренд («Schweppes», «Lay's») — бренд ідентифікує продукт із будь-якої позиції.
-  const head = nameWords[0];
+  //
+  // 02.09: голова — перше КИРИЛИЧНЕ слово, а не буквально перше. METRO
+  // ставить бренд попереду («MC ПАРМІДЖАНО РЕДЖАНО 100Г», «KASEREI СИР
+  // КАМБОЦОЛА 70%», «MC НАГЕТСИ КУРЯЧІ 1КГ»), і на «перше слово» головою
+  // ставало «mc» чи «kaserei». Аліас її не містив, і правильний збіг —
+  // при тому, що ВСІ слова аліаса стояли в назві — мовчки відкидався.
+  const head = nameWords.find((w) => /[а-яіїєґ]/.test(w)) ?? nameWords[0];
   let best: { key: string; score: number; priority: number } | null = null;
   for (const item of CATALOG) {
     for (const cand of [item.name, ...item.aliases]) {

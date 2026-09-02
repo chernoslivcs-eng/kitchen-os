@@ -55,6 +55,31 @@ export function loadFixtures(): Fixture[] {
       attachment: { kind: 'text', path: 'receipt-abbreviated.txt', content: readText('receipt-abbreviated.txt') },
     },
     {
+      // 02.09. Наявна фікстура receipt-abbreviated легша за реальність: там
+      // слова розділені пробілами («СИР КАМБОЦ.70% 193Г»), а на касовому
+      // друку пробілів немає взагалі («Шок25МолЛТKorМигдКок»). Ця — важча.
+      //
+      // Перший прогін показав НЕ те, чого я чекав, і це варте запису.
+      // Я вважав, що розбір ламає профіль `fast`, бо в браузері той самий
+      // чек дав у комору «хусь», «батер», «папір». На ТЕКСТІ той самий haiku
+      // впорався: 21/21 з product, 14 брендів, «Хуст150HocRutMiniTis» →
+      // «хустинки Hoc Rut Mini Tissue 150 шт». Різниця не в моделі, а у
+      // ВХОДІ: у браузері було ФОТО, тут текст. Отже ця фікстура стереже
+      // розгортання скорочень, а провал фотошляху нею НЕ відтворюється —
+      // для нього потрібна image-фікстура, якої в нас немає.
+      id: 'receipt-till-silpo',
+      description: 'Паперовий чек Сільпо: CamelCase без пробілів, латиниця впереміш («Кр135БрусPontЧорОлив»). Найважчий із трьох реальних форматів.',
+      call: 'attachment_parse',
+      invariants: [
+        'receipt-coverage-80',
+        'expanded-abbreviations',
+        'no-prices',
+        'tagger-triples',
+        'triple-discipline',
+      ],
+      attachment: { kind: 'text', path: 'receipt-till-silpo.txt', content: readText('receipt-till-silpo.txt') },
+    },
+    {
       id: 'receipt-nonfood',
       description: 'Чек АТБ із побутовим і напоями — нехарчові теж додати, ціни ігнорувати',
       call: 'attachment_parse',
@@ -143,6 +168,7 @@ export function loadFixtures(): Fixture[] {
     readJson('lesson-into-step.json'),
     readJson('feedback-diagnosis.json'),
     readJson('shared-meal-allergen.json'),
+    readJson('generic-label-ask.json'),
   ];
   return list;
 }
