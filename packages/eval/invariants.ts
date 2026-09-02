@@ -261,16 +261,23 @@ export const registry: Record<string, Invariant> = {
       const base = String(o.product ?? o.label ?? '').trim().toLowerCase();
       return GENERIC.includes(base);
     });
-    if (!generic.length) return { pass: true };
+    // Звітуємо ЗАВЖДИ, і на успіху теж. Мовчазний pass тут небезпечний:
+    // гілка «родових ops немає» проходить тривіально, і в терміналі вона
+    // виглядає точно так само, як справжня перевірка. Живий випадок 02.09 —
+    // фікстура дала PASS, і з виводу не було видно, чи правило спрацювало.
+    const names = generic.map((o: any) => String(o.product ?? o.label)).join(', ');
+    if (!generic.length) {
+      return pass(`родових назв не було — правило не перевірялось (ops: ${ops.length})`);
+    }
     const reply = stripHtmlish(String(out.reply ?? ''));
     const questions = (reply.match(/\?/g) ?? []).length;
     if (questions === 0) {
-      return fail(`родове «${generic[0].product ?? generic[0].label}» записано без жодного уточнення`);
+      return fail(`родове «${names}» записано без жодного уточнення`);
     }
     if (questions > 1) {
-      return fail(`${questions} питань в одній репліці — уточнення має бути ОДНЕ, не анкета`);
+      return fail(`${questions} питань в одній репліці про «${names}» — уточнення має бути ОДНЕ, не анкета`);
     }
-    return { pass: true };
+    return pass(`родове «${names}» → одне уточнення`);
   },
 
   'triple-discipline': (out) => {
