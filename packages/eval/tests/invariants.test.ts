@@ -258,3 +258,65 @@ describe('receipt-coverage-80 на фото', () => {
     expect(v.detail).toMatch(/expect_lines/);
   });
 });
+
+// 02.09, після переходу attachment_parse на smart: triple-discipline почав
+// кричати на ПРАВИЛЬНІ розбори. Причини були дві, обидві в мірилі, не в
+// моделі: відмінок («кокосом» проти «Кокос») і письмо («тонік» проти
+// «Tonic»). Сильніша модель пише багатші назви, і буквальне порівняння слів
+// на них розсипалось. Кейси тут — дослівно з живих прогонів.
+describe('triple-discipline не плутає відмінок і письмо з дефектом', () => {
+  const inv = registry['triple-discipline']!;
+  const one = (o: Record<string, unknown>) => inv(
+    { card: { type: 'intake_diff', ops: [{ op: 'add', ...o }] } } as never, {} as never,
+  );
+
+  it('відмінок: variant «молочний з кокосом», label «…Кокос»', () => {
+    expect(one({ label: 'шоколад молочний Корона Мітки Кокос', product: 'шоколад', brand: 'Корона', variant: 'молочний з кокосом' }).pass).toBe(true);
+  });
+
+  it('письмо: variant «тонік рожевий», label «Pink Tonic»', () => {
+    // variant узагалі не звіряється: це вільний опис, який законно
+    // переформульовують. Ідентифікують товар product і brand.
+    expect(one({ label: 'напій Schweppes Pink Tonic 0.25 л', product: 'напій', brand: 'Schweppes', variant: 'тонік рожевий' }).pass).toBe(true);
+  });
+
+  it('а от бренд, якого в назві немає, лишається дефектом', () => {
+    const v = one({ label: 'дрова для печі', product: 'дрова', brand: 'Renok', variant: 'для печі' });
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/renok/i);
+  });
+
+  it('первісний дефект ловиться так само: огризок у label', () => {
+    // Заради цього правило й писалось: label «папір» при повній трійці.
+    const v = one({ label: 'папір', product: 'папір туалетний', brand: 'Zewa', variant: 'Pure Moist' });
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/туалетний/);
+  });
+});
+
+// Правопис не має вирішувати долю тесту. Живий випадок 02.09: після переходу
+// на smart «expected-expansions» повідомив «не впізнано: чипси» — і з цього
+// повідомлення НЕ було видно, що модель написала натомість. Діагностувати
+// довелось ручним читанням сирого виходу.
+describe('expected-expansions: правопис і діагностика', () => {
+  const inv = registry['expected-expansions']!;
+  const t = (labels: string[], want: string[]) => inv(
+    { card: { type: 'intake_diff', ops: labels.map((l) => ({ op: 'add', label: l, product: l })) } } as never,
+    { expect_products: want } as never,
+  );
+
+  it('«чіпси» і «чипси» — те саме слово', () => {
+    expect(t(['чіпси Lay’s картопляні'], ['чипси']).pass).toBe(true);
+    expect(t(['чипси Lay’s картопляні'], ['чіпси']).pass).toBe(true);
+  });
+
+  it('апостроф трьох накреслень не ламає збіг', () => {
+    expect(t(["м'ясо мідій"], ['мʼясо']).pass).toBe(true);
+  });
+
+  it('справжній промах називає, ЩО модель написала натомість', () => {
+    const v = t(['снеки'], ['чипси']);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/було: снеки/);
+  });
+});
