@@ -261,6 +261,35 @@ function ReceiptGroup({
   );
 }
 
+// Нехарчове, відсічене каталогом. Показуємо ЗАВЖДИ, коли воно є: мовчазний
+// викид гірший за помилку — людина не дізналась би, що частину покупок
+// продукт свідомо не взяв у комору.
+function NonfoodGroup({
+  rows, onNonfoodToList,
+}: { rows: { name: string; qty: string }[]; onNonfoodToList?: (names: string[]) => void }) {
+  const [sent, setSent] = useState(false);
+  return (
+    <ReceiptGroup
+      tone="amber"
+      glyph="◌"
+      title="НЕ ДЛЯ КОМОРИ"
+      count={rows.length}
+      action={onNonfoodToList && !sent
+        ? () => { onNonfoodToList(rows.map((r) => r.name)); setSent(true); }
+        : undefined}
+      actionLabel={sent ? '✓ У СПИСКУ' : 'У СПИСОК'}
+      actionDisabled={sent}
+      rows={rows.map((r, i) => (
+        <div key={i} className={styles.rrow} style={{ color: 'var(--fg-muted)' }}>
+          <span className={styles.rbox} />
+          <span className={styles['rrow-name']}>{r.name}</span>
+          {r.qty && <span className={styles['rrow-qty']}>{r.qty}</span>}
+        </div>
+      ))}
+    />
+  );
+}
+
 export function IntakeCard({ card, cardId, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo, shoppingLabels, onNonfoodToList }: CardProps) {
   // 01.09 картка v2: «уточнити» переносить рядок із source.unmatched у ops
   // на сервері — локальна копія картки віддзеркалює це без переходу в
@@ -292,12 +321,21 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   // у показаного в чаті — тільки те, що розібрала модель.
   const receipt = liveCard.source?.kind === 'retail_receipt' ? liveCard.source : null;
   const anyReceipt = liveCard.source?.kind === 'retail_receipt' || liveCard.source?.kind === 'chat_receipt';
+  // Нехарчове двома шляхами: у чека мережі його розклав каталог при
+  // розборі чека, у решти — вето каталогу над відповіддю моделі. Для
+  // людини це одне й те саме, тож і група одна.
+  const nonfoodRows: { name: string; qty: string }[] = [
+    ...(receipt?.nonfood ?? []).map((l) => ({ name: l.name, qty: `${l.quantity} ${l.unit}` })),
+    ...(liveCard.nonfood ?? []).map((l) => ({
+      name: l.label,
+      qty: l.value != null && l.unit ? formatQty(l.value, l.unit as never) : '',
+    })),
+  ];
   // 01.09: чек — не auto-apply, а картка на підтвердження зі стрикаутом.
   // Повний список одразу — «звалище»: чек легко несе 10+ позицій. Згорнуто
   // за замовчуванням, як «не для комори» нижче; для звичайного (короткого)
   // intake_diff з чату список і так короткий — розгорнутий одразу.
   const [showInList, setShowInList] = useState(false);
-  const [nonfoodSent, setNonfoodSent] = useState(false);
   // Крок 4.2: які рядки чека закриють позиції списку покупок. Той самий
   // збіг (точний за назвою, trim+lower) рахує applyCard — але вже ПІСЛЯ
   // натискання, і людина дізнавалась про наслідок постфактум. Тут вона
@@ -420,26 +458,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
             </ReceiptGroup>
           )}
 
-          {receipt && receipt.nonfood.length > 0 && (
-            <ReceiptGroup
-              tone="amber"
-              glyph="◌"
-              title="НЕ ДЛЯ КОМОРИ"
-              count={receipt.nonfood.length}
-              action={onNonfoodToList && !nonfoodSent
-                ? () => { onNonfoodToList(receipt.nonfood.map((l) => l.name)); setNonfoodSent(true); }
-                : undefined}
-              actionLabel={nonfoodSent ? '✓ У СПИСКУ' : 'У СПИСОК'}
-              actionDisabled={nonfoodSent}
-              rows={receipt.nonfood.map((l, i) => (
-                <div key={i} className={styles.rrow} style={{ color: 'var(--fg-muted)' }}>
-                  <span className={styles.rbox} />
-                  <span className={styles['rrow-name']}>{l.name}</span>
-                  <span className={styles['rrow-qty']}>{l.quantity} {l.unit}</span>
-                </div>
-              ))}
-            />
-          )}
+          {nonfoodRows.length > 0 && <NonfoodGroup rows={nonfoodRows} onNonfoodToList={onNonfoodToList} />}
 
           {receipt && receipt.unmatched.length > 0 && (
             <ReceiptGroup
@@ -459,8 +478,12 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
         </>
       )}
 
-      {/* Звичайний intake — як був: короткий список без секцій. Групи там
-          нема чого групувати, а чекбокси лишаються для пост-кук списання. */}
+      {/* Вето каталогу спрацьовує на будь-якій intake-картці, не тільки на
+          чеку: дрова не місце в коморі незалежно від того, звідки про них
+          дізнались. Тож група показується і тут. */}
+      {!anyReceipt && nonfoodRows.length > 0 && (
+        <NonfoodGroup rows={nonfoodRows} onNonfoodToList={onNonfoodToList} />
+      )}
       {!anyReceipt && (
         <div className={styles.ops}>
           {ops.map((op, i) => (

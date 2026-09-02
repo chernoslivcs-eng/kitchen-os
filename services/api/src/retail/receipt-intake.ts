@@ -35,7 +35,7 @@ function toPantryUnits(quantity: number, unit: string): { value: number; unit: U
 // живий чек 23.08). Тут аліас збігається, лише якщо КОЖНЕ його слово стоїть
 // цілим словом у назві з чека. Морфологію навмисно не прощаємо: «з корицею»
 // не означає «кориця». Що не пройшло — чесний unmatched, не вигадка.
-function resolveReceiptKey(name: string): string | null {
+export function resolveReceiptKey(name: string): string | null {
   const nameWords = normalize(name).split(/\s+/).filter(Boolean);
   const words = new Set(nameWords);
   // Головне слово: у назвах мережі продукт стоїть першим («Булочка з корицею»

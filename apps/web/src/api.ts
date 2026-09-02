@@ -153,6 +153,8 @@ export interface CartRow {
 export interface ChatCard {
   type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart';
   ops?: unknown[];
+  // Відсічене вето каталогу: нехарчове, що не поїхало в комору.
+  nonfood?: { label: string; value?: number | null; unit?: string | null }[];
   items?: unknown[];
   source?: ReceiptSource;              // intake_diff з чека мережі (M13)
   rows?: CartRow[];                    // cart (M13): позиції з цінами
