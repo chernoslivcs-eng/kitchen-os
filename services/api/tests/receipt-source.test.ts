@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { Card } from '@kitchen/domain';
+import type { Card, IntakeCard } from '@kitchen/domain';
 import { stampChatReceipt } from '../src/receipt-source.js';
 
-const intake = (ops = 20): Card => ({
+// Тип саме IntakeCard, а не Card: у союзі Card є ProposalCard, у якого
+// поля source немає, і читати його з union без звуження не можна. Це не
+// формальність — рівно на цьому впав typecheck, коли source став союзом.
+const intake = (ops = 20): IntakeCard => ({
   type: 'intake_diff',
   ops: Array.from({ length: ops }, () => ({ op: 'add', label: 'молоко' })),
-} as Card);
+} as IntakeCard);
 
 describe('stampChatReceipt', () => {
   it('чек із чату отримує джерело — і стає артефактом панелі', () => {
@@ -43,7 +46,7 @@ describe('stampChatReceipt', () => {
         kind: 'retail_receipt', provider: 'silpo', shop: 'Київська, 10',
         at: '2026-08-23T10:00:00Z', total: 1284, nonfood: [], unmatched: [],
       },
-    } as unknown as Card;
+    } as unknown as IntakeCard;
     stampChatReceipt(card, 'receipt');
     expect(card.source?.kind).toBe('retail_receipt');
   });

@@ -99,6 +99,14 @@ export interface CardProps {
   onDismiss?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
+  // Крок 4.2: назви незакреслених позицій списку покупок. Потрібні, щоб
+  // ПЕРЕД застосуванням сказати, скільки рядків чека закриють список.
+  // Той самий збіг рахує applyCard (UX9-27) — але вже після натискання,
+  // і людина дізнавалась про наслідок постфактум.
+  shoppingLabels?: Set<string>;
+  // Крок 4.3: «у список» на групі «не для комори». Нехарчове не має де
+  // жити в коморі, але має де в списку покупок.
+  onNonfoodToList?: (names: string[]) => void;
   // Уточнення до конкретної страви: тап префілить композитор «{title} — » і
   // ставить фокус. Прототипний startRefine: префікс механічно тримає тему
   // розмови — головну промптову болячку QA-3…6 («тема не тримається») він
@@ -202,7 +210,53 @@ function ClarifyRow({
   );
 }
 
-export function IntakeCard({ card, cardId, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo }: CardProps) {
+// Секція чека: шапка з лічильником і груповою дією, рядки, «ще N ▾».
+// Згортання до чотирьох — не економія місця, а мета подання: панель має
+// показати СТРУКТУРУ рішення (скільки в комору, скільки в побут, скільки
+// не впізнано), а не всі дев'ятнадцять позицій одразу.
+function ReceiptGroup({
+  tone, glyph, title, count, action, actionLabel, actionDisabled, children, rows,
+}: {
+  tone: 'accent' | 'amber' | 'muted';
+  glyph: string;
+  title: string;
+  count: number;
+  action?: () => void;
+  actionLabel?: string;
+  actionDisabled?: boolean;
+  children?: React.ReactNode;
+  rows?: React.ReactNode[];
+}) {
+  const [all, setAll] = useState(false);
+  const shown = rows && !all ? rows.slice(0, 4) : rows;
+  const hidden = rows ? rows.length - (shown?.length ?? 0) : 0;
+  return (
+    <div className={styles.rgroup}>
+      <div className={styles['rgroup-head']}>
+        <span className={`${styles['rgroup-title']} ${styles[`tone-${tone}`]}`}>
+          {glyph} {title} · {count}
+        </span>
+        {action && actionLabel && (
+          <button
+            type="button"
+            className={`${styles['rgroup-act']} ${tone === 'amber' ? styles['tone-amber'] : ''}`}
+            onClick={action}
+            disabled={actionDisabled}
+          >{actionLabel}</button>
+        )}
+      </div>
+      {shown}
+      {children}
+      {hidden > 0 && (
+        <button type="button" className={styles['rgroup-more']} onClick={() => setAll(true)}>
+          ЩЕ {hidden} ▾
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function IntakeCard({ card, cardId, applied, applying, dismissed, undone, undoAvailable, onApply, onDismiss, onUndo, shoppingLabels, onNonfoodToList }: CardProps) {
   // 01.09 картка v2: «уточнити» переносить рядок із source.unmatched у ops
   // на сервері — локальна копія картки віддзеркалює це без переходу в
   // інший потік (той самий принцип, що RetailCartCard тримає для кошика).
@@ -233,12 +287,51 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   // у показаного в чаті — тільки те, що розібрала модель.
   const receipt = liveCard.source?.kind === 'retail_receipt' ? liveCard.source : null;
   const anyReceipt = liveCard.source?.kind === 'retail_receipt' || liveCard.source?.kind === 'chat_receipt';
-  const [nonfoodOpen, setNonfoodOpen] = useState(false);
   // 01.09: чек — не auto-apply, а картка на підтвердження зі стрикаутом.
   // Повний список одразу — «звалище»: чек легко несе 10+ позицій. Згорнуто
   // за замовчуванням, як «не для комори» нижче; для звичайного (короткого)
   // intake_diff з чату список і так короткий — розгорнутий одразу.
-  const [opsOpen, setOpsOpen] = useState(!anyReceipt);
+  const [showInList, setShowInList] = useState(false);
+  const [nonfoodSent, setNonfoodSent] = useState(false);
+  // Крок 4.2: які рядки чека закриють позиції списку покупок. Той самий
+  // збіг (точний за назвою, trim+lower) рахує applyCard — але вже ПІСЛЯ
+  // натискання, і людина дізнавалась про наслідок постфактум. Тут вона
+  // бачить його до того, як вирішить.
+  const inList = new Set(
+    ops.map((op, i) => (
+      op.op === 'add' && op.label && shoppingLabels?.has(op.label.trim().toLowerCase()) ? i : -1
+    )).filter((i) => i >= 0),
+  );
+  // Низ чека за законом смуги (крок 2.1): стан ліворуч моно, дії праворуч
+  // у порядку «другорядна → головна». Лічильник у кнопці змінюється разом
+  // із чекбоксами, тож наслідок дії відомий заздалегідь, а не після.
+  const goingIn = ops.length - off.size;
+  const footSlot = useContext(PanelFootSlot);
+  const intakeFootRaw = anyReceipt && (actionable || (applied && !undone)) ? (
+    <div className={styles['card-foot']}>
+      <span className={styles['strip-state']}>
+        {goingIn} {applied && !undone ? 'у коморі' : 'у комору'}
+        {receipt && receipt.nonfood.length > 0 && (
+          <span className={styles['strip-state-dim']}> · {receipt.nonfood.length} у побут</span>
+        )}
+      </span>
+      {applied && !undone && undoAvailable && onUndo && (
+        <Button size="strip" variant="text" onClick={onUndo}>Скасувати ↩</Button>
+      )}
+      {actionable && <Button size="strip" variant="text" onClick={onDismiss}>Ні</Button>}
+      {actionable && (
+        <Button
+          size="strip"
+          variant="primary"
+          onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
+          loading={applying}
+          disabled={off.size === ops.length}
+        >Застосувати {goingIn}</Button>
+      )}
+    </div>
+  ) : null;
+  const intakeFoot = intakeFootRaw && footSlot ? createPortal(intakeFootRaw, footSlot) : intakeFootRaw;
+
   return (
     <div className={stateClass(applied, undone)}>
       {anyReceipt && (
@@ -255,23 +348,115 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           </MonoLabel>
         </div>
       )}
+      {/* ── Чек: чотири секції замість суцільного списку ──────────────
+          Групи відповідають на питання «як модель зрозуміла чек», і саме
+          тому вони є навіть тоді, коли всередині нічого нема: порожня
+          секція не малюється, але наявна каже, що розбір відбувся. */}
       {anyReceipt && (
-        <button
-          type="button"
-          onClick={() => setOpsOpen((v) => !v)}
-          style={{
-            border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
-            color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}
-        >
-          <span style={{ width: 18, textAlign: 'center' }}>{opsOpen ? '⌄' : '›'}</span>
-          {ops.length} {plural(ops.length, ['позиція', 'позиції', 'позицій'])}
-          {receipt && receipt.unmatched.length > 0 ? ` + ${receipt.unmatched.length} без пари` : ''}
-          {opsOpen ? ' · згорнути' : ' · показати'}
-        </button>
+        <>
+          <ReceiptGroup
+            tone="accent"
+            glyph="●"
+            title="У КОМОРУ"
+            count={ops.length - off.size}
+            action={actionable && ops.length > 1
+              ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
+              : undefined}
+            actionLabel={off.size === ops.length ? 'ПОВЕРНУТИ ВСІ' : 'ЗНЯТИ ВСІ'}
+            rows={ops.map((op, i) => (
+              <div key={i} className={styles.rrow} style={off.has(i) ? { opacity: 0.45 } : undefined}>
+                {actionable && ops.length > 1 ? (
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={!off.has(i)}
+                    aria-label={op.label ?? 'позиція'}
+                    className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
+                    onClick={() => toggle(i)}
+                  >{off.has(i) ? '' : '✓'}</button>
+                ) : (
+                  <span className={`${styles.rbox} ${styles['rbox-on']}`}>✓</span>
+                )}
+                <span className={styles['rrow-name']}>
+                  {op.op === 'rename'
+                    ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
+                    : op.label ?? '—'}
+                  {inList.has(i) && (
+                    <span className={styles['rrow-qty']} style={{ marginLeft: 8 }}>✓ У СПИСКУ</span>
+                  )}
+                </span>
+                {op.value != null && op.unit && (
+                  <span className={styles['rrow-qty']}>{formatQty(op.value, op.unit)}</span>
+                )}
+              </div>
+            ))}
+          />
+
+          {/* «Вже у списку» — НЕ п'ятий кошик рядків, а примітка про перетин.
+              Позиція, що є в списку покупок, усе одно їде в комору: винести
+              її окремою групою означало б прибрати її з першої. Тому тут
+              лічильник і «показати», а самі рядки позначені в секції вище. */}
+          {inList.size > 0 && (
+            <ReceiptGroup
+              tone="muted"
+              glyph="✓"
+              title="ВЖЕ У СПИСКУ"
+              count={inList.size}
+              action={() => setShowInList((v) => !v)}
+              actionLabel={showInList ? 'СХОВАТИ' : 'ПОКАЗАТИ'}
+            >
+              {showInList && (
+                <div className={styles.rrow} style={{ color: 'var(--fg-dim)' }}>
+                  <span className={styles['rrow-name']}>
+                    {[...inList].map((i) => ops[i]?.label).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+            </ReceiptGroup>
+          )}
+
+          {receipt && receipt.nonfood.length > 0 && (
+            <ReceiptGroup
+              tone="amber"
+              glyph="◌"
+              title="НЕ ДЛЯ КОМОРИ"
+              count={receipt.nonfood.length}
+              action={onNonfoodToList && !nonfoodSent
+                ? () => { onNonfoodToList(receipt.nonfood.map((l) => l.name)); setNonfoodSent(true); }
+                : undefined}
+              actionLabel={nonfoodSent ? '✓ У СПИСКУ' : 'У СПИСОК'}
+              actionDisabled={nonfoodSent}
+              rows={receipt.nonfood.map((l, i) => (
+                <div key={i} className={styles.rrow} style={{ color: 'var(--fg-muted)' }}>
+                  <span className={styles.rbox} />
+                  <span className={styles['rrow-name']}>{l.name}</span>
+                  <span className={styles['rrow-qty']}>{l.quantity} {l.unit}</span>
+                </div>
+              ))}
+            />
+          )}
+
+          {receipt && receipt.unmatched.length > 0 && (
+            <ReceiptGroup
+              tone="amber"
+              glyph="◌"
+              title="НЕ ВПІЗНАВ"
+              count={receipt.unmatched.length}
+            >
+              {/* Ключ за назвою, не індексом: «ок» вирізає рядок із unmatched
+                  і зсуває решту — індексний key чіпляв editing-стан одного
+                  товару на назву наступного після зсуву. */}
+              {receipt.unmatched.map((l, i) => (
+                <ClarifyRow key={l.name} line={l} cardId={cardId} index={i} onClarified={setLiveCard} />
+              ))}
+            </ReceiptGroup>
+          )}
+        </>
       )}
-      {opsOpen && (
+
+      {/* Звичайний intake — як був: короткий список без секцій. Групи там
+          нема чого групувати, а чекбокси лишаються для пост-кук списання. */}
+      {!anyReceipt && (
         <div className={styles.ops}>
           {ops.map((op, i) => (
             <div
@@ -286,13 +471,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 <span
                   role="checkbox"
                   aria-checked={!off.has(i)}
-                  style={{
-                    width: 18, height: 18, borderRadius: 6, flex: 'none',
-                    display: 'inline-grid', placeItems: 'center',
-                    background: off.has(i) ? 'transparent' : 'var(--accent)',
-                    border: off.has(i) ? '1px solid var(--border-strong)' : '1px solid var(--accent)',
-                    color: 'var(--accent-fg-on)', fontWeight: 700, fontSize: 11,
-                  }}
+                  className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
                 >{off.has(i) ? '' : '✓'}</span>
               )}
               <span className={styles['op-sign']}>{signFor(op.op)}</span>
@@ -311,72 +490,9 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               )}
             </div>
           ))}
-          {/* Ключ за назвою, не індексом: «ок» вирізає рядок із unmatched і
-              зсуває позиції решти — індексний key чіпляв editing-стан
-              одного товару на назву наступного після зсуву. */}
-          {receipt && receipt.unmatched.map((l, i) => (
-            <ClarifyRow key={l.name} line={l} cardId={cardId} index={i} onClarified={setLiveCard} />
-          ))}
         </div>
       )}
-      {receipt && receipt.nonfood.length > 0 && (
-        <div style={{ marginTop: 2 }}>
-          <button
-            type="button"
-            onClick={() => setNonfoodOpen((v) => !v)}
-            style={{
-              border: 0, background: 'transparent', cursor: 'pointer', padding: '6px 0',
-              color: 'var(--fg-dim)', fontFamily: 'var(--font-body)', fontSize: 14,
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}
-          >
-            <span style={{ width: 18, textAlign: 'center' }}>{nonfoodOpen ? '⌄' : '›'}</span>
-            ще {receipt.nonfood.length} не для комори
-          </button>
-          {nonfoodOpen && receipt.nonfood.map((l, i) => (
-            <div key={i} className={styles.op} style={{ color: 'var(--fg-dim)' }}>
-              <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>·</span>
-              <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>{l.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {receipt && applied && !undone && ops.length > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 8,
-        }}>
-          {/* 01.09: рахуємо застосовану кількість (мінус викреслені), не
-              весь ops.length — інакше бейдж бреше про число після стрикауту. */}
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)' }}>
-            ● {ops.length - off.size} {plural(ops.length - off.size, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])} У КОМОРІ
-          </span>
-          {undoAvailable && onUndo && (
-            <button
-              type="button"
-              onClick={onUndo}
-              style={{
-                border: 0, background: 'transparent', cursor: 'pointer', padding: '2px 4px',
-                color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                textDecoration: 'underline', textUnderlineOffset: 3,
-              }}
-            >Скасувати ↩</button>
-          )}
-        </div>
-      )}
-      {actionable && (
-        <div className={styles['card-actions']}>
-          <Button
-            variant="primary"
-            onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
-            loading={applying}
-            disabled={off.size === ops.length}
-          >
-            {off.size ? `Застосувати ${ops.length - off.size}` : 'Застосувати'}
-          </Button>
-          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
-        </div>
-      )}
+      {intakeFoot}
       {!receipt && applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
           <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>

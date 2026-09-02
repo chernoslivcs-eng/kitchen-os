@@ -1708,3 +1708,91 @@
   white-space: nowrap;
 }
 .mini-list-meta { flex: none; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+
+/* ── Крок 4.1b: чек — групи замість суцільного списку (V4) ───────────
+   Чотири секції з лічильником у шапці: у комору · вже у списку · не для
+   комори · не впізнав. Панель показує СТРУКТУРУ рішення, а не всі 19
+   позицій одразу — кожна група згорнута до 4 рядків. */
+.rgroup { display: flex; flex-direction: column; }
+.rgroup + .rgroup { margin-top: 14px; }
+.rgroup-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.rgroup-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+/* Групова дія в шапці секції — саме та функціональність, якої бракувало:
+   не 19 окремих тапів, а один по групі. */
+.rgroup-act {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.rgroup-act:disabled { color: var(--fg-dim); cursor: default; }
+.rgroup-more {
+  align-self: flex-start;
+  padding: 9px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.rrow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.3;
+}
+.rrow:last-child { border-bottom: 0; }
+.rrow-name { flex: 1; min-width: 0; }
+.rrow-qty {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  text-align: right;
+}
+/* Чекбокс замість «+» без функції: стан ВИДНО до застосування, а не після.
+   Заповнений шавлієвий — піде в роботу; порожній — ні; пунктирний
+   бурштиновий — не впізнано й потребує уточнення. */
+.rbox {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--border-strong);
+  background: transparent;
+  color: var(--accent-fg-on);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.rbox-on { background: var(--accent); border-color: var(--accent); }
+.rbox-unknown { border-style: dashed; border-color: var(--amber); cursor: default; }
+.tone-accent { color: var(--accent); }
+.tone-amber { color: var(--amber); }
+.tone-muted { color: var(--fg-dim); }

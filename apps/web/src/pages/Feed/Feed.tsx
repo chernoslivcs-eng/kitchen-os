@@ -487,6 +487,21 @@ export function Feed() {
     setActiveArtifact(null);
   }
 
+  const [shoppingLabels, setShoppingLabels] = useState<Set<string>>(new Set());
+
+  // Крок 4.3: нехарчове з чека їде у список покупок. Окремого «списку
+  // побуту» не заводимо: нехарчовість виводиться з каталогу (категорія
+  // «нехарчове»), тим самим шляхом, яким її вже визначає розбір чека, —
+  // отже нової колонки в даних не треба.
+  async function addNonfoodToList(names: string[]) {
+    try {
+      for (const name of names) await api.shopping.add(name, undefined, undefined, 'з чека · не для комори');
+      await refreshCounts();
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
   async function refreshCounts() {
     try {
       // Крок 1.4: cookRuns звідси прибрано разом із маркером «★ оцінити»
@@ -500,6 +515,14 @@ export function Feed() {
         api.cards.pending().catch(() => ({ cards: [] as { id: string; type: string; session_id: string | null; created_at: string | null }[] })),
       ]);
       setHousePending(pend.cards);
+      // Крок 4.2: тримаємо не тільки лічильник, а й назви незакреслених
+      // позицій — чек має сказати, скільки з нього закриє список, ДО
+      // застосування, а не після.
+      setShoppingLabels(new Set(
+        ((s as { items?: { label: string; checked: boolean }[] }).items ?? [])
+          .filter((i) => !i.checked)
+          .map((i) => i.label.trim().toLowerCase()),
+      ));
       setPantryCount(p.count);
       // Пул-5 №5: сайдбар теж дізнається про свіжий лічильник — bump скидає
       // його кеш і TabBar перечитує (патерн useSessionStore).
@@ -1245,6 +1268,8 @@ export function Feed() {
                 onApply={(selected) => apply(t.id, selected)}
                 onDismiss={() => dismissCard(t.id)}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
+                shoppingLabels={shoppingLabels}
+                onNonfoodToList={addNonfoodToList}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
                 onRefine={t.card.type === 'proposal' ? startRefine : undefined}
                 onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
@@ -1565,6 +1590,8 @@ export function Feed() {
                   onUndo={shownArtifact.turn.undoToken
                     ? () => undo(shownArtifact.turn.id, shownArtifact.turn.undoToken!)
                     : undefined}
+                  shoppingLabels={shoppingLabels}
+                  onNonfoodToList={addNonfoodToList}
                   onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
                   onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
                   onSaveRecipe={saveRecipeForLater}

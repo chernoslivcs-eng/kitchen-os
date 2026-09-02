@@ -75,13 +75,19 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
     if (pc.applied_at || pc.undone_at) return reply.code(409).send({ error: 'card already closed' });
 
     const card = pc.card;
-    if (card.type !== 'intake_diff' || !card.source) {
+    // Звужуємо саме до чека МЕРЕЖІ: unmatched існує тільки в нього. У чека
+    // з чату розкладки каталогу немає — там нічого «уточнювати», бо нема
+    // списку невпізнаних. Без цієї перевірки союз IntakeSource не
+    // компілювався б, і це правильно: тип показав, що маршрут мовчки
+    // припускав один рід джерела з двох.
+    if (card.type !== 'intake_diff' || card.source?.kind !== 'retail_receipt') {
       return reply.code(409).send({ error: 'not a receipt card' });
     }
-    const line = card.source.unmatched[unmatched_index];
+    const source = card.source;
+    const line = source.unmatched[unmatched_index];
     if (!line) return reply.code(409).send({ error: 'unmatched_index out of range' });
 
-    card.source.unmatched = card.source.unmatched.filter((_, i) => i !== unmatched_index);
+    source.unmatched = source.unmatched.filter((_, i) => i !== unmatched_index);
     card.ops = [...card.ops, {
       op: 'add', label: line.name,
       value: value ?? line.quantity, unit: unit ?? (line.unit as Unit | undefined),
