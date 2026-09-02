@@ -277,10 +277,11 @@ export function Feed() {
     setRailHidden(v);
     try { localStorage.setItem('kos-rail-hidden', v ? '1' : '0'); } catch { /* ок */ }
   }
-  // Крок 5 (02.09): поріг 1280 → 1440, синхронно з CSS. Панель у потоці живе
-  // від 1440; нижче вона шухляда. Поки тут стояло 1280, на 1280-1439 кнопка
-  // «›» знімала railHidden з панелі, якої на цій ширині взагалі немає, —
-  // і не робила рівно нічого.
+  // Крок 1.1 (02.09): поріг 1200, синхронно з CSS. Виведений із брифу:
+  // 232 (меню, заміряно) + 640 (мінімум журналу) + 280 (мінімум панелі).
+  // Це число мусить збігатися з медіазапитами у Feed.module.css — інакше
+  // повторюється помилка, коли JS звіряв 1280, а CSS уже 1440, і кнопка
+  // «›» знімала railHidden з панелі, якої на тій ширині не існувало.
   function miniRailClick() {
     if (window.matchMedia(RAIL_IN_FLOW).matches) setRailHiddenPersist(false);
     else setRailOpen(true);
@@ -308,7 +309,7 @@ export function Feed() {
   ].filter(Boolean) as { key: string; label: string; meta: string; turn: NonNullable<typeof latestCart> }[];
   const openArtifacts = artifacts.filter((a) => !closedArtifacts.has(a.key));
   const shownArtifact = openArtifacts.find((a) => a.key === activeArtifact) ?? openArtifacts[0];
-  const RAIL_IN_FLOW = '(min-width: 1440px)';
+  const RAIL_IN_FLOW = '(min-width: 1200px)';
   // Слід у стрічці — це не якір, а відкриття. Після ✕ артефакт зникає з
   // панелі, і скрол по id вів би в порожнечу: кнопка виглядала б робочою,
   // а не робила б нічого. Тому спершу повертаємо його в панель, і лише
@@ -321,9 +322,9 @@ export function Feed() {
       return next;
     });
     setActiveArtifact(key);
-    // Нижче 1440 панелі в потоці немає — там артефакт живе в шухляді
-    // (1024-1439) або в шторці знизу (мобайл). Один і той самий слід
-    // мусить відкривати те, що на цій ширині справді існує.
+    // Нижче 1200 панелі в потоці немає — там артефакт живе у шторці
+    // знизу. Один і той самий слід мусить відкривати те, що на цій
+    // ширині справді існує.
     if (!window.matchMedia(RAIL_IN_FLOW).matches) setRailOpen(true);
     requestAnimationFrame(() => {
       document.getElementById(`rail-${key}`)?.scrollIntoView({ block: 'nearest' });
