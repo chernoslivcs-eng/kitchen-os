@@ -26,6 +26,18 @@ import type { ShoppingItem as ListItem } from '../../api';
 // (кількості, заміни, порції) лишається в одному місці, а низ просто
 // рендериться в чужий вузол, якщо він заданий. Немає слота — немає й
 // змін: у стрічці низ лишається всередині картки, як був.
+// Живі позиції: id → партія, яку зараз бачить комора.
+//
+// «Немає ні чека, ні комори — є позиції; комора і чек це просто місця їх
+// відображення» (власник, 02.09). Тому картка чека не малює збережений
+// знімок ops, а дивиться на ті самі позиції, що й комора: купив кілограм,
+// засмажив шматок — у чеку теж 700 г, без жодної синхронізації.
+//
+// null у мапі не буває: відсутність ключа і означає «позиції більше немає»
+// (зʼїли). Порожня мапа = ще не завантажили, і тоді ми не приховуємо нічого.
+export interface LivePosition { label: string; value: number | null; unit: string | null }
+export const LivePositions = createContext<Map<string, LivePosition> | null>(null);
+
 export const PanelFootSlot = createContext<HTMLElement | null>(null);
 // V7: у смузі максимум ДВІ кнопки. Третя — та, що про навігацію, а не про
 // роботу з артефактом («У рецепти», «Поділитись») — переїжджає в шапку
@@ -220,7 +232,7 @@ function ClarifyRow({
 // показати СТРУКТУРУ рішення (скільки в комору, скільки в побут, скільки
 // не впізнано), а не всі дев'ятнадцять позицій одразу.
 function ReceiptGroup({
-  tone, glyph, title, count, action, actionLabel, actionDisabled, children, rows,
+  tone, glyph, title, count, action, actionLabel, actionDisabled, children, rows, tail,
 }: {
   tone: 'accent' | 'amber' | 'muted';
   glyph: string;
@@ -231,10 +243,15 @@ function ReceiptGroup({
   actionDisabled?: boolean;
   children?: React.ReactNode;
   rows?: React.ReactNode[];
+  /** Тихий рядок під списком — напр. скільки позицій уже зʼїдено. */
+  tail?: string;
 }) {
   const [all, setAll] = useState(false);
-  const shown = rows && !all ? rows.slice(0, 4) : rows;
-  const hidden = rows ? rows.length - (shown?.length ?? 0) : 0;
+  // null у rows — позиція, якої вже немає (зʼїли). Відсіюємо ДО слайсу,
+  // інакше «ЩЕ N» рахував би порожні місця й ховав живі рядки.
+  const real = rows?.filter(Boolean);
+  const shown = real && !all ? real.slice(0, 4) : real;
+  const hidden = real ? real.length - (shown?.length ?? 0) : 0;
   return (
     <div className={styles.rgroup}>
       <div className={styles['rgroup-head']}>
@@ -252,6 +269,7 @@ function ReceiptGroup({
       </div>
       {shown}
       {children}
+      {tail && <div className={styles['rgroup-tail']}>{tail}</div>}
       {hidden > 0 && (
         <button type="button" className={styles['rgroup-more']} onClick={() => setAll(true)}>
           ЩЕ {hidden} ▾
@@ -297,7 +315,23 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   const [liveCard, setLiveCard] = useState(card);
   // UX9-17: rename/correct ФІЛЬТРУВАЛИСЬ — картка перейменування стояла без
   // жодного предметного рядка, людина тиснула «Застосувати» наосліп.
-  const ops = (liveCard.ops as IntakeOp[] | undefined ?? []);
+  const rawOps = (liveCard.ops as IntakeOp[] | undefined ?? []);
+  // Позиції, а не знімок. Кожен застосований op несе batch_id (сервер
+  // проставив на apply), тож рядок показує ЖИВУ кількість і назву. Порядок і
+  // довжина масиву незмінні — індекси тримають чекбокси й `inList`, — тому
+  // зʼїдене не викидається зі списку, а позначається `gone` і ховається вже
+  // на рендері.
+  const live = useContext(LivePositions);
+  const ops = rawOps.map((op) => {
+    const id = (op as { batch_id?: string }).batch_id;
+    if (!id || !live || live.size === 0) return op;
+    const now = live.get(id);
+    // Ключа немає — позицію зʼїли. Це не помилка й не втрата: чекова книжка
+    // показує лише те, що лишилось.
+    if (!now) return { ...op, gone: true } as IntakeOp & { gone?: boolean };
+    return { ...op, label: now.label, value: now.value ?? undefined, unit: (now.unit ?? undefined) as IntakeOp['unit'] };
+  }) as (IntakeOp & { gone?: boolean })[];
+  const goneCount = ops.filter((o) => o.gone).length;
   // №6: чекбокси позицій — «щось лишилось» знімається галочкою, решта
   // застосовується. Дефолт — усе увімкнено; актуально насамперед для
   // пост-кук списання, але працює на будь-якій intake-картці.
@@ -401,12 +435,12 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
             tone="accent"
             glyph="●"
             title="У КОМОРУ"
-            count={ops.length - off.size}
+            count={ops.length - off.size - goneCount}
             action={actionable && ops.length > 1
               ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
               : undefined}
             actionLabel={off.size === ops.length ? 'ПОВЕРНУТИ ВСІ' : 'ЗНЯТИ ВСІ'}
-            rows={ops.map((op, i) => (
+            rows={ops.map((op, i) => op.gone ? null : (
               <div key={i} className={styles.rrow} style={off.has(i) ? { opacity: 0.45 } : undefined}>
                 {actionable && ops.length > 1 ? (
                   <button
@@ -433,6 +467,9 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 )}
               </div>
             ))}
+            tail={goneCount > 0
+              ? `ще ${goneCount} ${goneCount === 1 ? 'позиція' : 'позицій'} з цього чека вже зʼїдено`
+              : undefined}
           />
 
           {/* «Вже у списку» — НЕ п'ятий кошик рядків, а примітка про перетин.
@@ -486,7 +523,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
       )}
       {!anyReceipt && (
         <div className={styles.ops}>
-          {ops.map((op, i) => (
+          {ops.map((op, i) => op.gone ? null : (
             <div
               key={i}
               className={styles.op}
@@ -518,6 +555,13 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               )}
             </div>
           ))}
+          {goneCount > 0 && (
+            // Порожній чек виглядав би зламаним, тому кажемо прямо, скільки
+            // позицій уже зʼїли. Це не список — числа досить.
+            <div className={styles['op-gone-tail']}>
+              ще {goneCount} {goneCount === 1 ? 'позиція' : 'позицій'} з цього запису вже зʼїдено
+            </div>
+          )}
         </div>
       )}
       {intakeFoot}
