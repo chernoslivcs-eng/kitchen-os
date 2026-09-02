@@ -3,6 +3,7 @@
 // Ім'я з двокрапкою — параметричне: `topic-holds:плескавиц` → перевіряє входження підрядка.
 
 import type { Fixture } from './fixtures/index.js';
+import { applyMode, type Card } from '@kitchen/domain';
 
 export interface ModelOutput {
   reply?: string;
@@ -555,15 +556,23 @@ export const registry: Record<string, Invariant> = {
       : fail(`маркдаун у reply (інтерфейс рендерить plain text): ${hits.join(', ')}`);
   },
 
-  // QA-4/5/6: правило «час дієслова» — картка ще не застосована, дія в майбутньому.
-  'future-tense-with-card': (out) => {
-    if (!out.card) return pass('картки немає — правило не застосовне');
+  // Знахідка A аудиту. Було `future-tense-with-card`: майбутній час вимагався
+  // від БУДЬ-ЯКОЇ картки — правило, писане під рантайм, де кожна чекала тапу.
+  // Пул-8 №2 і M13 01.09 зробили intake_diff і shopping автозастосовними, і
+  // вимога стала хибною саме на найчастіших типах. Джерело режиму одне —
+  // applyMode() з домену, той самий, що читають промпт і пост-процесор.
+  'tense-matches-apply-mode': (out) => {
+    const type = out.card?.type as Card['type'] | undefined;
+    if (!type) return pass('картки немає — правило не застосовне');
+    if (applyMode(type) !== 'confirm') {
+      return pass(`${type}: застосування не чекає тапу, минулий час — факт`);
+    }
     const reply = String(out.reply ?? '').toLowerCase();
     const claimed = reply.match(
       anyWord(['записав', 'записала', 'записую', 'прибрав', 'прибрала', 'прибираю', 'видалив', 'видалила', 'видаляю', 'додав', 'додала', 'додаю']),
     );
     return claimed
-      ? fail(`«${claimed[0]}» стверджує доконану дію, а картку ще не застосовано`)
+      ? fail(`«${claimed[0]}» стверджує доконану дію, а картку ${type} ще не застосовано`)
       : pass();
   },
 

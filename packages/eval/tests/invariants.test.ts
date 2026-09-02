@@ -320,3 +320,39 @@ describe('expected-expansions: правопис і діагностика', () =
     expect(v.detail).toMatch(/було: снеки/);
   });
 });
+
+// Знахідка A аудиту: третя копія правила про час дієслова. Стара версія
+// (`future-tense-with-card`) вимагала майбутнього часу від БУДЬ-ЯКОЇ картки —
+// правило, писане під рантайм, де кожна картка чекала тапу. Пул-8 №2 і M13
+// 01.09 зробили intake_diff і shopping автозастосовними, і вимога стала
+// хибною саме на найчастіших типах. Інваріант при цьому був відчеплений від
+// усіх фікстур (QA-7, через мертвий `\b`) — тобто мовчав, поки промпт і
+// пост-процесор стверджували те саме вголос.
+describe('tense-matches-apply-mode', () => {
+  const inv = registry['tense-matches-apply-mode']!;
+  const out = (reply: string, type: string) =>
+    ({ raw: '', reply, card: { type } }) as never;
+
+  it('минулий час при автозастосованій картці — доконаний факт', () => {
+    expect(inv(out('Записав хліб.', 'intake_diff'), fx).pass).toBe(true);
+    expect(inv(out('Прибрав сіль зі списку.', 'shopping'), fx).pass).toBe(true);
+  });
+
+  it('минулий час при картці, що чекає тапу, — брехня про зроблене', () => {
+    const v = inv(out('Записав рецепт у бібліотеку.', 'recipe'), fx);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/записав/i);
+  });
+
+  it('майбутній час там, де тап потрібен, — правильно', () => {
+    expect(inv(out('Запишу Оксану в домашні.', 'profile'), fx).pass).toBe(true);
+  });
+
+  it('картка нічого не застосовує — правило не застосовне', () => {
+    expect(inv(out('Записав.', 'proposal'), fx).pass).toBe(true);
+  });
+
+  it('без картки правило не застосовне', () => {
+    expect(inv({ raw: '', reply: 'Записав.' } as never, fx).pass).toBe(true);
+  });
+});
