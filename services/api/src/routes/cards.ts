@@ -33,6 +33,13 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
     const { user_id } = requireUser(req);
     try {
       const r = await applyCard(repo, req.params.id, req.body?.selected ?? [], user_id);
+
+      // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
+      // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
+      // взагалі проблема в житті, чи лише в підстроєному випадку.
+      if (r.missed?.length) {
+        req.log.warn({ user_id, card_id: req.params.id, missed: r.missed }, 'intake-op-missed');
+      }
       // Правка №6: застосована пост-кук картка списання продовжує розмову
       // детермінованим «Як вийшло?» (0 токенів). Впізнаємо її за точним
       // службовим текстом повідомлення-носія.
