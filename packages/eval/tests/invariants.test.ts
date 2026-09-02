@@ -185,3 +185,49 @@ describe('generic-label-asks-once звітує, що саме перевірив
     expect(v.detail).toMatch(/не перевірялось/);
   });
 });
+
+// Еталонні розгортання. Живий провал 02.09: чек ФОТОГРАФІЄЮ дав «хусь»
+// замість хустинок і «батер» замість багета, тоді як той самий чек текстом
+// розібрався добре. Еталон не вигаданий — пари А↔Б із корпусу, зіставлені
+// за ціною рядка: мережа сама надрукувала повну назву того, що на касі
+// скоротилось.
+describe('expected-expansions', () => {
+  const inv = registry['expected-expansions']!;
+  const card = (labels: string[]) => ({
+    type: 'intake_diff',
+    ops: labels.map((l) => ({ op: 'add', label: l, product: l.split(' ')[0] })),
+  });
+  const fx = (expect_products: string[]) => ({ expect_products } as never);
+
+  it('огризки замість назв — провал, і видно яких саме', () => {
+    const v = inv({ card: card(['хусь', 'батер', 'папір']) } as never, fx(['хустинки', 'багет', 'туалетн']));
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/не впізнано 3 з 3/);
+    expect(v.detail).toMatch(/хустинки/);
+  });
+
+  it('повні назви — проходить і звітує скільки', () => {
+    const v = inv(
+      { card: card(['хустинки Hoc Rut Mini Tissue 150 шт', 'багет подовий гречаний', 'папір туалетний Zewa']) } as never,
+      fx(['хустинки', 'багет', 'туалетн']),
+    );
+    expect(v.pass).toBe(true);
+    expect(v.detail).toMatch(/усі 3/);
+  });
+
+  it('бренд і варіант теж рахуються — назва може лежати в них', () => {
+    // «шоколад молочний Kor з мигдалем» — сорт живе у variant, і еталон
+    // «мигдал» має знайтись саме там.
+    const v = inv(
+      { card: { type: 'intake_diff', ops: [{ op: 'add', label: 'шоколад молочний', product: 'шоколад молочний', brand: 'Kor', variant: 'з мигдалем і кокосом' }] } } as never,
+      fx(['мигдал']),
+    );
+    expect(v.pass).toBe(true);
+  });
+
+  it('без еталонів мовчить чесно, а не вдає перевірку', () => {
+    const v = inv({ card: card(['будь-що']) } as never, fx([]));
+    expect(v.pass).toBe(true);
+    expect(v.detail).toMatch(/нема чого звіряти/);
+  });
+});

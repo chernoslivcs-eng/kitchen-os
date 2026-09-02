@@ -1,4 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const HERE_FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
+
 import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
@@ -132,7 +138,23 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
     if (fx.attachment?.kind === 'text' && fx.attachment.content) {
       parts.push({ type: 'text', text: fx.attachment.content });
     }
-    // TODO: image branch — load .jpg, base64, push ImageBlockParam. Не тепер.
+    // Зображення — дослівно як у проді (callAttachmentParse, model.ts): base64
+    // із media_type за розширенням. Доти тут стояв TODO, і це означало, що
+    // фотошлях не перевірявся ЖОДНОЮ фікстурою. Живий провал 02.09 саме там:
+    // той самий чек текстом розібрався добре, а фотографією дав «хусь»
+    // замість хустинок і «батер» замість багета.
+    if (fx.attachment?.kind === 'image') {
+      const file = join(HERE_FIXTURES, fx.attachment.path);
+      const ext = fx.attachment.path.toLowerCase();
+      const media_type = ext.endsWith('.png') ? 'image/png'
+        : ext.endsWith('.webp') ? 'image/webp'
+        : ext.endsWith('.gif') ? 'image/gif'
+        : 'image/jpeg';
+      parts.push({
+        type: 'image',
+        source: { type: 'base64', media_type, data: readFileSync(file).toString('base64') },
+      });
+    }
     // Дослівно як у проді (callAttachmentParse): хвостова фраза частина промпту.
     parts.push({
       type: 'text',

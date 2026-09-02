@@ -291,6 +291,30 @@ export const registry: Record<string, Invariant> = {
     return pass(`родове «${names}» → одне уточнення`);
   },
 
+  // Розбір мусить упізнати конкретні продукти, а не «щось схоже».
+  //
+  // Живий провал 02.09: касовий чек ФОТОГРАФІЄЮ дав «хусь» замість хустинок,
+  // «батер» замість багета, «папір» замість туалетного паперу Zewa, а два
+  // різні шоколади злились в один. Той самий чек ТЕКСТОМ розібрався добре —
+  // отже ламається саме зоровий шлях, і жодна фікстура його не перевіряла.
+  //
+  // Еталон не вигаданий: пари А↔Б із корпусу, зіставлені за ціною рядка.
+  // Мережа сама надрукувала, як називається те, що на касі скоротилось.
+  'expected-expansions': (out, fx) => {
+    const want = (fx as { expect_products?: string[] }).expect_products ?? [];
+    if (!want.length) return pass('еталонів не задано — нема чого звіряти');
+    const ops = opsOfIntake(out) ?? [];
+    if (!ops.length) return fail('немає ops');
+    const hay = (ops as any[])
+      .map((o) => `${o.label ?? ''} ${o.product ?? ''} ${o.brand ?? ''} ${o.variant ?? ''}`.toLowerCase())
+      .join(' | ');
+    const missing = want.filter((w) => !hay.includes(w.toLowerCase()));
+    if (missing.length) {
+      return fail(`не впізнано ${missing.length} з ${want.length}: ${missing.slice(0, 4).join(', ')}`);
+    }
+    return pass(`усі ${want.length} еталонних продуктів на місці`);
+  },
+
   'triple-discipline': (out) => {
     const ops = opsOfIntake(out) ?? [];
     if (!ops.length) return fail('немає ops');

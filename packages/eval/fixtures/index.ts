@@ -28,6 +28,10 @@ export interface Fixture {
   // recipe_gen: user-хід генерації — назва страви (+ опційний edit-контекст),
   // одним рядком, як у проді callRecipe (title\n\ncontext).
   request?: string;
+  /** Еталонні продукти, які розбір мусить упізнати. Джерело — не здогад:
+   *  пари А↔Б із packages/catalog/tests/fixtures/receipt-corpus.json,
+   *  зіставлені за ЦІНОЮ рядка (той самий чек на касі й у застосунку). */
+  expect_products?: string[];
   skip?: string;
 }
 
@@ -54,6 +58,40 @@ export function loadFixtures(): Fixture[] {
       ],
       attachment: { kind: 'text', path: 'receipt-abbreviated.txt', content: readText('receipt-abbreviated.txt') },
     },
+    (() => {
+      // Фотошлях розбору. Живий провал 02.09: ТОЙ САМИЙ чек текстом
+      // розібрався добре (21/21 з product, 14 брендів), а фотографією дав
+      // «хусь» замість хустинок, «батер» замість багета, «папір» замість
+      // туалетного паперу Zewa — і два різні шоколади злились в один.
+      //
+      // Жодна фікстура цього не ловила, бо eval узагалі не вмів слати
+      // зображення (у model-client.ts стояв TODO). Тепер уміє.
+      //
+      // Файл до репозиторію не кладемо — це фото чека з приватними даними.
+      // Поклади знімок у packages/eval/fixtures/receipt-till-photo.jpg, і
+      // фікстура ввімкнеться сама; без нього вона чесно скіпається, як
+      // shelf-photo.
+      const img = join(HERE, 'receipt-till-photo.jpg');
+      const expect_products = ["хустинки", "багет", "туалетн", "шоколад", "брускетта", "чипси", "ковбаса", "томат"];
+      if (!existsSync(img)) {
+        return {
+          id: 'receipt-till-photo',
+          description: 'Паперовий чек Сільпо ФОТОГРАФІЄЮ (плейсхолдер — поклади receipt-till-photo.jpg)',
+          call: 'attachment_parse' as const,
+          invariants: ['receipt-coverage-80', 'expected-expansions', 'triple-discipline'],
+          expect_products,
+          skip: 'no image (receipt-till-photo.jpg not present)',
+        };
+      }
+      return {
+        id: 'receipt-till-photo',
+        description: 'Паперовий чек Сільпо фотографією — той самий, що receipt-till-silpo текстом',
+        call: 'attachment_parse' as const,
+        invariants: ['receipt-coverage-80', 'expected-expansions', 'triple-discipline'],
+        expect_products,
+        attachment: { kind: 'image' as const, path: 'receipt-till-photo.jpg' },
+      };
+    })(),
     {
       // 02.09. Наявна фікстура receipt-abbreviated легша за реальність: там
       // слова розділені пробілами («СИР КАМБОЦ.70% 193Г»), а на касовому
@@ -76,7 +114,11 @@ export function loadFixtures(): Fixture[] {
         'no-prices',
         'tagger-triples',
         'triple-discipline',
+        'expected-expansions',
       ],
+      // Ті самі еталони, що у фотоверсії. Пара фікстур на ОДИН чек — текстом
+      // і знімком — і різниця між ними ізолює саме зоровий шлях.
+      expect_products: ['хустинки', 'багет', 'туалетн', 'шоколад', 'брускетта', 'чипси', 'ковбаса', 'томат'],
       attachment: { kind: 'text', path: 'receipt-till-silpo.txt', content: readText('receipt-till-silpo.txt') },
     },
     {
