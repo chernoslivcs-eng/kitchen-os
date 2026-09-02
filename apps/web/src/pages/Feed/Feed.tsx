@@ -10,7 +10,7 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
-import { Card, labelFor, appliedToast } from './cards';
+import { Card, PanelFootSlot, labelFor, appliedToast } from './cards';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -294,6 +294,30 @@ export function Feed() {
     } catch { return RAIL_DEFAULT; }
   });
   const [dragging, setDragging] = useState(false);
+  // Крок 1.2: три зони панелі. Низ картки їде в цей вузол через портал —
+  // сама картка лишається цілим компонентом зі своїм станом.
+  const [footSlot, setFootSlot] = useState<HTMLElement | null>(null);
+  // V9: тінь над закріпленим низом — не декор. Вона з'являється, лише коли
+  // під згином є ще вміст, і зникає на верхівках — так смуга сама каже,
+  // чи дочитано до кінця.
+  const [bodyScrolled, setBodyScrolled] = useState(false);
+  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
+  const [bodyContentEl, setBodyContentEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!bodyEl) return;
+    const check = () => setBodyScrolled(
+      bodyEl.scrollTop + bodyEl.clientHeight < bodyEl.scrollHeight - 1,
+    );
+    check();
+    bodyEl.addEventListener('scroll', check, { passive: true });
+    // Самого onScroll мало: вміст росте мовчки. Розкрив альтернативи —
+    // висота стрибнула, події скролу не було, і тінь брехала б, що читати
+    // більше нема чого. Тому ще й ResizeObserver на самому вмісті.
+    const ro = new ResizeObserver(check);
+    ro.observe(bodyEl);
+    if (bodyContentEl) ro.observe(bodyContentEl);
+    return () => { bodyEl.removeEventListener('scroll', check); ro.disconnect(); };
+  }, [bodyEl, bodyContentEl]);
   const [vw, setVw] = useState(() => window.innerWidth);
   useEffect(() => {
     const onResize = () => setVw(window.innerWidth);
@@ -1387,6 +1411,8 @@ export function Feed() {
         <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
         {shownArtifact && (
           <div id={`rail-${shownArtifact.key}`} className={styles['rail-artifact']}>
+            {/* Зона 1 — шапка. Не скролиться: вкладки мусять лишатись на
+                місці, інакше на довгому кошику зникає спосіб перемкнутись. */}
             <div className={styles['rail-tabs']}>
               {openArtifacts.length > 1
                 ? openArtifacts.map((a) => (
@@ -1407,21 +1433,33 @@ export function Feed() {
                 aria-label="Закрити"
               >✕</button>
             </div>
-            {shownArtifact.key === 'cart'
-              ? <Card card={shownArtifact.turn.card!} cardId={shownArtifact.turn.cardId ?? undefined} />
-              : (
-                <Card
-                  card={shownArtifact.turn.card!}
-                  cardId={shownArtifact.turn.cardId ?? undefined}
-                  onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
-                  onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
-                  onSaveRecipe={saveRecipeForLater}
-                  savedRecipeIds={savedRecipeIds}
-                  onNeedToList={addNeedToList}
-                  batchLabels={batchLabels}
-                  stepLabels={stepLabels}
-                />
-              )}
+            {/* Зона 2 — тіло. ЄДИНА зона скролу в панелі. */}
+            <div className={styles['rail-body']} ref={setBodyEl}>
+              <div ref={setBodyContentEl}>
+              <PanelFootSlot.Provider value={footSlot}>
+                {shownArtifact.key === 'cart'
+                  ? <Card card={shownArtifact.turn.card!} cardId={shownArtifact.turn.cardId ?? undefined} />
+                  : (
+                    <Card
+                      card={shownArtifact.turn.card!}
+                      cardId={shownArtifact.turn.cardId ?? undefined}
+                      onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
+                      onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
+                      onSaveRecipe={saveRecipeForLater}
+                      savedRecipeIds={savedRecipeIds}
+                      onNeedToList={addNeedToList}
+                      batchLabels={batchLabels}
+                      stepLabels={stepLabels}
+                    />
+                  )}
+              </PanelFootSlot.Provider>
+              </div>
+            </div>
+            {/* Зона 3 — низ. Не скролиться; сюди картка порталить свої дії. */}
+            <div
+              className={`${styles['rail-foot']} ${bodyScrolled ? styles['rail-foot-shadow'] : ''}`}
+              ref={setFootSlot}
+            />
           </div>
         )}
         {housePending.length > 0 && (

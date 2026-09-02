@@ -686,7 +686,10 @@
     border-left: 1px solid var(--border);
     background: var(--bg-surface-2);
     padding: 22px 18px;
-    overflow-y: auto;
+    /* Крок 1.2: скролить ТІЛО, не панель. Поки скролилась панель цілком,
+       разом із вмістом їхали й вкладки, і «Оформити» — на довгому кошику
+       зникав і спосіб перемкнутись, і сама дія. */
+    overflow: hidden;
   }
 }
 .rail-block { display: flex; flex-direction: column; gap: 2px; }
@@ -985,7 +988,7 @@
 
 @media (min-width: 1200px) {
   /* Панель у потоці — тут артефакт видно завжди, без відкривання. */
-  :global(body.with-sidebar) .rail-artifact { display: block; }
+  :global(body.with-sidebar) .rail-artifact { display: flex; }
 }
 .cart-trace-dot { color: var(--accent); }
 .cart-trace-go { color: var(--accent); }
@@ -994,8 +997,8 @@
    картки під цю ширину (степер у два рівні) — окремий крок. */
 .rail-artifact {
   display: none;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border);
+  /* Риску знизу прибрано: після кроку 1.2 артефакт займає панель цілком,
+     а межу між тілом і діями малює вже .rail-foot. */
 }
 
 /* Рецепт у панелі — В ОДНУ КОЛОНКУ.
@@ -1125,11 +1128,11 @@
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
-    overflow-y: auto;
+    overflow: hidden;
     z-index: 30;
   }
   .rail-open .rail-artifact {
-    display: block;
+    display: flex;
     border-bottom: 0;
     padding-bottom: 0;
   }
@@ -1390,4 +1393,55 @@
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* ── Крок 1.2: три зони панелі (V1) ──────────────────────────────────
+   Шапка з вкладками — не скролиться. Тіло — єдина зона скролу. Низ із
+   діями — не скролиться: «Оформити», «Готуємо → Cook Mode» і «У список»
+   стоять на місці, скільки б не було позицій. */
+/* display НЕ чіпаємо: базове .rail-artifact — display:none, і показують
+   його два окремі правила (панель ≥1200 і шторка). Перебити тут display
+   означало б показати артефакт там, де його ховають навмисно. */
+.rail-artifact {
+  flex-direction: column;
+  min-height: 0;   /* без цього flex-дитина не дає тілу стиснутись */
+  flex: 1;
+}
+.rail-tabs { flex: none; }
+.rail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rail-foot {
+  flex: none;
+  background: inherit;
+  transition: box-shadow 150ms ease;
+}
+/* Порожній низ не має малювати ні рамки, ні відступу — інакше під карткою
+   без дій висіла б самотня риска. :empty знімає це без окремого прапорця. */
+.rail-foot:not(:empty) {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+/* Тінь — не декор: вона є, лише поки під згином лишився вміст, і зникає
+   на верхівці. Так смуга сама каже, чи дочитано до кінця. */
+.rail-foot-shadow:not(:empty) { box-shadow: 0 -8px 20px rgba(29, 33, 38, 0.06); }
+/* У слоті геометрію малює .rail-foot; власні рамка й відступи картки тут
+   зайві — вони для стрічки, де підвал лишається всередині картки. */
+.rail-foot .card-foot,
+.rail-foot .recipe-actions { border-top: 0; padding-top: 0; margin-top: 0; }
+
+/* Підвал кошика — клас, а не інлайн: інакше .rail-foot не мала б чим його
+   перебити. */
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  row-gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 6px;
 }

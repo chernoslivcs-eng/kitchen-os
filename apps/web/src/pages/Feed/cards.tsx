@@ -2,7 +2,8 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
-import { useRef, useState } from 'react';
+import { createContext, useContext, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { api, type ChatCard, type Recipe, type ReceiptLeftover } from '../../api';
 import { Button } from '../../components/Button/Button';
@@ -12,6 +13,15 @@ import { formatQty, formatUnit } from '../../lib/units';
 import { renderStepContent, scaleRecipe } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
+
+// Крок 1.2: панель забирає низ картки собі. У трьох зонах (шапка · тіло ·
+// закріплений низ) дії не мусять їхати разом із вмістом: «Оформити» і
+// «Готуємо» стоять на місці, скільки б не було позицій.
+// Картку при цьому НЕ розщеплюємо на два компоненти — весь її стан
+// (кількості, заміни, порції) лишається в одному місці, а низ просто
+// рендериться в чужий вузол, якщо він заданий. Немає слота — немає й
+// змін: у стрічці низ лишається всередині картки, як був.
+export const PanelFootSlot = createContext<HTMLElement | null>(null);
 
 // ----- Спільні типи op/item, які модель кладе в картку -------------------
 
@@ -657,6 +667,58 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
   }
 
 
+  const footSlot = useContext(PanelFootSlot);
+  // V7 «на 320»: стан окремим рядком, головна дія на всю ширину, другорядні
+  // під нею. Повна уніфікація низу (одна смуга, максимум дві кнопки,
+  // «У рецепти» іконкою в шапці) — крок 2.1; тут лише не даємо чотирьом
+  // діям налазити одна на одну.
+  const footRaw = (
+    <div className={styles['recipe-actions']}>
+      {/* Дія одна на весь список: «У список» додає все, чого бракує.
+          «+» у кожному рядку прибрано (V2) — точкове лишилось довгим тапом. */}
+      {missIdx.length > 0 && onNeedToList && (
+        <span className={styles['recipe-miss']}>○ БРАКУЄ {missIdx.length}</span>
+      )}
+      {onCook && (
+        <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>
+      )}
+      <div className={styles['recipe-actions-sub']}>
+        {missIdx.length > 0 && onNeedToList && (
+          <button
+            type="button"
+            disabled={!leftToList.length}
+            onClick={addAllMissing}
+            className={styles['recipe-tolist']}
+            style={leftToList.length ? undefined : { color: 'var(--fg-dim)', cursor: 'default' }}
+          >
+            {leftToList.length ? 'У список' : '✓ у списку'}
+          </button>
+        )}
+        {onSaveRecipe && (
+          <button
+            type="button"
+            disabled={saved}
+            onClick={() => onSaveRecipe(rid)}
+            className={styles['recipe-tolist']}
+            style={saved ? { color: 'var(--fg-dim)', cursor: 'default' } : undefined}
+          >
+            {saved ? '✓ У рецептах' : 'У рецепти'}
+          </button>
+        )}
+        {onShare && (
+          <button
+            type="button"
+            onClick={() => onShare(scaled, rid)}
+            title="Поділитись"
+            className={styles['recipe-tolist']}
+            style={{ marginLeft: 'auto', fontSize: 17, lineHeight: 1 }}
+          >↗</button>
+        )}
+      </div>
+    </div>
+  );
+  const recipeFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
+
   return (
     <div className={styles['recipe-msg']}>
       <div>
@@ -763,56 +825,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         </div>
       </div>
 
-      {/* Правка №4б: «Готуємо» — на всю ширину, як «Рецепт →» у пропозиції;
-          «У рецепти» і «Поділитись» — вузькі другорядні (№6: шеринг тепер
-          живе тут, а не на фініші Cook Mode). */}
-      {/* V7 «на 320»: стан окремим рядком, головна дія на всю ширину,
-          другорядні під нею. Повна уніфікація низу (одна смуга, максимум
-          дві кнопки, «У рецепти» іконкою в шапці) — крок 2.1; тут лише
-          не даємо чотирьом діям налазити одна на одну. */}
-      <div className={styles['recipe-actions']}>
-        {/* Дія одна на весь список: «У список» додає все, чого бракує.
-            «+» у кожному рядку прибрано (V2) — точкове лишилось довгим тапом. */}
-        {missIdx.length > 0 && onNeedToList && (
-          <span className={styles['recipe-miss']}>○ БРАКУЄ {missIdx.length}</span>
-        )}
-        {onCook && (
-          <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>
-        )}
-        <div className={styles['recipe-actions-sub']}>
-          {missIdx.length > 0 && onNeedToList && (
-            <button
-              type="button"
-              disabled={!leftToList.length}
-              onClick={addAllMissing}
-              className={styles['recipe-tolist']}
-              style={leftToList.length ? undefined : { color: 'var(--fg-dim)', cursor: 'default' }}
-            >
-              {leftToList.length ? 'У список' : '✓ у списку'}
-            </button>
-          )}
-          {onSaveRecipe && (
-            <button
-              type="button"
-              disabled={saved}
-              onClick={() => onSaveRecipe(rid)}
-              className={styles['recipe-tolist']}
-              style={saved ? { color: 'var(--fg-dim)', cursor: 'default' } : undefined}
-            >
-              {saved ? '✓ У рецептах' : 'У рецепти'}
-            </button>
-          )}
-          {onShare && (
-            <button
-              type="button"
-              onClick={() => onShare(scaled, rid)}
-              title="Поділитись"
-              className={styles['recipe-tolist']}
-              style={{ marginLeft: 'auto', fontSize: 17, lineHeight: 1 }}
-            >↗</button>
-          )}
-        </div>
-      </div>
+      {recipeFoot}
     </div>
   );
 }
@@ -881,6 +894,32 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
       return next;
     });
   }
+  const footSlot = useContext(PanelFootSlot);
+  // Підвал кошика: сума нерозривна, на вузькому чесно стає двома рядками —
+  // сума, під нею кнопка праворуч (раніше без wrap ламалась сама сума,
+  // «3 з ⏎ 3»). Геометрію тепер задає клас, а не інлайн: у слоті панелі
+  // рамку й відступи малює .rail-foot, і інлайновий стиль її не перебиває.
+  const footRaw = (
+    <div className={styles['card-foot']}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap' }}>
+          <RollingNumber value={card.total ?? 0} />₴ · <RollingNumber value={card.found ?? 0} /> з {card.of}
+        </span>
+        <a
+          href={card.cart_url}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            marginLeft: 'auto', height: 44, padding: '0 18px', borderRadius: 12,
+            whiteSpace: 'nowrap',
+            background: 'var(--fg)', color: 'var(--bg-body)', textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center',
+            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+          }}
+        >Оформити в Сільпо ↗</a>
+      </div>
+  );
+  const cartFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
+
   return (
     <div className={styles.card}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
@@ -1025,30 +1064,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
           );
         })}
       </div>
-      {/* Крок 2 панелі: у стрічці підвал має 720px і лягає в рядок, у панелі —
-          284px, і сума з кнопкою разом дають ~290. Раніше без wrap ламалась
-          САМА сума («3 з ⏎ 3») — тепер вона нерозривна, а на вузькому підвал
-          чесно стає двома рядками: сума, під нею кнопка праворуч. */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', rowGap: 10,
-        borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 6,
-      }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap' }}>
-          <RollingNumber value={card.total ?? 0} />₴ · <RollingNumber value={card.found ?? 0} /> з {card.of}
-        </span>
-        <a
-          href={card.cart_url}
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            marginLeft: 'auto', height: 44, padding: '0 18px', borderRadius: 12,
-            whiteSpace: 'nowrap',
-            background: 'var(--fg)', color: 'var(--bg-body)', textDecoration: 'none',
-            display: 'inline-flex', alignItems: 'center',
-            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-          }}
-        >Оформити в Сільпо ↗</a>
-      </div>
+      {cartFoot}
     </div>
   );
 }
