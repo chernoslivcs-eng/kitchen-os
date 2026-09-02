@@ -285,6 +285,11 @@ export function Feed() {
     if (window.matchMedia('(min-width: 1280px)').matches) setRailHiddenPersist(true);
     else setRailOpen(false);
   }
+  // Крок 2: кошик — ОДНЕ повідомлення, два подання. У стрічці воно
+  // згортається в моно-слід, у панелі рендериться повністю. Актуальний —
+  // ОСТАННІЙ: кошик у Сільпо один, і попередні картки вже не про нього.
+  const latestCart = [...turns].reverse().find((t) => t.card?.type === 'cart' && t.cardId);
+
   const [unratedRun, setUnratedRun] = useState<{ id: string; title: string; session_id: string | null } | null>(null);
 
   async function refreshCounts() {
@@ -963,10 +968,24 @@ export function Feed() {
                 </Button>
               </div>
             )}
+            {t.card?.type === 'cart' && (
+              /* Крок 2: слід кошика у стрічці. Показується лише там, де є
+                 панель (≥1440) — нижче лишається повна картка, інакше кошик
+                 зник би зовсім. Обидва подання в DOM, вибирає медіазапит. */
+              <button
+                type="button"
+                className={styles['cart-trace']}
+                onClick={() => document.getElementById('rail-cart')?.scrollIntoView({ block: 'nearest' })}
+              >
+                <span className={styles['cart-trace-dot']}>●</span>
+                <span>КОШИК · {t.card.rows?.length ?? 0} ПОЗИЦІЙ · {Math.round(t.card.total ?? 0)} ₴</span>
+                <span className={styles['cart-trace-go']}>РОЗГОРНУТИ →</span>
+              </button>
+            )}
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''}`}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' ? styles['cart-in-feed'] : ''}`}>
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}
@@ -1212,6 +1231,14 @@ export function Feed() {
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
       <aside className={`${styles.rail} ${railOpen ? styles['rail-open'] : ''} ${railHidden ? styles['rail-hidden'] : ''}`}>
         <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
+        {latestCart?.card && (
+          /* Те саме повідомлення, що слід у стрічці — просто розгорнуте.
+             cardId той самий, тож степер і «додати альтернативу» ходять у
+             ту саму картку через updateMessageCard, без нового сховища. */
+          <div id="rail-cart" className={styles['rail-artifact']}>
+            <Card card={latestCart.card} cardId={latestCart.cardId ?? undefined} />
+          </div>
+        )}
         {pantryCount !== null && pantryCount > 0 && (
           <div className={styles['rail-block']}>
             <div className={styles['rail-title']}>СТАТУС КОМОРИ</div>

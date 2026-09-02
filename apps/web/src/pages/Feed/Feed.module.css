@@ -976,3 +976,47 @@
   flex: none;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ----- Крок 2: кошик — одне повідомлення, два подання ------------------- */
+/* Кошик у Сільпо — ОДНА жива річ. Дві його картки у стрічці з різними сумами
+   завжди суперечать одна одній, тому в стрічці лишається слід, а повне
+   подання переїжджає в панель. Обидва в DOM: нижче 1440 панелі немає, і без
+   картки в стрічці кошик зник би зовсім. */
+.cart-trace { display: none; }
+.cart-in-feed { display: block; }
+
+@media (min-width: 1440px) {
+  :global(body.with-sidebar) .cart-in-feed { display: none; }
+  :global(body.with-sidebar) .cart-trace {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    align-self: flex-start;
+    padding: 8px 12px;
+    margin-left: -12px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--bg-hover);
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    text-align: left;
+  }
+  :global(body.with-sidebar) .cart-trace:hover { color: var(--fg); }
+  /* Панель показує кошик лише там, де сама є в потоці. На 1280-1439 вона ще
+     накладена (крок 5), і кошик там лишається карткою у стрічці — інакше
+     вийшли б дві копії одночасно. */
+  :global(body.with-sidebar) .rail-artifact { display: block; }
+}
+.cart-trace-dot { color: var(--accent); }
+.cart-trace-go { color: var(--accent); }
+/* Ширина навмисно НЕ краденa з падінгу панелі: картка отримує рівно ті
+   ~284px, які порахував бриф, і обмеження лишається видимим. Внутрішнє
+   картки під цю ширину (степер у два рівні) — окремий крок. */
+.rail-artifact {
+  display: none;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
