@@ -1063,18 +1063,6 @@
 /* Стара текстова пілюля прибрана разом із переходом на іконки (02.09).
    Її overflow: hidden різав лічильник на вкладці — а сам ellipsis уже не
    мав чого обрізати: тексту у вкладці немає. */
-.rail-tab-close {
-  margin-left: auto;
-  flex: none;
-  border: 0;
-  background: none;
-  color: var(--fg-dim);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 2px 4px;
-  line-height: 1;
-}
-.rail-tab-close:hover { color: var(--fg); }
 
 .rail-artifact .recipe-msg-cols {
   flex-direction: column;
@@ -1808,7 +1796,6 @@
 .trace-undone .trace-dot,
 .trace-undone .trace-kind { color: var(--fg-dim); }
 .trace-undone .trace-value { color: var(--fg-dim); text-decoration: line-through; }
-
 
 /* Вкладки прокручуються, керування — ні. Смуга прокрутки схована: вона
    тут була б третім елементом інтерфейсу в рядку, де й так тісно. */

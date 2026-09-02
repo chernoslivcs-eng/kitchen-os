@@ -420,7 +420,6 @@ export function Feed() {
   // Список «сам не з'являється й сам не тримається» (V4): вкладка виникає
   // лише коли її відкрили — слідом дельти або з порожньої панелі.
   const [listOpen, setListOpen] = useState(false);
-  const [closedArtifacts, setClosedArtifacts] = useState<Set<string>>(new Set());
   const [activeArtifact, setActiveArtifact] = useState<string | null>(null);
   // Крок 1.4: у згорнутій смузі — активний маркер і «інші» списком по тапу.
   const [miniListOpen, setMiniListOpen] = useState(false);
@@ -439,7 +438,13 @@ export function Feed() {
   // з двома чеками обидва сліди вели на другий, і перший ставав недосяжним:
   // кнопка є, а веде не туди.
   const artifactKeyOf = (t: Turn) => artifacts.find((a) => a.turn?.id === t.id)?.key;
-  const openArtifacts = artifacts.filter((a) => !closedArtifacts.has(a.key));
+  // Артефакти не «закриваються»: набір належить СЕСІЇ й описує те, що в ній
+  // сталося, а не список справ, які викреслюють. Панель живе, доки в сесії
+  // є хоч один артефакт; місце на екрані звільняє «‹» — згортання в смугу,
+  // і це вибір людини, а не зникнення.
+  // Кнопка ✕ прибрана 02.09: закриття ОСТАННЬОГО артефакта зносило панель
+  // цілком, і це читалось як поломка, а не як дія.
+  const openArtifacts = artifacts;
   const shownArtifact = openArtifacts.find((a) => a.key === activeArtifact) ?? openArtifacts[0];
   const RAIL_IN_FLOW = '(min-width: 1200px)';
   // Слід у стрічці — це не якір, а відкриття. Після ✕ артефакт зникає з
@@ -448,12 +453,6 @@ export function Feed() {
   // потім скролимо — вже до того, що напевно існує.
   function openArtifact(key: string) {
     if (key === 'list') setListOpen(true);
-    setClosedArtifacts((prev) => {
-      if (!prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.delete(key);
-      return next;
-    });
     setActiveArtifact(key);
     // Нижче 1200 панелі в потоці немає — там артефакт живе у шторці
     // знизу. Один і той самий слід мусить відкривати те, що на цій
@@ -506,13 +505,6 @@ export function Feed() {
   // або як дашборд, від якого ми відмовились. Pending поки теж тримає
   // панель — він єдиний блок зрізу, що лишився.
   const hasPanel = openArtifacts.length > 0 || housePending.length > 0;
-  function closeArtifact(key: string) {
-    // Артефакт не вмирає — він і далі повідомлення у стрічці, і слід повертає
-    // його тапом. Тому ✕ не потребує підтвердження.
-    setClosedArtifacts((prev) => new Set(prev).add(key));
-    setActiveArtifact(null);
-  }
-
   const [shoppingLabels, setShoppingLabels] = useState<Set<string>>(new Set());
 
   // Крок 4.3: нехарчове з чека їде у список покупок. Окремого «списку
@@ -1698,12 +1690,6 @@ export function Feed() {
               </div>
               {/* Навігаційні дії артефакта — сюди (V7). */}
               <div className={styles['rail-head-actions']} ref={setHeadSlot} />
-              <button
-                type="button"
-                className={styles['rail-tab-close']}
-                onClick={() => closeArtifact(shownArtifact.key)}
-                aria-label="Закрити"
-              >✕</button>
             </div>
             {/* Зона 2 — тіло. ЄДИНА зона скролу в панелі. */}
             <div className={styles['rail-body']} ref={setBodyEl}>
