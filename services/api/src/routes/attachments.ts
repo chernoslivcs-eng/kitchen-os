@@ -14,6 +14,7 @@ import { callAttachmentParse } from '../model.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { stampChatReceipt } from '../receipt-source.js';
+import { composeIntakeLabels } from '../intake-labels.js';
 import { vetoNonfood } from '../nonfood-veto.js';
 
 function kindOf(contentType: string): AttachmentKind {
@@ -108,6 +109,7 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
 
     stampChatReceipt(call.card, call.raw_kind);
     vetoNonfood(call.card);
+    composeIntakeLabels(call.card);
 
     let card_id: string | null = null;
     if (call.card) {

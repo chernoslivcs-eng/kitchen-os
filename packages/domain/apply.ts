@@ -115,7 +115,11 @@ export async function applyCard(
       applied_ops: chosen,
       undo_token,
       undo_snapshot: snapshot,
+      card,
     });
+    // Картку треба зберегти саме тут: applyIntakeOp щойно проставив у неї
+    // batch_id, і без цього вказівники жили б лише в памʼяті процесу.
+    await repo.updateMessageCard(pc.id, card);
     await repo.markMessageApplied(pc.id, chosen.length);
     return { applied: chosen.length, undo_token, already: false };
   }
@@ -400,6 +404,10 @@ async function applyIntakeOp(
     };
     await repo.insertBatch(batch);
     snap.before.created_batch_ids!.push(id);
+    // Картка запамʼятовує, яку позицію вона показує. Напрямок односторонній:
+    // позиція про картку не знає. Тому сесію можна видалити — зникне вікно,
+    // не вміст холодильника.
+    op.batch_id = id;
     return;
   }
 

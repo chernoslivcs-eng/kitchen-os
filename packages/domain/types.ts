@@ -37,7 +37,12 @@ export type IntakeOp =
   // Черга Д (№2): add несе трійку product·brand·variant і теги — тегер
   // збирає їх РАЗ при додаванні (той самий виклик парсу). Знайома трійка
   // реюзається з БД, модельні теги тоді ігноруються.
-  | { op: 'add'; label: string; value?: number; unit?: Unit; zone?: Zone; confidence?: number; evidence?: string; catalog_key?: string;
+  // batch_id проставляє СЕРВЕР після застосування — це вказівник картки на
+  // позицію, яку вона показує. Напрямок саме такий і тільки такий: позиція
+  // про картку не знає й знати не мусить («людині, яка вже готує, байдуже,
+  // де вона що купила» — власник, 02.09). Тому видалення сесії забирає
+  // картку, а позиція лишається жити.
+  | { op: 'add'; label: string; value?: number; unit?: Unit; zone?: Zone; confidence?: number; evidence?: string; catalog_key?: string; batch_id?: string;
       product?: string; brand?: string; variant?: string; tags?: import('./product.js').ProductTags;
       // «(початке)» в інвентарі: партія народжується вже відкритою.
       state?: 'sealed' | 'opened' }

@@ -17,6 +17,7 @@ import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
 import { localDay } from '../local-day.js';
 import { stampChatReceipt } from '../receipt-source.js';
 import { patchReceiptRows } from '../receipt-patch.js';
+import { composeIntakeLabels } from '../intake-labels.js';
 import { vetoNonfood } from '../nonfood-veto.js';
 
 // POST /v1/chat
@@ -133,6 +134,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
       stampChatReceipt(call.card, call.raw_kind);
       vetoNonfood(call.card);
+      composeIntakeLabels(call.card);
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -689,6 +691,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // поїде в комору. Якщо відсікти після — і pending, і повідомлення
     // казали б про позиції, яких у коморі не буде.
     vetoNonfood(call.card);
+    composeIntakeLabels(call.card);
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
