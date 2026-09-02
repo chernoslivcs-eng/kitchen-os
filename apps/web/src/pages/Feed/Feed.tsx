@@ -289,6 +289,10 @@ export function Feed() {
   // згортається в моно-слід, у панелі рендериться повністю. Актуальний —
   // ОСТАННІЙ: кошик у Сільпо один, і попередні картки вже не про нього.
   const latestCart = [...turns].reverse().find((t) => t.card?.type === 'cart' && t.cardId);
+  // Той самий принцип для рецепта: у панелі живе АКТИВНИЙ (останній), архів —
+  // у розділі «Рецепти». Двох рецептів у панелі не буває: наступний заміщає
+  // попередній у тій самій вкладці (рішення дизайну про життєвий цикл).
+  const latestRecipe = [...turns].reverse().find((t) => t.card?.type === 'recipe_link');
 
   const [unratedRun, setUnratedRun] = useState<{ id: string; title: string; session_id: string | null } | null>(null);
 
@@ -982,10 +986,25 @@ export function Feed() {
                 <span className={styles['cart-trace-go']}>РОЗГОРНУТИ →</span>
               </button>
             )}
+            {t.card?.type === 'recipe_link' && (
+              /* Слід рецепта — той самий принцип, що кошик: у стрічці згортка,
+                 у панелі повне подання. Різниця в тому, що рецептів МОЖЕ бути
+                 багато й вони не суперечать один одному — тому слід лишається
+                 назавжди, а в панелі живе тільки останній. */
+              <button
+                type="button"
+                className={styles['cart-trace']}
+                onClick={() => document.getElementById('rail-recipe')?.scrollIntoView({ block: 'nearest' })}
+              >
+                <span className={styles['cart-trace-dot']}>●</span>
+                <span>РЕЦЕПТ · {(t.card.title ?? '').toUpperCase()}</span>
+                <span className={styles['cart-trace-go']}>РОЗГОРНУТИ →</span>
+              </button>
+            )}
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' ? styles['cart-in-feed'] : ''}`}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' ? styles['cart-in-feed'] : ''}`}>
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}
@@ -1231,6 +1250,21 @@ export function Feed() {
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
       <aside className={`${styles.rail} ${railOpen ? styles['rail-open'] : ''} ${railHidden ? styles['rail-hidden'] : ''}`}>
         <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
+        {latestRecipe?.card && (
+          <div id="rail-recipe" className={styles['rail-artifact']}>
+            <Card
+              card={latestRecipe.card}
+              cardId={latestRecipe.cardId ?? undefined}
+              onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
+              onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
+              onSaveRecipe={saveRecipeForLater}
+              savedRecipeIds={savedRecipeIds}
+              onNeedToList={addNeedToList}
+              batchLabels={batchLabels}
+              stepLabels={stepLabels}
+            />
+          </div>
+        )}
         {latestCart?.card && (
           /* Те саме повідомлення, що слід у стрічці — просто розгорнуте.
              cardId той самий, тож степер і «додати альтернативу» ходять у
