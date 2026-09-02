@@ -74,3 +74,15 @@ export function pickArtifacts<T extends ArtifactTurn>(
   if (listCount !== null) out.push({ key: 'list', label: 'Список', meta: String(listCount), turn: null });
   return out;
 }
+
+// Гліф артефакта — одна мова для вкладок і для згорнутої смуги. Раніше
+// смуга малювала всім ◈ «якийсь артефакт», а вкладки писали назву; тепер
+// і там, і там та сама позначка, і око не мусить перекладати.
+// Словник узято з наявного в продукті: ✳ рецепти і ☰ список — ті самі,
+// що в бічному меню.
+export const ARTIFACT_GLYPH: Record<ArtifactKey, string> = {
+  cart: '◈',
+  recipe: '✳',
+  receipt: '▤',
+  list: '☰',
+};

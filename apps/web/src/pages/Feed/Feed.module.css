@@ -16,18 +16,10 @@
 .head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 22px 22px 12px;
   gap: 12px;
   min-width: 0;
-}
-.head-left { min-width: 0; }
-.head-meta {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
 }
 .head-actions {
   display: flex;
@@ -35,7 +27,6 @@
   align-items: center;
   flex: none;
 }
-.head-actions .head-meta { white-space: nowrap; }
 
 /* Правка №1: «+» нова сесія — іконка 40px у правому куті (мобайл). */
 .new-session-btn {
@@ -614,7 +605,6 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-
 /* Правка №7: колишнє притискання вліво (margin-left:36 + композитор зі своїм
    краєм) скасоване — колонка чату (таймлайн-діти + композитор) центрована в
    зоні між сайдбаром (padding-left body) і панеллю (padding-right .screen).
@@ -896,12 +886,10 @@
   }
 }
 
-
 /* Пул-6 №2: коли rail схований — чат забирає його місце (лишається 56px смужки). */
 @media (min-width: 1200px) {
   :global(body.with-sidebar) .screen.rail-off { padding-right: 52px; }
 }
-
 
 /* Пул-7 №4: каретка стрімінгу — блимає, поки фрази з'являються, потім гасне
    (тривалість життя задається inline animation-delay від кількості фраз). */
@@ -1072,47 +1060,9 @@
   margin-bottom: 4px;
   border-bottom: 1px solid var(--border);
 }
-.rail-tab {
-  border: 1px solid var(--border);
-  background: none;
-  border-radius: 999px;
-  padding: 5px 12px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  cursor: pointer;
-  max-width: 150px;
-  min-width: 0;
-  /* Стискається переважно АКТИВНА вкладка: її назва повторюється
-     заголовком одразу під шапкою, тоді як для неактивної це єдина згадка
-     в панелі. Без цього «Кошик 3» перетворювався на «К…» поруч із довгим
-     «Стейк портерхаус…». Неактивна не стискається ЗОВСІМ — стиснута до
-     трьох літер вкладка не називає нічого, а отже й не варта місця,
-     яке займає. */
-  flex-shrink: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  white-space: nowrap;
-}
-.rail-tab-on {
-  flex-shrink: 1;
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
-  color: var(--accent-strong);
-}
-.rail-tab-solo {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.015em;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* Стара текстова пілюля прибрана разом із переходом на іконки (02.09).
+   Її overflow: hidden різав лічильник на вкладці — а сам ellipsis уже не
+   мав чого обрізати: тексту у вкладці немає. */
 .rail-tab-close {
   margin-left: auto;
   flex: none;
@@ -1859,18 +1809,6 @@
 .trace-undone .trace-kind { color: var(--fg-dim); }
 .trace-undone .trace-value { color: var(--fg-dim); text-decoration: line-through; }
 
-/* Ручний вхід у список із шапки. Виглядає як решта шапки — це не кнопка
-   дії, а те саме число, яке тепер ще й веде. */
-.head-list {
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  letter-spacing: inherit;
-  color: inherit;
-}
-.head-list:hover { color: var(--fg); }
 
 /* Вкладки прокручуються, керування — ні. Смуга прокрутки схована: вона
    тут була б третім елементом інтерфейсу в рядку, де й так тісно. */
@@ -1881,5 +1819,63 @@
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  /* overflow-x: auto відсікає по ОБОХ осях. Лічильник висить на -5px від
+     кута вкладки, тож йому треба місце всередині області відсікання з усіх
+     чотирьох боків: спершу я дав його лише згори, і бейдж останньої
+     вкладки далі різався справа. Відʼємний зовнішній відступ повертає
+     рядок на місце. */
+  padding: 7px 7px 7px 7px;
+  margin: -7px;
 }
 .rail-tabs-scroll::-webkit-scrollbar { display: none; }
+
+/* Шапки стрічки на десктопі немає: у ній лишався тільки аватар, а він там
+   і так display:none — аватар живе внизу бічного меню. Порожня смуга на
+   67px просто відсувала журнал від краю. */
+@media (min-width: 1024px) {
+  :global(body.with-sidebar) .head { display: none; }
+}
+
+/* ── Вкладки панелі — іконками (02.09) ───────────────────────────────
+   Назва активного артефакта стоїть заголовком одразу під шапкою, тож
+   пілюлі з текстом її повторювали, а при трьох артефактах переставали
+   влазити в 320px. Гліф той самий, що в згорнутій смузі. */
+.rail-tab {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.rail-tab:hover { border-color: var(--border-strong); color: var(--fg); }
+.rail-tab-on {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+}
+/* Приглушений — це вхід, а не вкладка: список «сам не з'являється». */
+.rail-tab-ghost { border-style: dashed; opacity: 0.7; }
+.rail-tab-ghost:hover { opacity: 1; }
+.rail-tab-glyph { font-family: var(--font-mono); font-size: 14px; line-height: 1; }
+.rail-tab-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+}
+.rail-tab-on .rail-tab-badge { background: var(--accent); color: var(--accent-fg-on); }

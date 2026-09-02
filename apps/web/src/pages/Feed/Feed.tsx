@@ -11,7 +11,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
 import { Card, PanelFootSlot, PanelHeadSlot, ShoppingListCard, labelFor, appliedToast } from './cards';
-import { isReceipt, pickArtifacts, receiptLines } from './artifacts';
+import { ARTIFACT_GLYPH, isReceipt, pickArtifacts, receiptLines } from './artifacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -1008,33 +1008,14 @@ export function Feed() {
       className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''} ${!hasPanel ? styles['rail-none'] : ''} ${dragging ? styles['rail-dragging'] : ''}`}
       style={{ ['--rail-w' as string]: `${railEffective}px` }}
     >
+      {/* Шапка лишилась тільки заради аватара на мобайлі. Заголовок «Кухня»
+          і лічильники «КОМОРА N · СПИСОК N» прибрані: обидва числа стоять у
+          бічному меню (на мобайлі — в нижній смузі), а назва екрана й так
+          відома тому, хто на ньому. На десктопі шапки немає взагалі — там
+          аватар живе внизу меню, і смуга лишалась би порожньою на 67px.
+          Ручний вхід у список переїхав у шапку панелі іконкою. */}
       <div className={styles.head}>
-        <div className={styles['head-left']}>
-          {/* DA-29: хендоф дає шапці заголовок «Кухня», не вордмарк — бренд
-              живе на вході й іконці. DA-05: обидва лічильники поруч. */}
-          <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg-strong)' }}>
-            Кухня
-          </div>
-        </div>
         <div className={styles['head-actions']}>
-          {pantryCount !== null && (
-            <MonoLabel className={styles['head-meta']}>
-              {/* Моушн-кіт §03: цифра прокручується вертикально при зміні. */}
-              КОМОРА <RollingNumber value={pantryCount} />
-              {/* Крок 4.5: «СПИСОК N» — ручний вхід у список. Він потрібен саме
-                  тепер: V8·A прибрав порожню панель, а разом із нею і ярлик
-                  «Список → відкрити», який був там єдиним ручним входом.
-                  Слід у стрічці буває лише тоді, коли моделі щось у списку
-                  міняла; відкрити список просто так більше не було чим. */}
-              {shoppingCount > 0 && (
-                <> · <button
-                  type="button"
-                  className={styles['head-list']}
-                  onClick={() => openArtifact('list')}
-                >СПИСОК <RollingNumber value={shoppingCount} /></button></>
-              )}
-            </MonoLabel>
-          )}
           <Avatar name={meName} />
         </div>
       </div>
@@ -1652,19 +1633,43 @@ export function Feed() {
                   вкладки. Тому вкладки прокручуються збоку, а ✕ і навігація
                   лишаються прибитими — керування не має їхати разом із
                   вмістом. */}
+              {/* Вкладки — іконками, не назвами. Назва активного артефакта
+                  й так стоїть заголовком одразу під шапкою («Кошик у
+                  Сільпо», «Список покупок»), тож пілюлі з текстом повторювали
+                  її і при трьох артефактах переставали влазити в 320px.
+                  Гліф той самий, що в згорнутій смузі, — одна мова. */}
               <div className={styles['rail-tabs-scroll']}>
-              {openArtifacts.length > 1
-                ? openArtifacts.map((a) => (
-                    <button
-                      key={a.key}
-                      type="button"
-                      className={`${styles['rail-tab']} ${a.key === shownArtifact.key ? styles['rail-tab-on'] : ''}`}
-                      onClick={() => setActiveArtifact(a.key)}
-                    >
-                      {a.label}{a.meta ? ` ${a.meta}` : ''}
-                    </button>
-                  ))
-                : <span className={styles['rail-tab-solo']}>{shownArtifact.label}</span>}
+                {openArtifacts.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    className={`${styles['rail-tab']} ${a.key === shownArtifact.key ? styles['rail-tab-on'] : ''}`}
+                    onClick={() => setActiveArtifact(a.key)}
+                    title={a.label}
+                    aria-label={a.label}
+                    aria-current={a.key === shownArtifact.key}
+                  >
+                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH[a.key]}</span>
+                    {a.meta && <span className={styles['rail-tab-badge']}>{a.meta}</span>}
+                  </button>
+                ))}
+                {/* Ручний вхід у список. Він переїхав сюди з шапки стрічки
+                    разом із прибраними лічильниками: слід у стрічці буває
+                    лише тоді, коли модель щось у списку міняла, і без цього
+                    входу список не було б чим відкрити. Приглушений — це
+                    не вкладка, а саме вхід: список «сам не з'являється». */}
+                {!listOpen && shoppingItems.length > 0 && (
+                  <button
+                    type="button"
+                    className={`${styles['rail-tab']} ${styles['rail-tab-ghost']}`}
+                    onClick={() => openArtifact('list')}
+                    title="Відкрити список покупок"
+                    aria-label="Відкрити список покупок"
+                  >
+                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH.list}</span>
+                    <span className={styles['rail-tab-badge']}>{shoppingItems.length}</span>
+                  </button>
+                )}
               </div>
               {/* Навігаційні дії артефакта — сюди (V7). */}
               <div className={styles['rail-head-actions']} ref={setHeadSlot} />
@@ -1797,7 +1802,7 @@ export function Feed() {
             onClick={miniRailClick}
             aria-label={`Відкрити: ${shownArtifact.label}`}
           >
-            <span className={styles['mini-glyph']}>◈</span>
+            <span className={styles['mini-glyph']}>{ARTIFACT_GLYPH[shownArtifact.key]}</span>
             {shownArtifact.meta && <span className={styles['mini-badge']}>{shownArtifact.meta}</span>}
             <span className={styles['mini-hint']}>{shownArtifact.label}</span>
           </button>
