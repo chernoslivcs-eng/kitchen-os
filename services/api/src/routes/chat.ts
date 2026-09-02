@@ -16,6 +16,7 @@ import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '
 import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
 import { localDay } from '../local-day.js';
 import { stampChatReceipt } from '../receipt-source.js';
+import { patchReceiptRows } from '../receipt-patch.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -717,6 +718,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;
+      // Крок 4.4: якщо це була правка («то не хліб салтівський, то батон»),
+      // приводимо у відповідність і рядок чека — інакше артефакт показував
+      // би стару назву й брехав про те, як він зрозумілий.
+      if (call.card.type === 'intake_diff') {
+        await patchReceiptRows(repo, session.id, call.card.ops);
+      }
     }
     return {
       reply: replyText, card: call.card, card_id,
