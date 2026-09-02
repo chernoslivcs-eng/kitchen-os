@@ -88,9 +88,7 @@
    ширину, другорядні рядком під нею; текст у пілюлях не переноситься. */
 /* Канон B: другорядні дії тепер текстові й вузькі — все в один рядок,
    зелена «Готуємо» тягнеться, wrap на мобілці більше не потрібен. */
-.recipe-actions { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
-.recipe-actions button { white-space: nowrap; }
-.recipe-actions-sub { display: flex; align-items: center; gap: 16px; }
+.recipe-actions { display: contents; }
 
 /* Пул-2 №2: банер готування в стрічці — тільки мобайл; на десктопі
    (сайдбарна верстка) фрейм живе в лівому сайдбарі. */
@@ -1014,7 +1012,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  /* Крок 2.1: НЕ переносити. З появою іконок навігації в шапці рядок
+     почав ламатись надвоє, і ✕ їхав під вкладки. Вкладки стискаються
+     самі — у них уже є ellipsis; іконки й ✕ тримають свій розмір. */
+  flex-wrap: nowrap;
   padding-bottom: 12px;
   margin-bottom: 4px;
   border-bottom: 1px solid var(--border);
@@ -1030,11 +1031,21 @@
   color: var(--fg-muted);
   cursor: pointer;
   max-width: 150px;
+  min-width: 0;
+  /* Стискається переважно АКТИВНА вкладка: її назва повторюється
+     заголовком одразу під шапкою, тоді як для неактивної це єдина згадка
+     в панелі. Без цього «Кошик 3» перетворювався на «К…» поруч із довгим
+     «Стейк портерхаус…». Неактивна не стискається ЗОВСІМ — стиснута до
+     трьох літер вкладка не називає нічого, а отже й не варта місця,
+     яке займає. */
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  white-space: nowrap;
 }
 .rail-tab-on {
+  flex-shrink: 1;
   background: var(--accent-bg);
   border-color: var(--accent-border);
   color: var(--accent-strong);
@@ -1052,6 +1063,7 @@
 }
 .rail-tab-close {
   margin-left: auto;
+  flex: none;
   border: 0;
   background: none;
   color: var(--fg-dim);
@@ -1444,4 +1456,84 @@
   border-top: 1px solid var(--border);
   padding-top: 12px;
   margin-top: 6px;
+}
+
+/* ── Крок 2.1: один закон низу панелі (V7) ───────────────────────────
+   Смуга однакова для всіх артефактів: стан ліворуч моно, дії праворуч у
+   порядку «другорядна → головна», головна завжди крайня права. Раніше в
+   рецепті була шавлієва кнопка з довгим написом і моно-посилання поруч,
+   у кошику чорнильна, і кожна зі своєю геометрією; тепер відмінність
+   лише в РІВНІ дії, не в розмірі й не в шрифті. */
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 6px;
+}
+/* Стан — моно, і саме він розтягується: кнопки тримають свій розмір,
+   порожнеча дістається тексту. */
+.strip-state {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.strip-state-dim { color: var(--fg-dim); font-size: 12px; font-weight: 400; }
+.strip-state-warn { color: var(--amber); font-size: 12px; font-weight: 400; }
+
+/* Чорнильна кнопка-посилання: та сама геометрія, що .btn.strip, але це
+   <a> — вихід назовні, не дія всередині продукту. */
+.strip-main {
+  flex: none;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: var(--fg);
+  color: var(--bg-body);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Іконки навігації в шапці артефакта. */
+.rail-head-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.head-act {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.head-act:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg); }
+.head-act:disabled { cursor: default; color: var(--accent); }
+/* Немає слота шапки (стрічка) — навігаційні дії лишаються у смузі. */
+.strip-head-fallback { display: flex; align-items: center; gap: 2px; flex: none; }
+
+/* Вузька смуга: стан над кнопками, головна на всю ширину, друга під нею.
+   Container query, а не медіа: панель тягнеться незалежно від вікна, і
+   на 1500px вона може бути і 280, і 560 завширшки. */
+.rail-artifact { container-type: inline-size; }
+@container (max-width: 379px) {
+  .card-foot { flex-wrap: wrap; row-gap: 10px; }
+  /* Порядок за V7: стан → головна на всю ширину → друга під нею. У DOM
+     головна остання (щоб на широкому бути крайньою правою), тому тут
+     тягнемо її вперед через order, а не переставляємо розмітку. */
+  .card-foot > * { flex-basis: 100%; }
+  .card-foot .strip-state { order: -2; }
+  .card-foot > button:last-of-type,
+  .card-foot > .strip-main { order: -1; justify-content: center; }
+  .card-foot > .strip-main { justify-content: center; }
 }

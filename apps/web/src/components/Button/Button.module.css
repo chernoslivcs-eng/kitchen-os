@@ -52,8 +52,34 @@
   color: var(--fg);
 }
 
+/* Soft — шавлієва тонована. Важлива дія, але не єдина на екрані:
+   «Зібрати кошик у Сільпо →» поруч із чекаутом. */
+.soft {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+.soft:hover:not(:disabled) { background: var(--accent-bg-strong, var(--accent-bg)); }
+
+/* Text — відкат і другорядне. Без рамки і без фону: рамка в системі
+   означає «тонована», і давати її текстовій дії означало б підняти її
+   на рівень вище, ніж вона є. */
+.text {
+  background: none;
+  border: 0;
+  color: var(--fg-muted);
+  padding: 0 12px;
+}
+.text:hover:not(:disabled) { color: var(--fg); }
+
 /* Block — на всю ширину контейнера. */
 .block { width: 100%; }
+
+/* Strip — 44px для смуги в низу панелі (V7). Один шрифт на всі кнопки:
+   Golos 600/14, ніколи не моно. Моно лишається мовою станів і метаданих —
+   саме так око відрізняє «інформацію» від «дії». */
+.strip { height: 44px; padding: 0 18px; font-size: 14px; border-radius: 12px; }
+.strip.text { padding: 0 12px; }
 
 /* Large — 52px для головних дій в футерах екранів. */
 .large { height: 52px; padding: 0 24px; font-size: 16px; border-radius: var(--r-lg); }

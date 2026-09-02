@@ -1,8 +1,16 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import styles from './Button.module.css';
 
-type Variant = 'primary' | 'positive' | 'secondary';
-type Size = 'md' | 'lg';
+// V7 «один закон»: чотири рівні дії, одна геометрія.
+//   primary   — чорнильна: незворотна дія або вихід із продукту. Одна на артефакт.
+//   positive  — шавлієва заливка: головний перехід усередині продукту.
+//   soft      — шавлієва тонована: важлива, але не єдина дія екрана.
+//   text      — текстова: відкат і другорядне. НІКОЛИ не рамка: рамка = тонована.
+type Variant = 'primary' | 'positive' | 'secondary' | 'soft' | 'text';
+// strip — розмір смуги в низу панелі: 44px / radius 12 / 14px. Окремий, а не
+// заміна md: 46px живуть по всьому застосунку, і V7 говорить про низ панелі,
+// а не про кожну кнопку продукту.
+type Size = 'md' | 'lg' | 'strip';
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -26,6 +34,7 @@ export function Button({
     styles.btn,
     styles[variant],
     size === 'lg' ? styles.large : '',
+    size === 'strip' ? styles.strip : '',
     block ? styles.block : '',
     className ?? '',
   ].filter(Boolean).join(' ');

@@ -10,7 +10,7 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
-import { Card, PanelFootSlot, labelFor, appliedToast } from './cards';
+import { Card, PanelFootSlot, PanelHeadSlot, labelFor, appliedToast } from './cards';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -297,6 +297,7 @@ export function Feed() {
   // Крок 1.2: три зони панелі. Низ картки їде в цей вузол через портал —
   // сама картка лишається цілим компонентом зі своїм станом.
   const [footSlot, setFootSlot] = useState<HTMLElement | null>(null);
+  const [headSlot, setHeadSlot] = useState<HTMLElement | null>(null);
   // V9: тінь над закріпленим низом — не декор. Вона з'являється, лише коли
   // під згином є ще вміст, і зникає на верхівках — так смуга сама каже,
   // чи дочитано до кінця.
@@ -1473,6 +1474,8 @@ export function Feed() {
                     </button>
                   ))
                 : <span className={styles['rail-tab-solo']}>{shownArtifact.label}</span>}
+              {/* Навігаційні дії артефакта — сюди (V7). */}
+              <div className={styles['rail-head-actions']} ref={setHeadSlot} />
               <button
                 type="button"
                 className={styles['rail-tab-close']}
@@ -1489,6 +1492,7 @@ export function Feed() {
                   ввімкненою на вмісті, який насправді влазить. Заміряно на
                   кошику: 302/302, предикат false, тінь горить. */}
               {footSlot && (
+              <PanelHeadSlot.Provider value={headSlot}>
               <PanelFootSlot.Provider value={footSlot}>
                 {shownArtifact.key === 'cart'
                   ? <Card card={shownArtifact.turn.card!} cardId={shownArtifact.turn.cardId ?? undefined} />
@@ -1506,6 +1510,7 @@ export function Feed() {
                     />
                   )}
               </PanelFootSlot.Provider>
+              </PanelHeadSlot.Provider>
               )}
               </div>
             </div>

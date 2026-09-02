@@ -22,6 +22,10 @@ import styles from './Feed.module.css';
 // рендериться в чужий вузол, якщо він заданий. Немає слота — немає й
 // змін: у стрічці низ лишається всередині картки, як був.
 export const PanelFootSlot = createContext<HTMLElement | null>(null);
+// V7: у смузі максимум ДВІ кнопки. Третя — та, що про навігацію, а не про
+// роботу з артефактом («У рецепти», «Поділитись») — переїжджає в шапку
+// іконкою. Той самий механізм слота, що й для низу.
+export const PanelHeadSlot = createContext<HTMLElement | null>(null);
 
 // ----- Спільні типи op/item, які модель кладе в картку -------------------
 
@@ -668,56 +672,63 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 
 
   const footSlot = useContext(PanelFootSlot);
-  // V7 «на 320»: стан окремим рядком, головна дія на всю ширину, другорядні
-  // під нею. Повна уніфікація низу (одна смуга, максимум дві кнопки,
-  // «У рецепти» іконкою в шапці) — крок 2.1; тут лише не даємо чотирьом
-  // діям налазити одна на одну.
+  const headSlot = useContext(PanelHeadSlot);
+
+  // V7: у смузі максимум ДВІ кнопки. «У рецепти» і «Поділитись» — про
+  // навігацію, а не про роботу з рецептом, тож вони їдуть у шапку
+  // артефакта іконками. Слота немає (стрічка) — лишаються в смузі, бо
+  // інакше зникли б зовсім.
+  const headRaw = (
+    <>
+      {onSaveRecipe && (
+        <button
+          type="button"
+          disabled={saved}
+          onClick={() => onSaveRecipe(rid)}
+          className={styles['head-act']}
+          title={saved ? 'Уже в рецептах' : 'У рецепти'}
+          aria-label={saved ? 'Уже в рецептах' : 'У рецепти'}
+        >{saved ? '✓' : '✎'}</button>
+      )}
+      {onShare && (
+        <button
+          type="button"
+          onClick={() => onShare(scaled, rid)}
+          className={styles['head-act']}
+          title="Поділитись"
+          aria-label="Поділитись"
+        >↗</button>
+      )}
+    </>
+  );
+
+  // Смуга: стан ліворуч, дії праворуч у порядку «другорядна → головна».
+  // Головна завжди крайня права — місце під великий палець і під очікування.
   const footRaw = (
-    <div className={styles['recipe-actions']}>
-      {/* Дія одна на весь список: «У список» додає все, чого бракує.
-          «+» у кожному рядку прибрано (V2) — точкове лишилось довгим тапом. */}
+    <div className={styles['card-foot']}>
       {missIdx.length > 0 && onNeedToList && (
-        <span className={styles['recipe-miss']}>○ БРАКУЄ {missIdx.length}</span>
+        <span className={`${styles['strip-state']} ${styles['strip-state-warn']}`}>
+          ○ БРАКУЄ {missIdx.length}
+        </span>
+      )}
+      {missIdx.length > 0 && onNeedToList && (
+        <Button
+          size="strip"
+          variant="text"
+          disabled={!leftToList.length}
+          onClick={addAllMissing}
+        >{leftToList.length ? 'У список' : '✓ у списку'}</Button>
       )}
       {onCook && (
-        <Button variant="positive" onClick={() => onCook(scaled, rid)}>Готуємо → Cook Mode</Button>
+        <Button size="strip" variant="positive" onClick={() => onCook(scaled, rid)}>
+          Готуємо → Cook Mode
+        </Button>
       )}
-      <div className={styles['recipe-actions-sub']}>
-        {missIdx.length > 0 && onNeedToList && (
-          <button
-            type="button"
-            disabled={!leftToList.length}
-            onClick={addAllMissing}
-            className={styles['recipe-tolist']}
-            style={leftToList.length ? undefined : { color: 'var(--fg-dim)', cursor: 'default' }}
-          >
-            {leftToList.length ? 'У список' : '✓ у списку'}
-          </button>
-        )}
-        {onSaveRecipe && (
-          <button
-            type="button"
-            disabled={saved}
-            onClick={() => onSaveRecipe(rid)}
-            className={styles['recipe-tolist']}
-            style={saved ? { color: 'var(--fg-dim)', cursor: 'default' } : undefined}
-          >
-            {saved ? '✓ У рецептах' : 'У рецепти'}
-          </button>
-        )}
-        {onShare && (
-          <button
-            type="button"
-            onClick={() => onShare(scaled, rid)}
-            title="Поділитись"
-            className={styles['recipe-tolist']}
-            style={{ marginLeft: 'auto', fontSize: 17, lineHeight: 1 }}
-          >↗</button>
-        )}
-      </div>
+      {!headSlot && <span className={styles['strip-head-fallback']}>{headRaw}</span>}
     </div>
   );
   const recipeFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
+  const recipeHead = headSlot ? createPortal(headRaw, headSlot) : null;
 
   return (
     <div className={styles['recipe-msg']}>
@@ -825,6 +836,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         </div>
       </div>
 
+      {recipeHead}
       {recipeFoot}
     </div>
   );
@@ -901,22 +913,21 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   // рамку й відступи малює .rail-foot, і інлайновий стиль її не перебиває.
   const footRaw = (
     <div className={styles['card-foot']}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap' }}>
-          <RollingNumber value={card.total ?? 0} />₴ · <RollingNumber value={card.found ?? 0} /> з {card.of}
+      <span className={styles['strip-state']}>
+        <RollingNumber value={card.total ?? 0} />₴
+        <span className={styles['strip-state-dim']}>
+          {' · '}<RollingNumber value={card.found ?? 0} /> з {card.of}
         </span>
-        <a
-          href={card.cart_url}
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            marginLeft: 'auto', height: 44, padding: '0 18px', borderRadius: 12,
-            whiteSpace: 'nowrap',
-            background: 'var(--fg)', color: 'var(--bg-body)', textDecoration: 'none',
-            display: 'inline-flex', alignItems: 'center',
-            fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-          }}
-        >Оформити в Сільпо ↗</a>
-      </div>
+      </span>
+      {/* Чорнильна: вихід із продукту, чекаут цілком на боці мережі.
+          Одна на артефакт — другої дії в кошику немає. */}
+      <a
+        href={card.cart_url}
+        target="_blank"
+        rel="noreferrer"
+        className={styles['strip-main']}
+      >Оформити в Сільпо ↗</a>
+    </div>
   );
   const cartFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
 
