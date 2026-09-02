@@ -100,6 +100,29 @@ function messageToTurn(m: MessageInfo): Turn {
 let nextId = 1;
 const newId = () => `t${nextId++}`;
 
+/* Відкрити й закрити панель — одна функція, тож і іконка одна. Раніше тут
+   стояли дві різні стрілки («‹» у шапці, «›» у мінірейці): вони казали
+   напрямок, а не предмет, і читались як дві окремі дії. Тепер обидві
+   кнопки показують саму панель — рамку з поділом праворуч від центру,
+   тобто ту колонку, якої стосується натискання. */
+function PanelIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <rect
+        x="2"
+        y="2"
+        width="12"
+        height="12"
+        rx="2.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+      <path d="M9.9 2V14" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
 export function Feed() {
   const meName = useAuth((st) => st.me?.user?.name ?? null);
   const navigate = useNavigate();
@@ -1654,23 +1677,7 @@ export function Feed() {
                 title="Згорнути панель"
                 aria-label="Згорнути панель"
               >
-                {/* Панель, а не «‹»: стрілка означала напрямок і нічого не
-                    казала про те, ЩО згортається. Рамка — сама панель,
-                    поділ праворуч від центру — колонка артефактів, тобто
-                    рівно те місце, де ця панель і стоїть. */}
-                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-                  <rect
-                    x="2"
-                    y="2"
-                    width="12"
-                    height="12"
-                    rx="2.6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                  />
-                  <path d="M9.9 2V14" stroke="currentColor" strokeWidth="1.3" />
-                </svg>
+                <PanelIcon />
               </button>
               {/* Крок 4.5: вкладок стало більше трьох, і на 320px вони
                   перестали влазити — «Список 4» різався до «Сп…». Правило
@@ -1833,7 +1840,7 @@ export function Feed() {
           onClick={miniRailClick}
           aria-label="Розгорнути панель"
         >
-          ›
+          <PanelIcon />
           {/* Бурштинова крапка, а не третя кнопка: «очікують рішення» — не
               артефакт, і давати йому власний маркер означало б зламати
               правило двох. Крапка зникне разом зі стрічкою pending. */}

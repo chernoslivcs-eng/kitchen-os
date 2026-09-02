@@ -1558,20 +1558,24 @@
 
 .rail-mini-expand {
   position: relative;
-  width: 36px;
-  height: 28px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: none;
-  color: var(--fg-dim);
-  font-family: var(--font-mono);
-  font-size: 13px;
+  /* Геометрія й колір — як у кнопки згортання в шапці: це та сама дія,
+     тільки з іншого боку. Шрифтових правил тут більше немає — усередині
+     іконка, а не гліф. */
+  color: var(--fg-muted);
   cursor: pointer;
 }
 .rail-mini-expand:hover { background: var(--bg-hover); color: var(--fg); }
 .rail-mini-dot {
   position: absolute;
-  top: 3px; right: 5px;
+  /* Кнопка стала 34×34, і крапка на 3/5 налазила на кут рамки іконки. */
+  top: 4px; right: 4px;
   width: 6px; height: 6px;
   border-radius: 999px;
   background: var(--amber);
