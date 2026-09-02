@@ -1956,3 +1956,14 @@
   letter-spacing: 0.04em;
   color: var(--fg-dim);
 }
+
+/* Списання після готування — подія, а не артефакт: рядок тексту замість
+   пігулки зі стрілкою, яка вела в порожнечу (нічого не додалось — нема чого
+   відкривати). */
+.writeoff-line {
+  margin: 2px 0 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-dim);
+}

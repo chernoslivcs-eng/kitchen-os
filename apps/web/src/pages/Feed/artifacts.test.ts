@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn } from './artifacts';
+import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn, isWriteOff} from './artifacts';
 import type { ChatCard } from '../../api';
 
 const turn = (id: string, card: Partial<ChatCard> | null, cardId: string | null = id): ArtifactTurn =>
@@ -144,5 +144,48 @@ describe('список як артефакт', () => {
 
   it('порожній список — це теж відкритий список, а не його відсутність', () => {
     expect(pickArtifacts([], 0).map((a) => a.kind)).toEqual(['list']);
+  });
+});
+
+// Списання після готування. Живий репро 02.09: після карбонари в стрічці
+// стояла пігулка «У КОМОРУ · 4 ПОЗИЦІЇ / 4 у комору →», і вона:
+//   · брехала словами — картка ЗАБИРАЄ з комори, а казала «у комору»;
+//   · не натискалась — артефакта в неї немає (нічого не додалось), тож
+//     стрілка «→» вела в порожнечу.
+// Причина спільна: isIntakeArtifact віддавав true на будь-який intake_diff,
+// не розрізняючи наповнення й списання.
+describe('isWriteOff — списання це подія, а не річ', () => {
+  const card = (ops: { op: string; label: string }[]) => ({ id: 't', card: { type: 'intake_diff', ops } });
+
+  it('ops без жодного add — це списання', () => {
+    expect(isWriteOff(card([
+      { op: 'correct', label: 'спагеті Barilla' },
+      { op: 'deplete', label: 'бекон нарізка' },
+    ]) as never)).toBe(true);
+  });
+
+  it('є хоч один add — це наповнення, не списання', () => {
+    expect(isWriteOff(card([
+      { op: 'add', label: 'молоко' },
+      { op: 'correct', label: 'хліб' },
+    ]) as never)).toBe(false);
+  });
+
+  it('порожні ops не роблять картку списанням', () => {
+    // Малформлена картка моделі не має міняти вигляд сліду.
+    expect(isWriteOff(card([]) as never)).toBe(false);
+  });
+
+  it('інші типи карток списанням не бувають', () => {
+    expect(isWriteOff({ id: 't', card: { type: 'shopping', items: [] } } as never)).toBe(false);
+    expect(isWriteOff({ id: 't', card: null } as never)).toBe(false);
+  });
+
+  it('списання НЕ стає артефактом, наповнення стає', () => {
+    // Саме ця різниця й лишала стрілку без цілі: слід малювався, артефакт ні.
+    const wo = { id: 'a', cardId: 'a', card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'x' }] } };
+    const fill = { id: 'b', cardId: 'b', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'y' }] } };
+    expect(pickArtifacts([wo] as never).length, 'списання не артефакт').toBe(0);
+    expect(pickArtifacts([fill] as never).length, 'наповнення артефакт').toBe(1);
   });
 });

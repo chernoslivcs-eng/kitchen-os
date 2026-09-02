@@ -39,9 +39,22 @@ export interface Artifact<T extends ArtifactTurn> {
 // це подія, яку читають раз, і відкривати під неї вкладку означало б
 // зробити панель журналом побутових дій.
 export function isIntakeArtifact(t: ArtifactTurn): boolean {
+  return t.card?.type === 'intake_diff';
+}
+
+// Списання після готування. Той самий тип картки, що наповнення, але ops у
+// ньому НЕ додають: deplete/correct зменшують те, що вже лежить.
+//
+// Різниця не косметична. Наповнення — це РІЧ, яка лишається жити: її
+// відкривають артефактом, до неї повертаються. Списання — ПОДІЯ: сталась і
+// минула, редагувати в ній нема чого. Тому воно не стає артефактом (див.
+// intakeAdds у pickArtifacts) — а слід у стрічці все одно малювався пігулкою
+// з стрілкою «→», яка вела в порожнечу. Живий репро 02.09: після карбонари
+// «4 у комору →» не натискалось нічим.
+export function isWriteOff(t: ArtifactTurn): boolean {
   if (t.card?.type !== 'intake_diff') return false;
-  const kind = t.card.source?.kind;
-  return true;
+  const ops = (t.card.ops ?? []) as { op?: string }[];
+  return ops.length > 0 && !ops.some((o) => o.op === 'add');
 }
 
 // Чек називається чеком, решта — тим, чим є. «Це додав в комору: дрова,

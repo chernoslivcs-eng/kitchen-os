@@ -382,12 +382,18 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   // Низ чека за законом смуги (крок 2.1): стан ліворуч моно, дії праворуч
   // у порядку «другорядна → головна». Лічильник у кнопці змінюється разом
   // із чекбоксами, тож наслідок дії відомий заздалегідь, а не після.
+  // Списання — той самий тип картки, але ops не додають. Заголовок мусить це
+  // казати: «У КОМОРУ» на картці, що ЗАБИРАЄ з комори, — пряма брехня, і саме
+  // вона стояла після готування карбонари (живий репро 02.09).
+  const writeOff = ops.length > 0 && !ops.some((o) => o.op === 'add');
   const goingIn = ops.length - off.size;
   const footSlot = useContext(PanelFootSlot);
   const intakeFootRaw = anyReceipt && (actionable || (applied && !undone)) ? (
     <div className={styles['card-foot']}>
       <span className={styles['strip-state']}>
-        {goingIn} {applied && !undone ? 'у коморі' : 'у комору'}
+        {goingIn} {writeOff
+          ? (applied && !undone ? 'з комори' : 'піде з комори')
+          : (applied && !undone ? 'у коморі' : 'у комору')}
         {receipt && receipt.nonfood.length > 0 && (
           <span className={styles['strip-state-dim']}> · {receipt.nonfood.length} у побут</span>
         )}
@@ -403,7 +409,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
           loading={applying}
           disabled={off.size === ops.length}
-        >Застосувати {goingIn}</Button>
+        >{writeOff ? 'Списати' : 'Застосувати'} {goingIn}</Button>
       )}
     </div>
   ) : null;
@@ -434,7 +440,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           <ReceiptGroup
             tone="accent"
             glyph="●"
-            title="У КОМОРУ"
+            title={writeOff ? "З КОМОРИ" : "У КОМОРУ"}
             count={ops.length - off.size - goneCount}
             action={actionable && ops.length > 1
               ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
