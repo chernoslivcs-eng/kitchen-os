@@ -652,7 +652,10 @@
    кошик у Сільпо це ОДНА жива річ, і дві його картки у стрічці з різними
    сумами завжди суперечать одна одній. Зріз розселяється (крок 4). */
 .rail { display: none; }
-@media (min-width: 1280px) {
+/* Крок 5: панель у потоці — від 1440. Нижче (1024-1439) вона лишається
+   шухлядою поверх, яку відкриває міні-смужка: на 1280 резерв зʼїв би весь
+   запас (728 доступно проти 720 тексту), і колонка впиралась би в панель. */
+@media (min-width: 1440px) {
   .rail {
     display: flex;
     flex-direction: column;
@@ -665,23 +668,6 @@
     padding: 22px 18px;
     overflow-y: auto;
   }
-}
-
-/* Крок 1: панель перестає накривати журнал.
-   Була `position: fixed` БЕЗ компенсації — тобто колонка журналу
-   центрувалась у всьому вікні й наїжджала під панель. Текст при цьому не
-   переверстувався (він завжди 720px, `.timeline` центрує), але сама колонка
-   зсувалась на 160px — половину ширини панелі.
-
-   Резервуємо місце тим самим прийомом, що вже діє для міні-панелі нижче
-   (`.screen.rail-off { padding-right: 56px }`) — без перебудови DOM у грід.
-
-   Поріг 1440, не 1280, і це рахунок, а не смак: резерв коштує ЗАПАСУ.
-     1440: 1440 − 232 нав − 320 панель = 888 на журнал, текст 720, запас 168
-     1280: 1280 − 232 − 320 = 728, текст 720, запас 8 — колонка впирається
-   На 1280–1439 панель лишається накладеною до кроку 5, де стане шухлядою. */
-@media (min-width: 1440px) {
-  :global(body.with-sidebar) .screen:not(.rail-off) { padding-right: 320px; }
 }
 .rail-block { display: flex; flex-direction: column; gap: 2px; }
 .rail-title {
@@ -720,8 +706,11 @@
   flex: none;
 }
 /* Правка №7: зона чату закінчується перед панеллю — відступ на РІВНІ ЕКРАНА,
-   щоб колонка центрувалась у зоні, а скрол-зона лишалась суцільною. */
-@media (min-width: 1280px) {
+   щоб колонка центрувалась у зоні, а скрол-зона лишалась суцільною.
+   Крок 5 (02.09): поріг 1280 → 1440. Нижче панель стала шухлядою ПОВЕРХ, і
+   резервувати під неї 320px більше не можна — журнал лишився б зсунутим під
+   порожнє місце. */
+@media (min-width: 1440px) {
   :global(body.with-sidebar) .screen {
     padding-right: 320px;
   }
@@ -862,7 +851,7 @@
 .rail-mini-count { font-size: 11px; }
 .rail-scrim { display: none; }
 
-@media (min-width: 1024px) and (max-width: 1279px) {
+@media (min-width: 1024px) and (max-width: 1439px) {
   .rail-mini {
     display: flex;
     position: fixed;
@@ -897,8 +886,13 @@
     background: rgba(0, 0, 0, 0.25);
     z-index: 29;
   }
+  /* Крок 4/5: у шухляді артефакт показуємо. Після розселення зрізу в ній
+     лишався тільки блок «очікують рішення» — а він порожній майже завжди,
+     і кнопка «›» відкривала біле ніщо. Дубля на екрані немає: шухляда
+     накриває стрічку затемненням, обидві копії одночасно не видно. */
+  .rail-open .rail-artifact { display: block; }
 }
-@media (min-width: 1280px) {
+@media (min-width: 1440px) {
   /* position:fixed з базового правила лишається — він і є контекстом для
      absolute-кнопки ‹. Перебивати його relative було помилкою: rail падав
      у потік під чат. */
@@ -921,7 +915,7 @@
 
 
 /* Пул-6 №2: коли rail схований — чат забирає його місце (лишається 56px смужки). */
-@media (min-width: 1280px) {
+@media (min-width: 1440px) {
   :global(body.with-sidebar) .screen.rail-off { padding-right: 56px; }
 }
 
@@ -1028,6 +1022,60 @@
    правило в медіазапиті (0,1,0) без !important.
    Це той випадок, для якого існують container queries; descendant-перекриття
    простіше й працює скрізь, а поведінка та сама. */
+/* Крок 3б: шапка артефакта. При одному — просто назва; вкладки зʼявляються
+   лише з другим (рішення дизайну: зайва хрома при одному артефакті). */
+.rail-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.rail-tab {
+  border: 1px solid var(--border);
+  background: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  cursor: pointer;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-tab-on {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+}
+.rail-tab-solo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.015em;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-tab-close {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--fg-dim);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.rail-tab-close:hover { color: var(--fg); }
+
 .rail-artifact .recipe-msg-cols {
   flex-direction: column;
   gap: 14px;

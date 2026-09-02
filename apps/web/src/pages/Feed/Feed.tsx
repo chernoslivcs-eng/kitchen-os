@@ -277,22 +277,60 @@ export function Feed() {
     setRailHidden(v);
     try { localStorage.setItem('kos-rail-hidden', v ? '1' : '0'); } catch { /* ок */ }
   }
+  // Крок 5 (02.09): поріг 1280 → 1440, синхронно з CSS. Панель у потоці живе
+  // від 1440; нижче вона шухляда. Поки тут стояло 1280, на 1280-1439 кнопка
+  // «›» знімала railHidden з панелі, якої на цій ширині взагалі немає, —
+  // і не робила рівно нічого.
+  const RAIL_IN_FLOW = '(min-width: 1440px)';
   function miniRailClick() {
-    if (window.matchMedia('(min-width: 1280px)').matches) setRailHiddenPersist(false);
+    if (window.matchMedia(RAIL_IN_FLOW).matches) setRailHiddenPersist(false);
     else setRailOpen(true);
   }
   function railCollapse() {
-    if (window.matchMedia('(min-width: 1280px)').matches) setRailHiddenPersist(true);
+    if (window.matchMedia(RAIL_IN_FLOW).matches) setRailHiddenPersist(true);
     else setRailOpen(false);
   }
   // Крок 2: кошик — ОДНЕ повідомлення, два подання. У стрічці воно
   // згортається в моно-слід, у панелі рендериться повністю. Актуальний —
   // ОСТАННІЙ: кошик у Сільпо один, і попередні картки вже не про нього.
+  // Крок 3б: вкладки. Зʼявляються ЛИШЕ з другим артефактом — при одному
+  // шапка просто називає його. Заміщення, не накопичення: кошик у Сільпо
+  // один, рецепт завжди останній, тож більше двох тут не буває.
+  const [closedArtifacts, setClosedArtifacts] = useState<Set<string>>(new Set());
+  const [activeArtifact, setActiveArtifact] = useState<string | null>(null);
   const latestCart = [...turns].reverse().find((t) => t.card?.type === 'cart' && t.cardId);
   // Той самий принцип для рецепта: у панелі живе АКТИВНИЙ (останній), архів —
   // у розділі «Рецепти». Двох рецептів у панелі не буває: наступний заміщає
   // попередній у тій самій вкладці (рішення дизайну про життєвий цикл).
   const latestRecipe = [...turns].reverse().find((t) => t.card?.type === 'recipe_link');
+  const artifacts = [
+    latestCart && { key: 'cart', label: 'Кошик', meta: String(latestCart.card?.rows?.length ?? ''), turn: latestCart },
+    latestRecipe && { key: 'recipe', label: (latestRecipe.card?.title as string | undefined) ?? 'Рецепт', meta: '', turn: latestRecipe },
+  ].filter(Boolean) as { key: string; label: string; meta: string; turn: NonNullable<typeof latestCart> }[];
+  const openArtifacts = artifacts.filter((a) => !closedArtifacts.has(a.key));
+  const shownArtifact = openArtifacts.find((a) => a.key === activeArtifact) ?? openArtifacts[0];
+  // Слід у стрічці — це не якір, а відкриття. Після ✕ артефакт зникає з
+  // панелі, і скрол по id вів би в порожнечу: кнопка виглядала б робочою,
+  // а не робила б нічого. Тому спершу повертаємо його в панель, і лише
+  // потім скролимо — вже до того, що напевно існує.
+  function openArtifact(key: string) {
+    setClosedArtifacts((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+    setActiveArtifact(key);
+    requestAnimationFrame(() => {
+      document.getElementById(`rail-${key}`)?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+  function closeArtifact(key: string) {
+    // Артефакт не вмирає — він і далі повідомлення у стрічці, і слід повертає
+    // його тапом. Тому ✕ не потребує підтвердження.
+    setClosedArtifacts((prev) => new Set(prev).add(key));
+    setActiveArtifact(null);
+  }
 
   const [unratedRun, setUnratedRun] = useState<{ id: string; title: string; session_id: string | null } | null>(null);
 
@@ -979,7 +1017,7 @@ export function Feed() {
               <button
                 type="button"
                 className={styles['cart-trace']}
-                onClick={() => document.getElementById('rail-cart')?.scrollIntoView({ block: 'nearest' })}
+                onClick={() => openArtifact('cart')}
               >
                 <span className={styles['cart-trace-dot']}>●</span>
                 <span>КОШИК · {t.card.rows?.length ?? 0} ПОЗИЦІЙ · {Math.round(t.card.total ?? 0)} ₴</span>
@@ -994,7 +1032,7 @@ export function Feed() {
               <button
                 type="button"
                 className={styles['cart-trace']}
-                onClick={() => document.getElementById('rail-recipe')?.scrollIntoView({ block: 'nearest' })}
+                onClick={() => openArtifact('recipe')}
               >
                 <span className={styles['cart-trace-dot']}>●</span>
                 <span>РЕЦЕПТ · {(t.card.title ?? '').toUpperCase()}</span>
@@ -1250,79 +1288,45 @@ export function Feed() {
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
       <aside className={`${styles.rail} ${railOpen ? styles['rail-open'] : ''} ${railHidden ? styles['rail-hidden'] : ''}`}>
         <button type="button" className={styles['rail-collapse']} onClick={railCollapse} aria-label="Згорнути панель">‹</button>
-        {latestRecipe?.card && (
-          <div id="rail-recipe" className={styles['rail-artifact']}>
-            <Card
-              card={latestRecipe.card}
-              cardId={latestRecipe.cardId ?? undefined}
-              onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
-              onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
-              onSaveRecipe={saveRecipeForLater}
-              savedRecipeIds={savedRecipeIds}
-              onNeedToList={addNeedToList}
-              batchLabels={batchLabels}
-              stepLabels={stepLabels}
-            />
-          </div>
-        )}
-        {latestCart?.card && (
-          /* Те саме повідомлення, що слід у стрічці — просто розгорнуте.
-             cardId той самий, тож степер і «додати альтернативу» ходять у
-             ту саму картку через updateMessageCard, без нового сховища. */
-          <div id="rail-cart" className={styles['rail-artifact']}>
-            <Card card={latestCart.card} cardId={latestCart.cardId ?? undefined} />
-          </div>
-        )}
-        {pantryCount !== null && pantryCount > 0 && (
-          <div className={styles['rail-block']}>
-            <div className={styles['rail-title']}>СТАТУС КОМОРИ</div>
-            <button className={styles['rail-row']} onClick={() => navigate('/pantry')}>
-              <span className={styles['rail-label']}>Позицій у домі</span>
-              <span className={styles['rail-meta']}><RollingNumber value={pantryCount} /></span>
-            </button>
-            {staleBatches.slice(0, 4).map((b) => (
+        {shownArtifact && (
+          <div id={`rail-${shownArtifact.key}`} className={styles['rail-artifact']}>
+            <div className={styles['rail-tabs']}>
+              {openArtifacts.length > 1
+                ? openArtifacts.map((a) => (
+                    <button
+                      key={a.key}
+                      type="button"
+                      className={`${styles['rail-tab']} ${a.key === shownArtifact.key ? styles['rail-tab-on'] : ''}`}
+                      onClick={() => setActiveArtifact(a.key)}
+                    >
+                      {a.label}{a.meta ? ` ${a.meta}` : ''}
+                    </button>
+                  ))
+                : <span className={styles['rail-tab-solo']}>{shownArtifact.label}</span>}
               <button
-                key={b.id}
-                className={`${styles['rail-row']} ${railFlash.has(b.id) ? styles['rail-flash'] : ''}`}
-                onClick={() => { setInput(`Що зробити з ${b.label}?`); composerInputRef.current?.focus(); }}
-              >
-                <span className={styles['rail-label']}>{b.label}</span>
-                <span className={styles['rail-meta']} style={{ color: 'var(--amber)' }}>
-                  {b.days <= 0 ? 'СЬОГОДНІ' : `≈${b.days} ДН`}
-                </span>
-              </button>
-            ))}
+                type="button"
+                className={styles['rail-tab-close']}
+                onClick={() => closeArtifact(shownArtifact.key)}
+                aria-label="Закрити"
+              >✕</button>
+            </div>
+            {shownArtifact.key === 'cart'
+              ? <Card card={shownArtifact.turn.card!} cardId={shownArtifact.turn.cardId ?? undefined} />
+              : (
+                <Card
+                  card={shownArtifact.turn.card!}
+                  cardId={shownArtifact.turn.cardId ?? undefined}
+                  onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
+                  onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
+                  onSaveRecipe={saveRecipeForLater}
+                  savedRecipeIds={savedRecipeIds}
+                  onNeedToList={addNeedToList}
+                  batchLabels={batchLabels}
+                  stepLabels={stepLabels}
+                />
+              )}
           </div>
         )}
-        {(() => {
-          // Пропозиції цієї сесії — назвами страв, не «ПРОПОЗИЦІЯ, ПРОПОЗИЦІЯ».
-          const dishes = turns.flatMap((t) => {
-            if (t.card?.type === 'proposal') {
-              return ((t.card.items as { title?: string }[] | undefined) ?? [])
-                .map((it) => ({ turnId: t.id, title: it.title ?? '' }));
-            }
-            if (t.card?.type === 'recipe_link') {
-              return [{ turnId: t.id, title: (t.card.title as string | undefined) ?? '' }];
-            }
-            return [];
-          }).filter((d) => d.title);
-          if (!dishes.length) return null;
-          return (
-            <div className={styles['rail-block']}>
-              <div className={styles['rail-title']}>ПРОПОЗИЦІЇ ЦІЄЇ СЕСІЇ</div>
-              {dishes.slice(-5).map((d, i) => (
-                <button
-                  key={`${d.turnId}-${i}`}
-                  className={styles['rail-row']}
-                  onClick={() => document.getElementById(`turn-${d.turnId}`)?.scrollIntoView({ block: 'center' })}
-                >
-                  <span className={styles['rail-label']}>{d.title}</span>
-                  <span className={styles['rail-meta']}>↧</span>
-                </button>
-              ))}
-            </div>
-          );
-        })()}
         {housePending.length > 0 && (
           <div className={styles['rail-block']}>
             <div className={styles['rail-title']}>
@@ -1346,35 +1350,6 @@ export function Feed() {
                 <span className={styles['rail-meta']} style={{ color: 'var(--amber)' }}>◌</span>
               </button>
             ))}
-          </div>
-        )}
-        {shoppingCount > 0 && (
-          <div className={styles['rail-block']}>
-            <div className={styles['rail-title']}>ДО МАГАЗИНУ</div>
-            <button className={styles['rail-row']} onClick={() => navigate('/list')}>
-              <span className={styles['rail-label']}>У списку</span>
-              <span className={styles['rail-meta']}>{shoppingCount}</span>
-            </button>
-          </div>
-        )}
-        {unratedRun && !cookLive && (
-          <div className={styles['rail-block']}>
-            <div className={styles['rail-title']}>ОЦІНИ ВЧОРАШНЄ</div>
-            <button
-              className={styles['rail-row']}
-              onClick={() => {
-                // Ведемо в сесію готування (там найчастіше висить «Як вийшло?» —
-                // відповідь ляже у verdict) і префілимо композитор назвою.
-                if (unratedRun.session_id && unratedRun.session_id !== sessionId) {
-                  void loadHistorySession(unratedRun.session_id);
-                }
-                setInput(`«${unratedRun.title}» — `);
-                composerInputRef.current?.focus();
-              }}
-            >
-              <span className={styles['rail-label']}>{unratedRun.title}</span>
-              <span className={styles['rail-meta']}>★</span>
-            </button>
           </div>
         )}
       </aside>
