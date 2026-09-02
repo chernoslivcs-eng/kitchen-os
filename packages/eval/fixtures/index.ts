@@ -55,6 +55,26 @@ export function loadFixtures(): Fixture[] {
       attachment: { kind: 'text', path: 'receipt-abbreviated.txt', content: readText('receipt-abbreviated.txt') },
     },
     {
+      // 02.09, живий провал у браузері: касовий чек Сільпо пішов у комору
+      // майже дослівно — «хусь», «батер», «папір», а два різні шоколади
+      // злились в один «шоколад молочний». Наявна фікстура receipt-abbreviated
+      // це пропускала, бо вона ЛЕГША за реальність: там слова розділені
+      // пробілами («СИР КАМБОЦ.70% 193Г»), а на касовому друку пробілів немає
+      // взагалі («Шок25МолЛТKorМигдКок»). Зелений eval означав не «розбір
+      // працює», а «ми не перевіряли те, що приносить людина».
+      id: 'receipt-till-silpo',
+      description: 'Паперовий чек Сільпо: CamelCase без пробілів, латиниця впереміш («Кр135БрусPontЧорОлив»). Найважчий із трьох реальних форматів.',
+      call: 'attachment_parse',
+      invariants: [
+        'receipt-coverage-80',
+        'expanded-abbreviations',
+        'no-prices',
+        'tagger-triples',
+        'triple-discipline',
+      ],
+      attachment: { kind: 'text', path: 'receipt-till-silpo.txt', content: readText('receipt-till-silpo.txt') },
+    },
+    {
       id: 'receipt-nonfood',
       description: 'Чек АТБ із побутовим і напоями — нехарчові теж додати, ціни ігнорувати',
       call: 'attachment_parse',
