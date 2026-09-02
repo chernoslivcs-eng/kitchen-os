@@ -1020,3 +1020,19 @@
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border);
 }
+
+/* Рецепт у панелі — В ОДНУ КОЛОНКУ.
+   Вище .recipe-msg-cols стає рядком від 1024px, але той медіазапит дивиться
+   на ВІКНО, а панель вузька незалежно від вікна: заміряно 138 і 125 пікселів
+   на колонку, назви ламались на три рядки. Специфічність (0,2,0) перебиває
+   правило в медіазапиті (0,1,0) без !important.
+   Це той випадок, для якого існують container queries; descendant-перекриття
+   простіше й працює скрізь, а поведінка та сама. */
+.rail-artifact .recipe-msg-cols {
+  flex-direction: column;
+  gap: 14px;
+}
+.rail-artifact .recipe-msg-cols > div:first-child,
+.rail-artifact .recipe-msg-cols > div:last-child {
+  flex: initial;
+}
