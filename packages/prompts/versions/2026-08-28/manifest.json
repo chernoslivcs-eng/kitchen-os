@@ -5,43 +5,24 @@
     "chat": {
       "profile": "smart",
       "temperature": 0.4,
-      "compose": [
-        "role",
-        "onboarding-stage1?",
-        "onboarding-stage2?",
-        "card-contract",
-        "state-facts",
-        "tone-language",
-        "card-schemas",
-        "card-routing",
-        "kitchen-policy",
-        "proposal-flow"
-      ],
+      "compose": ["role", "onboarding-stage1?", "onboarding-stage2?", "card-contract", "state-facts", "tone-language", "card-schemas", "card-routing", "kitchen-policy", "proposal-flow"],
       "notes": "Порядок системного промпту: compose(role → [onboarding] → card-rules) + buildKitchenContext() з @kitchen/domain, який дає [ПРОФІЛЬ] → [СЬОГОДНІ] → [КОМОРА] → [СПИСОК ПОКУПОК] → [ОСТАННІ ГОТУВАННЯ]. Обмеження перед інвентарем свідомо (QA5-01). Модель smart, а не fast: copy-report-4 зафіксував 8 мовних дефектів на haiku проти 3 на sonnet."
     },
     "recipe_gen": {
       "profile": "smart",
       "temperature": 0.6,
-      "compose": [
-        "role",
-        "recipe-generator"
-      ]
+      "compose": ["role", "recipe-generator"]
     },
     "attachment_parse": {
       "profile": "smart",
       "temperature": 0,
-      "compose": [
-        "role",
-        "attachment-parser"
-      ],
+      "compose": ["role", "attachment-parser"],
       "notes": "02.09: fast → smart. Розбір чека — найважче зорове завдання продукту, а віддавали його найслабшій моделі, тоді як чат ішов на smart. Виміряно парою фікстур на ОДИН чек: текстом haiku дав 21/21 рядків, усі 8 еталонних продуктів і 14 брендів; тим самим чеком ЗНІМКОМ — «хусь» замість хустинок, «батер» замість багета, 23 позиції там, де їх 21. Помилки на рівні літер («Хуст»→«хусь», «Туал»→«туан»), і далі каскадом: розгортати «хусь» нікуди. Вхід при цьому чистий — рендерений скріншот, не пожмаканий папірець, тож річ не в складності зображення. Власник перевірив незалежно: haiku в чаті без контексту помиляється так само."
     },
     "alt_filter": {
       "profile": "fast",
       "temperature": 0,
-      "compose": [
-        "alt-filter"
-      ],
+      "compose": ["alt-filter"],
       "notes": "01.09: фільтр альтернатив кошика Сільпо — вузька структурована класифікація (keep/reject пар запит/кандидат), без ролі кухаря — вона тільки б заважала."
     }
   }
