@@ -417,6 +417,8 @@ export function Feed() {
   // один, рецепт завжди останній, тож більше двох тут не буває.
   const [closedArtifacts, setClosedArtifacts] = useState<Set<string>>(new Set());
   const [activeArtifact, setActiveArtifact] = useState<string | null>(null);
+  // Крок 1.4: у згорнутій смузі — активний маркер і «інші» списком по тапу.
+  const [miniListOpen, setMiniListOpen] = useState(false);
   const latestCart = [...turns].reverse().find((t) => t.card?.type === 'cart' && t.cardId);
   // Той самий принцип для рецепта: у панелі живе АКТИВНИЙ (останній), архів —
   // у розділі «Рецепти». Двох рецептів у панелі не буває: наступний заміщає
@@ -460,6 +462,15 @@ export function Feed() {
     ));
     return () => cancelAnimationFrame(id);
   }, [bodyEl, shownArtifact?.key]);
+  // «Інші» — усе, крім того, що відкриється від «›». Закритий артефакт
+  // зі списку зникає; лишився один — кнопка «інші» зникає; не лишилось
+  // жодного — зникає вся смуга (нижче, через hasPanel).
+  const miniOthers = openArtifacts.filter((a) => a.key !== shownArtifact?.key);
+  // V8·A: порожня сесія — панелі НЕМА ВЗАГАЛІ. Ані колонки, ані згорнутої
+  // смуги, ані ручки: порожня панель читається як «тут щось зламалось»
+  // або як дашборд, від якого ми відмовились. Pending поки теж тримає
+  // панель — він єдиний блок зрізу, що лишився.
+  const hasPanel = openArtifacts.length > 0 || housePending.length > 0;
   function closeArtifact(key: string) {
     // Артефакт не вмирає — він і далі повідомлення у стрічці, і слід повертає
     // його тапом. Тому ✕ не потребує підтвердження.
@@ -467,21 +478,19 @@ export function Feed() {
     setActiveArtifact(null);
   }
 
-  const [unratedRun, setUnratedRun] = useState<{ id: string; title: string; session_id: string | null } | null>(null);
-
   async function refreshCounts() {
     try {
-      const [p, s, pend, runs] = await Promise.all([
+      // Крок 1.4: cookRuns звідси прибрано разом із маркером «★ оцінити»
+      // у смузі. Він лишався write-only станом — читати його вже нікому:
+      // «оціни вчорашнє» стало реплікою Кухні на початку сесії (modes.ts),
+      // а не блоком у панелі. Разом із ним пішов і зайвий запит на кожен
+      // refreshCounts.
+      const [p, s, pend] = await Promise.all([
         api.pantry(),
         api.shopping.list().catch(() => ({ count: 0 })),
         api.cards.pending().catch(() => ({ cards: [] as { id: string; type: string; session_id: string | null; created_at: string | null }[] })),
-        api.cookRuns.list().catch(() => ({ runs: [] })),
       ]);
       setHousePending(pend.cards);
-      const fresh = runs.runs.find((r) =>
-        !r.undone_at && r.rating == null
-        && Date.now() - new Date(r.finished_at ?? r.started_at).getTime() < 48 * 3600_000);
-      setUnratedRun(fresh ? { id: fresh.id, title: fresh.recipe.title, session_id: fresh.session_id ?? null } : null);
       setPantryCount(p.count);
       // Пул-5 №5: сайдбар теж дізнається про свіжий лічильник — bump скидає
       // його кеш і TabBar перечитує (патерн useSessionStore).
@@ -902,7 +911,7 @@ export function Feed() {
 
   return (
     <div
-      className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''} ${dragging ? styles['rail-dragging'] : ''}`}
+      className={`${styles.screen} ${railHidden ? styles['rail-off'] : ''} ${!hasPanel ? styles['rail-none'] : ''} ${dragging ? styles['rail-dragging'] : ''}`}
       style={{ ['--rail-w' as string]: `${railEffective}px` }}
     >
       <div className={styles.head}>
@@ -1442,6 +1451,7 @@ export function Feed() {
       {/* Черга Г (№3): права панель — навігатор стану на десктопі (≥1280).
           Порожні секції не рендеряться. Кожен рядок — місток: продовжити
           готування, префіл композитора, скрол до картки, перехід у сесію. */}
+      {hasPanel && (
       <aside className={`${styles.rail} ${railOpen ? styles['rail-open'] : ''} ${railHidden ? styles['rail-hidden'] : ''}`}>
         {/* Ручка. Дабл-клік — єдине повернення до 320 (V9). Ширину під час
             драгу не зберігаємо: пише лише відпускання, тож перерваний драг
@@ -1547,24 +1557,68 @@ export function Feed() {
           </div>
         )}
       </aside>
+      )}
       {railOpen && <div className={styles['rail-scrim']} onClick={() => setRailOpen(false)} />}
-      {/* Пул-6 №2: смужка 56px — ◔ горить · ◌ очікують · ★ оцінити. */}
+      {/* Крок 1.4: смуга 52px. Раніше вона показувала лічильники зрізу —
+          горить · очікують · оцінити, — але зрізу більше немає (крок 4
+          «Панелі A»), і лічильники дублювали бічне меню. Тепер вона про
+          артефакти: що відкриється зараз і що ще є в сесії.
+          Ніколи більше двох кнопок — інакше стовпчик плиток читається як
+          друга навігація поруч із лівою й змагається з нею за увагу. */}
+      {hasPanel && (
       <div className={`${styles['rail-mini']} ${railHidden ? styles['rail-mini-show'] : ''}`}>
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Горить">
-          <span style={{ color: 'var(--amber)' }}>◔</span>
-          <span className={styles['rail-mini-count']} style={{ color: staleBatches.length ? 'var(--amber)' : undefined }}>{staleBatches.length}</span>
+        <button
+          type="button"
+          className={styles['rail-mini-expand']}
+          onClick={miniRailClick}
+          aria-label="Розгорнути панель"
+        >
+          ›
+          {/* Бурштинова крапка, а не третя кнопка: «очікують рішення» — не
+              артефакт, і давати йому власний маркер означало б зламати
+              правило двох. Крапка зникне разом зі стрічкою pending. */}
+          {housePending.length > 0 && <span className={styles['rail-mini-dot']} />}
         </button>
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Очікують рішення">
-          <span style={{ color: 'var(--amber)' }}>◌</span>
-          <span className={styles['rail-mini-count']}>{housePending.length}</span>
-        </button>
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} title="Оцінити вчорашнє">
-          <span>★</span>
-          <span className={styles['rail-mini-count']}>{unratedRun ? 1 : 0}</span>
-        </button>
-        <div style={{ flex: 1 }} />
-        <button type="button" className={styles['rail-mini-item']} onClick={miniRailClick} aria-label="Розгорнути панель">›</button>
+        {shownArtifact && (
+          <button
+            type="button"
+            className={`${styles['mini-marker']} ${styles['mini-marker-on']}`}
+            onClick={miniRailClick}
+            aria-label={`Відкрити: ${shownArtifact.label}`}
+          >
+            <span className={styles['mini-glyph']}>◈</span>
+            {shownArtifact.meta && <span className={styles['mini-badge']}>{shownArtifact.meta}</span>}
+            <span className={styles['mini-hint']}>{shownArtifact.label}</span>
+          </button>
+        )}
+        {miniOthers.length > 0 && (
+          <button
+            type="button"
+            className={styles['mini-marker']}
+            onClick={() => setMiniListOpen((v) => !v)}
+            aria-expanded={miniListOpen}
+            aria-label="Інші артефакти"
+          >
+            <span className={styles['mini-plus']}>+{miniOthers.length}</span>
+          </button>
+        )}
+        {miniListOpen && miniOthers.length > 0 && (
+          <div className={styles['mini-list']}>
+            {miniOthers.map((a) => (
+              <button
+                key={a.key}
+                type="button"
+                className={styles['mini-list-row']}
+                onClick={() => { setActiveArtifact(a.key); setMiniListOpen(false); setRailHiddenPersist(false); }}
+              >
+                <span className={styles['mini-list-name']}>{a.label}</span>
+                {a.meta && <span className={styles['mini-list-meta']}>{a.meta}</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+      )}
 
 
       {toast && (
