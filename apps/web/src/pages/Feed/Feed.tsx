@@ -9,8 +9,8 @@ import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
-import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo } from '../../api';
-import { Card, PanelFootSlot, PanelHeadSlot, labelFor, appliedToast } from './cards';
+import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
+import { Card, PanelFootSlot, PanelHeadSlot, ShoppingListCard, labelFor, appliedToast } from './cards';
 import { isReceipt, pickArtifacts, receiptLines } from './artifacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
@@ -416,6 +416,10 @@ export function Feed() {
   // Крок 3б: вкладки. Зʼявляються ЛИШЕ з другим артефактом — при одному
   // шапка просто називає його. Заміщення, не накопичення: кошик у Сільпо
   // один, рецепт завжди останній, тож більше двох тут не буває.
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  // Список «сам не з'являється й сам не тримається» (V4): вкладка виникає
+  // лише коли її відкрили — слідом дельти або з порожньої панелі.
+  const [listOpen, setListOpen] = useState(false);
   const [closedArtifacts, setClosedArtifacts] = useState<Set<string>>(new Set());
   const [activeArtifact, setActiveArtifact] = useState<string | null>(null);
   // Крок 1.4: у згорнутій смузі — активний маркер і «інші» списком по тапу.
@@ -423,7 +427,7 @@ export function Feed() {
   // Вибір артефактів живе в ./artifacts і покритий тестом: перевірити його
   // на екрані можна лише тоді, коли в сесії випадково є потрібна картка,
   // а чек мережі трапляється раз на похід у магазин.
-  const artifacts = pickArtifacts(turns);
+  const artifacts = pickArtifacts(turns, listOpen ? shoppingItems.length : null);
   const latestCart = artifacts.find((a) => a.key === 'cart')?.turn;
   const latestRecipe = artifacts.find((a) => a.key === 'recipe')?.turn;
   const latestReceipt = artifacts.find((a) => a.key === 'receipt')?.turn;
@@ -435,6 +439,7 @@ export function Feed() {
   // а не робила б нічого. Тому спершу повертаємо його в панель, і лише
   // потім скролимо — вже до того, що напевно існує.
   function openArtifact(key: string) {
+    if (key === 'list') setListOpen(true);
     setClosedArtifacts((prev) => {
       if (!prev.has(key)) return prev;
       const next = new Set(prev);
@@ -493,6 +498,57 @@ export function Feed() {
   // побуту» не заводимо: нехарчовість виводиться з каталогу (категорія
   // «нехарчове»), тим самим шляхом, яким її вже визначає розбір чека, —
   // отже нової колонки в даних не треба.
+  const [buildingCart, setBuildingCart] = useState(false);
+  // Той самий шлях, що й у нуджа «зібрати кошик»: кошик збирається зі
+  // списку на сервері, а в стрічці зʼявляється картка-кошик. Дублювати
+  // логіку не стали — різниця лише в тому, звідки натиснули.
+  async function buildCartFromList() {
+    setBuildingCart(true);
+    try {
+      const r = await api.retail.buildCart();
+      setTurns((prev) => [...prev, {
+        id: newId(), role: 'assistant',
+        time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+        text: `Кошик у Сільпо: знайшов ${r.card.found} з ${r.card.of}`,
+        card: r.card, cardId: r.card_id, fresh: true,
+      }]);
+      setActiveArtifact('cart');
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    } finally { setBuildingCart(false); }
+  }
+
+  async function toggleListItem(id: string, checked: boolean) {
+    // Оптимістично: галочка «куплено» має відповідати одразу, інакше тап
+    // по рядку в довгому списку читається як «не спрацювало».
+    setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked } : i)));
+    try {
+      await api.shopping.toggle(id, checked);
+      await refreshCounts();
+    } catch (err) {
+      setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !checked } : i)));
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+  async function removeBought(ids: string[]) {
+    try {
+      for (const id of ids) await api.shopping.remove(id);
+      await refreshCounts();
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+  async function addListItem(label: string) {
+    try {
+      await api.shopping.add(label);
+      await refreshCounts();
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
   async function addNonfoodToList(names: string[]) {
     try {
       for (const name of names) await api.shopping.add(name, undefined, undefined, 'з чека · не для комори');
@@ -518,6 +574,8 @@ export function Feed() {
       // Крок 4.2: тримаємо не тільки лічильник, а й назви незакреслених
       // позицій — чек має сказати, скільки з нього закриє список, ДО
       // застосування, а не після.
+      const listItems = (s as { items?: ShoppingItem[] }).items ?? [];
+      setShoppingItems(listItems);
       setShoppingLabels(new Set(
         ((s as { items?: { label: string; checked: boolean }[] }).items ?? [])
           .filter((i) => !i.checked)
@@ -581,12 +639,16 @@ export function Feed() {
   }, []);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // Межа групи «щойно додано» в списку — початок сесії, а не «останні N
+  // хвилин»: дельта має сенс саме в межах розмови, у якій її додали.
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
   // Правка №1: сайдбар знає активну сесію і перечитує список, коли тут
   // щось міняється.
   const sessionStore = useSessionStore();
   const cookOpen = useCookStore((s) => s.open);
-  function activate(id: string | null) {
+  function activate(id: string | null, startedAt?: string) {
     setSessionId(id);
+    setSessionStartedAt(startedAt ?? null);
     sessionStore.setActive(id);
   }
 
@@ -598,7 +660,7 @@ export function Feed() {
     (async () => {
       try {
         const { session, messages } = await api.session.today();
-        activate(session.id);
+        activate(session.id, session.created_at);
         setTurns(messages.map((m) => messageToTurn(m)));
       } catch {/* offline: залишаємо порожню стрічку */}
       // M13: тихий синк чеків при відкритті стрічки. Не частіше ніж раз на
@@ -630,7 +692,7 @@ export function Feed() {
   async function startFreshSession() {
     try {
       const { session } = await api.session.fresh();
-      activate(session.id);
+      activate(session.id, session.created_at);
       setTurns([]);
       setHistoryOpen(false);
       sessionStore.bump();
@@ -659,7 +721,7 @@ export function Feed() {
   async function loadHistorySession(id: string) {
     try {
       const { session, messages } = await api.session.get(id);
-      activate(session.id);
+      activate(session.id, session.created_at);
       setTurns(messages.map((m) => messageToTurn(m)));
       setHistoryOpen(false);
     } catch {/* тихо */}
@@ -959,7 +1021,18 @@ export function Feed() {
             <MonoLabel className={styles['head-meta']}>
               {/* Моушн-кіт §03: цифра прокручується вертикально при зміні. */}
               КОМОРА <RollingNumber value={pantryCount} />
-              {shoppingCount > 0 && <> · СПИСОК <RollingNumber value={shoppingCount} /></>}
+              {/* Крок 4.5: «СПИСОК N» — ручний вхід у список. Він потрібен саме
+                  тепер: V8·A прибрав порожню панель, а разом із нею і ярлик
+                  «Список → відкрити», який був там єдиним ручним входом.
+                  Слід у стрічці буває лише тоді, коли моделі щось у списку
+                  міняла; відкрити список просто так більше не було чим. */}
+              {shoppingCount > 0 && (
+                <> · <button
+                  type="button"
+                  className={styles['head-list']}
+                  onClick={() => openArtifact('list')}
+                >СПИСОК <RollingNumber value={shoppingCount} /></button></>
+              )}
             </MonoLabel>
           )}
           <Avatar name={meName} />
@@ -1230,6 +1303,38 @@ export function Feed() {
                 <span className={styles['trace-go']}>→</span>
               </button>
             )}
+            {t.card?.type === 'shopping' && t.applied && (
+              /* Крок 4.5 + відкладений 3.2. Слід каже ДЕЛЬТУ, панель — стан:
+                 «+5 · разом 9» відповідає на «що модель узяла в роботу» без
+                 переліку, сам перелік — один тап праворуч.
+                 «Скасувати» — окреме моно-посилання в рядку ПІД слідом, а не
+                 друга дія всередині: у блока одна ціль натискання. І воно
+                 діє на цю дельту, а не на весь список. */
+              <div className={styles['trace-wrap']}>
+                <button
+                  type="button"
+                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.key === 'list' ? styles['trace-on'] : ''}`}
+                  onClick={() => openArtifact('list')}
+                  disabled={t.undone}
+                >
+                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={styles['trace-body']}>
+                    <span className={styles['trace-kind']}>
+                      СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
+                    </span>
+                    <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
+                  </span>
+                  {!t.undone && <span className={styles['trace-go']}>→</span>}
+                </button>
+                {!t.undone && t.undoToken && (
+                  <button
+                    type="button"
+                    className={styles['trace-undo']}
+                    onClick={() => undo(t.id, t.undoToken!)}
+                  >СКАСУВАТИ</button>
+                )}
+              </div>
+            )}
             {isReceipt(t) && (
               /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
                  застосовано, він не стан, а рішення, якого чекають. Після
@@ -1256,7 +1361,7 @@ export function Feed() {
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isReceipt(t) ? styles['artifact-in-feed'] : ''}`}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isReceipt(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}
@@ -1541,6 +1646,13 @@ export function Feed() {
             {/* Зона 1 — шапка. Не скролиться: вкладки мусять лишатись на
                 місці, інакше на довгому кошику зникає спосіб перемкнутись. */}
             <div className={styles['rail-tabs']}>
+              {/* Крок 4.5: вкладок стало більше трьох, і на 320px вони
+                  перестали влазити — «Список 4» різався до «Сп…». Правило
+                  «неактивна не стискається» тут уже не рятує: воно про дві
+                  вкладки. Тому вкладки прокручуються збоку, а ✕ і навігація
+                  лишаються прибитими — керування не має їхати разом із
+                  вмістом. */}
+              <div className={styles['rail-tabs-scroll']}>
               {openArtifacts.length > 1
                 ? openArtifacts.map((a) => (
                     <button
@@ -1553,6 +1665,7 @@ export function Feed() {
                     </button>
                   ))
                 : <span className={styles['rail-tab-solo']}>{shownArtifact.label}</span>}
+              </div>
               {/* Навігаційні дії артефакта — сюди (V7). */}
               <div className={styles['rail-head-actions']} ref={setHeadSlot} />
               <button
@@ -1573,22 +1686,37 @@ export function Feed() {
               {footSlot && (
               <PanelHeadSlot.Provider value={headSlot}>
               <PanelFootSlot.Provider value={footSlot}>
+                {/* Список — єдиний артефакт без ходу: він читає живий стан
+                    дому, а не картку сесії. Тип це й показав — саме через
+                    turn: T | null компілятор змусив написати цю гілку. */}
+                {shownArtifact.key === 'list' ? (
+                  <ShoppingListCard
+                    items={shoppingItems}
+                    sessionStartedAt={sessionStartedAt}
+                    onToggle={toggleListItem}
+                    onRemoveBought={removeBought}
+                    onAdd={addListItem}
+                    onBuildCart={() => void buildCartFromList()}
+                    buildingCart={buildingCart}
+                  />
+                ) : shownArtifact.turn && (
+                <>
                 {/* Крок 4.1: одна гілка на всі артефакти замість трьох.
                     Чек потребує onApply/onUndo, яких у кошика й рецепта
                     немає, — тримати для кожного свій набір пропсів означало
                     б додавати гілку на кожен новий артефакт. */}
                 <Card
-                  card={shownArtifact.turn.card!}
-                  cardId={shownArtifact.turn.cardId ?? undefined}
-                  applied={shownArtifact.turn.applied}
-                  applying={shownArtifact.turn.applying}
-                  dismissed={shownArtifact.turn.dismissed}
-                  undone={shownArtifact.turn.undone}
-                  undoAvailable={!!shownArtifact.turn.undoToken}
-                  onApply={(selected) => apply(shownArtifact.turn.id, selected)}
-                  onDismiss={() => dismissCard(shownArtifact.turn.id)}
-                  onUndo={shownArtifact.turn.undoToken
-                    ? () => undo(shownArtifact.turn.id, shownArtifact.turn.undoToken!)
+                  card={shownArtifact.turn!.card!}
+                  cardId={shownArtifact.turn!.cardId ?? undefined}
+                  applied={shownArtifact.turn!.applied}
+                  applying={shownArtifact.turn!.applying}
+                  dismissed={shownArtifact.turn!.dismissed}
+                  undone={shownArtifact.turn!.undone}
+                  undoAvailable={!!shownArtifact.turn!.undoToken}
+                  onApply={(selected) => apply(shownArtifact.turn!.id, selected)}
+                  onDismiss={() => dismissCard(shownArtifact.turn!.id)}
+                  onUndo={shownArtifact.turn!.undoToken
+                    ? () => undo(shownArtifact.turn!.id, shownArtifact.turn!.undoToken!)
                     : undefined}
                   shoppingLabels={shoppingLabels}
                   onNonfoodToList={addNonfoodToList}
@@ -1600,6 +1728,8 @@ export function Feed() {
                   batchLabels={batchLabels}
                   stepLabels={stepLabels}
                 />
+                </>
+                )}
               </PanelFootSlot.Provider>
               </PanelHeadSlot.Provider>
               )}

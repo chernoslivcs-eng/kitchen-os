@@ -6,7 +6,7 @@
 // є потрібна картка. Тут вона перевіряється тестом на будь-яких даних.
 import type { ChatCard } from '../../api';
 
-export type ArtifactKey = 'cart' | 'recipe' | 'receipt';
+export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list';
 
 export interface ArtifactTurn {
   id: string;
@@ -18,7 +18,10 @@ export interface Artifact<T extends ArtifactTurn> {
   key: ArtifactKey;
   label: string;
   meta: string;
-  turn: T;
+  // Список — єдиний артефакт БЕЗ ходу: він не картка сесії, а стан дому,
+  // що її переживає. Решта читаються з повідомлення, він — із живого
+  // списку, тож ходу за ним немає й бути не може.
+  turn: T | null;
 }
 
 // Артефактом стає чек — обох родів: і підтягнутий сервером із мережі, і
@@ -53,7 +56,13 @@ export function receiptLines(t: ArtifactTurn | undefined): number {
 // Актуальний артефакт — ОСТАННІЙ свого роду. Кошик у Сільпо один за
 // визначенням; рецепт заміщається наступним у тій самій вкладці; чек —
 // той, який зараз розбирають. Попередні лишаються слідами у стрічці.
-export function pickArtifacts<T extends ArtifactTurn>(turns: T[]): Artifact<T>[] {
+export function pickArtifacts<T extends ArtifactTurn>(
+  turns: T[],
+  // Кількість позицій списку, якщо його ВІДКРИЛИ. null — вкладки списку
+  // немає: він «сам не з'являється й сам не тримається» (V4), інакше
+  // кожна сесія починалася б із вкладки, якої ніхто не просив.
+  listCount: number | null = null,
+): Artifact<T>[] {
   const back = [...turns].reverse();
   const cart = back.find((t) => t.card?.type === 'cart' && t.cardId);
   const recipe = back.find((t) => t.card?.type === 'recipe_link');
@@ -62,5 +71,6 @@ export function pickArtifacts<T extends ArtifactTurn>(turns: T[]): Artifact<T>[]
   if (cart) out.push({ key: 'cart', label: 'Кошик', meta: String(cart.card?.rows?.length ?? ''), turn: cart });
   if (recipe) out.push({ key: 'recipe', label: recipe.card?.title ?? 'Рецепт', meta: '', turn: recipe });
   if (receipt) out.push({ key: 'receipt', label: 'Чек', meta: String(receiptLines(receipt)), turn: receipt });
+  if (listCount !== null) out.push({ key: 'list', label: 'Список', meta: String(listCount), turn: null });
   return out;
 }

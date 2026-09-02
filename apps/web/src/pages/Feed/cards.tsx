@@ -13,6 +13,11 @@ import { formatQty, formatUnit } from '../../lib/units';
 import { renderStepContent, scaleRecipe } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
+import { groupShopping, sourceLabel } from './shopping-groups';
+// Псевдонім навмисно: у цьому файлі вже є свій ShoppingItem — позиція
+// картки-ДЕЛЬТИ ({op, label, v, u}), яку модель прислала в розмову.
+// Рядок живого списку — інша річ: у нього є id, checked і джерело.
+import type { ShoppingItem as ListItem } from '../../api';
 
 // Крок 1.2: панель забирає низ картки собі. У трьох зонах (шапка · тіло ·
 // закріплений низ) дії не мусять їхати разом із вмістом: «Оформити» і
@@ -583,6 +588,116 @@ export function ShoppingCard({ card, applied, applying, dismissed, undone, undoA
           <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ----- Список покупок (V5) -------------------------------------------------
+// Артефакт іншої природи, ніж решта: це не картка сесії, а стан дому, що
+// переживає сесію. Тому він читає живий список, а не card.items, і в нього
+// немає «застосувати» — це не рішення, а сховище. Чекбокс тут означає
+// «куплено», а не «взяти в роботу», як у чеку.
+export function ShoppingListCard({
+  items, sessionStartedAt, onToggle, onRemoveBought, onAdd, onBuildCart, buildingCart,
+}: {
+  items: ListItem[];
+  sessionStartedAt: string | null;
+  onToggle: (id: string, checked: boolean) => void;
+  onRemoveBought: (ids: string[]) => void;
+  onAdd: (label: string) => void;
+  onBuildCart?: () => void;
+  buildingCart?: boolean;
+}) {
+  const [draft, setDraft] = useState('');
+  const g = groupShopping(items, sessionStartedAt);
+  const footSlot = useContext(PanelFootSlot);
+
+  const row = (it: ListItem, tone?: 'fresh' | 'bought') => (
+    <div
+      key={it.id}
+      className={`${styles.rrow} ${tone === 'fresh' ? styles['srow-fresh'] : ''}`}
+    >
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={it.checked}
+        aria-label={it.label}
+        className={`${styles.rbox} ${it.checked ? styles['rbox-bought'] : ''}`}
+        onClick={() => onToggle(it.id, !it.checked)}
+      >{it.checked ? '✓' : ''}</button>
+      <span className={`${styles['rrow-name']} ${it.checked ? styles['srow-done'] : ''}`}>{it.label}</span>
+      {!it.checked && <span className={styles['srow-src']}>{sourceLabel(it)}</span>}
+      {it.value != null && it.unit && (
+        <span className={styles['rrow-qty']}>{formatQty(it.value, it.unit)}</span>
+      )}
+    </div>
+  );
+
+  const foot = (
+    <div className={styles['slist-foot']}>
+      {/* Поле «додати» — єдиний спосіб дописати руками, і воно завжди під
+          рукою, а не за кнопкою «додати позицію». */}
+      <form
+        className={styles['slist-add']}
+        onSubmit={(e) => { e.preventDefault(); const v = draft.trim(); if (v) { onAdd(v); setDraft(''); } }}
+      >
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="+ додати в список…"
+          aria-label="Додати в список"
+        />
+      </form>
+      <div className={styles['card-foot']}>
+        <span className={styles['strip-state']}>{g.toBuy} до купівлі</span>
+        {onBuildCart && (
+          /* Шавлієва ТОНОВАНА, не чорнильна: це перехід до збирання кошика,
+             а не чекаут. Чорнильна в системі означає остаточну дію. */
+          <Button size="strip" variant="soft" onClick={onBuildCart} loading={buildingCart} disabled={!g.toBuy}>
+            Зібрати кошик у Сільпо →
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={styles.card}>
+      {/* Мета під назвою, а не поруч: на 320 вони ділили рядок, і «Список
+          покупок» ламався надвоє. Той самий порядок, що в кошика й чека. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
+          Список покупок
+        </div>
+        <MonoLabel>
+          {items.length} {plural(items.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+          {g.bought.length > 0 ? ` · ${g.bought.length} КУПЛЕНО` : ''}
+        </MonoLabel>
+      </div>
+
+      {g.fresh.length > 0 && (
+        <ReceiptGroup tone="accent" glyph="●" title="ЩОЙНО ДОДАНО" count={g.fresh.length}
+          rows={g.fresh.map((it) => row(it, 'fresh'))} />
+      )}
+      {g.earlier.length > 0 && (
+        <ReceiptGroup tone="muted" glyph="·" title="РАНІШЕ" count={g.earlier.length}
+          rows={g.earlier.map((it) => row(it))} />
+      )}
+      {g.bought.length > 0 && (
+        <ReceiptGroup
+          tone="muted" glyph="✓" title="КУПЛЕНО" count={g.bought.length}
+          action={() => onRemoveBought(g.bought.map((i) => i.id))}
+          actionLabel="ПРИБРАТИ"
+          rows={g.bought.map((it) => row(it, 'bought'))}
+        />
+      )}
+      {items.length === 0 && (
+        <div style={{ padding: '10px 0', color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 15 }}>
+          Список порожній. Додай позицію нижче або попроси Кухню.
+        </div>
+      )}
+      {footSlot ? createPortal(foot, footSlot) : foot}
     </div>
   );
 }

@@ -72,7 +72,7 @@ describe('pickArtifacts', () => {
       turn('c2', { type: 'cart', rows: [{}, {}, {}] as never }),
     ]);
     expect(got).toHaveLength(1);
-    expect(got[0]!.turn.id).toBe('c2');
+    expect(got[0]!.turn!.id).toBe('c2');
     expect(got[0]!.meta).toBe('3');
   });
 
@@ -97,5 +97,25 @@ describe('pickArtifacts', () => {
   it('рецепт без cardId — стає: він читається за recipe_id, не за карткою', () => {
     const got = pickArtifacts([turn('r', { type: 'recipe_link', title: 'Борщ' }, null)]);
     expect(got.map((a) => a.key)).toEqual(['recipe']);
+  });
+});
+
+describe('список як артефакт', () => {
+  // Список не з'являється сам: інакше кожна сесія починалася б із вкладки,
+  // якої ніхто не просив. Його відкривають — слідом або ярликом.
+  it('без відкриття вкладки списку немає', () => {
+    expect(pickArtifacts([turn('k', { type: 'cart', rows: [{}] as never })]).map((a) => a.key))
+      .toEqual(['cart']);
+  });
+
+  it('відкритий список стає останньою вкладкою і не має ходу', () => {
+    const got = pickArtifacts([turn('k', { type: 'cart', rows: [{}] as never })], 9);
+    expect(got.map((a) => a.key)).toEqual(['cart', 'list']);
+    expect(got[1]!.meta).toBe('9');
+    expect(got[1]!.turn).toBe(null);
+  });
+
+  it('порожній список — це теж відкритий список, а не його відсутність', () => {
+    expect(pickArtifacts([], 0).map((a) => a.key)).toEqual(['list']);
   });
 });
