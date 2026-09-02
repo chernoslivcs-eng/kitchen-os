@@ -40,3 +40,65 @@ describe('lent-no-meat-or-dairy', () => {
     expect(inv(proposal('Гриби дають мʼясистість'), fx).pass).toBe(true);
   });
 });
+
+// Дисципліна трійки. Кейси взяті з живого прогону 02.09 — це не вигадані
+// приклади, а те, що модель справді повернула на чек Сільпо.
+describe('triple-discipline', () => {
+  const inv = registry['triple-discipline']!;
+  const intake = (...ops: Record<string, unknown>[]) => ({
+    raw: '', card: { type: 'intake_diff', ops: ops.map((o) => ({ op: 'add', ...o })) },
+  });
+
+  it('повна назва з брендом у своєму полі — проходить', () => {
+    const v = inv(intake(
+      { label: 'крем-брускетта Ponti з чорних оливок', product: 'крем-брускетта', brand: 'Ponti', variant: 'з чорних оливок' },
+      { label: 'вода Моршинська негазована', product: 'вода', brand: 'Моршинська', variant: 'негазована' },
+    ) as never, {} as never);
+    expect(v.pass, v.detail).toBe(true);
+  });
+
+  // Живий репро: у label лишився огризок, усе решта поїхало в variant.
+  it('огризок у label ловиться', () => {
+    const v = inv(intake(
+      { label: 'папір', product: 'папір туалетний', variant: 'Zew Pure Moist' },
+    ) as never, {} as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/бідніший за трійку/);
+  });
+
+  it('бренд у variant при порожньому brand ловиться', () => {
+    const v = inv(intake(
+      { label: 'напій Schweppes Pink Tonic', product: 'напій', variant: 'Schweppes Pink Tonic' },
+    ) as never, {} as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/бренд у variant/);
+  });
+
+  it('нуль брендів на весь чек ловиться', () => {
+    const v = inv(intake(
+      { label: 'булка коричнева', product: 'булка', variant: 'коричнева' },
+      { label: 'квас хлібний', product: 'квас', variant: 'хлібний' },
+    ) as never, {} as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/жодного brand/);
+  });
+
+  // Межа: відсутній variant — не привід чіплятись, не в кожного товару є
+  // сорт. А от бренд, якщо він Є, мусить стояти і в label теж: label — це
+  // «людська назва цілком», і саме її людина бачить у картці.
+  it('без variant — проходить, якщо label повний', () => {
+    const v = inv(intake(
+      { label: 'сіль кухонна Артемсіль', product: 'сіль кухонна', brand: 'Артемсіль' },
+      { label: 'цукор', product: 'цукор' },
+    ) as never, {} as never);
+    expect(v.pass, v.detail).toBe(true);
+  });
+
+  it('бренд є, але його немає в label — ловиться', () => {
+    const v = inv(intake(
+      { label: 'пармезан тертий', product: 'пармезан', brand: 'Galbani', variant: 'тертий' },
+    ) as never, {} as never);
+    expect(v.pass).toBe(false);
+    expect(v.detail).toMatch(/galbani/i);
+  });
+});

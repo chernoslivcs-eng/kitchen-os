@@ -233,6 +233,47 @@ export const registry: Record<string, Invariant> = {
     return hasBag ? pass() : fail('нехарчовий «пакет» не потрапив у ops — правило «нехарчові теж додавати» порушене');
   },
 
+  // Дисципліна трійки. Живий репро 02.09: модель ПРОДОВЖУВАЛА давати трійку,
+  // але розкладала її навпаки — у label лишався огризок («папір», «напій»),
+  // а бренд їхав у variant («Zew Pure Moist», «Schweppes Pink Tonic»).
+  // Жоден наявний інваріант цього не ловив: silpo-expansions шукає текст у
+  // label+product+brand і задовольняється тим, що розгортка є ДЕСЬ, а
+  // includes-nonfood дивиться взагалі лише на label.
+  //
+  // Ціна помилки не косметична. По-перше, людина підтверджує картку, а
+  // картка показує label — тобто огризок. По-друге, tripleKey — суворий
+  // збіг: бренд, що гуляє між brand і variant, дає РІЗНІ ключі, і той самий
+  // Schweppes наступного разу народить другий «продукт дому» замість злиття.
+  'triple-discipline': (out) => {
+    const ops = opsOfIntake(out) ?? [];
+    if (!ops.length) return fail('немає ops');
+    const bad: string[] = [];
+
+    // 1. label — «людська назва цілком»: усе, що є в product і variant,
+    //    мусить у ньому бути. Інакше в картці лишається обрубок.
+    const words = (s: unknown) => String(s ?? '').toLowerCase().split(/[^\p{L}\p{N}%]+/u).filter((w) => w.length > 2);
+    for (const o of ops as any[]) {
+      const label = String(o.label ?? '').toLowerCase();
+      const missing = [...words(o.product), ...words(o.variant), ...words(o.brand)]
+        .filter((w) => !label.includes(w));
+      if (missing.length) bad.push(`label «${o.label}» бідніший за трійку: бракує ${missing.slice(0, 3).join(', ')}`);
+      if (bad.length >= 3) break;
+    }
+
+    // 2. Бренд — у brand, а не в variant. Список узято з рядків самого чека.
+    const BRANDS = /моршин|schweppes|zew|ponti|lay|kronenb|jarrkof|weekend|penok|біоранж|тарас/i;
+    const misplaced = (ops as any[]).filter((o) => !o.brand && BRANDS.test(String(o.variant ?? '')));
+    if (misplaced.length) {
+      bad.push(`бренд у variant при порожньому brand: ${misplaced.map((o) => o.variant).slice(0, 2).join('; ')}`);
+    }
+
+    // 3. Чек із брендами не може дати нуль брендів на весь розбір.
+    const withBrand = (ops as any[]).filter((o) => o.brand).length;
+    if (withBrand === 0) bad.push('жодного brand на весь чек');
+
+    return bad.length ? fail(bad.join(' · ')) : pass(`${withBrand} брендів, label повні`);
+  },
+
   'includes-nonfood': (out) => {
     const ops = opsOfIntake(out) ?? [];
     const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет|дрова|розпал|гриль|пакет|хустин/i;

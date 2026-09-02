@@ -24,33 +24,60 @@ export interface Artifact<T extends ArtifactTurn> {
   turn: T | null;
 }
 
-// Артефактом стає чек — обох родів: і підтягнутий сервером із мережі, і
-// показаний людиною в чаті. Спільне в них те, що й робить артефакт: довгий
-// документ на десятки рядків, який не має гортатися разом із розмовою, і
+// Скільки позицій робить intake-картку ДОКУМЕНТОМ, а не подією.
+//
+// Це число не зі стелі, і межу видно в самих даних продукту:
+//   «поклав молоко в холодильник»           — 1-3 позиції
+//   списання після готування                — стільки, скільки інгредієнтів
+//                                             рецепта лежить у коморі, тобто
+//                                             рідко більше восьми
+//   чек, показаний або вставлений у чат     — 14-20 і більше
+// Десять лягає в цей проміжок із запасом з обох боків.
+//
+// Спершу я вимагав сигналу від сервера (raw_kind моделі) і відмовлявся
+// рахувати рядки. Це виявилось помилкою двічі: raw_kind існує ЛИШЕ на шляху
+// розбору вкладення, а чек, вставлений текстом у поле вводу, його не має
+// взагалі — і двадцять рядків гортались разом із розмовою. Довжина тут не
+// евристика-замінник, а сама причина: артефакт існує рівно тому, що довгий
+// документ не має гортатися разом із розмовою.
+export const INTAKE_ARTIFACT_MIN = 10;
+
+// Артефактом стає intake-картка, яка є ДОКУМЕНТОМ: чек будь-якого роду або
+// будь-який довгий перелік. Спільне в них те, заради чого артефакт і
+// існує: багато рядків, які не мають гортатися разом із розмовою, і
 // стабільний card_id, щоб правити один рядок, не перезбираючи картку.
 //
-// Будь-яка інша intake-картка артефактом НЕ стає: «поклав молоко в
-// холодильник» — подія на два рядки; списання після готування — наслідок
-// дії. Позначку ставить сервер за raw_kind моделі, а не ми тут за
-// кількістю рядків: поріг «від N позицій — чек» був би числом зі стелі.
-export function isReceipt(t: ArtifactTurn): boolean {
+// Коротка intake-картка артефактом НЕ стає: «поклав молоко в холодильник»
+// це подія, яку читають раз, і відкривати під неї вкладку означало б
+// зробити панель журналом побутових дій.
+export function isIntakeArtifact(t: ArtifactTurn): boolean {
   if (t.card?.type !== 'intake_diff') return false;
   const kind = t.card.source?.kind;
+  if (kind === 'retail_receipt' || kind === 'chat_receipt') return true;
+  return (t.card.ops?.length ?? 0) >= INTAKE_ARTIFACT_MIN;
+}
+
+// Чек називається чеком, решта — тим, чим є. «Це додав в комору: дрова,
+// розпал…» не чек, і називати його так означало б вигадати за людину, що
+// вона робила.
+export function isReceiptSourced(t: ArtifactTurn): boolean {
+  const kind = t.card?.source?.kind;
   return kind === 'retail_receipt' || kind === 'chat_receipt';
 }
 
-// Скільки рядків у чеку разом: у комору + не для комори + не впізнав.
-// Саме це число стоїть на вкладці («Чек 19») — воно про чек як документ,
-// а не про те, скільки з нього поїде в комору.
+// Скільки рядків у документі разом — саме це число стоїть на вкладці.
+// Воно про документ, а не про те, скільки з нього поїде в комору: людина
+// принесла всі ці рядки, і всі вони в картці видимі.
 export function receiptLines(t: ArtifactTurn | undefined): number {
-  if (!t || !isReceipt(t)) return 0;
+  if (!t || !isIntakeArtifact(t)) return 0;
   const ops = t.card?.ops?.length ?? 0;
+  // Відсічене вето каталогу — теж рядки документа.
+  const vetoed = t.card?.nonfood?.length ?? 0;
   const src = t.card?.source;
-  // У чека з чату розкладки каталогу немає — модель повернула самі ops,
-  // і всі рядки чека це вони. У чека мережі рядків більше, ніж поїде в
-  // комору: nonfood і unmatched теж частина документа.
-  if (src?.kind !== 'retail_receipt') return ops;
-  return ops + src.nonfood.length + src.unmatched.length;
+  // У чека мережі рядків ще більше: там своя розкладка каталогу на три
+  // кошики, і два з них у ops не потрапляють зовсім.
+  if (src?.kind !== 'retail_receipt') return ops + vetoed;
+  return ops + vetoed + src.nonfood.length + src.unmatched.length;
 }
 
 // Актуальний артефакт — ОСТАННІЙ свого роду. Кошик у Сільпо один за
@@ -66,11 +93,18 @@ export function pickArtifacts<T extends ArtifactTurn>(
   const back = [...turns].reverse();
   const cart = back.find((t) => t.card?.type === 'cart' && t.cardId);
   const recipe = back.find((t) => t.card?.type === 'recipe_link');
-  const receipt = back.find((t) => isReceipt(t) && t.cardId);
+  const intakeDoc = back.find((t) => isIntakeArtifact(t) && t.cardId);
   const out: Artifact<T>[] = [];
   if (cart) out.push({ key: 'cart', label: 'Кошик', meta: String(cart.card?.rows?.length ?? ''), turn: cart });
   if (recipe) out.push({ key: 'recipe', label: recipe.card?.title ?? 'Рецепт', meta: '', turn: recipe });
-  if (receipt) out.push({ key: 'receipt', label: 'Чек', meta: String(receiptLines(receipt)), turn: receipt });
+  if (intakeDoc) {
+    out.push({
+      key: 'receipt',
+      label: isReceiptSourced(intakeDoc) ? 'Чек' : 'Комора',
+      meta: String(receiptLines(intakeDoc)),
+      turn: intakeDoc,
+    });
+  }
   if (listCount !== null) out.push({ key: 'list', label: 'Список', meta: String(listCount), turn: null });
   return out;
 }

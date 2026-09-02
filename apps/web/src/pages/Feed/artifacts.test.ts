@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isReceipt, pickArtifacts, receiptLines, type ArtifactTurn } from './artifacts';
+import { INTAKE_ARTIFACT_MIN, isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn } from './artifacts';
 import type { ChatCard } from '../../api';
 
 const turn = (id: string, card: Partial<ChatCard> | null, cardId: string | null = id): ArtifactTurn =>
@@ -22,28 +22,35 @@ const receiptCard = (ops: number, nonfood: number, unmatched: number): Partial<C
   },
 } as Partial<ChatCard>);
 
-describe('isReceipt', () => {
+describe('isIntakeArtifact', () => {
   it('чек мережі — так', () => {
-    expect(isReceipt(turn('a', receiptCard(11, 5, 1)))).toBe(true);
+    expect(isIntakeArtifact(turn('a', receiptCard(11, 5, 1)))).toBe(true);
   });
 
   it('чек із чату — теж так', () => {
-    expect(isReceipt(turn('a', chatReceiptCard(20)))).toBe(true);
+    expect(isIntakeArtifact(turn('a', chatReceiptCard(20)))).toBe(true);
   });
 
-  // Головна межа кроку 4.1: артефактом стає ЧЕК, а не будь-який intake.
-  // «Поклав молоко в холодильник» і списання після готування мусять
-  // лишитись картками у стрічці — інакше кожна побутова дія відкривала б
-  // вкладку в панелі. Довжина тут ні до чого: рішення про рід картки
-  // ухвалює сервер за raw_kind, а не ми за кількістю рядків.
-  it('звичайний intake без джерела — ні, навіть із двадцятьма ops', () => {
-    expect(isReceipt(turn('a', { type: 'intake_diff', ops: Array.from({ length: 20 }, () => ({ op: 'add' })) }))).toBe(false);
+  // Межа: артефактом стає ДОКУМЕНТ, а не подія. «Поклав молоко» і списання
+  // після готування лишаються картками у стрічці — інакше кожна побутова
+  // дія відкривала б вкладку в панелі.
+  it('коротка intake-картка артефактом не стає', () => {
+    const short = { type: 'intake_diff', ops: Array.from({ length: INTAKE_ARTIFACT_MIN - 1 }, () => ({ op: 'add' })) } as Partial<ChatCard>;
+    expect(isIntakeArtifact(turn('a', short))).toBe(false);
+  });
+
+  // А от довга — стає, і без жодного джерела. Живий репро 02.09: чек,
+  // вставлений ТЕКСТОМ у поле вводу, raw_kind не має взагалі, і двадцять
+  // рядків гортались разом із розмовою.
+  it('довгий перелік без джерела — стає, бо він документ', () => {
+    const long = { type: 'intake_diff', ops: Array.from({ length: INTAKE_ARTIFACT_MIN }, () => ({ op: 'add' })) } as Partial<ChatCard>;
+    expect(isIntakeArtifact(turn('a', long))).toBe(true);
   });
 
   it('інші типи карток — ні', () => {
-    expect(isReceipt(turn('a', { type: 'cart' }))).toBe(false);
-    expect(isReceipt(turn('a', { type: 'recipe_link' }))).toBe(false);
-    expect(isReceipt(turn('a', null))).toBe(false);
+    expect(isIntakeArtifact(turn('a', { type: 'cart' }))).toBe(false);
+    expect(isIntakeArtifact(turn('a', { type: 'recipe_link' }))).toBe(false);
+    expect(isIntakeArtifact(turn('a', null))).toBe(false);
   });
 });
 
@@ -74,6 +81,13 @@ describe('pickArtifacts', () => {
     expect(got).toHaveLength(1);
     expect(got[0]!.turn!.id).toBe('c2');
     expect(got[0]!.meta).toBe('3');
+  });
+
+  it('довгий перелік без джерела зветься «Комора», а не «Чек»', () => {
+    const long = { type: 'intake_diff', ops: Array.from({ length: 20 }, () => ({ op: 'add' })) } as Partial<ChatCard>;
+    const got = pickArtifacts([turn('d', long)]);
+    expect(got.map((a) => a.label)).toEqual(['Комора']);
+    expect(got[0]!.meta).toBe('20');
   });
 
   it('три роди разом — і порядок сталий: кошик, рецепт, чек', () => {

@@ -11,7 +11,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
 import { Card, PanelFootSlot, PanelHeadSlot, ShoppingListCard, labelFor, appliedToast } from './cards';
-import { ARTIFACT_GLYPH, isReceipt, pickArtifacts, receiptLines } from './artifacts';
+import { ARTIFACT_GLYPH, isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines } from './artifacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -1336,7 +1336,7 @@ export function Feed() {
                 )}
               </div>
             )}
-            {isReceipt(t) && (
+            {isIntakeArtifact(t) && (
               /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
                  застосовано, він не стан, а рішення, якого чекають. Після
                  «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
@@ -1348,7 +1348,11 @@ export function Feed() {
                 <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
-                    ЧЕК · {receiptLines(t)} {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                    {/* Чек називається чеком, решта — тим, чим є: «це додав
+                        в комору» не чек, і вигадувати за людину, що вона
+                        робила, ми не будемо. */}
+                    {isReceiptSourced(t) ? 'ЧЕК' : 'У КОМОРУ'} · {receiptLines(t)}{' '}
+                    {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
                   </span>
                   <span className={styles['trace-value']}>
                     {t.undone ? 'Скасовано'
@@ -1362,7 +1366,7 @@ export function Feed() {
             {t.card && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isReceipt(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}
