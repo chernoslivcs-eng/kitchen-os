@@ -15,6 +15,7 @@ import {
 import { looksLikeModelDebris, stripHistoryStamps, INTAKE_TOO_BIG_REPLY } from '../reply-guard.js';
 import type { RetailCartAttempt, RetailSearchAttempt } from './retail.js';
 import { localDay } from '../local-day.js';
+import { stampChatReceipt } from '../receipt-source.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -128,6 +129,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         }
       }
 
+      stampChatReceipt(call.card, call.raw_kind);
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });

@@ -59,19 +59,35 @@ export interface ReceiptLeftover {
   image: string | null;
 }
 
+export type IntakeSource =
+  | {
+      kind: 'retail_receipt';
+      provider: string;
+      shop: string;
+      at: string;
+      total: number;
+      nonfood: ReceiptLeftover[];
+      unmatched: ReceiptLeftover[];
+    }
+  | { kind: 'chat_receipt'; at: string };
+
 export interface IntakeCard {
   type: 'intake_diff';
   ops: IntakeOp[];
-  // Джерело-чек (M13). Відсутнє — звичайна intake-картка; apply/undo однакові.
-  source?: {
-    kind: 'retail_receipt';
-    provider: string;
-    shop: string;
-    at: string;
-    total: number;
-    nonfood: ReceiptLeftover[];
-    unmatched: ReceiptLeftover[];
-  };
+  // Джерело-чек. Відсутнє — звичайна intake-картка; apply/undo однакові
+  // для всіх трьох випадків, джерело впливає лише на подання.
+  //
+  // Два роди чеків, і різниця між ними не косметична:
+  //   retail_receipt — сервер сам підтягнув чек мережі. Людина нічого не
+  //     просила, тому картка ЧЕКАЄ підтвердження, і в неї є розкладка
+  //     каталогу на три кошики (у комору / не для комори / не впізнав).
+  //   chat_receipt — людина сама показала чек фото чи текстом. Розібрала
+  //     модель, розкладки каталогу немає, застосовується одразу (Пул-8 №2:
+  //     людина попросила — питання «застосувати?» тут зайве).
+  // Спільне в них те, заради чого це поле й розрізняється: обидва — довгий
+  // документ на десятки рядків, а не подія. Обидва стають артефактом
+  // панелі, обидва адресуються по card_id для правки одного рядка.
+  source?: IntakeSource;
 }
 
 export interface ProposalCard {

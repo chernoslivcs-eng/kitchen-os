@@ -227,28 +227,35 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
     if (op === 'correct') return '✎';
     return '+';
   };
-  // M13: intake з чека мережі — шапка-джерело, сірі «додати руками»,
-  // згорнуте «не для комори». apply/undo — той самий шлях, що у всіх intake.
+  // M13: intake з чека — шапка-джерело, сірі «додати руками», згорнуте
+  // «не для комори». apply/undo — той самий шлях, що у всіх intake.
+  // Два роди чека: у мережевого є магазин, сума і розкладка каталогу;
+  // у показаного в чаті — тільки те, що розібрала модель.
   const receipt = liveCard.source?.kind === 'retail_receipt' ? liveCard.source : null;
+  const anyReceipt = liveCard.source?.kind === 'retail_receipt' || liveCard.source?.kind === 'chat_receipt';
   const [nonfoodOpen, setNonfoodOpen] = useState(false);
   // 01.09: чек — не auto-apply, а картка на підтвердження зі стрикаутом.
   // Повний список одразу — «звалище»: чек легко несе 10+ позицій. Згорнуто
   // за замовчуванням, як «не для комори» нижче; для звичайного (короткого)
   // intake_diff з чату список і так короткий — розгорнутий одразу.
-  const [opsOpen, setOpsOpen] = useState(!receipt);
+  const [opsOpen, setOpsOpen] = useState(!anyReceipt);
   return (
     <div className={stateClass(applied, undone)}>
-      {receipt && (
+      {anyReceipt && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
-            Чек Сільпо
+            {receipt ? 'Чек Сільпо' : 'Чек'}
           </div>
+          {/* Мережевий чек знає магазин і суму; чек із чату — ні, і вигадувати
+              їх не будемо: підзаголовок чесно коротший. */}
           <MonoLabel>
-            {receiptDate(receipt.at)} · {receipt.shop} · {Math.round(receipt.total)}₴
+            {receipt
+              ? `${receiptDate(receipt.at)} · ${receipt.shop} · ${Math.round(receipt.total)}₴`
+              : receiptDate(liveCard.source!.at)}
           </MonoLabel>
         </div>
       )}
-      {receipt && (
+      {anyReceipt && (
         <button
           type="button"
           onClick={() => setOpsOpen((v) => !v)}
@@ -260,7 +267,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
         >
           <span style={{ width: 18, textAlign: 'center' }}>{opsOpen ? '⌄' : '›'}</span>
           {ops.length} {plural(ops.length, ['позиція', 'позиції', 'позицій'])}
-          {receipt.unmatched.length > 0 ? ` + ${receipt.unmatched.length} без пари` : ''}
+          {receipt && receipt.unmatched.length > 0 ? ` + ${receipt.unmatched.length} без пари` : ''}
           {opsOpen ? ' · згорнути' : ' · показати'}
         </button>
       )}

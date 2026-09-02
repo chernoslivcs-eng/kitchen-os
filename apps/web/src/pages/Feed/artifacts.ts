@@ -21,21 +21,33 @@ export interface Artifact<T extends ArtifactTurn> {
   turn: T;
 }
 
-// Артефактом стає САМЕ чек мережі, а не будь-яка intake-картка: «поклав
-// молоко в холодильник» — подія на два рядки, що застосовується одразу й
-// нічого не чекає. Чек інший: тривалий стан із рішенням, і в нього
-// стабільний card_id, тож правка одного рядка з чату не перезбирає картку.
+// Артефактом стає чек — обох родів: і підтягнутий сервером із мережі, і
+// показаний людиною в чаті. Спільне в них те, що й робить артефакт: довгий
+// документ на десятки рядків, який не має гортатися разом із розмовою, і
+// стабільний card_id, щоб правити один рядок, не перезбираючи картку.
+//
+// Будь-яка інша intake-картка артефактом НЕ стає: «поклав молоко в
+// холодильник» — подія на два рядки; списання після готування — наслідок
+// дії. Позначку ставить сервер за raw_kind моделі, а не ми тут за
+// кількістю рядків: поріг «від N позицій — чек» був би числом зі стелі.
 export function isReceipt(t: ArtifactTurn): boolean {
-  return t.card?.type === 'intake_diff' && t.card.source?.kind === 'retail_receipt';
+  if (t.card?.type !== 'intake_diff') return false;
+  const kind = t.card.source?.kind;
+  return kind === 'retail_receipt' || kind === 'chat_receipt';
 }
 
 // Скільки рядків у чеку разом: у комору + не для комори + не впізнав.
 // Саме це число стоїть на вкладці («Чек 19») — воно про чек як документ,
 // а не про те, скільки з нього поїде в комору.
 export function receiptLines(t: ArtifactTurn | undefined): number {
-  const src = t?.card?.source;
-  if (!src || src.kind !== 'retail_receipt') return 0;
-  return (t?.card?.ops?.length ?? 0) + src.nonfood.length + src.unmatched.length;
+  if (!t || !isReceipt(t)) return 0;
+  const ops = t.card?.ops?.length ?? 0;
+  const src = t.card?.source;
+  // У чека з чату розкладки каталогу немає — модель повернула самі ops,
+  // і всі рядки чека це вони. У чека мережі рядків більше, ніж поїде в
+  // комору: nonfood і unmatched теж частина документа.
+  if (src?.kind !== 'retail_receipt') return ops;
+  return ops + src.nonfood.length + src.unmatched.length;
 }
 
 // Актуальний артефакт — ОСТАННІЙ свого роду. Кошик у Сільпо один за

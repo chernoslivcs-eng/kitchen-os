@@ -5,6 +5,12 @@ import type { ChatCard } from '../../api';
 const turn = (id: string, card: Partial<ChatCard> | null, cardId: string | null = id): ArtifactTurn =>
   ({ id, cardId, card: card as ChatCard | null });
 
+const chatReceiptCard = (ops: number): Partial<ChatCard> => ({
+  type: 'intake_diff',
+  ops: Array.from({ length: ops }, () => ({ op: 'add' })),
+  source: { kind: 'chat_receipt', at: '2026-09-02T06:59:00Z' },
+} as Partial<ChatCard>);
+
 const receiptCard = (ops: number, nonfood: number, unmatched: number): Partial<ChatCard> => ({
   type: 'intake_diff',
   ops: Array.from({ length: ops }, () => ({ op: 'add' })),
@@ -21,10 +27,16 @@ describe('isReceipt', () => {
     expect(isReceipt(turn('a', receiptCard(11, 5, 1)))).toBe(true);
   });
 
-  // Головна межа кроку 4.1: артефактом стає чек, а не будь-який intake.
-  // «Поклав молоко в холодильник» мусить лишитись карткою у стрічці —
-  // інакше кожна побутова дія відкривала б вкладку в панелі.
-  it('звичайний intake без джерела — ні, навіть із багатьма ops', () => {
+  it('чек із чату — теж так', () => {
+    expect(isReceipt(turn('a', chatReceiptCard(20)))).toBe(true);
+  });
+
+  // Головна межа кроку 4.1: артефактом стає ЧЕК, а не будь-який intake.
+  // «Поклав молоко в холодильник» і списання після готування мусять
+  // лишитись картками у стрічці — інакше кожна побутова дія відкривала б
+  // вкладку в панелі. Довжина тут ні до чого: рішення про рід картки
+  // ухвалює сервер за raw_kind, а не ми за кількістю рядків.
+  it('звичайний intake без джерела — ні, навіть із двадцятьма ops', () => {
     expect(isReceipt(turn('a', { type: 'intake_diff', ops: Array.from({ length: 20 }, () => ({ op: 'add' })) }))).toBe(false);
   });
 
@@ -38,6 +50,9 @@ describe('isReceipt', () => {
 describe('receiptLines', () => {
   it('рахує всі три групи, не тільки ті, що поїдуть у комору', () => {
     expect(receiptLines(turn('a', receiptCard(11, 5, 3)))).toBe(19);
+  });
+  it('чек із чату — самі ops: розкладки каталогу в нього немає', () => {
+    expect(receiptLines(turn('a', chatReceiptCard(20)))).toBe(20);
   });
   it('не чек — нуль', () => {
     expect(receiptLines(turn('a', { type: 'cart' }))).toBe(0);
