@@ -150,3 +150,24 @@ describe('банк кольорів', () => {
     expect(tones.size).toBe(1);
   });
 });
+
+describe('банк вичерпано', () => {
+  it('надлишкові події не скидаються всі на перший колір', () => {
+    // Живий екран: в один день сходились три сезони, два завози й три страви.
+    // Вільних тонів не лишалось, і «перший вільний» давав усім тон 1 — той
+    // самий, що вже носив сезон поруч.
+    const many = Array.from({ length: 9 }, (_, i) => ev(0, 2, { title: `e${i}` }));
+    const tones = assignTones(many);
+    const counts = new Map<number, number>();
+    for (const t of tones.values()) counts.set(t, (counts.get(t) ?? 0) + 1);
+    // Девʼять подій на шість кольорів: жоден не носять більше двох.
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(2);
+    // І всі шість справді задіяні, а не три перші.
+    expect(counts.size).toBe(6);
+  });
+
+  it('доки кольорів вистачає, збігів немає зовсім', () => {
+    const six = Array.from({ length: 6 }, (_, i) => ev(0, 2, { title: `x${i}` }));
+    expect(new Set(assignTones(six).values()).size).toBe(6);
+  });
+});

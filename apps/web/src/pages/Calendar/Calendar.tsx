@@ -112,7 +112,12 @@ export function CalendarPage() {
   // Трьох рисок на телефоні не буває: 8px гутера на них просто немає.
   const MOBILE_RAILS = 2;
   function railsFor(at: number) {
-    const on = lasting.filter((e) => coversDay(e, at));
+    // Спершу ті, чий край саме сьогодні: у такий день стоїть підпис
+    // «▮ … ПОЧАВСЯ», і він мусить мати свою риску поруч. Інакше виходить
+    // рівно те, що видно на екрані — колір тексту без плашки того ж кольору.
+    const on = lasting
+      .filter((e) => coversDay(e, at))
+      .sort((a, b) => Number(edgeCaption(b, at) !== null) - Number(edgeCaption(a, at) !== null));
     return { bars: on.slice(0, MOBILE_RAILS), extra: on.length - MOBILE_RAILS };
   }
 

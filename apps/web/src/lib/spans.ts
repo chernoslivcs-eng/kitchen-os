@@ -201,11 +201,16 @@ export function assignTones(events: EventOccurrence[]): Map<string, ToneIndex> {
     const already = out.get(e.id);
     if (already !== undefined) { placed.push({ e, tone: already }); continue; }
 
-    const taken = new Set(placed.filter((p) => overlaps(p.e, e)).map((p) => p.tone));
+    // Скільки сусідів по часу вже носить кожен тон. Беремо найменш
+    // використаний, а не «перший вільний»: коли вільних немає, скидатись на
+    // перший означає, що всі надлишкові події стають одного кольору — і саме
+    // це було видно на мобільному, де в один день сходились три сезони, два
+    // завози й три страви, а «Галина» з «гостями» діставали однаковий тон.
+    const used = new Array<number>(EVENT_COLORS + 1).fill(0);
+    for (const p of placed) if (p.tone > 0 && overlaps(p.e, e)) used[p.tone]!++;
     let tone: ToneIndex = 1;
-    for (let i = 1; i <= EVENT_COLORS; i++) {
-      if (!taken.has(i as ToneIndex)) { tone = i as ToneIndex; break; }
-      tone = ((i % EVENT_COLORS) + 1) as ToneIndex;
+    for (let i = 2; i <= EVENT_COLORS; i++) {
+      if (used[i]! < used[tone]!) tone = i as ToneIndex;
     }
     out.set(e.id, tone);
     placed.push({ e, tone });
