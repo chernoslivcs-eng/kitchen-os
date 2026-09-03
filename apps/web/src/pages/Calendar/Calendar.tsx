@@ -57,6 +57,27 @@ export function CalendarPage() {
   const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
   const [version, setVersion] = useState(0);
   const [creating, setCreating] = useState(false);
+  // «Сьогодні ↑» зʼявляється, коли сьогодні пішло за верхній край. Без
+  // нижнього бара заголовок шапки — єдиний якір «де я», а в календарі таким
+  // якорем є сьогоднішній день; загубити його в скролі означає загубитись.
+  const todayRef = useRef<HTMLDivElement | null>(null);
+  // Обидва вигляди — стрічка й сітка — живуть у DOM одночасно, перемикає їх
+  // CSS. Тому ref мусить чіплятись лише до ВИДИМОГО сьогодні: у схованого
+  // всі координати нульові, і спостерігач вирішував би, що воно на екрані.
+  const setTodayEl = (el: HTMLDivElement | null) => {
+    if (el && el.offsetParent !== null) todayRef.current = el;
+  };
+  const [todayOff, setTodayOff] = useState(false);
+  useEffect(() => {
+    const el = todayRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setTodayOff(!!entry && !entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  });
   // Правка — та сама форма, що створення, лише з готовими полями.
   const [editing, setEditing] = useState<EventOccurrence | null>(null);
   // Після «Додати» відкриваємо сторінку створеної події — але входження
@@ -188,7 +209,10 @@ export function CalendarPage() {
                   {r.extra > 0 && <span className={styles['month-more']}> · ＋{r.extra} тривалих</span>}
                 </div>
               )}
-              <div className={`${styles.day} ${isToday ? styles.today : ''}`}>
+              <div
+                ref={isToday ? setTodayEl : undefined}
+                className={`${styles.day} ${isToday ? styles.today : ''}`}
+              >
                 <div className={styles.rails}>
                   {r.bars.map((e) => (
                     <span key={e.id} className={`${styles.rail} ${toneOf(e)}`} />
@@ -272,6 +296,7 @@ export function CalendarPage() {
                   {w.days.map((d) => (
                     <div
                       key={d.at}
+                      ref={d.at === today.getTime() ? setTodayEl : undefined}
                       className={`${styles.cell} ${d.at === today.getTime() ? styles['cell-today'] : ''}`}
                     >
                       <div className={styles['cell-date']}>{dayDow(d.at)} {dayNum(d.at)}</div>
@@ -302,6 +327,13 @@ export function CalendarPage() {
         </div>
       </div>
 
+
+      {todayOff && (
+        <button
+          className={styles['to-today']}
+          onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+        >Сьогодні ↑</button>
+      )}
 
       {(creating || editing) && (
         <NewEventSheet

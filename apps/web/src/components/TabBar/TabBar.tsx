@@ -219,13 +219,21 @@ export function TabBar({ shoppingCount }: Props) {
           Бурштин — щось чекає попереду, шавлія — триває готування, сірий —
           тихо. Числа тут немає навмисно: воно живе на рядку цілі всередині. */}
       <button
-        className={`${styles['rail-more']} ${
-          cookLive ? styles['rail-more-sage'] : nowEvents.length ? styles['rail-more-amber'] : ''
-        }`}
+        className={styles['rail-more']}
         onClick={() => setOpen(true)}
         aria-label="Показати сесії та події"
-        title={cookLive ? 'Готування триває' : nowEvents[0]?.title ?? 'Сесії та події'}
-      >{cookLive || nowEvents.length ? '●' : '⋯'}</button>
+        title={[
+          cookLive ? 'Готування триває' : null,
+          nowEvents[0]?.title ?? null,
+        ].filter(Boolean).join(' · ') || 'Сесії та події'}
+      >
+        {cookLive || nowEvents.length ? (
+          <span className={styles.dots}>
+            {nowEvents.length > 0 && <span className={styles['dot-amber']}>◌</span>}
+            {cookLive && <span className={styles['dot-sage']}>●</span>}
+          </span>
+        ) : '⋯'}
+      </button>
 
       {/* «ЗАРАЗ» — одразу під цілями, над «Готування триває» (рішення 03.09).
           Подія, що триває, називається кінцем: «ще 4 тижні», не «триває». */}

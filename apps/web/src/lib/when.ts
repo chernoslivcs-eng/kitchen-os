@@ -68,3 +68,24 @@ export function whenLabel(start: number, end: number, now = Date.now()): string 
 export function isLive(start: number, end: number, now = Date.now()): boolean {
   return now >= start && now <= end;
 }
+
+/**
+ * Підпис дати у стрічці «Попереду» профілю.
+ *
+ * Те, що триває, називається кінцем («ДО 31 ЖОВТ»); те, що попереду —
+ * початком («24 ГРУД»). Орієнтовне несе «≈» просто в даті, а не приміткою
+ * збоку: позначку губити не можна, і в тому ж рядку її не загубиш.
+ */
+export function ribbonDate(start: number, end: number, approx = false, now = Date.now()): string {
+  const running = now >= start && now <= end;
+  const at = running ? end : start;
+  const d = new Date(at);
+  const mon = d.toLocaleDateString('uk-UA', { month: 'short' }).replace('.', '').toUpperCase();
+  const body = `${d.getDate()} ${mon}`;
+  return `${approx ? '≈' : ''}${running ? 'ДО ' : ''}${body}`;
+}
+
+/** Сезон, у якого лишилось менше місяця, — привід; той, що просто триває, ні. */
+export function endingSoon(start: number, end: number, now = Date.now()): boolean {
+  return now >= start && now <= end && end - now < 28 * DAY;
+}

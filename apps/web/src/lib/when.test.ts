@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { whenLabel, isLive } from './when';
+import { whenLabel, isLive, ribbonDate, endingSoon } from './when';
 
 const DAY = 86_400_000;
 const now = new Date('2026-09-10T12:00:00').getTime();
@@ -53,5 +53,28 @@ describe('день, а не доба', () => {
 
   it('післязавтра — за 2 дні, а не за 1', () => {
     expect(whenLabel(midnight(2), endOf(2), noon)).toBe('за 2 дні');
+  });
+});
+
+describe('стрічка «Попереду»', () => {
+  const now = new Date(2026, 8, 10, 12, 0).getTime();
+  const at = (m: number, d: number) => new Date(2026, m - 1, d, 12).getTime();
+
+  it('те, що триває, називається кінцем', () => {
+    expect(ribbonDate(at(9, 1), at(10, 31), false, now)).toBe('ДО 31 ЖОВТ');
+  });
+
+  it('те, що попереду — початком', () => {
+    expect(ribbonDate(at(12, 24), at(12, 24), false, now)).toBe('24 ГРУД');
+  });
+
+  it('орієнтовне несе ≈ просто в даті', () => {
+    expect(ribbonDate(at(11, 17), at(11, 17), true, now)).toBe('≈17 ЛИСТ');
+  });
+
+  it('сезон, у якого менше місяця, — привід', () => {
+    expect(endingSoon(at(9, 1), at(9, 20), now)).toBe(true);
+    expect(endingSoon(at(9, 1), at(12, 31), now)).toBe(false);
+    expect(endingSoon(at(10, 1), at(10, 31), now)).toBe(false);   // ще не почалось
   });
 });

@@ -46,7 +46,7 @@
 .rail-more {
   display: none;
   flex: none;
-  width: 44px;
+  width: 36px;
   height: 44px;
   align-items: center;
   justify-content: center;
@@ -61,6 +61,13 @@
 .rail-more:hover { background: var(--bg-hover); color: var(--fg); }
 .rail-more-amber { color: var(--amber); }
 .rail-more-sage { color: var(--accent); }
+
+/* Дві крапки, а не одна: бурштин — щось чекає попереду, шавлія — триває
+   готування. Вони кажуть різне й можуть світитись одночасно, тож зливати їх
+   в одну означало б втратити половину сигналу. */
+.dots { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; }
+.dot-amber { color: var(--amber); font-size: 9px; }
+.dot-sage { color: var(--accent); font-size: 9px; }
 
 .tab {
   display: flex;
@@ -423,8 +430,10 @@
   .wrap {
     position: fixed;
     top: 0; left: 0; bottom: 0;
-    width: 64px;
-    padding: 16px 10px;
+    /* 44 за макетом, не 64: смужка тримає гліф і крапку, більше їй нічого
+       не тримати. Зайві 20px просто відбирали ширину в журналу. */
+    width: 44px;
+    padding: 16px 4px;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
@@ -438,7 +447,7 @@
   .brand-name { display: none; }
   .tab {
     flex: 0 0 auto;
-    width: 44px;
+    width: 36px;
     height: 44px;
     padding: 0;
     flex-direction: row;

@@ -9,7 +9,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type ProfileData, type Me, type InviteInfo, type InviteCreated, type NoteInfo, type EaterInfo } from '../../api';
+import { api, type ProfileData, type Me, type InviteInfo, type InviteCreated, type NoteInfo, type EaterInfo, type EventOccurrence } from '../../api';
+import { ribbonDate, endingSoon } from '../../lib/when';
 import { TagInput } from '../../components/TagInput/TagInput';
 import { EQUIP_EXTRA, DIET_PRESETS, cycleEquip, equipGlyph, type EquipState } from '../../lib/presets';
 import { Button } from '../../components/Button/Button';
@@ -271,6 +272,33 @@ const EXIT_REASONS: Array<{ code: string; label: string }> = [
 ];
 
 export function ProfilePage() {
+  // Рік уперед — тільки довідник (сезони, свята, редакційні). Домашні події
+  // сюди не йдуть: вони живуть у календарі, і другий список тих самих рядків
+  // нікому не потрібен.
+  const [ahead, setAhead] = useState<EventOccurrence[]>([]);
+  useEffect(() => {
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const from = new Date();
+    const to = new Date(from.getTime() + 365 * 86_400_000);
+    api.events.list(iso(from), iso(to))
+      .then(({ events }) => {
+        const seen = new Set<string>();
+        const now = Date.now();
+        // Сортуємо за ПОКАЗАНОЮ датою, а не за початком: те, що триває,
+        // названо кінцем, і «ДО 31 ЖОВТ» мусить стояти після «5 ВЕР», а не
+        // перед ним лише тому, що сезон почався в липні.
+        const shownAt = (e: EventOccurrence) =>
+          (now >= e.start && now <= e.end ? e.end : e.start);
+        const rows = events
+          .filter((e) => e.scope === 'catalog')
+          .filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)))
+          .sort((a, b) => shownAt(a) - shownAt(b))
+          .slice(0, 8);
+        setAhead(rows);
+      })
+      .catch(() => {/* профіль без стрічки — не трагедія */});
+  }, []);
+
   const navigate = useNavigate();
   const logout = useAuth((s) => s.logout);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -622,6 +650,34 @@ export function ProfilePage() {
         </div>
 
         </div>
+        {/* Стрічка «Попереду» була в прототипі й не доїхала в прод: apps/web
+            не імпортував календар узагалі. Тут вона повертається — рік уперед,
+            вісім рядків, дата в колонці 96px і назва поруч.
+
+            Тільки довідник: власні плани людина бачить у календарі, і дублювати
+            їх тут означало б показувати той самий список двічі. */}
+        {ahead.length > 0 && (
+          <div className={styles.zone}>
+          <div className={styles['zone-label']}><span style={{ color: 'var(--amber)' }}>■</span> ПОПЕРЕДУ · РІК УПЕРЕД</div>
+          <div className={styles.section}>
+            {ahead.map((e) => {
+              const soon = endingSoon(e.start, e.end);
+              return (
+                <div key={`${e.id}:${e.start}`} className={styles['ahead-row']}>
+                  <span
+                    className={styles['ahead-date']}
+                    style={soon ? { color: 'var(--amber)' } : undefined}
+                  >{ribbonDate(e.start, e.end, e.approx)}</span>
+                  <span className={styles['ahead-title']}>
+                    {e.title}{soon ? ' · останні дні' : ''}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          </div>
+        )}
+
         <div className={styles.zone}>
         <div className={styles['zone-label']}><span style={{ color: 'var(--amber)' }}>■</span> ПАМ'ЯТЬ КУХНІ</div>
         {/* Пул-2 №6: наміри — «що хочу спробувати», окремо від висновків. */}
