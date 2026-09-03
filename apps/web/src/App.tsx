@@ -19,23 +19,24 @@ import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
 import { GlobalCookAlarm } from './lib/cook-watch';
 
-// Пул-7 №6: сайдбар — спільний каркас, не елемент сторінки. TabBar живе тут
+// Пул-7 №6: навігація — спільний каркас, не елемент сторінки. TabBar живе тут
 // ОДИН раз (кінець блиманню і повторним фетчам на кожній навігації), сторінки
 // рендеряться в Outlet. Обгортка з key=pathname дає перехід розділу
-// (crossfade + X10, канон табів). /share — свідомо поза каркасом.
-const MOBILE_TAB_ROUTES = new Set(['/app', '/pantry', '/recipes', '/list']);
-
+// (crossfade + X10). /share — свідомо поза каркасом.
+//
+// Списку «мобільних маршрутів» більше немає: нижній бар прибрано, і шухляда
+// доступна з кожного екрана каркаса — ділити маршрути на «з навігацією» і
+// «без» стало нічим.
 function Shell() {
   const { pathname } = useLocation();
   return (
     <>
-      {/* TabBar — ПІСЛЯ контенту: на мобілці він sticky bottom і липне від
-          свого місця в потоці (перед контентом опинявся вгорі екрана);
-          на десктопі він fixed — порядок байдужий. */}
       <div key={pathname} className="screen-view">
         <Outlet />
       </div>
-      <TabBar desktopOnly={!MOBILE_TAB_ROUTES.has(pathname)} />
+      {/* Після контенту: шухляда fixed, порядок у потоці на неї не впливає,
+          але так вона лягає поверх без боротьби зі стековими контекстами. */}
+      <TabBar />
     </>
   );
 }

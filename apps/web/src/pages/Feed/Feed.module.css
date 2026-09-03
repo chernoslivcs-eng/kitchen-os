@@ -1967,3 +1967,18 @@
   line-height: 1.5;
   color: var(--fg-dim);
 }
+
+/* Дія шапки Стрічки (блок А1): моно-caps, без рамки — одна дія на екран. */
+.head-new {
+  background: transparent;
+  border: 0;
+  padding: 5px 4px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.head-new:hover { color: var(--accent-strong); }

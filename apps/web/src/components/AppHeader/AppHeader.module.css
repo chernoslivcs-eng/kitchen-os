@@ -1,0 +1,62 @@
+/* Блок А1 макета. Числа звідти: падінги 18/20/12, «☰» і слот дії по 36px,
+   заголовок Onest 20 з тісним трекінгом, нижня лінія --border. */
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-body);
+}
+
+.burger {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.burger:hover { background: var(--bg-hover); color: var(--fg); }
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ширина тримається і порожнім: інакше заголовок стрибає між екранами з дією
+   і без, а він тут єдиний індикатор того, де ти. */
+.action {
+  flex: none;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Від 768 навігація стоїть постійно — смужка або сайдбар. Кликати нічого,
+   тож «☰» зникає, а шапка лишається тією ж: заголовок і дія на місці. */
+@media (min-width: 768px) {
+  .burger { display: none; }
+  .head { padding-left: 22px; }
+}

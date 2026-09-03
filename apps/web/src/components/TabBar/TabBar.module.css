@@ -1,26 +1,52 @@
-/* Таб-бар за брифом (UI-кіт §04): 4 таби, поточний із заливкою.
- * Тонкий бордер зверху, живе в футері екранів застосунку. */
-.wrap {
-  position: sticky;
-  bottom: 0;
-  /* Нижче за Sheet (Sheet.tsx, zIndex 20) — інакше таб-бар перекриває
-     нижні дії модалки, зокрема «Прибрати з комори». */
-  z-index: 10;
-  border-top: 1px solid var(--border);
-  background: var(--bg-surface);
-  padding: 8px 22px calc(8px + env(safe-area-inset-bottom));
-  display: flex;
-  gap: 4px;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
+/* Навігація — одна поверхня в трьох контейнерах:
+ *   <768      шухляда 300, висувається поверх, бекдроп
+ *   768-1023  смужка 44, самі гліфи (нижче в цьому файлі)
+ *   >=1024    сайдбар 232, стоїть постійно
+ *
+ * Нижнього бара більше немає (рішення 03.09). Головне робоче вікно — чат
+ * сесії; Комора, Рецепти, Список і Календар відвідуються рідко, і двотапний
+ * перехід дешевший за постійні 60px знизу й задачу «пʼять табів на 320».
+ * Ціна названа свідомо: бейдж «Список 3» видно після тапу по ☰, не одразу.
+ */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-standard);
 }
-.tab {
-  flex: 1;
+.backdrop-on { opacity: 1; pointer-events: auto; }
+
+.wrap {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 30;
+  width: 300px;
+  max-width: 86vw;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 14px calc(20px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
+  transform: translateX(-100%);
+  /* Вихід швидший за вхід — те саме правило, що в Sheet. */
+  transition: transform var(--dur-fast) var(--ease-exit);
+}
+.open {
+  transform: translateX(0);
+  transition: transform var(--dur-base) var(--ease-enter);
+}
+
+.tab {
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 10px 0;
+  gap: 11px;
+  height: 44px;          /* тач-ціль; на десктопі нижче — 40 */
+  padding: 0 12px;
   border-radius: var(--r);
   background: transparent;
   border: 0;
@@ -28,11 +54,12 @@
   color: var(--fg-dim);
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 14px;
+  text-align: left;
   transition: background var(--dur-fast), color var(--dur-fast);
   position: relative;
 }
-.tab .glyph { font-size: 18px; line-height: 1; }
+.tab .glyph { font-size: 17px; line-height: 1; width: 18px; text-align: center; flex: none; }
 .tab.active {
   background: var(--bg-hover);
   color: var(--fg);
@@ -41,9 +68,7 @@
   .tab:hover:not(.active) { background: var(--bg-hover); color: var(--fg); }
 }
 .badge {
-  position: absolute;
-  top: 4px;
-  right: calc(50% - 22px);
+  margin-left: auto;
   font-family: var(--font-mono);
   font-size: 9px;
   background: var(--accent);
@@ -61,7 +86,9 @@
  * Position:fixed, повна висота, тонкий бордер справа. Тексти справа від
  * гліфа, не під ним. Активний таб — з accent-акцентом. */
 /* Приховані поза десктопом частини сайдбара. */
-.brand { display: none; align-items: center; gap: 10px; padding: 0 12px 22px; }
+/* Шухляда — сайдбар один в один: бренд, цілі, сесії, профіль. До зняття
+   нижнього бара ці блоки існували тільки від 1024, і мобайл їх не мав. */
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 12px 22px; }
 .brand-name {
   font-family: var(--font-body);
   font-weight: 700;
@@ -76,10 +103,16 @@
   font-size: 11px;
   color: var(--fg-dim);
 }
-.spacer { display: none; }
+.spacer { display: block; flex: 1; }
 
 /* Правка №1: блок сесій — тільки десктоп (мобайл має сегмент «Історія»). */
-.sessions { display: none; }
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+}
 .sessions-divider {
   height: 1px;
   background: var(--border);
@@ -200,7 +233,7 @@
 }
 .session-archive:hover { background: var(--bg-hover); color: var(--fg); }
 .user {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
@@ -228,13 +261,15 @@
   flex: none;
 }
 
-/* На екранах без мобільної навігації (Профіль, Журнал, Рецепт) TabBar
-   монтуються з desktopOnly: на <1024 його не видно, на десктопі він дає
-   сайдбар — як у хендофах Д03/Д06, де сайдбар є всюди, крім Cook Mode. */
-.desktop-only { display: none; }
+@media (min-width: 768px) {
+  /* Від цього порога навігація вже не висувається: смужка (768-1023) і
+     сайдбар (>=1024) стоять постійно, тож зсув шухляди треба зняти — інакше
+     вона лишиться за лівим краєм назавжди. */
+  .wrap { transform: none; transition: none; }
+  .backdrop { display: none; }
+}
 
 @media (min-width: 1024px) {
-  .desktop-only { display: flex; }
   /* Правка №1: сесії видимі; довгий список скролиться всередині блока. */
   .sessions {
     display: flex;
@@ -284,7 +319,9 @@
 /* Пул-6 №1: планшет 768–1023 — вузький сайдбар: іконки 44×44 без підписів,
    бейдж цифрою в куті, аватар знизу. Сесії/лічильники — тільки ≥1024. */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .desktop-only { display: flex; }
+  /* Смужка 44: тільки гліфи цілей. Сесії туди не влазять — по них ходять
+     у повну шухляду (крок адаптиву, поки не зроблено). */
+  .sessions { display: none; }
   .wrap {
     position: fixed;
     top: 0; left: 0; bottom: 0;

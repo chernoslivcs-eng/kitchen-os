@@ -15,7 +15,8 @@ import { ARTIFACT_GLYPH, isIntakeArtifact, isReceiptSourced, pickArtifacts, rece
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
-import { Avatar } from '../../components/Avatar/Avatar';
+import { AppHeader } from '../../components/AppHeader/AppHeader';
+import { useNavStore } from '../../store/nav';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
@@ -124,7 +125,7 @@ function PanelIcon() {
 }
 
 export function Feed() {
-  const meName = useAuth((st) => st.me?.user?.name ?? null);
+  const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
 
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -1076,30 +1077,19 @@ export function Feed() {
           відома тому, хто на ньому. На десктопі шапки немає взагалі — там
           аватар живе внизу меню, і смуга лишалась би порожньою на 67px.
           Ручний вхід у список переїхав у шапку панелі іконкою. */}
-      <div className={styles.head}>
-        <div className={styles['head-actions']}>
-          <Avatar name={meName} />
-        </div>
-      </div>
-
-      {/* Бриф-2 п.2: журнал сесій — сегментом «Історія» (мобайл; на десктопі
-          сесії в сайдбарі, сегменти сховані CSS-ом). */}
-      <div className={styles.segments}>
-        <button
-          onClick={() => setHistoryOpen(false)}
-          className={!historyOpen ? styles['seg-active'] : styles.seg}
-        >Сьогодні</button>
-        <button
-          onClick={openHistory}
-          className={historyOpen ? styles['seg-active'] : styles.seg}
-        >Історія</button>
-        {/* Пул-4 №5: «+ Нова» — дія того ж рангу, що сегменти сесій; аватар
-            лишається сам у куті (плутанина «профіль поруч із +» знята). */}
-        <button
-          onClick={startFreshSession}
-          className={`${styles.seg} ${styles['seg-new']}`}
-        >+ Нова</button>
-      </div>
+      {/* Шапка одна на всі екрани (блок А1). У Стрічці заголовок — «Кухня»,
+          а не аватар: без нижнього бара він єдиний індикатор того, де ти.
+          Сегменти «Сьогодні / Історія» зняті — їхню роботу робить блок сесій
+          у шухляді, а існували вони лише тому, що сесії жили в десктопному
+          сайдбарі й мобайлу не лишалось нічого. Повернення з історії — тап по
+          сесії або «＋ нова сесія» тут-таки. */}
+      <AppHeader
+        title={historyOpen ? 'Історія' : 'Кухня'}
+        onMenu={() => openNav(true)}
+        action={
+          <button onClick={startFreshSession} className={styles['head-new']}>＋ нова сесія</button>
+        }
+      />
 
 
       {/* Моушн-2 №6: перемикання Сьогодні⇄Історія — crossfade + X±10 (key

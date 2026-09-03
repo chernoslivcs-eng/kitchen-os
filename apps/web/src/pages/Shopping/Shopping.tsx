@@ -9,11 +9,12 @@ import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import styles from './Shopping.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
-import { Avatar } from '../../components/Avatar/Avatar';
+import { AppHeader } from '../../components/AppHeader/AppHeader';
+import { useNavStore } from '../../store/nav';
 import { useAuth } from '../../store/auth';
 
 export function ShoppingPage() {
-  const meName = useAuth((st) => st.me?.user?.name ?? null);
+  const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,10 +126,7 @@ export function ShoppingPage() {
 
   return (
     <div className={styles.screen}>
-      <div className={styles.head}>
-        <div className={styles.title}>Список</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Avatar name={meName} />
+      <AppHeader title="Список" onMenu={() => openNav(true)} action={<>
           {checkedCount > 0 && (
             <button
               onClick={unpackChecked}
@@ -150,8 +148,7 @@ export function ShoppingPage() {
             </button>
           )}
           <div className={styles.meta}>{unchecked} / {items.length}</div>
-        </div>
-      </div>
+      </>} />
 
       <div className={styles.body}>
         <form onSubmit={addManual} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>

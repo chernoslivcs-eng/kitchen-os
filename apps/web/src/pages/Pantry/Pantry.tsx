@@ -14,7 +14,8 @@ import { formatQty } from '../../lib/units';
 import { batchMatchesQuery } from '../../lib/recipe';
 import styles from './Pantry.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
-import { Avatar } from '../../components/Avatar/Avatar';
+import { AppHeader } from '../../components/AppHeader/AppHeader';
+import { useNavStore } from '../../store/nav';
 import { useAuth } from '../../store/auth';
 
 const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
@@ -33,7 +34,7 @@ function daysLeft(iso: string | null): number | null {
 }
 
 export function PantryPage() {
-  const meName = useAuth((st) => st.me?.user?.name ?? null);
+  const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
   const [batches, setBatches] = useState<PantryBatch[]>([]);
   const [products, setProducts] = useState<HouseholdProduct[]>([]);
@@ -136,10 +137,7 @@ export function PantryPage() {
 
   return (
     <div className={styles.screen}>
-      <div className={styles.head}>
-        <div className={styles.title}>Комора</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Avatar name={meName} />
+      <AppHeader title="Комора" onMenu={() => openNav(true)} action={<>
           <button
             onClick={() => setAdding(true)}
             style={{
@@ -164,8 +162,7 @@ export function PantryPage() {
               ? `${filtered.length} З ${batches.length}`
               : `${batches.length} ${plural(batches.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`}
           </div>
-        </div>
-      </div>
+      </>} />
 
       <div className={styles.body}>
         {batches.length >= 8 && (

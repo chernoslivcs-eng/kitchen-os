@@ -13,7 +13,8 @@ import { api, type SavedRecipe } from '../../api';
 import { plural } from '../../lib/plural';
 import styles from './Recipes.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
-import { Avatar } from '../../components/Avatar/Avatar';
+import { AppHeader } from '../../components/AppHeader/AppHeader';
+import { useNavStore } from '../../store/nav';
 import { useAuth } from '../../store/auth';
 
 type Filter = 'all' | 'ready' | 'near' | 'cooked';
@@ -36,7 +37,7 @@ function statusChip(r: SavedRecipe): { text: string; color: string; bg: string; 
 }
 
 export function RecipesPage() {
-  const meName = useAuth((st) => st.me?.user?.name ?? null);
+  const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [shoppingCount, setShoppingCount] = useState(0);
@@ -87,9 +88,7 @@ export function RecipesPage() {
 
   return (
     <div className={styles.screen}>
-      <div className={styles.head}>
-        <div className={styles.title}>Рецепти</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <AppHeader title="Рецепти" onMenu={() => openNav(true)} action={<>
           {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
               лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
               моделі явний сигнал на recipe-картку (DA2-23). */}
@@ -114,14 +113,12 @@ export function RecipesPage() {
           >
             ✎ Журнал
           </button>
-          <Avatar name={meName} />
-        </div>
-        <div className={styles.meta}>
-          {readyCount > 0
-            ? `${readyCount} МОЖУ ЗАРАЗ`
-            : `${recipes.length} ${plural(recipes.length, ['РЕЦЕПТ', 'РЕЦЕПТИ', 'РЕЦЕПТІВ'])}`}
-        </div>
-      </div>
+          <div className={styles.meta}>
+            {readyCount > 0
+              ? `${readyCount} МОЖУ ЗАРАЗ`
+              : `${recipes.length} ${plural(recipes.length, ['РЕЦЕПТ', 'РЕЦЕПТИ', 'РЕЦЕПТІВ'])}`}
+          </div>
+      </>} />
 
       <div className={styles.body}>
         {loading && <SkeletonRows rows={4} />}

@@ -10,6 +10,7 @@ import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
 import styles from './TabBar.module.css';
 import { useCookStore } from '../../store/cook';
+import { useNavStore } from '../../store/nav';
 
 // Правка №1: підпис сесії в сайдбарі — «дата · час · запит». Дата/час із
 // created_at, запит — назва сесії (перша репліка або назва рецепта).
@@ -24,43 +25,35 @@ interface TabDef {
   glyph: string;
   label: string;
   badge?: number;
-  count?: number;
 }
 
 interface Props {
   shoppingCount?: number;
-  // Екрани без мобільної навігації (Профіль, Журнал, Рецепт): на телефоні
-  // таб-бар не рендериться, на десктопі стає сайдбаром — Д03/Д06 малюють
-  // сайдбар усюди, крім Cook Mode.
-  desktopOnly?: boolean;
 }
 
-// Лічильник комори для сайдбара (Д01). Модульний кеш, щоб чотири екрани не
-// смикали /v1/pantry на кожен mount.
-let pantryCountCache: { value: number; at: number } | null = null;
-// Пул-7 №5: лічильник збережених рецептів — той самий патерн кешу.
-let recipesCountCache: { value: number; at: number } | null = null;
 // Пул-7 №6: TabBar живе в каркасі й сам знає лічильник списку.
 let shoppingCountCache: { value: number; at: number } | null = null;
 
-export function TabBar({ shoppingCount, desktopOnly }: Props) {
+export function TabBar({ shoppingCount }: Props) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const meName = useAuth((s) => s.me?.user?.name ?? null);
+  const open = useNavStore((s) => s.open);
+  const setOpen = useNavStore((s) => s.setOpen);
 
-  const [pantryCount, setPantryCount] = useState<number | null>(pantryCountCache?.value ?? null);
-  // Пул-5 №5: bump від Feed (apply/undo картки) скидає кеш — лічильник у
-  // сайдбарі оновлюється одразу, а не за 60с чи по зміні маршруту.
-  const pantryVersion = usePantryStore((s) => s.version);
+  // Після вибору цілі шухляда йде геть, а «де я» лишається в заголовку шапки:
+  // без нижнього бара він єдиний індикатор екрана.
+  useEffect(() => { setOpen(false); }, [pathname, setOpen]);
+
   useEffect(() => {
-    if (pantryVersion === 0 && pantryCountCache && Date.now() - pantryCountCache.at < 60_000) return;
-    api.pantry()
-      .then(({ count }) => {
-        pantryCountCache = { value: count, at: Date.now() };
-        setPantryCount(count);
-      })
-      .catch(() => {/* сайдбар без лічильника — не трагедія */});
-  }, [pathname, pantryVersion]);
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+  const meName = useAuth((s) => s.me?.user?.name ?? null);
+  // Пул-5 №5: bump від Feed (apply/undo картки) скидає кеш — бейдж списку
+  // оновлюється одразу, а не за 60с чи по зміні маршруту.
+  const pantryVersion = usePantryStore((s) => s.version);
 
   // Пул-7 №6: лічильник списку — свій фетч (сторінки більше не передають);
   // bump від pantryStore слугує загальним сигналом «лічильники змінились».
@@ -75,18 +68,6 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
       .catch(() => {/* тихо */});
   }, [pathname, pantryVersion]);
 
-  // Пул-7 №5: загальна кількість рецептів на табі.
-  const [recipesCount, setRecipesCount] = useState<number | null>(recipesCountCache?.value ?? null);
-  useEffect(() => {
-    if (recipesCountCache && Date.now() - recipesCountCache.at < 60_000) return;
-    api.savedRecipes.list()
-      .then(({ recipes }) => {
-        recipesCountCache = { value: recipes.length, at: Date.now() };
-        setRecipesCount(recipes.length);
-      })
-      .catch(() => {/* тихо */});
-  }, [pathname]);
-
   // На десктопі таб-бар стає sidebar-ом ліворуч. Ставимо клас на <body> щоб
   // головні screens зсунулись праворуч (див. tokens.css). Знімаємо при
   // unmount — Cook/Share/SignIn сайдбара не мають.
@@ -98,11 +79,18 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
   // Бриф-2 п.2: чотири таби — канон. Профіль живе аватаром у шапці екранів
   // (на десктопі — блоком унизу сайдбара, Д01), журнал сесій — сегментом
   // «Історія» в Стрічці, журнал готувань — лінком із Рецептів.
+  // Пʼять цілей. Календар — рішення 03.09; гліф ◷ («коли»), а не ▦: сітка
+  // читалась би як місячний вид, якого в продукті немає.
+  //
+  // Лічильники Комори й Рецептів зняті. «Комора 23» — число, що знецінює себе
+  // за тиждень, і продукт уже раз таке викинув зі звіту дня. Бейдж лишається
+  // лише на Списку й лише коли є непозначене: це дія, а не рахунок.
   const tabs: TabDef[] = [
     { path: '/app', glyph: '◉', label: 'Стрічка' },
-    { path: '/pantry', glyph: '▤', label: 'Комора', count: pantryCount ?? undefined },
-    { path: '/recipes', glyph: '❋', label: 'Рецепти', count: recipesCount ?? undefined },
+    { path: '/pantry', glyph: '▤', label: 'Комора' },
+    { path: '/recipes', glyph: '❋', label: 'Рецепти' },
     { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount ?? shopCount ?? undefined },
+    { path: '/calendar', glyph: '◷', label: 'Календар' },
   ];
 
   const initial = (meName?.trim()[0] ?? '·').toUpperCase();
@@ -158,7 +146,15 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
   }
 
   return (
-    <div className={`${styles.wrap} ${desktopOnly ? styles['desktop-only'] : ''}`}>
+    <>
+      {/* Бекдроп існує лише під шухлядою (<768). Вище навігація стоїть
+          постійно, і затемнювати нема чого. */}
+      <div
+        className={`${styles.backdrop} ${open ? styles['backdrop-on'] : ''}`}
+        onClick={() => setOpen(false)}
+        aria-hidden="true"
+      />
+    <div className={`${styles.wrap} ${open ? styles.open : ''}`}>
       {/* Д01: знак + вордмарк угорі сайдбара. На мобільному приховано. */}
       <div className={styles.brand}>
         <Logo size={26} />
@@ -175,7 +171,6 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
           >
             <span className={styles.glyph}>{t.glyph}</span>
             <span>{t.label}</span>
-            {t.count != null && <span className={styles.count}><RollingNumber value={t.count} /></span>}
             {t.badge != null && t.badge > 0 && <span className={styles.badge}><RollingNumber value={t.badge} /></span>}
           </button>
         );
@@ -240,5 +235,6 @@ export function TabBar({ shoppingCount, desktopOnly }: Props) {
         <span>{meName ?? 'Профіль'}</span>
       </button>
     </div>
+    </>
   );
 }
