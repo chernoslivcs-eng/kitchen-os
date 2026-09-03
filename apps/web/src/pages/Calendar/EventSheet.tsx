@@ -44,6 +44,11 @@ function kicker(e: EventOccurrence, now = Date.now()): { text: string; tone: str
 // Моно-мета в підвалі: коротке «що тут є», щоб дія не стояла в порожньому
 // рядку. Для обмеження — його сила, для решти — те, що можна взяти.
 function footerMeta(e: EventOccurrence): string | null {
+  // Марка в паспорті. Стоїть на самій події, а не лічильником у потоці:
+  // «спіймано 7 із 12» знецінилось би за тиждень, як свого часу «Горить 11».
+  if (e.caught_by !== undefined) {
+    return e.caught_by ? `СПІЙМАНО · ${e.caught_by.toUpperCase()}` : 'СПІЙМАНО';
+  }
   if (e.force === 'restrict') return 'ДІЄ У ВСІХ ПОРАДАХ';
   if (e.source) return 'НЕ СПОНСОРОВАНО';
   const parts: string[] = [];

@@ -622,6 +622,36 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       await repo.unmuteOccasion(household_id, 'tomato-day-2026');
     });
 
+    it('спіймане вікно: пишеться раз на рік і памʼятає, чим саме', async () => {
+      const { repo, household_id } = ctx;
+      expect(await repo.listOccasionCatches(household_id)).toEqual([]);
+
+      await repo.recordOccasionCatch({
+        household_id, occasion_id: 'mushroom', year: 2026,
+        caught_at: '2026-09-10T18:00:00.000Z', by: 'білі гриби', run_id: null,
+      });
+      const got = await repo.listOccasionCatches(household_id);
+      expect(got).toHaveLength(1);
+      // `by` мусить пережити перезавантаження: підсумок каже «грибами», а не
+      // безлике «спіймано», і без цього поля різниці не буде видно.
+      expect(got[0]?.by).toBe('білі гриби');
+
+      // Друге готування того ж сезону — не друга марка.
+      await repo.recordOccasionCatch({
+        household_id, occasion_id: 'mushroom', year: 2026,
+        caught_at: '2026-09-20T18:00:00.000Z', by: 'гриби в сметані', run_id: null,
+      });
+      expect(await repo.listOccasionCatches(household_id)).toHaveLength(1);
+
+      // Наступний рік — інший факт.
+      await repo.recordOccasionCatch({
+        household_id, occasion_id: 'mushroom', year: 2027,
+        caught_at: '2027-09-12T18:00:00.000Z', by: 'різото з білими', run_id: null,
+      });
+      expect(await repo.listOccasionCatches(household_id)).toHaveLength(2);
+      expect(await repo.listOccasionCatches(household_id, 2026)).toHaveLength(1);
+    });
+
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

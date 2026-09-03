@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { RecipeRow, Repo, CookRunBatchChange } from '@kitchen/domain';
+import { catchesFor, traditionsFrom } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import type { Recipe } from '../model.js';
 import { WRITEOFF_PROMPT } from '../post-cook.js';
@@ -280,6 +281,24 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
         undone_at: null,
         session_id: owned_session_id,
       });
+
+      // Марка в паспорті. Пишеться МОВЧКИ: у щоденний потік вона не лізе, і
+      // репліка про неї не згадує. Продукт свідомо позбувся лічильників —
+      // «спіймав сезон грибів!» у відповідь на вечерю було б тим самим.
+      // Помилка тут не має ламати готування: журнал важливіший за марку.
+      try {
+        const profile = await repo.getProfile(user_id);
+        const hits = catchesFor(recipe, new Date(now), traditionsFrom(profile?.wishes ?? []));
+        for (const h of hits) {
+          await repo.recordOccasionCatch({
+            household_id, occasion_id: h.occasion_id,
+            year: new Date(now).getFullYear(),
+            caught_at: now, by: h.by, run_id: run_id,
+          });
+        }
+      } catch (err) {
+        req.log.warn({ err }, 'occasion-catch failed');
+      }
 
       // Правка №6: перше слово пост-готування — детерміноване питання в сесії
       // запуску. Далі все їде чатом (шорткати «так»/«ні» — див. chat.ts).

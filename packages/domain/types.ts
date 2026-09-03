@@ -635,6 +635,17 @@ export interface SupplyLine {
   u?: string | null;
 }
 
+/** Спіймане вікно: дім щось приготував, поки подія тривала. */
+export interface OccasionCatchRow {
+  household_id: string;
+  occasion_id: string;
+  year: number;
+  caught_at: string;
+  /** Чим саме спіймали — щоб підсумок казав «грибами», а не «спіймано». */
+  by: string | null;
+  run_id: string | null;
+}
+
 export interface HouseholdEventRow {
   id: string;
   household_id: string;

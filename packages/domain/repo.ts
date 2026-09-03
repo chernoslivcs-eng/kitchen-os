@@ -5,7 +5,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, MemoryNote, EaterRow,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
-  SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, Card,
+  SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, Card,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type { OccasionRow } from './occasion-data.js';
@@ -183,6 +183,11 @@ export interface Repo {
   listMutedOccasions(household_id: string): Promise<string[]>;
   muteOccasion(household_id: string, occasion_id: string): Promise<void>;
   unmuteOccasion(household_id: string, occasion_id: string): Promise<void>;
+
+  // Спіймані вікна. Пишеться мовчки після готування, читається підсумком.
+  // Повторне спіймання того самого вікна того самого року — не подія.
+  recordOccasionCatch(c: OccasionCatchRow): Promise<void>;
+  listOccasionCatches(household_id: string, year?: number): Promise<OccasionCatchRow[]>;
 
   // Дом-membership і запрошення
   isMember(household_id: string, user_id: string): Promise<boolean>;

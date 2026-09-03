@@ -4,7 +4,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
-  HouseholdEventRow, Card,
+  HouseholdEventRow, OccasionCatchRow, Card,
   SessionRow, MessageRow, MemoryNote, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
@@ -33,6 +33,7 @@ export class InMemoryRepo implements Repo {
   private retail = new Map<string, RetailConnectionRow>();        // `${user_id}:${provider}`
   private events = new Map<string, HouseholdEventRow>();
   private muted = new Map<string, Set<string>>();   // household_id → occasion_id
+  private catches = new Map<string, OccasionCatchRow>();
   private recipes = new Map<string, RecipeRow>();
   private cookRuns = new Map<string, CookRunRow>();
   private chatSessions = new Map<string, SessionRow>();
@@ -587,6 +588,18 @@ export class InMemoryRepo implements Repo {
 
   async unmuteOccasion(household_id: string, occasion_id: string): Promise<void> {
     this.muted.get(household_id)?.delete(occasion_id);
+  }
+
+  async recordOccasionCatch(c: OccasionCatchRow): Promise<void> {
+    const key = `${c.household_id}:${c.occasion_id}:${c.year}`;
+    if (this.catches.has(key)) return;   // перше ловіння важить, повторне — ні
+    this.catches.set(key, { ...c });
+  }
+
+  async listOccasionCatches(household_id: string, year?: number): Promise<OccasionCatchRow[]> {
+    return [...this.catches.values()]
+      .filter((c) => c.household_id === household_id && (year === undefined || c.year === year))
+      .map((c) => ({ ...c }));
   }
 
   async isMember(household_id: string, user_id: string): Promise<boolean> {

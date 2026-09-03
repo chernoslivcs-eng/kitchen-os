@@ -172,6 +172,22 @@ describe('events routes · календар', () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it('спіймане вікно видно на самій події, а не лічильником', async () => {
+    // Марка ставиться після готування; тут пишемо її напряму — маршрут
+    // готування перевіряється в cook-runs.test.ts, а тут важлива видача.
+    await repo.recordOccasionCatch({
+      household_id: me.household_id, occasion_id: 'mushroom', year: 2026,
+      caught_at: '2026-09-10T18:00:00.000Z', by: 'білі гриби', run_id: null,
+    });
+    const mushroom = (await list('2026-09-10', '2026-09-12')).find((e) => e.id === 'mushroom');
+    expect((mushroom as unknown as { caught_by?: string }).caught_by).toBe('білі гриби');
+
+    // Непіймане вікно поля не має зовсім — «не спіймано» це відсутність
+    // марки, а не порожня марка.
+    const veg = (await list('2026-09-10', '2026-09-12')).find((e) => e.id === 'veg-peak');
+    expect((veg as unknown as { caught_by?: string }).caught_by).toBeUndefined();
+  });
+
   it('чужа подія — 404, а не 403: чужий дім не мусить знати, що вона є', async () => {
     const other = await signIn(app, mailer, 'susid@x.local');
     const created = (await app.inject({

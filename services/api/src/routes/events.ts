@@ -38,6 +38,9 @@ export interface EventOccurrence {
   buy?: string[];
   seeds?: string[];
   source?: string;
+  /** Чим спіймали це вікно цього року. Порожній рядок — спіймали, але чим
+   *  саме, вже не памʼятаємо (старі рядки). */
+  caught_by?: string;
   recipe_id?: string | null;
   servings?: number | null;
   supply?: SupplyLine[] | null;
@@ -106,6 +109,10 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       const trads = traditionsFrom(profile?.wishes ?? []);
       // «Не показувати такі» — рішення дому, і воно старше за будь-який привід.
       const muted = new Set(await repo.listMutedOccasions(household_id));
+      // Спіймані вікна: показуються на самій події, а не лічильником у потоці.
+      const caught = new Map(
+        (await repo.listOccasionCatches(household_id)).map((c) => [`${c.occasion_id}:${c.year}`, c]),
+      );
 
       const out: EventOccurrence[] = [];
 
@@ -130,6 +137,10 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
             // Підпис редакційної події — не оздоба: без нього «день томатів»
             // не відрізнити від свята.
             ...(o.source ? { source: o.source } : {}),
+            ...(() => {
+              const hit = caught.get(`${o.id}:${new Date(occ.start).getFullYear()}`);
+              return hit ? { caught_by: hit.by ?? '' } : {};
+            })(),
           });
         }
       }

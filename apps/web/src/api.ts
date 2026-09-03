@@ -201,6 +201,7 @@ export interface EventOccurrence {
   seeds?: string[];
   supply?: { label: string; v?: number | null; u?: string | null }[] | null;
   source?: string;
+  caught_by?: string;
   approx?: boolean;
   done_at?: string | null;
 }

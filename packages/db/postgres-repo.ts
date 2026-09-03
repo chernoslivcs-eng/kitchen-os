@@ -17,7 +17,7 @@ import type {
   SessionRow, MessageRow, MemoryNote, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
   HouseholdProduct, ProductTriple,
-  HouseholdEventRow, OccasionRow, Rule,
+  HouseholdEventRow, OccasionCatchRow, OccasionRow, Rule,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
@@ -1222,6 +1222,32 @@ export class PostgresRepo implements Repo {
       'DELETE FROM household_occasion_mute WHERE household_id = $1 AND occasion_id = $2',
       [household_id, occasion_id],
     );
+  }
+
+  async recordOccasionCatch(c: OccasionCatchRow): Promise<void> {
+    // Перше ловіння важить, повторне — ні: вікно ловиться раз на рік.
+    await this.pool.query(
+      `INSERT INTO household_occasion_catch (household_id, occasion_id, year, caught_at, by_label, run_id)
+       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
+      [c.household_id, c.occasion_id, c.year, c.caught_at, c.by, c.run_id],
+    );
+  }
+
+  async listOccasionCatches(household_id: string, year?: number): Promise<OccasionCatchRow[]> {
+    const { rows } = year === undefined
+      ? await this.pool.query('SELECT * FROM household_occasion_catch WHERE household_id = $1', [household_id])
+      : await this.pool.query(
+        'SELECT * FROM household_occasion_catch WHERE household_id = $1 AND year = $2',
+        [household_id, year],
+      );
+    return (rows as Row[]).map((r) => ({
+      household_id: r.household_id as string,
+      occasion_id: r.occasion_id as string,
+      year: Number(r.year),
+      caught_at: new Date(r.caught_at as string).toISOString(),
+      by: (r.by_label as string | null) ?? null,
+      run_id: (r.run_id as string | null) ?? null,
+    }));
   }
 
   // ----- Дом-membership і запрошення --------------------------------------
