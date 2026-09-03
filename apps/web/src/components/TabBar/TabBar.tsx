@@ -4,6 +4,7 @@ import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo, type EventOccurrence } from '../../api';
 import { whenLabel, isLive } from '../../lib/when';
 import { bubblesToNow } from '../../lib/spans';
+import { toneKey } from '../../lib/tone';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -243,7 +244,7 @@ export function TabBar({ shoppingCount }: Props) {
           {nowEvents.map((e) => (
             <button
               key={`${e.scope}:${e.id}:${e.start}`}
-              className={styles['now-row']}
+              className={`${styles['now-row']} ${styles[`t-${toneKey(e)}`]}`}
               onClick={() => navigate('/calendar')}
               title={e.meaning ?? e.title}
             >

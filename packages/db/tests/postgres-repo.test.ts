@@ -56,13 +56,18 @@ if ('skip' in backend) {
   describeRepoContract('PostgresRepo', {
     async make() {
       // Чистимо між тестами й сіємо household + user під FK.
-      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, memory_note, message, session, cook_run, recipe, shopping_item, eater, household_member, profile, household_event, household_occasion_mute, household_occasion_catch, household, "user" RESTART IDENTITY CASCADE');
+      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, memory_note, message, session, cook_run, recipe, shopping_item, eater, household_member, profile, household_event, user_occasion_mute, household_occasion_catch, household, "user" RESTART IDENTITY CASCADE');
       const household_id = randomUUID();
       const user_id = randomUUID();
+      // Другий учасник того самого дому — під приватність календаря. Справжній
+      // рядок, а не вигаданий uuid: created_by це FK на "user".
+      const other_user_id = randomUUID();
       await pool.query('INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3)', [user_id, 'Test', `test-${user_id}@x.local`]);
+      await pool.query('INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3)', [other_user_id, 'Other', `other-${other_user_id}@x.local`]);
       await pool.query('INSERT INTO household (id, name) VALUES ($1, $2)', [household_id, 'Test HH']);
       await pool.query('INSERT INTO household_member (household_id, user_id, role) VALUES ($1, $2, $3)', [household_id, user_id, 'owner']);
-      return { repo, household_id, user_id };
+      await pool.query('INSERT INTO household_member (household_id, user_id, role) VALUES ($1, $2, $3)', [household_id, other_user_id, 'member']);
+      return { repo, household_id, user_id, other_user_id };
     },
     async teardown() {
       if (stop) await stop();

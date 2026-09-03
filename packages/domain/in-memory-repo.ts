@@ -547,9 +547,9 @@ export class InMemoryRepo implements Repo {
     return BUILTIN_OCCASIONS.map((o) => ({ ...o }));
   }
 
-  async listHouseholdEvents(household_id: string): Promise<HouseholdEventRow[]> {
+  async listOwnEvents(household_id: string, user_id: string): Promise<HouseholdEventRow[]> {
     return [...this.events.values()]
-      .filter((e) => e.household_id === household_id)
+      .filter((e) => e.household_id === household_id && e.created_by === user_id)
       .map((e) => ({ ...e }));
   }
 
@@ -576,18 +576,18 @@ export class InMemoryRepo implements Repo {
     this.events.delete(id);
   }
 
-  async listMutedOccasions(household_id: string): Promise<string[]> {
-    return [...(this.muted.get(household_id) ?? [])];
+  async listMutedOccasions(user_id: string): Promise<string[]> {
+    return [...(this.muted.get(user_id) ?? [])];
   }
 
-  async muteOccasion(household_id: string, occasion_id: string): Promise<void> {
-    const set = this.muted.get(household_id) ?? new Set<string>();
+  async muteOccasion(user_id: string, occasion_id: string): Promise<void> {
+    const set = this.muted.get(user_id) ?? new Set<string>();
     set.add(occasion_id);
-    this.muted.set(household_id, set);
+    this.muted.set(user_id, set);
   }
 
-  async unmuteOccasion(household_id: string, occasion_id: string): Promise<void> {
-    this.muted.get(household_id)?.delete(occasion_id);
+  async unmuteOccasion(user_id: string, occasion_id: string): Promise<void> {
+    this.muted.get(user_id)?.delete(occasion_id);
   }
 
   async recordOccasionCatch(c: OccasionCatchRow): Promise<void> {

@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo, HouseholdEventRow, Rule, SupplyLine } from '@kitchen/domain';
-import { occurrencesInRange, traditionsFrom, isWindowRow } from '@kitchen/domain';
+import { ownsEvent, occurrencesInRange, traditionsFrom, isWindowRow } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
@@ -107,8 +107,9 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       // в контексті промпта. Довідник без неї віддає самі сезони.
       const profile = await repo.getProfile(user_id);
       const trads = traditionsFrom(profile?.wishes ?? []);
-      // «Не показувати такі» — рішення дому, і воно старше за будь-який привід.
-      const muted = new Set(await repo.listMutedOccasions(household_id));
+      // «Не показувати такі» — рішення людини про свій календар, і воно старше
+      // за будь-який привід.
+      const muted = new Set(await repo.listMutedOccasions(user_id));
       // Спіймані вікна: показуються на самій події, а не лічильником у потоці.
       const caught = new Map(
         (await repo.listOccasionCatches(household_id)).map((c) => [`${c.occasion_id}:${c.year}`, c]),
@@ -145,7 +146,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
         }
       }
 
-      for (const e of await repo.listHouseholdEvents(household_id)) {
+      for (const e of await repo.listOwnEvents(household_id, user_id)) {
         for (const occ of occurrencesInRange(e.rule, from, end, trads)) {
           out.push({
             id: e.id,
@@ -180,13 +181,13 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     '/v1/events/mute/:id',
     { preHandler: [authenticated(repo), limitCheck] },
     async (req, reply) => {
-      const { household_id } = requireUser(req);
+      const { user_id } = requireUser(req);
       const row = (await repo.listOccasionCatalog()).find((o) => o.id === req.params.id);
       if (!row) return reply.code(404).send({ error: 'not_found' });
       if (isWindowRow(row) && row.restricts) {
         return reply.code(409).send({ error: 'restriction_not_mutable' });
       }
-      await repo.muteOccasion(household_id, req.params.id);
+      await repo.muteOccasion(user_id, req.params.id);
       return { ok: true, muted: true };
     },
   );
@@ -195,8 +196,8 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     '/v1/events/mute/:id',
     { preHandler: [authenticated(repo), limitCheck] },
     async (req) => {
-      const { household_id } = requireUser(req);
-      await repo.unmuteOccasion(household_id, req.params.id);
+      const { user_id } = requireUser(req);
+      await repo.unmuteOccasion(user_id, req.params.id);
       return { ok: true, muted: false };
     },
   );
@@ -250,10 +251,11 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     '/v1/events/:id',
     { preHandler: [authenticated(repo), limitCheck] },
     async (req, reply) => {
-      const { household_id } = requireUser(req);
+      const { household_id, user_id } = requireUser(req);
       const existing = await repo.getHouseholdEvent(req.params.id);
-      // Чужий дім не бачить різниці між «немає» і «не твоє» — і не мусить.
-      if (!existing || existing.household_id !== household_id) {
+      // Чужого не бачить різниці між «немає» і «не твоє» — і не мусить. Автор
+      // у перевірці, а не лише дім: календар не спільний.
+      if (!ownsEvent(existing, household_id, user_id)) {
         return reply.code(404).send({ error: 'not_found' });
       }
       const b = req.body ?? {};
@@ -283,9 +285,9 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     '/v1/events/:id',
     { preHandler: [authenticated(repo), limitCheck] },
     async (req, reply) => {
-      const { household_id } = requireUser(req);
+      const { household_id, user_id } = requireUser(req);
       const existing = await repo.getHouseholdEvent(req.params.id);
-      if (!existing || existing.household_id !== household_id) {
+      if (!ownsEvent(existing, household_id, user_id)) {
         return reply.code(404).send({ error: 'not_found' });
       }
       await repo.deleteHouseholdEvent(req.params.id);

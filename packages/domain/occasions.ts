@@ -46,6 +46,25 @@ export interface Occasion {
   restricts?: string;
 }
 
+/**
+ * Чи ця подія належить цій людині в цьому домі.
+ *
+ * Календар не спільний елемент користування: доданий член сімʼї не бачить
+ * чужих планів і не може їх правити. Перевірка стоїть у трьох місцях — правка,
+ * видалення й картка моделі, — і поки вона була виписана в кожному окремо,
+ * додати автора в двох із трьох було лише питанням часу. Тут вона одна.
+ *
+ * Дім у перевірці лишається попри автора: без нього подія пішла б за людиною
+ * в інший дім.
+ */
+export function ownsEvent(
+  row: { household_id: string; created_by?: string | null } | null | undefined,
+  household_id: string,
+  user_id: string,
+): boolean {
+  return !!row && row.household_id === household_id && row.created_by === user_id;
+}
+
 export interface UpcomingEvent {
   at: number;
   title: string;

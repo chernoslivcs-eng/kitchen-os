@@ -13,6 +13,15 @@ export interface RepoCtx {
   repo: Repo;
   household_id: string;
   user_id: string;
+  /**
+   * Другий учасник того самого дому. Потрібен, бо приватність календаря
+   * інакше не перевіриш: «не бачу чужого» — твердження про двох людей, і з
+   * одним user_id воно вироджується в «не бачу нічого».
+   *
+   * У Postgres це має бути справжній рядок `"user"`: `created_by` — зовнішній
+   * ключ, і вигаданий uuid не вставиться.
+   */
+  other_user_id: string;
 }
 
 export interface RepoFactory {
@@ -490,7 +499,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       });
       expect((await repo.getHouseholdEvent(weeklyId))?.rule).toEqual({ t: 'weekly', dow: 2 });
 
-      const list = await repo.listHouseholdEvents(household_id);
+      const list = await repo.listOwnEvents(household_id, user_id);
       expect(list.map((e) => e.id).sort()).toEqual([id, weeklyId].sort());
 
       await repo.updateHouseholdEvent(id, { title: 'цибуля від мами', buy: ['часник'] });
@@ -507,7 +516,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
 
       await repo.deleteHouseholdEvent(weeklyId);
       expect(await repo.getHouseholdEvent(weeklyId)).toBeNull();
-      expect((await repo.listHouseholdEvents(household_id)).length).toBe(1);
+      expect((await repo.listOwnEvents(household_id, user_id)).length).toBe(1);
     });
 
     // Довідник глобальний: обидві реалізації мусять віддавати ті самі рядки,
@@ -544,7 +553,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const { undo_token, applied } = await applyCard(repo, mid, [], user_id);
       expect(applied).toBe(1);
 
-      const list = await repo.listHouseholdEvents(household_id);
+      const list = await repo.listOwnEvents(household_id, user_id);
       expect(list).toHaveLength(1);
       expect(list[0]?.title).toBe('гості, шестеро');
       expect(list[0]?.servings).toBe(6);
@@ -552,7 +561,49 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(list[0]?.source).toBe('model');
 
       await undoCard(repo, mid, undo_token, user_id);
-      expect(await repo.listHouseholdEvents(household_id)).toHaveLength(0);
+      expect(await repo.listOwnEvents(household_id, user_id)).toHaveLength(0);
+    });
+
+    // Календар не спільний елемент користування: доданий член сімʼї не бачить
+    // чужих планів. Правило коштує один рядок у запиті й тримається лише на
+    // памʼяті того, хто його писав, — тому воно тут, а не в коментарі.
+    it('події приватні: сусід по дому не бачить і не править чужий план', async () => {
+      const { repo, household_id, user_id, other_user_id } = ctx;
+      const mine = randomUUID();
+      const theirs = randomUUID();
+      const base = {
+        household_id, kind: 'custom' as const, note: null,
+        rule: { t: 'once' as const, at: '2026-09-12' }, force: 'hint' as const, restricts: null,
+        buy: [], recipe_id: null, servings: null, supply: null, source: 'user' as const,
+        expires_at: null, done_at: null, created_at: new Date().toISOString(),
+      };
+      await repo.insertHouseholdEvent({ ...base, id: mine, title: 'мої гості', created_by: user_id });
+      await repo.insertHouseholdEvent({ ...base, id: theirs, title: 'їхні гості', created_by: other_user_id });
+
+      // Дім той самий — розділяє тільки автор.
+      expect((await repo.listOwnEvents(household_id, user_id)).map((e) => e.id)).toEqual([mine]);
+      expect((await repo.listOwnEvents(household_id, other_user_id)).map((e) => e.id)).toEqual([theirs]);
+
+      // Правка по прямому id теж не проходить: модель могла взяти id з чужої
+      // сесії, і тоді «змінив» було б брехнею, а не помилкою доступу.
+      const mid = randomUUID();
+      const card: EventCard = {
+        type: 'event',
+        ops: [{ op: 'edit', id: theirs, title: 'перехоплено' }],
+      };
+      await createPending(repo, { message_id: mid, household_id, user_id, card });
+      const { applied } = await applyCard(repo, mid, [], user_id);
+      expect(applied).toBe(0);
+      expect((await repo.getHouseholdEvent(theirs))?.title).toBe('їхні гості');
+    });
+
+    // Вимикання редакційної теж особисте: сама подія спільна для всіх, але
+    // рішення прибрати її зі свого календаря — про свій вигляд.
+    it('вимикання приватне: сусід по дому далі бачить подію', async () => {
+      const { repo, user_id, other_user_id } = ctx;
+      await repo.muteOccasion(user_id, 'tomato-day-2026');
+      expect(await repo.listMutedOccasions(user_id)).toEqual(['tomato-day-2026']);
+      expect(await repo.listMutedOccasions(other_user_id)).toEqual([]);
     });
 
     it('картка event: правка й закриття вертаються повним рядком', async () => {
@@ -584,14 +635,17 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(back?.note).toBe('четверо');
     });
 
-    it('картка event: чужу подію не чіпає і про зроблене не рапортує', async () => {
-      const { repo, household_id, user_id } = ctx;
+    it('картка event: чужу подію не видаляє і про зроблене не рапортує', async () => {
+      const { repo, household_id, user_id, other_user_id } = ctx;
       const alien = randomUUID();
+      // Чуже — це сусід по тому самому дому, а не інший дім: після приватності
+      // календаря саме це найімовірніший випадок. Вигаданий household_id тут
+      // стояти не може — це зовнішній ключ, і Postgres його не пустить.
       await repo.insertHouseholdEvent({
-        id: alien, household_id: randomUUID(), kind: 'custom', title: 'їхні гості',
+        id: alien, household_id, kind: 'custom', title: 'їхні гості',
         note: null, rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null,
         buy: [], recipe_id: null, servings: null, supply: null,
-        created_by: null, source: 'user', expires_at: null, done_at: null,
+        created_by: other_user_id, source: 'user', expires_at: null, done_at: null,
         created_at: new Date().toISOString(),
       });
       const mid = randomUUID();
@@ -605,21 +659,21 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
     });
 
     it('«не показувати такі»: вимкнення живе, поки його не знято', async () => {
-      const { repo, household_id } = ctx;
-      expect(await repo.listMutedOccasions(household_id)).toEqual([]);
+      const { repo, user_id } = ctx;
+      expect(await repo.listMutedOccasions(user_id)).toEqual([]);
 
-      await repo.muteOccasion(household_id, 'tomato-day-2026');
-      expect(await repo.listMutedOccasions(household_id)).toEqual(['tomato-day-2026']);
+      await repo.muteOccasion(user_id, 'tomato-day-2026');
+      expect(await repo.listMutedOccasions(user_id)).toEqual(['tomato-day-2026']);
 
       // Повторне вимкнення — не помилка й не другий рядок: людина могла
       // натиснути двічі, і це не привід падати.
-      await repo.muteOccasion(household_id, 'tomato-day-2026');
-      expect(await repo.listMutedOccasions(household_id)).toHaveLength(1);
+      await repo.muteOccasion(user_id, 'tomato-day-2026');
+      expect(await repo.listMutedOccasions(user_id)).toHaveLength(1);
 
-      await repo.unmuteOccasion(household_id, 'tomato-day-2026');
-      expect(await repo.listMutedOccasions(household_id)).toEqual([]);
+      await repo.unmuteOccasion(user_id, 'tomato-day-2026');
+      expect(await repo.listMutedOccasions(user_id)).toEqual([]);
       // Зняти те, чого не вимикали, теж має бути тихо.
-      await repo.unmuteOccasion(household_id, 'tomato-day-2026');
+      await repo.unmuteOccasion(user_id, 'tomato-day-2026');
     });
 
     it('спіймане вікно: пишеться раз на рік і памʼятає, чим саме', async () => {

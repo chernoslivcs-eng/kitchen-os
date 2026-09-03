@@ -325,8 +325,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // №4: ситуація рахується сервером із повідомлень сесії — той самий факт,
     // який досі жив усередині гілки видалення й нікому не казався.
-    // Плани дому — щоб модель могла на них послатись і правити їх по id.
-    const events = await repo.listHouseholdEvents(household_id);
+    // Плани — щоб модель могла на них послатись і правити їх по id. Тільки
+    // свої: календар не спільний, і асистент доданого члена сімʼї не має
+    // переказувати чужі плани так, ніби це спільна памʼять дому.
+    const events = await repo.listOwnEvents(household_id, user_id);
     const modes = detectModes(preMessages, recentCookRuns, new Date(), events);
     const openCart = modes.find((m) => m.kind === 'cart_open');
 

@@ -7,6 +7,7 @@
 // нічого в базу другого разу не запишеться. Це критично: сітка мобільна, повтори бувають.
 
 import { randomUUID } from 'node:crypto';
+import { ownsEvent } from './occasions.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
@@ -577,9 +578,9 @@ async function applyEventOp(
 
   if (!op.id) return false;
   const existing = await repo.getHouseholdEvent(op.id);
-  // Чужий дім не чіпаємо навіть за прямим id: модель могла взяти його з
-  // попередньої сесії іншого дому.
-  if (!existing || existing.household_id !== household_id) return false;
+  // Чуже не чіпаємо навіть за прямим id: модель могла взяти його з попередньої
+  // сесії іншого дому — або з календаря іншої людини в цьому ж домі.
+  if (!existing || !ownsEvent(existing, household_id, actor_user_id)) return false;
   snap.before.events_before?.push(existing);
 
   if (op.op === 'remove') {

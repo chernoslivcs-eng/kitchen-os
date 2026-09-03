@@ -167,8 +167,17 @@ export interface Repo {
 
   // Календар. Довідник глобальний і незмінний зі шпальти застосунку; події —
   // істина дому. Пара повторює catalog_ingredient → household_product.
+  //
+  // Але видимість — не дому, а автора: календар не спільний елемент, і доданий
+  // член сімʼї чужих планів не бачить. Тому підпис вимагає обидва ключі, а не
+  // приймає user_id як необовʼязковий: забутий необовʼязковий аргумент віддав
+  // би весь дім і мовчки, а забутий обовʼязковий не збереться.
+  //
+  // Назва теж змінилась навмисно. `listHouseholdEvents` після такої зміни
+  // читалась би як «події дому» й запрошувала б використати її там, де треба
+  // саме дім, — а такого місця немає.
   listOccasionCatalog(): Promise<OccasionRow[]>;
-  listHouseholdEvents(household_id: string): Promise<HouseholdEventRow[]>;
+  listOwnEvents(household_id: string, user_id: string): Promise<HouseholdEventRow[]>;
   getHouseholdEvent(id: string): Promise<HouseholdEventRow | null>;
   insertHouseholdEvent(e: HouseholdEventRow): Promise<void>;
   updateHouseholdEvent(
@@ -178,14 +187,22 @@ export interface Repo {
   ): Promise<void>;
   deleteHouseholdEvent(id: string): Promise<void>;
 
-  // «Не показувати такі»: наявність id у списку = подія вимкнена для цього
-  // дому. Знімається видаленням — двох способів сказати «показувати» немає.
-  listMutedOccasions(household_id: string): Promise<string[]>;
-  muteOccasion(household_id: string, occasion_id: string): Promise<void>;
-  unmuteOccasion(household_id: string, occasion_id: string): Promise<void>;
+  // «Не показувати такі»: наявність id у списку = подія вимкнена для цієї
+  // людини. Знімається видаленням — двох способів сказати «показувати» немає.
+  //
+  // Ключ особистий, а не домовий: сама подія в довіднику спільна для всіх, але
+  // рішення прибрати її зі свого календаря — про свій вигляд. Якби ключем був
+  // дім, один вимкнув би «день томатів» усім, ні в кого не спитавши.
+  listMutedOccasions(user_id: string): Promise<string[]>;
+  muteOccasion(user_id: string, occasion_id: string): Promise<void>;
+  unmuteOccasion(user_id: string, occasion_id: string): Promise<void>;
 
   // Спіймані вікна. Пишеться мовчки після готування, читається підсумком.
   // Повторне спіймання того самого вікна того самого року — не подія.
+  //
+  // Єдине з календаря, що лишається домовим, і навмисно: ловіння виводиться з
+  // cook_run, а готування спільне. Особистий ключ дав би «хтось інший зварив
+  // різото з білими, а мій календар каже, що я проґавив сезон грибів».
   recordOccasionCatch(c: OccasionCatchRow): Promise<void>;
   listOccasionCatches(household_id: string, year?: number): Promise<OccasionCatchRow[]>;
 

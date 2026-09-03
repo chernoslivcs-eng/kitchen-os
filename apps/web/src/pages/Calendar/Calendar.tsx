@@ -10,6 +10,7 @@ import { api, type EventOccurrence } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { whenLabel } from '../../lib/when';
+import { toneKey } from '../../lib/tone';
 import { buildDays, buildWeeks, splitRunning } from './days';
 import {
   splitAxes, weekSpans, coversDay, edgeCaption, edgeDays, moreLabel,
@@ -20,7 +21,13 @@ import { NewEventSheet } from './NewEventSheet';
 import styles from './Calendar.module.css';
 
 const DAY = 86_400_000;
-const HORIZON = 90;
+// Рік, а не квартал. Макет каже прямо: «"Рік уперед" перестає бути окремим
+// блоком — це просто продовження скролу». На 90 днях стрічка обривалась на
+// грудні, і далі не було ні способу дійти, ні натяку, що там щось є.
+//
+// Довжина не б'є по вазі екрана: порожні тижні згортаються в один рядок, тож
+// рік дає близько тридцяти рядків, а не трьохсот шістдесяти.
+const HORIZON = 365;
 
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -48,15 +55,10 @@ const shortDate = (at: number) => new Date(at).toLocaleDateString('uk-UA', { day
 // не треба розрізнятись: вони мали означати різне, а означали лише «інша
 // подія».
 //
-// Бурштин — сезон («час іде»). Слива — обмеження («анти»). Шавлія — особисте,
-// те, що поставила людина. Свято й редакційна кольору роду не мають і йдуть
-// сірим: свято в whenLabel теж нейтраль, а редакційна не має бути голоснішою
-// за нього.
+// Рід і його тон вибирає lib/tone.ts — один вибір на весь застосунок, бо той
+// самий тон носить рамка в блоці «ЗАРАЗ».
 function toneOf(e: EventOccurrence): string {
-  if (e.force === 'restrict') return styles['t-restrict']!;
-  if (e.scope === 'household') return styles['t-own']!;
-  if (e.kind === 'season') return styles['t-season']!;
-  return styles['t-grey']!;
+  return styles[`t-${toneKey(e)}`]!;
 }
 
 export function CalendarPage() {

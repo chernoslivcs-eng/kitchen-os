@@ -8,6 +8,7 @@ describeRepoContract('InMemoryRepo', {
       repo: new InMemoryRepo(),
       household_id: randomUUID(),
       user_id: randomUUID(),
+      other_user_id: randomUUID(),
     };
   },
 });

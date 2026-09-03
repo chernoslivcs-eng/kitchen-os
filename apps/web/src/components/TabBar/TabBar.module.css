@@ -147,7 +147,7 @@
 .now {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   padding: 14px 0 4px;
   border-top: 1px solid var(--border);
   margin-top: 10px;
@@ -160,20 +160,61 @@
   color: var(--fg-dim);
   padding: 0 12px 6px;
 }
+/* Рамка роду. «ЗАРАЗ» — єдине місце поза календарем, де подія показується сама
+   собою, і голим рядком вона тонула між сесіями: сусідній банер «Готування
+   триває» має рамку й заливку, а подія, яка триває просто зараз, не мала
+   нічого. Прийом узятий той самий, що в банера — 1px рамка плюс тонована
+   заливка, — але тон береться з роду події (lib/tone.ts), а не з шавлії:
+   інакше піст і сезон світилися б кольором дії.
+
+   Усе виводиться з currentColor, який задає клас роду нижче. Через це колір
+   рамки, заливки й моно-рядка не можуть розійтись — це та сама величина, а не
+   три узгоджені вручну токени. */
 .now-row {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 1px;
-  padding: 6px 12px;
-  border: 0;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, currentColor var(--edge, 34%), transparent);
   border-radius: var(--r);
-  background: transparent;
+  background: color-mix(in srgb, currentColor var(--fill, 9%), transparent);
+  /* Світіння всередину, а не тінь назовні: подія лежить у списку, а не над
+     ним, і зовнішня тінь підняла б її над сесіями. */
+  box-shadow: inset 0 0 12px -4px color-mix(in srgb, currentColor var(--glow, 55%), transparent);
   text-align: left;
   cursor: pointer;
-  transition: background var(--dur-fast);
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
 }
-.now-row:hover { background: var(--bg-hover); }
+.now-row:hover {
+  background: color-mix(in srgb, currentColor var(--fill-hi, 15%), transparent);
+  box-shadow: inset 0 0 14px -3px color-mix(in srgb, currentColor var(--glow, 55%), transparent);
+}
+
+/* Ті самі три кольорові роди, що в календарі. Сірий — свято й редакційна: рід
+   без кольору, тож рамці треба більше відсотка, щоб узагалі проявитись. */
+.t-restrict { color: var(--plum); }    /* рамка */
+.t-own      { color: var(--accent); }  /* те, що поставила людина */
+.t-season   { color: var(--amber); }   /* час іде */
+.t-grey     { color: var(--fg-dim); --edge: 55%; --fill: 7%; --fill-hi: 12%; --glow: 75%; }
+
+/* Світла тема просить більшого відсотка на ті самі відчуття. Причина не в
+   смаку: на темному полотні рамка світліша за тло, і око ловить її на межі
+   0.34 від тону; на світлому вона темніша за тло, і той самий 0.34 дає майже
+   білий край — виміряно 1.48 проти 3+ у темній. Тому підіймається край і
+   гаситься світіння: воно тут працює на затемнення, а не на світло. */
+:global(:root[data-theme='light']) .now-row {
+  --edge: 80%;
+  --fill: 12%;
+  --fill-hi: 18%;
+  --glow: 40%;
+}
+:global(:root[data-theme='light']) .t-grey {
+  --edge: 92%;
+  --fill: 9%;
+  --fill-hi: 15%;
+  --glow: 45%;
+}
 .now-title {
   font-family: var(--font-body);
   font-size: 14px;
@@ -189,7 +230,10 @@
 .now-when {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--fg-dim);
+  /* Тон роду, а не глухий --fg-dim: моно-рядок стоїть впритул до рамки, і
+     колір тексту зобовʼязаний збігатися з кольором плашки поряд. */
+  color: currentColor;
+  opacity: 0.85;
 }
 
 .sessions-divider {

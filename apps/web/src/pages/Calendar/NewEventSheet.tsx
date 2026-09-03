@@ -39,6 +39,13 @@ export function NewEventSheet({ onClose, onCreated, edit }: Props) {
   const [title, setTitle] = useState(edit?.title ?? '');
   const [mode, setMode] = useState<'date' | 'weekly'>('date');
   const [date, setDate] = useState(todayIso());
+  // Друга дата НЕОБОВʼЯЗКОВА: порожня — подія на один день. Так блок «Коли»
+  // лишається одним блоком, а не перетворюється на конструктор.
+  //
+  // Без неї форма не вміла того, що вміє решта системи: модель тривалі події
+  // створює, календар веде їм окрему вісь із рисками, а руками поставити
+  // «Олена в гостях, чт-нд» було неможливо.
+  const [dateTo, setDateTo] = useState('');
   const [dow, setDow] = useState(2);
   const [note, setNote] = useState(edit?.note ?? '');
   const [busy, setBusy] = useState(false);
@@ -51,7 +58,19 @@ export function NewEventSheet({ onClose, onCreated, edit }: Props) {
     setBusy(true);
     setErr(null);
     try {
-      const rule = mode === 'date' ? { t: 'once', at: date } : { t: 'weekly', dow };
+      const days = mode === 'date' && dateTo
+        ? Math.round(
+          (new Date(`${dateTo}T00:00:00`).getTime() - new Date(`${date}T00:00:00`).getTime()) / 86_400_000,
+        ) + 1
+        : 1;
+      if (mode === 'date' && dateTo && days < 1) {
+        setErr('Кінець раніше за початок');
+        setBusy(false);
+        return;
+      }
+      const rule = mode === 'date'
+        ? (days > 1 ? { t: 'once', at: date, days } : { t: 'once', at: date })
+        : { t: 'weekly', dow };
       if (edit) {
         // Час у правці НЕ чіпаємо: людина відкрила форму, щоб змінити назву чи
         // нотатку, і мовчки переписати дату на «сьогодні» було б підміною.
@@ -103,12 +122,24 @@ export function NewEventSheet({ onClose, onCreated, edit }: Props) {
         </div>
 
         {edit ? null : mode === 'date' ? (
-          <input
-            type="date"
-            className={own.input}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <div className={own.range}>
+            <input
+              type="date"
+              className={own.input}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              aria-label="Від"
+            />
+            <span className={own.dash}>—</span>
+            <input
+              type="date"
+              className={own.input}
+              value={dateTo}
+              min={date}
+              onChange={(e) => setDateTo(e.target.value)}
+              aria-label="По (необовʼязково)"
+            />
+          </div>
         ) : (
           <div className={own.dows}>
             {DOW.map((d) => (

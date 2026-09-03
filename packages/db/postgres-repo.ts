@@ -1137,10 +1137,14 @@ export class PostgresRepo implements Repo {
     return (rows as Row[]).map(rowToOccasion);
   }
 
-  async listHouseholdEvents(household_id: string): Promise<HouseholdEventRow[]> {
+  async listOwnEvents(household_id: string, user_id: string): Promise<HouseholdEventRow[]> {
+    // Дім у WHERE лишається попри created_by: він звужує до індексу, і без
+    // нього подія пішла б за людиною в інший дім.
     const { rows } = await this.pool.query(
-      'SELECT * FROM household_event WHERE household_id = $1 ORDER BY created_at',
-      [household_id],
+      `SELECT * FROM household_event
+        WHERE household_id = $1 AND created_by = $2
+        ORDER BY created_at`,
+      [household_id, user_id],
     );
     return (rows as Row[]).map(rowToEvent);
   }
@@ -1201,26 +1205,26 @@ export class PostgresRepo implements Repo {
     await this.pool.query('DELETE FROM household_event WHERE id = $1', [id]);
   }
 
-  async listMutedOccasions(household_id: string): Promise<string[]> {
+  async listMutedOccasions(user_id: string): Promise<string[]> {
     const { rows } = await this.pool.query(
-      'SELECT occasion_id FROM household_occasion_mute WHERE household_id = $1',
-      [household_id],
+      'SELECT occasion_id FROM user_occasion_mute WHERE user_id = $1',
+      [user_id],
     );
     return (rows as Row[]).map((r) => r.occasion_id as string);
   }
 
-  async muteOccasion(household_id: string, occasion_id: string): Promise<void> {
+  async muteOccasion(user_id: string, occasion_id: string): Promise<void> {
     await this.pool.query(
-      `INSERT INTO household_occasion_mute (household_id, occasion_id)
+      `INSERT INTO user_occasion_mute (user_id, occasion_id)
        VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-      [household_id, occasion_id],
+      [user_id, occasion_id],
     );
   }
 
-  async unmuteOccasion(household_id: string, occasion_id: string): Promise<void> {
+  async unmuteOccasion(user_id: string, occasion_id: string): Promise<void> {
     await this.pool.query(
-      'DELETE FROM household_occasion_mute WHERE household_id = $1 AND occasion_id = $2',
-      [household_id, occasion_id],
+      'DELETE FROM user_occasion_mute WHERE user_id = $1 AND occasion_id = $2',
+      [user_id, occasion_id],
     );
   }
 
