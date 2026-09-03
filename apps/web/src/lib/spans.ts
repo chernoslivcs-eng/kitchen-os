@@ -39,9 +39,26 @@ export function splitAxes(events: EventOccurrence[]): {
   const lasting: EventOccurrence[] = [];
   const point: EventOccurrence[] = [];
   for (const e of events) (isLasting(e) ? lasting : point).push(e);
-  // Довші — вище: рейка читається згори вниз від найтривалішого.
-  lasting.sort((a, b) => (b.end - b.start) - (a.end - a.start) || a.start - b.start);
+  lasting.sort((a, b) => rank(a) - rank(b) || (b.end - b.start) - (a.end - a.start) || a.start - b.start);
   return { lasting, point };
+}
+
+/**
+ * Порядок у рейці: обмеження → своє → фонове.
+ *
+ * Спершу було просто «довші вище», і це давало протилежне задуманому: сезонів
+ * одночасно буває чотири, вони найдовші, а ліміт три — тож «мама привезе
+ * цибулю» щоразу опинялась у «ЩЕ N», а зверху стояли самі сезони. Тобто
+ * власний план людини систематично витіснявся фоном.
+ *
+ * Обмеження перше, бо воно рамка: під ним будується решта. Далі події дому —
+ * їх поставила людина. Сезон останній: він привід, а не обовʼязок, і якщо
+ * комусь ховатись у «ЩЕ N», то саме йому.
+ */
+function rank(e: EventOccurrence): number {
+  if (e.force === 'restrict') return 0;
+  if (e.scope === 'household') return 1;
+  return 2;
 }
 
 export interface WeekSpan {
@@ -141,4 +158,57 @@ export function moreLabel(hidden: EventOccurrence[], withName = true): string | 
   const n = hidden.length;
   if (!withName) return `ЩЕ ${n}`;
   return `ЩЕ ${n} · ${hidden[0]!.title.toUpperCase()}`;
+}
+
+// ── Банк кольорів ───────────────────────────────────────────────────────────
+// Колір тут означає ІДЕНТИЧНІСТЬ, не значення: чотири сезони поспіль в одному
+// бурштині неможливо розрізнити. Модель та сама, що в календарях: є банк, і
+// відтінок призначається так, щоб події, які перетинаються в часі, ніколи не
+// збіглися кольором.
+//
+// Виключення одне й семантичне: обмеження тримає сливу. Піст не елемент
+// списку, а рамка, під якою будується решта, — і бриф на цьому наполягав.
+
+export const EVENT_COLORS = 6;
+
+/** Індекс тону 1..6, або 0 для обмеження (слива, поза банком). */
+export type ToneIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+function overlaps(a: EventOccurrence, b: EventOccurrence): boolean {
+  return dayStart(a.start) <= dayStart(b.end) && dayStart(a.end) >= dayStart(b.start);
+}
+
+/**
+ * Призначає кожній події тон так, щоб одночасні не збігалися.
+ *
+ * Жадібно й детерміновано: події в порядку початку, кожна бере найменший
+ * вільний індекс серед тих, які вже зайняли її сусіди по часу. Стабільність
+ * важлива — колір події не має стрибати від того, що поруч зʼявилась інша,
+ * тому порядок фіксований датою, а не приходом із мережі.
+ *
+ * Коли одночасних більше, ніж кольорів, банк іде по колу: збіг двох далеких
+ * одне від одного в списку дешевший за сірий колір для всіх.
+ */
+export function assignTones(events: EventOccurrence[]): Map<string, ToneIndex> {
+  const out = new Map<string, ToneIndex>();
+  const ordered = [...events].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  const placed: { e: EventOccurrence; tone: ToneIndex }[] = [];
+
+  for (const e of ordered) {
+    if (e.force === 'restrict') { out.set(e.id, 0); continue; }
+    // Один і той самий рядок може прийти кількома входженнями (щотижня) —
+    // колір у них спільний, інакше «пʼятниця риба» щотижня міняла б барву.
+    const already = out.get(e.id);
+    if (already !== undefined) { placed.push({ e, tone: already }); continue; }
+
+    const taken = new Set(placed.filter((p) => overlaps(p.e, e)).map((p) => p.tone));
+    let tone: ToneIndex = 1;
+    for (let i = 1; i <= EVENT_COLORS; i++) {
+      if (!taken.has(i as ToneIndex)) { tone = i as ToneIndex; break; }
+      tone = ((i % EVENT_COLORS) + 1) as ToneIndex;
+    }
+    out.set(e.id, tone);
+    placed.push({ e, tone });
+  }
+  return out;
 }

@@ -121,11 +121,19 @@
 .slot:hover { color: var(--fg-strong); }
 .approx { color: var(--fg-dim); }
 
-/* Рід — це колір тексту, і більше нічого. */
-.t-restrict { color: var(--plum); }
-.t-supply   { color: var(--accent); }
-.t-quiet    { color: var(--fg-muted); }
-.t-plain    { color: var(--fg-mono); }
+/* Тон із банку. Заливка виводиться з самого кольору, а не тримається окремим
+   токеном: інакше кожен новий відтінок вимагав би пари, і банк перестав би
+   мінятись в одному місці. */
+.t0, .t1, .t2, .t3, .t4, .t5, .t6 {
+  --tone-bg: color-mix(in srgb, currentColor 16%, transparent);
+}
+.t0 { color: var(--plum); }   /* обмеження — поза банком, це рамка */
+.t1 { color: var(--evt-1); }
+.t2 { color: var(--evt-2); }
+.t3 { color: var(--evt-3); }
+.t4 { color: var(--evt-4); }
+.t5 { color: var(--evt-5); }
+.t6 { color: var(--evt-6); }
 
 .quiet {
   padding: 10px 0 10px 58px;
@@ -196,7 +204,7 @@
     border-radius: var(--r-sm);
     border: 0;
     border-left: 3px solid currentColor;
-    background: var(--bg-surface-2);
+    background: var(--tone-bg, var(--bg-surface-2));
     display: flex;
     align-items: center;
     padding: 0 10px;
@@ -204,7 +212,9 @@
     font-family: var(--font-mono);
     font-size: 10px;
     letter-spacing: 0.06em;
-    color: currentColor;
+    /* Колір НЕ ставимо: його дає клас тону (.t-season тощо). Тут стояло
+       `color: currentColor`, і оскільки .span оголошений пізніше, воно
+       перебивало тон — усі смуги виходили однаковим сірим. */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

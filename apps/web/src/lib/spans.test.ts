@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   spanDays, isLasting, splitAxes, weekSpans, coversDay, edgeCaption,
-  bubblesToNow, moreLabel,
+  bubblesToNow, moreLabel, assignTones,
 } from './spans';
 import type { EventOccurrence } from '../api';
 
@@ -96,5 +96,57 @@ describe('ліміт три', () => {
     expect(moreLabel([ev(0, 0, { title: 'Галина іменини' })])).toBe('ЩЕ 1 · ГАЛИНА ІМЕНИНИ');
     expect(moreLabel([ev(0, 0, { title: 'а' }), ev(1, 1, { title: 'б' })], false)).toBe('ЩЕ 2');
     expect(moreLabel([])).toBeNull();
+  });
+});
+
+describe('порядок у рейці', () => {
+  it('обмеження вище свого, своє вище сезону', () => {
+    // Живий прогін показав протилежне: сезонів буває чотири, вони найдовші,
+    // ліміт три — і власний план людини щоразу тонув у «ЩЕ N».
+    const season = ev(0, 60, { title: 'сезон', scope: 'catalog', kind: 'season' });
+    const mine = ev(1, 5, { title: 'цибуля', scope: 'household', kind: 'supply' });
+    const lent = ev(0, 48, { title: 'піст', scope: 'catalog', force: 'restrict' });
+    const { lasting } = splitAxes([season, mine, lent]);
+    expect(lasting.map((e) => e.title)).toEqual(['піст', 'цибуля', 'сезон']);
+  });
+
+  it('усередині рангу довші лишаються вище', () => {
+    const a = ev(0, 10, { title: 'довга', scope: 'household' });
+    const b = ev(0, 3, { title: 'коротка', scope: 'household' });
+    const { lasting } = splitAxes([b, a]);
+    expect(lasting.map((e) => e.title)).toEqual(['довга', 'коротка']);
+  });
+});
+
+describe('банк кольорів', () => {
+  it('одночасні події не збігаються кольором', () => {
+    const tones = assignTones([ev(0, 5, { title: 'a' }), ev(2, 7, { title: 'b' }), ev(3, 4, { title: 'c' })]);
+    const vals = [...tones.values()];
+    expect(new Set(vals).size).toBe(3);
+  });
+
+  it('події, що не перетинаються, можуть узяти той самий тон', () => {
+    const tones = assignTones([ev(0, 1, { title: 'a' }), ev(5, 6, { title: 'b' })]);
+    expect(tones.get('a')).toBe(tones.get('b'));
+  });
+
+  it('обмеження поза банком — тон 0, слива', () => {
+    const tones = assignTones([ev(0, 40, { title: 'піст', force: 'restrict' }), ev(1, 2, { title: 'гості' })]);
+    expect(tones.get('піст')).toBe(0);
+    expect(tones.get('гості')).toBeGreaterThan(0);
+  });
+
+  it('порядок не залежить від того, як події прийшли з мережі', () => {
+    const a = ev(0, 5, { title: 'a' }), b = ev(2, 7, { title: 'b' });
+    expect([...assignTones([a, b])]).toEqual([...assignTones([b, a])]);
+  });
+
+  it('повторювана подія тримає один колір на всіх входженнях', () => {
+    // «Щопʼятниці риба» не має міняти барву щотижня.
+    const w1 = ev(0, 0, { title: 'риба' });
+    const w2 = { ...ev(7, 7, { title: 'риба' }), id: 'риба' };
+    const tones = assignTones([w1, w2]);
+    expect(tones.get('риба')).toBeDefined();
+    expect(tones.size).toBe(1);
   });
 });

@@ -12,7 +12,8 @@ import { useNavStore } from '../../store/nav';
 import { whenLabel } from '../../lib/when';
 import { buildDays, buildWeeks, splitRunning } from './days';
 import {
-  splitAxes, weekSpans, coversDay, edgeCaption, edgeDays, moreLabel, VISIBLE_LIMIT,
+  splitAxes, weekSpans, coversDay, edgeCaption, edgeDays, moreLabel, assignTones,
+  VISIBLE_LIMIT,
 } from '../../lib/spans';
 import { EventSheet } from './EventSheet';
 import { NewEventSheet } from './NewEventSheet';
@@ -39,11 +40,11 @@ const shortDate = (at: number) => new Date(at).toLocaleDateString('uk-UA', { day
 // Семантика та сама, що всюди: обмеження — слива («анти»), бо піст це рамка,
 // а не помилка; завіз — шавлія, бо це прихід; рамка на день — приглушена, бо
 // це не план; решта нейтральна.
-function toneOf(e: EventOccurrence): string {
-  if (e.force === 'restrict') return styles['t-restrict']!;
-  if (e.kind === 'supply') return styles['t-supply']!;
-  if (e.kind === 'constraint') return styles['t-quiet']!;
-  return styles['t-plain']!;
+// Колір = ідентичність. Тон приходить із банку (lib/spans.ts) і призначається
+// так, щоб одночасні події ніколи не збіглися; обмеження лишається сливою поза
+// банком, бо це рамка, а не елемент списку.
+function toneClass(tone: number | undefined): string {
+  return styles[`t${tone ?? 1}`] ?? styles.t1!;
 }
 
 export function CalendarPage() {
@@ -94,6 +95,10 @@ export function CalendarPage() {
   // лишаються самі точкові. Через це нижній блок «Триває» пішов: сезон стояв
   // би у двох місцях, а одна подія ніколи не буває в обох.
   const { lasting, point } = useMemo(() => splitAxes([...running, ...stream]), [running, stream]);
+  // Тон рахується один раз на весь видимий період: інакше та сама подія
+  // діставала б різні кольори в стрічці й у сітці.
+  const tones = useMemo(() => assignTones(events), [events]);
+  const toneOf = (e: EventOccurrence) => toneClass(tones.get(e.id));
 
   const keep = useMemo(() => edgeDays(lasting), [lasting]);
   const rows = useMemo(
