@@ -23,6 +23,8 @@ export interface Fixture {
   recentRecipes?: unknown[];
   // №4: що відкрито зараз — кошик, свіжий рецепт, неоцінене готування.
   modes?: unknown[];
+  // Плани дому в [ТВОЇ ПЛАНИ] — щоб фікстура могла перевірити правку по id.
+  events?: unknown[];
   recentCookRuns?: unknown[];
   now?: string;               // фіксована дата — інакше календарні фікстури живуть один день
   // recipe_gen: user-хід генерації — назва страви (+ опційний edit-контекст),
@@ -202,6 +204,10 @@ export function loadFixtures(): Fixture[] {
     readJson('notes-no-duplicate.json'),
     readJson('member-card.json'),
     readJson('calendar-easter-date.json'),
+    // Фаза 3: модель пише події. Головне не формат, а те, що дати вона не рахує.
+    readJson('event-relative.json'),
+    readJson('event-no-time.json'),
+    readJson('event-edit.json'),
     readJson('own-recipe-text.json'),
     readJson('generated-recipe-memory.json'),
     readJson('recipe-edit-move.json'),

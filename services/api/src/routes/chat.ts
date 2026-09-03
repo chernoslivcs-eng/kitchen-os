@@ -709,9 +709,21 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // факт; хай краще модель перепитає.
     if (call.card?.type === 'event') {
       const ops = (call.card.ops ?? []).map((op) => {
-        if (op.op !== 'add' && !op.when) return op;
+        // Id у блоці [ТВОЇ ПЛАНИ] короткий — вісім символів, щоб не платити
+        // повними uuid у кожному виклику. Отже розгортати його має сервер:
+        // без цього getHouseholdEvent('7f3a91c4') не знаходить нічого,
+        // операція тихо не застосовується, а Кухня каже «змінив». Eval
+        // показав саме це: модель повернула правильний короткий id.
+        let id = op.id;
+        if (id && id.length < 36) {
+          const hits = events.filter((e) => e.id.startsWith(id!));
+          // Два збіги — не вгадуємо: краще не зробити нічого, ніж змінити не те.
+          id = hits.length === 1 ? hits[0]!.id : undefined;
+        }
+        const withId = id ? { ...op, id } : { ...op, id: undefined };
+        if (op.op !== 'add' && !op.when) return withId;
         const rule = resolveWhen(op.when, new Date(), op.days);
-        return rule ? { ...op, rule } : null;
+        return rule ? { ...withId, rule } : null;
       }).filter((op): op is NonNullable<typeof op> => op !== null);
       call.card = ops.length ? { ...call.card, ops } : null;
     }

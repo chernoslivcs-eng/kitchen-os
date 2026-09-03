@@ -1,0 +1,39 @@
+{
+  "id": "event-edit",
+  "description": "У [ТВОЇ ПЛАНИ] вже лежить подія з id. Уточнення «гостей буде вісім» — це правка ТІЄЇ САМОЇ події по id, а не друга подія про те саме. Інакше в календарі опиняться дві, і жодна не буде правдою.",
+  "call": "chat",
+  "now": "2026-09-03T18:00:00",
+  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "pantry": [
+    {"id":"p1","label":"Картопля","zone":"dry","v":3,"u":"pcs","state":"sealed"}
+  ],
+  "events": [
+    {
+      "id": "7f3a91c4-0000-4000-8000-000000000001",
+      "household_id": "h1",
+      "kind": "custom",
+      "title": "гості",
+      "note": null,
+      "rule": { "t": "once", "at": "2026-09-12" },
+      "force": "hint",
+      "restricts": null,
+      "buy": [],
+      "recipe_id": null,
+      "servings": 4,
+      "supply": null,
+      "created_by": "u1",
+      "source": "user",
+      "expires_at": null,
+      "done_at": null,
+      "created_at": "2026-09-01T10:00:00.000Z"
+    }
+  ],
+  "conversation": [
+    { "role": "user", "content": "гостей у суботу буде вісім, не четверо" }
+  ],
+  "invariants": [
+    "event-edit-not-add",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

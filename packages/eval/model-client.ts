@@ -88,6 +88,9 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     // маршрут із повідомлень сесії; фікстура описує напряму, бо історія в
     // eval подається текстом, а не рядками message.
     modes: fx.modes as never,
+    // Плани дому: без них неможливо перевірити правку події по id — модель
+    // просто не побачить, що правити.
+    events: (fx.events ?? []) as never,
   });
   return { stable: base, dynamic };
 }

@@ -539,6 +539,50 @@ export const registry: Record<string, Invariant> = {
   // Кожен інваріант названий за багом. Прогін `pnpm eval` займає хвилини й
   // ловить те, на що йшло по два години ручного QA.
 
+  // ── Календар: модель пише події ────────────────────────────────────────
+  // Головне, що тут перевіряється, — не формат, а те, що модель НЕ РАХУЄ дат.
+  // Промпт шість прогонів обіцяв рахувати їх сам і вигадував: піст «2 березня»
+  // замість 15-го. Дозволивши їй писати події, ми тим більше не даємо рахувати.
+  'event-relative-when': (out) => {
+    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+    if (!c || c.type !== 'event') return fail(`card.type=${c?.type ?? 'null'} — очікував event`);
+    const add = (c.ops ?? []).find((o) => (o.op ?? 'add') === 'add');
+    if (!add) return fail(`ops: ${(c.ops ?? []).map((o) => o.op).join(',')} — add немає`);
+    const when = add.when as Record<string, unknown> | undefined;
+    if (!when) return fail('when немає — сервер не знатиме, коли це');
+    if (typeof when.date === 'string') {
+      return fail(`when.date=${when.date} — дату модель порахувала САМА, хоч людина її не називала`);
+    }
+    if (typeof when.rel === 'string') return pass(`when.rel=${when.rel}`);
+    if (when.weekly != null) return pass(`when.weekly=${when.weekly}`);
+    return fail(`форма when невідома: ${JSON.stringify(when)}`);
+  },
+
+  // Часу немає — події немає. Подія з вигаданою датою гірша за відсутню: вона
+  // виглядає як факт. Правильна поведінка — питання одним реченням.
+  'no-invented-event': (out) => {
+    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+    if (c?.type === 'event' && (c.ops ?? []).some((o) => (o.op ?? 'add') === 'add')) {
+      return fail(`подія створена без названого часу: ${JSON.stringify(c.ops)}`);
+    }
+    const reply = String(out.reply ?? '');
+    return /\?/.test(reply) ? pass('перепитала') : fail(`ні події, ні питання: «${reply.slice(0, 90)}»`);
+  },
+
+  // Правка наявного плану — edit по id з блоку, а не другий add. Інакше в
+  // календарі опиняться дві події про одне, і жодна не буде правдою.
+  'event-edit-not-add': (out) => {
+    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+    if (!c || c.type !== 'event') return fail(`card.type=${c?.type ?? 'null'} — очікував event`);
+    const ops = c.ops ?? [];
+    const add = ops.find((o) => (o.op ?? 'add') === 'add');
+    if (add) return fail(`замість правки створено нову подію: ${JSON.stringify(add)}`);
+    const edit = ops.find((o) => o.op === 'edit');
+    if (!edit) return fail(`ops: ${ops.map((o) => o.op).join(',')} — edit немає`);
+    if (!edit.id) return fail('edit без id — сервер не знатиме, що правити');
+    return pass(`edit id=${edit.id} ${JSON.stringify({ servings: edit.servings, title: edit.title })}`);
+  },
+
   'has-card': (out) => out.card
     ? pass(`card.type=${out.card.type ?? out.card.kind}`)
     : fail('картки немає — людині нема куди тапнути'),
