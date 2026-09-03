@@ -5,13 +5,14 @@
 // Рівень A (рішення 03.09): екран показує, але нічого не рахує. Жодного
 // «бракує», жодного «заплановано 2 з 7». Людина дивиться й вирішує сама.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type EventOccurrence } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { whenLabel } from '../../lib/when';
 import { buildDays, buildWeeks, splitRunning } from './days';
 import { EventSheet } from './EventSheet';
+import { NewEventSheet } from './NewEventSheet';
 import styles from './Calendar.module.css';
 
 const DAY = 86_400_000;
@@ -44,12 +45,29 @@ export function CalendarPage() {
   // панель зараз живе всередині Стрічки, не в каркасі, тож це окремий крок.
   const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
   const [version, setVersion] = useState(0);
+  const [creating, setCreating] = useState(false);
+  // Після «Додати» відкриваємо сторінку створеної події — але входження
+  // (start/end) бере СЕРВЕР, тому спершу перечитуємо список і знаходимо її
+  // там. Порахувати дати в вебі означало б завести другу копію правил, а одна
+  // копія (whenLabel) у нас уже є, і вона того не варта.
+  //
+  // Ref, а не стан: інакше ефект читав би значення із замикання, не маючи його
+  // в залежностях, і працював би лише завдяки тому, що обидва setState
+  // потрапляють в один батч. Покладатись на це — значить лишити пастку.
+  const openAfterCreate = useRef<string | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   useEffect(() => {
     const to = new Date(today.getTime() + HORIZON * DAY);
     api.events.list(iso(today), iso(to))
-      .then(({ events }) => setEvents(events))
+      .then(({ events }) => {
+        setEvents(events);
+        if (openAfterCreate.current) {
+          const made = events.find((e) => e.id === openAfterCreate.current);
+          if (made) setOpenEvent(made);
+          openAfterCreate.current = null;
+        }
+      })
       .catch(() => {/* порожній календар — теж відповідь */})
       .finally(() => setLoading(false));
   }, [today, version]);
@@ -70,7 +88,13 @@ export function CalendarPage() {
 
   return (
     <div className={styles.screen}>
-      <AppHeader title="Календар" onMenu={() => openNav(true)} />
+      <AppHeader
+        title="Календар"
+        onMenu={() => openNav(true)}
+        action={
+          <button className={styles['head-add']} onClick={() => setCreating(true)}>＋ подія</button>
+        }
+      />
       <div className={styles.body}>
         {loading && <div className={styles.quiet}>—</div>}
 
@@ -199,6 +223,17 @@ export function CalendarPage() {
           })}
         </div>
       </div>
+
+      {creating && (
+        <NewEventSheet
+          onClose={() => setCreating(false)}
+          onCreated={(id) => {
+            setCreating(false);
+            openAfterCreate.current = id;
+            setVersion((v) => v + 1);
+          }}
+        />
+      )}
 
       {openEvent && (
         <EventSheet

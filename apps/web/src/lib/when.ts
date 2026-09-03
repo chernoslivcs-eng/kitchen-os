@@ -13,6 +13,20 @@
 
 const DAY = 86_400_000;
 
+/**
+ * Різниця в КАЛЕНДАРНИХ днях, не в добах.
+ *
+ * Перша версія ділила мілісекунди й округляла — і подія завтра о 00:00 при
+ * поточних 12:24 давала 0.48 доби, тобто «сьогодні». Живий прогін показав це
+ * на «щопʼятниці риба»: найближча пʼятниця завтра, а сторінка казала
+ * «сьогодні». Дата — це день, а не проміжок.
+ */
+function daysBetween(from: number, to: number): number {
+  const a = new Date(from); a.setHours(0, 0, 0, 0);
+  const b = new Date(to); b.setHours(0, 0, 0, 0);
+  return Math.round((b.getTime() - a.getTime()) / DAY);
+}
+
 function short(at: number): string {
   return new Date(at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
 }
@@ -31,14 +45,14 @@ function plural(n: number, forms: [string, string, string]): string {
  */
 export function whenLabel(start: number, end: number, now = Date.now()): string {
   if (now >= start && now <= end) {
-    const left = Math.round((end - now) / DAY);
+    const left = daysBetween(now, end);
     if (left <= 0) return 'останній день';
     if (left === 1) return 'до завтра';
     if (left < 7) return `ще ${left} ${plural(left, ['день', 'дні', 'днів'])}`;
     const w = Math.round(left / 7);
     return `до ${short(end)} · ще ${w} ${plural(w, ['тиждень', 'тижні', 'тижнів'])}`;
   }
-  const d = Math.round((start - now) / DAY);
+  const d = daysBetween(now, start);
   if (d <= 0) return 'сьогодні';
   if (d === 1) return 'завтра';
   if (d < 7) return `за ${d} ${plural(d, ['день', 'дні', 'днів'])}`;

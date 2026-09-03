@@ -218,3 +218,19 @@
   }
   .cell-slot:hover { background: var(--bg-hover); }
 }
+
+/* Дія екрана — одна: додати подію. Порожня клітинка сітки її не пропонує
+   навмисно, тому вхід тут, у шапці. */
+.head-add {
+  background: transparent;
+  border: 0;
+  padding: 5px 4px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.head-add:hover { color: var(--accent-strong); }
