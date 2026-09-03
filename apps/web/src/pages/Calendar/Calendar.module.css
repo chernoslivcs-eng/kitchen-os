@@ -29,9 +29,50 @@
   color: var(--fg-dim);
 }
 
+.quiet-row { display: flex; gap: 8px; }
+
+/* Риска тривалої: 3px, колір роду, без підпису вздовж. Підпис живе лише на
+   початку і в кінці — див. .caption. Дві паралельні йдуть із кроком 6px;
+   третьої на телефоні не буває, вона згортається в «＋N тривалих» під назвою
+   місяця. */
+.rails {
+  flex: none;
+  width: 8px;
+  display: flex;
+  gap: 3px;
+  align-self: stretch;
+}
+.rail {
+  width: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  align-self: stretch;
+}
+
+.caption {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: currentColor;
+}
+
+.more {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+}
+
+.month-more { color: var(--fg-dim); }
+
 .day {
   display: flex;
-  gap: 14px;
+  gap: 8px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
 }
@@ -141,6 +182,53 @@
     text-transform: uppercase;
     color: var(--fg-dim);
   }
+
+  /* Рейка тривалих над сіткою: та сама сітка з семи колонок, тож смуга точно
+     стає під свої дні. */
+  .rail-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    padding-bottom: 6px;
+  }
+  .span {
+    height: 22px;
+    border-radius: var(--r-sm);
+    border: 0;
+    border-left: 3px solid currentColor;
+    background: var(--bg-surface-2);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: currentColor;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Відкритий край — подія триває поза цим тижнем. */
+  .span-openl { border-left: 0; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+  .span-openr { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+  .span-openl.span-openr { border-radius: 0; }
+  .rail-more {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--tracking-caps);
+    color: var(--fg-dim);
+    padding-bottom: 6px;
+  }
+  .cell-more {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--fg-dim);
+  }
+  /* Риски — тільки на мобільному: на десктопі тривалі стоять рейкою. */
+  .rails { display: none; }
+  .caption { display: none; }
 
   .week {
     display: grid;

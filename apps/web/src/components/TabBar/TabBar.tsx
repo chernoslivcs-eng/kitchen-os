@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo, type EventOccurrence } from '../../api';
 import { whenLabel, isLive } from '../../lib/when';
+import { bubblesToNow } from '../../lib/spans';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -43,9 +44,16 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 /**
  * Дві події для блоку: спершу те, що триває (і закінчується раніше), потім
  * найближче попереду. Більше двох — це вже календар, а не натяк.
+ *
+ * Тривала подія підіймається сюди лише краями — перший день і останні три.
+ * Піст на 48 днів не мовчить у «ЗАРАЗ» тільки двічі: на вході й на виході.
+ * Середина нічого не змінює, і нагадувати про неї щодня означало б знецінити
+ * блок так само, як його свого часу знецінили лічильники у звіті дня.
  */
 export function pickNow(events: EventOccurrence[], now = Date.now()): EventOccurrence[] {
-  const live = events.filter((e) => isLive(e.start, e.end, now)).sort((a, b) => a.end - b.end);
+  const live = events
+    .filter((e) => isLive(e.start, e.end, now) && bubblesToNow(e, now))
+    .sort((a, b) => a.end - b.end);
   const ahead = events.filter((e) => e.start > now).sort((a, b) => a.start - b.start);
   return [...live, ...ahead].slice(0, 2);
 }

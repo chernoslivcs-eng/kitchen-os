@@ -108,3 +108,14 @@ describe('сьогодні не згортається', () => {
     expect(rows[0]?.type).toBe('quiet');
   });
 });
+
+describe('краї тривалих не згортаються', () => {
+  it('порожній день із початком тривалої лишається рядком', () => {
+    // Інакше «▮ ЧЕРЕМША · СЕЗОН ПОЧАВСЯ» нема куди покласти, і початок сезону
+    // тоне в «тиша · 6 дн.».
+    const keep = new Set([d0 + 3 * DAY]);
+    const rows = buildDays([], d0, 7, d0 - 100 * DAY, keep);
+    expect(rows.map((r) => r.type)).toEqual(['quiet', 'day', 'quiet']);
+    expect((rows[1] as { at: number }).at).toBe(d0 + 3 * DAY);
+  });
+});
