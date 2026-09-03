@@ -69,6 +69,11 @@ export interface ApplyResult {
    *  подивитись у лог, бо людині сказали «Запишу», а стан не змінився.
    *  Заповнює поки лише гілка intake_diff. */
   missed?: string[];
+  /** Картка event: id події на кожну операцію, вирівняно з card.ops
+   *  (undefined — операція не приземлилась). Без цього картка в стрічці не
+   *  знає, ЩО саме вона створила, і не може стати артефактом із правкою на
+   *  місці: id народжується тут, у applyEventOp, і нікуди не повертався. */
+  event_ids?: (string | undefined)[];
 }
 
 export async function applyCard(
@@ -163,11 +168,19 @@ export async function applyCard(
     const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
     const snapshot: UndoSnapshot = { kind: 'event', before: { added_event_ids: [], events_before: [] } };
     let landed = 0;
+    const event_ids: (string | undefined)[] = new Array(card.ops.length).fill(undefined);
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
+      const addedBefore = snapshot.before.added_event_ids?.length ?? 0;
       const did = await applyEventOp(repo, op, pc.household_id, actor_user_id, snapshot);
-      if (did) landed++;
+      if (did) {
+        landed++;
+        // add → id щойно створеного рядка; edit/done/remove → той id, що прийшов.
+        event_ids[idx] = op.op === 'add'
+          ? snapshot.before.added_event_ids?.[addedBefore]
+          : op.id;
+      }
     }
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
@@ -177,7 +190,7 @@ export async function applyCard(
       undo_snapshot: snapshot,
     });
     await repo.markMessageApplied(pc.id, landed);
-    return { applied: landed, undo_token, already: false };
+    return { applied: landed, undo_token, already: false, event_ids };
   }
 
   if (card.type === 'profile') {

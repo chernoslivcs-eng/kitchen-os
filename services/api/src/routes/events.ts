@@ -32,6 +32,8 @@ export interface EventOccurrence {
   start: number;
   end: number;
   force: 'hint' | 'restrict';
+  /** Лише у власних подій: артефакт править дату на місці й мусить бачити правило. */
+  rule?: Rule;
   meaning?: string;
   note?: string | null;
   restricts?: string | null;
@@ -156,6 +158,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
             start: occ.start,
             end: occ.end,
             force: e.force,
+            rule: e.rule,
             note: e.note,
             restricts: e.restricts,
             buy: e.buy,
@@ -292,6 +295,33 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       }
       await repo.deleteHouseholdEvent(req.params.id);
       return reply.code(204).send();
+    },
+  );
+
+  // Одна власна подія — для артефакта в стрічці й панелі: картка знає лише
+  // id, а показати мусить те саме входження, що й календар. Найближче до
+  // сьогодні, якщо є; інакше останнє з минулого року (щоб «уже було» не
+  // зникало з панелі). Чуже — 404, як у PATCH/DELETE.
+  app.get<{ Params: { id: string } }>(
+    '/v1/events/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { household_id, user_id } = requireUser(req);
+      const e = await repo.getHouseholdEvent(req.params.id);
+      if (!e || !ownsEvent(e, household_id, user_id)) return reply.code(404).send({ error: 'not_found' });
+      const profile = await repo.getProfile(user_id);
+      const trads = traditionsFrom(profile?.wishes ?? []);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const occs = occurrencesInRange(e.rule, new Date(today.getTime() - 366 * DAY), new Date(today.getTime() + 366 * DAY), trads);
+      const occ = occs.find((o) => o.end >= today.getTime()) ?? occs[occs.length - 1];
+      if (!occ) return reply.code(404).send({ error: 'not_found' });
+      const out: EventOccurrence = {
+        id: e.id, scope: 'household', kind: e.kind, title: e.title,
+        start: occ.start, end: occ.end, force: e.force, rule: e.rule,
+        note: e.note, restricts: e.restricts, buy: e.buy, recipe_id: e.recipe_id,
+        servings: e.servings, supply: e.supply, done_at: e.done_at,
+      };
+      return { event: out };
     },
   );
 

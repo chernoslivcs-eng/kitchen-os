@@ -18,10 +18,11 @@ import { signIn, type Signed } from './helpers.js';
 describe('POST /v1/chat · картка event доходить до календаря', () => {
   let app: ReturnType<typeof buildApp>;
   let me: Signed;
+  let mailer: ConsoleMailer;
 
   beforeEach(async () => {
     const repo = new InMemoryRepo();
-    const mailer = new ConsoleMailer();
+    mailer = new ConsoleMailer();
     app = buildApp(repo, new InMemoryStore(), mailer, {});
     me = await signIn(app, mailer, 'podii@x.local');
   });
@@ -58,5 +59,35 @@ describe('POST /v1/chat · картка event доходить до календ
       .json() as { messages: { card?: { type: string } | null; applied?: number }[] };
     const msg = full.messages.find((m) => m.card?.type === 'event');
     expect(msg?.applied).toBe(1);
+  });
+
+  it('картка у відповіді й в історії несе id створеної події; GET /v1/events/:id віддає її', async () => {
+    const s = (await app.inject({ method: 'POST', url: '/v1/session', headers: { cookie: me.cookie }, payload: {} }))
+      .json() as { session: { id: string } };
+    const body = (await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { session_id: s.session.id, text: 'у суботу гості, шестеро' },
+    })).json() as { card?: { ops: { id?: string }[] } };
+    const id = body.card?.ops[0]?.id;
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+
+    // Історія несе ту саму картку з тим самим id — не лише відповідь.
+    const full = (await app.inject({ method: 'GET', url: `/v1/sessions/${s.session.id}`, headers: { cookie: me.cookie } }))
+      .json() as { messages: { card?: { type: string; ops?: { id?: string }[] } | null }[] };
+    const saved = full.messages.find((m) => m.card?.type === 'event');
+    expect(saved?.card?.ops?.[0]?.id).toBe(id);
+
+    const one = await app.inject({ method: 'GET', url: `/v1/events/${id}`, headers: { cookie: me.cookie } });
+    expect(one.statusCode).toBe(200);
+    const ev = (one.json() as { event: { id: string; title: string; servings?: number | null; rule?: { t: string } } }).event;
+    expect(ev.id).toBe(id);
+    expect(ev.title).toContain('гості');
+    expect(ev.servings).toBe(6);
+    expect(ev.rule?.t).toBe('once');
+
+    // Чужому — 404, не 403: та сама межа, що в PATCH/DELETE.
+    const other = await signIn(app, mailer, 'susid-podii@x.local');
+    const alien = await app.inject({ method: 'GET', url: `/v1/events/${id}`, headers: { cookie: other.cookie } });
+    expect(alien.statusCode).toBe(404);
   });
 });

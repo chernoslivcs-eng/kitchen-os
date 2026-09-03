@@ -768,6 +768,16 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;
+      // Картка події стає артефактом лише тоді, коли знає, ЩО створила: id
+      // народжується в applyEventOp і без цього кроку зникав. Дописуємо його
+      // в ops і в збережене повідомлення — і відповідь, і історія несуть
+      // одну й ту саму картку.
+      if (call.card.type === 'event' && r.event_ids) {
+        const ids = r.event_ids;
+        const ops = call.card.ops.map((op, i) => (ids[i] ? { ...op, id: ids[i] } : op));
+        call.card = { ...call.card, ops };
+        await repo.updateMessageCard(card_id, call.card);
+      }
       // Тут раніше стояв patchReceiptRows: після правки («то не хліб
       // салтівський, то батон») він переписував рядок у збереженій картці,
       // щоб артефакт не показував стару назву. Механізм пішов разом із

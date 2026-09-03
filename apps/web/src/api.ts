@@ -151,7 +151,7 @@ export interface CartRow {
 }
 
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event';
   ops?: unknown[];
   // Відсічене вето каталогу: нехарчове, що не поїхало в комору.
   nonfood?: { label: string; value?: number | null; unit?: string | null }[];
@@ -194,6 +194,9 @@ export interface EventOccurrence {
   start: number;
   end: number;
   force: 'hint' | 'restrict';
+  /** Лише у власних подій — щоб артефакт правив дату на місці. */
+  rule?: { t: 'once'; at: string; days?: number } | { t: 'weekly'; dow: number } | { t: string };
+  servings?: number | null;
   meaning?: string;
   note?: string | null;
   restricts?: string | null;
@@ -444,6 +447,8 @@ export const api = {
     patch: (id: string, body: Record<string, unknown>) =>
       req<{ event: unknown }>(`/v1/events/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     remove: (id: string) => req<null>(`/v1/events/${id}`, { method: 'DELETE' }),
+    // Одна власна подія — для артефакта в стрічці/панелі (картка знає лише id).
+    get: (id: string) => req<{ event: EventOccurrence }>(`/v1/events/${id}`),
     // «Не показувати такі» — особисте рішення про редакційну подію, не дому.
     // Обмеження сервер вимкнути не дасть (409): піст знімається в побажаннях.
     mute: (id: string) => req<{ ok: true }>(`/v1/events/mute/${id}`, { method: 'POST', body: '{}' }),
