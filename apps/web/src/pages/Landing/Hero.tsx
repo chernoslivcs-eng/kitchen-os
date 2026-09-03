@@ -139,8 +139,8 @@ export function Hero({ still }: { still: boolean }) {
           <div className={styles['hero-card']}><LoginCard id="signin" /></div>
 
           <div className={styles['hero-lead']}>
-            <p>Kitchen OS памʼятає, що в тебе вдома, що вже відкрите і що краще використати сьогодні. Питаєш «що на вечерю?» — отримуєш варіант, який не починається з походу в магазин.</p>
-            <span className={styles.mono}>ФОТО ПОЛИЦІ, ЧЕК АБО КІЛЬКА СЛІВ — ЦЬОГО ДОСТАТНЬО</span>
+            <p>Kitchen OS памʼятає, що є вдома, що вже відкрите і що давно дивиться на тебе з холодильника. Питаєш «що на вечерю?» — отримуєш відповідь, яка не починається з походу в магазин.</p>
+            <span className={styles.mono}>ФОТО, ЧЕК АБО «ТАМ ЩЕ ДЕСЬ БУЛА МОЦАРЕЛА» — ЦЬОГО ДОСТАТНЬО</span>
           </div>
 
           {/* Нитки між кроками — тільки ≥1280 (ховаються стилем). */}
@@ -198,7 +198,7 @@ export function Hero({ still }: { still: boolean }) {
                 <span className={styles['chip-amber']}>◷ помідори · сезон · 3 дні</span>
                 <span>фует</span><span>спагеті</span><span>пармезан</span>
               </div>
-              <div className={styles['prop-note']}>Помідори лежать три дні — краще сьогодні</div>
+              <div className={styles['prop-note']}>Помідори вже третій день чекають свого моменту. Схоже, він настав.</div>
             </div>
           </div>
 

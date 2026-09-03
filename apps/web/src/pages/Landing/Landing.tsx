@@ -75,7 +75,7 @@ export function Landing() {
             <div className={styles.turn}><span className={styles['turn-light']}>Інші додатки починаються з рецепта і ведуть у магазин.</span><span className={styles['turn-bold']}>Kitchen OS починається з твоєї кухні й веде до столу.</span></div>
             <div className={`${styles.grid3} ${styles.left}`}>
               <div className={`${styles.tile} ${styles['tile-paper']}`}>
-                <div className={styles['tile-text']}><Kick>01 · ПАМʼЯТАЄ</Kick><div className={styles.h3}>Знає, що вже є</div><p>Що куплено, що відкрите, скільки приблизно залишилось і що варто використати першим.</p></div>
+                <div className={styles['tile-text']}><Kick>01 · ПАМʼЯТАЄ</Kick><div className={styles.h3}>Знає, що вже є</div><p>Що є, що вже відкрили, чого лишилось «десь пів пачки» і що краще не відкладати ще на тиждень.</p></div>
                 <div className={styles.pers}><div className={styles.fragl}>
                   <div className={styles['fl-head']}><span className={styles.mono}>ХОЛОДИЛЬНИК</span><span className={styles.mono}>26</span></div>
                   <div className={styles['fl-row']}><span className={`${styles.mono} ${styles.amberInk}`}>d</span><div><span>Помідори</span><span className={styles.mono}>400 г · лежать 3 дні</span></div><span className={`${styles.mono} ${styles.amberInk}`}>3 ДНІ</span></div>
@@ -85,14 +85,14 @@ export function Landing() {
                 </div></div>
               </div>
               <div className={`${styles.tile} ${styles['tile-paper']}`}>
-                <div className={styles['tile-text']}><Kick>02 · ПРОПОНУЄ</Kick><div className={styles.h3}>Відповідає на «що приготувати зараз?»</div><p>Не сорок рецептів пасти, а конкретна пропозиція під продукти вдома, твій час і побажання.</p></div>
+                <div className={styles['tile-text']}><Kick>02 · ПРОПОНУЄ</Kick><div className={styles.h3}>Відповідає на «що приготувати зараз?»</div><p>Не сорок рецептів пасти. Кілька нормальних варіантів під те, що вже є вдома і скільки в тебе сьогодні сил.</p></div>
                 <div className={`${styles.pers} ${styles['pers-col']}`}>
                   <div className={styles['ask-bubble']}>що на вечерю?</div>
                   <div className={`${styles.fragl} ${styles['fragl-pad']} ${styles.swR}`}>
                     <div className={styles['fl-head']}><span className={styles.mono}>ПРОПОЗИЦІЯ</span><span className={styles.mono}>20 ХВ</span></div>
                     <span className={styles['fl-title']}>Паста з помідорами й фуетом</span>
                     <span className={styles['fl-sub']}>8 з 8 інгредієнтів удома · ≈ 540 ккал</span>
-                    <span className={styles['fl-amber']}>Помідори лежать три дні — краще сьогодні</span>
+                    <span className={styles['fl-amber']}>Помідори знову натякають, що сьогодні їхній день.</span>
                     <div className={styles['fl-actions']}><span className={styles['btn-dark']}>Взяти в роботу</span><span className={styles['btn-line']}>Уточнити</span></div>
                   </div>
                 </div>
@@ -120,11 +120,11 @@ export function Landing() {
             <div className={`${styles.grid4} ${styles.snap}`}>
               <div className={styles.feat}>
                 <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-zones']}`}><span className={styles['zone-on']}>d</span><span>f</span><span>z</span><span>s</span><span>p</span><span>n</span></div></div>
-                <Kick>КОМОРА</Kick><div className={styles.h4}>Памʼятає, що в тебе є</div><p>Холодильник, морозилка, комора й усе інше — разом із кількістю та станом продуктів.</p>
+                <Kick>КОМОРА</Kick><div className={styles.h4}>Памʼятає, що в тебе є</div><p>Холодильник, морозилка, суха шафа — включно з тим, що ти точно памʼятав купити, але вже не памʼятаєш куди поклав.</p>
               </div>
               <div className={styles.feat}>
                 <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-checks']} ${styles.swR}`}><div><i />Фарш яловичий 500 г</div><div><i />Моцарела 125 г</div></div></div>
-                <Kick>НАПОВНЕННЯ</Kick><div className={styles.h4}>Додає без ручного обліку</div><p>Фото полиці, чек, PDF або фраза «купив фарш і моцарелу».</p>
+                <Kick>НАПОВНЕННЯ</Kick><div className={styles.h4}>Додає без ручного обліку</div><p>Фото полиці, чек, PDF або «купив фарш, моцарелу і ще щось, зараз згадаю».</p>
               </div>
               <div className={styles.feat}>
                 <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-timer']} ${styles.swB}`}><span className={styles.mono}>07:42</span><span className={styles.bar}><span /></span></div></div>
@@ -132,7 +132,7 @@ export function Landing() {
               </div>
               <div className={styles.feat}>
                 <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-nutr']}`}><span>Шакшука на двох</span><span className={styles.mono}>≈ 420 ккал · Б 24 · Ж 14 · В 48</span></div></div>
-                <Kick>ПОЖИВНІСТЬ</Kick><div className={styles.h4}>Рахує під твоє завдання</div><p>«Швидкий сніданок на двох приблизно на 400 ккал» — можна сказати саме так.</p>
+                <Kick>ПОЖИВНІСТЬ</Kick><div className={styles.h4}>Рахує під твоє завдання</div><p>«Швидкий сніданок на двох, десь на 400 ккал і без героїзму» — можна сказати саме так.</p>
               </div>
               <div className={styles.feat}>
                 <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-list-sm']} ${styles.swR}`}><div><span>Фета 200 г</span><span className={styles.mono}>89 ₴</span></div><div><s>Оливкова олія</s><span className={`${styles.mono} ${styles.sageInk}`}>ВЖЕ Є</span></div></div></div>
@@ -140,15 +140,15 @@ export function Landing() {
               </div>
               <div className={styles.feat}>
                 <div className={styles['memory-row']}><span className={styles['fl-quote']}>«Фует не пересушувати»</span><span className={styles.stars}>★★★★☆</span></div>
-                <Kick>ПАМʼЯТЬ</Kick><div className={styles.h4}>Памʼятає, що тобі сподобалось</div><p>Страви, оцінки й твої примітки залишаються для наступного разу.</p>
+                <Kick>ПАМʼЯТЬ</Kick><div className={styles.h4}>Памʼятає, що тобі сподобалось</div><p>Страви й твої примітки лишаються на наступний раз. Навіть «перець — це було зайве».</p>
               </div>
               <div className={styles.feat}>
                 <div className={styles['variety-row']}><s>Паста з помідорами</s><span className={styles.mono}>ГОТУВАВ У ВТ</span></div>
-                <Kick>РІЗНОМАНІТТЯ</Kick><div className={styles.h4}>Не пропонує одне й те саме</div><p>Те, що готував недавно, відходить на другий план.</p>
+                <Kick>РІЗНОМАНІТТЯ</Kick><div className={styles.h4}>Не пропонує одне й те саме</div><p>Якщо ти їв це вчора, Kitchen OS теж памʼятає. І, на відміну від тебе, не запропонує те саме втретє.</p>
               </div>
               <div className={styles.feat}>
                 <div className={styles['fast-tag']}><span className={styles.mono}>◷ ПІСТ · ДЕНЬ 12 З 40</span></div>
-                <Kick>КАЛЕНДАР</Kick><div className={styles.h4}>Враховує календар</div><p>Плани, свята, пости й інші правила можуть змінювати наступну пропозицію.</p>
+                <Kick>КАЛЕНДАР</Kick><div className={styles.h4}>Враховує календар</div><p>Піст, гості, свято або мама на вихідні — усе це трохи змінює відповідь на «що готуємо?».</p>
               </div>
             </div>
           </section>
@@ -169,7 +169,7 @@ export function Landing() {
               <div className={`${styles['t-cell']} ${styles['t-old']}`}>Одна помилка поступово псує всю базу</div>
               <div className={`${styles['t-cell']} ${styles['t-right']} ${styles['t-split']}`}><span>Якщо система не впевнена — вона показує це, а не вигадує точність</span><span className={styles.conf}><span>томат</span><span className={styles.mono}>60%</span></span></div>
               <div className={`${styles['t-cell']} ${styles['t-old']} ${styles['t-last']}`}>Треба знати все до грама</div>
-              <div className={`${styles['t-cell']} ${styles['t-right']} ${styles['t-last']}`}>Достатньо знати стільки, скільки потрібно для нормального рішення</div>
+              <div className={`${styles['t-cell']} ${styles['t-right']} ${styles['t-last']}`}>Не треба знати, що там 137 грамів. «Десь пів пачки» часто цілком достатньо.</div>
             </div>
           </section>
 
@@ -198,11 +198,11 @@ export function Landing() {
             <div className={styles['sec-head']}><Kick>ДОВІРА</Kick><h2 className={styles.h2}>Три правила.</h2></div>
             <div className={styles.grid3}>
               <div className={`${styles.tile} ${styles['tile-paper']} ${styles.rule}`}>
-                <Kick tone="dim">01</Kick><div className={styles.h3}>Не вгадує мовчки</div><p>Якщо Kitchen OS у чомусь не впевнений — ти це бачиш.</p>
+                <Kick tone="dim">01</Kick><div className={styles.h3}>Не вгадує мовчки</div><p>Якщо Kitchen OS не впевнений — так і скаже. Упевнено вигадувати ми й самі вміємо.</p>
                 <div className={styles['rule-foot']}><span className={styles.conf}><span>томат</span><span className={styles.mono}>ДОМИСЛЕНО 60%</span></span></div>
               </div>
               <div className={`${styles.tile} ${styles['tile-paper']} ${styles.rule}`}>
-                <Kick tone="dim">02</Kick><div className={styles.h3}>Не списує за припущенням</div><p>Ти підтверджуєш, що приготував страву. Після цього кухня оновлюється.</p>
+                <Kick tone="dim">02</Kick><div className={styles.h3}>Не списує за припущенням</div><p>Ти кажеш, що вечеря відбулась. Далі кухня сама перераховує, що пережило цей вечір.</p>
                 <div className={`${styles['rule-foot']} ${styles['fl-actions']}`}><span className={styles['btn-dark']}>Приготував</span><span className={styles['btn-line']}>Ще ні</span></div>
               </div>
               <div className={`${styles.tile} ${styles['tile-paper']} ${styles.rule}`}>
@@ -216,7 +216,7 @@ export function Landing() {
           <section id="home" className={`${styles.sec} ${styles.split}`}>
             <div className={styles['sec-head']}>
               <Kick>ДІМ</Kick><h2 className={styles.h2}>Одна кухня. Кілька людей.</h2>
-              <p className={styles.lead}>Kitchen OS знає, для кого зараз готує.</p>
+              <p className={styles.lead}>Kitchen OS знає, хто сьогодні за столом. І кому знову не класти кінзу.</p>
               <Ill name="ill-assistant-person" h={260} />
             </div>
             <div className={styles.grid2}>
@@ -243,7 +243,7 @@ export function Landing() {
           <section id="price" className={`${styles.sec} ${styles['sec-alt']}`}>
             <div className={styles['sec-head2']}>
               <div className={styles['sec-head']}><Kick>ЦІНА</Kick><h2 className={styles.h2}>Платиш за продукт, а не за рекламу всередині.</h2></div>
-              <p className={styles.lead}>Рекомендація залежить від того, що є у твоїй кухні — не від того, який бренд заплатив за місце в ній.</p>
+              <p className={styles.lead}>У рекомендацію потрапляє те, що має сенс для твоєї кухні. Не те, кому дуже хотілось продати тобі ще один соус.</p>
             </div>
             <div className={`${styles.plans} ${styles.snap}`}>
               <div className={`${styles.plan} ${styles['plan-solo']}`}>
@@ -278,7 +278,7 @@ export function Landing() {
         {/* ФІНАЛ — поза білою підложкою, на шавлії сторінки */}
         <section className={styles.final}>
           <h2 className={styles['final-h2']}>Що на вечерю — з того, що вже є.</h2>
-          <p>Додай кілька продуктів фото, чеком або просто словами. Kitchen OS почне не з анкети й не з каталогу рецептів. Почне з твоєї кухні.</p>
+          <p>Покажи кілька продуктів фото, чеком або словами. Не треба згадувати весь холодильник одразу. Kitchen OS почне з того, що вже є.</p>
           <FinalForm />
           <footer className={styles.footer}>
             <div className={styles['footer-brand']}>
