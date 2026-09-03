@@ -163,7 +163,7 @@ export function RecipePage() {
             variant="secondary"
             onClick={() => cookOpen({ recipe: recipe!, recipeId: id })}
           >
-            Cook Mode
+            Готувати →
           </Button>
         </div>
       </div>

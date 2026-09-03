@@ -177,7 +177,7 @@ export function TabBar({ shoppingCount }: Props) {
   // Пул-4 №1: видалення сесії. Активна видалена → свіжа сесія.
   async function removeSession(e: React.MouseEvent, id: string, title: string | null) {
     e.stopPropagation();
-    if (!confirm(`Видалити сесію${title ? ` «${title}»` : ''}? Розмова зникне; журнал готувань лишиться.`)) return;
+    if (!confirm(`Видалити розмову${title ? ` «${title}»` : ''}? Сам чат зникне, але приготовані страви лишаться в журналі.`)) return;
     try {
       await api.session.remove(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -285,7 +285,7 @@ export function TabBar({ shoppingCount }: Props) {
             </span>
           </button>
         )}
-        <button className={styles['session-new']} onClick={newSession}>+ Нова сесія</button>
+        <button className={styles['session-new']} onClick={newSession}>+ Нова розмова</button>
         {sessions.map((s) => {
           const { when, title } = sessionLabel(s);
           return (
@@ -300,7 +300,7 @@ export function TabBar({ shoppingCount }: Props) {
               </button>
               <button
                 className={styles['session-x']}
-                aria-label={`Видалити сесію «${title}»`}
+                aria-label={`Видалити розмову «${title}»`}
                 onClick={(e) => void removeSession(e, s.id, s.title)}
               >✕</button>
             </div>
