@@ -6,7 +6,7 @@
 // є потрібна картка. Тут вона перевіряється тестом на будь-яких даних.
 import type { ChatCard } from '../../api';
 
-export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list';
+export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event';
 
 export interface ArtifactTurn {
   id: string;
@@ -110,6 +110,11 @@ export function pickArtifacts<T extends ArtifactTurn>(
       out.push({ key: t.cardId, kind: 'cart', label: 'Кошик', meta: String(t.card?.rows?.length ?? ''), turn: t });
     } else if (type === 'recipe_link') {
       out.push({ key: t.cardId ?? t.id, kind: 'recipe', label: t.card?.title ?? 'Рецепт', meta: '', turn: t });
+    } else if (type === 'event' && t.cardId) {
+      // Подія — документ розмови, як рецепт: «намір на тиждень» лишається
+      // поруч зі списком і правиться на місці (рішення 03.09).
+      const first = (t.card?.ops as { title?: string }[] | undefined)?.find((o) => o.title);
+      out.push({ key: t.cardId, kind: 'event', label: first?.title ?? 'Подія', meta: '', turn: t });
     } else if (isIntakeArtifact(t) && t.cardId && intakeAdds(t)) {
       out.push({
         key: t.cardId,
@@ -129,4 +134,5 @@ export const ARTIFACT_GLYPH: Record<ArtifactKey, string> = {
   recipe: '✳',
   receipt: '▤',
   list: '☰',
+  event: '◷',
 };

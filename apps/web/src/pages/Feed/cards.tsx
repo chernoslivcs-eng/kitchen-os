@@ -2,10 +2,12 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
-import { createContext, useContext, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
+import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { api, type ChatCard, type Recipe, type ReceiptLeftover } from '../../api';
+import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurrence } from '../../api';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
@@ -38,11 +40,7 @@ import type { ShoppingItem as ListItem } from '../../api';
 export interface LivePosition { label: string; value: number | null; unit: string | null }
 export const LivePositions = createContext<Map<string, LivePosition> | null>(null);
 
-export const PanelFootSlot = createContext<HTMLElement | null>(null);
-// V7: у смузі максимум ДВІ кнопки. Третя — та, що про навігацію, а не про
-// роботу з артефактом («У рецепти», «Поділитись») — переїжджає в шапку
-// іконкою. Той самий механізм слота, що й для низу.
-export const PanelHeadSlot = createContext<HTMLElement | null>(null);
+export { PanelFootSlot, PanelHeadSlot } from './panel-slots';
 
 // ----- Спільні типи op/item, які модель кладе в картку -------------------
 
@@ -1391,8 +1389,30 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
   );
 }
 
+// Подія як артефакт (рішення 03.09: «подія і її редагування — одна
+// сутність»). У стрічці картка нічого не малює — там слід під реплікою; у
+// панелі — повний хребет із правкою на місці. Картка знає лише id події
+// (сервер дописує його в ops після applyCard), решту бере з /v1/events/:id.
+export function EventCard({ card }: CardProps) {
+  const inPanel = useContext(PanelFootSlot) !== null;
+  const id = (card.ops as { id?: string }[] | undefined)?.find((o) => o.id)?.id;
+  const [ev, setEv] = useState<EventOccurrence | null | 'gone'>(null);
+  const load = useCallback(() => {
+    if (!id) return;
+    api.events.get(id).then(({ event }) => setEv(event)).catch(() => setEv('gone'));
+  }, [id]);
+  useEffect(() => { if (inPanel) load(); }, [inPanel, load]);
+  if (!inPanel) return null;
+  if (!id || ev === 'gone') {
+    return <div className={styles['card-empty']}>Подію прибрано.</div>;
+  }
+  if (!ev) return null;
+  return <EventArtifact key={ev.id} event={ev} compact onChanged={load} />;
+}
+
 export function Card(props: CardProps) {
   switch (props.card.type) {
+    case 'event':       return <EventCard {...props} />;
     case 'intake_diff': return <IntakeCard {...props} />;
     case 'cart':        return <RetailCartCard {...props} />;
     case 'proposal':    return <ProposalCard {...props} />;
@@ -1417,6 +1437,10 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
   if (card.type === 'recipe') {
     const t = (card.recipe as Recipe | undefined)?.t;
     return t ? `«${t}» — у рецептах` : 'Рецепт збережено';
+  }
+  if (card.type === 'event') {
+    const n = appliedCount ?? (card.ops?.length ?? 0);
+    return `${n} ${plural(n, ['подія в календарі', 'події в календарі', 'подій у календарі'])}`;
   }
   const count = appliedCount ?? (card.type === 'shopping' || card.type === 'proposal'
     ? (card.items?.length ?? 0)

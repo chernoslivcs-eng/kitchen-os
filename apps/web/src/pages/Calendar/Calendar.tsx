@@ -16,8 +16,8 @@ import {
   splitAxes, weekSpans, coversDay, edgeCaption, edgeDays, moreLabel,
   VISIBLE_LIMIT, MOBILE_RAILS, railable, rank, assignLanes,
 } from '../../lib/spans';
-import { EventSheet } from './EventSheet';
-import { NewEventSheet } from './NewEventSheet';
+import { Sheet } from '../../components/Sheet/Sheet';
+import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
 import styles from './Calendar.module.css';
 
 const DAY = 86_400_000;
@@ -111,7 +111,6 @@ export function CalendarPage() {
     return () => io.disconnect();
   });
   // Правка — та сама форма, що створення, лише з готовими полями.
-  const [editing, setEditing] = useState<EventOccurrence | null>(null);
   // Після «Додати» відкриваємо сторінку створеної події — але входження
   // (start/end) бере СЕРВЕР, тому спершу перечитуємо список і знаходимо її
   // там. Порахувати дати в вебі означало б завести другу копію правил, а одна
@@ -451,26 +450,29 @@ export function CalendarPage() {
         >Сьогодні ↑</button>
       )}
 
-      {(creating || editing) && (
-        <NewEventSheet
-          edit={editing ? { id: editing.id, title: editing.title, note: editing.note ?? null } : undefined}
-          onClose={() => { setCreating(false); setEditing(null); }}
-          onCreated={(id) => {
-            setCreating(false);
-            setEditing(null);
-            openAfterCreate.current = id;
-            setVersion((v) => v + 1);
-          }}
-        />
+      {/* Одна сутність, один компонент: перегляд, правка на місці й створення
+          — той самий EventArtifact, що живе в панелі стрічки. Шторка тут лише
+          контейнер (<1280); на ≥1280 їй місце в правій панелі каркаса — коли
+          панель підніметься з Feed у Shell. */}
+      {creating && (
+        <Sheet onClose={() => setCreating(false)} ariaLabel="Нова подія">
+          <EventArtifact
+            mode="new"
+            onClose={() => setCreating(false)}
+            onChanged={(id) => { if (id) openAfterCreate.current = id; setVersion((v) => v + 1); }}
+          />
+        </Sheet>
       )}
 
       {openEvent && (
-        <EventSheet
-          event={openEvent}
-          onClose={() => setOpenEvent(null)}
-          onChanged={() => setVersion((v) => v + 1)}
-          onEdit={(ev) => { setOpenEvent(null); setEditing(ev); }}
-        />
+        <Sheet onClose={() => setOpenEvent(null)} ariaLabel={openEvent.title}>
+          <EventArtifact
+            key={openEvent.id}
+            event={openEvent}
+            onClose={() => setOpenEvent(null)}
+            onChanged={() => setVersion((v) => v + 1)}
+          />
+        </Sheet>
       )}
     </div>
   );

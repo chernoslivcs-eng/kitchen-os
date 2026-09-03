@@ -1336,6 +1336,33 @@ export function Feed() {
                 <span className={styles['trace-go']}>→</span>
               </button>
             )}
+            {t.card?.type === 'event' && t.applied && (
+              /* Слід події — як у списку: дельта в сліді, стан у панелі.
+                 Канвас: «Кухня повертає слід ＋ ПОДІЯ · ГОСТІ В СБ · СКАСУВАТИ,
+                 як із будь-яким артефактом. Форма — для тих, хто хоче натиснути». */
+              <div className={styles['trace-wrap']}>
+                <button
+                  type="button"
+                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                  onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+                  disabled={t.undone}
+                >
+                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={styles['trace-body']}>
+                    <span className={styles['trace-kind']}>
+                      ＋ ПОДІЯ{t.undone ? ' · СКАСОВАНО' : ''}
+                    </span>
+                    <span className={styles['trace-value']}>
+                      {((t.card.ops as { title?: string }[] | undefined) ?? []).map((o) => o.title).filter(Boolean).join(', ') || 'подія'}
+                    </span>
+                  </span>
+                  {!t.undone && <span className={styles['trace-go']}>→</span>}
+                </button>
+                {!t.undone && t.undoToken && (
+                  <button type="button" className={styles['trace-undo']} onClick={() => undo(t.id, t.undoToken!)}>СКАСУВАТИ</button>
+                )}
+              </div>
+            )}
             {t.card?.type === 'shopping' && t.applied && (
               /* Крок 4.5 + відкладений 3.2. Слід каже ДЕЛЬТУ, панель — стан:
                  «+5 · разом 9» відповідає на «що модель узяла в роботу» без
@@ -1406,7 +1433,8 @@ export function Feed() {
                 {!t.undone && <span className={styles['trace-go']}>→</span>}
               </button>
             )}
-            {t.card && (
+            {/* Подія в стрічці — це слід (нижче), не картка: інакше під слідом стояла б порожня рамка (EventCard поза панеллю рендерить null). */}
+            {t.card && t.card.type !== 'event' && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
               <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
