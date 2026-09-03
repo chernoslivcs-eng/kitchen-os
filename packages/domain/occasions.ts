@@ -1,21 +1,35 @@
-// Календар: сезони й свята.
+// Календар: сезони й свята. Двигун.
 //
 // Це найдовший борг із прототипу. Промпт шість QA-прогонів обіцяв «Дати свят я
 // порахую сам, розпізнавши традицію з фрази» — і нічого їх не рахувало. Модель
 // відповідала на «коли Великдень» з голови, тобто вгадувала. QA тестувало
 // функцію, якої не існувало.
 //
-// Два принципи, обидва з прототипу:
+// Б2 плану календаря: механіка й дані розділені. Тут лишився двигун; правила
+// дат — у occasion-rules.ts, самі свята — в occasion-data.ts. Кожна функція,
+// що читала список зі своєї константи, тепер бере його аргументом із
+// замовчуванням. Підпис не змінився для жодного наявного виклику, але список
+// уже можна подати з БД — саме це відмикає і події дому, і адмінку.
 //
-// 1. Традиція не окреме поле профілю, а висновок із побажань. Людина пише
-//    «постуємо» або «дотримуємось халяль» — система впізнає й бере дати з
-//    таблиці. Окреме питання «яка у вас конфесія?» продукт ставити не буде.
+// Два принципи лишаються з прототипу:
 //
+// 1. Традиція не окреме поле профілю, а висновок із побажань.
 // 2. Свято — привід, а не обовʼязок. Блок іде в системний промпт як контекст,
 //    із явною вказівкою згадувати лише коли доречно. Інакше асистент починає
 //    кожну розмову з календаря, і це швидко бісить.
 
-export type Tradition = 'orthodox' | 'catholic' | 'islamic' | 'jewish';
+import {
+  DAY, easterDate, ruleActive, ruleWindow, anchorAt, nextAnchorAfter,
+  type Rule, type Tradition,
+} from './occasion-rules.js';
+import {
+  BUILTIN_OCCASIONS, TRADITION_PATTERNS, SKOROMNE_ROOTS, LEAN_EXCEPTIONS,
+  isWindowRow, type OccasionRow, type WindowOccasion,
+} from './occasion-data.js';
+
+export { easterDate };
+export type { Rule, Tradition };
+export type { OccasionRow };
 
 export interface Occasion {
   id: string;
@@ -24,11 +38,6 @@ export interface Occasion {
   meaning: string;
   buy?: string[];
   seeds?: string[];
-  // Більшість подій — привід: сезон грибів нічого не забороняє. Але піст, поки
-  // він триває, це обмеження тієї ж сили, що «не їм свинину»: людина сама
-  // сказала, що його дотримується. Спільне формулювання «привід, а не
-  // обовʼязок» знецінювало пост — модель у Великий піст пропонувала вершковий
-  // суп-пюре, маючи блок посту прямо перед очима.
   restricts?: string;
 }
 
@@ -39,197 +48,69 @@ export interface UpcomingEvent {
   approx?: boolean;
 }
 
-const DAY = 86400000;
-
-// ── Пасхалія ────────────────────────────────────────────────────────────────
-// Католицька — Meeus/Jones/Butcher. Православна — олександрійська пасхалія,
-// порахована в юліанському й переведена в григоріанський (+13 діб; ця поправка
-// вірна до 2100 року, далі стане +14).
-export function easterDate(year: number, tradition: 'orthodox' | 'catholic'): Date {
-  if (tradition === 'catholic') {
-    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
-    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4), k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const month = Math.floor((h + l - 7 * m + 114) / 31);
-    const day = ((h + l - 7 * m + 114) % 31) + 1;
-    return new Date(year, month - 1, day);
-  }
-  const a = year % 4, b = year % 7, c = year % 19;
-  const d = (19 * c + 15) % 30;
-  const e = (2 * a + 4 * b - d + 34) % 7;
-  const month = Math.floor((d + e + 114) / 31);
-  const day = ((d + e + 114) % 31) + 1;
-  const julian = new Date(year, month - 1, day);
-  julian.setDate(julian.getDate() + 13);
-  return julian;
-}
-
-// ── Місячні свята ───────────────────────────────────────────────────────────
-// Ісламський рік ≈ 354.367 доби, тож дати дрейфують. Фактичний початок залежить
-// від спостереження молодика — подаємо як орієнтир і завжди позначаємо approx,
-// щоб модель не сказала точну дату там, де її ніхто не знає.
-const ISLAMIC_ANCHORS = [
-  { id: 'ramadan', title: 'початок Рамадану', base: Date.UTC(2026, 1, 18) },
-  { id: 'eid-fitr', title: 'Ід аль-Фітр', base: Date.UTC(2026, 2, 20) },
-  { id: 'eid-adha', title: 'Курбан-байрам', base: Date.UTC(2026, 4, 27) },
-];
-const LUNAR_YEAR = 354.367 * DAY;
-
-const JEWISH_ANCHORS = [
-  { id: 'pesach', title: 'Песах', base: Date.UTC(2026, 3, 2) },
-  { id: 'rosh', title: 'Рош га-Шана', base: Date.UTC(2026, 8, 12) },
-];
-
-// ── Сезонні вікна й нерухомі свята ──────────────────────────────────────────
-// `meaning` пишеться так, щоб модель могла процитувати його майже дослівно:
-// це не довідка, а причина щось приготувати саме зараз.
-const OCCASIONS: (Occasion & { from: string; to: string; tradition?: Tradition })[] = [
-  {
-    id: 'veg-peak', type: 'season', title: 'пік овочевого сезону',
-    from: '07-15', to: '09-20',
-    meaning: 'Томати, перець, баклажани, кабачки зараз найдешевші й найсмачніші за рік.',
-    buy: ['баклажани', 'солодкий перець', 'томати на гілці', 'кабачки', 'свіжий базилік'],
-    seeds: ['печені овочі з часником', 'капоната', 'аджапсандалі', 'томатний салат із базиліком'],
-  },
-  {
-    id: 'melon', type: 'season', title: 'кавуни й дині',
-    from: '08-01', to: '09-15',
-    meaning: 'Короткий сезон. Диня добре йде з прошуто, кавун — із фетою й мʼятою.',
-    buy: ['кавун', 'диня', 'фета', 'мʼята'],
-    seeds: ['диня з прошуто', 'кавун з фетою і мʼятою'],
-  },
-  {
-    id: 'mushroom', type: 'season', title: 'сезон білих грибів',
-    from: '09-01', to: '10-31',
-    meaning: 'Свіжі білі бувають кілька тижнів на рік. Найкраще розкриваються в різото, жульєні й паштеті.',
-    buy: ['білі гриби', 'рис арборіо', 'вершки'],
-    seeds: ['різото з білими', 'гриби в сметані', 'грибний крем-суп'],
-  },
-  {
-    id: 'pumpkin', type: 'season', title: 'гарбузи й коренеплоди',
-    from: '10-01', to: '11-30',
-    meaning: 'Гарбуз, буряк, пастернак. Все, що добре запікається довго й повільно.',
-    buy: ['гарбуз', 'пастернак', 'буряк'],
-    seeds: ['запечений гарбуз із фетою', 'гарбузовий суп', 'печений буряк із горіхами'],
-  },
-  {
-    id: 'xmas-eve', type: 'tradition', title: 'Святвечір', tradition: 'orthodox',
-    from: '12-20', to: '12-24',
-    meaning: 'Дванадцять пісних страв. Кутя, узвар, пісні вареники, риба, гриби.',
-    buy: ['пшениця', 'мак', 'сухофрукти', 'мед', 'гриби сушені'],
-    seeds: ['кутя', 'узвар', 'вареники з капустою', 'оселедець під шубою'],
-  },
-  {
-    id: 'spas', type: 'tradition', title: 'Яблучний Спас', tradition: 'orthodox',
-    from: '08-17', to: '08-21',
-    meaning: 'Початок яблучного сезону. Печені яблука, шарлотки, яблука до мʼяса й сирів.',
-    buy: ['яблука', 'мед', 'кориця'],
-    seeds: ['печені яблука з медом', 'шарлотка', 'яблука до блакитного сиру'],
-  },
-];
-
-// ── Розпізнавання традиції з побажань ───────────────────────────────────────
-// Латиниця в патернах — бо люди пишуть і «postuemo», і «halal». Одна людина
-// може мати кілька традицій: змішані сімʼї — норма, а не край.
-const TRADITION_PATTERNS: { id: Tradition; re: RegExp }[] = [
-  { id: 'orthodox', re: /пост|пісн|велик[ыi]?ден|паск|православ|кут[яі]|святвеч|piст|post|velykden|pravoslav/i },
-  { id: 'catholic', re: /католиц|katolic|catholic/i },
-  { id: 'islamic', re: /халял|рамадан|іслам|ислам|мусульман|курбан|ураза|halal|ramadan|islam|kurban/i },
-  { id: 'jewish', re: /кошер|кашрут|песах|шабат|іудей|иудей|єврей|еврей|kosher|kashrut|pesah|pesach|shabat/i },
-];
-
 export function traditionsFrom(wishes: string[] = []): Tradition[] {
   const text = wishes.join(' ');
   if (!text.trim()) return [];
   return TRADITION_PATTERNS.filter((p) => p.re.test(text)).map((p) => p.id);
 }
 
-// Рухомі свята християнського циклу — вікнами навколо Великодня.
-function movableOccasions(date: Date, trads: Tradition[]): Occasion[] {
-  const trad = trads.includes('catholic') ? 'catholic' : trads.includes('orthodox') ? 'orthodox' : null;
-  if (!trad) return [];
-  const e = easterDate(date.getFullYear(), trad);
-  const shift = (days: number) => {
-    const d = new Date(e);
-    d.setDate(d.getDate() + days);
-    return d;
-  };
-  const inRange = (from: Date, to: Date) => date >= from && date <= to;
-  const out: Occasion[] = [];
-  if (inRange(shift(-55), shift(-49))) out.push({
-    id: 'maslyana', type: 'tradition', title: 'Масниця',
-    meaning: 'Тиждень перед постом. Млинці, налисники, вершкове й сирне — усе, що потім не можна.',
-    buy: ['сметана', 'кисломолочний сир', 'масло'],
-  });
-  if (inRange(shift(-48), shift(-1))) out.push({
-    id: 'lent', type: 'tradition', title: 'Великий піст',
-    meaning: 'Привід зайти в бобові, гриби й крупи глибше, ніж зазвичай.',
-    restricts: 'жодного мʼяса, риби, молочного і яєць — ні у стравах, ні в needs, ні в rescues, ні як альтернатива («пармезан — або без нього» — це теж пропозиція пармезану). Рослинні аналоги (кокосове молоко, тахіні) можна',
-    buy: ['нут', 'сочевиця', 'гриби', 'тахіні', 'кокосове молоко'],
-  });
-  if (inRange(shift(0), shift(2))) out.push({
-    id: 'easter', type: 'tradition', title: 'Великдень',
-    meaning: 'Паска, крашанки, шинка, сирна паска. Після посту — навпаки, все найситніше.',
-    buy: ['сир кисломолочний', 'яйця', 'шинка'],
-  });
-  return out;
+/** Чи цей рядок узагалі показувати цьому дому. */
+function visible(row: OccasionRow, trads: Tradition[]): boolean {
+  return row.tradition ? trads.includes(row.tradition) : true;
 }
 
-/** Що триває просто зараз. Сезони — для всіх; свята — лише за розпізнаною традицією. */
-export function activeOccasions(date = new Date(), trads: Tradition[] = []): Occasion[] {
-  const md = `${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-  const fixed = OCCASIONS.filter((o) => {
-    // Вікно може перетинати новий рік (12-20 → 01-07), тому дві гілки.
-    const inWindow = o.from <= o.to
-      ? md >= o.from && md <= o.to
-      : md >= o.from || md <= o.to;
-    if (!inWindow) return false;
-    return o.tradition ? trads.includes(o.tradition) : true;
-  });
-  return [...movableOccasions(date, trads), ...fixed];
+/**
+ * Що триває просто зараз. Сезони — для всіх; свята — лише за розпізнаною
+ * традицією. Рухомі йдуть перед фіксованими: обмеження має потрапити в блок
+ * раніше за привід, і порядок масиву це задає.
+ */
+export function activeOccasions(
+  date = new Date(),
+  trads: Tradition[] = [],
+  rows: OccasionRow[] = BUILTIN_OCCASIONS,
+): Occasion[] {
+  return rows.filter(
+    (r): r is WindowOccasion => isWindowRow(r) && visible(r, trads) && ruleActive(r.rule, date, trads),
+  );
 }
 
 /** Що попереду в межах горизонту (днів). Сортовано за датою. */
-export function upcomingEvents(from = new Date(), trads: Tradition[] = [], horizonDays = 21): UpcomingEvent[] {
+export function upcomingEvents(
+  from = new Date(),
+  trads: Tradition[] = [],
+  horizonDays = 21,
+  rows: OccasionRow[] = BUILTIN_OCCASIONS,
+): UpcomingEvent[] {
   const now = from.getTime();
   const until = now + horizonDays * DAY;
   const out: UpcomingEvent[] = [];
-  const push = (at: number, title: string, kind: 'season' | 'tradition', approx = false) => {
-    if (at > now && at <= until) out.push({ at, title, kind, approx });
+  const push = (at: number | null, title: string, kind: 'season' | 'tradition', approx = false) => {
+    if (at !== null && at > now && at <= until) out.push({ at, title, kind, approx });
   };
-  const yearOf = (md: string, y: number) => {
-    const [m = 1, d = 1] = md.split('-').map(Number);
-    return new Date(y, m - 1, d).getTime();
-  };
+
+  const windows = rows.filter(isWindowRow).filter((r) => visible(r, trads));
+  const anchors = rows.filter((r) => !isWindowRow(r)).filter((r) => visible(r, trads));
 
   const y = from.getFullYear();
   for (const year of [y, y + 1]) {
-    for (const o of OCCASIONS) {
-      if (o.tradition && !trads.includes(o.tradition)) continue;
-      push(yearOf(o.from, year), `${o.title} — починається`, o.type);
-      // Сезон, що закінчується, — сильніший привід за сезон, що триває.
-      push(yearOf(o.to, year), `${o.title} — останні дні`, o.type);
-    }
-    if (trads.includes('orthodox') || trads.includes('catholic')) {
-      const trad = trads.includes('catholic') ? 'catholic' : 'orthodox';
-      const e = easterDate(year, trad).getTime();
-      push(e - 55 * DAY, 'починається Масниця', 'tradition');
-      push(e - 48 * DAY, 'починається Великий піст', 'tradition');
-      push(e, 'Великдень', 'tradition');
-    }
-  }
-  if (trads.includes('islamic')) {
-    for (const a of ISLAMIC_ANCHORS) {
-      for (let k = 0; k < 3; k++) push(a.base + k * LUNAR_YEAR, a.title, 'tradition', true);
+    for (const pass of [windows.filter((r) => r.rule.t === 'window'), windows.filter((r) => r.rule.t === 'easter')]) {
+      for (const r of pass) {
+        const w = ruleWindow(r.rule, year, trads);
+        if (!w) continue;
+        if (r.upcomingTitle) {
+          // Рухоме свято йде в стрічку тільки початком: «Великдень — останні
+          // дні» не означає нічого.
+          push(w.start, r.upcomingTitle, r.type);
+          continue;
+        }
+        push(w.start, `${r.title} — починається`, r.type);
+        // Сезон, що закінчується, — сильніший привід за сезон, що триває.
+        push(w.end, `${r.title} — останні дні`, r.type);
+      }
     }
   }
-  if (trads.includes('jewish')) {
-    for (const a of JEWISH_ANCHORS) {
-      for (let k = 0; k < 3; k++) push(a.base + k * 365.25 * DAY, a.title, 'tradition', true);
-    }
+  for (const r of anchors) {
+    for (let k = 0; k < 3; k++) push(anchorAt(r.rule, k), r.title, r.type, true);
   }
 
   return out.sort((a, b) => a.at - b.at);
@@ -252,10 +133,14 @@ export function whenLabel(at: number, now = Date.now()): string {
  * Блок для системного промпта. Порожній рядок, коли нічого не відбувається —
  * не витрачаємо токени на «сьогодні нічого особливого».
  */
-export function serializeOccasions(now = new Date(), wishes: string[] = []): string {
+export function serializeOccasions(
+  now = new Date(),
+  wishes: string[] = [],
+  rows: OccasionRow[] = BUILTIN_OCCASIONS,
+): string {
   const trads = traditionsFrom(wishes);
-  const act = activeOccasions(now, trads);
-  const soon = upcomingEvents(now, trads, 21).slice(0, 4);
+  const act = activeOccasions(now, trads, rows);
+  const soon = upcomingEvents(now, trads, 21, rows).slice(0, 4);
   if (!act.length && !soon.length) return '';
 
   const parts: string[] = [];
@@ -299,27 +184,12 @@ export function serializeOccasions(now = new Date(), wishes: string[] = []): str
     // Місячні — тільки з позначкою орієнтовності; губити її не можна.
     // Кожен якір — тільки найближче майбутнє входження: шість рядків Рамадану
     // на два роки вперед — це шум, а не памʼять.
-    if (trads.includes('islamic')) {
-      for (const a of ISLAMIC_ANCHORS) {
-        for (let k = 0; k < 4; k++) {
-          const at = a.base + k * LUNAR_YEAR;
-          if (at > now.getTime()) {
-            anchors.push(`${a.title} — ${fmt(new Date(at))} ${new Date(at).getFullYear()} (орієнтовно, місячний календар)`);
-            break;
-          }
-        }
-      }
-    }
-    if (trads.includes('jewish')) {
-      for (const a of JEWISH_ANCHORS) {
-        for (let k = 0; k < 4; k++) {
-          const at = a.base + k * 365.25 * DAY;
-          if (at > now.getTime()) {
-            anchors.push(`${a.title} — ${fmt(new Date(at))} ${new Date(at).getFullYear()} (орієнтовно)`);
-            break;
-          }
-        }
-      }
+    for (const r of rows) {
+      if (isWindowRow(r) || !visible(r, trads)) continue;
+      const at = nextAnchorAfter(r.rule, now.getTime());
+      if (at === null) continue;
+      const mark = r.rule.t === 'lunar' ? 'орієнтовно, місячний календар' : 'орієнтовно';
+      anchors.push(`${r.title} — ${fmt(new Date(at))} ${new Date(at).getFullYear()} (${mark})`);
     }
     if (anchors.length) {
       parts.push('КЛЮЧОВІ ДАТИ (пораховані точно, називай упевнено; «орієнтовно» переказуй як орієнтовно):\n'
@@ -338,20 +208,9 @@ export function serializeOccasions(now = new Date(), wishes: string[] = []): str
     + ' Обмеження вище — виняток: воно діє, поки триває, і не залежить від доречності.';
 }
 
-function pad2(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-
 // ── Механічна гвардія посту ─────────────────────────────────────────────────
-// Третій flap eval-фікстури calendar-lent: модель ігнорувала блок обмеження
-// в середині контексту і «рятувала» фарш тефтелями. Промпт посилювали двічі —
-// далі діє механізм, що вже двічі рятував з алергенами (QA5-01, QA7-06):
-// мітка прямо в рядку партії, куди модель дивиться, коли добирає страви.
-
-const SKOROMNE_ROOTS =
-  /м[ʼ']яс(?!ист)|фарш(?!ирован)|яловичин|свинин|телятин|баранин|бекон|шинк|ковбас|курк|куряч|індич|(?<![а-яіїєґ])риб[аиуоі]|лосос|тунц|оселедц|креветк|вершк(?!ов[а-яі]*\s+олі)|сметан|(?<![а-яіїєґ])сир(?![іео]п|овин)|пармезан|фет[аи]\b|моцарел|масл[оа]\s*вершков|вершкове\s*масл|яйц|яєц|молок/i;
-const LEAN_EXCEPTIONS = /кокосов|рослинн|соєв|вівсян|мигдальн|горіхов|соняшников|оливков/i;
+// Мітка прямо в рядку партії, куди модель дивиться, коли добирає страви.
+// Промпт посилювали двічі й це не спрацювало; механізм спрацював.
 
 /** Чи ця назва — скоромне (для мітки в коморі під час посту). */
 export function isFastingRestricted(label: string): boolean {
@@ -360,7 +219,11 @@ export function isFastingRestricted(label: string): boolean {
 }
 
 /** Чи просто зараз триває піст для розпізнаної традиції. */
-export function fastingActive(now: Date, wishes: string[]): boolean {
+export function fastingActive(
+  now: Date,
+  wishes: string[],
+  rows: OccasionRow[] = BUILTIN_OCCASIONS,
+): boolean {
   const trads = traditionsFrom(wishes);
-  return activeOccasions(now, trads).some((o) => o.restricts);
+  return activeOccasions(now, trads, rows).some((o) => o.restricts);
 }
