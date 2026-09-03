@@ -196,7 +196,11 @@ export interface EventOccurrence {
   force: 'hint' | 'restrict';
   meaning?: string;
   note?: string | null;
+  restricts?: string | null;
   buy?: string[];
+  seeds?: string[];
+  supply?: { label: string; v?: number | null; u?: string | null }[] | null;
+  source?: string;
   approx?: boolean;
   done_at?: string | null;
 }

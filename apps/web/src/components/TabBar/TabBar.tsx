@@ -207,6 +207,18 @@ export function TabBar({ shoppingCount }: Props) {
         );
       })}
 
+      {/* Смужка 768-1023: крапка стану — єдиний вхід до сесій і «ЗАРАЗ».
+          Бурштин — щось чекає попереду, шавлія — триває готування, сірий —
+          тихо. Числа тут немає навмисно: воно живе на рядку цілі всередині. */}
+      <button
+        className={`${styles['rail-more']} ${
+          cookLive ? styles['rail-more-sage'] : nowEvents.length ? styles['rail-more-amber'] : ''
+        }`}
+        onClick={() => setOpen(true)}
+        aria-label="Показати сесії та події"
+        title={cookLive ? 'Готування триває' : nowEvents[0]?.title ?? 'Сесії та події'}
+      >{cookLive || nowEvents.length ? '●' : '⋯'}</button>
+
       {/* «ЗАРАЗ» — одразу під цілями, над «Готування триває» (рішення 03.09).
           Подія, що триває, називається кінцем: «ще 4 тижні», не «триває». */}
       {nowEvents.length > 0 && (

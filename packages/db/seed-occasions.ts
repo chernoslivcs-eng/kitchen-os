@@ -23,12 +23,13 @@ export async function seedOccasions(pool: Pool): Promise<number> {
       `INSERT INTO occasion_catalog
          (id, kind, title, meaning, rule, force, restricts, tradition,
           buy, seeds, approx, upcoming_title, source, audience, published_at)
-       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,NULL,NULL,now())
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,NULL,now())
        ON CONFLICT (id) DO UPDATE SET
          kind = EXCLUDED.kind, title = EXCLUDED.title, meaning = EXCLUDED.meaning,
          rule = EXCLUDED.rule, force = EXCLUDED.force, restricts = EXCLUDED.restricts,
          tradition = EXCLUDED.tradition, buy = EXCLUDED.buy, seeds = EXCLUDED.seeds,
-         approx = EXCLUDED.approx, upcoming_title = EXCLUDED.upcoming_title`,
+         approx = EXCLUDED.approx, upcoming_title = EXCLUDED.upcoming_title,
+         source = EXCLUDED.source`,
       [
         row.id,
         row.type,
@@ -42,6 +43,7 @@ export async function seedOccasions(pool: Pool): Promise<number> {
         win?.seeds ?? [],
         isWindowRow(row) ? false : row.approx,
         win?.upcomingTitle ?? null,
+        row.source ?? null,
       ],
     );
     upserted++;

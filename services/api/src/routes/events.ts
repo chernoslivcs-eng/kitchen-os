@@ -37,6 +37,7 @@ export interface EventOccurrence {
   restricts?: string | null;
   buy?: string[];
   seeds?: string[];
+  source?: string;
   recipe_id?: string | null;
   servings?: number | null;
   supply?: SupplyLine[] | null;
@@ -123,6 +124,9 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
             ...(win?.buy?.length ? { buy: win.buy } : {}),
             ...(win?.seeds?.length ? { seeds: win.seeds } : {}),
             ...(occ.approx ? { approx: true } : {}),
+            // Підпис редакційної події — не оздоба: без нього «день томатів»
+            // не відрізнити від свята.
+            ...(o.source ? { source: o.source } : {}),
           });
         }
       }

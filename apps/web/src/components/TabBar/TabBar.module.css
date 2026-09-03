@@ -33,12 +33,34 @@
   flex-direction: column;
   transform: translateX(-100%);
   /* Вихід швидший за вхід — те саме правило, що в Sheet. */
-  transition: transform var(--dur-fast) var(--ease-exit);
+  transition: transform var(--dur-fast) var(--ease-exit), width var(--dur-fast) var(--ease-exit);
 }
 .open {
   transform: translateX(0);
-  transition: transform var(--dur-base) var(--ease-enter);
+  transition: transform var(--dur-base) var(--ease-enter), width var(--dur-base) var(--ease-enter);
 }
+
+/* Кнопка стану: живе лише в смужці 768-1023 і відкриває повну шухляду.
+   Крапка без числа — бурштин, коли щось чекає в «ЗАРАЗ»; шавлія, коли триває
+   готування. Число сюди не йде: воно живе на рядку цілі всередині. */
+.rail-more {
+  display: none;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 15px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.rail-more:hover { background: var(--bg-hover); color: var(--fg); }
+.rail-more-amber { color: var(--amber); }
+.rail-more-sage { color: var(--accent); }
 
 .tab {
   display: flex;
@@ -369,10 +391,35 @@
 /* Пул-6 №1: планшет 768–1023 — вузький сайдбар: іконки 44×44 без підписів,
    бейдж цифрою в куті, аватар знизу. Сесії/лічильники — тільки ≥1024. */
 @media (min-width: 768px) and (max-width: 1023px) {
-  /* Смужка: тільки гліфи цілей. Сесії й «ЗАРАЗ» туди не влазять — по них
-     ходять у повну шухляду (крок адаптиву, поки не зроблено). */
+  /* Смужка: самі гліфи цілей. Сесії й «ЗАРАЗ» у 64px не влазять — але й
+     недосяжними лишатись не мусять: тап по крапці стану розгортає ту саму
+     смужку в повну шухляду. Один елемент, два стани — другого компонента
+     тут не заводимо. */
   .sessions { display: none; }
   .now { display: none; }
+  .backdrop { display: block; }
+  .rail-more { display: flex; }
+
+  .wrap.open {
+    width: 300px;
+    padding: 20px 14px;
+    align-items: stretch;
+    z-index: 30;
+  }
+  .wrap.open .sessions { display: flex; }
+  .wrap.open .now { display: flex; }
+  .wrap.open .brand-name { display: inline; }
+  .wrap.open .rail-more { display: none; }
+  .wrap.open .tab {
+    width: auto;
+    height: 44px;
+    padding: 0 12px;
+    justify-content: flex-start;
+  }
+  .wrap.open .tab > span:nth-child(2) { display: inline; }
+  .wrap.open .badge { position: static; margin-left: auto; font-size: 11px; padding: 1px 7px; }
+  .wrap.open .user { width: auto; height: auto; padding: 9px 12px; justify-content: flex-start; }
+  .wrap.open .user > span:nth-child(2) { display: inline; }
   .wrap {
     position: fixed;
     top: 0; left: 0; bottom: 0;

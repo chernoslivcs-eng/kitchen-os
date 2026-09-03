@@ -178,6 +178,7 @@ function rowToOccasion(r: Row): OccasionRow {
     type: r.kind as 'season' | 'tradition',
     title: r.title as string,
     ...(r.tradition ? { tradition: r.tradition as OccasionRow['tradition'] } : {}),
+    ...(r.source ? { source: r.source as string } : {}),
   };
   if (rule.t === 'window' || rule.t === 'easter') {
     return {

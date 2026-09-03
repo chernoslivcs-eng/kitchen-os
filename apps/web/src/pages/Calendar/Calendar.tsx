@@ -11,6 +11,7 @@ import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { whenLabel } from '../../lib/when';
 import { buildDays, splitRunning } from './days';
+import { EventSheet } from './EventSheet';
 import styles from './Calendar.module.css';
 
 const DAY = 86_400_000;
@@ -38,6 +39,11 @@ export function CalendarPage() {
   const openNav = useNavStore((s) => s.setOpen);
   const [events, setEvents] = useState<EventOccurrence[]>([]);
   const [loading, setLoading] = useState(true);
+  // Подія відкривається шторкою: вона довша за модалку, але власного маршруту
+  // не заслуговує. На >=1280 їй місце в правій панелі як артефакту — але
+  // панель зараз живе всередині Стрічки, не в каркасі, тож це окремий крок.
+  const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
+  const [version, setVersion] = useState(0);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   useEffect(() => {
@@ -46,7 +52,7 @@ export function CalendarPage() {
       .then(({ events }) => setEvents(events))
       .catch(() => {/* порожній календар — теж відповідь */})
       .finally(() => setLoading(false));
-  }, [today]);
+  }, [today, version]);
 
   // Те, що вже триває, — окремим блоком і один раз. Інакше сезон, що йде
   // третій тиждень, засмічує кожен день стрічки.
@@ -66,10 +72,14 @@ export function CalendarPage() {
           <div className={styles.running}>
             <div className={styles['running-label']}>ТРИВАЄ</div>
             {running.map((e) => (
-              <div key={`${e.scope}:${e.id}`} className={`${styles.slot} ${toneOf(e)}`}>
+              <button
+                key={`${e.scope}:${e.id}`}
+                className={`${styles.slot} ${toneOf(e)}`}
+                onClick={() => setOpenEvent(e)}
+              >
                 <span className={styles['slot-title']}>{e.title}</span>
                 <span className={styles['slot-when']}>{whenLabel(e.start, e.end)}</span>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -114,14 +124,18 @@ export function CalendarPage() {
                   {row.events.length === 0
                     ? <div className={styles.silence} />
                     : row.events.map((e) => (
-                      <div key={`${e.scope}:${e.id}`} className={`${styles.slot} ${toneOf(e)}`}>
+                      <button
+                        key={`${e.scope}:${e.id}`}
+                        className={`${styles.slot} ${toneOf(e)}`}
+                        onClick={() => setOpenEvent(e)}
+                      >
                         <span className={styles['slot-title']}>
                           {e.kind === 'supply' ? '＋ ' : ''}{e.title}
                         </span>
                         <span className={styles['slot-when']}>
                           {whenLabel(e.start, e.end)}{e.approx ? ' · орієнтовно' : ''}
                         </span>
-                      </div>
+                      </button>
                     ))}
                 </div>
               </div>
@@ -129,6 +143,14 @@ export function CalendarPage() {
           );
         })}
       </div>
+
+      {openEvent && (
+        <EventSheet
+          event={openEvent}
+          onClose={() => setOpenEvent(null)}
+          onChanged={() => setVersion((v) => v + 1)}
+        />
+      )}
     </div>
   );
 }
