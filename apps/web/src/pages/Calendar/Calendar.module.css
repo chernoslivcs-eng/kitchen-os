@@ -1,198 +1,156 @@
-/* Стрічка днів. Порожня клітинка — тиша, не дірка: дата в мутед, порожнє
-   місце, і жодного «＋ додати», яке просило б себе заповнити. */
+/* Календар — стрічка днів (канвас «Календар — інтерфейс», 03.09).
+   Один компонент списку на всіх ширинах: жолоб тривалих зліва, рядки днів,
+   «сьогодні» на всю ширину. На десктопі — та сама стрічка в колонці до 720.
+   Числа звідти: жолоб 22/26, колонка дати 44/56, рядок ≥70, риска 3px,
+   крапка 5px, чіпи легенди mono 10 з рамкою тону на 35%. */
 
 .screen {
   min-height: 100dvh;
-  /* --bg-surface, як у решти чотирьох екранів і сайдбара: календар був єдиним
-     на --bg-body і на світлій темі стояв темнішою плямою поруч із ними.
-     Липкі заголовки місяця й днів тижня нижче фарбуються тим самим токеном —
-     вони маскують скрол під собою і мусять збігатися зі сторінкою. */
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;
 }
-
-.body {
-  flex: 1;
-  padding: 8px 20px 40px;
-  max-width: 720px;
-  width: 100%;
-  box-sizing: border-box;
+.body { padding: 0 20px 40px; }
+@media (min-width: 1024px) {
+  /* К3: колонка 720, притиснута до сайдбара з відступом 40. */
+  .body { max-width: 720px; padding: 0 20px 60px 40px; }
 }
 
-.month {
+/* «＋» у слоті дії шапки; пігулка «Сьогодні» — в липкому блоці нижче. */
+.today-pill {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.today-pill:hover { background: var(--accent-bg); }
+.add {
+  width: 36px; height: 36px;
+  border: 0; border-radius: 10px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+.add:hover { background: var(--bg-hover); color: var(--fg); }
+
+/* Липкий блок: місяць · тиждень · «Сьогодні» + легенда тривалих. */
+.sticky {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   background: var(--bg-surface);
-  padding: 16px 0 8px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  color: var(--fg-dim);
 }
-
-.quiet-row { display: flex; gap: 8px; }
-/* У рядку тиші падінг на самому тексті, тож компенсувати нічого — але лінію
-   знизу закрити треба, інакше пунктир повертається. */
-.quiet-row .rail { margin: 0 0 -1px; }
-
-/* Риска тривалої: 3px, колір роду, без підпису вздовж. Підпис живе лише на
-   початку і в кінці — див. .caption. Дві паралельні йдуть із кроком 6px;
-   третьої на телефоні не буває, вона згортається в «＋N тривалих» під назвою
-   місяця. */
-.rails {
-  flex: none;
-  display: flex;
-  gap: 3px;
-  align-self: stretch;
-}
-/* Риска мусить бути НЕПЕРЕРВНОЮ вздовж усіх днів події. Рядок має падінг
-   10px і лінію border-bottom — без компенсації смуга рвалась на кожному
-   рядку, і замість лінії виходив пунктир. Відʼємні поля закривають і те, і
-   те. */
-.rail {
-  width: 3px;
-  background: currentColor;
-  align-self: stretch;
-  margin: -10px 0 -11px;
-}
-/* Порожня доріжка займає місце, але нічого не малює: саме вона тримає сусідні
-   лінії на своїх колонках. Оголошена ПІСЛЯ .rail — інакше background:
-   currentColor перебиває її, і порожня смуга малює темну лінію кольором
-   тексту сторінки. */
-.rail-empty { background: transparent; }
-
-.caption {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: currentColor;
-}
-
-.more {
-  display: block;
-  padding: 4px 0;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: var(--fg-dim);
-}
-.more:hover { color: var(--fg-mono); }
-
-/* Розкриття дня на місці. Тап відкриває не шторку, а сам день: на мобільному
-   тап і ховер — одне, тож показати четверту подію можна лише розсунувши день.
-   На десктопі цього немає — там клітинка має висоту й віддає все на ховер.
-
-   0fr → 1fr анімує висоту вмісту, а не вгадану межу в пікселях: список із
-   двох рядків і список із шести розкриваються однаково правильно, і жоден не
-   обрізається. max-height так не вміє — він або ріже, або сіпає кінець. */
-.expand {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 250ms var(--ease, ease);
-}
-.expand-open { grid-template-rows: 1fr; }
-.expand-inner {
-  overflow: hidden;
-  min-height: 0;
-}
-.expand-open .expand-inner {
-  /* Підклад зʼявляється лише розкритим: у згорнутому дні його немає, і смуга
-     кольору тла під порожнім місцем читалась би як окремий блок. */
-  background: var(--bg-surface-2);
-  border-radius: var(--r);
-  margin: 4px 0 2px;
-}
-.expand-row {
+.monthbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
+  justify-content: space-between;
+  padding: 12px 0 8px;
 }
-.expand-row + .expand-row { box-shadow: inset 0 1px 0 var(--border); }
-/* Гліф несе рід сірим: у згорнутому дні кольору не було, і розкриття не
-   привід його додавати. Виняток один — особиста, бо це єдине, що поставила
-   сама людина. */
-.expand-glyph {
-  flex: none;
-  width: 16px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--fg-dim);
-}
-.t-own .expand-glyph { color: var(--accent); }
-.expand-title {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-body);
-  font-size: 15px;
-  color: var(--fg-mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.expand-chev { flex: none; color: var(--fg-dim); font-size: 15px; }
+.monthbar-right { display: flex; align-items: center; gap: 10px; }
+.month { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--fg-muted); }
+.weekno { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; color: var(--fg-dim); text-transform: uppercase; }
 
-/* Розкриття — мобільне. На >=768 сітка вже показує все, і другий механізм
-   означав би два різні способи побачити те саме. */
-@media (min-width: 768px) {
-  .expand { display: none; }
-}
-
-.month-more { color: var(--fg-dim); }
-
-.day {
+/* Легенда тривалих: що триває зараз. */
+.legend {
   display: flex;
-  gap: 8px;
-  padding: 10px 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 10px;
   border-bottom: 1px solid var(--border);
 }
-
-.date {
-  flex: none;
-  width: 44px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  /* Дата приглушена: сама по собі вона нічого не вимагає. */
-  color: var(--fg-dim);
-}
-.date-dow {
+.chip {
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--t) 35%, transparent);
+  background: transparent;
+  color: var(--t);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
 }
-.date-num { font-family: var(--font-display); font-weight: 600; font-size: 18px; }
+.chip:hover { background: color-mix(in srgb, var(--t) 10%, transparent); }
 
-/* Єдина клітинка, яка щось стверджує. */
-.today .date { color: var(--accent); }
+/* Роди → тон. Ті самі пари, що в сайдбарі й на рисках. */
+.t-own      { --t: var(--accent); }
+.t-season   { --t: var(--amber); }
+.t-restrict { --t: var(--plum); }
+.t-grey     { --t: var(--fg-dim); }
 
-.slots { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
-.silence { height: 20px; }
+/* Заголовок тижня. */
+.week {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 14px 0 4px;
+}
+.week-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--fg-muted); }
+.week-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-dim); }
+.week-tag.t-restrict { color: var(--plum); }
 
-/* Слот — рядок ТЕКСТУ, не картка. Заливку, скруглення й акцентну смугу
-   ліворуч я був вигадав: ні в макеті, ні в кіті такого патерну немає. Межу
-   дає border-bottom самого дня. */
-.slot {
+/* Рядок дня: жолоб · дата · вміст. Межа — лише під вмістом і датою, жолоб
+   неперервний, щоб риски не рвались. */
+.day {
+  display: flex;
+  gap: 12px;
+  min-height: 70px;
+}
+.day-inner {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+@media (min-width: 768px) { .day-inner { gap: 18px; } }
+
+/* Жолоб: три доріжки з кроком 8px (0 / 8 / 16), риска 3px. Зайняті —
+   assignLanes, порожня доріжка — прозорий спейсер тієї ж ширини, щоб риски
+   не стрибали між днями. */
+.gutter {
+  flex: none;
+  width: 22px;
+  position: relative;
+}
+@media (min-width: 1024px) { .gutter { width: 26px; } }
+.rail {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 3px;
+  background: var(--t);
+  opacity: 0.78;
+}
+.rail-start { top: 6px; border-radius: 2px 2px 0 0; }
+.rail-end   { bottom: 6px; border-radius: 0 0 2px 2px; }
+.rail-start.rail-end { top: 6px; bottom: 6px; border-radius: 2px; }
+.dot {
+  position: absolute;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--t);
+  margin-left: -1px;
+}
+.dot-start { top: 3px; }
+.dot-end   { bottom: 3px; }
+
+.dn { width: 44px; flex: none; display: flex; flex-direction: column; }
+@media (min-width: 768px) { .dn { width: 56px; } }
+.dow { font-family: var(--font-mono); font-size: 10px; color: var(--fg-dim); text-transform: uppercase; }
+.num { font-family: var(--font-display); font-weight: 600; font-size: 18px; color: var(--fg-dim); line-height: 1.2; }
+
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ev {
   display: block;
   width: 100%;
   padding: 0;
@@ -203,307 +161,60 @@
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.35;
-  color: var(--fg-mono);
+  color: var(--fg-muted);
   transition: color var(--dur-fast);
 }
-.slot:hover { color: var(--fg-strong); }
-.approx { color: var(--fg-dim); }
-
-/* Кольорових родів три, і всі — наявна семантика продукту. Заливка смуги
-   виводиться з самого тону, щоб новий рід не вимагав пари токенів.
-
-   На світлій темі --plum і --amber це рівно #8f5c78 і #96712c — ті самі
-   числа, що просить макет для рисок. Тобто повернення до семантики саме
-   собою полагодило й контраст. */
-.t-restrict, .t-own, .t-season, .t-grey {
-  --tone-bg: color-mix(in srgb, currentColor 16%, transparent);
-}
-.t-restrict { color: var(--plum); }    /* рамка */
-.t-own      { color: var(--accent); }  /* те, що поставила людина */
-.t-season   { color: var(--amber); }   /* час іде */
-/* Свято й редакційна кольору роду не мають: свято в whenLabel теж нейтраль,
-   а редакційна не сміє бути голоснішою за нього. */
-.t-grey     { color: var(--fg-dim); }
-
-.quiet {
-  padding: 10px 0 10px 58px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-dim);
-  border-bottom: 1px solid var(--border);
-}
-
-.empty { padding: 40px 0; max-width: 420px; }
-.empty-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 19px;
-  color: var(--fg);
-  margin-bottom: 8px;
-}
-.empty-text {
-  margin: 0;
-  font-size: 14px;
-  line-height: var(--lh-body);
-  color: var(--fg-muted);
-}
-
-@media (min-width: 768px) {
-  .body { padding: 8px 22px 60px; }
-}
-
-/* ── Два вигляди одного потоку ──────────────────────────────────────────────
-   Мобільний — список днів: на 390 клітинка сітки дістала б 46px, у які назва
-   не влазить. Десктоп — тижні рядками вниз, сім колонок. Перемикає CSS, не
-   JS: інакше на ресайзі вигляд мигав би. */
-.grid { display: none; }
-
-@media (min-width: 768px) {
-  .list { display: none; }
-  .grid { display: block; }
-  .body { max-width: 1040px; }
-
-  .grid-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-    padding: 10px 0 6px;
-    background: var(--bg-surface);
-  }
-  .grid-dow {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: var(--tracking-caps);
-    text-transform: uppercase;
-    color: var(--fg-dim);
-  }
-
-  /* Рейка тривалих над сіткою: та сама сітка з семи колонок, тож смуга точно
-     стає під свої дні. */
-  .rail-row {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-    padding-bottom: 6px;
-  }
-  .span {
-    height: 22px;
-    border-radius: var(--r-sm);
-    border: 0;
-    border-left: 3px solid currentColor;
-    background: var(--tone-bg, var(--bg-surface-2));
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    /* Колір НЕ ставимо: його дає клас тону (.t-season тощо). Тут стояло
-       `color: currentColor`, і оскільки .span оголошений пізніше, воно
-       перебивало тон — усі смуги виходили однаковим сірим. */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  /* Відкритий край — подія триває поза цим тижнем. */
-  .span-openl { border-left: 0; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
-  .span-openr { border-radius: var(--r-sm) 0 0 var(--r-sm); }
-  .span-openl.span-openr { border-radius: 0; }
-  /* Четверта тривала — не риска, а рядок із іменем: число без назви нічого
-     не каже, а місця на четверту смугу немає. */
-  .rail-more {
-    display: block;
-    border: 0;
-    background: transparent;
-    padding: 0 0 6px;
-    text-align: left;
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: var(--tracking-caps);
-    color: var(--fg-dim);
-  }
-  .rail-more:hover { color: var(--fg); }
-  .cell-more {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: var(--fg-dim);
-  }
-  /* Риски — тільки на мобільному: на десктопі тривалі стоять рейкою. */
-  .rails { display: none; }
-  .caption { display: none; }
-
-  .week {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-    padding-bottom: 6px;
-  }
-
-  /* Ні заливки, ні скруглення — лише верхня лінія, як у макеті. */
-  .cell {
-    min-height: 150px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 10px 0 0;
-    border-top: 1px solid var(--border);
-  }
-  /* Єдина клітинка, яка щось стверджує. */
-  .cell-today { border-top: 2px solid var(--accent); }
-  .cell-today .cell-date { color: var(--accent); }
-
-  .cell-date {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    /* Дата приглушена: сама по собі вона нічого не вимагає. */
-    color: var(--fg-dim);
-  }
-
-  .cell-slot {
-    width: 100%;
-    text-align: left;
-    border: 0;
-    padding: 0;
-    background: transparent;
-    font-family: var(--font-body);
-    font-size: 13px;
-    line-height: 1.35;
-    color: var(--fg-mono);
-    cursor: pointer;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    transition: color var(--dur-fast);
-  }
-  .cell-slot:hover { color: var(--fg-strong); }
-
-  /* Ховер показує все, що не влізло в ліміт трьох. Стек лягає ПОВЕРХ клітинки,
-     а не розсуває її: якби клітинка росла, ряд тижня ріс би разом із нею й
-     наступні тижні стрибали б униз під курсором — рівно те сіпання, яке вже
-     ловили на рейках. Клітинка тримає свою висоту, стек виходить за неї. */
-  .cell { position: relative; }
-  .cell-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-  }
-  .cell-extra { display: none; }
-  /* :has(.cell-more) — підняти клітинку лише тоді, коли є що розгортати.
-     Без цього застереження порожня чи ледь заповнена клітинка все одно
-     ловила ховер: курсор наводиш на СР 2 без жодної події — і вилазить
-     порожня біла картка нізвідки, бо .cell:hover спрацьовував на будь-якій
-     клітинці, а не лише на переповненій. */
-  .cell:hover:has(.cell-more) { z-index: 3; }
-  .cell:hover:has(.cell-more) .cell-extra { display: block; }
-  .cell:hover:has(.cell-more) .cell-more { display: none; }
-  .cell:hover:has(.cell-more) .cell-stack {
-    position: absolute;
-    left: -8px;
-    right: -8px;
-    top: 28px;
-    padding: 8px;
-    background: var(--bg-surface-2);
-    border-radius: var(--r);
-    box-shadow: var(--shadow-panel);
-  }
-  /* Розгорнутий стек більше не ріже назви до двох рядків: він для того й
-     відкривається, щоб показати повністю. */
-  .cell:hover:has(.cell-more) .cell-slot { -webkit-line-clamp: unset; }
-}
-
-/* «Триває» — закріплений низ і ОДИН рядок. На мобільному його немає зовсім:
-   сезони вже стоять у блоці «ЗАРАЗ» шухляди. */
-.running { display: none; }
-
-@media (min-width: 768px) {
-  .running {
-    position: sticky;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    padding: 12px 22px 18px;
-    border-top: 1px solid var(--border);
-    background: var(--bg-surface);
-  }
-  .running-label {
-    flex: none;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: var(--tracking-caps);
-    text-transform: uppercase;
-    color: var(--amber);
-  }
-  .running-item {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    border: 0;
-    background: transparent;
-    padding: 0;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .running-name {
-    font-family: var(--font-body);
-    font-size: 14px;
-    color: var(--fg-mono);
-  }
-  /* Бурштин у whenLabel — бо «час іде». Сам сезон нейтральний. */
-  .running-when {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--amber);
-  }
-  .running-item:hover .running-name { color: var(--fg-strong); }
-}
-
-/* Дія екрана — одна: додати подію. Порожня клітинка її не пропонує навмисно,
-   тому вхід тут, у шапці. */
-.head-add {
-  background: transparent;
+.ev:hover { color: var(--fg); }
+.ev-own { color: var(--fg-muted); }
+.ev-constraint { color: var(--fg-dim); }
+.ev-editorial { color: var(--amber); }
+.tag {
+  display: block;
+  width: 100%;
+  padding: 0;
   border: 0;
-  padding: 5px 4px;
-  color: var(--accent);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--t, var(--fg-dim));
   white-space: nowrap;
-  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.head-add:hover { color: var(--accent-strong); }
+.more { color: var(--fg-dim); }
+.empty { font-family: var(--font-body); font-size: 15px; color: var(--fg-dim); display: none; }
+@media (min-width: 768px) { .empty { display: block; } }
 
-/* «Сьогодні ↑» — тільки коли сьогодні пішло за верхній край. Плаваюча, бо
-   інакше вона б займала місце в шапці постійно, а потрібна зрідка. */
-.to-today {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 22px;
-  z-index: 15;
-  padding: 9px 16px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-surface);
-  color: var(--fg);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: var(--shadow-panel);
-  animation: to-today-in var(--dur-base, 250ms) var(--ease-enter, ease);
+/* Сьогодні — єдиний підсвічений рядок, на всю ширину (перекриває жолоб і
+   бічні відступи). Дата тону дії, число темне. */
+.today .day-inner {
+  background: var(--bg-surface-2);
+  margin: 0 -20px 0 -34px;
+  padding-left: 34px;
+  padding-right: 20px;
 }
-@keyframes to-today-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (min-width: 1024px) {
+  .today .day-inner { margin: 0 0 0 -26px; padding-left: 26px; padding-right: 12px; border-radius: 0 10px 10px 0; }
+}
+.today .dow { color: var(--accent); }
+.today .num { color: var(--fg); }
+/* Головна дія календаря — не «＋», а вхід у розмову. */
+.ask {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--fg-dim);
+}
+.ask:hover { color: var(--accent); }
+@media (min-width: 1024px) { .ask { color: var(--accent); } }
+
+.loading { padding: 40px 0; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }

@@ -115,6 +115,16 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
     setBusy(true);
     try { await api.events.mute(e.id); onChanged?.(); onClose?.(); } catch { setBusy(false); }
   }
+  const [added, setAdded] = useState(false);
+  async function addAllToList() {
+    if (!e?.buy?.length) return;
+    setBusy(true);
+    try {
+      for (const label of e.buy) await api.shopping.add(label, undefined, undefined, e.title);
+      setAdded(true);
+    } catch { /* тихо: кнопка лишається, можна повторити */ }
+    finally { setBusy(false); }
+  }
   async function remove() {
     if (!e) return;
     setBusy(true);
@@ -176,7 +186,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
         <>
           {e?.source && (
             <button type="button" className={styles.ghost} onClick={mute} disabled={busy}>
-              {busy ? 'Прибираю…' : 'Не показувати такі'}
+              {busy ? 'Прибираю…' : 'Не нагадувати'}
             </button>
           )}
           {restrict && (
@@ -192,10 +202,16 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
               <button type="button" className={styles.secondary} onClick={() => setMode('edit')}>Редагувати</button>
             </>
           )}
+          {/* Канвас: головна дія довідникової події — «Додати в список» (усе
+              з «варто докупити» одним рухом). Без списку докупівлі — розмова. */}
           {!restrict && e?.scope === 'catalog' && (
-            <button type="button" className={e.source ? styles.secondary : styles.primary} onClick={discuss}>
-              {e.source ? 'Обговорити' : 'Обговорити з Кухнею'}
-            </button>
+            (e.buy?.length ?? 0) > 0 ? (
+              <button type="button" className={styles.primary} onClick={addAllToList} disabled={busy || added}>
+                {added ? 'У списку ✓' : busy ? 'Додаю…' : 'Додати в список'}
+              </button>
+            ) : (
+              <button type="button" className={styles.primary} onClick={discuss}>Обговорити з Кухнею</button>
+            )
           )}
         </>
       )}
@@ -266,10 +282,21 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
           <div className={styles.chips}>{e!.buy!.map((b) => <span key={b} className={styles.chip}>{b}</span>)}</div>
         </div>
       )}
+      {/* Канвас «Календар — інтерфейс»: «Що з цим приготувати» — рядки з ›,
+          тап веде в розмову з цією стравою на руках. Не чіпи: чіп нікуди не
+          веде, а зерно — це саме привід почати. */}
       {!editing && (e?.seeds?.length ?? 0) > 0 && (
         <div className={styles.block}>
-          <div className={styles['block-label']}>ЩО З ЦЬОГО ВАРИТИ</div>
-          <div className={styles.chips}>{e!.seeds!.map((s) => <span key={s} className={styles.chip}>{s}</span>)}</div>
+          <div className={styles['block-label']}>ЩО З ЦИМ ПРИГОТУВАТИ</div>
+          <div className={styles.rows}>
+            {e!.seeds!.map((s) => (
+              <button key={s} type="button" className={styles.row}
+                onClick={() => navigate('/app', { state: { composePrefix: `${s} — ` } })}>
+                <span className={styles['row-name']}>{s}</span>
+                <span className={styles['row-go']}>›</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {!editing && (e?.supply?.length ?? 0) > 0 && (
