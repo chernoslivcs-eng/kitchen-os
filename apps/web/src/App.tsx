@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Landing } from './pages/Landing/Landing';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
@@ -17,6 +17,7 @@ import { AdminOccasionsPage } from './pages/Admin/AdminOccasions';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
+import { OnboardingPage, onboardingSeen } from './pages/Onboarding/Onboarding';
 import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
 import { ArtifactPanel } from './components/ArtifactPanel/ArtifactPanel';
@@ -32,6 +33,13 @@ import { GlobalCookAlarm } from './lib/cook-watch';
 // «без» стало нічим.
 function Shell() {
   const { pathname } = useLocation();
+  // Онбординг «Семен» — раз, на вході в стрічку. Прапорець у localStorage:
+  // це знайомство, а не стан дому, тож нове місце (інший браузер) покаже
+  // його ще раз, і це нормально. Глибокі лінки (/recipe/:id) не перехоплює.
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (pathname === '/app' && !onboardingSeen()) navigate('/welcome', { replace: true });
+  }, [pathname, navigate]);
   return (
     <>
       <div key={pathname} className="screen-view">
@@ -108,6 +116,8 @@ export function App() {
             <Route path="/admin/occasions" element={<AdminOccasionsPage />} />
           </Route>
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
+          {/* Знайомство з Семеном — поза каркасом: без табів і панелі, як /share. */}
+          <Route path="/welcome" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />
           <Route path="/invite" element={<InvitePage />} />
           <Route path="*" element={<NotFoundPage />} />

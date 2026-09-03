@@ -1,0 +1,123 @@
+// Онбординг «Семен»: 11 карток-коміксів, одна на екран, назад / далі /
+// свайп, прогрес рисками зверху. Тексти й порядок — з канвасу
+// «Онбординг - Семен» 1:1. Показується раз після першого входу; «Пропустити»
+// і фінальна кнопка ведуть у стрічку і запамʼятовують, що бачив.
+
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import styles from './Onboarding.module.css';
+
+export const ONBOARDING_SEEN_KEY = 'kos-onboarding-seen';
+
+export function onboardingSeen(): boolean {
+  try { return localStorage.getItem(ONBOARDING_SEEN_KEY) === '1'; } catch { return true; }
+}
+function markSeen() {
+  try { localStorage.setItem(ONBOARDING_SEEN_KEY, '1'); } catch { /* приватний режим — покажемо ще раз, не біда */ }
+}
+
+interface Card { tag: string; title: string; lines: string[] }
+
+// Рядок із «*» — панчлайн: курсив і шавлія.
+const CARDS: Card[] = [
+  { tag: 'ЗНАЙОМСТВО', title: 'Привіт, я Семен.', lines: ['Покажу, як я користуюсь Kitchen OS.', 'Я не дуже організований, тому мені подобається, що тут не треба вести кухню як бухгалтерію.', '*Зараз би ще згадати, навіщо я відкрив холодильник.'] },
+  { tag: 'ДОДАТИ ПРОДУКТИ', title: 'Я просто кажу, що зʼявилось удома.', lines: ['Можна сфотографувати полицю, кинути чек, написати списком або надиктувати.', 'Я зазвичай пишу.', '*Голосом швидше, але тоді треба розмовляти.'] },
+  { tag: 'КОМОРА', title: 'Далі воно саме складається в комору.', lines: ['Написав: «помідори, яйця, пармезан і якась ковбаса».', 'Kitchen OS розібрав, що я мав на увазі, і показав перед тим, як записати.', 'Ковбаса, до речі, була фуетом.', '*Я знав. Майже.'] },
+  { tag: 'ЩО ГОТУВАТИ', title: 'Потім я питаю, що з цього зробити.', lines: ['Раніше було навпаки: знаходжу рецепт — і виявляється, що вдома немає половини продуктів.', 'Тепер спочатку моя кухня, потім рецепт.', '*Так значно менше шансів о 20:40 урочисто йти по вершки.'] },
+  { tag: 'ЩО ВАРТО ВИКОРИСТАТИ', title: 'Іноді відповідь уже лежить у холодильнику.', lines: ['Якщо помідори лежать давно або щось уже відкрите, Kitchen OS врахує це першим.', 'Тому «що сьогодні?» іноді означає: «Семене, в тебе знову є справа до цих помідорів».', '*Ми обоє знаємо, про які.'] },
+  { tag: 'СМАКИ Й ОБМЕЖЕННЯ', title: 'Він ще памʼятає, що зі мною краще не робити.', lines: ['У мене алергія на фундук. А кінзу я просто не люблю.', 'Це різні речі.', '*Одне — не пропонувати взагалі. Друге — можна запропонувати, якщо дуже хочеться посваритися.'] },
+  { tag: 'МАМА', title: 'Потім приїжджає мама.', lines: ['І привозить «трохи домашньої цибулі».', '«Трохи» в маминій системі вимірювання — це пакет, який треба нести двома руками.', '*Я просто додаю її в комору, і якийсь час Kitchen OS дуже добре розуміє, що нам усім тепер треба більше цибулі.'] },
+  { tag: 'ДІМ', title: 'Кухня в нас спільна.', lines: ['Якщо хтось купив молоко — я це бачу. Якщо я використав останнє — бачать усі.', 'Так ми перестали купувати третю гірчицю.', '*Другу, на жаль, ніхто не зміг пояснити.'] },
+  { tag: 'ОСОБИСТИЙ КОНТЕКСТ', title: 'Але всі в цьому домі їдять по-різному.', lines: ['Мама любить цибулю. Я не їм фундук. Хтось інший не любить гостре.', 'Продукти в нас спільні. Смаки — ні.', '*Це дуже корисно, коли троє людей дивляться на одну каструлю з трьома різними очікуваннями.'] },
+  { tag: 'ПІСЛЯ ГОТУВАННЯ', title: 'Після вечері я нічого не переписую.', lines: ['Підтверджую, що приготував — залишки оновлюються.', 'А якщо щось вийшло не так, просто пишу: «наступного разу менше перцю».', '*Деякі мої кулінарні помилки тепер мають довготривалу практичну цінність.'] },
+  { tag: 'ФІНАЛ', title: 'От і весь мій метод.', lines: ['Я повідомляю, що зʼявилось. Kitchen OS памʼятає, що залишилось.', 'А коли я не знаю, що готувати, він уже знає достатньо, щоб допомогти.', '*Значно більше, ніж я.'] },
+];
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+function Mark() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <circle cx="24" cy="24" r="19" stroke="#1d2126" strokeWidth="3" strokeLinecap="round" strokeDasharray="104 15" transform="rotate(-58 24 24)" />
+      <circle cx="24" cy="24" r="6" fill="#58754e" />
+    </svg>
+  );
+}
+
+export function OnboardingPage() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState(0);
+  const [dir, setDir] = useState<'f' | 'b'>('f');
+  const last = step === CARDS.length - 1;
+  const card = CARDS[step]!;
+
+  const go = (n: number, d: 'f' | 'b') => {
+    if (n < 0 || n >= CARDS.length) return;
+    setDir(d); setStep(n);
+  };
+  const finish = () => { markSeen(); navigate('/app', { replace: true }); };
+
+  // Свайп: поріг 50px, як у канвасі.
+  const tx = useRef(0);
+  const onTS = (e: React.TouchEvent) => { tx.current = e.touches[0]!.clientX; };
+  const onTE = (e: React.TouchEvent) => {
+    const d = e.changedTouches[0]!.clientX - tx.current;
+    if (d < -50) go(step + 1, 'f');
+    if (d > 50) go(step - 1, 'b');
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') go(step + 1, 'f');
+      if (e.key === 'ArrowLeft') go(step - 1, 'b');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  // Наступна ілюстрація підвантажується наперед, щоб картка не входила порожньою.
+  useEffect(() => {
+    if (last) return;
+    const img = new Image();
+    img.src = `/onboarding/semen-${pad(step + 2)}.png`;
+  }, [step, last]);
+
+  return (
+    <div className={styles.screen}>
+      <div className={styles.phone} onTouchStart={onTS} onTouchEnd={onTE}>
+        <div className={styles.head}>
+          <div className={styles.logo}><Mark /><span>Kitchen<em> OS</em></span></div>
+          <button type="button" className={styles.skip} onClick={finish}>Пропустити</button>
+        </div>
+        <div className={styles.progress} aria-hidden="true">
+          {CARDS.map((_, i) => <span key={i} className={i <= step ? styles.on : ''} />)}
+        </div>
+        <div className={styles['card-wrap']}>
+          <div key={step} className={`${styles.card} ${dir === 'b' ? styles.back : styles.in}`}>
+            <div className={styles['card-head']}>
+              <span className={styles.num}>{pad(step + 1)} / {pad(CARDS.length)}</span>
+              <span className={styles.tag}>{card.tag}</span>
+            </div>
+            <div className={styles.body}>
+              <h1 className={styles.title}>{card.title}</h1>
+              <div className={styles.lines}>
+                {card.lines.map((l) => (
+                  l.startsWith('*')
+                    ? <p key={l} className={styles.punch}>{l.slice(1)}</p>
+                    : <p key={l}>{l}</p>
+                ))}
+              </div>
+            </div>
+            <div className={styles.ill}>
+              <img src={`/onboarding/semen-${pad(step + 1)}.png`} alt="" />
+            </div>
+          </div>
+        </div>
+        <div className={styles.controls}>
+          <button type="button" className={styles.prev} onClick={() => go(step - 1, 'b')} disabled={step === 0} aria-label="Назад">←</button>
+          <button type="button" className={`${styles.next} ${last ? styles['next-final'] : ''}`} onClick={() => (last ? finish() : go(step + 1, 'f'))}>
+            {last ? 'Почати з того, що є' : 'Далі'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
