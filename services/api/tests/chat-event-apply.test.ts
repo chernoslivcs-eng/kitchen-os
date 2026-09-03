@@ -90,4 +90,28 @@ describe('POST /v1/chat · картка event доходить до календ
     const alien = await app.inject({ method: 'GET', url: `/v1/events/${id}`, headers: { cookie: other.cookie } });
     expect(alien.statusCode).toBe(404);
   });
+
+  it('правка «на тиждень» без нової дати подовжує подію від її ж дати, а картка несе її назву', async () => {
+    // Живий репро 03.09: модель повернула {op:'edit', id, days:7} — і нічого не
+    // сталось (rule правиться лише з when), а слід у стрічці казав «подія».
+    const created = (await app.inject({
+      method: 'POST', url: '/v1/events', headers: { cookie: me.cookie },
+      payload: { title: 'Олена в гостях', rule: { t: 'once', at: '2026-09-10' } },
+    })).json() as { event: { id: string } };
+    const s = (await app.inject({ method: 'POST', url: '/v1/session', headers: { cookie: me.cookie }, payload: {} }))
+      .json() as { session: { id: string } };
+    const body = (await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { session_id: s.session.id, text: 'продовж Олену на тиждень' },
+    })).json() as { card?: { ops: { op: string; id?: string; title?: string; rule?: { days?: number } }[] } };
+    const op = body.card?.ops[0];
+    expect(op?.op).toBe('edit');
+    expect(op?.id).toBe(created.event.id);          // короткий id розгорнуто
+    expect(op?.title).toBe('Олена в гостях');       // назва дописана сервером
+    expect(op?.rule?.days).toBe(7);                 // days ліг у rule від дати події
+
+    const one = (await app.inject({ method: 'GET', url: `/v1/events/${created.event.id}`, headers: { cookie: me.cookie } }))
+      .json() as { event: { start: number; end: number } };
+    expect(Math.round((one.event.end - one.event.start) / 86_400_000)).toBe(7);  // кінець входження = start + days
+  });
 });

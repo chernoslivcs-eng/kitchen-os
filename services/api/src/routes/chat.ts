@@ -718,8 +718,22 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           // Два збіги — не вгадуємо: краще не зробити нічого, ніж змінити не те.
           id = hits.length === 1 ? hits[0]!.id : undefined;
         }
-        const withId = id ? { ...op, id } : { ...op, id: undefined };
-        if (op.op !== 'add' && !op.when) return withId;
+        // Правка/закриття несе назву події, яку чіпає: слід у стрічці має
+        // сказати «ЗМІНЕНО · Олена в гостях», а не «подія». Модель назви не
+        // повертає — і не мусить: id вона взяла з [ТВОЇ ПЛАНИ], назва там же.
+        const target = id ? events.find((e) => e.id === id) : undefined;
+        const withId = id
+          ? { ...op, id, ...(op.op !== 'add' && target && !op.title ? { title: target.title } : {}) }
+          : { ...op, id: undefined };
+        if (op.op !== 'add' && !op.when) {
+          // «На тиждень» без нової дати: тривалість міняється від дати самої
+          // події. Без цього `days` у правці був тихим no-op — applyEventOp
+          // править rule лише коли rule є.
+          if (op.op === 'edit' && op.days && target && target.rule.t === 'once') {
+            return { ...withId, rule: { ...target.rule, days: op.days } };
+          }
+          return withId;
+        }
         const rule = resolveWhen(op.when, new Date(), op.days);
         return rule ? { ...withId, rule } : null;
       }).filter((op): op is NonNullable<typeof op> => op !== null);

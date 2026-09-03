@@ -323,6 +323,18 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
   // жива модель, стаб віддає лише `when`, а дату рахує сервер (event-when.ts).
   // Саме на цьому зловився порядок у chat.ts — pending-картка писалась до
   // резолву, і applyCard бачив ops без rule.
+  // Правка наявного плану без нової дати: «продовж … на тиждень». Стаб бере
+  // перший план із контексту (короткий id, як у [ТВОЇ ПЛАНИ]) і повертає
+  // лише days — назву й rule має дописати сервер.
+  const extend = /продовж/i.exec(args.text);
+  if (extend && args.events?.[0]) {
+    return {
+      reply: 'Продовжив на тиждень.',
+      card: { type: 'event', ops: [{ op: 'edit', id: args.events[0].id.slice(0, 8), days: 7 }] },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   const guests = /гост(?:і|ей)/i.exec(args.text);
   if (guests) {
     const servings = /(\d+|шестеро|четверо|двоє|троє)/i.exec(args.text)?.[1];

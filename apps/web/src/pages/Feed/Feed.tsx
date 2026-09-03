@@ -1183,7 +1183,15 @@ export function Feed() {
                   <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
-                      ＋ ПОДІЯ{t.undone ? ' · СКАСОВАНО' : ''}
+                      {(() => {
+                        // Слід каже, ЩО зробили: додали, змінили, закрили чи прибрали.
+                        const ops = (t.card.ops as { op?: string }[] | undefined) ?? [];
+                        const kinds = new Set(ops.map((o) => o.op ?? 'add'));
+                        const word = kinds.size === 1
+                          ? ({ add: '＋ ПОДІЯ', edit: 'ПОДІЯ · ЗМІНЕНО', done: 'ПОДІЯ · ЗАКРИТО', remove: 'ПОДІЯ · ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
+                          : `ПОДІЯ · ${ops.length} ЗМІНИ`;
+                        return word;
+                      })()}{t.undone ? ' · СКАСОВАНО' : ''}
                     </span>
                     <span className={styles['trace-value']}>
                       {((t.card.ops as { title?: string }[] | undefined) ?? []).map((o) => o.title).filter(Boolean).join(', ') || 'подія'}
