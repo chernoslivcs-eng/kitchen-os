@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   spanDays, isLasting, splitAxes, weekSpans, coversDay, edgeCaption,
-  bubblesToNow, moreLabel, assignTones,
+  bubblesToNow, moreLabel, rank, railable, assignLanes,
 } from './spans';
 import type { EventOccurrence } from '../api';
 
@@ -100,7 +100,7 @@ describe('ліміт три', () => {
 });
 
 describe('порядок у рейці', () => {
-  it('обмеження вище свого, своє вище сезону', () => {
+  it('порядок роду: обмеження → своє → сезон → свято → редакційна', () => {
     // Живий прогін показав протилежне: сезонів буває чотири, вони найдовші,
     // ліміт три — і власний план людини щоразу тонув у «ЩЕ N».
     const season = ev(0, 60, { title: 'сезон', scope: 'catalog', kind: 'season' });
@@ -118,56 +118,58 @@ describe('порядок у рейці', () => {
   });
 });
 
-describe('банк кольорів', () => {
-  it('одночасні події не збігаються кольором', () => {
-    const tones = assignTones([ev(0, 5, { title: 'a' }), ev(2, 7, { title: 'b' }), ev(3, 4, { title: 'c' })]);
-    const vals = [...tones.values()];
-    expect(new Set(vals).size).toBe(3);
+
+
+describe('хто отримує риску', () => {
+  it('редакційна не отримує ніколи, навіть коли місце є', () => {
+    // Вона живе в рядку «тривають зараз» і має імʼя тільки там.
+    expect(railable(ev(0, 5, { kind: 'editorial', scope: 'catalog' }))).toBe(false);
+    expect(railable(ev(0, 5, { scope: 'catalog', source: 'Kitchen OS' }))).toBe(false);
+    expect(railable(ev(0, 5, { kind: 'season', scope: 'catalog' }))).toBe(true);
   });
 
-  it('події, що не перетинаються, можуть узяти той самий тон', () => {
-    const tones = assignTones([ev(0, 1, { title: 'a' }), ev(5, 6, { title: 'b' })]);
-    expect(tones.get('a')).toBe(tones.get('b'));
-  });
-
-  it('обмеження поза банком — тон 0, слива', () => {
-    const tones = assignTones([ev(0, 40, { title: 'піст', force: 'restrict' }), ev(1, 2, { title: 'гості' })]);
-    expect(tones.get('піст')).toBe(0);
-    expect(tones.get('гості')).toBeGreaterThan(0);
-  });
-
-  it('порядок не залежить від того, як події прийшли з мережі', () => {
-    const a = ev(0, 5, { title: 'a' }), b = ev(2, 7, { title: 'b' });
-    expect([...assignTones([a, b])]).toEqual([...assignTones([b, a])]);
-  });
-
-  it('повторювана подія тримає один колір на всіх входженнях', () => {
-    // «Щопʼятниці риба» не має міняти барву щотижня.
-    const w1 = ev(0, 0, { title: 'риба' });
-    const w2 = { ...ev(7, 7, { title: 'риба' }), id: 'риба' };
-    const tones = assignTones([w1, w2]);
-    expect(tones.get('риба')).toBeDefined();
-    expect(tones.size).toBe(1);
+  it('ховається першою теж редакційна, обмеження — ніколи', () => {
+    const order = [
+      ev(0, 5, { title: 'редакційна', kind: 'editorial', scope: 'catalog' }),
+      ev(0, 5, { title: 'свято', kind: 'tradition', scope: 'catalog' }),
+      ev(0, 5, { title: 'сезон', kind: 'season', scope: 'catalog' }),
+      ev(0, 5, { title: 'своя', scope: 'household' }),
+      ev(0, 5, { title: 'піст', scope: 'catalog', force: 'restrict' }),
+    ].sort((a, b) => rank(a) - rank(b)).map((e) => e.title);
+    expect(order).toEqual(['піст', 'своя', 'сезон', 'свято', 'редакційна']);
   });
 });
 
-describe('банк вичерпано', () => {
-  it('надлишкові події не скидаються всі на перший колір', () => {
-    // Живий екран: в один день сходились три сезони, два завози й три страви.
-    // Вільних тонів не лишалось, і «перший вільний» давав усім тон 1 — той
-    // самий, що вже носив сезон поруч.
-    const many = Array.from({ length: 9 }, (_, i) => ev(0, 2, { title: `e${i}` }));
-    const tones = assignTones(many);
-    const counts = new Map<number, number>();
-    for (const t of tones.values()) counts.set(t, (counts.get(t) ?? 0) + 1);
-    // Девʼять подій на шість кольорів: жоден не носять більше двох.
-    expect(Math.max(...counts.values())).toBeLessThanOrEqual(2);
-    // І всі шість справді задіяні, а не три перші.
-    expect(counts.size).toBe(6);
+describe('доріжки рисок', () => {
+  it('подія тримає свою смугу на всю довжину', () => {
+    // Без цього лінії зигзагують: нова подія зсуває решту праворуч.
+    const season = ev(0, 30, { title: 'сезон', kind: 'season', scope: 'catalog' });
+    const own = ev(3, 8, { title: 'своя', scope: 'household' });
+    const lanes = assignLanes([season, own]);
+    // Своя вище за родом — бере нульову; сезон лишається на своїй усі 30 днів.
+    expect(lanes.get('своя')).toBe(0);
+    expect(lanes.get('сезон')).toBe(1);
   });
 
-  it('доки кольорів вистачає, збігів немає зовсім', () => {
-    const six = Array.from({ length: 6 }, (_, i) => ev(0, 2, { title: `x${i}` }));
-    expect(new Set(assignTones(six).values()).size).toBe(6);
+  it('події, що не перетинаються, ділять одну доріжку', () => {
+    const a = ev(0, 3, { title: 'a', scope: 'household' });
+    const b = ev(5, 8, { title: 'b', scope: 'household' });
+    expect(assignLanes([a, b]).get('a')).toBe(assignLanes([a, b]).get('b'));
+  });
+
+  it('редакційна доріжки не отримує зовсім', () => {
+    const ed = ev(0, 5, { title: 'томати', kind: 'editorial', scope: 'catalog' });
+    expect(assignLanes([ed]).has('томати')).toBe(false);
+  });
+
+  it('обмеження бере першу доріжку й не ховається', () => {
+    const lanes = assignLanes([
+      ev(0, 40, { title: 'сезон', kind: 'season', scope: 'catalog' }),
+      ev(0, 40, { title: 'своя', scope: 'household' }),
+      ev(0, 40, { title: 'піст', scope: 'catalog', force: 'restrict' }),
+      ev(0, 40, { title: 'свято', kind: 'tradition', scope: 'catalog' }),
+    ]);
+    expect(lanes.get('піст')).toBe(0);
+    expect(lanes.get('свято')).toBe(3);   // за межею трьох — риски не буде
   });
 });

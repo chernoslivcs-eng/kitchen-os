@@ -12,8 +12,8 @@ import { useNavStore } from '../../store/nav';
 import { whenLabel } from '../../lib/when';
 import { buildDays, buildWeeks, splitRunning } from './days';
 import {
-  splitAxes, weekSpans, coversDay, edgeCaption, edgeDays, moreLabel, assignTones,
-  VISIBLE_LIMIT,
+  splitAxes, weekSpans, coversDay, edgeCaption, edgeDays, moreLabel,
+  VISIBLE_LIMIT, MOBILE_RAILS, railable, rank, assignLanes,
 } from '../../lib/spans';
 import { EventSheet } from './EventSheet';
 import { NewEventSheet } from './NewEventSheet';
@@ -40,11 +40,23 @@ const shortDate = (at: number) => new Date(at).toLocaleDateString('uk-UA', { day
 // Семантика та сама, що всюди: обмеження — слива («анти»), бо піст це рамка,
 // а не помилка; завіз — шавлія, бо це прихід; рамка на день — приглушена, бо
 // це не план; решта нейтральна.
-// Колір = ідентичність. Тон приходить із банку (lib/spans.ts) і призначається
-// так, щоб одночасні події ніколи не збіглися; обмеження лишається сливою поза
-// банком, бо це рамка, а не елемент списку.
-function toneClass(tone: number | undefined): string {
-  return styles[`t${tone ?? 1}`] ?? styles.t1!;
+// Колір = ЗНАЧЕННЯ, і кольорових родів лише три.
+//
+// Банк кольорів, який тут стояв, дизайн скасував прямо: «чотири кольорові
+// риски поруч читалися б як графік, а не як календар». І це видно було на
+// світлій темі — шість темних відтінків поруч розрізняються погано, бо їм і
+// не треба розрізнятись: вони мали означати різне, а означали лише «інша
+// подія».
+//
+// Бурштин — сезон («час іде»). Слива — обмеження («анти»). Шавлія — особисте,
+// те, що поставила людина. Свято й редакційна кольору роду не мають і йдуть
+// сірим: свято в whenLabel теж нейтраль, а редакційна не має бути голоснішою
+// за нього.
+function toneOf(e: EventOccurrence): string {
+  if (e.force === 'restrict') return styles['t-restrict']!;
+  if (e.scope === 'household') return styles['t-own']!;
+  if (e.kind === 'season') return styles['t-season']!;
+  return styles['t-grey']!;
 }
 
 export function CalendarPage() {
@@ -116,10 +128,6 @@ export function CalendarPage() {
   // лишаються самі точкові. Через це нижній блок «Триває» пішов: сезон стояв
   // би у двох місцях, а одна подія ніколи не буває в обох.
   const { lasting, point } = useMemo(() => splitAxes([...running, ...stream]), [running, stream]);
-  // Тон рахується один раз на весь видимий період: інакше та сама подія
-  // діставала б різні кольори в стрічці й у сітці.
-  const tones = useMemo(() => assignTones(events), [events]);
-  const toneOf = (e: EventOccurrence) => toneClass(tones.get(e.id));
 
   const keep = useMemo(() => edgeDays(lasting), [lasting]);
   const rows = useMemo(
@@ -129,17 +137,50 @@ export function CalendarPage() {
   const weeks = useMemo(
     () => buildWeeks(point, today.getTime(), HORIZON, today.getTime()), [point, today]);
 
-  // Мобільна риска: до двох тривалих на день, третя й далі — у підпис.
-  // Трьох рисок на телефоні не буває: 8px гутера на них просто немає.
-  const MOBILE_RAILS = 2;
+  /**
+   * Доріжки закріплюються за подіями на весь видимий період, а не рахуються
+   * щодня. Через це лінія тримається однієї колонки всю свою довжину: коли
+   * подія починається, вона займає ВІЛЬНУ доріжку, а не зсуває сусідів.
+   */
+  const lanes = useMemo(() => assignLanes(lasting), [lasting]);
+
+  /**
+   * Відступ рахується НА МІСЯЦЬ, не на день: інакше дата стрибала б ліворуч-
+   * праворуч від того, скільки тривалих припало на конкретний день. У квітні,
+   * коли лишиться сама черемша, дні повертаються самі.
+   */
+  const railWidthByMonth = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const row of rows) {
+      const at = row.type === 'day' ? row.at : row.from;
+      const key = monthOf(at);
+      const n = lasting
+        .filter((e) => coversDay(e, at))
+        .reduce((max, e) => {
+          const lane = lanes.get(e.id);
+          return lane !== undefined && lane < MOBILE_RAILS ? Math.max(max, lane + 1) : max;
+        }, 0);
+      m.set(key, Math.max(m.get(key) ?? 0, n));
+    }
+    return m;
+  }, [rows, lasting, lanes]);
+  const gutter = (at: number) => {
+    const n = railWidthByMonth.get(monthOf(at)) ?? 0;
+    return n === 0 ? 0 : 6 * n - 3;
+  };
+
+
   function railsFor(at: number) {
-    // Спершу ті, чий край саме сьогодні: у такий день стоїть підпис
-    // «▮ … ПОЧАВСЯ», і він мусить мати свою риску поруч. Інакше виходить
-    // рівно те, що видно на екрані — колір тексту без плашки того ж кольору.
-    const on = lasting
-      .filter((e) => coversDay(e, at))
-      .sort((a, b) => Number(edgeCaption(b, at) !== null) - Number(edgeCaption(a, at) !== null));
-    return { bars: on.slice(0, MOBILE_RAILS), extra: on.length - MOBILE_RAILS };
+    const on = lasting.filter((e) => coversDay(e, at));
+    const bars: (EventOccurrence | null)[] = Array.from({ length: MOBILE_RAILS }, () => null);
+    for (const e of on) {
+      const lane = lanes.get(e.id);
+      if (lane !== undefined && lane < MOBILE_RAILS) bars[lane] = e;
+    }
+    // Хто без риски — редакційна або з доріжки за межею трьох — іде в
+    // лічильник: вони тривають, просто мовчки.
+    const shown = bars.filter(Boolean).length;
+    return { bars, extra: on.length - shown };
   }
 
   let lastMonth = '';
@@ -181,9 +222,12 @@ export function CalendarPage() {
               <div key={`q${row.from}`}>
                 {monthHead && <div className={styles.month}>{monthHead}</div>}
                 <div className={styles['quiet-row']}>
-                  <div className={styles.rails}>
-                    {r.bars.map((e) => (
-                      <span key={e.id} className={`${styles.rail} ${toneOf(e)}`} />
+                  <div className={styles.rails} style={{ width: gutter(row.from) }}>
+                    {r.bars.map((e, i) => (
+                      <span
+                        key={i}
+                        className={`${styles.rail} ${e ? toneOf(e) : styles['rail-empty']}`}
+                      />
                     ))}
                   </div>
                   <div className={styles.quiet}>
@@ -196,11 +240,17 @@ export function CalendarPage() {
 
           const isToday = row.at === today.getTime();
           const r = railsFor(row.at);
-          const captions = lasting
+          // Підпис лише в того, хто має риску: інакше на екрані знову зʼявився б
+          // кольоровий текст без плашки того ж кольору. Хто без риски — живе
+          // в рядку «ще N тривалих», і це його єдине імʼя.
+          const captions = r.bars
+            .filter((e): e is EventOccurrence => e !== null)
             .map((e) => ({ e, text: edgeCaption(e, row.at) }))
             .filter((x): x is { e: EventOccurrence; text: string } => x.text !== null);
-          const shown = row.events.slice(0, VISIBLE_LIMIT);
-          const more = moreLabel(row.events.slice(VISIBLE_LIMIT));
+          // Порядок вирішує, хто ховається: редакційна першою, обмеження ніколи.
+          const ordered = [...row.events].sort((a, b) => rank(a) - rank(b));
+          const shown = ordered.slice(0, VISIBLE_LIMIT);
+          const more = moreLabel(ordered.slice(VISIBLE_LIMIT));
           return (
             <div key={row.at}>
               {monthHead && (
@@ -213,9 +263,12 @@ export function CalendarPage() {
                 ref={isToday ? setTodayEl : undefined}
                 className={`${styles.day} ${isToday ? styles.today : ''}`}
               >
-                <div className={styles.rails}>
-                  {r.bars.map((e) => (
-                    <span key={e.id} className={`${styles.rail} ${toneOf(e)}`} />
+                <div className={styles.rails} style={{ width: gutter(row.at) }}>
+                  {r.bars.map((e, i) => (
+                    <span
+                      key={i}
+                      className={`${styles.rail} ${e ? toneOf(e) : styles['rail-empty']}`}
+                    />
                   ))}
                 </div>
                 <div className={styles.date}>
@@ -270,8 +323,9 @@ export function CalendarPage() {
             const month = monthOf(w.start);
             const monthHead = month !== lastGridMonth ? month : null;
             lastGridMonth = month;
-            const spans = weekSpans(lasting, w.start).slice(0, VISIBLE_LIMIT);
-            const railMore = weekSpans(lasting, w.start).length - spans.length;
+            const allSpans = weekSpans(lasting, w.start);
+            const spans = allSpans.slice(0, VISIBLE_LIMIT);
+            const hiddenSpans = allSpans.slice(VISIBLE_LIMIT);
             return (
               <div key={w.start}>
                 {monthHead && <div className={styles.month}>{monthHead}</div>}
@@ -289,8 +343,13 @@ export function CalendarPage() {
                     </button>
                   </div>
                 ))}
-                {railMore > 0 && (
-                  <div className={styles['rail-more']}>ЩЕ {railMore} ТРИВАЛИХ</div>
+                {hiddenSpans.length > 0 && (
+                  <button
+                    className={styles['rail-more']}
+                    onClick={() => setOpenEvent(hiddenSpans[0]!.event)}
+                  >
+                    ЩЕ {hiddenSpans.length} ТРИВАЛА · {hiddenSpans[0]!.event.title.toUpperCase()} ›
+                  </button>
                 )}
                 <div className={styles.week}>
                   {w.days.map((d) => (
@@ -303,7 +362,7 @@ export function CalendarPage() {
                       {/* Порожня клітинка — тиша, не дірка: ні «＋ додати»,
                           ні пунктирної рамки, яка просить себе заповнити.
                           Ліміт три: більше — вже список, а не погляд. */}
-                      {d.events.slice(0, VISIBLE_LIMIT).map((e) => (
+                      {[...d.events].sort((a, b) => rank(a) - rank(b)).slice(0, VISIBLE_LIMIT).map((e) => (
                         <button
                           key={`${e.scope}:${e.id}`}
                           className={`${styles['cell-slot']} ${toneOf(e)}`}
@@ -315,7 +374,7 @@ export function CalendarPage() {
                       ))}
                       {d.events.length > VISIBLE_LIMIT && (
                         <span className={styles['cell-more']}>
-                          {moreLabel(d.events.slice(VISIBLE_LIMIT), false)}
+                          {moreLabel([...d.events].sort((a, b) => rank(a) - rank(b)).slice(VISIBLE_LIMIT), false)}
                         </span>
                       )}
                     </div>
