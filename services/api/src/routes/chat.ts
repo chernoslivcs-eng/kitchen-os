@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
-import { createPending, applyCard, applyMode, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
+import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -778,7 +778,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // живе в applyMode() (packages/domain/card-modes.ts), і саме цей гейт —
     // той, хто його виконує. Доки він мав власну копію списку, картка могла
     // отримати режим у мапі й не отримати його в рантаймі.
-    if (call.card && card_id && applyMode(call.card.type) === 'auto') {
+    if (call.card && card_id && applyModeFor(call.card) === 'auto') {
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;

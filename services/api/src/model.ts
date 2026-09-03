@@ -335,6 +335,19 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // Традиція — перемикач профілю: стаб віддає картку profile з kind tradition,
+  // яку сервер застосовує сам (applyModeFor), без «Запамʼятати».
+  const trad = /(католи|іслам|мусульман|православ|юдей)/i.exec(args.text);
+  if (trad) {
+    const label = /католи/i.test(trad[1]!) ? 'catholic' : /іслам|мусульман/i.test(trad[1]!) ? 'islamic' : /православ/i.test(trad[1]!) ? 'orthodox' : 'jewish';
+    const removing = /більше не|прибери|видали/i.test(args.text);
+    return {
+      reply: removing ? 'Прибрав.' : 'Записав, свята вже в календарі.',
+      card: { type: 'profile', ops: [{ op: removing ? 'remove' : 'add', kind: 'tradition', label }] },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   const guests = /гост(?:і|ей)/i.exec(args.text);
   if (guests) {
     const servings = /(\d+|шестеро|четверо|двоє|троє)/i.exec(args.text)?.[1];

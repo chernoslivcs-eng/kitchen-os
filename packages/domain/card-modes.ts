@@ -58,3 +58,18 @@ export const CARD_APPLY_MODE: Record<Card['type'], ApplyMode> = {
 export function applyMode(type: Card['type']): ApplyMode {
   return CARD_APPLY_MODE[type];
 }
+
+/**
+ * Режим для конкретної картки, не лише типу. Профіль лишається на
+ * підтвердженні, але традиції — виняток: це перемикач, який людина бачить і
+ * може зняти в профілі одним тапом, тож ціна помилки як у події, і запобіжник
+ * той самий — undo, не картка з кнопками.
+ */
+export function applyModeFor(card: Card): ApplyMode {
+  if (card.type === 'profile' && card.ops?.length && card.ops.every((o) => o.kind === 'tradition')) return 'auto';
+  return applyMode(card.type);
+}
+
+export function isTraditionCard(card: Card | null | undefined): boolean {
+  return !!card && card.type === 'profile' && !!card.ops?.length && card.ops.every((o) => o.kind === 'tradition');
+}

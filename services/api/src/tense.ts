@@ -16,7 +16,7 @@
 //
 // Джерело одне: applyMode() з @kitchen/domain. Тут — тільки мова.
 
-import { applyMode, type Card } from '@kitchen/domain';
+import { applyModeFor, type Card } from '@kitchen/domain';
 
 // Закритий словник: тільки дієслова про зміну стану, тільки ті форми, що
 // реально траплялись у копі-звітах. Кирилиця й `\b` несумісні — у JS це межа
@@ -51,7 +51,7 @@ const TENSE_CLAIMS = new RegExp(
  * чіпати його означає брехати людині про стан її комори.
  */
 export function fixTense(reply: string, card: Card | null): string {
-  if (!card || applyMode(card.type) !== 'confirm') return reply;
+  if (!card || applyModeFor(card) !== 'confirm') return reply;
   let out = reply;
   for (const [re, to] of TENSE_FIX) out = out.replace(re, to);
   return out;
@@ -63,6 +63,6 @@ export function fixTense(reply: string, card: Card | null): string {
  * форми, яких у словнику ще немає.
  */
 export function tenseViolation(reply: string, card: Card | null): boolean {
-  if (!card || applyMode(card.type) !== 'confirm') return false;
+  if (!card || applyModeFor(card) !== 'confirm') return false;
   return TENSE_CLAIMS.test(reply);
 }

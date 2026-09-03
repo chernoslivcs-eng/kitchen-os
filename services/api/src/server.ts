@@ -3,7 +3,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
 import cookie from '@fastify/cookie';
 import { InMemoryRepo, type Repo } from '@kitchen/domain';
-import { makePool, migrate, PostgresRepo } from '@kitchen/db';
+import { makePool, migrate, PostgresRepo, seedOccasions } from '@kitchen/db';
 import { InMemoryStore, LocalFSStore, VercelBlobStore, type AttachmentStore } from './attachment-store.js';
 import { ConsoleMailer, pickMailer, type Mailer } from './mailer.js';
 import { chatRoute } from './routes/chat.js';
@@ -145,6 +145,9 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
     if (!process.env.VERCEL) {
       const migRes = await migrate(pool);
       if (migRes.applied.length) console.log('migrations applied:', migRes.applied.join(', '));
+      // Довідник подій живе в таблиці, а його джерело — код: на Vercel сід іде
+      // кроком білду (vercel.json), локально — тут, щоб календар не був порожнім.
+      await seedOccasions(pool);
     }
     repo = new PostgresRepo(pool);
   } else {

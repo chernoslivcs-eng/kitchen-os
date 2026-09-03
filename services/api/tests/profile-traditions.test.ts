@@ -78,3 +78,32 @@ describe('традиції профілю', () => {
     expect((res.json() as { applied: number }).applied).toBe(0);
   });
 });
+
+describe('традиція з чату — без картки з кнопками', () => {
+  it('картка profile з самими традиціями застосовується сама, undo повертає «не обирала»', async () => {
+    const repo = new InMemoryRepo();
+    const mailer = new ConsoleMailer();
+    const app = buildApp(repo, new InMemoryStore(), mailer, {});
+    const me = await signIn(app, mailer, 'chat-trad@x.local');
+    const s = (await app.inject({ method: 'POST', url: '/v1/session', headers: { cookie: me.cookie }, payload: {} }))
+      .json() as { session: { id: string } };
+    const res = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { session_id: s.session.id, text: 'ми католики' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { auto_applied?: boolean; undo_token?: string; card_id?: string; reply: string };
+    expect(body.auto_applied).toBe(true);
+    expect(body.undo_token).toBeTruthy();
+    // Репліка не переписана в майбутній час: дія вже сталась.
+    expect(body.reply).toContain('Записав');
+    expect((await repo.getProfile(me.user_id))?.traditions).toEqual(['catholic']);
+
+    const undo = await app.inject({
+      method: 'POST', url: `/v1/cards/${body.card_id}/undo`, headers: { cookie: me.cookie },
+      payload: { undo_token: body.undo_token },
+    });
+    expect(undo.statusCode).toBe(200);
+    expect((await repo.getProfile(me.user_id))?.traditions ?? null).toBeNull();
+  });
+});

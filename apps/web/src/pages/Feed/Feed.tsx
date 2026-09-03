@@ -25,6 +25,8 @@ import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
 import { stepLabelsFrom } from '../../lib/recipe';
 import styles from './Feed.module.css';
+
+const TRADITION_UA: Record<string, string> = { orthodox: 'православні', catholic: 'католицькі', islamic: 'ісламські', jewish: 'юдейські' };
 import panelStyles from '../../components/ArtifactPanel/ArtifactPanel.module.css';
 import { usePanelStore } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
@@ -107,6 +109,11 @@ const newId = () => `t${nextId++}`;
 export function Feed() {
   const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
+  // Картка профілю, у якій самі традиції: сервер застосовує її сам
+  // (applyModeFor), а стрічка показує слід замість картки з кнопками.
+  const isTraditionTurn = (t: { card?: { type: string; ops?: unknown[] } | null }) =>
+    !!t.card && t.card.type === 'profile' && !!t.card.ops?.length
+    && (t.card.ops as { kind?: string }[]).every((o) => o.kind === 'tradition');
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
@@ -1204,6 +1211,33 @@ export function Feed() {
                 )}
               </div>
             )}
+            {isTraditionTurn(t) && t.applied && (
+              /* Традиція — перемикач профілю, застосований сервером сам, як
+                 подія. У стрічці — слід, не картка з «Запамʼятати»: стан живе
+                 в профілі, слід каже дельту і веде туди. */
+              <div className={styles['trace-wrap']}>
+                <button
+                  type="button"
+                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''}`}
+                  onClick={() => navigate('/profile')}
+                  disabled={t.undone}
+                >
+                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={styles['trace-body']}>
+                    <span className={styles['trace-kind']}>
+                      {(t.card!.ops as { op?: string }[]).every((o) => o.op === 'remove') ? 'ПРОФІЛЬ · ПРИБРАНО' : '＋ ПРОФІЛЬ · ТРАДИЦІЯ'}{t.undone ? ' · СКАСОВАНО' : ''}
+                    </span>
+                    <span className={styles['trace-value']}>
+                      {(t.card!.ops as { label?: string }[]).map((o) => TRADITION_UA[o.label ?? ''] ?? o.label).filter(Boolean).join(', ')}
+                    </span>
+                  </span>
+                  {!t.undone && <span className={styles['trace-go']}>→</span>}
+                </button>
+                {!t.undone && t.undoToken && (
+                  <button type="button" className={styles['trace-undo']} onClick={() => undo(t.id, t.undoToken!)}>СКАСУВАТИ</button>
+                )}
+              </div>
+            )}
             {t.card?.type === 'shopping' && t.applied && (
               /* Крок 4.5 + відкладений 3.2. Слід каже ДЕЛЬТУ, панель — стан:
                  «+5 · разом 9» відповідає на «що модель узяла в роботу» без
@@ -1275,7 +1309,7 @@ export function Feed() {
               </button>
             )}
             {/* Подія в стрічці — це слід (нижче), не картка: інакше під слідом стояла б порожня рамка (EventCard поза панеллю рендерить null). */}
-            {t.card && t.card.type !== 'event' && (
+            {t.card && t.card.type !== 'event' && !(isTraditionTurn(t) && t.applied) && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
               <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
