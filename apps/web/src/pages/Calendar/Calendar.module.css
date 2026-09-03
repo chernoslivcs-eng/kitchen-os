@@ -387,7 +387,6 @@
      наступні тижні стрибали б униз під курсором — рівно те сіпання, яке вже
      ловили на рейках. Клітинка тримає свою висоту, стек виходить за неї. */
   .cell { position: relative; }
-  .cell:hover { z-index: 3; }
   .cell-stack {
     display: flex;
     flex-direction: column;
@@ -395,9 +394,15 @@
     min-width: 0;
   }
   .cell-extra { display: none; }
-  .cell:hover .cell-extra { display: block; }
-  .cell:hover .cell-more { display: none; }
-  .cell:hover .cell-stack {
+  /* :has(.cell-more) — підняти клітинку лише тоді, коли є що розгортати.
+     Без цього застереження порожня чи ледь заповнена клітинка все одно
+     ловила ховер: курсор наводиш на СР 2 без жодної події — і вилазить
+     порожня біла картка нізвідки, бо .cell:hover спрацьовував на будь-якій
+     клітинці, а не лише на переповненій. */
+  .cell:hover:has(.cell-more) { z-index: 3; }
+  .cell:hover:has(.cell-more) .cell-extra { display: block; }
+  .cell:hover:has(.cell-more) .cell-more { display: none; }
+  .cell:hover:has(.cell-more) .cell-stack {
     position: absolute;
     left: -8px;
     right: -8px;
@@ -409,7 +414,7 @@
   }
   /* Розгорнутий стек більше не ріже назви до двох рядків: він для того й
      відкривається, щоб показати повністю. */
-  .cell:hover .cell-slot { -webkit-line-clamp: unset; }
+  .cell:hover:has(.cell-more) .cell-slot { -webkit-line-clamp: unset; }
 }
 
 /* «Триває» — закріплений низ і ОДИН рядок. На мобільному його немає зовсім:
