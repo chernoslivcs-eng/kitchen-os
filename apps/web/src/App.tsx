@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-import { SignIn } from './pages/SignIn/SignIn';
+import { Landing } from './pages/Landing/Landing';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
 import { PantryPage } from './pages/Pantry/Pantry';
@@ -92,7 +92,7 @@ export function App() {
     <BrowserRouter>
       <Boot>
         <Routes>
-          <Route path="/" element={<RedirectIfSignedIn><SignIn /></RedirectIfSignedIn>} />
+          <Route path="/" element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
           <Route element={<RequireAuth><Shell /></RequireAuth>}>
             <Route path="/app" element={<Feed />} />
