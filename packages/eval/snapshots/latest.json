@@ -1,6 +1,6 @@
 {
   "promptVersion": "2026-08-28",
-  "createdAt": "2026-09-01T22:25:13.341Z",
+  "createdAt": "2026-09-02T14:04:16.853Z",
   "runs": [
     {
       "id": "receipt-abbreviated",
@@ -8,7 +8,7 @@
       "invariants": {
         "receipt-coverage-80": {
           "pass": true,
-          "detail": "12/11 рядків (109%)"
+          "detail": "11/11 рядків (100%)"
         },
         "expanded-abbreviations": {
           "pass": true
@@ -21,17 +21,17 @@
         },
         "tagger-triples": {
           "pass": true,
-          "detail": "product у 12/12, молочних із тегом: 3"
+          "detail": "product у 11/11, молочних із тегом: 2"
         }
       },
-      "promptHash": "d82b0d94e61b",
+      "promptHash": "5035f2f54b8c",
       "usage": {
-        "input": 3889,
-        "output": 1970,
+        "input": 4186,
+        "output": 1689,
         "cached": 0,
         "cache_write": 0
       },
-      "reply": "Камбоцола й молоко відкриті — краще використати сьогодні-завтра. Паста, оливка, хліб — основа. Помідори, часник, цибуля, базил — свіжа база для томатного соусу. Фарш охолоджений — готувати сьогодні або завтра.",
+      "reply": "Камбоцола й молоко відкриті — краще сьогодні використати. Паста, оливка, хліб — основа для пасти карбонара або болоньєзе.",
       "card": {
         "type": "intake_diff",
         "ops": [
@@ -40,15 +40,14 @@
             "label": "камбоцола 70%",
             "zone": "fridge",
             "product": "камбоцола",
-            "brand": "Повна Чаша",
             "variant": "70%",
             "tags": {
               "allergens": [
                 "молоко"
               ],
-              "fasting": true,
+              "fasting": false,
               "alcohol": false,
-              "lactose": "low",
+              "lactose": "yes",
               "processing": "cooked",
               "shelf_open_days": 7
             },
@@ -63,13 +62,12 @@
             "label": "молоко пастеризоване 2,5%",
             "zone": "fridge",
             "product": "молоко",
-            "brand": "Премія",
             "variant": "2,5%",
             "tags": {
               "allergens": [
                 "молоко"
               ],
-              "fasting": true,
+              "fasting": false,
               "alcohol": false,
               "lactose": "yes",
               "processing": "cooked",
@@ -83,32 +81,10 @@
           },
           {
             "op": "add",
-            "label": "молоко пастеризоване 2,5%",
-            "zone": "fridge",
-            "product": "молоко",
-            "brand": "Премія",
-            "variant": "2,5%",
-            "tags": {
-              "allergens": [
-                "молоко"
-              ],
-              "fasting": true,
-              "alcohol": false,
-              "lactose": "yes",
-              "processing": "cooked",
-              "shelf_open_days": 5
-            },
-            "value": 950,
-            "unit": "ml",
-            "confidence": 0.95,
-            "evidence": "receipt_line"
-          },
-          {
-            "op": "add",
             "label": "помідори чері гроно",
             "zone": "fresh",
-            "product": "помідори",
-            "variant": "чері гроно",
+            "product": "помідори чері",
+            "variant": "гроно",
             "tags": {
               "allergens": [],
               "fasting": true,
@@ -116,7 +92,7 @@
               "processing": "raw",
               "shelf_open_days": 5
             },
-            "value": 400,
+            "value": 112,
             "unit": "g",
             "confidence": 0.9,
             "evidence": "receipt_line"
@@ -126,7 +102,6 @@
             "label": "яловичий фарш охолоджений",
             "zone": "fridge",
             "product": "яловичий фарш",
-            "variant": "охолоджений",
             "tags": {
               "allergens": [],
               "fasting": false,
@@ -134,9 +109,9 @@
               "processing": "raw",
               "shelf_open_days": 2
             },
-            "value": 500,
+            "value": 179,
             "unit": "g",
-            "confidence": 0.9,
+            "confidence": 0.95,
             "evidence": "receipt_line"
           },
           {
@@ -144,7 +119,7 @@
             "label": "паста спагеті №5 Барілла",
             "zone": "dry",
             "product": "паста спагеті",
-            "brand": "Барілла",
+            "brand": "Barilla",
             "variant": "№5",
             "tags": {
               "allergens": [
@@ -152,8 +127,7 @@
               ],
               "fasting": true,
               "alcohol": false,
-              "processing": "cooked",
-              "shelf_open_days": 730
+              "processing": "cooked"
             },
             "value": 500,
             "unit": "g",
@@ -164,8 +138,8 @@
             "op": "add",
             "label": "хліб житній нарізаний",
             "zone": "fresh",
-            "product": "хліб",
-            "variant": "житній нарізаний",
+            "product": "хліб житній",
+            "variant": "нарізаний",
             "tags": {
               "allergens": [
                 "глютен"
@@ -182,17 +156,16 @@
           },
           {
             "op": "add",
-            "label": "оливкова олія екстра вірджин Монініі",
+            "label": "оливкова олія екстра вірджин Монині",
             "zone": "dry",
             "product": "оливкова олія",
-            "brand": "Монініі",
+            "brand": "Monini",
             "variant": "екстра вірджин",
             "tags": {
               "allergens": [],
               "fasting": true,
               "alcohol": false,
-              "processing": "raw",
-              "shelf_open_days": 365
+              "processing": "raw"
             },
             "value": 500,
             "unit": "ml",
@@ -211,7 +184,7 @@
               "processing": "raw",
               "shelf_open_days": 14
             },
-            "value": 300,
+            "value": 35,
             "unit": "g",
             "confidence": 0.85,
             "evidence": "receipt_line"
@@ -220,26 +193,25 @@
             "op": "add",
             "label": "часник молодий",
             "zone": "fresh",
-            "product": "часник",
-            "variant": "молодий",
+            "product": "часник молодий",
             "tags": {
               "allergens": [],
               "fasting": true,
               "alcohol": false,
               "processing": "raw",
-              "shelf_open_days": 10
+              "shelf_open_days": 7
             },
-            "value": 80,
+            "value": 20,
             "unit": "g",
-            "confidence": 0.85,
+            "confidence": 0.9,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
             "label": "базилік зелений пучок",
             "zone": "fresh",
-            "product": "базилік",
-            "variant": "зелений",
+            "product": "базилік зелений",
+            "variant": "пучок",
             "tags": {
               "allergens": [],
               "fasting": true,
@@ -247,7 +219,7 @@
               "processing": "raw",
               "shelf_open_days": 3
             },
-            "value": 30,
+            "value": 28,
             "unit": "g",
             "confidence": 0.9,
             "evidence": "receipt_line"
@@ -271,38 +243,40 @@
       "invariants": {
         "receipt-coverage-80": {
           "pass": true,
-          "detail": "10/10 рядків (100%)"
+          "detail": "17/10 рядків (170%)"
         },
         "no-prices": {
           "pass": true
         },
         "includes-nonfood": {
           "pass": true,
-          "detail": "7 нехарчових позицій"
+          "detail": "8 нехарчових позицій"
         }
       },
-      "promptHash": "d82b0d94e61b",
+      "promptHash": "5035f2f54b8c",
       "usage": {
-        "input": 3791,
-        "output": 1148,
+        "input": 4088,
+        "output": 2328,
         "cached": 0,
         "cache_write": 0
       },
-      "reply": "Побутовий чек: напої, гігієна, газ. Харчове — тільки чіпси.",
+      "reply": "Побутовий закуп: напої, гігієна, паливо. Їстівне — чіпси.",
       "card": {
         "type": "intake_diff",
         "ops": [
           {
             "op": "add",
-            "label": "Кола Зеро 1.5л",
+            "label": "Кола Зеро 1.5 л",
             "zone": "drinks",
             "product": "кола зеро",
             "brand": "Coca-Cola",
+            "variant": "1.5 л",
             "tags": {
+              "allergens": [],
               "fasting": true,
-              "alcohol": false,
-              "processing": "ready"
+              "alcohol": false
             },
+            "state": "sealed",
             "value": 1500,
             "unit": "ml",
             "confidence": 0.95,
@@ -310,36 +284,147 @@
           },
           {
             "op": "add",
-            "label": "Вода негазована Морш. 1.5л",
+            "label": "Кола Зеро 1.5 л",
             "zone": "drinks",
-            "product": "вода негазована",
-            "brand": "Морш",
+            "product": "кола зеро",
+            "brand": "Coca-Cola",
+            "variant": "1.5 л",
             "tags": {
+              "allergens": [],
               "fasting": true,
-              "alcohol": false,
-              "processing": "ready"
+              "alcohol": false
             },
+            "state": "sealed",
             "value": 1500,
             "unit": "ml",
-            "confidence": 0.9,
+            "confidence": 0.95,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Чіпси Лейс зі смітаною 150г",
+            "label": "Вода негазована Моршинська 1.5 л",
+            "zone": "drinks",
+            "product": "вода негазована",
+            "brand": "Моршинська",
+            "variant": "1.5 л",
+            "tags": {
+              "allergens": [],
+              "fasting": true,
+              "alcohol": false
+            },
+            "state": "sealed",
+            "value": 1500,
+            "unit": "ml",
+            "confidence": 0.95,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "Вода негазована Моршинська 1.5 л",
+            "zone": "drinks",
+            "product": "вода негазована",
+            "brand": "Моршинська",
+            "variant": "1.5 л",
+            "tags": {
+              "allergens": [],
+              "fasting": true,
+              "alcohol": false
+            },
+            "state": "sealed",
+            "value": 1500,
+            "unit": "ml",
+            "confidence": 0.95,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "Вода негазована Моршинська 1.5 л",
+            "zone": "drinks",
+            "product": "вода негазована",
+            "brand": "Моршинська",
+            "variant": "1.5 л",
+            "tags": {
+              "allergens": [],
+              "fasting": true,
+              "alcohol": false
+            },
+            "state": "sealed",
+            "value": 1500,
+            "unit": "ml",
+            "confidence": 0.95,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "Вода негазована Моршинська 1.5 л",
+            "zone": "drinks",
+            "product": "вода негазована",
+            "brand": "Моршинська",
+            "variant": "1.5 л",
+            "tags": {
+              "allergens": [],
+              "fasting": true,
+              "alcohol": false
+            },
+            "state": "sealed",
+            "value": 1500,
+            "unit": "ml",
+            "confidence": 0.95,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "Вода негазована Моршинська 1.5 л",
+            "zone": "drinks",
+            "product": "вода негазована",
+            "brand": "Моршинська",
+            "variant": "1.5 л",
+            "tags": {
+              "allergens": [],
+              "fasting": true,
+              "alcohol": false
+            },
+            "state": "sealed",
+            "value": 1500,
+            "unit": "ml",
+            "confidence": 0.95,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "Вода негазована Моршинська 1.5 л",
+            "zone": "drinks",
+            "product": "вода негазована",
+            "brand": "Моршинська",
+            "variant": "1.5 л",
+            "tags": {
+              "allergens": [],
+              "fasting": true,
+              "alcohol": false
+            },
+            "state": "sealed",
+            "value": 1500,
+            "unit": "ml",
+            "confidence": 0.95,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "Чіпси Lay's зі смітаною 150 г",
             "zone": "dry",
             "product": "чіпси",
             "brand": "Lay's",
             "variant": "зі смітаною",
             "tags": {
               "allergens": [
-                "глютен"
+                "глютен",
+                "молоко"
               ],
-              "fasting": true,
+              "fasting": false,
               "alcohol": false,
-              "processing": "ready",
-              "shelf_open_days": 3
+              "processing": "ready"
             },
+            "state": "sealed",
             "value": 150,
             "unit": "g",
             "confidence": 0.95,
@@ -347,9 +432,11 @@
           },
           {
             "op": "add",
-            "label": "Папір туалетний Зева 8шт",
+            "label": "Папір туалетний Зева 8 шт",
             "zone": "dry",
             "product": "папір туалетний",
+            "brand": "Зева",
+            "state": "sealed",
             "value": 8,
             "unit": "pcs",
             "confidence": 0.95,
@@ -357,10 +444,11 @@
           },
           {
             "op": "add",
-            "label": "Гель для душу Fa 250мл",
+            "label": "Гель для душу Fa 250 мл",
             "zone": "dry",
             "product": "гель для душу",
             "brand": "Fa",
+            "state": "sealed",
             "value": 250,
             "unit": "ml",
             "confidence": 0.95,
@@ -368,9 +456,10 @@
           },
           {
             "op": "add",
-            "label": "Серветки столові 100шт",
+            "label": "Серветки столові 100 шт",
             "zone": "dry",
             "product": "серветки столові",
+            "state": "sealed",
             "value": 100,
             "unit": "pcs",
             "confidence": 0.95,
@@ -378,9 +467,10 @@
           },
           {
             "op": "add",
-            "label": "Губки для посуду 5шт",
+            "label": "Губки для посуду 5 шт",
             "zone": "dry",
             "product": "губки для посуду",
+            "state": "sealed",
             "value": 5,
             "unit": "pcs",
             "confidence": 0.95,
@@ -388,10 +478,11 @@
           },
           {
             "op": "add",
-            "label": "Порошок пральний Персіль 400г",
+            "label": "Порошок пральний Persil 400 г",
             "zone": "dry",
             "product": "порошок пральний",
             "brand": "Persil",
+            "state": "sealed",
             "value": 400,
             "unit": "g",
             "confidence": 0.95,
@@ -402,6 +493,24 @@
             "label": "Балон газовий туристичний",
             "zone": "dry",
             "product": "балон газовий туристичний",
+            "tags": {
+              "alcohol": false
+            },
+            "state": "sealed",
+            "value": 1,
+            "unit": "pcs",
+            "confidence": 0.95,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "Балон газовий туристичний",
+            "zone": "dry",
+            "product": "балон газовий туристичний",
+            "tags": {
+              "alcohol": false
+            },
+            "state": "sealed",
             "value": 1,
             "unit": "pcs",
             "confidence": 0.95,
@@ -412,6 +521,7 @@
             "label": "Пакет",
             "zone": "dry",
             "product": "пакет",
+            "state": "sealed",
             "value": 1,
             "unit": "pcs",
             "confidence": 0.95,
@@ -431,6 +541,10 @@
           "pass": true,
           "detail": "21 ops"
         },
+        "triple-discipline": {
+          "pass": true,
+          "detail": "16 брендів, label повні"
+        },
         "no-prices": {
           "pass": true
         },
@@ -442,35 +556,38 @@
           "pass": true
         }
       },
-      "promptHash": "d82b0d94e61b",
+      "promptHash": "5035f2f54b8c",
       "usage": {
-        "input": 4284,
-        "output": 2919,
+        "input": 4581,
+        "output": 3078,
         "cached": 0,
         "cache_write": 0
       },
-      "reply": "Дрова, вугілля, одноразовий гриль — готуєшся до вогню. Дай знати, коли запалюєш, покажу, що готувати.",
+      "reply": "Дрова, розпал, гриль — одноразові; хліб і булочка сьогодні; ковбаса й яловичина свіжі, вагові. Чипси й напої — запас.",
       "card": {
         "type": "intake_diff",
         "ops": [
           {
             "op": "add",
-            "label": "Дрова Penok Почвогн",
+            "label": "дрова Penoк для розпалювання",
             "zone": "dry",
             "product": "дрова",
-            "brand": "Penok",
-            "variant": "для розпалу",
+            "brand": "Penoк",
+            "variant": "для розпалювання",
+            "tags": {},
             "value": 259,
             "unit": "g",
-            "confidence": 0.6,
+            "confidence": 0.75,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Розпал Jarrkof гель 0,25",
+            "label": "розпал Jarrkof гель 0,25 л",
             "zone": "dry",
-            "product": "розпал гель",
+            "product": "розпал",
             "brand": "Jarrkof",
+            "variant": "гель",
+            "tags": {},
             "value": 250,
             "unit": "ml",
             "confidence": 0.7,
@@ -478,47 +595,56 @@
           },
           {
             "op": "add",
-            "label": "Гриль одноразовий Weekend",
+            "label": "гриль одноразовий Weekend",
             "zone": "dry",
             "product": "гриль одноразовий",
             "brand": "Weekend",
-            "confidence": 0.9,
+            "tags": {},
+            "value": 1,
+            "unit": "pcs",
+            "confidence": 0.85,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Пакет 18 Сільпо",
+            "label": "пакет Сільпо з застібкою 18 л",
             "zone": "dry",
-            "product": "пакет поліетиленовий",
-            "value": 18,
+            "product": "пакет",
+            "brand": "Сільпо",
+            "variant": "з застібкою 18 л",
+            "tags": {},
+            "value": 1,
             "unit": "pcs",
             "confidence": 0.9,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Хустинки 150 Hoc Rut Mini",
+            "label": "хустинки Hoc Rut Mini Tissue 150 шт",
             "zone": "dry",
-            "product": "хустинки паперові",
-            "value": 150,
+            "product": "хустинки",
+            "brand": "Hoc Rut",
+            "variant": "Mini 150 шт",
+            "tags": {},
+            "value": 1,
             "unit": "pcs",
-            "confidence": 0.9,
+            "confidence": 0.85,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Шоколад молочний 25г Ког Мигдаль",
+            "label": "шоколад молочний Когнак з мигдалем 25 г",
             "zone": "dry",
             "product": "шоколад молочний",
-            "variant": "з мигдалем",
+            "variant": "Когнак з мигдалем",
             "tags": {
               "allergens": [
                 "молоко",
                 "горіхи"
               ],
               "fasting": false,
-              "alcohol": false,
-              "processing": "ready"
+              "alcohol": true,
+              "processing": "cooked"
             },
             "value": 25,
             "unit": "g",
@@ -527,17 +653,17 @@
           },
           {
             "op": "add",
-            "label": "Шоколад молочний 25г Ког Чіа",
+            "label": "шоколад молочний Когнак з чіа 25 г",
             "zone": "dry",
             "product": "шоколад молочний",
-            "variant": "з чіа",
+            "variant": "Когнак з чіа",
             "tags": {
               "allergens": [
                 "молоко"
               ],
               "fasting": false,
-              "alcohol": false,
-              "processing": "ready"
+              "alcohol": true,
+              "processing": "cooked"
             },
             "value": 25,
             "unit": "g",
@@ -546,37 +672,39 @@
           },
           {
             "op": "add",
-            "label": "Папір туалетний 80 Zew Pure Moist",
+            "label": "папір туалетний Zew Pure Moist 80 шт",
             "zone": "dry",
             "product": "папір туалетний",
-            "value": 80,
+            "brand": "Zew",
+            "variant": "Pure Moist 80 шт",
+            "tags": {},
+            "value": 1,
             "unit": "pcs",
-            "confidence": 0.9,
+            "confidence": 0.85,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Багет подовгастий гречневий 160г",
+            "label": "багет гречаний мінеральний 160 г",
             "zone": "fresh",
             "product": "багет",
-            "variant": "гречневий",
+            "variant": "гречаний мінеральний",
             "tags": {
               "allergens": [
                 "глютен"
               ],
               "fasting": true,
-              "alcohol": false,
               "processing": "cooked",
               "shelf_open_days": 1
             },
             "value": 160,
             "unit": "g",
-            "confidence": 0.7,
+            "confidence": 0.75,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Булочка з корицею 100г",
+            "label": "булочка з корицею 100 г",
             "zone": "fresh",
             "product": "булочка",
             "variant": "з корицею",
@@ -584,8 +712,7 @@
               "allergens": [
                 "глютен"
               ],
-              "fasting": false,
-              "alcohol": false,
+              "fasting": true,
               "processing": "cooked",
               "shelf_open_days": 1
             },
@@ -596,7 +723,7 @@
           },
           {
             "op": "add",
-            "label": "Ковбаса Сільпо Мілан свіжа 114г",
+            "label": "ковбаса Сільпо Мілан свіжа 114 г",
             "zone": "fridge",
             "product": "ковбаса",
             "brand": "Сільпо",
@@ -606,9 +733,8 @@
                 "глютен"
               ],
               "fasting": false,
-              "alcohol": false,
               "processing": "cooked",
-              "shelf_open_days": 7
+              "shelf_open_days": 5
             },
             "value": 114,
             "unit": "g",
@@ -617,13 +743,12 @@
           },
           {
             "op": "add",
-            "label": "Напій Schweppes Pink Tonic 0,25л",
+            "label": "напій Schweppes Pink Tonic 0,25 л",
             "zone": "drinks",
-            "product": "напій газований",
+            "product": "напій",
             "brand": "Schweppes",
             "variant": "Pink Tonic",
             "tags": {
-              "allergens": [],
               "fasting": true,
               "alcohol": false
             },
@@ -634,72 +759,70 @@
           },
           {
             "op": "add",
-            "label": "Квас Тарас Хліб 0,5л",
+            "label": "квас Квас Тараса Хліб Збіжжя 0,5 л",
             "zone": "drinks",
             "product": "квас",
-            "brand": "Тарас",
+            "brand": "Квас Тараса",
+            "variant": "Хліб Збіжжя",
+            "tags": {
+              "fasting": true,
+              "alcohol": false,
+              "shelf_open_days": 3
+            },
+            "value": 500,
+            "unit": "ml",
+            "confidence": 0.8,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "крем-брускетта Ponti з чорних оливок 135 г",
+            "zone": "fridge",
+            "product": "крем-брускетта",
+            "brand": "Ponti",
+            "variant": "з чорних оливок",
             "tags": {
               "allergens": [
                 "глютен"
               ],
               "fasting": true,
-              "alcohol": false
+              "processing": "ready",
+              "shelf_open_days": 7
             },
-            "value": 500,
-            "unit": "ml",
+            "value": 135,
+            "unit": "g",
             "confidence": 0.9,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Крем Pont чорні оливи 135г",
-            "zone": "fridge",
-            "product": "крем оливковий",
-            "brand": "Pont",
-            "variant": "чорні оливи",
-            "tags": {
-              "allergens": [],
-              "fasting": true,
-              "alcohol": false,
-              "processing": "ready",
-              "shelf_open_days": 14
-            },
-            "value": 135,
-            "unit": "g",
-            "confidence": 0.7,
-            "evidence": "receipt_line"
-          },
-          {
-            "op": "add",
-            "label": "Мінеральна вода Моршинська 1,5л",
+            "label": "вода Моршинська негазована 1,5 л",
             "zone": "drinks",
-            "product": "вода мінеральна",
+            "product": "вода",
             "brand": "Моршинська",
-            "variant": "без газу",
+            "variant": "негазована",
             "tags": {
-              "allergens": [],
               "fasting": true,
               "alcohol": false
             },
             "value": 1500,
             "unit": "ml",
-            "confidence": 0.9,
+            "confidence": 0.95,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Чипси Lay's картопля сир 120г",
+            "label": "чипси Lay's картопляні зі смаком сиру 120 г",
             "zone": "dry",
             "product": "чипси",
             "brand": "Lay's",
-            "variant": "картопля сир",
+            "variant": "картопляні зі смаком сиру",
             "tags": {
               "allergens": [
                 "молоко",
                 "глютен"
               ],
               "fasting": false,
-              "alcohol": false,
               "processing": "ready"
             },
             "value": 120,
@@ -709,64 +832,61 @@
           },
           {
             "op": "add",
-            "label": "Яловичина Dry Aged Porter 502г",
+            "label": "яловичина Dry Age Porter вакуум 502 г",
             "zone": "fridge",
             "product": "яловичина",
-            "variant": "Dry Aged Porter",
+            "brand": "Porter",
+            "variant": "Dry Age вакуум",
             "tags": {
-              "allergens": [],
               "fasting": false,
-              "alcohol": false,
-              "processing": "raw",
-              "shelf_open_days": 3
+              "processing": "cooked",
+              "shelf_open_days": 7
             },
             "value": 502,
+            "unit": "g",
+            "confidence": 0.85,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "пакет біороз 3 кг",
+            "zone": "dry",
+            "product": "пакет",
+            "variant": "біороз 3 кг",
+            "tags": {},
+            "value": 1,
+            "unit": "pcs",
+            "confidence": 0.75,
+            "evidence": "receipt_line"
+          },
+          {
+            "op": "add",
+            "label": "томат Біоранж жовтий 488 г",
+            "zone": "fresh",
+            "product": "томат",
+            "brand": "Біоранж",
+            "variant": "жовтий",
+            "tags": {
+              "fasting": true,
+              "processing": "raw",
+              "shelf_open_days": 5
+            },
+            "value": 488,
             "unit": "g",
             "confidence": 0.8,
             "evidence": "receipt_line"
           },
           {
             "op": "add",
-            "label": "Пакет біороз 3кг",
-            "zone": "dry",
-            "product": "пакет сміттєвий",
-            "value": 3,
-            "unit": "pcs",
-            "confidence": 0.7,
-            "evidence": "receipt_line"
-          },
-          {
-            "op": "add",
-            "label": "Томат Біоранж жовтий 488г",
-            "zone": "fresh",
-            "product": "томат",
-            "brand": "Біоранж",
-            "variant": "жовтий",
-            "tags": {
-              "allergens": [],
-              "fasting": true,
-              "alcohol": false,
-              "processing": "raw",
-              "shelf_open_days": 5
-            },
-            "value": 488,
-            "unit": "g",
-            "confidence": 0.75,
-            "evidence": "receipt_line"
-          },
-          {
-            "op": "add",
-            "label": "Пиво Kronenbourg Blanc 0,33л",
+            "label": "пиво Kronenbourg Blanc 0,33 л",
             "zone": "drinks",
             "product": "пиво",
             "brand": "Kronenbourg",
             "variant": "Blanc",
             "tags": {
-              "allergens": [
-                "глютен"
-              ],
               "fasting": false,
-              "alcohol": true
+              "alcohol": true,
+              "gluten": "yes"
             },
             "value": 330,
             "unit": "ml",
@@ -775,13 +895,12 @@
           },
           {
             "op": "add",
-            "label": "Напій Schweppes Orange Bitter Lemon 0,25л",
+            "label": "напій Schweppes Orange Bitter Lemon 0,25 л",
             "zone": "drinks",
-            "product": "напій газований",
+            "product": "напій",
             "brand": "Schweppes",
             "variant": "Orange Bitter Lemon",
             "tags": {
-              "allergens": [],
               "fasting": true,
               "alcohol": false
             },
@@ -817,14 +936,14 @@
           "detail": "7 інгредієнтів, 5 кроків"
         }
       },
-      "promptHash": "d82b0d94e61b",
+      "promptHash": "5035f2f54b8c",
       "usage": {
-        "input": 3691,
-        "output": 915,
+        "input": 3988,
+        "output": 1025,
         "cached": 0,
         "cache_write": 0
       },
-      "reply": "Сербська котлета з розплавленим сиром всередині — головне не передержати, щоб камбоцола не витекла на пательню.",
+      "reply": "Сербська котлета з розплавленим сиром всередині — головне не передержати, щоб камбоцола текла, а не висихала.",
       "card": {
         "type": "recipe",
         "recipe": {
@@ -832,8 +951,8 @@
           "sv": 2,
           "tm": 50,
           "ch": "30 хв активної роботи",
-          "d": "м'ясо з хрустким краєм, гарячий розплавлений сир всередині, гострий айвар",
-          "rk": "передержати на пательні — сир витече, або недодержати — не розплавиться",
+          "d": "м'ясо з хрустким краєм, гарячий розплавлений сир, гострий айвар",
+          "rk": "передержати на пательні — сир витече, недодержати — не розплавиться",
           "nu": {
             "kcal": 520,
             "p": 32,
@@ -880,28 +999,28 @@
           "st": [
             {
               "t": "Підготовка фаршу",
-              "c": "Цибулю дрібно нарізати, змішати з {0}, додати сіль і перець. Добре вимішати руками.",
-              "s": 300
+              "c": "Цибулю дрібно нашинкуй, змішай з {0}, додай {3} і {4}. Добре вимішай руками — фарш має бути однорідний і щільний.",
+              "s": 600
             },
             {
               "t": "Охолодження",
-              "c": "Накрити й поставити в холодильник на 30 хв.",
+              "c": "Поклади фарш у холодильник на 30 хвилин — холодний фарш легше формується й утримує сир.",
               "s": 1800
             },
             {
               "t": "Формування",
-              "c": "Розділити фарш на дві рівні частини. Кожну розплющити в долоні, покласти в центр шматочок {2}, загорнути краї й добре защипнути, щоб сир не вилізав. Сформувати товсту, трохи сплющену котлету.",
+              "c": "Розділи фарш на дві рівні частини. Кожну розплющи в долоні, посередину поклади шматочок {2}, загорни краї й добре защипни, щоб сир не вилізав. Сформуй товсту котлету — не тонку, щоб м'ясо встигло прогрітись, а сир розплавитись.",
               "s": 300
             },
             {
               "t": "Смаження",
-              "c": "Розігріти пательню на середньому вогні без масла. Покласти котлети, смажити 4–5 хв з кожного боку, доки м'ясо не набере золотистої кірки й сир не почне текти з краю. Не переворотити більше одного разу.",
-              "s": 600
+              "c": "Розігрій пательню на середньому вогні без масла — камбоцола сама дасть жир. Поклади котлети, смажи 4–5 хвилин з кожного боку. Поверхня має бути золотава, а всередину — м'яка й вологувата. Перевір: легко натисни — якщо сир почав текти, готово.",
+              "s": 540
             },
             {
               "t": "Подача",
-              "c": "Викласти на тарілку, подати з {5} і {6}.",
-              "s": 60
+              "c": "Поклади на тарілку, поруч {5} і {6}. Айвар гарячий або кімнатної температури — він контрастує з гарячим м'ясом.",
+              "s": 120
             }
           ]
         }
@@ -922,11 +1041,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1128,
-        "output": 92,
+        "output": 98,
         "cached": 0,
         "cache_write": 14987
       },
-      "reply": "Тримай рецепт — фарш формуємо з кишенею, камбоцола всередині розтопиться.",
+      "reply": "Тримай рецепт — фарш формуємо, камбоцолу ховаємо всередину, смажимо до скоринки.",
       "card": {
         "type": "cook_go",
         "title": "Плескавиця з камбоцолою"
@@ -953,45 +1072,39 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1046,
-        "output": 445,
+        "output": 380,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Креветок у коморі немає — треба докупити. Ось три варіанти, що виходять із решти продуктів:",
+      "reply": "Креветок немає — докупити треба. Ось три варіанти, решта продуктів є:",
       "card": {
         "type": "proposal",
         "items": [
           {
-            "title": "Спагеті з креветками, часником і чері",
-            "desc": "Класична паста з морепродуктами — креветки соковиті, часник пахучий, томати лопаються, олія звʼязує все в легкий соус",
+            "title": "Спагеті з креветками, часником і чилі",
+            "desc": "Креветки соковиті, паста вкрита олією з часником, легка гострота чилі, пармезан зверху",
             "character": "20 хв, легко",
-            "rescues": [
-              "Помідори чері"
-            ],
             "needs": [
-              "Креветки"
+              "креветки",
+              "чилі"
             ]
           },
           {
-            "title": "Креветки в часниковій олії з пармезаном",
-            "desc": "Креветки смажені на сковороді — хрусткі з краю, ніжні всередині, часникова олія з пармезаном робить густий соус",
-            "character": "15 хв, швидко",
-            "rescues": [
-              "Пармезан"
-            ],
+            "title": "Креветки в томатному соусі з базиліком",
+            "desc": "Креветки в густому томатному соусі, чері лопаються, базилік свіжий, подається з спагеті",
+            "character": "25 хв, легко",
             "needs": [
-              "Креветки"
+              "креветки",
+              "базилік"
             ]
           },
           {
-            "title": "Креветки з томатним соусом і спагеті",
-            "desc": "Томатний соус з чері, креветки кидаються в кінці — паста вбирає соус, креветки залишаються соковитими",
-            "character": "25 хв, нормально",
-            "rescues": [
-              "Помідори чері"
-            ],
+            "title": "Креветки на грилі з часниковою олією",
+            "desc": "Креветки підсмажені до хрусткої скоринки, просочені часниковою олією, лимон зверху",
+            "character": "15 хв, дуже швидко",
             "needs": [
-              "Креветки"
+              "креветки",
+              "лимон"
             ]
           }
         ]
@@ -1018,11 +1131,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1380,
-        "output": 71,
+        "output": 62,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "УВАГА: мідії — алерген у мами. Якщо готуєш на двох — треба страву без молюсків. Або це тільки тобі?",
+      "reply": "УВАГА: мідії — алерген у мами. Готуємо тільки собі, чи треба щось інше на двох?",
       "card": null
     },
     {
@@ -1046,28 +1159,28 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1121,
-        "output": 271,
+        "output": 268,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Булочки з корицею — м'які, пряні, теплі. Або чорний шоколад — гіркуватий, тане на язиці.",
+      "reply": "Булочки з корицею — тепло, м'яко, корицевий аромат. Чорний шоколад — гіркуватий, тане на язиці.",
       "card": {
         "type": "proposal",
         "items": [
           {
             "title": "Булочки з корицею",
-            "desc": "М'які, пряні, з теплою корицею всередині. Підходять до чорного чаю.",
-            "character": "готові — лише підігріти 2 хв",
+            "desc": "Тепло, м'яко, корицевий аромат розкривається з першого шматка",
+            "character": "є — підігріти 2 хв",
             "rescues": [
-              "булочки з корицею"
+              "Булочки з корицею"
             ]
           },
           {
-            "title": "Чорний шоколад",
-            "desc": "70% какао — гіркуватий, тане на язиці, довге післясмак. До чаю без молока.",
-            "character": "готовий",
+            "title": "Чорний шоколад 70%",
+            "desc": "Гіркуватий, тане на язиці, довге какао в післясмаку",
+            "character": "є — дістати",
             "rescues": [
-              "шоколад чорний 70%"
+              "Шоколад чорний 70%"
             ]
           }
         ]
@@ -1090,71 +1203,95 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1001,
-        "output": 608,
+        "output": 657,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "УВАГА: тут арахіс, у тебе на нього позначка. Ось три варіанти — класична тайська, з кунжутом замість арахісу, і швидка з імбиром.",
+      "reply": "УВАГА: тут арахіс, у тебе на нього позначка. Ось рецепт — локшину відвариш, соус збиваєш міксером, подаєш теплим.",
       "card": {
-        "type": "proposal",
-        "items": [
-          {
-            "title": "Пад Тай з арахісовим соусом",
-            "desc": "Солодкувато-гострий соус обволікає локшину, арахіс хрумтить, лайм дає свіжість. Класика тайської вулиці.",
-            "character": "30 хв, середні зусилля",
-            "rescues": [
-              "локшина рисова"
-            ],
-            "needs": [
-              "арахісова паста",
-              "соєвий соус",
-              "лайм",
-              "часник",
-              "імбир",
-              "цукор",
-              "чилі",
-              "яйця",
-              "зелена цибуля",
-              "арахіс смажений"
-            ]
-          },
-          {
-            "title": "Локшина з кунжутним соусом",
-            "desc": "Густий кунжутний соус з імбиром і часником, без горіхів. Тепла, обволікаюча текстура.",
-            "character": "20 хв, легко",
-            "rescues": [
-              "локшина рисова",
-              "курка філе"
-            ],
-            "needs": [
-              "тахіні",
-              "соєвий соус",
-              "рисовий оцет",
-              "мед",
-              "часник",
-              "імбир",
-              "кунжут"
-            ]
-          },
-          {
-            "title": "Локшина з імбирно-соєвим соусом і куркою",
-            "desc": "Швидкий варіант: курка смажиться з імбиром, соус на соєвій базі без горіхів. Гостре й просте.",
-            "character": "25 хв, легко",
-            "rescues": [
-              "локшина рисова",
-              "курка філе"
-            ],
-            "needs": [
-              "соєвий соус",
-              "імбир",
-              "часник",
-              "мед",
-              "кунжутна олія",
-              "зелена цибуля",
-              "чилі"
-            ]
-          }
-        ]
+        "type": "recipe",
+        "recipe": {
+          "t": "Локшина з арахісовим соусом",
+          "sv": 4,
+          "tm": 25,
+          "ch": "швидко, міксер",
+          "d": "Щільний ореховий соус обволікає локшину, імбир дає гостроту, кунжут — хруст зверху",
+          "ing": [
+            {
+              "n": "локшина рисова",
+              "v": 250,
+              "u": "g"
+            },
+            {
+              "n": "арахісова паста",
+              "v": 100,
+              "u": "g"
+            },
+            {
+              "n": "соєвий соус",
+              "v": 40,
+              "u": "ml"
+            },
+            {
+              "n": "рисовий оцет",
+              "v": 20,
+              "u": "ml"
+            },
+            {
+              "n": "мед",
+              "v": 15,
+              "u": "ml"
+            },
+            {
+              "n": "імбир свіжий",
+              "v": 15,
+              "u": "g"
+            },
+            {
+              "n": "часник",
+              "v": 2,
+              "u": "pcs"
+            },
+            {
+              "n": "кунжутна олія",
+              "v": 10,
+              "u": "ml"
+            },
+            {
+              "n": "вода",
+              "v": 50,
+              "u": "ml"
+            },
+            {
+              "n": "зелена цибуля",
+              "v": 30,
+              "u": "g"
+            },
+            {
+              "n": "кунжут",
+              "v": 10,
+              "u": "g"
+            }
+          ],
+          "st": [
+            {
+              "t": "Локшину",
+              "c": "Відвари {0} за інструкцією на пачці, злий воду",
+              "s": 480
+            },
+            {
+              "t": "Соус",
+              "c": "Міксером збий {1}, {2}, {3}, {4}, тертий {5}, давлений {6}, {7}, {8} до однорідності",
+              "s": 180
+            },
+            {
+              "t": "Подача",
+              "c": "Локшину змішай з соусом, посип {9} і {10}",
+              "s": 60
+            }
+          ],
+          "rk": "Соус не розводити заздалегідь — густішає при стоянні"
+        }
       }
     },
     {
@@ -1206,7 +1343,7 @@
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Записую папір, засіб і серветки в комору — все побутове йде в сухий запас.",
+      "reply": "Записую туалетний папір, мийний засіб і серветки — все в сухій зоні.",
       "card": {
         "type": "intake_diff",
         "ops": [
@@ -1261,11 +1398,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 978,
-        "output": 324,
+        "output": 335,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Записую пармезан і олію. Що готуємо?",
+      "reply": "Записав пармезан і олію — обидва в сухе. Готуємо щось зараз?",
       "card": {
         "type": "intake_diff",
         "ops": [
@@ -1274,7 +1411,7 @@
             "label": "Пармезан Galbani тертий",
             "value": 200,
             "unit": "g",
-            "zone": "fridge",
+            "zone": "dry",
             "product": "пармезан",
             "brand": "Galbani",
             "variant": "тертий",
@@ -1284,9 +1421,9 @@
               "allergens": [
                 "молоко"
               ],
-              "lactose": "low",
+              "lactose": "none",
               "processing": "ready",
-              "shelf_open_days": 7
+              "shelf_open_days": 14
             }
           },
           {
@@ -1324,16 +1461,15 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1007,
-        "output": 128,
+        "output": 135,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Записав намір — роли з креветками. Коли надумаєш, скажи — підкажу, що докупити.",
+      "reply": "Записав — роли з креветками, коли дістанеш. Папір уже є, бракує креветок, рисового оцту, рибного соусу й овочів.",
       "card": {
         "type": "profile",
         "ops": [
           {
-            "op": "add",
             "kind": "intent",
             "label": "в'єтнамські роли з рисового паперу з креветками"
           }
@@ -1361,52 +1497,49 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1050,
-        "output": 529,
+        "output": 609,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Страус — м'ясо дуже постне, смажиться швидше за яловичину. Дам три варіанти — від простого до розгорнутого.",
+      "reply": "Страус — м'ясо дичини, схоже на яловичину, але постіше й швидше сохне. Три варіанти: класичний стейк на сковороді, азійський з вустерським соусом або африканський з харисою.",
       "card": {
         "type": "proposal",
         "items": [
           {
-            "title": "Стейк зі страуса з чімічуррі",
-            "desc": "М'ясо з хрусткою скоринкою, соковите всередині, яскравий зелений соус з петрушки й часнику ріже жирність",
-            "character": "20 хвилин, середні зусилля",
-            "rescues": [],
-            "needs": [
-              "стейк зі страуса",
-              "петрушка",
-              "часник",
-              "оцет винний",
-              "орегано"
-            ]
-          },
-          {
-            "title": "Страус з манговим сальса",
-            "desc": "Постне м'ясо + солодкувато-гостра сальса з манго, червоної цибулі й лайма, подається з рисом",
-            "character": "30 хвилин, середні зусилля",
-            "rescues": [],
-            "needs": [
-              "стейк зі страуса",
-              "манго",
-              "цибуля червона",
-              "лайм",
-              "чилі",
-              "рис басматі"
-            ]
-          },
-          {
-            "title": "Страус з трюфельним пюре й спаржею",
-            "desc": "Розгорнута подача: м'ясо medium-rare, вершкове пюре з трюфельною олією, спаржа на грилі",
-            "character": "45 хвилин, з душею",
+            "title": "Стейк зі страуса на сковороді з картоплею фрі",
+            "desc": "М'ясо смажиться 2-3 хв з боку до medium-rare — рожеве всередині, скоринка хрустка. Картопля фрі хрумтить, стейк соковитий.",
+            "character": "30 хв, середні зусилля",
             "rescues": [],
             "needs": [
               "стейк зі страуса",
               "картопля",
-              "трюфельна олія",
-              "спаржа",
-              "вершкове масло"
+              "масло вершкове"
+            ]
+          },
+          {
+            "title": "Стейк зі страуса з вустерським соусом і овочами вок",
+            "desc": "Стейк нарізаний смужками, смажиться швидко у воці з імбиром, часником і вустером — солодко-гострий присмак. Овочі хрусткі, м'ясо ніжне.",
+            "character": "25 хв, швидко",
+            "rescues": [],
+            "needs": [
+              "стейк зі страуса",
+              "імбир",
+              "часник",
+              "вустерський соус",
+              "болгарський перець",
+              "цибуля"
+            ]
+          },
+          {
+            "title": "Стейк зі страуса з харисою й кускусом",
+            "desc": "Стейк маринується в харисі (північноафриканська паста з перцю чилі), смажиться до рожевого. Кускус пухкий, хариса дає гостроту й димність.",
+            "character": "35 хв (20 хв маринування), середні зусилля",
+            "rescues": [],
+            "needs": [
+              "стейк зі страуса",
+              "хариса",
+              "кускус",
+              "лимон"
             ]
           }
         ]
@@ -1426,45 +1559,12 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1041,
-        "output": 291,
+        "output": 98,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Тверда база: маш лежить третій тиждень — докупи імбир, буде рагу. До ролів з наміру бракує креветок й авокадо. Експеримент: свіжі томати й базилік зараз пік сезону — паста вийде яскрава.",
-      "card": {
-        "type": "shopping",
-        "items": [
-          {
-            "op": "add",
-            "label": "імбир",
-            "note": "до машу на рагу"
-          },
-          {
-            "op": "add",
-            "label": "креветки",
-            "v": 300,
-            "u": "g",
-            "note": "до ролів"
-          },
-          {
-            "op": "add",
-            "label": "авокадо",
-            "note": "до ролів"
-          },
-          {
-            "op": "add",
-            "label": "томати на гілці",
-            "v": 500,
-            "u": "g",
-            "note": "пік сезону"
-          },
-          {
-            "op": "add",
-            "label": "базилік свіжий",
-            "note": "пік сезону"
-          }
-        ]
-      }
+      "reply": "Тверда база: спагеті відкриті — ще два дні, маш лежить третій тиждень. До ролів з наміру бракує лише креветки й авокадо — решта є. Які з цих напрямів цікавіші?",
+      "card": null
     },
     {
       "id": "recipe-context-carries",
@@ -1484,7 +1584,7 @@
       "promptHash": "4fbd46a291fb",
       "usage": {
         "input": 276,
-        "output": 782,
+        "output": 667,
         "cached": 0,
         "cache_write": 4130
       },
@@ -1496,8 +1596,8 @@
           "sv": 2,
           "tm": 35,
           "ch": "35 хвилин, постійно мішати",
-          "d": "Кремове, з легкою кислинкою томатів і солоністю пармезану. Рис тримає форму, але розтікається по тарілці.",
-          "rk": "Не додавати бульйон весь одразу — рис має поступово віддавати крохмаль, інакше вийде каша, а не кремова текстура",
+          "d": "Кремове, з легкою кислинкою томатів і солоною глибиною пармезану. Рис тримає форму, але тане на язиці.",
+          "rk": "Не лити бульйон весь відразу — рис має поступово віддавати крохмаль, інакше вийде каша, а не ризото",
           "nu": {
             "kcal": 420,
             "p": 14,
@@ -1505,24 +1605,18 @@
             "c": 52
           },
           "op": [
-            "арборіо — купити завтра",
-            "бульйон овочевий або курячий 800 мл",
-            "вершкове масло 30 г для фінішу"
+            "Базилік свіжий зверху",
+            "Вершкове масло в фініш — ще більше кремовості"
           ],
           "ing": [
             {
               "n": "рис арборіо",
-              "v": 180,
+              "v": 160,
               "u": "g"
             },
             {
               "p": "p1",
-              "v": 300,
-              "u": "g"
-            },
-            {
-              "p": "p3",
-              "v": 80,
+              "v": 250,
               "u": "g"
             },
             {
@@ -1531,48 +1625,50 @@
               "u": "g"
             },
             {
+              "p": "p3",
+              "v": 80,
+              "u": "g"
+            },
+            {
               "p": "p4",
-              "v": 40,
+              "v": 30,
               "u": "ml"
             },
             {
-              "n": "бульйон",
-              "v": 800,
+              "n": "бульйон овочевий або вода",
+              "v": 600,
               "u": "ml"
             },
             {
-              "n": "сіль"
+              "n": "вино біле сухе",
+              "v": 80,
+              "u": "ml"
             }
           ],
           "st": [
             {
-              "t": "Підготовка",
-              "c": "{1} — надрізати хрест, ошпарити, зняти шкірку, нарізати дрібним кубиком. {2} — дрібно посікти",
-              "s": 300
-            },
-            {
-              "t": "База",
-              "c": "Каструля з товстим дном, середній вогонь. {4} прогріти, {2} — 3 хв до прозорості, не підрумʼянювати",
+              "t": "Основа",
+              "c": "{3} дрібно посіки. {4}: розігрій, {3} — 3 хв до прозорості, не підсмажувати",
               "s": 180
             },
             {
               "t": "Рис",
-              "c": "{0} всипати, мішати 2 хв — зерна мають стати напівпрозорими по краях. {1} додати, перемішати",
+              "c": "{0} всип до цибулі, мішай 1 хв — зерна мають стати прозорими по краях. {5} влий, випарюй повністю",
               "s": 120
             },
             {
-              "t": "Бульйон",
-              "c": "{5} підігріти окремо. Вливати по половині черпака, постійно мішати. Наступну порцію — коли попередня майже вбралась. Не заливати весь одразу",
-              "s": 1200
+              "t": "Томати",
+              "c": "{1} наріж дрібно. {6} підігрій окремо. Половину {1} додай до рису",
+              "s": 60
+            },
+            {
+              "t": "Варка",
+              "c": "Бульйон по половині черпака, мішай постійно. Доливай наступну порцію, коли попередня майже вбралась. 18 хв — рис має бути al dente",
+              "s": 1080
             },
             {
               "t": "Фініш",
-              "c": "Через 18–20 хв спробуй — рис має бути al dente (щільна серцевина). {3} вмішати, вогонь вимкнути. Спробуй перед тим як солити — пармезан уже дав своє",
-              "s": 120
-            },
-            {
-              "t": "Подача",
-              "c": "Розлити по тарілках, {4} краплями зверху. Їсти одразу — ризото не чекає",
+              "c": "Решту {1} всип, прогрій хвилину. Зніми з вогню. {2} — половину вмішай, решту зверху",
               "s": 60
             }
           ]
@@ -1595,11 +1691,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1147,
-        "output": 99,
+        "output": 91,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Тримай рецепт — лосось смажимо шкіркою вниз, гарнір роблю з картоплі й зеленої квасолі",
+      "reply": "Тримай рецепт — лосось смажимо шкіркою вниз, гарнір з овочів і картоплі.",
       "card": {
         "type": "cook_go",
         "title": "Лосось на сковороді"
@@ -1611,7 +1707,7 @@
       "invariants": {
         "intake-no-dup": {
           "pass": true,
-          "detail": "7 унікальних ops"
+          "detail": "8 унікальних ops"
         },
         "intake-count:банан=3": {
           "pass": true,
@@ -1621,98 +1717,137 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1080,
-        "output": 728,
+        "output": 1067,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Записую: банани, багет, масло Metro Chef, овочі, лосось, мʼясний стейк і набір на гуляш. Воду не записую — вона завжди є. Що готуємо з цього?",
+      "reply": "Записую — лосось, стейк мʼясний, мʼясо на гуляш, банани, багет, масло, овочева суміш. Що готуємо зараз?",
       "card": {
         "type": "intake_diff",
         "ops": [
           {
             "op": "add",
-            "label": "банани",
+            "label": "Банани",
             "value": 3,
             "unit": "pcs",
             "zone": "fresh",
             "confidence": 1,
-            "evidence": "user_statement"
+            "evidence": "user_statement",
+            "product": "банан",
+            "tags": {
+              "fasting": true,
+              "processing": "raw",
+              "shelf_open_days": 5
+            }
           },
           {
             "op": "add",
-            "label": "багет",
+            "label": "Багет",
             "value": 1,
             "unit": "pcs",
             "zone": "dry",
             "confidence": 1,
             "evidence": "user_statement",
+            "product": "багет",
             "tags": {
               "allergens": [
                 "глютен"
               ],
               "processing": "ready",
-              "shelf_open_days": 1
+              "shelf_open_days": 2
             }
           },
           {
             "op": "add",
-            "label": "вершкове масло Metro Chef",
-            "product": "масло вершкове",
-            "brand": "Metro Chef",
+            "label": "Вершкове масло Metro Chef",
+            "value": 1,
+            "unit": "pack",
             "zone": "fridge",
             "confidence": 1,
             "evidence": "user_statement",
+            "product": "масло вершкове",
+            "brand": "Metro Chef",
             "tags": {
               "allergens": [
                 "молоко"
               ],
               "lactose": "yes",
-              "processing": "ready"
+              "processing": "ready",
+              "shelf_open_days": 21
             }
           },
           {
             "op": "add",
-            "label": "суміш овочів",
-            "zone": "freezer",
+            "label": "Вода",
+            "value": 3,
+            "unit": "l",
+            "zone": "dry",
             "confidence": 1,
             "evidence": "user_statement",
+            "product": "вода"
+          },
+          {
+            "op": "add",
+            "label": "Суміш овочів",
+            "value": 1,
+            "unit": "pack",
+            "zone": "freezer",
+            "confidence": 0.9,
+            "evidence": "user_statement",
+            "product": "овочі",
+            "variant": "суміш заморожена",
             "tags": {
+              "fasting": true,
               "processing": "raw"
             }
           },
           {
             "op": "add",
-            "label": "стейк з лосося",
-            "product": "лосось",
-            "variant": "стейк",
-            "zone": "freezer",
+            "label": "Стейк з лосося",
+            "value": 1,
+            "unit": "pcs",
+            "zone": "fridge",
             "confidence": 1,
             "evidence": "user_statement",
+            "product": "лосось",
+            "variant": "стейк",
             "tags": {
               "allergens": [
                 "риба"
               ],
-              "processing": "raw"
+              "fasting": true,
+              "processing": "raw",
+              "shelf_open_days": 2
             }
           },
           {
             "op": "add",
-            "label": "мʼясний стейк",
-            "zone": "freezer",
+            "label": "Стейк мʼясний",
+            "value": 1,
+            "unit": "pcs",
+            "zone": "fridge",
             "confidence": 0.8,
             "evidence": "user_statement",
+            "product": "яловичина",
+            "variant": "стейк",
             "tags": {
-              "processing": "raw"
+              "processing": "raw",
+              "shelf_open_days": 3
             }
           },
           {
             "op": "add",
-            "label": "набір на гуляш",
+            "label": "Мʼясо на гуляш",
+            "value": 1,
+            "unit": "pack",
             "zone": "fridge",
-            "confidence": 1,
+            "confidence": 0.8,
             "evidence": "user_statement",
+            "product": "яловичина",
+            "variant": "кубики",
             "tags": {
-              "processing": "raw"
+              "processing": "raw",
+              "shelf_open_days": 3
             }
           }
         ]
@@ -1751,8 +1886,7 @@
           "detail": "card.type=proposal"
         },
         "lent-no-meat-or-dairy": {
-          "pass": false,
-          "detail": "у Великий піст сама пропонує скоромне: птиця"
+          "pass": true
         },
         "no-markdown": {
           "pass": true
@@ -1764,57 +1898,55 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1259,
-        "output": 556,
+        "output": 502,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Піст — тож мʼясо й вершки не беремо. Нут і гриби — ось що дає щільність без тваринного. Три варіанти — від швидкого до повільного:",
+      "reply": "Піст — час бобових і грибів. Нут є, гриби є — ось три варіанти.",
       "card": {
         "type": "proposal",
         "items": [
           {
-            "title": "Гриби смажені з нутом і цибулею",
-            "desc": "Печериці карамелізуються до золотистої скоринки, нут хрумкий зверху, цибуля солодка — подається з рисом або хлібом",
-            "character": "20 хв, одна пательня",
+            "title": "Гриби з нутом у томатному соусі",
+            "desc": "Печериці смажені до золотистої скоринки, нут м'який всередині, томатний соус густий і трохи кислуватий — їси з хлібом або рисом",
+            "character": "40 хв, середні зусилля",
             "rescues": [
-              "Гриби печериці",
-              "Нут сушений",
-              "Цибуля"
+              "нут",
+              "гриби печериці",
+              "цибуля"
             ],
             "needs": [
-              "Часник",
-              "Олія",
-              "Сіль"
+              "томати в пюре",
+              "часник",
+              "олія"
             ]
           },
           {
-            "title": "Ризото з грибами",
-            "desc": "Рис кремовий, гриби дають умамі, цибуля розчиняється в базі — щільна страва без молочного",
-            "character": "35 хв, постійне помішування",
+            "title": "Рис з грибами й цибулею",
+            "desc": "Гриби карамелізовані, рис розсипчастий, цибуля солодка — проста вечеря без зайвого",
+            "character": "25 хв, мінімум зусиль",
             "rescues": [
-              "Рис",
-              "Гриби печериці",
-              "Цибуля"
+              "рис",
+              "гриби печериці",
+              "цибуля"
             ],
             "needs": [
-              "Бульйон овочевий або вода",
-              "Біле вино (опційно)",
-              "Олія"
+              "соєвий соус або сіль"
             ]
           },
           {
-            "title": "Нутова юшка з грибами",
-            "desc": "Густа, пряна, гриби дають глибину, нут розварюється — їси з хлібом або так",
-            "character": "45 хв (нут варити), мінімум уваги",
+            "title": "Хумус домашній + печериці на грилі",
+            "desc": "Нут збитий у гладку пасту з тахіні, печериці з грилю димні й соковиті — подаєш з лавашем або овочами",
+            "character": "50 хв (нут варити), є душа",
             "rescues": [
-              "Нут сушений",
-              "Гриби печериці",
-              "Цибуля"
+              "нут",
+              "гриби печериці"
             ],
             "needs": [
-              "Томати (свіжі або консервовані)",
-              "Часник",
-              "Куркума або паприка"
+              "тахіні",
+              "лимон",
+              "часник",
+              "олія"
             ]
           }
         ]
@@ -1837,11 +1969,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 523,
-        "output": 78,
+        "output": 76,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Дати Великодня ще не розпізнано — за яким календарем плануєш (православний чи католицький)? Запишу, щоб нагадати ближче до свята.",
+      "reply": "Дати Великодня ще не розпізнано — за яким календарем плануєш (православний чи католицький)? Запишу, щоб нагадати вчасно.",
       "card": null
     },
     {
@@ -1865,40 +1997,32 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1074,
-        "output": 502,
+        "output": 379,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Білі гриби свіжі — зараз їхній короткий сезон, а в тебе вони вже тиждень. Ризото з ними класичне, або крем-суп.",
+      "reply": "Білі гриби свіжі — зараз їхній короткий сезон, а в тебе вони вже тиждень. Ризото з ними класичне, або жульєн швидше.",
       "card": {
         "type": "proposal",
         "items": [
           {
             "title": "Ризото з білими грибами",
-            "desc": "Кремова текстура рису, гриби м'які всередині з хрусткою скоринкою, пармезан тягнеться — класика італійської кухні",
-            "why": "білі гриби лежать тиждень — зараз їхній пік",
-            "character": "40 хв, постійно мішати",
+            "desc": "Кремова текстура рису, гриби м'які всередині з хрусткою скоринкою, пармезан тягнеться — класика північної Італії",
+            "character": "40 хвилин, постійно помішувати",
             "rescues": [
               "Білі гриби свіжі",
               "Рис арборіо",
+              "Вершки 30%",
               "Пармезан"
             ]
           },
           {
-            "title": "Крем-суп з білих грибів",
-            "desc": "Оксамитова текстура, насичений грибний смак, вершки додають м'якості — подавати з хрусткими грінками",
-            "character": "30 хв, мінімум зусиль",
+            "title": "Жульєн з білих грибів",
+            "desc": "Гриби в вершковому соусі під сирною скоринкою, гаряче й тягуче — подавати в кокотницях або просто з хлібом",
+            "character": "25 хвилин, мінімум зусиль",
             "rescues": [
               "Білі гриби свіжі",
-              "Вершки 30%"
-            ]
-          },
-          {
-            "title": "Білі гриби смажені з пармезаном",
-            "desc": "Гриби золотисті з хрусткою скоринкою, пармезан плавиться зверху, часник дає аромат — швидка вечеря",
-            "character": "15 хв, одна пательня",
-            "rescues": [
-              "Білі гриби свіжі",
+              "Вершки 30%",
               "Пармезан"
             ]
           }
@@ -1922,11 +2046,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1077,
-        "output": 68,
+        "output": 93,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "На 160°C — у тебе духовка гріє на двадцять сильше. Стегна й картопля готуватимуться разом близько години.",
+      "reply": "На 160°C — у тебе духовка гріє на двадцять градусів сильніше. Стегна й картопля запечуться за 40-45 хвилин, шкірка хрустка, мʼясо соковите.",
       "card": null
     },
     {
@@ -1947,11 +2071,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1024,
-        "output": 51,
+        "output": 41,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Це в тебе вже записано — фует знімати, щойно краї хрусткі.",
+      "reply": "Це в тебе вже записано — до «Фует».",
       "card": null
     },
     {
@@ -1971,11 +2095,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1029,
-        "output": 161,
+        "output": 159,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Запишу Оксану — веганство й арахіс. Коли готуватимемо разом, врахую.",
+      "reply": "Запишу Оксану — веганство й арахіс. Готуємо щось разом зараз?",
       "card": {
         "type": "profile",
         "ops": [
@@ -2014,11 +2138,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1161,
-        "output": 89,
+        "output": 112,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Великдень 12 квітня — за п'ять тижнів. Паску печуть у Велику суботу, 11 квітня. Піст закінчується опівночі в неділю — тоді й їмо.",
+      "reply": "Великдень 12 квітня — за п'ять тижнів. Паску печуть у Велику суботу, 11-го. Зараз піст, тож тісто на дріжджах поки не пропоную — але можна вже продумати склад і техніку. Що цікавить?",
       "card": null
     },
     {
@@ -2038,11 +2162,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1106,
-        "output": 623,
+        "output": 521,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Записую бабусин борщ — бульйон, зажарка з буряка, капуста наприкінці. Готувати за ним?",
+      "reply": "Записую бабусин борщ — тримай у бібліотеці, готувати зможеш одним дотиком.",
       "card": {
         "type": "recipe",
         "recipe": {
@@ -2050,7 +2174,7 @@
           "sv": 6,
           "tm": 90,
           "ch": "годину на плиті, зажарка окремо",
-          "d": "густий червоний борщ на мʼясному бульйоні, капуста тримає форму, буряк дає колір",
+          "d": "густий червоний борщ на кістці, капуста тримає форму, буряк дає колір",
           "ing": [
             {
               "n": "буряк",
@@ -2083,34 +2207,31 @@
               "u": "pcs"
             },
             {
-              "n": "мʼясо на кістці"
+              "n": "мʼясо на кістці",
+              "v": 500,
+              "u": "g"
             }
           ],
           "st": [
             {
               "t": "Бульйон",
-              "c": "Мʼясо на кістці в холодну воду, на вогонь. Зняти піну, варити годину на тихому вогні",
+              "c": "Мʼясо на кістці залити водою, варити годину",
               "s": 3600
             },
             {
               "t": "Картопля",
-              "c": "Картоплю почистити, нарізати кубиками, кинути в бульйон",
-              "s": 300
+              "c": "Покласти картоплю кубиками",
+              "s": 0
             },
             {
               "t": "Зажарка",
-              "c": "Буряк, моркву, цибулю нарізати. Смажити на окремій пательні, додати томатну пасту",
-              "s": 600
+              "c": "Цибулю, моркву й буряк смажити окремо з томатною пастою",
+              "s": 0
             },
             {
               "t": "Капуста",
-              "c": "Капусту нашаткувати, додати в каструлю",
-              "s": 300
-            },
-            {
-              "t": "Фініш",
-              "c": "Зажарку влити в борщ, дати настоятись під кришкою 15 хвилин",
-              "s": 900
+              "c": "Додати капусту, зажарку, дати настоятись",
+              "s": 600
             }
           ]
         }
@@ -2133,33 +2254,12 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1077,
-        "output": 225,
+        "output": 92,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Бабусин борщ — яловичина на кістці, буряк середній, капуста біла. Готуємо?",
-      "card": {
-        "type": "proposal",
-        "items": [
-          {
-            "title": "Бабусин борщ",
-            "desc": "Насичений бульйон з яловичини, буряк дає солодкуватість і колір, капуста тримає текстуру",
-            "character": "2,5 години, з душею",
-            "rescues": [
-              "буряк"
-            ],
-            "needs": [
-              "яловичина на кістці",
-              "капуста біла",
-              "морква",
-              "цибуля",
-              "томатна паста",
-              "часник",
-              "лавровий лист"
-            ]
-          }
-        ]
-      }
+      "reply": "Бабусин борщ — яловичина на кістці, буряк, капуста, картопля, морква, цибуля. Бульйон варився довго, буряк тертий на крупній терці, заправка на смальці.",
+      "card": null
     },
     {
       "id": "recipe-edit-move",
@@ -2200,7 +2300,7 @@
       "promptHash": "4fbd46a291fb",
       "usage": {
         "input": 863,
-        "output": 486,
+        "output": 545,
         "cached": 4130,
         "cache_write": 0
       },
@@ -2212,8 +2312,8 @@
           "sv": 1,
           "tm": 25,
           "ch": "25 хв, одна каструля й пательня",
-          "d": "Класика з вершковою ноткою: томатний соус, вершки замість пармезану",
-          "rk": "Вершки 33% не зсідаються при нагріванні, але вливай на зменшеному вогні, помішуючи — страхування від розшарування",
+          "d": "Класика з вершковою ноткою: томатний соус, загущений вершками",
+          "rk": "Вершки 33% вливати на зменшеному вогні, помішуючи — інакше можуть зсістись від кислоти помідорів",
           "nu": {
             "kcal": 520,
             "p": 12,
@@ -2236,7 +2336,7 @@
             },
             {
               "p": "p1",
-              "v": 80,
+              "v": 100,
               "u": "ml"
             },
             {
@@ -2258,17 +2358,22 @@
             },
             {
               "t": "Соус",
-              "c": "{1} — нарізати, тушкувати з {3}. За 2 хв до готовності влити {2} на зменшеному вогні, помішуючи",
+              "c": "{1} — нарізати, тушкувати з {3} 8–10 хв до м'якості",
               "s": 600
             },
             {
+              "t": "Вершки",
+              "c": "Зменшити вогонь. {2} — влити, помішуючи, прогріти 2 хв",
+              "s": 120
+            },
+            {
               "t": "Паста",
-              "c": "{0} варити до аль денте",
+              "c": "Поки соус — {0} варити до аль денте",
               "s": 540
             },
             {
               "t": "Збірка",
-              "c": "Змішати пасту з соусом",
+              "c": "Змішати пасту з соусом, спробувати — досолити якщо треба",
               "s": 60
             }
           ]
@@ -2286,7 +2391,7 @@
       "promptHash": "4fbd46a291fb",
       "usage": {
         "input": 589,
-        "output": 303,
+        "output": 378,
         "cached": 4130,
         "cache_write": 0
       },
@@ -2299,7 +2404,7 @@
           "tm": 25,
           "ch": "25 хв",
           "d": "Ніжна вершкова паста",
-          "rk": "Вершки не кипʼятити — зсідаються. Прогрівай на середньому, помішуючи",
+          "rk": "Вершки не кип'ятити — згорнуться. Прогрівай на середньому вогні, помішуючи",
           "nu": {
             "kcal": 540,
             "p": 18,
@@ -2326,13 +2431,18 @@
           "st": [
             {
               "t": "Паста",
-              "c": "{0} варити до аль денте",
+              "c": "{0} варити до аль денте в підсоленій воді",
               "s": 540
             },
             {
               "t": "Соус",
-              "c": "{1} прогріти на середньому вогні, не кипʼятити — помішуючи. {2} тертий додати, розмішати до розплавлення",
+              "c": "Поки паста варить: {1} прогріти на середньому вогні, не кип'ятити. {2} натерти",
               "s": 180
+            },
+            {
+              "t": "Збирання",
+              "c": "Злити пасту, залишивши трохи води. Змішати з вершками, додати {2}. Якщо густо — підлити пастової води",
+              "s": 60
             }
           ]
         }
@@ -2359,7 +2469,7 @@
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "100 грамів — решта з ранку.",
+      "reply": "100 грамів — решта після обіду.",
       "card": null
     },
     {
@@ -2380,8 +2490,8 @@
       "usage": {
         "input": 1086,
         "output": 32,
-        "cached": 0,
-        "cache_write": 14987
+        "cached": 14987,
+        "cache_write": 0
       },
       "reply": "Молоко й хліб.",
       "card": null
@@ -2456,37 +2566,47 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1471,
-        "output": 415,
+        "output": 451,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Гарбуз зараз пік сезону — запечу його з рисом і куркою, томати додам свіжими. Без молочного, Олі підійде.",
+      "reply": "Оля не їсть молочне — тримаю це в голові. Ось три варіанти без алергенів, усі з того, що є:",
       "card": {
         "type": "proposal",
         "items": [
           {
-            "title": "Фарширований гарбуз з рисом і курячим філе",
-            "desc": "Гарбуз запечений цілком, начинка з рису, курки й овочів усередині — соковита, злегка солодкувата від гарбуза, рис вбирає соки",
-            "why": "гарбуз і томати зараз пік сезону — найсмачніші за рік",
-            "character": "година в духовці, підготовка 20 хвилин",
+            "title": "Курка з гарбузом і рисом",
+            "desc": "Філе смажене до скоринки, гарбуз карамелізується, рис вбирає соки — ситна й м'яка страва",
+            "character": "40 хвилин, середні зусилля",
             "rescues": [
-              "гарбуз",
-              "рис",
               "куряче філе",
-              "помідори",
-              "цибуля"
-            ]
+              "гарбуз",
+              "рис"
+            ],
+            "needs": []
           },
           {
-            "title": "Куряче філе з томатами й рисом",
-            "desc": "Філе смажене до скоринки, томати тушковані з цибулею, рис розсипчастий — швидка вечеря з чіткими смаками",
-            "character": "30 хвилин, одна пательня й каструля",
+            "title": "Томатний суп з рисом",
+            "desc": "Густий томатний бульйон, рис розварюється, цибуля дає солодкість — легко й швидко",
+            "character": "25 хвилин, мінімум зусиль",
+            "rescues": [
+              "помідори",
+              "рис",
+              "цибуля"
+            ],
+            "needs": []
+          },
+          {
+            "title": "Курка з овочами в духовці",
+            "desc": "Філе запікається з гарбузом, помідорами й цибулею — все на одному листі, соки змішуються",
+            "character": "45 хвилин, мінімум активної роботи",
             "rescues": [
               "куряче філе",
+              "гарбуз",
               "помідори",
-              "цибуля",
-              "рис"
-            ]
+              "цибуля"
+            ],
+            "needs": []
           }
         ]
       }
@@ -2508,24 +2628,22 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1104,
-        "output": 219,
+        "output": 203,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Французькі тости — багет вимочується в яйцях і молоці, смажиться на маслі до золотистої скоринки. Подавай з медом або ягодами.",
+      "reply": "Французькі тости — багет замочуєш у яйцях з молоком, смажиш на маслі, подаєш з медом або цукровою пудрою.",
       "card": {
         "type": "proposal",
         "items": [
           {
             "title": "Французькі тости",
-            "desc": "Хрустка золотиста скоринка, всередині мʼяка вологість. Солодкі, але не приторні — смак яєчної основи тримає баланс.",
-            "character": "15 хвилин, легко",
+            "desc": "М'яка серцевина, хрустка скоринка, злегка солодкі — класичний сніданок, що тримає форму й не розпадається",
+            "character": "15 хвилин, мінімум зусиль",
             "rescues": [
-              "багет",
-              "яйця",
-              "молоко",
-              "вершкове масло"
-            ]
+              "багет"
+            ],
+            "needs": []
           }
         ]
       }
@@ -2539,15 +2657,15 @@
         },
         "max-9-ings-6-steps": {
           "pass": true,
-          "detail": "6 інгредієнтів, 6 кроків"
+          "detail": "6 інгредієнтів, 5 кроків"
         }
       },
       "promptHash": "4fbd46a291fb",
       "usage": {
         "input": 260,
-        "output": 871,
-        "cached": 0,
-        "cache_write": 4130
+        "output": 800,
+        "cached": 4130,
+        "cache_write": 0
       },
       "reply": "",
       "card": {
@@ -2556,79 +2674,75 @@
           "t": "Фетучіні з білими грибами у вершковому соусі",
           "sv": 2,
           "tm": 25,
-          "ch": "швидко, мінімум зусиль",
-          "d": "Ніжна паста з насиченим грибним смаком і шовковистим вершковим соусом. Гриби дають глибину, пармезан — солоність і умамі.",
-          "rk": "Ключова помилка — влити вершки на сильному вогні: вони зсідаються і соус стає зернистим. Тримай вогонь середнім, вливай поступово, помішуючи.",
+          "ch": "25 хвилин, легко",
+          "d": "Шовковиста паста з м'якими грибами в густому вершковому соусі з пармезаном — насичено, але делікатно",
+          "rk": "Вершки 20% зсідаються в гарячому соусі — тільки 33%, вливати на зменшеному вогні. Переварити пасту — вона розм'якне в соусі, краще al dente",
           "nu": {
-            "kcal": 580,
-            "p": 22,
+            "kcal": 620,
+            "p": 18,
             "f": 28,
-            "c": 62
+            "c": 72
           },
           "op": [
-            "Додати часник у соус",
-            "Свіжий тим'ян або петрушка зверху"
+            "Додати часник і тим'ян",
+            "Замість пармезану — грана падано або горгонзола для гостроти"
           ],
           "ing": [
             {
               "p": "p3",
-              "v": 250,
+              "v": 200,
               "u": "g"
             },
             {
               "p": "p2",
-              "v": 300,
+              "v": 400,
               "u": "g"
             },
             {
               "p": "p1",
-              "v": 180,
+              "v": 200,
               "u": "ml"
             },
             {
               "p": "p4",
-              "v": 50,
+              "v": 60,
+              "u": "g"
+            },
+            {
+              "n": "сіль",
               "u": "g"
             },
             {
               "n": "олія",
-              "v": 30,
+              "v": 2,
               "u": "ml"
-            },
-            {
-              "n": "сіль"
             }
           ],
           "st": [
             {
-              "t": "Гриби",
-              "c": "{1} — розморозь заздалегідь (2–3 год у холодильнику або 30 хв при кімнатній температурі). Відтисни вологу насухо",
-              "s": 0
+              "t": "Підготовка",
+              "c": "Гриби {1} — якщо заморожені шматками, можна не розморожувати. Якщо цілі — розморозь 15 хв, поріж",
+              "s": 900
             },
             {
-              "t": "Паста",
-              "c": "Постав велику каструлю з водою на сильний вогонь, посоли. Поки закипає — готуй соус",
+              "t": "Гриби",
+              "c": "Пательня на середній вогонь, олія {5}. {1} — смажити 7–8 хв, помішуючи. Спершу випустять воду — дай їй повністю випаруватись, потім гриби підсмажаться",
               "s": 480
             },
             {
-              "t": "Смаження грибів",
-              "c": "{4}: розігрій на середньому вогні. {1} — смаж 5–6 хв, помішуючи, поки вода повністю випарується й гриби почнуть підрум'янюватись",
-              "s": 360
+              "t": "Паста",
+              "c": "Каструля з водою, закип, посоли {4}. {0} — варити 1 хв менше, ніж на пачці (зазвичай 6–7 хв). Відлий склянку води з пасти, злий решту",
+              "s": 420
             },
             {
               "t": "Соус",
-              "c": "Вогонь зменш до середнього. {2} (33% — 20% зсідаються): влий до грибів, помішуючи. Прогрій 2 хв, не кип'яти. {3}: натри, додай, розмішай до розчинення",
-              "s": 180
+              "c": "До грибів вогонь зменшити. Вершки {2} (33% — 20% зсідаються) влити, помішуючи. Пармезан {3} — натерти, всипати, розмішати до однорідності",
+              "s": 120
             },
             {
-              "t": "Паста у соус",
-              "c": "Воду закип'ятив — {0} вари 1 хв менше, ніж на пачці. Злий, лиши склянку води. Пасту перекинь у сковороду з соусом, перемішай. Якщо густо — підлий трохи пастової води",
+              "t": "Збірка",
+              "c": "Пасту в соус, перемішати. Якщо густо — долити тієї води, що відлив. Прогріти разом 1 хв",
               "s": 60
-            },
-            {
-              "t": "Фініш",
-              "c": "Спробуй — {5} додай тільки якщо треба (пармезан уже дав солоність). Подавай одразу",
-              "s": 30
             }
           ]
         }
@@ -2651,11 +2765,11 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1079,
-        "output": 73,
+        "output": 79,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Анчоуси + каперси + солона вода склались. Наступного разу воду на пасту не соли взагалі — крупна сіль на тарілці.",
+      "reply": "Анчоуси + каперси + солона вода склались. Наступного разу воду на пасту не соли взагалі — крупна сіль на тарілці, якщо треба.",
       "card": null
     },
     {
@@ -2679,49 +2793,42 @@
       "promptHash": "6843927b9dda",
       "usage": {
         "input": 1425,
-        "output": 449,
+        "output": 420,
         "cached": 14987,
         "cache_write": 0
       },
-      "reply": "Арахісова паста — алерген для Оксани, не беру. Ось три варіанти:",
+      "reply": "Арахісова паста є, але там алерген Оксани — не беру. Багет відкритий — краще сьогодні. Дам три варіанти — швидке, нормальне й з душею.",
       "card": {
         "type": "proposal",
         "items": [
           {
             "title": "Французькі тости",
-            "desc": "Яйця збиті з молоком, багет просочений і підсмажений до золотистої скоринки — м'який всередині, хрусткий ззовні",
-            "character": "15 хвилин, легко",
+            "desc": "Яйце всередині хліба, золотиста скоринка, м'яка серцевина. Подається з томатами.",
+            "character": "10 хвилин, мінімум зусиль",
             "rescues": [
-              "Багет"
-            ],
-            "needs": [
-              "молоко",
-              "масло вершкове"
+              "багет",
+              "яйця",
+              "помідори чері"
             ]
           },
           {
-            "title": "Омлет з чері",
-            "desc": "Яйця злегка збиті, чері розрізані навпіл і підсмажені до м'якості — соковиті кислі вкраплення в повітряній масі",
-            "character": "10 хвилин, швидко",
+            "title": "Омлет з томатами",
+            "desc": "Повітряний омлет, томати дають кислинку й сік. Подається з хлібом.",
+            "character": "15 хвилин, звичайні зусилля",
             "rescues": [
-              "Яйця",
-              "Помідори чері"
-            ],
-            "needs": [
-              "масло вершкове",
-              "сіль"
+              "яйця",
+              "помідори чері",
+              "багет"
             ]
           },
           {
-            "title": "Яєчня-болтунья з тостами",
-            "desc": "Яйця розмішані вилкою прямо на пательні, багет підсушений до хрусту — класика без зайвого",
-            "character": "7 хвилин, найшвидше",
+            "title": "Яйця-пашот з томатами на тості",
+            "desc": "Жовток тече, білок тримає форму. Томати підсмажені, хліб хрусткий.",
+            "character": "20 хвилин, потрібна точність",
             "rescues": [
-              "Яйця",
-              "Багет"
-            ],
-            "needs": [
-              "масло вершкове"
+              "яйця",
+              "багет",
+              "помідори чері"
             ]
           }
         ]
