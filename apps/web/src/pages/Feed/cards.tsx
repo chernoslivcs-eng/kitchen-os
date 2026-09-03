@@ -390,8 +390,8 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
     <div className={styles['card-foot']}>
       <span className={styles['strip-state']}>
         {goingIn} {writeOff
-          ? (applied && !undone ? 'з комори' : 'піде з комори')
-          : (applied && !undone ? 'у коморі' : 'у комору')}
+          ? (applied && !undone ? 'є вдома' : 'використаємо')
+          : (applied && !undone ? 'уже вдома' : 'додамо додому')}
         {receipt && receipt.nonfood.length > 0 && (
           <span className={styles['strip-state-dim']}> · {receipt.nonfood.length} у побут</span>
         )}
@@ -472,7 +472,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               </div>
             ))}
             tail={goneCount > 0
-              ? `ще ${goneCount} ${goneCount === 1 ? 'позиція' : 'позицій'} з цього чека вже зʼїдено`
+              ? `ще ${goneCount} з цього чека вже закінчилось`
               : undefined}
           />
 
@@ -890,7 +890,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
             {card.recipe_title ?? 'Готування'}
           </div>
           <div style={{ marginTop: 2, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>
-            Фото до запису в журналі
+            Фото до цієї вечері
           </div>
         </div>
       </div>

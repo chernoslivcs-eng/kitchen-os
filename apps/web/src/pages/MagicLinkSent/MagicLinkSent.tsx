@@ -64,7 +64,7 @@ export function MagicLinkSent() {
           <div className={styles['field-hero']}>
             <h1 className={styles['field-title']}>Не «що б поїсти».<br />А «що приготувати з того, що є».</h1>
             <p className={styles['field-sub']}>
-              Вона бачить твою комору і збирає вечерю з того, що є — і того, що скоро зіпсується.
+              Вона бачить, що є вдома, і спершу підхоплює те, що варто використати раніше.
             </p>
           </div>
           <div className={styles['field-foot']}>◌ ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>

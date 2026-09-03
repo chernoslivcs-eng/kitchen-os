@@ -337,7 +337,7 @@ function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryB
       });
       await onChanged();
     } catch (err) {
-      alert(`Не вдалося зберегти: ${(err as Error).message}`);
+      alert('Не вдалося зберегти. Спробуй ще раз.');
     } finally { setSaving(false); }
   }
 
@@ -367,7 +367,7 @@ function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryB
       await api.batches.remove(batch.id);
       await onChanged();
     } catch (err) {
-      alert(`Не вдалося прибрати: ${(err as Error).message}`);
+      alert('Не вдалося прибрати. Спробуй ще раз.');
     } finally { setSaving(false); }
   }
 
@@ -491,7 +491,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
   return (
     <Sheet onClose={onClose} ariaLabel="Додати позицію в комору">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MonoLabel>ДОДАТИ ПОЗИЦІЮ</MonoLabel>
+          <MonoLabel>ДОДАТИ ПРОДУКТ</MonoLabel>
           <button
             onClick={onClose}
             style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}

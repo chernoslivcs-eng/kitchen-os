@@ -318,10 +318,10 @@ export function CalendarPage() {
                         )}
                         {isToday && (
                           <button type="button" className={styles.ask} onClick={() => navigate('/app')}>
-                            {empty ? 'Що на вечерю? — спитати Кухню' : '＋ Що на вечерю?'}
+                            {empty ? 'Що на вечерю? →' : '＋ Що на вечерю?'}
                           </button>
                         )}
-                        {!isToday && empty && <span className={styles.empty}>Нічого не заплановано</span>}
+                        {!isToday && empty && <span className={styles.empty}>Поки нічого. Рідкісний спокій.</span>}
                       </div>
                     </div>
                   </div>

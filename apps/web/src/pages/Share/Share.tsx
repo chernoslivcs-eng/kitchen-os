@@ -98,7 +98,7 @@ export function SharePage() {
     return (
       <div className={styles.screen}>
         <div style={{ padding: 22, color: 'var(--fg-muted)' }}>
-          <p>Публікувати нема що. Спершу приготуй у Cook Mode.</p>
+          <p>Спершу приготуй страву — тоді тут зʼявиться, чим поділитися.</p>
           <button className={styles.exit} style={{ marginTop: 12 }} onClick={() => navigate('/app')}>← У стрічку</button>
         </div>
       </div>
@@ -252,7 +252,7 @@ export function SharePage() {
           </div>
         )}
         <div className={styles.hint}>
-          Публікація — не для лайків, а для памʼяті: врятовані продукти, вечері поспіль вдома. Метрика — «зібрав із того, що було», а не калорії.
+          Це радше памʼять про вечерю, ніж звіт про неї. Що приготував і скільки вже було вдома — цього достатньо.
         </div>
       </div>
     </div>

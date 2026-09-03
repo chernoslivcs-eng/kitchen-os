@@ -75,7 +75,7 @@ export function InvitePage() {
           <div className={styles['field-hero']}>
             <h1 className={styles['field-title']}>Одна комора<br />на весь дім.</h1>
             <p className={styles['field-sub']}>
-              Що є вдома — бачать усі. Хто що зʼїв — теж. Кухар збирає страви з урахуванням кожного.
+              Що є вдома — бачать усі. А коли готуємо, враховуємо кожного за столом.
             </p>
           </div>
           <div className={styles['field-foot']}>◌ ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
@@ -96,7 +96,7 @@ export function InvitePage() {
               <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ</span>
               <h2 className={styles['form-title']}>Запрошення недійсне</h2>
               <p className={styles['form-sub']}>
-                Лінк протух, уже використаний або відкликаний. Попроси надіслати новий.
+                Цей лінк уже не працює. Попроси надіслати новий.
               </p>
             </div>
             <div className={styles.form}>
@@ -114,7 +114,7 @@ export function InvitePage() {
                 Запрошення для <strong>{state.email}</strong> — після прийняття ти працюватимеш
                 у спільній коморі цього дому саме цим акаунтом.
                 {currentEmail && currentEmail !== state.email && (
-                  <> Зараз ти в сесії <strong>{currentEmail}</strong> — вона зміниться.</>
+                  <> Ти вже увійшов як <strong>{currentEmail}</strong>. Після прийняття запрошення акаунт зміниться.</>
                 )}
               </p>
             </div>

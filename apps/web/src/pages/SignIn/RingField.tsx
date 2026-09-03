@@ -235,7 +235,7 @@ export function RingField({ animate }: { animate: boolean }) {
         ctx.restore();
         ctx.fillStyle = `rgba(242,244,240,${(0.95 * amt).toFixed(3)})`;
         ctx.beginPath(); ctx.arc(m.x, m.y, 4.5 * (0.5 + 0.5 * amt), 0, 6.29); ctx.fill();
-        const label = dish ? `✓ ${dish.n}` : (hint ?? (trio.length === 3 ? 'щось нове… — спитай Кухню' : ''));
+        const label = dish ? `✓ ${dish.n}` : (hint ?? (trio.length === 3 ? 'хочеться чогось іншого… — спитай у чаті' : ''));
         if (label && amt > 0.5) {
           ctx.globalAlpha = Math.min(1, (amt - 0.5) * 3);
           ctx.font = '600 12px "IBM Plex Mono", monospace';

@@ -58,7 +58,7 @@ export function LoginCard({ id }: { id: string }) {
       </div>
       <div className={styles['card-titles']}>
         <div className={styles['card-title']}>Почати з того, що є</div>
-        <div className={styles['card-sub']}>Лінк на пошту — клік — і ти всередині.</div>
+        <div className={styles['card-sub']}>Лінк прийде на пошту. Один клік — і ти всередині.</div>
       </div>
       <form className={styles.pill} onSubmit={submit} noValidate>
         <input

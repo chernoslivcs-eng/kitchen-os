@@ -226,7 +226,7 @@ export function TabBar({ shoppingCount }: Props) {
         title={[
           cookLive ? 'Готування триває' : null,
           nowEvents[0]?.title ?? null,
-        ].filter(Boolean).join(' · ') || 'Сесії та події'}
+        ].filter(Boolean).join(' · ') || 'Розмови та події'}
       >
         {cookLive || nowEvents.length ? (
           <span className={styles.dots}>

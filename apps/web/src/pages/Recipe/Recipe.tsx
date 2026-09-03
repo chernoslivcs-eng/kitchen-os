@@ -89,7 +89,7 @@ export function RecipePage() {
         setSavedId(r.id);
       }
     } catch (err) {
-      alert(`Не вдалося зберегти: ${(err as Error).message}`);
+      alert('Не вдалося зберегти рецепт. Спробуй ще раз.');
     } finally { setSaving(false); }
   }
 
@@ -156,7 +156,7 @@ export function RecipePage() {
                 } catch {/* тихо */}
               }}
             >
-              Відкрити в чаті
+              Обговорити в чаті
             </Button>
           )}
           <Button

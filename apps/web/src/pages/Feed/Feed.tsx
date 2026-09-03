@@ -265,7 +265,7 @@ export function Feed() {
     try {
       await api.savedRecipes.setSaved(recipe_id, true);
       setSavedRecipeIds((prev) => new Set(prev).add(recipe_id));
-      setToast({ id: Date.now(), kind: 'ok', text: 'У рецептах — підсвітиться, коли все буде в коморі' });
+      setToast({ id: Date.now(), kind: 'ok', text: 'Збережу в рецептах. Коли все потрібне буде вдома — нагадаю.' });
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     }
@@ -382,7 +382,7 @@ export function Feed() {
 
   async function addNonfoodToList(names: string[]) {
     try {
-      for (const name of names) await api.shopping.add(name, undefined, undefined, 'з чека · не для комори');
+      for (const name of names) await api.shopping.add(name, undefined, undefined, 'з чека · не додаємо додому');
       await refreshCounts();
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -624,7 +624,7 @@ export function Feed() {
       const file = new File([text], 'вставка.txt', { type: 'text/plain' });
       const rec = await api.attachments.upload(file);
       setPending((p) => [...p, rec]);
-      setToast({ id: Date.now(), kind: 'ok', text: 'Великий список поїде вкладенням — так він не загубиться' });
+      setToast({ id: Date.now(), kind: 'ok', text: 'Список великий, тому прикріплю його окремо. Так нічого не загубиться.' });
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     } finally {
@@ -780,7 +780,7 @@ export function Feed() {
     const pick = items[index];
     if (!pick?.title) return;
     setOpeningRecipe(true);
-    setToast({ id: Date.now(), kind: 'ok', text: 'Готую рецепт…', persist: true });
+    setToast({ id: Date.now(), kind: 'ok', text: 'Складаю рецепт…', persist: true });
     try {
       const { id, recipe, reply } = await api.recipes.generate(pick.title, pick.desc, sessionId ?? undefined);
       setToast(null);
@@ -1195,7 +1195,7 @@ export function Feed() {
                         const ops = (t.card.ops as { op?: string }[] | undefined) ?? [];
                         const kinds = new Set(ops.map((o) => o.op ?? 'add'));
                         const word = kinds.size === 1
-                          ? ({ add: '＋ ПОДІЯ', edit: 'ПОДІЯ · ЗМІНЕНО', done: 'ПОДІЯ · ЗАКРИТО', remove: 'ПОДІЯ · ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
+                          ? ({ add: '＋ ПОДІЯ', edit: 'ПОДІЮ ОНОВЛЕНО', done: 'ПОДІЯ ЗАВЕРШИЛАСЬ', remove: 'ПОДІЮ ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
                           : `ПОДІЯ · ${ops.length} ЗМІНИ`;
                         return word;
                       })()}{t.undone ? ' · СКАСОВАНО' : ''}
@@ -1225,7 +1225,7 @@ export function Feed() {
                   <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
-                      {(t.card!.ops as { op?: string }[]).every((o) => o.op === 'remove') ? 'ПРОФІЛЬ · ПРИБРАНО' : '＋ ПРОФІЛЬ · ТРАДИЦІЯ'}{t.undone ? ' · СКАСОВАНО' : ''}
+                      {(t.card!.ops as { op?: string }[]).every((o) => o.op === 'remove') ? 'ІЗ ПРОФІЛЮ ПРИБРАНО' : '＋ ДОДАТИ ДО ТРАДИЦІЙ'}{t.undone ? ' · СКАСОВАНО' : ''}
                     </span>
                     <span className={styles['trace-value']}>
                       {(t.card!.ops as { label?: string }[]).map((o) => TRADITION_UA[o.label ?? ''] ?? o.label).filter(Boolean).join(', ')}

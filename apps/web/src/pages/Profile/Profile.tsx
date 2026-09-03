@@ -495,7 +495,7 @@ export function ProfilePage() {
           <div className={styles['section-label']}>
             <span style={{ color: '#7c352c' }}>Алергії</span>
             <span className={styles['label-sub']}> · це не пропонуємо ніколи</span>
-            <span className={styles.info} title="Конкретними назвами: «молюски» не помітять «мідії» — виписуй усі назви, під якими продукт зустрічається.">i</span>
+            <span className={styles.info} title="Для алергій краще бути конкретним: додай окремо всі назви, під якими продукт може зустрітися.">i</span>
           </div>
           <TagInput
             values={profile?.allergies ?? []}
@@ -511,7 +511,7 @@ export function ProfilePage() {
           <div className={styles['section-label']}>
             <span style={{ color: 'var(--plum)' }}>Не їм</span>
             <span className={styles['label-sub']}> · не їм або просто не люблю</span>
-            <span className={styles.info} title="«Не їм» — принцип (слива), «не люблю» — смак (сірий). Система розбирає формулювання сама.">i</span>
+            <span className={styles.info} title="«Не їм» — це правило. «Не люблю» — побажання. Можеш просто написати як є.">i</span>
           </div>
           <TagInput
             values={profile?.antipatterns ?? []}
@@ -526,7 +526,7 @@ export function ProfilePage() {
           <div className={styles['section-label']}>
             <span style={{ color: 'var(--plum)' }}>Дієти</span>
             <span className={styles['label-sub']}> · пресети, тогл на місці</span>
-            <span className={styles.info} title="Своєї дієти нема в списку — пиши в «Не їм» або «Побажання», окремого поля не треба.">i</span>
+            <span className={styles.info} title="Не знайшов свою дієту? Просто напиши її в «Не їм» або «Побажаннях».">i</span>
           </div>
           <DietRow
             wishes={profile?.wishes ?? []}
@@ -559,14 +559,14 @@ export function ProfilePage() {
         <div className={styles.section}>
           <div className={styles['section-label']}>
             Традиції
-            <span className={styles['label-sub']}> · свята й пости в календарі та порадах</span>
+            <span className={styles['label-sub']}> · щоб кухня памʼятала, коли в домі все трохи інакше</span>
           </div>
           <div className={styles.hint}>
             {profile?.traditions == null && inferredTrads.length > 0
-              ? 'Розпізнано з побажань — підтвердь тапом або вимкни.'
+              ? 'Схоже, це одна з твоїх традицій. Підтвердити?'
               : profile?.traditions?.length === 0
-                ? 'Вимкнено: релігійних свят і постів Кухня не пропонує.'
-                : 'Обери, що тримає дім. Нічого не обрано — свят у календарі немає.'}
+                ? 'Вимкнено. Релігійні свята й пости не враховуватимемо.'
+                : 'Обери традиції, які живуть у твоєму домі. Якщо нічого не обрати — календар просто не буде про них нагадувати.'}
           </div>
           <div className={styles.chips}>
             {TRADITION_CHIPS.map(([id, name]) => {
@@ -586,7 +586,7 @@ export function ProfilePage() {
                         ? { background: 'transparent', border: '1px dashed var(--accent-border)', color: 'var(--accent)' }
                         : { background: 'transparent', border: '1px solid var(--border)', color: 'var(--fg-dim)' }),
                   }}
-                  title={chosen ? (explicit ? 'Обрано → вимкнути' : 'Розпізнано з побажань → підтвердити або вимкнути') : 'Увімкнути'}
+                  title={chosen ? (explicit ? 'Обрано → вимкнути' : 'Знайшли в побажаннях → підтвердити') : 'Увімкнути'}
                 >
                   {chosen ? '●' : '○'} {name}
                 </button>
@@ -604,7 +604,7 @@ export function ProfilePage() {
         </div>
 
         <div className={styles.zone}>
-        <div className={styles['zone-label']}><span style={{ color: 'var(--accent)' }}>■</span> ТЕХНІКА <span className={styles['zone-hint']}>ТАП ЦИКЛОМ ○ → ● Є → ✕ НЕМАЄ</span></div>
+        <div className={styles['zone-label']}><span style={{ color: 'var(--accent)' }}>■</span> ТЕХНІКА <span className={styles['zone-hint']}>Натискай, щоб змінити: невідомо → є → немає</span></div>
         <div className={styles.section}>
           <div className={styles['section-label']} style={{ display: 'none' }}>Техніка</div>
           <div className={styles.hint}>
@@ -720,7 +720,7 @@ export function ProfilePage() {
             їх тут означало б показувати той самий список двічі. */}
         {ahead.length > 0 && (
           <div className={styles.zone}>
-          <div className={styles['zone-label']}><span style={{ color: 'var(--amber)' }}>■</span> ПОПЕРЕДУ · РІК УПЕРЕД</div>
+          <div className={styles['zone-label']}><span style={{ color: 'var(--amber)' }}>■</span> ПОПЕРЕДУ · НА РІК</div>
           <div className={styles.section}>
             {ahead.map((e) => {
               const soon = endingSoon(e.start, e.end);
@@ -772,7 +772,7 @@ export function ProfilePage() {
           <div className={styles.section}>
             <div className={styles['section-label']}>Наміри</div>
             <div className={styles.hint}>
-              Ідеї, відкладені на потім. Кухар нагадає, коли складники будуть у коморі. Додаються і прибираються через чат.
+              Ідеї на потім. Коли все потрібне зʼявиться вдома — нагадаємо. Додати або прибрати можна в чаті.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {notes.filter((n) => n.kind === 'intent').map((n) => (
@@ -792,7 +792,7 @@ export function ProfilePage() {
             <div className={styles['section-label']}>
               Висновки з готування
               <span className={styles['label-sub']}> · ★ згадується завжди</span>
-              <span className={styles.info} title="Те, що ти зрозумів про свою кухню. Памʼятається назавжди і враховується в кожному рецепті.">i</span>
+              <span className={styles.info} title="Те, що варто памʼятати наступного разу: менше перцю, більше соусу, не пересушувати фует.">i</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* Пул-7 №4: ★ закріплені зверху, ☆ решта; довгий список

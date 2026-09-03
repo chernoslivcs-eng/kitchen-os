@@ -264,8 +264,8 @@ export function RecipesPage() {
                   fontSize: 14,
                   cursor: 'pointer',
                 }}
-                aria-label={`Прибрати «${r.title}» з бібліотеки`}
-                title="Прибрати з бібліотеки"
+                aria-label={`Прибрати «${r.title}» з рецептів`}
+                title="Прибрати з рецептів"
               >✕</button>
             </div>
           );

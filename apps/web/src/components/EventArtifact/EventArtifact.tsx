@@ -55,25 +55,25 @@ function addDays(iso: string, n: number): string {
 function kicker(e: EventOccurrence, now = Date.now()): { text: string; tone: string } {
   const live = now >= e.start && now <= e.end;
   const endsSoon = live && e.end - now < 7 * 86_400_000;
-  if (e.force === 'restrict') return { text: live ? 'Обмеження · діє' : 'Обмеження', tone: styles.plum! };
+  if (e.force === 'restrict') return { text: live ? 'Зараз враховуємо' : 'Обмеження', tone: styles.plum! };
   if (e.source) return { text: `Від ${e.source}`, tone: styles.muted! };
   if (e.kind === 'season') return { text: endsSoon ? 'Сезон · останні дні' : 'Сезон', tone: styles.amber! };
   if (e.kind === 'supply') return { text: '＋ Завіз', tone: styles.sage! };
   if (e.kind === 'tradition') return { text: 'Свято', tone: styles.muted! };
-  if (e.kind === 'constraint') return { text: 'Рамка на день', tone: styles.muted! };
+  if (e.kind === 'constraint') return { text: 'На сьогодні', tone: styles.muted! };
   return { text: e.scope === 'household' ? '＋ Особиста' : 'Подія', tone: e.scope === 'household' ? styles.sage! : styles.muted! };
 }
 
 // Моно-мета в підвалі: коротке «що тут є», щоб дія не стояла в порожньому рядку.
 function footerMeta(e: EventOccurrence): string | null {
   if (e.caught_by !== undefined) return e.caught_by ? `СПІЙМАНО · ${e.caught_by.toUpperCase()}` : 'СПІЙМАНО';
-  if (e.force === 'restrict') return 'ДІЄ У ВСІХ ПОРАДАХ';
+  if (e.force === 'restrict') return 'ВРАХОВУЄМО В УСІХ ПРОПОЗИЦІЯХ';
   if (e.source) return 'НЕ СПОНСОРОВАНО';
   const parts: string[] = [];
   if (e.seeds?.length) parts.push(`${e.seeds.length} ЗЕРНА`);
   if (e.buy?.length) parts.push(`${e.buy.length} ДОКУПИТИ`);
   if (e.servings) parts.push(`${e.servings} ПОРЦ.`);
-  if (e.kind === 'tradition' && !parts.length) return 'РОЗПІЗНАНО ЗА ТРАДИЦІЄЮ';
+  if (e.kind === 'tradition' && !parts.length) return 'ЗНАЙШЛИ У ТВОЇХ ТРАДИЦІЯХ';
   return parts.length ? parts.join(' · ') : null;
 }
 
@@ -137,11 +137,11 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
   async function save(ev?: FormEvent) {
     ev?.preventDefault();
     const t = title.trim();
-    if (!t) { setErr('Скажи, що це'); return; }
+    if (!t) { setErr('Що тут відбувається?'); return; }
     const days = whenMode === 'date' && dateTo
       ? Math.round((new Date(`${dateTo}T00:00:00`).getTime() - new Date(`${date}T00:00:00`).getTime()) / 86_400_000) + 1
       : 1;
-    if (whenMode === 'date' && dateTo && days < 1) { setErr('Кінець раніше за початок'); return; }
+    if (whenMode === 'date' && dateTo && days < 1) { setErr('Дата завершення раніше за початок'); return; }
     const rule = whenMode === 'date'
       ? (days > 1 ? { t: 'once', at: date, days } : { t: 'once', at: date })
       : { t: 'weekly', dow };
@@ -193,7 +193,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
             </button>
           )}
           {restrict && (
-            <button type="button" className={styles.ghost} disabled title="Знімається в профілі, у побажаннях">
+            <button type="button" className={styles.ghost} disabled title="Це можна вимкнути в профілі">
               Не дотримуюсь
             </button>
           )}
@@ -213,7 +213,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
                 {added ? 'У списку ✓' : busy ? 'Додаю…' : 'Додати в список'}
               </button>
             ) : (
-              <button type="button" className={styles.primary} onClick={discuss}>Обговорити з Кухнею</button>
+              <button type="button" className={styles.primary} onClick={discuss}>Обговорити в чаті</button>
             )
           )}
         </>

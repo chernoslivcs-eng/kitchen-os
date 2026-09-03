@@ -102,7 +102,7 @@ export function SignIn() {
         <div className={styles['form-head']}>
           <span className={styles.mono}>ВХІД · БЕЗ ПАРОЛЯ</span>
           <h2 className={styles['form-title']}>Почнімо з комори</h2>
-          <p className={styles['form-sub']}>Лінк на пошту — клік — і ти всередині.</p>
+          <p className={styles['form-sub']}>Лінк прийде на пошту. Один клік — і ти всередині.</p>
         </div>
         <form className={styles.form} onSubmit={submit} noValidate>
           <Input
