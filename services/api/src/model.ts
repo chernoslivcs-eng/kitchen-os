@@ -319,6 +319,24 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // Намір на тиждень («у суботу гості, шестеро»). Навмисно БЕЗ rule: як і
+  // жива модель, стаб віддає лише `when`, а дату рахує сервер (event-when.ts).
+  // Саме на цьому зловився порядок у chat.ts — pending-картка писалась до
+  // резолву, і applyCard бачив ops без rule.
+  const guests = /гост(?:і|ей)/i.exec(args.text);
+  if (guests) {
+    const servings = /(\d+|шестеро|четверо|двоє|троє)/i.exec(args.text)?.[1];
+    const n = servings ? ({ шестеро: 6, четверо: 4, двоє: 2, троє: 3 } as Record<string, number>)[servings.toLowerCase()] ?? Number(servings) : undefined;
+    return {
+      reply: 'Записав гостей на суботу.',
+      card: {
+        type: 'event',
+        ops: [{ op: 'add', kind: 'custom', title: `гості${n ? `, ${servings}` : ''}`, when: { rel: '+2d' }, ...(n ? { servings: n } : {}) }],
+      },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   const m = /куп(?:ив|ила|или)\s+(.+)/i.exec(args.text);
   if (m) {
     const label = m[1]!.trim().replace(/[.!?].*$/, '');

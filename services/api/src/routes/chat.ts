@@ -696,10 +696,6 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // казали б про позиції, яких у коморі не буде.
     vetoNonfood(call.card);
     composeIntakeLabels(call.card);
-    const card_id = call.card ? randomUUID() : null;
-    if (call.card && card_id) {
-      await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
-    }
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша
     // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.
@@ -728,6 +724,18 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         return rule ? { ...withId, rule } : null;
       }).filter((op): op is NonNullable<typeof op> => op !== null);
       call.card = ops.length ? { ...call.card, ops } : null;
+    }
+
+    // Pending-картка створюється ЛИШЕ тут — після резолву дат подій і після
+    // того, як картка могла стати null. Раніше вона писалась вище, ДО резолву:
+    // applyCard читає картку з репо, не з call.card, і бачив ops без rule —
+    // applyEventOp тихо повертав false, applied лишався 0, а відповідь уже
+    // казала «Записав». У повідомлення при цьому йшла резолвлена копія, тож у
+    // історії правило було видно, а в календарі — порожньо. Одна картка,
+    // одне джерело: те, що ляже в повідомлення, те й застосовується.
+    const card_id = call.card ? randomUUID() : null;
+    if (call.card && card_id) {
+      await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
     }
 
     let replyText = call.reply;
