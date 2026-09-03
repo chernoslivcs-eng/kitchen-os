@@ -19,6 +19,7 @@ import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
 import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
+import { ArtifactPanel } from './components/ArtifactPanel/ArtifactPanel';
 import { GlobalCookAlarm } from './lib/cook-watch';
 
 // Пул-7 №6: навігація — спільний каркас, не елемент сторінки. TabBar живе тут
@@ -39,6 +40,10 @@ function Shell() {
       {/* Після контенту: шухляда fixed, порядок у потоці на неї не впливає,
           але так вона лягає поверх без боротьби зі стековими контекстами. */}
       <TabBar />
+      {/* Права панель артефактів — теж каркас (крок 3, 03.09): сторінки лише
+          публікують у неї. Раніше жила всередині Стрічки, і на Календарі її
+          не існувало — подія на ≥1200 відкривалась шторкою всупереч канвасу. */}
+      <ArtifactPanel />
     </>
   );
 }

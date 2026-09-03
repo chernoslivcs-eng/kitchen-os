@@ -18,6 +18,7 @@ import {
 } from '../../lib/spans';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
+import { usePanelStore, RAIL_IN_FLOW } from '../../store/panel';
 import styles from './Calendar.module.css';
 
 const DAY = 86_400_000;
@@ -83,6 +84,36 @@ export function CalendarPage() {
   // не заслуговує. На >=1280 їй місце в правій панелі як артефакту — але
   // панель зараз живе всередині Стрічки, не в каркасі, тож це окремий крок.
   const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
+  // ≥1200 — подія в правій панелі каркаса як артефакт (канвас: «подія як
+  // артефакт із вкладкою "Подія"»); нижче — шторка. Один компонент, різний
+  // контейнер.
+  const panel = usePanelStore();
+  const [panelInFlow, setPanelInFlow] = useState(() => window.matchMedia(RAIL_IN_FLOW).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(RAIL_IN_FLOW);
+    const on = () => setPanelInFlow(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  useEffect(() => {
+    if (!panelInFlow || !openEvent) { panel.clear(); return; }
+    const key = `event:${openEvent.id}`;
+    panel.publish({
+      artifacts: [{ key, kind: 'event', label: openEvent.title, meta: '' }],
+      render: () => (
+        <EventArtifact
+          key={openEvent.id}
+          event={openEvent}
+          compact
+          onClose={() => setOpenEvent(null)}
+          onChanged={() => setVersion((v) => v + 1)}
+        />
+      ),
+    });
+    panel.openArtifact(key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelInFlow, openEvent]);
+  useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [version, setVersion] = useState(0);
   const [creating, setCreating] = useState(false);
   // Розкриття дня — суто мобільна механіка: на десктопі клітинка має висоту й
@@ -464,7 +495,7 @@ export function CalendarPage() {
         </Sheet>
       )}
 
-      {openEvent && (
+      {openEvent && !panelInFlow && (
         <Sheet onClose={() => setOpenEvent(null)} ariaLabel={openEvent.title}>
           <EventArtifact
             key={openEvent.id}
