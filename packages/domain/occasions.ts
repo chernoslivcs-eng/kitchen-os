@@ -29,7 +29,11 @@ import {
 
 export { easterDate };
 export type { Rule, Tradition };
-export type { OccasionRow };
+// Каталог і його звужувач — назовні: сід у packages/db бере рядки звідси, щоб
+// джерело за замовчуванням лишалось одне. Домен не імпортують по внутрішніх
+// шляхах, бо export map пакета відкриває тільки корінь і ./contract.
+export { BUILTIN_OCCASIONS, isWindowRow };
+export type { OccasionRow, WindowOccasion };
 
 export interface Occasion {
   id: string;
