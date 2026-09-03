@@ -13,6 +13,8 @@ import type { Repo } from './repo.js';
 import { normalizeTriple, displayName, catalogGroupsToAllergens, isCatalogFasting, type HouseholdProduct, type ProductTags, type ProductTriple } from './product.js';
 import type {
   Card,
+  EventCard,
+  HouseholdEventRow,
   IntakeCard,
   IntakeOp,
   PantryBatch,
@@ -154,6 +156,27 @@ export async function applyCard(
     });
     await repo.markMessageApplied(pc.id, chosen.length);
     return { applied: chosen.length, undo_token, already: false };
+  }
+
+  if (card.type === 'event') {
+    const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
+    const snapshot: UndoSnapshot = { kind: 'event', before: { added_event_ids: [], events_before: [] } };
+    let landed = 0;
+    for (const idx of chosen) {
+      const op = card.ops[idx];
+      if (!op) continue;
+      const did = await applyEventOp(repo, op, pc.household_id, actor_user_id, snapshot);
+      if (did) landed++;
+    }
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: new Date().toISOString(),
+      applied_ops: chosen,
+      undo_token,
+      undo_snapshot: snapshot,
+    });
+    await repo.markMessageApplied(pc.id, landed);
+    return { applied: landed, undo_token, already: false };
   }
 
   if (card.type === 'profile') {
@@ -507,6 +530,78 @@ async function applyIntakeOp(
   return true;
 }
 
+/**
+ * Одна операція над подією дому.
+ *
+ * `rule` сюди приходить уже порахованим: модель передає «за тиждень», сервер
+ * перетворює це на дату ще при народженні картки (services/api/event-when.ts).
+ * Тут дат не рахують — інакше правило «модель не рахує дати» протекло б у
+ * домен, і в картці стрічки стояло б одне, а в базі інше.
+ *
+ * Повертає false, коли операція нічого не змінила: посилання на подію, якої
+ * немає, — не привід рапортувати про зроблене.
+ */
+async function applyEventOp(
+  repo: Repo,
+  op: EventCard['ops'][number],
+  household_id: string,
+  actor_user_id: string,
+  snap: UndoSnapshot,
+): Promise<boolean> {
+  if (op.op === 'add') {
+    if (!op.title?.trim() || !op.rule) return false;
+    const row: HouseholdEventRow = {
+      id: randomUUID(), household_id,
+      kind: op.kind ?? 'custom',
+      title: op.title.trim(),
+      note: op.note ?? null,
+      rule: op.rule,
+      // Обмеження дім собі не пише: піст приходить із довідника, а тверда межа
+      // без тексту — порожня обіцянка. Той самий інваріант тримає CHECK у 0017.
+      force: 'hint', restricts: null,
+      buy: [], recipe_id: null,
+      servings: op.servings ?? null,
+      supply: op.supply ?? null,
+      created_by: actor_user_id,
+      // Слід авторства: подія, написана моделлю, відрізняється від написаної
+      // руками — інакше неможливо розібрати, звідки в календарі те, чого не
+      // просили.
+      source: 'model',
+      expires_at: null, done_at: null,
+      created_at: new Date().toISOString(),
+    };
+    await repo.insertHouseholdEvent(row);
+    snap.before.added_event_ids?.push(row.id);
+    return true;
+  }
+
+  if (!op.id) return false;
+  const existing = await repo.getHouseholdEvent(op.id);
+  // Чужий дім не чіпаємо навіть за прямим id: модель могла взяти його з
+  // попередньої сесії іншого дому.
+  if (!existing || existing.household_id !== household_id) return false;
+  snap.before.events_before?.push(existing);
+
+  if (op.op === 'remove') {
+    await repo.deleteHouseholdEvent(op.id);
+    return true;
+  }
+  if (op.op === 'done') {
+    await repo.updateHouseholdEvent(op.id, { done_at: new Date().toISOString() });
+    return true;
+  }
+  // edit: чіпаємо лише те, що названо. Порожній патч — не зміна.
+  const patch: Parameters<Repo['updateHouseholdEvent']>[1] = {};
+  if (op.title?.trim()) patch.title = op.title.trim();
+  if ('note' in op) patch.note = op.note ?? null;
+  if (op.rule) patch.rule = op.rule;
+  if ('servings' in op) patch.servings = op.servings ?? null;
+  if ('supply' in op) patch.supply = op.supply ?? null;
+  if (!Object.keys(patch).length) return false;
+  await repo.updateHouseholdEvent(op.id, patch);
+  return true;
+}
+
 async function applyShoppingOp(
   repo: Repo,
   item: { op?: 'add' | 'remove'; label?: string; note?: string; v?: number; u?: string },
@@ -725,6 +820,21 @@ export async function undoCard(
   // посилається, і «незбережений» привид у базі нікому не потрібен.
   for (const id of snap.before.added_recipe_ids ?? []) {
     await repo.deleteRecipe(id);
+  }
+  // Події: додані видаляємо, змінені й видалені повертаємо повним рядком.
+  // Порядок важливий — спершу зняти створене, потім відтворити старе, інакше
+  // подія, яку картка видалила й створила заново, лишилась би в двох копіях.
+  for (const id of snap.before.added_event_ids ?? []) {
+    await repo.deleteHouseholdEvent(id);
+  }
+  for (const e of snap.before.events_before ?? []) {
+    const still = await repo.getHouseholdEvent(e.id);
+    if (still) await repo.updateHouseholdEvent(e.id, {
+      title: e.title, note: e.note, rule: e.rule, buy: e.buy,
+      servings: e.servings, supply: e.supply,
+      expires_at: e.expires_at, done_at: e.done_at,
+    });
+    else await repo.insertHouseholdEvent(e);
   }
   // Profile: повертаємо блок як був до застосування картки.
   if (snap.before.profile_before) {

@@ -1,12 +1,13 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
-import { createPending, applyCard, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
+import { createPending, applyCard, applyMode, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { resolveWhen } from '../event-when.js';
 import {
   isYes, isNo, extractRating, buildWriteoffOps, latestRunInSession,
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
@@ -326,6 +327,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // який досі жив усередині гілки видалення й нікому не казався.
     const modes = detectModes(preMessages, recentCookRuns);
     const openCart = modes.find((m) => m.kind === 'cart_open');
+    // Плани дому — щоб модель могла на них послатись і правити їх по id.
+    const events = await repo.listHouseholdEvents(household_id);
 
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
@@ -348,6 +351,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
+        events,
         notesTruncated, recipesTruncated,
       });
     } catch (err) {
@@ -699,6 +703,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.
     // Чесний наступний крок — запропонувати зібрати кошик заново (новим
     // cart_go), а не мовчати чи прикидатись, що кошик у Сільпо теж оновився.
+    // «Коли» від моделі стає датою тут, до збереження картки: у стрічці має
+    // стояти те саме, що ляже в базу. Операція з нерозпізнаним часом не
+    // виживає — подія з вигаданою датою гірша за відсутню, бо виглядає як
+    // факт; хай краще модель перепитає.
+    if (call.card?.type === 'event') {
+      const ops = (call.card.ops ?? []).map((op) => {
+        if (op.op !== 'add' && !op.when) return op;
+        const rule = resolveWhen(op.when, new Date(), op.days);
+        return rule ? { ...op, rule } : null;
+      }).filter((op): op is NonNullable<typeof op> => op !== null);
+      call.card = ops.length ? { ...call.card, ops } : null;
+    }
+
     let replyText = call.reply;
     if (call.card?.type === 'shopping' && call.card.items?.some((i) => i.op === 'remove')) {
       const hadCart = (await repo.listMessages(session.id)).some((m) => (m.card as Card | null)?.type === 'cart');
@@ -721,7 +738,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // пропозиція моделі трапляється, і ціна помилки вища (профіль стійкий).
     let auto_applied = false;
     let undo_token: string | undefined;
-    if ((call.card?.type === 'intake_diff' || call.card?.type === 'shopping') && card_id) {
+    // Тип більше не перелічується руками: рішення «одразу чи з підтвердженням»
+    // живе в applyMode() (packages/domain/card-modes.ts), і саме цей гейт —
+    // той, хто його виконує. Доки він мав власну копію списку, картка могла
+    // отримати режим у мапі й не отримати його в рантаймі.
+    if (call.card && card_id && applyMode(call.card.type) === 'auto') {
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;

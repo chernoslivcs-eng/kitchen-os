@@ -11,7 +11,7 @@
 
 import { root, meaningfulWords, categoryBreadth} from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe } from './types.js';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe, HouseholdEventRow } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted } from './occasions.js';
 import { serializeModes, type KitchenMode } from './modes.js';
@@ -35,6 +35,9 @@ export interface KitchenContext {
   products?: HouseholdProduct[];
   // Пул-3: текст поточної розмови — згадані позиції гарантовано в кепі комори.
   queryText?: string;
+  // Календар: події дому. Без них модель не може ні згадати план, ні виправити
+  // його — а правити доручено саме їй.
+  events?: HouseholdEventRow[];
   now?: Date;                            // для тестів — інакше Date.now()
   // M13: чи підключена мережа (Сільпо). undefined = інтеграція не
   // сконфігурована на сервері — блок мовчить, модель про неї не знає.
@@ -391,6 +394,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
     + serializeOccasions(now, ctx.profile?.wishes ?? [])
+    + serializeHouseholdEvents(ctx.events ?? [], now)
     // UX9-04: чат-модель id партій не вживає НІДЕ — а отримувала uuid першим
     // словом кожного рядка. Шум і токени; вказівники бачить лише recipe_gen
     // (окрема серіалізація в callRecipe, з аліасами p1..pN).
@@ -430,4 +434,44 @@ export function maskHistoryQuantities(text: string): string {
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([,.!?;:])/g, '$1')
     .trim();
+}
+
+/**
+ * Плани дому в контекст — з короткими id, щоб модель могла на них послатись.
+ *
+ * Id вісім символів, не повні uuid: блок динамічний, тобто не кешується, і
+ * двадцять подій повними ідентифікаторами коштували б ~700 зайвих символів
+ * у КОЖНОМУ виклику. Префікс розгортає сервер (routes/chat.ts) — у межах
+ * одного дому збіг практично неможливий, а перевірка все одно є.
+ *
+ * Закриті й згаслі події не йдуть: «мама привезе цибулю» через місяць — шум,
+ * і саме проти нього писався expires_at.
+ */
+export function serializeHouseholdEvents(events: HouseholdEventRow[], now = new Date()): string {
+  const live = events.filter((e) => {
+    if (e.done_at) return false;
+    if (e.expires_at && new Date(e.expires_at).getTime() < now.getTime()) return false;
+    return true;
+  });
+  if (!live.length) return '';
+
+  const DOW = ['неділі', 'понеділка', 'вівторка', 'середи', 'четверга', 'пʼятниці', 'суботи'];
+  const line = (e: HouseholdEventRow): string => {
+    const id = e.id.slice(0, 8);
+    let when = '';
+    if (e.rule.t === 'once') {
+      const [, m = '1', d = '1'] = e.rule.at.split('-');
+      when = `${Number(d)}.${Number(m)}`;
+      if (e.rule.days && e.rule.days > 1) when += ` (${e.rule.days} дн.)`;
+    } else if (e.rule.t === 'weekly') {
+      when = `що${DOW[e.rule.dow] ?? 'тижня'}`;
+    }
+    const tail = [e.note, e.servings ? `на ${e.servings}` : null].filter(Boolean).join('; ');
+    return `[${id}] ${when}: ${e.title}${tail ? ` — ${tail}` : ''}`;
+  };
+
+  return '\n\n[ТВОЇ ПЛАНИ] (те, що людина сама поставила в календар; id у дужках — щоб правити,'
+    + ' закривати чи прибирати карткою event. Нагадуй про план, коли він доречний,'
+    + ' і не переказуй увесь список без запиту)\n'
+    + live.map(line).join('\n');
 }

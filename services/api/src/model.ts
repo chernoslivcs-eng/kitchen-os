@@ -7,6 +7,7 @@ import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
 import {
   buildKitchenContext,
   type KitchenMode,
+  type HouseholdEventRow,
   extractJson,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
@@ -170,6 +171,8 @@ export interface ChatArgs {
   // №4: що зараз відкрито. Рахує маршрут (він має повідомлення сесії),
   // модель отримує готовий факт замість виведення з історії.
   modes?: KitchenMode[];
+  // Календар: плани дому, щоб модель могла на них послатись і правити.
+  events?: HouseholdEventRow[];
   // 8b: блоки з лімітом на рівні репозиторію показані не повністю.
   notesTruncated?: boolean;
   recipesTruncated?: boolean;
@@ -344,13 +347,23 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
 //
 // Сам контекст живе в @kitchen/domain — його ділять прод і eval. Поки він сидів
 // тут, eval складав власний промпт і перевіряв не те, що працює у проді.
-export function buildChatSystem(args: ChatArgs, promptText: string): string {
+/**
+ * Динамічна частина промпту — ОДНА для всіх.
+ *
+ * Знахідка 03.09: складань було два — тут і всередині callChat, — і вони
+ * розійшлись. Прод не передавав modes, а serializeModes віддає блок завжди,
+ * тож моделі йшло «[РЕЖИМ] нічого не відкрито» навіть із відкритим кошиком.
+ * Тести дивились на buildChatSystem і бачили правильний промпт; прод слав
+ * інший. Це той самий клас помилки, через який контекст свого часу переїхав
+ * у домен: копія, яку ніхто не звіряє, рано чи пізно бреше.
+ */
+export function buildDynamicContext(args: ChatArgs): string {
   // Пул-3: згадане в розмові — гарантовано в кепі комори.
   const queryText = [
     args.text,
     ...(args.history ?? []).filter((h) => h.role === 'user').slice(-3).map((h) => h.content),
   ].join('\n');
-  return promptText + buildKitchenContext({
+  return buildKitchenContext({
     pantry: args.pantry,
     profile: args.profile,
     shopping: args.shopping,
@@ -359,12 +372,24 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
+    events: args.events,
     retailConnected: args.retailConnected,
     modes: args.modes,
     notesTruncated: args.notesTruncated,
     recipesTruncated: args.recipesTruncated,
     queryText,
   });
+}
+
+// Складання системного промпту експортоване НАВМИСНЕ: усі справжні баги
+// QA-4/5/6 були тут, а не в логіці. «Профіль не доходить до моделі», «список
+// не доходить», «правило стоїть після даних» — усе це перевіряється на рядку,
+// без мережі й без ключа (tests/model-context.test.ts).
+//
+// Сам контекст живе в @kitchen/domain — його ділять прод і eval. Поки він сидів
+// тут, eval складав власний промпт і перевіряв не те, що працює у проді.
+export function buildChatSystem(args: ChatArgs, promptText: string): string {
+  return promptText + buildDynamicContext(args);
 }
 
 export async function callChat(args: ChatArgs): Promise<ChatCall> {
@@ -377,23 +402,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   // стабільний префікс; buildKitchenContext — динаміка. buildChatSystem
   // лишається конкатенацією тих самих двох частин для тестів контексту.
   const stable = compose('chat', prompt, { stage: args.stage });
-  // Пул-3: згадане в розмові — гарантовано в кепі комори.
-  const queryText = [
-    args.text,
-    ...(args.history ?? []).filter((h) => h.role === 'user').slice(-3).map((h) => h.content),
-  ].join('\n');
-  const dynamic = buildKitchenContext({
-    pantry: args.pantry,
-    profile: args.profile,
-    shopping: args.shopping,
-    recentCookRuns: args.recentCookRuns,
-    notes: args.notes,
-    eaters: args.eaters,
-    recentRecipes: args.recentRecipes,
-    products: args.products,
-    retailConnected: args.retailConnected,
-    queryText,
-  });
+  const dynamic = buildDynamicContext(args);
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
   const messages = [
@@ -429,7 +438,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     if ('reply' in o && 'card' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = normalizeCard(o.card ?? null);
-    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit'].includes(o.type)) {
+    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit', 'event'].includes(o.type)) {
       card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }

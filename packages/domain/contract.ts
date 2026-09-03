@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
-import type { PantryBatch, IntakeCard, HouseholdEventRow } from './types.js';
+import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard } from './types.js';
 import { createPending, applyCard, undoCard } from './apply.js';
 import { displayName } from './product.js';
 
@@ -523,6 +523,85 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const ramadan = catalog.find((o) => o.id === 'ramadan');
       expect(ramadan?.tradition).toBe('islamic');
       expect(ramadan && 'meaning' in ramadan && ramadan.meaning != null).toBe(false);
+    });
+
+    // Картка event застосовується ОДРАЗУ (card-modes: 'auto'), як і список
+    // покупок: вона народжується лише на прямий запит людини, і якщо репліка
+    // каже «записав», а події немає — модель бреше про зроблене. Запобіжник —
+    // undo, і саме він тут і перевіряється.
+    it('картка event: додає, править, закриває; undo повертає все', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const mid = randomUUID();
+      const card: EventCard = {
+        type: 'event',
+        ops: [{
+          op: 'add', title: 'гості, шестеро', kind: 'custom', servings: 6,
+          // rule проставляє сервер із `when` — модель дат не рахує.
+          rule: { t: 'once', at: '2026-09-12' },
+        }],
+      };
+      await createPending(repo, { message_id: mid, household_id, user_id, card });
+      const { undo_token, applied } = await applyCard(repo, mid, [], user_id);
+      expect(applied).toBe(1);
+
+      const list = await repo.listHouseholdEvents(household_id);
+      expect(list).toHaveLength(1);
+      expect(list[0]?.title).toBe('гості, шестеро');
+      expect(list[0]?.servings).toBe(6);
+      // Слід авторства: інакше не розібрати, звідки в календарі те, чого не просили.
+      expect(list[0]?.source).toBe('model');
+
+      await undoCard(repo, mid, undo_token, user_id);
+      expect(await repo.listHouseholdEvents(household_id)).toHaveLength(0);
+    });
+
+    it('картка event: правка й закриття вертаються повним рядком', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const id = randomUUID();
+      await repo.insertHouseholdEvent({
+        id, household_id, kind: 'custom', title: 'гості', note: 'четверо',
+        rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null,
+        buy: [], recipe_id: null, servings: 4, supply: null,
+        created_by: user_id, source: 'user',
+        expires_at: null, done_at: null, created_at: new Date().toISOString(),
+      });
+
+      const mid = randomUUID();
+      const card: EventCard = {
+        type: 'event',
+        ops: [{ op: 'edit', id, title: 'гості, шестеро', servings: 6 }],
+      };
+      await createPending(repo, { message_id: mid, household_id, user_id, card });
+      const { undo_token } = await applyCard(repo, mid, [], user_id);
+      expect((await repo.getHouseholdEvent(id))?.title).toBe('гості, шестеро');
+      expect((await repo.getHouseholdEvent(id))?.servings).toBe(6);
+
+      await undoCard(repo, mid, undo_token, user_id);
+      const back = await repo.getHouseholdEvent(id);
+      expect(back?.title).toBe('гості');
+      expect(back?.servings).toBe(4);
+      // Правка одного поля не мала загубити решту.
+      expect(back?.note).toBe('четверо');
+    });
+
+    it('картка event: чужу подію не чіпає і про зроблене не рапортує', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const alien = randomUUID();
+      await repo.insertHouseholdEvent({
+        id: alien, household_id: randomUUID(), kind: 'custom', title: 'їхні гості',
+        note: null, rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null,
+        buy: [], recipe_id: null, servings: null, supply: null,
+        created_by: null, source: 'user', expires_at: null, done_at: null,
+        created_at: new Date().toISOString(),
+      });
+      const mid = randomUUID();
+      await createPending(repo, {
+        message_id: mid, household_id, user_id,
+        card: { type: 'event', ops: [{ op: 'remove', id: alien }] } as EventCard,
+      });
+      // Нуль застосованих — і сама подія на місці.
+      expect((await applyCard(repo, mid, [], user_id)).applied).toBe(0);
+      expect(await repo.getHouseholdEvent(alien)).not.toBeNull();
     });
 
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {

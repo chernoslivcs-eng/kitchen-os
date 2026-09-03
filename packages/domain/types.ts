@@ -139,6 +139,32 @@ export interface ShoppingCard {
   }[];
 }
 
+// Час, як його називає модель. Дати вона не рахує — переказує сказане людиною
+// або відносне, а в дату це перетворює сервер (services/api/src/event-when.ts).
+export type EventWhen =
+  | { date: string }        // '2026-09-12' — людина назвала дослівно
+  | { rel: string }         // '+7d', '+2w', 'today', 'tomorrow'
+  | { weekly: number };     // 0=нд … 6=сб
+
+export interface EventCard {
+  type: 'event';
+  ops: {
+    op: 'add' | 'edit' | 'done' | 'remove';
+    /** Для edit/done/remove — id з блоку [ТВОЇ ПЛАНИ]. */
+    id?: string;
+    title?: string;
+    kind?: 'meal' | 'supply' | 'constraint' | 'custom';
+    when?: EventWhen;
+    /** Скільки днів триває: «тиждень готуємо з нею». */
+    days?: number;
+    note?: string | null;
+    servings?: number | null;
+    supply?: SupplyLine[];
+    /** Проставляє сервер із `when`. Модель це поле не заповнює ніколи. */
+    rule?: Rule;
+  }[];
+}
+
 export type ProfileKind = 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member' | 'intent';
 
 export interface ProfileCard {
@@ -303,7 +329,7 @@ export interface RetailSearchGoCard {
   query: string;
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard;
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard;
 
 // ----- Стан «на застосуванні» ------
 
@@ -323,7 +349,7 @@ export interface PendingCard {
 // Знімок ДО застосування: чого досить, щоб відкотити.
 // Для intake — попередні партії (при correct/rename/open/deplete) + список створених id (add).
 export interface UndoSnapshot {
-  kind: 'intake_diff' | 'shopping' | 'profile' | 'recipe' | 'cook_photo';
+  kind: 'intake_diff' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'event';
   before: {
     created_batch_ids?: string[];       // add: створені партії — видалити при undo
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
@@ -340,6 +366,10 @@ export interface UndoSnapshot {
     added_eater_ids?: string[];         // member add: undo видаляє
     photo_before?: { run_id: string; photo_url: string | null };  // cook_photo: повернути як було
     removed_eaters?: EaterRow[];        // member remove: undo повертає повний рядок
+    added_event_ids?: string[];         // event add: undo видаляє створене
+    // edit/done/remove: повний рядок ДО зміни. Як і з позиціями списку, id
+    // самого по собі не досить — видалену подію треба відтворити.
+    events_before?: HouseholdEventRow[];
   };
 }
 
