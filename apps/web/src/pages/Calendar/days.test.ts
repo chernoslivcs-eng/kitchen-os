@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDays, splitRunning, type CalendarRow } from './days';
+import { buildDays, buildWeeks, splitRunning, type CalendarRow } from './days';
 import type { EventOccurrence } from '../../api';
 
 const DAY = 86_400_000;
@@ -56,5 +56,55 @@ describe('стрічка днів', () => {
     const rows = buildDays([ev(d0, d0)], d0, 5);
     expect(kinds(rows)).toEqual(['day', 'quiet']);
     expect((rows[1] as { days: number }).days).toBe(4);
+  });
+});
+
+describe('тижні для десктопу', () => {
+  it('тиждень починається з понеділка', () => {
+    // 10.09.2026 — четвер; тиждень має початись 7-го, у понеділок.
+    const weeks = buildWeeks([ev(d0, d0)], d0, 7);
+    const first = weeks.find((w) => w.type === 'week') as { start: number };
+    expect(new Date(first.start).getDay()).toBe(1);
+  });
+
+  it('порожні тижні згортаються, як і порожні дні', () => {
+    const weeks = buildWeeks([ev(d0, d0)], d0, 28);
+    expect(weeks[0]?.type).toBe('week');
+    expect(weeks[1]?.type).toBe('quiet-weeks');
+  });
+
+  it('у тижні завжди сім днів, навіть коли подій нема', () => {
+    const weeks = buildWeeks([ev(d0, d0)], d0, 7);
+    const week = weeks.find((w) => w.type === 'week') as { days: unknown[] };
+    expect(week.days).toHaveLength(7);
+  });
+
+  it('подія лягає у свій день тижня', () => {
+    const weeks = buildWeeks([ev(d0, d0, 'гості')], d0, 7);
+    const week = weeks.find((w) => w.type === 'week') as { days: { at: number; events: unknown[] }[] };
+    const withEvents = week.days.filter((x) => x.events.length > 0);
+    expect(withEvents).toHaveLength(1);
+    expect(new Date(withEvents[0]!.at).getDay()).toBe(4);   // четвер
+  });
+});
+
+describe('сьогодні не згортається', () => {
+  it('порожній сьогоднішній день лишається рядком', () => {
+    // Живий прогін показав гірше: тиждень із сьогодні згорнувся в «тиша», і
+    // єдиний якір «де я в часі» зник з екрана взагалі.
+    const rows = buildDays([ev(d0 + 5 * DAY, d0 + 5 * DAY)], d0, 7, d0);
+    expect(rows[0]).toMatchObject({ type: 'day', at: d0 });
+    expect((rows[0] as { events: unknown[] }).events).toHaveLength(0);
+  });
+
+  it('порожній тиждень із сьогодні лишається тижнем', () => {
+    const weeks = buildWeeks([ev(d0 + 20 * DAY, d0 + 20 * DAY)], d0, 28, d0);
+    expect(weeks[0]?.type).toBe('week');
+  });
+
+  it('інші порожні дні й тижні згортаються, як і раніше', () => {
+    const rows = buildDays([], d0, 7, d0 - 100 * DAY);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.type).toBe('quiet');
   });
 });

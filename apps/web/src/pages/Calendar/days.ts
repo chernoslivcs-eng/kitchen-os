@@ -65,6 +65,7 @@ export function buildDays(
   events: EventOccurrence[],
   from: number,
   days: number,
+  now = Date.now(),
 ): CalendarRow[] {
   // Дні перебираються календарно, а не додаванням DAY: в останню неділю
   // жовтня доба коротша на годину, і арифметика в мілісекундах зсуває межі
@@ -97,7 +98,10 @@ export function buildDays(
   for (let i = 0; i < days; i++) {
     const at = stamps[i]!;
     const dayEvents = buckets[i] ?? [];
-    if (dayEvents.length === 0) {
+    // Сьогодні не згортається ніколи, навіть порожнє. Без нижнього бара це
+    // єдиний якір «де я в часі», і сховати його в «тиша · 5 дн.» означало б
+    // відібрати єдину клітинку, яка щось стверджує.
+    if (dayEvents.length === 0 && at !== dayStart(now)) {
       if (quietFrom === null) quietFrom = at;
       quietDays++;
       continue;
@@ -107,4 +111,83 @@ export function buildDays(
   }
   flush(stamps[days - 1]!);
   return rows;
+}
+
+export interface WeekRow {
+  type: 'week';
+  start: number;
+  days: DayRow[];
+}
+
+export interface QuietWeeksRow {
+  type: 'quiet-weeks';
+  from: number;
+  to: number;
+  weeks: number;
+}
+
+export type CalendarWeek = WeekRow | QuietWeeksRow;
+
+/**
+ * Те саме, що buildDays, але зібране в тижні — вигляд для десктопу, де є
+ * ширина на сім колонок. Тиждень починається з понеділка: український
+ * тиждень, а не американський.
+ *
+ * Порожні тижні згортаються так само, як порожні дні у стрічці. Сітка сама
+ * по собі показує дірки — тут вони згорнуті, і це єдиний спосіб не
+ * перетворити «нічого не заплановано» на докір.
+ */
+export function buildWeeks(
+  events: EventOccurrence[],
+  from: number,
+  days: number,
+  now = Date.now(),
+): CalendarWeek[] {
+  // Відкочуємось до понеділка того тижня, у якому лежить `from`.
+  const first = new Date(dayStart(from));
+  const dow = (first.getDay() + 6) % 7;          // Пн = 0
+  first.setDate(first.getDate() - dow);
+
+  const total = Math.ceil((days + dow) / 7) * 7;
+  const stamps: number[] = [];
+  for (const d = new Date(first); stamps.length < total; d.setDate(d.getDate() + 1)) {
+    stamps.push(d.getTime());
+  }
+  const index = new Map(stamps.map((at, i) => [at, i]));
+  const buckets: EventOccurrence[][] = stamps.map(() => []);
+  for (const e of events) {
+    const i = index.get(dayStart(e.start));
+    if (i === undefined) continue;
+    buckets[i]?.push(e);
+  }
+
+  const out: CalendarWeek[] = [];
+  let quietFrom: number | null = null;
+  let quietCount = 0;
+
+  const flushQuiet = (until: number) => {
+    if (quietFrom === null) return;
+    out.push({ type: 'quiet-weeks', from: quietFrom, to: until, weeks: quietCount });
+    quietFrom = null;
+    quietCount = 0;
+  };
+
+  for (let w = 0; w * 7 < total; w++) {
+    const slice = stamps.slice(w * 7, w * 7 + 7);
+    const weekDays: DayRow[] = slice.map((at, i) => ({
+      type: 'day', at, events: buckets[w * 7 + i] ?? [],
+    }));
+    // Той самий якір, що у стрічці: тиждень із сьогодні лишається видимим.
+    const hasToday = slice.includes(dayStart(now));
+    const empty = weekDays.every((d) => d.events.length === 0) && !hasToday;
+    if (empty) {
+      if (quietFrom === null) quietFrom = slice[0]!;
+      quietCount++;
+      continue;
+    }
+    flushQuiet(slice[0]! - 1);
+    out.push({ type: 'week', start: slice[0]!, days: weekDays });
+  }
+  flushQuiet(stamps[total - 1]!);
+  return out;
 }

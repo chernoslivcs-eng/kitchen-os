@@ -10,7 +10,7 @@ import { api, type EventOccurrence } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { whenLabel } from '../../lib/when';
-import { buildDays, splitRunning } from './days';
+import { buildDays, buildWeeks, splitRunning } from './days';
 import { EventSheet } from './EventSheet';
 import styles from './Calendar.module.css';
 
@@ -58,9 +58,15 @@ export function CalendarPage() {
   // третій тиждень, засмічує кожен день стрічки.
   const { running, stream } = useMemo(
     () => splitRunning(events, today.getTime()), [events, today]);
-  const rows = useMemo(() => buildDays(stream, today.getTime(), HORIZON), [stream, today]);
+  const rows = useMemo(
+    () => buildDays(stream, today.getTime(), HORIZON, today.getTime()), [stream, today]);
+  // Той самий потік, зібраний у тижні. Обидва вигляди в DOM, перемикає CSS:
+  // на ресайзі JS-перемикач мигав би, а тут просто інший display.
+  const weeks = useMemo(
+    () => buildWeeks(stream, today.getTime(), HORIZON, today.getTime()), [stream, today]);
 
   let lastMonth = '';
+  let lastGridMonth = '';
 
   return (
     <div className={styles.screen}>
@@ -94,6 +100,7 @@ export function CalendarPage() {
           </div>
         )}
 
+        <div className={styles.list}>
         {rows.map((row) => {
           const at = row.type === 'day' ? row.at : row.from;
           const month = monthOf(at);
@@ -142,6 +149,55 @@ export function CalendarPage() {
             </div>
           );
         })}
+        </div>
+
+        <div className={styles.grid}>
+          <div className={styles['grid-head']}>
+            {['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'нд'].map((d) => (
+              <div key={d} className={styles['grid-dow']}>{d}</div>
+            ))}
+          </div>
+          {weeks.map((w) => {
+            if (w.type === 'quiet-weeks') {
+              return (
+                <div key={`qw${w.from}`} className={styles.quiet}>
+                  {shortDate(w.from)} – {shortDate(w.to)} · тиша · {w.weeks}{' '}
+                  {w.weeks === 1 ? 'тиждень' : w.weeks < 5 ? 'тижні' : 'тижнів'}
+                </div>
+              );
+            }
+            const month = monthOf(w.start);
+            const monthHead = month !== lastGridMonth ? month : null;
+            lastGridMonth = month;
+            return (
+              <div key={w.start}>
+                {monthHead && <div className={styles.month}>{monthHead}</div>}
+                <div className={styles.week}>
+                  {w.days.map((d) => (
+                    <div
+                      key={d.at}
+                      className={`${styles.cell} ${d.at === today.getTime() ? styles['cell-today'] : ''}`}
+                    >
+                      <div className={styles['cell-date']}>{dayNum(d.at)}</div>
+                      {/* Порожня клітинка — тиша, не дірка: ні «＋ додати»,
+                          ні пунктирної рамки, яка просить себе заповнити. */}
+                      {d.events.map((e) => (
+                        <button
+                          key={`${e.scope}:${e.id}`}
+                          className={`${styles['cell-slot']} ${toneOf(e)}`}
+                          onClick={() => setOpenEvent(e)}
+                          title={e.meaning ?? e.title}
+                        >
+                          {e.kind === 'supply' ? '＋ ' : ''}{e.title}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {openEvent && (
