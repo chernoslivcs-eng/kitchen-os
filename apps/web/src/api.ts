@@ -415,6 +415,8 @@ export const api = {
       ),
     add: (body: { title: string; kind?: string; rule: unknown; note?: string | null }) =>
       req<{ event: unknown }>('/v1/events', { method: 'POST', body: JSON.stringify(body) }),
+    patch: (id: string, body: Record<string, unknown>) =>
+      req<{ event: unknown }>(`/v1/events/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     remove: (id: string) => req<null>(`/v1/events/${id}`, { method: 'DELETE' }),
   },
 

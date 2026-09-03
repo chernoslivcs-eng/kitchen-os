@@ -26,13 +26,20 @@ const dayDow = (at: number) => new Date(at).toLocaleDateString('uk-UA', { weekda
 const monthOf = (at: number) => new Date(at).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
 const shortDate = (at: number) => new Date(at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
 
-// Рід події видно кольором, а не міткою. Семантика вже зайнята й нового
-// кольору календар не отримує: обмеження — слива («анти»), бо піст це рамка,
-// а не помилка; завіз — шавлія, бо це прихід; решта нейтральна.
+// Рід — це КОЛІР ТЕКСТУ, і більше нічого.
+//
+// Перша версія малювала подію карткою: заливка, скруглення, акцентна смуга
+// ліворуч, моно-рядок «коли» під назвою. Усе це я вигадав — ні в макеті, ні
+// в кіті такого патерну немає. У макеті слот дня це просто рядок тексту,
+// пофарбований родом, а межу дає border-bottom самого дня.
+//
+// Семантика та сама, що всюди: обмеження — слива («анти»), бо піст це рамка,
+// а не помилка; завіз — шавлія, бо це прихід; рамка на день — приглушена, бо
+// це не план; решта нейтральна.
 function toneOf(e: EventOccurrence): string {
   if (e.force === 'restrict') return styles['t-restrict']!;
   if (e.kind === 'supply') return styles['t-supply']!;
-  if (e.kind === 'season') return styles['t-season']!;
+  if (e.kind === 'constraint') return styles['t-quiet']!;
   return styles['t-plain']!;
 }
 
@@ -46,6 +53,8 @@ export function CalendarPage() {
   const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
   const [version, setVersion] = useState(0);
   const [creating, setCreating] = useState(false);
+  // Правка — та сама форма, що створення, лише з готовими полями.
+  const [editing, setEditing] = useState<EventOccurrence | null>(null);
   // Після «Додати» відкриваємо сторінку створеної події — але входження
   // (start/end) бере СЕРВЕР, тому спершу перечитуємо список і знаходимо її
   // там. Порахувати дати в вебі означало б завести другу копію правил, а одна
@@ -98,21 +107,6 @@ export function CalendarPage() {
       <div className={styles.body}>
         {loading && <div className={styles.quiet}>—</div>}
 
-        {running.length > 0 && (
-          <div className={styles.running}>
-            <div className={styles['running-label']}>ТРИВАЄ</div>
-            {running.map((e) => (
-              <button
-                key={`${e.scope}:${e.id}`}
-                className={`${styles.slot} ${toneOf(e)}`}
-                onClick={() => setOpenEvent(e)}
-              >
-                <span className={styles['slot-title']}>{e.title}</span>
-                <span className={styles['slot-when']}>{whenLabel(e.start, e.end)}</span>
-              </button>
-            ))}
-          </div>
-        )}
 
         {!loading && events.length === 0 && (
           <div className={styles.empty}>
@@ -148,8 +142,8 @@ export function CalendarPage() {
               {monthHead && <div className={styles.month}>{monthHead}</div>}
               <div className={`${styles.day} ${isToday ? styles.today : ''}`}>
                 <div className={styles.date}>
-                  <span className={styles['date-num']}>{dayNum(row.at)}</span>
                   <span className={styles['date-dow']}>{dayDow(row.at)}</span>
+                  <span className={styles['date-num']}>{dayNum(row.at)}</span>
                 </div>
                 <div className={styles.slots}>
                   {row.events.length === 0
@@ -160,12 +154,8 @@ export function CalendarPage() {
                         className={`${styles.slot} ${toneOf(e)}`}
                         onClick={() => setOpenEvent(e)}
                       >
-                        <span className={styles['slot-title']}>
-                          {e.kind === 'supply' ? '＋ ' : ''}{e.title}
-                        </span>
-                        <span className={styles['slot-when']}>
-                          {whenLabel(e.start, e.end)}{e.approx ? ' · орієнтовно' : ''}
-                        </span>
+                        {e.kind === 'supply' ? '＋ ' : ''}{e.title}
+                        {e.approx && <span className={styles.approx}> · орієнтовно</span>}
                       </button>
                     ))}
                 </div>
@@ -202,7 +192,7 @@ export function CalendarPage() {
                       key={d.at}
                       className={`${styles.cell} ${d.at === today.getTime() ? styles['cell-today'] : ''}`}
                     >
-                      <div className={styles['cell-date']}>{dayNum(d.at)}</div>
+                      <div className={styles['cell-date']}>{dayDow(d.at)} {dayNum(d.at)}</div>
                       {/* Порожня клітинка — тиша, не дірка: ні «＋ додати»,
                           ні пунктирної рамки, яка просить себе заповнити. */}
                       {d.events.map((e) => (
@@ -224,11 +214,32 @@ export function CalendarPage() {
         </div>
       </div>
 
-      {creating && (
+      {/* «Триває» — закріплений низ і ОДИН рядок, не стос карток. На мобільному
+          його немає зовсім: сезони вже стоять у блоці «ЗАРАЗ» шухляди, і
+          показувати їх удруге означало б засмітити єдиний екран. */}
+      {running.length > 0 && (
+        <div className={styles.running}>
+          <span className={styles['running-label']}>Триває</span>
+          {running.map((e) => (
+            <button
+              key={`${e.scope}:${e.id}`}
+              className={styles['running-item']}
+              onClick={() => setOpenEvent(e)}
+            >
+              <span className={styles['running-name']}>{e.title}</span>
+              <span className={styles['running-when']}>{whenLabel(e.start, e.end)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {(creating || editing) && (
         <NewEventSheet
-          onClose={() => setCreating(false)}
+          edit={editing ? { id: editing.id, title: editing.title, note: editing.note ?? null } : undefined}
+          onClose={() => { setCreating(false); setEditing(null); }}
           onCreated={(id) => {
             setCreating(false);
+            setEditing(null);
             openAfterCreate.current = id;
             setVersion((v) => v + 1);
           }}
@@ -240,6 +251,7 @@ export function CalendarPage() {
           event={openEvent}
           onClose={() => setOpenEvent(null)}
           onChanged={() => setVersion((v) => v + 1)}
+          onEdit={(ev) => { setOpenEvent(null); setEditing(ev); }}
         />
       )}
     </div>

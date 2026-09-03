@@ -20,6 +20,9 @@ interface Props {
   /** Викликається з id створеної події: календар перечитується, і сторінка
    *  події відкривається вже з розрахованим сервером входженням. */
   onCreated: (id: string) => void;
+  /** Правка наявної: та сама форма, бо поля ті самі. Заводити другу означало б
+   *  тримати дві правди про те, з чого складається подія. */
+  edit?: { id: string; title: string; note: string | null };
 }
 
 const DOW = [
@@ -32,12 +35,12 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function NewEventSheet({ onClose, onCreated }: Props) {
-  const [title, setTitle] = useState('');
+export function NewEventSheet({ onClose, onCreated, edit }: Props) {
+  const [title, setTitle] = useState(edit?.title ?? '');
   const [mode, setMode] = useState<'date' | 'weekly'>('date');
   const [date, setDate] = useState(todayIso());
   const [dow, setDow] = useState(2);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(edit?.note ?? '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -49,6 +52,13 @@ export function NewEventSheet({ onClose, onCreated }: Props) {
     setErr(null);
     try {
       const rule = mode === 'date' ? { t: 'once', at: date } : { t: 'weekly', dow };
+      if (edit) {
+        // Час у правці НЕ чіпаємо: людина відкрила форму, щоб змінити назву чи
+        // нотатку, і мовчки переписати дату на «сьогодні» було б підміною.
+        await api.events.patch(edit.id, { title: t, note: note.trim() || null });
+        onCreated(edit.id);
+        return;
+      }
       const res = await api.events.add({
         title: t, kind: 'custom', rule, note: note.trim() || null,
       }) as { event?: { id?: string } };
@@ -62,9 +72,9 @@ export function NewEventSheet({ onClose, onCreated }: Props) {
   }
 
   return (
-    <Sheet onClose={onClose} ariaLabel="Нова подія">
+    <Sheet onClose={onClose} ariaLabel={edit ? "Правка події" : "Нова подія"}>
       <form className={styles.body} onSubmit={submit}>
-        <div className={`${styles.kicker} ${styles.muted}`}>НОВА ПОДІЯ</div>
+        <div className={`${styles.kicker} ${styles.muted}`}>{edit ? 'ПРАВКА' : 'НОВА ПОДІЯ'}</div>
 
         <label className={own.label} htmlFor="ev-title">Що</label>
         <input
@@ -76,8 +86,10 @@ export function NewEventSheet({ onClose, onCreated }: Props) {
           autoFocus
         />
 
-        <div className={own.label}>Коли</div>
-        <div className={own.segments}>
+        {/* У правці час не показуємо: форма тут для назви й нотатки, а
+            перенести подію — інша дія, і вона заслуговує на власний жест. */}
+        {!edit && <div className={own.label}>Коли</div>}
+        <div className={own.segments} hidden={!!edit}>
           <button
             type="button"
             className={`${own.seg} ${mode === 'date' ? own['seg-on'] : ''}`}
@@ -90,7 +102,7 @@ export function NewEventSheet({ onClose, onCreated }: Props) {
           >Щотижня</button>
         </div>
 
-        {mode === 'date' ? (
+        {edit ? null : mode === 'date' ? (
           <input
             type="date"
             className={own.input}
@@ -124,7 +136,7 @@ export function NewEventSheet({ onClose, onCreated }: Props) {
 
         <div className={styles.actions}>
           <button type="submit" className={own.submit} disabled={busy}>
-            {busy ? 'Записую…' : 'Додати'}
+            {busy ? 'Записую…' : edit ? 'Зберегти' : 'Додати'}
           </button>
         </div>
       </form>

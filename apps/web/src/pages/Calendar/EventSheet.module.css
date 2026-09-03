@@ -95,3 +95,47 @@
 .quiet:disabled { opacity: 0.45; cursor: default; }
 .remove { border-color: var(--danger-border); color: var(--danger); }
 .remove:disabled { opacity: 0.6; cursor: wait; }
+
+/* Підвал за макетом: моно-мета зліва тягне ширину, дії праворуч.
+   Три ваги, а не одна: суцільна шавлія — головна дія; обведена — вторинна
+   (там, де головної бути не має: редакційна подія й правка своєї); привид —
+   тихий вихід, який не має виглядати як заклик. */
+.meta {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.primary, .secondary, .ghost {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.primary {
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-fg-on);
+}
+.primary:hover { background: var(--accent-strong); }
+.secondary {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg-strong);
+  color: var(--accent);
+}
+.ghost {
+  border: 0;
+  padding: 0 14px;
+  background: none;
+  color: var(--fg-muted);
+}
+.ghost:disabled { opacity: 0.45; cursor: default; }
+.ghost:not(:disabled):hover { color: var(--fg); }

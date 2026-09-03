@@ -9,6 +9,7 @@
 // заголовок, а не теракоту: піст — це рамка, а не помилка.
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type EventOccurrence } from '../../api';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { whenLabel } from '../../lib/when';
@@ -18,22 +19,53 @@ interface Props {
   event: EventOccurrence;
   onClose: () => void;
   onChanged: () => void;
+  /** Правка особистої події — та сама форма, що створення. */
+  onEdit: (e: EventOccurrence) => void;
 }
 
-function kicker(e: EventOccurrence): { text: string; tone: string } {
-  if (e.force === 'restrict') return { text: 'ОБМЕЖЕННЯ', tone: styles.plum! };
-  if (e.source) return { text: `ВІД ${e.source.toUpperCase()}`, tone: styles.muted! };
-  if (e.kind === 'season') return { text: 'СЕЗОН', tone: styles.amber! };
-  if (e.kind === 'supply') return { text: '＋ ЗАВІЗ', tone: styles.sage! };
-  if (e.kind === 'tradition') return { text: 'СВЯТО', tone: styles.muted! };
-  if (e.kind === 'constraint') return { text: 'РАМКА НА ДЕНЬ', tone: styles.muted! };
-  return { text: 'ПОДІЯ', tone: styles.muted! };
+// Кікер несе РІД І СТАН, не лише рід: «Сезон · останні дні» — інша річ, ніж
+// «Сезон». Те, що закінчується, змінює поведінку; те, що просто триває, ні.
+function kicker(e: EventOccurrence, now = Date.now()): { text: string; tone: string } {
+  const live = now >= e.start && now <= e.end;
+  const endsSoon = live && e.end - now < 7 * 86_400_000;
+  if (e.force === 'restrict') {
+    return { text: live ? 'Обмеження · діє' : 'Обмеження', tone: styles.plum! };
+  }
+  if (e.source) return { text: `Від ${e.source}`, tone: styles.muted! };
+  if (e.kind === 'season') {
+    return { text: endsSoon ? 'Сезон · останні дні' : 'Сезон', tone: styles.amber! };
+  }
+  if (e.kind === 'supply') return { text: '＋ Завіз', tone: styles.sage! };
+  if (e.kind === 'tradition') return { text: 'Свято', tone: styles.muted! };
+  if (e.kind === 'constraint') return { text: 'Рамка на день', tone: styles.muted! };
+  return { text: 'Подія', tone: styles.muted! };
 }
 
-export function EventSheet({ event: e, onClose, onChanged }: Props) {
+// Моно-мета в підвалі: коротке «що тут є», щоб дія не стояла в порожньому
+// рядку. Для обмеження — його сила, для решти — те, що можна взяти.
+function footerMeta(e: EventOccurrence): string | null {
+  if (e.force === 'restrict') return 'ДІЄ У ВСІХ ПОРАДАХ';
+  if (e.source) return 'НЕ СПОНСОРОВАНО';
+  const parts: string[] = [];
+  if (e.seeds?.length) parts.push(`${e.seeds.length} ЗЕРНА`);
+  if (e.buy?.length) parts.push(`${e.buy.length} ДОКУПИТИ`);
+  if (e.kind === 'tradition' && !parts.length) return 'РОЗПІЗНАНО ЗА ТРАДИЦІЄЮ';
+  return parts.length ? parts.join(' · ') : null;
+}
+
+export function EventSheet({ event: e, onClose, onChanged, onEdit }: Props) {
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const k = kicker(e);
+  const meta = footerMeta(e);
   const restrict = e.force === 'restrict';
+
+  // Головна дія сторінки — повернутись у розмову з цією подією на руках.
+  // Календар показує, а готує все одно Кухня; без цього мосту екран лишався б
+  // довідкою про себе самого.
+  function discuss() {
+    navigate('/app', { state: { composePrefix: `${e.title} — ` } });
+  }
 
   async function remove() {
     setBusy(true);
@@ -102,23 +134,37 @@ export function EventSheet({ event: e, onClose, onChanged }: Props) {
         )}
 
         <div className={styles.actions}>
+          {meta && <span className={styles.meta}>{meta}</span>}
+
           {/* Редакційну подію завжди можна вимкнути, і це повноправна дія, а не
               дрібне посилання: інакше привід непомітно стає рекламним каналом. */}
           {e.source && (
-            <button className={styles.quiet} disabled title="Буде у наступному кроці">
+            <button className={styles.ghost} disabled title="Буде у наступному кроці">
               Не показувати такі
             </button>
           )}
-          {/* Обмеження знімається лише зміною побажань — тут тихий вихід, а не
-              кнопка «порушити». */}
+
+          {/* Обмеження знімається зміною побажань у профілі — тут тихий вихід,
+              а не кнопка «порушити». І головної дії в нього немає: рамку не
+              обговорюють, її дотримуються. */}
           {restrict && (
-            <button className={styles.quiet} disabled title="Знімається в профілі, у побажаннях">
+            <button className={styles.ghost} disabled title="Знімається в профілі, у побажаннях">
               Не дотримуюсь
             </button>
           )}
+
           {e.scope === 'household' && (
-            <button className={styles.remove} onClick={remove} disabled={busy}>
-              {busy ? 'Прибираю…' : 'Прибрати'}
+            <>
+              <button className={styles.ghost} onClick={remove} disabled={busy}>
+                {busy ? 'Прибираю…' : 'Прибрати'}
+              </button>
+              <button className={styles.secondary} onClick={() => onEdit(e)}>Редагувати</button>
+            </>
+          )}
+
+          {!restrict && e.scope === 'catalog' && (
+            <button className={e.source ? styles.secondary : styles.primary} onClick={discuss}>
+              {e.source ? 'Обговорити' : 'Обговорити з Кухнею'}
             </button>
           )}
         </div>
