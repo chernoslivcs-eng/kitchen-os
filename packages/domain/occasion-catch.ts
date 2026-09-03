@@ -11,9 +11,9 @@
 
 import { root, meaningfulWords } from '@kitchen/catalog';
 import { activeOccasions, type Occasion } from './occasions.js';
-import type { OccasionRow } from './occasion-data.js';
-import type { Tradition } from './occasion-rules.js';
-import type { Recipe } from './types.js';
+import { BUILTIN_OCCASIONS, isWindowRow, type OccasionRow } from './occasion-data.js';
+import { ruleWindow, type Tradition } from './occasion-rules.js';
+import type { OccasionCatchRow, Recipe } from './types.js';
 
 /**
  * Той самий збіг за коренем, що в мітці алергену й у recipe-match: `.includes`
@@ -32,6 +32,50 @@ export interface Catch {
   occasion_id: string;
   /** Що саме спіймало — щоб підсумок міг сказати «грибами», а не «спіймано». */
   by: string;
+}
+
+export interface YearStrip {
+  occasion_id: string;
+  title: string;
+  /** 1–12: місяць, у якому вікно цього року починається. */
+  month: number;
+  caught: boolean;
+  /** Чим спіймано — лише коли caught. */
+  by: string | null;
+}
+
+/**
+ * «Рік на кухні»: дванадцять смуг, спіймані залиті, пропущені порожні.
+ *
+ * Кандидати — ті самі рядки, що бере activeOccasions/catchesFor: вікна без
+ * обмеження. Обмеження виключене тим самим рухом, що й у catchesFor — піст не
+ * досягнення, відмітка за нього перетворила б дотримання на змагання.
+ * Якорі (лунар/солар — Рамадан, Песах) без вікна не мають місяця, куди їх
+ * покласти, і в рік не входять; вони живуть лише в «Ключових датах».
+ */
+export function yearInKitchen(
+  year: number,
+  catches: OccasionCatchRow[],
+  trads: Tradition[] = [],
+  rows: OccasionRow[] = BUILTIN_OCCASIONS,
+): YearStrip[] {
+  const caught = new Map(
+    catches.filter((c) => c.year === year).map((c) => [c.occasion_id, c] as const),
+  );
+  const out: YearStrip[] = [];
+  for (const r of rows) {
+    if (!isWindowRow(r) || r.restricts) continue;
+    if (r.tradition && !trads.includes(r.tradition)) continue;
+    const w = ruleWindow(r.rule, year, trads);
+    if (!w) continue;
+    const c = caught.get(r.id);
+    out.push({
+      occasion_id: r.id, title: r.title,
+      month: new Date(w.start).getMonth() + 1,
+      caught: !!c, by: c?.by ?? null,
+    });
+  }
+  return out.sort((a, b) => a.month - b.month);
 }
 
 /**

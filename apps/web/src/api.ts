@@ -206,6 +206,14 @@ export interface EventOccurrence {
   done_at?: string | null;
 }
 
+export interface YearStrip {
+  occasion_id: string;
+  title: string;
+  month: number;
+  caught: boolean;
+  by: string | null;
+}
+
 export const api = {
   auth: {
     request: (email: string, next?: string | null) =>
@@ -419,10 +427,14 @@ export const api = {
     patch: (id: string, body: Record<string, unknown>) =>
       req<{ event: unknown }>(`/v1/events/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     remove: (id: string) => req<null>(`/v1/events/${id}`, { method: 'DELETE' }),
-    // «Не показувати такі» — рішення дому про редакційну подію. Обмеження
-    // сервер вимкнути не дасть (409): піст знімається в побажаннях.
+    // «Не показувати такі» — особисте рішення про редакційну подію, не дому.
+    // Обмеження сервер вимкнути не дасть (409): піст знімається в побажаннях.
     mute: (id: string) => req<{ ok: true }>(`/v1/events/mute/${id}`, { method: 'POST', body: '{}' }),
     unmute: (id: string) => req<{ ok: true }>(`/v1/events/mute/${id}`, { method: 'DELETE' }),
+    // «Рік на кухні» (2.8): домовий, а не особистий — виводиться зі спільного
+    // готування.
+    year: (year: number) =>
+      req<{ year: number; strips: YearStrip[] }>(`/v1/events/year?year=${year}`),
   },
 
   shopping: {

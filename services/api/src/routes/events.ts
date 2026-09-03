@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo, HouseholdEventRow, Rule, SupplyLine } from '@kitchen/domain';
-import { ownsEvent, occurrencesInRange, traditionsFrom, isWindowRow } from '@kitchen/domain';
+import { ownsEvent, occurrencesInRange, traditionsFrom, isWindowRow, yearInKitchen } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
@@ -292,6 +292,26 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       }
       await repo.deleteHouseholdEvent(req.params.id);
       return reply.code(204).send();
+    },
+  );
+
+  // «Рік на кухні» (2.8, Д10): дванадцять смуг, спіймані залиті. Домовий
+  // читач навмисно — спіймання виводиться зі спільного готування, і рік не
+  // належить одній людині так, як плани.
+  app.get<{ Querystring: { year?: string } }>(
+    '/v1/events/year',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { household_id, user_id } = requireUser(req);
+      const year = Number(req.query.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        return reply.code(400).send({ error: 'year invalid' });
+      }
+      const profile = await repo.getProfile(user_id);
+      const trads = traditionsFrom(profile?.wishes ?? []);
+      const catalog = await repo.listOccasionCatalog();
+      const catches = await repo.listOccasionCatches(household_id, year);
+      return { year, strips: yearInKitchen(year, catches, trads, catalog) };
     },
   );
 }

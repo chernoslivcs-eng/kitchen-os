@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { catchesFor } from './occasion-catch.js';
+import { catchesFor, yearInKitchen } from './occasion-catch.js';
+import type { OccasionCatchRow } from './types.js';
 
 const d = (m: number, day: number) => new Date(2026, m - 1, day, 18, 0);
 const r = (t: string, ing: string[]) => ({ t, ing: ing.map((n) => ({ n })) });
@@ -38,5 +39,44 @@ describe('спіймане вікно', () => {
     const dish = r('Печені яблука з медом', ['яблука', 'мед']);
     expect(catchesFor(dish, d(8, 19), []).map((h) => h.occasion_id)).not.toContain('spas');
     expect(catchesFor(dish, d(8, 19), ['orthodox']).map((h) => h.occasion_id)).toContain('spas');
+  });
+});
+
+describe('рік на кухні', () => {
+  const cc = (occasion_id: string, year: number): OccasionCatchRow => ({
+    household_id: 'hh', occasion_id, year, caught_at: new Date(2026, 8, 10).toISOString(),
+    by: 'грибами', run_id: null,
+  });
+
+  it('спіймане вікно позначене, пропущене — ні', () => {
+    const strips = yearInKitchen(2026, [cc('mushroom', 2026)]);
+    const mushroom = strips.find((s) => s.occasion_id === 'mushroom');
+    expect(mushroom?.caught).toBe(true);
+    expect(mushroom?.month).toBe(9);   // вікно 09-01…10-31 — старт у вересні
+    expect(mushroom?.by).toBe('грибами');
+
+    const tomato = strips.find((s) => s.occasion_id === 'tomato-day-2026');
+    expect(tomato?.caught).toBe(false);
+    expect(tomato?.by).toBeNull();
+  });
+
+  it('минулорічне спіймання не рахується за цей рік', () => {
+    const strips = yearInKitchen(2026, [cc('mushroom', 2025)]);
+    expect(strips.find((s) => s.occasion_id === 'mushroom')?.caught).toBe(false);
+  });
+
+  it('обмеження (піст) у рік не входить — не досягнення, а рамка', () => {
+    const strips = yearInKitchen(2027, [], ['orthodox']);
+    expect(strips.some((s) => s.occasion_id === 'lent')).toBe(false);
+  });
+
+  it('свято за традицією видно лише розпізнаній традиції', () => {
+    expect(yearInKitchen(2026, []).some((s) => s.occasion_id === 'spas')).toBe(false);
+    expect(yearInKitchen(2026, [], ['orthodox']).some((s) => s.occasion_id === 'spas')).toBe(true);
+  });
+
+  it('якір без вікна (лунар/солар) у рік не входить', () => {
+    const strips = yearInKitchen(2026, [], ['islamic']);
+    expect(strips.some((s) => s.occasion_id === 'ramadan' || s.title.toLowerCase().includes('рамадан'))).toBe(false);
   });
 });

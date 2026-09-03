@@ -207,3 +207,53 @@ describe('events routes · календар', () => {
     expect(del.statusCode).toBe(404);
   });
 });
+
+describe('GET /v1/events/year · рік на кухні', () => {
+  let repo: InMemoryRepo;
+  let mailer: ConsoleMailer;
+  let app: ReturnType<typeof buildApp>;
+  let me: Signed;
+
+  beforeEach(async () => {
+    repo = new InMemoryRepo();
+    mailer = new ConsoleMailer();
+    app = buildApp(repo, new InMemoryStore(), mailer, {});
+    me = await signIn(app, mailer, 'rik@x.local');
+  });
+
+  const year = async (y: number) => {
+    const res = await app.inject({
+      method: 'GET', url: `/v1/events/year?year=${y}`, headers: { cookie: me.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    return res.json() as { year: number; strips: { occasion_id: string; caught: boolean; month: number }[] };
+  };
+
+  it('спіймане позначене, решта каталогу — ні', async () => {
+    await repo.recordOccasionCatch({
+      household_id: me.household_id, occasion_id: 'mushroom', year: 2026,
+      caught_at: new Date().toISOString(), by: 'грибами', run_id: null,
+    });
+    const { strips } = await year(2026);
+    const mushroom = strips.find((s) => s.occasion_id === 'mushroom');
+    expect(mushroom?.caught).toBe(true);
+    expect(strips.find((s) => s.occasion_id === 'tomato-day-2026')?.caught).toBe(false);
+  });
+
+  it('спіймання іншого дому в цей рік не потрапляє', async () => {
+    const other = await signIn(app, mailer, 'susid-rik@x.local');
+    await repo.recordOccasionCatch({
+      household_id: other.household_id, occasion_id: 'mushroom', year: 2026,
+      caught_at: new Date().toISOString(), by: 'грибами', run_id: null,
+    });
+    const { strips } = await year(2026);
+    expect(strips.find((s) => s.occasion_id === 'mushroom')?.caught).toBe(false);
+  });
+
+  it('рік поза розумною межею — 400', async () => {
+    const res = await app.inject({
+      method: 'GET', url: '/v1/events/year?year=1899', headers: { cookie: me.cookie },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});

@@ -9,7 +9,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type ProfileData, type Me, type InviteInfo, type InviteCreated, type NoteInfo, type EaterInfo, type EventOccurrence } from '../../api';
+import { api, type ProfileData, type Me, type InviteInfo, type InviteCreated, type NoteInfo, type EaterInfo, type EventOccurrence, type YearStrip } from '../../api';
 import { ribbonDate, endingSoon } from '../../lib/when';
 import { TagInput } from '../../components/TagInput/TagInput';
 import { EQUIP_EXTRA, DIET_PRESETS, cycleEquip, equipGlyph, type EquipState } from '../../lib/presets';
@@ -297,6 +297,16 @@ export function ProfilePage() {
         setAhead(rows);
       })
       .catch(() => {/* профіль без стрічки — не трагедія */});
+  }, []);
+
+  // «Рік на кухні» (2.8, Д10): ретроспективний дзеркальний блок до «рік
+  // уперед» вище — не наперед, а те, що вже спіймано цього року. Домовий
+  // читач: спіймання виводиться зі спільного готування.
+  const [yearStrips, setYearStrips] = useState<YearStrip[]>([]);
+  useEffect(() => {
+    api.events.year(new Date().getFullYear())
+      .then(({ strips }) => setYearStrips(strips))
+      .catch(() => {/* профіль без річного зведення — не трагедія */});
   }, []);
 
   const navigate = useNavigate();
@@ -674,6 +684,31 @@ export function ProfilePage() {
                 </div>
               );
             })}
+          </div>
+          </div>
+        )}
+
+        {/* Дзеркало до блоку вище: не наперед, а назад — що вже спіймано цього
+            року. Без вигаданого «дванадцять смуг» — під це ще нема макета, і
+            малювати заливні смуги самому означало б повторити те, за що вже
+            поправляли: гейміфікація тут — марки в паспорті, показані тим самим
+            рядком дата+назва, що й «попереду», і глухою крапкою замість
+            заливки. Місяці без нічого спійманого просто відсутні в списку:
+            порожнє — тиша, не докір. */}
+        {yearStrips.some((s) => s.caught) && (
+          <div className={styles.zone}>
+          <div className={styles['zone-label']}><span style={{ color: 'var(--amber)' }}>■</span> РІК НА КУХНІ</div>
+          <div className={styles.section}>
+            {yearStrips.filter((s) => s.caught).map((s) => (
+              <div key={s.occasion_id} className={styles['ahead-row']}>
+                <span className={styles['ahead-date']}>
+                  {['СІЧ','ЛЮТ','БЕР','КВІ','ТРА','ЧЕР','ЛИП','СЕР','ВЕР','ЖОВ','ЛИС','ГРУ'][s.month - 1]}
+                </span>
+                <span className={styles['ahead-title']}>
+                  {s.title}{s.by ? ` · ${s.by}` : ''}
+                </span>
+              </div>
+            ))}
           </div>
           </div>
         )}
