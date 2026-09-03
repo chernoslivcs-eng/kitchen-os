@@ -14,19 +14,36 @@ export const LUNAR_YEAR = 354.367 * DAY;
 export const SOLAR_YEAR = 365.25 * DAY;
 
 /**
- * Пʼять форм однієї дати. Раніше кожна з них була окремою гілкою всередині
+ * Шість форм однієї дати. Раніше кожна з них була окремою гілкою всередині
  * функцій; тепер це поле рядка, і рядок може прийти звідки завгодно.
  *
+ * Перші чотири належать глобальному каталогу:
  * - `window` — фіксоване вікно MM-DD, працює щороку, може перетинати Новий рік
  * - `easter` — зсув у днях від Великодня обраної традиції
  * - `lunar`  — якір + дрейф місячного року (ісламські)
  * - `solar`  — якір + дрейф сонячного (юдейські)
+ *
+ * Останні дві — тільки дому:
+ * - `once`   — разова дата, з опційною тривалістю
+ * - `weekly` — день тижня, що повторюється
  */
 export type Rule =
   | { t: 'window'; from: string; to: string }
   | { t: 'easter'; from: number; to: number }
   | { t: 'lunar'; base: number }
-  | { t: 'solar'; base: number };
+  | { t: 'solar'; base: number }
+  // Дві форми, яких у глобальних свят немає й бути не може — вони належать
+  // дому. `days` у разової не косметика: «мама привезе цибулю — тиждень
+  // готуємо з нею» має тривалість, інакше привід гасне наступного ранку.
+  | { t: 'once'; at: string; days?: number }
+  | { t: 'weekly'; dow: number };
+
+/** Одне входження правила у часі. `end` дорівнює `start` у подій без тривалості. */
+export interface Occurrence {
+  start: number;
+  end: number;
+  approx?: boolean;
+}
 
 // ── Пасхалія ────────────────────────────────────────────────────────────────
 // Католицька — Meeus/Jones/Butcher. Православна — олександрійська пасхалія,
@@ -100,7 +117,32 @@ export function ruleActive(rule: Rule, date: Date, trads: Tradition[]): boolean 
     const e = easterDate(date.getFullYear(), trad);
     return date >= shiftEaster(e, rule.from) && date <= shiftEaster(e, rule.to);
   }
+  if (rule.t === 'once') {
+    const w = onceWindow(rule);
+    return date.getTime() >= w.start && date.getTime() <= w.end;
+  }
+  if (rule.t === 'weekly') return date.getDay() === rule.dow;
   return false;
+}
+
+/** Початок доби за локальним часом — щоб порівняння днів не залежало від години. */
+function dayStart(at: number | Date): number {
+  const d = new Date(at);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function dayEnd(at: number | Date): number {
+  const d = new Date(at);
+  d.setHours(23, 59, 59, 999);
+  return d.getTime();
+}
+
+function onceWindow(rule: Extract<Rule, { t: 'once' }>): Occurrence {
+  const [y = 1970, m = 1, d = 1] = rule.at.split('-').map(Number);
+  const start = new Date(y, m - 1, d);
+  const end = new Date(y, m - 1, d + Math.max(1, rule.days ?? 1) - 1);
+  return { start: dayStart(start), end: dayEnd(end) };
 }
 
 /**
@@ -145,4 +187,67 @@ export function nextAnchorAfter(rule: Rule, after: number, tries = 4): number | 
     if (at > after) return at;
   }
   return null;
+}
+
+/**
+ * Усі входження правила, що перетинають вікно [from, to].
+ *
+ * Це те, чого не вміли activeOccasions і upcomingEvents: перший відповідає
+ * лише про «зараз», другий — лише про початки. Календарю треба інше питання —
+ * «що припадає на цей тиждень», і відповідь на нього має бути одна для всіх
+ * пʼяти форм дати, інакше екран знатиме про правила більше, ніж має.
+ *
+ * Перетин, а не входження всередину: сезон грибів триває два місяці, і тиждень
+ * усередині нього — теж його тиждень.
+ */
+export function occurrencesInRange(
+  rule: Rule,
+  from: Date,
+  to: Date,
+  trads: Tradition[] = [],
+): Occurrence[] {
+  const lo = dayStart(from);
+  const hi = dayEnd(to);
+  const overlaps = (o: Occurrence) => o.start <= hi && o.end >= lo;
+  const out: Occurrence[] = [];
+
+  if (rule.t === 'once') {
+    const w = onceWindow(rule);
+    if (overlaps(w)) out.push(w);
+    return out;
+  }
+
+  if (rule.t === 'weekly') {
+    // Порожні дні дешевші за хитрий підрахунок: вікно календаря — тижні, не роки.
+    for (let t = lo; t <= hi; t += DAY) {
+      const d = new Date(t);
+      if (d.getDay() === rule.dow) out.push({ start: dayStart(d), end: dayEnd(d) });
+    }
+    return out;
+  }
+
+  if (rule.t === 'lunar' || rule.t === 'solar') {
+    for (let k = 0; k < 40; k++) {
+      const at = anchorAt(rule, k);
+      if (at === null) break;
+      if (at > hi) break;
+      const o = { start: dayStart(at), end: dayEnd(at), approx: true };
+      if (overlaps(o)) out.push(o);
+    }
+    return out;
+  }
+
+  // Вікно й Великдень повторюються щороку. Беремо рік до й рік після — вікно
+  // може перетинати Новий рік (12-20 → 01-07), і тоді його початок лежить у
+  // попередньому році відносно запиту.
+  for (let y = from.getFullYear() - 1; y <= to.getFullYear() + 1; y++) {
+    const w = ruleWindow(rule, y, trads);
+    if (!w) continue;
+    // Вікно через Новий рік: кінець порахований у тому ж році, тобто раніше
+    // за початок. Переносимо його на рік уперед.
+    const end = w.end < w.start ? atMonthDay((rule as { to: string }).to, y + 1) : w.end;
+    const o = { start: dayStart(w.start), end: dayEnd(end) };
+    if (overlaps(o)) out.push(o);
+  }
+  return out.sort((a, b) => a.start - b.start);
 }

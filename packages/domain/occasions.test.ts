@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   easterDate, traditionsFrom, activeOccasions, upcomingEvents,
   whenLabel, serializeOccasions, isFastingRestricted, fastingActive,
+  ruleActive, occurrencesInRange,
 } from './occasions.js';
 
 const d = (y: number, m: number, day: number) => new Date(y, m - 1, day);
@@ -257,5 +258,67 @@ describe('скоромні партії маркуються в піст', () =>
     expect(fastingActive(d(2026, 3, 5), ['постуємо'])).toBe(true);
     expect(fastingActive(d(2026, 8, 30), ['постуємо'])).toBe(false);
     expect(fastingActive(d(2026, 3, 5), [])).toBe(false);
+  });
+});
+
+// ── Форми дати, яких немає в глобальних святах ──────────────────────────────
+// Дім додає дві: разову подію («мама привезе цибулю 10-го») і тижневе правило
+// («щовівторка мало часу»). Без них ендпойнт не може відповісти на питання,
+// заради якого існує календар: що саме на цьому тижні.
+describe('разова подія і тижневе правило', () => {
+  const at = (iso: string) => new Date(iso + 'T12:00:00');
+
+  it('разова триває свій день і не триває сусідні', () => {
+    const r = { t: 'once', at: '2026-09-10' } as const;
+    expect(ruleActive(r, at('2026-09-10'), [])).toBe(true);
+    expect(ruleActive(r, at('2026-09-09'), [])).toBe(false);
+    expect(ruleActive(r, at('2026-09-11'), [])).toBe(false);
+  });
+
+  it('разова з days тримається всі свої дні включно', () => {
+    // «Мама привезе цибулю — тиждень готуємо з нею»: подія має тривалість,
+    // інакше привід гасне наступного ранку.
+    const r = { t: 'once', at: '2026-09-10', days: 7 } as const;
+    expect(ruleActive(r, at('2026-09-10'), [])).toBe(true);
+    expect(ruleActive(r, at('2026-09-16'), [])).toBe(true);
+    expect(ruleActive(r, at('2026-09-17'), [])).toBe(false);
+  });
+
+  it('тижневе правило спрацьовує у свій день тижня', () => {
+    // 2026-09-08 — вівторок.
+    const r = { t: 'weekly', dow: 2 } as const;
+    expect(ruleActive(r, at('2026-09-08'), [])).toBe(true);
+    expect(ruleActive(r, at('2026-09-15'), [])).toBe(true);
+    expect(ruleActive(r, at('2026-09-09'), [])).toBe(false);
+  });
+
+  it('входження у вікні: разова — одне, тижнева — по одному на тиждень', () => {
+    const from = at('2026-09-07'), to = at('2026-09-27');
+    expect(occurrencesInRange({ t: 'once', at: '2026-09-10' }, from, to, []))
+      .toHaveLength(1);
+    // Три вівторки: 8, 15, 22 вересня.
+    expect(occurrencesInRange({ t: 'weekly', dow: 2 }, from, to, []))
+      .toHaveLength(3);
+  });
+
+  it('входження поза вікном не повертаються', () => {
+    const from = at('2026-09-07'), to = at('2026-09-13');
+    expect(occurrencesInRange({ t: 'once', at: '2026-10-01' }, from, to, []))
+      .toEqual([]);
+  });
+
+  it('сезон у вікні дає своє входження, і воно має кінець', () => {
+    // Вікно запиту всередині сезону грибів (01-09 → 31-10).
+    const occ = occurrencesInRange({ t: 'window', from: '09-01', to: '10-31' },
+      at('2026-09-07'), at('2026-09-13'), []);
+    expect(occ).toHaveLength(1);
+    expect(new Date(occ[0]!.end).getMonth()).toBe(9);  // жовтень
+  });
+
+  it('великодні правила без традиції не дають входжень', () => {
+    const r = { t: 'easter', from: -48, to: -1 } as const;
+    expect(occurrencesInRange(r, at('2026-03-01'), at('2026-03-31'), [])).toEqual([]);
+    expect(occurrencesInRange(r, at('2026-03-01'), at('2026-03-31'), ['orthodox']))
+      .toHaveLength(1);
   });
 });

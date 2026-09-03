@@ -20,15 +20,16 @@
 
 import {
   DAY, easterDate, ruleActive, ruleWindow, anchorAt, nextAnchorAfter,
-  type Rule, type Tradition,
+  occurrencesInRange,
+  type Rule, type Tradition, type Occurrence,
 } from './occasion-rules.js';
 import {
   BUILTIN_OCCASIONS, TRADITION_PATTERNS, SKOROMNE_ROOTS, LEAN_EXCEPTIONS,
   isWindowRow, type OccasionRow, type WindowOccasion,
 } from './occasion-data.js';
 
-export { easterDate };
-export type { Rule, Tradition };
+export { easterDate, ruleActive, occurrencesInRange };
+export type { Rule, Tradition, Occurrence };
 // Каталог і його звужувач — назовні: сід у packages/db бере рядки звідси, щоб
 // джерело за замовчуванням лишалось одне. Домен не імпортують по внутрішніх
 // шляхах, бо export map пакета відкриває тільки корінь і ./contract.
