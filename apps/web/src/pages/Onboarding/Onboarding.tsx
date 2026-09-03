@@ -139,7 +139,7 @@ export function OnboardingPage() {
         </div>
         <div className={styles.strip}>
           {/* Сусідні картки — приглушені, клік гортає. Порожня — на краях стрічки. */}
-          <button type="button" className={`${styles.side} ${styles['side-prev']} ${prevCard ? '' : styles['side-empty']}`} onClick={() => go(step - 1, 'b')} disabled={!prevCard} aria-label="Попередня картка">
+          <button type="button" className={`${styles.side} ${styles['side-prev']} ${prevCard ? '' : styles['side-empty']}`} onClick={(e) => { e.currentTarget.blur(); go(step - 1, 'b'); }} disabled={!prevCard} aria-label="Попередня картка">
             {prevCard && (<>
               <div className={styles['side-text']}><span className={styles['side-num']}>{pad(step)} / {pad(CARDS.length)}</span><div className={styles['side-title']}>{prevCard.title}</div></div>
               <div className={styles['side-ill']}><img src={`/onboarding/semen-${pad(step)}.png`} alt="" /></div>
@@ -154,7 +154,7 @@ export function OnboardingPage() {
             </div>
             <div className={styles['desk-ill']}><img src={`/onboarding/semen-${pad(step + 1)}.png`} alt="" /></div>
           </div>
-          <button type="button" className={`${styles.side} ${styles['side-next']} ${nextCard ? '' : styles['side-empty']}`} onClick={() => go(step + 1, 'f')} disabled={!nextCard} aria-label="Наступна картка">
+          <button type="button" className={`${styles.side} ${styles['side-next']} ${nextCard ? '' : styles['side-empty']}`} onClick={(e) => { e.currentTarget.blur(); go(step + 1, 'f'); }} disabled={!nextCard} aria-label="Наступна картка">
             {nextCard && (<>
               <div className={styles['side-text']}><span className={styles['side-num']}>{pad(step + 2)} / {pad(CARDS.length)}</span><div className={styles['side-title']}>{nextCard.title}</div></div>
               <div className={styles['side-ill']}><img src={`/onboarding/semen-${pad(step + 2)}.png`} alt="" /></div>
