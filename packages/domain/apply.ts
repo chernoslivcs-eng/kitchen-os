@@ -7,7 +7,8 @@
 // нічого в базу другого разу не запишеться. Це критично: сітка мобільна, повтори бувають.
 
 import { randomUUID } from 'node:crypto';
-import { ownsEvent } from './occasions.js';
+import { ownsEvent, traditionsFrom } from './occasions.js';
+import type { Tradition } from './occasion-rules.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
@@ -774,10 +775,28 @@ export function applyProfileOp(
     next.equipment[label] = op.has === false ? 'lacks' : 'has';
     return true;
   }
+  if (op.kind === 'tradition') {
+    if (!TRADITIONS.includes(label as Tradition)) return false;
+    // Перший дотик матеріалізує здогад: людина, яка вимикає «православні»,
+    // розпізнані з «постуємо», має отримати профіль без них, а не той самий
+    // здогад назад із побажань.
+    const cur = new Set<Tradition>(next.traditions ?? traditionsFrom(next.wishes));
+    if (removing) {
+      if (!cur.has(label as Tradition) && Array.isArray(next.traditions)) return false;
+      cur.delete(label as Tradition);
+    } else {
+      if (cur.has(label as Tradition) && Array.isArray(next.traditions)) return false;
+      cur.add(label as Tradition);
+    }
+    next.traditions = TRADITIONS.filter((t) => cur.has(t));
+    return true;
+  }
   // note / member — MVP не має для них таблиць. Повертаємо false, щоб API не
   // рапортував applied:1 на те, що нікуди не лягло.
   return false;
 }
+
+const TRADITIONS: Tradition[] = ['orthodox', 'catholic', 'islamic', 'jewish'];
 
 // ---------- undo ----------
 

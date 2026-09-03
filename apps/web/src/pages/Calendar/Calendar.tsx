@@ -18,6 +18,12 @@ import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { toneKey } from '../../lib/tone';
 import { buildTimeline, dayStart, mondayOf, DAY, type TimelineWeek } from './days';
+
+// Локальна дата в ISO — форма події живе в 'YYYY-MM-DD'.
+function isoOf(at: number): string {
+  const d = new Date(at);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 import {
   splitAxes, coversDay, edgeCaption, moreLabel, VISIBLE_LIMIT, MOBILE_RAILS, assignLanes,
 } from '../../lib/spans';
@@ -68,7 +74,50 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
   const [version, setVersion] = useState(0);
-  const [creating, setCreating] = useState(false);
+  // Нова подія: з «＋» — на сьогодні; з календаря — на дні, куди клікнули.
+  const [creating, setCreating] = useState<{ date: string; dateTo: string } | null>(null);
+
+  // Клік по дню — подія на день; клік-і-тягнути мишею — на кілька днів.
+  // Це той самий артефакт події, просто ще один вхід у нього, з уже
+  // вибраними датами. На дотику протягу немає (палець тягне — сторінка
+  // скролить, і pointercancel скидає вибір), тільки тап = один день.
+  const [sel, setSel] = useState<{ a: number; b: number } | null>(null);
+  const selRef = useRef<{ a: number; b: number } | null>(null);
+  const beginSelect = (at: number) => (ev: React.PointerEvent) => {
+    if (ev.button !== 0 || (ev.target as HTMLElement).closest('button, a')) return;
+    selRef.current = { a: at, b: at };
+    setSel({ a: at, b: at });
+  };
+  useEffect(() => {
+    const move = (ev: PointerEvent) => {
+      const s = selRef.current;
+      if (!s || ev.pointerType === 'touch') return;
+      const el = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-at]');
+      const at = el ? Number(el.getAttribute('data-at')) : NaN;
+      if (!Number.isFinite(at) || at === s.b) return;
+      s.b = at;
+      setSel({ a: s.a, b: at });
+    };
+    const up = () => {
+      const s = selRef.current;
+      if (!s) return;
+      selRef.current = null;
+      setSel(null);
+      const lo = Math.min(s.a, s.b);
+      const hi = Math.max(s.a, s.b);
+      setCreating({ date: isoOf(lo), dateTo: hi > lo ? isoOf(hi) : '' });
+    };
+    const cancel = () => { selRef.current = null; setSel(null); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+    };
+  }, []);
+  const inSel = (at: number) => !!sel && at >= Math.min(sel.a, sel.b) && at <= Math.max(sel.a, sel.b);
   const openAfterCreate = useRef<string | null>(null);
 
   const today = useMemo(() => dayStart(Date.now()), []);
@@ -171,7 +220,7 @@ export function CalendarPage() {
         title="Календар"
         onMenu={() => openNav(true)}
         action={(
-          <button type="button" className={styles.add} onClick={() => setCreating(true)} aria-label="Нова подія">＋</button>
+          <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">＋</button>
         )}
       />
 
@@ -235,8 +284,9 @@ export function CalendarPage() {
                 const more = moreLabel(d.events.slice(VISIBLE_LIMIT));
                 const empty = !captions.length && !d.events.length;
                 return (
-                  <div key={d.at} ref={isToday ? todayRef : undefined}
-                    className={`${styles.day} ${isToday ? styles.today : ''}`}>
+                  <div key={d.at} ref={isToday ? todayRef : undefined} data-at={d.at}
+                    onPointerDown={beginSelect(d.at)}
+                    className={`${styles.day} ${isToday ? styles.today : ''} ${inSel(d.at) ? styles.sel : ''} ${sel ? styles.selecting : ''}`}>
                     <div className={styles.gutter}>
                       {bars.map((e, lane) => e && (
                         <span key={e.id} className={toneClass(e)}>
@@ -283,8 +333,8 @@ export function CalendarPage() {
       </div>
 
       {creating && (
-        <Sheet onClose={() => setCreating(false)} ariaLabel="Нова подія">
-          <EventArtifact mode="new" onClose={() => setCreating(false)}
+        <Sheet onClose={() => setCreating(null)} ariaLabel="Нова подія">
+          <EventArtifact mode="new" initial={creating} onClose={() => setCreating(null)}
             onChanged={(id) => { if (id) openAfterCreate.current = id; setVersion((v) => v + 1); }} />
         </Sheet>
       )}

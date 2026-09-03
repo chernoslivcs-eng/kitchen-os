@@ -13,7 +13,12 @@ import { root, meaningfulWords, categoryBreadth} from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe, HouseholdEventRow } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
-import { serializeOccasions, fastingActive, isFastingRestricted } from './occasions.js';
+import { serializeOccasions, fastingActive, isFastingRestricted, traditionsOf } from './occasions.js';
+import type { Tradition } from './occasion-rules.js';
+
+const TRADITION_UA: Record<Tradition, string> = {
+  orthodox: 'православна', catholic: 'католицька', islamic: 'ісламська', jewish: 'юдейська',
+};
 import { serializeModes, type KitchenMode } from './modes.js';
 
 export interface RecentCookRunSummary {
@@ -82,6 +87,13 @@ export function serializeProfile(p?: Profile | null): string {
     }
     if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
     if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
+    // Явний вибір у профілі. Порожній масив — теж вибір: людина вимкнула
+    // релігійні приводи, і «постуємо» в побажаннях його не скасовує.
+    if (Array.isArray(p.traditions)) {
+      parts.push(p.traditions.length
+        ? 'ТРАДИЦІЇ (обрано в профілі): ' + p.traditions.map((t) => TRADITION_UA[t]).join(', ')
+        : 'ТРАДИЦІЇ: вимкнено в профілі — релігійних свят і постів не пропонуй і про календар не питай');
+    }
     const eq = Object.entries(p.equipment ?? {});
     const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
     const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
@@ -393,7 +405,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
-    + serializeOccasions(now, ctx.profile?.wishes ?? [])
+    + serializeOccasions(now, ctx.profile?.wishes ?? [], undefined, traditionsOf(ctx.profile))
     + serializeHouseholdEvents(ctx.events ?? [], now)
     // UX9-04: чат-модель id партій не вживає НІДЕ — а отримувала uuid першим
     // словом кожного рядка. Шум і токени; вказівники бачить лише recipe_gen
@@ -402,7 +414,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
     // самому блоці — той самий механізм, що рятував з алергенами й постом.
     + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування. «~строк≈» — приблизна оцінка від відкриття: згадуй мʼяко — «варто передивитись», точні дні називай лише для «!Nдн». «?рід» — записано родовим словом, конкретний продукт невідомий: коли доходить до страви, доречно спитати ОДНИМ реченням, що це саме — але тільки якщо ти цього ще не питав у цій розмові)\n'
-    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? []), 'none', 120, ctx.products ?? [], ctx.queryText ?? '')
+    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? [], undefined, traditionsOf(ctx.profile)), 'none', 120, ctx.products ?? [], ctx.queryText ?? '')
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [], ctx.notesTruncated)

@@ -34,8 +34,10 @@ interface OccasionBase {
 }
 
 export interface WindowOccasion extends OccasionBase {
-  rule: Extract<Rule, { t: 'window' } | { t: 'easter' }>;
+  rule: Extract<Rule, { t: 'window' } | { t: 'easter' } | { t: 'dates' }>;
   meaning: string;
+  /** Вікно з місячного календаря: дата — орієнтовна, залежить від молодика. */
+  approx?: boolean;
   buy?: string[];
   seeds?: string[];
   // Більшість подій — привід: сезон грибів нічого не забороняє. Але піст, поки
@@ -66,7 +68,7 @@ export interface AnchorOccasion extends OccasionBase {
 export type OccasionRow = WindowOccasion | AnchorOccasion;
 
 export function isWindowRow(r: OccasionRow): r is WindowOccasion {
-  return r.rule.t === 'window' || r.rule.t === 'easter';
+  return r.rule.t === 'window' || r.rule.t === 'easter' || r.rule.t === 'dates';
 }
 
 // ── Рухомі: рахуються від Великодня обраної традиції ─────────────────────────
@@ -74,14 +76,17 @@ export function isWindowRow(r: OccasionRow): r is WindowOccasion {
 // обмеження має потрапити в блок раніше за привід.
 const MOVABLE: WindowOccasion[] = [
   {
-    id: 'maslyana', type: 'tradition', title: 'Масниця',
+    id: 'maslyana', type: 'tradition', title: 'Масниця', tradition: 'orthodox',
     rule: { t: 'easter', from: -55, to: -49 },
     meaning: 'Тиждень перед постом. Млинці, налисники, вершкове й сирне — усе, що потім не можна.',
     buy: ['сметана', 'кисломолочний сир', 'масло'],
     upcomingTitle: 'починається Масниця',
   },
   {
-    id: 'lent', type: 'tradition', title: 'Великий піст',
+    // Православний устав: сім тижнів від Чистого понеділка, без мʼяса, риби,
+    // молочного і яєць. Католицький піст інший і за датою (Попільна середа),
+    // і за мірою — тому він окремим рядком нижче, не обмеженням.
+    id: 'lent', type: 'tradition', title: 'Великий піст', tradition: 'orthodox',
     rule: { t: 'easter', from: -48, to: -1 },
     meaning: 'Привід зайти в бобові, гриби й крупи глибше, ніж зазвичай.',
     restricts: 'жодного мʼяса, риби, молочного і яєць — ні у стравах, ні в needs, ні в rescues, ні як альтернатива («пармезан — або без нього» — це теж пропозиція пармезану). Рослинні аналоги (кокосове молоко, тахіні) можна',
@@ -147,11 +152,81 @@ const FIXED: WindowOccasion[] = [
 // Вікна не мають: це точки, а не сезони. Тому в «зараз» вони не потрапляють
 // ніколи — тільки в «попереду» і в ключові дати.
 const ANCHORS: AnchorOccasion[] = [
-  { id: 'ramadan', type: 'tradition', title: 'початок Рамадану', tradition: 'islamic', approx: true, rule: { t: 'lunar', base: Date.UTC(2026, 1, 18) } },
-  { id: 'eid-fitr', type: 'tradition', title: 'Ід аль-Фітр', tradition: 'islamic', approx: true, rule: { t: 'lunar', base: Date.UTC(2026, 2, 20) } },
-  { id: 'eid-adha', type: 'tradition', title: 'Курбан-байрам', tradition: 'islamic', approx: true, rule: { t: 'lunar', base: Date.UTC(2026, 4, 27) } },
   { id: 'pesach', type: 'tradition', title: 'Песах', tradition: 'jewish', approx: true, rule: { t: 'solar', base: Date.UTC(2026, 3, 2) } },
   { id: 'rosh', type: 'tradition', title: 'Рош га-Шана', tradition: 'jewish', approx: true, rule: { t: 'solar', base: Date.UTC(2026, 8, 12) } },
+];
+
+// ── Католицькі ──────────────────────────────────────────────────────────────
+// Великдень і Масниця-Попільна середа рахуються від католицької пасхалії
+// автоматично (christianTradition), тут — те, чого в православному ряду нема.
+const CATHOLIC: OccasionRow[] = [
+  {
+    id: 'advent', type: 'tradition', title: 'Адвент', tradition: 'catholic',
+    rule: { t: 'window', from: '12-01', to: '12-23' },
+    meaning: 'Чотири тижні до Різдва. Пряники, штолен, глінтвейн; вечері спокійніші, ніж святкові.',
+    buy: ['мед', 'спеції для випічки', 'сухофрукти', 'горіхи'],
+    seeds: ['пряники', 'штолен', 'глінтвейн'],
+    upcomingTitle: 'починається Адвент',
+  },
+  {
+    id: 'xmas-cath', type: 'tradition', title: 'Різдво', tradition: 'catholic',
+    rule: { t: 'window', from: '12-24', to: '12-26' },
+    meaning: 'Вігілія 24-го — пісна вечеря з рибою; 25–26 — святковий стіл: качка або індичка, випічка.',
+    buy: ['короп', 'качка', 'мак', 'сухофрукти'],
+    seeds: ['короп по-польськи', 'запечена качка', 'маковий рулет'],
+    upcomingTitle: 'Різдво',
+  },
+  {
+    id: 'epiphany-cath', type: 'tradition', title: 'Три Царі', tradition: 'catholic',
+    rule: { t: 'window', from: '01-06', to: '01-06' },
+    meaning: 'Кінець різдвяного циклу. Пиріг трьох королів — з бобом або фігуркою всередині.',
+    buy: ['борошно', 'мигдаль', 'масло'],
+    seeds: ['пиріг трьох королів'],
+  },
+  {
+    id: 'lent-cath', type: 'tradition', title: 'Великий піст', tradition: 'catholic',
+    rule: { t: 'easter', from: -46, to: -3 },
+    meaning: 'Від Попільної середи. Мʼякший за православний: без мʼяса — Попільна середа і пʼятниці; решта днів — на власну міру. Пʼятниця — привід до риби, яєць і овочевого.',
+    buy: ['риба', 'сочевиця', 'яйця'],
+    upcomingTitle: 'починається Великий піст',
+  },
+  {
+    id: 'good-friday', type: 'tradition', title: 'Страсна пʼятниця', tradition: 'catholic',
+    rule: { t: 'easter', from: -2, to: -2 },
+    meaning: 'Один із двох днів суворого посту в католиків.',
+    restricts: 'мʼяса — ні; риба, яйця, молочне — можна',
+  },
+];
+
+// ── Ісламські ───────────────────────────────────────────────────────────────
+// Місячний календар формулою не рахується: молодик спостерігають, і дрейф у
+// 354.37 доби за три роки розходиться з реальністю на дні. Тому — дати по роках
+// (астрономічні розрахунки), і всі — орієнтовні. Дописувати щороку.
+const ISLAMIC: OccasionRow[] = [
+  {
+    id: 'ramadan', type: 'tradition', title: 'Рамадан', tradition: 'islamic', approx: true,
+    rule: { t: 'dates', at: ['2026-02-18', '2027-02-08', '2028-01-28', '2029-01-16', '2030-01-05'], days: 30 },
+    meaning: 'Їдять до світанку (сухур) і після заходу (іфтар). Не обмеження на продукти, а інший ритм: ситний сніданок затемна, вечеря — з фініків і води, потім основне.',
+    buy: ['фініки', 'сочевиця', 'нут', 'йогурт'],
+    seeds: ['суп із сочевиці', 'самбуса', 'харіра'],
+    upcomingTitle: 'починається Рамадан',
+  },
+  {
+    id: 'eid-fitr', type: 'tradition', title: 'Ід аль-Фітр', tradition: 'islamic', approx: true,
+    rule: { t: 'dates', at: ['2026-03-20', '2027-03-09', '2028-02-26', '2029-02-14', '2030-02-04'], days: 3 },
+    meaning: 'Кінець Рамадану. Солодощі й гостина: пахлава, маамуль, печиво з фініками.',
+    buy: ['фініки', 'горіхи', 'манка', 'масло'],
+    seeds: ['маамуль', 'пахлава'],
+    upcomingTitle: 'Ід аль-Фітр',
+  },
+  {
+    id: 'eid-adha', type: 'tradition', title: 'Курбан-байрам', tradition: 'islamic', approx: true,
+    rule: { t: 'dates', at: ['2026-05-27', '2027-05-16', '2028-05-05', '2029-04-24', '2030-04-13'], days: 3 },
+    meaning: 'Свято жертви: баранина, яку ділять із рідними й сусідами. Кілька днів мʼясних страв.',
+    buy: ['баранина', 'рис', 'цибуля', 'спеції'],
+    seeds: ['плов з баранини', 'баранина на реберцях'],
+    upcomingTitle: 'Курбан-байрам',
+  },
 ];
 
 // ── Редакційні ──────────────────────────────────────────────────────────────
@@ -175,10 +250,11 @@ const EDITORIAL: WindowOccasion[] = [
 ];
 
 /** Усе, що знає код. Майбутній seed таблиці. */
-export const BUILTIN_OCCASIONS: OccasionRow[] = [...MOVABLE, ...FIXED, ...EDITORIAL, ...ANCHORS];
+export const BUILTIN_OCCASIONS: OccasionRow[] = [...MOVABLE, ...FIXED, ...CATHOLIC, ...ISLAMIC, ...EDITORIAL, ...ANCHORS];
 
 // ── Розпізнавання традиції з побажань ───────────────────────────────────────
-// Традиція не окреме поле профілю, а висновок із побажань. Людина пише
+// Запасний шлях: поки людина не обрала традиції в профілі (traditionsOf),
+// традиція — висновок із побажань. Людина пише
 // «постуємо» або «дотримуємось халяль» — система впізнає й бере дати з
 // таблиці. Окреме питання «яка у вас конфесія?» продукт ставити не буде.
 //
@@ -186,7 +262,7 @@ export const BUILTIN_OCCASIONS: OccasionRow[] = [...MOVABLE, ...FIXED, ...EDITOR
 // може мати кілька традицій: змішані сімʼї — норма, а не край.
 export const TRADITION_PATTERNS: { id: Tradition; re: RegExp }[] = [
   { id: 'orthodox', re: /пост|пісн|велик[ыi]?ден|паск|православ|кут[яі]|святвеч|piст|post|velykden|pravoslav/i },
-  { id: 'catholic', re: /католиц|katolic|catholic/i },
+  { id: 'catholic', re: /католи[цк]|римо-катол|латинськ|адвент|katolic|catholic|adwent/i },
   { id: 'islamic', re: /халял|рамадан|іслам|ислам|мусульман|курбан|ураза|halal|ramadan|islam|kurban/i },
   { id: 'jewish', re: /кошер|кашрут|песах|шабат|іудей|иудей|єврей|еврей|kosher|kashrut|pesah|pesach|shabat/i },
 ];

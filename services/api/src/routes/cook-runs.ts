@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { RecipeRow, Repo, CookRunBatchChange } from '@kitchen/domain';
-import { catchesFor, traditionsFrom } from '@kitchen/domain';
+import { catchesFor, traditionsOf } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import type { Recipe } from '../model.js';
 import { WRITEOFF_PROMPT } from '../post-cook.js';
@@ -288,7 +288,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       // Помилка тут не має ламати готування: журнал важливіший за марку.
       try {
         const profile = await repo.getProfile(user_id);
-        const hits = catchesFor(recipe, new Date(now), traditionsFrom(profile?.wishes ?? []));
+        const hits = catchesFor(recipe, new Date(now), traditionsOf(profile));
         for (const h of hits) {
           await repo.recordOccasionCatch({
             household_id, occasion_id: h.occasion_id,

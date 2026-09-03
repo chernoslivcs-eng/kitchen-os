@@ -11,15 +11,15 @@
 // розмовою — і сподіватись, що цього разу вона зрозуміє правильно.
 
 import type { FastifyInstance } from 'fastify';
-import type { Profile, ProfileKind, Repo } from '@kitchen/domain';
+import { traditionsFrom, type Profile, type ProfileKind, type Repo } from '@kitchen/domain';
 import { applyProfileOp } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 
 const empty = (user_id: string): Profile => ({
-  user_id, allergies: [], wishes: [], antipatterns: [], equipment: {},
+  user_id, allergies: [], wishes: [], antipatterns: [], equipment: {}, traditions: null,
 });
 
-const KINDS: ProfileKind[] = ['allergy', 'wish', 'anti', 'equip'];
+const KINDS: ProfileKind[] = ['allergy', 'wish', 'anti', 'equip', 'tradition'];
 
 interface PatchOp {
   op?: 'add' | 'remove';
@@ -34,7 +34,9 @@ export function profileRoutes(app: FastifyInstance, repo: Repo) {
     const profile = (await repo.getProfile(user_id)) ?? empty(user_id);
     const notes = await repo.listNotes(user_id, 50);
     const eaters = await repo.listEaters(household_id);
-    return { profile, notes, eaters };
+    // Що календар показує, поки традиції не обрано: здогад із побажань.
+    // Профіль показує його як «розпізнано», щоб людина підтвердила або вимкнула.
+    return { profile, notes, eaters, inferred_traditions: traditionsFrom(profile.wishes) };
   });
 
   app.patch<{ Body: { ops?: PatchOp[] } }>(

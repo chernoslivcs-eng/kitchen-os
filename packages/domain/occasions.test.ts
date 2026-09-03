@@ -84,7 +84,9 @@ describe('що триває зараз', () => {
     expect(activeOccasions(d(2026, 4, 8), ['orthodox']).map((o) => o.id)).toContain('lent');
     expect(activeOccasions(d(2026, 4, 8), ['catholic']).map((o) => o.id)).not.toContain('lent');
     // А в середині лютого — навпаки: у католиків уже піст, у православних ще Масниця.
-    expect(activeOccasions(d(2026, 2, 18), ['catholic']).map((o) => o.id)).toContain('lent');
+    // Католицький піст — окремий рядок: інша дата (Попільна середа) і інша міра.
+    expect(activeOccasions(d(2026, 2, 18), ['catholic']).map((o) => o.id)).toContain('lent-cath');
+    expect(activeOccasions(d(2026, 2, 18), ['catholic']).map((o) => o.id)).not.toContain('lent');
     expect(activeOccasions(d(2026, 2, 18), ['orthodox']).map((o) => o.id)).toContain('maslyana');
   });
 
@@ -213,10 +215,19 @@ describe('блок для промпта', () => {
     expect(s).toContain('28 березня');
   });
 
+  it('гвардія посту: православний піст вмикає, католицька Страсна пʼятниця — ні', () => {
+    expect(fastingActive(d(2026, 3, 10), [], undefined, ['orthodox'])).toBe(true);
+    // 3 квітня 2026 — католицька Страсна пʼятниця: обмеження є, гвардії немає.
+    expect(activeOccasions(d(2026, 4, 3), ['catholic']).map((o) => o.id)).toContain('good-friday');
+    expect(fastingActive(d(2026, 4, 3), [], undefined, ['catholic'])).toBe(false);
+    // Явний вибір перемагає побажання: «постуємо» + [] → гвардії немає.
+    expect(fastingActive(d(2026, 3, 10), ['постуємо'], undefined, [])).toBe(false);
+  });
+
   it('ісламські дати завжди з позначкою орієнтовності', () => {
     const s = serializeOccasions(d(2026, 8, 30), ['дотримуємось халяль']);
     expect(s).toContain('Рамадан');
-    expect(s).toMatch(/Рамадану[^\n]*орієнтовно/);
+    expect(s).toMatch(/Рамадан[^\n]*орієнтовно/);
   });
 
   // Рядок «якщо традиції не розпізнано — свят тут не буде» модель читала

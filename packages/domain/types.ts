@@ -1,7 +1,7 @@
 // Доменні типи. Свідомо на TypeScript, а не на Zod: schema-валідація — окремий шар
 // на межі HTTP (services/api). Тут — чиста форма.
 
-import type { Rule } from './occasion-rules.js';
+import type { Rule, Tradition } from './occasion-rules.js';
 
 export type Zone = 'dry' | 'fridge' | 'freezer' | 'fresh' | 'spices' | 'drinks';
 export type Unit = 'g' | 'ml' | 'pcs' | 'pack';
@@ -165,7 +165,7 @@ export interface EventCard {
   }[];
 }
 
-export type ProfileKind = 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member' | 'intent';
+export type ProfileKind = 'allergy' | 'wish' | 'anti' | 'equip' | 'tradition' | 'note' | 'member' | 'intent';
 
 export interface ProfileCard {
   type: 'profile';
@@ -411,6 +411,12 @@ export interface Profile {
   wishes: string[];
   antipatterns: string[];
   equipment: Record<string, 'has' | 'lacks'>;
+  /**
+   * Свята й пости яких традицій показувати. Явний вибір людини в профілі.
+   * `null`/відсутнє — ще не обирала: тоді традицію виводимо з побажань
+   * («постуємо» → православна). Порожній масив — обирала і вимкнула все.
+   */
+  traditions?: Tradition[] | null;
 }
 
 export interface SessionRow {

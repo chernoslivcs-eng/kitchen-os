@@ -133,16 +133,17 @@ export function coversDay(e: EventOccurrence, at: number): boolean {
  */
 export function edgeCaption(e: EventOccurrence, at: number): string | null {
   const d = dayStart(at);
-  const kindWord = e.kind === 'season' ? 'СЕЗОН'
-    : e.force === 'restrict' ? 'ОБМЕЖЕННЯ'
-    : e.kind === 'supply' ? 'ЗАВІЗ'
-    : 'ПОДІЯ';
+  // Рід слова тягне за собою форму дієслова: «ПОДІЯ ПОЧАВСЯ» різало око.
+  const [kindWord, began] = e.kind === 'season' ? ['СЕЗОН', 'ПОЧАВСЯ']
+    : e.force === 'restrict' ? ['ОБМЕЖЕННЯ', 'ПОЧАЛОСЬ']
+    : e.kind === 'supply' ? ['ЗАВІЗ', 'ПОЧАВСЯ']
+    : ['ПОДІЯ', 'ПОЧАЛАСЬ'];
   // Формат макета: у день старту — «▮ ЧЕРЕМША · СЕЗОН ПОЧАВСЯ · ДО ≈ 20.03»,
   // у день кінця — «▮ ОЛЕНА ЇДЕ · КІНЕЦЬ». Дата кінця в старті — щоб день
   // старту відповідав на «доки», не змушуючи відкривати подію.
   const until = new Date(e.end).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
   if (d === dayStart(e.start) && d === dayStart(e.end)) return `▮ ${e.title.toUpperCase()} · ${kindWord}`;
-  if (d === dayStart(e.start)) return `▮ ${e.title.toUpperCase()} · ${kindWord} ПОЧАВСЯ · ДО ${e.approx ? '≈ ' : ''}${until}`;
+  if (d === dayStart(e.start)) return `▮ ${e.title.toUpperCase()} · ${kindWord} ${began} · ДО ${e.approx ? '≈ ' : ''}${until}`;
   if (d === dayStart(e.end)) return `▮ ${e.title.toUpperCase()} · КІНЕЦЬ`;
   return null;
 }

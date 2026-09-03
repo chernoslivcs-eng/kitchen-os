@@ -9,7 +9,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type ProfileData, type Me, type InviteInfo, type InviteCreated, type NoteInfo, type EaterInfo, type EventOccurrence, type YearStrip } from '../../api';
+import { api, type ProfileData, type Me, type InviteInfo, type InviteCreated, type NoteInfo, type EaterInfo, type EventOccurrence, type YearStrip, type Tradition } from '../../api';
+
+const TRADITION_CHIPS: [Tradition, string][] = [
+  ['orthodox', 'православні'], ['catholic', 'католицькі'], ['islamic', 'ісламські'], ['jewish', 'юдейські'],
+];
 import { ribbonDate, endingSoon } from '../../lib/when';
 import { TagInput } from '../../components/TagInput/TagInput';
 import { EQUIP_EXTRA, DIET_PRESETS, cycleEquip, equipGlyph, type EquipState } from '../../lib/presets';
@@ -312,6 +316,8 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const logout = useAuth((s) => s.logout);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  // Здогад сервера з побажань — показуємо, поки традиції не обрано явно.
+  const [inferredTrads, setInferredTrads] = useState<Tradition[]>([]);
   const [me, setMe] = useState<Me | null>(null);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [invites, setInvites] = useState<InviteInfo[]>([]);
@@ -337,7 +343,7 @@ export function ProfilePage() {
   // Одна точка правки на всі три блоки. Відповідь сервера — джерело істини:
   // локально нічого не домальовуємо, щоб на екрані не з'явилось те, чого
   // в базі немає.
-  async function patch(op: 'add' | 'remove', kind: 'allergy' | 'wish' | 'anti' | 'equip', label: string) {
+  async function patch(op: 'add' | 'remove', kind: 'allergy' | 'wish' | 'anti' | 'equip' | 'tradition', label: string) {
     setProfileError(null);
     try {
       const { profile: next } = await api.profilePatch([{ op, kind, label }]);
@@ -378,11 +384,12 @@ export function ProfilePage() {
   useEffect(() => {
     (async () => {
       const [p, m, s] = await Promise.all([
-        api.profile().catch(() => ({ profile: null as ProfileData | null, notes: [] as NoteInfo[], eaters: [] as EaterInfo[] })),
+        api.profile().catch(() => ({ profile: null as ProfileData | null, notes: [] as NoteInfo[], eaters: [] as EaterInfo[], inferred_traditions: [] as Tradition[] })),
         api.me().catch(() => null),
         api.shopping.list().catch(() => ({ count: 0 })),
       ]);
       setProfile(p.profile);
+      setInferredTrads(p.inferred_traditions ?? []);
       setNotes(p.notes ?? []);
       setEaters(p.eaters ?? []);
       setMe(m);
@@ -541,6 +548,51 @@ export function ProfilePage() {
             onAdd={(l) => patch('add', 'wish', l)}
             onRemove={(l) => patch('remove', 'wish', l)}
           />
+        </div>
+
+        {/* Традиції — явний вибір, не здогад. Свято в календарі — «напів-
+            редагована» подія: дату й правило дає довідник, а чи є вона в
+            цьому домі взагалі — вирішується тут. Поки нічого не обрано,
+            календар іде за розпізнаним із побажань («постуємо» →
+            православна), і ці чіпи показані як розпізнані; перший тап
+            матеріалізує вибір. */}
+        <div className={styles.section}>
+          <div className={styles['section-label']}>
+            Традиції
+            <span className={styles['label-sub']}> · свята й пости в календарі та порадах</span>
+          </div>
+          <div className={styles.hint}>
+            {profile?.traditions == null && inferredTrads.length > 0
+              ? 'Розпізнано з побажань — підтвердь тапом або вимкни.'
+              : profile?.traditions?.length === 0
+                ? 'Вимкнено: релігійних свят і постів Кухня не пропонує.'
+                : 'Обери, що тримає дім. Нічого не обрано — свят у календарі немає.'}
+          </div>
+          <div className={styles.chips}>
+            {TRADITION_CHIPS.map(([id, name]) => {
+              const explicit = profile?.traditions != null;
+              const chosen = explicit ? profile!.traditions!.includes(id) : inferredTrads.includes(id);
+              return (
+                <button
+                  key={`${id}:${chosen ? 1 : 0}:${explicit ? 'e' : 'i'}`}
+                  type="button"
+                  onClick={() => patch(chosen ? 'remove' : 'add', 'tradition', id)}
+                  className={`${styles.chip} ${styles['equip-tick']}`}
+                  style={{
+                    cursor: 'pointer',
+                    ...(chosen && explicit
+                      ? { background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)' }
+                      : chosen
+                        ? { background: 'transparent', border: '1px dashed var(--accent-border)', color: 'var(--accent)' }
+                        : { background: 'transparent', border: '1px solid var(--border)', color: 'var(--fg-dim)' }),
+                  }}
+                  title={chosen ? (explicit ? 'Обрано → вимкнути' : 'Розпізнано з побажань → підтвердити або вимкнути') : 'Увімкнути'}
+                >
+                  {chosen ? '●' : '○'} {name}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Пікер техніки з прототипу (EQUIP_EXTRA): весь список одразу, тап

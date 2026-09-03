@@ -33,6 +33,8 @@ interface Props {
   onClose?: () => void;
   /** Панель: заголовок 22, дії — у підвал панелі. */
   compact?: boolean;
+  /** Режим 'new': дні, з яких прийшли (клік або протяг по календарю). */
+  initial?: { date: string; dateTo?: string };
 }
 
 const DOW = [
@@ -77,7 +79,8 @@ function footerMeta(e: EventOccurrence): string | null {
 
 // Поля правки — з правила події, а не з дати входження: «щовівторка» має
 // відкритись як «щотижня · вт», а не як конкретна дата.
-function fieldsFrom(e?: EventOccurrence) {
+function fieldsFrom(e?: EventOccurrence, initial?: Props['initial']) {
+  if (!e && initial) return { mode: 'date' as const, date: initial.date, dateTo: initial.dateTo ?? '', dow: 2 };
   const r = e?.rule as { t: string; at?: string; days?: number; dow?: number } | undefined;
   if (r?.t === 'weekly') return { mode: 'weekly' as const, date: todayIso(), dateTo: '', dow: r.dow ?? 2 };
   const at = r?.at ?? todayIso();
@@ -85,7 +88,7 @@ function fieldsFrom(e?: EventOccurrence) {
   return { mode: 'date' as const, date: at, dateTo: days > 1 ? addDays(at, days - 1) : '', dow: 2 };
 }
 
-export function EventArtifact({ event, mode: initialMode = 'view', onChanged, onClose, compact }: Props) {
+export function EventArtifact({ event, mode: initialMode = 'view', onChanged, onClose, compact, initial }: Props) {
   const navigate = useNavigate();
   const footSlot = useContext(PanelFootSlot);
   const [mode, setMode] = useState<EventMode>(event ? initialMode : 'new');
@@ -95,7 +98,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const init = fieldsFrom(event);
+  const init = fieldsFrom(event, initial);
   const [title, setTitle] = useState(event?.title ?? '');
   const [note, setNote] = useState(event?.note ?? '');
   const [whenMode, setWhenMode] = useState<'date' | 'weekly'>(init.mode);

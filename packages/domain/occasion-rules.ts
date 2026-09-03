@@ -36,7 +36,12 @@ export type Rule =
   // дому. `days` у разової не косметика: «мама привезе цибулю — тиждень
   // готуємо з нею» має тривалість, інакше привід гасне наступного ранку.
   | { t: 'once'; at: string; days?: number }
-  | { t: 'weekly'; dow: number };
+  | { t: 'weekly'; dow: number }
+  // Список конкретних дат по роках — для свят, які не рахуються формулою:
+  // місячний календар (Рамадан, Ід) залежить від спостереження молодика, і
+  // дрейф «354.37 доби» за три роки розходиться з реальною датою на дні.
+  // `at` — 'YYYY-MM-DD' (одна дата на рік), `days` — тривалість.
+  | { t: 'dates'; at: string[]; days?: number };
 
 /** Одне входження правила у часі. `end` дорівнює `start` у подій без тривалості. */
 export interface Occurrence {
@@ -122,6 +127,10 @@ export function ruleActive(rule: Rule, date: Date, trads: Tradition[]): boolean 
     return date.getTime() >= w.start && date.getTime() <= w.end;
   }
   if (rule.t === 'weekly') return date.getDay() === rule.dow;
+  if (rule.t === 'dates') {
+    const w = ruleWindow(rule, date.getFullYear(), trads);
+    return !!w && date.getTime() >= w.start && date.getTime() <= w.end + DAY - 1;
+  }
   return false;
 }
 
@@ -165,6 +174,14 @@ export function ruleWindow(
       start: shiftEaster(e, rule.from).getTime(),
       end: shiftEaster(e, rule.to).getTime(),
     };
+  }
+  if (rule.t === 'dates') {
+    const at = rule.at.find((d) => d.startsWith(`${year}-`));
+    if (!at) return null;
+    const [y, m, d] = at.split('-').map(Number);
+    const start = new Date(y!, m! - 1, d!).getTime();
+    const endD = new Date(y!, m! - 1, d! + Math.max(1, rule.days ?? 1) - 1);
+    return { start, end: endD.getTime() };
   }
   return null;
 }
@@ -247,7 +264,8 @@ export function occurrencesInRange(
     // Вікно через Новий рік: кінець порахований у тому ж році, тобто раніше
     // за початок. Переносимо його на рік уперед.
     const end = w.end < w.start ? atMonthDay((rule as { to: string }).to, y + 1) : w.end;
-    const o = { start: dayStart(w.start), end: dayEnd(end) };
+    // Дати з місячного календаря — орієнтовні: позначку несемо далі, як і в якорів.
+    const o = { start: dayStart(w.start), end: dayEnd(end), ...(rule.t === 'dates' ? { approx: true } : {}) };
     if (overlaps(o)) out.push(o);
   }
   return out.sort((a, b) => a.start - b.start);

@@ -489,10 +489,10 @@ export const api = {
     unpack: () => req<{ created: number }>('/v1/shopping/unpack', { method: 'POST', body: '{}' }),
   },
 
-  profile: () => req<{ profile: ProfileData; notes: NoteInfo[]; eaters: EaterInfo[] }>('/v1/profile'),
+  profile: () => req<{ profile: ProfileData; notes: NoteInfo[]; eaters: EaterInfo[]; inferred_traditions?: Tradition[] }>('/v1/profile'),
   // Правка руками. Модель у стан не пише — але людина у своєму профілі пише,
   // і це рівно «дія — інтерфейс».
-  profilePatch: (ops: { op: 'add' | 'remove'; kind: 'allergy' | 'wish' | 'anti' | 'equip'; label: string; has?: boolean }[]) =>
+  profilePatch: (ops: { op: 'add' | 'remove'; kind: 'allergy' | 'wish' | 'anti' | 'equip' | 'tradition'; label: string; has?: boolean }[]) =>
     req<{ profile: ProfileData; applied: number }>('/v1/profile', {
       method: 'PATCH', body: JSON.stringify({ ops }),
     }),
@@ -586,7 +586,11 @@ export interface ProfileData {
   wishes: string[];
   antipatterns: string[];
   equipment: Record<string, 'has' | 'lacks'>;
+  /** null — ще не обирала (календар іде за здогадом із побажань); [] — вимкнула все. */
+  traditions?: Tradition[] | null;
 }
+
+export type Tradition = 'orthodox' | 'catholic' | 'islamic' | 'jewish';
 
 // ----- Recipe types -------------------------------------------------------
 

@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo, HouseholdEventRow, Rule, SupplyLine } from '@kitchen/domain';
-import { ownsEvent, occurrencesInRange, traditionsFrom, isWindowRow, yearInKitchen } from '@kitchen/domain';
+import { ownsEvent, occurrencesInRange, traditionsOf, isWindowRow, yearInKitchen } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
@@ -108,7 +108,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       // Традиція не поле профілю, а висновок із побажань — те саме правило, що
       // в контексті промпта. Довідник без неї віддає самі сезони.
       const profile = await repo.getProfile(user_id);
-      const trads = traditionsFrom(profile?.wishes ?? []);
+      const trads = traditionsOf(profile);
       // «Не показувати такі» — рішення людини про свій календар, і воно старше
       // за будь-який привід.
       const muted = new Set(await repo.listMutedOccasions(user_id));
@@ -310,7 +310,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       const e = await repo.getHouseholdEvent(req.params.id);
       if (!e || !ownsEvent(e, household_id, user_id)) return reply.code(404).send({ error: 'not_found' });
       const profile = await repo.getProfile(user_id);
-      const trads = traditionsFrom(profile?.wishes ?? []);
+      const trads = traditionsOf(profile);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const occs = occurrencesInRange(e.rule, new Date(today.getTime() - 366 * DAY), new Date(today.getTime() + 366 * DAY), trads);
       const occ = occs.find((o) => o.end >= today.getTime()) ?? occs[occs.length - 1];
@@ -338,7 +338,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
         return reply.code(400).send({ error: 'year invalid' });
       }
       const profile = await repo.getProfile(user_id);
-      const trads = traditionsFrom(profile?.wishes ?? []);
+      const trads = traditionsOf(profile);
       const catalog = await repo.listOccasionCatalog();
       const catches = await repo.listOccasionCatches(household_id, year);
       return { year, strips: yearInKitchen(year, catches, trads, catalog) };

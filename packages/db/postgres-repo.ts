@@ -180,10 +180,11 @@ function rowToOccasion(r: Row): OccasionRow {
     ...(r.tradition ? { tradition: r.tradition as OccasionRow['tradition'] } : {}),
     ...(r.source ? { source: r.source as string } : {}),
   };
-  if (rule.t === 'window' || rule.t === 'easter') {
+  if (rule.t === 'window' || rule.t === 'easter' || rule.t === 'dates') {
     return {
       ...base,
       rule,
+      ...(r.approx ? { approx: true } : {}),
       meaning: (r.meaning as string | null) ?? '',
       buy: (r.buy as string[]) ?? [],
       seeds: (r.seeds as string[]) ?? [],
@@ -375,20 +376,22 @@ export class PostgresRepo implements Repo {
       wishes: r.wishes ?? [],
       antipatterns: r.antipatterns ?? [],
       equipment: r.equipment ?? {},
+      traditions: (r.traditions as Profile['traditions']) ?? null,
     };
   }
 
   async upsertProfile(p: Profile): Promise<void> {
     await this.pool.query(
-      `INSERT INTO profile (user_id, allergies, wishes, antipatterns, equipment)
-       VALUES ($1,$2,$3,$4,$5)
+      `INSERT INTO profile (user_id, allergies, wishes, antipatterns, equipment, traditions)
+       VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (user_id) DO UPDATE SET
          allergies = EXCLUDED.allergies,
          wishes = EXCLUDED.wishes,
          antipatterns = EXCLUDED.antipatterns,
          equipment = EXCLUDED.equipment,
+         traditions = EXCLUDED.traditions,
          updated_at = now()`,
-      [p.user_id, p.allergies, p.wishes, p.antipatterns, p.equipment],
+      [p.user_id, p.allergies, p.wishes, p.antipatterns, p.equipment, p.traditions ?? null],
     );
   }
 

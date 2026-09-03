@@ -104,7 +104,13 @@
   display: flex;
   gap: 12px;
   min-height: 70px;
+  cursor: cell;
 }
+/* Вибір днів під нову подію: тон акценту, без рамки — риски в жолобі
+   лишаються читабельними. Поки тягнуть — текст не виділяється. */
+.day.selecting { user-select: none; }
+.day.sel .day-inner { background: var(--accent-bg); }
+.day.sel .dn .num { color: var(--accent); }
 .day-inner {
   flex: 1;
   min-width: 0;

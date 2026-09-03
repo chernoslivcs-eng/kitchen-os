@@ -529,9 +529,28 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(lent?.rule).toEqual({ t: 'easter', from: -48, to: -1 });
 
       // Якорі — точки, а не сезони: meaning у них немає, і це не дефект.
+      const pesach = catalog.find((o) => o.id === 'pesach');
+      expect(pesach?.tradition).toBe('jewish');
+      expect(pesach && 'meaning' in pesach && pesach.meaning != null).toBe(false);
+
+      // Рамадан — вікно з дат по роках: має meaning, і орієнтовність не губиться
+      // на дорозі через таблицю.
       const ramadan = catalog.find((o) => o.id === 'ramadan');
-      expect(ramadan?.tradition).toBe('islamic');
-      expect(ramadan && 'meaning' in ramadan && ramadan.meaning != null).toBe(false);
+      expect(ramadan?.rule.t).toBe('dates');
+      expect(ramadan && 'approx' in ramadan ? ramadan.approx : false).toBe(true);
+      expect(ramadan && 'meaning' in ramadan ? ramadan.meaning : '').toContain('іфтар');
+    });
+
+    // Традиції профілю: «не обирала» (null) і «вимкнула все» ([]) — різні
+    // стани, і сховище мусить повертати їх різними.
+    it('традиції профілю: null ≠ [], вибір переживає перечитування', async () => {
+      const { repo } = ctx;
+      await repo.upsertProfile({ user_id: ctx.user_id, allergies: [], wishes: ['постуємо'], antipatterns: [], equipment: {}, traditions: null });
+      expect((await repo.getProfile(ctx.user_id))?.traditions ?? null).toBeNull();
+      await repo.upsertProfile({ user_id: ctx.user_id, allergies: [], wishes: ['постуємо'], antipatterns: [], equipment: {}, traditions: [] });
+      expect((await repo.getProfile(ctx.user_id))?.traditions).toEqual([]);
+      await repo.upsertProfile({ user_id: ctx.user_id, allergies: [], wishes: [], antipatterns: [], equipment: {}, traditions: ['catholic', 'islamic'] });
+      expect((await repo.getProfile(ctx.user_id))?.traditions).toEqual(['catholic', 'islamic']);
     });
 
     // Адмінка v0 (фаза 4): чернетка не потрапляє в жоден зі звичайних

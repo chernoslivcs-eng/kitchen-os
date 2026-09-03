@@ -41,7 +41,7 @@ export async function seedOccasions(pool: Pool): Promise<number> {
         row.tradition ?? null,
         win?.buy ?? [],
         win?.seeds ?? [],
-        isWindowRow(row) ? false : row.approx,
+        isWindowRow(row) ? (row.approx ?? false) : row.approx,
         win?.upcomingTitle ?? null,
         row.source ?? null,
       ],
