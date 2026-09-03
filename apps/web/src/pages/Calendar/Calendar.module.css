@@ -109,6 +109,7 @@
 /* Вибір днів під нову подію: тон акценту, без рамки — риски в жолобі
    лишаються читабельними. Поки тягнуть — текст не виділяється. */
 .day.selecting { user-select: none; }
+.day-inner { transition: background var(--dur-fast, 150ms) var(--ease-standard, ease); }
 .day.sel .day-inner { background: var(--accent-bg); }
 .day.sel .dn .num { color: var(--accent); }
 .day-inner {
@@ -224,3 +225,14 @@
 @media (min-width: 1024px) { .ask { color: var(--accent); } }
 
 .loading { padding: 40px 0; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+
+/* Моушн-чекліст (правило кіта: все, що пише в стан, має видимий перехід).
+   Подія, що зʼявилась у дні після «Додати»/правки, і чіп у легенді входять
+   через base/enter — той самий вхід, що у картки в стрічці. Вибір днів під
+   нову подію — fast (вище). Зникнення без переходу: рядок просто пропадає,
+   як і в списку — виходу без окремої інфраструктури тут не буде. */
+.ev, .tag, .chip { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+@keyframes cal-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
