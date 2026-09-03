@@ -325,10 +325,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // №4: ситуація рахується сервером із повідомлень сесії — той самий факт,
     // який досі жив усередині гілки видалення й нікому не казався.
-    const modes = detectModes(preMessages, recentCookRuns);
-    const openCart = modes.find((m) => m.kind === 'cart_open');
     // Плани дому — щоб модель могла на них послатись і правити їх по id.
     const events = await repo.listHouseholdEvents(household_id);
+    const modes = detectModes(preMessages, recentCookRuns, new Date(), events);
+    const openCart = modes.find((m) => m.kind === 'cart_open');
 
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —

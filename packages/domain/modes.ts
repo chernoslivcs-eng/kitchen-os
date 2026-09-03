@@ -11,10 +11,10 @@
 // Режими НАКЛАДАЮТЬСЯ (рішення власника: «завжди») і йдуть за свіжістю —
 // найновіше першим. Це відповідає тому, що людина сама тримає в голові.
 
-import type { Card, MessageRow } from './types.js';
+import type { Card, MessageRow, HouseholdEventRow } from './types.js';
 import type { RecentCookRunSummary } from './context.js';
 
-export type ModeKind = 'cart_open' | 'recipe_fresh' | 'unrated_run';
+export type ModeKind = 'cart_open' | 'recipe_fresh' | 'unrated_run' | 'event_near';
 
 export interface KitchenMode {
   kind: ModeKind;
@@ -26,6 +26,54 @@ export interface KitchenMode {
   ref?: string;
   /** Сесія щойно почалась — ця відповідь буде першою в ній. */
   sessionOpening?: boolean;
+}
+
+const DAY = 86_400_000;
+const NEAR_DAYS = 3;
+
+function dayStart(at: number): number {
+  const d = new Date(at);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/**
+ * Найближча подія дому в межах трьох днів. Разова рахується від своєї дати,
+ * тижнева — від найближчого свого дня тижня.
+ *
+ * Закрите й згасле не рахується: «мама привезе цибулю» через місяць — шум,
+ * і саме проти нього писався expires_at.
+ */
+function nearestEvent(
+  events: HouseholdEventRow[],
+  now: Date,
+): { event: HouseholdEventRow; at: number; label: string } | null {
+  const today = dayStart(now.getTime());
+  let best: { event: HouseholdEventRow; at: number; label: string } | null = null;
+
+  for (const e of events) {
+    if (e.done_at) continue;
+    if (e.expires_at && new Date(e.expires_at).getTime() < now.getTime()) continue;
+
+    let at: number | null = null;
+    if (e.rule.t === 'once') {
+      const [y = 1970, m = 1, d = 1] = e.rule.at.split('-').map(Number);
+      at = new Date(y, m - 1, d).getTime();
+    } else if (e.rule.t === 'weekly') {
+      const cur = new Date(today);
+      for (let i = 0; i <= NEAR_DAYS; i++) {
+        if (cur.getDay() === e.rule.dow) { at = dayStart(cur.getTime()); break; }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    if (at === null) continue;
+
+    const days = Math.round((at - today) / DAY);
+    if (days < 0 || days > NEAR_DAYS) continue;
+    const label = days === 0 ? 'СЬОГОДНІ' : days === 1 ? 'ЗАВТРА' : `ЗА ${days} ДНІ`;
+    if (!best || at < best.at) best = { event: e, at, label };
+  }
+  return best;
 }
 
 const hhmm = (iso: string) => {
@@ -41,8 +89,26 @@ export function detectModes(
   messages: MessageRow[],
   recentCookRuns: RecentCookRunSummary[],
   now = new Date(),
+  // Плани дому: подія за три дні чи ближче стає ситуацією, а не довідкою.
+  events: HouseholdEventRow[] = [],
 ): KitchenMode[] {
   const out: KitchenMode[] = [];
+
+  // Нагадування нульової вартості: ні cron, ні пуша, ні листа — подія просто
+  // звучить у першій репліці, коли вона близько. Три дні — межа, за якою
+  // «попереду» перестає бути абстракцією: за тиждень робити ще нічого, а
+  // сьогодні вже пізно щось докупити.
+  const near = nearestEvent(events, now);
+  if (near) {
+    out.push({
+      kind: 'event_near',
+      at: new Date(near.at).toISOString(),
+      ref: near.event.id,
+      sessionOpening: messages.length === 0,
+      label: `${near.label}: ${near.event.title}`
+        + (near.event.note ? ` — ${near.event.note}` : ''),
+    });
+  }
 
   // Останній кошик сесії. Попередні — уже не «відкриті»: кошик у Сільпо
   // один, і актуальний завжди останній.
@@ -103,12 +169,22 @@ const RULE: Record<ModeKind, string> = {
   unrated_run:
     'Доречно спитати одним реченням, як вийшло — але тільки якщо розмова'
     + ' сама не пішла в інше. Не починай з цього кожну репліку.',
+  event_near:
+    'Згадуй лише коли доречно — коли розмова сама зайшла про те, що готувати.'
+    + ' Не нагадуй двічі за розмову й не починай нею репліку.',
 };
 
 // Те саме, але коли відповідь буде першою в сесії. Різниця не косметична:
 // далі в розмові питання про вчорашнє — доречність, а на відкритті — єдина
 // нагода, бо потім розмова піде своїм руслом і вже не повернеться.
 const OPENING_RULE: Partial<Record<ModeKind, string>> = {
+  // Найдешевше нагадування, яке в продукті взагалі можливе: жодного cron,
+  // жодного пуша — подія просто звучить у першій репліці, коли вона близько.
+  // Далі в розмові вона вже не потрібна: людина її почула.
+  event_near:
+    'ПОЧАТОК СЕСІЇ — тут це доречно назвати одним реченням усередині'
+    + ' відповіді. Не окремим абзацом, не списком і не замість відповіді на'
+    + ' те, про що спитали. Далі в розмові не повторюй.',
   unrated_run:
     'ПОЧАТОК СЕСІЇ — саме тут про це варто спитати одним реченням, перш ніж'
     + ' переходити до того, про що спитали. Далі в розмові вже не нагадуй.',
