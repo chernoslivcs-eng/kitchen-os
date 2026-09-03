@@ -73,10 +73,83 @@
 }
 
 .more {
+  display: block;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
   color: var(--fg-dim);
+}
+.more:hover { color: var(--fg-mono); }
+
+/* Розкриття дня на місці. Тап відкриває не шторку, а сам день: на мобільному
+   тап і ховер — одне, тож показати четверту подію можна лише розсунувши день.
+   На десктопі цього немає — там клітинка має висоту й віддає все на ховер.
+
+   0fr → 1fr анімує висоту вмісту, а не вгадану межу в пікселях: список із
+   двох рядків і список із шести розкриваються однаково правильно, і жоден не
+   обрізається. max-height так не вміє — він або ріже, або сіпає кінець. */
+.expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms var(--ease, ease);
+}
+.expand-open { grid-template-rows: 1fr; }
+.expand-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.expand-open .expand-inner {
+  /* Підклад зʼявляється лише розкритим: у згорнутому дні його немає, і смуга
+     кольору тла під порожнім місцем читалась би як окремий блок. */
+  background: var(--bg-surface-2);
+  border-radius: var(--r);
+  margin: 4px 0 2px;
+}
+.expand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.expand-row + .expand-row { box-shadow: inset 0 1px 0 var(--border); }
+/* Гліф несе рід сірим: у згорнутому дні кольору не було, і розкриття не
+   привід його додавати. Виняток один — особиста, бо це єдине, що поставила
+   сама людина. */
+.expand-glyph {
+  flex: none;
+  width: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+.t-own .expand-glyph { color: var(--accent); }
+.expand-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--fg-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.expand-chev { flex: none; color: var(--fg-dim); font-size: 15px; }
+
+/* Розкриття — мобільне. На >=768 сітка вже показує все, і другий механізм
+   означав би два різні способи побачити те саме. */
+@media (min-width: 768px) {
+  .expand { display: none; }
 }
 
 .month-more { color: var(--fg-dim); }
@@ -308,6 +381,35 @@
     transition: color var(--dur-fast);
   }
   .cell-slot:hover { color: var(--fg-strong); }
+
+  /* Ховер показує все, що не влізло в ліміт трьох. Стек лягає ПОВЕРХ клітинки,
+     а не розсуває її: якби клітинка росла, ряд тижня ріс би разом із нею й
+     наступні тижні стрибали б униз під курсором — рівно те сіпання, яке вже
+     ловили на рейках. Клітинка тримає свою висоту, стек виходить за неї. */
+  .cell { position: relative; }
+  .cell:hover { z-index: 3; }
+  .cell-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .cell-extra { display: none; }
+  .cell:hover .cell-extra { display: block; }
+  .cell:hover .cell-more { display: none; }
+  .cell:hover .cell-stack {
+    position: absolute;
+    left: -8px;
+    right: -8px;
+    top: 28px;
+    padding: 8px;
+    background: var(--bg-surface-2);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-panel);
+  }
+  /* Розгорнутий стек більше не ріже назви до двох рядків: він для того й
+     відкривається, щоб показати повністю. */
+  .cell:hover .cell-slot { -webkit-line-clamp: unset; }
 }
 
 /* «Триває» — закріплений низ і ОДИН рядок. На мобільному його немає зовсім:

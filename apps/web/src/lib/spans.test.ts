@@ -133,10 +133,12 @@ describe('хто отримує риску', () => {
       ev(0, 5, { title: 'редакційна', kind: 'editorial', scope: 'catalog' }),
       ev(0, 5, { title: 'свято', kind: 'tradition', scope: 'catalog' }),
       ev(0, 5, { title: 'сезон', kind: 'season', scope: 'catalog' }),
+      // Страва з плану — теж своя, але тихіша за подію: рішення вже ухвалене.
+      ev(0, 5, { title: 'страва', kind: 'meal', scope: 'household' }),
       ev(0, 5, { title: 'своя', scope: 'household' }),
       ev(0, 5, { title: 'піст', scope: 'catalog', force: 'restrict' }),
     ].sort((a, b) => rank(a) - rank(b)).map((e) => e.title);
-    expect(order).toEqual(['піст', 'своя', 'сезон', 'свято', 'редакційна']);
+    expect(order).toEqual(['піст', 'своя', 'страва', 'сезон', 'свято', 'редакційна']);
   });
 });
 

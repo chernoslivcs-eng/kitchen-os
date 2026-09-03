@@ -17,6 +17,11 @@ export type ToneKey = 'restrict' | 'own' | 'season' | 'grey';
 
 export function toneKey(e: Pick<EventOccurrence, 'force' | 'scope' | 'kind'>): ToneKey {
   if (e.force === 'restrict') return 'restrict';
+  // Рамка на день — не план. «Мало часу у вівторок» нічого не обіцяє й нічого
+  // не пропонує: воно звужує вибір, а не наповнює день. Кольором дії воно
+  // виглядало б як задача, яку хтось поставив, — тому сірим, як свято.
+  // Обмеження вище цю гілку не зачіпає: воно вже пішло сливою.
+  if (e.kind === 'constraint') return 'grey';
   if (e.scope === 'household') return 'own';
   if (e.kind === 'season') return 'season';
   return 'grey';

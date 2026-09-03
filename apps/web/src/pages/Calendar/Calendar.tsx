@@ -61,6 +61,20 @@ function toneOf(e: EventOccurrence): string {
   return styles[`t-${toneKey(e)}`]!;
 }
 
+// Гліф роду в розкритому дні. Кольору тут майже немає навмисно: у згорнутому
+// дні його не було, і розкриття не привід додавати галас — сірий несе рід,
+// шавлію тримає лише особиста, бо це єдине, що поставила сама людина.
+//
+// ▮ дістається і сезону, і обмеженню: обидва — вікно, що триває, а не подія
+// дня, і читаються однаково («щось діє зараз»).
+function glyphOf(e: EventOccurrence): string {
+  if (e.force === 'restrict' || e.kind === 'season') return '▮';
+  if (e.kind === 'meal') return '◌';
+  if (e.scope === 'household') return '＋';
+  if (e.kind === 'editorial' || e.source) return '¶';
+  return '☼';
+}
+
 export function CalendarPage() {
   const openNav = useNavStore((s) => s.setOpen);
   const [events, setEvents] = useState<EventOccurrence[]>([]);
@@ -71,6 +85,10 @@ export function CalendarPage() {
   const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
   const [version, setVersion] = useState(0);
   const [creating, setCreating] = useState(false);
+  // Розкриття дня — суто мобільна механіка: на десктопі клітинка має висоту й
+  // показує все на ховер, а там, де тап і ховер — одне, показати решту можна
+  // тільки розсунувши день.
+  const [expanded, setExpanded] = useState<number | null>(null);
   // «Сьогодні ↑» зʼявляється, коли сьогодні пішло за верхній край. Без
   // нижнього бара заголовок шапки — єдиний якір «де я», а в календарі таким
   // якорем є сьогоднішній день; загубити його в скролі означає загубитись.
@@ -299,7 +317,33 @@ export function CalendarPage() {
                         {e.approx && <span className={styles.approx}> · орієнтовно</span>}
                       </button>
                     ))}
-                  {more && <span className={styles.more}>{more}</span>}
+                  {more && (
+                    <button
+                      className={styles.more}
+                      aria-expanded={expanded === row.at}
+                      onClick={() => setExpanded(expanded === row.at ? null : row.at)}
+                    >{expanded === row.at ? 'ЗГОРНУТИ' : more}</button>
+                  )}
+                  {/* Розкриття міняє висоту, а не показ: сусідні дні лишаються
+                      на місці й лише розсуваються. 0fr → 1fr анімує саме
+                      висоту вмісту, тож ліміт у пікселях вгадувати не треба. */}
+                  <div className={`${styles.expand} ${expanded === row.at ? styles['expand-open'] : ''}`}>
+                    <div className={styles['expand-inner']}>
+                      {ordered.map((e) => (
+                        <button
+                          key={`x${e.scope}:${e.id}`}
+                          className={`${styles['expand-row']} ${toneOf(e)}`}
+                          onClick={() => setOpenEvent(e)}
+                        >
+                          <span className={styles['expand-glyph']}>{glyphOf(e)}</span>
+                          <span className={styles['expand-title']}>
+                            {e.kind === 'supply' ? '＋ ' : ''}{e.title}
+                          </span>
+                          <span className={styles['expand-chev']}>›</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -363,22 +407,33 @@ export function CalendarPage() {
                       <div className={styles['cell-date']}>{dayDow(d.at)} {dayNum(d.at)}</div>
                       {/* Порожня клітинка — тиша, не дірка: ні «＋ додати»,
                           ні пунктирної рамки, яка просить себе заповнити.
-                          Ліміт три: більше — вже список, а не погляд. */}
-                      {[...d.events].sort((a, b) => rank(a) - rank(b)).slice(0, VISIBLE_LIMIT).map((e) => (
-                        <button
-                          key={`${e.scope}:${e.id}`}
-                          className={`${styles['cell-slot']} ${toneOf(e)}`}
-                          onClick={() => setOpenEvent(e)}
-                          title={e.meaning ?? e.title}
-                        >
-                          {e.kind === 'supply' ? '＋ ' : ''}{e.title}
-                        </button>
-                      ))}
-                      {d.events.length > VISIBLE_LIMIT && (
-                        <span className={styles['cell-more']}>
-                          {moreLabel([...d.events].sort((a, b) => rank(a) - rank(b)).slice(VISIBLE_LIMIT), false)}
-                        </span>
-                      )}
+                          Ліміт три: більше — вже список, а не погляд.
+
+                          Приховані рендеряться одразу, а не по кліку: на
+                          десктопі ховер показує всі, і робити це станом
+                          означало б тримати вибір там, де достатньо CSS. */}
+                      {(() => {
+                        const all = [...d.events].sort((a, b) => rank(a) - rank(b));
+                        return (
+                          <div className={styles['cell-stack']}>
+                            {all.map((e, i) => (
+                              <button
+                                key={`${e.scope}:${e.id}`}
+                                className={`${styles['cell-slot']} ${toneOf(e)} ${i >= VISIBLE_LIMIT ? styles['cell-extra'] : ''}`}
+                                onClick={() => setOpenEvent(e)}
+                                title={e.meaning ?? e.title}
+                              >
+                                {e.kind === 'supply' ? '＋ ' : ''}{e.title}
+                              </button>
+                            ))}
+                            {all.length > VISIBLE_LIMIT && (
+                              <span className={styles['cell-more']}>
+                                {moreLabel(all.slice(VISIBLE_LIMIT), false)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

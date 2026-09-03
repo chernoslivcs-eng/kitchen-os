@@ -56,10 +56,14 @@ export function splitAxes(events: EventOccurrence[]): {
  */
 export function rank(e: EventOccurrence): number {
   if (e.force === 'restrict') return 0;
-  if (e.scope === 'household') return 1;
-  if (e.kind === 'season') return 2;
-  if (e.kind === 'editorial' || e.source) return 4;
-  return 3;   // свято
+  // Особиста подія й страва з плану — обидві твої, але не рівні. «Гості в
+  // суботу» змінює день і тягне за собою рішення; «гарбузовий суп» — рішення,
+  // яке ти вже ухвалив. Тому страва стоїть нижче: у дні з обома першим має
+  // читатись те, що ще потребує уваги.
+  if (e.scope === 'household') return e.kind === 'meal' ? 2 : 1;
+  if (e.kind === 'season') return 3;
+  if (e.kind === 'editorial' || e.source) return 5;
+  return 4;   // свято
 }
 
 /**
