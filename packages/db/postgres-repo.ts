@@ -17,6 +17,7 @@ import type {
   SessionRow, MessageRow, MemoryNote, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
   HouseholdProduct, ProductTriple,
+  HouseholdEventRow, OccasionRow, Rule,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
@@ -163,6 +164,53 @@ function rowToProduct(r: Row): HouseholdProduct {
     pack_size: r.pack_size == null ? null : Number(r.pack_size),
     tags: (r.tags as HouseholdProduct['tags']) ?? {},
     catalog_key: (r.catalog_key as string | null) ?? null,
+    created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
+
+// Рядок довідника → доменний обʼєднаний тип. Розділення не косметичне: у
+// якорів (Рамадан, Песах) немає meaning і вікна, і давати їм порожній рядок
+// означало б збрехати — вони точки, а не сезони.
+function rowToOccasion(r: Row): OccasionRow {
+  const rule = r.rule as Rule;
+  const base = {
+    id: r.id as string,
+    type: r.kind as 'season' | 'tradition',
+    title: r.title as string,
+    ...(r.tradition ? { tradition: r.tradition as OccasionRow['tradition'] } : {}),
+  };
+  if (rule.t === 'window' || rule.t === 'easter') {
+    return {
+      ...base,
+      rule,
+      meaning: (r.meaning as string | null) ?? '',
+      buy: (r.buy as string[]) ?? [],
+      seeds: (r.seeds as string[]) ?? [],
+      ...(r.restricts ? { restricts: r.restricts as string } : {}),
+      ...(r.upcoming_title ? { upcomingTitle: r.upcoming_title as string } : {}),
+    };
+  }
+  return { ...base, rule: rule as Extract<Rule, { t: 'lunar' | 'solar' }>, approx: true };
+}
+
+function rowToEvent(r: Row): HouseholdEventRow {
+  return {
+    id: r.id as string,
+    household_id: r.household_id as string,
+    kind: r.kind as HouseholdEventRow['kind'],
+    title: r.title as string,
+    note: (r.note as string | null) ?? null,
+    rule: r.rule as Rule,
+    force: r.force as HouseholdEventRow['force'],
+    restricts: (r.restricts as string | null) ?? null,
+    buy: (r.buy as string[]) ?? [],
+    recipe_id: (r.recipe_id as string | null) ?? null,
+    servings: r.servings == null ? null : Number(r.servings),
+    supply: (r.supply as HouseholdEventRow['supply']) ?? null,
+    created_by: (r.created_by as string | null) ?? null,
+    source: r.source as HouseholdEventRow['source'],
+    expires_at: r.expires_at == null ? null : new Date(r.expires_at as string).toISOString(),
+    done_at: r.done_at == null ? null : new Date(r.done_at as string).toISOString(),
     created_at: new Date(r.created_at as string).toISOString(),
   };
 }
@@ -1076,6 +1124,80 @@ export class PostgresRepo implements Repo {
       'DELETE FROM retail_connection WHERE user_id = $1 AND provider = $2',
       [user_id, provider],
     );
+  }
+
+  // ----- Календар ----------------------------------------------------------
+
+  async listOccasionCatalog(): Promise<OccasionRow[]> {
+    // Чернетки назовні не йдуть: published_at IS NULL означає «ще не показуємо».
+    const { rows } = await this.pool.query(
+      'SELECT * FROM occasion_catalog WHERE published_at IS NOT NULL ORDER BY id',
+    );
+    return (rows as Row[]).map(rowToOccasion);
+  }
+
+  async listHouseholdEvents(household_id: string): Promise<HouseholdEventRow[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM household_event WHERE household_id = $1 ORDER BY created_at',
+      [household_id],
+    );
+    return (rows as Row[]).map(rowToEvent);
+  }
+
+  async getHouseholdEvent(id: string): Promise<HouseholdEventRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM household_event WHERE id = $1', [id]);
+    const r = rows[0] as Row | undefined;
+    return r ? rowToEvent(r) : null;
+  }
+
+  async insertHouseholdEvent(e: HouseholdEventRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO household_event
+         (id, household_id, kind, title, note, rule, force, restricts, buy,
+          recipe_id, servings, supply, created_by, source, expires_at, done_at, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17)`,
+      [
+        e.id, e.household_id, e.kind, e.title, e.note,
+        JSON.stringify(e.rule), e.force, e.restricts, e.buy,
+        e.recipe_id, e.servings,
+        e.supply == null ? null : JSON.stringify(e.supply),
+        e.created_by, e.source, e.expires_at, e.done_at, e.created_at,
+      ],
+    );
+  }
+
+  async updateHouseholdEvent(
+    id: string,
+    patch: Partial<Pick<HouseholdEventRow,
+      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'>>,
+  ): Promise<void> {
+    // COALESCE тут не годиться: null — легальне значення для note, supply,
+    // expires_at і done_at, і «зняти дату» має відрізнятись від «не чіпати».
+    // Тому збираємо SET лише з переданих ключів.
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    const put = (col: string, v: unknown, cast = '') => {
+      vals.push(v);
+      sets.push(`${col} = $${vals.length}${cast}`);
+    };
+    if ('title' in patch) put('title', patch.title);
+    if ('note' in patch) put('note', patch.note);
+    if ('rule' in patch) put('rule', JSON.stringify(patch.rule), '::jsonb');
+    if ('buy' in patch) put('buy', patch.buy);
+    if ('servings' in patch) put('servings', patch.servings);
+    if ('supply' in patch) put('supply', patch.supply == null ? null : JSON.stringify(patch.supply), '::jsonb');
+    if ('expires_at' in patch) put('expires_at', patch.expires_at);
+    if ('done_at' in patch) put('done_at', patch.done_at);
+    if (!sets.length) return;
+    vals.push(id);
+    await this.pool.query(
+      `UPDATE household_event SET ${sets.join(', ')} WHERE id = $${vals.length}`,
+      vals,
+    );
+  }
+
+  async deleteHouseholdEvent(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM household_event WHERE id = $1', [id]);
   }
 
   // ----- Дом-membership і запрошення --------------------------------------

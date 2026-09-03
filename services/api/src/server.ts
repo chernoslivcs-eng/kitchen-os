@@ -15,6 +15,7 @@ import { meRoute } from './routes/me.js';
 import { pantryRoute } from './routes/pantry.js';
 import { recipesRoutes } from './routes/recipes.js';
 import { shoppingRoutes } from './routes/shopping.js';
+import { eventsRoutes } from './routes/events.js';
 import { profileRoutes } from './routes/profile.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
@@ -63,6 +64,7 @@ export function buildApp(
   meRoute(app, repo);
   pantryRoute(app, repo);
   shoppingRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
+  eventsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   profileRoutes(app, repo);
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);

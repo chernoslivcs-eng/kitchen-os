@@ -1,6 +1,8 @@
 // Доменні типи. Свідомо на TypeScript, а не на Zod: schema-валідація — окремий шар
 // на межі HTTP (services/api). Тут — чиста форма.
 
+import type { Rule } from './occasion-rules.js';
+
 export type Zone = 'dry' | 'fridge' | 'freezer' | 'fresh' | 'spices' | 'drinks';
 export type Unit = 'g' | 'ml' | 'pcs' | 'pack';
 export type BatchState = 'sealed' | 'opened' | 'depleted';
@@ -588,5 +590,44 @@ export interface AttachmentRecord {
   content_type: string | null;
   bytes: number | null;
   hint: string | null;
+  created_at: string;
+}
+
+// ── Календар: подія дому ────────────────────────────────────────────────────
+// Друга вісь того самого інвентаря. Комора відповідає на «що в мене є»,
+// подія — на «що в мене буде»: партія з терміном спрямована назад («вмирає в
+// пʼятницю»), подія — вперед («прийде в пʼятницю»).
+
+/** Що саме прийде із завозом. Число опційне: «мішок цибулі» теж відповідь. */
+export interface SupplyLine {
+  label: string;
+  v?: number | null;
+  u?: string | null;
+}
+
+export interface HouseholdEventRow {
+  id: string;
+  household_id: string;
+  //   meal       слот сітки: страва на дату
+  //   supply     очікуване надходження — майбутня партія, а не побажання
+  //   constraint «у вівторок мало часу»: рамка на день, не план
+  //   custom     привід дому: день народження, гості
+  kind: 'meal' | 'supply' | 'constraint' | 'custom';
+  title: string;
+  note: string | null;
+  rule: Rule;
+  force: 'hint' | 'restrict';
+  restricts: string | null;
+  buy: string[];
+  recipe_id: string | null;
+  servings: number | null;
+  supply: SupplyLine[] | null;
+  created_by: string | null;
+  source: 'user' | 'model';
+  // Згасання: «мама привезе цибулю — тиждень готуємо з нею» через місяць стає
+  // шумом. Після expires_at подія не йде в контекст, але рядок лишається —
+  // видалення знищило б історію.
+  expires_at: string | null;
+  done_at: string | null;
   created_at: string;
 }

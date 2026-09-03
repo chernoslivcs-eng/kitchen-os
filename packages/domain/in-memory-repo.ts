@@ -3,11 +3,13 @@ import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js'
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
-  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow, Card,
+  ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
+  HouseholdEventRow, Card,
   SessionRow, MessageRow, MemoryNote, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
+import { BUILTIN_OCCASIONS, type OccasionRow } from './occasion-data.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
@@ -29,6 +31,7 @@ export class InMemoryRepo implements Repo {
   private inviteByHash = new Map<string, string>();              // token_hash → id
   private shopping = new Map<string, ShoppingItemRow>();          // by id
   private retail = new Map<string, RetailConnectionRow>();        // `${user_id}:${provider}`
+  private events = new Map<string, HouseholdEventRow>();
   private recipes = new Map<string, RecipeRow>();
   private cookRuns = new Map<string, CookRunRow>();
   private chatSessions = new Map<string, SessionRow>();
@@ -533,6 +536,42 @@ export class InMemoryRepo implements Repo {
   }
   async deleteRetailConnection(user_id: string, provider: string): Promise<void> {
     this.retail.delete(`${user_id}:${provider}`);
+  }
+
+  // ----- Календар ----------------------------------------------------------
+  // Довідник у памʼяті — це константи домену. Іншого джерела в неї немає й не
+  // мусить бути: Postgres віддає засіяну таблицю з тих самих рядків.
+  async listOccasionCatalog(): Promise<OccasionRow[]> {
+    return BUILTIN_OCCASIONS.map((o) => ({ ...o }));
+  }
+
+  async listHouseholdEvents(household_id: string): Promise<HouseholdEventRow[]> {
+    return [...this.events.values()]
+      .filter((e) => e.household_id === household_id)
+      .map((e) => ({ ...e }));
+  }
+
+  async getHouseholdEvent(id: string): Promise<HouseholdEventRow | null> {
+    const e = this.events.get(id);
+    return e ? { ...e } : null;
+  }
+
+  async insertHouseholdEvent(e: HouseholdEventRow): Promise<void> {
+    this.events.set(e.id, { ...e });
+  }
+
+  async updateHouseholdEvent(
+    id: string,
+    patch: Partial<Pick<HouseholdEventRow,
+      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'>>,
+  ): Promise<void> {
+    const e = this.events.get(id);
+    if (!e) return;
+    this.events.set(id, { ...e, ...patch });
+  }
+
+  async deleteHouseholdEvent(id: string): Promise<void> {
+    this.events.delete(id);
   }
 
   async isMember(household_id: string, user_id: string): Promise<boolean> {

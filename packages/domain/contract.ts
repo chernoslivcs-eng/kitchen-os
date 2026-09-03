@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
-import type { PantryBatch, IntakeCard } from './types.js';
+import type { PantryBatch, IntakeCard, HouseholdEventRow } from './types.js';
 import { createPending, applyCard, undoCard } from './apply.js';
 import { displayName } from './product.js';
 
@@ -451,6 +451,78 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(msgs.find((m) => m.id === serverId)?.source).toBe('retail_search');
       // Репліка моделі підпису не має — інакше підпис втрачає сенс.
       expect(msgs.find((m) => m.id === modelId)?.source).toBeUndefined();
+    });
+
+    // Календар. Перевірка живе саме тут, а не в тесті однієї реалізації:
+    // rule — jsonb, supply — jsonb, buy — масив. Кожне з трьох тихо зникає в
+    // Postgres без мапінгу, а InMemoryRepo пропускає їх сам собою через спред.
+    // Рівно так само зник був last_receipt_at — і три дні цього ніхто не бачив.
+    it('події дому: створення, читання, правка, згасання, видалення', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const id = randomUUID();
+      const base: HouseholdEventRow = {
+        id, household_id, kind: 'supply',
+        title: 'мама привезе цибулю',
+        note: 'тиждень готуємо з нею',
+        // Разова з тривалістю — форма, якої немає в жодного глобального свята.
+        rule: { t: 'once', at: '2026-09-10', days: 7 },
+        force: 'hint', restricts: null,
+        buy: [], recipe_id: null, servings: null,
+        supply: [{ label: 'цибуля', v: 3, u: 'kg' }],
+        created_by: user_id, source: 'user',
+        expires_at: null, done_at: null,
+        created_at: new Date().toISOString(),
+      };
+      await repo.insertHouseholdEvent(base);
+
+      const got = await repo.getHouseholdEvent(id);
+      expect(got?.title).toBe('мама привезе цибулю');
+      // Правило мусить пережити перезавантаження цілим, разом із days.
+      expect(got?.rule).toEqual({ t: 'once', at: '2026-09-10', days: 7 });
+      expect(got?.supply).toEqual([{ label: 'цибуля', v: 3, u: 'kg' }]);
+      expect(got?.kind).toBe('supply');
+
+      // Тижневе правило — друга форма дому, і воно теж має переживати запис.
+      const weeklyId = randomUUID();
+      await repo.insertHouseholdEvent({
+        ...base, id: weeklyId, kind: 'constraint', title: 'у вівторок мало часу',
+        note: null, rule: { t: 'weekly', dow: 2 }, supply: null,
+      });
+      expect((await repo.getHouseholdEvent(weeklyId))?.rule).toEqual({ t: 'weekly', dow: 2 });
+
+      const list = await repo.listHouseholdEvents(household_id);
+      expect(list.map((e) => e.id).sort()).toEqual([id, weeklyId].sort());
+
+      await repo.updateHouseholdEvent(id, { title: 'цибуля від мами', buy: ['часник'] });
+      const edited = await repo.getHouseholdEvent(id);
+      expect(edited?.title).toBe('цибуля від мами');
+      expect(edited?.buy).toEqual(['часник']);
+      // Правка одного поля не гасить решту.
+      expect(edited?.note).toBe('тиждень готуємо з нею');
+
+      // Згасання — не видалення: рядок лишається, бо історія дому теж історія.
+      const at = new Date().toISOString();
+      await repo.updateHouseholdEvent(weeklyId, { expires_at: at });
+      expect((await repo.getHouseholdEvent(weeklyId))?.expires_at).toBe(at);
+
+      await repo.deleteHouseholdEvent(weeklyId);
+      expect(await repo.getHouseholdEvent(weeklyId)).toBeNull();
+      expect((await repo.listHouseholdEvents(household_id)).length).toBe(1);
+    });
+
+    // Довідник глобальний: обидві реалізації мусять віддавати ті самі рядки,
+    // інакше сезон у проді й сезон у тестах — різні сезони.
+    it('довідник подій: піст приходить обмеженням, якір — без meaning', async () => {
+      const catalog = await ctx.repo.listOccasionCatalog();
+      const lent = catalog.find((o) => o.id === 'lent');
+      expect(lent).toBeDefined();
+      expect(lent && 'restricts' in lent ? lent.restricts : null).toContain('жодного мʼяса');
+      expect(lent?.rule).toEqual({ t: 'easter', from: -48, to: -1 });
+
+      // Якорі — точки, а не сезони: meaning у них немає, і це не дефект.
+      const ramadan = catalog.find((o) => o.id === 'ramadan');
+      expect(ramadan?.tradition).toBe('islamic');
+      expect(ramadan && 'meaning' in ramadan && ramadan.meaning != null).toBe(false);
     });
 
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {

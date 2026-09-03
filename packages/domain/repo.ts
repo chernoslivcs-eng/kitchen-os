@@ -5,9 +5,10 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, MemoryNote, EaterRow,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
-  SessionRow, MessageRow, RetailConnectionRow, Card,
+  SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, Card,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
+import type { OccasionRow } from './occasion-data.js';
 
 export interface UserRow {
   id: string;
@@ -163,6 +164,19 @@ export interface Repo {
   upsertRetailConnection(c: RetailConnectionRow): Promise<void>;
   getRetailConnection(user_id: string, provider: string): Promise<RetailConnectionRow | null>;
   deleteRetailConnection(user_id: string, provider: string): Promise<void>;
+
+  // Календар. Довідник глобальний і незмінний зі шпальти застосунку; події —
+  // істина дому. Пара повторює catalog_ingredient → household_product.
+  listOccasionCatalog(): Promise<OccasionRow[]>;
+  listHouseholdEvents(household_id: string): Promise<HouseholdEventRow[]>;
+  getHouseholdEvent(id: string): Promise<HouseholdEventRow | null>;
+  insertHouseholdEvent(e: HouseholdEventRow): Promise<void>;
+  updateHouseholdEvent(
+    id: string,
+    patch: Partial<Pick<HouseholdEventRow,
+      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'>>,
+  ): Promise<void>;
+  deleteHouseholdEvent(id: string): Promise<void>;
 
   // Дом-membership і запрошення
   isMember(household_id: string, user_id: string): Promise<boolean>;

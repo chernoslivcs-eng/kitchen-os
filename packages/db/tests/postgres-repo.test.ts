@@ -7,7 +7,7 @@
 
 import { describe, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { makePool, migrate, PostgresRepo, seedCatalog, type Pool } from '../index.js';
+import { makePool, migrate, PostgresRepo, seedCatalog, seedOccasions, type Pool } from '../index.js';
 import { describeRepoContract } from '@kitchen/domain/contract';
 
 interface Ctx {
@@ -48,12 +48,15 @@ if ('skip' in backend) {
   // Каталог під FK household_product.catalog_key — контракт тегера чекає
   // 'cambozola_cheese' у довіднику.
   await seedCatalog(pool);
+  // Довідник подій — теж передумова контракту: listOccasionCatalog має віддати
+  // ті самі рядки, що InMemoryRepo бере з констант домену.
+  await seedOccasions(pool);
   const repo = new PostgresRepo(pool);
 
   describeRepoContract('PostgresRepo', {
     async make() {
       // Чистимо між тестами й сіємо household + user під FK.
-      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, memory_note, message, session, cook_run, recipe, shopping_item, eater, household_member, profile, household, "user" RESTART IDENTITY CASCADE');
+      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, memory_note, message, session, cook_run, recipe, shopping_item, eater, household_member, profile, household_event, household, "user" RESTART IDENTITY CASCADE');
       const household_id = randomUUID();
       const user_id = randomUUID();
       await pool.query('INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3)', [user_id, 'Test', `test-${user_id}@x.local`]);
