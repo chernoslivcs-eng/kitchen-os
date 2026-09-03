@@ -12,7 +12,7 @@
   position: fixed;
   inset: 0;
   z-index: 29;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--backdrop);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-base) var(--ease-standard);
