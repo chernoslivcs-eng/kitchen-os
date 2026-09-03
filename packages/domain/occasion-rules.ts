@@ -218,9 +218,10 @@ export function occurrencesInRange(
   }
 
   if (rule.t === 'weekly') {
-    // Порожні дні дешевші за хитрий підрахунок: вікно календаря — тижні, не роки.
-    for (let t = lo; t <= hi; t += DAY) {
-      const d = new Date(t);
+    // Крок календарним днем, а не додаванням DAY: в останню неділю жовтня
+    // доба коротша на годину, і арифметика в мілісекундах зсуває день тижня.
+    // Живий прогін показав «26 ПН — у вівторок мало часу» саме через це.
+    for (const d = new Date(lo); d.getTime() <= hi; d.setDate(d.getDate() + 1)) {
       if (d.getDay() === rule.dow) out.push({ start: dayStart(d), end: dayEnd(d) });
     }
     return out;

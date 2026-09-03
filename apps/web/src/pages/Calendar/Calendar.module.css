@@ -1,0 +1,133 @@
+/* Стрічка днів. Порожня клітинка — тиша, не дірка: дата в мутед, порожнє
+   місце, і жодного «＋ додати», яке просило б себе заповнити. */
+
+.screen {
+  min-height: 100dvh;
+  background: var(--bg-body);
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  flex: 1;
+  padding: 8px 20px 40px;
+  max-width: 720px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.month {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-body);
+  padding: 16px 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.day {
+  display: flex;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.date {
+  flex: none;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  /* Дата приглушена: сама по собі вона нічого не вимагає. */
+  color: var(--fg-dim);
+}
+.date-num { font-family: var(--font-display); font-weight: 600; font-size: 17px; }
+.date-dow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Єдина клітинка, яка щось стверджує. */
+.today .date { color: var(--accent); }
+
+.slots { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.silence { height: 20px; }
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: var(--r);
+  border-left: 2px solid var(--border-strong);
+  background: var(--bg-surface);
+}
+.slot-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+}
+.slot-when {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+
+/* Роди — наявною семантикою, без жодного нового кольору.
+   Обмеження — слива («анти»): піст це рамка, а не помилка, тому теракоти тут
+   немає. Завіз — шавлія: це прихід. Сезон — бурштин: «час іде». */
+.t-restrict { border-left-color: var(--plum); background: var(--plum-bg); }
+.t-supply   { border-left-color: var(--accent); background: var(--accent-bg); }
+.t-season   { border-left-color: var(--amber); }
+.t-plain    { border-left-color: var(--border-strong); }
+
+.quiet {
+  padding: 10px 0 10px 58px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.empty { padding: 40px 0; max-width: 420px; }
+.empty-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--fg);
+  margin-bottom: 8px;
+}
+.empty-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--fg-muted);
+}
+
+@media (min-width: 768px) {
+  .body { padding: 8px 22px 60px; }
+}
+
+/* «Триває» — те, що вже йде: один раз, згори, і подане кінцем. */
+.running {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+.running-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}

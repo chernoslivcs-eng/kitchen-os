@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
-import { api, type SessionInfo } from '../../api';
+import { api, type SessionInfo, type EventOccurrence } from '../../api';
+import { whenLabel, isLive } from '../../lib/when';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -33,6 +34,21 @@ interface Props {
 
 // Пул-7 №6: TabBar живе в каркасі й сам знає лічильник списку.
 let shoppingCountCache: { value: number; at: number } | null = null;
+// «ЗАРАЗ» — той самий патерн кешу: блок живе в каркасі й не мусить смикати
+// календар на кожну навігацію.
+let nowCache: { value: EventOccurrence[]; at: number } | null = null;
+
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Дві події для блоку: спершу те, що триває (і закінчується раніше), потім
+ * найближче попереду. Більше двох — це вже календар, а не натяк.
+ */
+export function pickNow(events: EventOccurrence[], now = Date.now()): EventOccurrence[] {
+  const live = events.filter((e) => isLive(e.start, e.end, now)).sort((a, b) => a.end - b.end);
+  const ahead = events.filter((e) => e.start > now).sort((a, b) => a.start - b.start);
+  return [...live, ...ahead].slice(0, 2);
+}
 
 export function TabBar({ shoppingCount }: Props) {
   const navigate = useNavigate();
@@ -54,6 +70,21 @@ export function TabBar({ shoppingCount }: Props) {
   // Пул-5 №5: bump від Feed (apply/undo картки) скидає кеш — бейдж списку
   // оновлюється одразу, а не за 60с чи по зміні маршруту.
   const pantryVersion = usePantryStore((s) => s.version);
+
+  // Блок «ЗАРАЗ»: горизонт 21 день — той самий, що в контексті промпта.
+  const [nowEvents, setNowEvents] = useState<EventOccurrence[]>(nowCache?.value ?? []);
+  useEffect(() => {
+    if (nowCache && Date.now() - nowCache.at < 60_000) return;
+    const today = new Date();
+    const to = new Date(today.getTime() + 21 * 86_400_000);
+    api.events.list(iso(today), iso(to))
+      .then(({ events }) => {
+        const picked = pickNow(events);
+        nowCache = { value: picked, at: Date.now() };
+        setNowEvents(picked);
+      })
+      .catch(() => {/* навігація без подій — не трагедія */});
+  }, [pathname]);
 
   // Пул-7 №6: лічильник списку — свій фетч (сторінки більше не передають);
   // bump від pantryStore слугує загальним сигналом «лічильники змінились».
@@ -175,6 +206,27 @@ export function TabBar({ shoppingCount }: Props) {
           </button>
         );
       })}
+
+      {/* «ЗАРАЗ» — одразу під цілями, над «Готування триває» (рішення 03.09).
+          Подія, що триває, називається кінцем: «ще 4 тижні», не «триває». */}
+      {nowEvents.length > 0 && (
+        <div className={styles.now}>
+          <div className={styles['now-label']}>ЗАРАЗ</div>
+          {nowEvents.map((e) => (
+            <button
+              key={`${e.scope}:${e.id}:${e.start}`}
+              className={styles['now-row']}
+              onClick={() => navigate('/calendar')}
+              title={e.meaning ?? e.title}
+            >
+              <span className={styles['now-title']}>{e.title}</span>
+              <span className={styles['now-when']}>
+                {whenLabel(e.start, e.end)}{e.approx ? ' · орієнтовно' : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Правка №1: сесії — частина навігації. Нова сесія → останні → архів. */}
       <div className={styles.sessions}>

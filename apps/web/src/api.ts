@@ -186,6 +186,21 @@ export interface ChatResponse {
 
 // ----- Ендпоінти ---------------------------------------------------------
 
+export interface EventOccurrence {
+  id: string;
+  scope: 'catalog' | 'household';
+  kind: string;
+  title: string;
+  start: number;
+  end: number;
+  force: 'hint' | 'restrict';
+  meaning?: string;
+  note?: string | null;
+  buy?: string[];
+  approx?: boolean;
+  done_at?: string | null;
+}
+
 export const api = {
   auth: {
     request: (email: string, next?: string | null) =>
@@ -384,6 +399,19 @@ export const api = {
       if (!res.ok) throw new ApiError(res.status, payload, extractError(payload) ?? `HTTP ${res.status}`);
       return { ...(payload as AttachmentUploaded), name: file.name };
     },
+  },
+
+  // Календар. Один список на відрізок: глобальні свята й сезони разом із
+  // подіями дому, відсортовані за датою. Зшивання робить сервер — правило
+  // «що на цьому тижні» належить домену, не екрану.
+  events: {
+    list: (from: string, to: string) =>
+      req<{ from: number; to: number; events: EventOccurrence[] }>(
+        `/v1/events?from=${from}&to=${to}`,
+      ),
+    add: (body: { title: string; kind?: string; rule: unknown; note?: string | null }) =>
+      req<{ event: unknown }>('/v1/events', { method: 'POST', body: JSON.stringify(body) }),
+    remove: (id: string) => req<null>(`/v1/events/${id}`, { method: 'DELETE' }),
   },
 
   shopping: {
