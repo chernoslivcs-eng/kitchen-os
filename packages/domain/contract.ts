@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
-import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard } from './types.js';
+import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow } from './types.js';
 import { createPending, applyCard, undoCard } from './apply.js';
 import { displayName } from './product.js';
 
@@ -532,6 +532,44 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const ramadan = catalog.find((o) => o.id === 'ramadan');
       expect(ramadan?.tradition).toBe('islamic');
       expect(ramadan && 'meaning' in ramadan && ramadan.meaning != null).toBe(false);
+    });
+
+    // Адмінка v0 (фаза 4): чернетка не потрапляє в жоден зі звичайних
+    // читачів довідника, поки її явно не опубліковано.
+    it('адмінка: чернетка невидима людям, опублікована — довідник її бачить', async () => {
+      const { repo } = ctx;
+      const row: AdminOccasionRow = {
+        id: 'tomato-day-2027', kind: 'editorial', title: 'день томатів 2027',
+        meaning: 'Тест.', rule: { t: 'window', from: '09-05', to: '09-07' },
+        buy: ['томати'], seeds: [], upcoming_title: null,
+        source: 'Kitchen OS', published_at: null, created_at: new Date().toISOString(),
+      };
+      await repo.upsertAdminOccasion(row);
+
+      let catalog = await repo.listOccasionCatalog();
+      expect(catalog.some((o) => o.id === 'tomato-day-2027')).toBe(false);
+
+      const drafts = await repo.listAdminOccasions();
+      expect(drafts.find((o) => o.id === 'tomato-day-2027')?.published_at).toBeNull();
+
+      await repo.setOccasionPublished('tomato-day-2027', true);
+      catalog = await repo.listOccasionCatalog();
+      const published = catalog.find((o) => o.id === 'tomato-day-2027');
+      expect(published).toBeDefined();
+      expect(published && 'meaning' in published ? published.meaning : null).toBe('Тест.');
+
+      // Правка не публікує й не ховає навмисно розділені дії: title
+      // змінюється, published_at лишається на місці.
+      await repo.upsertAdminOccasion({ ...row, title: 'день томатів (переписано)', published_at: null });
+      catalog = await repo.listOccasionCatalog();
+      expect(catalog.find((o) => o.id === 'tomato-day-2027')?.title).toBe('день томатів (переписано)');
+
+      await repo.setOccasionPublished('tomato-day-2027', false);
+      catalog = await repo.listOccasionCatalog();
+      expect(catalog.some((o) => o.id === 'tomato-day-2027')).toBe(false);
+
+      await repo.deleteAdminOccasion('tomato-day-2027');
+      expect((await repo.listAdminOccasions()).some((o) => o.id === 'tomato-day-2027')).toBe(false);
     });
 
     // Картка event застосовується ОДРАЗУ (card-modes: 'auto'), як і список

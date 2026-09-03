@@ -17,7 +17,7 @@ import type {
   SessionRow, MessageRow, MemoryNote, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
   HouseholdProduct, ProductTriple,
-  HouseholdEventRow, OccasionCatchRow, OccasionRow, Rule,
+  HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule,
 } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
@@ -192,6 +192,22 @@ function rowToOccasion(r: Row): OccasionRow {
     };
   }
   return { ...base, rule: rule as Extract<Rule, { t: 'lunar' | 'solar' }>, approx: true };
+}
+
+function rowToAdminOccasion(r: Row): AdminOccasionRow {
+  return {
+    id: r.id as string,
+    kind: 'editorial',
+    title: r.title as string,
+    meaning: (r.meaning as string | null) ?? '',
+    rule: r.rule as AdminOccasionRow['rule'],
+    buy: (r.buy as string[]) ?? [],
+    seeds: (r.seeds as string[]) ?? [],
+    upcoming_title: (r.upcoming_title as string | null) ?? null,
+    source: (r.source as string | null) ?? '',
+    published_at: r.published_at ? new Date(r.published_at as string).toISOString() : null,
+    created_at: new Date(r.created_at as string).toISOString(),
+  };
 }
 
 function rowToEvent(r: Row): HouseholdEventRow {
@@ -1135,6 +1151,43 @@ export class PostgresRepo implements Repo {
       'SELECT * FROM occasion_catalog WHERE published_at IS NOT NULL ORDER BY id',
     );
     return (rows as Row[]).map(rowToOccasion);
+  }
+
+  // Адмінка v0 (фаза 4). WHERE kind='editorial' навмисно: сезони й свята
+  // лишаються кодом (BUILTIN_OCCASIONS/seedOccasions), ця форма їх не чіпає.
+  async listAdminOccasions(): Promise<AdminOccasionRow[]> {
+    const { rows } = await this.pool.query(
+      "SELECT * FROM occasion_catalog WHERE kind = 'editorial' ORDER BY id",
+    );
+    return (rows as Row[]).map(rowToAdminOccasion);
+  }
+
+  async upsertAdminOccasion(row: AdminOccasionRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO occasion_catalog
+         (id, kind, title, meaning, rule, force, restricts, tradition,
+          buy, seeds, approx, upcoming_title, source, audience, published_at)
+       VALUES ($1,'editorial',$2,$3,$4::jsonb,'hint',NULL,NULL,$5,$6,false,$7,$8,NULL,$9)
+       ON CONFLICT (id) DO UPDATE SET
+         title = EXCLUDED.title, meaning = EXCLUDED.meaning, rule = EXCLUDED.rule,
+         buy = EXCLUDED.buy, seeds = EXCLUDED.seeds, upcoming_title = EXCLUDED.upcoming_title,
+         source = EXCLUDED.source`,
+      [
+        row.id, row.title, row.meaning, JSON.stringify(row.rule),
+        row.buy, row.seeds, row.upcoming_title, row.source, row.published_at,
+      ],
+    );
+  }
+
+  async setOccasionPublished(id: string, published: boolean): Promise<void> {
+    await this.pool.query(
+      'UPDATE occasion_catalog SET published_at = $2 WHERE id = $1',
+      [id, published ? new Date().toISOString() : null],
+    );
+  }
+
+  async deleteAdminOccasion(id: string): Promise<void> {
+    await this.pool.query("DELETE FROM occasion_catalog WHERE id = $1 AND kind = 'editorial'", [id]);
   }
 
   async listOwnEvents(household_id: string, user_id: string): Promise<HouseholdEventRow[]> {

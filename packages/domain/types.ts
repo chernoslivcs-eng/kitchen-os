@@ -636,6 +636,29 @@ export interface SupplyLine {
 }
 
 /** Спіймане вікно: дім щось приготував, поки подія тривала. */
+/**
+ * Повний рядок occasion_catalog для адмінки — на відміну від OccasionRow
+ * (occasion-data.ts), який бачить лише опубліковане й ніколи не бачить
+ * чернетку. Адмінка v0 навмисно вужча за схему: тільки kind='editorial',
+ * тільки rule.t='window', tradition і audience не виставляються (NULL —
+ * усім). Сезони й свята лишаються кодом: це не контент редакції, а факти
+ * календаря, і ризик кривого запису через довільну форму того не вартий.
+ */
+export interface AdminOccasionRow {
+  id: string;
+  kind: 'editorial';
+  title: string;
+  meaning: string;
+  rule: Extract<Rule, { t: 'window' }>;
+  buy: string[];
+  seeds: string[];
+  upcoming_title: string | null;
+  /** Обовʼязкове: редакційна подія від першого дня видимо підписана. */
+  source: string;
+  published_at: string | null;
+  created_at: string;
+}
+
 export interface OccasionCatchRow {
   household_id: string;
   occasion_id: string;

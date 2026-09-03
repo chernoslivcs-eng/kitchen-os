@@ -214,6 +214,23 @@ export interface YearStrip {
   by: string | null;
 }
 
+export interface AdminOccasionInput {
+  id: string;
+  title: string;
+  meaning: string;
+  rule: { from: string; to: string };   // MM-DD
+  buy: string[];
+  seeds: string[];
+  upcoming_title?: string | null;
+  source: string;
+}
+
+export interface AdminOccasion extends AdminOccasionInput {
+  kind: 'editorial';
+  published_at: string | null;
+  created_at: string;
+}
+
 export const api = {
   auth: {
     request: (email: string, next?: string | null) =>
@@ -435,6 +452,20 @@ export const api = {
     // готування.
     year: (year: number) =>
       req<{ year: number; strips: YearStrip[] }>(`/v1/events/year?year=${year}`),
+  },
+  // Адмінка v0 (фаза 4): існує лише для пошти з ADMIN_EMAILS на сервері —
+  // для решти всі ці виклики 404, як і сам маршрут.
+  admin: {
+    occasions: {
+      list: () => req<{ occasions: AdminOccasion[] }>('/v1/admin/occasions'),
+      create: (body: AdminOccasionInput) =>
+        req<{ occasion: AdminOccasion }>('/v1/admin/occasions', { method: 'POST', body: JSON.stringify(body) }),
+      patch: (id: string, body: Partial<AdminOccasionInput>) =>
+        req<{ occasion: AdminOccasion }>(`/v1/admin/occasions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      publish: (id: string) => req<{ ok: true }>(`/v1/admin/occasions/${id}/publish`, { method: 'POST', body: '{}' }),
+      unpublish: (id: string) => req<{ ok: true }>(`/v1/admin/occasions/${id}/unpublish`, { method: 'POST', body: '{}' }),
+      remove: (id: string) => req<null>(`/v1/admin/occasions/${id}`, { method: 'DELETE' }),
+    },
   },
 
   shopping: {

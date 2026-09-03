@@ -13,6 +13,7 @@ import { SharePage } from './pages/Share/Share';
 import { CookLogPage } from './pages/CookLog/CookLog';
 import { RecipesPage } from './pages/Recipes/Recipes';
 import { CalendarPage } from './pages/Calendar/Calendar';
+import { AdminOccasionsPage } from './pages/Admin/AdminOccasions';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
@@ -99,6 +100,7 @@ export function App() {
             <Route path="/cooklog" element={<CookLogPage />} />
             <Route path="/recipes" element={<RecipesPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/admin/occasions" element={<AdminOccasionsPage />} />
           </Route>
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />

@@ -4,12 +4,12 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
-  HouseholdEventRow, OccasionCatchRow, Card,
+  HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   SessionRow, MessageRow, MemoryNote, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
-import { BUILTIN_OCCASIONS, type OccasionRow } from './occasion-data.js';
+import { BUILTIN_OCCASIONS, adminRowToOccasion, type OccasionRow } from './occasion-data.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
@@ -34,6 +34,7 @@ export class InMemoryRepo implements Repo {
   private events = new Map<string, HouseholdEventRow>();
   private muted = new Map<string, Set<string>>();   // household_id → occasion_id
   private catches = new Map<string, OccasionCatchRow>();
+  private adminOccasions = new Map<string, AdminOccasionRow>();
   private recipes = new Map<string, RecipeRow>();
   private cookRuns = new Map<string, CookRunRow>();
   private chatSessions = new Map<string, SessionRow>();
@@ -544,7 +545,10 @@ export class InMemoryRepo implements Repo {
   // Довідник у памʼяті — це константи домену. Іншого джерела в неї немає й не
   // мусить бути: Postgres віддає засіяну таблицю з тих самих рядків.
   async listOccasionCatalog(): Promise<OccasionRow[]> {
-    return BUILTIN_OCCASIONS.map((o) => ({ ...o }));
+    const published = [...this.adminOccasions.values()]
+      .filter((r) => r.published_at)
+      .map(adminRowToOccasion);
+    return [...BUILTIN_OCCASIONS.map((o) => ({ ...o })), ...published];
   }
 
   async listOwnEvents(household_id: string, user_id: string): Promise<HouseholdEventRow[]> {
@@ -588,6 +592,30 @@ export class InMemoryRepo implements Repo {
 
   async unmuteOccasion(user_id: string, occasion_id: string): Promise<void> {
     this.muted.get(user_id)?.delete(occasion_id);
+  }
+
+  async listAdminOccasions(): Promise<AdminOccasionRow[]> {
+    return [...this.adminOccasions.values()].map((r) => ({ ...r })).sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  async upsertAdminOccasion(row: AdminOccasionRow): Promise<void> {
+    // Той самий контракт, що SQL ON CONFLICT DO UPDATE у PostgresRepo:
+    // published_at на вставці — з переданого рядка (чернетка), на апдейті —
+    // не чіпається. Публікація й правка — дві окремі дії, і правка не має
+    // випадково скидати чи піднімати published_at лише тому, що викликач
+    // передав старе значення поля.
+    const existing = this.adminOccasions.get(row.id);
+    this.adminOccasions.set(row.id, { ...row, published_at: existing ? existing.published_at : row.published_at });
+  }
+
+  async setOccasionPublished(id: string, published: boolean): Promise<void> {
+    const row = this.adminOccasions.get(id);
+    if (!row) return;
+    row.published_at = published ? new Date().toISOString() : null;
+  }
+
+  async deleteAdminOccasion(id: string): Promise<void> {
+    this.adminOccasions.delete(id);
   }
 
   async recordOccasionCatch(c: OccasionCatchRow): Promise<void> {

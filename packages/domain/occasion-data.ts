@@ -9,6 +9,7 @@
 // це не довідка, а причина щось приготувати саме зараз.
 
 import type { Rule, Tradition } from './occasion-rules.js';
+import type { AdminOccasionRow } from './types.js';
 
 /**
  * Рід події довідника. `editorial` — те, що публікує редакція («день
@@ -199,3 +200,19 @@ export const SKOROMNE_ROOTS =
   /м[ʼ']яс(?!ист)|фарш(?!ирован)|яловичин|свинин|телятин|баранин|бекон|шинк|ковбас|курк|куряч|індич|(?<![а-яіїєґ])риб[аиуоі]|лосос|тунц|оселедц|креветк|вершк(?!ов[а-яі]*\s+олі)|сметан|(?<![а-яіїєґ])сир(?![іео]п|овин)|пармезан|фет[аи]\b|моцарел|масл[оа]\s*вершков|вершкове\s*масл|яйц|яєц|молок/i;
 
 export const LEAN_EXCEPTIONS = /кокосов|рослинн|соєв|вівсян|мигдальн|горіхов|соняшников|оливков/i;
+
+// ── Адмінка v0: чернетка → рядок довідника ──────────────────────────────────
+
+/**
+ * Опублікований адмін-рядок стає звичайним WindowOccasion — той самий двигун,
+ * що читає BUILTIN_OCCASIONS, читає й «день томатів» з таблиці, не знаючи
+ * різниці. Викликається лише для рядків з published_at: чернетку сюди не
+ * пускають на рівень вище (PostgresRepo фільтрує в SQL, InMemoryRepo — тут).
+ */
+export function adminRowToOccasion(r: AdminOccasionRow): WindowOccasion {
+  return {
+    id: r.id, type: r.kind, title: r.title, meaning: r.meaning, rule: r.rule,
+    buy: r.buy, seeds: r.seeds, source: r.source,
+    upcomingTitle: r.upcoming_title ?? undefined,
+  };
+}

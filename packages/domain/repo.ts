@@ -5,7 +5,7 @@ import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord, MemoryNote, EaterRow,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
-  SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, Card,
+  SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type { OccasionRow } from './occasion-data.js';
@@ -205,6 +205,13 @@ export interface Repo {
   // різото з білими, а мій календар каже, що я проґавив сезон грибів».
   recordOccasionCatch(c: OccasionCatchRow): Promise<void>;
   listOccasionCatches(household_id: string, year?: number): Promise<OccasionCatchRow[]>;
+
+  // Адмінка v0 (фаза 4): пише повний рядок, включно з чернеткою.
+  // listOccasionCatalog() (вище) читає лише опубліковане — цей блок бачить усе.
+  listAdminOccasions(): Promise<AdminOccasionRow[]>;
+  upsertAdminOccasion(row: AdminOccasionRow): Promise<void>;
+  setOccasionPublished(id: string, published: boolean): Promise<void>;
+  deleteAdminOccasion(id: string): Promise<void>;
 
   // Дом-membership і запрошення
   isMember(household_id: string, user_id: string): Promise<boolean>;
