@@ -32,6 +32,7 @@ export class InMemoryRepo implements Repo {
   private shopping = new Map<string, ShoppingItemRow>();          // by id
   private retail = new Map<string, RetailConnectionRow>();        // `${user_id}:${provider}`
   private events = new Map<string, HouseholdEventRow>();
+  private muted = new Map<string, Set<string>>();   // household_id → occasion_id
   private recipes = new Map<string, RecipeRow>();
   private cookRuns = new Map<string, CookRunRow>();
   private chatSessions = new Map<string, SessionRow>();
@@ -572,6 +573,20 @@ export class InMemoryRepo implements Repo {
 
   async deleteHouseholdEvent(id: string): Promise<void> {
     this.events.delete(id);
+  }
+
+  async listMutedOccasions(household_id: string): Promise<string[]> {
+    return [...(this.muted.get(household_id) ?? [])];
+  }
+
+  async muteOccasion(household_id: string, occasion_id: string): Promise<void> {
+    const set = this.muted.get(household_id) ?? new Set<string>();
+    set.add(occasion_id);
+    this.muted.set(household_id, set);
+  }
+
+  async unmuteOccasion(household_id: string, occasion_id: string): Promise<void> {
+    this.muted.get(household_id)?.delete(occasion_id);
   }
 
   async isMember(household_id: string, user_id: string): Promise<boolean> {

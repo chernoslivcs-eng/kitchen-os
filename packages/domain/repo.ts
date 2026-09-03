@@ -178,6 +178,12 @@ export interface Repo {
   ): Promise<void>;
   deleteHouseholdEvent(id: string): Promise<void>;
 
+  // «Не показувати такі»: наявність id у списку = подія вимкнена для цього
+  // дому. Знімається видаленням — двох способів сказати «показувати» немає.
+  listMutedOccasions(household_id: string): Promise<string[]>;
+  muteOccasion(household_id: string, occasion_id: string): Promise<void>;
+  unmuteOccasion(household_id: string, occasion_id: string): Promise<void>;
+
   // Дом-membership і запрошення
   isMember(household_id: string, user_id: string): Promise<boolean>;
   addMember(household_id: string, user_id: string, role: HouseholdRole): Promise<void>;

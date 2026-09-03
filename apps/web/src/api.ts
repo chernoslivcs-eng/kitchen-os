@@ -418,6 +418,10 @@ export const api = {
     patch: (id: string, body: Record<string, unknown>) =>
       req<{ event: unknown }>(`/v1/events/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     remove: (id: string) => req<null>(`/v1/events/${id}`, { method: 'DELETE' }),
+    // «Не показувати такі» — рішення дому про редакційну подію. Обмеження
+    // сервер вимкнути не дасть (409): піст знімається в побажаннях.
+    mute: (id: string) => req<{ ok: true }>(`/v1/events/mute/${id}`, { method: 'POST', body: '{}' }),
+    unmute: (id: string) => req<{ ok: true }>(`/v1/events/mute/${id}`, { method: 'DELETE' }),
   },
 
   shopping: {

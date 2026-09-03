@@ -132,6 +132,46 @@ describe('events routes · календар', () => {
     expect((await list('2026-09-10', '2026-09-10')).some((e) => e.scope === 'household')).toBe(false);
   });
 
+  it('редакційна подія приходить підписана джерелом', async () => {
+    // Без підпису «день томатів» не відрізнити від свята, а модуль приводів
+    // структурно не відрізняється від рекламного каналу.
+    const day = (await list('2026-09-05', '2026-09-07')).find((e) => e.id === 'tomato-day-2026');
+    expect(day).toBeDefined();
+    expect(day?.kind).toBe('editorial');
+    expect((day as unknown as { source?: string }).source).toBe('Kitchen OS');
+  });
+
+  it('«не показувати такі» прибирає подію й повертає назад', async () => {
+    expect((await list('2026-09-05', '2026-09-07')).some((e) => e.id === 'tomato-day-2026')).toBe(true);
+
+    const off = await app.inject({
+      method: 'POST', url: '/v1/events/mute/tomato-day-2026', headers: { cookie: me.cookie }, payload: {},
+    });
+    expect(off.statusCode).toBe(200);
+    expect((await list('2026-09-05', '2026-09-07')).some((e) => e.id === 'tomato-day-2026')).toBe(false);
+
+    await app.inject({
+      method: 'DELETE', url: '/v1/events/mute/tomato-day-2026', headers: { cookie: me.cookie },
+    });
+    expect((await list('2026-09-05', '2026-09-07')).some((e) => e.id === 'tomato-day-2026')).toBe(true);
+  });
+
+  it('обмеження вимкнути не можна — воно не привід, а рамка', async () => {
+    // Піст людина взяла на себе побажанням у профілі; «не показувати» тут
+    // означало б тихо скасувати сказане. Знімається там, де ставилось.
+    const res = await app.inject({
+      method: 'POST', url: '/v1/events/mute/lent', headers: { cookie: me.cookie }, payload: {},
+    });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it('вимкнути неіснуючу подію — 404, а не тихе «ок»', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/v1/events/mute/no-such-thing', headers: { cookie: me.cookie }, payload: {},
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
   it('чужа подія — 404, а не 403: чужий дім не мусить знати, що вона є', async () => {
     const other = await signIn(app, mailer, 'susid@x.local');
     const created = (await app.inject({

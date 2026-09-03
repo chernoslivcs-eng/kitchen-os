@@ -604,6 +604,24 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await repo.getHouseholdEvent(alien)).not.toBeNull();
     });
 
+    it('«не показувати такі»: вимкнення живе, поки його не знято', async () => {
+      const { repo, household_id } = ctx;
+      expect(await repo.listMutedOccasions(household_id)).toEqual([]);
+
+      await repo.muteOccasion(household_id, 'tomato-day-2026');
+      expect(await repo.listMutedOccasions(household_id)).toEqual(['tomato-day-2026']);
+
+      // Повторне вимкнення — не помилка й не другий рядок: людина могла
+      // натиснути двічі, і це не привід падати.
+      await repo.muteOccasion(household_id, 'tomato-day-2026');
+      expect(await repo.listMutedOccasions(household_id)).toHaveLength(1);
+
+      await repo.unmuteOccasion(household_id, 'tomato-day-2026');
+      expect(await repo.listMutedOccasions(household_id)).toEqual([]);
+      // Зняти те, чого не вимикали, теж має бути тихо.
+      await repo.unmuteOccasion(household_id, 'tomato-day-2026');
+    });
+
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

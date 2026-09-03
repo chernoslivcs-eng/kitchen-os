@@ -104,10 +104,13 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       // в контексті промпта. Довідник без неї віддає самі сезони.
       const profile = await repo.getProfile(user_id);
       const trads = traditionsFrom(profile?.wishes ?? []);
+      // «Не показувати такі» — рішення дому, і воно старше за будь-який привід.
+      const muted = new Set(await repo.listMutedOccasions(household_id));
 
       const out: EventOccurrence[] = [];
 
       for (const o of await repo.listOccasionCatalog()) {
+        if (muted.has(o.id)) continue;
         if (o.tradition && !trads.includes(o.tradition)) continue;
         for (const occ of occurrencesInRange(o.rule, from, end, trads)) {
           const win = isWindowRow(o) ? o : null;
@@ -154,6 +157,36 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
 
       out.sort((a, b) => a.start - b.start || a.title.localeCompare(b.title, 'uk'));
       return { from: from.getTime(), to: end.getTime(), events: out };
+    },
+  );
+
+  // Вимкнути редакційну подію й повернути її назад.
+  //
+  // Обмеження вимкнути НЕ можна: піст — рамка, яку людина сама на себе взяла
+  // побажанням у профілі, і «не показувати» тут означало б тихо скасувати
+  // сказане. Знімається воно там, де ставилось — у побажаннях.
+  app.post<{ Params: { id: string } }>(
+    '/v1/events/mute/:id',
+    { preHandler: [authenticated(repo), limitCheck] },
+    async (req, reply) => {
+      const { household_id } = requireUser(req);
+      const row = (await repo.listOccasionCatalog()).find((o) => o.id === req.params.id);
+      if (!row) return reply.code(404).send({ error: 'not_found' });
+      if (isWindowRow(row) && row.restricts) {
+        return reply.code(409).send({ error: 'restriction_not_mutable' });
+      }
+      await repo.muteOccasion(household_id, req.params.id);
+      return { ok: true, muted: true };
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    '/v1/events/mute/:id',
+    { preHandler: [authenticated(repo), limitCheck] },
+    async (req) => {
+      const { household_id } = requireUser(req);
+      await repo.unmuteOccasion(household_id, req.params.id);
+      return { ok: true, muted: false };
     },
   );
 

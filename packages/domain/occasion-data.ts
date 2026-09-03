@@ -10,9 +10,16 @@
 
 import type { Rule, Tradition } from './occasion-rules.js';
 
+/**
+ * Рід події довідника. `editorial` — те, що публікує редакція («день
+ * томатів»); від сезону й свята воно відрізняється не механікою, а тим, що
+ * має автора, і тому завжди підписане й завжди вимикається.
+ */
+export type OccasionKind = 'season' | 'tradition' | 'editorial';
+
 interface OccasionBase {
   id: string;
-  type: 'season' | 'tradition';
+  type: OccasionKind;
   title: string;
   /** Показувати лише дому з цією традицією. Порожнє — усім. */
   tradition?: Tradition;
@@ -146,8 +153,28 @@ const ANCHORS: AnchorOccasion[] = [
   { id: 'rosh', type: 'tradition', title: 'Рош га-Шана', tradition: 'jewish', approx: true, rule: { t: 'solar', base: Date.UTC(2026, 8, 12) } },
 ];
 
+// ── Редакційні ──────────────────────────────────────────────────────────────
+// Адмінка v0: рядок тут → міграція сіду → подія в усіх домах. Екрана поки
+// немає, і це свідомо: будувати CRUD заради однієї події дорожче, ніж
+// дописати рядок.
+//
+// Три речі обовʼязкові й тримаються схемою, а не наміром: `source` (людина
+// бачить, від кого це), force завжди 'hint' (CHECK у 0017 не дасть інакше), і
+// можливість вимкнути (0019). Без них привід тихо стає рекламним каналом.
+const EDITORIAL: WindowOccasion[] = [
+  {
+    id: 'tomato-day-2026', type: 'editorial', title: 'день томатів',
+    rule: { t: 'window', from: '09-05', to: '09-07' },
+    meaning: 'Кінець сезону — томати ще солодкі, але вже дешеві. Найкращі три дні, щоб зварити соус на зиму або просто зʼїсти з олією і сіллю.',
+    buy: ['томати на гілці', 'базилік', 'часник', 'оливкова олія'],
+    seeds: ['томатний соус на зиму', 'панцанелла', 'печені томати з часником'],
+    source: 'Kitchen OS',
+    upcomingTitle: 'день томатів',
+  },
+];
+
 /** Усе, що знає код. Майбутній seed таблиці. */
-export const BUILTIN_OCCASIONS: OccasionRow[] = [...MOVABLE, ...FIXED, ...ANCHORS];
+export const BUILTIN_OCCASIONS: OccasionRow[] = [...MOVABLE, ...FIXED, ...EDITORIAL, ...ANCHORS];
 
 // ── Розпізнавання традиції з побажань ───────────────────────────────────────
 // Традиція не окреме поле профілю, а висновок із побажань. Людина пише

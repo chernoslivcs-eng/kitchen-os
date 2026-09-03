@@ -1201,6 +1201,29 @@ export class PostgresRepo implements Repo {
     await this.pool.query('DELETE FROM household_event WHERE id = $1', [id]);
   }
 
+  async listMutedOccasions(household_id: string): Promise<string[]> {
+    const { rows } = await this.pool.query(
+      'SELECT occasion_id FROM household_occasion_mute WHERE household_id = $1',
+      [household_id],
+    );
+    return (rows as Row[]).map((r) => r.occasion_id as string);
+  }
+
+  async muteOccasion(household_id: string, occasion_id: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO household_occasion_mute (household_id, occasion_id)
+       VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+      [household_id, occasion_id],
+    );
+  }
+
+  async unmuteOccasion(household_id: string, occasion_id: string): Promise<void> {
+    await this.pool.query(
+      'DELETE FROM household_occasion_mute WHERE household_id = $1 AND occasion_id = $2',
+      [household_id, occasion_id],
+    );
+  }
+
   // ----- Дом-membership і запрошення --------------------------------------
 
   async isMember(household_id: string, user_id: string): Promise<boolean> {

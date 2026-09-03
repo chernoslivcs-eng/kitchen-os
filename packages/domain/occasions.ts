@@ -25,7 +25,7 @@ import {
 } from './occasion-rules.js';
 import {
   BUILTIN_OCCASIONS, TRADITION_PATTERNS, SKOROMNE_ROOTS, LEAN_EXCEPTIONS,
-  isWindowRow, type OccasionRow, type WindowOccasion,
+  isWindowRow, type OccasionRow, type WindowOccasion, type OccasionKind,
 } from './occasion-data.js';
 
 export { easterDate, ruleActive, occurrencesInRange };
@@ -34,11 +34,11 @@ export type { Rule, Tradition, Occurrence };
 // джерело за замовчуванням лишалось одне. Домен не імпортують по внутрішніх
 // шляхах, бо export map пакета відкриває тільки корінь і ./contract.
 export { BUILTIN_OCCASIONS, isWindowRow };
-export type { OccasionRow, WindowOccasion };
+export type { OccasionRow, WindowOccasion, OccasionKind };
 
 export interface Occasion {
   id: string;
-  type: 'season' | 'tradition';
+  type: OccasionKind;
   title: string;
   meaning: string;
   buy?: string[];
@@ -49,7 +49,7 @@ export interface Occasion {
 export interface UpcomingEvent {
   at: number;
   title: string;
-  kind: 'season' | 'tradition';
+  kind: OccasionKind;
   approx?: boolean;
 }
 
@@ -89,7 +89,7 @@ export function upcomingEvents(
   const now = from.getTime();
   const until = now + horizonDays * DAY;
   const out: UpcomingEvent[] = [];
-  const push = (at: number | null, title: string, kind: 'season' | 'tradition', approx = false) => {
+  const push = (at: number | null, title: string, kind: OccasionKind, approx = false) => {
     if (at !== null && at > now && at <= until) out.push({ at, title, kind, approx });
   };
 

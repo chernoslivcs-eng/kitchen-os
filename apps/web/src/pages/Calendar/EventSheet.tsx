@@ -67,6 +67,19 @@ export function EventSheet({ event: e, onClose, onChanged, onEdit }: Props) {
     navigate('/app', { state: { composePrefix: `${e.title} — ` } });
   }
 
+  // «Не показувати такі» — не дрібне посилання, а повноправна дія: інакше
+  // привід непомітно стає рекламним каналом. Повернути можна тим самим
+  // ендпойнтом, але екрана для цього поки немає — і це чесно сказано в тості
+  // нижче за течією, а не сховано.
+  async function mute() {
+    setBusy(true);
+    try {
+      await api.events.mute(e.id);
+      onChanged();
+      onClose();
+    } catch { setBusy(false); }
+  }
+
   async function remove() {
     setBusy(true);
     try {
@@ -139,8 +152,8 @@ export function EventSheet({ event: e, onClose, onChanged, onEdit }: Props) {
           {/* Редакційну подію завжди можна вимкнути, і це повноправна дія, а не
               дрібне посилання: інакше привід непомітно стає рекламним каналом. */}
           {e.source && (
-            <button className={styles.ghost} disabled title="Буде у наступному кроці">
-              Не показувати такі
+            <button className={styles.ghost} onClick={mute} disabled={busy}>
+              {busy ? 'Прибираю…' : 'Не показувати такі'}
             </button>
           )}
 
