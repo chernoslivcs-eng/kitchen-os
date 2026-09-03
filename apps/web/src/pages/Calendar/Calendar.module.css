@@ -3,7 +3,11 @@
 
 .screen {
   min-height: 100dvh;
-  background: var(--bg-body);
+  /* --bg-surface, як у решти чотирьох екранів і сайдбара: календар був єдиним
+     на --bg-body і на світлій темі стояв темнішою плямою поруч із ними.
+     Липкі заголовки місяця й днів тижня нижче фарбуються тим самим токеном —
+     вони маскують скрол під собою і мусять збігатися зі сторінкою. */
+  background: var(--bg-surface);
   display: flex;
   flex-direction: column;
 }
@@ -20,7 +24,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--bg-body);
+  background: var(--bg-surface);
   padding: 16px 0 8px;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -267,7 +271,7 @@
     grid-template-columns: repeat(7, 1fr);
     gap: 8px;
     padding: 10px 0 6px;
-    background: var(--bg-body);
+    background: var(--bg-surface);
   }
   .grid-dow {
     font-family: var(--font-mono);
@@ -431,7 +435,7 @@
     flex-wrap: wrap;
     padding: 12px 22px 18px;
     border-top: 1px solid var(--border);
-    background: var(--bg-body);
+    background: var(--bg-surface);
   }
   .running-label {
     flex: none;
