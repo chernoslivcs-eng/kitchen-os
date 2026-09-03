@@ -248,9 +248,14 @@ export function TabBar({ shoppingCount }: Props) {
               onClick={() => navigate('/calendar')}
               title={e.meaning ?? e.title}
             >
-              <span className={styles['now-title']}>{e.title}</span>
-              <span className={styles['now-when']}>
-                {whenLabel(e.start, e.end)}{e.approx ? ' · орієнтовно' : ''}
+              {/* ● — триває зараз, ◌ — попереду: той самий словник крапок, що
+                  в смужці 44px і в банері готування. */}
+              <span className={styles['now-dot']}>{isLive(e.start, e.end) ? '●' : '◌'}</span>
+              <span className={styles['now-text']}>
+                <span className={styles['now-title']}>{e.title}</span>
+                <span className={styles['now-when']}>
+                  {whenLabel(e.start, e.end)}{e.approx ? ' · орієнтовно' : ''}
+                </span>
               </span>
             </button>
           ))}
