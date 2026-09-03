@@ -270,7 +270,7 @@ export function RecipePage() {
           onClick={saveForLater}
           disabled={savedId !== null || saving}
         >
-          {savedId ? '✓ Збережено' : saving ? '…' : '☆ На потім'}
+          {savedId ? '✓ Збережено' : saving ? '…' : '☆ Колись'}
         </Button>
         <Button
           variant="primary"

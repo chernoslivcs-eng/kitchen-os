@@ -21,7 +21,7 @@ type Filter = 'all' | 'ready' | 'near' | 'cooked';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'Усі' },
-  { id: 'ready', label: 'Можу зараз' },
+  { id: 'ready', label: 'Можу приготувати зараз' },
   { id: 'near', label: 'Майже' },
   { id: 'cooked', label: 'Готував' },
 ];
@@ -124,13 +124,12 @@ export function RecipesPage() {
         {loading && <SkeletonRows rows={4} />}
         {!loading && recipes.length === 0 && (
           <div className={styles.empty}>
-            <h3>Тут порожньо</h3>
+            <h3>Тут поки жодного рецепта</h3>
             {/* UX9-20: кнопка в стрічці зветься «У рецепти» — підказка вчила
                 неіснуючій назві. */}
             <p>
-              Під рецептом у стрічці натисни «У рецепти» — він чекатиме тут
-              і сам підсвітиться, щойно в коморі зʼявиться все потрібне.
-              Приготоване теж лягає сюди само.
+              Збережи рецепт — він почекає тут. Коли все потрібне зʼявиться вдома,
+              сам нагадає про себе.
             </p>
           </div>
         )}
@@ -167,7 +166,7 @@ export function RecipesPage() {
 
         {!loading && recipes.length > 0 && sorted.length === 0 && (
           <div className={styles.empty} style={{ borderStyle: 'solid' }}>
-            <p>Нічого не підійшло під цей фільтр.</p>
+            <p>Тут нічого. Або фільтр суворий, або холодильник має інші плани.</p>
           </div>
         )}
 

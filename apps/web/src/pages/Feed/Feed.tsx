@@ -713,7 +713,7 @@ export function Feed() {
     } catch (err) {
       const raw = (err as Error).message;
       const human = raw === 'model_unavailable'
-        ? 'Кухня зараз не відповідає — спробуй ще раз за хвилину.'
+        ? 'Не вдалося відповісти. Спробуй ще раз за хвилину.'
         : raw;
       setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: true } : t)));
       setToast({ id: Date.now(), kind: 'err', text: human });
@@ -790,7 +790,7 @@ export function Feed() {
         // у стрічці, щоб людина могла уточнити.
         setTurns((prev) => [...prev, {
           id: newId(), role: 'assistant', time: hhmm(), fresh: true,
-          text: reply || 'Не вийшло скласти рецепт. Спробуй сформулювати конкретніше.',
+          text: reply || 'Рецепт не склався. Уточни, що хочеш приготувати або з яких продуктів.',
         }]);
         return;
       }
@@ -927,7 +927,7 @@ export function Feed() {
         title={historyOpen ? 'Історія' : 'Кухня'}
         onMenu={() => openNav(true)}
         action={
-          <button onClick={startFreshSession} className={styles['head-new']}>＋ нова сесія</button>
+          <button onClick={startFreshSession} className={styles['head-new']}>＋ Нова розмова</button>
         }
       />
 
@@ -978,11 +978,11 @@ export function Feed() {
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
                 cursor: 'pointer',
               }}
-            >+ Нова сесія</button>
+            >+ Нова розмова</button>
             {historyLoading && <SkeletonRows rows={4} />}
             {!historyLoading && historySessions.length === 0 && (
               <div style={{ color: 'var(--fg-muted)', padding: '20px 0', fontSize: 14 }}>
-                Тут порожньо. Кожна сесія зберігається — вона зʼявиться тут завтра.
+                Тут поки немає минулих розмов. Сьогоднішня зʼявиться тут завтра.
               </div>
             )}
             {historySessions.map((s) => {
@@ -1014,10 +1014,10 @@ export function Feed() {
                   {/* Пул-4 №1: видалення сесії просто з Історії. */}
                   <span
                     role="button"
-                    aria-label={`Видалити сесію «${s.title ?? dayLabel}»`}
+                    aria-label={`Видалити розмову «${s.title ?? dayLabel}»`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!confirm(`Видалити сесію «${s.title ?? dayLabel}»? Розмова зникне; журнал готувань лишиться.`)) return;
+                      if (!confirm(`Видалити розмову «${s.title ?? dayLabel}»? Сам чат зникне, але приготовані страви лишаться в журналі.`)) return;
                       void api.session.remove(s.id).then(() => {
                         setHistorySessions((prev) => prev.filter((x) => x.id !== s.id));
                         sessionStore.bump();
@@ -1038,10 +1038,10 @@ export function Feed() {
             комора порожня; новий чат бувалого акаунта — просто чиста стрічка. */}
         {!historyOpen && turns.length === 0 && pantryCount === 0 && (
           <div className={styles.empty}>
-            <h3>Скажи, що купив або що хочеш приготувати</h3>
+            <h3>Що зʼявилось удома або що готуємо?</h3>
             <p>
-              «купив моцарелу 250 г» або «дай рецепт з вершків і фуета» — одне поле,
-              усе через підтвердження.
+              Напиши як звичайно: «купив моцарелу» або «що зробити з вершками?».
+              Перед змінами все покажемо.
             </p>
             {pantryCount === 0 && (
               <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
@@ -1302,7 +1302,7 @@ export function Feed() {
                   <span className={styles['trace-value']}>
                     {t.undone ? 'Скасовано'
                       : t.applied ? `${t.card?.ops?.length ?? 0} у комору`
-                      : 'Чекає рішення'}
+                      : 'Потрібне твоє підтвердження'}
                   </span>
                 </span>
                 {!t.undone && <span className={styles['trace-go']}>→</span>}
@@ -1349,7 +1349,7 @@ export function Feed() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
                 <span className={styles['parse-spinner']} />
                 <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)' }}>
-                  Розбираю вкладення…
+                  Дивлюся, що тут…
                 </span>
               </div>
             ) : (
@@ -1391,7 +1391,7 @@ export function Feed() {
               // Тап по підказці — питання моделі, не відкриття панелі. Модель бачить
               // ті ж партії в контексті (з !Nдн-маркерами), відповість по-своєму.
               const labels = staleBatches.map((b) => b.label).join(', ');
-              setInput(`Що зробити з ${labels}? Скоро згорять.`);
+              setInput(`Що зробити з ${labels}? Їх краще використати першими.`);
             }}
             style={{
               display: 'flex',
@@ -1410,7 +1410,7 @@ export function Feed() {
               cursor: 'pointer',
               textAlign: 'left',
             }}
-            aria-label="Спитати модель, що зробити з тим, що згоряє"
+            aria-label="Запитати, що з цього приготувати"
           >
             <span>◔</span>
             <span style={{ flex: 1 }}>

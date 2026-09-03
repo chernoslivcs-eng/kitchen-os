@@ -494,7 +494,7 @@ export function ProfilePage() {
         <div className={styles.section}>
           <div className={styles['section-label']}>
             <span style={{ color: '#7c352c' }}>Алергії</span>
-            <span className={styles['label-sub']}> · жорстке · ніколи не порушується</span>
+            <span className={styles['label-sub']}> · це не пропонуємо ніколи</span>
             <span className={styles.info} title="Конкретними назвами: «молюски» не помітять «мідії» — виписуй усі назви, під якими продукт зустрічається.">i</span>
           </div>
           <TagInput
@@ -510,7 +510,7 @@ export function ProfilePage() {
         <div className={styles.section}>
           <div className={styles['section-label']}>
             <span style={{ color: 'var(--plum)' }}>Не їм</span>
-            <span className={styles['label-sub']}> · принцип або смак</span>
+            <span className={styles['label-sub']}> · не їм або просто не люблю</span>
             <span className={styles.info} title="«Не їм» — принцип (слива), «не люблю» — смак (сірий). Система розбирає формулювання сама.">i</span>
           </div>
           <TagInput
@@ -537,8 +537,8 @@ export function ProfilePage() {
         <div className={styles.section}>
           <div className={styles['section-label']}>
             Побажання
-            <span className={styles['label-sub']}> · м'які орієнтири</span>
-            <span className={styles.info} title="Куди тягне: більше риби, менше цукру, українська кухня на свята.">i</span>
+            <span className={styles['label-sub']}> · добре б частіше</span>
+            <span className={styles.info} title="Що хотілося б частіше: більше риби, менше цукру, українське на свята.">i</span>
           </div>
           <TagInput
             values={profile?.wishes ?? []}
@@ -608,7 +608,7 @@ export function ProfilePage() {
         <div className={styles.section}>
           <div className={styles['section-label']} style={{ display: 'none' }}>Техніка</div>
           <div className={styles.hint}>
-            Базове — пательня, каструля, ніж — вважається наявним. ● є · ✕ немає · ○ невідомо.
+            Пательню, каструлю й ніж вважаємо базою. Якщо навіть цього нема — кухня в тебе зараз цікава.
           </div>
           <div className={styles.chips}>
             {[...EQUIP_EXTRA, ...Object.keys(profile?.equipment ?? {}).filter((k) => !(EQUIP_EXTRA as readonly string[]).includes(k))].map((name) => {
@@ -650,11 +650,11 @@ export function ProfilePage() {
         <div className={styles.section}>
           <div className={styles['section-label']}>Домашні</div>
           <div className={styles.hint}>
-            Хто ще їсть у домі. Страви враховують їхні обмеження нарівні з твоїми.
+            Хто ще їсть із тобою. Їхні алергії й обмеження врахуємо так само, як твої.
           </div>
           {eaters.length === 0 && (
             <span className={styles['empty-chip']}>
-              поки нікого — скажи в чаті «зі мною живе Оксана, вона веганка»
+              Поки нікого. Якщо хтось зʼявиться — просто скажи в чаті. Навіть якщо це мама на три дні з пакетом цибулі.
             </span>
           )}
           {eaters.length > 0 && (

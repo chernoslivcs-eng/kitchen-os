@@ -186,11 +186,11 @@ export function PantryPage() {
         {loading && <SkeletonRows rows={5} />}
         {!loading && batches.length === 0 && (
           <div className={styles.empty}>
-            <h3>Комора порожня</h3>
+            <h3>Тут поки порожньо</h3>
             {/* DA-03: «порожні стани — коротко, з дією». Дія і є суть патерна. */}
-            <p>Сфотографуй полицю або перелічи 5–10 позицій — решту доберемо.</p>
+            <p>Покажи полицю або напиши кілька продуктів. Не треба згадувати весь холодильник одразу.</p>
             <p style={{ marginTop: 12 }}>
-              <Button onClick={() => navigate('/app')}>Показати кухню</Button>
+              <Button onClick={() => navigate('/app')}>Додати, що є вдома</Button>
             </p>
           </div>
         )}
@@ -201,7 +201,7 @@ export function PantryPage() {
         )}
 
         {(() => {
-          // Пул-6 №1: «СПОЧАТКУ ГОРИТЬ» — завжди зверху, на всю ширину сітки.
+          // Пул-6 №1: «КРАЩЕ НЕ ВІДКЛАДАТИ» — завжди зверху, на всю ширину сітки.
           const burning = filtered.filter((b) => {
             const d = daysLeft(b.expires_at);
             return d != null && d <= 3;
@@ -264,7 +264,7 @@ export function PantryPage() {
                     <button
                       className={styles['row-x']}
                       aria-label={`Списати «${b.label}»`}
-                      title="Закінчилось — списати"
+                      title="Закінчилось? Прибрати"
                       onClick={() => void quickRemove(b)}
                     >✕</button>
                   </div>
@@ -361,7 +361,7 @@ function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryB
   }
 
   async function remove() {
-    if (!confirm('Прибрати з комори? Це те саме, що «зʼїли» — в історії лишиться.')) return;
+    if (!confirm('Прибрати з комори? Вважатимемо, що закінчилось. В історії лишиться.')) return;
     setSaving(true);
     try {
       await api.batches.remove(batch.id);
@@ -392,7 +392,7 @@ function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryB
               ПРОДУКТ: {product.product}
               {product.brand ? ` · БРЕНД: ${product.brand}` : ''}
               {product.variant ? ` · ВАРІАНТ: ${product.variant}` : ''}
-              {' — трійка й теги правляться в чаті'}
+              {' — назву, деталі й позначки простіше поправити в чаті.'}
             </span>
           )}
         </label>
@@ -440,7 +440,7 @@ function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryB
             variant="secondary"
             onClick={toggleOpened}
             disabled={saving}
-            title={batch.state === 'sealed' ? 'Позначити партію відкритою' : 'Позначити партію запакованою'}
+            title={batch.state === 'sealed' ? 'Уже відкрили' : 'Ще запаковано'}
           >
             {batch.state === 'sealed' ? '◔ Позначити відкритою' : '● Позначити запакованою'}
           </Button>
@@ -475,12 +475,12 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
 
   async function submit() {
     const l = label.trim();
-    if (!l) { setError('Назва потрібна'); return; }
+    if (!l) { setError('Треба хоча б назву'); return; }
     setSaving(true);
     setError(null);
     try {
       const v = value.trim() === '' ? null : Number(value.trim());
-      if (v != null && isNaN(v)) { setError('Кількість — число або порожнє'); return; }
+      if (v != null && isNaN(v)) { setError('Кількість — числом. Або залиш порожньою.'); return; }
       await api.batches.create({ label: l, value: v, unit, zone });
       await onCreated();
     } catch (err) {

@@ -118,8 +118,8 @@ export function CookLogPage() {
         )}
         {empty && (
           <div className={styles.empty}>
-            <h3>Ще нічого не готували</h3>
-            <p>Приготуй першу страву — з&apos;явиться тут. Спогад про вечір, а не рецензія.</p>
+            <h3>Тут ще тихо</h3>
+            <p>Перша приготовлена страва зʼявиться тут. Не для оцінок — щоб потім згадати, що взагалі було смачно.</p>
           </div>
         )}
         {!empty && filteredRuns.length === 0 && query && (
@@ -239,7 +239,7 @@ export function CookLogPage() {
                           color: 'var(--fg-muted)',
                           cursor: 'pointer',
                         }}
-                        aria-label="Приготувати знову"
+                        aria-label="Повторити"
                       >
                         Знову ⟳
                       </button>

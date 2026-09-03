@@ -112,7 +112,7 @@ export function ShoppingPage() {
 
   const [unpacking, setUnpacking] = useState(false);
   async function unpackChecked() {
-    if (!confirm(`Перекласти ${checkedCount} ${plural(checkedCount, ['позицію', 'позиції', 'позицій'])} із «куплено» в комору?`)) return;
+    if (!confirm('Додати куплене в комору?')) return;
     setUnpacking(true);
     try {
       await api.shopping.unpack();
@@ -179,8 +179,8 @@ export function ShoppingPage() {
         {loading && <SkeletonRows rows={4} />}
         {!loading && items.length === 0 && (
           <div className={styles.empty}>
-            <h3>Список чистий</h3>
-            <p>Бракуючі інгредієнти з пропозицій додаються сюди самі — після твого «так».</p>
+            <h3>Купувати поки нічого</h3>
+            <p>Якщо для страви чогось бракує, після твого «так» воно опиниться тут. Без самодіяльності.</p>
           </div>
         )}
 
@@ -227,7 +227,7 @@ export function ShoppingPage() {
               padding: '0 16px', opacity: building ? 0.6 : 1,
             }}
           >
-            <span>{building ? 'Збираю кошик…' : 'Зібрати кошик у Сільпо'}</span>
+            <span>{building ? 'Шукаю все це в Сільпо…' : 'Зібрати кошик у Сільпо'}</span>
             <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} →</span>
           </button>
         )}
@@ -246,7 +246,7 @@ export function ShoppingPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
           >
-            {retailStatus === 'none' ? 'Підключити Сільпо, щоб зібрати кошик' : 'Увійти в Сільпо, щоб зібрати кошик'} →
+            {retailStatus === 'none' ? 'Підключити Сільпо й не шукати все вручну' : 'Увійти в Сільпо, щоб зібрати кошик'} →
           </a>
         )}
       </div>

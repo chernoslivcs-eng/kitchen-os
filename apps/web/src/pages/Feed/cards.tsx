@@ -505,7 +505,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
             <ReceiptGroup
               tone="amber"
               glyph="◌"
-              title="НЕ ВПІЗНАВ"
+              title="НЕ ВПЕВНЕНИЙ"
               count={receipt.unmatched.length}
             >
               {/* Ключ за назвою, не індексом: «ок» вирізає рядок із unmatched
@@ -613,7 +613,7 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
           )}
           {it.why && (
             <div className={styles.section}>
-              <MonoLabel>ЧОМУ ЗАРАЗ</MonoLabel>
+              <MonoLabel>ЧОМУ СЬОГОДНІ</MonoLabel>
               <div className={styles['proposal-desc']}>{it.why}</div>
             </div>
           )}
@@ -765,7 +765,7 @@ export function ShoppingListCard({
       )}
       {items.length === 0 && (
         <div style={{ padding: '10px 0', color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 15 }}>
-          Список порожній. Додай позицію нижче або попроси Кухню.
+          Поки нічого не треба купувати. Додай сам або скажи в чаті.
         </div>
       )}
       {footSlot ? createPortal(foot, footSlot) : foot}
@@ -1030,7 +1030,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
       )}
       {onCook && (
         <Button size="strip" variant="positive" onClick={() => onCook(scaled, rid)}>
-          Готуємо → Cook Mode
+          Готувати →
         </Button>
       )}
       {!headSlot && <span className={styles['strip-head-fallback']}>{headRaw}</span>}
@@ -1107,7 +1107,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
                 className={styles['recipe-ing']}
                 /* Точкове додавання — довгий тап по рядку. Рідкісний випадок
                    не заслуговує на постійну колонку «+» у кожному рядку. */
-                title={missing && !added ? 'Довге натискання — додати лише це' : undefined}
+                title={missing && !added ? 'Затисни, щоб додати тільки це' : undefined}
                 onPointerDown={missing && !added && onNeedToList ? () => pressStart(i) : undefined}
                 onPointerUp={pressEnd}
                 onPointerLeave={pressEnd}
@@ -1336,7 +1336,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                 <div className={styles['cart-alts']}>
                   {p && (
                     <div className={styles['cart-alt-warn']}>
-                      «⇄» перезапише позицію тут; стара може лишитись у кошику Сільпо — прибери вручну
+                      Замінимо позицію тут. У кошику Сільпо стару доведеться прибрати окремо.
                     </div>
                   )}
                   {(showAllAlts.has(i) ? alts : alts.slice(0, 3)).map((a, ai) => (

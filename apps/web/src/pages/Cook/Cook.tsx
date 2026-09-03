@@ -143,7 +143,7 @@ export function CookOverlay() {
       // втратити чиїсь пів рецепта. Питаємо; відмова повертає до стрічки,
       // де рядок «Готування триває» веде до старої сесії.
       const drop = window.confirm(
-        `Триває готування «${saved.recipe.t}» (крок ${saved.stepIdx + 1}/${saved.recipe.st.length}). Кинути його й почати «${recipe.t}»?`,
+        `Ти вже готуєш «${saved.recipe.t}». Кинути це й почати «${recipe.t}»?`,
       );
       if (!drop) {
         closeOverlay();   // поп-ап: відмова = просто закрити, людина де була
@@ -343,7 +343,7 @@ export function CookOverlay() {
       >
         {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
             дії, а не навігація «Далі →». */}
-        {stepIdx === total - 1 ? (finishing ? 'Зберігаю…' : 'Приготували') : 'Крок готово ✓'}
+        {stepIdx === total - 1 ? (finishing ? 'Зберігаю…' : 'Приготували') : 'Готово ✓'}
       </button>
       {stepIdx < total - 1 && (
         /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
@@ -373,7 +373,7 @@ export function CookOverlay() {
             type="button"
             className={styles['progress-hit']}
             disabled={i >= stepIdx}
-            aria-label={`Повернутись до кроку ${i + 1}`}
+            aria-label={`Назад до кроку ${i + 1}`}
             onClick={() => goToStep(i)}
           >
             <div className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
@@ -485,7 +485,7 @@ export function CookOverlay() {
                 </div>
               )}
               <div className={styles['side-actions']}>{stepButtons}</div>
-              <div className={styles['side-hint']}>Працює без мережі · смуга вгорі вертає на крок</div>
+              <div className={styles['side-hint']}>Без інтернету теж працює. Хоч одна річ на кухні не залежить від Wi-Fi.</div>
             </div>
       </div>
 
@@ -503,7 +503,7 @@ export function CookOverlay() {
             {finishing ? 'Зберігаю…' : 'Приготували'}
           </button>
         )}
-        <div className={styles.offline}>Тапи по краях гортають кроки · працює без мережі</div>
+        <div className={styles.offline}>Тапни по краях, щоб гортати кроки. Інтернет для цього не потрібен.</div>
       </div>
     </div>
   );
