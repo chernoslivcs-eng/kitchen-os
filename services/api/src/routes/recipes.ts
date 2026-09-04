@@ -4,6 +4,7 @@
 // перезавантаження. Коли зʼявиться таблиця recipe і CookRun — додамо GET/POST /v1/recipes/:id.
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { recipeStaleByNotes } from '../recipe-dedup.js';
 import { randomUUID } from 'node:crypto';
 import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
@@ -57,7 +58,9 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
         (r.title.trim().toLowerCase() === wanted
           || r.requested_title?.trim().toLowerCase() === wanted)
         && new Date(r.created_at).getTime() > dayAgo);
-      if (same) {
+      // Ручний тест 04.09: нотатка, новіша за кешований рецепт, робить його
+      // застарілим — інакше «менше вершків» ніколи не дійде до кроків.
+      if (same && !recipeStaleByNotes(same, await repo.listNotes(ctx.user_id, 20))) {
         return { id: same.id, recipe: same.payload, reused: true, meta: null, usage: null };
       }
     }

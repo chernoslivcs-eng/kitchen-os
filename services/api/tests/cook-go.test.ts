@@ -10,6 +10,7 @@ import { InMemoryRepo } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
+import { randomUUID } from 'node:crypto';
 
 describe('чат: cook_go → готовий рецепт одним ходом', () => {
   let repo: InMemoryRepo;
@@ -48,6 +49,49 @@ describe('чат: cook_go → готовий рецепт одним ходом'
       payload: { text: 'готуємо «Лосось на сковороді»' },
     });
     expect(second.json().card?.type).toBe('recipe_link');
+    expect(second.json().card?.recipe_id).toBe(first.json().card?.recipe_id);
+  });
+
+  // Ручний тест 04.09 (прогін Б): нотатка «менше вершків, лимон» після
+  // готування лягла, а «дай рецепт» повернув рецепт із денного кешу — модель
+  // обіцяла оновлений, сервер віддав старий. Нотатка новіша за рецепт →
+  // дедуп не спрацьовує, генеруємо заново.
+  it('нотатка після рецепта скасовує денний дедуп — рецепт генерується заново', async () => {
+    const me = await signIn(app, mailer, 'cook2@example.com');
+    const first = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'готуємо «Лосось на сковороді»' },
+    });
+    const firstId = first.json().card?.recipe_id as string;
+    expect(firstId).toBeTruthy();
+    await repo.insertNote({
+      id: randomUUID(), user_id: me.user_id, text: 'менше вершків, лимон у кінці',
+      recipe_title: 'Лосось на сковороді', rating: null, pinned: false,
+      created_at: new Date(Date.now() + 1000).toISOString(), kind: 'lesson',
+    });
+    const second = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'готуємо «Лосось на сковороді»' },
+    });
+    expect(second.json().card?.type).toBe('recipe_link');
+    expect(second.json().card?.recipe_id).not.toBe(firstId);
+  });
+
+  it('нотатка до ІНШОЇ страви дедуп не чіпає', async () => {
+    const me = await signIn(app, mailer, 'cook3@example.com');
+    const first = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'готуємо «Лосось на сковороді»' },
+    });
+    await repo.insertNote({
+      id: randomUUID(), user_id: me.user_id, text: 'у борщ — більше буряка',
+      recipe_title: 'Борщ', rating: null, pinned: false,
+      created_at: new Date(Date.now() + 1000).toISOString(), kind: 'lesson',
+    });
+    const second = await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'готуємо «Лосось на сковороді»' },
+    });
     expect(second.json().card?.recipe_id).toBe(first.json().card?.recipe_id);
   });
 });

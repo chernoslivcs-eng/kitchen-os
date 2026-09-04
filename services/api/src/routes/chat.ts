@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
+import { recipeStaleByNotes } from '../recipe-dedup.js';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -583,7 +584,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         && new Date(r.created_at).getTime() > dayAgo);
       let goRecipe: Recipe | null = null;
       let goId: string | null = null;
-      if (same?.payload) {
+      // Ручний тест 04.09: нотатка після готування («менше вершків, лимон»)
+      // не скасовувала денний кеш — модель обіцяла оновлений рецепт, сервер
+      // віддавав старий. Нотатка новіша за рецепт → генеруємо заново.
+      if (same?.payload && !recipeStaleByNotes(same, notes)) {
         goRecipe = same.payload as Recipe;
         goId = same.id;
       } else {
