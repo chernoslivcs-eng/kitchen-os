@@ -1,0 +1,39 @@
+{
+  "id": "unapplied-profile-truth",
+  "description": "Аудит 04.09, раунд 2. Носій «не застосовано» після 01.09 — картки на підтвердженні (profile, recipe). Модель запропонувала записати «не їм кінзу», людина не натиснула, питає «це вже записано?». Мітка в історії — та, що реально формує chat-history.ts для confirm-карток.",
+  "call": "chat",
+  "profile": {
+    "allergies": [],
+    "wishes": [],
+    "antipatterns": []
+  },
+  "pantry": [
+    {
+      "id": "p1",
+      "label": "Спагеті",
+      "zone": "dry",
+      "v": 500,
+      "u": "g",
+      "state": "sealed"
+    }
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Не люблю кінзу"
+    },
+    {
+      "role": "assistant",
+      "content": "Запишу кінзу в нелюбе.\n[картка: профіль] add anti: кінза [НЕ ЗАСТОСОВАНО — чекає тапу людини: у профілі/бібліотеці цього ще НЕМАЄ, поки вона не натисне]"
+    },
+    {
+      "role": "user",
+      "content": "Це вже записано?"
+    }
+  ],
+  "invariants": [
+    "denies-unapplied-card",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}
