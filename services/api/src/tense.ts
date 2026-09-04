@@ -50,10 +50,21 @@ const TENSE_CLAIMS = new RegExp(
  * ще нічого не змінила. Для `auto` картки минулий час — доконаний факт, і
  * чіпати його означає брехати людині про стан її комори.
  */
+// Крок 4 (ручний тест): заміна брала форму з таблиці як є — «пармезан
+// прибрав» усередині речення ставало «пармезан Приберу», бо таблиця тримає
+// лише капіталізовану форму (сентенс-старт). Регістр першої літери мусить
+// повторювати регістр збіглого слова, а не форму з таблиці.
+function matchCase(matched: string, replacement: string): string {
+  const first = matched[0]!;
+  return first === first.toLowerCase() && first !== first.toUpperCase()
+    ? replacement[0]!.toLowerCase() + replacement.slice(1)
+    : replacement;
+}
+
 export function fixTense(reply: string, card: Card | null): string {
   if (!card || applyModeFor(card) !== 'confirm') return reply;
   let out = reply;
-  for (const [re, to] of TENSE_FIX) out = out.replace(re, to);
+  for (const [re, to] of TENSE_FIX) out = out.replace(re, (matched) => matchCase(matched, to));
   return out;
 }
 

@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow } from './types.js';
-import { createPending, applyCard, undoCard } from './apply.js';
+import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
 import { displayName } from './product.js';
 
 export interface RepoCtx {
@@ -773,6 +773,135 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(r1.undone).toBe(true);
       const r2 = await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
       expect(r2.already).toBe(true);
+    });
+
+    it('dismiss на pending-картці: проставляє dismissed_at, ідемпотентно', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const r1 = await dismissCard(ctx.repo, mid, ctx.user_id);
+      expect(r1.dismissed).toBe(true);
+      expect(r1.already).toBe(false);
+      const pc = await ctx.repo.getPending(mid);
+      expect(pc?.dismissed_at).toBeTruthy();
+      // Повторний dismiss — no-op, той самий результат.
+      const r2 = await dismissCard(ctx.repo, mid, ctx.user_id);
+      expect(r2.dismissed).toBe(true);
+      expect(r2.already).toBe(true);
+    });
+
+    it('dismiss на застосованій картці — помилка: шлях назад тут undo, не dismiss', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+      await expect(dismissCard(ctx.repo, mid, ctx.user_id)).rejects.toThrow(/already applied/);
+    });
+
+    it('dismiss чужої картки — forbidden', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await expect(dismissCard(ctx.repo, mid, ctx.other_user_id)).rejects.toThrow(/forbidden/);
+    });
+
+    // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — закриті картки поза поточною
+    // розмовою. message.id === card_pending.id (та сама інваріанта, що
+    // listOpenPending уже покладається) — pending лінкується до сесії через
+    // повідомлення-носія, яке треба створити самому.
+    it('listRecentResolved: бачить застосовані/скасовані/відхилені, ігнорує ще відкриті', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-05');
+      const now = new Date();
+      const mkPending = async (label: string) => {
+        const mid = randomUUID();
+        const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label }] };
+        await repo.saveMessage({
+          id: mid, session_id: session.id, role: 'assistant', text: null,
+          card, applied: 0, created_at: now.toISOString(),
+        });
+        await createPending(repo, { message_id: mid, household_id, user_id, card });
+        return mid;
+      };
+
+      const appliedId = await mkPending('застосована');
+      await applyCard(repo, appliedId, [], user_id);
+
+      const undoneId = await mkPending('скасована');
+      const { undo_token } = await applyCard(repo, undoneId, [], user_id);
+      await undoCard(repo, undoneId, undo_token, user_id);
+
+      const dismissedId = await mkPending('відхилена');
+      await dismissCard(repo, dismissedId, user_id);
+
+      const stillOpenId = await mkPending('ще чекає');
+
+      const since = new Date(now.getTime() - 60_000);
+      const out = await repo.listRecentResolved(household_id, { since, limit: 20 });
+      const ids = out.map((pc) => pc.id);
+      expect(ids).toContain(appliedId);
+      expect(ids).toContain(undoneId);
+      expect(ids).toContain(dismissedId);
+      expect(ids).not.toContain(stillOpenId);
+    });
+
+    it('listRecentResolved: чужа сесія виключена', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const sessionA = await repo.getOrCreateSessionForDay(user_id, '2026-09-05');
+      const sessionB = await repo.createFreshSession(user_id, '2026-09-05');
+      const now = new Date();
+      const mkAndApply = async (session_id: string) => {
+        const mid = randomUUID();
+        const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
+        await repo.saveMessage({
+          id: mid, session_id, role: 'assistant', text: null,
+          card, applied: 0, created_at: now.toISOString(),
+        });
+        await createPending(repo, { message_id: mid, household_id, user_id, card });
+        await applyCard(repo, mid, [], user_id);
+        return mid;
+      };
+
+      const idInA = await mkAndApply(sessionA.id);
+      const idInB = await mkAndApply(sessionB.id);
+
+      const since = new Date(now.getTime() - 60_000);
+      const out = await repo.listRecentResolved(household_id, { since, limit: 20, exclude_session_id: sessionA.id });
+      const ids = out.map((pc) => pc.id);
+      expect(ids).not.toContain(idInA);
+      expect(ids).toContain(idInB);
+    });
+
+    it('listRecentResolved: ліміт і сортування — найновіше рішення першим', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-05');
+      const now = new Date();
+      const mkAndApply = async (label: string) => {
+        const mid = randomUUID();
+        const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label }] };
+        await repo.saveMessage({
+          id: mid, session_id: session.id, role: 'assistant', text: null,
+          card, applied: 0, created_at: now.toISOString(),
+        });
+        await createPending(repo, { message_id: mid, household_id, user_id, card });
+        await applyCard(repo, mid, [], user_id);
+        // Розводимо мітки часу рішення на реальних мілісекундах — без цього
+        // три applyCard поспіль можуть лягти в ту саму мілісекунду й
+        // сортування стане недетермінованим.
+        await new Promise((r) => setTimeout(r, 5));
+        return mid;
+      };
+
+      const first = await mkAndApply('перша');
+      const second = await mkAndApply('друга');
+      const third = await mkAndApply('третя');
+
+      const since = new Date(now.getTime() - 60_000);
+      const out = await repo.listRecentResolved(household_id, { since, limit: 2 });
+      expect(out).toHaveLength(2);
+      expect(out[0]!.id).toBe(third);
+      expect(out[1]!.id).toBe(second);
+      expect(out.map((pc) => pc.id)).not.toContain(first);
     });
   });
 }

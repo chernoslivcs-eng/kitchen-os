@@ -59,6 +59,32 @@ export function applyMode(type: Card['type']): ApplyMode {
   return CARD_APPLY_MODE[type];
 }
 
+// Аудит раунд 3, крок 2: підпис кнопки підтвердження — ОДНЕ джерело з
+// apps/web/src/pages/Feed/cards.tsx, а не окрема версія в промпті. Раніше
+// card-contract.md сам називав кнопки («Застосувати», «Запамʼятати»), і вони
+// розійшлись зі справжнім текстом на фронті першою ж правкою копі. Null —
+// картка не на підтвердженні: кнопки називати нема чого (chat-history.ts
+// це й каже: «кнопки тут нема»).
+//
+// Значення — буквально те, що між <Button> і </Button> у JSX; звідти й
+// апостроф прямий («Запам'ятати»), не типографський.
+export const CARD_BUTTON_LABEL: Record<Card['type'], string | null> = {
+  profile: "Запам'ятати",
+  recipe: 'У рецепти',
+  cook_photo: 'У журнал',
+
+  intake_diff: null,
+  shopping: null,
+  event: null,
+  proposal: null,
+  recipe_link: null,
+  recipe_edit: null,
+  cook_go: null,
+  cart: null,
+  cart_go: null,
+  retail_search_go: null,
+};
+
 /**
  * Режим для конкретної картки, не лише типу. Профіль лишається на
  * підтвердженні, але традиції — виняток: це перемикач, який людина бачить і

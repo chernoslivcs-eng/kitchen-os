@@ -3,7 +3,7 @@
 // Ім'я з двокрапкою — параметричне: `topic-holds:плескавиц` → перевіряє входження підрядка.
 
 import type { Fixture } from './fixtures/index.js';
-import { applyMode, type Card } from '@kitchen/domain';
+import { applyMode, CARD_BUTTON_LABEL, type Card } from '@kitchen/domain';
 
 export interface ModelOutput {
   reply?: string;
@@ -499,7 +499,12 @@ export const registry: Record<string, Invariant> = {
 
   'not-a-refusal': (out) => {
     const text = stripHtmlish(String(out.reply ?? '')).toLowerCase();
-    const refusalWords = /не вийде|не можу приготувати|немає (?:в коморі|цього)|не буду пропонувати/;
+    // Крок 6в: додано фрази для відмови ПОЗА ТЕМОЮ («не можу», «тільки про
+    // …», «поза темою», «не моя тема», «лише кухн…») поруч із наявними
+    // (рецепт/інгредієнт не вийшов) — той самий інваріант обслуговує обидва
+    // роди відмови, старі фікстури (allergen-conflict, missing-ingredient,
+    // qa5-allergen-on-request) не чіпались.
+    const refusalWords = /не вийде|не можу приготувати|немає (?:в коморі|цього)|не буду пропонувати|не можу|тільки про|поза темою|не моя тема|лише кухн/;
     return refusalWords.test(text)
       ? fail(`відмова у reply: «${text.slice(0, 120)}»`)
       : pass();
@@ -586,6 +591,33 @@ export const registry: Record<string, Invariant> = {
   'has-card': (out) => out.card
     ? pass(`card.type=${out.card.type ?? out.card.kind}`)
     : fail('картки немає — людині нема куди тапнути'),
+
+  // Аудит раунд 3, крок 2, рішення: «не називай кнопок» ловило й дієслово
+  // «натисни» — а воно легальне, коли назва кнопки за ним правдива
+  // (CARD_BUTTON_LABEL, те саме, що рендерить cards.tsx). Забороняємо не
+  // дію, а ВИГАДКУ: назву в лапках, якої немає в жодній картці, і два
+  // конкретні фантомні слова — «Застосувати»/«Записати» — таких кнопок
+  // не існує в жодному компоненті.
+  'no-invented-buttons': (out) => {
+    const reply = String(out.reply ?? '');
+    // Апостроф — не сигнал: «Запам'ятати» і «Запамʼятати» — та сама кнопка,
+    // різні розкладки/типографіка. Нормалізуємо ОБИДВА боки порівняння —
+    // і CARD_BUTTON_LABEL (пише 'straight'), і те, що сказала модель.
+    const normApo = (s: string) => s.replace(/[ʼ’'`]/g, "'");
+    const realLabels = new Set(
+      Object.values(CARD_BUTTON_LABEL).filter((v): v is string => !!v).map(normApo),
+    );
+    const quoted = [...reply.matchAll(/«([^»]+)»/g)].map((m) => normApo(m[1] ?? ''));
+    const invented = quoted.filter((q) => !realLabels.has(q));
+    if (invented.length) {
+      return fail(`вигадана назва кнопки в лапках: «${invented[0]}» — такої немає в CARD_BUTTON_LABEL`);
+    }
+    const phantom = /застосувати|записати/i.exec(reply);
+    if (phantom) {
+      return fail(`репліка називає неіснуючу кнопку: «${phantom[0]}»`);
+    }
+    return pass();
+  },
 
   'no-markdown': (out) => {
     const reply = String(out.reply ?? '');
@@ -984,15 +1016,35 @@ export const registry: Record<string, Invariant> = {
   },
 
   // QA5-02: незастосована картка нічого не змінила.
-  'denies-unapplied-card': (out) => {
+  'denies-unapplied-card': (out, fx) => {
     const reply = String(out.reply ?? '').toLowerCase();
     const claims = anyWord(['так,', 'вже в коморі', 'записав', 'записано', 'є в коморі']).test(reply);
     const denies = word('ні').test(reply)
       || /ще не|ще ні|не застосов|не натиснув|не тапнув|тапнут|натисну|чекає|треба підтвердити|не змінилась|не зміню|поки що ні|тільки в пропозиції/.test(reply);
-    if (claims && !denies) {
+    if (denies) return pass();
+    if (claims) {
+      // Аудит раунд 3, крок 2 (закриття): «Записав X» над НЕзастосованою
+      // карткою — не обовʼязково брехня. Якщо модель заразом повернула
+      // СВІЖУ intake_diff з тими самими позиціями — це чесна повторна
+      // пропозиція (в проді fixTense перепише «Записав» на «Запишу» саме
+      // тому, що картка ще не застосована — tense-matches-apply-mode).
+      // Брехня — це коли reply стверджує зроблене, а картки-підтвердження
+      // немає взагалі.
+      const c = out.card as { type?: string; ops?: { label?: string }[] } | null;
+      if (c?.type === 'intake_diff' && c.ops?.length) {
+        const lastAssistant = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'assistant');
+        const priorLabels = [...(lastAssistant?.content ?? '').matchAll(/\badd\s+(\S+)/gi)]
+          .map((m) => (m[1] ?? '').toLowerCase()).filter(Boolean);
+        const newLabels = c.ops.map((o) => (o.label ?? '').toLowerCase());
+        const sameItems = priorLabels.length > 0
+          && priorLabels.every((pl) => newLabels.some((nl) => nl.includes(pl) || pl.includes(nl)));
+        if (sameItems) {
+          return pass(`перевидала картку з тими самими позиціями (${priorLabels.join(', ')}) — не брехня, це нова пропозиція`);
+        }
+      }
       return fail('стверджує, що позиція в коморі, хоча картка [НЕ ЗАСТОСОВАНО]');
     }
-    return denies ? pass() : fail('не сказала прямо, що картку ще не застосовано');
+    return fail('не сказала прямо, що картку ще не застосовано, і нової картки з тими самими позиціями немає');
   },
 
   // QA6-01: онбординг має спитати про обмеження сам.
@@ -1015,9 +1067,19 @@ export const registry: Record<string, Invariant> = {
       return fail(`повторний intake_diff на ${n} ops — ті самі чеки лягли б у комору вдруге`);
     }
     const reply = String(out.reply ?? '').toLowerCase();
-    const acknowledges = /вже (розібрав|записав|в коморі|є)|уже (розібрав|записав|в коморі|є)|ці (ж|самі) чеки|повтор/.test(reply);
+    // Крок 5 (закриття): суть — відсутність повторного intake + визнання,
+    // що воно вже є. «Так, записав» підтверджує це не гірше за «вже
+    // записав» — «вже» не обов'язкове слово для чесної відповіді.
+    const acknowledges = /вже (розібрав|записав|в коморі|є)|уже (розібрав|записав|в коморі|є)|ці (ж|самі) чеки|повтор|записав|записано|є в коморі|в коморі/.test(reply);
     return acknowledges ? pass() : fail('без картки, але й не сказала, що ці чеки вже розібрано');
   },
+
+  // Аудит раунд 3, крок 5: підтвердження вже застосованого факту — це текст,
+  // не дія. Будь-яка картка тут (не лише intake_diff, як вище) означає, що
+  // модель або перезаписує, або пропонує щось замість чесного «так, вже».
+  'no-card': (out) => out.card
+    ? fail(`картка є (${(out.card as { type?: string }).type ?? '?'}), а мала бути card: null`)
+    : pass(),
 
   // s41: «запамʼятаємо цей рецепт» → «Записав у бібліотеку» з card: null.
   // Збереження згенерованого рецепта — кнопка «У рецепти», картки для нього
@@ -1152,6 +1214,24 @@ export function resolve(name: string): Invariant {
       return needs.includes((arg ?? '').toLowerCase())
         ? pass()
         : fail(`жоден needs не згадує «${arg}»: ${needs || '(порожньо)'}`);
+    };
+  }
+
+  // Крок 6в: off-topic-neighbor/off-topic-joke міряють довжину репліки —
+  // не заглиблюється в тему (>=40) проти не розписується (<=200).
+  if (base === 'reply-min-length') {
+    return (out) => {
+      const n = String(out.reply ?? '').trim().length;
+      const min = Number(arg);
+      return n >= min ? pass(`${n} символів`) : fail(`reply ${n} символів — коротше за мінімум ${min}`);
+    };
+  }
+
+  if (base === 'reply-max-length') {
+    return (out) => {
+      const n = String(out.reply ?? '').trim().length;
+      const max = Number(arg);
+      return n <= max ? pass(`${n} символів`) : fail(`reply ${n} символів — довше за максимум ${max}`);
     };
   }
 

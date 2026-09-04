@@ -52,18 +52,14 @@ export function detectRepeat(text: string, messages: MessageRow[], now = Date.no
   return { card_type: type, ops: answer.applied };
 }
 
-const WHERE: Record<RepeatHit['card_type'], string> = {
-  intake_diff: 'у коморі',
-  shopping: 'у списку',
-  event: 'у календарі',
-  profile: 'у профілі',
-};
-
 export function repeatReply(hit: RepeatHit): string {
+  // «Скажи, скільки» має сенс лише там, де повтор МІГ БИ бути другою
+  // покупкою/дією з кількістю (intake_diff, shopping). Подія й профіль —
+  // не рахуються повторами: друга «не їм кінзу» не означає «два рази не їж».
+  if (hit.card_type === 'event' || hit.card_type === 'profile') {
+    return 'Побачив. Другий раз не записую — воно вже є.';
+  }
   const n = hit.ops;
-  const already = n === 1 ? 'це вже' : `усі ${n} уже`;
-  const tail = hit.card_type === 'intake_diff'
-    ? ' Якщо справді купив ще раз — скажи, скільки.'
-    : hit.card_type === 'shopping' ? ' Треба більше — скажи, скільки.' : '';
-  return `Бачу те саме вдруге — ${already} ${WHERE[hit.card_type]}. Ще раз не додаю.${tail}`;
+  const count = n === 1 ? 'Одного' : `Усіх ${n}`;
+  return `Побачив. Другий раз не записую. ${count} нам поки вистачить. Якщо це справді друга покупка — скажи, скільки.`;
 }

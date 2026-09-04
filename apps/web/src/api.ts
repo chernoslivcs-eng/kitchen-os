@@ -336,6 +336,11 @@ export const api = {
         `/v1/cards/${id}/undo`,
         { method: 'POST', body: JSON.stringify({ undo_token }) },
       ),
+    dismiss: (id: string) =>
+      req<{ dismissed: boolean; already: boolean }>(
+        `/v1/cards/${id}/dismiss`,
+        { method: 'POST' },
+      ),
     // 01.09 картка v2: «уточнити» на невпізнаному рядку чека — переносить
     // його з source.unmatched у ops (той самий список, той самий чекбокс).
     clarifyLine: (id: string, unmatched_index: number, value: number, unit: string) =>
@@ -641,6 +646,10 @@ export interface MessageInfo {
   card: ChatCard | null;
   applied: number;
   created_at: string;
+  // Аудит раунд 3, крок 1: похідні з card_pending — messageToTurn читає їх,
+  // щоб «СКАСОВАНО»/«ВІДХИЛЕНО» переживали F5, а не лише поточну сесію вкладки.
+  undone_at?: string | null;
+  dismissed_at?: string | null;
 }
 
 // Рецепт у бібліотеці. `status` рахує сервер проти поточної комори:

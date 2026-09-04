@@ -97,6 +97,12 @@ function messageToTurn(m: MessageInfo): Turn {
     card: m.card,
     cardId: m.card ? m.id : null,     // message.id === card_id за нашою інваріантою
     applied,
+    // Аудит раунд 3, крок 1: undone_at/dismissed_at тепер їдуть з історії
+    // (card_pending, приєднано на сервері) — досі скасовані/відхилені
+    // auto-картки після F5 показувались як «◌ ОЧІКУЄ», бо цих полів
+    // просто не було в MessageInfo.
+    undone: !!m.undone_at,
+    dismissed: !!m.dismissed_at,
     // undoToken на клієнті не відновлюємо — apply вже пройшов, повторний
     // apply/undo вимагатимуть нового токена. Кнопки undo після F5 нема.
   };
@@ -764,11 +770,19 @@ export function Feed() {
     }
   }
 
-  function dismissCard(turnId: string) {
-    // «Ні» на пропозиції — локальне відхилення в межах вкладки. Не переживає
-    // F5 (для цього треба POST /v1/cards/:id/dismiss + поле в БД, окрема
-    // задача). Мінімум — кнопка мусить хоч би реагувати.
+  async function dismissCard(turnId: string) {
+    // Оптимістично: кнопка реагує одразу, а не після round-trip.
     setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, dismissed: true } : t));
+    const turn = turns.find((t) => t.id === turnId);
+    if (!turn?.cardId) return;
+    try {
+      await api.cards.dismiss(turn.cardId);
+    } catch (err) {
+      // Відкат оптимізму: сервер не прийняв (уже застосована іншим шляхом,
+      // чужа картка тощо) — «Ні» не мало сенсу, повертаємо як було.
+      setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, dismissed: false } : t));
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
   }
 
   async function openRecipe(turn: Turn, index = 0) {
@@ -1081,16 +1095,25 @@ export function Feed() {
 
         {!historyOpen && turns.map((t) => (
           <div key={t.id} id={`turn-${t.id}`} className={`${styles.turn} ${t.role === 'user' ? styles['turn-user'] : ''}`}>
+            {/* Аудит раунд 3, крок 3: персони немає — підпису «КУХНЯ» на
+                репліках без картки (репіт-гард, інші детерміновані, звичайний
+                текст моделі) теж немає, лише час. Картка є — тип картки й
+                статус лишаються (labelFor нижче). */}
             <MonoLabel tone="muted">
-              {t.time} {t.role === 'user' ? 'ТИ' : t.card ? (
-                (() => {
-                  const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed);
-                  // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
-                  return l.tone === 'pending'
-                    ? <span className={styles['pending-pulse']}>{l.text}</span>
-                    : l.text;
-                })()
-              ) : 'КУХНЯ'}
+              {t.time}
+              {t.role === 'user' && ' ТИ'}
+              {t.role === 'assistant' && t.card && (
+                <>
+                  {' '}
+                  {(() => {
+                    const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed);
+                    // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
+                    return l.tone === 'pending'
+                      ? <span className={styles['pending-pulse']}>{l.text}</span>
+                      : l.text;
+                  })()}
+                </>
+              )}
             </MonoLabel>
             {t.text && (
               t.role === 'assistant' && t.fresh ? (

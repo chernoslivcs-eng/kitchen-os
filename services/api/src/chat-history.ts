@@ -7,7 +7,7 @@
 // рівно та діра, через яку QA-4 знайшов «модель не бачить ні історії, ні
 // профілю» на 128 зелених тестах.
 
-import { applyModeFor, maskHistoryQuantities, type Card, type MessageRow } from '@kitchen/domain';
+import { applyModeFor, maskHistoryQuantities, CARD_BUTTON_LABEL, type Card, type MessageRow } from '@kitchen/domain';
 
 export interface HistoryTurn {
   role: 'user' | 'assistant';
@@ -73,11 +73,21 @@ export function summarizeCard(c: Card): string {
 // тапу. Усі мітки «не застосовано» починаються тими самими словами
 // «[НЕ ЗАСТОСОВАНО», щоб правило в role.md лишалось чинним без правки
 // префікса (кеш і хеш промпту не зачеплені).
-function cardStatus(card: Card, applied: number): string {
+function cardStatus(card: Card, applied: number, undone_at: string | null, dismissed_at: string | null): string {
   // recipe_link — не pending-дія, а доконаний факт: рецепт УЖЕ в стрічці.
   // Суфікс [НЕ ЗАСТОСОВАНО] тут читався моделлю як «система ще не оновила
   // рецепт» — і вона чесно відмовлялась від зробленого.
   if (card.type === 'recipe_link') return '';
+  // Аудит раунд 3, крок 1: dismissed/undone — доконані рішення людини,
+  // і мають переважити мітку за режимом картки. Перевіряються ДО applied>0,
+  // бо undo скидає message.applied назад у 0 (markMessageApplied(id, 0)) —
+  // без цього блоку картка після undo виглядала б знову «чекає тапу».
+  if (dismissed_at) {
+    return ' [ВІДХИЛЕНО людиною — не записано; не пропонуй це знову, поки вона сама не повернеться до теми]';
+  }
+  if (undone_at) {
+    return ' [СКАСОВАНО людиною після застосування — у коморі/списку цього вже НЕМАЄ]';
+  }
   if (applied > 0) {
     // «Творча бухгалтерія» (eval pantry-truth): застосована intake-картка в
     // історії читалась як ЩЕ ОДИН запас поверх [КОМОРА] — модель складала 500
@@ -93,12 +103,17 @@ function cardStatus(card: Card, applied: number): string {
   if (mode === 'none') return '';
   // Чекає тапу: профіль, продиктований рецепт, фото страви. Причина — в
   // самій мітці, бо саме її модель читає, коли людина питає «це вже записано?».
+  // Аудит раунд 3, крок 2: назва кнопки — з CARD_BUTTON_LABEL, того самого
+  // джерела, що рендерить cards.tsx. Модель бере ім'я звідси, а не вигадує.
   if (mode === 'confirm') {
-    return ' [НЕ ЗАСТОСОВАНО — чекає тапу людини: у профілі/бібліотеці цього ще НЕМАЄ, поки вона не натисне]';
+    const label = CARD_BUTTON_LABEL[card.type];
+    return ` [НЕ ЗАСТОСОВАНО — у профілі/бібліотеці цього ще НЕМАЄ; під карткою кнопка «${label}», людина її не натискала]`;
   }
   // auto-картка, яка нічого не записала (apply відхилив усі op або впав):
-  // це не «чекає», це «не сталось» — і в коморі/списку цього немає.
-  return ' [НЕ ЗАСТОСОВАНО — нічого не записано: у коморі/списку цього НЕМАЄ]';
+  // це не «чекає», це «не сталось» — і в коморі/списку цього немає. Кнопки
+  // тут нема взагалі (auto застосовується сам) — сказано прямо, щоб модель
+  // не вигадала «натисни», якої нема куди тиснути.
+  return ' [НЕ ЗАСТОСОВАНО — нічого не записано, у коморі/списку цього НЕМАЄ. Кнопки нема, чекати нічого: якщо людина хоче — хай назве ще раз, ти запишеш новою карткою]';
 }
 
 // ХТО написав репліку. Картки в історії давно несуть своє походження
@@ -133,7 +148,7 @@ export function buildChatHistory(messages: MessageRow[]): HistoryTurn[] {
       // Пул-3, pantry-truth: кількості запасів у репліках історії маскуються —
       // єдине число про запас, яке бачить модель, живе в [КОМОРА].
       if (m.text) parts.push(`${stamp} ${maskHistoryQuantities(m.text)}`);
-      if (m.card) parts.push(summarizeCard(m.card) + cardStatus(m.card, m.applied));
+      if (m.card) parts.push(summarizeCard(m.card) + cardStatus(m.card, m.applied, m.undone_at ?? null, m.dismissed_at ?? null));
       return { role: m.role, content: parts.join('\n') };
     })
     .filter((m) => m.content);

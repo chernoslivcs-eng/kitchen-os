@@ -54,6 +54,7 @@ export async function createPending(repo: Repo, args: CreatePendingArgs): Promis
     undo_token: null,
     undo_snapshot: null,
     undone_at: null,
+    dismissed_at: null,
   };
   await repo.savePending(pc);
   return pc;
@@ -881,4 +882,29 @@ export async function undoCard(
   await repo.updatePending(pc.id, { undone_at: new Date().toISOString() });
   await repo.markMessageApplied(pc.id, 0);
   return { undone: true, already: false };
+}
+
+// ---------- dismiss ----------
+
+// Аудит раунд 3, крок 1: «Ні» на pending-картці (профіль, продиктований
+// рецепт, пропозиція). Досі це був чисто клієнтський React-стан (Feed.tsx) —
+// не переживав F5 і не потрапляв в історію, яку читає модель: перезавантаж
+// сторінку, і картка знову «чекає тапу», хоча людина вже сказала ні.
+//
+// На відміну від undo — тут нема чого відкочувати: dismiss можливий лише
+// ДО застосування (dismissCard на застосованій картці кидає помилку; шлях
+// назад для застосованого — undo, не dismiss). Тому й немає undo_snapshot.
+export async function dismissCard(
+  repo: Repo,
+  card_id: string,
+  actor_user_id: string,
+): Promise<{ dismissed: boolean; already: boolean }> {
+  const pc = await repo.getPending(card_id);
+  if (!pc) throw new Error(`card not found: ${card_id}`);
+  if (pc.user_id !== actor_user_id) throw new Error('forbidden');
+  if (pc.applied_at) throw new Error('already applied, use undo');
+  if (pc.dismissed_at) return { dismissed: true, already: true };
+
+  await repo.updatePending(pc.id, { dismissed_at: new Date().toISOString() });
+  return { dismissed: true, already: false };
 }

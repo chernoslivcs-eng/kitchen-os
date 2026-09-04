@@ -8,6 +8,10 @@ import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurrence } from '../../api';
+// Аудит раунд 3, крок 2: підпис кнопки — з card-modes.ts, не окрема правда
+// на фронті. Субпуть, не '@kitchen/domain' — той тягне Repo/node:crypto,
+// а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
+import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
@@ -822,7 +826,7 @@ export function ProfileCard({ card, applied, applying, dismissed, undone, onAppl
       </div>
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>Запам'ятати</Button>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>{CARD_BUTTON_LABEL.profile!}</Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
@@ -864,7 +868,7 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
       )}
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>У рецепти</Button>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>{CARD_BUTTON_LABEL.recipe!}</Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
@@ -909,7 +913,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
       </div>
       {!applied && !undone && !dismissed && onApply && (
         <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>У журнал</Button>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>{CARD_BUTTON_LABEL.cook_photo!}</Button>
           <Button variant="secondary" onClick={onDismiss}>Ні</Button>
         </div>
       )}
@@ -1486,5 +1490,10 @@ export function labelFor(
     : type === 'recipe' ? 'РЕЦЕПТ'
     : type === 'cook_photo' ? 'ЖУРНАЛ'
     : 'ПРОПОЗИЦІЯ';
-  return { text: `${base} · ◌ ОЧІКУЄ`, tone: 'pending' };
+  // Аудит раунд 3, крок 3: статус — з режиму застосування (card-modes.ts),
+  // не захардкожений тут другою правдою. mode === 'none' (proposal тощо) —
+  // нічого чекати, лише тип, без «· ОЧІКУЄ».
+  return applyMode(type) === 'none'
+    ? { text: base, tone: 'muted' }
+    : { text: `${base} · ◌ ОЧІКУЄ`, tone: 'pending' };
 }

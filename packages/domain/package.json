@@ -7,7 +7,8 @@
   "types": "./index.ts",
   "exports": {
     ".": "./index.ts",
-    "./contract": "./contract.ts"
+    "./contract": "./contract.ts",
+    "./card-modes": "./card-modes.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

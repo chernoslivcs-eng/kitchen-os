@@ -181,12 +181,36 @@ export class InMemoryRepo implements Repo {
     const out: Array<PendingCard & { session_id: string | null; created_at: string | null }> = [];
     for (const pc of this.pending.values()) {
       if (pc.household_id !== household_id) continue;
-      if (pc.applied_at || pc.undone_at) continue;
+      if (pc.applied_at || pc.undone_at || pc.dismissed_at) continue;
       const msg = await this.getMessage(pc.message_id);
       out.push({ ...pc, session_id: msg?.session_id ?? null, created_at: msg?.created_at ?? null });
     }
     out.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
     return out.slice(0, limit);
+  }
+
+  async listRecentResolved(
+    household_id: string,
+    opts: { since: Date; limit: number; exclude_session_id?: string },
+  ): Promise<PendingCard[]> {
+    const sinceMs = opts.since.getTime();
+    const out: (PendingCard & { resolvedMs: number })[] = [];
+    for (const pc of this.pending.values()) {
+      if (pc.household_id !== household_id) continue;
+      const resolvedMs = Math.max(
+        pc.applied_at ? new Date(pc.applied_at).getTime() : -Infinity,
+        pc.undone_at ? new Date(pc.undone_at).getTime() : -Infinity,
+        pc.dismissed_at ? new Date(pc.dismissed_at).getTime() : -Infinity,
+      );
+      if (resolvedMs === -Infinity || resolvedMs <= sinceMs) continue;
+      if (opts.exclude_session_id) {
+        const msg = await this.getMessage(pc.message_id);
+        if (msg?.session_id === opts.exclude_session_id) continue;
+      }
+      out.push({ ...pc, resolvedMs });
+    }
+    out.sort((a, b) => b.resolvedMs - a.resolvedMs);
+    return out.slice(0, opts.limit).map(({ resolvedMs: _resolvedMs, ...pc }) => pc);
   }
 
   async saveAttachment(a: AttachmentRecord): Promise<void> {
@@ -373,7 +397,13 @@ export class InMemoryRepo implements Repo {
     this.messages.set(msg.session_id, arr);
   }
   async listMessages(session_id: string): Promise<MessageRow[]> {
-    return (this.messages.get(session_id) ?? []).map((m) => ({ ...m }));
+    // Аудит раунд 3: undone_at/dismissed_at не зберігаються на message —
+    // приєднуються з card_pending за спільним id (message.id === pending.id),
+    // те саме, що робить PostgresRepo LEFT JOIN'ом.
+    return (this.messages.get(session_id) ?? []).map((m) => {
+      const pc = this.pending.get(m.id);
+      return { ...m, undone_at: pc?.undone_at ?? null, dismissed_at: pc?.dismissed_at ?? null };
+    });
   }
   async deleteSession(id: string): Promise<void> {
     const msgs = this.messages.get(id) ?? [];

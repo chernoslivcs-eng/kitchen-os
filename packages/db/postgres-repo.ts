@@ -245,6 +245,7 @@ function rowToPending(r: Row): PendingCard {
     undo_token: (r.undo_token as string | null) ?? null,
     undo_snapshot: (r.undo_snapshot as UndoSnapshot | null) ?? null,
     undone_at: r.undone_at ? new Date(r.undone_at as string).toISOString() : null,
+    dismissed_at: r.dismissed_at ? new Date(r.dismissed_at as string).toISOString() : null,
   };
 }
 
@@ -455,15 +456,15 @@ export class PostgresRepo implements Repo {
   async savePending(pc: PendingCard): Promise<void> {
     // ON CONFLICT DO NOTHING — createPending уже перевіряє існування, це другий пояс безпеки.
     await this.pool.query(
-      `INSERT INTO card_pending (id, message_id, household_id, user_id, card, applied_at, applied_ops, undo_token, undo_snapshot, undone_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      `INSERT INTO card_pending (id, message_id, household_id, user_id, card, applied_at, applied_ops, undo_token, undo_snapshot, undone_at, dismissed_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        ON CONFLICT (id) DO NOTHING`,
       [
         pc.id, pc.message_id, pc.household_id, pc.user_id,
         JSON.stringify(pc.card),
         pc.applied_at, pc.applied_ops ? JSON.stringify(pc.applied_ops) : null,
         pc.undo_token, pc.undo_snapshot ? JSON.stringify(pc.undo_snapshot) : null,
-        pc.undone_at,
+        pc.undone_at, pc.dismissed_at,
       ],
     );
   }
@@ -473,7 +474,7 @@ export class PostgresRepo implements Repo {
       `SELECT cp.*, m.session_id AS msg_session_id, m.created_at AS msg_created_at
          FROM card_pending cp
          LEFT JOIN message m ON m.id = cp.message_id
-        WHERE cp.household_id = $1 AND cp.applied_at IS NULL AND cp.undone_at IS NULL
+        WHERE cp.household_id = $1 AND cp.applied_at IS NULL AND cp.undone_at IS NULL AND cp.dismissed_at IS NULL
         ORDER BY m.created_at DESC NULLS LAST
         LIMIT $2`,
       [household_id, limit],
@@ -483,6 +484,31 @@ export class PostgresRepo implements Repo {
       session_id: r.msg_session_id ?? null,
       created_at: r.msg_created_at ? new Date(r.msg_created_at).toISOString() : null,
     }));
+  }
+
+  async listRecentResolved(
+    household_id: string,
+    opts: { since: Date; limit: number; exclude_session_id?: string },
+  ): Promise<PendingCard[]> {
+    // GREATEST ігнорує NULL лише через COALESCE до сентинела в минулому —
+    // сирий GREATEST(a,b,c) повертає NULL, якщо хоч один аргумент NULL.
+    const { rows } = await this.pool.query(
+      `SELECT cp.*
+         FROM card_pending cp
+         JOIN message m ON m.id = cp.message_id
+        WHERE cp.household_id = $1
+          AND (cp.applied_at IS NOT NULL OR cp.undone_at IS NOT NULL OR cp.dismissed_at IS NOT NULL)
+          AND GREATEST(
+                COALESCE(cp.applied_at, '-infinity'), COALESCE(cp.undone_at, '-infinity'), COALESCE(cp.dismissed_at, '-infinity')
+              ) > $2
+          AND ($3::uuid IS NULL OR m.session_id <> $3)
+        ORDER BY GREATEST(
+                COALESCE(cp.applied_at, '-infinity'), COALESCE(cp.undone_at, '-infinity'), COALESCE(cp.dismissed_at, '-infinity')
+              ) DESC
+        LIMIT $4`,
+      [household_id, opts.since, opts.exclude_session_id ?? null, opts.limit],
+    );
+    return rows.map(rowToPending);
   }
 
   async getPending(id: string): Promise<PendingCard | null> {
@@ -841,8 +867,15 @@ export class PostgresRepo implements Repo {
   }
 
   async listMessages(session_id: string): Promise<MessageRow[]> {
+    // Аудит раунд 3: undone_at/dismissed_at не зберігаються на message —
+    // приєднуються з card_pending за спільним id (message.id === pending.id,
+    // те саме, що deleteSession нижче вже покладається).
     const { rows } = await this.pool.query(
-      'SELECT * FROM message WHERE session_id = $1 ORDER BY created_at',
+      `SELECT m.*, cp.undone_at AS pc_undone_at, cp.dismissed_at AS pc_dismissed_at
+         FROM message m
+         LEFT JOIN card_pending cp ON cp.id = m.id
+        WHERE m.session_id = $1
+        ORDER BY m.created_at`,
       [session_id],
     );
     return rows.map((r): MessageRow => ({
@@ -857,6 +890,8 @@ export class PostgresRepo implements Repo {
       // `m.source ?` в chat-history.ts брав би порожню гілку правильно, але
       // рядок віз би зайве null у кожному ході історії.
       ...(r.source ? { source: r.source as MessageRow['source'] } : {}),
+      undone_at: r.pc_undone_at ? new Date(r.pc_undone_at as string).toISOString() : null,
+      dismissed_at: r.pc_dismissed_at ? new Date(r.pc_dismissed_at as string).toISOString() : null,
     }));
   }
 

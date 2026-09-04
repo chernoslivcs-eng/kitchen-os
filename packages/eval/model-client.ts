@@ -10,7 +10,7 @@ import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
   buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
 } from '@kitchen/domain';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary } from '@kitchen/domain';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
@@ -91,6 +91,10 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
     // Плани дому: без них неможливо перевірити правку події по id — модель
     // просто не побачить, що правити.
     events: (fx.events ?? []) as never,
+    // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картки дому, закриті поза цією
+    // розмовою. У проді рахує repo.listRecentResolved; фікстура описує
+    // напряму, як і events/modes вище.
+    recentActions: (fx.recentActions ?? []) as PendingCard[],
   });
   return { stable: base, dynamic };
 }

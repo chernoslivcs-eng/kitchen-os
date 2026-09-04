@@ -344,6 +344,10 @@ export interface PendingCard {
   undo_token: string | null;
   undo_snapshot: UndoSnapshot | null;
   undone_at: string | null;
+  // Аудит раунд 3, крок 1: «Ні» на pending-картці. Взаємовиключне з
+  // applied_at — dismissCard відмовляє, якщо картка вже застосована
+  // (тоді шлях назад — undo, не dismiss).
+  dismissed_at: string | null;
 }
 
 // Знімок ДО застосування: чого досить, щоб відкотити.
@@ -441,6 +445,12 @@ export interface MessageRow {
   // станом кухні («у Сільпо є два» → «у тебе є два», живий репро 01.09).
   // Не показується людині — живе тільки в історії, яка їде в модель.
   source?: 'retail_search';
+  // Аудит раунд 3, крок 1: похідні поля з card_pending (той самий id —
+  // message.id === card_pending.id), приєднуються при listMessages, а не
+  // зберігаються на самому рядку message. Джерело істини одне — card_pending;
+  // тут лише читання. Відсутнє/null = картка ще live (не undone, не dismissed).
+  undone_at?: string | null;
+  dismissed_at?: string | null;
 }
 
 export interface RecipeRow {

@@ -19,11 +19,12 @@ const ORDER = [
   'Ти кухар, який стоїть поруч',            // role
   'КОНТРАКТ ВІДПОВІДІ',                     // card-contract
   '- ФАКТИ ПРО КОМОРУ',                     // state-facts
-  '- ВІДМОВА ПОЗА ТЕМОЮ КУХНІ',             // tone-language
+  '- УКРАЇНСЬКА:',                          // tone-language
   'CARD варіанти:',                         // card-schemas
   'Правила:',                               // card-routing
   '- `kind:"intent"`',                      // kitchen-policy
   'МАТРИЦЯ ПРОПОЗИЦІЙ',                     // proposal-flow
+  'Ти — продукт із людським голосом',       // voice, крок 6д (735a572): додано останнім у chat.compose
 ];
 
 describe('порядок блоків у складеному промпті', () => {
@@ -60,11 +61,21 @@ describe('порядок блоків у складеному промпті', (
   it('мовні правила тримаються купи, не розсипані по маршрутизації', () => {
     const { blocks } = loadPrompt();
     const tone = blocks['tone-language']!;
-    for (const marker of ['ВІДМОВА ПОЗА ТЕМОЮ КУХНІ', 'УКРАЇНСЬКА', 'ЗВЕРТАННЯ — ЗАВЖДИ НА «ТИ»']) {
+    for (const marker of ['УКРАЇНСЬКА', 'ЗВЕРТАННЯ — ЗАВЖДИ НА «ТИ»']) {
       expect(tone, `«${marker}» має жити у tone-language`).toContain(marker);
     }
     for (const other of ['card-routing', 'kitchen-policy', 'card-contract']) {
       expect(blocks[other], `«ЗВЕРТАННЯ» протекло в ${other}`).not.toContain('ЗВЕРТАННЯ — ЗАВЖДИ');
     }
+  });
+
+  // Крок 6д (735a572): ВІДМОВА ПОЗА ТЕМОЮ переїхала з tone-language у
+  // voice.md (ПОЗА ТЕМОЮ) — не дублікат, а зміна власника правила. Якщо вона
+  // колись повернеться в tone-language одночасно з voice.md — це і є той
+  // самий розповзений дублікат, від якого рятував перенос.
+  it('ВІДМОВА ПОЗА ТЕМОЮ — тепер власність voice.md, не tone-language', () => {
+    const { blocks } = loadPrompt();
+    expect(blocks['tone-language'], 'ВІДМОВА не мала повернутись у tone-language').not.toContain('ВІДМОВА ПОЗА ТЕМОЮ');
+    expect(blocks['voice'], 'voice.md має нести правило про розмову поза темою').toContain('ПОЗА ТЕМОЮ');
   });
 });

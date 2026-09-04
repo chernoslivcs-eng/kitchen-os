@@ -23,7 +23,7 @@ import { localDay } from '../local-day.js';
 import { stampChatReceipt } from '../receipt-source.js';
 import { composeIntakeLabels } from '../intake-labels.js';
 import { vetoNonfood } from '../nonfood-veto.js';
-import { vetoAllergens } from '../allergen-veto.js';
+import { vetoAllergens, stripAllergenMentionsFromReply } from '../allergen-veto.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -357,6 +357,16 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const modes = detectModes(preMessages, recentCookRuns, new Date(), events);
     const openCart = modes.find((m) => m.kind === 'cart_open');
 
+    // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картки дому, закриті ПОЗА цією
+    // сесією за останні 48 год. exclude_session_id: історія ЦІЄЇ розмови вже
+    // несе, що модель сама застосувала/скасувала — дублювати нема сенсу.
+    const RECENT_ACTIONS_WINDOW_H = 48;
+    const recentActions = await repo.listRecentResolved(household_id, {
+      since: new Date(Date.now() - RECENT_ACTIONS_WINDOW_H * 3600_000),
+      limit: 5,
+      exclude_session_id: session.id,
+    });
+
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
     // «у тебе немає покупок на початку», хоча вони були за межею вікна. Кажемо прямо.
@@ -380,12 +390,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         modes,
         events,
         notesTruncated, recipesTruncated,
+        recentActions,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');
       return reply.code(502).send({ error: 'model_unavailable' });
     }
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
+
+    // Крок 6е: example-guard у model.ts уже перепитав модель — тут лише
+    // фіксуємо частоту, як і решта логів навколо call.meta.
+    if (call.meta.example_copy) {
+      req.log.warn({ user_id, model: call.meta.model }, 'example-copy');
+    }
 
     // Пул-4 №4а: службові [HH:MM] з історії не протікають у відповідь.
     if (call.reply) call.reply = stripHistoryStamps(call.reply);
@@ -749,6 +766,13 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const allergenVeto = vetoAllergens(call, profile, eaters);
     if (allergenVeto.removed.length) {
       req.log.warn({ user_id, removed: allergenVeto.removed, emptied: allergenVeto.emptied }, 'allergen-veto');
+    }
+    // Крок 6з: voice v3.1 просить не згадувати алерген зі своєї ініціативи —
+    // модель цього не тримає (qa5-allergen-proactive, KNOWN-FAILURES §10).
+    // Ріжемо речення з reply, якщо людина сама цей алерген не називала.
+    const allergenReplyClean = stripAllergenMentionsFromReply(call, profile, eaters, text ?? '');
+    if (allergenReplyClean.stripped.length) {
+      req.log.warn({ user_id, stripped: allergenReplyClean.stripped }, 'allergen-veto-reply');
     }
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша

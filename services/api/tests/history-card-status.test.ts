@@ -44,7 +44,7 @@ describe('статус картки в історії — лише там, де 
     for (const t of history) expect(t.content).not.toMatch(/ЗАСТОСОВАНО/);
   });
 
-  it('profile на підтвердженні: мітка каже, що чекає тапу і що в профілі цього ще нема', () => {
+  it('profile на підтвердженні: мітка називає справжню кнопку і каже, що людина її не натискала', () => {
     const [turn] = buildChatHistory([
       msg({
         text: 'Запишу кінзу.',
@@ -54,8 +54,10 @@ describe('статус картки в історії — лише там, де 
     ]);
     expect(turn!.content).toContain('[картка: профіль] add anti: кінза');
     // Починається тими самими словами, що й правило в role.md — префікс не правиться.
-    expect(turn!.content).toMatch(/\[НЕ ЗАСТОСОВАНО — чекає тапу/);
-    expect(turn!.content).toMatch(/цього ще НЕМАЄ/);
+    expect(turn!.content).toMatch(/\[НЕ ЗАСТОСОВАНО — у профілі\/бібліотеці цього ще НЕМАЄ/);
+    // CARD_BUTTON_LABEL.profile — те саме, що рендерить ProfileCard у cards.tsx.
+    expect(turn!.content).toContain('кнопка «Запам\'ятати»');
+    expect(turn!.content).toMatch(/не натискала/);
   });
 
   it('традиції — виняток у профілі (auto): застосована → [ЗАСТОСОВАНО]', () => {
@@ -77,8 +79,8 @@ describe('статус картки в історії — лише там, де 
         applied: 0,
       }),
     ]);
-    expect(turn!.content).toMatch(/\[НЕ ЗАСТОСОВАНО — нічого не записано/);
-    expect(turn!.content).not.toMatch(/чекає тапу/);
+    expect(turn!.content).toMatch(/\[НЕ ЗАСТОСОВАНО — нічого не записано, у коморі\/списку цього НЕМАЄ\. Кнопки нема, чекати нічого/);
+    expect(turn!.content).not.toMatch(/кнопка «/);
   });
 
   it('застосована intake-картка — без змін: попередження про подвійний облік лишається', () => {
@@ -90,6 +92,33 @@ describe('статус картки в історії — лише там, де 
       }),
     ]);
     expect(turn!.content).toContain('[ЗАСТОСОВАНО — ефект уже врахований у поточному [КОМОРА], не додавай]');
+  });
+
+  it('dismissed_at: відхилено людиною — не пропонувати знову', () => {
+    const [turn] = buildChatHistory([
+      msg({
+        text: 'Запишу кінзу.',
+        card: { type: 'profile', ops: [{ op: 'add', kind: 'anti', label: 'кінза' }] } as never,
+        applied: 0,
+        dismissed_at: '2026-09-05T10:00:00.000Z',
+      }),
+    ]);
+    expect(turn!.content).toMatch(/\[ВІДХИЛЕНО людиною — не записано; не пропонуй це знову/);
+    expect(turn!.content).not.toMatch(/НЕ ЗАСТОСОВАНО/);
+  });
+
+  it('undone_at: скасовано після застосування — переважає над applied>0', () => {
+    const [turn] = buildChatHistory([
+      msg({
+        text: 'Записав молоко.',
+        card: { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко' }] } as never,
+        // undoCard скидає message.applied назад у 0 — саме цей стан і мірить тест.
+        applied: 0,
+        undone_at: '2026-09-05T10:05:00.000Z',
+      }),
+    ]);
+    expect(turn!.content).toMatch(/\[СКАСОВАНО людиною після застосування — у коморі\/списку цього вже НЕМАЄ\]/);
+    expect(turn!.content).not.toMatch(/НЕ ЗАСТОСОВАНО/);
   });
 
   it('recipe_link — доконаний факт, без суфікса (як і було)', () => {
