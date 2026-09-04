@@ -32,8 +32,12 @@ export function mergeAttachmentCalls(calls: AttachmentCall[]): AttachmentCall {
     { input: 0, output: 0, cached: 0, cache_write: 0 },
   );
   const first = calls.find((c) => c.reply)?.reply ?? '';
+  // Ручний тест 04.09: «2 вкладення, разом 21 — Одинадцять позицій із Сільпо…»
+  // — моя кількість зіткнулась із моделевою фразою про перший чек. Репліка
+  // моделі описує ОДНЕ вкладення, тож у злитті вона не годиться; кажемо
+  // лише про сукупність і даємо наступний крок, як велить attachment-parser.
   const reply = ops.length
-    ? `${calls.length} вкладення, разом ${ops.length} — ${first}`.trim()
+    ? `Розібрав ${calls.length} вкладення — разом ${ops.length}. Розкласти?`
     : first;
   return { reply, card, raw_kind, usage, meta: calls[0]!.meta };
 }

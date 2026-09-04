@@ -22,8 +22,9 @@ describe('mergeAttachmentCalls', () => {
     expect((m.card as { ops: unknown[] }).ops).toHaveLength(3);
     expect(m.raw_kind).toBe('receipt');
     expect(m.usage).toMatchObject({ input: 20, output: 10, cached: 2 });
-    expect(m.reply).toMatch(/2 вкладення, разом 3/);
-    expect(m.reply).toContain('Чек Metro.');
+    expect(m.reply).toMatch(/2 вкладення — разом 3/);
+    // Репліка моделі про ОДИН чек у злитті не годиться (ручний тест 04.09).
+    expect(m.reply).not.toContain('Чек Metro.');
   });
 
   it('чек + фото страви: інтейк лишається, страва не ламає картку', () => {
