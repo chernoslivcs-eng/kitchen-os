@@ -494,3 +494,14 @@
 .cook-live:focus-visible {
   outline-offset: -2px;
 }
+
+/* Моушн-кіт §03: видалена розмова згортається, а не щезає. */
+.session-leave {
+  animation: session-out var(--dur-base, 250ms) var(--ease-exit, ease) both;
+  overflow: hidden;
+  pointer-events: none;
+}
+@keyframes session-out {
+  from { opacity: 1; max-height: 64px; }
+  to   { opacity: 0; max-height: 0; }
+}

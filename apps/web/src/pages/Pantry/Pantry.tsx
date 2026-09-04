@@ -47,14 +47,25 @@ export function PantryPage() {
   const [removed, setRemoved] = useState<PantryBatch | null>(null);
   const removedTimer = useRef<number | null>(null);
 
+  // Моушн-кіт §03, як у Списку: рядок, що зникає, згортається 250ms exit;
+  // новий — вʼїжджає base/enter. Комора довго жила без цього — списання
+  // просто «щезало», а додане зʼявлялось без входу.
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
+  const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+  const markLeaving = (id: string) => setLeavingIds((prev) => new Set(prev).add(id));
+  const unmarkLeaving = (id: string) => setLeavingIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+
   async function quickRemove(b: PantryBatch) {
+    markLeaving(b.id);
     try {
-      await api.batches.update(b.id, { state: 'depleted' });
+      await Promise.all([api.batches.update(b.id, { state: 'depleted' }), wait(250)]);
       setRemoved(b);
       if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
       removedTimer.current = window.setTimeout(() => setRemoved(null), 8000);
       await refresh();
     } catch { /* рядок лишиться — видно, що не вийшло */ }
+    finally { unmarkLeaving(b.id); }
   }
 
   async function undoRemove() {
@@ -73,10 +84,20 @@ export function PantryPage() {
   // шавлії 700ms — порівнюємо value/state зі знімком перед перечитуванням.
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
   const prevSnapshot = useRef<Map<string, string>>(new Map());
+  const snapshotReady = useRef(false);
   async function refresh() {
     try {
       const [p, s] = await Promise.all([api.pantry(), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
       const prev = prevSnapshot.current;
+      // Перше завантаження — без входів: список просто зʼявляється. Далі кожна
+      // партія, якої не було в знімку, вʼїжджає — і в порожню комору теж.
+      if (snapshotReady.current) {
+        const fresh = p.batches.filter((b) => !prev.has(b.id)).map((b) => b.id);
+        if (fresh.length) {
+          setFreshIds(new Set(fresh));
+          window.setTimeout(() => setFreshIds(new Set()), 400);
+        }
+      }
       if (prev.size) {
         const changed = new Set<string>();
         for (const b of p.batches) {
@@ -99,6 +120,7 @@ export function PantryPage() {
         }
       }
       prevSnapshot.current = new Map(p.batches.map((b) => [b.id, `${b.value}|${b.unit}|${b.state}`]));
+      snapshotReady.current = true;
       setBatches(p.batches);
       setProducts(p.products ?? []);
       setShoppingCount(s.count);
@@ -238,7 +260,7 @@ export function PantryPage() {
                 return (
                   /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
                      ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
-                  <div key={b.id} id={`batch-${b.id}`} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div key={b.id} id={`batch-${b.id}`} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
                     <button
                       className={styles['row-main']}
                       onClick={() => setEditing(b)}
@@ -288,6 +310,7 @@ export function PantryPage() {
           batch={editing}
           onClose={() => setEditing(null)}
           onChanged={async () => { await refresh(); setEditing(null); }}
+          onRemoving={async (id) => { markLeaving(id); await wait(250); }}
         />
       )}
 
@@ -318,7 +341,7 @@ const UNIT_OPTIONS: { value: PantryBatch['unit']; label: string }[] = [
   { value: 'pack', label: 'пач' },
 ];
 
-function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryBatch; product?: HouseholdProduct | null; onClose: () => void; onChanged: () => Promise<void> }) {
+function BatchEditSheet({ batch, product, onClose, onChanged, onRemoving }: { batch: PantryBatch; product?: HouseholdProduct | null; onClose: () => void; onChanged: () => Promise<void>; onRemoving?: (id: string) => Promise<void> }) {
   const [label, setLabel] = useState(batch.label);
   const [value, setValue] = useState<string>(batch.value != null ? String(batch.value) : '');
   const [unit, setUnit] = useState<PantryBatch['unit']>(batch.unit);
@@ -364,6 +387,7 @@ function BatchEditSheet({ batch, product, onClose, onChanged }: { batch: PantryB
     if (!confirm('Прибрати з комори? Вважатимемо, що закінчилось. В історії лишиться.')) return;
     setSaving(true);
     try {
+      await onRemoving?.(batch.id);
       await api.batches.remove(batch.id);
       await onChanged();
     } catch (err) {

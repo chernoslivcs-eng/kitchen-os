@@ -156,3 +156,14 @@
 @media (min-width: 1024px) {
   .title { font-size: 26px; }
 }
+
+/* Моушн-кіт §03: прибраний рецепт згортається, а не щезає. */
+.card-leave {
+  animation: card-out var(--dur-base, 250ms) var(--ease-exit, ease) both;
+  overflow: hidden;
+  pointer-events: none;
+}
+@keyframes card-out {
+  from { opacity: 1; max-height: 220px; }
+  to   { opacity: 0; max-height: 0; }
+}

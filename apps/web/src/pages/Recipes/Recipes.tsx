@@ -72,17 +72,22 @@ export function RecipesPage() {
 
   const readyCount = recipes.filter((r) => r.status === 'ready').length;
 
+  // Моушн-кіт §03: прибраний рецепт згортається 250ms exit, а не щезає.
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   async function unsave(r: SavedRecipe) {
     // QA9-08: приготовані рядки теж можна прибрати — журнал не постраждає.
     const q = r.cooked_count > 0
-      ? `Прибрати «${r.title}» з бібліотеки? Записи в журналі готувань лишаться.`
-      : `Прибрати «${r.title}» з бібліотеки?`;
+      ? `Прибрати «${r.title}» з рецептів? Записи в журналі готувань лишаться.`
+      : `Прибрати «${r.title}» з рецептів?`;
     if (!confirm(q)) return;
+    setLeavingIds((prev) => new Set(prev).add(r.id));
     try {
-      await api.savedRecipes.unsave(r.id);
+      await Promise.all([api.savedRecipes.unsave(r.id), new Promise<void>((res) => window.setTimeout(res, 250))]);
       await refresh();
     } catch (err) {
       alert((err as Error).message);
+    } finally {
+      setLeavingIds((prev) => { const n = new Set(prev); n.delete(r.id); return n; });
     }
   }
 
@@ -175,7 +180,7 @@ export function RecipesPage() {
         {sorted.map((r) => {
           const chip = statusChip(r);
           return (
-            <div key={r.id} style={{ position: 'relative' }}>
+            <div key={r.id} style={{ position: 'relative' }} className={leavingIds.has(r.id) ? styles['card-leave'] : ''}>
               <button
                 className={styles.card}
                 /* Правка №10: рецепт — хід розмови. Тап відкриває сесію з

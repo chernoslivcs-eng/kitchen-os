@@ -175,12 +175,16 @@ export function TabBar({ shoppingCount }: Props) {
     navigate('/app', { state: { openHistory: true, at: Date.now() } });
   }
   // Пул-4 №1: видалення сесії. Активна видалена → свіжа сесія.
+  // Моушн-кіт §03: рядок розмови згортається 250ms exit перед тим, як зникнути.
+  const [leavingSessions, setLeavingSessions] = useState<Set<string>>(new Set());
   async function removeSession(e: React.MouseEvent, id: string, title: string | null) {
     e.stopPropagation();
     if (!confirm(`Видалити розмову${title ? ` «${title}»` : ''}? Сам чат зникне, але приготовані страви лишаться в журналі.`)) return;
+    setLeavingSessions((prev) => new Set(prev).add(id));
     try {
-      await api.session.remove(id);
+      await Promise.all([api.session.remove(id), new Promise<void>((res) => window.setTimeout(res, 250))]);
       setSessions((prev) => prev.filter((s) => s.id !== id));
+      setLeavingSessions((prev) => { const n = new Set(prev); n.delete(id); return n; });
       if (id === activeSessionId) navigate('/app', { state: { freshSession: true, at: Date.now() } });
     } catch {/* тихо: рядок лишиться, повторний тап спробує ще */}
   }
@@ -289,7 +293,7 @@ export function TabBar({ shoppingCount }: Props) {
         {sessions.map((s) => {
           const { when, title } = sessionLabel(s);
           return (
-            <div key={s.id} className={styles['session-row']}>
+            <div key={s.id} className={`${styles['session-row']} ${leavingSessions.has(s.id) ? styles['session-leave'] : ''}`}>
               <button
                 className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`}
                 onClick={() => openSession(s.id)}
