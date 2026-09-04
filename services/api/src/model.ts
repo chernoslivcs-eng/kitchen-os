@@ -186,7 +186,13 @@ export interface ChatCall {
   reply: string;
   card: Card | null;
   usage: { input: number; output: number; cached?: number; cache_write?: number };
-  meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
+  meta: {
+    promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number;
+    // Крок 6е: чи довелось перепитувати модель, бо reply дослівно повторював
+    // зразок voice.md. chat.ts логує це як 'example-copy' — сюди, а не в
+    // model.ts, бо тільки маршрут має req.log.
+    example_copy?: boolean;
+  };
 }
 
 
@@ -441,38 +447,9 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
   return promptText + buildDynamicContext(args);
 }
 
-export async function callChat(args: ChatArgs): Promise<ChatCall> {
-  const prompt = loadPrompt();
-  const client = makeClient();
-  if (!client) return stub(args, prompt.version);
-
-  const model = modelForCall('chat', prompt);
-  // Кеш-межа: складені правила (role+card-rules+proposal-flow+onboarding) —
-  // стабільний префікс; buildKitchenContext — динаміка. buildChatSystem
-  // лишається конкатенацією тих самих двох частин для тестів контексту.
-  const stable = compose('chat', prompt, { stage: args.stage });
-  const dynamic = buildDynamicContext(args);
-  // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
-  // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
-  const messages = [
-    ...(args.history ?? []),
-    { role: 'user' as const, content: args.text },
-  ];
-  const resp = await withRetry(() => client.messages.create({
-    model,
-    // Пул-2 №3: 2048 обрізало картку великого інтейку (інвентар на ~100
-    // позицій з трійками й тегами). Платимо лише за фактично згенероване.
-    max_tokens: 8192,
-    // Температура з маніфесту: на 1.0 (дефолт) поведінка фліпала між
-    // запусками — фікстури падали через раз на тих самих правилах.
-    temperature: prompt.manifest.calls.chat.temperature,
-    system: cachedSystem(stable, dynamic),
-    messages,
-  }));
-  const text = resp.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n');
+// Крок 6е: {reply,card} із сирого тексту відповіді — та сама логіка, потрібна
+// і першому виклику, і повторному в example-guard нижче.
+function parseChatText(text: string, stopReason: string | null): { reply: string; card: Card | null } {
   const { parsed, residualText } = extractJson(text);
   // Якщо JSON знайшовся — reply це те, що ЗАЛИШИЛОСЬ поза ним (може бути порожньо).
   // Якщо не знайшовся — residualText вже = text, тобто весь текст як reply.
@@ -494,17 +471,124 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   }
   // Пул-2 №5: відповідь уперлась у стелю і картка не зібралась — юзер не
   // мусить бачити ні уламок, ні бадьоре «Записую все» без картки.
-  if (resp.stop_reason === 'max_tokens' && !card) {
+  if (stopReason === 'max_tokens' && !card) {
     reply = INTAKE_TOO_BIG_REPLY;
   }
+  return { reply, card };
+}
+
+// example-guard (крок 6е): voice.md несе кілька повних зразків реплік для
+// точних випадків (чек, пересіл, алерген, гості). VOICE-COMPARE-GPT.md
+// показав живий випадок — і Sonnet, і GPT-5.4 іноді повертають сам зразок
+// слово в слово замість власної репліки за його рухом. Зразки НЕ хардкодимо:
+// парсимо блок «Ситуація: … / репліка» з живого voice.md, щоб перевірка не
+// розійшлась із текстом промпту (той самий урок, що з overlap-lint).
+function parseVoiceExamples(voiceText: string): string[] {
+  const examples: string[] = [];
+  const re = /^Ситуація:.*\n(.+)$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(voiceText))) examples.push(m[1]!.trim());
+  return examples;
+}
+
+function normalizeWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[«»"'.,!?…:;()\-—–]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+// Частка слів reply, які є і серед слів зразка — мультимножина: повторне
+// слово в reply рахується, лише поки в зразку лишаються невикористані копії.
+export function wordOverlapRatio(reply: string, example: string): number {
+  const replyWords = normalizeWords(reply);
+  if (!replyWords.length) return 0;
+  const exampleCounts = new Map<string, number>();
+  for (const w of normalizeWords(example)) exampleCounts.set(w, (exampleCounts.get(w) ?? 0) + 1);
+  let common = 0;
+  for (const w of replyWords) {
+    const left = exampleCounts.get(w) ?? 0;
+    if (left > 0) { common++; exampleCounts.set(w, left - 1); }
+  }
+  return common / replyWords.length;
+}
+
+const EXAMPLE_COPY_THRESHOLD = 0.6;
+const EXAMPLE_COPY_GUARD_LINE = 'Перепиши репліку своїми словами, не повторюючи зразків.';
+
+export function matchesVoiceExample(reply: string, examples: string[]): boolean {
+  if (!reply.trim() || !examples.length) return false;
+  return examples.some((ex) => wordOverlapRatio(reply, ex) >= EXAMPLE_COPY_THRESHOLD);
+}
+
+export async function callChat(args: ChatArgs): Promise<ChatCall> {
+  const prompt = loadPrompt();
+  const client = makeClient();
+  if (!client) return stub(args, prompt.version);
+
+  const model = modelForCall('chat', prompt);
+  // Кеш-межа: складені правила (role+card-rules+proposal-flow+onboarding) —
+  // стабільний префікс; buildKitchenContext — динаміка. buildChatSystem
+  // лишається конкатенацією тих самих двох частин для тестів контексту.
+  const stable = compose('chat', prompt, { stage: args.stage });
+  const dynamic = buildDynamicContext(args);
+  // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
+  // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
+  const messages = [
+    ...(args.history ?? []),
+    { role: 'user' as const, content: args.text },
+  ];
+  const callOpts = {
+    model,
+    // Пул-2 №3: 2048 обрізало картку великого інтейку (інвентар на ~100
+    // позицій з трійками й тегами). Платимо лише за фактично згенероване.
+    max_tokens: 8192,
+    // Температура з маніфесту: на 1.0 (дефолт) поведінка фліпала між
+    // запусками — фікстури падали через раз на тих самих правилах.
+    temperature: prompt.manifest.calls.chat.temperature,
+    system: cachedSystem(stable, dynamic),
+  };
+  const resp = await withRetry(() => client.messages.create({ ...callOpts, messages }));
+  const text = resp.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n');
+  let { reply, card } = parseChatText(text, resp.stop_reason);
+  let usage = usageFrom(resp.usage);
+  let exampleCopy = false;
+
+  const voiceExamples = parseVoiceExamples(prompt.blocks['voice'] ?? '');
+  if (matchesVoiceExample(reply, voiceExamples)) {
+    exampleCopy = true;
+    const retryMessages = [
+      ...(args.history ?? []),
+      { role: 'user' as const, content: `${args.text}\n\n${EXAMPLE_COPY_GUARD_LINE}` },
+    ];
+    const retryResp = await withRetry(() => client.messages.create({ ...callOpts, messages: retryMessages }));
+    const retryText = retryResp.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n');
+    ({ reply, card } = parseChatText(retryText, retryResp.stop_reason));
+    const retryUsage = usageFrom(retryResp.usage);
+    usage = {
+      input: usage.input + retryUsage.input,
+      output: usage.output + retryUsage.output,
+      cached: (usage.cached ?? 0) + (retryUsage.cached ?? 0),
+      cache_write: (usage.cache_write ?? 0) + (retryUsage.cache_write ?? 0),
+    };
+  }
+
   return {
     reply,
     card,
-    usage: usageFrom(resp.usage),
+    usage,
     meta: {
       promptVersion: prompt.version, model, mode: 'live',
       // A3: слід тексту, що реально поїхав (стабільний префікс).
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
+      example_copy: exampleCopy,
     },
   };
 }

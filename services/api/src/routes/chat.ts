@@ -23,7 +23,7 @@ import { localDay } from '../local-day.js';
 import { stampChatReceipt } from '../receipt-source.js';
 import { composeIntakeLabels } from '../intake-labels.js';
 import { vetoNonfood } from '../nonfood-veto.js';
-import { vetoAllergens } from '../allergen-veto.js';
+import { vetoAllergens, stripAllergenMentionsFromReply } from '../allergen-veto.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -398,6 +398,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     }
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
 
+    // Крок 6е: example-guard у model.ts уже перепитав модель — тут лише
+    // фіксуємо частоту, як і решта логів навколо call.meta.
+    if (call.meta.example_copy) {
+      req.log.warn({ user_id, model: call.meta.model }, 'example-copy');
+    }
+
     // Пул-4 №4а: службові [HH:MM] з історії не протікають у відповідь.
     if (call.reply) call.reply = stripHistoryStamps(call.reply);
 
@@ -760,6 +766,13 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const allergenVeto = vetoAllergens(call, profile, eaters);
     if (allergenVeto.removed.length) {
       req.log.warn({ user_id, removed: allergenVeto.removed, emptied: allergenVeto.emptied }, 'allergen-veto');
+    }
+    // Крок 6з: voice v3.1 просить не згадувати алерген зі своєї ініціативи —
+    // модель цього не тримає (qa5-allergen-proactive, KNOWN-FAILURES §10).
+    // Ріжемо речення з reply, якщо людина сама цей алерген не називала.
+    const allergenReplyClean = stripAllergenMentionsFromReply(call, profile, eaters, text ?? '');
+    if (allergenReplyClean.stripped.length) {
+      req.log.warn({ user_id, stripped: allergenReplyClean.stripped }, 'allergen-veto-reply');
     }
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша

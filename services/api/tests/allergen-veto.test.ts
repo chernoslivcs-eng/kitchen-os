@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { vetoAllergens, ALLERGEN_VETO_REPLY } from '../src/allergen-veto.js';
+import { vetoAllergens, ALLERGEN_VETO_REPLY, stripAllergenMentionsFromReply, ALLERGEN_REPLY_FALLBACK } from '../src/allergen-veto.js';
 import type { Card, EaterRow, Profile } from '@kitchen/domain';
 
 // Еval 04.09 після 1.2: shared-meal-allergen — арахісова паста в rescues на
@@ -64,5 +64,44 @@ describe('vetoAllergens', () => {
     const call = { card, reply: '' };
     const r = vetoAllergens(call, profile, []);
     expect(r.removed).toEqual([]);
+  });
+});
+
+// Крок 6з: qa5-allergen-proactive 3/3 — модель ігнорує voice v3.1 і сама
+// згадує алерген, якого ніхто не питав («Молочний з мигдалем теж є, але там
+// алерген — його не беру»). Промпт межу не тримає, тож ріже сервер.
+describe('stripAllergenMentionsFromReply', () => {
+  const mygdal = { ...noProfile, allergies: ['мигдаль'] } as Profile;
+
+  it('непрямий запит: людина алерген не називала — речення вирізається, картка не чіпається', () => {
+    const card: Card = {
+      type: 'proposal',
+      items: [{ title: 'Булочки з корицею', desc: 'мʼякі', rescues: ['булочки з корицею'] }],
+    };
+    const call = {
+      card,
+      reply: 'Булочки з корицею — саме під чай. Молочний з мигдалем теж є, але там алерген — його не беру.',
+    };
+    const r = stripAllergenMentionsFromReply(call, mygdal, [], 'Що солодкого до чаю з того, що є вдома?');
+    expect(r.stripped).toHaveLength(1);
+    expect(r.stripped[0]).toMatch(/мигдал/);
+    expect(call.reply).toBe('Булочки з корицею — саме під чай.');
+    expect((call.card as { items: unknown[] }).items).toHaveLength(1);
+  });
+
+  it('прямий запит: людина сама назвала алерген у своїй репліці — reply не чіпається', () => {
+    const card: Card = { type: 'proposal', items: [{ title: 'Локшина з арахісовим соусом', desc: 'з арахісом', rescues: ['локшина'] }] };
+    const call = { card, reply: 'У тебе алергія на арахіс — це небезпечно. Ось рецепт локшини з арахісовим соусом.' };
+    const r = stripAllergenMentionsFromReply(call, { ...noProfile, allergies: ['арахіс'] } as Profile, [], 'Дай рецепт локшини з арахісовим соусом');
+    expect(r.stripped).toEqual([]);
+    expect(call.reply).toBe('У тебе алергія на арахіс — це небезпечно. Ось рецепт локшини з арахісовим соусом.');
+  });
+
+  it('reply повністю з алергену і є картка — фолбек «Тримай варіанти.»', () => {
+    const card: Card = { type: 'proposal', items: [{ title: 'Булочки з корицею', desc: 'мʼякі', rescues: [] }] };
+    const call = { card, reply: 'Молочний з мигдалем теж є, але там алерген — його не беру.' };
+    const r = stripAllergenMentionsFromReply(call, mygdal, [], 'Що солодкого до чаю?');
+    expect(r.stripped).toHaveLength(1);
+    expect(call.reply).toBe(ALLERGEN_REPLY_FALLBACK);
   });
 });

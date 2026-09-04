@@ -79,3 +79,59 @@ export function vetoAllergens(
   call.reply = ALLERGEN_VETO_REPLY;
   return { removed, emptied: true };
 }
+
+// Крок 6з: voice v3.1 заборонило моделі згадувати алерген зі своєї
+// ініціативи («Молочний з мигдалем теж є, але там алерген — його не беру»),
+// але модель тримається старої звички стабільно (qa5-allergen-proactive
+// 3/3, KNOWN-FAILURES §10). Промпт не тримає межу — межа йде сервером,
+// тим самим законом, що vetoAllergens вище: сервер забороняє те, що впізнав.
+//
+// «Непрямий запит» тут — не про формулювання людини загалом, а конкретно:
+// чи згадала вона САМЕ ЦЕЙ алерген у своїй поточній репліці. Якщо так
+// («дай рецепт з горіховим соусом» при алергії на горіхи) — це прямий запит,
+// і reply МАЄ назвати алерген вголос (kitchen-policy: «на прямий запит —
+// дай, обовʼязково»); чіпати такі речення не можна, інакше зламаємо
+// mentions-allergen-out-loud. Якщо алергену немає в репліці людини — його
+// згадка в reply завжди самоініціативна, і саме її ми ріжемо.
+function splitSentences(text: string): string[] {
+  // Проста розбивка по реченнях (крапка/оклик/питання + пробіл) — досить для
+  // коротких reply голосу; складніші скорочення тут не трапляються.
+  return text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
+}
+
+export const ALLERGEN_REPLY_FALLBACK = 'Тримай варіанти.';
+
+export interface AllergenReplyCleanResult {
+  stripped: string[];
+}
+
+/** Мутує call.reply: вирізає речення з коренем алергену, якого людина сама не називала. */
+export function stripAllergenMentionsFromReply(
+  call: { card: Card | null; reply?: string | null },
+  profile: Profile | null | undefined,
+  eaters: EaterRow[],
+  userText: string,
+): AllergenReplyCleanResult {
+  const none: AllergenReplyCleanResult = { stripped: [] };
+  const reply = call.reply;
+  if (!reply) return none;
+  const roots = allergenRoots(profile, eaters);
+  if (!roots.length) return none;
+
+  // Алергени, які людина сама щойно назвала — прямий запит, reply про них
+  // мовчати не має.
+  const namedByUser = new Set(hits(userText, roots));
+
+  const stripped: string[] = [];
+  const kept = splitSentences(reply).filter((s) => {
+    const h = hits(s, roots).filter((label) => !namedByUser.has(label));
+    if (h.length) { stripped.push(s.trim()); return false; }
+    return true;
+  });
+  if (!stripped.length) return none;
+
+  let next = kept.join(' ').trim();
+  if (!next && call.card) next = ALLERGEN_REPLY_FALLBACK;
+  call.reply = next;
+  return { stripped };
+}
