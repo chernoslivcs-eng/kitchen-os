@@ -35,7 +35,9 @@ def strip_comments_keep_lines(src):
 def line_of(text, pos): return text.count('\n', 0, pos) + 1
 
 STR_RE = re.compile(r"'((?:[^'\\\n]|\\.)*)'|\"((?:[^\"\\\n]|\\.)*)\"|`((?:[^`\\]|\\.)*)`", re.S)
-JSX_TEXT_RE = re.compile(r'>([^<>{}]*?)<')
+# Текст між тегом і підстановкою теж текст: «СКОРО ЗГОРИТЬ · {…}» ховався від
+# старого виразу, який брав лише > … <.
+JSX_TEXT_RE = re.compile(r'[>}]([^<>{}]*?)[<{]')
 ATTR_RE = re.compile(r'([A-Za-z-]+)=\s*$')
 
 def classify(s, ctx_before):
@@ -70,6 +72,9 @@ def extract(path):
         for m in JSX_TEXT_RE.finditer(clean):
             s = re.sub(r'\s+', ' ', m.group(1)).strip()
             if not CYR.search(s): continue
+            # Ширший вираз [>}]…[<{] ловить і шматки коду: шаблонні рядки з $,
+            # атрибути (placeholder="…" style=), тернарники. Це не текст — відсікаємо.
+            if re.search(r'[`$\]]|="|=\'|\?\?|\?\.|\s\?\s|\s:\s|^[);,]|\w+=$', s): continue
             # <number>(0) … useState< — дженерики виглядають як JSX-текст
             if len(s) > 320 or re.search(r'\b(const|let|useState|useRef|return|className|import)\b|=>|\);', s): continue
             before = clean[max(0, m.start()-200):m.start()]
