@@ -363,9 +363,16 @@ export function ProfilePage() {
     }
   }
 
+  // Моушн-кіт §03: видалений їдець чи нотатка згортаються 250ms exit.
+  const [leavingRows, setLeavingRows] = useState<Set<string>>(new Set());
+  const leaveRow = async (id: string, del: () => Promise<unknown>) => {
+    setLeavingRows((prev) => new Set(prev).add(id));
+    try { await Promise.all([del(), new Promise<void>((r) => window.setTimeout(r, 250))]); }
+    finally { setLeavingRows((prev) => { const n = new Set(prev); n.delete(id); return n; }); }
+  };
   async function dropEater(id: string) {
     try {
-      await api.deleteEater(id);
+      await leaveRow(id, () => api.deleteEater(id));
       setEaters((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {
       setProfileError((err as Error).message);
@@ -374,7 +381,7 @@ export function ProfilePage() {
 
   async function dropNote(id: string) {
     try {
-      await api.deleteNote(id);
+      await leaveRow(id, () => api.deleteNote(id));
       setNotes((prev) => prev.filter((n) => n.id !== id));
     } catch (err) {
       setProfileError((err as Error).message);
@@ -671,6 +678,7 @@ export function ProfilePage() {
                 return (
                   <div
                     key={e.id}
+                    className={leavingRows.has(e.id) ? styles['row-leave'] : ''}
                     style={{
                       display: 'flex', alignItems: 'baseline', gap: 10,
                       padding: '10px 0', borderBottom: '1px solid var(--border)',
@@ -805,7 +813,7 @@ export function ProfilePage() {
               })().map((n) => (
                 <div
                   key={n.id}
-                  className={styles['lesson-row']}
+                  className={`${styles['lesson-row']} ${leavingRows.has(n.id) ? styles['row-leave'] : ''}`}
                   style={{
                     display: 'flex', alignItems: 'baseline', gap: 10,
                     padding: '10px 0', borderBottom: '1px solid var(--border)',

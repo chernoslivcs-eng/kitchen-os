@@ -1312,7 +1312,7 @@ export function Feed() {
             {t.card && t.card.type !== 'event' && !(isTraditionTurn(t) && t.applied) && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
+              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.dismissed ? styles['doccard-off'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}

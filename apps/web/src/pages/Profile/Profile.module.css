@@ -388,3 +388,14 @@
   font-size: 14px;
   color: var(--fg-mono);
 }
+
+/* Моушн-кіт §03: видалений рядок (їдець, нотатка) згортається, а не щезає. */
+.row-leave {
+  animation: row-out var(--dur-base, 250ms) var(--ease-exit, ease) both !important;
+  overflow: hidden;
+  pointer-events: none;
+}
+@keyframes row-out {
+  from { opacity: 1; max-height: 160px; }
+  to   { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
+}

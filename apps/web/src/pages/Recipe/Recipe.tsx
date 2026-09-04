@@ -270,7 +270,7 @@ export function RecipePage() {
           onClick={saveForLater}
           disabled={savedId !== null || saving}
         >
-          {savedId ? '✓ Збережено' : saving ? '…' : '☆ Колись'}
+          <span key={savedId ? 'on' : 'off'} className={styles['save-tick']}>{savedId ? '✓ Збережено' : saving ? '…' : '☆ Колись'}</span>
         </Button>
         <Button
           variant="primary"

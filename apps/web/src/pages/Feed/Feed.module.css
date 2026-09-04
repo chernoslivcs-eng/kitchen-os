@@ -770,6 +770,9 @@
 
 /* Пул-7 №4: apply — картка спалахує шавлією 700ms (кіт: ✓ + флеш). */
 .doccard-flash { animation: doccard-flash 700ms var(--ease-standard, ease); }
+/* Моушн-кіт: після «Ні» картка не щезає — осідає й пригасає base, підпис сліду каже, що сталось. */
+.doccard { transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease), transform var(--dur-base, 250ms) var(--ease-standard, ease); }
+.doccard-off { opacity: .55; transform: scale(.985); }
 @keyframes doccard-flash {
   from { background: color-mix(in srgb, var(--accent) 18%, var(--bg-surface-2)); }
   to   { background: var(--bg-surface-2); }

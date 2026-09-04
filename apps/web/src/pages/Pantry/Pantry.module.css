@@ -258,3 +258,7 @@
   from { opacity: 1; max-height: 80px; }
   to   { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
 }
+
+/* Моушн-кіт: гліф стану ●/◔ «клацає» при перемиканні (key за станом). */
+.mark-tick { animation: mark-tick var(--dur-fast, 150ms) var(--ease-standard, ease); transition: color var(--dur-fast, 150ms); }
+@keyframes mark-tick { from { transform: scale(0.8); } to { transform: scale(1); } }

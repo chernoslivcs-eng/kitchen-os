@@ -27,8 +27,8 @@ interface Props {
   /** Відсутня лише в режимі 'new'. */
   event?: EventOccurrence;
   mode?: EventMode;
-  /** Після будь-якої зміни стану на сервері (add/patch/remove/mute). Для add — id нової події. */
-  onChanged?: (id?: string) => void;
+  /** Після будь-якої зміни стану на сервері. id — подія, якої торкнулись (для add — нова); change — що саме сталось, щоб календар міг зіграти вихід або флеш. */
+  onChanged?: (id?: string, change?: 'add' | 'edit' | 'remove' | 'mute') => void;
   /** Закрити контейнер (шторку). У панелі немає — артефакт лишається. */
   onClose?: () => void;
   /** Панель: заголовок 22, дії — у підвал панелі. */
@@ -116,7 +116,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
   async function mute() {
     if (!e) return;
     setBusy(true);
-    try { await api.events.mute(e.id); onChanged?.(); onClose?.(); } catch { setBusy(false); }
+    try { await api.events.mute(e.id); onChanged?.(e.id, 'mute'); onClose?.(); } catch { setBusy(false); }
   }
   const [added, setAdded] = useState(false);
   async function addAllToList() {
@@ -131,7 +131,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
   async function remove() {
     if (!e) return;
     setBusy(true);
-    try { await api.events.remove(e.id); onChanged?.(); onClose?.(); } catch { setBusy(false); }
+    try { await api.events.remove(e.id); onChanged?.(e.id, 'remove'); onClose?.(); } catch { setBusy(false); }
   }
 
   async function save(ev?: FormEvent) {
@@ -149,7 +149,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
     try {
       if (mode === 'new') {
         const res = await api.events.add({ title: t, kind: 'custom', rule, note: note.trim() || null }) as { event?: { id?: string } };
-        onChanged?.(res.event?.id);
+        onChanged?.(res.event?.id, 'add');
         onClose?.();
         return;
       }
@@ -158,7 +158,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
       // Локально: назва й нотатка одразу; діапазон перерахує календар за onChanged.
       setE({ ...e, title: t, note: note.trim() || null, rule: rule as EventOccurrence['rule'] });
       setMode('view');
-      onChanged?.(e.id);
+      onChanged?.(e.id, 'edit');
     } catch {
       setErr('Не вийшло записати. Спробуй ще раз');
     } finally { setBusy(false); }
@@ -223,7 +223,7 @@ export function EventArtifact({ event, mode: initialMode = 'view', onChanged, on
   const actions = footSlot ? createPortal(actionsRaw, footSlot) : actionsRaw;
 
   return (
-    <form className={`${styles.body} ${compact ? styles.compact : ''}`} onSubmit={save}>
+    <form key={mode} className={`${styles.body} ${styles['mode-in']} ${compact ? styles.compact : ''}`} onSubmit={save}>
       <div className={`${styles.kicker} ${k.tone}`}>{k.text}</div>
 
       {editing ? (

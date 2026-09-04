@@ -221,3 +221,7 @@
     margin-right: auto;
   }
 }
+
+/* Моушн-кіт: збереження «клацає», як чіп техніки в профілі. */
+.save-tick { display: inline-block; animation: save-tick var(--dur-fast, 150ms) var(--ease-standard, ease); }
+@keyframes save-tick { from { transform: scale(0.94); } to { transform: scale(1); } }

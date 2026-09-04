@@ -262,3 +262,7 @@
 .row:hover { background: var(--bg-hover); }
 .row-name { font-family: var(--font-body); font-size: 15px; color: var(--fg); }
 .row-go { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+
+/* Моушн-кіт: перегляд ↔ правка — той самий розмір, тож base-фейд без руху. */
+.mode-in { animation: mode-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+@keyframes mode-in { from { opacity: 0; } to { opacity: 1; } }

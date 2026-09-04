@@ -101,7 +101,7 @@ export function PantryPage() {
       if (prev.size) {
         const changed = new Set<string>();
         for (const b of p.batches) {
-          const sig = `${b.value}|${b.unit}|${b.state}`;
+          const sig = `${b.value}|${b.unit}|${b.state}|${b.zone}`;
           if (prev.has(b.id) && prev.get(b.id) !== sig) changed.add(b.id);
         }
         if (changed.size) {
@@ -119,7 +119,7 @@ export function PantryPage() {
           }, 50);
         }
       }
-      prevSnapshot.current = new Map(p.batches.map((b) => [b.id, `${b.value}|${b.unit}|${b.state}`]));
+      prevSnapshot.current = new Map(p.batches.map((b) => [b.id, `${b.value}|${b.unit}|${b.state}|${b.zone}`]));
       snapshotReady.current = true;
       setBatches(p.batches);
       setProducts(p.products ?? []);
@@ -267,7 +267,8 @@ export function PantryPage() {
                     >
                       {/* UX9-19: гліф стану має пояснювати себе сам. */}
                       <span
-                        className={`${styles.mark} ${b.state === 'opened' ? styles.opened : ''}`}
+                        key={b.state}
+                        className={`${styles.mark} ${styles['mark-tick']} ${b.state === 'opened' ? styles.opened : ''}`}
                         title={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
                         aria-label={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
                       >

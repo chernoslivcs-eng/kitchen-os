@@ -180,6 +180,11 @@
   text-align: left;
 }
 .now-row:hover { filter: brightness(0.97); }
+/* Моушн-кіт §03: вхід картки «ЗАРАЗ» base/enter, вихід — згортання exit. */
+.now-row { animation: now-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+@keyframes now-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.now-leave { animation: now-out var(--dur-base, 250ms) var(--ease-exit, ease) both !important; overflow: hidden; pointer-events: none; }
+@keyframes now-out { from { opacity: 1; max-height: 80px; } to { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-width: 0; } }
 .now-dot { color: var(--t); font-size: 9px; line-height: 1.7; flex: none; }
 .now-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .now-title {

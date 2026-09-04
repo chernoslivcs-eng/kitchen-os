@@ -5,6 +5,8 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg-body);
   color: var(--fg);
+  /* Моушн-кіт: зміна теми за ОС — base-перехід фону й тексту, не стрибок. */
+  transition: background-color var(--dur-base, 250ms) var(--ease-standard, ease), color var(--dur-base, 250ms) var(--ease-standard, ease);
   font-family: var(--font-body);
   font-size: var(--fs-body);
   line-height: var(--lh-body);

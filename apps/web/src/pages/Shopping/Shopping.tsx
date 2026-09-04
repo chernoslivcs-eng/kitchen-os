@@ -114,11 +114,18 @@ export function ShoppingPage() {
   async function unpackChecked() {
     if (!confirm('Додати куплене в комору?')) return;
     setUnpacking(true);
+    // Моушн-кіт §03: гуртове перенесення виходить тим самим згортанням,
+    // що й поштучне «прибрати» — інакше пів списку щезало одним кадром.
+    const going = items.filter((x) => x.checked).map((x) => x.id);
+    setLeavingIds((prev) => new Set([...prev, ...going]));
     try {
-      await api.shopping.unpack();
+      await Promise.all([api.shopping.unpack(), new Promise<void>((r) => window.setTimeout(r, 250))]);
       const fresh = await api.shopping.list();
       setItems(fresh.items);
-    } finally { setUnpacking(false); }
+    } finally {
+      setUnpacking(false);
+      setLeavingIds((prev) => { const n = new Set(prev); for (const id of going) n.delete(id); return n; });
+    }
   }
 
   const unchecked = items.filter((x) => !x.checked).length;

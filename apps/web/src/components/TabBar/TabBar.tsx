@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo, type EventOccurrence } from '../../api';
@@ -82,6 +82,12 @@ export function TabBar({ shoppingCount }: Props) {
 
   // Блок «ЗАРАЗ»: горизонт 21 день — той самий, що в контексті промпта.
   const [nowEvents, setNowEvents] = useState<EventOccurrence[]>(nowCache?.value ?? []);
+  // Моушн-кіт §03: картка, що пішла з «ЗАРАЗ», згортається 250ms exit, а не
+  // зникає між двома фетчами; нова входить base/enter (див. .now-row).
+  const [leavingNow, setLeavingNow] = useState<Set<string>>(new Set());
+  const nowRef = useRef<EventOccurrence[]>(nowEvents);
+  nowRef.current = nowEvents;
+  const nowKey = (e: EventOccurrence) => `${e.scope}:${e.id}:${e.start}`;
   useEffect(() => {
     if (nowCache && Date.now() - nowCache.at < 60_000) return;
     const today = new Date();
@@ -90,7 +96,11 @@ export function TabBar({ shoppingCount }: Props) {
       .then(({ events }) => {
         const picked = pickNow(events);
         nowCache = { value: picked, at: Date.now() };
-        setNowEvents(picked);
+        const next = new Set(picked.map(nowKey));
+        const gone = nowRef.current.map(nowKey).filter((k) => !next.has(k));
+        if (!gone.length) { setNowEvents(picked); return; }
+        setLeavingNow(new Set(gone));
+        window.setTimeout(() => { setNowEvents(picked); setLeavingNow(new Set()); }, 250);
       })
       .catch(() => {/* навігація без подій — не трагедія */});
   }, [pathname]);
@@ -248,7 +258,7 @@ export function TabBar({ shoppingCount }: Props) {
           {nowEvents.map((e) => (
             <button
               key={`${e.scope}:${e.id}:${e.start}`}
-              className={`${styles['now-row']} ${styles[`t-${toneKey(e)}`]}`}
+              className={`${styles['now-row']} ${styles[`t-${toneKey(e)}`]} ${leavingNow.has(nowKey(e)) ? styles['now-leave'] : ''}`}
               onClick={() => navigate('/calendar')}
               title={e.meaning ?? e.title}
             >

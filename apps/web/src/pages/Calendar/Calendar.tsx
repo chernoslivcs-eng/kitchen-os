@@ -74,6 +74,23 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
   const [version, setVersion] = useState(0);
+  // Моушн-кіт §03: прибрана чи вимкнена подія згортається 250ms exit до
+  // перечитування; правлена — після перечитування флешить тінтом 700ms.
+  const [leavingEvent, setLeavingEvent] = useState<string | null>(null);
+  const [flashEvent, setFlashEvent] = useState<string | null>(null);
+  const onEventChanged = (id?: string, change?: 'add' | 'edit' | 'remove' | 'mute') => {
+    if ((change === 'remove' || change === 'mute') && id) {
+      setLeavingEvent(id);
+      window.setTimeout(() => { setVersion((v) => v + 1); setLeavingEvent(null); }, 250);
+      return;
+    }
+    if (change === 'edit' && id) {
+      setFlashEvent(id);
+      window.setTimeout(() => setFlashEvent(null), 900);
+    }
+    setVersion((v) => v + 1);
+  };
+  const evMotion = (id: string) => `${leavingEvent === id ? styles['ev-leave'] : ''} ${flashEvent === id ? styles['ev-flash'] : ''}`;
   // Нова подія: з «＋» — на сьогодні; з календаря — на дні, куди клікнули.
   const [creating, setCreating] = useState<{ date: string; dateTo: string } | null>(null);
 
@@ -163,7 +180,7 @@ export function CalendarPage() {
       artifacts: [{ key, kind: 'event', label: openEvent.title, meta: '' }],
       render: () => (
         <EventArtifact key={openEvent.id} event={openEvent} compact
-          onClose={() => setOpenEvent(null)} onChanged={() => setVersion((v) => v + 1)} />
+          onClose={() => setOpenEvent(null)} onChanged={onEventChanged} />
       ),
     });
     panel.openArtifact(key);
@@ -243,7 +260,7 @@ export function CalendarPage() {
             <div className={styles.legend}>
               {running.map((e) => (
                 <button key={`${e.scope}:${e.id}`} type="button"
-                  className={`${styles.chip} ${toneClass(e)}`} onClick={() => setOpenEvent(e)}>
+                  className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
                   {legendLabel(e, today)}
                 </button>
               ))}
@@ -304,11 +321,11 @@ export function CalendarPage() {
                       </div>
                       <div className={styles.content}>
                         {captions.map(({ e, text }) => (
-                          <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)}`} onClick={() => setOpenEvent(e)}>{text}</button>
+                          <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>{text}</button>
                         ))}
                         {shown.map((e) => (
                           <button key={`${e.scope}:${e.id}`} type="button"
-                            className={`${styles.ev} ${e.kind === 'constraint' ? styles['ev-constraint'] : ''} ${e.kind === 'editorial' || e.source ? styles['ev-editorial'] : ''}`}
+                            className={`${styles.ev} ${e.kind === 'constraint' ? styles['ev-constraint'] : ''} ${e.kind === 'editorial' || e.source ? styles['ev-editorial'] : ''} ${evMotion(e.id)}`}
                             onClick={() => setOpenEvent(e)}>
                             {e.kind === 'supply' ? '＋ ' : ''}{e.title}
                           </button>
@@ -341,7 +358,7 @@ export function CalendarPage() {
       {openEvent && !panelInFlow && (
         <Sheet onClose={() => setOpenEvent(null)} ariaLabel={openEvent.title}>
           <EventArtifact key={openEvent.id} event={openEvent}
-            onClose={() => setOpenEvent(null)} onChanged={() => setVersion((v) => v + 1)} />
+            onClose={() => setOpenEvent(null)} onChanged={onEventChanged} />
         </Sheet>
       )}
     </div>

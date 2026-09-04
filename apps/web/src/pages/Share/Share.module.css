@@ -176,6 +176,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--dur-fast, 150ms) var(--ease-standard, ease), color var(--dur-fast, 150ms), border-color var(--dur-fast, 150ms);
 }
 .seg-on {
   background: var(--fg);
