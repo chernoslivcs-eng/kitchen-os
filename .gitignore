@@ -20,3 +20,8 @@ api-dist/
 # Канва збирається зі скриптом із .dc.html — 2.4МБ згенерованого не тримаємо
 design/*.html
 !design/*.dc.html
+
+# Матеріали аудиту: прод-транскрипти, не для публічного репо. Винятки — два звіти.
+audit-materials/*
+!audit-materials/AUDIT-ROUND-2.md
+!audit-materials/MANUAL-TEST-ROUND-2.md
