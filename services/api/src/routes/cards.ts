@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { applyCard, undoCard, type Repo, type Unit } from '@kitchen/domain';
+import { applyCard, undoCard, dismissCard, type Repo, type Unit } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { WRITEOFF_CARD_REPLY, FEEDBACK_PROMPT } from '../post-cook.js';
 
@@ -125,4 +125,26 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
       return reply.code(409).send({ error: msg });
     }
   });
+
+  // POST /v1/cards/:id/dismiss  (без тіла)
+  //   → { dismissed, already }
+  // Аудит раунд 3, крок 1: «Ні» на pending-картці, тепер живе в БД — не
+  // лише в React-стані вкладки. Той самий auth/scope, що в undo:
+  // user_id картки, не household — картка належить людині, яка її отримала.
+  app.post<{ Params: { id: string } }>(
+    '/v1/cards/:id/dismiss',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      try {
+        const r = await dismissCard(repo, req.params.id, user_id);
+        return r;
+      } catch (err) {
+        const msg = (err as Error).message;
+        if (msg === 'forbidden') return reply.code(403).send({ error: msg });
+        if (msg.startsWith('card not found')) return reply.code(404).send({ error: msg });
+        return reply.code(409).send({ error: msg });
+      }
+    },
+  );
 }

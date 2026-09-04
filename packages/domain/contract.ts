@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow } from './types.js';
-import { createPending, applyCard, undoCard } from './apply.js';
+import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
 import { displayName } from './product.js';
 
 export interface RepoCtx {
@@ -773,6 +773,36 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(r1.undone).toBe(true);
       const r2 = await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
       expect(r2.already).toBe(true);
+    });
+
+    it('dismiss на pending-картці: проставляє dismissed_at, ідемпотентно', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const r1 = await dismissCard(ctx.repo, mid, ctx.user_id);
+      expect(r1.dismissed).toBe(true);
+      expect(r1.already).toBe(false);
+      const pc = await ctx.repo.getPending(mid);
+      expect(pc?.dismissed_at).toBeTruthy();
+      // Повторний dismiss — no-op, той самий результат.
+      const r2 = await dismissCard(ctx.repo, mid, ctx.user_id);
+      expect(r2.dismissed).toBe(true);
+      expect(r2.already).toBe(true);
+    });
+
+    it('dismiss на застосованій картці — помилка: шлях назад тут undo, не dismiss', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+      await expect(dismissCard(ctx.repo, mid, ctx.user_id)).rejects.toThrow(/already applied/);
+    });
+
+    it('dismiss чужої картки — forbidden', async () => {
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await expect(dismissCard(ctx.repo, mid, ctx.other_user_id)).rejects.toThrow(/forbidden/);
     });
   });
 }

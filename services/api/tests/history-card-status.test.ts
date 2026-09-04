@@ -92,6 +92,33 @@ describe('статус картки в історії — лише там, де 
     expect(turn!.content).toContain('[ЗАСТОСОВАНО — ефект уже врахований у поточному [КОМОРА], не додавай]');
   });
 
+  it('dismissed_at: відхилено людиною — не пропонувати знову', () => {
+    const [turn] = buildChatHistory([
+      msg({
+        text: 'Запишу кінзу.',
+        card: { type: 'profile', ops: [{ op: 'add', kind: 'anti', label: 'кінза' }] } as never,
+        applied: 0,
+        dismissed_at: '2026-09-05T10:00:00.000Z',
+      }),
+    ]);
+    expect(turn!.content).toMatch(/\[ВІДХИЛЕНО людиною — не записано; не пропонуй це знову/);
+    expect(turn!.content).not.toMatch(/чекає тапу/);
+  });
+
+  it('undone_at: скасовано після застосування — переважає над applied>0', () => {
+    const [turn] = buildChatHistory([
+      msg({
+        text: 'Записав молоко.',
+        card: { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко' }] } as never,
+        // undoCard скидає message.applied назад у 0 — саме цей стан і мірить тест.
+        applied: 0,
+        undone_at: '2026-09-05T10:05:00.000Z',
+      }),
+    ]);
+    expect(turn!.content).toMatch(/\[СКАСОВАНО людиною після застосування — у коморі\/списку цього вже НЕМАЄ\]/);
+    expect(turn!.content).not.toMatch(/чекає тапу|нічого не записано/);
+  });
+
   it('recipe_link — доконаний факт, без суфікса (як і було)', () => {
     const [turn] = buildChatHistory([
       msg({ card: { type: 'recipe_link', title: 'Шакшука', recipe: { ing: [] } } as never }),

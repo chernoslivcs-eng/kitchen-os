@@ -73,11 +73,21 @@ export function summarizeCard(c: Card): string {
 // тапу. Усі мітки «не застосовано» починаються тими самими словами
 // «[НЕ ЗАСТОСОВАНО», щоб правило в role.md лишалось чинним без правки
 // префікса (кеш і хеш промпту не зачеплені).
-function cardStatus(card: Card, applied: number): string {
+function cardStatus(card: Card, applied: number, undone_at: string | null, dismissed_at: string | null): string {
   // recipe_link — не pending-дія, а доконаний факт: рецепт УЖЕ в стрічці.
   // Суфікс [НЕ ЗАСТОСОВАНО] тут читався моделлю як «система ще не оновила
   // рецепт» — і вона чесно відмовлялась від зробленого.
   if (card.type === 'recipe_link') return '';
+  // Аудит раунд 3, крок 1: dismissed/undone — доконані рішення людини,
+  // і мають переважити мітку за режимом картки. Перевіряються ДО applied>0,
+  // бо undo скидає message.applied назад у 0 (markMessageApplied(id, 0)) —
+  // без цього блоку картка після undo виглядала б знову «чекає тапу».
+  if (dismissed_at) {
+    return ' [ВІДХИЛЕНО людиною — не записано; не пропонуй це знову, поки вона сама не повернеться до теми]';
+  }
+  if (undone_at) {
+    return ' [СКАСОВАНО людиною після застосування — у коморі/списку цього вже НЕМАЄ]';
+  }
   if (applied > 0) {
     // «Творча бухгалтерія» (eval pantry-truth): застосована intake-картка в
     // історії читалась як ЩЕ ОДИН запас поверх [КОМОРА] — модель складала 500
@@ -133,7 +143,7 @@ export function buildChatHistory(messages: MessageRow[]): HistoryTurn[] {
       // Пул-3, pantry-truth: кількості запасів у репліках історії маскуються —
       // єдине число про запас, яке бачить модель, живе в [КОМОРА].
       if (m.text) parts.push(`${stamp} ${maskHistoryQuantities(m.text)}`);
-      if (m.card) parts.push(summarizeCard(m.card) + cardStatus(m.card, m.applied));
+      if (m.card) parts.push(summarizeCard(m.card) + cardStatus(m.card, m.applied, m.undone_at ?? null, m.dismissed_at ?? null));
       return { role: m.role, content: parts.join('\n') };
     })
     .filter((m) => m.content);

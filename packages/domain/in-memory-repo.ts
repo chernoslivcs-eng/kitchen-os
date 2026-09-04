@@ -181,7 +181,7 @@ export class InMemoryRepo implements Repo {
     const out: Array<PendingCard & { session_id: string | null; created_at: string | null }> = [];
     for (const pc of this.pending.values()) {
       if (pc.household_id !== household_id) continue;
-      if (pc.applied_at || pc.undone_at) continue;
+      if (pc.applied_at || pc.undone_at || pc.dismissed_at) continue;
       const msg = await this.getMessage(pc.message_id);
       out.push({ ...pc, session_id: msg?.session_id ?? null, created_at: msg?.created_at ?? null });
     }
@@ -373,7 +373,13 @@ export class InMemoryRepo implements Repo {
     this.messages.set(msg.session_id, arr);
   }
   async listMessages(session_id: string): Promise<MessageRow[]> {
-    return (this.messages.get(session_id) ?? []).map((m) => ({ ...m }));
+    // Аудит раунд 3: undone_at/dismissed_at не зберігаються на message —
+    // приєднуються з card_pending за спільним id (message.id === pending.id),
+    // те саме, що робить PostgresRepo LEFT JOIN'ом.
+    return (this.messages.get(session_id) ?? []).map((m) => {
+      const pc = this.pending.get(m.id);
+      return { ...m, undone_at: pc?.undone_at ?? null, dismissed_at: pc?.dismissed_at ?? null };
+    });
   }
   async deleteSession(id: string): Promise<void> {
     const msgs = this.messages.get(id) ?? [];
