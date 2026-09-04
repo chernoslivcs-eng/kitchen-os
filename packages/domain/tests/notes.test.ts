@@ -157,6 +157,29 @@ describe('висновки з готування', () => {
   });
 });
 
+describe('уподобання — note з привʼязкою до страви (1.2, аудит 04.09)', () => {
+  let repo: InMemoryRepo;
+  beforeEach(() => { repo = new InMemoryRepo(); });
+
+  it('поле `recipe` зі схеми картки приземляється в recipe_title (раніше читався лише recipe_title — привʼязка губилась)', async () => {
+    await apply(repo, note('менше перцю', { recipe: 'Шакшука' }));
+    const [n] = await repo.listNotes(USER);
+    expect(n!.recipe_title).toBe('Шакшука');
+  });
+
+  it('recipe_title приймається так само', async () => {
+    await apply(repo, note('більше соусу', { recipe_title: 'Карбонара' }));
+    const [n] = await repo.listNotes(USER);
+    expect(n!.recipe_title).toBe('Карбонара');
+  });
+
+  it('серіалізація показує «до «страва»» — recipe_gen бачить, до чого це', async () => {
+    await apply(repo, note('черрі в кінці', { recipe: 'Феттучіне з морепродуктами' }));
+    const s = serializeNotes(await repo.listNotes(USER));
+    expect(s).toContain('черрі в кінці · до «Феттучіне з морепродуктами»');
+  });
+});
+
 describe('серіалізація висновків для моделі', () => {
   const base: MemoryNote = {
     id: 'n1', user_id: USER, text: 'фует знімати, щойно краї хрусткі',

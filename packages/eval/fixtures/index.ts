@@ -230,6 +230,8 @@ export function loadFixtures(): Fixture[] {
     readJson('save-generated-recipe.json'),
     readJson('fish-week-is-event.json'),
     readJson('unapplied-profile-truth.json'),
+    // 1.2: уподобання після фідбеку — note з recipe (s42).
+    readJson('preference-after-feedback.json'),
   ];
   return list;
 }

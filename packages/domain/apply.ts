@@ -687,7 +687,11 @@ async function applyNoteOp(
   const id = randomUUID();
   await repo.insertNote({
     id, user_id, text,
-    recipe_title: typeof op.recipe_title === 'string' ? op.recipe_title : null,
+    // Схема картки (card-schemas.md) називає поле `recipe`, код читав лише
+    // `recipe_title` — привʼязка нотатки до страви ніколи не приземлялась
+    // (аудит 04.09, 1.2). Приймаємо обидва.
+    recipe_title: typeof op.recipe === 'string' ? op.recipe
+      : typeof op.recipe_title === 'string' ? op.recipe_title : null,
     rating: typeof op.rating === 'number' ? op.rating : null,
     pinned: op.pin === true,
     created_at: new Date().toISOString(),
