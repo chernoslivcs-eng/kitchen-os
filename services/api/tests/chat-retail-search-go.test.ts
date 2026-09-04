@@ -57,7 +57,7 @@ describe('чат: retail_search_go → живий пошук наявності 
     });
     const body = r.json();
     expect(body.card).toBeNull();
-    expect(body.reply).toMatch(/Профіл|Мереж/i);
+    expect(body.reply).toMatch(/Списк|Підключи/i);
   });
 
   it('підключена: реплікою перелічує реальні варіанти, нічого не додає в кошик', async () => {

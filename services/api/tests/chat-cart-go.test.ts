@@ -49,7 +49,7 @@ describe('чат: cart_go → живий кошик одним ходом', () =
     expect(r.statusCode).toBe(200);
     const body = r.json();
     expect(body.card).toBeNull();
-    expect(body.reply).toMatch(/Профіл|Мереж/i);
+    expect(body.reply).toMatch(/Списк|Підключи/i);
   });
 
   it('підключена, список порожній: чесно каже, картки нема', async () => {

@@ -168,6 +168,7 @@ export interface ChatArgs {
   products?: HouseholdProduct[];
   // M13: чи підключена мережа — гейтить card_go:cart_go в системному промпті.
   retailConnected?: boolean;
+  retailKarpaty?: boolean;
   // №4: що зараз відкрито. Рахує маршрут (він має повідомлення сесії),
   // модель отримує готовий факт замість виведення з історії.
   modes?: KitchenMode[];
@@ -234,7 +235,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       };
     }
     return {
-      reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
+      reply: 'Спершу підключи Сільпо: у Списку покупок → «Підключити Сільпо».',
       card: null,
       usage: { input: 0, output: 0 },
       meta: { promptVersion, model: 'stub', mode: 'stub' },
@@ -248,7 +249,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
   );
   if (searchGoMatch) {
     const query = (searchGoMatch[1] ?? '').trim();
-    if (args.retailConnected && query) {
+    if ((args.retailConnected || args.retailKarpaty) && query) {
       return {
         reply: 'Зараз гляну, що є.',
         card: { type: 'retail_search_go', query },
@@ -417,6 +418,7 @@ export function buildDynamicContext(args: ChatArgs): string {
     products: args.products,
     events: args.events,
     retailConnected: args.retailConnected,
+    retailKarpaty: args.retailKarpaty,
     modes: args.modes,
     notesTruncated: args.notesTruncated,
     recipesTruncated: args.recipesTruncated,

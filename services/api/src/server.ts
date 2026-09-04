@@ -75,6 +75,7 @@ export function buildApp(
     rateLimit: opts.rateLimits?.chat,
     retailCart: retail?.attemptBuildCart,
     retailSearch: retail?.attemptSearch,
+    retailKarpaty: retail?.karpatyEnabled,
     retailCartExtend: retail?.attemptExtendCart,
   });
   cardsRoutes(app, repo);
@@ -165,7 +166,9 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
         clientId: process.env.SILPO_CLIENT_ID,
         tokenSecret: process.env.RETAIL_TOKEN_SECRET,
         devAccessToken: process.env.SILPO_DEV_ACCESS_TOKEN,
-      } }
+      },
+      // Стейки Карпат — відкритий каталог без ключів; KARPATY_ENABLED=0 вимикає.
+      karpaty: { enabled: process.env.KARPATY_ENABLED !== '0' } }
     : undefined;
   return buildApp(repo, store, mailer, { google, retail });
 }

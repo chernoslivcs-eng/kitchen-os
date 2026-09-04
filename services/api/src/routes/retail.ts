@@ -22,6 +22,7 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { makeTokenCipher } from '../retail/crypto.js';
 import { SilpoProvider, RetailAuthError, type RetailFoundRow, type RetailProduct } from '../retail/silpo-provider.js';
+import { KarpatyProvider } from '../retail/karpaty-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
 import { callAltFilter } from '../model.js';
 import { localDay } from '../local-day.js';
@@ -33,6 +34,12 @@ export interface SilpoTokens {
 }
 
 export interface RetailOpts {
+  // Стейки Карпат: відкритий каталог без OAuth, тому нема ні connect, ні
+  // токенів — лише «увімкнено чи ні» і підміна провайдера для тестів.
+  karpaty?: {
+    enabled?: boolean;
+    makeProvider?: () => Pick<KarpatyProvider, 'search'>;
+  };
   silpo?: {
     clientId: string;
     tokenSecret: string;
@@ -167,14 +174,29 @@ export interface RetailCartAttempt {
 // уже пройшли гібридний фільтр категорій і обрізані до 15; total — скільки
 // РЕАЛЬНО релевантних знайшлось (до обрізання), щоб reply міг чесно сказати
 // «і ще N», а не мовчки показати перші 15 як повний список.
+/** Одне джерело у відповіді на «що є / почім»: мережа або крамниця. */
+export interface RetailSource {
+  id: 'silpo' | 'karpaty';
+  label: string;
+  products: { name: string; price: number; url?: string }[];
+  total: number;
+  /** not_connected — треба підключити; unavailable — не відповіло. */
+  error?: 'not_connected' | 'retail_auth' | 'unavailable';
+}
+
 export interface RetailSearchAttempt {
   ok: boolean;
+  /** Сільпо — як і було, для сумісності з кошиком і старими тестами. */
   products?: { name: string; price: number }[];
   total?: number;
   error?: 'not_connected' | 'retail_auth';
+  /** Усі джерела разом: Сільпо (якщо підключено) + відкриті крамниці. */
+  sources?: RetailSource[];
 }
 
 export interface RetailHandle {
+  /** Чи є відкриті джерела без підключення (Стейки Карпат) — для [МЕРЕЖІ]. */
+  karpatyEnabled: boolean;
   attemptBuildCart(user_id: string, household_id: string, explicitItems?: string[]): Promise<RetailCartAttempt>;
   attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt>;
   attemptExtendCart(user_id: string, card_id: string, items: string[]): Promise<RetailCartAttempt>;
@@ -182,12 +204,17 @@ export interface RetailHandle {
 
 export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts): RetailHandle | undefined {
   const silpo = opts?.silpo;
+  // Увімкнено лише коли сконфігуровано явно: тести без karpaty-опцій не мають
+  // ходити в живий MCP. Прод вмикає в buildAppWithBackend.
+  const karpatyEnabled = opts?.karpaty?.enabled ?? !!opts?.karpaty?.makeProvider;
+  const makeKarpaty = opts?.karpaty?.makeProvider ?? (() => new KarpatyProvider());
+  const karpaty = { status: karpatyEnabled ? 'available' : 'unavailable' } as const;
 
   app.get('/v1/retail', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
-    if (!silpo) return { silpo: { status: 'unavailable' } };
+    if (!silpo) return { silpo: { status: 'unavailable' }, karpaty };
     const conn = await repo.getRetailConnection(user_id, 'silpo');
-    if (!conn) return { silpo: { status: 'none' } };
+    if (!conn) return { silpo: { status: 'none' }, karpaty };
     const expired = new Date(conn.expires_at).getTime() < Date.now();
     return {
       silpo: {
@@ -196,6 +223,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         expires_at: conn.expires_at,
         last_receipt_at: conn.last_receipt_at,
       },
+      karpaty,
     };
   });
 
@@ -754,7 +782,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // й не пишеться в список покупок. Той самий гібридний фільтр категорій,
   // що альтернативи кошика (crossreference не випадковий — та сама
   // причина: наївний повнотекстовий пошук Сільпо плутає категорії).
-  async function attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt> {
+  async function searchSilpo(user_id: string, query: string): Promise<RetailSearchAttempt> {
     const conn = await repo.getRetailConnection(user_id, 'silpo');
     if (!conn || conn.status !== 'active') return { ok: false, error: 'not_connected' };
 
@@ -855,5 +883,38 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     return { ok: true, card };
   }
 
-  return { attemptBuildCart, attemptSearch, attemptExtendCart };
+  // Пошук по всіх джерелах одразу. Сільпо — лише якщо підключено; Стейки
+  // Карпат — завжди, бо каталог відкритий. ok, коли відповіло хоч одне;
+  // not_connected — лише коли нема ні підключеного Сільпо, ні відкритих джерел.
+  async function attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt> {
+    const sources: RetailSource[] = [];
+    const silpoRes = await searchSilpo(user_id, query);
+    sources.push({
+      id: 'silpo', label: 'Сільпо',
+      products: silpoRes.products ?? [], total: silpoRes.total ?? 0,
+      ...(silpoRes.ok ? {} : { error: silpoRes.error ?? 'unavailable' }),
+    });
+    if (karpatyEnabled) {
+      try {
+        const found = (await makeKarpaty().search(query)).filter((p) => p.inStock);
+        sources.push({
+          id: 'karpaty', label: 'Стейки Карпат',
+          products: found.slice(0, 15).map((p) => ({ name: p.name, price: p.price, url: p.url })),
+          total: found.length,
+        });
+      } catch {
+        sources.push({ id: 'karpaty', label: 'Стейки Карпат', products: [], total: 0, error: 'unavailable' });
+      }
+    }
+    const anyOk = sources.some((s) => !s.error);
+    return {
+      ok: anyOk,
+      products: silpoRes.products,
+      total: silpoRes.total,
+      ...(anyOk ? {} : { error: silpoRes.error ?? 'not_connected' }),
+      sources,
+    };
+  }
+
+  return { karpatyEnabled, attemptBuildCart, attemptSearch, attemptExtendCart };
 }

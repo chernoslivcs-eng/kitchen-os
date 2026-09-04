@@ -38,6 +38,8 @@ export interface ChatRouteOpts {
   // 01.09: «що є в наявності по X» — read-only пошук, той самий принцип
   // ін'єкції, що retailCart.
   retailSearch?: (user_id: string, query: string) => Promise<RetailSearchAttempt>;
+  /** Відкриті джерела без підключення (Стейки Карпат) — для блоку [МЕРЕЖІ]. */
+  retailKarpaty?: boolean;
   // №4: «додай X» при відкритому кошику — дописати рядок у ТУ САМУ картку,
   // а не перезбирати кошик і не підміняти його однією позицією.
   retailCartExtend?: (user_id: string, card_id: string, items: string[]) => Promise<RetailCartAttempt>;
@@ -322,6 +324,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const conn = await repo.getRetailConnection(user_id, 'silpo');
       retailConnected = !!conn && conn.status === 'active' && new Date(conn.expires_at).getTime() > Date.now();
     }
+    const retailKarpaty = opts.retailCart ? !!opts.retailKarpaty : undefined;
 
     // №4: ситуація рахується сервером із повідомлень сесії — той самий факт,
     // який досі жив усередині гілки видалення й нікому не казався.
@@ -349,7 +352,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected,
+        history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
@@ -505,9 +508,29 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const attempt = await opts.retailSearch(user_id, call.card.query);
       if (!attempt.ok) {
         const msg = attempt.error === 'not_connected'
-          ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
+          ? 'Спершу підключи Сільпо: у Списку покупок → «Підключити Сільпо».'
           : 'Сільпо зараз не відповідає — спробуй за хвилину.';
         await saveTurn(msg);
+        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      }
+      // Кілька джерел (04.09): кожне — своїм абзацом, у тому ж форматі. Джерело
+      // без підключення чи без відповіді — одним чесним рядком, не мовчки.
+      if (attempt.sources && attempt.sources.length > 1) {
+        const REPLY_CAP = 6;
+        const q = call.card.query;
+        const parts = attempt.sources.map((s) => {
+          if (s.error === 'not_connected') return `Сільпо не підключено — підключити можна у Списку покупок.`;
+          if (s.error) return `${s.label} зараз не відповідає.`;
+          if (!s.products.length) return `У ${s.label === 'Сільпо' ? 'Сільпо' : 'Стейках Карпат'} нічого по «${q}».`;
+          const shown = s.products.slice(0, REPLY_CAP);
+          const rest = s.total - shown.length;
+          return `${s.label === 'Сільпо' ? 'У Сільпо є' : 'У Стейках Карпат є'}:\n`
+            + shown.map((p) => `— ${p.name} · ${Math.round(p.price)}₴`).join('\n')
+            + (rest > 0 ? `\n— і ще ${rest}` : '')
+            + (s.id === 'karpaty' ? '\nЗамовлення на karpatysteaks.com, доставка Новою Поштою.' : '');
+        });
+        const msg = parts.join('\n\n');
+        await saveTurn(msg, 'retail_search');
         return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
       }
       const products = attempt.products ?? [];

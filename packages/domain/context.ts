@@ -47,6 +47,8 @@ export interface KitchenContext {
   // M13: чи підключена мережа (Сільпо). undefined = інтеграція не
   // сконфігурована на сервері — блок мовчить, модель про неї не знає.
   retailConnected?: boolean;
+  /** Відкриті джерела без підключення (Стейки Карпат). */
+  retailKarpaty?: boolean;
   // №4: що зараз відкрито (кошик, свіжий рецепт, неоцінене готування).
   // Рахує сервер із повідомлень сесії — модель більше не виводить ситуацію
   // з двадцяти рядків історії.
@@ -60,11 +62,17 @@ export interface KitchenContext {
 // відмовою — «це робиться в додатку Сільпо», хоча build-cart уже вміє це
 // зробити сама. Обидва стани явні: підключено → модель має руки (card_go
 // cart_go); не підключено → веде людину в Профіль, а не мовчить і не бреше.
-export function serializeRetail(connected: boolean | undefined): string {
+export function serializeRetail(connected: boolean | undefined, karpaty?: boolean): string {
   if (connected === undefined) return '';
-  return connected
-    ? '\n\n[МЕРЕЖІ] Сільпо: підключено. Список можна оформити карткою cart_go — сервер сам зіставить позиції з мережею.'
-    : '\n\n[МЕРЕЖІ] Сільпо: не підключено. На прохання замовити через мережу — одним реченням направ у Профіль → Мережі → Підключити, картку НЕ повертай.';
+  const lines = [connected
+    ? 'Сільпо: підключено. Список можна оформити карткою cart_go — сервер сам зіставить позиції з мережею.'
+    : 'Сільпо: не підключено. На прохання замовити через мережу — одним реченням направ у Список покупок → «Підключити Сільпо», картку cart_go НЕ повертай.'];
+  // Відкриті джерела: без підключення, без кошика — лише «що є і почім».
+  // Питання про наявність (retail_search_go) працює, навіть коли Сільпо не підключено.
+  if (karpaty) {
+    lines.push('Стейки Карпат: доступно без підключення — крафтове мʼясо (яловичина, стейки, птиця, набори), доставка Новою Поштою по Україні. Питання «що є / почім» по мʼясу — retail_search_go; замовлення — на їхньому сайті, кошика тут нема.');
+  }
+  return '\n\n[МЕРЕЖІ] ' + lines.join('\n');
 }
 
 export function todayLabel(now = new Date()): string {
@@ -420,7 +428,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializeNotes(ctx.notes ?? [], ctx.notesTruncated)
     + serializeEaters(ctx.eaters ?? [])
     + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
-    + serializeRetail(ctx.retailConnected)
+    + serializeRetail(ctx.retailConnected, ctx.retailKarpaty)
     // Режим — ОСТАННІМ: це найлетючіше й найдієвіше, що є в контексті, і
     // читається безпосередньо перед тим, як модель обирає хід.
     + serializeModes(ctx.modes ?? []);
