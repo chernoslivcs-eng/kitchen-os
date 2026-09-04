@@ -1004,6 +1004,50 @@ export const registry: Record<string, Invariant> = {
       : fail('stage=2 з порожнім профілем — модель не спитала про обмеження; профіль не наповниться ніколи');
   },
 
+  // Аудит 04.09, раунд 2 — три фікстури з проду (AUDIT-ROUND-2.md §4).
+
+  // s41: повтор «Оці чеки візьми» після ЗАСТОСОВАНОЇ intake-картки в історії
+  // не має породжувати нову intake_diff — інакше комора подвоюється.
+  'no-reintake-after-applied': (out) => {
+    const c = out.card;
+    if (c?.type === 'intake_diff') {
+      const n = ((c.ops ?? []) as unknown[]).length;
+      return fail(`повторний intake_diff на ${n} ops — ті самі чеки лягли б у комору вдруге`);
+    }
+    const reply = String(out.reply ?? '').toLowerCase();
+    const acknowledges = /вже (розібрав|записав|в коморі|є)|уже (розібрав|записав|в коморі|є)|ці (ж|самі) чеки|повтор/.test(reply);
+    return acknowledges ? pass() : fail('без картки, але й не сказала, що ці чеки вже розібрано');
+  },
+
+  // s41: «запамʼятаємо цей рецепт» → «Записав у бібліотеку» з card: null.
+  // Збереження згенерованого рецепта — кнопка «У рецепти», картки для нього
+  // немає. Чесно — назвати кнопку; брехня — стверджувати, що зберегла.
+  'save-recipe-honest': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const claims = /записав (у|в) (бібліотек|рецепт)|зберіг|збережено|тепер він твій|додав (у|в) (бібліотек|рецепт)/.test(reply);
+    const points = /у рецепти|кнопк|натисни|тапни|під рецептом/.test(reply);
+    if (out.card && (out.card as { type?: string }).type === 'recipe') {
+      // Продиктований рецепт із голови — не той випадок: згенерований уже є в стрічці.
+      return fail('склала recipe-картку з голови замість вказати на «У рецепти» під наявним рецептом');
+    }
+    if (claims && !points) return fail('стверджує, що зберегла рецепт, хоча картки немає і зберегти може лише людина кнопкою');
+    return points ? pass() : fail('не сказала, як зберегти («У рецепти» під рецептом)');
+  },
+
+  // s45/s46: «весь наступний тиждень риба» — план із часом, не wish і не intent.
+  'event-with-duration': (out) => {
+    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+    if (!c || c.type !== 'event') return fail(`card.type=${c?.type ?? 'null'} — очікував event (план із часом), а не побажання/намір`);
+    const add = (c.ops ?? []).find((o) => (o.op ?? 'add') === 'add');
+    if (!add) return fail('event без add');
+    const when = add.when as Record<string, unknown> | undefined;
+    if (!when) return fail('when немає');
+    if (typeof when.date === 'string') return fail(`when.date=${when.date} — дату порахувала сама`);
+    const days = Number(add.days ?? 0);
+    if (days < 5) return fail(`days=${add.days ?? '—'} — «весь тиждень» має тривалість`);
+    return pass(`when=${JSON.stringify(when)} days=${days} kind=${String(add.kind ?? '')}`);
+  },
+
   // QA-5/6: не стверджувати, що чогось немає, коли просто не бачиш.
   'admits-not-seeing': (out) => {
     const reply = String(out.reply ?? '').toLowerCase();

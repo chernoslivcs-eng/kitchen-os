@@ -223,6 +223,13 @@ export function loadFixtures(): Fixture[] {
     readJson('feedback-diagnosis.json'),
     readJson('shared-meal-allergen.json'),
     readJson('generic-label-ask.json'),
+    // Аудит 04.09, раунд 2: перші фікстури з ПРОДУ, не з QA — s41, s45
+    // (audit-materials/sessions). Плюс носій «не застосовано» після того, як
+    // intake_diff став auto: картка на підтвердженні.
+    readJson('receipt-resend-no-reintake.json'),
+    readJson('save-generated-recipe.json'),
+    readJson('fish-week-is-event.json'),
+    readJson('unapplied-profile-truth.json'),
   ];
   return list;
 }

@@ -1,0 +1,48 @@
+{
+  "allergen": [
+    "attachment-parser",
+    "kitchen-policy",
+    "onboarding-stage1",
+    "onboarding-stage2",
+    "proposal-flow",
+    "recipe-generator",
+    "role",
+    "tone-language"
+  ],
+  "generic-word": [
+    "attachment-parser",
+    "card-routing",
+    "kitchen-policy",
+    "role"
+  ],
+  "units": [
+    "attachment-parser",
+    "recipe-generator"
+  ],
+  "no-permission": [
+    "card-contract",
+    "proposal-flow"
+  ],
+  "urgency-jargon": [
+    "proposal-flow",
+    "role"
+  ],
+  "vegan": [
+    "card-schemas",
+    "kitchen-policy",
+    "onboarding-stage2"
+  ],
+  "dates-server": [
+    "card-routing",
+    "state-facts"
+  ],
+  "ask-alongside": [
+    "attachment-parser",
+    "card-routing",
+    "state-facts"
+  ],
+  "refusal": [
+    "card-routing",
+    "tone-language"
+  ]
+}

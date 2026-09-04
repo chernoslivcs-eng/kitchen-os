@@ -5,7 +5,8 @@
   "main": "./registry.ts",
   "types": "./registry.ts",
   "exports": {
-    ".": "./registry.ts"
+    ".": "./registry.ts",
+    "./lint-overlap": "./lint-overlap.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
