@@ -11,7 +11,7 @@ import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurr
 // Аудит раунд 3, крок 2: підпис кнопки — з card-modes.ts, не окрема правда
 // на фронті. Субпуть, не '@kitchen/domain' — той тягне Repo/node:crypto,
 // а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
-import { CARD_BUTTON_LABEL } from '@kitchen/domain/card-modes';
+import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
@@ -1490,5 +1490,10 @@ export function labelFor(
     : type === 'recipe' ? 'РЕЦЕПТ'
     : type === 'cook_photo' ? 'ЖУРНАЛ'
     : 'ПРОПОЗИЦІЯ';
-  return { text: `${base} · ◌ ОЧІКУЄ`, tone: 'pending' };
+  // Аудит раунд 3, крок 3: статус — з режиму застосування (card-modes.ts),
+  // не захардкожений тут другою правдою. mode === 'none' (proposal тощо) —
+  // нічого чекати, лише тип, без «· ОЧІКУЄ».
+  return applyMode(type) === 'none'
+    ? { text: base, tone: 'muted' }
+    : { text: `${base} · ◌ ОЧІКУЄ`, tone: 'pending' };
 }

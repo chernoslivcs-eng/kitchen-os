@@ -13,7 +13,13 @@ describe('мітка над карткою', () => {
     expect(labelFor('intake_diff').text).toBe('КОМОРА · ◌ ОЧІКУЄ');
     expect(labelFor('shopping').text).toBe('СПИСОК · ◌ ОЧІКУЄ');
     expect(labelFor('profile').text).toBe('ПРОФІЛЬ · ◌ ОЧІКУЄ');
-    expect(labelFor('proposal').text).toBe('ПРОПОЗИЦІЯ · ◌ ОЧІКУЄ');
+  });
+
+  // Аудит раунд 3, крок 3: статус — з applyMode (card-modes.ts). proposal —
+  // mode 'none': нема чого чекати, тож без «· ОЧІКУЄ», лише тип.
+  it('proposal: mode none — тип без статусу', () => {
+    expect(labelFor('proposal').text).toBe('ПРОПОЗИЦІЯ');
+    expect(labelFor('proposal').tone).toBe('muted');
   });
 
   it('стан переважає тип', () => {

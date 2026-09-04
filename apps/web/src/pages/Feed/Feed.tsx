@@ -1095,16 +1095,25 @@ export function Feed() {
 
         {!historyOpen && turns.map((t) => (
           <div key={t.id} id={`turn-${t.id}`} className={`${styles.turn} ${t.role === 'user' ? styles['turn-user'] : ''}`}>
+            {/* Аудит раунд 3, крок 3: персони немає — підпису «КУХНЯ» на
+                репліках без картки (репіт-гард, інші детерміновані, звичайний
+                текст моделі) теж немає, лише час. Картка є — тип картки й
+                статус лишаються (labelFor нижче). */}
             <MonoLabel tone="muted">
-              {t.time} {t.role === 'user' ? 'ТИ' : t.card ? (
-                (() => {
-                  const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed);
-                  // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
-                  return l.tone === 'pending'
-                    ? <span className={styles['pending-pulse']}>{l.text}</span>
-                    : l.text;
-                })()
-              ) : 'КУХНЯ'}
+              {t.time}
+              {t.role === 'user' && ' ТИ'}
+              {t.role === 'assistant' && t.card && (
+                <>
+                  {' '}
+                  {(() => {
+                    const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed);
+                    // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
+                    return l.tone === 'pending'
+                      ? <span className={styles['pending-pulse']}>{l.text}</span>
+                      : l.text;
+                  })()}
+                </>
+              )}
             </MonoLabel>
             {t.text && (
               t.role === 'assistant' && t.fresh ? (
