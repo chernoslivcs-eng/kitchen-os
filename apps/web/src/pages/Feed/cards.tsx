@@ -140,6 +140,17 @@ export interface CardProps {
   stepLabels?: Map<string, string>;
 }
 
+// Аудит 04.09 (3.3): confidence з картки ніде не показувався, хоч лендинг
+// обіцяє «домислено 60%» як перше правило довіри. Поріг той самий, що в
+// [КОМОРА] (isDoubtful у @kitchen/domain): нижче 0.8 або evidence: inference.
+function doubtLabel(op: { confidence?: number; evidence?: string }): string | null {
+  const c = op.confidence;
+  const doubtful = op.evidence === 'inference' || (typeof c === 'number' && c < 0.8);
+  if (!doubtful) return null;
+  return typeof c === 'number' ? `домислено ${Math.round(c * 100)}%` : 'домислено';
+}
+const DOUBT_STYLE = { marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber, #96712c)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' };
+
 function stateClass(applied?: boolean, undone?: boolean): string {
   return [
     styles.card,
@@ -465,6 +476,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                   {inList.has(i) && (
                     <span className={styles['rrow-qty']} style={{ marginLeft: 8 }}>✓ У СПИСКУ</span>
                   )}
+                  {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
                 </span>
                 {op.value != null && op.unit && (
                   <span className={styles['rrow-qty']}>{formatQty(op.value, op.unit)}</span>
@@ -553,6 +565,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                     → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
                   </span>
                 )}
+                {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
               </span>
               {op.value != null && op.unit && (
                 <span className={styles['op-qty']}>{op.op === 'correct' ? '→ ' : ''}{formatQty(op.value, op.unit)}</span>
