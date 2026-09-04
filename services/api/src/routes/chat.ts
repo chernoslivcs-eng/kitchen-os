@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
+import { mergeAttachmentCalls } from '../attachment-merge.js';
+import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -103,7 +105,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
       let call: Awaited<ReturnType<typeof callAttachmentParse>>;
       try {
-        call = await callAttachmentParse(payloads);
+        // Аудит 04.09 (3.1): по одному виклику на вкладення, паралельно —
+        // два чеки в одному виклику давали 97 с (прод s41).
+        call = mergeAttachmentCalls(await Promise.all(payloads.map((p) => callAttachmentParse([p]))));
       } catch (err) {
         req.log.error({ err, user_id }, 'attachment-model-call-failed');
         return reply.code(502).send({ error: 'model_unavailable' });
@@ -182,6 +186,22 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const lastMsg = preMessages[preMessages.length - 1];
     const detMeta = { promptVersion: 'post-cook', model: 'deterministic', mode: 'stub' as const };
     const zeroUsage = { input: 0, output: 0 };
+    // Аудит 04.09 (3.1): та сама репліка вдруге після застосованої картки —
+    // відповідаємо без моделі (прод s41: повтор дав +58 партій-дублів).
+    const repeat = text ? detectRepeat(text, preMessages) : null;
+    if (repeat && text) {
+      const reply_text = repeatReply(repeat);
+      await repo.saveMessage({
+        id: randomUUID(), session_id: session.id, role: 'user',
+        text, card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+      await repo.saveMessage({
+        id: randomUUID(), session_id: session.id, role: 'assistant',
+        text: reply_text, card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+      req.log.info({ user_id, card_type: repeat.card_type, ops: repeat.ops }, 'repeat-guard');
+      return { reply: reply_text, card: null, card_id: null, usage: zeroUsage, meta: { ...detMeta, promptVersion: 'repeat-guard' } };
+    }
     if (text && lastMsg?.role === 'assistant' && !lastMsg.card && lastMsg.text === WRITEOFF_PROMPT) {
       const saveTurn = async (reply_text: string, card: Card | null, card_id: string | null) => {
         await repo.saveMessage({
