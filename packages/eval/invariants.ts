@@ -3,7 +3,7 @@
 // Ім'я з двокрапкою — параметричне: `topic-holds:плескавиц` → перевіряє входження підрядка.
 
 import type { Fixture } from './fixtures/index.js';
-import { applyMode, type Card } from '@kitchen/domain';
+import { applyMode, CARD_BUTTON_LABEL, type Card } from '@kitchen/domain';
 
 export interface ModelOutput {
   reply?: string;
@@ -586,6 +586,33 @@ export const registry: Record<string, Invariant> = {
   'has-card': (out) => out.card
     ? pass(`card.type=${out.card.type ?? out.card.kind}`)
     : fail('картки немає — людині нема куди тапнути'),
+
+  // Аудит раунд 3, крок 2, рішення: «не називай кнопок» ловило й дієслово
+  // «натисни» — а воно легальне, коли назва кнопки за ним правдива
+  // (CARD_BUTTON_LABEL, те саме, що рендерить cards.tsx). Забороняємо не
+  // дію, а ВИГАДКУ: назву в лапках, якої немає в жодній картці, і два
+  // конкретні фантомні слова — «Застосувати»/«Записати» — таких кнопок
+  // не існує в жодному компоненті.
+  'no-invented-buttons': (out) => {
+    const reply = String(out.reply ?? '');
+    // Апостроф — не сигнал: «Запам'ятати» і «Запамʼятати» — та сама кнопка,
+    // різні розкладки/типографіка. Нормалізуємо ОБИДВА боки порівняння —
+    // і CARD_BUTTON_LABEL (пише 'straight'), і те, що сказала модель.
+    const normApo = (s: string) => s.replace(/[ʼ’'`]/g, "'");
+    const realLabels = new Set(
+      Object.values(CARD_BUTTON_LABEL).filter((v): v is string => !!v).map(normApo),
+    );
+    const quoted = [...reply.matchAll(/«([^»]+)»/g)].map((m) => normApo(m[1] ?? ''));
+    const invented = quoted.filter((q) => !realLabels.has(q));
+    if (invented.length) {
+      return fail(`вигадана назва кнопки в лапках: «${invented[0]}» — такої немає в CARD_BUTTON_LABEL`);
+    }
+    const phantom = /застосувати|записати/i.exec(reply);
+    if (phantom) {
+      return fail(`репліка називає неіснуючу кнопку: «${phantom[0]}»`);
+    }
+    return pass();
+  },
 
   'no-markdown': (out) => {
     const reply = String(out.reply ?? '');

@@ -29,6 +29,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@kitchen/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       react:
         specifier: ^19.0.0
         version: 19.2.8
