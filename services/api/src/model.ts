@@ -235,7 +235,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       };
     }
     return {
-      reply: 'Спершу підключи Сільпо: у Списку покупок → «Підключити Сільпо».',
+      reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
       card: null,
       usage: { input: 0, output: 0 },
       meta: { promptVersion, model: 'stub', mode: 'stub' },

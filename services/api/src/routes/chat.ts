@@ -508,7 +508,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const attempt = await opts.retailSearch(user_id, call.card.query);
       if (!attempt.ok) {
         const msg = attempt.error === 'not_connected'
-          ? 'Спершу підключи Сільпо: у Списку покупок → «Підключити Сільпо».'
+          ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
           : 'Сільпо зараз не відповідає — спробуй за хвилину.';
         await saveTurn(msg);
         return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
@@ -519,7 +519,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         const REPLY_CAP = 6;
         const q = call.card.query;
         const parts = attempt.sources.map((s) => {
-          if (s.error === 'not_connected') return `Сільпо не підключено — підключити можна у Списку покупок.`;
+          if (s.error === 'not_connected') return `Сільпо не підключено — Профіль → Мережі → Підключити.`;
           if (s.error) return `${s.label} зараз не відповідає.`;
           if (!s.products.length) return `У ${s.label === 'Сільпо' ? 'Сільпо' : 'Стейках Карпат'} нічого по «${q}».`;
           const shown = s.products.slice(0, REPLY_CAP);

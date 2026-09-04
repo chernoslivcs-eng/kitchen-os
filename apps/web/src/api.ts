@@ -257,6 +257,8 @@ export const api = {
         expires_at?: string;
         last_receipt_at?: string | null;
       };
+      /** Відкриті джерела без підключення (Стейки Карпат): available | unavailable. */
+      karpaty?: { status: 'available' | 'unavailable' };
     }>('/v1/retail'),
     disconnect: () => req<{ status: string }>('/v1/retail/silpo/disconnect', { method: 'POST', body: '{}' }),
     reconnect: () => req<{ status: string }>('/v1/retail/silpo/reconnect', { method: 'POST', body: '{}' }),

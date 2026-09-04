@@ -46,6 +46,8 @@ function fmtSync(iso: string | null | undefined): string {
 function NetworksSection() {
   const [status, setStatus] = useState<RetailSilpoStatus>('loading');
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  // Стейки Карпат — відкритий каталог: підключати нічого, рядок лише каже, що джерело є.
+  const [karpaty, setKarpaty] = useState<boolean>(false);
   // Тост живе окремо від «чи показувати» — leaving тримає рядок у DOM на
   // час exit-анімації (той самий патерн, що row-fresh/row-leave у Списку).
   const [toast, setToast] = useState<'in' | 'leaving' | null>(null);
@@ -65,7 +67,7 @@ function NetworksSection() {
       sessionStorage.removeItem('kos_retail_sync_at');
     }
     void api.retail.status()
-      .then((r) => { if (alive) { setStatus(r.silpo.status); setSyncedAt(r.silpo.last_receipt_at ?? null); } })
+      .then((r) => { if (alive) { setStatus(r.silpo.status); setSyncedAt(r.silpo.last_receipt_at ?? null); setKarpaty(r.karpaty?.status === 'available'); } })
       .catch(() => { if (alive) setStatus('unavailable'); });
     return () => { alive = false; };
   }, []);
@@ -156,6 +158,16 @@ function NetworksSection() {
               >✕</button>
             )}
           </div>
+          {karpaty && (
+            <div className={styles.member}>
+              {glyph('var(--accent)')}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                <span className={styles.name}>Стейки Карпат</span>
+                <span style={mono}>мʼясо · Нова Пошта · замовлення на сайті</span>
+              </div>
+              <span style={{ ...mono, marginLeft: 'auto' }}>без підключення</span>
+            </div>
+          )}
           <div className={styles.member} style={{ color: 'var(--fg-dim)' }}>
             {glyph('var(--fg-dim)')}
             <span className={styles.name} style={{ color: 'var(--fg-dim)' }}>АТБ</span>
