@@ -1048,6 +1048,32 @@ export const registry: Record<string, Invariant> = {
     return pass(`when=${JSON.stringify(when)} days=${days} kind=${String(add.kind ?? '')}`);
   },
 
+  // 1.2 (s42): уподобання після фідбеку — note, привʼязана до щойно
+  // готованої страви. Без картки воно зникає в тексті.
+  'preference-note-with-recipe': (out) => {
+    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+    if (!c || c.type !== 'profile') return fail(`card.type=${c?.type ?? 'null'} — очікував profile з kind:note (уподобання)`);
+    const note = (c.ops ?? []).find((o) => o.kind === 'note' && (o.op ?? 'add') === 'add');
+    if (!note) return fail(`ops: ${(c.ops ?? []).map((o) => o.kind).join(',')} — note немає`);
+    const recipe = String(note.recipe ?? note.recipe_title ?? '').toLowerCase();
+    if (!recipe.includes('феттучіне')) return fail(`note без recipe або з чужою стравою: «${recipe || '—'}»`);
+    const label = String(note.label ?? '').toLowerCase();
+    if (!/овоч|черрі|томат|шпинат|спарж/.test(label)) return fail(`label не про овочевий смак: «${label}»`);
+    return pass(`note «${label}» до «${recipe}»`);
+  },
+
+  // s42: «які овочі додати — черрі, шпинат, спаржу?» замість діагнозу —
+  // зустрічна вилка, яку proposal-flow забороняє. Питання можна, але не
+  // ЗАМІСТЬ пропозиції: reply має назвати конкретну заміну сам.
+  'no-counter-fork': (out) => {
+    const reply = String(out.reply ?? '');
+    const names = /черрі|томат|шпинат|спарж|цукін|кабач|перц|броко|горош|цибул/i.test(reply);
+    const onlyAsks = /\?/.test(reply) && !/(додай|кинь|додати|візьми|поклади|я б)/i.test(reply);
+    if (!names) return fail('не назвала жодного конкретного овоча');
+    if (onlyAsks) return fail('лише спитала, що додати, замість порадити конкретне');
+    return pass();
+  },
+
   // QA-5/6: не стверджувати, що чогось немає, коли просто не бачиш.
   'admits-not-seeing': (out) => {
     const reply = String(out.reply ?? '').toLowerCase();
