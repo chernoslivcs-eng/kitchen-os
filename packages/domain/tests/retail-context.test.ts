@@ -18,11 +18,11 @@ describe('[МЕРЕЖІ] в контексті', () => {
     expect(s).toContain('Сільпо: підключено');
   });
 
-  it('не підключено — модель знає направити в Профіль, а не мовчати', () => {
+  it('не підключено — модель знає направити у Список покупок, а не мовчати', () => {
     const s = serializeRetail(false);
     expect(s).toContain('[МЕРЕЖІ]');
     expect(s).toContain('не підключено');
-    expect(s).toContain('Профіль');
+    expect(s).toContain('Список покупок');
   });
 
   it('buildKitchenContext прокидає блок', () => {
