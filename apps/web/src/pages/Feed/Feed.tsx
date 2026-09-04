@@ -888,7 +888,7 @@ export function Feed() {
       },
       extra: housePending.length > 0 ? (
         <div className={panelStyles['rail-block']}>
-          <div className={panelStyles['rail-title']}>ОЧІКУЮТЬ РІШЕННЯ · {housePending.length}</div>
+          <div className={panelStyles['rail-title']}>ЧЕКАЮТЬ НА ТЕБЕ · {housePending.length}</div>
           {housePending.slice(0, 4).map((pc) => (
             <button key={pc.id} className={panelStyles['rail-row']}
               onClick={() => {
@@ -955,7 +955,7 @@ export function Feed() {
           >
             <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
             <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
-              Готування триває · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
+              Готуємо · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
               <CookCountdown deadline={cookLive.deadline} />
             </span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
@@ -1277,7 +1277,7 @@ export function Feed() {
                  Дельту не пишемо: у картці лежить нове значення, а старого
                  вона не несе, і вигадувати «−200 г» ми не будемо. */
               <div className={styles['writeoff-line']}>
-                Списано з комори: {((t.card?.ops ?? []) as { label?: string }[])
+                Використали: {((t.card?.ops ?? []) as { label?: string }[])
                   .map((o) => o.label).filter(Boolean).join(', ')}
               </div>
             )}
@@ -1414,7 +1414,7 @@ export function Feed() {
           >
             <span>◔</span>
             <span style={{ flex: 1 }}>
-              СКОРО ЗГОРИТЬ · {staleBatches.map((b) => (
+              КРАЩЕ НЕ ВІДКЛАДАТИ · {staleBatches.map((b) => (
                 b.days <= 0 ? `${b.label.toUpperCase()} (сьогодні)`
                 : b.days === 1 ? `${b.label.toUpperCase()} (завтра)`
                 : `${b.label.toUpperCase()} (${b.days}дн)`

@@ -151,7 +151,7 @@ export function ShoppingPage() {
                 cursor: unpacking ? 'wait' : 'pointer',
               }}
             >
-              → В КОМОРУ ({checkedCount})
+              → ДОДАТИ ДОДОМУ ({checkedCount})
             </button>
           )}
           <div className={styles.meta}>{unchecked} / {items.length}</div>

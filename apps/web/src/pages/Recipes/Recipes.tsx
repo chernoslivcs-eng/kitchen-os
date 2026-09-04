@@ -248,7 +248,7 @@ export function RecipesPage() {
                       letterSpacing: '0.04em',
                       color: 'var(--accent)',
                     }}>
-                      РЯТУЄ: {r.rescues.join(', ')}
+                      ВИКОРИСТАЄ: {r.rescues.join(', ')}
                     </div>
                   )}
                 </div>

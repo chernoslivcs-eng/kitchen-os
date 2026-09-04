@@ -91,7 +91,7 @@ export function MagicLinkSent() {
         <div className={styles['form-foot']}>
           <span>
             {resent && 'Надіслали ще раз. '}
-            Не прийшло?{' '}
+            Лист не прийшов?{' '}
             {left > 0 ? (
               <span>Надіслати ще раз · {mm}:{ss}</span>
             ) : (

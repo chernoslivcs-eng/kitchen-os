@@ -218,7 +218,7 @@ export function PantryPage() {
         )}
         {!loading && batches.length > 0 && filtered.length === 0 && (
           <div className={styles.empty} style={{ borderStyle: 'solid' }}>
-            <p>Нічого не знайшлось за «{query}». Спробуй інше слово.</p>
+            <p>За «{query}» нічого. Спробуй інше слово.</p>
           </div>
         )}
 

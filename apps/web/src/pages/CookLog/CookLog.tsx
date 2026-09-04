@@ -124,7 +124,7 @@ export function CookLogPage() {
         )}
         {!empty && filteredRuns.length === 0 && query && (
           <div className={styles.empty} style={{ borderStyle: 'solid' }}>
-            <p>Нічого не знайшлось за «{query}».</p>
+            <p>За «{query}» нічого.</p>
           </div>
         )}
 
@@ -145,7 +145,7 @@ export function CookLogPage() {
             <span style={{ color: 'var(--fg-dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
             <span style={{ color: 'var(--fg)' }}>{weekRuns.length} {plural(weekRuns.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</span>
             {avgRating != null && <> · <span style={{ color: 'var(--accent)' }}>★{avgRating.toFixed(1)}</span></>}
-            {pantryUsed > 0 && <> · <span style={{ color: 'var(--fg)' }}>{pantryUsed} З КОМОРИ</span></>}
+            {pantryUsed > 0 && <> · <span style={{ color: 'var(--fg)' }}>{pantryUsed} З ТОГО, ЩО БУЛО ВДОМА</span></>}
           </div>
         )}
 
@@ -201,7 +201,7 @@ export function CookLogPage() {
                             <> · <span className={styles.stat}>{'★'.repeat(r.rating)}<span style={{ opacity: 0.3 }}>{'★'.repeat(5 - r.rating)}</span></span></>
                           )}
                           {!undone && (deplete + partial > 0) && (
-                            <> · <span className={styles.stat}>{deplete + partial} з комори</span></>
+                            <> · <span className={styles.stat}>{deplete + partial} з того, що було вдома</span></>
                           )}
                           {undone && <> · <span className={styles.stat + ' ' + styles.warn}>СКАСОВАНО</span></>}
                         </div>

@@ -876,7 +876,7 @@ export function ProfilePage() {
         {profileError && (
           <div className={styles.section}>
             <div style={{ color: 'var(--danger)', fontFamily: 'var(--font-body)', fontSize: 13 }}>
-              Не вдалося зберегти: {profileError}
+              Не вдалося зберегти. Спробуй ще раз.
             </div>
           </div>
         )}
@@ -961,7 +961,7 @@ export function ProfilePage() {
           <div className={styles.section}>
             <div className={styles['section-label']}>Запросити в дім</div>
             <div className={styles.hint}>
-              Гість отримає лінк на email — клік у нього автоматично залогінить і додасть у {me.household.name}. Пароля не треба.
+              Гість отримає лінк на пошту. Один клік — і він у домі «{me.household.name}». Пароля не треба.
             </div>
             <form onSubmit={inviteSend} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
@@ -988,7 +988,7 @@ export function ProfilePage() {
                 <span style={{ flex: 1, minWidth: 180, fontFamily: 'var(--font-body)', fontSize: 13, color: lastInvite.mail_sent ? 'var(--accent)' : 'var(--fg-muted)' }}>
                   {lastInvite.mail_sent
                     ? <>Лист пішов на {lastInvite.email}. Або передай лінк сам:</>
-                    : <>Лист не доставлено — передай {lastInvite.email} лінк сам (месенджером):</>}
+                    : <>Лист не дійшов. Передай {lastInvite.email} лінк сам, месенджером:</>}
                 </span>
                 <button
                   type="button"

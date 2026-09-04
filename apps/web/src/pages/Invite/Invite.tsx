@@ -109,10 +109,9 @@ export function InvitePage() {
           <>
             <div className={styles['form-head']}>
               <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ · БЕЗ ПАРОЛЯ</span>
-              <h2 className={styles['form-title']}>Тебе запрошують у «{state.household}»</h2>
+              <h2 className={styles['form-title']}>Тебе запрошують у дім «{state.household}»</h2>
               <p className={styles['form-sub']}>
-                Запрошення для <strong>{state.email}</strong> — після прийняття ти працюватимеш
-                у спільній коморі цього дому саме цим акаунтом.
+                Запрошення для <strong>{state.email}</strong> — після прийняття все, що є вдома, стане спільним, і саме цей акаунт буде твоїм тут.
                 {currentEmail && currentEmail !== state.email && (
                   <> Ти вже увійшов як <strong>{currentEmail}</strong>. Після прийняття запрошення акаунт зміниться.</>
                 )}

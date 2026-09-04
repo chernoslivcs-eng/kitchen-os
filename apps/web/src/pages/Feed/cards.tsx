@@ -393,7 +393,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           ? (applied && !undone ? 'є вдома' : 'використаємо')
           : (applied && !undone ? 'уже вдома' : 'додамо додому')}
         {receipt && receipt.nonfood.length > 0 && (
-          <span className={styles['strip-state-dim']}> · {receipt.nonfood.length} у побут</span>
+          <span className={styles['strip-state-dim']}> · {receipt.nonfood.length} не їжа, у список</span>
         )}
       </span>
       {applied && !undone && undoAvailable && onUndo && (
@@ -563,7 +563,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
             // Порожній чек виглядав би зламаним, тому кажемо прямо, скільки
             // позицій уже зʼїли. Це не список — числа досить.
             <div className={styles['op-gone-tail']}>
-              ще {goneCount} {goneCount === 1 ? 'позиція' : 'позицій'} з цього запису вже зʼїдено
+              ще {goneCount} {goneCount === 1 ? 'позиція' : 'позицій'} з цього запису вже закінчилось
             </div>
           )}
         </div>
@@ -593,7 +593,7 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
           )}
           {(it.rescues?.length ?? 0) > 0 && (
             <div className={styles.section}>
-              <MonoLabel>РЯТУЄ</MonoLabel>
+              <MonoLabel>ВИКОРИСТАЄ</MonoLabel>
               <div className={styles.chips}>
                 {it.rescues!.map((r, j) => (
                   <span key={j} className={styles.chip}>● {r}</span>
@@ -721,7 +721,7 @@ export function ShoppingListCard({
         />
       </form>
       <div className={styles['card-foot']}>
-        <span className={styles['strip-state']}>{g.toBuy} до купівлі</span>
+        <span className={styles['strip-state']}>{g.toBuy} у список покупок</span>
         {onBuildCart && (
           /* Шавлієва ТОНОВАНА, не чорнильна: це перехід до збирання кошика,
              а не чекаут. Чорнильна в системі означає остаточну дію. */
@@ -1323,7 +1323,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                 <div className={styles['cart-vol']}>
                   × {(p.package_ml / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л
                   {' ≈ '}
-                  {(totalMl / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л всього
+                  {(totalMl / 1000).toLocaleString('uk-UA', { maximumFractionDigits: 2 })} л разом
                 </div>
               )}
 
