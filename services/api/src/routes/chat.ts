@@ -23,6 +23,7 @@ import { localDay } from '../local-day.js';
 import { stampChatReceipt } from '../receipt-source.js';
 import { composeIntakeLabels } from '../intake-labels.js';
 import { vetoNonfood } from '../nonfood-veto.js';
+import { vetoAllergens } from '../allergen-veto.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -743,6 +744,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // казали б про позиції, яких у коморі не буде.
     vetoNonfood(call.card);
     composeIntakeLabels(call.card);
+    // Аудит 04.09: тверда межа алергену — механікою, не лише міткою в рядку.
+    // Еval після 1.2 зловив арахісову пасту в rescues на спільний сніданок.
+    const allergenVeto = vetoAllergens(call, profile, eaters);
+    if (allergenVeto.removed.length) {
+      req.log.warn({ user_id, removed: allergenVeto.removed, emptied: allergenVeto.emptied }, 'allergen-veto');
+    }
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша
     // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.
