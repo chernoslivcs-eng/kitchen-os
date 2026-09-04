@@ -1170,14 +1170,18 @@ export class PostgresRepo implements Repo {
       `INSERT INTO occasion_catalog
          (id, kind, title, meaning, rule, force, restricts, tradition,
           buy, seeds, approx, upcoming_title, source, audience, published_at)
-       VALUES ($1,'editorial',$2,$3,$4::jsonb,'hint',NULL,NULL,$5,$6,false,$7,$8,NULL,$9)
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        ON CONFLICT (id) DO UPDATE SET
          title = EXCLUDED.title, meaning = EXCLUDED.meaning, rule = EXCLUDED.rule,
          buy = EXCLUDED.buy, seeds = EXCLUDED.seeds, upcoming_title = EXCLUDED.upcoming_title,
          source = EXCLUDED.source`,
+      // Усі 15 значень параметрами, навіть сталі (kind, force, approx):
+      // статичний сторож sql-arity рахує колонки проти плейсхолдерів, і
+      // літерали в VALUES ламали йому рахунок.
       [
-        row.id, row.title, row.meaning, JSON.stringify(row.rule),
-        row.buy, row.seeds, row.upcoming_title, row.source, row.published_at,
+        row.id, 'editorial', row.title, row.meaning, JSON.stringify(row.rule),
+        'hint', null, null, row.buy, row.seeds, false, row.upcoming_title,
+        row.source, null, row.published_at,
       ],
     );
   }
