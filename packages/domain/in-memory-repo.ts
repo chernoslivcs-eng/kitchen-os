@@ -189,6 +189,30 @@ export class InMemoryRepo implements Repo {
     return out.slice(0, limit);
   }
 
+  async listRecentResolved(
+    household_id: string,
+    opts: { since: Date; limit: number; exclude_session_id?: string },
+  ): Promise<PendingCard[]> {
+    const sinceMs = opts.since.getTime();
+    const out: (PendingCard & { resolvedMs: number })[] = [];
+    for (const pc of this.pending.values()) {
+      if (pc.household_id !== household_id) continue;
+      const resolvedMs = Math.max(
+        pc.applied_at ? new Date(pc.applied_at).getTime() : -Infinity,
+        pc.undone_at ? new Date(pc.undone_at).getTime() : -Infinity,
+        pc.dismissed_at ? new Date(pc.dismissed_at).getTime() : -Infinity,
+      );
+      if (resolvedMs === -Infinity || resolvedMs <= sinceMs) continue;
+      if (opts.exclude_session_id) {
+        const msg = await this.getMessage(pc.message_id);
+        if (msg?.session_id === opts.exclude_session_id) continue;
+      }
+      out.push({ ...pc, resolvedMs });
+    }
+    out.sort((a, b) => b.resolvedMs - a.resolvedMs);
+    return out.slice(0, opts.limit).map(({ resolvedMs: _resolvedMs, ...pc }) => pc);
+  }
+
   async saveAttachment(a: AttachmentRecord): Promise<void> {
     this.attachments.set(a.id, { ...a });
   }

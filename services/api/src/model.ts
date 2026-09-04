@@ -20,7 +20,7 @@ import {
 } from '@kitchen/domain';
 import type {
   Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow,
-  Recipe, RecipeIng, RecipeStep, HouseholdProduct,
+  Recipe, RecipeIng, RecipeStep, HouseholdProduct, PendingCard,
 } from '@kitchen/domain';
 // Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
 // а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.
@@ -177,6 +177,9 @@ export interface ChatArgs {
   // 8b: блоки з лімітом на рівні репозиторію показані не повністю.
   notesTruncated?: boolean;
   recipesTruncated?: boolean;
+  // Аудит раунд 3, крок 5: картки дому, закриті поза цією сесією за останні
+  // 48 год (repo.listRecentResolved) — [ОСТАННІ ДІЇ] в контексті.
+  recentActions?: PendingCard[];
 }
 
 export interface ChatCall {
@@ -422,6 +425,7 @@ export function buildDynamicContext(args: ChatArgs): string {
     modes: args.modes,
     notesTruncated: args.notesTruncated,
     recipesTruncated: args.recipesTruncated,
+    recentActions: args.recentActions,
     queryText,
   });
 }

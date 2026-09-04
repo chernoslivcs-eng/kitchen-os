@@ -486,6 +486,31 @@ export class PostgresRepo implements Repo {
     }));
   }
 
+  async listRecentResolved(
+    household_id: string,
+    opts: { since: Date; limit: number; exclude_session_id?: string },
+  ): Promise<PendingCard[]> {
+    // GREATEST ігнорує NULL лише через COALESCE до сентинела в минулому —
+    // сирий GREATEST(a,b,c) повертає NULL, якщо хоч один аргумент NULL.
+    const { rows } = await this.pool.query(
+      `SELECT cp.*
+         FROM card_pending cp
+         JOIN message m ON m.id = cp.message_id
+        WHERE cp.household_id = $1
+          AND (cp.applied_at IS NOT NULL OR cp.undone_at IS NOT NULL OR cp.dismissed_at IS NOT NULL)
+          AND GREATEST(
+                COALESCE(cp.applied_at, '-infinity'), COALESCE(cp.undone_at, '-infinity'), COALESCE(cp.dismissed_at, '-infinity')
+              ) > $2
+          AND ($3::uuid IS NULL OR m.session_id <> $3)
+        ORDER BY GREATEST(
+                COALESCE(cp.applied_at, '-infinity'), COALESCE(cp.undone_at, '-infinity'), COALESCE(cp.dismissed_at, '-infinity')
+              ) DESC
+        LIMIT $4`,
+      [household_id, opts.since, opts.exclude_session_id ?? null, opts.limit],
+    );
+    return rows.map(rowToPending);
+  }
+
   async getPending(id: string): Promise<PendingCard | null> {
     const { rows } = await this.pool.query('SELECT * FROM card_pending WHERE id = $1', [id]);
     return rows[0] ? rowToPending(rows[0]) : null;

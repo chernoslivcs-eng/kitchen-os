@@ -1,0 +1,59 @@
+{
+  "id": "recent-actions-no-reintake",
+  "description": "Аудит раунд 3, крок 5. Нова сесія, порожня історія розмови — але [ОСТАННІ ДІЇ] каже, що молоко й яйця вже записані 40 хв тому в іншій сесії. «Купив молоко і яйця, ти записав?» на порожню історію за старим правилом «купив — завжди intake_diff» дав би нову картку поверх уже застосованої. Правильна відповідь читає [ОСТАННІ ДІЇ], а не мовчить про них: «так, уже в коморі», без нової картки.",
+  "call": "chat",
+  "now": "2026-09-05T12:40:00",
+  "profile": {
+    "allergies": [],
+    "wishes": [],
+    "antipatterns": []
+  },
+  "pantry": [
+    {
+      "id": "p1",
+      "label": "молоко",
+      "zone": "fridge",
+      "v": 1000,
+      "u": "ml",
+      "state": "sealed"
+    },
+    {
+      "id": "p2",
+      "label": "яйця",
+      "zone": "fridge",
+      "v": 10,
+      "u": "pcs",
+      "state": "sealed"
+    }
+  ],
+  "recentActions": [
+    {
+      "id": "ra1",
+      "message_id": "ra1",
+      "household_id": "h1",
+      "user_id": "u1",
+      "applied_at": "2026-09-05T12:00:00",
+      "undone_at": null,
+      "dismissed_at": null,
+      "card": {
+        "type": "intake_diff",
+        "ops": [
+          { "op": "add", "label": "молоко", "value": 1, "unit": "l" },
+          { "op": "add", "label": "яйця", "value": 10, "unit": "pcs" }
+        ]
+      }
+    }
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Купив молоко і яйця, ти записав?"
+    }
+  ],
+  "invariants": [
+    "no-reintake-after-applied",
+    "no-card",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

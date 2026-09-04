@@ -11,7 +11,7 @@
 
 import { root, meaningfulWords, categoryBreadth} from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe, HouseholdEventRow } from './types.js';
+import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted, traditionsOf } from './occasions.js';
 import type { Tradition } from './occasion-rules.js';
@@ -56,6 +56,10 @@ export interface KitchenContext {
   // 8b: чи обрізані блоки з лімітом на рівні репозиторію.
   notesTruncated?: boolean;
   recipesTruncated?: boolean;
+  // Аудит раунд 3, крок 5: картки, закриті (застосовані/скасовані/відхилені)
+  // поза цією розмовою — щоб модель не реконструювала стан дому із власних
+  // минулих реплік. repo.listRecentResolved(), вікно й ліміт рахує викликач.
+  recentActions?: PendingCard[];
 }
 
 // M13: без цього блока модель на «замов через сільпо» відповідала categorичною
@@ -417,6 +421,80 @@ export function serializeNotes(notes: MemoryNote[], truncated = false): string {
   return out;
 }
 
+// Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — детермінований підсумок карток дому,
+// закритих ПОЗА цією розмовою (repo.listRecentResolved уже виключив поточну
+// сесію і вікно старіше 48 год). Без цього блока модель бачить лише свою
+// власну історію реплік — і на «мамо, я записав» з ІНШОЇ вкладки/сесії
+// відповідає так, ніби нічого не сталось.
+//
+// <коли> повторює бакети serializeCookRun (сьогодні/вчора HH:MM, N дн тому),
+// плюс хвилинний бакет для свіжого — резолюція тут важливіша, ніж у журналі
+// готувань: «40 хв тому» і «вчора» це різні відповіді на «ти вже це зробив?».
+function relativeWhen(atMs: number, nowMs: number): string {
+  const diffMin = Math.floor((nowMs - atMs) / 60_000);
+  if (diffMin < 60) return `${Math.max(1, diffMin)} хв тому`;
+  const d = new Date(atMs);
+  const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const days = Math.floor((nowMs - atMs) / 86_400_000);
+  return days === 0 ? `сьогодні ${hhmm}` : days === 1 ? `вчора ${hhmm}` : `${days} дн тому`;
+}
+
+// Тип по-людськи. profile з усіма ops kind:'note' — «нотатка», не «профіль»:
+// той самий поділ, що kitchen-policy.md уже проводить для note проти
+// анти/алергій. Решта — пряме дзеркало Card['type'].
+function humanCardType(card: Card): string {
+  if (card.type === 'profile') {
+    const ops = (card.ops ?? []) as { kind?: string }[];
+    if (ops.length && ops.every((o) => o.kind === 'note')) return 'нотатка';
+    return 'профіль';
+  }
+  const NAMES: Partial<Record<Card['type'], string>> = {
+    intake_diff: 'комора', shopping: 'список', event: 'подія',
+    cook_photo: 'готування', recipe: 'рецепт',
+  };
+  return NAMES[card.type] ?? card.type;
+}
+
+// Назви з картки — ті самі поля, що summarizeCard (services/api/chat-history.ts)
+// читає для тієї ж мети (показати, ЩО саме картка несе). Не імпортується
+// напряму: chat-history.ts живе в services/api, а домен нижче за шаром і
+// залежати від api не може — тому тут власна, легша версія: лише назви,
+// без op-дієслів, з кепом на 3 (там кепу немає взагалі).
+function cardContentNames(card: Card): string[] {
+  if (card.type === 'intake_diff') return card.ops.map((o) => o.label).filter(Boolean);
+  if (card.type === 'shopping') return card.items.map((i) => i.label).filter(Boolean);
+  if (card.type === 'profile') return card.ops.map((o) => o.label).filter(Boolean);
+  if (card.type === 'event') return card.ops.map((o) => o.title ?? '').filter(Boolean);
+  if (card.type === 'recipe') return card.recipe?.t ? [card.recipe.t] : [];
+  if (card.type === 'cook_photo') return card.recipe_title ? [card.recipe_title] : [];
+  return [];
+}
+
+function joinNames(names: string[]): string {
+  const shown = names.slice(0, 3);
+  const rest = names.length - shown.length;
+  return shown.join(', ') + (rest > 0 ? ` … ще ${rest}` : '');
+}
+
+export function renderRecentActions(cards: PendingCard[], now: Date): string {
+  if (!cards.length) return '';
+  const nowMs = now.getTime();
+  const lines = cards.slice(0, 5).map((pc) => {
+    const resolvedMs = Math.max(
+      pc.applied_at ? new Date(pc.applied_at).getTime() : -Infinity,
+      pc.undone_at ? new Date(pc.undone_at).getTime() : -Infinity,
+      pc.dismissed_at ? new Date(pc.dismissed_at).getTime() : -Infinity,
+    );
+    const result = pc.dismissed_at ? 'відхилено' : pc.undone_at ? 'скасовано' : 'застосовано';
+    const type = humanCardType(pc.card);
+    const content = joinNames(cardContentNames(pc.card));
+    return `• ${relativeWhen(resolvedMs, nowMs)} · ${type}${content ? `: ${content}` : ''} — ${result}`;
+  });
+  return '\n\n[ОСТАННІ ДІЇ] (поза цією розмовою, 2 дні. Застосоване — вже в даних вище, не записуй знову; '
+    + 'відхилене — людина сказала «ні», не повертайся сама; скасоване — у даних нема)\n'
+    + lines.join('\n');
+}
+
 // Повний блок стану, який іде в системний промпт після composed-промпту.
 // Одна функція для прода і для eval — саме тому вона тут, а не в model.ts.
 export function buildKitchenContext(ctx: KitchenContext): string {
@@ -442,6 +520,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + serializeNotes(ctx.notes ?? [], ctx.notesTruncated)
+    + renderRecentActions(ctx.recentActions ?? [], now)
     + serializeEaters(ctx.eaters ?? [])
     + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
     + serializeRetail(ctx.retailConnected, ctx.retailKarpaty)

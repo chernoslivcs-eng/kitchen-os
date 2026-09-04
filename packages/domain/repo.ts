@@ -71,6 +71,12 @@ export interface Repo {
   // Черга Г (№3): панель ОЧІКУЮТЬ дивиться на ВСІ незакриті картки дому.
   // session_id/created_at — з повідомлення-носія (id картки = id повідомлення).
   listOpenPending(household_id: string, limit?: number): Promise<Array<PendingCard & { session_id: string | null; created_at: string | null }>>;
+  // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картки, ЗАКРИТІ (застосовані/
+  // скасовані/відхилені) поза поточною розмовою, щоб модель не реконструювала
+  // стан дому із власних минулих реплік. exclude_session_id — не показувати
+  // те, що модель щойно закрила в ЦІЙ розмові: історія розмови вже це знає.
+  // Впорядковано за часом рішення (max із applied_at/undone_at/dismissed_at) спадно.
+  listRecentResolved(household_id: string, opts: { since: Date; limit: number; exclude_session_id?: string }): Promise<PendingCard[]>;
 
   // Вкладення
   saveAttachment(a: AttachmentRecord): Promise<void>;

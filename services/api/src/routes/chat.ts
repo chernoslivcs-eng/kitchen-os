@@ -357,6 +357,16 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const modes = detectModes(preMessages, recentCookRuns, new Date(), events);
     const openCart = modes.find((m) => m.kind === 'cart_open');
 
+    // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картки дому, закриті ПОЗА цією
+    // сесією за останні 48 год. exclude_session_id: історія ЦІЄЇ розмови вже
+    // несе, що модель сама застосувала/скасувала — дублювати нема сенсу.
+    const RECENT_ACTIONS_WINDOW_H = 48;
+    const recentActions = await repo.listRecentResolved(household_id, {
+      since: new Date(Date.now() - RECENT_ACTIONS_WINDOW_H * 3600_000),
+      limit: 5,
+      exclude_session_id: session.id,
+    });
+
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
     // «у тебе немає покупок на початку», хоча вони були за межею вікна. Кажемо прямо.
@@ -380,6 +390,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         modes,
         events,
         notesTruncated, recipesTruncated,
+        recentActions,
       });
     } catch (err) {
       req.log.error({ err, user_id }, 'chat-model-call-failed');

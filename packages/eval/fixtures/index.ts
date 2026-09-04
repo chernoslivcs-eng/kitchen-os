@@ -26,6 +26,9 @@ export interface Fixture {
   // Плани дому в [ТВОЇ ПЛАНИ] — щоб фікстура могла перевірити правку по id.
   events?: unknown[];
   recentCookRuns?: unknown[];
+  // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картки дому, закриті поза цією
+  // розмовою (PendingCard-подібні обʼєкти: card, applied_at/undone_at/dismissed_at).
+  recentActions?: unknown[];
   now?: string;               // фіксована дата — інакше календарні фікстури живуть один день
   // recipe_gen: user-хід генерації — назва страви (+ опційний edit-контекст),
   // одним рядком, як у проді callRecipe (title\n\ncontext).
@@ -232,6 +235,9 @@ export function loadFixtures(): Fixture[] {
     readJson('unapplied-profile-truth.json'),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
+    // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,
+    // а не в цій розмові, і модель усе одно не повинна її перезаписувати.
+    readJson('recent-actions-no-reintake.json'),
   ];
   return list;
 }
