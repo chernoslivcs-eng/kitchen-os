@@ -238,6 +238,11 @@ export function loadFixtures(): Fixture[] {
     // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,
     // а не в цій розмові, і модель усе одно не повинна її перезаписувати.
     readJson('recent-actions-no-reintake.json'),
+    // Аудит раунд 3, крок 6в: voice.md v2, ВІДМОВА ПОЗА ТЕМОЮ — побутова
+    // репліка без прохання (сусід через паркан) проти пряме прохання
+    // розваги (анекдот).
+    readJson('off-topic-neighbor.json'),
+    readJson('off-topic-joke.json'),
   ];
   return list;
 }

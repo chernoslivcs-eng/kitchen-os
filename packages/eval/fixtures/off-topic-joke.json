@@ -1,0 +1,30 @@
+{
+  "id": "off-topic-joke",
+  "description": "Аудит раунд 3, крок 6в. Пряме прохання розвага (анекдот) — не про їжу, ВІДМОВА ПОЗА ТЕМОЮ у voice.md якраз про це: своїми словами, коротко, без завченого шаблону, одразу хід назад. Максимум довжини (200) стереже саме «коротко» — анекдот не має перетворитись на монолог.",
+  "call": "chat",
+  "profile": {
+    "allergies": [],
+    "wishes": [],
+    "antipatterns": []
+  },
+  "pantry": [
+    { "id": "p1", "label": "молоко", "zone": "fridge", "v": 1000, "u": "ml", "state": "sealed" },
+    { "id": "p2", "label": "яйця", "zone": "fridge", "v": 10, "u": "pcs", "state": "sealed" },
+    { "id": "p3", "label": "хліб", "zone": "dry", "v": 1, "u": "pcs", "state": "sealed" },
+    { "id": "p4", "label": "сир гауда", "zone": "fridge", "v": 200, "u": "g", "state": "sealed" },
+    { "id": "p5", "label": "помідори", "zone": "fresh", "v": 500, "u": "g", "state": "sealed" },
+    { "id": "p6", "label": "картопля", "zone": "dry", "v": 1500, "u": "g", "state": "sealed" },
+    { "id": "p7", "label": "курка філе", "zone": "freezer", "v": 600, "u": "g", "state": "sealed" }
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Розкажи анекдот"
+    }
+  ],
+  "invariants": [
+    "no-card",
+    "not-a-refusal",
+    "reply-max-length:200"
+  ]
+}

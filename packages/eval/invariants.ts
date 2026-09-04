@@ -499,7 +499,12 @@ export const registry: Record<string, Invariant> = {
 
   'not-a-refusal': (out) => {
     const text = stripHtmlish(String(out.reply ?? '')).toLowerCase();
-    const refusalWords = /не вийде|не можу приготувати|немає (?:в коморі|цього)|не буду пропонувати/;
+    // Крок 6в: додано фрази для відмови ПОЗА ТЕМОЮ («не можу», «тільки про
+    // …», «поза темою», «не моя тема», «лише кухн…») поруч із наявними
+    // (рецепт/інгредієнт не вийшов) — той самий інваріант обслуговує обидва
+    // роди відмови, старі фікстури (allergen-conflict, missing-ingredient,
+    // qa5-allergen-on-request) не чіпались.
+    const refusalWords = /не вийде|не можу приготувати|немає (?:в коморі|цього)|не буду пропонувати|не можу|тільки про|поза темою|не моя тема|лише кухн/;
     return refusalWords.test(text)
       ? fail(`відмова у reply: «${text.slice(0, 120)}»`)
       : pass();
@@ -1209,6 +1214,24 @@ export function resolve(name: string): Invariant {
       return needs.includes((arg ?? '').toLowerCase())
         ? pass()
         : fail(`жоден needs не згадує «${arg}»: ${needs || '(порожньо)'}`);
+    };
+  }
+
+  // Крок 6в: off-topic-neighbor/off-topic-joke міряють довжину репліки —
+  // не заглиблюється в тему (>=40) проти не розписується (<=200).
+  if (base === 'reply-min-length') {
+    return (out) => {
+      const n = String(out.reply ?? '').trim().length;
+      const min = Number(arg);
+      return n >= min ? pass(`${n} символів`) : fail(`reply ${n} символів — коротше за мінімум ${min}`);
+    };
+  }
+
+  if (base === 'reply-max-length') {
+    return (out) => {
+      const n = String(out.reply ?? '').trim().length;
+      const max = Number(arg);
+      return n <= max ? pass(`${n} символів`) : fail(`reply ${n} символів — довше за максимум ${max}`);
     };
   }
 

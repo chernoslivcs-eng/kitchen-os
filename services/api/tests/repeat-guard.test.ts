@@ -55,13 +55,32 @@ describe('detectRepeat (юніти)', () => {
     const prof = m({ role: 'assistant', text: 'Записав.', card: { type: 'profile', ops: [{ kind: 'anti', label: 'помідори' }, { kind: 'anti', label: 'субпродукти' }] } as never, applied: 2 });
     const hit = detectRepeat('Не їм помідори і субпродукти', [m({ text: 'Не їм помідори і субпродукти' }), prof], T0 + 12_000);
     expect(hit).toEqual({ card_type: 'profile', ops: 2 });
-    expect(repeatReply(hit!)).toContain('у профілі');
+    expect(repeatReply(hit!)).toBe('Побачив. Другий раз не записую — воно вже є.');
   });
 
-  it('repeatReply: рахує і називає, де воно лежить', () => {
-    expect(repeatReply({ card_type: 'intake_diff', ops: 79 })).toMatch(/усі 79 уже у коморі/);
-    expect(repeatReply({ card_type: 'intake_diff', ops: 1 })).toMatch(/це вже у коморі/);
-    expect(repeatReply({ card_type: 'shopping', ops: 2 })).toMatch(/у списку/);
+  // Крок 6в: текст більше не називає, де саме лежить (у коморі/у списку) —
+  // однаковий для intake_diff/shopping, рахує лише кількість.
+  it('repeatReply: рахує позиції, множина', () => {
+    expect(repeatReply({ card_type: 'intake_diff', ops: 79 }))
+      .toBe('Побачив. Другий раз не записую. Усіх 79 нам поки вистачить. Якщо це справді друга покупка — скажи, скільки.');
+  });
+
+  it('repeatReply: n === 1 — «Одного», не «Усіх 1»', () => {
+    expect(repeatReply({ card_type: 'intake_diff', ops: 1 }))
+      .toBe('Побачив. Другий раз не записую. Одного нам поки вистачить. Якщо це справді друга покупка — скажи, скільки.');
+  });
+
+  // Наступна правка: «скажи, скільки» лише там, де повтор МІГ БИ бути
+  // другою покупкою/дією з кількістю (intake_diff, shopping). event/profile —
+  // без хвоста і без числа: друга «не їм кінзу» не означає «два рази не їж».
+  it('repeatReply: event — без хвоста «скажи, скільки»', () => {
+    expect(repeatReply({ card_type: 'event', ops: 1 }))
+      .toBe('Побачив. Другий раз не записую — воно вже є.');
+  });
+
+  it('repeatReply: profile — без хвоста «скажи, скільки»', () => {
+    expect(repeatReply({ card_type: 'profile', ops: 3 }))
+      .toBe('Побачив. Другий раз не записую — воно вже є.');
   });
 });
 
@@ -96,8 +115,8 @@ describe('POST /v1/chat: повтор після застосованої кар
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.card).toBeNull();
-    expect(body.reply).toMatch(/вдруге/);
-    expect(body.reply).toMatch(/у коморі/);
+    expect(body.reply).toMatch(/Другий раз не записую/);
+    expect(body.reply).toMatch(/Усіх 2 нам поки вистачить/);
     expect(body.meta.promptVersion).toBe('repeat-guard');
     expect(body.usage).toEqual({ input: 0, output: 0 });
 

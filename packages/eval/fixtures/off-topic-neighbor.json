@@ -1,0 +1,30 @@
+{
+  "id": "off-topic-neighbor",
+  "description": "Аудит раунд 3, крок 6в. Побутова репліка не про їжу і не прохання щось зробити — просто настрій уголос («дощ цілий день»). ВІДМОВА ПОЗА ТЕМОЮ в voice.md — про прохання поза кухнею (історії, розваги); тут прохання взагалі немає, лише сусідська репліка через паркан. Відмовляти нема від чого: людина не просить ні страву, ні розвагу.",
+  "call": "chat",
+  "profile": {
+    "allergies": [],
+    "wishes": [],
+    "antipatterns": []
+  },
+  "pantry": [
+    { "id": "p1", "label": "молоко", "zone": "fridge", "v": 1000, "u": "ml", "state": "sealed" },
+    { "id": "p2", "label": "яйця", "zone": "fridge", "v": 10, "u": "pcs", "state": "sealed" },
+    { "id": "p3", "label": "хліб", "zone": "dry", "v": 1, "u": "pcs", "state": "sealed" },
+    { "id": "p4", "label": "сир гауда", "zone": "fridge", "v": 200, "u": "g", "state": "sealed" },
+    { "id": "p5", "label": "помідори", "zone": "fresh", "v": 500, "u": "g", "state": "sealed" },
+    { "id": "p6", "label": "картопля", "zone": "dry", "v": 1500, "u": "g", "state": "sealed" },
+    { "id": "p7", "label": "курка філе", "zone": "freezer", "v": 600, "u": "g", "state": "sealed" }
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Слухай, а дощ сьогодні цілий день, настрою нема"
+    }
+  ],
+  "invariants": [
+    "no-card",
+    "not-a-refusal",
+    "reply-min-length:40"
+  ]
+}
