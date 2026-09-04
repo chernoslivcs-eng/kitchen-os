@@ -1011,15 +1011,35 @@ export const registry: Record<string, Invariant> = {
   },
 
   // QA5-02: незастосована картка нічого не змінила.
-  'denies-unapplied-card': (out) => {
+  'denies-unapplied-card': (out, fx) => {
     const reply = String(out.reply ?? '').toLowerCase();
     const claims = anyWord(['так,', 'вже в коморі', 'записав', 'записано', 'є в коморі']).test(reply);
     const denies = word('ні').test(reply)
       || /ще не|ще ні|не застосов|не натиснув|не тапнув|тапнут|натисну|чекає|треба підтвердити|не змінилась|не зміню|поки що ні|тільки в пропозиції/.test(reply);
-    if (claims && !denies) {
+    if (denies) return pass();
+    if (claims) {
+      // Аудит раунд 3, крок 2 (закриття): «Записав X» над НЕзастосованою
+      // карткою — не обовʼязково брехня. Якщо модель заразом повернула
+      // СВІЖУ intake_diff з тими самими позиціями — це чесна повторна
+      // пропозиція (в проді fixTense перепише «Записав» на «Запишу» саме
+      // тому, що картка ще не застосована — tense-matches-apply-mode).
+      // Брехня — це коли reply стверджує зроблене, а картки-підтвердження
+      // немає взагалі.
+      const c = out.card as { type?: string; ops?: { label?: string }[] } | null;
+      if (c?.type === 'intake_diff' && c.ops?.length) {
+        const lastAssistant = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'assistant');
+        const priorLabels = [...(lastAssistant?.content ?? '').matchAll(/\badd\s+(\S+)/gi)]
+          .map((m) => (m[1] ?? '').toLowerCase()).filter(Boolean);
+        const newLabels = c.ops.map((o) => (o.label ?? '').toLowerCase());
+        const sameItems = priorLabels.length > 0
+          && priorLabels.every((pl) => newLabels.some((nl) => nl.includes(pl) || pl.includes(nl)));
+        if (sameItems) {
+          return pass(`перевидала картку з тими самими позиціями (${priorLabels.join(', ')}) — не брехня, це нова пропозиція`);
+        }
+      }
       return fail('стверджує, що позиція в коморі, хоча картка [НЕ ЗАСТОСОВАНО]');
     }
-    return denies ? pass() : fail('не сказала прямо, що картку ще не застосовано');
+    return fail('не сказала прямо, що картку ще не застосовано, і нової картки з тими самими позиціями немає');
   },
 
   // QA6-01: онбординг має спитати про обмеження сам.
