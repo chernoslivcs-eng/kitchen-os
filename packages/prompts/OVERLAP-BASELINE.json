@@ -7,7 +7,8 @@
     "proposal-flow",
     "recipe-generator",
     "role",
-    "tone-language"
+    "tone-language",
+    "voice"
   ],
   "generic-word": [
     "attachment-parser",
@@ -43,6 +44,10 @@
   ],
   "refusal": [
     "card-routing",
-    "tone-language"
+    "voice"
+  ],
+  "internal-vocab": [
+    "attachment-parser",
+    "voice"
   ]
 }
