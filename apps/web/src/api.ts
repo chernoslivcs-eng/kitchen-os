@@ -381,7 +381,7 @@ export const api = {
       req<{ id: string }>('/v1/recipes', { method: 'POST', body: JSON.stringify({ recipe }) }),
     unsave: (id: string) => req<null>(`/v1/recipes/${id}`, { method: 'DELETE' }),
     // Р-3: адреса рецепта — F5 більше нічого не губить.
-    get: (id: string) => req<{ id: string; saved_at: string | null; recipe: Recipe }>(`/v1/recipes/${id}`),
+    get: (id: string) => req<{ id: string; saved_at: string | null; recipe: Recipe; nutrition_calc?: RecipeNutritionInfo | null }>(`/v1/recipes/${id}`),
     setSaved: (id: string, saved: boolean) =>
       req<{ id: string; saved: boolean }>(`/v1/recipes/${id}`, {
         method: 'PATCH', body: JSON.stringify({ saved }),
@@ -716,6 +716,14 @@ export interface CookRunWithRecipe {
     payload: Recipe;
     created_at: string;
   };
+}
+
+// Раунд 5, крок Н1: рядок БЖВ під інгредієнтами — рахує сервер з каталогу.
+// approx — хоч один інгредієнт з оцінкою або пропущений; skipped — скільки не увійшло.
+export interface RecipeNutritionInfo {
+  per_serving: { kcal: number; protein: number; fat: number; carbs: number };
+  approx: boolean;
+  skipped: number;
 }
 
 export interface Recipe {

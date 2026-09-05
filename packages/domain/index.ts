@@ -20,3 +20,4 @@ export * from './veto-index.js';
 export * from './veto.js';
 export * from './onboarding.js';
 export * from './assistant-notes.js';
+export * from './nutrition.js';

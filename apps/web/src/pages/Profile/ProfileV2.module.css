@@ -147,3 +147,13 @@
   color: var(--danger); font: 600 15px var(--font-body); cursor: pointer;
 }
 .exitConfirm:disabled { opacity: .5; cursor: default; }
+
+/* Джерела даних — абзац у тоні підказок */
+.dataText {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  max-width: 62ch;
+}

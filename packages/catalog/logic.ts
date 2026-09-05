@@ -3,6 +3,7 @@
 // У проді ті самі правила стають SQL-запитами по catalog_ingredient + pg_trgm.
 
 import { CATALOG, type CatalogItem } from './seed.js';
+export type { Nutrition, NutritionSource } from './nutrition.js';
 
 // ---------- нормалізація ----------
 

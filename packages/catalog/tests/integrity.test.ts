@@ -109,14 +109,36 @@ describe('integrity · схема доданих позицій', () => {
     expect(bad).toEqual([]);
   });
 
-  it('nutrition доданих — цілі невідʼємні числа', () => {
-    const bad = added.filter((i) => i.nutrition && Object.values(i.nutrition).some((v) => !Number.isInteger(v) || v < 0)).map((i) => i.key);
+  // Раунд 5, крок Н1: БЖВ без ккал, з джерелом. Оцінки генератора — цілі;
+  // звірені рядки (usda/ciqual) — як у дампі, з десятковими.
+  const NUM_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg', 'alcohol'] as const;
+  it('nutrition — скінченні невідʼємні числа, без поля kcal', () => {
+    const bad = CATALOG.filter((i) => i.nutrition && (
+      'kcal' in i.nutrition
+      || NUM_KEYS.some((k) => i.nutrition![k] !== undefined && (!Number.isFinite(i.nutrition![k]) || i.nutrition![k]! < 0))
+    )).map((i) => i.key);
     expect(bad).toEqual([]);
   });
 
-  it('nutrition будь-якої позиції — скінченні невідʼємні числа', () => {
-    const bad = CATALOG.filter((i) => i.nutrition && Object.values(i.nutrition).some((v) => !Number.isFinite(v) || v < 0)).map((i) => i.key);
+  it('nutrition.source — estimate | usda:<id> | ciqual:<code>; оцінки — цілі', () => {
+    const badSource = CATALOG.filter((i) => i.nutrition && !/^(estimate|usda:\d+|ciqual:\d+)$/.test(i.nutrition.source)).map((i) => i.key);
+    expect(badSource).toEqual([]);
+    const badInt = added.filter((i) => i.nutrition?.source === 'estimate' && [i.nutrition.protein, i.nutrition.fat, i.nutrition.carbs].some((v) => !Number.isInteger(v))).map((i) => i.key);
+    expect(badInt).toEqual([]);
+  });
+
+  // Н1а: клітковина не додається (вуглеводи USDA «by difference» її містять), 0,5 — округлення дампу.
+  it('санітарна перевірка: білки+жири+вуглеводи+спирт ≤ 100,5, ккал 4-4-9-7 у межах 0–905', () => {
+    const bad = CATALOG.filter((i) => {
+      const n = i.nutrition; if (!n) return false;
+      const kcal = n.protein * 4 + n.carbs * 4 + n.fat * 9 + (n.alcohol ?? 0) * 7;
+      return n.protein + n.fat + n.carbs + (n.alcohol ?? 0) > 100.5 || kcal < 0 || kcal > 905;
+    }).map((i) => `${i.key}: ${JSON.stringify(i.nutrition)}`);
     expect(bad).toEqual([]);
+  });
+
+  it('звірених позицій (usda/ciqual) — не менше 500', () => {
+    expect(CATALOG.filter((i) => i.nutrition && i.nutrition.source !== 'estimate').length).toBeGreaterThanOrEqual(500);
   });
 
   it('allergen_groups — тільки зі словника груп', () => {
