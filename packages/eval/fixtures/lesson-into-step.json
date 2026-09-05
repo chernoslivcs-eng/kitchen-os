@@ -3,16 +3,13 @@
   "description": "Порт cooking-assistant: висновок людини («вершки 20% зсідаються») має бути вбудований У ТЕКСТ кроку як захист, а не жити окремою приміткою. Раніше recipe_gen взагалі не бачив [ВИСНОВКИ З ГОТУВАННЯ].",
   "call": "recipe_gen",
   "now": "2026-09-10T18:00:00",
-  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
   "pantry": [
     {"id":"c1","label":"вершки 33%","zone":"fridge","v":200,"u":"ml"},
     {"id":"c2","label":"білі гриби морожені","zone":"freezer","v":400,"u":"g"},
     {"id":"c3","label":"фетучіні","zone":"dry","v":500,"u":"g"},
     {"id":"c4","label":"пармезан","zone":"fridge","v":90,"u":"g"}
   ],
-  "notes": [
-    { "id": "n1", "user_id": "u1", "text": "Вершки 20% зсідаються в гарячому соусі — тільки 33%, вливати на зменшеному вогні", "recipe_title": null, "rating": null, "pinned": true, "created_at": "2026-09-01T10:00:00.000Z" }
-  ],
+  "profile_notes": [{"id": "n1", "user_id": "u1", "subject": null, "text": "Вершки 20% зсідаються в гарячому соусі — тільки 33%, вливати на зменшеному вогні", "source": "user", "created_at": "2026-09-01T10:00:00.000Z", "deleted_at": null, "norm_hash": "df1aba184db2dd4b4b2d18d7f583e04e"}],
   "request": "Вершкова фетучіні з грибами",
   "invariants": ["lesson-into-step", "max-9-ings-6-steps"]
 }

@@ -1,6 +1,6 @@
 // Головне правило продукту: модель ніколи не пише в стан напряму.
 // Все, що модель повертає — картка. Застосовує людина, натиснувши підтвердження.
-// Тут — ідемпотентне застосування intake_diff і undo. Profile/Shopping/Proposal — далі.
+// Тут — ідемпотентне застосування карток і undo.
 //
 // Ідемпотентність: applyCard(id, selected) можна викликати повторно з тим самим id
 // і тими самими selected — результат буде такий самий (той самий undo_token),
@@ -8,7 +8,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { ownsEvent, traditionsFrom } from './occasions.js';
-import { appendProfileText, clampProfileText, noteHash, NOTE_TEXT_LIMIT } from './profile-text.js';
+import { appendProfileText, clampProfileText, profileTextHints } from './profile-text.js';
 import { isProfileFieldCard } from './types.js';
 import { rebuildVetoIndex } from './veto-index.js';
 import type { Tradition } from './occasion-rules.js';
@@ -26,9 +26,7 @@ import type {
   PendingCard,
   UndoSnapshot,
   Provenance,
-  Profile,
   EaterRow,
-  ProfileKind,
   ShoppingItemRow,
   Zone,
   Unit,
@@ -85,9 +83,6 @@ export interface ApplyResult {
 }
 
 export interface ApplyOpts {
-  /** Раунд 4: профіль як сім речень. Картка поля застосовується лише під прапором;
-   *  note/intent під прапором ідуть у profile_note (джерело [НОТАТКИ]). */
-  profileV2?: boolean;
   /** «Нічого такого» на картці поля `ban`: status none, картка застосована. */
   none?: boolean;
 }
@@ -113,7 +108,6 @@ export async function applyCard(
   // Раунд 4 §4: картка поля профілю. Один текст в одне поле; undo повертає
   // попереднє значення поля цілком (текст і статус).
   if (isProfileFieldCard(card)) {
-    if (!opts.profileV2) throw new Error('profile field card requires PROFILE_V2');
     const key = card.field;
     if (opts.none && key !== 'ban') throw new Error('«Нічого такого» — лише для поля ban');
     const before = (await repo.getProfileText(actor_user_id)).fields[key];
@@ -251,63 +245,36 @@ export async function applyCard(
 
   if (card.type === 'profile') {
     const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
-    const before = await repo.getProfile(actor_user_id);
-    // QA4-04: {...before} — поверхнева копія, next.allergies це ТОЙ САМИЙ масив,
-    // що before.allergies. applyProfileOp робить push і мутує масив, на який
-    // дивиться знімок → undo фіксував стан ПІСЛЯ зміни. Глибока копія обов'язкова.
-    const deepCopy = (p: Profile): Profile => ({
-      ...p,
-      allergies: [...p.allergies],
-      wishes: [...p.wishes],
-      antipatterns: [...p.antipatterns],
-      equipment: { ...p.equipment },
-    });
-    const snapshot: UndoSnapshot = {
-      kind: 'profile',
-      before: { profile_before: before ? deepCopy(before) : undefined },
-    };
-    const next: Profile = before
-      ? deepCopy(before)
-      : { user_id: actor_user_id, allergies: [], wishes: [], antipatterns: [], equipment: {} };
+    // Крок 11: ops-картка — лише традиції (user.traditions) і домашні (їдці).
+    // Текст людини йде карткою поля, нотатки — полем `note` відповіді.
+    const user = await repo.getUser(actor_user_id);
+    const tradBefore: Tradition[] | null = user?.traditions ? [...user.traditions] : null;
+    const hints = profileTextHints(await repo.getProfileText(actor_user_id));
+    let trads: Tradition[] | null = tradBefore ? [...tradBefore] : null;
+    const snapshot: UndoSnapshot = { kind: 'profile', before: {} };
     // QA4-05: рахуємо те, що СПРАВДІ лягло.
     let landed = 0;
-    let profileTouched = false;
-    // Висновки не входять у документ профілю — вони окремі рядки, тож і
-    // застосовуються окремо, і відкочуються поштучно.
-    const added_note_ids: string[] = [];
-    const added_profile_note_ids: string[] = [];
+    let traditionsTouched = false;
     const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      if (op.kind === 'note' || op.kind === 'intent') {
-        if (opts.profileV2) {
-          if (await applyProfileNoteOp(repo, actor_user_id, op, added_profile_note_ids, op.kind)) landed++;
-        } else if (await applyNoteOp(repo, actor_user_id, op, added_note_ids, op.kind === 'intent' ? 'intent' : 'lesson')) landed++;
-        continue;
-      }
       if (op.kind === 'member') {
         if (await applyMemberOp(repo, pc.household_id, op, memberTrace)) landed++;
         continue;
       }
-      if (applyProfileOp(next, op)) { landed++; profileTouched = true; }
+      if (op.kind === 'tradition') {
+        const next = applyTraditionOp(trads, hints, op);
+        if (next) { trads = next; landed++; traditionsTouched = true; }
+      }
     }
-    if (added_note_ids.length) snapshot.before.added_note_ids = added_note_ids;
-    if (added_profile_note_ids.length) snapshot.before.added_profile_note_ids = added_profile_note_ids;
     if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
     if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
-    // Порожній документ профілю не створюємо: картка з самих member/note
-    // не має лишати по собі привида з нульовими масивами.
-    if (profileTouched || before) {
-      // Якщо документа не існувало, undo має його спорожнити — фіксуємо
-      // «порожньо» як стан до картки, інакше відкат алергії не мав би куди
-      // повертатись.
-      if (!before && profileTouched) {
-        snapshot.before.profile_before = {
-          user_id: actor_user_id, allergies: [], wishes: [], antipatterns: [], equipment: {},
-        };
-      }
-      await repo.upsertProfile(next);
+    if (traditionsTouched) {
+      // Знімок «до» — і null («не обирала»): undo має повернути саме здогад,
+      // а не порожній вибір.
+      snapshot.before.traditions_before = { value: tradBefore };
+      await repo.setTraditions(actor_user_id, trads);
     }
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
@@ -720,46 +687,6 @@ async function applyShoppingOp(
   snap.before.added_shopping_ids.push(id);
 }
 
-// Повертає true, якщо операція реально змінила профіль. Виклик-сайт рахує це
-// як `applied` — щоб не рапортувати успіх на op, яку MVP не вміє (QA4-05).
-// Висновок про страву: «фует знімати, щойно краї хрусткі». Тільки текст —
-// решта полів (до чого, з якою оцінкою) заповнюється, коли висновок народжується
-// в cook-run, а не в розмові.
-async function applyNoteOp(
-  repo: Repo,
-  user_id: string,
-  op: { op?: 'add' | 'remove'; label?: string; pin?: boolean; [k: string]: unknown },
-  added: string[],
-  kind: 'lesson' | 'intent' = 'lesson',
-): Promise<boolean> {
-  const text = (op.label ?? '').trim();
-  if (!text) return false;
-  const existing = await repo.findNoteByText(user_id, text);
-  if (op.op === 'remove') {
-    if (!existing) return false;
-    await repo.deleteNote(existing.id);
-    return true;
-  }
-  // Той самий висновок двічі — не помилка, але й не подія. QA4-05: раніше API
-  // рапортував applied:1 там, де в базі нічого не змінилось.
-  if (existing) return false;
-  const id = randomUUID();
-  await repo.insertNote({
-    id, user_id, text,
-    // Схема картки (card-schemas.md) називає поле `recipe`, код читав лише
-    // `recipe_title` — привʼязка нотатки до страви ніколи не приземлялась
-    // (аудит 04.09, 1.2). Приймаємо обидва.
-    recipe_title: typeof op.recipe === 'string' ? op.recipe
-      : typeof op.recipe_title === 'string' ? op.recipe_title : null,
-    rating: typeof op.rating === 'number' ? op.rating : null,
-    pinned: op.pin === true,
-    created_at: new Date().toISOString(),
-    kind,
-  });
-  added.push(id);
-  return true;
-}
-
 // «Зі мною живе Оксана, вона веганка» → окремий запис їдця в домі.
 // Обмеження лежать у ньому, а не в профілі власника. Прототип, 2160:
 // «Обмеження учасника кладуться в його ж запис».
@@ -801,88 +728,28 @@ async function applyMemberOp(
   return true;
 }
 
-// Раунд 4, під PROFILE_V2: висновок/намір з ops-картки → profile_note
-// (source: user), як і перенесені міграцією 0023. Дедуп — по norm_hash серед
-// не видалених. remove тут не підтримується: людина прибирає нотатки на
-// сторінці профілю (§2.2 — «видаляє; не редагує»).
-async function applyProfileNoteOp(
-  repo: Repo,
-  user_id: string,
-  op: { op?: 'add' | 'remove'; label?: string; [k: string]: unknown },
-  added: string[],
-  kind: 'note' | 'intent',
-): Promise<boolean> {
-  const raw = (op.label ?? '').trim();
-  if (!raw || op.op === 'remove') return false;
-  const text = Array.from(kind === 'intent' ? `хотів: ${raw}` : raw).slice(0, NOTE_TEXT_LIMIT).join('');
-  const norm_hash = noteHash(text);
-  const existing = await repo.listProfileNotes(user_id, { limit: 200 });
-  if (existing.some((n) => n.norm_hash === norm_hash)) return false;
-  const id = randomUUID();
-  await repo.addProfileNote({
-    id, user_id, subject: null, text, source: 'user',
-    created_at: new Date().toISOString(), deleted_at: null, norm_hash,
-  });
-  added.push(id);
-  return true;
-}
-
-export function applyProfileOp(
-  next: Profile,
-  op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string; has?: boolean },
-): boolean {
-  if (!op.label || !op.kind) return false;
-  const label = op.label.trim();
-  const removing = op.op === 'remove';
-  const listByKind = (k: ProfileKind): string[] | null => {
-    if (k === 'allergy') return next.allergies;
-    if (k === 'wish') return next.wishes;
-    if (k === 'anti') return next.antipatterns;
-    return null;
-  };
-  const list = listByKind(op.kind);
-  if (list) {
-    if (removing) {
-      const idx = list.findIndex((x) => x.toLowerCase() === label.toLowerCase());
-      if (idx === -1) return false;
-      list.splice(idx, 1);
-      return true;
-    }
-    if (list.some((x) => x.toLowerCase() === label.toLowerCase())) return false;
-    list.push(label);
-    return true;
+// Традиція — перемикач календаря на user.traditions. Перший дотик матеріалізує
+// здогад: людина, яка вимикає «православні», розпізнані з «постуємо», має
+// отримати вибір без них, а не той самий здогад назад зі своїх слів.
+// Повертає новий масив або null, якщо операція нічого не змінила (QA4-05:
+// applied рахує лише те, що справді лягло).
+export function applyTraditionOp(
+  current: Tradition[] | null,
+  hints: string[],
+  op: { op?: 'add' | 'remove'; label?: string },
+): Tradition[] | null {
+  const label = (op.label ?? '').trim() as Tradition;
+  if (!TRADITIONS.includes(label)) return null;
+  const chosen = Array.isArray(current);
+  const cur = new Set<Tradition>(current ?? traditionsFrom(hints));
+  if (op.op === 'remove') {
+    if (!cur.has(label) && chosen) return null;
+    cur.delete(label);
+  } else {
+    if (cur.has(label) && chosen) return null;
+    cur.add(label);
   }
-  if (op.kind === 'equip') {
-    if (removing) {
-      if (!(label in next.equipment)) return false;
-      delete next.equipment[label];
-      return true;
-    }
-    // QA5-04: «в мене немає духовки» модель віддає як {kind:'equip', has:false},
-    // а ми безумовно писали 'has' — і потім пропонували запікати в духовці.
-    // serializeProfile розрізняє has/lacks, але 'lacks' ніде не записувалось.
-    next.equipment[label] = op.has === false ? 'lacks' : 'has';
-    return true;
-  }
-  if (op.kind === 'tradition') {
-    if (!TRADITIONS.includes(label as Tradition)) return false;
-    // Перший дотик матеріалізує здогад: людина, яка вимикає «православні»,
-    // розпізнані з «постуємо», має отримати профіль без них, а не той самий
-    // здогад назад із побажань.
-    const cur = new Set<Tradition>(next.traditions ?? traditionsFrom(next.wishes));
-    if (removing) {
-      if (!cur.has(label as Tradition) && Array.isArray(next.traditions)) return false;
-      cur.delete(label as Tradition);
-    } else {
-      if (cur.has(label as Tradition) && Array.isArray(next.traditions)) return false;
-      cur.add(label as Tradition);
-    }
-    next.traditions = TRADITIONS.filter((t) => cur.has(t));
-    return true;
-  }
-  // note / member — MVP не має для них таблиць. Повертаємо false, щоб API не
-  // рапортував applied:1 на те, що нікуди не лягло.
-  return false;
+  return TRADITIONS.filter((t) => cur.has(t));
 }
 
 const TRADITIONS: Tradition[] = ['orthodox', 'catholic', 'islamic', 'jewish'];
@@ -925,9 +792,6 @@ export async function undoCard(
     await repo.toggleShoppingItem(id, false);
   }
   // Висновки: точковий відкат — видаляємо рівно те, що ця картка додала.
-  for (const id of snap.before.added_note_ids ?? []) {
-    await repo.deleteNote(id);
-  }
   for (const id of snap.before.added_eater_ids ?? []) {
     await repo.deleteEater(id);
   }
@@ -958,9 +822,9 @@ export async function undoCard(
     });
     else await repo.insertHouseholdEvent(e);
   }
-  // Profile: повертаємо блок як був до застосування картки.
-  if (snap.before.profile_before) {
-    await repo.upsertProfile(snap.before.profile_before);
+  // Традиції: назад попередній вибір (і null — «не обирала»).
+  if (snap.before.traditions_before) {
+    await repo.setTraditions(actor_user_id, snap.before.traditions_before.value);
   }
   // Раунд 4: поле профілю — назад попередній текст і статус.
   if (snap.before.profile_field_before) {
@@ -968,9 +832,6 @@ export async function undoCard(
     await repo.patchProfileField(actor_user_id, field,
       value.status === 'none' ? { status: 'none' } : { text: value.status === 'filled' ? value.text : '' });
     await rebuildVetoIndex(repo, actor_user_id, field);
-  }
-  for (const id of snap.before.added_profile_note_ids ?? []) {
-    await repo.deleteProfileNote(id);
   }
 
   await repo.updatePending(pc.id, { undone_at: new Date().toISOString() });

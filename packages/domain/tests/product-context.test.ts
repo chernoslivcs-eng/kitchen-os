@@ -6,7 +6,7 @@
 //    тегом allergens продукту — «камбоцола» без слова «молоко» теж ловиться.
 
 import { describe, it, expect } from 'vitest';
-import { serializePantry, maskHistoryQuantities, type PantryBatch, type Profile, type HouseholdProduct } from '../index.js';
+import { serializePantry, maskHistoryQuantities, buildVetoIndex, type PantryBatch, type HouseholdProduct } from '../index.js';
 
 const DAY = 86_400_000;
 const NOW = Date.parse('2026-08-31T12:00:00Z');
@@ -33,13 +33,13 @@ describe('serializePantry × продукт дому', () => {
   it('вік партії видно: «дод.Nдн»', () => {
     const out = serializePantry(
       [batch({ label: 'сир', added_at: new Date(NOW - 5 * DAY).toISOString() })],
-      null, NOW, [], false, 'none',
+      NOW, [], false, 'none',
     );
     expect(out).toContain('дод.5дн');
   });
 
   it('свіжа партія (до 2 днів) без вікового маркера', () => {
-    const out = serializePantry([batch({ label: 'сир' })], null, NOW, [], false, 'none');
+    const out = serializePantry([batch({ label: 'сир' })], NOW, [], false, 'none');
     expect(out).not.toContain('дод.');
   });
 
@@ -49,27 +49,26 @@ describe('serializePantry × продукт дому', () => {
       label: 'камбоцола', product_id: 'p1', state: 'opened',
       opened_at: new Date(NOW - 5 * DAY).toISOString(),
     });
-    const out = serializePantry([b], null, NOW, [], false, 'none', 60, [prod]);
+    const out = serializePantry([b], NOW, [], false, 'none', 60, [prod]);
     expect(out).toContain('~строк≈2дн');
     expect(out).not.toContain('!2дн');       // приблизне ≠ точне
   });
 
   it('expires_at лишається точним «!Nдн», без «~строк»', () => {
     const b = batch({ label: 'сметана', expires_at: new Date(NOW + 2 * DAY).toISOString() });
-    const out = serializePantry([b], null, NOW, [], false, 'none');
+    const out = serializePantry([b], NOW, [], false, 'none');
     expect(out).toContain('!2дн');
     expect(out).not.toContain('~строк');
   });
 
   it('алерген ловиться ЗА ТЕГОМ продукту, коли в назві кореня нема', () => {
-    const p: Profile = { user_id: 'u1', allergies: ['молоко'], wishes: [], antipatterns: [], equipment: {} };
-    const prod = product({ tags: { allergens: ['молоко'] } });
+    // Крок 11: мітка власника — з індексу вето за категорією позиції
+    // каталогу (product.catalog_key), не за тегом; тег лишається їдцям.
+    const index = buildVetoIndex('u1', 'ban', 'молочне');
+    const prod = product({ tags: { allergens: ['молоко'] }, product: 'камбоцола', catalog_key: 'cheese_cambozola' });
     const b = batch({ label: 'камбоцола', product_id: 'p1' });
-    const out = serializePantry([b], p, NOW, [], false, 'none', 60, [prod]);
+    const out = serializePantry([b], NOW, [], false, 'none', 60, [prod], '', index);
     expect(out).toContain('⚠АЛЕРГЕН');
-    // без продуктів — мітки нема (старе поведінка за коренем у назві)
-    const bare = serializePantry([b], p, NOW, [], false, 'none');
-    expect(bare).not.toContain('⚠АЛЕРГЕН');
   });
 });
 
@@ -81,7 +80,7 @@ describe('serializePantry: кеп і відбір', () => {
 
   it('depleted не потрапляє в контекст ніколи, навіть згаданий', () => {
     const b = batch({ label: 'кімчі', state: 'depleted' });
-    const out = serializePantry([b], null, NOW, [], false, 'none', 120, [], 'а де моє кімчі?');
+    const out = serializePantry([b], NOW, [], false, 'none', 120, [], 'а де моє кімчі?');
     expect(out).not.toContain('кімчі');
   });
 
@@ -90,7 +89,7 @@ describe('serializePantry: кеп і відбір', () => {
       batch({ id: 'old', label: 'спагеті', added_at: new Date(NOW - 40 * DAY).toISOString() }),
       ...many(130, (i) => ({ added_at: new Date(NOW - i * 3600_000).toISOString() })),
     ];
-    const out = serializePantry(bs, null, NOW, [], false, 'none', 120, [], 'скільки в мене спагеті?');
+    const out = serializePantry(bs, NOW, [], false, 'none', 120, [], 'скільки в мене спагеті?');
     expect(out).toContain('спагеті');
   });
 
@@ -99,13 +98,13 @@ describe('serializePantry: кеп і відбір', () => {
       batch({ id: 'idle', label: 'маш', added_at: new Date(NOW - 30 * DAY).toISOString() }),
       ...many(130, (i) => ({ added_at: new Date(NOW - i * 3600_000).toISOString() })),
     ];
-    const out = serializePantry(bs, null, NOW, [], false, 'none', 120, []);
+    const out = serializePantry(bs, NOW, [], false, 'none', 120, []);
     expect(out).toContain('маш');
   });
 
   it('без запиту і квот — поведінка як була: свіжі перемагають, хвіст числом', () => {
     const bs = many(130, (i) => ({ added_at: new Date(NOW - i * DAY).toISOString() }));
-    const out = serializePantry(bs, null, NOW, [], false, 'none', 120, []);
+    const out = serializePantry(bs, NOW, [], false, 'none', 120, []);
     expect(out).toContain('…і ще');
     expect(out).toContain('продукт 0');
   });
@@ -135,10 +134,10 @@ describe('maskHistoryQuantities', () => {
 // а продукт міг народитися без тегів (ручне додавання) — каталог страхує.
 describe('serializePantry: алерген з каталогу', () => {
   it('«мідії» ловляться профільною алергією «молюски» через catalog_key', () => {
-    const p: Profile = { user_id: 'u1', allergies: ['молюски'], wishes: [], antipatterns: [], equipment: {} };
+    const index = buildVetoIndex('u1', 'ban', 'морепродукти');
     const prod = product({ id: 'pm', product: 'мʼясо мідій', tags: {}, catalog_key: 'mussel_meat' });
     const b = batch({ label: 'Karolina мʼясо мідій', product_id: 'pm', zone: 'freezer' });
-    const out = serializePantry([b], p, NOW, [], false, 'none', 120, [prod]);
+    const out = serializePantry([b], NOW, [], false, 'none', 120, [prod], '', index);
     expect(out).toContain('⚠АЛЕРГЕН');
   });
 });

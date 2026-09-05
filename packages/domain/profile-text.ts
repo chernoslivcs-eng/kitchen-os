@@ -89,8 +89,6 @@ export const VETO_PRESETS: readonly VetoPreset[] = [
 
 // ----- Крок 3: серіалізація в промт (§3) ------------------------------------
 
-import type { Profile, MemoryNote } from './types.js';
-
 const PROFILE_BLOCK = '[ПРО ЛЮДИНУ — її власні слова]';
 const NOTES_BLOCK = '[НОТАТКИ — записав сам після розмов і готувань]';
 const KIT_DEFAULTS_NOTE = `(${KIT_DEFAULTS.map((k, i) => (i === 0 ? k[0]!.toUpperCase() + k.slice(1) : k)).join(', ')} — є за замовчуванням.)`;
@@ -132,43 +130,13 @@ export function serializeProfileText(p: ProfileText, notes: ProfileNote[]): stri
   return head + tail;
 }
 
-// ----- Крок 3: TS-двійник міграції 0023 ----------------------------------
-// Потрібен eval-у (фікстури описують профіль у старій формі) і тестам як
-// друге джерело правди про перенесення. Правила — ті самі, що в SQL:
-// allergy → ban через кому; anti + wish зі словника пресетів → no через «. »;
-// решта wish → love; equip → kit («є» через кому, lacks — «Немає: …»).
-
-const PRESET_RE = new RegExp(`(${VETO_PRESETS.flatMap((p) => p.stems).join('|')})`);
-export const matchesVetoPreset = (phrase: string): boolean => PRESET_RE.test(phrase.toLowerCase());
-
-export function profileTextFromLegacy(p: Profile | null | undefined, updated_at: string | null = null): ProfileText {
-  const out = emptyProfileText(p?.user_id ?? '');
-  if (!p) return out;
-  const put = (key: ProfileFieldKey, text: string) => {
-    const t = clampProfileText(key, text);
-    if (t) out.fields[key] = { text: t, status: 'filled', updated_at };
-  };
-  if (p.allergies.length) put('ban', p.allergies.join(', '));
-  const presetWishes = p.wishes.filter(matchesVetoPreset);
-  const otherWishes = p.wishes.filter((w) => !matchesVetoPreset(w));
-  if (p.antipatterns.length || presetWishes.length) put('no', [...p.antipatterns, ...presetWishes].join('. '));
-  if (otherWishes.length) put('love', otherWishes.join('. '));
-  const eq = Object.entries(p.equipment ?? {});
-  const has = eq.filter(([, v]) => v === 'has').map(([k]) => k).sort();
-  const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k).sort();
-  const kit = [has.length ? has.join(', ') : null, lacks.length ? `Немає: ${lacks.join(', ')}` : null].filter(Boolean).join('. ');
-  if (kit) put('kit', kit);
-  return out;
-}
-
-export function profileNotesFromLegacy(notes: MemoryNote[]): ProfileNote[] {
-  return notes.map((n) => {
-    const text = Array.from(n.kind === 'intent' ? `хотів: ${n.text}` : n.text).slice(0, NOTE_TEXT_LIMIT).join('');
-    return {
-      id: n.id, user_id: n.user_id, subject: null, text, source: 'user',
-      created_at: n.created_at, deleted_at: null, norm_hash: noteHash(text),
-    };
-  });
+// ----- Крок 11: слова людини як підказка для календаря -----------------------
+// Традиції (user.traditions) людина або обрала явно, або ні — тоді календар
+// вгадує з її власних слів («постуємо», «православні свята»), як раніше з
+// побажань v1. Підказка — усі заповнені поля, вгадування робить traditionsFrom.
+export function profileTextHints(p: ProfileText | null | undefined): string[] {
+  if (!p) return [];
+  return PROFILE_FIELD_KEYS.map((k) => p.fields[k]).filter((v) => v.status === 'filled').map((v) => v.text);
 }
 
 /** Картка append (§4): дописати через «. », обрізати по ліміту; truncated — щоб репліка могла сказати, що не влізло. */
@@ -185,36 +153,6 @@ export function appendProfileText(key: ProfileFieldKey, before: string, add: str
   const joined = base ? `${base}${sep}${next}` : next;
   const text = clampProfileText(key, joined);
   return { text, truncated: Array.from(joined.trim()).length > Array.from(text).length };
-}
-
-// ----- Крок 4 (a): відкат на проді — картка поля → ops-картка v1 ------------
-// Промт один (уже v2). З вимкненим PROFILE_V2 сервер перекладає картку поля
-// в стару форму ДО applyMode: no/meh → anti, ban → allergy (по комах),
-// love → wish, kit → equip по комах («Немає: …» → note), name/when → note.
-
-import type { ProfileFieldCard, ProfileOpsCard } from './types.js';
-
-const splitCommas = (t: string) => t.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
-
-export function legacyOpsFromFieldCard(card: ProfileFieldCard): ProfileOpsCard {
-  const text = (card.text ?? '').trim();
-  const ops: ProfileOpsCard['ops'] = [];
-  if (!text) return { type: 'profile', ops };
-  const add = (kind: ProfileOpsCard['ops'][number]['kind'], label: string, extra: Record<string, unknown> = {}) =>
-    ops.push({ op: 'add', kind, label, ...extra });
-  switch (card.field) {
-    case 'no': case 'meh': add('anti', text); break;
-    case 'love': add('wish', text); break;
-    case 'ban': for (const l of splitCommas(text)) add('allergy', l); break;
-    case 'kit':
-      for (const sentence of text.split(/\.\s+|\.$/).map((x) => x.trim()).filter(Boolean)) {
-        if (/^немає\s*:/i.test(sentence)) add('note', sentence);
-        else for (const l of splitCommas(sentence)) add('equip', l, { has: true });
-      }
-      break;
-    case 'name': case 'when': add('note', `${PROFILE_FIELDS[card.field].lead} ${text}`); break;
-  }
-  return { type: 'profile', ops };
 }
 
 // ----- Крок 7, п. 0: поле за дієсловом людини — механікою, не лише промтом ---

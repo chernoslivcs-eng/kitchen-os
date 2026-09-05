@@ -39,7 +39,7 @@ describe('«?домисл.» у [КОМОРА]', () => {
     const s = serializePantry([
       batch('Сосиски', { confidence: 0.7, provenance: 'inference' }),
       batch('Молоко', { confidence: 0.9 }),
-    ], null, Date.now());
+    ], Date.now());
     const [sausage, milk] = s.split('\n');
     expect(sausage).toContain('Сосиски');
     expect(sausage).toContain('?домисл.70%');
@@ -48,7 +48,7 @@ describe('«?домисл.» у [КОМОРА]', () => {
   });
 
   it('confidence 1 (як у стабі й ручному додаванні) — без мітки', () => {
-    expect(serializePantry([batch('Спагеті')], null, Date.now())).not.toContain('?домисл');
+    expect(serializePantry([batch('Спагеті')], Date.now())).not.toContain('?домисл');
   });
 
   it('легенда блоку пояснює мітку — правило їде разом із даними, не в префіксі', () => {

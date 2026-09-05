@@ -10,17 +10,17 @@
 import type { Pool } from './pool.js';
 import type {
   Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField,
-  PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
+  PantryBatch, PendingCard, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
-  SessionRow, MessageRow, MemoryNote, EaterRow,
+  SessionRow, MessageRow, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
 } from '@kitchen/domain';
-import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
+import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT, type Tradition } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
@@ -124,19 +124,6 @@ function vetoRow(r: Row): VetoRow {
     label: r.label as string,
     allergy: r.allergy as boolean,
     subject: (r.subject as string | null) ?? null,
-  };
-}
-
-function noteRow(r: Row): MemoryNote {
-  return {
-    id: r.id as string,
-    user_id: r.user_id as string,
-    text: r.text as string,
-    recipe_title: (r.recipe_title as string | null) ?? null,
-    rating: r.rating == null ? null : Number(r.rating),
-    pinned: r.pinned as boolean,
-    created_at: new Date(r.created_at as string).toISOString(),
-    kind: (r.kind as 'lesson' | 'intent' | null) ?? 'lesson',
   };
 }
 
@@ -394,33 +381,9 @@ export class PostgresRepo implements Repo {
     await this.pool.query('DELETE FROM pantry_batch WHERE id = $1', [id]);
   }
 
-  async getProfile(user_id: string): Promise<Profile | null> {
-    const { rows } = await this.pool.query('SELECT * FROM profile WHERE user_id = $1', [user_id]);
-    const r = rows[0];
-    if (!r) return null;
-    return {
-      user_id: r.user_id,
-      allergies: r.allergies ?? [],
-      wishes: r.wishes ?? [],
-      antipatterns: r.antipatterns ?? [],
-      equipment: r.equipment ?? {},
-      traditions: (r.traditions as Profile['traditions']) ?? null,
-    };
-  }
-
-  async upsertProfile(p: Profile): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO profile (user_id, allergies, wishes, antipatterns, equipment, traditions)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (user_id) DO UPDATE SET
-         allergies = EXCLUDED.allergies,
-         wishes = EXCLUDED.wishes,
-         antipatterns = EXCLUDED.antipatterns,
-         equipment = EXCLUDED.equipment,
-         traditions = EXCLUDED.traditions,
-         updated_at = now()`,
-      [p.user_id, p.allergies, p.wishes, p.antipatterns, p.equipment, p.traditions ?? null],
-    );
+  // Крок 11 (0026): традиції — колонка на user. null — не обирала.
+  async setTraditions(user_id: string, traditions: Tradition[] | null): Promise<void> {
+    await this.pool.query('UPDATE "user" SET traditions = $2 WHERE id = $1', [user_id, traditions]);
   }
 
   // ----- Раунд 4: профіль як сім речень ------------------------------------
@@ -547,35 +510,6 @@ export class PostgresRepo implements Repo {
 
   async deleteEater(id: string): Promise<void> {
     await this.pool.query('DELETE FROM eater WHERE id = $1', [id]);
-  }
-
-  async insertNote(n: MemoryNote): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO memory_note (id, user_id, text, recipe_title, rating, pinned, created_at, kind)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [n.id, n.user_id, n.text, n.recipe_title, n.rating, n.pinned, n.created_at, n.kind ?? 'lesson'],
-    );
-  }
-
-  async listNotes(user_id: string, limit = 20): Promise<MemoryNote[]> {
-    const { rows } = await this.pool.query(
-      `SELECT * FROM memory_note WHERE user_id = $1
-       ORDER BY pinned DESC, created_at DESC LIMIT $2`,
-      [user_id, limit],
-    );
-    return rows.map(noteRow);
-  }
-
-  async findNoteByText(user_id: string, text: string): Promise<MemoryNote | null> {
-    const { rows } = await this.pool.query(
-      'SELECT * FROM memory_note WHERE user_id = $1 AND lower(btrim(text)) = lower(btrim($2)) LIMIT 1',
-      [user_id, text],
-    );
-    return rows[0] ? noteRow(rows[0]) : null;
-  }
-
-  async deleteNote(id: string): Promise<void> {
-    await this.pool.query('DELETE FROM memory_note WHERE id = $1', [id]);
   }
 
   async savePending(pc: PendingCard): Promise<void> {
@@ -724,6 +658,7 @@ export class PostgresRepo implements Repo {
       plan: (r.plan as string | null) ?? 'beta',
       welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
       profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
+      traditions: (r.traditions as Tradition[] | null) ?? null,
     };
   }
 
@@ -772,6 +707,7 @@ export class PostgresRepo implements Repo {
       id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString(), plan: (r.plan as string | null) ?? 'beta',
       welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
       profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
+      traditions: (r.traditions as Tradition[] | null) ?? null,
     };
   }
 

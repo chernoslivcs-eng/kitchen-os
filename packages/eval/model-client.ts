@@ -8,11 +8,11 @@ const HERE_FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
-  buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
-  serializeProfileText, serializeTraditionsV2, profileTextFromLegacy, profileNotesFromLegacy, emptyProfileText,
+  buildAliasMap, serializePantry, extractJson,
+  serializeProfileText, serializeTraditions, emptyProfileText,
   PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, fieldByVerb, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
 } from '@kitchen/domain';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
+import type { PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
@@ -22,7 +22,6 @@ import type { ModelOutput } from './invariants.js';
 // TOKEN_AUDIT п.1: та сама кеш-межа, що в проді (model.ts cachedSystem) —
 // stable = складені правила, dynamic = контекст кухні. Розбіжність тут
 // означала б, що eval міряє інший конвеєр, ніж працює насправді.
-export const profileV2Enabled = () => process.env.PROFILE_V2 === '1';
 
 export function vetoIndexOfText(p: ProfileText): VetoRow[] {
   const f = p.fields;
@@ -53,9 +52,12 @@ export function profileTextFromFixture(spec: Record<string, string>): ProfileTex
   return p;
 }
 
-function legacyProfileOf(fx: Fixture): Profile | null {
-  const p = fx.profile as Partial<Profile> | undefined;
-  return p ? { user_id: 'u1', allergies: p.allergies ?? [], wishes: p.wishes ?? [], antipatterns: p.antipatterns ?? [], equipment: p.equipment ?? {}, traditions: p.traditions ?? null } : null;
+/** Профіль фікстури: сім речень (profile_text) і нотатки (profile_notes); без них — порожньо. */
+function profileOf(fx: Fixture): { profileText: ProfileText; profileNotes: ProfileNote[]; vetoIndex: VetoRow[] } {
+  const profileText = fx.profile_text ? profileTextFromFixture(fx.profile_text) : emptyProfileText('u1');
+  const profileNotes = (fx.profile_notes ?? []) as ProfileNote[];
+  // Крок 4б: індекс — з no/ban (той самий витяг, що PATCH у проді) → ⚠ у [КОМОРА].
+  return { profileText, profileNotes, vetoIndex: vetoIndexOfText(profileText) };
 }
 
 export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
@@ -85,42 +87,17 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
     last_action: null,
   } as PantryBatch));
 
-  const p = fx.profile as Partial<Profile> | undefined;
-  const profile: Profile | null = p
-    ? {
-        user_id: 'u1',
-        allergies: p.allergies ?? [],
-        wishes: p.wishes ?? [],
-        antipatterns: p.antipatterns ?? [],
-        equipment: p.equipment ?? {},
-        traditions: p.traditions ?? null,
-      }
-    : null;
-  // Раунд 4: PROFILE_V2=1 — той самий прапор, що в проді. Фікстура з
-  // `profile_text` описує сім речень напряму; стара `profile` конвертується
-  // TS-двійником міграції 0023, `notes` — у нотатки (lesson як є, intent →
-  // «хотів: …»). Так один набір фікстур ганяється під обома прапорами.
-  const v2 = profileV2Enabled();
-  const profileText: ProfileText | undefined = v2
-    ? (fx.profile_text ? profileTextFromFixture(fx.profile_text) : profileTextFromLegacy(profile))
-    : undefined;
-  const profileNotes: ProfileNote[] | undefined = v2
-    ? (fx.profile_notes
-        ? (fx.profile_notes as ProfileNote[])
-        : profileNotesFromLegacy((fx.notes ?? []) as MemoryNote[]))
-    : undefined;
-  // Крок 4б: індекс — з no/ban (той самий витяг, що PATCH у проді) → ⚠ у [КОМОРА].
-  const vetoIndex: VetoRow[] | undefined = profileText ? vetoIndexOfText(profileText) : undefined;
+  const { profileText, profileNotes, vetoIndex } = profileOf(fx);
+  const traditions = fx.traditions ?? null;
 
-  // recipe_gen дзеркалить прод callRecipe: профіль + [КОМОРА] з АЛІАСАМИ
-  // p1..pN + [ВИСНОВКИ З ГОТУВАННЯ]. Не buildKitchenContext — у проді
-  // генерація рецепта не бачить список покупок, журнал і домашніх.
+  // recipe_gen дзеркалить прод callRecipe: [ПРО ЛЮДИНУ]+[НОТАТКИ] + [КОМОРА]
+  // з АЛІАСАМИ p1..pN. Не buildKitchenContext — у проді генерація рецепта
+  // не бачить список покупок, журнал і домашніх.
   if (call === 'recipe_gen') {
     const alias = buildAliasMap(pantry);
     const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
-    const dynamic = (profileText ? serializeProfileText(profileText, profileNotes ?? []) + serializeTraditionsV2(profile) : serializeProfile(profile))
-      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '', vetoIndex)
-      + (profileText ? '' : serializeNotes((fx.notes ?? []) as MemoryNote[]));
+    const dynamic = serializeProfileText(profileText, profileNotes) + serializeTraditions(traditions)
+      + '\n\n[КОМОРА]\n' + serializePantry(pantry, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '', vetoIndex);
     return { stable: base, dynamic };
   }
 
@@ -128,12 +105,11 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
   // й «сезон грибів» ламав би прогін у грудні.
   const dynamic = buildKitchenContext({
     pantry,
-    profile,
     profileText,
     profileNotes,
+    traditions,
     vetoIndex,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
-    notes: (fx.notes ?? []) as MemoryNote[],
     queryText: (fx.conversation ?? []).filter((m) => m.role === 'user').slice(-3).map((m) => m.content).join('\n'),
     eaters: (fx.eaters ?? []) as EaterRow[],
     recentRecipes: (fx.recentRecipes ?? []) as RecipeRow[],
@@ -309,9 +285,9 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
     }
     let retried = false;
     let firstRaw = text;
-    if (call === 'chat' && profileV2Enabled() && card?.type === 'proposal') {
+    if (call === 'chat' && card?.type === 'proposal') {
       const probe = { card: JSON.parse(JSON.stringify(card)) as typeof card, reply };
-      const index = vetoIndexOfText(fx.profile_text ? profileTextFromFixture(fx.profile_text) : profileTextFromLegacy(legacyProfileOf(fx)));
+      const index = profileOf(fx).vetoIndex;
       const lastUser = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
       const r = vetoCard(probe, index, lastUser);
       if (r.emptied) {

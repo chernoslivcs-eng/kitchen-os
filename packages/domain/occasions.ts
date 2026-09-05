@@ -27,6 +27,8 @@ import {
   BUILTIN_OCCASIONS, TRADITION_PATTERNS, SKOROMNE_ROOTS, LEAN_EXCEPTIONS,
   isWindowRow, type OccasionRow, type WindowOccasion, type OccasionKind,
 } from './occasion-data.js';
+import type { Repo } from './repo.js';
+import { profileTextHints } from './profile-text.js';
 
 export { easterDate, ruleActive, occurrencesInRange };
 export type { Rule, Tradition, Occurrence };
@@ -74,8 +76,8 @@ export interface UpcomingEvent {
   approx?: boolean;
 }
 
-export function traditionsFrom(wishes: string[] = []): Tradition[] {
-  const text = wishes.join(' ');
+export function traditionsFrom(hints: string[] = []): Tradition[] {
+  const text = hints.join(' ');
   if (!text.trim()) return [];
   return TRADITION_PATTERNS.filter((p) => p.re.test(text)).map((p) => p.id);
 }
@@ -91,15 +93,26 @@ function visible(row: OccasionRow, trads: Tradition[]): boolean {
  * раніше за привід, і порядок масиву це задає.
  */
 /**
- * Традиції дому: явний вибір у профілі, а поки його немає — здогад із побажань.
- * Порожній масив у профілі — теж вибір («нічого не показувати»), і він
- * перемагає будь-яке «постуємо» в побажаннях.
+ * Традиції дому: явний вибір людини (user.traditions), а поки його немає —
+ * здогад із її власних слів (profileTextHints). Порожній масив — теж вибір
+ * («нічого не показувати»), і він перемагає будь-яке «постуємо» в тексті.
  */
 export function traditionsOf(
-  profile: { traditions?: Tradition[] | null; wishes?: string[] } | null | undefined,
+  traditions: Tradition[] | null | undefined,
+  hints: string[] = [],
 ): Tradition[] {
-  if (Array.isArray(profile?.traditions)) return profile.traditions;
-  return traditionsFrom(profile?.wishes ?? []);
+  if (Array.isArray(traditions)) return traditions;
+  return traditionsFrom(hints);
+}
+
+/** Крок 11: традиції з двох джерел сховища одним викликом — для маршрутів. */
+export async function resolveTraditions(
+  repo: Pick<Repo, 'getUser' | 'getProfileText'>,
+  user_id: string,
+): Promise<Tradition[]> {
+  const user = await repo.getUser(user_id);
+  if (Array.isArray(user?.traditions)) return user.traditions;
+  return traditionsFrom(profileTextHints(await repo.getProfileText(user_id)));
 }
 
 export function activeOccasions(
@@ -174,11 +187,11 @@ export function whenLabel(at: number, now = Date.now()): string {
  */
 export function serializeOccasions(
   now = new Date(),
-  wishes: string[] = [],
+  hints: string[] = [],
   rows: OccasionRow[] = BUILTIN_OCCASIONS,
   traditions?: Tradition[],
 ): string {
-  const trads = traditions ?? traditionsFrom(wishes);
+  const trads = traditions ?? traditionsFrom(hints);
   const act = activeOccasions(now, trads, rows);
   const soon = upcomingEvents(now, trads, 21, rows).slice(0, 4);
   if (!act.length && !soon.length) return '';
@@ -274,11 +287,11 @@ export function isFastingRestricted(label: string): boolean {
 /** Чи просто зараз триває піст для розпізнаної традиції. */
 export function fastingActive(
   now: Date,
-  wishes: string[],
+  hints: string[],
   rows: OccasionRow[] = BUILTIN_OCCASIONS,
   traditions?: Tradition[],
 ): boolean {
-  const trads = traditions ?? traditionsFrom(wishes);
+  const trads = traditions ?? traditionsFrom(hints);
   // Гвардія мітить усе скоромне (мʼясо, рибу, молочне, яйця) — це міра
   // повного посту. Обмеження, вужчі за неї (Страсна пʼятниця в католиків —
   // тільки мʼясо), гвардію не вмикають: інакше риба стояла б «пісною» всупереч

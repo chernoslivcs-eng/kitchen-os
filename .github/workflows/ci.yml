@@ -37,12 +37,13 @@ jobs:
         with:
           version: 9.12.0
 
-      # Node 22: тести apps/web з @vitest-environment jsdom (jsdom 30 → undici 8)
-      # вимагають Node ≥ 22.19 — на 20 падали «markAsUncloneable is not a function».
+      # Node 24 — як у Vercel (Settings → General). Тести apps/web з
+      # @vitest-environment jsdom (jsdom 30 → undici 8) вимагають ≥ 22.19 —
+      # на 20 падали «markAsUncloneable is not a function».
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies

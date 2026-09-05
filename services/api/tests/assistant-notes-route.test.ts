@@ -9,10 +9,10 @@ import { signIn } from './helpers.js';
 // Крок 8: поле `note` у відповіді моделі → profile_note (source assistant)
 // без картки й підтвердження; наступним ходом — у [НОТАТКИ].
 
-async function stand(profileV2 = true) {
+async function stand() {
   const repo = new InMemoryRepo();
   const mailer = new ConsoleMailer();
-  const app = buildApp(repo, new InMemoryStore(), mailer, { profileV2 });
+  const app = buildApp(repo, new InMemoryStore(), mailer);
   await app.ready();
   const me = await signIn(app, mailer, 'notes@example.com');
   const s = (await app.inject({ method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie } })).json() as { session: { id: string } };
@@ -42,14 +42,10 @@ describe('нотатка асистента з відповіді моделі',
     expect(ctx).toMatch(/\[НОТАТКИ[^\]]*\]\n\d\d\.\d\d — духовка гріє на \+20/);
   });
 
-  it('збіг із полем профілю — не пишеться; без прапора — нотатки нема', async () => {
+  it('збіг із полем профілю — не пишеться', async () => {
     const a = await stand();
     await a.repo.patchProfileField(a.me.user_id, 'no', { text: 'мʼяса, птиці' });
     await a.say('нотатка: мʼяса, птиці');
     expect(await a.repo.listProfileNotes(a.me.user_id)).toEqual([]);
-
-    const b = await stand(false);
-    await b.say('нотатка: щось');
-    expect(await b.repo.listProfileNotes(b.me.user_id)).toEqual([]);
   });
 });

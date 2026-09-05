@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryRepo } from '../in-memory-repo.js';
 import { createPending, applyCard, undoCard } from '../apply.js';
+import { buildVetoIndex } from '../veto-index.js';
 import { serializeEaters, serializePantry, buildKitchenContext } from '../context.js';
 import type { ProfileCard, EaterRow, PantryBatch } from '../types.js';
 import { randomUUID } from 'node:crypto';
@@ -43,7 +44,6 @@ describe('їдці дому (kind: member)', () => {
     const [e] = await repo.listEaters(HOUSE);
     expect(e!.allergies).toEqual(['арахіс']);
     expect(e!.antipatterns).toEqual(['не їсть мʼяса']);
-    expect(await repo.getProfile(USER)).toBeNull();
   });
 
   it('той самий їдець двічі — не подія', async () => {
@@ -140,28 +140,28 @@ describe('алергія їдця в рядку партії (QA7-06)', () => {
   });
 
   it('партія з алергеном їдця несе ⚠АЛЕРГЕН з імʼям', () => {
-    const s = serializePantry([batch('Арахісова паста')], null, Date.now(), [oksana()]);
+    const s = serializePantry([batch('Арахісова паста')], Date.now(), [oksana()]);
     expect(s).toContain('⚠АЛЕРГЕН');
     expect(s).toContain('Оксан');       // «в Оксани» — відмінок
     expect(s).toContain('арахіс');
   });
 
   it('відмінок не ховає збіг: «з арахісом» теж ловиться', () => {
-    const s = serializePantry([batch('Шоколад з арахісом')], null, Date.now(), [oksana()]);
+    const s = serializePantry([batch('Шоколад з арахісом')], Date.now(), [oksana()]);
     expect(s).toContain('⚠АЛЕРГЕН');
   });
 
-  it('алергії власника і їдця зливаються в одну мітку', () => {
-    const owner = { user_id: USER, allergies: ['селера'], wishes: [], antipatterns: [], equipment: {} };
+  it('алергії власника (індекс) і їдця зливаються в одну мітку', () => {
+    const index = buildVetoIndex(USER, 'ban', 'селера');
     const s = serializePantry(
-      [batch('Селера'), batch('Арахісова паста')], owner, Date.now(), [oksana()],
+      [batch('Селера'), batch('Арахісова паста')], Date.now(), [oksana()], false, 'uuid', 120, [], '', index,
     );
     expect(s).toContain('селера');
     expect(s).toContain('Оксан');
   });
 
   it('без збігу мітки немає', () => {
-    const s = serializePantry([batch('Рис')], null, Date.now(), [oksana()]);
+    const s = serializePantry([batch('Рис')], Date.now(), [oksana()]);
     expect(s).not.toContain('⚠АЛЕРГЕН');
   });
 

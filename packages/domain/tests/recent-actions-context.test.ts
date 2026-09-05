@@ -44,7 +44,7 @@ describe('renderRecentActions', () => {
     const dismissed = pending({
       id: 'p-dismissed',
       dismissed_at: '2026-09-09T09:00:00',
-      card: { type: 'profile', ops: [{ op: 'add', kind: 'anti', label: 'кінза' }] } as ProfileCard,
+      card: { type: 'profile', field: 'no', mode: 'append', text: 'кінзи' } as ProfileCard,
     });
 
     const out = renderRecentActions([applied, undone, dismissed], now);
@@ -64,14 +64,6 @@ describe('renderRecentActions', () => {
     expect(lines[1]).toContain('скасовано');
     expect(lines[2]).toContain('вчора');
     expect(lines[2]).toContain('відхилено');
-  });
-
-  it('нотатка розпізнається окремо від профілю (усі ops kind:note)', () => {
-    const note = pending({
-      applied_at: '2026-09-10T17:59:00',
-      card: { type: 'profile', ops: [{ op: 'add', kind: 'note', label: 'менше перцю' }] } as ProfileCard,
-    });
-    expect(renderRecentActions([note], now)).toContain('нотатка');
   });
 
   it('понад 3 назви — «…ще N»', () => {

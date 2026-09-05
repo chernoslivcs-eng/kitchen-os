@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildApp } from '../src/server.js';
 import { InMemoryRepo } from '@kitchen/domain';
+import { noteHash } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
@@ -64,10 +65,10 @@ describe('чат: cook_go → готовий рецепт одним ходом'
     });
     const firstId = first.json().card?.recipe_id as string;
     expect(firstId).toBeTruthy();
-    await repo.insertNote({
-      id: randomUUID(), user_id: me.user_id, text: 'менше вершків, лимон у кінці',
-      recipe_title: 'Лосось на сковороді', rating: null, pinned: false,
-      created_at: new Date(Date.now() + 1000).toISOString(), kind: 'lesson',
+    await repo.addProfileNote({
+      id: randomUUID(), user_id: me.user_id, subject: null, text: 'Лосось на сковороді — менше вершків, лимон у кінці',
+      source: 'assistant', created_at: new Date(Date.now() + 1000).toISOString(), deleted_at: null,
+      norm_hash: noteHash('Лосось на сковороді — менше вершків, лимон у кінці'),
     });
     const second = await app.inject({
       method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
@@ -77,16 +78,18 @@ describe('чат: cook_go → готовий рецепт одним ходом'
     expect(second.json().card?.recipe_id).not.toBe(firstId);
   });
 
-  it('нотатка до ІНШОЇ страви дедуп не чіпає', async () => {
+  // Крок 11: нотатка profile_note не знає страви (subject — раунд 5), тож
+  // будь-яка новіша нотатка скидає денний дедуп; старіша — ні.
+  it('нотатка, СТАРША за рецепт, дедуп не чіпає', async () => {
     const me = await signIn(app, mailer, 'cook3@example.com');
     const first = await app.inject({
       method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
       payload: { text: 'готуємо «Лосось на сковороді»' },
     });
-    await repo.insertNote({
-      id: randomUUID(), user_id: me.user_id, text: 'у борщ — більше буряка',
-      recipe_title: 'Борщ', rating: null, pinned: false,
-      created_at: new Date(Date.now() + 1000).toISOString(), kind: 'lesson',
+    await repo.addProfileNote({
+      id: randomUUID(), user_id: me.user_id, subject: null, text: 'у борщ — більше буряка',
+      source: 'user', created_at: new Date(Date.now() - 60_000).toISOString(), deleted_at: null,
+      norm_hash: noteHash('у борщ — більше буряка'),
     });
     const second = await app.inject({
       method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },

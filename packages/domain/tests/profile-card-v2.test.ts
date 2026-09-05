@@ -13,7 +13,6 @@ import type { ProfileCard, PendingCard } from '../types.js';
 
 const HOUSE = randomUUID();
 const USER = randomUUID();
-const V2 = { profileV2: true };
 
 async function pend(repo: InMemoryRepo, card: ProfileCard) {
   const message_id = randomUUID();
@@ -35,7 +34,7 @@ describe('картка профілю v2', () => {
 
   it('append у порожнє поле → текст як є, status filled; applied = 1', async () => {
     const id = await pend(repo, field());
-    const r = await applyCard(repo, id, [], USER, V2);
+    const r = await applyCard(repo, id, [], USER);
     expect(r.applied).toBe(1);
     expect(r.truncated).toBe(false);
     expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: 'селери', status: 'filled' });
@@ -44,7 +43,7 @@ describe('картка профілю v2', () => {
   it('append дописує (крок 4в: список іменників — через «, »); undo повертає попередній текст', async () => {
     await repo.patchProfileField(USER, 'no', { text: 'кінзи' });
     const id = await pend(repo, field({ text: 'селери' }));
-    const r = await applyCard(repo, id, [], USER, V2);
+    const r = await applyCard(repo, id, [], USER);
     expect((await repo.getProfileText(USER)).fields.no.text).toBe('кінзи, селери');
     await undoCard(repo, id, r.undo_token, USER);
     expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: 'кінзи', status: 'filled' });
@@ -53,7 +52,7 @@ describe('картка профілю v2', () => {
   it('append понад ліміт — картка застосовується, текст обрізано, truncated: true', async () => {
     await repo.patchProfileField(USER, 'name', { text: 'П'.repeat(25) });
     const id = await pend(repo, field({ field: 'name', text: 'Білянський' }));
-    const r = await applyCard(repo, id, [], USER, V2);
+    const r = await applyCard(repo, id, [], USER);
     expect(r.applied).toBe(1);
     expect(r.truncated).toBe(true);
     const got = (await repo.getProfileText(USER)).fields.name.text;
@@ -64,7 +63,7 @@ describe('картка профілю v2', () => {
   it('replace замінює поле цілком; undo повертає', async () => {
     await repo.patchProfileField(USER, 'love', { text: 'супи' });
     const id = await pend(repo, field({ field: 'love', mode: 'replace', text: 'тайську кухню' }));
-    const r = await applyCard(repo, id, [], USER, V2);
+    const r = await applyCard(repo, id, [], USER);
     expect((await repo.getProfileText(USER)).fields.love.text).toBe('тайську кухню');
     await undoCard(repo, id, r.undo_token, USER);
     expect((await repo.getProfileText(USER)).fields.love.text).toBe('супи');
@@ -73,20 +72,20 @@ describe('картка профілю v2', () => {
   it('undo на поле, що було none, повертає none; на поле, що було empty — empty', async () => {
     await repo.patchProfileField(USER, 'ban', { status: 'none' });
     const id = await pend(repo, field({ field: 'ban', text: 'арахіс' }));
-    const r = await applyCard(repo, id, [], USER, V2);
+    const r = await applyCard(repo, id, [], USER);
     expect((await repo.getProfileText(USER)).fields.ban).toMatchObject({ text: 'арахіс', status: 'filled' });
     await undoCard(repo, id, r.undo_token, USER);
     expect((await repo.getProfileText(USER)).fields.ban).toMatchObject({ text: '', status: 'none' });
 
     const id2 = await pend(repo, field({ field: 'meh', text: 'гостре' }));
-    const r2 = await applyCard(repo, id2, [], USER, V2);
+    const r2 = await applyCard(repo, id2, [], USER);
     await undoCard(repo, id2, r2.undo_token, USER);
     expect((await repo.getProfileText(USER)).fields.meh).toMatchObject({ text: '', status: 'empty' });
   });
 
   it('«Нічого такого» на ban → status none, картка застосована (applied_at), undo повертає', async () => {
     const id = await pend(repo, field({ field: 'ban', mode: 'replace', text: '', onboarding: true }));
-    const r = await applyCard(repo, id, [], USER, { ...V2, none: true });
+    const r = await applyCard(repo, id, [], USER, { none: true });
     expect(r.applied).toBe(1);
     expect((await repo.getProfileText(USER)).fields.ban.status).toBe('none');
     expect((await repo.getPending(id))?.applied_at).toBeTruthy();
@@ -96,7 +95,7 @@ describe('картка профілю v2', () => {
 
   it('«Нічого такого» не для ban — помилка', async () => {
     const id = await pend(repo, field({ field: 'no', onboarding: true }));
-    await expect(applyCard(repo, id, [], USER, { ...V2, none: true })).rejects.toThrow(/ban/);
+    await expect(applyCard(repo, id, [], USER, { none: true })).rejects.toThrow(/ban/);
   });
 
   it('«Пропустити» на онбординг-картці — dismissed_at, поле не чіпається', async () => {
@@ -108,37 +107,18 @@ describe('картка профілю v2', () => {
 
   it('порожній текст в append — нічого не лягло, applied 0', async () => {
     const id = await pend(repo, field({ text: '   ' }));
-    const r = await applyCard(repo, id, [], USER, V2);
+    const r = await applyCard(repo, id, [], USER);
     expect(r.applied).toBe(0);
     expect((await repo.getProfileText(USER)).fields.no.status).toBe('empty');
   });
 
-  // Під прапором висновки/наміри йдуть у profile_note (джерело [НОТАТКИ]),
-  // а не в memory_note; undo — мʼяке видалення.
-  it('ops-картка kind:note під прапором пише нотатку в profile_note; undo прибирає', async () => {
-    const card = { type: 'profile', ops: [{ op: 'add', kind: 'note', label: 'воду солити менше' }] } as ProfileCard;
-    const id = await pend(repo, card);
-    const r = await applyCard(repo, id, [], USER, V2);
-    expect(r.applied).toBe(1);
-    expect((await repo.listProfileNotes(USER)).map((n) => [n.text, n.source])).toEqual([['воду солити менше', 'user']]);
-    expect(await repo.listNotes(USER)).toEqual([]);
-    await undoCard(repo, id, r.undo_token, USER);
+  // Крок 11: ops-картка знає лише традиції й домашніх. Стара kind:note нікуди
+  // не лягає і не рахується як застосована (QA4-05).
+  it('ops-картка з kind:note (стара форма) нічого не пише', async () => {
+    const card = { type: 'profile', ops: [{ op: 'add', kind: 'note', label: 'воду солити менше' }] } as unknown as ProfileCard;
+    const r = await applyCard(repo, await pend(repo, card), [], USER);
+    expect(r.applied).toBe(0);
     expect(await repo.listProfileNotes(USER)).toEqual([]);
-  });
-
-  it('kind:intent під прапором → «хотів: …»; дубль по хешу не лягає', async () => {
-    const card = { type: 'profile', ops: [{ op: 'add', kind: 'intent', label: 'Тунець → seared' }] } as ProfileCard;
-    const r = await applyCard(repo, await pend(repo, card), [], USER, V2);
-    expect(r.applied).toBe(1);
-    expect((await repo.listProfileNotes(USER))[0]?.text).toBe('хотів: Тунець → seared');
-    const again = await applyCard(repo, await pend(repo, { ...card, ops: [{ op: 'add', kind: 'intent', label: 'тунець → seared' }] } as ProfileCard), [], USER, V2);
-    expect(again.applied).toBe(0);
-  });
-
-  it('без прапора картка v2 не застосовується — помилка, стан не чіпається', async () => {
-    const id = await pend(repo, field());
-    await expect(applyCard(repo, id, [], USER)).rejects.toThrow(/PROFILE_V2/);
-    expect((await repo.getProfileText(USER)).fields.no.status).toBe('empty');
   });
 });
 

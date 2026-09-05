@@ -55,12 +55,9 @@ describe('events routes · календар', () => {
     // Святвечір має tradition=orthodox і без побажань лишається невидимим.
     expect((await list('2026-12-20', '2026-12-24')).some((e) => e.id === 'xmas-eve')).toBe(false);
 
-    // Пишемо побажання прямо в репозиторій: тест про календар, а не про форму
-    // патча профілю — інакше він падав би від чужої зміни.
-    await repo.upsertProfile({
-      user_id: me.user_id, allergies: [], wishes: ['святкуємо православні свята'],
-      antipatterns: [], equipment: {},
-    });
+    // Пишемо слова людини прямо в репозиторій: тест про календар, а не про
+    // форму патча профілю — інакше він падав би від чужої зміни.
+    await repo.patchProfileField(me.user_id, 'love', { text: 'святкуємо православні свята' });
     expect((await list('2026-12-20', '2026-12-24')).some((e) => e.id === 'xmas-eve')).toBe(true);
   });
 

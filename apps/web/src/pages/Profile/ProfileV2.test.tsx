@@ -4,7 +4,6 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { ProfileV2 } from './ProfileV2';
-import { pickProfilePage } from './ProfileRoute';
 import type { ProfileV2Response } from '../../api';
 import { useAuth } from '../../store/auth';
 import { PROFILE_FIELDS } from '@kitchen/domain/profile-fields';
@@ -243,12 +242,5 @@ describe('9а: підказка без прикладів, зелена; сек�
       expect(home.textContent).toContain('Поки готуєш сам.');
       expect([...home.querySelectorAll('button')].some((b) => b.textContent === 'Запросити')).toBe(true);
     } finally { useAuth.setState({ status: 'idle', me: null }); }
-  });
-});
-
-describe('вибір сторінки', () => {
-  it('відповідь без fields (прапор вимкнено) → стара сторінка; з fields → v6', () => {
-    expect(pickProfilePage({ profile: { allergies: [], wishes: [], antipatterns: [], equipment: {} } as never, notes: [], eaters: [] })).toBe('v1');
-    expect(pickProfilePage(initial())).toBe('v2');
   });
 });

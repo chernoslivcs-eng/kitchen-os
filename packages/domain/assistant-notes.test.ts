@@ -59,8 +59,29 @@ describe('acceptAssistantNote', () => {
     expect((await acceptAssistantNote(repo, USER, text, later)).accepted).toBe(true);
   });
 
-  it('clampNoteText: пробіли згортаються, ліміт по символах', () => {
+  it('clampNoteText: пробіли згортаються; суцільне слово без меж — по символах', () => {
     expect(clampNoteText('  а   б \n в ')).toBe('а б в');
     expect(Array.from(clampNoteText('ї'.repeat(150))).length).toBe(140);
+  });
+
+  // Крок 11 (прод-тест): обрізка по слову або розділовому, не посеред слова.
+  it('clampNoteText: довший за 140 — ріжеться по останньому цілому слову', () => {
+    const word = 'слово';
+    const text = Array.from({ length: 40 }, () => word).join(' '); // 239 знаків
+    const out = clampNoteText(text);
+    expect(Array.from(out).length).toBeLessThanOrEqual(140);
+    expect(out.endsWith(word)).toBe(true);
+    expect(out).not.toMatch(/сло$|сл$|с$/);
+  });
+
+  it('clampNoteText: розділовий знак у межах ліміту — межа по ньому, без хвоста коми', () => {
+    const head = 'Путанеска з анчоусами й каперсами — воду на пасту не солити, анчоуси й каперси дають усю сіль.';
+    const text = `${head} Досолювати в кінці, коли соус змішався з пастою і сіль уже видно на смак.`;
+    const out = clampNoteText(text);
+    expect(Array.from(out).length).toBeLessThanOrEqual(140);
+    expect(out.endsWith('.') || /\S$/.test(out)).toBe(true);
+    expect(out).not.toMatch(/,$/);
+    // жодного розрізаного слова: кожне слово результату є словом джерела
+    for (const w of out.split(/\s+/)) expect(text.includes(w)).toBe(true);
   });
 });

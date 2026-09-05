@@ -88,7 +88,7 @@ describe('VETO_PRESETS (§2.3, поки лише дані)', () => {
 
 // ----- Крок 3: серіалізація §3 ----------------------------------------------
 
-import { serializeProfileText, profileTextFromLegacy, profileNotesFromLegacy, appendProfileText } from './profile-text.js';
+import { serializeProfileText, appendProfileText, profileTextHints } from './profile-text.js';
 
 const owner = (): ReturnType<typeof emptyProfileText> => {
   const p = emptyProfileText('u1');
@@ -161,39 +161,15 @@ describe('serializeProfileText (§3 дослівно)', () => {
   });
 });
 
-describe('profileTextFromLegacy — TS-двійник міграції 0023', () => {
-  it('прод-профіль власника → ті самі поля, що дала SQL-міграція', () => {
-    const p = profileTextFromLegacy({
-      user_id: 'u1', allergies: [], wishes: ['веганство', 'весь наступний тиждень їсти рибу'],
-      antipatterns: ['кінза', 'не їм мʼяса, птиці, риби, яєць і молочного', 'не їм риби'],
-      equipment: { 'гриль': 'has', 'блендер': 'has', 'мікрохвильовка': 'has', 'занурювальний блендер': 'has' },
-      traditions: null,
-    });
-    expect(p.fields.no).toMatchObject({ text: 'кінза. не їм мʼяса, птиці, риби, яєць і молочного. не їм риби. веганство', status: 'filled' });
-    expect(p.fields.love).toMatchObject({ text: 'весь наступний тиждень їсти рибу', status: 'filled' });
-    expect(p.fields.kit).toMatchObject({ text: 'блендер, гриль, занурювальний блендер, мікрохвильовка', status: 'filled' });
-    expect(p.fields.ban.status).toBe('empty');
-    expect(p.fields.name.status).toBe('empty');
-  });
-
-  it('алергії через кому в ban; lacks → «Немає: …»; порожній профіль → усе empty', () => {
-    const p = profileTextFromLegacy({
-      user_id: 'u1', allergies: ['арахіс', 'селера'], wishes: [], antipatterns: [],
-      equipment: { 'гриль': 'has', 'духовка': 'lacks' },
-    });
-    expect(p.fields.ban.text).toBe('арахіс, селера');
-    expect(p.fields.kit.text).toBe('гриль. Немає: духовка');
-    const e = profileTextFromLegacy(null);
-    for (const k of PROFILE_FIELD_KEYS) expect(e.fields[k].status).toBe('empty');
-  });
-
-  it('нотатки: lesson → як є, intent → «хотів: …», хеш той самий', () => {
-    const ns = profileNotesFromLegacy([
-      { id: 'a', user_id: 'u1', text: 'менше солі', recipe_title: null, rating: null, pinned: false, created_at: '2026-09-01T00:00:00.000Z' },
-      { id: 'b', user_id: 'u1', text: 'тунець → seared', recipe_title: null, rating: null, pinned: true, created_at: '2026-09-02T00:00:00.000Z', kind: 'intent' },
-    ]);
-    expect(ns.map((n) => n.text)).toEqual(['менше солі', 'хотів: тунець → seared']);
-    expect(ns[1]).toMatchObject({ id: 'b', source: 'user', deleted_at: null, norm_hash: noteHash('хотів: тунець → seared') });
+// Крок 11: підказка календарю — усі заповнені поля словами людини.
+describe('profileTextHints', () => {
+  it('лише заповнені поля, у порядку полів; порожній профіль → []', () => {
+    const p = emptyProfileText('u1');
+    p.fields.love = { text: 'святкуємо православні свята', status: 'filled', updated_at: null };
+    p.fields.ban = { text: '', status: 'none', updated_at: null };
+    expect(profileTextHints(p)).toEqual(['святкуємо православні свята']);
+    expect(profileTextHints(emptyProfileText('u1'))).toEqual([]);
+    expect(profileTextHints(null)).toEqual([]);
   });
 });
 
@@ -204,58 +180,6 @@ describe('appendProfileText', () => {
     const r = appendProfileText('name', 'Пилип', 'Білянський-Дуже-Довге-Прізвище-Понад-Ліміт');
     expect(r.text).toBe(clampProfileText('name', 'Пилип. Білянський-Дуже-Довге-Прізвище-Понад-Ліміт'));
     expect(r.truncated).toBe(true);
-  });
-});
-
-// ----- Крок 4 (a): адаптер картки поля → ops-картка v1 під вимкненим прапором
-
-import { legacyOpsFromFieldCard } from './profile-text.js';
-
-describe('legacyOpsFromFieldCard — прапор як відкат на проді', () => {
-  const ops = (field: string, text: string) => legacyOpsFromFieldCard({ type: 'profile', field: field as never, mode: 'append', text }).ops;
-
-  it('no і meh → anti; ban → allergy; love → wish', () => {
-    expect(ops('no', 'мʼяса й птиці')).toEqual([{ op: 'add', kind: 'anti', label: 'мʼяса й птиці' }]);
-    expect(ops('meh', 'гостре')).toEqual([{ op: 'add', kind: 'anti', label: 'гостре' }]);
-    expect(ops('ban', 'арахіс, селера')).toEqual([{ op: 'add', kind: 'allergy', label: 'арахіс' }, { op: 'add', kind: 'allergy', label: 'селера' }]);
-    expect(ops('love', 'тайську кухню')).toEqual([{ op: 'add', kind: 'wish', label: 'тайську кухню' }]);
-  });
-
-  it('kit → equip по комах; «Немає: …» → note', () => {
-    expect(ops('kit', 'гриль, блендер. Немає: духовка')).toEqual([
-      { op: 'add', kind: 'equip', label: 'гриль', has: true },
-      { op: 'add', kind: 'equip', label: 'блендер', has: true },
-      { op: 'add', kind: 'note', label: 'Немає: духовка' },
-    ]);
-  });
-
-  it('name, when → note з початком речення', () => {
-    expect(ops('name', 'Пилип')).toEqual([{ op: 'add', kind: 'note', label: 'Мене звати Пилип' }]);
-    expect(ops('when', 'ввечері')).toEqual([{ op: 'add', kind: 'note', label: 'Я зазвичай готую ввечері' }]);
-  });
-
-  it('порожній текст → порожні ops', () => {
-    expect(ops('no', '  ')).toEqual([]);
-  });
-});
-
-// ----- Крок 4в (7): роздільник при append ----------------------------------
-
-describe('appendProfileText — роздільник', () => {
-  it('списки іменників у no/ban/love/meh клеяться через «, »', () => {
-    expect(appendProfileText('ban', 'арахіс', 'кунжут').text).toBe('арахіс, кунжут');
-    expect(appendProfileText('no', 'мʼяса, птиці', 'кінзи').text).toBe('мʼяса, птиці, кінзи');
-    expect(appendProfileText('love', 'супи', 'тайську кухню').text).toBe('супи, тайську кухню');
-  });
-
-  it('якщо в наявному або новому тексті є крапка всередині — «. »', () => {
-    expect(appendProfileText('no', 'мʼяса. Кінзу не беру', 'риби').text).toBe('мʼяса. Кінзу не беру. риби');
-    expect(appendProfileText('meh', 'гостре', 'довго стояти. Особливо в будні').text).toBe('гостре. довго стояти. Особливо в будні');
-  });
-
-  it('kit, when, name — завжди «. »', () => {
-    expect(appendProfileText('kit', 'гриль', 'блендер').text).toBe('гриль. блендер');
-    expect(appendProfileText('when', 'ввечері', 'на двох').text).toBe('ввечері. на двох');
   });
 });
 

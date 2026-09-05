@@ -117,7 +117,7 @@ const batch = (id: string, label: string): PantryBatch => ({
 describe('serializePantry з veto_index', () => {
   it('рядок з allergy=true — та сама мітка ⚠АЛЕРГЕН; без прапорця — ⚠НЕ ЇСТЬ; чисте — без мітки', () => {
     const index = [...buildVetoIndex('u1', 'no', 'мʼяса'), ...buildVetoIndex('u1', 'ban', 'арахіс')];
-    const out = serializePantry([batch('b1', 'Стейк рібай'), batch('b2', 'Арахісова паста'), batch('b3', 'Картопля')], null, Date.now(), [], false, 'none', 120, [], '', index);
+    const out = serializePantry([batch('b1', 'Стейк рібай'), batch('b2', 'Арахісова паста'), batch('b3', 'Картопля')], Date.now(), [], false, 'none', 120, [], '', index);
     const lines = out.split('\n');
     expect(lines.find((l) => l.startsWith('Стейк рібай'))).toMatch(/⚠НЕ ЇСТЬ \(мʼясо\)/);
     expect(lines.find((l) => l.startsWith('Стейк рібай'))).not.toMatch(/АЛЕРГЕН/);
@@ -125,11 +125,10 @@ describe('serializePantry з veto_index', () => {
     expect(lines.find((l) => l.startsWith('Картопля'))).not.toMatch(/⚠/);
   });
 
-  it('під індексом старі allergies профілю не читаються; алергії їдців — читаються', () => {
+  it('межа власника — лише індекс; алергії їдців — за коренем у назві', () => {
     const index = buildVetoIndex('u1', 'no', 'кінзи');
-    const profile = { user_id: 'u1', allergies: ['картопля'], wishes: [], antipatterns: [], equipment: {} };
     const eater = { id: 'e1', household_id: 'h1', name: 'Оксана', allergies: ['фундук'], wishes: [], antipatterns: [], created_at: '2026-09-01T00:00:00.000Z' };
-    const out = serializePantry([batch('b1', 'Картопля'), batch('b2', 'Фундук'), batch('b3', 'Кінза свіжа')], profile, Date.now(), [eater], false, 'none', 120, [], '', index);
+    const out = serializePantry([batch('b1', 'Картопля'), batch('b2', 'Фундук'), batch('b3', 'Кінза свіжа')], Date.now(), [eater], false, 'none', 120, [], '', index);
     const lines = out.split('\n');
     expect(lines.find((l) => l.startsWith('Картопля'))).not.toMatch(/⚠/);
     expect(lines.find((l) => l.startsWith('Фундук'))).toMatch(/⚠АЛЕРГЕН \(фундук в Оксана\)/);

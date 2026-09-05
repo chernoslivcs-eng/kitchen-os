@@ -166,11 +166,13 @@ export interface EventCard {
   }[];
 }
 
-export type ProfileKind = 'allergy' | 'wish' | 'anti' | 'equip' | 'tradition' | 'note' | 'member' | 'intent';
+// Крок 11: профіль v1 (allergy/wish/anti/equip/note/intent) прибрано —
+// текст людини живе в profile_text, нотатки — в profile_note (поле `note`).
+export type ProfileKind = 'tradition' | 'member';
 
 // Раунд 4 (AUDIT-ROUND-4.md §4): картка профілю — одне поле, один текст.
 // Ops-форма лишається для того, що не є текстом людини і має власне сховище:
-// традиції (календар), домашні (їдці), висновки/наміри (нотатки — до кроку 8).
+// традиції (user.traditions, календар) і домашні (їдці).
 export interface ProfileOpsCard {
   type: 'profile';
   ops: {
@@ -393,11 +395,11 @@ export interface UndoSnapshot {
     removed_shopping_items?: ShoppingItemRow[];
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     checked_shopping_ids?: string[];    // UX9-27: intake add відмітив куплене — undo знімає галочку
-    profile_before?: Profile;           // profile v1: повернути весь блок
+    // Крок 11: традиції живуть на user; undefined — картка їх не чіпала,
+    // { value: null } — до картки людина ще не обирала.
+    traditions_before?: { value: Tradition[] | null };
     // Раунд 4: картка поля — повернути попереднє значення поля (текст і статус).
     profile_field_before?: { field: ProfileFieldKey; value: ProfileFieldValue };
-    added_profile_note_ids?: string[];  // під PROFILE_V2 note/intent ідуть у profile_note
-    added_note_ids?: string[];          // note: висновки лише додаються, тож undo — це видалення
     added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється
     added_eater_ids?: string[];         // member add: undo видаляє
     photo_before?: { run_id: string; photo_url: string | null };  // cook_photo: повернути як було
@@ -407,24 +409,6 @@ export interface UndoSnapshot {
     // самого по собі не досить — видалену подію треба відтворити.
     events_before?: HouseholdEventRow[];
   };
-}
-
-// Висновок із готування: «фует знімати, щойно краї хрусткі». Живе окремо від
-// Profile, а не масивом у ньому, з двох причин. По-перше, у висновка є власні
-// поля — до якої страви, з якою оцінкою. По-друге, undo профілю замінює весь
-// документ (QA5), і висновок, що приїхав пізніше, зникав би разом із ним.
-// Висновки лише додаються й видаляються поштучно, тому їх undo точний.
-export interface MemoryNote {
-  id: string;
-  user_id: string;
-  text: string;
-  recipe_title: string | null;
-  rating: number | null;
-  pinned: boolean;
-  created_at: string;
-  // Пул-2 №6: 'lesson' (висновок з готування, як було) або 'intent' — намір
-  // («тунець → seared»), який модель нагадує в слушний момент.
-  kind?: 'lesson' | 'intent';
 }
 
 // Їдець без акаунта: «зі мною живе Оксана, вона веганка». Не user і не
@@ -439,20 +423,6 @@ export interface EaterRow {
   wishes: string[];
   antipatterns: string[];
   created_at: string;
-}
-
-export interface Profile {
-  user_id: string;
-  allergies: string[];
-  wishes: string[];
-  antipatterns: string[];
-  equipment: Record<string, 'has' | 'lacks'>;
-  /**
-   * Свята й пости яких традицій показувати. Явний вибір людини в профілі.
-   * `null`/відсутнє — ще не обирала: тоді традицію виводимо з побажань
-   * («постуємо» → православна). Порожній масив — обирала і вимкнула все.
-   */
-  traditions?: Tradition[] | null;
 }
 
 export interface SessionRow {

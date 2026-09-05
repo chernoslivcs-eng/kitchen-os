@@ -11,13 +11,13 @@
 // Правило: кешований рецепт застарілий, якщо після його створення зʼявилась
 // нотатка, яка його стосується — привʼязана до цієї назви або загальна
 // (без recipe_title). Тоді генеруємо заново, і recipe_gen побачить нотатку
-// в [ВИСНОВКИ З ГОТУВАННЯ].
+// в [НОТАТКИ].
 
-import type { MemoryNote, RecipeRow } from '@kitchen/domain';
+import type { RecipeRow } from '@kitchen/domain';
 
 export function recipeStaleByNotes(
   recipe: Pick<RecipeRow, 'title' | 'requested_title' | 'created_at'>,
-  notes: Pick<MemoryNote, 'created_at' | 'recipe_title'>[],
+  notes: { created_at: string; recipe_title: string | null }[],
 ): boolean {
   const made = new Date(recipe.created_at).getTime();
   const titles = [recipe.title, recipe.requested_title].filter((t): t is string => !!t).map((t) => t.trim().toLowerCase());

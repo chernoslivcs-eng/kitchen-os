@@ -3,7 +3,6 @@
   "description": "M13-ROLE-VOICE п.2/п.1, живий репро 01.09: модель сказала «у тебе зараз два: Pink Tonic і Bitter Lemon», хоча в списку покупок не було жодного тоніка. Обидва тоніки лежали в КОМОРІ (приїхали з чеків Сільпо) — модель приписала позиції з одного стан-блока іншому. Кожен блок відповідає тільки за своє.",
   "call": "chat",
   "now": "2026-09-01T19:00:00",
-  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
   "pantry": [
     {"id":"b1","label":"Напій Schweppes Pink Tonic б/алк сил/газ скло","zone":"drinks","v":1,"u":"pcs"},
     {"id":"b2","label":"Напій Schweppes Original Bitter Lemon сил/газ скло","zone":"drinks","v":1,"u":"pcs"},

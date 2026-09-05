@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildChatSystem, type ChatArgs } from '../src/model.js';
-import type { PantryBatch, Profile, ShoppingItemRow } from '@kitchen/domain';
+import { emptyProfileText, buildVetoIndex, type ProfileText, type VetoRow } from '@kitchen/domain';
+import type { PantryBatch, ShoppingItemRow } from '@kitchen/domain';
 
 // Тести на МЕЖУ, а не на функцію.
 //
@@ -25,11 +26,16 @@ function batch(over: Partial<PantryBatch> = {}): PantryBatch {
   };
 }
 
-function profile(over: Partial<Profile> = {}): Profile {
-  return {
-    user_id: 'u1', allergies: [], wishes: [], antipatterns: [], equipment: {},
-    ...over,
-  };
+// Крок 11: профіль — сім речень; межа власника в коморі — індекс із no/ban,
+// той самий витяг, що PATCH /v1/profile/:key.
+function prof(over: Partial<Record<'no' | 'ban' | 'love' | 'kit', string>> = {}): { profileText: ProfileText; vetoIndex: VetoRow[] } {
+  const p = emptyProfileText('u1');
+  for (const [k, text] of Object.entries(over)) p.fields[k as keyof typeof over] = { text, status: 'filled', updated_at: null };
+  const vetoIndex = [
+    ...(over.no ? buildVetoIndex('u1', 'no', over.no) : []),
+    ...(over.ban ? buildVetoIndex('u1', 'ban', over.ban) : []),
+  ];
+  return { profileText: p, vetoIndex };
 }
 
 function shoppingItem(over: Partial<ShoppingItemRow> = {}): ShoppingItemRow {
@@ -51,12 +57,12 @@ function args(over: Partial<ChatArgs> = {}): ChatArgs {
 describe('buildChatSystem · що доходить до моделі', () => {
   it('QA4-02: профіль потрапляє в промпт', () => {
     const s = buildChatSystem(
-      args({ profile: profile({ allergies: ['арахіс', 'мигдаль'] }) }),
+      args(prof({ ban: 'арахісу, мигдалю' })),
       PROMPT,
     );
-    expect(s).toContain('[ПРОФІЛЬ]');
-    expect(s).toContain('арахіс');
-    expect(s).toContain('мигдаль');
+    expect(s).toContain('[ПРО ЛЮДИНУ');
+    expect(s).toContain('арахісу');
+    expect(s).toContain('мигдалю');
   });
 
   // Було «порожній профіль не додає порожнього блоку». Сторож QA4-02 — тест
@@ -66,76 +72,62 @@ describe('buildChatSystem · що доходить до моделі', () => {
   // саме вмикається онбординг stage 2, тобто питання ЩЕ НЕ ставили. Тиша,
   // прочитана як дозвіл, — це алерген у пропозиції.
   it('M13: порожній профіль присутній і не читається як дозвіл', () => {
-    const s = buildChatSystem(args({ profile: profile() }), PROMPT);
-    expect(s).toContain('[ПРОФІЛЬ]');
+    const s = buildChatSystem(args(prof()), PROMPT);
+    expect(s).toContain('[ПРО ЛЮДИНУ');
     expect(s).toMatch(/не означає|ще не питали/i);
   });
 
-  it('QA4-02: профіль розрізняє алергії, anti й wishes', () => {
-    const s = buildChatSystem(args({
-      profile: profile({
-        allergies: ['горіхи'],
-        antipatterns: ['не їм свинину'],
-        wishes: ['люблю гостре'],
-      }),
-    }), PROMPT);
-    expect(s).toMatch(/АЛЕРГІЇ.*горіхи/s);
-    expect(s).toMatch(/НЕ ЇСТЬ.*свинину/s);
-    expect(s).toMatch(/ЛЮБИТЬ.*гостре/s);
+  it('QA4-02: поля йдуть словами людини з початками речень', () => {
+    const s = buildChatSystem(args(prof({ ban: 'горіхів', no: 'свинини', love: 'гостре' })), PROMPT);
+    expect(s).toMatch(/Мені не можна горіхів/);
+    expect(s).toMatch(/Я не їм свинини/);
+    expect(s).toMatch(/Я люблю гостре/);
   });
 
-  it('QA5-04: техніка розрізняє has і lacks', () => {
-    const s = buildChatSystem(args({
-      profile: profile({ equipment: { духовка: 'lacks', блендер: 'has' } }),
-    }), PROMPT);
-    expect(s).toMatch(/НЕМАЄ ТЕХНІКИ.*духовка/s);
-    expect(s).toMatch(/Є ТЕХНІКА.*блендер/s);
+  it('QA5-04: техніка — одним реченням, «Немає: …» лишається словами людини', () => {
+    const s = buildChatSystem(args(prof({ kit: 'блендер. Немає: духовки' })), PROMPT);
+    expect(s).toContain('блендер');
+    expect(s).toContain('Немає: духовки');
   });
 
-  it('QA5-01: алерген позначений ПРЯМО В РЯДКУ ПАРТІЇ', () => {
+  it('QA5-01: алерген позначений ПРЯМО В РЯДКУ ПАРТІЇ (індекс із ban)', () => {
     const s = buildChatSystem(args({
-      pantry: [batch({ label: 'Шоколад з мигдалем' })],
-      profile: profile({ allergies: ['мигдаль'] }),
+      pantry: [batch({ label: 'Арахісова паста' })],
+      ...prof({ ban: 'арахіс' }),
     }), PROMPT);
     // Мітка має стояти в тому ж рядку, що назва — інакше модель перелічує
     // вміст комори, не дійшовши до правила.
-    const pantryLine = s.split('\n').find((l) => l.includes('Шоколад з мигдалем'));
+    const pantryLine = s.split('\n').find((l) => l.includes('Арахісова паста'));
     expect(pantryLine).toBeDefined();
     expect(pantryLine).toContain('⚠АЛЕРГЕН');
-    expect(pantryLine).toContain('мигдаль');
+    expect(pantryLine).toContain('арахіс');
   });
 
-  // Знайдено цим самим тестом: `.includes()` не бачить відмінка, і мітка не
-  // спрацьовувала саме на прикладі, через який її робили.
-  it.each([
-    ['Шоколад з мигдалем', 'мигдаль'],
-    ['Паста з горіхами', 'горіхи'],
-    ['Арахісова паста', 'арахіс'],
-    ['Молоко кокосове', 'кокос'],
-  ])('QA5-01: «%s» ловиться алергією «%s» попри відмінок', (label, allergy) => {
+  it('QA5-01: рядок no дає ⚠НЕ ЇСТЬ, не ⚠АЛЕРГЕН', () => {
     const s = buildChatSystem(args({
-      pantry: [batch({ label })],
-      profile: profile({ allergies: [allergy] }),
+      pantry: [batch({ label: 'Стейк рібай' })],
+      ...prof({ no: 'мʼяса' }),
     }), PROMPT);
-    const line = s.split('\n').find((l) => l.includes(label));
-    expect(line, `мітка не спрацювала на «${label}» / «${allergy}»`).toContain('⚠АЛЕРГЕН');
+    const line = s.split('\n').find((l) => l.includes('Стейк рібай'));
+    expect(line).toContain('⚠НЕ ЇСТЬ');
+    expect(line).not.toContain('⚠АЛЕРГЕН');
   });
 
   it('QA5-01: партія без алергену мітки не має', () => {
     const s = buildChatSystem(args({
       pantry: [batch({ label: 'Пелаті' })],
-      profile: profile({ allergies: ['мигдаль'] }),
+      ...prof({ ban: 'мигдаль' }),
     }), PROMPT);
     const line = s.split('\n').find((l) => l.includes('Пелаті'));
     expect(line).not.toContain('АЛЕРГЕН');
   });
 
-  it('QA5-01: [ПРОФІЛЬ] стоїть ПЕРЕД [КОМОРА]', () => {
+  it('QA5-01: [ПРО ЛЮДИНУ] стоїть ПЕРЕД [КОМОРА]', () => {
     const s = buildChatSystem(args({
       pantry: [batch()],
-      profile: profile({ allergies: ['арахіс'] }),
+      ...prof({ ban: 'арахіс' }),
     }), PROMPT);
-    expect(s.indexOf('[ПРОФІЛЬ]')).toBeLessThan(s.indexOf('[КОМОРА]'));
+    expect(s.indexOf('[ПРО ЛЮДИНУ')).toBeLessThan(s.indexOf('[КОМОРА]'));
   });
 
   it('QA6-04: список покупок потрапляє в промпт', () => {
@@ -214,14 +206,14 @@ describe('buildChatSystem · що доходить до моделі', () => {
   it('усі блоки разом — жоден не витісняє інший', () => {
     const s = buildChatSystem(args({
       pantry: [batch()],
-      profile: profile({ allergies: ['арахіс'] }),
+      ...prof({ ban: 'арахіс' }),
       shopping: [shoppingItem()],
       recentCookRuns: [{
         title: 'Паста', rating: 4, verdict: 'смачно',
         finished_at: new Date().toISOString(),
       }],
     }), PROMPT);
-    for (const block of ['[ПРОФІЛЬ]', '[СЬОГОДНІ]', '[КОМОРА]', '[СПИСОК ПОКУПОК]', '[ОСТАННІ ГОТУВАННЯ]']) {
+    for (const block of ['[ПРО ЛЮДИНУ', '[СЬОГОДНІ]', '[КОМОРА]', '[СПИСОК ПОКУПОК]', '[ОСТАННІ ГОТУВАННЯ]']) {
       expect(s, `блок ${block} зник`).toContain(block);
     }
   });

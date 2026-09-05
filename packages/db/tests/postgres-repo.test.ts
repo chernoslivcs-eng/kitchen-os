@@ -43,7 +43,7 @@ if ('skip' in backend) {
   describeRepoContract('PostgresRepo', {
     async make() {
       // Чистимо між тестами й сіємо household + user під FK.
-      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, memory_note, message, session, cook_run, recipe, shopping_item, eater, household_member, profile, profile_text, profile_note, veto_index, household_event, user_occasion_mute, household_occasion_catch, household, "user" RESTART IDENTITY CASCADE');
+      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, message, session, cook_run, recipe, shopping_item, eater, household_member, profile_text, profile_note, veto_index, household_event, user_occasion_mute, household_occasion_catch, household, "user" RESTART IDENTITY CASCADE');
       const household_id = randomUUID();
       const user_id = randomUUID();
       // Другий учасник того самого дому — під приватність календаря. Справжній

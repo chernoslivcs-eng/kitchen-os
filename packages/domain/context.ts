@@ -11,11 +11,11 @@
 
 import { root, meaningfulWords, categoryBreadth} from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
-import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
+import type { PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted, traditionsOf } from './occasions.js';
 import { isProfileFieldCard } from './types.js';
-import { PROFILE_FIELDS, serializeProfileText, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
+import { PROFILE_FIELDS, serializeProfileText, emptyProfileText, profileTextHints, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
 import { matchVeto } from './veto.js';
 import type { Tradition } from './occasion-rules.js';
 
@@ -33,18 +33,17 @@ export interface RecentCookRunSummary {
 
 export interface KitchenContext {
   pantry: PantryBatch[];
-  profile?: Profile | null;
-  // Раунд 4 (PROFILE_V2): сім речень і нотатки. Коли задано profileText —
-  // замість [ПРОФІЛЬ] іде [ПРО ЛЮДИНУ] + [НОТАТКИ] на тому самому місці, а
-  // [ВИСНОВКИ З ГОТУВАННЯ]/[НАМІРИ] не рендеряться (їх джерело переїхало).
-  // `profile` лишається для календаря (традиції) і алерген-вето до кроку 4.
+  // Раунд 4: сім речень і нотатки — [ПРО ЛЮДИНУ] + [НОТАТКИ]. Без profileText
+  // блок іде порожнім (і каже, що це не дозвіл).
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
+  // Крок 11: традиції — явний вибір на user (null — ще не обирала, тоді
+  // календар вгадує з її слів у profileText).
+  traditions?: Tradition[] | null;
   // Крок 4б: індекс вето → ⚠-мітки в рядках [КОМОРА].
   vetoIndex?: VetoRow[];
   shopping?: ShoppingItemRow[];
   recentCookRuns?: RecentCookRunSummary[];
-  notes?: MemoryNote[];
   eaters?: EaterRow[];
   recentRecipes?: RecipeRow[];
   // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈».
@@ -65,7 +64,6 @@ export interface KitchenContext {
   // з двадцяти рядків історії.
   modes?: KitchenMode[];
   // 8b: чи обрізані блоки з лімітом на рівні репозиторію.
-  notesTruncated?: boolean;
   recipesTruncated?: boolean;
   // Аудит раунд 3, крок 5: картки, закриті (застосовані/скасовані/відхилені)
   // поза цією розмовою — щоб модель не реконструювала стан дому із власних
@@ -96,47 +94,14 @@ export function todayLabel(now = new Date()): string {
   });
 }
 
-// Профіль. QA4-02: до цього алергії зберігались, показувались у UI — і не
-// впливали ні на що; модель двічі пропонувала мигдаль людині з алергією.
-// M13-ROLE-VOICE п.1: порожній профіль — НЕ дозвіл. Людину могли ще не
-// спитати (саме на порожньому профілі вмикається онбординг stage 2), і тиша
-// не сміє читатись як підтверджене «обмежень немає»: ціна цієї підміни —
-// алерген у пропозиції. Тому блок присутній завжди і несе різницю явно.
-export function serializeProfile(p?: Profile | null): string {
-  const parts: string[] = [];
-  if (p) {
-    if (p.allergies.length) {
-      parts.push('АЛЕРГІЇ (тверда межа — ніколи не пропонуй сам): ' + p.allergies.join(', '));
-    }
-    if (p.antipatterns.length) parts.push('НЕ ЇСТЬ / НЕ ЛЮБИТЬ: ' + p.antipatterns.join(', '));
-    if (p.wishes.length) parts.push('ЛЮБИТЬ / ТЯГНЕ ДО: ' + p.wishes.join(', '));
-    // Явний вибір у профілі. Порожній масив — теж вибір: людина вимкнула
-    // релігійні приводи, і «постуємо» в побажаннях його не скасовує.
-    if (Array.isArray(p.traditions)) {
-      parts.push(p.traditions.length
-        ? 'ТРАДИЦІЇ (обрано в профілі): ' + p.traditions.map((t) => TRADITION_UA[t]).join(', ')
-        : 'ТРАДИЦІЇ: вимкнено в профілі — релігійних свят і постів не пропонуй і про календар не питай');
-    }
-    const eq = Object.entries(p.equipment ?? {});
-    const has = eq.filter(([, v]) => v === 'has').map(([k]) => k);
-    const lacks = eq.filter(([, v]) => v === 'lacks').map(([k]) => k);
-    if (has.length) parts.push('Є ТЕХНІКА: ' + has.join(', '));
-    if (lacks.length) parts.push('НЕМАЄ ТЕХНІКИ: ' + lacks.join(', '));
-  }
-  if (!parts.length) {
-    return '\n\n[ПРОФІЛЬ] порожній — обмежень, алергій і побажань ще не записано.'
-      + ' Це НЕ означає, що їх немає: найімовірніше, ще не питали.';
-  }
-  return '\n\n[ПРОФІЛЬ]\n' + parts.join('\n');
-}
-
-// Раунд 4: під PROFILE_V2 блок [ПРО ЛЮДИНУ] — лише її слова. Традиції —
-// перемикач календаря (раунд 5 вирішить, де він живе), тож ідуть окремим
-// коротким блоком і лише коли людина їх обирала (масив, не null).
-export function serializeTraditionsV2(p?: Profile | null): string {
-  if (!p || !Array.isArray(p.traditions)) return '';
-  return p.traditions.length
-    ? '\n\n[ТРАДИЦІЇ] обрано в профілі: ' + p.traditions.map((t) => TRADITION_UA[t]).join(', ')
+// Блок [ПРО ЛЮДИНУ] — лише її слова (serializeProfileText). Традиції —
+// перемикач календаря на user, тож ідуть окремим коротким блоком і лише коли
+// людина їх обирала (масив, не null). QA4-02 / M13-ROLE-VOICE п.1: порожній
+// профіль — НЕ дозвіл; це каже сам serializeProfileText.
+export function serializeTraditions(traditions?: Tradition[] | null): string {
+  if (!Array.isArray(traditions)) return '';
+  return traditions.length
+    ? '\n\n[ТРАДИЦІЇ] обрано в профілі: ' + traditions.map((t) => TRADITION_UA[t]).join(', ')
     : '\n\n[ТРАДИЦІЇ] вимкнено в профілі — релігійних свят і постів не пропонуй і про календар не питай';
 }
 
@@ -178,7 +143,6 @@ export function isDoubtful(b: Pick<PantryBatch, 'confidence' | 'provenance'>): b
 
 export function serializePantry(
   bs: PantryBatch[],
-  p?: Profile | null,
   now = Date.now(),
   eaters: EaterRow[] = [],
   fasting = false,
@@ -203,16 +167,13 @@ export function serializePantry(
   // спагеті?» ніколи не впирається у сховану позицію. Тільки додає рядки,
   // ніколи не віднімає — класу «не поклали потрібне» тут не буває.
   queryText = '',
-  // Раунд 4, крок 4б: під PROFILE_V2 межа власника — veto_index (категорія
-  // чи продукт позиції збігається з рядком індексу), а не allergies v1.
-  // Рядки з allergy=true дають ту саму ⚠АЛЕРГЕН, решта — ⚠НЕ ЇСТЬ. Алергії
-  // їдців лишаються старим механізмом (раунд 5).
+  // Раунд 4, крок 4б: межа власника — veto_index (категорія чи продукт
+  // позиції збігається з рядком індексу). Рядки з allergy=true дають ⚠АЛЕРГЕН,
+  // решта — ⚠НЕ ЇСТЬ. Алергії їдців — за коренем у назві (раунд 5).
   vetoIndex?: VetoRow[],
 ): string {
-  const allergens = [
-    ...(vetoIndex ? [] : (p?.allergies ?? []).map((a) => ({ label: a, who: '' }))),
-    ...eaters.flatMap((e) => e.allergies.map((a) => ({ label: a, who: ` в ${e.name}` }))),
-  ]
+  const allergens = eaters
+    .flatMap((e) => e.allergies.map((a) => ({ label: a, who: ` в ${e.name}` })))
     .filter((a) => a.label)
     .map((a) => ({ ...a, root: root(a.label) }));
 
@@ -429,36 +390,6 @@ export function serializeRecentRecipes(rows: RecipeRow[], truncated = false): st
     + (truncated ? '\nПоказано не всі — є й інші, раніші. Спитай, якщо треба.' : '');
 }
 
-// Висновки з готування. Це єдине в контексті, що написала не система, а сама
-// людина про свою кухню: «фует знімати, щойно краї хрусткі». Тому вони йдуть
-// окремим блоком, а не тонуть у профілі серед побажань.
-export function serializeNotes(notes: MemoryNote[], truncated = false): string {
-  const line = (n: MemoryNote) => {
-    const parts = [n.text];
-    if (n.recipe_title) parts.push(`до «${n.recipe_title}»`);
-    if (n.pinned) parts.push('закріплено');
-    return '— ' + parts.join(' · ');
-  };
-  // Пул-2 №6: наміри — окремий блок. Висновок каже «як не помилитись»,
-  // намір — «що заплановано»; змішані вони читались би як одна каша.
-  const lessons = notes.filter((n) => (n.kind ?? 'lesson') === 'lesson');
-  const intents = notes.filter((n) => n.kind === 'intent');
-  // M13-ROLE-VOICE п.1: обидва підблоки присутні завжди. Для висновків це не
-  // косметика — card-rules.md наказує «не пропонуй записати те, що вже там є»,
-  // а без блока звіряти було ні з чим, і модель пропонувала дублі.
-  let out = lessons.length
-    ? '\n\n[ВИСНОВКИ З ГОТУВАННЯ]\n' + lessons.map(line).join('\n')
-    : '\n\n[ВИСНОВКИ З ГОТУВАННЯ] порожньо — висновків про техніку ще не записано.';
-  if (lessons.length && truncated) {
-    out += '\nПоказано не всі — є й інші, раніші. Спитай, якщо треба.';
-  }
-  out += intents.length
-    ? '\n\n[НАМІРИ] (ідеї, які людина відклала на потім — нагадай, коли складники в наявності або момент слушний)\n'
-      + intents.map(line).join('\n')
-    : '\n\n[НАМІРИ] порожньо — відкладених ідей не записано.';
-  return out;
-}
-
 // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — детермінований підсумок карток дому,
 // закритих ПОЗА цією розмовою (repo.listRecentResolved уже виключив поточну
 // сесію і вікно старіше 48 год). Без цього блока модель бачить лише свою
@@ -477,16 +408,13 @@ function relativeWhen(atMs: number, nowMs: number): string {
   return days === 0 ? `сьогодні ${hhmm}` : days === 1 ? `вчора ${hhmm}` : `${days} дн тому`;
 }
 
-// Тип по-людськи. profile з усіма ops kind:'note' — «нотатка», не «профіль»:
-// той самий поділ, що kitchen-policy.md уже проводить для note проти
-// анти/алергій. Решта — пряме дзеркало Card['type'].
+// Тип по-людськи: картка поля — за початком речення, ops-картка (традиції,
+// домашні) — «профіль». Решта — пряме дзеркало Card['type'].
 function humanCardType(card: Card): string {
   if (card.type === 'profile') {
     if (isProfileFieldCard(card)) {
       return card.onboarding && !card.text.trim() ? `онбординг „${PROFILE_FIELDS[card.field].lead}"` : `записав у „${PROFILE_FIELDS[card.field].lead}"`;
     }
-    const ops = (card.ops ?? []) as { kind?: string }[];
-    if (ops.length && ops.every((o) => o.kind === 'note')) return 'нотатка';
     return 'профіль';
   }
   const NAMES: Partial<Record<Card['type'], string>> = {
@@ -552,12 +480,14 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n'
       + ctx.recentCookRuns.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
     : '\n\n[ОСТАННІ ГОТУВАННЯ] порожньо — жодного завершеного готування ще немає.';
-  const v2 = !!ctx.profileText;
-  return (v2 ? serializeProfileText(ctx.profileText!, ctx.profileNotes ?? []) + serializeTraditionsV2(ctx.profile) : serializeProfile(ctx.profile))
+  const profileText = ctx.profileText ?? emptyProfileText('');
+  const hints = profileTextHints(profileText);
+  const trads = traditionsOf(ctx.traditions, hints);
+  return serializeProfileText(profileText, ctx.profileNotes ?? []) + serializeTraditions(ctx.traditions)
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
-    + serializeOccasions(now, ctx.profile?.wishes ?? [], undefined, traditionsOf(ctx.profile))
+    + serializeOccasions(now, hints, undefined, trads)
     + serializeHouseholdEvents(ctx.events ?? [], now)
     // UX9-04: чат-модель id партій не вживає НІДЕ — а отримувала uuid першим
     // словом кожного рядка. Шум і токени; вказівники бачить лише recipe_gen
@@ -566,10 +496,9 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
     // самому блоці — той самий механізм, що рятував з алергенами й постом.
     + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування. «~строк≈» — приблизна оцінка від відкриття: згадуй мʼяко — «варто передивитись», точні дні називай лише для «!Nдн». «?рід» — записано родовим словом, конкретний продукт невідомий: коли доходить до страви, доречно спитати ОДНИМ реченням, що це саме — але тільки якщо ти цього ще не питав у цій розмові. «?домисл.N%» — кількість або сама позиція домислена з розбору, не сказана людиною: не подавай її як точний факт («десь», «приблизно»), а коли вона стає важливою для страви чи покупки — уточни одним реченням; без мітки — не сумнівайся, число точне)\n'
-    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? [], undefined, traditionsOf(ctx.profile)), 'none', 120, ctx.products ?? [], ctx.queryText ?? '', ctx.vetoIndex)
+    + serializePantry(ctx.pantry, now.getTime(), ctx.eaters ?? [], fastingActive(now, hints, undefined, trads), 'none', 120, ctx.products ?? [], ctx.queryText ?? '', ctx.vetoIndex)
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
-    + (v2 ? '' : serializeNotes(ctx.notes ?? [], ctx.notesTruncated))
     + renderRecentActions(ctx.recentActions ?? [], now)
     + serializeEaters(ctx.eaters ?? [])
     + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
