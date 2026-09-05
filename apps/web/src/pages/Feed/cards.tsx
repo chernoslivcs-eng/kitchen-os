@@ -825,7 +825,8 @@ function ProfileFieldCard({ card, applied, applying, dismissed, undone, onApply,
       {!closed && !undone && onApply && (
         <div className={styles['card-actions']}>
           <Button variant="primary" onClick={() => onApply?.()} loading={applying} disabled={!text}>{CARD_BUTTON_LABEL.profile!}</Button>
-          {field === 'ban'
+          {/* Крок 4в (6): «Нічого такого» — лише на онбординг-картці ban; звичайна — «Пропустити». */}
+          {field === 'ban' && card.onboarding
             ? <Button variant="secondary" onClick={onNone} disabled={applying}>Нічого такого</Button>
             : <Button variant="secondary" onClick={onDismiss} disabled={applying}>Пропустити</Button>}
         </div>
@@ -1501,6 +1502,8 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
     const n = appliedCount ?? (card.ops?.length ?? 0);
     return `${n} ${plural(n, ['подія в календарі', 'події в календарі', 'подій у календарі'])}`;
   }
+  // Крок 4в (5): профіль — не комора. Одна фраза для обох форм картки (поле і ops).
+  if (card.type === 'profile') return 'Записано в „Про тебе"';
   const count = appliedCount ?? (card.type === 'shopping' || card.type === 'proposal'
     ? (card.items?.length ?? 0)
     : (card.ops?.length ?? 0));

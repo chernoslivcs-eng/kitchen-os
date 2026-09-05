@@ -201,6 +201,8 @@ export interface ChatCall {
     // зразок voice.md. chat.ts логує це як 'example-copy' — сюди, а не в
     // model.ts, бо тільки маршрут має req.log.
     example_copy?: boolean;
+    // Крок 4в (2а): reply містив службові позначки — був повторний виклик.
+    service_markers?: boolean;
   };
 }
 
@@ -536,6 +538,26 @@ export function wordOverlapRatio(reply: string, example: string): number {
   return common / replyWords.length;
 }
 
+// Крок 4в (2а): службові позначки історії/контексту в reply. Ручний тест
+// 05.09 19:44: на «я веган» модель не дала картки, а переказала рядок історії
+// «[картка: профіль] записав у … [НЕ ЗАСТОСОВАНО — …]». Guard як
+// example-guard: один повторний виклик, далі — вирізати, що лишилось.
+// Список збігається з SERVICE_MARKER_RE в packages/eval/invariants.ts.
+export const SERVICE_MARKER_RE = /\[(?:картка:|рецепт у стрічці|НЕ ЗАСТОСОВАНО|ЗАСТОСОВАНО|ВІДХИЛЕНО|СКАСОВАНО|ПРО ЛЮДИНУ|КОМОРА|НОТАТКИ|ОСТАННІ ДІЇ|СЬОГОДНІ|СПИСОК ПОКУПОК|ДОМАШНІ|ТРАДИЦІЇ|СЕЗОН І СВЯТА|ТВОЇ ПЛАНИ|РЕЖИМ|МЕРЕЖІ|СЕРВЕР)[^\]]*\]/g;
+export const SERVICE_MARKER_GUARD_LINE = 'Перепиши репліку без службових позначок у квадратних дужках — вони не для людини.';
+export function hasServiceMarkers(reply: string): boolean {
+  return new RegExp(SERVICE_MARKER_RE.source).test(reply);
+}
+export function stripServiceMarkers(reply: string): string {
+  return reply
+    .split('\n')
+    // Рядок-імітація історії («[картка: …] записав у … [НЕ ЗАСТОСОВАНО …]») — цілком.
+    .filter((line) => !/\[(?:картка:|рецепт у стрічці)/.test(line))
+    .map((line) => line.replace(new RegExp(SERVICE_MARKER_RE.source, 'g'), '').replace(/[ \t]{2,}/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
 const EXAMPLE_COPY_THRESHOLD = 0.6;
 const EXAMPLE_COPY_GUARD_LINE = 'Перепиши репліку своїми словами, не повторюючи зразків.';
 
@@ -588,12 +610,12 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   let usage = usageFrom(resp.usage);
   let exampleCopy = false;
 
-  const voiceExamples = parseVoiceExamples(prompt.blocks['voice'] ?? '');
-  if (matchesVoiceExample(reply, voiceExamples)) {
-    exampleCopy = true;
+  // Один повторний виклик із guard-рядком у кінці репліки людини — спільний
+  // для example-guard і guard-а службових позначок.
+  const retryWith = async (line: string) => {
     const retryMessages = [
       ...(args.history ?? []),
-      { role: 'user' as const, content: `${args.text}\n\n${EXAMPLE_COPY_GUARD_LINE}` },
+      { role: 'user' as const, content: `${withAvoid(args.text, args.avoid)}\n\n${line}` },
     ];
     const retryResp = await withRetry(() => client.messages.create({ ...callOpts, messages: retryMessages }));
     const retryText = retryResp.content
@@ -608,6 +630,18 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       cached: (usage.cached ?? 0) + (retryUsage.cached ?? 0),
       cache_write: (usage.cache_write ?? 0) + (retryUsage.cache_write ?? 0),
     };
+  };
+
+  const voiceExamples = parseVoiceExamples(prompt.blocks['voice'] ?? '');
+  if (matchesVoiceExample(reply, voiceExamples)) {
+    exampleCopy = true;
+    await retryWith(EXAMPLE_COPY_GUARD_LINE);
+  }
+  let serviceMarkers = false;
+  if (hasServiceMarkers(reply)) {
+    serviceMarkers = true;
+    await retryWith(SERVICE_MARKER_GUARD_LINE);
+    if (hasServiceMarkers(reply)) reply = stripServiceMarkers(reply);
   }
 
   return {
@@ -619,6 +653,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       // A3: слід тексту, що реально поїхав (стабільний префікс).
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
       example_copy: exampleCopy,
+      service_markers: serviceMarkers,
     },
   };
 }

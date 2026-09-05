@@ -651,7 +651,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // Перевіряємо з РОЗВʼЯЗАНИМИ назвами: інгредієнт із комори приходить
         // як `p` без `n`, і без резолву «рибний соус» з комори був би невидимий.
         if (gen.recipe && opts.profileV2) {
-          const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, ...e }, e.event));
+          // Прямий запит («зроби мені стейк») — рядки, названі людиною, не вето.
+          const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, ...e }, e.event), text ?? '');
           if (avoid.length) {
             const again = await callRecipe({
               title: wantedTitle, pantry, profile, notes, products, profileText, profileNotes, vetoIndex,
@@ -660,7 +661,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
             });
             await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, genStarted);
             if (again.recipe) {
-              const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, retry: true, ...e }, e.event));
+              const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, retry: true, ...e }, e.event), text ?? '');
               if (left.avoid.length) req.log.warn({ user_id, title: wantedTitle, avoid: left.avoid }, 'veto-recipe-kept');
               gen = again;
             }

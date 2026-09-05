@@ -136,3 +136,37 @@ describe('serializePantry з veto_index', () => {
     expect(lines.find((l) => l.startsWith('Кінза'))).toMatch(/⚠НЕ ЇСТЬ \(кінза\)/);
   });
 });
+
+// ----- Крок 4в (1): прямий запит і «не їм» ---------------------------------
+
+describe('vetoCard — прямий запит', () => {
+  it('людина сама назвала продукт із «Я не їм» → рядок no для цього ходу не діє, кандидат лишається', () => {
+    const call = { card: proposal(), reply: 'Стейк.' };
+    const r = vetoCard(call, pesc, 'зроби мені стейк');
+    expect(r.rejected.map((x) => x.title)).toEqual(['Курячі стегна в духовці']);
+    expect((call.card as { items: { title: string }[] }).items.map((i) => i.title)).toContain('Стейк рібай');
+  });
+
+  it('allergy-рядок на прямий запит — як і був: кандидат знімається', () => {
+    const card: Card = { type: 'proposal', items: [{ title: 'Тости з арахісовою пастою', desc: '', rescues: ['арахісова паста'] }] };
+    const r = vetoCard({ card, reply: '' }, peanut, 'тости з арахісовою пастою');
+    expect(r.emptied).toBe(true);
+  });
+
+  it('без згадки в репліці людини — вето як раніше', () => {
+    const call = { card: proposal(), reply: '' };
+    expect(vetoCard(call, pesc, 'що на вечерю').rejected.map((x) => x.title)).toEqual(['Стейк рібай', 'Курячі стегна в духовці']);
+  });
+
+  it('VETO_EMPTY_REPLY — без слова «пропозицію», у голосі', () => {
+    expect(VETO_EMPTY_REPLY).not.toMatch(/пропозиці/i);
+  });
+});
+
+describe('vetoRecipe — прямий запит', () => {
+  it('named: рядки, названі людиною, не рахуються дієтним збігом', () => {
+    const recipe = { t: 'Стейк', sv: 2, tm: 20, ing: [{ n: 'стейк рібай', v: 300, u: 'g' }, { n: 'курячі стегна', v: 300, u: 'g' }], st: [] } as unknown as Recipe;
+    const hits = vetoRecipe(recipe, pesc, 'зроби мені стейк');
+    expect(hits.map((h) => [h.ingredient, h.row.ref])).toEqual([['курячі стегна', 'мʼясо'], ['курячі стегна', 'птиця']]);
+  });
+});

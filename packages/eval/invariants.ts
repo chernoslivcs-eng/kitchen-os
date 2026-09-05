@@ -28,6 +28,10 @@ export type Invariant = (out: ModelOutput, fx: Fixture) => Verdict;
 
 const pass = (detail?: string): Verdict => ({ pass: true, detail });
 
+// Крок 4в (2): службові позначки, які модель бачить в історії/контексті й не
+// має переказувати в reply. Той самий список, що guard у model.ts.
+const SERVICE_MARKER_RE = /\[(?:картка:|рецепт у стрічці|НЕ ЗАСТОСОВАНО|ЗАСТОСОВАНО|ВІДХИЛЕНО|СКАСОВАНО|ПРО ЛЮДИНУ|КОМОРА|НОТАТКИ|ОСТАННІ ДІЇ|СЬОГОДНІ|СПИСОК ПОКУПОК|ДОМАШНІ|ТРАДИЦІЇ|СЕЗОН І СВЯТА|ТВОЇ ПЛАНИ|РЕЖИМ|МЕРЕЖІ|СЕРВЕР)/;
+
 // `\b` у JS — межа [A-Za-z0-9_]; кирилиця вся «поза словом», тож
 // /\bні\b/.test('ні') === false. Кілька інваріантів через це місяцями або
 // нічого не ловили, або валили правильні відповіді. Юнікодні межі вручну:
@@ -68,6 +72,30 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Крок 4в (2): у reply нема службових позначок історії/контексту.
+  'reply-no-service-markers': (out) => {
+    const hit = SERVICE_MARKER_RE.exec(String(out.reply ?? ''));
+    return hit ? fail(`службова позначка в reply: «${hit[0]}»`) : pass();
+  },
+  // Крок 4в (2): «я веган» → розгорнутий перелік, не слово.
+  'profile-text-expands-vegan': (out) => {
+    const c = out.card;
+    if (!c || c.type !== 'profile' || !c.field) return fail(`card.type=${c?.type ?? 'null'} — очікував картку поля`);
+    const t = String(c.text ?? '').toLowerCase();
+    const want = [/мʼяс|м'яс/, /риб/, /яєц|яйц/, /молоч/];
+    const missing = want.filter((re) => !re.test(t));
+    return missing.length ? fail(`text «${c.text}» не розгортає: бракує ${missing.length} з 4 груп`) : pass(c.text);
+  },
+  // Крок 4в (4): відповідь без зустрічного питання.
+  'reply-no-question': (out) => {
+    const r = String(out.reply ?? '');
+    return r.includes('?') ? fail(`питання в reply: «${r}»`) : pass();
+  },
+  // Крок 4в (1): reply одним реченням каже про «не їм» (людина просить сама).
+  'reply-mentions-no-eat': (out) => {
+    const r = String(out.reply ?? '');
+    return /не їси|не їш|не їсте|не їмо|не для тебе|якщо не собі/i.test(r) ? pass() : fail(`reply без згадки «не їси»: «${r.slice(0, 160)}»`);
+  },
   // Раунд 4 §9, крок 4: вето по індексу з profile_text (no/ban). Перевірка
   // «жодного мʼясного кандидата» — через саме вето, не через текст: пройдено,
   // коли після вето лишився хоч один кандидат (модель або сама не запропонувала
@@ -77,8 +105,9 @@ export const registry: Record<string, Invariant> = {
     if (!index.length) return fail('індекс порожній — profile_text без no/ban?');
     const c = out.card;
     if (c?.type === 'proposal') {
+      const userText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
       const call = { card: JSON.parse(JSON.stringify(c)) as Card, reply: out.reply ?? '' };
-      const r = vetoCard(call, index);
+      const r = vetoCard(call, index, userText);
       const log = r.rejected.map((x) => `${x.title} ← ${x.ingredient} [${x.rows.map((w) => `${w.field}:${w.kind}:${w.ref}`).join(', ')}]`);
       if (r.emptied) return fail(`вето зняло всі кандидати: ${log.join('; ')}`);
       return pass(r.rejected.length ? `вето зняло ${r.rejected.length}: ${log.join('; ')}` : 'вето не спрацювало — модель сама не пропонувала');
@@ -104,7 +133,7 @@ export const registry: Record<string, Invariant> = {
     const index = vetoIndexOf(fx);
     const userText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
     const call = { card: JSON.parse(JSON.stringify(out.card ?? null)) as Card | null, reply: out.reply ?? '' };
-    vetoCard(call, index);
+    vetoCard(call, index, userText);
     const r = stripVetoMentions(call, index, userText);
     if (!(call.reply ?? '').trim() && !call.card) return fail('після вето й зачистки не лишилось ні картки, ні репліки');
     if (matchVeto(call.reply ?? '', index.filter((x) => x.allergy)).length) return fail(`алерген лишився в репліці: «${call.reply}»`);
@@ -1237,6 +1266,29 @@ export const registry: Record<string, Invariant> = {
 // тобто перевірка була мертва з дня написання.
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
+
+  // Крок 4в (3): картка поля профілю з полем `arg` (no|meh|ban|…).
+  if (base === 'profile-field') {
+    return (out) => {
+      const c = out.card;
+      if (!c || c.type !== 'profile') return fail(`card.type=${c?.type ?? 'null'} — очікував profile`);
+      if (!c.field) return fail(`картка profile без field (ops: ${JSON.stringify(c.ops).slice(0, 80)})`);
+      return c.field === arg ? pass(`${c.field}: «${c.text}»`) : fail(`field=${c.field}, очікував ${arg}; text «${c.text}»`);
+    };
+  }
+
+  // Крок 4в (1): прямий запит виконано — картка (cook_go/proposal/recipe) про названу страву.
+  if (base === 'direct-request-honored') {
+    return (out) => {
+      const c = out.card;
+      const want = (arg ?? '').toLowerCase();
+      if (!c) return fail(`картки немає — reply: «${String(out.reply ?? '').slice(0, 120)}»`);
+      const hay = c.type === 'cook_go' ? String(c.title ?? '')
+        : c.type === 'proposal' ? (c.items ?? []).map((i: { title?: string }) => i.title ?? '').join(' ')
+        : c.type === 'recipe' ? String(c.recipe?.t ?? '') : '';
+      return hay.toLowerCase().includes(want) ? pass(`${c.type}: ${hay}`) : fail(`${c.type} без «${want}»: ${hay}`);
+    };
+  }
 
   // Пул-5 №6: згода на страву → cook_go з дослівною назвою (аргумент —
   // обов'язковий фрагмент title, і назви страви, і механіки: `cook-go-card:сковород`).

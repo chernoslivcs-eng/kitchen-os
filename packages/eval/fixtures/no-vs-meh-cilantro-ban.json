@@ -1,0 +1,10 @@
+{
+  "id": "no-vs-meh-cilantro-ban",
+  "description": "Крок 4в (3): «у мене алергія на кінзу» — це `ban`.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "no": "мʼяса, птиці" },
+  "pantry": [ {"id":"p1","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"} ],
+  "conversation": [ { "role": "user", "content": "У мене алергія на кінзу" } ],
+  "invariants": [ "profile-field:ban", "no-markdown" ]
+}

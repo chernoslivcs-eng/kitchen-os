@@ -111,7 +111,8 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRou
     // перегенерація з «без …», алергійний — модель попереджає сама.
     if (call.recipe && opts.profileV2 && vetoIndex) {
       // З розвʼязаними назвами: `p` без `n` інакше невидимий для вето.
-      const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, ...e }, e.event));
+      // Назва — те, що людина обрала/попросила: названі нею рядки не вето.
+      const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, ...e }, e.event), `${title} ${context ?? ''}`);
       if (avoid.length) {
         const again = await callRecipe({
           title: title.trim(), pantry, profile, notes, products, conversation, profileText, profileNotes, vetoIndex,
@@ -119,7 +120,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRou
         });
         await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, started);
         if (again.recipe) {
-          const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, retry: true, ...e }, e.event));
+          const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, retry: true, ...e }, e.event), `${title} ${context ?? ''}`);
           if (left.avoid.length) req.log.warn({ user_id: ctx.user_id, title, avoid: left.avoid }, 'veto-recipe-kept');
           call = again;
         }

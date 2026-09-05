@@ -1,0 +1,10 @@
+{
+  "id": "no-vs-meh-cilantro-meh",
+  "description": "Крок 4в (3): «не люблю кінзу» — це `meh`.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "no": "мʼяса, птиці" },
+  "pantry": [ {"id":"p1","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"} ],
+  "conversation": [ { "role": "user", "content": "Не люблю кінзу" } ],
+  "invariants": [ "profile-field:meh", "no-markdown" ]
+}

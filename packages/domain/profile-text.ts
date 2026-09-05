@@ -172,9 +172,17 @@ export function profileNotesFromLegacy(notes: MemoryNote[]): ProfileNote[] {
 }
 
 /** Картка append (§4): дописати через «. », обрізати по ліміту; truncated — щоб репліка могла сказати, що не влізло. */
+// Крок 4в (7): списки іменників у no/ban/love/meh — через кому («арахіс, кунжут»);
+// якщо в наявному або новому тексті є крапка всередині (вже речення) — «. ».
+// kit/when/name — завжди «. ».
+const LIST_FIELDS: ReadonlySet<ProfileFieldKey> = new Set(['no', 'ban', 'love', 'meh']);
+const hasInnerPeriod = (t: string) => /\.\s*\S/.test(t.trim());
+
 export function appendProfileText(key: ProfileFieldKey, before: string, add: string): { text: string; truncated: boolean } {
   const base = before.trim().replace(/[.\s]+$/, '');
-  const joined = base ? `${base}. ${add.trim()}` : add.trim();
+  const next = add.trim();
+  const sep = LIST_FIELDS.has(key) && !hasInnerPeriod(base) && !hasInnerPeriod(next) ? ', ' : '. ';
+  const joined = base ? `${base}${sep}${next}` : next;
   const text = clampProfileText(key, joined);
   return { text, truncated: Array.from(joined.trim()).length > Array.from(text).length };
 }

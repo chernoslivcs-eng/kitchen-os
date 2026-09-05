@@ -1,0 +1,195 @@
+{
+  "promptVersion": "2026-08-28",
+  "createdAt": "2026-09-05T16:54:32.852Z",
+  "model": "(default)",
+  "runs": [
+    {
+      "id": "direct-request-steak-no",
+      "call": "chat",
+      "invariants": {
+        "direct-request-honored:стейк": {
+          "pass": false,
+          "detail": "картки немає — reply: «У тебе позначка: не їси м'яса. Стейк рібай лежить у холодильнику четвертий день — схоже, не собі купив. Якщо це комусь і»"
+        },
+        "reply-mentions-no-eat": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "6c2cc5f62b1f",
+      "usage": {
+        "input": 1208,
+        "output": 208,
+        "cached": 0,
+        "cache_write": 20630
+      },
+      "reply": "У тебе позначка: не їси м'яса. Стейк рібай лежить у холодильнику четвертий день — схоже, не собі купив. Якщо це комусь іншому — скажи, дам як смажити.",
+      "card": null,
+      "latencyMs": 10018,
+      "raw": "```json\n{\n  \"reply\": \"У тебе позначка: не їси м'яса. Стейк рібай лежить у холодильнику четвертий день — схоже, не собі купив. Якщо це комусь іншому — скажи, дам як смажити.\",\n  \"card\": null\n}\n```",
+      "residualText": ""
+    },
+    {
+      "id": "vegan-phrase-card",
+      "call": "chat",
+      "invariants": {
+        "profile-field:no": {
+          "pass": true,
+          "detail": "no: «Веган — не їм мʼяса, риби, яєць, молочного й похідних (сала, бекону, шинки, желатину, меду, вершкового масла, сиру, йогурту)»"
+        },
+        "profile-text-expands-vegan": {
+          "pass": true,
+          "detail": "Веган — не їм мʼяса, риби, яєць, молочного й похідних (сала, бекону, шинки, желатину, меду, вершкового масла, сиру, йогурту)"
+        },
+        "reply-no-service-markers": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "6c2cc5f62b1f",
+      "usage": {
+        "input": 1163,
+        "output": 171,
+        "cached": 20630,
+        "cache_write": 0
+      },
+      "reply": "Записав. Тепер не пропоную мʼяса, риби, яєць і молочного. Якщо щось із цього насправді можна — скажи, звужу.",
+      "card": {
+        "type": "profile",
+        "field": "no",
+        "mode": "append",
+        "text": "Веган — не їм мʼяса, риби, яєць, молочного й похідних (сала, бекону, шинки, желатину, меду, вершкового масла, сиру, йогурту)"
+      },
+      "latencyMs": 5107,
+      "raw": "```json\n{\n  \"reply\": \"Записав. Тепер не пропоную мʼяса, риби, яєць і молочного. Якщо щось із цього насправді можна — скажи, звужу.\",\n  \"card\": {\n    \"type\": \"profile\",\n    \"field\": \"no\",\n    \"mode\": \"append\",\n    \"text\": \"Веган — не їм мʼяса, риби, яєць, молочного й похідних (сала, бекону, шинки, желатину, меду, вершкового масла, сиру, йогурту)\"\n  }\n}\n```",
+      "residualText": ""
+    },
+    {
+      "id": "no-vs-meh-cilantro-no",
+      "call": "chat",
+      "invariants": {
+        "profile-field:no": {
+          "pass": true,
+          "detail": "no: «кінзи»"
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "6c2cc5f62b1f",
+      "usage": {
+        "input": 1137,
+        "output": 85,
+        "cached": 20630,
+        "cache_write": 0
+      },
+      "reply": "Записав. Кінза не буде з'являтись у пропозиціях.",
+      "card": {
+        "type": "profile",
+        "field": "no",
+        "mode": "append",
+        "text": "кінзи"
+      },
+      "latencyMs": 3634,
+      "raw": "```json\n{\n  \"reply\": \"Записав. Кінза не буде з'являтись у пропозиціях.\",\n  \"card\": {\n    \"type\": \"profile\",\n    \"field\": \"no\",\n    \"mode\": \"append\",\n    \"text\": \"кінзи\"\n  }\n}\n```",
+      "residualText": ""
+    },
+    {
+      "id": "no-vs-meh-cilantro-meh",
+      "call": "chat",
+      "invariants": {
+        "profile-field:meh": {
+          "pass": true,
+          "detail": "meh: «кінзу»"
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "6c2cc5f62b1f",
+      "usage": {
+        "input": 1136,
+        "output": 83,
+        "cached": 20630,
+        "cache_write": 0
+      },
+      "reply": "Записав — кінза в нелюбих. Буду обходити.",
+      "card": {
+        "type": "profile",
+        "field": "meh",
+        "mode": "append",
+        "text": "кінзу"
+      },
+      "latencyMs": 3844,
+      "raw": "```json\n{\n  \"reply\": \"Записав — кінза в нелюбих. Буду обходити.\",\n  \"card\": {\n    \"type\": \"profile\",\n    \"field\": \"meh\",\n    \"mode\": \"append\",\n    \"text\": \"кінзу\"\n  }\n}\n```",
+      "residualText": ""
+    },
+    {
+      "id": "no-vs-meh-cilantro-ban",
+      "call": "chat",
+      "invariants": {
+        "profile-field:ban": {
+          "pass": true,
+          "detail": "ban: «кінза»"
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "6c2cc5f62b1f",
+      "usage": {
+        "input": 1138,
+        "output": 97,
+        "cached": 20630,
+        "cache_write": 0
+      },
+      "reply": "Запишу кінзу в алергени. Якщо насіння коріандру теж не можна — скажи, додам.",
+      "card": {
+        "type": "profile",
+        "field": "ban",
+        "mode": "append",
+        "text": "кінза"
+      },
+      "latencyMs": 4017,
+      "raw": "```json\n{\n  \"reply\": \"Запишу кінзу в алергени. Якщо насіння коріандру теж не можна — скажи, додам.\",\n  \"card\": {\n    \"type\": \"profile\",\n    \"field\": \"ban\",\n    \"mode\": \"append\",\n    \"text\": \"кінза\"\n  }\n}\n```",
+      "residualText": ""
+    },
+    {
+      "id": "allergy-stated-no-followup",
+      "call": "chat",
+      "invariants": {
+        "profile-field:ban": {
+          "pass": true,
+          "detail": "ban: «кунжутне насіння, тахіні, кунжутна олія, халва»"
+        },
+        "reply-no-question": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "6c2cc5f62b1f",
+      "usage": {
+        "input": 1150,
+        "output": 154,
+        "cached": 20630,
+        "cache_write": 0
+      },
+      "reply": "Запишу кунжут — так безпечніше. Якщо щось із цього насправді можна, скажи, звужу: кунжутне насіння, тахіні (паста з кунжуту), кунжутна олія, халва.",
+      "card": {
+        "type": "profile",
+        "field": "ban",
+        "mode": "append",
+        "text": "кунжутне насіння, тахіні, кунжутна олія, халва"
+      },
+      "latencyMs": 4718,
+      "raw": "```json\n{\n  \"reply\": \"Запишу кунжут — так безпечніше. Якщо щось із цього насправді можна, скажи, звужу: кунжутне насіння, тахіні (паста з кунжуту), кунжутна олія, халва.\",\n  \"card\": {\n    \"type\": \"profile\",\n    \"field\": \"ban\",\n    \"mode\": \"append\",\n    \"text\": \"кунжутне насіння, тахіні, кунжутна олія, халва\"\n  }\n}\n```",
+      "residualText": ""
+    }
+  ]
+}

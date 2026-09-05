@@ -199,7 +199,7 @@ describe('profileTextFromLegacy — TS-двійник міграції 0023', ()
 
 describe('appendProfileText', () => {
   it('дописує через «. », не подвоює крапку, ріже по ліміту й каже, що не влізло', () => {
-    expect(appendProfileText('no', 'кінзи.', 'селери')).toEqual({ text: 'кінзи. селери', truncated: false });
+    expect(appendProfileText('no', 'кінзи.', 'селери')).toEqual({ text: 'кінзи, селери', truncated: false });
     expect(appendProfileText('no', '', 'селери')).toEqual({ text: 'селери', truncated: false });
     const r = appendProfileText('name', 'Пилип', 'Білянський-Дуже-Довге-Прізвище-Понад-Ліміт');
     expect(r.text).toBe(clampProfileText('name', 'Пилип. Білянський-Дуже-Довге-Прізвище-Понад-Ліміт'));
@@ -236,5 +236,25 @@ describe('legacyOpsFromFieldCard — прапор як відкат на про�
 
   it('порожній текст → порожні ops', () => {
     expect(ops('no', '  ')).toEqual([]);
+  });
+});
+
+// ----- Крок 4в (7): роздільник при append ----------------------------------
+
+describe('appendProfileText — роздільник', () => {
+  it('списки іменників у no/ban/love/meh клеяться через «, »', () => {
+    expect(appendProfileText('ban', 'арахіс', 'кунжут').text).toBe('арахіс, кунжут');
+    expect(appendProfileText('no', 'мʼяса, птиці', 'кінзи').text).toBe('мʼяса, птиці, кінзи');
+    expect(appendProfileText('love', 'супи', 'тайську кухню').text).toBe('супи, тайську кухню');
+  });
+
+  it('якщо в наявному або новому тексті є крапка всередині — «. »', () => {
+    expect(appendProfileText('no', 'мʼяса. Кінзу не беру', 'риби').text).toBe('мʼяса. Кінзу не беру. риби');
+    expect(appendProfileText('meh', 'гостре', 'довго стояти. Особливо в будні').text).toBe('гостре. довго стояти. Особливо в будні');
+  });
+
+  it('kit, when, name — завжди «. »', () => {
+    expect(appendProfileText('kit', 'гриль', 'блендер').text).toBe('гриль. блендер');
+    expect(appendProfileText('when', 'ввечері', 'на двох').text).toBe('ввечері. на двох');
   });
 });

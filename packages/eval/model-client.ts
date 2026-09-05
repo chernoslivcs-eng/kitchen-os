@@ -307,7 +307,8 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
     if (call === 'chat' && profileV2Enabled() && card?.type === 'proposal') {
       const probe = { card: JSON.parse(JSON.stringify(card)) as typeof card, reply };
       const index = vetoIndexOfText(fx.profile_text ? profileTextFromFixture(fx.profile_text) : profileTextFromLegacy(legacyProfileOf(fx)));
-      const r = vetoCard(probe, index);
+      const lastUser = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
+      const r = vetoCard(probe, index, lastUser);
       if (r.emptied) {
         retried = true;
         const avoid = [...new Set(r.rejected.map((x) => x.title))];

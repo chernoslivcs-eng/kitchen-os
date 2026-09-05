@@ -41,11 +41,11 @@ describe('картка профілю v2', () => {
     expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: 'селери', status: 'filled' });
   });
 
-  it('append дописує через «. »; undo повертає попередній текст', async () => {
+  it('append дописує (крок 4в: список іменників — через «, »); undo повертає попередній текст', async () => {
     await repo.patchProfileField(USER, 'no', { text: 'кінзи' });
     const id = await pend(repo, field({ text: 'селери' }));
     const r = await applyCard(repo, id, [], USER, V2);
-    expect((await repo.getProfileText(USER)).fields.no.text).toBe('кінзи. селери');
+    expect((await repo.getProfileText(USER)).fields.no.text).toBe('кінзи, селери');
     await undoCard(repo, id, r.undo_token, USER);
     expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: 'кінзи', status: 'filled' });
   });

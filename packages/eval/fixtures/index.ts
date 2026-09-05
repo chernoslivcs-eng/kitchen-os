@@ -240,7 +240,10 @@ export function loadFixtures(): Fixture[] {
     // Раунд 4 §9: інваріант на вхід — під вимкненим прапором блоку нема, тож скіп.
     { ...readJson('profile-verbatim.json'), skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — блоку [ПРО ЛЮДИНУ] у промті немає' },
     // Раунд 4 §9, крок 4: дієта й «не можна» через вето по індексу (профіль — profile_text, лише під прапором).
-    ...['diet-pescatarian-steak', 'diet-vegan-fish-sauce', 'ban-without-word', 'meh-less-meat'].map((id) => ({
+    ...['diet-pescatarian-steak', 'diet-vegan-fish-sauce', 'ban-without-word', 'meh-less-meat',
+      // Крок 4в: правки за ручним тестом кроку 5.
+      'direct-request-steak-no', 'vegan-phrase-card', 'no-vs-meh-cilantro-no', 'no-vs-meh-cilantro-meh',
+      'no-vs-meh-cilantro-ban', 'allergy-stated-no-followup'].map((id) => ({
       ...readJson(`${id}.json`),
       skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — індексу вето немає',
     })),

@@ -170,7 +170,7 @@ export interface ApplyVetoResult {
 /** Мутує call (card/reply). Під прапором — індекс; без — allergies. Кожне відхилення йде в log. */
 export function applyVeto(call: { card: Card | null; reply?: string | null }, a: ApplyVetoArgs): ApplyVetoResult {
   if (a.profileV2) {
-    const r = vetoCard(call, a.index);
+    const r = vetoCard(call, a.index, a.userText);
     for (const x of r.rejected) for (const row of x.rows) a.log({ event: 'veto', candidate: x.title, ingredient: x.ingredient, row });
     const s = stripVetoMentions(call, a.index, a.userText);
     for (const st of s.stripped) a.log({ event: 'veto-reply', candidate: st, stripped: st });
@@ -193,8 +193,8 @@ export function applyVeto(call: { card: Card | null; reply?: string | null }, a:
  * (recipe-generator.md); рядки без прапорця повертаються як список того, без
  * чого треба перегенерувати. Кожен збіг — у лог.
  */
-export function recipeVetoHits(recipe: Recipe, index: VetoRow[], log: (e: VetoLogEntry) => void): { avoid: string[] } {
-  const hits = vetoRecipe(recipe, index);
+export function recipeVetoHits(recipe: Recipe, index: VetoRow[], log: (e: VetoLogEntry) => void, userText?: string): { avoid: string[] } {
+  const hits = vetoRecipe(recipe, index, userText);
   for (const h of hits) log({ event: 'veto-recipe', candidate: recipe.t, ingredient: h.ingredient, row: h.row });
   const avoid = [...new Set(hits.filter((h) => !h.row.allergy).map((h) => h.ingredient))];
   return { avoid };
