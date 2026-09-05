@@ -3,6 +3,7 @@
 // Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
 import { useEffect, useRef, useState } from 'react';
+import { applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
@@ -11,27 +12,12 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
-import { batchMatchesQuery } from '../../lib/recipe';
 import styles from './Pantry.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { useAuth } from '../../store/auth';
 
-const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
-const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
-  fresh: 'Свіже',
-  fridge: 'Холодильник',
-  freezer: 'Морозилка',
-  dry: 'Суха шафа',
-  spices: 'Спеції',
-  drinks: 'Напої',
-};
-
-function daysLeft(iso: string | null): number | null {
-  if (!iso) return null;
-  return Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
-}
 
 export function PantryPage() {
   const openNav = useNavStore((st) => st.setOpen);
@@ -42,7 +28,8 @@ export function PantryPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
-  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<FilterState>(INITIAL);
+  const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
   // QA9-09: швидке «✕» на рядку — списати одним тапом, з ↩ Повернути.
   const [removed, setRemoved] = useState<PantryBatch | null>(null);
   const removedTimer = useRef<number | null>(null);
@@ -123,6 +110,7 @@ export function PantryPage() {
       snapshotReady.current = true;
       setBatches(p.batches);
       setProducts(p.products ?? []);
+      setLastReceiptAt(p.last_receipt_at ?? null);
       setShoppingCount(s.count);
     } finally {
       setLoading(false);
@@ -144,18 +132,48 @@ export function PantryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const q = query.trim().toLowerCase();
-  // Пул-3: пошук бачить і невидиме — трійку продукту і категорії/аліаси
-  // каталогу («сир» → моцарела, камбоцола, пармезан).
+  // Раунд 5, крок Ф1: порядок / тільки / стан — логіка в filter.ts (спека
+  // дизайну один в один), тут лише стан і рендер.
   const productsById = new Map(products.map((p) => [p.id, p]));
-  const filtered = q
-    ? batches.filter((b) => batchMatchesQuery(q, b, productsById))
-    : batches;
-  const byZone = new Map<PantryBatch['zone'], PantryBatch[]>();
-  for (const b of filtered) {
-    if (!byZone.has(b.zone)) byZone.set(b.zone, []);
-    byZone.get(b.zone)!.push(b);
-  }
+  const view = applyFilter(batches, filter, { productsById, receiptAt: lastReceiptAt });
+  const q = filter.q.trim().toLowerCase();
+
+  const renderRow = (r: RowView, flat: boolean) => {
+    const b = r.it;
+    return (
+      /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
+         ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+        <button className={styles['row-main']} onClick={() => setEditing(b)}>
+          <span
+            key={r.mark}
+            className={`${styles.mark} ${styles['mark-tick']} ${styles[`tone-${r.markTone}`]}`}
+            title={b.no === 'не можна' ? 'Не можна' : b.no ? 'Не їм' : b.state === 'opened' ? 'Відкрита' : 'Запакована'}
+            aria-label={b.no === 'не можна' ? 'Не можна' : b.no ? 'Не їм' : b.state === 'opened' ? 'Відкрита' : 'Запакована'}
+          >
+            {r.mark}
+          </span>
+          <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
+            <span className={styles['name-text']}>{r.name}</span>
+            {flat ? (
+              <span className={styles['meta-line']}>
+                <span className={styles['zone-tag']}>{r.zone}</span>
+                {r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>}
+              </span>
+            ) : (r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>)}
+          </span>
+          {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
+          {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
+        </button>
+        <button
+          className={styles['row-x']}
+          aria-label={`Списати «${b.label}»`}
+          title="Закінчилось? Прибрати"
+          onClick={() => void quickRemove(b)}
+        >✕</button>
+      </div>
+    );
+  };
 
   return (
     <div className={styles.screen}>
@@ -178,20 +196,17 @@ export function PantryPage() {
             + Додати
           </button>
           {/* QA6-12: під час пошуку лічильник показував загальну кількість —
-              «9 ПОЗИЦІЙ» при одній видимій. */}
-          <div className={styles.meta}>
-            {q
-              ? `${filtered.length} З ${batches.length}`
-              : `${batches.length} ${plural(batches.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`}
-          </div>
+              «9 ПОЗИЦІЙ» при одній видимій. Крок Ф1: те саме для фільтра — «12 З 61». */}
+          <div className={styles.meta} data-testid="pantry-meta">{view.meta}</div>
       </>} />
 
       <div className={styles.body}>
-        {batches.length >= 8 && (
+        {batches.length > 0 && (
           <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Знайти в коморі"
+            value={filter.q}
+            onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+            placeholder="Знайти в коморі — продукт або категорію: «сир», «овочі»"
+            aria-label="Знайти в коморі"
             style={{
               width: '100%',
               padding: '10px 14px',
@@ -205,6 +220,16 @@ export function PantryPage() {
             }}
           />
         )}
+        {batches.length > 0 && (
+          <FilterRails
+            view={view}
+            state={filter}
+            onSort={(k) => setFilter((f) => ({ ...f, sort: k }))}
+            onKind={(k) => setFilter((f) => toggleKind(f, k))}
+            onState={(k) => setFilter((f) => toggleState(f, k))}
+            onReset={() => setFilter((f) => resetFilter(f))}
+          />
+        )}
         {loading && <SkeletonRows rows={5} />}
         {!loading && batches.length === 0 && (
           <div className={styles.empty}>
@@ -216,18 +241,21 @@ export function PantryPage() {
             </p>
           </div>
         )}
-        {!loading && batches.length > 0 && filtered.length === 0 && (
+        {!loading && view.empty && (
+          <div className={styles.empty} data-testid="filter-empty">
+            <h3>{view.emptyTitle}</h3>
+            <p>{view.emptyText} <button type="button" className={styles['link-btn']} onClick={() => setFilter((f) => resetFilter(f))}>Показати все</button></p>
+          </div>
+        )}
+        {!loading && batches.length > 0 && !view.empty && view.shown.length === 0 && (
           <div className={styles.empty} style={{ borderStyle: 'solid' }}>
-            <p>За «{query}» нічого. Спробуй інше слово.</p>
+            <p>За «{filter.q}» нічого. Спробуй інше слово.</p>
           </div>
         )}
 
-        {(() => {
+        {!view.dirty && (() => {
           // Пул-6 №1: «КРАЩЕ НЕ ВІДКЛАДАТИ» — завжди зверху, на всю ширину сітки.
-          const burning = filtered.filter((b) => {
-            const d = daysLeft(b.expires_at);
-            return d != null && d <= 3;
-          });
+          const burning = view.shown.filter((b) => b.days != null && b.days <= 3);
           if (!burning.length) return null;
           return (
             <div className={styles['burn-section']}>
@@ -235,7 +263,7 @@ export function PantryPage() {
                 СПОЧАТКУ ГОРИТЬ
               </div>
               {burning.map((b) => {
-                const days = daysLeft(b.expires_at)!;
+                const days = b.days!;
                 return (
                   <button key={b.id} className={styles['burn-row']} onClick={() => setEditing(b)}>
                     <span style={{ color: 'var(--amber)' }}>◔</span>
@@ -248,54 +276,22 @@ export function PantryPage() {
           );
         })()}
 
-        {ZONE_ORDER.map((zone) => {
-          const items = byZone.get(zone);
-          if (!items?.length) return null;
-          return (
-            <div key={zone}>
-              <div className={styles['section-label']}>{ZONE_LABEL[zone]}</div>
-              {items.map((b) => {
-                const days = daysLeft(b.expires_at);
-                const urgent = b.state === 'opened' && days != null && days <= 5;
-                return (
-                  /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
-                     ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
-                  <div key={b.id} id={`batch-${b.id}`} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <button
-                      className={styles['row-main']}
-                      onClick={() => setEditing(b)}
-                    >
-                      {/* UX9-19: гліф стану має пояснювати себе сам. */}
-                      <span
-                        key={b.state}
-                        className={`${styles.mark} ${styles['mark-tick']} ${b.state === 'opened' ? styles.opened : ''}`}
-                        title={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
-                        aria-label={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
-                      >
-                        {b.state === 'opened' ? '◔' : '●'}
-                      </span>
-                      <span className={styles.name}>
-                        {b.label}
-                        {urgent && days != null && (
-                          <span className={styles.hint}>ВІДКРИТО · ≈{days} {days === 1 ? 'ДЕНЬ' : 'ДНІ'}</span>
-                        )}
-                      </span>
-                      {b.value != null && b.unit && (
-                        <span className={styles.qty}>{formatQty(b.value, b.unit)}</span>
-                      )}
-                    </button>
-                    <button
-                      className={styles['row-x']}
-                      aria-label={`Списати «${b.label}»`}
-                      title="Закінчилось? Прибрати"
-                      onClick={() => void quickRemove(b)}
-                    >✕</button>
-                  </div>
-                );
-              })}
+        {view.grouped && view.groups.map((g) => (
+          <div key={g.zone} data-zone={g.zone}>
+            <div className={styles['section-label']}>{g.label} <span className={styles['section-count']}>{g.count}</span></div>
+            {g.items.map((r) => renderRow(r, false))}
+          </div>
+        ))}
+
+        {!view.grouped && !view.empty && view.list.length > 0 && (
+          <div className={styles.flat} data-testid="flat-list">
+            <div className={styles['flat-head']}>
+              <span style={{ flex: 1 }}>{view.flatLabel}</span>
+              <span className={styles['flat-unit']}>{view.unitLabel}</span>
             </div>
-          );
-        })}
+            {view.list.map((r) => renderRow(r, true))}
+          </div>
+        )}
       </div>
 
       {removed && (
@@ -322,6 +318,68 @@ export function PantryPage() {
         />
       )}
 
+    </div>
+  );
+}
+
+// Три рядки над списком: порядок (одна шкала), тільки (один рід), стан (до
+// двох). На мобільному — рейки з горизонтальним скролом, підпис закріплений
+// зліва; активне слово прокручується у видиму зону (reveal() з дизайну).
+function FilterRails({ view, state, onSort, onKind, onState, onReset }: {
+  view: FilterView; state: FilterState;
+  onSort: (k: SortKey) => void; onKind: (k: KindKey) => void; onState: (k: StateKey) => void; onReset: () => void;
+}) {
+  const sortRef = useRef<HTMLDivElement>(null);
+  const kindRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef<HTMLDivElement>(null);
+  const reveal = (rail: HTMLDivElement | null, k: string | undefined) => {
+    if (!rail || !k) return;
+    const el = rail.querySelector<HTMLElement>(`[data-k="${k}"]`);
+    if (!el) return;
+    const l = el.offsetLeft - rail.offsetLeft, r = l + el.offsetWidth;
+    if (l < rail.scrollLeft + 12) rail.scrollLeft = l - 12;
+    else if (r > rail.scrollLeft + rail.clientWidth - 22) rail.scrollLeft = r - rail.clientWidth + 22;
+  };
+  useEffect(() => {
+    reveal(sortRef.current, state.sort);
+    reveal(kindRef.current, view.kinds.find((k) => k.on)?.key);
+    reveal(stateRef.current, [...view.states].reverse().find((k) => k.on)?.key);
+  }, [state.sort, state.cuts, view.kinds, view.states]);
+  return (
+    <div className={styles.rails} data-testid="filter-rails">
+      <div className={styles.rail}>
+        <span className={styles['rail-label']}>порядок</span>
+        <div className={`${styles['rail-words']} ${styles.hs}`} ref={sortRef} role="radiogroup" aria-label="Порядок">
+          {SORTS.map((s) => (
+            <button key={s.key} type="button" data-k={s.key} role="radio" aria-checked={s.key === state.sort}
+              className={`${styles.word} ${styles['word-sort']} ${s.key === state.sort ? styles['word-on'] : ''}`} onClick={() => onSort(s.key)}>{s.label}</button>
+          ))}
+        </div>
+        {view.dirty ? <button type="button" className={`${styles.reset} ${styles['reset-desktop']}`} onClick={onReset}>скинути</button> : <span />}
+      </div>
+      <div className={styles.rail}>
+        <span className={styles['rail-label']}>тільки</span>
+        <div className={`${styles['rail-words']} ${styles.hs}`} ref={kindRef} aria-label="Тільки">
+          {view.kinds.map((k) => (
+            <button key={k.key} type="button" data-k={k.key} aria-pressed={k.on}
+              className={`${styles.word} ${styles.chip} ${k.on ? styles['chip-on'] : ''}`} onClick={() => onKind(k.key)}>{k.label}</button>
+          ))}
+        </div>
+        <span />
+      </div>
+      <div className={styles.rail}>
+        <span className={styles['rail-label']}>стан</span>
+        <div className={`${styles['rail-words']} ${styles.hs}`} ref={stateRef} aria-label="Стан">
+          {view.states.map((c) => (
+            <button key={c.key} type="button" data-k={c.key} aria-pressed={c.on} aria-disabled={c.full} disabled={c.full}
+              className={`${styles.word} ${styles.chip} ${c.on ? `${styles['chip-on']} ${styles[`tone-${c.tone}`]}` : ''} ${c.full ? styles['chip-full'] : ''}`}
+              onClick={() => onState(c.key)}>{c.label}</button>
+          ))}
+        </div>
+        <span />
+      </div>
+      {/* Мобільний (дизайн 1b): «скинути» під трьома рейками, праворуч. */}
+      {view.dirty && <button type="button" className={`${styles.reset} ${styles['reset-mobile']}`} onClick={onReset}>скинути</button>}
     </div>
   );
 }

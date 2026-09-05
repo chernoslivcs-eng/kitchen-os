@@ -16,7 +16,7 @@ import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted, traditionsOf } from './occasions.js';
 import { isProfileFieldCard } from './types.js';
 import { PROFILE_FIELDS, serializeProfileText, emptyProfileText, profileTextHints, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
-import { matchVeto } from './veto.js';
+import { pantryVetoRows } from './pantry-view.js';
 import type { Tradition } from './occasion-rules.js';
 
 const TRADITION_UA: Record<Tradition, string> = {
@@ -196,11 +196,8 @@ export function serializePantry(
       .map((a) => a.label + a.who);
     // Індекс: за назвою партії й за позицією каталогу продукту (категорії
     // ієрархії — «стейк рібай» → яловичина → мʼясо).
-    const vetoHits = vetoIndex?.length
-      ? matchVeto(b.label, vetoIndex).concat(
-          prod?.catalog_key ? matchVeto(BY_KEY.get(prod.catalog_key)?.name ?? '', vetoIndex) : [],
-        ).filter((r, i, arr) => arr.findIndex((x) => x.kind === r.kind && x.ref === r.ref) === i)
-      : [];
+    // Крок Ф1: той самий збіг, що дає `no` в GET /v1/pantry (pantry-view.ts).
+    const vetoHits = vetoIndex?.length ? pantryVetoRows(b, prod?.catalog_key ?? null, vetoIndex) : [];
     for (const r of vetoHits.filter((r) => r.allergy)) if (!hit.includes(r.ref!)) hit.push(r.ref!);
     const noEat = vetoHits.filter((r) => !r.allergy).map((r) => r.ref!);
     const fastHit = fasting && (isFastingRestricted(b.label) || prod?.tags.fasting === true);

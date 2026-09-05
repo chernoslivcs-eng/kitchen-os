@@ -6,7 +6,6 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
-import { batchNutrition } from '../src/nutrition.js';
 
 // Раунд 5, крок Н1 (§4): БЖВ рецепта рахує сервер з каталогу — штуки через
 // вагу одиниці, невідоме пропускається і дає «≈»; комора віддає БЖВ/100 г
@@ -67,16 +66,15 @@ describe('GET /v1/recipes/:id → nutrition_calc', () => {
   });
 });
 
-describe('GET /v1/pantry → nutrition на партії', () => {
+describe('GET /v1/pantry → БЖВ на партії (крок Ф1: плоскі поля)', () => {
   it('kcal/prot/fat/carb на 100 г, est за джерелом; невідомий продукт — null', async () => {
     const { repo, app, me } = await stand();
     await repo.insertBatch(batch(me.household_id, 'Куряче філе', { catalog_key: 'chicken_fillet' }));
     await repo.insertBatch(batch(me.household_id, 'Щось невідоме xyz'));
     const res = await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } });
-    const rows = (res.json() as { batches: { label: string; nutrition: { kcal: number; est: boolean } | null }[] }).batches;
+    const rows = (res.json() as { batches: { label: string; kcal: number | null; prot: number | null; est: boolean | null }[] }).batches;
     const fillet = rows.find((b) => b.label === 'Куряче філе')!;
-    expect(fillet.nutrition).toMatchObject({ kcal: kcalOf({ protein: 22.5, fat: 2.62, carbs: 0 }), prot: 22.5, est: false });
-    expect(rows.find((b) => b.label === 'Щось невідоме xyz')!.nutrition).toBeNull();
-    expect(batchNutrition({ catalog_key: null, label: 'Куряче філе', product_id: null }, [])?.est).toBe(false);
+    expect(fillet).toMatchObject({ kcal: kcalOf({ protein: 22.5, fat: 2.62, carbs: 0 }), prot: 22.5, est: false });
+    expect(rows.find((b) => b.label === 'Щось невідоме xyz')!).toMatchObject({ kcal: null, prot: null, est: null });
   });
 });

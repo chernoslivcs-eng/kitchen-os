@@ -14,10 +14,25 @@
 //   лишається в last_by/last_action.
 
 import type { FastifyInstance } from 'fastify';
-import type { PantryBatch, Repo, Zone, Unit, BatchState } from '@kitchen/domain';
+import type { PantryBatch, Repo, Zone, Unit, BatchState, IntakeCard } from '@kitchen/domain';
+import { pantryItemView } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
-import { batchNutrition } from '../nutrition.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
+
+// Крок Ф1: «з останнього чека» — партії, створені останньою застосованою
+// intake-карткою з джерелом-чеком (retail_receipt / chat_receipt). Один запит
+// по закритих картках дому за рік; скасована картка чеком не рахується.
+const RECEIPT_WINDOW_DAYS = 365;
+export async function lastReceiptBatches(repo: Repo, household_id: string): Promise<{ ids: Set<string>; at: string | null }> {
+  const cards = await repo.listRecentResolved(household_id, { since: new Date(Date.now() - RECEIPT_WINDOW_DAYS * 86_400_000), limit: 300 });
+  for (const pc of cards) {
+    if (!pc.applied_at || pc.undone_at || pc.card.type !== 'intake_diff') continue;
+    const src = (pc.card as IntakeCard).source;
+    if (!src) continue;
+    return { ids: new Set(pc.undo_snapshot?.before.created_batch_ids ?? []), at: src.at ?? pc.applied_at };
+  }
+  return { ids: new Set(), at: null };
+}
 
 function urgencyScore(b: PantryBatch): number {
   // Менше — терміновіше. Відкрите з датою → перше. Свіже — до `expires_at`. Інше — далеко.
@@ -29,7 +44,7 @@ function urgencyScore(b: PantryBatch): number {
 
 export function pantryRoute(app: FastifyInstance, repo: Repo) {
   app.get('/v1/pantry', { preHandler: authenticated(repo) }, async (req) => {
-    const { household_id } = requireUser(req);
+    const { user_id, household_id } = requireUser(req);
     const all = await repo.listBatches(household_id);
     const active = all.filter((b) => b.state !== 'depleted');
     active.sort((a, b) => urgencyScore(a) - urgencyScore(b));
@@ -45,13 +60,19 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
         ? { ...p, search_terms: [...new Set([...cat.categories, ...cat.aliases, cat.name.toLowerCase()])] }
         : p;
     });
-    // Раунд 5, крок Н1: БЖВ на 100 г з каталогу; est — джерело оцінка.
-    const batches = active.map((b) => ({ ...b, nutrition: batchNutrition(b, products) }));
+    // Раунд 5, крок Ф1: поля для фільтра — верхня категорія каталогу, БЖВ на
+    // 100 г з ознакою оцінки, дні до кінця свіжості, останній чек, «не їм /
+    // не можна» тим самим збігом, що ⚠ у промпті, вік партії.
+    const [vetoIndex, receipt] = await Promise.all([repo.getVetoIndex(user_id), lastReceiptBatches(repo, household_id)]);
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const now = Date.now();
+    const batches = active.map((b) => ({ ...b, ...pantryItemView(b, b.product_id ? byId.get(b.product_id) : undefined, vetoIndex, receipt.ids, now) }));
     return {
       household_id,
       count: active.length,
       batches,
       products,
+      last_receipt_at: receipt.at,
     };
   });
 

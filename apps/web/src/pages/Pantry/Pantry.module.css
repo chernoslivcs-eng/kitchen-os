@@ -178,6 +178,9 @@
     column-gap: 32px;
     row-gap: 20px;
     align-items: start;
+    /* Крок Ф1: короткий відфільтрований список — рядки сітки не розтягуються
+       на всю висоту екрана (align-content за замовчуванням stretch). */
+    align-content: start;
   }
   .body > input,           /* поле пошуку — на дві колонки */
   .body > .empty,
@@ -197,6 +200,9 @@
   :global(body.with-sidebar) .composer-wrap {
     margin-left: 36px;
     margin-right: auto;
+    /* Крок Ф1: width:100% + margin-left давали 36px за правим краєм —
+       колонка ✕ і «скинути» різались на 1280. */
+    width: calc(100% - 36px);
   }
 }
 
@@ -262,3 +268,167 @@
 /* Моушн-кіт: гліф стану ●/◔ «клацає» при перемиканні (key за станом). */
 .mark-tick { animation: mark-tick var(--dur-fast, 150ms) var(--ease-standard, ease); transition: color var(--dur-fast, 150ms); }
 @keyframes mark-tick { from { transform: scale(0.8); } to { transform: scale(1); } }
+
+/* ===== Раунд 5, крок Ф1: фільтр — порядок / тільки / стан (design/PANTRY-FILTER-v2) ===== */
+.rails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 -22px;            /* рейки на мобільному скролять до краю екрана */
+}
+.rail {
+  display: flex;
+  align-items: baseline;
+}
+.rail-label {
+  flex: none;
+  width: 80px;
+  padding-left: 22px;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.rail-words {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+  scroll-behavior: smooth;
+  padding-right: 22px;
+}
+.hs::-webkit-scrollbar { display: none; }
+.word {
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 2px 9px;
+  border-radius: 8px;
+  font: inherit;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.word-sort {
+  padding: 2px 2px 1px;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--fg-dim);
+}
+.word-sort.word-on {
+  color: var(--fg);
+  font-weight: 600;
+  border-bottom-color: var(--fg);
+}
+.chip-on {
+  background: var(--bg-hover);
+  color: var(--fg);
+  font-weight: 600;
+}
+.chip-full {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (hover: hover) {
+  .word:hover:not(:disabled) { color: var(--fg); }
+  .chip:hover:not(:disabled) { background: var(--bg-hover); }
+}
+.reset {
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 0 22px 0 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  cursor: pointer;
+}
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+.section-count { color: var(--border-strong); }
+
+/* Тони позначок і підрядків — токенами, тема сама перемикає. */
+.tone-fg { color: var(--fg); }
+.tone-dim { color: var(--fg-dim); }
+.tone-amber { color: var(--amber); }
+.tone-plum { color: var(--plum); }
+.tone-sage { color: var(--accent); }
+.tone-danger { color: var(--danger); }
+.row .mark.tone-plum { color: var(--plum); }
+.row .mark.tone-danger { color: var(--danger); }
+.row .mark.tone-sage { color: var(--accent); }
+
+.name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.meta-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.reset-mobile { align-self: flex-end; margin: 4px 22px 0; padding: 0; }
+.name-text { font-family: var(--font-body); font-size: 16px; color: var(--fg); }
+.sub, .zone-tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.zone-tag { color: var(--border-strong); }
+.val {
+  flex: none;
+  min-width: 72px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Плаский список: заголовок шкали + одиниця, рядки без груп. */
+.flat { display: flex; flex-direction: column; padding-top: 6px; animation: rowin 0.2s; }
+.flat-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+@keyframes rowin { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+@media (min-width: 768px) {
+  .reset-mobile { display: none; }
+  .body > .rails { grid-column: 1 / -1; margin: 0; }
+  .body > .flat { grid-column: 1 / -1; }
+  .rails { gap: 6px; }
+  .rail { display: grid; grid-template-columns: 72px 1fr auto; column-gap: 8px; }
+  .rail-label { width: auto; padding-left: 0; }
+  .rail-words { flex-wrap: wrap; white-space: normal; overflow: visible; padding-right: 0; gap: 6px; }
+  .reset { padding: 0; }
+  .name-flat { flex-direction: row; align-items: baseline; gap: 12px; }
+  .val { min-width: 110px; }
+  .flat-unit { width: 110px; text-align: right; }
+  .flat-head { padding-right: 44px; }  /* під колонку ✕ */
+}
+@media (max-width: 767px) {
+  .reset-desktop { display: none; }
+  .flat-unit { margin-left: auto; }
+  .meta-line .zone-tag + .sub::before { content: '· '; color: var(--border-strong); }
+  .qty-flat { display: none; }          /* плаский список на 390: назва · місце · значення (дизайн 1b) */
+  .val { min-width: 0; }
+  .flat-head { padding-right: 44px; }
+}
