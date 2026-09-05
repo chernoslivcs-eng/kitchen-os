@@ -63,20 +63,19 @@
 @media (max-width: 1023px) { .counter { bottom: 4px; background: transparent; } .rowActive .counter { background: transparent; } }
 
 /* Підказка */
+/* 9а(6): підказка — зелена: фон accent-bg, обводка accent-border, текст fg, підпис accent. */
 .hintAside {
-  background: var(--btn-primary-bg); color: var(--btn-primary-fg); border-radius: var(--r-lg);
+  background: var(--accent-bg); color: var(--fg); border: 1px solid var(--accent-border); border-radius: var(--r-lg);
   padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; align-self: start;
   animation: hint-in var(--dur-base) var(--ease-enter);
 }
-.hintLabel { font: 400 10px var(--font-mono); letter-spacing: var(--tracking-caps); text-transform: uppercase; opacity: .55; }
+.hintLabel { font: 400 10px var(--font-mono); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--accent); }
 .hintText { margin: 0; font: 400 14px/1.5 var(--font-body); }
-.hintEx { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid rgba(128, 128, 128, .3); margin-top: 4px; font: 400 14px/1.5 var(--font-body); opacity: .8; }
 .hintMobile {
-  display: none; margin: 4px -4px 10px; background: var(--btn-primary-bg); color: var(--btn-primary-fg);
+  display: none; margin: 4px -4px 10px; background: var(--accent-bg); color: var(--fg); border: 1px solid var(--accent-border);
   border-radius: var(--r-lg); padding: 14px 16px; flex-direction: column; gap: 8px;
   animation: hint-in var(--dur-base) var(--ease-enter);
 }
-.hintExMobile { font: 400 13px/1.5 var(--font-body); opacity: .75; }
 @media (max-width: 1023px) { .hintAside { display: none; } .hintMobile { display: flex; } }
 @keyframes hint-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -116,6 +115,9 @@
   font: 400 15px var(--font-body); color: var(--fg);
 }
 .listName { flex: 1; }
+.listNameMuted { flex: 1; color: var(--fg-muted); font-size: 14px; }
+.inviteForm { display: flex; gap: 8px; align-items: flex-start; padding: 10px 0; }
+.inviteOk { background: var(--accent-bg); border-radius: var(--r-sm); padding-left: 10px; padding-right: 10px; border-bottom: 0; }
 .listMeta { font: 400 10.5px var(--font-mono); letter-spacing: .05em; color: var(--fg-dim); }
 .metaOk { color: var(--accent); }
 .metaAmber { color: var(--amber); }

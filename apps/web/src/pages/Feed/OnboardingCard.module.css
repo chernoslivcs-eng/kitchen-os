@@ -14,30 +14,41 @@
 
 .body { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; }
 .step { font: 400 10px var(--font-mono); letter-spacing: .1em; color: var(--fg-dim); }
-.title, .titleDanger { font: 700 19px/1.2 var(--font-display); letter-spacing: -.02em; color: var(--fg); }
+/* 9а(4): заголовок + підказка — мінімальна висота на 2 рядки заголовка і 3 рядки
+   підказки з токенів типографіки, а не під конкретний текст. */
+.copy {
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: calc(var(--fs-3) * var(--lh-tight) * 2 + var(--fs-small) * var(--lh-body) * 3);
+}
+.title, .titleDanger { font: 700 var(--fs-3)/var(--lh-tight) var(--font-display); letter-spacing: -.02em; color: var(--fg); }
 .titleDanger { color: var(--danger); }
-.text { font: 400 14px/1.5 var(--font-body); color: var(--fg-muted); text-wrap: pretty; }
+.text { font: 400 var(--fs-small)/var(--lh-body) var(--font-body); color: var(--fg-muted); text-wrap: pretty; }
 
+/* 9а(1–2): рядок-речення лежить прямо на картці, без підложки; клікабельний увесь,
+   курсор text; лічильник у правому нижньому куті рядка. */
 .row {
   position: relative; margin-top: 8px; font: 400 15.5px/1.5 var(--font-body); color: var(--fg);
-  padding: 7px 10px 20px; margin-left: -10px; margin-right: -10px; border-radius: var(--r-sm); background: var(--bg-surface);
+  padding: 4px 0 18px; cursor: text; background: transparent;
 }
 .start { color: var(--fg-muted); }
 .startDanger { color: var(--danger); }
-.edit { color: var(--fg); border-bottom: 1px dashed var(--border-strong); padding-bottom: 1px; outline: none; caret-color: var(--accent); min-width: 1ch; white-space: pre-wrap; }
-.edit:focus { border-bottom-color: var(--accent); }
+.edit { color: var(--fg); border-bottom: 1px dashed var(--border-strong); padding-bottom: 1px; outline: none; caret-color: var(--accent); min-width: 1ch; white-space: pre-wrap; cursor: text; }
+.row:hover .edit { border-bottom-color: var(--fg-dim); }
+.row:focus-within .edit, .edit:focus { border-bottom-color: var(--accent); }
 .edit:empty::before { content: attr(data-ph); color: var(--fg-dim); }
-.counter { position: absolute; right: 10px; bottom: 4px; font: 400 10.5px var(--font-mono); letter-spacing: .05em; color: var(--fg-dim); pointer-events: none; }
+.counter { position: absolute; right: 0; bottom: 2px; font: 400 10.5px var(--font-mono); letter-spacing: .05em; color: var(--fg-dim); pointer-events: none; }
 .counterLimit { color: var(--amber); }
-.meta { font: 500 10.5px var(--font-mono); letter-spacing: .1em; color: var(--accent); }
+.meta { font: 500 10.5px var(--font-mono); letter-spacing: .1em; color: var(--accent); min-height: 1.4em; }
 
 .actions { display: flex; gap: 10px; margin-top: 6px; }
 .actions > :first-child { flex: 1; }
 
 .nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px; }
+/* 9а(3): стрілки — акцентні; неактивна приглушена тим самим кольором. */
 .arrow {
-  width: var(--tap); height: 36px; border-radius: var(--r); border: 1px solid var(--border); background: transparent;
-  color: var(--fg); font-size: 16px; cursor: pointer;
+  width: var(--tap); height: 36px; border-radius: var(--r); border: 1px solid var(--accent); background: transparent;
+  color: var(--accent); font-size: 16px; cursor: pointer;
 }
+.arrow:hover:not(:disabled) { background: var(--accent-bg); }
 .arrow:disabled { opacity: .35; cursor: default; }
 .progress { font: 400 11px var(--font-mono); letter-spacing: .1em; color: var(--fg-dim); }

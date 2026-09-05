@@ -7,9 +7,9 @@
 // contenteditable з пунктиром. Автозбереження PATCH /v1/profile/:key по blur і
 // по паузі 800 мс, оптимістично, без спінерів; помилка — тост і один повтор.
 
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ClipboardEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2 } from '../../api';
+import { api, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated } from '../../api';
 import { PROFILE_ROWS, HINT_IDLE, SECTION, PLAN_LABEL, type ProfileRowCopy } from '../../lib/profile-copy';
 import type { ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { useAuth } from '../../store/auth';
@@ -163,6 +163,68 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     try { await api.profileV2.restoreNote(t.note.id); } catch { /* рядок уже на місці; повторний DELETE поверне все назад */ }
   }
 
+  // ----- Дім (9а(7)): люди, з якими ділиш комору — існуючі ендпоінти, як у v1 ---
+  const refreshMe = useAuth((s) => s.refresh);
+  const [invites, setInvites] = useState<InviteInfo[]>([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [lastInvite, setLastInvite] = useState<InviteCreated | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const householdId = me?.household.id;
+  useEffect(() => {
+    if (!householdId) return;
+    let alive = true;
+    api.households.listInvites(householdId).then((r) => { if (alive) setInvites(r.invites); }).catch(() => {});
+    return () => { alive = false; };
+  }, [householdId]);
+  const activeInvites = invites.filter((i) => !i.consumed_at && !i.revoked_at);
+  const inviteStatus = (inv: InviteInfo): { text: string; cls: string } => {
+    if (inv.consumed_at) return { text: 'ПРИЙНЯТО', cls: styles.metaOk ?? '' };
+    if (inv.revoked_at) return { text: 'СКАСОВАНО', cls: '' };
+    if (new Date(inv.expires_at).getTime() < Date.now()) return { text: 'ТЕРМІН СПЛИВ', cls: '' };
+    return { text: 'ЧЕКАЄ', cls: styles.metaAmber ?? '' };
+  };
+  async function inviteSend(e: FormEvent) {
+    e.preventDefault();
+    if (!me) return;
+    const emailTo = inviteEmail.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTo)) { setInviteError('Схоже, це не email'); return; }
+    setInviting(true); setInviteError(null); setLinkCopied(false);
+    try {
+      const created = await api.households.invite(me.household.id, emailTo);
+      setLastInvite(created);
+      setInviteEmail('');
+      setInvites((await api.households.listInvites(me.household.id)).invites);
+    } catch (err) { setInviteError((err as Error).message); } finally { setInviting(false); }
+  }
+  async function copyInviteLink() {
+    if (!lastInvite) return;
+    try { await navigator.clipboard.writeText(lastInvite.link); setLinkCopied(true); window.setTimeout(() => setLinkCopied(false), 2000); }
+    catch { window.prompt('Скопіюй лінк запрошення:', lastInvite.link); }
+  }
+  async function inviteRevoke(id: string) {
+    try { await api.invites.revoke(id); if (me) setInvites((await api.households.listInvites(me.household.id)).invites); } catch { /* MVP */ }
+  }
+  async function memberRemove(user_id: string, isMe: boolean, name: string) {
+    if (!me) return;
+    if (!confirm(isMe ? 'Вийти з дому?' : `Виключити ${name}?`)) return;
+    try {
+      await api.households.removeMember(me.household.id, user_id);
+      if (isMe) await logout(); else await refreshMe();
+    } catch (err) { alert((err as Error).message); }
+  }
+  async function memberPromote(user_id: string, name: string) {
+    if (!me) return;
+    if (!confirm(`Передати роль власника ${name}? Ти станеш звичайним учасником.`)) return;
+    try {
+      await api.households.setRole(me.household.id, user_id, 'owner');
+      await api.households.setRole(me.household.id, me.user.id, 'member');
+      await refreshMe();
+    } catch (err) { alert((err as Error).message); }
+  }
+
   // ----- Мережі (існуючі ендпоінти M13, без нової логіки) --------------------
   const [retail, setRetail] = useState<RetailStatus>('loading');
   const [receiptAt, setReceiptAt] = useState<string | null>(null);
@@ -253,7 +315,6 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                 {active && (
                   <div className={styles.hintMobile} key={hintKey}>
                     <p className={styles.hintText}>{row.hint}</p>
-                    <span className={styles.hintExMobile}>{row.ex.map((e) => `«${e}»`).join(', ')}</span>
                   </div>
                 )}
               </div>
@@ -262,12 +323,8 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
         </div>
         <aside className={styles.hintAside} key={hintKey}>
           <span className={styles.hintLabel}>{hintRow ? hintRow.start : HINT_IDLE.label}</span>
+          {/* 9а(5): приклади (`ex`) з копі не рендеряться — лишається текст підказки. */}
           <p className={styles.hintText}>{hintRow ? hintRow.hint : HINT_IDLE.text}</p>
-          {hintRow && (
-            <div className={styles.hintEx}>
-              {hintRow.ex.map((e) => <span key={e}>— {e}</span>)}
-            </div>
-          )}
         </aside>
       </div>
 
@@ -293,6 +350,71 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
           </div>
         )}
       </div>
+
+      {/* ----- Дім: список людей, запрошення, ролі — ендпоінти v1 без змін ----- */}
+      {me && (
+        <div className={styles.section} data-section="home">
+          <div className={styles.sectionLabel}>
+            <span>{SECTION.home}</span>
+            <span className={styles.sectionSubDesktop}>{SECTION.homeDesktop}</span>
+          </div>
+          {me.household.members.length <= 1 && !inviteOpen && (
+            <div className={styles.listRow}>
+              <span className={styles.listNameMuted}>{SECTION.homeEmpty}</span>
+              <button type="button" className={styles.listAction} onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>
+            </div>
+          )}
+          {me.household.members.length > 1 && me.household.members.map((mem) => {
+            const isMe = mem.user_id === me.user.id;
+            const iAmOwner = me.household.role === 'owner';
+            const canRemove = (iAmOwner && !isMe) || (isMe && me.household.role !== 'owner');
+            return (
+              <div key={mem.user_id} className={styles.listRow} data-member={mem.user_id}>
+                <span className={styles.listName}>{mem.name}{isMe ? ' (ти)' : ''}</span>
+                <span className={styles.listMeta}>{mem.role === 'owner' ? 'ВЛАСНИК' : 'УЧАСНИК'}</span>
+                {iAmOwner && !isMe && mem.role === 'member' && (
+                  <button type="button" className={styles.listActionDim} onClick={() => void memberPromote(mem.user_id, mem.name)}>Передати роль</button>
+                )}
+                {canRemove && (
+                  <button type="button" className={styles.listActionDim} onClick={() => void memberRemove(mem.user_id, isMe, mem.name)}>{isMe ? 'Вийти з дому' : 'Виключити'}</button>
+                )}
+              </div>
+            );
+          })}
+          {activeInvites.map((inv) => {
+            const st = inviteStatus(inv);
+            return (
+              <div key={inv.id} className={styles.listRow} data-invite={inv.id}>
+                <span className={styles.listName}>{inv.email}</span>
+                <span className={`${styles.listMeta} ${st.cls}`}>{st.text}</span>
+                {st.text === 'ЧЕКАЄ' && <button type="button" className={styles.listActionDim} onClick={() => void inviteRevoke(inv.id)}>Скасувати</button>}
+              </div>
+            );
+          })}
+          {(me.household.members.length > 1 || activeInvites.length > 0) && !inviteOpen && (
+            <div className={styles.listRow}>
+              <span className={styles.listNameMuted}>{SECTION.homeInviteHint.replace('{home}', me.household.name)}</span>
+              <button type="button" className={styles.listAction} onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>
+            </div>
+          )}
+          {inviteOpen && (
+            <form onSubmit={inviteSend} className={styles.inviteForm} data-invite-form>
+              <div style={{ flex: 1 }}>
+                <Input type="email" inputMode="email" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} error={inviteError} />
+              </div>
+              <Button type="submit" loading={inviting}>{SECTION.inviteSend}</Button>
+            </form>
+          )}
+          {lastInvite && (
+            <div className={`${styles.listRow} ${lastInvite.mail_sent ? styles.inviteOk : ''}`} data-invite-link>
+              <span className={styles.listNameMuted}>
+                {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам:` : `Лист не дійшов. Передай ${lastInvite.email} лінк сам, месенджером:`}
+              </span>
+              <button type="button" className={styles.listAction} onClick={() => void copyInviteLink()}>{linkCopied ? '✓ Скопійовано' : 'Скопіювати лінк'}</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ----- Мережі: підключення/статуси — ті самі ендпоінти, що на старій сторінці ----- */}
       {retail !== 'loading' && retail !== 'unavailable' && (

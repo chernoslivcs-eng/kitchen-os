@@ -94,6 +94,20 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
     try { if (cardId) await api.onboarding.skip(cardId, row.k); } catch { /* пропуск лишається локально до перезавантаження */ } finally { setBusy(false); }
     advance(index);
   }
+  // 9а(1): клікабельний увесь рядок — фокус у закінчення, курсор у кінець.
+  function focusEdit() {
+    const el = editRef.current;
+    if (!el) return;
+    el.focus();
+    try {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    } catch { /* jsdom/старі браузери — фокус і так стоїть */ }
+  }
   function onKeyDown(e: KeyboardEvent<HTMLSpanElement>) {
     if (!row) return;
     if (e.key === 'Enter') { e.preventDefault(); void save(); return; }
@@ -119,9 +133,12 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
           </div>
           <div className={styles.body}>
             <span className={styles.step}>{index + 1} / {PROFILE_ROWS.length}</span>
-            <span className={row.danger ? styles.titleDanger : styles.title}>{row.card}</span>
-            <span className={styles.text}>{row.body}</span>
-            <div className={styles.row}>
+            {/* 9а(4): текстовий блок фіксованої мінімальної висоти — панелі однакові. */}
+            <div className={styles.copy}>
+              <span className={row.danger ? styles.titleDanger : styles.title}>{row.card}</span>
+              <span className={styles.text}>{row.body}</span>
+            </div>
+            <div className={styles.row} data-row-click onClick={(e) => { if (e.target !== editRef.current) focusEdit(); }}>
               <span className={row.danger ? styles.startDanger : styles.start}>{row.start}</span>{' '}
               <span
                 ref={editRef}
@@ -137,7 +154,8 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
               />
               <span className={`${styles.counter} ${atLimit ? styles.counterLimit : ''}`} data-counter>{atLimit ? row.lim : `${n}/${row.max}`}</span>
             </div>
-            {state !== 'empty' && <span className={styles.meta} data-meta>{META[state]}</span>}
+            {/* 9а(4): рядок мети завжди в потоці — кнопки не стрибають між панелями. */}
+            <span className={styles.meta} data-meta={state !== 'empty' ? '' : undefined}>{state !== 'empty' ? META[state] : '\u00a0'}</span>
             <div className={styles.actions}>
               <Button variant="primary" onClick={() => void save()} disabled={!draft.trim() || busy} loading={busy}>Записати</Button>
               {row.k === 'ban'
@@ -155,7 +173,9 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
           </div>
           <div className={styles.body}>
             <span className={styles.step}>Готово</span>
+            <div className={styles.copy}>
             <span className={styles.title}>{filledCount === 7 ? 'Усі сім записав.' : filledCount === 0 ? 'Нічого не записав — теж варіант, зʼясуємо по ходу.' : `Записав ${filledCount} із семи. Решта зʼясується по ходу.`}</span>
+            </div>
             <div className={styles.actions}>
               <Button variant="primary" onClick={onSummary}>Показати, що вийшло</Button>
             </div>

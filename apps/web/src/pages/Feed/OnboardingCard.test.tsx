@@ -122,6 +122,19 @@ describe('картка «Про тебе»', () => {
     expect(btn('Показати, що вийшло')).toBeTruthy();
   });
 
+  it('9а(1): клік по будь-якому місцю рядка-речення ставить фокус у закінчення', async () => {
+    await mount();
+    const row = host!.querySelector<HTMLElement>('[data-row-click]')!;
+    const edit = host!.querySelector<HTMLSpanElement>('[contenteditable]')!;
+    await act(async () => { row.click(); });
+    expect(document.activeElement).toBe(edit);
+  });
+
+  it('9а(4): рядок мети присутній на кожній панелі, щоб кнопки не стрибали', async () => {
+    await mount();
+    expect(host!.querySelector('[class*="meta"]')).not.toBeNull();
+  });
+
   it('ліміт: на межі друкований символ блокується, лічильник показує текст ліміту', async () => {
     await mount();
     const edit = host!.querySelector<HTMLSpanElement>('[contenteditable]')!;

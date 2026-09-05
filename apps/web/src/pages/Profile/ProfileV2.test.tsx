@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ProfileV2 } from './ProfileV2';
 import { pickProfilePage } from './ProfileRoute';
 import type { ProfileV2Response } from '../../api';
+import { useAuth } from '../../store/auth';
 import { PROFILE_FIELDS } from '@kitchen/domain/profile-fields';
 
 // Раунд 4, крок 6 (§8): сім рядків з даними, PATCH по blur, ліміт блокує
@@ -41,6 +42,10 @@ function installFetch() {
     calls.push({ url, method, body });
     const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
     if (url === '/v1/retail') return json({ silpo: { status: 'unavailable' } });
+    if (url === '/v1/households/h1/invites' && method === 'GET') return json({ invites: [{ id: 'i1', email: 'guest@x.local', role: 'member', created_at: '2026-09-05T00:00:00.000Z', expires_at: '2036-01-01T00:00:00.000Z', consumed_at: null, revoked_at: null }] });
+    if (url === '/v1/households/h1/invite' && method === 'POST') return json({ id: 'i2', household_id: 'h1', email: body.email, role: 'member', expires_at: '2036-01-01T00:00:00.000Z', link: 'http://x/invite?token=t', mail_sent: true });
+    if (url === '/v1/invites/i1/revoke') return json(null);
+    if (url.startsWith('/v1/households/h1/members/') && method === 'DELETE') return json(null);
     if (url.startsWith('/v1/profile/notes/') && method === 'DELETE') return new Response(null, { status: 204 });
     if (url.startsWith('/v1/profile/notes/') && method === 'POST') return json({ note: { id: 'n1', text: 'x', source: 'assistant', created_at: '2026-09-02T10:00:00.000Z' } });
     if (url.startsWith('/v1/profile/') && method === 'PATCH') {
@@ -174,6 +179,70 @@ describe('Профіль v6', () => {
   it('порожні нотатки — «Поки порожньо. Дай духовці трохи часу.»', async () => {
     await mount({ ...initial(), notes: [] });
     expect(host.textContent).toContain('Поки порожньо. Дай духовці трохи часу.');
+  });
+});
+
+describe('9а: підказка без прикладів, зелена; секція «Дім»', () => {
+  it('приклади (`ex`) не рендеряться ні в панелі, ні під рядком', async () => {
+    await mount();
+    const el = edit('no');
+    await act(async () => { el.focus(); fire(el, 'focusin'); });
+    expect(host.textContent).toContain('Те, чого на твоєму столі просто не має бути.');
+    expect(host.textContent).not.toContain('кінзи й оливок');
+    expect(host.textContent).not.toContain('— нічого тваринного');
+  });
+
+  it('«Дім»: список людей з ролями, запрошення через існуючий POST, скасування інвайту', async () => {
+    useAuth.setState({
+      status: 'signed_in',
+      me: {
+        user: { id: 'u1', name: 'Пилип', email: 'me@x.local', plan: 'beta' },
+        household: { id: 'h1', name: 'Дім', role: 'owner', members: [
+          { user_id: 'u1', name: 'Пилип', role: 'owner', joined_at: '2026-09-01T00:00:00.000Z' },
+          { user_id: 'u2', name: 'Оксана', role: 'member', joined_at: '2026-09-02T00:00:00.000Z' },
+        ] },
+        session_id: 's1',
+      },
+    });
+    try {
+      await mount();
+      await act(async () => { await Promise.resolve(); });
+      const home = host.querySelector('[data-section="home"]')!;
+      expect(home.textContent).toContain('Дім');
+      expect(home.textContent).toContain('Оксана');
+      expect(home.textContent).toContain('ВЛАСНИК');
+      expect(home.textContent).toContain('guest@x.local');
+      expect(home.textContent).toContain('ЧЕКАЄ');
+      expect(calls.some((c) => c.url === '/v1/households/h1/invites')).toBe(true);
+
+      const invite = [...home.querySelectorAll('button')].find((b) => b.textContent === 'Запросити')!;
+      await act(async () => { invite.click(); });
+      const input = host.querySelector<HTMLInputElement>('[data-invite-form] input')!;
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+        setter.call(input, 'new@x.local');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => { host.querySelector('[data-invite-form]')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+      expect(calls.find((c) => c.url === '/v1/households/h1/invite')).toMatchObject({ method: 'POST', body: { email: 'new@x.local' } });
+      expect(host.querySelector('[data-invite-link]')!.textContent).toContain('new@x.local');
+
+      const revoke = [...host.querySelectorAll<HTMLButtonElement>('[data-invite="i1"] button')].find((b) => b.textContent === 'Скасувати')!;
+      await act(async () => { revoke.click(); });
+      expect(calls.some((c) => c.url === '/v1/invites/i1/revoke')).toBe(true);
+    } finally {
+      useAuth.setState({ status: 'idle', me: null });
+    }
+  });
+
+  it('«Дім» порожній (лише я): одне речення і дія «Запросити»', async () => {
+    useAuth.setState({ status: 'signed_in', me: { user: { id: 'u1', name: 'Пилип', email: 'me@x.local' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [{ user_id: 'u1', name: 'Пилип', role: 'owner', joined_at: '2026-09-01T00:00:00.000Z' }] }, session_id: 's1' } });
+    try {
+      await mount();
+      const home = host.querySelector('[data-section="home"]')!;
+      expect(home.textContent).toContain('Поки готуєш сам.');
+      expect([...home.querySelectorAll('button')].some((b) => b.textContent === 'Запросити')).toBe(true);
+    } finally { useAuth.setState({ status: 'idle', me: null }); }
   });
 });
 
