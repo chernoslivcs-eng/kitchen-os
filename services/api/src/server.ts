@@ -17,7 +17,8 @@ import { recipesRoutes } from './routes/recipes.js';
 import { shoppingRoutes } from './routes/shopping.js';
 import { eventsRoutes } from './routes/events.js';
 import { adminOccasionsRoutes } from './routes/admin-occasions.js';
-import { profileRoutes } from './routes/profile.js';
+import { profileRoutes, eaterRoutes } from './routes/profile.js';
+import { profileV2Routes } from './routes/profile-v2.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
 
@@ -34,6 +35,10 @@ export interface BuildAppOpts {
   };
   google?: GoogleAuthOpts;
   retail?: RetailOpts;
+  // Раунд 4: профіль як сім речень. Env PROFILE_V2=1; за замовчуванням вимкнено —
+  // тоді API поводиться рівно як до раунду. Вмикається на локальному стенді на
+  // кроці 5, на проді — на кроці 9.
+  profileV2?: boolean;
 }
 
 export function buildApp(
@@ -67,7 +72,10 @@ export function buildApp(
   shoppingRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   eventsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   adminOccasionsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
-  profileRoutes(app, repo);
+  const profileV2 = opts.profileV2 ?? process.env.PROFILE_V2 === '1';
+  if (profileV2) profileV2Routes(app, repo);
+  else profileRoutes(app, repo);
+  eaterRoutes(app, repo);
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);
