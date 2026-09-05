@@ -235,3 +235,33 @@ export function appendProfileText(key: ProfileFieldKey, before: string, add: str
   const text = clampProfileText(key, joined);
   return { text, truncated: Array.from(joined.trim()).length > Array.from(text).length };
 }
+
+// ----- Крок 4 (a): відкат на проді — картка поля → ops-картка v1 ------------
+// Промт один (уже v2). З вимкненим PROFILE_V2 сервер перекладає картку поля
+// в стару форму ДО applyMode: no/meh → anti, ban → allergy (по комах),
+// love → wish, kit → equip по комах («Немає: …» → note), name/when → note.
+
+import type { ProfileFieldCard, ProfileOpsCard } from './types.js';
+
+const splitCommas = (t: string) => t.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+
+export function legacyOpsFromFieldCard(card: ProfileFieldCard): ProfileOpsCard {
+  const text = (card.text ?? '').trim();
+  const ops: ProfileOpsCard['ops'] = [];
+  if (!text) return { type: 'profile', ops };
+  const add = (kind: ProfileOpsCard['ops'][number]['kind'], label: string, extra: Record<string, unknown> = {}) =>
+    ops.push({ op: 'add', kind, label, ...extra });
+  switch (card.field) {
+    case 'no': case 'meh': add('anti', text); break;
+    case 'love': add('wish', text); break;
+    case 'ban': for (const l of splitCommas(text)) add('allergy', l); break;
+    case 'kit':
+      for (const sentence of text.split(/\.\s+|\.$/).map((x) => x.trim()).filter(Boolean)) {
+        if (/^немає\s*:/i.test(sentence)) add('note', sentence);
+        else for (const l of splitCommas(sentence)) add('equip', l, { has: true });
+      }
+      break;
+    case 'name': case 'when': add('note', `${PROFILE_FIELDS[card.field].lead} ${text}`); break;
+  }
+  return { type: 'profile', ops };
+}

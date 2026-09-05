@@ -4,6 +4,7 @@ import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } fro
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
+import { isProfileFieldCard, legacyOpsFromFieldCard } from '@kitchen/domain';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -415,6 +416,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Пул-4 №4а: службові [HH:MM] з історії не протікають у відповідь.
     if (call.reply) call.reply = stripHistoryStamps(call.reply);
+
+    // Раунд 4, крок 4 (a): промт уже віддає картку поля {field, mode, text}.
+    // З вимкненим прапором перекладаємо її в ops-картку v1 ДО applyMode і
+    // збереження — щоб PROFILE_V2 лишався відкатом на проді, а не поламкою.
+    if (!opts.profileV2 && isProfileFieldCard(call.card)) {
+      call.card = legacyOpsFromFieldCard(call.card);
+      if (!call.card.ops.length) call.card = null;
+    }
 
     // Пул-2 №5: те саме для чату — сирий JSON у стрічку не протікає ніколи.
     if (!call.card && looksLikeModelDebris(call.reply ?? '')) {

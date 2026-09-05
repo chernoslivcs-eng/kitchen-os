@@ -27,8 +27,10 @@ Kitchen OS деплоїться як один Vercel-проєкт з корен�
 
 4. **Build & install settings** у Vercel dashboard:
    - Install Command: `pnpm install`
-   - Build Command: залишити default — `vercel.json` вже задає
-     `pnpm --filter @kitchen/web build`
+   - Build Command: **стерти** значення в дашборді — `vercel.json` задає
+     `bash scripts/vercel-build.sh` (migrate і сіди лише при
+     `VERCEL_ENV=production`; preview-деплой базу не чіпає). `PG_URL` у
+     Vercel має стояти лише на production-таргеті (знято з preview 2026-09-05)
    - Output Directory: залишити default — `vercel.json` задає `apps/web/dist`
    - Framework Preset: **Other**
 

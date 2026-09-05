@@ -350,6 +350,16 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // Раунд 4: картка поля профілю — «профіль no: селери» → {field:'no', text:'селери'}.
+  const fieldCard = /^профіль (name|no|ban|love|meh|kit|when):\s*(.+)$/i.exec(args.text.trim());
+  if (fieldCard) {
+    return {
+      reply: 'Запишу.',
+      card: { type: 'profile', field: fieldCard[1]!.toLowerCase() as never, mode: 'append', text: fieldCard[2]!.trim() },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   // Традиція — перемикач профілю: стаб віддає картку profile з kind tradition,
   // яку сервер застосовує сам (applyModeFor), без «Запамʼятати».
   const trad = /(католи|іслам|мусульман|православ|юдей)/i.exec(args.text);

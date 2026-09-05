@@ -206,3 +206,35 @@ describe('appendProfileText', () => {
     expect(r.truncated).toBe(true);
   });
 });
+
+// ----- Крок 4 (a): адаптер картки поля → ops-картка v1 під вимкненим прапором
+
+import { legacyOpsFromFieldCard } from './profile-text.js';
+
+describe('legacyOpsFromFieldCard — прапор як відкат на проді', () => {
+  const ops = (field: string, text: string) => legacyOpsFromFieldCard({ type: 'profile', field: field as never, mode: 'append', text }).ops;
+
+  it('no і meh → anti; ban → allergy; love → wish', () => {
+    expect(ops('no', 'мʼяса й птиці')).toEqual([{ op: 'add', kind: 'anti', label: 'мʼяса й птиці' }]);
+    expect(ops('meh', 'гостре')).toEqual([{ op: 'add', kind: 'anti', label: 'гостре' }]);
+    expect(ops('ban', 'арахіс, селера')).toEqual([{ op: 'add', kind: 'allergy', label: 'арахіс' }, { op: 'add', kind: 'allergy', label: 'селера' }]);
+    expect(ops('love', 'тайську кухню')).toEqual([{ op: 'add', kind: 'wish', label: 'тайську кухню' }]);
+  });
+
+  it('kit → equip по комах; «Немає: …» → note', () => {
+    expect(ops('kit', 'гриль, блендер. Немає: духовка')).toEqual([
+      { op: 'add', kind: 'equip', label: 'гриль', has: true },
+      { op: 'add', kind: 'equip', label: 'блендер', has: true },
+      { op: 'add', kind: 'note', label: 'Немає: духовка' },
+    ]);
+  });
+
+  it('name, when → note з початком речення', () => {
+    expect(ops('name', 'Пилип')).toEqual([{ op: 'add', kind: 'note', label: 'Мене звати Пилип' }]);
+    expect(ops('when', 'ввечері')).toEqual([{ op: 'add', kind: 'note', label: 'Я зазвичай готую ввечері' }]);
+  });
+
+  it('порожній текст → порожні ops', () => {
+    expect(ops('no', '  ')).toEqual([]);
+  });
+});
