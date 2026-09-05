@@ -10,6 +10,10 @@
 // 2% — verified; розбіжність — беремо дамп, записуємо обидва; id немає в дампі
 // (Branded/FNDDS/новіший Foundation) — unverified, лишаємо як є. CIQUAL не
 // звіряємо. Open Food Facts і рядки без джерела — estimate.
+// Н1а: спирт (нутрієнт 1018) — десята колонка `спирт_г`. З дампу його беруть
+// лише рядки, де він > 0 (вино, пиво); для CIQUAL-рядків алкоголю дампу немає,
+// тож спирт рахується з типової міцності: ABV × 0,789 (густина етанолу) /
+// густина напою — CIQUAL_ALCOHOL нижче. Це не звірка, а стандартна фізика напою.
 // Запуск: npx tsx scripts/nutrition/verify-usda.ts [--report path.json]
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync } from 'node:fs';
@@ -25,8 +29,8 @@ const reportArg = process.argv.indexOf('--report');
 const REPORT = reportArg > -1 ? process.argv[reportArg + 1]! : join(ROOT, 'data/nutrition/verify-report.json');
 
 // nutrient_id → колонка бази
-const NUTRIENTS: Record<string, keyof Values> = { '1003': 'protein', '1004': 'fat', '1005': 'carbs', '1079': 'fiber', '2000': 'sugars', '1093': 'sodium_mg' };
-type Values = { protein: number | null; fat: number | null; carbs: number | null; fiber: number | null; sugars: number | null; sodium_mg: number | null };
+const NUTRIENTS: Record<string, keyof Values> = { '1003': 'protein', '1004': 'fat', '1005': 'carbs', '1079': 'fiber', '2000': 'sugars', '1093': 'sodium_mg', '1018': 'alcohol' };
+type Values = { protein: number | null; fat: number | null; carbs: number | null; fiber: number | null; sugars: number | null; sodium_mg: number | null; alcohol: number | null };
 const COLS: (keyof Values)[] = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg'];
 const TOL = 0.02;          // 2 %
 const ABS_FLOOR = 0.1;     // нижче цього різниця — шум округлення (0.05 г)
@@ -36,8 +40,21 @@ const ABS_FLOOR = 0.1;     // нижче цього різниця — шум о
 const RAW_SUBSTITUTES: Record<string, { fdc: string; desc: string; state: string }> = {
   'Басматі': { fdc: '169756', desc: 'Rice, white, long-grain, regular, raw, unenriched', state: 'сухе' },
   'Креветки тигрові': { fdc: '174210', desc: 'Crustaceans, shrimp, mixed species, raw', state: 'сире' },
-  'Буженина': { fdc: '167818', desc: 'Pork, fresh, loin, whole, separable lean and fat, raw', state: 'сире' },
   'Арахіс смажений солоний': { fdc: '172430', desc: 'Peanuts, all types, raw', state: 'сире' },
+};
+// Н1а: буженина продається готовою — лишається CIQUAL cooked, стан «як продається».
+const STATE_OVERRIDE: Record<string, string> = { 'Буженина': 'як продається' };
+
+// Н1а: спирт для CIQUAL-рядків алкоголю (дампу CIQUAL немає): типова міцність,
+// об. % → г/100 г = ABV × 0,789 / густина напою.
+const CIQUAL_ALCOHOL: Record<string, { abv: number; density: number }> = {
+  'Горілка': { abv: 40, density: 0.95 },
+  'Віскі': { abv: 40, density: 0.95 },
+  'Коньяк': { abv: 40, density: 0.95 },
+  'Лікер': { abv: 25, density: 1.08 },
+  'Вермут': { abv: 15, density: 1.0 },
+  'Шампанське/ігристе': { abv: 12, density: 0.99 },
+  'Пиво темне': { abv: 5, density: 1.01 },
 };
 
 function parseCsv(text: string, sep: string): string[][] {
@@ -68,7 +85,7 @@ const num = (s: string | undefined): number | null => (s === undefined || s.trim
 interface BaseRow { name: string; state: string; values: Values; src: string; url: string; rec: string; verdict: string }
 const base: BaseRow[] = lines.filter((l) => l.length > 1 && l[C.name]).map((l) => ({
   name: l[C.name]!.trim(), state: l[C.state]!.trim(),
-  values: { protein: num(l[C.protein]), fat: num(l[C.fat]), carbs: num(l[C.carbs]), fiber: num(l[C.fiber]), sugars: num(l[C.sugars]), sodium_mg: num(l[C.sodium_mg]) },
+  values: { protein: num(l[C.protein]), fat: num(l[C.fat]), carbs: num(l[C.carbs]), fiber: num(l[C.fiber]), sugars: num(l[C.sugars]), sodium_mg: num(l[C.sodium_mg]), alcohol: null },
   src: l[C.src]!.trim(), url: l[C.url]!.trim(), rec: l[C.rec]!.trim(), verdict: l[C.verdict]!.trim(),
 }));
 
@@ -112,19 +129,20 @@ const report = {
   total: base.length, verified: [] as string[], discrepant: [] as { name: string; fdc: string; diffs: { nutrient: string; row: number | null; dump: number }[] }[],
   unverified: [] as { name: string; fdc: string }[], ciqual: 0, estimate: 0, off_as_estimate: 0,
   substituted: [] as { name: string; from: string; to: string; state: string }[], substitute_missing: [] as string[],
+  alcohol: [] as { name: string; alcohol: number; from: 'usda:1018' | 'abv' }[],
   dump_missing_nutrients: [] as { name: string; fdc: string; kept: string[] }[],
 };
 
 for (const r of base) {
   const values: Values = { ...r.values };
   let source = 'estimate';
-  let state = r.state;
+  let state = STATE_OVERRIDE[r.name] ?? r.state;
   const isEstimateVerdict = /без джерела/.test(r.verdict);
   const sub = /готове/.test(r.verdict) ? RAW_SUBSTITUTES[r.name] : undefined;
   const fdc = sub?.fdc ?? (isEstimateVerdict ? null : fdcOf(r.url));
   const ciq = isEstimateVerdict ? null : ciqualOf(r.url);
 
-  if (/готове/.test(r.verdict) && !sub) report.substitute_missing.push(r.name);
+  if (/готове/.test(r.verdict) && !sub && !STATE_OVERRIDE[r.name]) report.substitute_missing.push(r.name);
 
   if (fdc) {
     const d = dump.get(fdc);
@@ -133,6 +151,8 @@ for (const r of base) {
       report.unverified.push({ name: r.name, fdc });
     } else {
       source = `usda:${fdc}`;
+      // Н1а: спирт з дампу — лише де він є (вино, пиво), не для кожної їжі.
+      if (d.alcohol !== undefined && d.alcohol > 0.05) { values.alcohol = r2(d.alcohol); report.alcohol.push({ name: r.name, alcohol: values.alcohol, from: 'usda:1018' }); }
       if (sub) {
         report.substituted.push({ name: r.name, from: r.rec, to: `${sub.desc} (usda:${sub.fdc})`, state: sub.state });
         state = sub.state;
@@ -154,6 +174,8 @@ for (const r of base) {
   } else if (ciq) {
     source = `ciqual:${ciq}`;
     report.ciqual++;
+    const a = CIQUAL_ALCOHOL[r.name];
+    if (a) { values.alcohol = r2(a.abv * 0.789 / a.density); report.alcohol.push({ name: r.name, alcohol: values.alcohol, from: 'abv' }); }
   } else {
     if (/openfoodfacts/.test(r.url)) report.off_as_estimate++;
     report.estimate++;
@@ -162,8 +184,8 @@ for (const r of base) {
 }
 
 const fmt = (v: number | null) => (v === null ? '' : String(v));
-const csv = ['назва;стан;білки_г;жири_г;вуглеводи_г;клітковина_г;цукри_г;натрій_мг;source',
-  ...out.map((o) => [o.name, o.state, fmt(o.values.protein), fmt(o.values.fat), fmt(o.values.carbs), fmt(o.values.fiber), fmt(o.values.sugars), fmt(o.values.sodium_mg), o.source].join(';')),
+const csv = ['назва;стан;білки_г;жири_г;вуглеводи_г;клітковина_г;цукри_г;натрій_мг;source;спирт_г',
+  ...out.map((o) => [o.name, o.state, fmt(o.values.protein), fmt(o.values.fat), fmt(o.values.carbs), fmt(o.values.fiber), fmt(o.values.sugars), fmt(o.values.sodium_mg), o.source, fmt(o.values.alcohol)].join(';')),
 ].join('\n') + '\n';
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, csv);

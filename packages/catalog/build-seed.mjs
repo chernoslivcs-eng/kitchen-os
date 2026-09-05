@@ -197,7 +197,7 @@ const withAllergens = items.filter((i) => i.allergen_groups.length).length;
 // Накладається і на додані, і на стартові 131 (у тих — текстом, нижче).
 const basePath = path.join(DIR, 'data', 'nutrition.base.json');
 const baseNutrition = fs.existsSync(basePath) ? JSON.parse(fs.readFileSync(basePath, 'utf8')) : {};
-const NUTRI_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg'];
+const NUTRI_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg', 'alcohol'];
 function nutritionFromBase(rec) {
   const n = {};
   for (const k of NUTRI_KEYS) if (Number.isFinite(rec[k])) n[k] = rec[k];

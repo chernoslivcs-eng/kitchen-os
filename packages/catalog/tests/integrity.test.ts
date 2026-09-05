@@ -111,7 +111,7 @@ describe('integrity · схема доданих позицій', () => {
 
   // Раунд 5, крок Н1: БЖВ без ккал, з джерелом. Оцінки генератора — цілі;
   // звірені рядки (usda/ciqual) — як у дампі, з десятковими.
-  const NUM_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg'] as const;
+  const NUM_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg', 'alcohol'] as const;
   it('nutrition — скінченні невідʼємні числа, без поля kcal', () => {
     const bad = CATALOG.filter((i) => i.nutrition && (
       'kcal' in i.nutrition
@@ -127,11 +127,12 @@ describe('integrity · схема доданих позицій', () => {
     expect(badInt).toEqual([]);
   });
 
-  it('санітарна перевірка: білки+жири+вуглеводи+клітковина ≤ 100, ккал 4-4-9 у межах 0–900', () => {
+  // Н1а: клітковина не додається (вуглеводи USDA «by difference» її містять), 0,5 — округлення дампу.
+  it('санітарна перевірка: білки+жири+вуглеводи+спирт ≤ 100,5, ккал 4-4-9-7 у межах 0–905', () => {
     const bad = CATALOG.filter((i) => {
       const n = i.nutrition; if (!n) return false;
-      const kcal = n.protein * 4 + n.carbs * 4 + n.fat * 9;
-      return n.protein + n.fat + n.carbs + (n.fiber ?? 0) > 100 || kcal < 0 || kcal > 900;
+      const kcal = n.protein * 4 + n.carbs * 4 + n.fat * 9 + (n.alcohol ?? 0) * 7;
+      return n.protein + n.fat + n.carbs + (n.alcohol ?? 0) > 100.5 || kcal < 0 || kcal > 905;
     }).map((i) => `${i.key}: ${JSON.stringify(i.nutrition)}`);
     expect(bad).toEqual([]);
   });

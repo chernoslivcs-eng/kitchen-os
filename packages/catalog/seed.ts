@@ -119,7 +119,7 @@ const CATALOG_0: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'spices',
     density: 0.91,
-    nutrition: { protein: 0, fat: 100, carbs: 0, source: 'estimate' },
+    nutrition: { protein: 0.25, fat: 99.9, carbs: 0, fiber: 0, sugars: 0, source: 'ciqual:17270' },
   },
   {
     key: 'garlic',
@@ -448,7 +448,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['шоколад', 'солодке'],
     allergen_groups: ['молочне'],
     zone_default: 'dry',
-    nutrition: { protein: 7, fat: 31, carbs: 57, source: 'estimate' },
+    nutrition: { protein: 7.65, fat: 29.66, carbs: 59.4, fiber: 3.4, sugars: 51.5, sodium_mg: 79, source: 'usda:167587' },
   },
   {
     key: 'honey',
@@ -939,6 +939,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['спеції'],
     allergen_groups: [],
     zone_default: 'spices',
+    nutrition: { protein: 12.37, fat: 17.77, carbs: 54.99, fiber: 41.9, sodium_mg: 35, source: 'usda:170922' },
   },
   {
     key: 'paprika_sweet',
@@ -1020,6 +1021,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['спеції'],
     allergen_groups: [],
     zone_default: 'spices',
+    nutrition: { protein: 7.61, fat: 8.36, carbs: 74.97, fiber: 26.3, sodium_mg: 23, source: 'usda:170917' },
   },
   {
     key: 'garlic_dried',
@@ -1044,6 +1046,7 @@ const CATALOG_0: CatalogItem[] = [
     categories: ['вино', 'алкоголь', 'напої'],
     allergen_groups: [],
     zone_default: 'drinks',
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'wine_sauvignon_blanc_nonalcoholic',
@@ -3188,7 +3191,7 @@ const CATALOG_1: CatalogItem[] = [
     categories: ['готове', 'свинина', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
-    nutrition: { protein: 19.74, fat: 12.58, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 50, source: 'usda:167818' },
+    nutrition: { protein: 30.5, fat: 4.31, carbs: 0.65, fiber: 0, sugars: 0, sodium_mg: 32.3, source: 'ciqual:28301' },
   },
   {
     key: 'smoked_balyk',
@@ -6471,7 +6474,7 @@ const CATALOG_2: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 1.02,
-    nutrition: { protein: 2.29, fat: 23.84, carbs: 5.54, fiber: 2.2, sugars: 3.34, sodium_mg: 15, source: 'usda:170172' },
+    nutrition: { protein: 0.25, fat: 2.1, carbs: 2.75, sugars: 2.46, sodium_mg: 35.6, source: 'ciqual:18907' },
   },
   {
     key: 'plantmilk_coconut_canned',
@@ -6481,7 +6484,7 @@ const CATALOG_2: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 0.98,
-    nutrition: { protein: 2, fat: 20, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 2.29, fat: 23.84, carbs: 5.54, fiber: 2.2, sugars: 3.34, sodium_mg: 15, source: 'usda:170172' },
   },
   {
     key: 'plantmilk_rice',
@@ -8710,7 +8713,7 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['банан', 'сухофрукти', 'бакалія', 'фрукти', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 4, fat: 2, carbs: 88, source: 'estimate' },
+    nutrition: { protein: 3.89, fat: 1.81, carbs: 88.28, fiber: 9.9, sugars: 47.3, sodium_mg: 3, source: 'usda:173945' },
   },
   {
     key: 'dried_uzvar_mix',
@@ -9177,7 +9180,7 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['квасоля', 'бобові', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 24, fat: 1, carbs: 60, source: 'estimate' },
+    nutrition: { protein: 22.53, fat: 1.06, carbs: 61.29, fiber: 15.2, sugars: 2.1, sodium_mg: 12, source: 'usda:173744' },
   },
   {
     key: 'legume_beans_black_dry',
@@ -9186,7 +9189,7 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['квасоля', 'бобові', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 21, fat: 1, carbs: 62, source: 'estimate' },
+    nutrition: { protein: 21.6, fat: 1.42, carbs: 62.36, fiber: 15.5, sugars: 2.12, sodium_mg: 5, source: 'usda:173734' },
   },
   {
     key: 'legume_beans_pinto',
@@ -9213,7 +9216,7 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['квасоля', 'бобові', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 24, fat: 1, carbs: 63, source: 'estimate' },
+    nutrition: { protein: 23.86, fat: 1.15, carbs: 62.62, fiber: 16.3, sugars: 6.6, sodium_mg: 15, source: 'usda:174256' },
   },
   {
     key: 'legume_beans_adzuki',
@@ -9276,7 +9279,7 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['нут', 'бобові', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 19, fat: 6, carbs: 61, source: 'estimate' },
+    nutrition: { protein: 20.47, fat: 6.04, carbs: 62.95, fiber: 12.2, sugars: 10.7, sodium_mg: 24, source: 'usda:173756' },
   },
   {
     key: 'legume_chickpeas_canned',
@@ -9657,7 +9660,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['висівки', 'овес', 'зернові', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 17, fat: 7, carbs: 50, source: 'estimate' },
+    nutrition: { protein: 17.3, fat: 7.03, carbs: 66.22, fiber: 15.4, sugars: 1.45, sodium_mg: 4, source: 'usda:168872' },
   },
   {
     key: 'grain_wheat_bran',
@@ -9666,7 +9669,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['висівки', 'пшениця', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'dry',
-    nutrition: { protein: 16, fat: 4, carbs: 26, source: 'estimate' },
+    nutrition: { protein: 15.55, fat: 4.25, carbs: 64.51, fiber: 42.8, sugars: 0.41, sodium_mg: 2, source: 'usda:169722' },
   },
   {
     key: 'grain_pearl_barley',
@@ -9675,7 +9678,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['ячмінь', 'крупа', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'dry',
-    nutrition: { protein: 9, fat: 1, carbs: 67, source: 'estimate' },
+    nutrition: { protein: 9.91, fat: 1.16, carbs: 77.72, fiber: 15.6, sugars: 0.8, sodium_mg: 9, source: 'usda:170284' },
   },
   {
     key: 'grain_barley_ground',
@@ -9684,7 +9687,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['ячмінь', 'крупа', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'dry',
-    nutrition: { protein: 10, fat: 1, carbs: 65, source: 'estimate' },
+    nutrition: { protein: 12.48, fat: 2.3, carbs: 73.48, fiber: 17.3, sugars: 0.8, sodium_mg: 12, source: 'usda:170283' },
   },
   {
     key: 'grain_corn_grits',
@@ -9729,7 +9732,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['булгур', 'пшениця', 'крупа', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'dry',
-    nutrition: { protein: 12, fat: 1, carbs: 63, source: 'estimate' },
+    nutrition: { protein: 12.29, fat: 1.33, carbs: 75.87, fiber: 12.5, sugars: 0.41, sodium_mg: 17, source: 'usda:170688' },
   },
   {
     key: 'grain_bulgur_coarse',
@@ -10697,7 +10700,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['хлібці', 'борошняне', 'жито', 'зернові', 'рослинне'],
     allergen_groups: ['глютен'],
     zone_default: 'dry',
-    nutrition: { protein: 10, fat: 2, carbs: 60, source: 'estimate' },
+    nutrition: { protein: 7.9, fat: 1.3, carbs: 82.2, fiber: 16.5, sugars: 1.07, sodium_mg: 410, source: 'usda:172739' },
   },
   {
     key: 'bread_crispbread_rice',
@@ -11123,7 +11126,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['волоський горіх', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 15, fat: 65, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 15.23, fat: 65.21, carbs: 13.71, fiber: 6.7, sugars: 2.61, sodium_mg: 2, source: 'usda:170187' },
   },
   {
     key: 'nut_walnut_halves',
@@ -11141,7 +11144,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['мигдаль', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 21, fat: 50, carbs: 22, source: 'estimate' },
+    nutrition: { protein: 21.15, fat: 49.93, carbs: 21.55, fiber: 12.5, sugars: 4.35, sodium_mg: 1, source: 'usda:170567' },
   },
   {
     key: 'nut_almond_roasted',
@@ -11204,7 +11207,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['фундук', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 15, fat: 61, carbs: 17, source: 'estimate' },
+    nutrition: { protein: 14.95, fat: 60.75, carbs: 16.7, fiber: 9.7, sugars: 4.34, sodium_mg: 0, source: 'usda:170581' },
   },
   {
     key: 'nut_hazelnut_roasted',
@@ -11222,7 +11225,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['фісташки', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 21, fat: 45, carbs: 28, source: 'estimate' },
+    nutrition: { protein: 20.16, fat: 45.32, carbs: 27.17, fiber: 10.6, sugars: 7.66, sodium_mg: 1, source: 'usda:170184' },
   },
   {
     key: 'nut_pistachio_peeled',
@@ -11240,7 +11243,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['пекан', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 9, fat: 72, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 9.17, fat: 71.97, carbs: 13.86, fiber: 9.6, sugars: 3.97, sodium_mg: 0, source: 'usda:170182' },
   },
   {
     key: 'nut_macadamia',
@@ -11249,7 +11252,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['макадамія', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 8, fat: 76, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 7.91, fat: 75.77, carbs: 13.82, fiber: 8.6, sugars: 4.57, sodium_mg: 5, source: 'usda:170178' },
   },
   {
     key: 'nut_brazil',
@@ -11258,7 +11261,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['бразильський горіх', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 14, fat: 66, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 14.32, fat: 67.1, carbs: 11.74, fiber: 7.5, sugars: 2.33, sodium_mg: 3, source: 'usda:170569' },
   },
   {
     key: 'nut_pine',
@@ -11366,7 +11369,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['борошно', 'мигдаль', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 21, fat: 54, carbs: 20, source: 'estimate' },
+    nutrition: { protein: 26.24, fat: 50.23, carbs: 16.25, fiber: 9.27, sodium_mg: 0.89, source: 'usda:2261420' },
   },
   {
     key: 'seed_sunflower_inshell',
@@ -11375,7 +11378,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['насіння соняшнику', 'насіння', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 21, fat: 52, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 20.78, fat: 51.46, carbs: 20, fiber: 8.6, sugars: 2.62, sodium_mg: 9, source: 'usda:170562' },
   },
   {
     key: 'seed_sunflower_raw',
@@ -11420,7 +11423,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['кунжут', 'насіння', 'рослинне'],
     allergen_groups: ['кунжут'],
     zone_default: 'dry',
-    nutrition: { protein: 18, fat: 50, carbs: 23, source: 'estimate' },
+    nutrition: { protein: 17.73, fat: 49.67, carbs: 23.45, fiber: 11.8, sugars: 0.3, sodium_mg: 11, source: 'usda:170150' },
   },
   {
     key: 'seed_sesame_black',
@@ -11438,7 +11441,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['льон', 'насіння', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 18, fat: 42, carbs: 29, source: 'estimate' },
+    nutrition: { protein: 18.29, fat: 42.16, carbs: 28.88, fiber: 27.3, sugars: 1.55, sodium_mg: 30, source: 'usda:169414' },
   },
   {
     key: 'seed_flax_ground',
@@ -11456,7 +11459,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['чіа', 'насіння', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 17, fat: 31, carbs: 42, source: 'estimate' },
+    nutrition: { protein: 16.54, fat: 30.74, carbs: 42.12, fiber: 34.4, sodium_mg: 16, source: 'usda:170554' },
   },
   {
     key: 'seed_hemp',
@@ -11474,7 +11477,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['мак', 'насіння', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 18, fat: 42, carbs: 28, source: 'estimate' },
+    nutrition: { protein: 17.99, fat: 41.56, carbs: 28.13, fiber: 19.5, sugars: 2.99, sodium_mg: 26, source: 'usda:171330' },
   },
   {
     key: 'nut_peanut_butter_smooth',
@@ -11483,7 +11486,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['горіхова паста', 'арахіс', 'бобові', 'рослинне'],
     allergen_groups: ['арахіс'],
     zone_default: 'dry',
-    nutrition: { protein: 25, fat: 50, carbs: 20, source: 'estimate' },
+    nutrition: { protein: 22.21, fat: 51.36, carbs: 22.31, fiber: 5, sugars: 10.49, sodium_mg: 426, source: 'usda:174266' },
   },
   {
     key: 'nut_peanut_butter_crunchy',
@@ -11501,7 +11504,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['горіхова паста', 'мигдаль', 'горіхи', 'рослинне'],
     allergen_groups: ['горіхи'],
     zone_default: 'dry',
-    nutrition: { protein: 21, fat: 56, carbs: 19, source: 'estimate' },
+    nutrition: { protein: 20.96, fat: 55.5, carbs: 18.82, fiber: 10.3, sugars: 6.27, sodium_mg: 227, source: 'usda:168603' },
   },
   {
     key: 'nut_cashew_butter',
@@ -11519,7 +11522,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['горіхова паста', 'кунжут', 'насіння', 'рослинне', 'паста', 'тахіні'],
     allergen_groups: ['кунжут'],
     zone_default: 'dry',
-    nutrition: { protein: 17, fat: 54, carbs: 21, source: 'estimate' },
+    nutrition: { protein: 17, fat: 53.76, carbs: 21.19, fiber: 9.3, sugars: 0.49, sodium_mg: 115, source: 'usda:170189' },
   },
   {
     key: 'seed_urbech',
@@ -11564,7 +11567,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['кокос', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 7, fat: 65, carbs: 23, source: 'estimate' },
+    nutrition: { protein: 6.88, fat: 64.53, carbs: 23.65, fiber: 16.3, sugars: 7.35, sodium_mg: 37, source: 'usda:170170' },
   },
   {
     key: 'nut_coconut_flour',
@@ -11573,7 +11576,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['борошно', 'кокос', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 18, fat: 13, carbs: 60, source: 'estimate' },
+    nutrition: { protein: 16.14, fat: 15.28, carbs: 58.9, fiber: 34.24, sodium_mg: 46.94, source: 'usda:2515382' },
   },
   {
     key: 'nut_coconut_chips',
@@ -11622,7 +11625,7 @@ const CATALOG_4: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 0.92,
-    nutrition: { protein: 0, fat: 100, carbs: 0, source: 'estimate' },
+    nutrition: { protein: 0.25, fat: 99.9, carbs: 0, fiber: 0, sugars: 0, source: 'ciqual:17270' },
   },
   {
     key: 'oil_olive_frying',
@@ -11662,7 +11665,7 @@ const CATALOG_4: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'fridge',
     density: 0.92,
-    nutrition: { protein: 0, fat: 100, carbs: 0, source: 'estimate' },
+    nutrition: { protein: 0.11, fat: 99.98, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 0, source: 'usda:167702' },
   },
   {
     key: 'oil_sesame',
@@ -11877,7 +11880,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['перець', 'спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 10, fat: 3, carbs: 64, source: 'estimate' },
+    nutrition: { protein: 10.39, fat: 3.26, carbs: 63.95, fiber: 25.3, sugars: 0.64, sodium_mg: 20, source: 'usda:170931' },
   },
   {
     key: 'spice_white_pepper',
@@ -11940,7 +11943,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['перець', 'гостре', 'спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 13, fat: 14, carbs: 50, source: 'estimate' },
+    nutrition: { protein: 13.46, fat: 14.28, carbs: 49.7, fiber: 34.8, sugars: 7.19, sodium_mg: 2867, source: 'usda:171319' },
   },
   {
     key: 'spice_chili_whole_dried',
@@ -11976,7 +11979,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['перець', 'спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 6, fat: 9, carbs: 72, source: 'estimate' },
+    nutrition: { protein: 6.09, fat: 8.69, carbs: 72.12, fiber: 21.6, sodium_mg: 77, source: 'usda:171315' },
   },
   {
     key: 'spice_caraway',
@@ -12131,7 +12134,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['кориця', 'спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 4, fat: 1, carbs: 81, source: 'estimate' },
+    nutrition: { protein: 3.99, fat: 1.24, carbs: 80.59, fiber: 53.1, sugars: 2.17, sodium_mg: 10, source: 'usda:171320' },
   },
   {
     key: 'spice_ginger_ground',
@@ -12158,7 +12161,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 10, fat: 3, carbs: 67, source: 'estimate' },
+    nutrition: { protein: 9.68, fat: 3.25, carbs: 67.14, fiber: 22.7, sugars: 3.21, sodium_mg: 27, source: 'usda:172231' },
   },
   {
     key: 'spice_galangal',
@@ -12185,7 +12188,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 6, fat: 13, carbs: 66, source: 'estimate' },
+    nutrition: { protein: 5.97, fat: 13, carbs: 65.53, fiber: 33.9, sugars: 2.38, sodium_mg: 277, source: 'usda:171321' },
   },
   {
     key: 'spice_saffron',
@@ -12212,7 +12215,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 6, fat: 36, carbs: 49, source: 'estimate' },
+    nutrition: { protein: 5.84, fat: 36.31, carbs: 49.29, fiber: 20.8, sugars: 2.99, sodium_mg: 16, source: 'usda:171326' },
   },
   {
     key: 'spice_mace',
@@ -12286,7 +12289,7 @@ const CATALOG_4: CatalogItem[] = [
     categories: ['сушені овочі', 'цибулеві', 'спеції', 'рослинне'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 10, fat: 1, carbs: 79, source: 'estimate' },
+    nutrition: { protein: 10.41, fat: 1.04, carbs: 79.12, fiber: 15.2, sugars: 6.63, sodium_mg: 73, source: 'usda:171327' },
   },
   {
     key: 'spice_onion_powder',
@@ -12352,7 +12355,7 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['сушені трави', 'трави', 'спеції', 'рослинне', 'базилік'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 23, fat: 4, carbs: 48, source: 'estimate' },
+    nutrition: { protein: 22.98, fat: 4.07, carbs: 47.75, fiber: 37.7, sugars: 1.71, sodium_mg: 76, source: 'usda:171317' },
   },
   {
     key: 'spice_thyme_dried',
@@ -12361,7 +12364,7 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['сушені трави', 'трави', 'спеції', 'рослинне', 'чебрець'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 9, fat: 7, carbs: 64, source: 'estimate' },
+    nutrition: { protein: 9.11, fat: 7.43, carbs: 63.94, fiber: 37, sugars: 1.71, sodium_mg: 55, source: 'usda:170938' },
   },
   {
     key: 'spice_rosemary_dried',
@@ -12370,7 +12373,7 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['сушені трави', 'трави', 'спеції', 'рослинне', 'розмарин'],
     allergen_groups: [],
     zone_default: 'spices',
-    nutrition: { protein: 5, fat: 15, carbs: 64, source: 'estimate' },
+    nutrition: { protein: 4.88, fat: 15.22, carbs: 64.06, fiber: 42.6, sodium_mg: 50, source: 'usda:171333' },
   },
   {
     key: 'spice_marjoram_dried',
@@ -13043,7 +13046,7 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['дріжджі', 'харчові добавки', 'випічка'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 40, fat: 7, carbs: 41, source: 'estimate' },
+    nutrition: { protein: 40.44, fat: 7.61, carbs: 41.22, fiber: 26.9, sugars: 0, sodium_mg: 51, source: 'usda:175043' },
   },
   {
     key: 'spice_yeast_fresh',
@@ -13121,7 +13124,7 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['какао', 'солодке', 'випічка', 'рослинне'],
     allergen_groups: [],
     zone_default: 'dry',
-    nutrition: { protein: 20, fat: 14, carbs: 58, source: 'estimate' },
+    nutrition: { protein: 19.6, fat: 13.7, carbs: 57.9, fiber: 37, sugars: 1.75, sodium_mg: 21, source: 'usda:169593' },
   },
   {
     key: 'spice_stock_cube_chicken',
@@ -15747,7 +15750,7 @@ const CATALOG_6: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     unit_weight: 90,
-    nutrition: { protein: 8, fat: 42, carbs: 36, source: 'estimate' },
+    nutrition: { protein: 7.79, fat: 42.63, carbs: 45.9, fiber: 10.9, sugars: 23.99, sodium_mg: 20, source: 'usda:170273' },
   },
   {
     key: 'choc_dark_85',
@@ -15757,7 +15760,7 @@ const CATALOG_6: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     unit_weight: 90,
-    nutrition: { protein: 10, fat: 50, carbs: 22, source: 'estimate' },
+    nutrition: { protein: 7.79, fat: 42.63, carbs: 45.9, fiber: 10.9, sugars: 23.99, sodium_mg: 20, source: 'usda:170273' },
   },
   {
     key: 'choc_dark_99',
@@ -18984,7 +18987,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, source: 'usda:168746' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_dark',
@@ -18994,7 +18997,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0.43, fat: 0, carbs: 4.1, fiber: 0, sugars: 4.1, sodium_mg: 11.6, source: 'ciqual:5000' },
+    nutrition: { protein: 0.43, fat: 0, carbs: 4.1, fiber: 0, sugars: 4.1, sodium_mg: 11.6, alcohol: 3.91, source: 'ciqual:5000' },
   },
   {
     key: 'alc_beer_wheat',
@@ -19004,7 +19007,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_ipa',
@@ -19014,7 +19017,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_apa',
@@ -19024,7 +19027,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_stout',
@@ -19034,7 +19037,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0.43, fat: 0, carbs: 4.1, fiber: 0, sugars: 4.1, sodium_mg: 11.6, alcohol: 3.91, source: 'ciqual:5000' },
   },
   {
     key: 'alc_beer_porter',
@@ -19044,7 +19047,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 0.43, fat: 0, carbs: 4.1, fiber: 0, sugars: 4.1, sodium_mg: 11.6, alcohol: 3.91, source: 'ciqual:5000' },
   },
   {
     key: 'alc_beer_ale',
@@ -19064,7 +19067,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_craft',
@@ -19074,7 +19077,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_cider_apple',
@@ -19104,7 +19107,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_chernihivske',
@@ -19114,7 +19117,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_lvivske',
@@ -19124,7 +19127,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_pravda',
@@ -19134,7 +19137,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_beer_varvar',
@@ -19144,7 +19147,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'alc_wine_red_dry',
@@ -19154,7 +19157,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'alc_wine_white_dry',
@@ -19164,7 +19167,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'alc_wine_semi_dry',
@@ -19234,7 +19237,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'alc_wine_merlot',
@@ -19244,7 +19247,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'alc_wine_pinot_noir',
@@ -19254,7 +19257,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'alc_wine_shiraz',
@@ -19264,7 +19267,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'alc_wine_chardonnay',
@@ -19274,7 +19277,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'alc_wine_sauvignon_blanc',
@@ -19284,7 +19287,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'alc_wine_riesling',
@@ -19294,7 +19297,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'alc_wine_pinot_grigio',
@@ -19304,7 +19307,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'alc_wine_muscat',
@@ -19324,7 +19327,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'alc_wine_odeskyi_chornyi',
@@ -19334,7 +19337,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'alc_sparkling_brut',
@@ -19344,7 +19347,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'alc_sparkling_dry',
@@ -19354,7 +19357,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'alc_sparkling_semi_sweet',
@@ -19374,7 +19377,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'alc_champagne',
@@ -19384,7 +19387,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'alc_lambrusco',
@@ -19444,7 +19447,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.05, fat: 0, carbs: 11.3, fiber: 0, sugars: 11.1, sodium_mg: 15, alcohol: 11.84, source: 'ciqual:1007' },
   },
   {
     key: 'alc_vermouth_red',
@@ -19454,7 +19457,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1,
-    nutrition: { protein: 0, fat: 0, carbs: 16, source: 'estimate' },
+    nutrition: { protein: 0.05, fat: 0, carbs: 11.3, fiber: 0, sugars: 11.1, sodium_mg: 15, alcohol: 11.84, source: 'ciqual:1007' },
   },
   {
     key: 'alc_wine_shabo',
@@ -19534,7 +19537,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'alc_vodka_pepper',
@@ -19584,7 +19587,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'alc_vodka_pervak',
@@ -19614,7 +19617,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'alc_cognac_vs',
@@ -19624,7 +19627,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'alc_cognac_vsop',
@@ -19634,7 +19637,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'alc_cognac_xo',
@@ -19644,7 +19647,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'alc_cognac_tavria',
@@ -19694,7 +19697,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['глютен'],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'alc_whisky_single_malt',
@@ -19964,7 +19967,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: ['молочне'],
     zone_default: 'drinks',
     density: 1.05,
-    nutrition: { protein: 3, fat: 13, carbs: 25, source: 'estimate' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'alc_coffee_liqueur',
@@ -19974,7 +19977,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.08,
-    nutrition: { protein: 0, fat: 0, carbs: 35, source: 'estimate' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'alc_herbal_bitter',
@@ -20034,7 +20037,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.07,
-    nutrition: { protein: 0, fat: 0, carbs: 35, source: 'estimate' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'alc_chocolate_liqueur',
@@ -20044,7 +20047,7 @@ const CATALOG_7: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.08,
-    nutrition: { protein: 0, fat: 3, carbs: 35, source: 'estimate' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'alc_medovukha',
@@ -21628,7 +21631,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_kindzmarauli',
@@ -21658,7 +21661,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'r2al_wine_alazani_valley',
@@ -21678,7 +21681,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_chianti',
@@ -21688,7 +21691,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_valpolicella',
@@ -21698,7 +21701,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_montepulciano',
@@ -21708,7 +21711,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_rioja',
@@ -21718,7 +21721,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_tempranillo',
@@ -21728,7 +21731,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_zinfandel',
@@ -21738,7 +21741,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_gewurztraminer',
@@ -21748,7 +21751,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'r2al_wine_grenache',
@@ -21758,7 +21761,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_rkatsiteli',
@@ -21768,7 +21771,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'r2al_wine_aligote',
@@ -21778,7 +21781,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.6, fiber: 0, sugars: 0.96, sodium_mg: 5, alcohol: 10.3, source: 'usda:174837' },
   },
   {
     key: 'r2al_wine_malbec',
@@ -21788,7 +21791,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_primitivo',
@@ -21798,7 +21801,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_nero_d_avola',
@@ -21808,7 +21811,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_beaujolais',
@@ -21818,7 +21821,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_tokaji',
@@ -21838,7 +21841,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_barbera',
@@ -21848,7 +21851,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.07, fat: 0, carbs: 2.61, fiber: 0, sugars: 0.62, sodium_mg: 4, alcohol: 10.6, source: 'usda:173190' },
   },
   {
     key: 'r2al_wine_koblevo',
@@ -21878,7 +21881,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'r2al_sparkling_asti',
@@ -21898,7 +21901,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'r2al_champagne_veuve',
@@ -21908,7 +21911,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'r2al_sparkling_rose',
@@ -21918,7 +21921,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.99,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.3, fat: 0, carbs: 1.4, fiber: 0, sugars: 1.4, sodium_mg: 1.93, alcohol: 9.56, source: 'ciqual:5207' },
   },
   {
     key: 'r2al_vermouth_cinzano',
@@ -21928,7 +21931,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1,
-    nutrition: { protein: 0, fat: 0, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 0.05, fat: 0, carbs: 11.3, fiber: 0, sugars: 11.1, sodium_mg: 15, alcohol: 11.84, source: 'ciqual:1007' },
   },
   {
     key: 'r2al_vermouth_martini_bianco',
@@ -21938,7 +21941,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1,
-    nutrition: { protein: 0, fat: 0, carbs: 15, source: 'estimate' },
+    nutrition: { protein: 0.05, fat: 0, carbs: 11.3, fiber: 0, sugars: 11.1, sodium_mg: 15, alcohol: 11.84, source: 'ciqual:1007' },
   },
   {
     key: 'r2al_beer_corona',
@@ -21948,7 +21951,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_heineken',
@@ -21958,7 +21961,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_stella_artois',
@@ -21968,7 +21971,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_guinness',
@@ -21978,7 +21981,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.43, fat: 0, carbs: 4.1, fiber: 0, sugars: 4.1, sodium_mg: 11.6, alcohol: 3.91, source: 'ciqual:5000' },
   },
   {
     key: 'r2al_beer_carlsberg',
@@ -21988,7 +21991,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_miller',
@@ -21998,7 +22001,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_budweiser',
@@ -22008,7 +22011,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_staropramen',
@@ -22018,7 +22021,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_leffe',
@@ -22028,7 +22031,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_hoegaarden',
@@ -22038,7 +22041,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_paulaner',
@@ -22048,7 +22051,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_franziskaner',
@@ -22058,7 +22061,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_erdinger',
@@ -22068,7 +22071,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_peroni',
@@ -22078,7 +22081,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_zibert',
@@ -22088,7 +22091,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_slavutych',
@@ -22098,7 +22101,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_pilsner_urquell',
@@ -22108,7 +22111,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_radler',
@@ -22118,7 +22121,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1,
-    nutrition: { protein: 0, fat: 0, carbs: 6, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_krusovice',
@@ -22128,7 +22131,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_bitburger',
@@ -22138,7 +22141,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_desperados',
@@ -22148,7 +22151,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 5, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_beer_opillya',
@@ -22158,7 +22161,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.01,
-    nutrition: { protein: 0, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 0.46, fat: 0, carbs: 3.55, fiber: 0, sugars: 0, sodium_mg: 4, alcohol: 3.9, source: 'usda:168746' },
   },
   {
     key: 'r2al_cider_somersby',
@@ -22238,7 +22241,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'r2al_vodka_finlandia',
@@ -22248,7 +22251,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'r2al_vodka_smirnoff',
@@ -22258,7 +22261,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'r2al_vodka_grey_goose',
@@ -22268,7 +22271,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'r2al_vodka_medoff',
@@ -22278,7 +22281,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'r2al_vodka_deja_vu',
@@ -22318,7 +22321,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, source: 'ciqual:1008' },
+    nutrition: { protein: 0, fat: 0, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 1, alcohol: 33.22, source: 'ciqual:1008' },
   },
   {
     key: 'r2al_whisky_jameson',
@@ -22328,7 +22331,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_jack_daniels',
@@ -22338,7 +22341,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_johnnie_walker_red',
@@ -22348,7 +22351,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_johnnie_walker_black',
@@ -22358,7 +22361,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_chivas_regal',
@@ -22368,7 +22371,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_ballantines',
@@ -22378,7 +22381,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_jim_beam',
@@ -22388,7 +22391,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_grants',
@@ -22398,7 +22401,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_william_lawsons',
@@ -22408,7 +22411,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_glenfiddich',
@@ -22418,7 +22421,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_famous_grouse',
@@ -22428,7 +22431,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_teachers',
@@ -22438,7 +22441,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_dewars',
@@ -22448,7 +22451,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_whisky_label5',
@@ -22468,7 +22471,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.94,
-    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, source: 'ciqual:1005' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.1, fiber: 0, sugars: 0.1, sodium_mg: 0, alcohol: 33.22, source: 'ciqual:1005' },
   },
   {
     key: 'r2al_cognac_hennessy',
@@ -22478,7 +22481,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'r2al_cognac_camus',
@@ -22488,7 +22491,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'r2al_cognac_remy_martin',
@@ -22498,7 +22501,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'r2al_cognac_dnister',
@@ -22548,7 +22551,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 0.95,
-    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, source: 'ciqual:1023' },
+    nutrition: { protein: 0, fat: 0, carbs: 0.76, fiber: 0, sugars: 0, sodium_mg: 0.75, alcohol: 33.22, source: 'ciqual:1023' },
   },
   {
     key: 'r2al_rum_bacardi',
@@ -22688,7 +22691,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.04,
-    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, source: 'ciqual:1003' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2al_liqueur_southern_comfort',
@@ -22698,7 +22701,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1,
-    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, source: 'ciqual:1003' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2al_liqueur_sambuca',
@@ -22718,7 +22721,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.05,
-    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, source: 'ciqual:1003' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2al_liqueur_grand_marnier',
@@ -22728,7 +22731,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.04,
-    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, source: 'ciqual:1003' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2al_liqueur_pear',
@@ -22738,7 +22741,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.05,
-    nutrition: { protein: 0, fat: 0, carbs: 28, source: 'estimate' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2al_liqueur_raspberry',
@@ -22768,7 +22771,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.06,
-    nutrition: { protein: 0, fat: 0, carbs: 30, source: 'estimate' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2al_liqueur_apricot',
@@ -22798,7 +22801,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.06,
-    nutrition: { protein: 0, fat: 0, carbs: 28, source: 'estimate' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2al_liqueur_chokeberry',
@@ -22838,7 +22841,7 @@ const CATALOG_8: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'drinks',
     density: 1.05,
-    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, source: 'ciqual:1003' },
+    nutrition: { protein: 0.1, fat: 0.23, carbs: 25.4, fiber: 0, sugars: 17.4, sodium_mg: 8, alcohol: 18.26, source: 'ciqual:1003' },
   },
   {
     key: 'r2bb_formula_comfort',
@@ -28995,7 +28998,7 @@ const CATALOG_11: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'fridge',
     unit_weight: 12,
-    nutrition: { protein: 13.05, fat: 11.09, carbs: 0.41, fiber: 0, sugars: 0.4, sodium_mg: 141, source: 'usda:172191' },
+    nutrition: { protein: 12, fat: 13, carbs: 1, source: 'estimate' },
   },
   {
     key: 'r2dy_egg_liquid_mix',
@@ -38116,7 +38119,7 @@ const CATALOG_14: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 0.91,
-    nutrition: { protein: 0, fat: 100, carbs: 0, source: 'estimate' },
+    nutrition: { protein: 0.25, fat: 99.9, carbs: 0, fiber: 0, sugars: 0, source: 'ciqual:17270' },
   },
   {
     key: 'r2no_oil_olive_greek',
@@ -38126,7 +38129,7 @@ const CATALOG_14: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 0.91,
-    nutrition: { protein: 0, fat: 100, carbs: 0, source: 'estimate' },
+    nutrition: { protein: 0.25, fat: 99.9, carbs: 0, fiber: 0, sugars: 0, source: 'ciqual:17270' },
   },
   {
     key: 'r2no_oil_olive_italian',
@@ -38136,7 +38139,7 @@ const CATALOG_14: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 0.91,
-    nutrition: { protein: 0, fat: 100, carbs: 0, source: 'estimate' },
+    nutrition: { protein: 0.25, fat: 99.9, carbs: 0, fiber: 0, sugars: 0, source: 'ciqual:17270' },
   },
   {
     key: 'r2no_oil_sunflower_coldpressed',
@@ -39440,7 +39443,7 @@ const CATALOG_14: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 1.03,
-    nutrition: { protein: 0, fat: 3, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 0.25, fat: 2.1, carbs: 2.75, sugars: 2.46, sodium_mg: 35.6, source: 'ciqual:18907' },
   },
   {
     key: 'r2pm_milk_coconut_light',
@@ -39450,7 +39453,7 @@ const CATALOG_14: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 1,
-    nutrition: { protein: 1, fat: 8, carbs: 3, source: 'estimate' },
+    nutrition: { protein: 2.29, fat: 23.84, carbs: 5.54, fiber: 2.2, sugars: 3.34, sodium_mg: 15, source: 'usda:170172' },
   },
   {
     key: 'r2pm_milk_coconut_unsweetened',
@@ -39460,7 +39463,7 @@ const CATALOG_14: CatalogItem[] = [
     allergen_groups: [],
     zone_default: 'dry',
     density: 1.01,
-    nutrition: { protein: 0, fat: 2, carbs: 0, source: 'estimate' },
+    nutrition: { protein: 0.25, fat: 2.1, carbs: 2.75, sugars: 2.46, sodium_mg: 35.6, source: 'ciqual:18907' },
   },
   {
     key: 'r2pm_milk_hazelnut_barista',

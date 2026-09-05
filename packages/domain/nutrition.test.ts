@@ -13,6 +13,10 @@ describe('kcalOf', () => {
     expect(kcalOf({ protein: 17.16, fat: 19.41, carbs: 0 })).toBe(243);
     expect(kcalOf({ protein: 0, fat: 100, carbs: 0 })).toBe(900);
   });
+  it('Н1а: спирт — 7 ккал/г', () => {
+    expect(kcalOf({ protein: 0, fat: 0, carbs: 0, alcohol: 33.2 })).toBe(232);   // горілка 40 %
+    expect(kcalOf({ protein: 0.07, fat: 0, carbs: 2.61, alcohol: 10.6 })).toBe(85); // сухе червоне
+  });
   it('isEstimate — лише source estimate', () => {
     expect(isEstimate(usda(1, 1, 1))).toBe(false);
     expect(isEstimate({ source: 'estimate' })).toBe(true);
@@ -23,14 +27,18 @@ describe('nutritionIssue — санітарна перевірка', () => {
   it('чисті значення — null', () => {
     expect(nutritionIssue(usda(20, 10, 5, { fiber: 2 }))).toBeNull();
   });
-  it('сума макро з клітковиною понад 100 г — порушення', () => {
+  it('білки+жири+вуглеводи понад 100,5 г — порушення; клітковина не додається (вона вже у вуглеводах USDA)', () => {
     expect(nutritionIssue(usda(60, 30, 20))).toMatch(/100/);
-    expect(nutritionIssue(usda(50, 30, 15, { fiber: 10 }))).toMatch(/100/);
+    expect(nutritionIssue(usda(50, 30, 15, { fiber: 10 }))).toBeNull();
+    expect(nutritionIssue(usda(0, 100.2, 0))).toBeNull();          // округлення дампу
+    expect(nutritionIssue(usda(15.5, 4.25, 64.5, { fiber: 42.8 }))).toBeNull(); // висівки
+    expect(nutritionIssue(usda(0, 0, 60, { alcohol: 45 }))).toMatch(/спирт/);
   });
   it('відʼємне значення — порушення; чистий жир (900 ккал) — межа, не порушення', () => {
     expect(nutritionIssue(usda(-1, 0, 0))).toMatch(/відʼємн/);
     expect(nutritionIssue({ protein: 0, fat: 100, carbs: 0, source: 'estimate' })).toBeNull();
     expect(nutritionIssue({ protein: 0, fat: 100, carbs: 1, source: 'estimate' })).toMatch(/100/);
+    expect(nutritionIssue({ protein: 0, fat: 0, carbs: 0.1, alcohol: 33.2, source: 'ciqual:1008' })).toBeNull();
   });
 });
 

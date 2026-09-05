@@ -14,5 +14,7 @@ export interface Nutrition {
   fiber?: number;
   sugars?: number;
   sodium_mg?: number;
+  /** Спирт, г/100 г (Н1а): USDA нутрієнт 1018 або CIQUAL-рядки алкоголю; 7 ккал/г у kcalOf. */
+  alcohol?: number;
   source: NutritionSource;
 }

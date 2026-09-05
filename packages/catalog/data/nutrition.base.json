@@ -48,6 +48,15 @@
   "sodium_mg": 6,
   "base": "Паста суха з твердих сортів"
  },
+ "olive_oil_evoo": {
+  "protein": 0.25,
+  "fat": 99.9,
+  "carbs": 0,
+  "source": "ciqual:17270",
+  "fiber": 0,
+  "sugars": 0,
+  "base": "Олія оливкова extra virgin"
+ },
  "garlic": {
   "protein": 6.36,
   "fat": 0.5,
@@ -176,6 +185,16 @@
   "sugars": 19.4,
   "sodium_mg": 171,
   "base": "Мюслі"
+ },
+ "milk_chocolate_bar": {
+  "protein": 7.65,
+  "fat": 29.66,
+  "carbs": 59.4,
+  "source": "usda:167587",
+  "fiber": 3.4,
+  "sugars": 51.5,
+  "sodium_mg": 79,
+  "base": "Шоколад молочний"
  },
  "honey": {
   "protein": 0.3,
@@ -374,6 +393,15 @@
   "sodium_mg": 5493,
   "base": "Соєвий соус"
  },
+ "coriander_ground": {
+  "protein": 12.37,
+  "fat": 17.77,
+  "carbs": 54.99,
+  "source": "usda:170922",
+  "fiber": 41.9,
+  "sodium_mg": 35,
+  "base": "Коріандр мелений"
+ },
  "mustard": {
   "protein": 3.74,
   "fat": 3.34,
@@ -383,6 +411,26 @@
   "sugars": 0.92,
   "sodium_mg": 1104,
   "base": "Гірчиця"
+ },
+ "bay_leaf": {
+  "protein": 7.61,
+  "fat": 8.36,
+  "carbs": 74.97,
+  "source": "usda:170917",
+  "fiber": 26.3,
+  "sodium_mg": 23,
+  "base": "Лавровий лист"
+ },
+ "wine_chenin_blanc": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
  },
  "lemonade_double_lemon": {
   "protein": 0,
@@ -778,13 +826,13 @@
   "base": "Бекон"
  },
  "smoked_buzhenina": {
-  "protein": 19.74,
-  "fat": 12.58,
-  "carbs": 0,
-  "source": "usda:167818",
+  "protein": 30.5,
+  "fat": 4.31,
+  "carbs": 0.65,
+  "source": "ciqual:28301",
   "fiber": 0,
   "sugars": 0,
-  "sodium_mg": 50,
+  "sodium_mg": 32.3,
   "base": "Буженина"
  },
  "pate_liver_pork": {
@@ -1837,6 +1885,15 @@
   "base": "Молоко соєве"
  },
  "plantmilk_coconut_drink": {
+  "protein": 0.25,
+  "fat": 2.1,
+  "carbs": 2.75,
+  "source": "ciqual:18907",
+  "sugars": 2.46,
+  "sodium_mg": 35.6,
+  "base": "Молоко кокосове (напій)"
+ },
+ "plantmilk_coconut_canned": {
   "protein": 2.29,
   "fat": 23.84,
   "carbs": 5.54,
@@ -2806,6 +2863,16 @@
   "sodium_mg": 5,
   "base": "Журавлина сушена"
  },
+ "dried_banana": {
+  "protein": 3.89,
+  "fat": 1.81,
+  "carbs": 88.28,
+  "source": "usda:173945",
+  "fiber": 9.9,
+  "sugars": 47.3,
+  "sodium_mg": 3,
+  "base": "Банан сушений"
+ },
  "herb_dill_fresh": {
   "protein": 3.46,
   "fat": 1.12,
@@ -2861,6 +2928,46 @@
   "fiber": 14,
   "sodium_mg": 9,
   "base": "Чебрець"
+ },
+ "legume_beans_red_dry": {
+  "protein": 22.53,
+  "fat": 1.06,
+  "carbs": 61.29,
+  "source": "usda:173744",
+  "fiber": 15.2,
+  "sugars": 2.1,
+  "sodium_mg": 12,
+  "base": "Квасоля червона суха"
+ },
+ "legume_beans_black_dry": {
+  "protein": 21.6,
+  "fat": 1.42,
+  "carbs": 62.36,
+  "source": "usda:173734",
+  "fiber": 15.5,
+  "sugars": 2.12,
+  "sodium_mg": 5,
+  "base": "Квасоля чорна"
+ },
+ "legume_beans_mung": {
+  "protein": 23.86,
+  "fat": 1.15,
+  "carbs": 62.62,
+  "source": "usda:174256",
+  "fiber": 16.3,
+  "sugars": 6.6,
+  "sodium_mg": 15,
+  "base": "Маш"
+ },
+ "legume_chickpeas": {
+  "protein": 20.47,
+  "fat": 6.04,
+  "carbs": 62.95,
+  "source": "usda:173756",
+  "fiber": 12.2,
+  "sugars": 10.7,
+  "sodium_mg": 24,
+  "base": "Нут сухий"
  },
  "legume_chickpeas_canned": {
   "protein": 7.05,
@@ -3003,6 +3110,46 @@
   "sodium_mg": 0.31,
   "base": "Вівсяна крупа"
  },
+ "grain_oat_bran": {
+  "protein": 17.3,
+  "fat": 7.03,
+  "carbs": 66.22,
+  "source": "usda:168872",
+  "fiber": 15.4,
+  "sugars": 1.45,
+  "sodium_mg": 4,
+  "base": "Вівсяні висівки"
+ },
+ "grain_wheat_bran": {
+  "protein": 15.55,
+  "fat": 4.25,
+  "carbs": 64.51,
+  "source": "usda:169722",
+  "fiber": 42.8,
+  "sugars": 0.41,
+  "sodium_mg": 2,
+  "base": "Пшеничні висівки"
+ },
+ "grain_pearl_barley": {
+  "protein": 9.91,
+  "fat": 1.16,
+  "carbs": 77.72,
+  "source": "usda:170284",
+  "fiber": 15.6,
+  "sugars": 0.8,
+  "sodium_mg": 9,
+  "base": "Перловка"
+ },
+ "grain_barley_ground": {
+  "protein": 12.48,
+  "fat": 2.3,
+  "carbs": 73.48,
+  "source": "usda:170283",
+  "fiber": 17.3,
+  "sugars": 0.8,
+  "sodium_mg": 12,
+  "base": "Ячна крупа"
+ },
  "grain_semolina": {
   "protein": 13.33,
   "fat": 1.84,
@@ -3011,6 +3158,16 @@
   "fiber": 3.68,
   "sodium_mg": 0.43,
   "base": "Манка"
+ },
+ "grain_bulgur_fine": {
+  "protein": 12.29,
+  "fat": 1.33,
+  "carbs": 75.87,
+  "source": "usda:170688",
+  "fiber": 12.5,
+  "sugars": 0.41,
+  "sodium_mg": 17,
+  "base": "Булгур"
  },
  "grain_couscous": {
   "protein": 12.76,
@@ -3315,6 +3472,16 @@
   "sodium_mg": 698,
   "base": "Грінки"
  },
+ "bread_crispbread_rye": {
+  "protein": 7.9,
+  "fat": 1.3,
+  "carbs": 82.2,
+  "source": "usda:172739",
+  "fiber": 16.5,
+  "sugars": 1.07,
+  "sodium_mg": 410,
+  "base": "Хлібці житні"
+ },
  "bread_crispbread_rice": {
   "protein": 8.2,
   "fat": 2.8,
@@ -3355,6 +3522,76 @@
   "sodium_mg": 571,
   "base": "Кукурудзяні пластівці"
  },
+ "nut_walnut": {
+  "protein": 15.23,
+  "fat": 65.21,
+  "carbs": 13.71,
+  "source": "usda:170187",
+  "fiber": 6.7,
+  "sugars": 2.61,
+  "sodium_mg": 2,
+  "base": "Волоський горіх"
+ },
+ "nut_almond_raw": {
+  "protein": 21.15,
+  "fat": 49.93,
+  "carbs": 21.55,
+  "source": "usda:170567",
+  "fiber": 12.5,
+  "sugars": 4.35,
+  "sodium_mg": 1,
+  "base": "Мигдаль"
+ },
+ "nut_hazelnut": {
+  "protein": 14.95,
+  "fat": 60.75,
+  "carbs": 16.7,
+  "source": "usda:170581",
+  "fiber": 9.7,
+  "sugars": 4.34,
+  "sodium_mg": 0,
+  "base": "Фундук"
+ },
+ "nut_pistachio_salted": {
+  "protein": 20.16,
+  "fat": 45.32,
+  "carbs": 27.17,
+  "source": "usda:170184",
+  "fiber": 10.6,
+  "sugars": 7.66,
+  "sodium_mg": 1,
+  "base": "Фісташки"
+ },
+ "nut_pecan": {
+  "protein": 9.17,
+  "fat": 71.97,
+  "carbs": 13.86,
+  "source": "usda:170182",
+  "fiber": 9.6,
+  "sugars": 3.97,
+  "sodium_mg": 0,
+  "base": "Пекан"
+ },
+ "nut_macadamia": {
+  "protein": 7.91,
+  "fat": 75.77,
+  "carbs": 13.82,
+  "source": "usda:170178",
+  "fiber": 8.6,
+  "sugars": 4.57,
+  "sodium_mg": 5,
+  "base": "Макадамія"
+ },
+ "nut_brazil": {
+  "protein": 14.32,
+  "fat": 67.1,
+  "carbs": 11.74,
+  "source": "usda:170569",
+  "fiber": 7.5,
+  "sugars": 2.33,
+  "sodium_mg": 3,
+  "base": "Бразильський горіх"
+ },
  "nut_peanut_raw": {
   "protein": 25.8,
   "fat": 49.24,
@@ -3365,6 +3602,25 @@
   "sodium_mg": 18,
   "base": "Арахіс сирий"
  },
+ "nut_almond_flour": {
+  "protein": 26.24,
+  "fat": 50.23,
+  "carbs": 16.25,
+  "source": "usda:2261420",
+  "fiber": 9.27,
+  "sodium_mg": 0.89,
+  "base": "Борошно мигдальне"
+ },
+ "seed_sunflower_inshell": {
+  "protein": 20.78,
+  "fat": 51.46,
+  "carbs": 20,
+  "source": "usda:170562",
+  "fiber": 8.6,
+  "sugars": 2.62,
+  "sodium_mg": 9,
+  "base": "Насіння соняшника"
+ },
  "seed_pumpkin": {
   "protein": 30.23,
   "fat": 49.05,
@@ -3374,6 +3630,94 @@
   "sugars": 1.4,
   "sodium_mg": 7,
   "base": "Насіння гарбуза"
+ },
+ "seed_sesame_white": {
+  "protein": 17.73,
+  "fat": 49.67,
+  "carbs": 23.45,
+  "source": "usda:170150",
+  "fiber": 11.8,
+  "sugars": 0.3,
+  "sodium_mg": 11,
+  "base": "Кунжут"
+ },
+ "seed_flax": {
+  "protein": 18.29,
+  "fat": 42.16,
+  "carbs": 28.88,
+  "source": "usda:169414",
+  "fiber": 27.3,
+  "sugars": 1.55,
+  "sodium_mg": 30,
+  "base": "Насіння льону"
+ },
+ "seed_chia": {
+  "protein": 16.54,
+  "fat": 30.74,
+  "carbs": 42.12,
+  "source": "usda:170554",
+  "fiber": 34.4,
+  "sodium_mg": 16,
+  "base": "Чіа"
+ },
+ "seed_poppy": {
+  "protein": 17.99,
+  "fat": 41.56,
+  "carbs": 28.13,
+  "source": "usda:171330",
+  "fiber": 19.5,
+  "sugars": 2.99,
+  "sodium_mg": 26,
+  "base": "Мак"
+ },
+ "nut_peanut_butter_smooth": {
+  "protein": 22.21,
+  "fat": 51.36,
+  "carbs": 22.31,
+  "source": "usda:174266",
+  "fiber": 5,
+  "sugars": 10.49,
+  "sodium_mg": 426,
+  "base": "Арахісова паста"
+ },
+ "nut_almond_butter": {
+  "protein": 20.96,
+  "fat": 55.5,
+  "carbs": 18.82,
+  "source": "usda:168603",
+  "fiber": 10.3,
+  "sugars": 6.27,
+  "sodium_mg": 227,
+  "base": "Мигдальна паста"
+ },
+ "seed_tahini": {
+  "protein": 17,
+  "fat": 53.76,
+  "carbs": 21.19,
+  "source": "usda:170189",
+  "fiber": 9.3,
+  "sugars": 0.49,
+  "sodium_mg": 115,
+  "base": "Тахіні"
+ },
+ "nut_coconut_flakes": {
+  "protein": 6.88,
+  "fat": 64.53,
+  "carbs": 23.65,
+  "source": "usda:170170",
+  "fiber": 16.3,
+  "sugars": 7.35,
+  "sodium_mg": 37,
+  "base": "Кокосова стружка"
+ },
+ "nut_coconut_flour": {
+  "protein": 16.14,
+  "fat": 15.28,
+  "carbs": 58.9,
+  "source": "usda:2515382",
+  "fiber": 34.24,
+  "sodium_mg": 46.94,
+  "base": "Борошно кокосове"
  },
  "oil_coconut": {
   "protein": 0,
@@ -3394,6 +3738,15 @@
   "sugars": 0,
   "sodium_mg": 0,
   "base": "Олія соняшникова"
+ },
+ "oil_olive_pomace": {
+  "protein": 0.25,
+  "fat": 99.9,
+  "carbs": 0,
+  "source": "ciqual:17270",
+  "fiber": 0,
+  "sugars": 0,
+  "base": "Олія оливкова extra virgin"
  },
  "oil_olive_frying": {
   "protein": 0,
@@ -3425,6 +3778,16 @@
   "sodium_mg": 0,
   "base": "Олія ріпакова"
  },
+ "oil_flaxseed": {
+  "protein": 0.11,
+  "fat": 99.98,
+  "carbs": 0,
+  "source": "usda:167702",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 0,
+  "base": "Олія лляна"
+ },
  "oil_sesame": {
   "protein": 0,
   "fat": 100,
@@ -3444,6 +3807,35 @@
   "sodium_mg": 0,
   "base": "Олія авокадо"
  },
+ "spice_black_pepper_ground": {
+  "protein": 10.39,
+  "fat": 3.26,
+  "carbs": 63.95,
+  "source": "usda:170931",
+  "fiber": 25.3,
+  "sugars": 0.64,
+  "sodium_mg": 20,
+  "base": "Перець чорний мелений"
+ },
+ "spice_chili_ground": {
+  "protein": 13.46,
+  "fat": 14.28,
+  "carbs": 49.7,
+  "source": "usda:171319",
+  "fiber": 34.8,
+  "sugars": 7.19,
+  "sodium_mg": 2867,
+  "base": "Чилі мелений"
+ },
+ "spice_allspice": {
+  "protein": 6.09,
+  "fat": 8.69,
+  "carbs": 72.12,
+  "source": "usda:171315",
+  "fiber": 21.6,
+  "sodium_mg": 77,
+  "base": "Перець духмяний"
+ },
  "spice_caraway": {
   "protein": 17.81,
   "fat": 22.27,
@@ -3453,6 +3845,85 @@
   "sugars": 2.25,
   "sodium_mg": 168,
   "base": "Кмин"
+ },
+ "spice_cinnamon_ground": {
+  "protein": 3.99,
+  "fat": 1.24,
+  "carbs": 80.59,
+  "source": "usda:171320",
+  "fiber": 53.1,
+  "sugars": 2.17,
+  "sodium_mg": 10,
+  "base": "Кориця"
+ },
+ "spice_turmeric": {
+  "protein": 9.68,
+  "fat": 3.25,
+  "carbs": 67.14,
+  "source": "usda:172231",
+  "fiber": 22.7,
+  "sugars": 3.21,
+  "sodium_mg": 27,
+  "base": "Куркума"
+ },
+ "spice_clove": {
+  "protein": 5.97,
+  "fat": 13,
+  "carbs": 65.53,
+  "source": "usda:171321",
+  "fiber": 33.9,
+  "sugars": 2.38,
+  "sodium_mg": 277,
+  "base": "Гвоздика"
+ },
+ "spice_nutmeg": {
+  "protein": 5.84,
+  "fat": 36.31,
+  "carbs": 49.29,
+  "source": "usda:171326",
+  "fiber": 20.8,
+  "sugars": 2.99,
+  "sodium_mg": 16,
+  "base": "Мускатний горіх"
+ },
+ "spice_onion_dried": {
+  "protein": 10.41,
+  "fat": 1.04,
+  "carbs": 79.12,
+  "source": "usda:171327",
+  "fiber": 15.2,
+  "sugars": 6.63,
+  "sodium_mg": 73,
+  "base": "Сушена цибуля"
+ },
+ "spice_basil_dried": {
+  "protein": 22.98,
+  "fat": 4.07,
+  "carbs": 47.75,
+  "source": "usda:171317",
+  "fiber": 37.7,
+  "sugars": 1.71,
+  "sodium_mg": 76,
+  "base": "Базилік сушений"
+ },
+ "spice_thyme_dried": {
+  "protein": 9.11,
+  "fat": 7.43,
+  "carbs": 63.94,
+  "source": "usda:170938",
+  "fiber": 37,
+  "sugars": 1.71,
+  "sodium_mg": 55,
+  "base": "Чебрець сушений"
+ },
+ "spice_rosemary_dried": {
+  "protein": 4.88,
+  "fat": 15.22,
+  "carbs": 64.06,
+  "source": "usda:171333",
+  "fiber": 42.6,
+  "sodium_mg": 50,
+  "base": "Розмарин сушений"
  },
  "spice_dill_dried": {
   "protein": 19.96,
@@ -3513,6 +3984,16 @@
   "sodium_mg": 27360,
   "base": "Сода"
  },
+ "spice_yeast_dry": {
+  "protein": 40.44,
+  "fat": 7.61,
+  "carbs": 41.22,
+  "source": "usda:175043",
+  "fiber": 26.9,
+  "sugars": 0,
+  "sodium_mg": 51,
+  "base": "Дріжджі сухі"
+ },
  "spice_yeast_fresh": {
   "protein": 8.4,
   "fat": 1.9,
@@ -3532,6 +4013,16 @@
   "sugars": 0,
   "sodium_mg": 196,
   "base": "Желатин"
+ },
+ "spice_cocoa_powder": {
+  "protein": 19.6,
+  "fat": 13.7,
+  "carbs": 57.9,
+  "source": "usda:169593",
+  "fiber": 37,
+  "sugars": 1.75,
+  "sodium_mg": 21,
+  "base": "Какао-порошок"
  },
  "sauce_ketchup_classic": {
   "protein": 1.04,
@@ -3762,6 +4253,26 @@
   "sodium_mg": 438,
   "base": "Чізкейк"
  },
+ "choc_dark_70": {
+  "protein": 7.79,
+  "fat": 42.63,
+  "carbs": 45.9,
+  "source": "usda:170273",
+  "fiber": 10.9,
+  "sugars": 23.99,
+  "sodium_mg": 20,
+  "base": "Шоколад чорний 70–85%"
+ },
+ "choc_dark_85": {
+  "protein": 7.79,
+  "fat": 42.63,
+  "carbs": 45.9,
+  "source": "usda:170273",
+  "fiber": 10.9,
+  "sugars": 23.99,
+  "sodium_mg": 20,
+  "base": "Шоколад чорний 70–85%"
+ },
  "choc_white": {
   "protein": 5.87,
   "fat": 32.09,
@@ -3960,6 +4471,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 4,
+  "alcohol": 3.9,
   "base": "Пиво світле"
  },
  "alc_beer_dark": {
@@ -3970,7 +4482,338 @@
   "fiber": 0,
   "sugars": 4.1,
   "sodium_mg": 11.6,
+  "alcohol": 3.91,
   "base": "Пиво темне"
+ },
+ "alc_beer_wheat": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_ipa": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_apa": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_stout": {
+  "protein": 0.43,
+  "fat": 0,
+  "carbs": 4.1,
+  "source": "ciqual:5000",
+  "fiber": 0,
+  "sugars": 4.1,
+  "sodium_mg": 11.6,
+  "alcohol": 3.91,
+  "base": "Пиво темне"
+ },
+ "alc_beer_porter": {
+  "protein": 0.43,
+  "fat": 0,
+  "carbs": 4.1,
+  "source": "ciqual:5000",
+  "fiber": 0,
+  "sugars": 4.1,
+  "sodium_mg": 11.6,
+  "alcohol": 3.91,
+  "base": "Пиво темне"
+ },
+ "alc_beer_unfiltered": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_craft": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_obolon": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_chernihivske": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_lvivske": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_pravda": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_beer_varvar": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "alc_wine_red_dry": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "alc_wine_white_dry": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "alc_wine_cabernet_sauvignon": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "alc_wine_merlot": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "alc_wine_pinot_noir": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "alc_wine_shiraz": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "alc_wine_chardonnay": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "alc_wine_sauvignon_blanc": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "alc_wine_riesling": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "alc_wine_pinot_grigio": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "alc_wine_telti_kuruk": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "alc_wine_odeskyi_chornyi": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "alc_sparkling_brut": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "alc_sparkling_dry": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "alc_prosecco": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "alc_champagne": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "alc_vermouth_dry": {
+  "protein": 0.05,
+  "fat": 0,
+  "carbs": 11.3,
+  "source": "ciqual:1007",
+  "fiber": 0,
+  "sugars": 11.1,
+  "sodium_mg": 15,
+  "alcohol": 11.84,
+  "base": "Вермут"
+ },
+ "alc_vermouth_red": {
+  "protein": 0.05,
+  "fat": 0,
+  "carbs": 11.3,
+  "source": "ciqual:1007",
+  "fiber": 0,
+  "sugars": 11.1,
+  "sodium_mg": 15,
+  "alcohol": 11.84,
+  "base": "Вермут"
  },
  "alc_vodka_classic": {
   "protein": 0,
@@ -3980,6 +4823,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "alc_vodka_nemiroff": {
@@ -3990,6 +4834,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "alc_cognac_ua_stars": {
@@ -4000,6 +4845,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "alc_cognac_vs": {
@@ -4010,6 +4856,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "alc_cognac_vsop": {
@@ -4020,6 +4867,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "alc_cognac_xo": {
@@ -4030,6 +4878,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "alc_whisky_blended": {
@@ -4040,7 +4889,569 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
+ },
+ "alc_cream_liqueur": {
+  "protein": 0.1,
+  "fat": 0.23,
+  "carbs": 25.4,
+  "source": "ciqual:1003",
+  "fiber": 0,
+  "sugars": 17.4,
+  "sodium_mg": 8,
+  "alcohol": 18.26,
+  "base": "Лікер"
+ },
+ "alc_coffee_liqueur": {
+  "protein": 0.1,
+  "fat": 0.23,
+  "carbs": 25.4,
+  "source": "ciqual:1003",
+  "fiber": 0,
+  "sugars": 17.4,
+  "sodium_mg": 8,
+  "alcohol": 18.26,
+  "base": "Лікер"
+ },
+ "alc_mint_liqueur": {
+  "protein": 0.1,
+  "fat": 0.23,
+  "carbs": 25.4,
+  "source": "ciqual:1003",
+  "fiber": 0,
+  "sugars": 17.4,
+  "sodium_mg": 8,
+  "alcohol": 18.26,
+  "base": "Лікер"
+ },
+ "alc_chocolate_liqueur": {
+  "protein": 0.1,
+  "fat": 0.23,
+  "carbs": 25.4,
+  "source": "ciqual:1003",
+  "fiber": 0,
+  "sugars": 17.4,
+  "sodium_mg": 8,
+  "alcohol": 18.26,
+  "base": "Лікер"
+ },
+ "r2al_wine_saperavi": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_tsinandali": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "r2al_wine_mukuzani": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_chianti": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_valpolicella": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_montepulciano": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_rioja": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_tempranillo": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_zinfandel": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_gewurztraminer": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "r2al_wine_grenache": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_rkatsiteli": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "r2al_wine_aligote": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.6,
+  "source": "usda:174837",
+  "fiber": 0,
+  "sugars": 0.96,
+  "sodium_mg": 5,
+  "alcohol": 10.3,
+  "base": "Вино сухе біле"
+ },
+ "r2al_wine_malbec": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_primitivo": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_nero_d_avola": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_beaujolais": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_bordeaux": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_wine_barbera": {
+  "protein": 0.07,
+  "fat": 0,
+  "carbs": 2.61,
+  "source": "usda:173190",
+  "fiber": 0,
+  "sugars": 0.62,
+  "sodium_mg": 4,
+  "alcohol": 10.6,
+  "base": "Вино сухе червоне"
+ },
+ "r2al_sparkling_artemivske": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "r2al_champagne_moet": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "r2al_champagne_veuve": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "r2al_sparkling_rose": {
+  "protein": 0.3,
+  "fat": 0,
+  "carbs": 1.4,
+  "source": "ciqual:5207",
+  "fiber": 0,
+  "sugars": 1.4,
+  "sodium_mg": 1.93,
+  "alcohol": 9.56,
+  "base": "Шампанське/ігристе"
+ },
+ "r2al_vermouth_cinzano": {
+  "protein": 0.05,
+  "fat": 0,
+  "carbs": 11.3,
+  "source": "ciqual:1007",
+  "fiber": 0,
+  "sugars": 11.1,
+  "sodium_mg": 15,
+  "alcohol": 11.84,
+  "base": "Вермут"
+ },
+ "r2al_vermouth_martini_bianco": {
+  "protein": 0.05,
+  "fat": 0,
+  "carbs": 11.3,
+  "source": "ciqual:1007",
+  "fiber": 0,
+  "sugars": 11.1,
+  "sodium_mg": 15,
+  "alcohol": 11.84,
+  "base": "Вермут"
+ },
+ "r2al_beer_corona": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_heineken": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_stella_artois": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_guinness": {
+  "protein": 0.43,
+  "fat": 0,
+  "carbs": 4.1,
+  "source": "ciqual:5000",
+  "fiber": 0,
+  "sugars": 4.1,
+  "sodium_mg": 11.6,
+  "alcohol": 3.91,
+  "base": "Пиво темне"
+ },
+ "r2al_beer_carlsberg": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_miller": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_budweiser": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_staropramen": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_leffe": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_hoegaarden": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_paulaner": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_franziskaner": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_erdinger": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_peroni": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_zibert": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_slavutych": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_pilsner_urquell": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_radler": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_krusovice": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_bitburger": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_desperados": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
+ },
+ "r2al_beer_opillya": {
+  "protein": 0.46,
+  "fat": 0,
+  "carbs": 3.55,
+  "source": "usda:168746",
+  "fiber": 0,
+  "sugars": 0,
+  "sodium_mg": 4,
+  "alcohol": 3.9,
+  "base": "Пиво світле"
  },
  "r2al_vodka_absolut": {
   "protein": 0,
@@ -4050,6 +5461,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "r2al_vodka_finlandia": {
@@ -4060,6 +5472,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "r2al_vodka_smirnoff": {
@@ -4070,6 +5483,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "r2al_vodka_grey_goose": {
@@ -4080,6 +5494,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "r2al_vodka_medoff": {
@@ -4090,6 +5505,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "r2al_vodka_belvedere": {
@@ -4100,6 +5516,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 1,
+  "alcohol": 33.22,
   "base": "Горілка"
  },
  "r2al_whisky_jameson": {
@@ -4110,6 +5527,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_jack_daniels": {
@@ -4120,6 +5538,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_johnnie_walker_red": {
@@ -4130,6 +5549,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_johnnie_walker_black": {
@@ -4140,6 +5560,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_chivas_regal": {
@@ -4150,6 +5571,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_ballantines": {
@@ -4160,6 +5582,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_jim_beam": {
@@ -4170,6 +5593,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_grants": {
@@ -4180,6 +5604,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_william_lawsons": {
@@ -4190,6 +5615,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_glenfiddich": {
@@ -4200,6 +5626,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_famous_grouse": {
@@ -4210,6 +5637,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_teachers": {
@@ -4220,6 +5648,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_dewars": {
@@ -4230,6 +5659,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_whisky_monkey_shoulder": {
@@ -4240,6 +5670,7 @@
   "fiber": 0,
   "sugars": 0.1,
   "sodium_mg": 0,
+  "alcohol": 33.22,
   "base": "Віскі"
  },
  "r2al_cognac_hennessy": {
@@ -4250,6 +5681,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "r2al_cognac_camus": {
@@ -4260,6 +5692,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "r2al_cognac_remy_martin": {
@@ -4270,6 +5703,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "r2al_cognac_martell": {
@@ -4280,6 +5714,7 @@
   "fiber": 0,
   "sugars": 0,
   "sodium_mg": 0.75,
+  "alcohol": 33.22,
   "base": "Коньяк"
  },
  "r2al_liqueur_malibu": {
@@ -4290,6 +5725,7 @@
   "fiber": 0,
   "sugars": 17.4,
   "sodium_mg": 8,
+  "alcohol": 18.26,
   "base": "Лікер"
  },
  "r2al_liqueur_southern_comfort": {
@@ -4300,6 +5736,7 @@
   "fiber": 0,
   "sugars": 17.4,
   "sodium_mg": 8,
+  "alcohol": 18.26,
   "base": "Лікер"
  },
  "r2al_liqueur_frangelico": {
@@ -4310,6 +5747,7 @@
   "fiber": 0,
   "sugars": 17.4,
   "sodium_mg": 8,
+  "alcohol": 18.26,
   "base": "Лікер"
  },
  "r2al_liqueur_grand_marnier": {
@@ -4320,6 +5758,40 @@
   "fiber": 0,
   "sugars": 17.4,
   "sodium_mg": 8,
+  "alcohol": 18.26,
+  "base": "Лікер"
+ },
+ "r2al_liqueur_pear": {
+  "protein": 0.1,
+  "fat": 0.23,
+  "carbs": 25.4,
+  "source": "ciqual:1003",
+  "fiber": 0,
+  "sugars": 17.4,
+  "sodium_mg": 8,
+  "alcohol": 18.26,
+  "base": "Лікер"
+ },
+ "r2al_liqueur_honey": {
+  "protein": 0.1,
+  "fat": 0.23,
+  "carbs": 25.4,
+  "source": "ciqual:1003",
+  "fiber": 0,
+  "sugars": 17.4,
+  "sodium_mg": 8,
+  "alcohol": 18.26,
+  "base": "Лікер"
+ },
+ "r2al_liqueur_walnut": {
+  "protein": 0.1,
+  "fat": 0.23,
+  "carbs": 25.4,
+  "source": "ciqual:1003",
+  "fiber": 0,
+  "sugars": 17.4,
+  "sodium_mg": 8,
+  "alcohol": 18.26,
   "base": "Лікер"
  },
  "r2al_liqueur_amarula": {
@@ -4330,6 +5802,7 @@
   "fiber": 0,
   "sugars": 17.4,
   "sodium_mg": 8,
+  "alcohol": 18.26,
   "base": "Лікер"
  },
  "r2bk_wheat_bread_formovyi": {
@@ -4888,16 +6361,6 @@
   "sodium_mg": 142,
   "base": "Яйце куряче ціле"
  },
- "r2dy_egg_boiled_quail": {
-  "protein": 13.05,
-  "fat": 11.09,
-  "carbs": 0.41,
-  "source": "usda:172191",
-  "fiber": 0,
-  "sugars": 0.4,
-  "sodium_mg": 141,
-  "base": "Яйце перепелине"
- },
  "r2dy_cottage_cheese_2": {
   "protein": 10.34,
   "fat": 0.29,
@@ -5246,6 +6709,33 @@
   "sodium_mg": 106,
   "base": "Курка гомілка"
  },
+ "r2no_oil_olive_extra_virgin": {
+  "protein": 0.25,
+  "fat": 99.9,
+  "carbs": 0,
+  "source": "ciqual:17270",
+  "fiber": 0,
+  "sugars": 0,
+  "base": "Олія оливкова extra virgin"
+ },
+ "r2no_oil_olive_greek": {
+  "protein": 0.25,
+  "fat": 99.9,
+  "carbs": 0,
+  "source": "ciqual:17270",
+  "fiber": 0,
+  "sugars": 0,
+  "base": "Олія оливкова extra virgin"
+ },
+ "r2no_oil_olive_italian": {
+  "protein": 0.25,
+  "fat": 99.9,
+  "carbs": 0,
+  "source": "ciqual:17270",
+  "fiber": 0,
+  "sugars": 0,
+  "base": "Олія оливкова extra virgin"
+ },
  "r2no_oil_sunflower_coldpressed": {
   "protein": 0,
   "fat": 100,
@@ -5265,6 +6755,34 @@
   "sugars": 0,
   "sodium_mg": 0,
   "base": "Олія соняшникова"
+ },
+ "r2pm_milk_coconut_barista": {
+  "protein": 0.25,
+  "fat": 2.1,
+  "carbs": 2.75,
+  "source": "ciqual:18907",
+  "sugars": 2.46,
+  "sodium_mg": 35.6,
+  "base": "Молоко кокосове (напій)"
+ },
+ "r2pm_milk_coconut_light": {
+  "protein": 2.29,
+  "fat": 23.84,
+  "carbs": 5.54,
+  "source": "usda:170172",
+  "fiber": 2.2,
+  "sugars": 3.34,
+  "sodium_mg": 15,
+  "base": "Кокосове молоко"
+ },
+ "r2pm_milk_coconut_unsweetened": {
+  "protein": 0.25,
+  "fat": 2.1,
+  "carbs": 2.75,
+  "source": "ciqual:18907",
+  "sugars": 2.46,
+  "sodium_mg": 35.6,
+  "base": "Молоко кокосове (напій)"
  },
  "r2rm_roll_california": {
   "protein": 2.92,

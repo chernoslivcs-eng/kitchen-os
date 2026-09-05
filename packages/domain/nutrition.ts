@@ -9,31 +9,33 @@ import type { Nutrition } from '@kitchen/catalog';
 
 export type { Nutrition, NutritionSource } from '@kitchen/catalog';
 
-/** 4-4-9, округлення до цілого. */
-export function kcalOf(n: { protein: number; fat: number; carbs: number }): number {
-  return Math.round(n.protein * 4 + n.carbs * 4 + n.fat * 9);
+/** 4-4-9 (+7 на грам спирту, Н1а), округлення до цілого. */
+export function kcalOf(n: { protein: number; fat: number; carbs: number; alcohol?: number }): number {
+  return Math.round(n.protein * 4 + n.carbs * 4 + n.fat * 9 + (n.alcohol ?? 0) * 7);
 }
 
 export const isEstimate = (n: { source: string }): boolean => n.source === 'estimate';
 
 /**
- * Санітарна перевірка одного рядка: макро з клітковиною не більше 100 г на
- * 100 г продукту, жодного відʼємного числа, ккал у межах 0–900 (чистий жир —
- * 900). Повертає опис порушення або null.
+ * Санітарна перевірка одного рядка: білки+жири+вуглеводи (+спирт) не більше
+ * 100,5 г на 100 г продукту (Н1а: клітковина НЕ додається — вуглеводи USDA
+ * «by difference» уже містять її; 0,5 — округлення дампу), жодного відʼємного
+ * числа, ккал у межах 0–905 (чистий жир — 900 плюс запас). Повертає опис або null.
  */
 export function nutritionIssue(n: Nutrition): string | null {
   const vals: [string, number | undefined][] = [
-    ['protein', n.protein], ['fat', n.fat], ['carbs', n.carbs], ['fiber', n.fiber], ['sugars', n.sugars], ['sodium_mg', n.sodium_mg],
+    ['protein', n.protein], ['fat', n.fat], ['carbs', n.carbs], ['fiber', n.fiber], ['sugars', n.sugars], ['sodium_mg', n.sodium_mg], ['alcohol', n.alcohol],
   ];
   for (const [k, v] of vals) {
     if (v === undefined) continue;
     if (!Number.isFinite(v)) return `${k}: не число`;
     if (v < 0) return `${k}: відʼємне (${v})`;
   }
-  const macro = n.protein + n.fat + n.carbs + (n.fiber ?? 0);
-  if (macro > 100) return `білки+жири+вуглеводи+клітковина = ${round1(macro)} г > 100`;
+  const macro = n.protein + n.fat + n.carbs + (n.alcohol ?? 0);
+  if (macro > 100.5) return `білки+жири+вуглеводи+спирт = ${round1(macro)} г > 100.5`;
+  // Верхня межа з тим самим запасом на округлення: 100,5 г жиру = 904,5 ккал.
   const kcal = kcalOf(n);
-  if (kcal > 900) return `ккал 4-4-9 = ${kcal} > 900`;
+  if (kcal > 905) return `ккал 4-4-9 = ${kcal} > 905`;
   return null;
 }
 
@@ -65,7 +67,7 @@ export function recipeNutrition(
   resolve: (ing: RecipeIngLike) => IngredientFacts | null,
 ): RecipeNutrition | null {
   const servings = recipe.sv && recipe.sv > 0 ? recipe.sv : 1;
-  let protein = 0, fat = 0, carbs = 0;
+  let protein = 0, fat = 0, carbs = 0, alcohol = 0;
   let counted = 0, skipped = 0, approx = false;
   for (const ing of recipe.ing) {
     // «За смаком» (без кількості) — не пропуск, там нема чого рахувати.
@@ -85,12 +87,13 @@ export function recipeNutrition(
     protein += facts.nutrition.protein * k;
     fat += facts.nutrition.fat * k;
     carbs += facts.nutrition.carbs * k;
+    alcohol += (facts.nutrition.alcohol ?? 0) * k;
     if (isEstimate(facts.nutrition)) approx = true;
     counted++;
   }
   if (!counted) return null;
   if (skipped) approx = true;
-  const per = { protein: protein / servings, fat: fat / servings, carbs: carbs / servings };
+  const per = { protein: protein / servings, fat: fat / servings, carbs: carbs / servings, alcohol: alcohol / servings };
   return {
     per_serving: { kcal: kcalOf(per), protein: round1(per.protein), fat: round1(per.fat), carbs: round1(per.carbs) },
     approx,

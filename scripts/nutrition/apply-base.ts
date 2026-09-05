@@ -14,7 +14,7 @@
 // Рядки бази з source=estimate позицію не міняють: оцінку на оцінку не міняємо.
 // Запуск: npx tsx scripts/nutrition/apply-base.ts [--report path.json]
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CATALOG } from '../../packages/catalog/seed.ts';
@@ -33,12 +33,13 @@ const num = (s: string | undefined) => (s === undefined || s === '' ? undefined 
 const base = new Map<string, Nutrition>();
 const states = new Map<string, string>();
 for (const l of lines) {
-  const [name, state, protein, fat, carbs, fiber, sugars, sodium, source] = l.split(';');
+  const [name, state, protein, fat, carbs, fiber, sugars, sodium, source, alcohol] = l.split(';');
   states.set(name!, state!);
   const n: Nutrition = { protein: num(protein) ?? 0, fat: num(fat) ?? 0, carbs: num(carbs) ?? 0, source: source as Nutrition['source'] };
   if (num(fiber) !== undefined) n.fiber = num(fiber);
   if (num(sugars) !== undefined) n.sugars = num(sugars);
   if (num(sodium) !== undefined) n.sodium_mg = num(sodium);
+  if (num(alcohol) !== undefined) n.alcohol = num(alcohol);
   base.set(name!, n);
 }
 
@@ -77,7 +78,24 @@ writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
 
 // ----- seed.ts на місці -----
 const SEED = join(ROOT, 'packages/catalog/seed.ts');
-const NUTRI_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg'] as const;
+// Оцінка генератора з data/raw — щоб позиція, яка перестала збігатися з базою
+// (наприклад, після нового стоп-слова), повернулась до своєї оцінки, а не
+// лишилась зі звіреними числами під підписом estimate.
+const RAW_DIR = join(ROOT, 'packages/catalog/data/raw');
+const rawEstimate = new Map<string, Nutrition>();
+for (const f of readdirSync(RAW_DIR).filter((x) => x.endsWith('.ndjson'))) {
+  for (const line of readFileSync(join(RAW_DIR, f), 'utf-8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const o = JSON.parse(line) as { key?: string; nutrition?: { p?: number; f?: number; c?: number } };
+      const n = o.nutrition;
+      if (o.key && n && [n.p, n.f, n.c].every((v) => Number.isFinite(v))) {
+        rawEstimate.set(o.key, { protein: Math.round(n.p!), fat: Math.round(n.f!), carbs: Math.round(n.c!), source: 'estimate' });
+      }
+    } catch { /* зіпсований рядок — пропускаємо, збирач його теж не бере */ }
+  }
+}
+const NUTRI_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg', 'alcohol'] as const;
 const literal = (n: Nutrition) => {
   const parts = NUTRI_KEYS.filter((k) => n[k] !== undefined).map((k) => `${k}: ${n[k]}`);
   parts.push(`source: '${n.source}'`);
@@ -98,11 +116,13 @@ seed = seed.split(/(?=\n  \{\n)/).map((block) => {
     const rec = key ? out[key] : undefined;
     if (rec) { sourcedInSeed++; const { base: _b, ...n } = rec; return `nutrition: ${literal(n)}`; }
     const num = (k: string) => Number(new RegExp(`(?:^|[\\s{,])${k}: ([0-9.]+)`).exec(lit)?.[1]);
+    // Була звіреною, а тепер не збігається — назад до оцінки генератора.
+    if (/source: '(usda|ciqual):/.test(lit) && key && rawEstimate.has(key)) return `nutrition: ${literal(rawEstimate.get(key)!)}`;
     // стара форма {kcal,p,f,c} або вже нова — читаємо обидві
     const n: Nutrition = /\bprotein:/.test(lit)
       ? { protein: num('protein'), fat: num('fat'), carbs: num('carbs'), source: 'estimate' }
       : { protein: num('p'), fat: num('f'), carbs: num('c'), source: 'estimate' };
-    for (const k of ['fiber', 'sugars', 'sodium_mg'] as const) { const v = new RegExp(`\\b${k}: ([0-9.]+)`).exec(lit)?.[1]; if (v !== undefined) n[k] = Number(v); }
+    for (const k of ['fiber', 'sugars', 'sodium_mg', 'alcohol'] as const) { const v = new RegExp(`\\b${k}: ([0-9.]+)`).exec(lit)?.[1]; if (v !== undefined) n[k] = Number(v); }
     return `nutrition: ${literal(n)}`;
   });
 }).join('');

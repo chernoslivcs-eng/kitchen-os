@@ -11,9 +11,11 @@ export interface NutritionAliases {
   keywords: { kw: string[]; cat: string; base: string }[];
   /** Маркери обробки (копчене, консерви, ікра, пюре…): для таких назв правила 2–3 не діють. */
   processed?: string[];
+  /** Н1а: назва позиції (нормалізована) → рядок бази руками; перед усіма правилами. */
+  overrides?: Record<string, string>;
 }
 
-export type MatchRule = 'exact' | 'alias' | 'head+percent' | 'keyword';
+export type MatchRule = 'override' | 'exact' | 'alias' | 'head+percent' | 'keyword';
 export interface BaseMatch { base: string; rule: MatchRule }
 
 /** Нормалізація для збігу: регістр, апострофи, тире, «2,5» → «2.5», лапки. */
@@ -70,6 +72,9 @@ export class BaseMatcher {
 
   match(item: Pick<CatalogItem, 'name' | 'aliases' | 'categories'>): BaseMatch | null {
     const norm = normalizeName(item.name);
+    // 0. руками: «молоко кокосове» — напій, а не консервоване з бляшанки
+    const forced = this.aliases.overrides?.[norm];
+    if (forced && this.byNorm.has(normalizeName(forced))) return { base: this.byNorm.get(normalizeName(forced))!, rule: 'override' };
     const plain = stripBrands(norm, this.aliases.brands);
     // 1. точний збіг назви (з брендом і без) або аліаса. Збіг ПІСЛЯ зняття
     // бренду приймаємо лише коли рядок бази підтверджується категоріями
