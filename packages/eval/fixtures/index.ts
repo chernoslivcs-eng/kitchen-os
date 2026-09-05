@@ -14,16 +14,15 @@ export interface Fixture {
   invariants: string[];
   attachment?: { kind: 'text' | 'image'; path: string; content?: string };
   pantry?: unknown[];
-  profile?: unknown;
-  // Раунд 4: сім речень напряму ({ no: "…", ban: "none" }) і нотатки v2.
-  // Без них під PROFILE_V2 стара `profile` конвертується TS-двійником міграції.
+  // Раунд 4: сім речень напряму ({ no: "…", ban: "none" }) і нотатки; крок 11:
+  // єдина форма профілю у фікстурах. Традиції — явний вибір (null — здогад зі слів).
   profile_text?: Record<string, string>;
   profile_notes?: unknown[];
+  traditions?: ('orthodox' | 'catholic' | 'islamic' | 'jewish')[] | null;
   audience?: unknown;
   conversation?: { role: 'user' | 'assistant'; content: string }[];
   stage?: 1 | 2;
   shopping?: unknown[];
-  notes?: unknown[];
   eaters?: unknown[];
   recentRecipes?: unknown[];
   // №4: що відкрито зараз — кошик, свіжий рецепт, неоцінене готування.
@@ -238,27 +237,20 @@ export function loadFixtures(): Fixture[] {
     readJson('save-generated-recipe.json'),
     readJson('fish-week-is-event.json'),
     readJson('unapplied-profile-truth.json'),
-    // Раунд 4 §9: інваріант на вхід — під вимкненим прапором блоку нема, тож скіп.
-    { ...readJson('profile-verbatim.json'), skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — блоку [ПРО ЛЮДИНУ] у промті немає' },
-    // Раунд 4 §9, крок 4: дієта й «не можна» через вето по індексу (профіль — profile_text, лише під прапором).
+    // Раунд 4 §9: інваріант на вхід — [ПРО ЛЮДИНУ] дослівно.
+    readJson('profile-verbatim.json'),
+    // Раунд 4 §9, крок 4: дієта й «не можна» через вето по індексу.
     ...['diet-pescatarian-steak', 'diet-vegan-fish-sauce', 'ban-without-word', 'meh-less-meat',
       // Крок 4в: правки за ручним тестом кроку 5.
       'direct-request-steak-no', 'vegan-phrase-card', 'no-vs-meh-cilantro-no', 'no-vs-meh-cilantro-meh',
-      'no-vs-meh-cilantro-ban', 'allergy-stated-no-followup'].map((id) => ({
-      ...readJson(`${id}.json`),
-      skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — індексу вето немає',
-    })),
-    // Крок 8: нотатки асистента (поле note) — лише під прапором (profile_note).
-    ...['note-oversalted', 'note-not-duplicate-profile', 'note-oven'].map((id) => ({
-      ...readJson(`${id}.json`),
-      skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — нотаток асистента немає',
-    })),
+      'no-vs-meh-cilantro-ban', 'allergy-stated-no-followup'].map((id) => readJson(`${id}.json`)),
+    // Крок 8: нотатки асистента (поле note).
+    ...['note-oversalted', 'note-not-duplicate-profile', 'note-oven'].map((id) => readJson(`${id}.json`)),
     // Крок 7 (3): резюме «Показати, що вийшло» — user-turn це серверний рядок з
     // домену (одне джерело з chat.ts), у JSON фікстури його нема навмисно.
     ...['onboarding-summary', 'onboarding-summary-empty'].map((id) => ({
       ...readJson(`${id}.json`),
       conversation: [{ role: 'user' as const, content: PROFILE_SUMMARY_REQUEST }],
-      skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — блоку [ПРО ЛЮДИНУ] немає',
     })),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),

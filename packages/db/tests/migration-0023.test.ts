@@ -144,11 +144,20 @@ if ('skip' in backend) {
       expect(rows[1]).toMatchObject({ text: 'хотів: тунець → seared', norm_hash: noteHash('хотів: тунець → seared') });
     });
 
-    it('стара таблиця profile і memory_note не чіпаються; traditions лишаються там', async () => {
-      const { rows } = await pool.query('SELECT traditions, wishes FROM profile WHERE user_id = $1', [user_id]);
+    // Крок 11 (0026): старі таблиці — в архів, traditions — на user.
+    it('0026: traditions переїхали на user; profile і memory_note — в *_archive, оригіналів нема', async () => {
+      const { rows: u } = await pool.query('SELECT traditions FROM "user" WHERE id = $1', [user_id]);
+      expect(u[0]).toEqual({ traditions: ['orthodox'] });
+      const { rows: bare } = await pool.query('SELECT traditions FROM "user" WHERE id = $1', [bare_user_id]);
+      expect(bare[0]).toEqual({ traditions: null });
+      const { rows } = await pool.query('SELECT traditions, wishes FROM profile_archive WHERE user_id = $1', [user_id]);
       expect(rows[0]).toEqual({ traditions: ['orthodox'], wishes: ['веганство', 'весь наступний тиждень їсти рибу', 'Пісне на Великий піст'] });
-      const { rows: mn } = await pool.query('SELECT count(*)::int AS n FROM memory_note WHERE user_id = $1', [user_id]);
+      const { rows: mn } = await pool.query('SELECT count(*)::int AS n FROM memory_note_archive WHERE user_id = $1', [user_id]);
       expect(mn[0].n).toBe(2);
+      const { rows: tabs } = await pool.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('profile', 'memory_note')",
+      );
+      expect(tabs).toEqual([]);
     });
 
     it('veto_index після міграції порожній — індекс будує крок 4', async () => {

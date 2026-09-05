@@ -510,23 +510,17 @@ export const api = {
     unpack: () => req<{ created: number }>('/v1/shopping/unpack', { method: 'POST', body: '{}' }),
   },
 
-  profile: () => req<{ profile: ProfileData; notes: NoteInfo[]; eaters: EaterInfo[]; inferred_traditions?: Tradition[] }>('/v1/profile'),
-  // Раунд 4: під PROFILE_V2 той самий GET віддає сім полів; форма відповіді
-  // і є ознакою прапора для клієнта (окремого «feature flag» ендпоінта нема).
-  profileAny: () => req<ProfileAnyResponse>('/v1/profile'),
+  // Раунд 4: профіль як сім речень. Правка руками — модель у стан не пише,
+  // а людина у своєму профілі пише, і це рівно «дія — інтерфейс».
   profileV2: {
+    get: () => req<ProfileV2Response>('/v1/profile'),
     patchField: (key: string, body: { text: string } | { status: 'none' }) =>
       req<{ field: ProfileFieldV2; veto_index: unknown[] }>(`/v1/profile/${key}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    setTraditions: (traditions: Tradition[] | null) =>
+      req<{ traditions: Tradition[] | null; effective: Tradition[] }>('/v1/profile/traditions', { method: 'PATCH', body: JSON.stringify({ traditions }) }),
     removeNote: (id: string) => req<void>(`/v1/profile/notes/${id}`, { method: 'DELETE' }),
     restoreNote: (id: string) => req<{ note: ProfileNoteV2 | null }>(`/v1/profile/notes/${id}/restore`, { method: 'POST', body: '{}' }),
   },
-  // Правка руками. Модель у стан не пише — але людина у своєму профілі пише,
-  // і це рівно «дія — інтерфейс».
-  profilePatch: (ops: { op: 'add' | 'remove'; kind: 'allergy' | 'wish' | 'anti' | 'equip' | 'tradition'; label: string; has?: boolean }[]) =>
-    req<{ profile: ProfileData; applied: number }>('/v1/profile', {
-      method: 'PATCH', body: JSON.stringify({ ops }),
-    }),
-  deleteNote: (id: string) => req<void>(`/v1/notes/${id}`, { method: 'DELETE' }),
   deleteEater: (id: string) => req<void>(`/v1/eaters/${id}`, { method: 'DELETE' }),
 
   households: {
@@ -610,25 +604,20 @@ export interface AttachmentUploaded {
   name?: string;
 }
 
-// Раунд 4, профіль як сім речень (GET /v1/profile під PROFILE_V2).
+// Раунд 4, профіль як сім речень (GET /v1/profile).
 export interface ProfileFieldV2 { text: string; status: 'empty' | 'filled' | 'none'; updated_at: string | null }
 export interface ProfileNoteV2 { id: string; text: string; source: 'assistant' | 'user'; created_at: string }
+/** Рядок індексу вето — межа власника з полів no/ban: label — слово людини, allergy — з ban. */
+export interface VetoRowInfo { field: 'no' | 'ban'; kind: 'category' | 'product' | 'free'; ref: string | null; label: string; allergy: boolean }
 export interface ProfileV2Response {
   fields: Record<'name' | 'no' | 'ban' | 'love' | 'meh' | 'kit' | 'when', ProfileFieldV2>;
   notes: ProfileNoteV2[];
   defaults: { kit: string[] };
-}
-export type ProfileAnyResponse = ProfileV2Response | { profile: ProfileData; notes: NoteInfo[]; eaters: EaterInfo[] };
-export const isProfileV2 = (r: ProfileAnyResponse): r is ProfileV2Response => 'fields' in r;
-
-export interface ProfileData {
-  user_id: string;
-  allergies: string[];
-  wishes: string[];
-  antipatterns: string[];
-  equipment: Record<string, 'has' | 'lacks'>;
-  /** null — ще не обирала (календар іде за здогадом із побажань); [] — вимкнула все. */
+  /** null — ще не обирала (календар іде за здогадом зі слів); [] — вимкнула все. */
   traditions?: Tradition[] | null;
+  effective_traditions?: Tradition[];
+  veto?: VetoRowInfo[];
+  eaters?: EaterInfo[];
 }
 
 export type Tradition = 'orthodox' | 'catholic' | 'islamic' | 'jewish';
@@ -646,16 +635,6 @@ export interface RecipeStep {
   c: string;
   s?: number;                // сек. для таймера, якщо крок часовий
 }
-export interface NoteInfo {
-  id: string;
-  text: string;
-  recipe_title: string | null;
-  rating: number | null;
-  pinned: boolean;
-  created_at: string;
-  kind?: 'lesson' | 'intent';
-}
-
 export interface EaterInfo {
   id: string;
   name: string;

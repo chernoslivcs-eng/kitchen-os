@@ -11,17 +11,15 @@ import { noteFrom,
   extractJson,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
-  serializeProfile as ctxSerializeProfile,
-  serializeNotes as ctxSerializeNotes,
-  serializeProfileText, serializeTraditionsV2,
-  type ProfileText, type ProfileNote, type VetoRow,
+  serializeProfileText, serializeTraditions, emptyProfileText,
+  type ProfileText, type ProfileNote, type VetoRow, type Tradition,
   buildAliasMap,
   unaliasRecipeIds,
   unaliasProse,
   type RecentCookRunSummary,
 } from '@kitchen/domain';
 import type {
-  Card, PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow,
+  Card, PantryBatch, ShoppingItemRow, EaterRow, RecipeRow,
   Recipe, RecipeIng, RecipeStep, HouseholdProduct, PendingCard,
 } from '@kitchen/domain';
 // Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
@@ -161,16 +159,16 @@ export interface ChatArgs {
   stage?: 1 | 2;                       // онбординг: 1 — порожня комора; 2 — комора наповнена, але людину ще не спитали
   recentCookRuns?: RecentCookRunSummary[];
   history?: { role: 'user' | 'assistant'; content: string }[];
-  profile?: Profile | null;
-  // Раунд 4 (PROFILE_V2): сім речень і нотатки → [ПРО ЛЮДИНУ] + [НОТАТКИ].
+  // Раунд 4: сім речень і нотатки → [ПРО ЛЮДИНУ] + [НОТАТКИ].
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
+  // Крок 11: традиції — явний вибір на user (null — календар вгадує зі слів).
+  traditions?: Tradition[] | null;
   // Крок 4б: індекс вето → ⚠-мітки в [КОМОРА]; avoid — перегенерація після
   // порожнього вето: «Без: …» їде в кінець репліки людини як серверний рядок.
   vetoIndex?: VetoRow[];
   avoid?: string[];
   shopping?: ShoppingItemRow[];
-  notes?: MemoryNote[];
   eaters?: EaterRow[];
   recentRecipes?: RecipeRow[];
   // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈» комори.
@@ -184,7 +182,6 @@ export interface ChatArgs {
   // Календар: плани дому, щоб модель могла на них послатись і правити.
   events?: HouseholdEventRow[];
   // 8b: блоки з лімітом на рівні репозиторію показані не повністю.
-  notesTruncated?: boolean;
   recipesTruncated?: boolean;
   // Аудит раунд 3, крок 5: картки дому, закриті поза цією сесією за останні
   // 48 год (repo.listRecentResolved) — [ОСТАННІ ДІЇ] в контексті.
@@ -451,13 +448,12 @@ export function buildDynamicContext(args: ChatArgs): string {
   ].join('\n');
   return buildKitchenContext({
     pantry: args.pantry,
-    profile: args.profile,
     profileText: args.profileText,
     profileNotes: args.profileNotes,
+    traditions: args.traditions,
     vetoIndex: args.vetoIndex,
     shopping: args.shopping,
     recentCookRuns: args.recentCookRuns,
-    notes: args.notes,
     eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
@@ -465,7 +461,6 @@ export function buildDynamicContext(args: ChatArgs): string {
     retailConnected: args.retailConnected,
     retailKarpaty: args.retailKarpaty,
     modes: args.modes,
-    notesTruncated: args.notesTruncated,
     recipesTruncated: args.recipesTruncated,
     recentActions: args.recentActions,
     queryText,
@@ -719,14 +714,12 @@ export async function callRecipe(args: {
   title: string;
   context?: string;
   pantry?: PantryBatch[];
-  profile?: Profile | null;
-  // Г-1: без цього recipe_gen НЕ БАЧИВ [ВИСНОВКИ З ГОТУВАННЯ] — щоденник
-  // помилок лежав на кухні, а кухар писав рецепти в сусідній кімнаті.
-  notes?: MemoryNote[];
-  // Раунд 4 (PROFILE_V2): замість [ПРОФІЛЬ]+[ВИСНОВКИ] — [ПРО ЛЮДИНУ]+[НОТАТКИ].
+  // Г-1: без цього recipe_gen НЕ БАЧИВ нотаток — щоденник помилок лежав на
+  // кухні, а кухар писав рецепти в сусідній кімнаті. [ПРО ЛЮДИНУ]+[НОТАТКИ].
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
   vetoIndex?: VetoRow[];
+  traditions?: Tradition[] | null;
   products?: HouseholdProduct[];
   // Пул-4 №4б: recipe_gen сліпий до розмови — «Арборіо є?» → «Буде»
   // губилось між викликами. Хвіст діалогу їде в user-запит (НЕ в кеш).
@@ -742,15 +735,13 @@ export async function callRecipe(args: {
   // помилку. Переклад назад — детермінований; невідомий аліас → дроп p.
   const alias = buildAliasMap(args.pantry ?? []);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`, args.vetoIndex)
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`, args.vetoIndex)
     : '';
-  // Кеш-межа: role+recipe-generator стабільні; профіль/комора/висновки — динаміка.
+  // Кеш-межа: role+recipe-generator стабільні; профіль/комора/нотатки — динаміка.
   const stable = compose('recipe_gen', prompt);
-  const dynamic = (args.profileText
-      ? serializeProfileText(args.profileText, args.profileNotes ?? []) + serializeTraditionsV2(args.profile)
-      : ctxSerializeProfile(args.profile))
-    + pantryBlock
-    + (args.profileText ? '' : ctxSerializeNotes(args.notes ?? []));
+  const dynamic = serializeProfileText(args.profileText ?? emptyProfileText(''), args.profileNotes ?? [])
+    + serializeTraditions(args.traditions)
+    + pantryBlock;
   const convBlock = args.conversation
     ? `\n\n[ОСТАННІ РЕПЛІКИ РОЗМОВИ — рішення з них уже ухвалені, не перепитуй]\n${args.conversation}`
     : '';

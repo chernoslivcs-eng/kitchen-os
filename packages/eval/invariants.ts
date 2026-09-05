@@ -80,10 +80,7 @@ export const registry: Record<string, Invariant> = {
   // наявних [НОТАТКИ] (acceptAssistantNote, norm_hash) — саме так у проді.
   'note-null-or-duplicate': (out, fx) => {
     if (!out.note) return pass('note null');
-    const existing = [
-      ...((fx.profile_notes ?? []) as { text?: string }[]).map((n) => n.text ?? ''),
-      ...((fx.notes ?? []) as { text?: string }[]).map((n) => n.text ?? ''),
-    ].map(normalizeNoteText);
+    const existing = ((fx.profile_notes ?? []) as { text?: string }[]).map((n) => normalizeNoteText(n.text ?? ''));
     return existing.includes(normalizeNoteText(out.note))
       ? pass(`дубль наявної — сервер не запише: «${out.note}»`)
       : fail(`нова нотатка там, де вже є: «${out.note}»`);
@@ -202,7 +199,7 @@ export const registry: Record<string, Invariant> = {
   'profile-verbatim': (out, fx) => {
     const spec = (fx.profile_text ?? {}) as Record<string, string>;
     const dyn = out.dynamic ?? '';
-    if (!dyn.includes('[ПРО ЛЮДИНУ — її власні слова]')) return fail('блоку [ПРО ЛЮДИНУ] у промті немає (PROFILE_V2 вимкнено?)');
+    if (!dyn.includes('[ПРО ЛЮДИНУ — її власні слова]')) return fail('блоку [ПРО ЛЮДИНУ] у промті немає');
     const leads: Record<string, string> = {
       name: 'Мене звати', no: 'Я не їм', ban: 'Мені не можна', love: 'Я люблю',
       meh: 'Я не дуже люблю', kit: 'У мене на кухні є', when: 'Я зазвичай готую',

@@ -10,12 +10,7 @@ import { ONBOARDING_GREETING, isProfileEmpty } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { localDay } from '../local-day.js';
 
-export interface SessionRouteOpts {
-  // Раунд 4, крок 7: картка «Про тебе» видається тільки під PROFILE_V2.
-  profileV2?: boolean;
-}
-
-export function sessionRoutes(app: FastifyInstance, repo: Repo, opts: SessionRouteOpts = {}) {
+export function sessionRoutes(app: FastifyInstance, repo: Repo) {
   app.get('/v1/session/today', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
     const session = await repo.getOrCreateSessionForDay(user_id, localDay());
@@ -27,19 +22,17 @@ export function sessionRoutes(app: FastifyInstance, repo: Repo, opts: SessionRou
     // Крок 7 (§4 контракту): перша розмова, усі сім полів порожні, картка ще
     // не видавалась → вітання + картка в одному повідомленні, без моделі.
     // Позначка на користувачі — щоб рівно один раз, а не раз на сесію.
-    if (opts.profileV2) {
-      const user = await repo.getUser(user_id);
-      if (user && !user.profile_onboarding_at && isProfileEmpty(await repo.getProfileText(user_id))) {
-        const now = new Date().toISOString();
-        const message = {
-          id: randomUUID(), session_id: session.id, role: 'assistant' as const,
-          text: ONBOARDING_GREETING, card: { type: 'onboarding' } as OnboardingCard,
-          applied: 0, created_at: now,
-        };
-        await repo.saveMessage(message);
-        await repo.touchUser(user_id, 'profile_onboarding_at', now);
-        messages = [...messages, message];
-      }
+    const user = await repo.getUser(user_id);
+    if (user && !user.profile_onboarding_at && isProfileEmpty(await repo.getProfileText(user_id))) {
+      const now = new Date().toISOString();
+      const message = {
+        id: randomUUID(), session_id: session.id, role: 'assistant' as const,
+        text: ONBOARDING_GREETING, card: { type: 'onboarding' } as OnboardingCard,
+        applied: 0, created_at: now,
+      };
+      await repo.saveMessage(message);
+      await repo.touchUser(user_id, 'profile_onboarding_at', now);
+      messages = [...messages, message];
     }
     return { session, messages };
   });

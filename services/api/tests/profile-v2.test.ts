@@ -7,37 +7,17 @@ import { signIn } from './helpers.js';
 import { randomUUID } from 'node:crypto';
 import { noteHash } from '@kitchen/domain';
 
-// Раунд 4, крок 2 (AUDIT-ROUND-4.md §6): профіль як сім речень за прапором
-// PROFILE_V2. Вимкнений прапор — поведінка API не змінюється взагалі.
+// Раунд 4, крок 2 (AUDIT-ROUND-4.md §6): профіль як сім речень. Крок 11:
+// єдина поведінка, прапора PROFILE_V2 і профілю v1 немає.
 
-function mk(profileV2: boolean) {
+function mk() {
   const repo = new InMemoryRepo();
   const mailer = new ConsoleMailer();
-  const app = buildApp(repo, new InMemoryStore(), mailer, { profileV2 });
+  const app = buildApp(repo, new InMemoryStore(), mailer);
   return { repo, mailer, app };
 }
 
-describe('PROFILE_V2 вимкнений (за замовчуванням)', () => {
-  it('прапор читається з env: без PROFILE_V2 нові роути не існують, старий PATCH живе', async () => {
-    delete process.env.PROFILE_V2;
-    const repo = new InMemoryRepo();
-    const mailer = new ConsoleMailer();
-    const app = buildApp(repo, new InMemoryStore(), mailer);
-    await app.ready();
-    const me = await signIn(app, mailer, 'me@example.com');
-
-    const v2 = await app.inject({ method: 'PATCH', url: '/v1/profile/no', headers: { cookie: me.cookie }, payload: { text: 'риби' } });
-    expect(v2.statusCode).toBe(404);
-
-    const v1 = await app.inject({ method: 'PATCH', url: '/v1/profile', headers: { cookie: me.cookie }, payload: { ops: [{ op: 'add', kind: 'allergy', label: 'арахіс' }] } });
-    expect(v1.statusCode).toBe(200);
-    const got = await app.inject({ method: 'GET', url: '/v1/profile', headers: { cookie: me.cookie } });
-    expect(got.json().profile.allergies).toEqual(['арахіс']);
-    expect(got.json().fields).toBeUndefined();
-  });
-});
-
-describe('PROFILE_V2 увімкнений', () => {
+describe('профіль як сім речень', () => {
   let repo: InMemoryRepo;
   let mailer: ConsoleMailer;
   let app: ReturnType<typeof buildApp>;
@@ -45,7 +25,7 @@ describe('PROFILE_V2 увімкнений', () => {
   let user_id: string;
 
   beforeEach(async () => {
-    ({ repo, mailer, app } = mk(true));
+    ({ repo, mailer, app } = mk());
     await app.ready();
     const me = await signIn(app, mailer, 'me@example.com');
     cookie = me.cookie;
@@ -124,13 +104,22 @@ describe('PROFILE_V2 увімкнений', () => {
     expect(p.statusCode).toBe(410);
     const n = await app.inject({ method: 'DELETE', url: `/v1/notes/${randomUUID()}`, headers: { cookie } });
     expect(n.statusCode).toBe(410);
-    expect(await repo.getProfile(user_id)).toBeNull();
+  });
+
+  // Крок 11: сторінка рецепта позначає інгредієнти з veto (власник) і eaters.
+  it('GET віддає veto з індексу і їдців дому', async () => {
+    await app.inject({ method: 'PATCH', url: '/v1/profile/ban', headers: { cookie }, payload: { text: 'арахісу' } });
+    const r = await app.inject({ method: 'GET', url: '/v1/profile', headers: { cookie } });
+    const body = r.json() as { veto: { label: string; allergy: boolean }[]; eaters: unknown[]; traditions: unknown };
+    expect(body.veto).toEqual([expect.objectContaining({ label: 'арахісу', allergy: true })]);
+    expect(body.eaters).toEqual([]);
+    expect(body.traditions).toBeNull();
   });
 });
 
-describe('їдці — поза прапором', () => {
-  it('DELETE /v1/eaters/:id працює і з увімкненим PROFILE_V2', async () => {
-    const { repo, mailer, app } = mk(true);
+describe('їдці', () => {
+  it('DELETE /v1/eaters/:id', async () => {
+    const { repo, mailer, app } = mk();
     await app.ready();
     const me = await signIn(app, mailer, 'me@example.com');
     const id = randomUUID();

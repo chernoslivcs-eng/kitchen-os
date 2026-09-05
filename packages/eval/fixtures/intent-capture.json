@@ -2,11 +2,6 @@
   "id": "intent-capture",
   "description": "Пул-2 №6 → крок 8: «тримай в голові, колись зроблю» — це нотатка-намір у полі note, не картка.",
   "call": "chat",
-  "profile": {
-    "allergies": [],
-    "wishes": [],
-    "antipatterns": []
-  },
   "pantry": [
     {
       "label": "рисовий папір",

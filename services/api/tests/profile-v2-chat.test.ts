@@ -8,19 +8,14 @@ import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
 
-// Раунд 4, крок 3: під PROFILE_V2 модель читає [ПРО ЛЮДИНУ] + [НОТАТКИ]
-// замість [ПРОФІЛЬ] + [ВИСНОВКИ]/[НАМІРИ]; картка поля застосовується через
-// той самий /v1/cards/:id/apply, «Нічого такого» — тілом {none:true}.
+// Раунд 4, крок 3: модель читає [ПРО ЛЮДИНУ] + [НОТАТКИ]; картка поля
+// застосовується через той самий /v1/cards/:id/apply, «Нічого такого» —
+// тілом {none:true}. Крок 11: профіль v1 і прапор прибрано.
 
 const base = { user_id: 'u1', session_id: 's1', text: 'що на вечерю', pantry: [] };
 
 describe('динамічний контекст', () => {
-  it('без profileText — старий [ПРОФІЛЬ] і [ВИСНОВКИ]; з ним — [ПРО ЛЮДИНУ] на тому самому місці', () => {
-    const old = buildDynamicContext({ ...base, profile: { user_id: 'u1', allergies: ['арахіс'], wishes: [], antipatterns: [], equipment: {} } });
-    expect(old).toContain('[ПРОФІЛЬ]');
-    expect(old).toContain('[ВИСНОВКИ З ГОТУВАННЯ]');
-    expect(old).not.toContain('[ПРО ЛЮДИНУ');
-
+  it('[ПРО ЛЮДИНУ] першим блоком, [НОТАТКИ] одразу за ним, далі [СЬОГОДНІ]', () => {
     const p = emptyProfileText('u1');
     p.fields.no = { text: 'мʼяса й птиці', status: 'filled', updated_at: null };
     const v2 = buildDynamicContext({ ...base, profileText: p, profileNotes: [] });
@@ -33,12 +28,14 @@ describe('динамічний контекст', () => {
     expect(v2.indexOf('[СЬОГОДНІ]')).toBeGreaterThan(v2.indexOf('[НОТАТКИ'));
   });
 
-  it('традиції під v2 — окремим блоком, лише коли обрано', () => {
+  it('традиції — окремим блоком, лише коли обрано', () => {
     const p = emptyProfileText('u1');
-    const none = buildDynamicContext({ ...base, profileText: p, profile: { user_id: 'u1', allergies: [], wishes: [], antipatterns: [], equipment: {}, traditions: null } });
+    const none = buildDynamicContext({ ...base, profileText: p, traditions: null });
     expect(none).not.toContain('[ТРАДИЦІЇ]');
-    const off = buildDynamicContext({ ...base, profileText: p, profile: { user_id: 'u1', allergies: [], wishes: [], antipatterns: [], equipment: {}, traditions: [] } });
+    const off = buildDynamicContext({ ...base, profileText: p, traditions: [] });
     expect(off).toContain('[ТРАДИЦІЇ] вимкнено');
+    const on = buildDynamicContext({ ...base, profileText: p, traditions: ['catholic'] });
+    expect(on).toContain('[ТРАДИЦІЇ] обрано в профілі: католицька');
   });
 });
 
@@ -52,7 +49,7 @@ describe('історія розмови', () => {
   });
 });
 
-describe('/v1/cards/:id/apply під прапором', () => {
+describe('/v1/cards/:id/apply для картки поля', () => {
   let repo: InMemoryRepo;
   let mailer: ConsoleMailer;
   let app: ReturnType<typeof buildApp>;
@@ -60,7 +57,7 @@ describe('/v1/cards/:id/apply під прапором', () => {
   beforeEach(async () => {
     repo = new InMemoryRepo();
     mailer = new ConsoleMailer();
-    app = buildApp(repo, new InMemoryStore(), mailer, { profileV2: true });
+    app = buildApp(repo, new InMemoryStore(), mailer);
     await app.ready();
   });
 
@@ -92,14 +89,5 @@ describe('/v1/cards/:id/apply під прапором', () => {
     const no = await pend(me.user_id, me.household_id, { type: 'profile', field: 'no', mode: 'replace', text: '', onboarding: true });
     const bad = await app.inject({ method: 'POST', url: `/v1/cards/${no}/apply`, headers: { cookie: me.cookie }, payload: { none: true } });
     expect(bad.statusCode).toBe(409);
-  });
-
-  it('без прапора картка поля дає 409, а не 500', async () => {
-    const off = buildApp(repo, new InMemoryStore(), mailer, { profileV2: false });
-    await off.ready();
-    const me = await signIn(off, mailer, 'me@example.com');
-    const id = await pend(me.user_id, me.household_id, { type: 'profile', field: 'no', mode: 'append', text: 'селери' });
-    const r = await off.inject({ method: 'POST', url: `/v1/cards/${id}/apply`, headers: { cookie: me.cookie }, payload: {} });
-    expect(r.statusCode).toBe(409);
   });
 });

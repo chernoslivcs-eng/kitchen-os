@@ -4,12 +4,7 @@ import { applyCard, undoCard, dismissCard, type Repo, type Unit } from '@kitchen
 import { authenticated, requireUser } from '../middleware/session.js';
 import { WRITEOFF_CARD_REPLY, FEEDBACK_PROMPT } from '../post-cook.js';
 
-export interface CardsRouteOpts {
-  // Раунд 4: картка поля профілю застосовується лише під прапором.
-  profileV2?: boolean;
-}
-
-export function cardsRoutes(app: FastifyInstance, repo: Repo, opts: CardsRouteOpts = {}) {
+export function cardsRoutes(app: FastifyInstance, repo: Repo) {
   // Черга Г (№3): панель ОЧІКУЮТЬ дивиться на всі незакриті картки дому.
   // Віддаємо лише те, що панелі треба: тип, сесію (для переходу) і час.
   app.get('/v1/cards/pending', { preHandler: authenticated(repo) }, async (req) => {
@@ -39,7 +34,7 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo, opts: CardsRouteOp
     try {
       // Раунд 4 §4: {none:true} — «Нічого такого» на онбординг-картці ban.
       const r = await applyCard(repo, req.params.id, req.body?.selected ?? [], user_id,
-        { profileV2: opts.profileV2, none: req.body?.none === true });
+        { none: req.body?.none === true });
 
       // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це

@@ -18,8 +18,25 @@ export type NoteDecision =
   | { accepted: true; note: ProfileNote }
   | { accepted: false; reason: NoteRejectReason; text: string };
 
+// Крок 11 (прод-тест): обрізка до 140 — по останньому слову або розділовому
+// знаку, не посеред слова: «…анчоуси дають усю сі» читалось як помилка.
+// Якщо в межах ліміту немає жодного пробілу чи розділового (одне суцільне
+// слово) — ріжемо по символу, як раніше.
 export function clampNoteText(raw: string): string {
-  return Array.from(raw.replace(/\s+/g, ' ').trim()).slice(0, NOTE_TEXT_LIMIT).join('').trim();
+  const chars = Array.from(raw.replace(/\s+/g, ' ').trim());
+  if (chars.length <= NOTE_TEXT_LIMIT) return chars.join('');
+  const head = chars.slice(0, NOTE_TEXT_LIMIT);
+  // Символ одразу за межею — пробіл або розділовий: межа вже на слові.
+  const nextIsBoundary = /[\s.,;:!?…)»"']/.test(chars[NOTE_TEXT_LIMIT]!);
+  let cut = head.length;
+  if (!nextIsBoundary) {
+    cut = -1;
+    for (let i = head.length - 1; i > 0; i--) {
+      if (/[\s.,;:!?…]/.test(head[i]!)) { cut = i; break; }
+    }
+    if (cut === -1) cut = head.length;
+  }
+  return head.slice(0, cut).join('').replace(/[\s,;:]+$/, '').trim();
 }
 
 const sameDay = (a: string, b: Date) => new Date(a).toDateString() === b.toDateString();

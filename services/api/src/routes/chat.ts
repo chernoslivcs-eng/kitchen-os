@@ -4,7 +4,7 @@ import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } fro
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
-import { isProfileFieldCard, legacyOpsFromFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
+import { isProfileFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -35,9 +35,6 @@ import { applyVeto, recipeVetoHits, type VetoLogEntry } from '../veto.js';
 
 export interface ChatRouteOpts {
   rateLimit?: RateLimitCfg;
-  // Раунд 4: профіль як сім речень — [ПРО ЛЮДИНУ]+[НОТАТКИ] у контексті,
-  // note/intent → profile_note, картка поля через applyCard.
-  profileV2?: boolean;
   // M13: «асистент повинен мати руки» — та сама дія, що кнопка «Зібрати
   // кошик», доступна словами. Інʼєкція з retailRoutes() (server.ts) —
   // chat.ts не знає нічого про Сільпо, цифри/крипту/withRetryAuth, тільки
@@ -166,7 +163,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       let att_auto = false;
       let att_undo: string | undefined;
       if (call.card?.type === 'intake_diff' && card_id) {
-        const r = await applyCard(repo, card_id, [], user_id, { profileV2: opts.profileV2 });
+        const r = await applyCard(repo, card_id, [], user_id);
 
       // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
@@ -243,7 +240,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         await saveTurn(WRITEOFF_CARD_REPLY, card, card_id);
         // Пул-8 №2: списання застосовується одразу; «Як вийшло?» (раніше
         // followup ручного apply в cards.ts) їде тим самим ходом.
-        const applied = await applyCard(repo, card_id, [], user_id, { profileV2: opts.profileV2 });
+        const applied = await applyCard(repo, card_id, [], user_id);
 
       // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
@@ -278,12 +275,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const pantry = await repo.listBatches(household_id);
     // Черга Д (№2): продукти дому — теги в серіалізацію (⚠, «~строк≈»).
     const products = await repo.listProducts(household_id);
-    const profile = await repo.getProfile(user_id);
-    // Раунд 4: під прапором — сім речень і нотатки. `profile` (v1) лишається
-    // для календаря (традиції) і алерген-вето до кроку 4.
-    const profileText = opts.profileV2 ? await repo.getProfileText(user_id) : undefined;
-    const profileNotes = opts.profileV2 ? await repo.listProfileNotes(user_id) : undefined;
-    const vetoIndex = opts.profileV2 ? await repo.getVetoIndex(user_id) : [];
+    // Раунд 4: сім речень і нотатки; крок 11: традиції — з user.
+    const profileText = await repo.getProfileText(user_id);
+    const profileNotes = await repo.listProfileNotes(user_id);
+    const vetoIndex = await repo.getVetoIndex(user_id);
+    const traditions = (await repo.getUser(user_id))?.traditions ?? null;
     // QA6-04: список у контекст — інакше в новій сесії модель каже «порожній»
     // при двох позиціях і додає дубль.
     const shopping = await repo.listShoppingItems(household_id);
@@ -294,10 +290,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     if (activeBatches === 0) {
       stage = 1;
     } else if (activeBatches >= 3) {
-      const empty = profileText
-        ? (['no', 'ban', 'love'] as const).every((k) => profileText.fields[k].status === 'empty')
-        : !profile
-          || (profile.allergies.length === 0 && profile.wishes.length === 0 && profile.antipatterns.length === 0);
+      const empty = (['no', 'ban', 'love'] as const).every((k) => profileText.fields[k].status === 'empty');
       if (empty) stage = 2;
     }
 
@@ -339,15 +332,6 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         finished_at: r.finished_at ?? r.started_at,
       }));
 
-    // Висновки, які людина сама зробила про свою кухню: «фует знімати, щойно
-    // краї хрусткі». Закріплені згори.
-    // 8b: беремо на один більше за ліміт. Зайвий у промпт не йде — він лише
-    // доводить, що показано не все. Точної кількості решти не знаємо й не
-    // вигадуємо: чесне «є й інші» краще за вигадане число.
-    const NOTES_CAP = 20;
-    const notesRaw = await repo.listNotes(user_id, NOTES_CAP + 1);
-    const notesTruncated = notesRaw.length > NOTES_CAP;
-    const notes = notesRaw.slice(0, NOTES_CAP);
     // Їдці дому: страва готується на всіх, хто за столом.
     const eaters = await repo.listEaters(ctx.household_id);
     // Останні згенеровані рецепти — щоб модель бачила, що вже пропонувала,
@@ -404,12 +388,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat(chatArgs = {
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profile, profileText, profileNotes, vetoIndex, shopping, notes, eaters, recentRecipes, products, retailConnected, retailKarpaty,
+        history, profileText, profileNotes, vetoIndex, traditions, shopping, eaters, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
         events,
-        notesTruncated, recipesTruncated,
+        recipesTruncated,
         recentActions,
       });
     } catch (err) {
@@ -433,7 +417,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Крок 8 (§7): нотатка асистента — без картки й підтвердження; межі
     // (140 знаків, дедуп, 3/день, не дубль профілю чи видаленої) тримає
     // acceptAssistantNote. У промт потрапить наступним ходом ([НОТАТКИ]).
-    if (opts.profileV2 && !summaryTurn && call.note) {
+    if (!summaryTurn && call.note) {
       const d = await acceptAssistantNote(repo, user_id, call.note);
       if (d.accepted) req.log.info({ user_id, note: d.note.text }, 'note-added');
       else req.log.info({ user_id, reason: d.reason, note: d.text }, 'note-skipped');
@@ -441,16 +425,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Крок 7 п. 0: «не їм / не вживаю» у репліці — це поле `no`, хай би що
     // обрала модель (флап кроку 4в: «ще не їм кінзи» → meh). Механіка до
-    // адаптера й до застосування — щоб діяло під обома прапорами.
+    // застосування.
     if (isProfileFieldCard(call.card)) call.card = fieldByVerb(call.card, text ?? '');
-
-    // Раунд 4, крок 4 (a): промт уже віддає картку поля {field, mode, text}.
-    // З вимкненим прапором перекладаємо її в ops-картку v1 ДО applyMode і
-    // збереження — щоб PROFILE_V2 лишався відкатом на проді, а не поламкою.
-    if (!opts.profileV2 && isProfileFieldCard(call.card)) {
-      call.card = legacyOpsFromFieldCard(call.card);
-      if (!call.card.ops.length) call.card = null;
-    }
 
     // Пул-2 №5: те саме для чату — сирий JSON у стрічку не протікає ніколи.
     if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
@@ -485,10 +461,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // QA5-01: чи не проліз алерген у пропозицію. Збіг за підрядком дає хибні
     // спрацювання, тому це лог, а не блок — але без нього ніхто не дізнається,
-    // як часто це стається у проді.
-    // QA7-06: алергії домашніх — у той самий детектор, з імʼям.
+    // як часто це стається у проді. Власник — рядки ban з індексу (label —
+    // слово людини); QA7-06: алергії домашніх — у той самий детектор, з імʼям.
     const houseAllergies = [
-      ...(profile?.allergies ?? []).map((a) => ({ label: a, who: 'owner' })),
+      ...vetoIndex.filter((r) => r.allergy).map((r) => ({ label: r.label, who: 'owner' })),
       ...eaters.flatMap((e) => e.allergies.map((a) => ({ label: a, who: e.name }))),
     ].filter((a) => a.label);
     if (houseAllergies.length) {
@@ -650,9 +626,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // Ручний тест 04.09: нотатка після готування («менше вершків, лимон»)
       // не скасовувала денний кеш — модель обіцяла оновлений рецепт, сервер
       // віддавав старий. Нотатка новіша за рецепт → генеруємо заново.
-      const staleNotes = profileNotes
-        ? profileNotes.map((n) => ({ created_at: n.created_at, recipe_title: null }))
-        : notes;
+      const staleNotes = profileNotes.map((n) => ({ created_at: n.created_at, recipe_title: null }));
       if (same?.payload && !recipeStaleByNotes(same, staleNotes)) {
         goRecipe = same.payload as Recipe;
         goId = same.id;
@@ -662,7 +636,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         try {
           gen = await callRecipe({
             title: wantedTitle,
-            pantry, profile, notes, products, profileText, profileNotes, vetoIndex,
+            pantry, products, profileText, profileNotes, vetoIndex, traditions,
             conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
           });
         } catch (err) {
@@ -675,12 +649,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // з явним «без …»; алергійний — лишаємо, модель попереджає сама.
         // Перевіряємо з РОЗВʼЯЗАНИМИ назвами: інгредієнт із комори приходить
         // як `p` без `n`, і без резолву «рибний соус» з комори був би невидимий.
-        if (gen.recipe && opts.profileV2) {
+        if (gen.recipe) {
           // Прямий запит («зроби мені стейк») — рядки, названі людиною, не вето.
           const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, ...e }, e.event), text ?? '');
           if (avoid.length) {
             const again = await callRecipe({
-              title: wantedTitle, pantry, profile, notes, products, profileText, profileNotes, vetoIndex,
+              title: wantedTitle, pantry, products, profileText, profileNotes, vetoIndex, traditions,
               context: `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`,
               conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
             });
@@ -763,10 +737,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
             + '4. Якщо заміна стосується інгредієнта — зміни й кроки, де він згаданий.\n'
             + '5. Сумніваєшся щодо вказівника — дай "n" з назвою без "p".',
           pantry,
-          profile,
-          notes,
           products,
-          profileText, profileNotes, vetoIndex,
+          profileText, profileNotes, vetoIndex, traditions,
           conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
         });
       } catch (err) {
@@ -834,29 +806,28 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     composeIntakeLabels(call.card);
     // Аудит 04.09: тверда межа алергену — механікою, не лише міткою в рядку.
     // Еval після 1.2 зловив арахісову пасту в rescues на спільний сніданок.
-    // Раунд 4, крок 4: під прапором — вето по індексу (no/ban), без — по
-    // allergies. Кожне відхилення — окремий рядок логу з рядком індексу, який
-    // спрацював: на кроці 5 має бути видно, ЩО саме заблокувало.
+    // Раунд 4, крок 4: вето по індексу (no/ban). Кожне відхилення — окремий
+    // рядок логу з рядком індексу, який спрацював.
     // Крок 6з: речення з алергеном, якого людина сама не називала, ріжуться.
     let veto = applyVeto(call, {
-      profileV2: opts.profileV2, index: vetoIndex, profile, eaters, userText: text ?? '',
+      index: vetoIndex, userText: text ?? '',
       log: (e: VetoLogEntry) => req.log.warn({ user_id, ...e }, e.event),
     });
     // Крок 4б (b): вето зняло всі кандидати — один повторний виклик із «без …»
     // (як для рецептів). Порожньо і після нього — репліка каже це прямо
     // (VETO_EMPTY_REPLY уже стоїть у call.reply), картки нема.
-    if (veto.emptied && opts.profileV2) {
+    if (veto.emptied) {
       const avoid = [...new Set(veto.rejected.flatMap((r) => [r.title]))];
       req.log.warn({ user_id, avoid }, 'veto-emptied-retry');
       const again = await callChat({ ...chatArgs, avoid });
       await recordUsage(repo, ctx, 'chat', again.meta, again.usage, started);
       const retryVeto = applyVeto(again, {
-        profileV2: opts.profileV2, index: vetoIndex, profile, eaters, userText: text ?? '',
+        index: vetoIndex, userText: text ?? '',
         log: (e: VetoLogEntry) => req.log.warn({ user_id, retry: true, ...e }, e.event),
       });
       if (!retryVeto.emptied) { call = again; veto = retryVeto; }
       else req.log.warn({ user_id, rejected: retryVeto.rejected }, 'veto-emptied-final');
-    } else if (veto.emptied) req.log.warn({ user_id, rejected: veto.rejected }, 'veto-emptied');
+    }
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша
     // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.
@@ -940,7 +911,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // той, хто його виконує. Доки він мав власну копію списку, картка могла
     // отримати режим у мапі й не отримати його в рантаймі.
     if (call.card && card_id && applyModeFor(call.card) === 'auto') {
-      const r = await applyCard(repo, card_id, [], user_id, { profileV2: opts.profileV2 });
+      const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
       undo_token = r.undo_token;
       // Картка події стає артефактом лише тоді, коли знає, ЩО створила: id

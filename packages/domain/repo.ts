@@ -2,7 +2,7 @@
 // і локального дев-режиму) і PostgresRepo (пізніше). Домен не знає про SQL.
 
 import type {
-  PantryBatch, PendingCard, Profile, AttachmentRecord, MemoryNote, EaterRow,
+  PantryBatch, PendingCard, AttachmentRecord, EaterRow,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
@@ -12,6 +12,7 @@ import type {
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
 } from './profile-text.js';
 import type { OccasionRow } from './occasion-data.js';
+import type { Tradition } from './occasion-rules.js';
 
 export interface UserRow {
   id: string;
@@ -23,6 +24,10 @@ export interface UserRow {
   /** Крок 7 (міграція 0025): бачив Семена; картку «Про тебе» вже видано. */
   welcome_seen_at: string | null;
   profile_onboarding_at: string | null;
+  /** Крок 11 (міграція 0026): свята й пости яких традицій показувати. Явний
+   *  вибір людини; null — ще не обирала (тоді традицію виводимо з її слів у
+   *  profile_text). Порожній масив — обирала і вимкнула все. */
+  traditions: Tradition[] | null;
 }
 
 export type UserStampField = 'welcome_seen_at' | 'profile_onboarding_at';
@@ -59,8 +64,7 @@ export interface Repo {
   updateProduct(id: string, patch: Partial<Omit<HouseholdProduct, 'id' | 'household_id' | 'created_at'>>): Promise<void>;
 
   // Профіль (v1 — до кроку 9 раунду 4 живе поруч із v2)
-  getProfile(user_id: string): Promise<Profile | null>;
-  upsertProfile(p: Profile): Promise<void>;
+  setTraditions(user_id: string, traditions: Tradition[] | null): Promise<void>;
 
   // Раунд 4: профіль як сім речень (AUDIT-ROUND-4.md §2). Читається завжди
   // повністю — сім полів, порожні як status:'empty', а не null: серіалізації
@@ -74,8 +78,7 @@ export interface Repo {
   ): Promise<ProfileFieldValue>;
 
   // Нотатки від асистента (і перенесені висновки людини). Людина видаляє —
-  // мʼяко, для «Повернути»; не редагує. Назви з префіксом Profile, бо
-  // listNotes/deleteNote вже зайняті memory_note і живуть до кроку 9.
+  // мʼяко, для «Повернути»; не редагує.
   listProfileNotes(user_id: string, opts?: { limit?: number; include_deleted?: boolean }): Promise<ProfileNote[]>;
   addProfileNote(n: ProfileNote): Promise<void>;
   deleteProfileNote(id: string): Promise<void>;
@@ -91,12 +94,6 @@ export interface Repo {
   listEaters(household_id: string): Promise<EaterRow[]>;
   findEaterByName(household_id: string, name: string): Promise<EaterRow | null>;
   deleteEater(id: string): Promise<void>;
-
-  // Висновки з готування
-  insertNote(n: MemoryNote): Promise<void>;
-  listNotes(user_id: string, limit?: number): Promise<MemoryNote[]>;
-  findNoteByText(user_id: string, text: string): Promise<MemoryNote | null>;
-  deleteNote(id: string): Promise<void>;
 
   // Картки на застосуванні
   savePending(pc: PendingCard): Promise<void>;

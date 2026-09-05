@@ -84,19 +84,16 @@ const ZONE_LABELS: Record<string, string> = {
   dry: 'Суха шафа', spices: 'Спеції', drinks: 'Напої',
 };
 
+// Крок 11: ops-картка профілю знає лише традиції й домашніх; текст людини
+// йде карткою поля (ProfileFieldCard нижче).
 const KIND_LABELS: Record<string, string> = {
-  allergy: 'АЛЕРГІЯ',
-  wish: 'ЛЮБИТЬ',
-  anti: 'АНТИ',
-  equip: 'ТЕХНІКА',
-  note: 'НОТАТКА',
-  intent: 'НАМІР',
+  tradition: 'ТРАДИЦІЇ',
   member: 'ДОМАШНІ',
 };
 
 type ProfileItem = {
   op?: 'add' | 'remove';
-  kind?: 'allergy' | 'wish' | 'anti' | 'equip' | 'note' | 'member' | 'intent';
+  kind?: 'tradition' | 'member';
   label?: string;
   // UX9-32: обмеження member-опа мають бути ВИДИМІ до підтвердження.
   diet?: string;

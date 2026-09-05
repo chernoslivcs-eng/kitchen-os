@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField } from './repo.js';
 import type {
-  PantryBatch, PendingCard, Profile, AttachmentRecord,
+  PantryBatch, PendingCard, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
-  SessionRow, MessageRow, MemoryNote, EaterRow,
+  SessionRow, MessageRow, EaterRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -14,12 +14,11 @@ import {
   type ProfileText, type ProfileFieldKey, type ProfileFieldValue, type ProfileNote, type VetoRow, type VetoField,
 } from './profile-text.js';
 import { BUILTIN_OCCASIONS, adminRowToOccasion, type OccasionRow } from './occasion-data.js';
+import type { Tradition } from './occasion-rules.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
-  private profiles = new Map<string, Profile>();
-  private notes = new Map<string, MemoryNote>();
-  // Раунд 4: сім речень, нотатки, вето — окремо від Profile v1 до кроку 9.
+  // Раунд 4: сім речень, нотатки, вето.
   private profileTexts = new Map<string, ProfileText>();
   private profileNotes = new Map<string, ProfileNote>();
   private vetoRows: VetoRow[] = [];
@@ -120,10 +119,6 @@ export class InMemoryRepo implements Repo {
     this.products.set(id, { ...cur, ...patch, tags: { ...(patch.tags ?? cur.tags) } });
   }
 
-  async getProfile(user_id: string): Promise<Profile | null> {
-    return this.profiles.get(user_id) ?? null;
-  }
-
   async insertEater(e: EaterRow): Promise<void> {
     this.eaters.set(e.id, { ...e });
   }
@@ -141,34 +136,9 @@ export class InMemoryRepo implements Repo {
     this.eaters.delete(id);
   }
 
-  async insertNote(n: MemoryNote): Promise<void> {
-    this.notes.set(n.id, { ...n });
-  }
-
-  // Порядок як в індексі memory_note: закріплені згори, далі найсвіжіші.
-  // reverse() перед сортуванням — бо два висновки в одну мілісекунду дають
-  // нічию за created_at, і тоді порядок вставки має читатись як «пізніший
-  // згори». Map тримає порядок вставки, sort у V8 стабільний.
-  async listNotes(user_id: string, limit = 20): Promise<MemoryNote[]> {
-    return [...this.notes.values()]
-      .filter((n) => n.user_id === user_id)
-      .reverse()
-      .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || b.created_at.localeCompare(a.created_at))
-      .slice(0, limit);
-  }
-
-  async findNoteByText(user_id: string, text: string): Promise<MemoryNote | null> {
-    const t = text.trim().toLowerCase();
-    return [...this.notes.values()]
-      .find((n) => n.user_id === user_id && n.text.trim().toLowerCase() === t) ?? null;
-  }
-
-  async deleteNote(id: string): Promise<void> {
-    this.notes.delete(id);
-  }
-
-  async upsertProfile(p: Profile): Promise<void> {
-    this.profiles.set(p.user_id, { ...p });
+  async setTraditions(user_id: string, traditions: Tradition[] | null): Promise<void> {
+    const u = this.users.get(user_id);
+    if (u) u.traditions = traditions ? [...traditions] : null;
   }
 
   // ----- Раунд 4: профіль як сім речень ------------------------------------
@@ -319,7 +289,7 @@ export class InMemoryRepo implements Repo {
     const user_id = randomUUID();
     const household_id = randomUUID();
     const now = new Date().toISOString();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null, traditions: null });
     this.usersByEmail.set(key, user_id);
     this.households.set(household_id, { id: household_id, name: `Дім ${name}`, created_at: now });
     this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
@@ -330,7 +300,7 @@ export class InMemoryRepo implements Repo {
     const key = email.toLowerCase();
     if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
     const user_id = randomUUID();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null, traditions: null });
     this.usersByEmail.set(key, user_id);
     return user_id;
   }
@@ -521,7 +491,6 @@ export class InMemoryRepo implements Repo {
     if (u) this.usersByEmail.delete(u.email);
     this.users.delete(user_id);
     for (const [hash, s] of this.sessions) if (s.user_id === user_id) this.sessions.delete(hash);
-    this.profiles.delete(user_id);
     this.profileTexts.delete(user_id);
     for (const [id, n] of this.profileNotes) if (n.user_id === user_id) this.profileNotes.delete(id);
     this.vetoRows = this.vetoRows.filter((r) => r.user_id !== user_id);

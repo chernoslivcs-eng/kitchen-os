@@ -9,7 +9,7 @@ import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
-import { api, isProfileV2, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
+import { api, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
 import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff} from './artifacts';
 import { useAuth } from '../../store/auth';
@@ -127,9 +127,9 @@ export function Feed() {
   const [profileFields, setProfileFields] = useState<Record<string, ProfileFieldV2> | null>(null);
   const loadProfileFields = useCallback(async () => {
     try {
-      const r = await api.profileAny();
-      if (isProfileV2(r)) setProfileFields(r.fields);
-    } catch { /* без прапора чи офлайн — картки й так нема */ }
+      const r = await api.profileV2.get();
+      setProfileFields(r.fields);
+    } catch { /* офлайн — картки й так нема */ }
   }, []);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   // M13 (канвас М6): чи можна пропонувати «зібрати кошик» — мережа активна.

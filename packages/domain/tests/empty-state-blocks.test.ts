@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  serializeShopping, serializeProfile, serializeEaters,
-  serializeRecentRecipes, serializeNotes, buildKitchenContext,
+  serializeShopping, serializeEaters,
+  serializeRecentRecipes, buildKitchenContext,
 } from '../context.js';
-import type { ShoppingItemRow, Profile } from '../types.js';
+import { serializeProfileText, emptyProfileText } from '../profile-text.js';
+import type { ShoppingItemRow } from '../types.js';
 
 // M13-ROLE-VOICE п.1. Порожній блок і ВІДСУТНІЙ блок — різні речі.
 //
@@ -45,33 +46,30 @@ describe('[СПИСОК ПОКУПОК] присутній завжди', () => 
 // має права вивести з першого: людину могли просто не встигти спитати (саме
 // на порожньому профілі вмикається онбординг stage 2). Ціна помилки — алерген
 // у пропозиції.
-describe('[ПРОФІЛЬ] присутній завжди', () => {
-  const emptyProfile: Profile = {
-    user_id: 'u1', allergies: [], wishes: [], antipatterns: [], equipment: {},
-  };
-
+describe('[ПРО ЛЮДИНУ] присутній завжди', () => {
   it('профілю ще немає — блок є і каже, що порожньо', () => {
-    const s = serializeProfile(null);
-    expect(s).toContain('[ПРОФІЛЬ]');
-    expect(s).toMatch(/порожн|не записано/i);
+    const s = buildKitchenContext({ pantry: [], now: new Date('2026-09-01T12:00:00') });
+    expect(s).toContain('[ПРО ЛЮДИНУ');
+    expect(s).toMatch(/порожн|не казала/i);
   });
 
-  it('профіль є, але всі списки порожні — той самий результат', () => {
-    const s = serializeProfile(emptyProfile);
-    expect(s).toContain('[ПРОФІЛЬ]');
-    expect(s).toMatch(/порожн|не записано/i);
+  it('усі поля порожні — той самий результат', () => {
+    const s = serializeProfileText(emptyProfileText('u1'), []);
+    expect(s).toContain('[ПРО ЛЮДИНУ');
+    expect(s).toMatch(/порожн|не казала/i);
   });
 
   it('порожній профіль НЕ читається як підтверджена відсутність обмежень', () => {
-    const s = serializeProfile(null);
+    const s = serializeProfileText(emptyProfileText('u1'), []);
     expect(s).toMatch(/ще не питали|не означає/i);
   });
 
-  it('заповнений профіль серіалізується як раніше', () => {
-    const s = serializeProfile({ ...emptyProfile, allergies: ['арахіс'] });
-    expect(s).toContain('АЛЕРГІЇ');
-    expect(s).toContain('арахіс');
-    expect(s).not.toMatch(/порожн/i);
+  it('заповнене поле серіалізується словами людини', () => {
+    const p = emptyProfileText('u1');
+    p.fields.ban = { text: 'арахісу', status: 'filled', updated_at: null };
+    const s = serializeProfileText(p, []);
+    expect(s).toContain('арахісу');
+    expect(s).not.toMatch(/\[ПРО ЛЮДИНУ[^\]]*\] порожн/i);
   });
 });
 
@@ -88,13 +86,12 @@ describe('решта стан-блоків присутні завжди', () =>
     expect(s).toMatch(/не генерував|порожн/i);
   });
 
-  // card-rules.md наказує «не пропонуй записати те, що вже там є». Без блока
-  // модель не мала з чим звірятись — і пропонувала дублі висновків.
-  it('[ВИСНОВКИ З ГОТУВАННЯ] і [НАМІРИ] — обидва при порожньому вході', () => {
-    const s = serializeNotes([]);
-    expect(s).toContain('[ВИСНОВКИ З ГОТУВАННЯ]');
-    expect(s).toContain('[НАМІРИ]');
-    expect(s).toMatch(/не записано|порожн/i);
+  // kitchen-policy наказує не дублювати те, що вже в [НОТАТКИ]. Без блока
+  // модель не мала з чим звірятись — і пропонувала дублі.
+  it('[НОТАТКИ] — порожньо при порожньому вході', () => {
+    const s = serializeProfileText(emptyProfileText('u1'), []);
+    expect(s).toContain('[НОТАТКИ');
+    expect(s).toMatch(/нотаток ще немає|порожн/i);
   });
 
   it('[ОСТАННІ ГОТУВАННЯ] — порожньо в повному контексті', () => {
@@ -105,28 +102,10 @@ describe('решта стан-блоків присутні завжди', () =>
 });
 
 // 8b: мовчазне обрізання. Комора чесна — показує 120 рядків і додає «…і ще N
-// позицій — спитай, якщо треба». Висновки капляться на 20, рецепти на 5, і
-// модель бачить обрізане як ПОВНЕ. Це ламає вже наявне правило: card-rules
-// наказує «не пропонуй записати те, що вже там є» — при 25 висновках модель
-// звірить із двадцятьма й запропонує дубль, формально не винна.
+// позицій — спитай, якщо треба». Рецепти капляться на 5, і модель бачить
+// обрізане як ПОВНЕ.
 describe('обрізані блоки кажуть, що вони обрізані', () => {
-  const note = (id: string, text: string) => ({
-    id, user_id: 'u1', text, recipe_title: null, rating: null,
-    pinned: false, created_at: '2026-08-01T10:00:00.000Z', kind: 'lesson' as const,
-  });
-
-  it('[ВИСНОВКИ З ГОТУВАННЯ] — хвіст, коли є ще', () => {
-    const s = serializeNotes([note('n1', 'фует знімати, щойно краї хрусткі')], true);
-    expect(s).toContain('фует');
-    expect(s).toMatch(/є й інші|ще|спитай/i);
-  });
-
-  it('без обрізання хвоста немає — інакше він бреше в інший бік', () => {
-    const s = serializeNotes([note('n1', 'фует знімати, щойно краї хрусткі')], false);
-    expect(s).not.toMatch(/є й інші|спитай/i);
-  });
-
-  it('[ЗГЕНЕРОВАНІ РЕЦЕПТИ] — так само', () => {
+  it('[ЗГЕНЕРОВАНІ РЕЦЕПТИ] — хвіст, коли є ще', () => {
     const row = { id: 'r1', owner_id: 'u1', origin: 'generated', title: 'Карі', payload: null } as never;
     expect(serializeRecentRecipes([row], true)).toMatch(/є й інші|ще|спитай/i);
     expect(serializeRecentRecipes([row], false)).not.toMatch(/є й інші|спитай/i);

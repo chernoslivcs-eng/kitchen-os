@@ -2,11 +2,6 @@
   "id": "tagger-chat-brand",
   "description": "Черга Д (№2), тегер у чат-інтейку: покупка з брендом розкладається на трійку product·brand·variant (бренд НЕ злитий у product), молочне отримує tags.allergens з «молоко». Інший бренд = інший продукт — тому трійка мусить бути чистою.",
   "call": "chat",
-  "profile": {
-    "allergies": [],
-    "wishes": [],
-    "antipatterns": []
-  },
   "pantry": [],
   "conversation": [
     {

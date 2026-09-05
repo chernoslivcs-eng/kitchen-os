@@ -348,13 +348,6 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       });
       expect((await repo.listInvitesForHousehold(household_id)).some((i) => i.email === 'invited@example.com')).toBe(true);
 
-      const note_id = randomUUID();
-      await repo.insertNote({
-        id: note_id, user_id, text: 'смок-висновок', recipe_title: null,
-        rating: null, pinned: false, created_at: now,
-      });
-      expect((await repo.listNotes(user_id)).some((n) => n.id === note_id)).toBe(true);
-
       const eater_id = randomUUID();
       await repo.insertEater({
         id: eater_id, household_id, name: 'Смок-їдець',
@@ -379,10 +372,6 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       });
       expect((await repo.listCookRuns(user_id)).length).toBeGreaterThan(0);
 
-      await repo.upsertProfile({
-        user_id, allergies: ['селера'], wishes: [], antipatterns: [], equipment: {},
-      });
-      expect((await repo.getProfile(user_id))?.allergies).toEqual(['селера']);
     });
 
     it('retail-підключення: upsert по (user, provider), мʼяке відключення, delete', async () => {
@@ -542,16 +531,19 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(ramadan && 'meaning' in ramadan ? ramadan.meaning : '').toContain('іфтар');
     });
 
-    // Традиції профілю: «не обирала» (null) і «вимкнула все» ([]) — різні
-    // стани, і сховище мусить повертати їх різними.
-    it('традиції профілю: null ≠ [], вибір переживає перечитування', async () => {
+    // Традиції (крок 11 — на user): «не обирала» (null) і «вимкнула все» ([])
+    // — різні стани, і сховище мусить повертати їх різними.
+    it('традиції: null ≠ [], вибір переживає перечитування', async () => {
       const { repo } = ctx;
-      await repo.upsertProfile({ user_id: ctx.user_id, allergies: [], wishes: ['постуємо'], antipatterns: [], equipment: {}, traditions: null });
-      expect((await repo.getProfile(ctx.user_id))?.traditions ?? null).toBeNull();
-      await repo.upsertProfile({ user_id: ctx.user_id, allergies: [], wishes: ['постуємо'], antipatterns: [], equipment: {}, traditions: [] });
-      expect((await repo.getProfile(ctx.user_id))?.traditions).toEqual([]);
-      await repo.upsertProfile({ user_id: ctx.user_id, allergies: [], wishes: [], antipatterns: [], equipment: {}, traditions: ['catholic', 'islamic'] });
-      expect((await repo.getProfile(ctx.user_id))?.traditions).toEqual(['catholic', 'islamic']);
+      // Справжній рядок user — ctx.user_id у памʼятній реалізації лише id.
+      const { user_id } = await repo.createUserWithHousehold(`trad-${randomUUID()}@x.local`, 'Т');
+      expect((await repo.getUser(user_id))?.traditions ?? null).toBeNull();
+      await repo.setTraditions(user_id, []);
+      expect((await repo.getUser(user_id))?.traditions).toEqual([]);
+      await repo.setTraditions(user_id, ['catholic', 'islamic']);
+      expect((await repo.getUser(user_id))?.traditions).toEqual(['catholic', 'islamic']);
+      await repo.setTraditions(user_id, null);
+      expect((await repo.getUser(user_id))?.traditions ?? null).toBeNull();
     });
 
     // Адмінка v0 (фаза 4): чернетка не потрапляє в жоден зі звичайних

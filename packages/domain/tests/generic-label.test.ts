@@ -57,7 +57,7 @@ describe('позначка ?рід у рядку комори', () => {
     const prods = [product('p1', 'мʼясо'), product('p2', 'камбоцола')];
     const out = serializePantry(
       [batch('мʼясо', 'p1'), batch('камбоцола 70%', 'p2')],
-      null, Date.now(), [], false, 'none', 120, prods,
+      Date.now(), [], false, 'none', 120, prods,
     );
     const lines = out.split('\n').filter((l) => l.includes('·'));
     expect(lines.find((l) => l.includes('мʼясо')), 'родова партія').toContain('?рід');
@@ -70,7 +70,7 @@ describe('позначка ?рід у рядку комори', () => {
     const prods = [product('p1', 'крем-брускетта')];
     const out = serializePantry(
       [batch('Крем-брускетта Ponti з чорних оливок', 'p1')],
-      null, Date.now(), [], false, 'none', 120, prods,
+      Date.now(), [], false, 'none', 120, prods,
     );
     expect(out).not.toContain('?рід');
   });
@@ -80,7 +80,7 @@ describe('позначка ?рід у рядку комори', () => {
     const prods = [product('p1', 'ковбаса'), product('p2', 'олія')];
     const out = serializePantry(
       [batch('ковбаса', 'p1'), batch('олія', 'p2')],
-      null, Date.now(), [], false, 'none', 120, prods,
+      Date.now(), [], false, 'none', 120, prods,
     );
     expect(out).not.toContain('?рід');
   });
@@ -88,7 +88,7 @@ describe('позначка ?рід у рядку комори', () => {
   it('партія без продукту не позначається: ми просто не знаємо', () => {
     // Старі партії до трійки мають product_id: null. Мовчання чесніше за
     // здогад — інакше вся дотрійкова комора спалахнула б позначками.
-    const out = serializePantry([batch('мʼясо', null)], null, Date.now(), [], false, 'none', 120, []);
+    const out = serializePantry([batch('мʼясо', null)], Date.now(), [], false, 'none', 120, []);
     expect(out).not.toContain('?рід');
   });
 
