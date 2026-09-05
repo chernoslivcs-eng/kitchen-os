@@ -356,3 +356,39 @@ describe('tense-matches-apply-mode', () => {
     expect(inv({ raw: '', reply: 'Записав.' } as never, fx).pass).toBe(true);
   });
 });
+
+// Крок 9: повний прогін показав два інваріанти, що червоніли на правильних
+// відповідях. Числа словами («Сто грамів») і нотатка в полі `note` замість
+// старої картки kind:note — контракт кроку 8.
+describe('pantry-truth-100', () => {
+  const inv = registry['pantry-truth-100']!;
+  it('«Сто грамів» словами — правильна відповідь', () => {
+    const v = inv({ raw: '', card: null, reply: 'Сто грамів. Решту зʼїла паста сьогодні вдень.' }, fx);
+    expect(v.pass, v.detail).toBe(true);
+  });
+  it('цифрами — теж', () => {
+    expect(inv({ raw: '', card: null, reply: 'Десь 100 г лишилось.' }, fx).pass).toBe(true);
+  });
+  it('500 з історії — дефект, і цифрами, і словами', () => {
+    expect(inv({ raw: '', card: null, reply: 'У тебе 500 г помідорів.' }, fx).pass).toBe(false);
+    expect(inv({ raw: '', card: null, reply: 'Пʼятсот грамів, ти ж купив пів кіла.' }, fx).pass).toBe(false);
+  });
+});
+
+describe('preference-note-with-recipe', () => {
+  const inv = registry['preference-note-with-recipe']!;
+  const reply = 'Записав. Наступного разу додай черрі в кінці.';
+  it('нотатка в полі note з назвою страви і овочем — проходить, картки не треба', () => {
+    const v = inv({
+      raw: '', card: null, reply,
+      note: 'Феттучіне з морським коктейлем у вершковому соусі — бракувало овочевої ноти. Наступного разу: черрі в кінці або шпинат',
+    }, fx);
+    expect(v.pass, v.detail).toBe(true);
+  });
+  it('note без страви — уподобання ні до чого не привʼязане', () => {
+    expect(inv({ raw: '', card: null, reply, note: 'Любить овочеву ноту в пасті' }, fx).pass).toBe(false);
+  });
+  it('note null — уподобання зникло в тексті', () => {
+    expect(inv({ raw: '', card: null, reply, note: null }, fx).pass).toBe(false);
+  });
+});

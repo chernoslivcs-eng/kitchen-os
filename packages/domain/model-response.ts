@@ -37,11 +37,13 @@ export function extractJson(raw: string): { parsed: unknown; residualText: strin
     }
     i = end + 1;
   }
-  // Пріоритет: (1) обгортка {reply,card}; (2) обʼєкт із валідним type;
+  // Пріоритет: (1) обгортка {reply, card?, note?}; (2) обʼєкт із валідним type;
   // (3) перший знайдений. Тоді при двох JSON з type card вибирається один,
-  // а другий не тече в reply.
+  // а другий не тече в reply. Обгортку впізнаємо за самим reply: крок 9 показав
+  // відповідь {reply, note} без ключа card — вона не впізнавалась, і людині
+  // йшла порожня репліка.
   const wrapper = found.find((o) =>
-    o && typeof o === 'object' && 'reply' in (o as object) && 'card' in (o as object),
+    o && typeof o === 'object' && 'reply' in (o as object),
   );
   const card = found.find((o) => {
     const t = (o as { type?: unknown } | null)?.type;
@@ -82,7 +84,7 @@ export function parseModelResponse(text: string): { reply: string; card: Card | 
   let note: string | null = null;
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
-    if ('reply' in o && 'card' in o) {
+    if ('reply' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = (o.card ?? null) as Card | null;
       note = noteFrom(o);

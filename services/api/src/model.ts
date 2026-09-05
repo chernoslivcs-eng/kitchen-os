@@ -495,10 +495,12 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
     // Модель повертає одне з двох:
-    //   { reply, card } — обгортка з окремим текстом і карткою
+    //   { reply, card?, note? } — обгортка з окремим текстом; card і note
+    //   необовʼязкові (крок 9: {reply, note} без card іде без картки, а не
+    //   порожньою реплікою)
     //   { type, ops|items|... } — саму картку без обгортки; reply тоді — те,
     //   що модель написала поруч із JSON у тому ж повідомленні
-    if ('reply' in o && 'card' in o) {
+    if ('reply' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = normalizeCard(o.card ?? null);
       note = noteFrom(o);

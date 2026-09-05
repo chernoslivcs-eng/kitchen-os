@@ -1099,10 +1099,11 @@ export const registry: Record<string, Invariant> = {
     return pass();
   },
 
+  // Крок 9: число буває словами («Сто грамів») — це та сама правда з [КОМОРА].
   'pantry-truth-100': (out) => {
     const reply = String(out.reply ?? '');
-    if (/500/.test(reply)) return fail('назвала 500 г з історії — блок каже 100');
-    if (!/100/.test(reply)) return fail('не назвала 100 г із [КОМОРА]');
+    if (/500|п[ʼ']?ятсот|пів\s*кіл/i.test(reply)) return fail('назвала 500 г з історії — блок каже 100');
+    if (!/100|(?<![а-яіїєґ])сто(?![а-яіїєґ])/i.test(reply)) return fail('не назвала 100 г із [КОМОРА]');
     return pass();
   },
 
@@ -1268,18 +1269,17 @@ export const registry: Record<string, Invariant> = {
     return pass(`when=${JSON.stringify(when)} days=${days} kind=${String(add.kind ?? '')}`);
   },
 
-  // 1.2 (s42): уподобання після фідбеку — note, привʼязана до щойно
-  // готованої страви. Без картки воно зникає в тексті.
+  // 1.2 (s42): уподобання після фідбеку — нотатка, привʼязана до щойно
+  // готованої страви. Без запису воно зникає в тексті. Крок 8: нотатка іде
+  // полем `note` відповіді (не карткою kind:note), назва страви — в її тексті.
   'preference-note-with-recipe': (out) => {
-    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
-    if (!c || c.type !== 'profile') return fail(`card.type=${c?.type ?? 'null'} — очікував profile з kind:note (уподобання)`);
-    const note = (c.ops ?? []).find((o) => o.kind === 'note' && (o.op ?? 'add') === 'add');
-    if (!note) return fail(`ops: ${(c.ops ?? []).map((o) => o.kind).join(',')} — note немає`);
-    const recipe = String(note.recipe ?? note.recipe_title ?? '').toLowerCase();
-    if (!recipe.includes('феттучіне')) return fail(`note без recipe або з чужою стравою: «${recipe || '—'}»`);
-    const label = String(note.label ?? '').toLowerCase();
-    if (!/овоч|черрі|томат|шпинат|спарж/.test(label)) return fail(`label не про овочевий смак: «${label}»`);
-    return pass(`note «${label}» до «${recipe}»`);
+    const n = String(out.note ?? '').trim();
+    if (!n) return fail(`note null — reply: «${String(out.reply ?? '').slice(0, 120)}»`);
+    if (Array.from(n).length > 140) return fail(`note довша за 140: ${Array.from(n).length}`);
+    const lc = n.toLowerCase();
+    if (!lc.includes('феттучіне')) return fail(`note без назви щойно готованої страви: «${n}»`);
+    if (!/овоч|черрі|томат|шпинат|спарж/.test(lc)) return fail(`note не про овочевий смак: «${n}»`);
+    return pass(`note «${n}»`);
   },
 
   // s42: «які овочі додати — черрі, шпинат, спаржу?» замість діагнозу —

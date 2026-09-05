@@ -75,6 +75,24 @@ describe('parseModelResponse', () => {
     expect(card).toBeNull();
     expect(reply).toBe('Не бачу так далеко.');
   });
+
+  // Крок 9 (повний прогін, feedback-diagnosis): модель віддала {reply, note}
+  // без ключа card — обгортка не впізналась, і людині пішла порожня репліка.
+  // Обгортка — будь-який обʼєкт із reply; card і note необовʼязкові.
+  it('{reply, note} без card — обгортка: reply і note доходять, card null', () => {
+    const raw = '```json\n{"reply":"Анчоуси й каперси — обидва солоні.","note":"Путанеска — воду не солити"}\n```';
+    const { reply, card, note } = parseModelResponse(raw);
+    expect(reply).toBe('Анчоуси й каперси — обидва солоні.');
+    expect(card).toBeNull();
+    expect(note).toBe('Путанеска — воду не солити');
+  });
+
+  it('{reply} сам — обгортка: reply доходить, card і note null', () => {
+    const { reply, card, note } = parseModelResponse('{"reply":"Сто грамів."}');
+    expect(reply).toBe('Сто грамів.');
+    expect(card).toBeNull();
+    expect(note).toBeNull();
+  });
 });
 
 // ImportSheet із прототипу: людина показує рецепт із книжки чи скрін із
