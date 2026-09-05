@@ -9,7 +9,7 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, UserRow, HouseholdRow, HouseholdMemberRow,
+  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField,
   PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
@@ -722,6 +722,8 @@ export class PostgresRepo implements Repo {
       email: r.email,
       created_at: new Date(r.created_at).toISOString(),
       plan: (r.plan as string | null) ?? 'beta',
+      welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
+      profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
     };
   }
 
@@ -766,7 +768,17 @@ export class PostgresRepo implements Repo {
     const { rows } = await this.pool.query('SELECT * FROM "user" WHERE id = $1', [id]);
     const r = rows[0];
     if (!r) return null;
-    return { id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString(), plan: (r.plan as string | null) ?? 'beta' };
+    return {
+      id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString(), plan: (r.plan as string | null) ?? 'beta',
+      welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
+      profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
+    };
+  }
+
+  async touchUser(user_id: string, field: UserStampField, at: string): Promise<void> {
+    // Назва колонки — з закритого union, не з запиту.
+    const col = field === 'welcome_seen_at' ? 'welcome_seen_at' : 'profile_onboarding_at';
+    await this.pool.query(`UPDATE "user" SET ${col} = $2 WHERE id = $1`, [user_id, at]);
   }
 
   async getHousehold(id: string): Promise<HouseholdRow | null> {

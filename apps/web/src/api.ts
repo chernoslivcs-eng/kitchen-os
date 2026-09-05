@@ -49,7 +49,7 @@ function extractError(p: unknown): string | null {
 // ----- Types (мінімум, під те, що потрібно на MVP) ---------------------
 
 export interface Me {
-  user: { id: string; name: string; email: string; plan?: string };
+  user: { id: string; name: string; email: string; plan?: string; welcome_seen_at?: string | null };
   household: {
     id: string;
     name: string;
@@ -151,8 +151,10 @@ export interface CartRow {
 }
 
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event' | 'onboarding';
   ops?: unknown[];
+  // Раунд 4, крок 7: картка «Про тебе» — пропущені панелі (стан заповнених — з profile_text).
+  skipped?: string[];
   // Раунд 4 §4: картка поля профілю {field, mode, text} (замість ops).
   field?: 'name' | 'no' | 'ban' | 'love' | 'meh' | 'kit' | 'when';
   mode?: 'append' | 'replace';
@@ -319,7 +321,13 @@ export const api = {
     remove: (id: string) => req<{ deleted: true }>(`/v1/pantry/${id}`, { method: 'DELETE' }),
   },
 
-  chat: (input: { text?: string; attachments?: { id: string }[]; session_id?: string }) =>
+  // Крок 7: «бачив Семена» — на сервері; localStorage лише кеш.
+  meSeen: () => req<{ welcome_seen_at: string }>('/v1/me', { method: 'PATCH', body: JSON.stringify({ welcome_seen: true }) }),
+  onboarding: {
+    skip: (message_id: string, key: string) =>
+      req<{ card: ChatCard }>(`/v1/onboarding/${message_id}`, { method: 'PATCH', body: JSON.stringify({ skip: key }) }),
+  },
+  chat: (input: { text?: string; attachments?: { id: string }[]; session_id?: string; action?: 'profile_summary' }) =>
     req<ChatResponse>('/v1/chat', {
       method: 'POST',
       body: JSON.stringify(input),

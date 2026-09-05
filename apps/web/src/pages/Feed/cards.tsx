@@ -7,7 +7,8 @@ import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
 import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurrence } from '../../api';
+import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurrence, type ProfileFieldV2 } from '../../api';
+import { OnboardingCard } from './OnboardingCard';
 // Аудит раунд 3, крок 2: підпис кнопки — з card-modes.ts, не окрема правда
 // на фронті. Субпуть, не '@kitchen/domain' — той тягне Repo/node:crypto,
 // а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
@@ -119,6 +120,10 @@ export interface CardProps {
   onDismiss?: () => void;
   // Раунд 4 §4: «Нічого такого» на картці поля `ban` — застосування зі status none.
   onNone?: () => void;
+  // Крок 7: картка «Про тебе» — стан панелей і зворотні виклики.
+  profileFields?: Record<string, ProfileFieldV2> | null;
+  onProfilePatched?: () => void;
+  onSummary?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
   // Крок 4.2: назви незакреслених позицій списку покупок. Потрібні, щоб
@@ -1481,6 +1486,13 @@ export function Card(props: CardProps) {
     case 'recipe':      return <RecipeCard {...props} />;
     case 'cook_photo':  return <CookPhotoCard {...props} />;
     case 'recipe_link': return <RecipeLinkCard {...props} />;
+    // Крок 7: картка «Про тебе» — сім панелей; стан — з profile_text (props).
+    case 'onboarding':  return (
+      <OnboardingCard
+        card={props.card} cardId={props.cardId}
+        profileFields={props.profileFields} onProfilePatched={props.onProfilePatched} onSummary={props.onSummary}
+      />
+    );
     default:            return null;
   }
 }
@@ -1524,6 +1536,8 @@ export function labelFor(
   if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
   // M13: кошик — теж не дія в нас: він уже зібраний у мережі, CTA веде назовні.
   if (type === 'cart') return { text: 'КОШИК · СІЛЬПО', tone: 'muted' };
+  // Крок 7: «Про тебе» — не дія, статусу немає.
+  if (type === 'onboarding') return { text: 'ПРО ТЕБЕ', tone: 'muted' };
   if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
   if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.

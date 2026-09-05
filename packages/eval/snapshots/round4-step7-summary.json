@@ -1,0 +1,82 @@
+{
+  "promptVersion": "2026-08-28",
+  "createdAt": "2026-09-05T17:32:50.222Z",
+  "model": "(default)",
+  "runs": [
+    {
+      "id": "onboarding-summary",
+      "call": "chat",
+      "invariants": {
+        "no-card": {
+          "pass": true
+        },
+        "summary-order-ban-then-no": {
+          "pass": true,
+          "detail": "ban@33 < no@51"
+        },
+        "summary-offers-pantry": {
+          "pass": true
+        },
+        "summary-length:3-5": {
+          "pass": true,
+          "detail": "5 речень"
+        },
+        "reply-no-service-markers": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "72ad7007c9a0",
+      "usage": {
+        "input": 1400,
+        "output": 155,
+        "cached": 0,
+        "cache_write": 21098
+      },
+      "reply": "Пилипе, я знаю, що тобі не можна арахіс. Ти не їси мʼяса й птиці. Любиш тайську кухню, помідори й супи. Є гриль і блендер, готуєш зазвичай ввечері, на одного-двох, до години.\n\nТепер варто заповнити комору — скинь чек, фото полиці або просто перелічи, що є, щоб було з чого готувати.",
+      "card": null,
+      "latencyMs": 5740,
+      "raw": "```json\n{\"reply\":\"Пилипе, я знаю, що тобі не можна арахіс. Ти не їси мʼяса й птиці. Любиш тайську кухню, помідори й супи. Є гриль і блендер, готуєш зазвичай ввечері, на одного-двох, до години.\\n\\nТепер варто заповнити комору — скинь чек, фото полиці або просто перелічи, що є, щоб було з чого готувати.\",\"card\":null}\n```",
+      "residualText": ""
+    },
+    {
+      "id": "onboarding-summary-empty",
+      "call": "chat",
+      "invariants": {
+        "no-card": {
+          "pass": true
+        },
+        "summary-no-invented": {
+          "pass": true
+        },
+        "summary-offers-pantry": {
+          "pass": true
+        },
+        "summary-length:1-3": {
+          "pass": true,
+          "detail": "3 речень"
+        },
+        "reply-no-service-markers": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "72ad7007c9a0",
+      "usage": {
+        "input": 1277,
+        "output": 117,
+        "cached": 21098,
+        "cache_write": 0
+      },
+      "reply": "Семене, привіт. Поки що про тебе знаю тільки імʼя — решта полів порожні. Щоб почати готувати, треба розібрати комору: скинь чек після покупок, фото полиці або просто перелічи, що є — я запишу й буду бачити, з чого складати вечерю.",
+      "card": null,
+      "latencyMs": 4980,
+      "raw": "```json\n{\"reply\":\"Семене, привіт. Поки що про тебе знаю тільки імʼя — решта полів порожні. Щоб почати готувати, треба розібрати комору: скинь чек після покупок, фото полиці або просто перелічи, що є — я запишу й буду бачити, з чого складати вечерю.\",\"card\":null}\n```",
+      "residualText": ""
+    }
+  ]
+}

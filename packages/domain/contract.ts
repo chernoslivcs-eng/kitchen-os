@@ -872,10 +872,18 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await repo.getVetoIndex(other_user_id)).toEqual([]);
     });
 
-    it('новий користувач має тариф beta', async () => {
+    it('новий користувач має тариф beta і порожні позначки; touchUser ставить їх', async () => {
       const { repo } = ctx;
       const { user_id } = await repo.createUserWithHousehold(`plan-${randomUUID()}@x.local`, 'Тест');
-      expect((await repo.getUser(user_id))?.plan).toBe('beta');
+      const u = await repo.getUser(user_id);
+      expect(u?.plan).toBe('beta');
+      expect(u?.welcome_seen_at).toBeNull();
+      expect(u?.profile_onboarding_at).toBeNull();
+      await repo.touchUser(user_id, 'welcome_seen_at', '2026-09-05T10:00:00.000Z');
+      await repo.touchUser(user_id, 'profile_onboarding_at', '2026-09-05T10:01:00.000Z');
+      const after = await repo.getUser(user_id);
+      expect(after?.welcome_seen_at).toBe('2026-09-05T10:00:00.000Z');
+      expect(after?.profile_onboarding_at).toBe('2026-09-05T10:01:00.000Z');
     });
 
     it('deleteUserAccount забирає profile_text, нотатки й вето разом із людиною', async () => {

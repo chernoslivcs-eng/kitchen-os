@@ -9,6 +9,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../../api';
+import { useAuth } from '../../store/auth';
 import styles from './Onboarding.module.css';
 
 export const ONBOARDING_SEEN_KEY = 'kos-onboarding-seen';
@@ -16,8 +18,13 @@ export const ONBOARDING_SEEN_KEY = 'kos-onboarding-seen';
 export function onboardingSeen(): boolean {
   try { return localStorage.getItem(ONBOARDING_SEEN_KEY) === '1'; } catch { return true; }
 }
-function markSeen() {
+export function markSeenLocally() {
   try { localStorage.setItem(ONBOARDING_SEEN_KEY, '1'); } catch { /* приватний режим — покажемо ще раз, не біда */ }
+}
+// Крок 7: позначка — на сервері (welcome_seen_at), локально — кеш.
+function markSeen() {
+  markSeenLocally();
+  void api.meSeen().then(() => useAuth.getState().refresh()).catch(() => { /* мережа — локальний кеш прикриє до наступного разу */ });
 }
 
 interface Card { tag: string; title: string; lines: string[] }

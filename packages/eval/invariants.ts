@@ -72,6 +72,32 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Крок 7 (3): резюме «Про тебе» (no-card — існуючий інваріант нижче).
+  'summary-order-ban-then-no': (out, fx) => {
+    const r = String(out.reply ?? '').toLowerCase();
+    const pt = (fx.profile_text ?? {}) as Record<string, string>;
+    const banAt = pt.ban ? r.indexOf(String(pt.ban).split(/[,;]/)[0]!.trim().toLowerCase().slice(0, 5)) : -1;
+    const noAt = pt.no ? r.indexOf(String(pt.no).split(/[,;]/)[0]!.trim().toLowerCase().replace(/ʼ/g, '').slice(0, 3)) : -1;
+    const noAt2 = pt.no ? r.replace(/ʼ|'/g, '').indexOf(String(pt.no).split(/[,;]/)[0]!.trim().toLowerCase().replace(/ʼ|'/g, '').slice(0, 3)) : -1;
+    const noPos = noAt >= 0 ? noAt : noAt2;
+    if (banAt < 0) return fail(`«не можна» (${pt.ban}) у резюме не згадано`);
+    if (noPos < 0) return fail(`«не їм» (${pt.no}) у резюме не згадано`);
+    return banAt < noPos ? pass(`ban@${banAt} < no@${noPos}`) : fail(`порядок: не їм (@${noPos}) раніше за не можна (@${banAt})`);
+  },
+  'summary-offers-pantry': (out) => {
+    const r = String(out.reply ?? '');
+    return /чек|фото|полиц|список|комор/i.test(r) ? pass() : fail(`без пропозиції почати з комори: «${r.slice(0, 160)}»`);
+  },
+  'summary-no-invented': (out, fx) => {
+    const r = String(out.reply ?? '').toLowerCase();
+    const pt = (fx.profile_text ?? {}) as Record<string, string>;
+    const bad: string[] = [];
+    if (!pt.ban && /алерг|не можна/.test(r)) bad.push('алергія/не можна');
+    if (!pt.no && /не їси|не їш|веган|мʼяс|м'яс/.test(r)) bad.push('не їм');
+    if (!pt.kit && /аерогриль|блендер|духовк|мультиварк/.test(r)) bad.push('техніка');
+    if (!pt.love && /любиш|тягне/.test(r)) bad.push('любить');
+    return bad.length ? fail(`вигадано: ${bad.join(', ')} — «${r.slice(0, 160)}»`) : pass();
+  },
   // Крок 4в (2): у reply нема службових позначок історії/контексту.
   'reply-no-service-markers': (out) => {
     const hit = SERVICE_MARKER_RE.exec(String(out.reply ?? ''));
@@ -1266,6 +1292,15 @@ export const registry: Record<string, Invariant> = {
 // тобто перевірка була мертва з дня написання.
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
+
+  // Крок 7 (3): кількість речень у резюме, «a-b».
+  if (base === 'summary-length') {
+    return (out) => {
+      const [lo, hi] = (arg ?? '1-5').split('-').map(Number);
+      const n = String(out.reply ?? '').split(/(?<=[.!?…])\s+/).filter((x) => x.trim()).length;
+      return n >= lo! && n <= hi! ? pass(`${n} речень`) : fail(`${n} речень, очікував ${lo}–${hi}`);
+    };
+  }
 
   // Крок 4в (3): картка поля профілю з полем `arg` (no|meh|ban|…).
   if (base === 'profile-field') {

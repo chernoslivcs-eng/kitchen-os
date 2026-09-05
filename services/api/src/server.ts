@@ -21,6 +21,7 @@ import { profileRoutes, eaterRoutes } from './routes/profile.js';
 import { profileV2Routes } from './routes/profile-v2.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
+import { onboardingRoutes } from './routes/onboarding.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
@@ -78,7 +79,8 @@ export function buildApp(
   eaterRoutes(app, repo);
   recipesRoutes(app, repo, { profileV2 });
   cookRunsRoutes(app, repo);
-  sessionRoutes(app, repo);
+  sessionRoutes(app, repo, { profileV2 });
+  if (profileV2) onboardingRoutes(app, repo);
   chatRoute(app, repo, store, {
     rateLimit: opts.rateLimits?.chat,
     retailCart: retail?.attemptBuildCart,

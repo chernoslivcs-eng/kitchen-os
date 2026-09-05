@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js';
+import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField } from './repo.js';
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
@@ -303,6 +303,11 @@ export class InMemoryRepo implements Repo {
     return this.users.get(id) ?? null;
   }
 
+  async touchUser(user_id: string, field: UserStampField, at: string): Promise<void> {
+    const u = this.users.get(user_id);
+    if (u) u[field] = at;
+  }
+
   async getUser(id: string): Promise<UserRow | null> {
     const u = this.users.get(id);
     return u ? { ...u } : null;
@@ -314,7 +319,7 @@ export class InMemoryRepo implements Repo {
     const user_id = randomUUID();
     const household_id = randomUUID();
     const now = new Date().toISOString();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta' });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
     this.usersByEmail.set(key, user_id);
     this.households.set(household_id, { id: household_id, name: `Дім ${name}`, created_at: now });
     this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
@@ -325,7 +330,7 @@ export class InMemoryRepo implements Repo {
     const key = email.toLowerCase();
     if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
     const user_id = randomUUID();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta' });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
     this.usersByEmail.set(key, user_id);
     return user_id;
   }

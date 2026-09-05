@@ -53,6 +53,9 @@ export const CARD_APPLY_MODE: Record<Card['type'], ApplyMode> = {
   cart: 'none',
   cart_go: 'none',
   retail_search_go: 'none',
+  // Раунд 4, крок 7: онбординг «Про тебе» — дії всередині картки йдуть у
+  // PATCH /v1/profile/:key, applyCard тут нема чого робити.
+  onboarding: 'none',
 };
 
 export function applyMode(type: Card['type']): ApplyMode {
@@ -85,6 +88,7 @@ export const CARD_BUTTON_LABEL: Record<Card['type'], string | null> = {
   cart: null,
   cart_go: null,
   retail_search_go: null,
+  onboarding: null,
 };
 
 /**

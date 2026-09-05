@@ -20,7 +20,12 @@ export interface UserRow {
   created_at: string;
   /** Раунд 4, крок 6: тариф. Поки один — 'beta' (міграція 0024). */
   plan: string;
+  /** Крок 7 (міграція 0025): бачив Семена; картку «Про тебе» вже видано. */
+  welcome_seen_at: string | null;
+  profile_onboarding_at: string | null;
 }
+
+export type UserStampField = 'welcome_seen_at' | 'profile_onboarding_at';
 
 export interface HouseholdRow {
   id: string;
@@ -118,6 +123,8 @@ export interface Repo {
   // через addMember. Своєї комори гість не має за визначенням — це те, за що платить хазяїн.
   findUserByEmail(email: string): Promise<UserRow | null>;
   getUser(id: string): Promise<UserRow | null>;
+  // Крок 7: разові позначки на користувачі (Семен, картка «Про тебе»).
+  touchUser(user_id: string, field: UserStampField, at: string): Promise<void>;
   createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;

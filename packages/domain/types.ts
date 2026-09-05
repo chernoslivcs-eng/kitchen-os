@@ -350,7 +350,15 @@ export interface RetailSearchGoCard {
   query: string;
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard;
+// Раунд 4, крок 7: картка «Про тебе» — сім панелей в одному повідомленні.
+// Стан панелей — з profile_text.status; тут лише пропуски («Пропустити»),
+// щоб перезавантаження їх не скидало. Видає сервер, модель її не повертає.
+export interface OnboardingCard {
+  type: 'onboarding';
+  skipped?: ProfileFieldKey[];
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard | OnboardingCard;
 
 // ----- Стан «на застосуванні» ------
 

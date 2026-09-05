@@ -1,0 +1,43 @@
+/* Картка «Про тебе» у стрічці — вертикальна, 400px у стрічці, на мобільному на всю ширину. */
+.card { display: flex; flex-direction: column; gap: 10px; max-width: 400px; width: 100%; }
+@media (max-width: 767px) { .card { max-width: none; } }
+
+.panel {
+  background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+  display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px;
+  animation: panel-in var(--dur-base) var(--ease-enter);
+}
+@keyframes panel-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+
+.illustration { aspect-ratio: 3 / 2; width: 100%; background: var(--bg-surface); display: block; }
+.illustration img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.body { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; }
+.step { font: 400 10px var(--font-mono); letter-spacing: .1em; color: var(--fg-dim); }
+.title, .titleDanger { font: 700 19px/1.2 var(--font-display); letter-spacing: -.02em; color: var(--fg); }
+.titleDanger { color: var(--danger); }
+.text { font: 400 14px/1.5 var(--font-body); color: var(--fg-muted); text-wrap: pretty; }
+
+.row {
+  position: relative; margin-top: 8px; font: 400 15.5px/1.5 var(--font-body); color: var(--fg);
+  padding: 7px 10px 20px; margin-left: -10px; margin-right: -10px; border-radius: var(--r-sm); background: var(--bg-surface);
+}
+.start { color: var(--fg-muted); }
+.startDanger { color: var(--danger); }
+.edit { color: var(--fg); border-bottom: 1px dashed var(--border-strong); padding-bottom: 1px; outline: none; caret-color: var(--accent); min-width: 1ch; white-space: pre-wrap; }
+.edit:focus { border-bottom-color: var(--accent); }
+.edit:empty::before { content: attr(data-ph); color: var(--fg-dim); }
+.counter { position: absolute; right: 10px; bottom: 4px; font: 400 10.5px var(--font-mono); letter-spacing: .05em; color: var(--fg-dim); pointer-events: none; }
+.counterLimit { color: var(--amber); }
+.meta { font: 500 10.5px var(--font-mono); letter-spacing: .1em; color: var(--accent); }
+
+.actions { display: flex; gap: 10px; margin-top: 6px; }
+.actions > :first-child { flex: 1; }
+
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px; }
+.arrow {
+  width: var(--tap); height: 36px; border-radius: var(--r); border: 1px solid var(--border); background: transparent;
+  color: var(--fg); font-size: 16px; cursor: pointer;
+}
+.arrow:disabled { opacity: .35; cursor: default; }
+.progress { font: 400 11px var(--font-mono); letter-spacing: .1em; color: var(--fg-dim); }

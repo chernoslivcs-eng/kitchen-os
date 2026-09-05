@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
+import { PROFILE_SUMMARY_REQUEST } from '@kitchen/domain';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -246,6 +247,13 @@ export function loadFixtures(): Fixture[] {
       'no-vs-meh-cilantro-ban', 'allergy-stated-no-followup'].map((id) => ({
       ...readJson(`${id}.json`),
       skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — індексу вето немає',
+    })),
+    // Крок 7 (3): резюме «Показати, що вийшло» — user-turn це серверний рядок з
+    // домену (одне джерело з chat.ts), у JSON фікстури його нема навмисно.
+    ...['onboarding-summary', 'onboarding-summary-empty'].map((id) => ({
+      ...readJson(`${id}.json`),
+      conversation: [{ role: 'user' as const, content: PROFILE_SUMMARY_REQUEST }],
+      skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — блоку [ПРО ЛЮДИНУ] немає',
     })),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),

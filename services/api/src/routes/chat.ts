@@ -4,7 +4,7 @@ import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } fro
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
-import { isProfileFieldCard, legacyOpsFromFieldCard, fieldByVerb } from '@kitchen/domain';
+import { isProfileFieldCard, legacyOpsFromFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST } from '@kitchen/domain';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -72,11 +72,17 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       session_id?: string;
       text?: string;
       attachments?: { id: string }[];
+      // Крок 7: «Показати, що вийшло» — серверний хід без репліки людини.
+      action?: 'profile_summary';
     };
   }>('/v1/chat', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
     const ctx = requireUser(req);
     const { user_id, household_id } = ctx;
-    const { text, attachments, session_id: clientSessionId } = req.body ?? {};
+    const { attachments, session_id: clientSessionId, action } = req.body ?? {};
+    // Резюме «Про тебе»: у user-turn іде серверний рядок, в історію він не
+    // пишеться, картки не буває — модель лише переказує [ПРО ЛЮДИНУ] у голосі.
+    const summaryTurn = action === 'profile_summary';
+    const text = summaryTurn ? PROFILE_SUMMARY_REQUEST : req.body?.text;
     if (!text && !attachments?.length) {
       return reply.code(400).send({ error: 'text or attachments required' });
     }
@@ -305,15 +311,17 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     const history = buildChatHistory(allMessages.slice(-20));
     const truncated = allMessages.length > 20;
 
-    await repo.saveMessage({
-      id: randomUUID(), session_id: session.id, role: 'user',
-      text: text ?? '', card: null, applied: 0, created_at: new Date().toISOString(),
-    });
+    if (!summaryTurn) {
+      await repo.saveMessage({
+        id: randomUUID(), session_id: session.id, role: 'user',
+        text: text ?? '', card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+    }
 
     // Назва сесії — з першої репліки. Без неї історія розмов була стовпчиком
     // однакових рядків «дата · час · N повідомлень»; кілька сесій за один день
     // розрізнити було нічим.
-    if (!session.title) {
+    if (!session.title && !summaryTurn) {
       const title = deriveSessionTitle(text ?? '');
       if (title) await repo.setSessionTitle(session.id, title);
     }
@@ -418,6 +426,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Пул-4 №4а: службові [HH:MM] з історії не протікають у відповідь.
     if (call.reply) call.reply = stripHistoryStamps(call.reply);
+
+    // Крок 7: резюме — без картки, що б модель не віддала.
+    if (summaryTurn) call.card = null;
 
     // Крок 7 п. 0: «не їм / не вживаю» у репліці — це поле `no`, хай би що
     // обрала модель (флап кроку 4в: «ще не їм кінзи» → meh). Механіка до
