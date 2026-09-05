@@ -392,10 +392,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // ставало сирим 500, а клієнт ковтав його мовчки: людина писала в мертвий
     // продукт і не знала. 502 з кодом — клієнт показує «не надіслалось · повторити».
     let call: Awaited<ReturnType<typeof callChat>>;
+    let chatArgs: Parameters<typeof callChat>[0];
     try {
-      call = await callChat({
+      call = await callChat(chatArgs = {
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profile, profileText, profileNotes, shopping, notes, eaters, recentRecipes, products, retailConnected, retailKarpaty,
+        history, profile, profileText, profileNotes, vetoIndex, shopping, notes, eaters, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
@@ -636,7 +637,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         try {
           gen = await callRecipe({
             title: wantedTitle,
-            pantry, profile, notes, products, profileText, profileNotes,
+            pantry, profile, notes, products, profileText, profileNotes, vetoIndex,
             conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
           });
         } catch (err) {
@@ -653,7 +654,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, ...e }, e.event));
           if (avoid.length) {
             const again = await callRecipe({
-              title: wantedTitle, pantry, profile, notes, products, profileText, profileNotes,
+              title: wantedTitle, pantry, profile, notes, products, profileText, profileNotes, vetoIndex,
               context: `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`,
               conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
             });
@@ -739,7 +740,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           profile,
           notes,
           products,
-          profileText, profileNotes,
+          profileText, profileNotes, vetoIndex,
           conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
         });
       } catch (err) {
@@ -811,11 +812,25 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // allergies. Кожне відхилення — окремий рядок логу з рядком індексу, який
     // спрацював: на кроці 5 має бути видно, ЩО саме заблокувало.
     // Крок 6з: речення з алергеном, якого людина сама не називала, ріжуться.
-    const veto = applyVeto(call, {
+    let veto = applyVeto(call, {
       profileV2: opts.profileV2, index: vetoIndex, profile, eaters, userText: text ?? '',
       log: (e: VetoLogEntry) => req.log.warn({ user_id, ...e }, e.event),
     });
-    if (veto.emptied) req.log.warn({ user_id, rejected: veto.rejected }, 'veto-emptied');
+    // Крок 4б (b): вето зняло всі кандидати — один повторний виклик із «без …»
+    // (як для рецептів). Порожньо і після нього — репліка каже це прямо
+    // (VETO_EMPTY_REPLY уже стоїть у call.reply), картки нема.
+    if (veto.emptied && opts.profileV2) {
+      const avoid = [...new Set(veto.rejected.flatMap((r) => [r.title]))];
+      req.log.warn({ user_id, avoid }, 'veto-emptied-retry');
+      const again = await callChat({ ...chatArgs, avoid });
+      await recordUsage(repo, ctx, 'chat', again.meta, again.usage, started);
+      const retryVeto = applyVeto(again, {
+        profileV2: opts.profileV2, index: vetoIndex, profile, eaters, userText: text ?? '',
+        log: (e: VetoLogEntry) => req.log.warn({ user_id, retry: true, ...e }, e.event),
+      });
+      if (!retryVeto.emptied) { call = again; veto = retryVeto; }
+      else req.log.warn({ user_id, rejected: retryVeto.rejected }, 'veto-emptied-final');
+    } else if (veto.emptied) req.log.warn({ user_id, rejected: veto.rejected }, 'veto-emptied');
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша
     // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.

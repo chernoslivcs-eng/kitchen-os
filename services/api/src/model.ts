@@ -14,7 +14,7 @@ import {
   serializeProfile as ctxSerializeProfile,
   serializeNotes as ctxSerializeNotes,
   serializeProfileText, serializeTraditionsV2,
-  type ProfileText, type ProfileNote,
+  type ProfileText, type ProfileNote, type VetoRow,
   buildAliasMap,
   unaliasRecipeIds,
   unaliasProse,
@@ -165,6 +165,10 @@ export interface ChatArgs {
   // Раунд 4 (PROFILE_V2): сім речень і нотатки → [ПРО ЛЮДИНУ] + [НОТАТКИ].
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
+  // Крок 4б: індекс вето → ⚠-мітки в [КОМОРА]; avoid — перегенерація після
+  // порожнього вето: «Без: …» їде в кінець репліки людини як серверний рядок.
+  vetoIndex?: VetoRow[];
+  avoid?: string[];
   shopping?: ShoppingItemRow[];
   notes?: MemoryNote[];
   eaters?: EaterRow[];
@@ -436,6 +440,7 @@ export function buildDynamicContext(args: ChatArgs): string {
     profile: args.profile,
     profileText: args.profileText,
     profileNotes: args.profileNotes,
+    vetoIndex: args.vetoIndex,
     shopping: args.shopping,
     recentCookRuns: args.recentCookRuns,
     notes: args.notes,
@@ -539,6 +544,14 @@ export function matchesVoiceExample(reply: string, examples: string[]): boolean 
   return examples.some((ex) => wordOverlapRatio(reply, ex) >= EXAMPLE_COPY_THRESHOLD);
 }
 
+// Крок 4б (b): вето зняло всі кандидати — один повторний виклик із явним
+// «без …». Рядок серверний, іде в user-turn (не в кеш і не в промт).
+export const AVOID_LINE = (avoid: string[]) =>
+  `[СЕРВЕР] Попередню пропозицію знято — там було те, чого людина не їсть: ${avoid.join(', ')}. Запропонуй інше, без цього.`;
+export function withAvoid(text: string, avoid?: string[]): string {
+  return avoid?.length ? `${text}\n\n${AVOID_LINE(avoid)}` : text;
+}
+
 export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const prompt = loadPrompt();
   const client = makeClient();
@@ -554,7 +567,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
   const messages = [
     ...(args.history ?? []),
-    { role: 'user' as const, content: args.text },
+    { role: 'user' as const, content: withAvoid(args.text, args.avoid) },
   ];
   const callOpts = {
     model,
@@ -661,6 +674,7 @@ export async function callRecipe(args: {
   // Раунд 4 (PROFILE_V2): замість [ПРОФІЛЬ]+[ВИСНОВКИ] — [ПРО ЛЮДИНУ]+[НОТАТКИ].
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
+  vetoIndex?: VetoRow[];
   products?: HouseholdProduct[];
   // Пул-4 №4б: recipe_gen сліпий до розмови — «Арборіо є?» → «Буде»
   // губилось між викликами. Хвіст діалогу їде в user-запит (НЕ в кеш).
@@ -676,7 +690,7 @@ export async function callRecipe(args: {
   // помилку. Переклад назад — детермінований; невідомий аліас → дроп p.
   const alias = buildAliasMap(args.pantry ?? []);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`)
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`, args.vetoIndex)
     : '';
   // Кеш-межа: role+recipe-generator стабільні; профіль/комора/висновки — динаміка.
   const stable = compose('recipe_gen', prompt);

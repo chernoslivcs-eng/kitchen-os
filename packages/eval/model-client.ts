@@ -10,7 +10,7 @@ import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
   buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
   serializeProfileText, serializeTraditionsV2, profileTextFromLegacy, profileNotesFromLegacy, emptyProfileText,
-  PROFILE_FIELD_KEYS, type ProfileText, type ProfileNote, type ProfileFieldKey,
+  PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
 } from '@kitchen/domain';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
@@ -24,6 +24,22 @@ import type { ModelOutput } from './invariants.js';
 // означала б, що eval міряє інший конвеєр, ніж працює насправді.
 export const profileV2Enabled = () => process.env.PROFILE_V2 === '1';
 
+export function vetoIndexOfText(p: ProfileText): VetoRow[] {
+  const f = p.fields;
+  return [
+    ...(f.no.status === 'filled' ? buildVetoIndex('u1', 'no', f.no.text) : []),
+    ...(f.ban.status === 'filled' ? buildVetoIndex('u1', 'ban', f.ban.text) : []),
+  ];
+}
+
+// Крок 4б (b): прод перегенеровує пропозицію, коли вето зняло всі кандидати,
+// одним повторним викликом із «[СЕРВЕР] … без …». Eval робить те саме, щоб
+// фікстури не падали на тому, що прод робить правильно. Рядок — той самий
+// (withAvoid у services/api/src/model.ts), продубльований тут дослівно:
+// eval не імпортує api.
+const AVOID_LINE = (avoid: string[]) =>
+  `[СЕРВЕР] Попередню пропозицію знято — там було те, чого людина не їсть: ${avoid.join(', ')}. Запропонуй інше, без цього.`;
+
 /** Фікстура: { no: "мʼяса й птиці", ban: "none", … } → ProfileText. */
 export function profileTextFromFixture(spec: Record<string, string>): ProfileText {
   const p = emptyProfileText('u1');
@@ -35,6 +51,11 @@ export function profileTextFromFixture(spec: Record<string, string>): ProfileTex
       : { text: v, status: 'filled', updated_at: null };
   }
   return p;
+}
+
+function legacyProfileOf(fx: Fixture): Profile | null {
+  const p = fx.profile as Partial<Profile> | undefined;
+  return p ? { user_id: 'u1', allergies: p.allergies ?? [], wishes: p.wishes ?? [], antipatterns: p.antipatterns ?? [], equipment: p.equipment ?? {}, traditions: p.traditions ?? null } : null;
 }
 
 export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
@@ -88,6 +109,8 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
         ? (fx.profile_notes as ProfileNote[])
         : profileNotesFromLegacy((fx.notes ?? []) as MemoryNote[]))
     : undefined;
+  // Крок 4б: індекс — з no/ban (той самий витяг, що PATCH у проді) → ⚠ у [КОМОРА].
+  const vetoIndex: VetoRow[] | undefined = profileText ? vetoIndexOfText(profileText) : undefined;
 
   // recipe_gen дзеркалить прод callRecipe: профіль + [КОМОРА] з АЛІАСАМИ
   // p1..pN + [ВИСНОВКИ З ГОТУВАННЯ]. Не buildKitchenContext — у проді
@@ -96,7 +119,7 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
     const alias = buildAliasMap(pantry);
     const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
     const dynamic = (profileText ? serializeProfileText(profileText, profileNotes ?? []) + serializeTraditionsV2(profile) : serializeProfile(profile))
-      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '')
+      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '', vetoIndex)
       + (profileText ? '' : serializeNotes((fx.notes ?? []) as MemoryNote[]));
     return { stable: base, dynamic };
   }
@@ -108,6 +131,7 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
     profile,
     profileText,
     profileNotes,
+    vetoIndex,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
     notes: (fx.notes ?? []) as MemoryNote[],
     queryText: (fx.conversation ?? []).filter((m) => m.role === 'user').slice(-3).map((m) => m.content).join('\n'),
@@ -208,6 +232,9 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
 
 export interface RunResult extends ModelOutput {
   promptVersion: string;
+  // Крок 4б (b): чи був повторний виклик після порожнього вето; сира перша відповідь.
+  retried?: boolean;
+  firstRaw?: string;
   // A3: слід тексту стабільного префікса — знахідки привʼязуються до редакції.
   promptHash?: string;
   model: string;
@@ -256,7 +283,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       system: cachedSystem(system.stable, system.dynamic),
       messages: fixtureAsUserTurn(fx),
     });
-    const text = resp.content
+    let text = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
@@ -266,7 +293,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
     // в принципі: він шукав card, не знаходив, і клав уламок JSON у reply.
     // recipe_gen віддає голий JSON рецепта — загортаємо в card {type:'recipe'},
     // щоб інваріанти читали його тим самим шляхом, що продиктований рецепт.
-    const { reply, card } = call === 'attachment_parse'
+    let { reply, card } = call === 'attachment_parse'
       ? parseAttachmentResponse(text)
       : call === 'recipe_gen'
         ? (() => {
@@ -275,6 +302,28 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
             return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null };
           })()
         : parseModelResponse(text);
+    let retried = false;
+    let firstRaw = text;
+    if (call === 'chat' && profileV2Enabled() && card?.type === 'proposal') {
+      const probe = { card: JSON.parse(JSON.stringify(card)) as typeof card, reply };
+      const index = vetoIndexOfText(fx.profile_text ? profileTextFromFixture(fx.profile_text) : profileTextFromLegacy(legacyProfileOf(fx)));
+      const r = vetoCard(probe, index);
+      if (r.emptied) {
+        retried = true;
+        const avoid = [...new Set(r.rejected.map((x) => x.title))];
+        const conv = fixtureAsUserTurn(fx);
+        const last = conv[conv.length - 1]!;
+        conv[conv.length - 1] = { ...last, content: `${last.content}\n\n${AVOID_LINE(avoid)}` };
+        const resp2 = await client.messages.create({
+          model, max_tokens: 4096, temperature: spec.temperature ?? 1,
+          system: cachedSystem(system.stable, system.dynamic), messages: conv,
+        });
+        const text2 = resp2.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n');
+        ({ reply, card } = parseModelResponse(text2));
+        firstRaw = text;
+        text = text2;
+      }
+    }
 
     return {
       raw: text,
@@ -283,6 +332,8 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       promptVersion: prompt.version,
       promptHash: hashPromptText(system.stable),
       dynamic: system.dynamic,
+      retried,
+      firstRaw: retried ? firstRaw : undefined,
       model,
       call,
       usage: (() => {

@@ -102,3 +102,37 @@ describe('stripVetoMentions — тон', () => {
     expect(stripVetoMentions(call, pesc, 'що на вечерю').stripped).toEqual([]);
   });
 });
+
+// ----- Крок 4б (a): ⚠-мітка в рядках [КОМОРА] за індексом -----------------
+
+import { serializePantry } from './context.js';
+import type { PantryBatch } from './types.js';
+
+const batch = (id: string, label: string): PantryBatch => ({
+  id, household_id: 'h1', catalog_key: null, label, zone: 'fridge', value: 400, unit: 'g', state: 'sealed',
+  opened_at: null, expires_at: null, best_before_opened_days: null, added_at: '2026-09-05T00:00:00.000Z',
+  depleted_at: null, confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: 'add',
+});
+
+describe('serializePantry з veto_index', () => {
+  it('рядок з allergy=true — та сама мітка ⚠АЛЕРГЕН; без прапорця — ⚠НЕ ЇСТЬ; чисте — без мітки', () => {
+    const index = [...buildVetoIndex('u1', 'no', 'мʼяса'), ...buildVetoIndex('u1', 'ban', 'арахіс')];
+    const out = serializePantry([batch('b1', 'Стейк рібай'), batch('b2', 'Арахісова паста'), batch('b3', 'Картопля')], null, Date.now(), [], false, 'none', 120, [], '', index);
+    const lines = out.split('\n');
+    expect(lines.find((l) => l.startsWith('Стейк рібай'))).toMatch(/⚠НЕ ЇСТЬ \(мʼясо\)/);
+    expect(lines.find((l) => l.startsWith('Стейк рібай'))).not.toMatch(/АЛЕРГЕН/);
+    expect(lines.find((l) => l.startsWith('Арахісова паста'))).toMatch(/⚠АЛЕРГЕН \(арахіс\)/);
+    expect(lines.find((l) => l.startsWith('Картопля'))).not.toMatch(/⚠/);
+  });
+
+  it('під індексом старі allergies профілю не читаються; алергії їдців — читаються', () => {
+    const index = buildVetoIndex('u1', 'no', 'кінзи');
+    const profile = { user_id: 'u1', allergies: ['картопля'], wishes: [], antipatterns: [], equipment: {} };
+    const eater = { id: 'e1', household_id: 'h1', name: 'Оксана', allergies: ['фундук'], wishes: [], antipatterns: [], created_at: '2026-09-01T00:00:00.000Z' };
+    const out = serializePantry([batch('b1', 'Картопля'), batch('b2', 'Фундук'), batch('b3', 'Кінза свіжа')], profile, Date.now(), [eater], false, 'none', 120, [], '', index);
+    const lines = out.split('\n');
+    expect(lines.find((l) => l.startsWith('Картопля'))).not.toMatch(/⚠/);
+    expect(lines.find((l) => l.startsWith('Фундук'))).toMatch(/⚠АЛЕРГЕН \(фундук в Оксана\)/);
+    expect(lines.find((l) => l.startsWith('Кінза'))).toMatch(/⚠НЕ ЇСТЬ \(кінза\)/);
+  });
+});

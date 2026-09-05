@@ -81,6 +81,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRou
     const notes = await repo.listNotes(ctx.user_id, 20);
     const profileText = opts.profileV2 ? await repo.getProfileText(ctx.user_id) : undefined;
     const profileNotes = opts.profileV2 ? await repo.listProfileNotes(ctx.user_id) : undefined;
+    const vetoIndex = opts.profileV2 ? await repo.getVetoIndex(ctx.user_id) : undefined;
     // Пул-4 №4б: хвіст розмови в генерацію — «Буде» на «Арборіо є?» не
     // губиться між викликами. Кількості маскуються, як у чат-історії.
     let conversation: string | undefined;
@@ -99,7 +100,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRou
     // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
     let call: Awaited<ReturnType<typeof callRecipe>>;
     try {
-      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products, conversation, profileText, profileNotes });
+      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products, conversation, profileText, profileNotes, vetoIndex });
     } catch (err) {
       req.log.error({ err }, 'recipe-model-call-failed');
       return reply.code(502).send({ error: 'model_unavailable' });
@@ -108,13 +109,12 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRou
 
     // Раунд 4, крок 4: вето по всіх інгредієнтах; дієтний збіг → одна
     // перегенерація з «без …», алергійний — модель попереджає сама.
-    if (call.recipe && opts.profileV2) {
-      const vetoIndex = await repo.getVetoIndex(ctx.user_id);
+    if (call.recipe && opts.profileV2 && vetoIndex) {
       // З розвʼязаними назвами: `p` без `n` інакше невидимий для вето.
       const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, ...e }, e.event));
       if (avoid.length) {
         const again = await callRecipe({
-          title: title.trim(), pantry, profile, notes, products, conversation, profileText, profileNotes,
+          title: title.trim(), pantry, profile, notes, products, conversation, profileText, profileNotes, vetoIndex,
           context: [context, `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`].filter(Boolean).join('\n'),
         });
         await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, started);
