@@ -16,6 +16,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit, BatchState } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
+import { batchNutrition } from '../nutrition.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
 
 function urgencyScore(b: PantryBatch): number {
@@ -44,10 +45,12 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
         ? { ...p, search_terms: [...new Set([...cat.categories, ...cat.aliases, cat.name.toLowerCase()])] }
         : p;
     });
+    // Раунд 5, крок Н1: БЖВ на 100 г з каталогу; est — джерело оцінка.
+    const batches = active.map((b) => ({ ...b, nutrition: batchNutrition(b, products) }));
     return {
       household_id,
       count: active.length,
-      batches: active,
+      batches,
       products,
     };
   });

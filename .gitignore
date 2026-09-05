@@ -25,3 +25,7 @@ design/*.html
 audit-materials/*
 !audit-materials/AUDIT-ROUND-2.md
 !audit-materials/MANUAL-TEST-ROUND-2.md
+
+# Раунд 5: дампи USDA (~30 МБ, скачуються scripts/nutrition/verify-usda.ts) і локальні звіти
+data/usda/
+data/nutrition/*-report.json

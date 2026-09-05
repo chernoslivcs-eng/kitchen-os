@@ -467,6 +467,12 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
         </div>
       </div>
 
+      {/* ----- Джерела даних (раунд 5, крок Н1): один абзац, без лінків на кожен продукт ----- */}
+      <div className={styles.section} data-section="data">
+        <div className={styles.sectionLabel}><span>{SECTION.data}</span></div>
+        <p className={styles.dataText}>{SECTION.dataText}</p>
+      </div>
+
       {saveToast && <div className={`${styles.toast} ${styles.toastFixed}`} role="status">{saveToast}</div>}
 
       {exitOpen && (

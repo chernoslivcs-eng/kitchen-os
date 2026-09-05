@@ -124,10 +124,13 @@ for (const f of files) {
     };
     if (Number.isFinite(o.unit_weight) && o.unit_weight > 0) item.unit_weight = Math.round(o.unit_weight);
     if (Number.isFinite(o.density) && o.density > 0) item.density = Number(o.density);
-    if (o.nutrition && ['kcal', 'p', 'f', 'c'].every((k) => Number.isFinite(o.nutrition[k]))) {
+    // Раунд 5, крок Н1: у сирих файлах стара форма {kcal,p,f,c} — оцінка генератора.
+    // Ккал не зберігаємо (рахує kcalOf у домені), джерело — estimate; звірені
+    // значення накладаються далі з data/nutrition.base.json.
+    if (o.nutrition && ['p', 'f', 'c'].every((k) => Number.isFinite(o.nutrition[k]))) {
       item.nutrition = {
-        kcal: Math.round(o.nutrition.kcal), p: Math.round(o.nutrition.p),
-        f: Math.round(o.nutrition.f), c: Math.round(o.nutrition.c),
+        protein: Math.round(o.nutrition.p), fat: Math.round(o.nutrition.f), carbs: Math.round(o.nutrition.c),
+        source: 'estimate',
       };
     }
     items.push(item);
@@ -188,6 +191,41 @@ if (fs.existsSync(manualPath)) {
 }
 const withAllergens = items.filter((i) => i.allergen_groups.length).length;
 
+// ---------- 4б. звірені БЖВ (раунд 5, крок Н1) ----------
+// data/nutrition.base.json — результат scripts/nutrition/apply-base.ts: key →
+// { protein, fat, carbs, fiber?, sugars?, sodium_mg?, source: 'usda:<id>' | 'ciqual:<code>' }.
+// Накладається і на додані, і на стартові 131 (у тих — текстом, нижче).
+const basePath = path.join(DIR, 'data', 'nutrition.base.json');
+const baseNutrition = fs.existsSync(basePath) ? JSON.parse(fs.readFileSync(basePath, 'utf8')) : {};
+const NUTRI_KEYS = ['protein', 'fat', 'carbs', 'fiber', 'sugars', 'sodium_mg'];
+function nutritionFromBase(rec) {
+  const n = {};
+  for (const k of NUTRI_KEYS) if (Number.isFinite(rec[k])) n[k] = rec[k];
+  n.source = rec.source;
+  return n;
+}
+let sourced = 0;
+for (const it of items) {
+  const rec = baseNutrition[it.key];
+  if (rec) { it.nutrition = nutritionFromBase(rec); sourced++; }
+}
+function nutritionLiteral(n) {
+  const parts = NUTRI_KEYS.filter((k) => n[k] !== undefined).map((k) => `${k}: ${n[k]}`);
+  parts.push(`source: '${n.source}'`);
+  return `{ ${parts.join(', ')} }`;
+}
+// Стартові 131 — дослівний текст, тож БЖВ там переписуємо регуляркою:
+// стара форма → нова (estimate), а якщо є звірений рядок — його.
+const originalsPatched = originalsSrc.split(/(?=\n  \{\n)/).map((block) => {
+  const key = /^\s*key: '([^']+)'/m.exec(block)?.[1];
+  return block.replace(/nutrition: \{ kcal: [^}]*\}/, (lit) => {
+    const rec = key && baseNutrition[key];
+    if (rec) { sourced++; return `nutrition: ${nutritionLiteral(nutritionFromBase(rec))}`; }
+    const num = (k) => Number(/(?:^|[\s{,])PLACEHOLDER: ([0-9.]+)/.source && new RegExp(`(?:^|[\\s{,])${k}: ([0-9.]+)`).exec(lit)?.[1]);
+    return `nutrition: ${nutritionLiteral({ protein: num('p'), fat: num('f'), carbs: num('c'), source: 'estimate' })}`;
+  });
+}).join('');
+
 // ---------- 5. емісія ----------
 function q(s) { return "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"; }
 function arr(a) { return '[' + a.map(q).join(', ') + ']'; }
@@ -203,7 +241,7 @@ function emit(it) {
   if (it.priority) l.push(`    priority: ${it.priority},`);
   if (it.unit_weight) l.push(`    unit_weight: ${it.unit_weight},`);
   if (it.density) l.push(`    density: ${it.density},`);
-  if (it.nutrition) l.push(`    nutrition: { kcal: ${it.nutrition.kcal}, p: ${it.nutrition.p}, f: ${it.nutrition.f}, c: ${it.nutrition.c} },`);
+  if (it.nutrition) l.push(`    nutrition: ${nutritionLiteral(it.nutrition)},`);
   l.push('  },');
   return l.join('\n');
 }
@@ -229,6 +267,12 @@ const header = `// Каталог інгредієнтів Kitchen OS — ${tota
 //
 // priority — необовʼязковий тай-брейкер для випадків, коли той самий аліас ведуть
 // дві позиції. Використовується лише за рівного score. За замовчуванням 0.
+//
+// nutrition — БЖВ на 100 г без ккал (рахує kcalOf у домені) з джерелом:
+// usda:<fdc_id> / ciqual:<code> — звірені (data/nutrition.base.json, ${sourced} позицій),
+// estimate — оцінка генератора. Див. nutrition.ts.
+
+import type { Nutrition } from './nutrition.js';
 
 export interface CatalogItem {
   key: string;
@@ -240,7 +284,7 @@ export interface CatalogItem {
   priority?: number;             // тай-брейкер за рівного score; 0 за замовчуванням
   unit_weight?: number;
   density?: number;
-  nutrition?: { kcal: number; p: number; f: number; c: number };
+  nutrition?: Nutrition;
 }
 
 `;
@@ -250,7 +294,7 @@ export interface CatalogItem {
 const CHUNK = 300;
 const parts = [];
 const chunks = [];
-chunks.push('const CATALOG_0: CatalogItem[] = [\n' + originalsSrc + '];\n');
+chunks.push('const CATALOG_0: CatalogItem[] = [\n' + originalsPatched + '];\n');
 parts.push('CATALOG_0');
 for (let i = 0; i < items.length; i += CHUNK) {
   const n = parts.length;

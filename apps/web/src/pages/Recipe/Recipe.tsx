@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import { api, type Recipe } from '../../api';
+import { api, type Recipe, type RecipeNutritionInfo } from '../../api';
+import { formatNutritionLine } from '../../lib/nutrition';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
@@ -25,11 +26,13 @@ export function RecipePage() {
   // джерело істини — GET /v1/recipes/:id, тому F5 більше нічого не губить.
   const [fetched, setFetched] = useState<Recipe | null>(null);
   const [fetchedSaved, setFetchedSaved] = useState<string | null>(null);
+  // Раунд 5, крок Н1: БЖВ з каталогу — лише для збереженого рецепта (є адреса).
+  const [calc, setCalc] = useState<RecipeNutritionInfo | null>(null);
   const [notFound, setNotFound] = useState(false);
   useEffect(() => {
     if (!id) return;
     api.savedRecipes.get(id)
-      .then((r) => { setFetched(r.recipe); setFetchedSaved(r.saved_at); })
+      .then((r) => { setFetched(r.recipe); setFetchedSaved(r.saved_at); setCalc(r.nutrition_calc ?? null); })
       .catch(() => setNotFound(true));
   }, [id]);
   const baseRecipe = (location.state as RecipeLocationState | null)?.recipe ?? fetched ?? null;
@@ -226,6 +229,11 @@ export function RecipePage() {
               </div>
             );
           })}
+          {calc && (
+            <div className={styles.summary} data-testid="nutrition-calc" style={{ marginTop: 6 }}>
+              {formatNutritionLine(calc)}
+            </div>
+          )}
         </div>
 
         <div className={styles.section}>

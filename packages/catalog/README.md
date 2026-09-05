@@ -18,6 +18,8 @@ node build-seed.mjs --dry  # тільки звіт, нічого не пише
 
 Руками `seed.ts` не правлять: наступна збірка затре. Правки йдуть у `data/raw/`, `data/merges.json` (ручно звірені дублікати) або `data/allergens.manual.json`.
 
+**БЖВ (раунд 5, крок Н1).** `nutrition` — `{ protein, fat, carbs, fiber?, sugars?, sodium_mg?, source }` на 100 г, без ккал (`kcalOf` у домені, 4-4-9). `source`: `usda:<fdc_id>` / `ciqual:<code>` — звірені з референсом `data/nutrition/base.csv` (`scripts/nutrition/verify-usda.ts`), `estimate` — оцінка генератора. Мапінг бази на позиції — `scripts/nutrition/apply-base.ts` (правила в `nutrition-match.ts`, словник `scripts/nutrition/aliases.json`): пише `data/nutrition.base.json` для збирача і переписує `nutrition` у `seed.ts` на місці. Увага: у комітному `seed.ts` є три позиції й три правки поза `data/raw` (крем-брускетта, косметичні тоніки, аліас «бланк») — `node build-seed.mjs` їх затре, поки їх не перенесено в raw.
+
 ## Структура
 
 - `schema.sql` — DDL із `pg_trgm` і трьома GIN-індексами

@@ -6,6 +6,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
 import { recipeVetoHits } from '../veto.js';
+import { recipeNutritionFor, loadRecipeBatches } from '../nutrition.js';
 import { randomUUID } from 'node:crypto';
 import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
@@ -195,12 +196,16 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     '/v1/recipes/:id',
     { preHandler: authenticated(repo) },
     async (req, reply) => {
-      const { user_id } = requireUser(req);
+      const { user_id, household_id } = requireUser(req);
       const row = await repo.getRecipe(req.params.id);
       if (!row || row.owner_id !== user_id) return reply.code(404).send({ error: 'not_found' });
+      // Раунд 5, крок Н1: рядок БЖВ під інгредієнтами рахує сервер з каталогу;
+      // `nu` моделі в payload лишається як було.
+      const recipe = row.payload as Recipe;
+      const nutrition_calc = recipeNutritionFor(recipe, await loadRecipeBatches(repo, recipe), await repo.listProducts(household_id));
       return {
         id: row.id, origin: row.origin, saved_at: row.saved_at,
-        created_at: row.created_at, recipe: row.payload,
+        created_at: row.created_at, recipe: row.payload, nutrition_calc,
       };
     },
   );
@@ -341,11 +346,14 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     async (req, reply) => {
       const r = await repo.getRecipe(req.params.id);
       if (!r) return reply.code(404).send({ error: 'not_found' });
+      const recipe = r.payload as Recipe;
       return {
         id: r.id,
         title: r.title,
         recipe: r.payload,
         created_at: r.created_at,
+        // Публічний перегляд: партії власника резолвляться по id, продукти дому — ні.
+        nutrition_calc: recipeNutritionFor(recipe, await loadRecipeBatches(repo, recipe), []),
       };
     },
   );
