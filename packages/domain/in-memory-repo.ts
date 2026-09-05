@@ -314,7 +314,7 @@ export class InMemoryRepo implements Repo {
     const user_id = randomUUID();
     const household_id = randomUUID();
     const now = new Date().toISOString();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: now });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta' });
     this.usersByEmail.set(key, user_id);
     this.households.set(household_id, { id: household_id, name: `Дім ${name}`, created_at: now });
     this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
@@ -325,7 +325,7 @@ export class InMemoryRepo implements Repo {
     const key = email.toLowerCase();
     if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
     const user_id = randomUUID();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString() });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta' });
     this.usersByEmail.set(key, user_id);
     return user_id;
   }

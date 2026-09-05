@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#c9cdd1;font-family:'Golos Text',system-ui,sans-serif;color:#1d2126;padding:48px}
+a{color:#58754e;text-decoration:none}a:hover{color:#3f5837;text-decoration:underline}
+[contenteditable]{outline:none;caret-color:#58754e}
+[contenteditable]:empty::before{content:attr(data-ph);color:#7b838b}
+.dk [contenteditable]:empty::before{color:#79828c}
+.dk [contenteditable]{caret-color:#93b48b}
+@keyframes hintin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes hintin2{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes toastin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+</style>
+</helmet>
+<section style="display:flex;flex-direction:column;gap:26px;margin-bottom:56px">
+<div style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#4a5158">ХІД 2 · КАРТКИ ОНБОРДИНГУ В СТРІЧЦІ · РЕЧЕННЯ ЗАКІНЧУЄТЬСЯ ПРЯМО В КАРТЦІ · «ЗАПИСАТИ» ЗГОРТАЄ І ВІДКРИВАЄ НАСТУПНУ</div>
+<div style="display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start">
+
+<div id="2a" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#2a" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">2a</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">СТРІЧКА 720 · СВІТЛА · ПЕРША РОЗМОВА</span></div>
+  <div data-screen-label="2a Онбординг у стрічці" style="width:764px;height:900px;background:#eef0f1;border-radius:16px;box-shadow:0 12px 40px rgba(29,33,38,.2);display:flex;flex-direction:column;overflow:hidden">
+    <div style="flex:1;overflow:auto;padding:26px 22px 20px;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#7b838b">КУХНЯ</span>
+        <span style="font:400 16px/1.55 'Golos Text',sans-serif;color:#3c4249;max-width:560px;text-wrap:pretty">Привіт. Перш ніж щось готувати — сім речень про тебе. Закінчи ті, що маєш чим; решту можна пропустити й дописати потім у Профілі.</span>
+      </div>
+      <sc-for list="{{ onbA.done }}" as="d" hint-placeholder-count="1">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:14px;background:#f8f9fa;border:1px solid #dde0e2;font:400 15px/1.5 'Golos Text',sans-serif;color:#1d2126;animation:fadein .25s">
+          <span style="flex:1"><span style="color:#5c646d">{{ d.start }}</span> {{ d.text }}</span>
+          <span style="font:500 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:{{ d.metaColor }}">{{ d.meta }}</span>
+        </div>
+      </sc-for>
+      <sc-if value="{{ onbA.active }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;width:400px;border-radius:18px;background:#f8f9fa;border:1px solid #dde0e2;overflow:hidden;animation:cardin .25s cubic-bezier(0,0,.2,1)">
+          <sc-for list="{{ onbA.imgs }}" as="im" hint-placeholder-count="0"><img src="{{ im.src }}" alt="" style="aspect-ratio:3/2;width:100%;background:#ffffff;object-fit:cover;display:block"></img></sc-for>
+          <div style="display:flex;flex-direction:column;gap:6px;padding:16px 18px 0">
+            <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b">{{ onbA.step }}</span>
+            <span style="font:700 20px/1.15 'Onest',sans-serif;letter-spacing:-.02em;color:{{ onbA.titleColor }}">{{ onbA.card }}</span>
+            <span style="font:400 14px/1.5 'Golos Text',sans-serif;color:#5c646d;text-wrap:pretty">{{ onbA.body }}</span>
+          </div>
+          <div style="padding:14px 18px 4px">
+            <div style="position:relative;font:400 15.5px/1.5 'Golos Text',sans-serif;padding:9px 12px 22px;border-radius:10px;background:#eef0f1">
+              <span style="color:{{ onbA.startColor }}">{{ onbA.start }}</span> <span contentEditable="true" suppressContentEditableWarning="{{ true }}" dangerouslySetInnerHTML="{{ onbA.html }}" data-ph="{{ onbA.ph }}" onInput="{{ onbA.onInput }}" onKeyDown="{{ onbA.onKeyDown }}" style="color:#1d2126;border-bottom:1px dashed #ced3d6;padding-bottom:1px" style-focus="border-bottom-color:#58754e"></span>
+              <span style="position:absolute;right:12px;bottom:5px;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:{{ onbA.counterColor }};opacity:.6">{{ onbA.counter }}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;padding:10px 18px 18px">
+            <span onClick="{{ onbA.save }}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;height:40px;border-radius:12px;background:#1d2126;color:#eef0f1;font:600 14px 'Golos Text',sans-serif;cursor:pointer;opacity:{{ onbA.saveOpacity }}">Записати</span>
+            <span onClick="{{ onbA.skip }}" style="display:inline-flex;align-items:center;height:40px;padding:0 16px;border-radius:12px;border:1px solid #ced3d6;color:#1d2126;font:600 14px 'Golos Text',sans-serif;cursor:pointer">{{ onbA.skipLabel }}</span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ onbA.finished }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:6px;animation:cardin .25s cubic-bezier(0,0,.2,1)">
+          <span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#7b838b">КУХНЯ</span>
+          <span style="font:400 16px/1.55 'Golos Text',sans-serif;color:#3c4249;max-width:560px;text-wrap:pretty">{{ onbA.finalText }} Поправити будь-яке речення можна в <a href="#1a">Профілі</a>. То що на вечерю?</span>
+        </div>
+      </sc-if>
+    </div>
+    <div style="padding:12px 22px 22px;border-top:1px solid #dde0e2"><div style="height:48px;border-radius:14px;border:1px solid #dde0e2;background:#f8f9fa;display:flex;align-items:center;padding:0 16px;font:400 14.5px 'Golos Text',sans-serif;color:#7b838b">Записати в журнал…</div></div>
+  </div>
+</div>
+
+<div id="2b" class="dk" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#2b" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">2b</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">МОБІЛЬНИЙ 390 · ТЕМНА</span></div>
+  <div data-screen-label="2b Онбординг мобільний" style="width:390px;height:844px;background:#181c21;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden">
+    <div style="flex:1;overflow:auto;padding:54px 18px 16px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#79828c">КУХНЯ</span>
+        <span style="font:400 15.5px/1.55 'Golos Text',sans-serif;color:#c3c9ce;text-wrap:pretty">Привіт. Перш ніж щось готувати — сім речень про тебе. Закінчи ті, що маєш чим; решту можна пропустити.</span>
+      </div>
+      <sc-for list="{{ onbB.done }}" as="d" hint-placeholder-count="1">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:#1f242b;border:1px solid #262c33;font:400 14.5px/1.5 'Golos Text',sans-serif;color:#e7eaec;animation:fadein .25s">
+          <span style="flex:1"><span style="color:#9aa3ac">{{ d.start }}</span> {{ d.text }}</span>
+          <span style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:{{ d.metaColorD }}">{{ d.meta }}</span>
+        </div>
+      </sc-for>
+      <sc-if value="{{ onbB.active }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;border-radius:18px;background:#1f242b;border:1px solid #262c33;overflow:hidden;animation:cardin .25s cubic-bezier(0,0,.2,1)">
+          <sc-for list="{{ onbB.imgs }}" as="im" hint-placeholder-count="0"><img src="{{ im.src }}" alt="" style="aspect-ratio:3/2;width:100%;background:#ffffff;object-fit:cover;display:block;filter:brightness(.92)"></img></sc-for>
+          <div style="display:flex;flex-direction:column;gap:6px;padding:16px 16px 0">
+            <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#79828c">{{ onbB.step }}</span>
+            <span style="font:700 20px/1.15 'Onest',sans-serif;letter-spacing:-.02em;color:{{ onbB.titleColorD }}">{{ onbB.card }}</span>
+            <span style="font:400 14px/1.5 'Golos Text',sans-serif;color:#9aa3ac;text-wrap:pretty">{{ onbB.body }}</span>
+          </div>
+          <div style="padding:14px 16px 4px">
+            <div style="position:relative;font:400 15.5px/1.5 'Golos Text',sans-serif;padding:9px 12px 22px;border-radius:10px;background:#181c21">
+              <span style="color:{{ onbB.startColorD }}">{{ onbB.start }}</span> <span contentEditable="true" suppressContentEditableWarning="{{ true }}" dangerouslySetInnerHTML="{{ onbB.html }}" data-ph="{{ onbB.ph }}" onInput="{{ onbB.onInput }}" onKeyDown="{{ onbB.onKeyDown }}" style="color:#e7eaec;border-bottom:1px dashed #2c333b;padding-bottom:1px" style-focus="border-bottom-color:#93b48b"></span>
+              <span style="position:absolute;right:12px;bottom:5px;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:{{ onbB.counterColorD }};opacity:.6">{{ onbB.counter }}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;padding:10px 16px 16px">
+            <span onClick="{{ onbB.save }}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;height:44px;border-radius:12px;background:#e7eaec;color:#181c21;font:600 14px 'Golos Text',sans-serif;cursor:pointer;opacity:{{ onbB.saveOpacity }}">Записати</span>
+            <span onClick="{{ onbB.skip }}" style="display:inline-flex;align-items:center;height:44px;padding:0 16px;border-radius:12px;border:1px solid #2c333b;color:#e7eaec;font:600 14px 'Golos Text',sans-serif;cursor:pointer">{{ onbB.skipLabel }}</span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ onbB.finished }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:6px;animation:cardin .25s cubic-bezier(0,0,.2,1)">
+          <span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#79828c">КУХНЯ</span>
+          <span style="font:400 15.5px/1.55 'Golos Text',sans-serif;color:#c3c9ce;text-wrap:pretty">{{ onbB.finalText }} Поправити можна в <a href="#1c" style="color:#93b48b">Профілі</a>. То що на вечерю?</span>
+        </div>
+      </sc-if>
+    </div>
+    <div style="padding:10px 16px 24px;border-top:1px solid #262c33"><div style="height:46px;border-radius:14px;border:1px solid #262c33;background:#1f242b;display:flex;align-items:center;padding:0 14px;font:400 14px 'Golos Text',sans-serif;color:#79828c">Записати в журнал…</div></div>
+  </div>
+</div>
+
+</div>
+</section>
+<section style="display:flex;flex-direction:column;gap:26px">
+<div style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#4a5158">ХІД 1 · ПРОФІЛЬ v6 · СІМ РЕЧЕНЬ · КЛІКАЙ У РЯДКИ, ПИШИ — ПІДКАЗКА І ЛІЧИЛЬНИК ЖИВІ · × НА НОТАТЦІ</div>
+
+<div style="display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start">
+
+<!-- 1a desktop, filled, light -->
+<div id="1a" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#1a" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">1a</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">ДЕСКТОП 1280 · НАПОВНЕНИЙ · СВІТЛА</span></div>
+  <div data-screen-label="1a Десктоп наповнений" style="width:1280px;height:900px;background:#eef0f1;border-radius:16px;box-shadow:0 12px 40px rgba(29,33,38,.2);display:grid;grid-template-columns:232px 1fr;overflow:hidden">
+    <aside style="border-right:1px solid #dde0e2;padding:20px 14px;display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;align-items:center;gap:10px;padding:0 12px 22px"><span style="width:22px;height:22px;border-radius:50%;border:3px solid #1d2126;display:grid;place-items:center"><span style="width:7px;height:7px;border-radius:50%;background:#58754e"></span></span><b style="font:700 17px 'Golos Text',sans-serif;letter-spacing:-.01em;color:#000">Kitchen OS</b></div>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#7b838b;font:600 14px 'Golos Text',sans-serif">Стрічка</a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#7b838b;font:600 14px 'Golos Text',sans-serif">Комора</a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#7b838b;font:600 14px 'Golos Text',sans-serif">Рецепти</a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#7b838b;font:600 14px 'Golos Text',sans-serif">Список<span style="margin-left:auto;font:700 11px 'IBM Plex Mono',monospace;background:#58754e;color:#f2f4f0;border-radius:999px;padding:1px 7px">3</span></a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#7b838b;font:600 14px 'Golos Text',sans-serif">Календар</a>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#e3e6e8;color:#000;font:400 14px 'Golos Text',sans-serif"><span style="width:26px;height:26px;border-radius:50%;background:#eef0f1;display:grid;place-items:center;font:600 12px 'Golos Text',sans-serif;color:#3c4249">·</span>Ти</div>
+    </aside>
+    <main style="padding:22px 22px 40px 58px;overflow:auto;display:flex;flex-direction:column">
+      <div style="max-width:980px;display:flex;flex-direction:column;gap:4px;padding-bottom:22px">
+        <h1 style="margin:0;font:700 26px 'Onest',sans-serif;letter-spacing:-.03em;color:#1d2126">Профіль</h1>
+      </div>
+      <div style="max-width:980px;display:flex;flex-direction:column">
+        <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:12px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#1d2126">Про тебе <span style="color:#7b838b;font-weight:400;letter-spacing:.06em">· закінчи кілька речень — я триматиму їх у голові, коли вирішуватимемо, що їсти</span></div>
+        <div style="display:grid;grid-template-columns:1fr 260px;gap:28px;padding:18px 22px;border-radius:20px;background:#f8f9fa;border:1px solid #dde0e2">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ rowsA }}" as="r" hint-placeholder-count="7">
+            <div onMouseEnter="{{ r.enter }}" onMouseLeave="{{ r.leave }}" style="position:relative;display:block;font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px;cursor:text;background:{{ r.bg }};transition:background .15s">
+              <span style="color:{{ r.startColor }}">{{ r.start }}</span> <span contentEditable="true" suppressContentEditableWarning="{{ true }}" dangerouslySetInnerHTML="{{ r.html }}" data-ph="{{ r.ph }}" onInput="{{ r.onInput }}" onFocus="{{ r.onFocus }}" onBlur="{{ r.onBlur }}" onKeyDown="{{ r.onKeyDown }}" style="color:#1d2126;border-bottom:1px dashed #ced3d6;padding-bottom:1px;transition:border-color .15s" style-focus="border-bottom-color:#58754e" style-hover="border-bottom-color:#7b838b"></span>
+              <span style="position:absolute;right:10px;bottom:-6px;padding:0 4px;background:inherit;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:{{ r.counterColor }};opacity:{{ r.counterOpacity }};transition:opacity .4s;pointer-events:none">{{ r.counter }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <aside style="background:#1d2126;color:#eef0f1;border-radius:14px;padding:18px 20px 20px;display:flex;flex-direction:column;gap:10px;animation:{{ hintA.anim }}">
+          <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.55">{{ hintA.label }}</span>
+          <p style="margin:0;font:400 14px/1.5 'Golos Text',sans-serif">{{ hintA.text }}</p>
+          <sc-if value="{{ hintA.hasEx }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid rgba(238,240,241,.14);margin-top:4px">
+              <sc-for list="{{ hintA.ex }}" as="e" hint-placeholder-count="2"><span style="font:400 14px/1.5 'Golos Text',sans-serif;color:#c3c9ce">— {{ e }}</span></sc-for>
+            </div>
+          </sc-if>
+        </aside>
+        </div>
+        <div style="margin-top:30px;padding-top:18px;border-top:1px solid #ced3d6;display:flex;flex-direction:column;position:relative">
+          <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#1d2126">Нотатки <span style="color:#7b838b;font-weight:400;letter-spacing:.06em">· те, що зʼясувалось уже в процесі. Я записую, ти можеш прибрати, якщо це була разова історія</span></div>
+          <sc-if value="{{ notesAEmpty }}" hint-placeholder-val="{{ false }}"><span style="font:400 14.5px/1.5 'Golos Text',sans-serif;color:#7b838b;padding:8px 0">Поки порожньо. Дай духовці трохи часу.</span></sc-if>
+          <sc-for list="{{ notesA }}" as="n" hint-placeholder-count="4">
+            <div style="display:flex;gap:14px;align-items:baseline;padding:8px 0;border-bottom:1px solid #dde0e2;font:400 15px/1.5 'Golos Text',sans-serif;color:#5c646d">
+              <span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#7b838b;flex:0 0 52px">{{ n.date }}</span>
+              <span style="flex:1">{{ n.text }}</span>
+              <span onClick="{{ n.remove }}" style="color:#7b838b;opacity:.35;font-size:13px;cursor:pointer;flex:none" style-hover="opacity:1">прибрати</span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ toastA }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:0;bottom:-64px;display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:12px;background:#f8f9fa;border:1px solid #dde0e2;box-shadow:0 12px 32px rgba(29,33,38,.25);animation:toastin .25s cubic-bezier(0,0,.2,1);font:400 14px 'Golos Text',sans-serif;color:#1d2126">Прибрано.<span onClick="{{ undoA }}" style="font-weight:600;color:#58754e;cursor:pointer">Повернути</span></div>
+          </sc-if>
+        </div>
+        <div style="margin-top:30px;padding-top:18px;border-top:1px solid #ced3d6;display:flex;flex-direction:column">
+          <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#1d2126">Мережі <span style="color:#7b838b;font-weight:400;letter-spacing:.06em">· звідки чеки, щоб комора поповнювалась сама</span></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #dde0e2;font:400 15px 'Golos Text',sans-serif;color:#1d2126"><span style="flex:1">Сільпо</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#58754e">ПІДКЛЮЧЕНО · ЧЕК 3 ВЕР</span><a href="#" style="font-size:13px;color:#7b838b">Відключити</a></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #dde0e2;font:400 15px 'Golos Text',sans-serif;color:#1d2126"><span style="flex:1">АТБ</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#96712c">ЧЕКІВ НЕ БУЛО 40 ДНІВ</span><a href="#" style="font-size:13px;color:#7b838b">Відключити</a></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;font:400 15px 'Golos Text',sans-serif;color:#5c646d"><span style="flex:1">Стейки Карпат</span><a href="#" style="font-size:13px">Підключити</a></div>
+        </div>
+        <div style="margin-top:30px;padding-top:18px;border-top:1px solid #ced3d6;display:flex;flex-direction:column">
+          <div style="margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#1d2126">Акаунт</div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #dde0e2;font:400 15px 'Golos Text',sans-serif;color:#1d2126"><span style="flex:1">Пошта</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#7b838b">CHERNOSLIV.CS@GMAIL.COM</span></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #dde0e2;font:400 15px 'Golos Text',sans-serif;color:#1d2126"><span style="flex:1">Тариф</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#7b838b">ОДНОМУ · ДО 14 ЖОВ</span><a href="#" style="font-size:13px">Змінити</a></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #dde0e2;font:400 15px 'Golos Text',sans-serif;color:#1d2126"><span style="flex:1">Тема</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#7b838b">СВІТЛА</span><a href="#" style="font-size:13px">Темна</a></div>
+          <div style="display:flex;gap:10px;padding-top:18px"><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #ced3d6;background:transparent;color:#1d2126;font:600 14px 'Golos Text',sans-serif">Вийти</a><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #e0b4ab;background:transparent;color:#a8483d;font:600 14px 'Golos Text',sans-serif">Видалити акаунт</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 1b desktop, first day, dark -->
+<div id="1b" class="dk" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#1b" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">1b</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">ДЕСКТОП 1280 · ПЕРШИЙ ДЕНЬ · ТЕМНА</span></div>
+  <div data-screen-label="1b Десктоп перший день" style="width:1280px;height:900px;background:#181c21;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.4);display:grid;grid-template-columns:232px 1fr;overflow:hidden">
+    <aside style="border-right:1px solid #262c33;padding:20px 14px;display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;align-items:center;gap:10px;padding:0 12px 22px"><span style="width:22px;height:22px;border-radius:50%;border:3px solid #e7eaec;display:grid;place-items:center"><span style="width:7px;height:7px;border-radius:50%;background:#93b48b"></span></span><b style="font:700 17px 'Golos Text',sans-serif;letter-spacing:-.01em;color:#fff">Kitchen OS</b></div>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#79828c;font:600 14px 'Golos Text',sans-serif">Стрічка</a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#79828c;font:600 14px 'Golos Text',sans-serif">Комора</a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#79828c;font:600 14px 'Golos Text',sans-serif">Рецепти</a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#79828c;font:600 14px 'Golos Text',sans-serif">Список</a>
+      <a href="#" style="display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:12px;color:#79828c;font:600 14px 'Golos Text',sans-serif">Календар</a>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#1f242b;color:#fff;font:400 14px 'Golos Text',sans-serif"><span style="width:26px;height:26px;border-radius:50%;background:#181c21;display:grid;place-items:center;font:600 12px 'Golos Text',sans-serif;color:#c3c9ce">·</span>Ти</div>
+    </aside>
+    <main style="padding:22px 22px 40px 58px;overflow:auto;display:flex;flex-direction:column">
+      <div style="max-width:980px;display:flex;flex-direction:column;gap:4px;padding-bottom:22px">
+        <h1 style="margin:0;font:700 26px 'Onest',sans-serif;letter-spacing:-.03em;color:#e7eaec">Профіль</h1>
+      </div>
+      <div style="max-width:980px;display:flex;flex-direction:column">
+        <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:12px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#e7eaec">Про тебе <span style="color:#79828c;font-weight:400;letter-spacing:.06em">· не треба згадувати все — закінчи одне-два речення, решта зʼясується між «що на вечерю?» і третьою банкою гірчиці</span></div>
+        <div style="display:grid;grid-template-columns:1fr 260px;gap:28px;padding:18px 22px;border-radius:20px;background:#1f242b;border:1px solid #262c33">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ rowsB }}" as="r" hint-placeholder-count="7">
+            <div onMouseEnter="{{ r.enter }}" onMouseLeave="{{ r.leave }}" style="position:relative;display:block;font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px;cursor:text;background:{{ r.bg }};transition:background .15s">
+              <span style="color:{{ r.startColor }}">{{ r.start }}</span> <span contentEditable="true" suppressContentEditableWarning="{{ true }}" dangerouslySetInnerHTML="{{ r.html }}" data-ph="{{ r.ph }}" onInput="{{ r.onInput }}" onFocus="{{ r.onFocus }}" onBlur="{{ r.onBlur }}" onKeyDown="{{ r.onKeyDown }}" style="color:#e7eaec;border-bottom:1px dashed #2c333b;padding-bottom:1px;transition:border-color .15s" style-focus="border-bottom-color:#93b48b" style-hover="border-bottom-color:#79828c"></span>
+              <span style="position:absolute;right:10px;bottom:-6px;padding:0 4px;background:inherit;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:{{ r.counterColor }};opacity:{{ r.counterOpacity }};transition:opacity .4s;pointer-events:none">{{ r.counter }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <aside style="background:#e7eaec;color:#181c21;border-radius:14px;padding:18px 20px 20px;display:flex;flex-direction:column;gap:10px;animation:{{ hintB.anim }}">
+          <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.55">{{ hintB.label }}</span>
+          <p style="margin:0;font:400 14px/1.5 'Golos Text',sans-serif">{{ hintB.text }}</p>
+          <sc-if value="{{ hintB.hasEx }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid rgba(24,28,33,.14);margin-top:4px">
+              <sc-for list="{{ hintB.ex }}" as="e" hint-placeholder-count="2"><span style="font:400 14px/1.5 'Golos Text',sans-serif;color:#3c4249">— {{ e }}</span></sc-for>
+            </div>
+          </sc-if>
+        </aside>
+        </div>
+        <div style="margin-top:30px;padding-top:18px;border-top:1px solid #2c333b;display:flex;flex-direction:column">
+          <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#e7eaec">Нотатки <span style="color:#79828c;font-weight:400;letter-spacing:.06em">· те, що зʼясувалось уже в процесі. Я записую, ти можеш прибрати, якщо це була разова історія</span></div>
+          <span style="font:400 14.5px/1.5 'Golos Text',sans-serif;color:#79828c;padding:8px 0">Поки порожньо. Дай духовці трохи часу.</span>
+        </div>
+        <div style="margin-top:30px;padding-top:18px;border-top:1px solid #2c333b;display:flex;flex-direction:column">
+          <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#e7eaec">Мережі <span style="color:#79828c;font-weight:400;letter-spacing:.06em">· звідки чеки, щоб комора поповнювалась сама</span></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #262c33;font:400 15px 'Golos Text',sans-serif;color:#9aa3ac"><span style="flex:1">Сільпо</span><a href="#" style="font-size:13px;color:#93b48b">Підключити</a></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #262c33;font:400 15px 'Golos Text',sans-serif;color:#9aa3ac"><span style="flex:1">АТБ</span><a href="#" style="font-size:13px;color:#93b48b">Підключити</a></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;font:400 15px 'Golos Text',sans-serif;color:#9aa3ac"><span style="flex:1">Стейки Карпат</span><a href="#" style="font-size:13px;color:#93b48b">Підключити</a></div>
+        </div>
+        <div style="margin-top:30px;padding-top:18px;border-top:1px solid #2c333b;display:flex;flex-direction:column">
+          <div style="margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#e7eaec">Акаунт</div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #262c33;font:400 15px 'Golos Text',sans-serif;color:#e7eaec"><span style="flex:1">Пошта</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#79828c">CHERNOSLIV.CS@GMAIL.COM</span></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #262c33;font:400 15px 'Golos Text',sans-serif;color:#e7eaec"><span style="flex:1">Тариф</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#79828c">ПРОБНИЙ · 13 ДНІВ</span><a href="#" style="font-size:13px;color:#93b48b">Обрати</a></div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid #262c33;font:400 15px 'Golos Text',sans-serif;color:#e7eaec"><span style="flex:1">Тема</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#79828c">ТЕМНА</span><a href="#" style="font-size:13px;color:#93b48b">Світла</a></div>
+          <div style="display:flex;gap:10px;padding-top:18px"><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #2c333b;background:transparent;color:#e7eaec;font:600 14px 'Golos Text',sans-serif">Вийти</a><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #4d2f29;background:transparent;color:#cc7a70;font:600 14px 'Golos Text',sans-serif">Видалити акаунт</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 1c mobile filled dark -->
+<div id="1c" class="dk" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#1c" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">1c</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">МОБІЛЬНИЙ 390 · НАПОВНЕНИЙ · ПІДКАЗКА ПІД РЯДКОМ</span></div>
+  <div data-screen-label="1c Мобільний наповнений" style="width:390px;height:844px;background:#181c21;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.4);overflow:auto;display:flex;flex-direction:column;padding:54px 22px 90px;box-sizing:border-box">
+    <div style="display:flex;flex-direction:column;gap:4px;padding-bottom:18px">
+      <h1 style="margin:0;font:700 22px 'Onest',sans-serif;letter-spacing:-.03em;color:#e7eaec">Профіль</h1>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:12px"><span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#e7eaec">Про тебе</span><span style="font:400 13px/1.45 'Golos Text',sans-serif;color:#9aa3ac">Закінчи кілька речень. Я триматиму їх у голові, коли вирішуватимемо, що їсти.</span></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:12px 16px;border-radius:16px;background:#1f242b;border:1px solid #262c33">
+      <sc-for list="{{ rowsC }}" as="r" hint-placeholder-count="7">
+        <div style="display:flex;flex-direction:column">
+          <div style="position:relative;font:400 15.5px/1.5 'Golos Text',sans-serif;padding:7px 10px {{ r.padB }};margin:0 -10px;border-radius:8px;background:{{ r.bg }};transition:background .15s,padding .15s">
+            <span style="color:{{ r.startColor }}">{{ r.start }}</span> <span contentEditable="true" suppressContentEditableWarning="{{ true }}" dangerouslySetInnerHTML="{{ r.html }}" data-ph="{{ r.ph }}" onInput="{{ r.onInput }}" onFocus="{{ r.onFocus }}" onBlur="{{ r.onBlur }}" onKeyDown="{{ r.onKeyDown }}" style="color:#e7eaec;border-bottom:1px dashed #2c333b;padding-bottom:1px;transition:border-color .15s" style-focus="border-bottom-color:#93b48b" style-hover="border-bottom-color:#79828c"></span>
+            <span style="position:absolute;right:10px;bottom:4px;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:{{ r.counterColor }};opacity:{{ r.counterOpacity }};transition:opacity .4s;pointer-events:none">{{ r.counter }}</span>
+          </div>
+          <sc-if value="{{ r.active }}" hint-placeholder-val="{{ false }}">
+            <div style="margin:4px -4px 10px;background:#e7eaec;color:#181c21;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;animation:hintin .25s cubic-bezier(0,0,.2,1)">
+              <p style="margin:0;font:400 14px/1.5 'Golos Text',sans-serif">{{ r.hint }}</p>
+              <sc-if value="{{ r.hasEx }}" hint-placeholder-val="{{ false }}"><span style="font:400 13px/1.5 'Golos Text',sans-serif;color:#3c4249">{{ r.exLine }}</span></sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:30px;padding-top:18px;border-top:1px solid #2c333b;display:flex;flex-direction:column;position:relative">
+      <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#e7eaec">Нотатки</div>
+      <sc-if value="{{ notesCEmpty }}" hint-placeholder-val="{{ false }}"><span style="font:400 14px/1.5 'Golos Text',sans-serif;color:#79828c;padding:8px 0">Поки порожньо. Дай духовці трохи часу.</span></sc-if>
+      <sc-for list="{{ notesC }}" as="n" hint-placeholder-count="4">
+        <div style="display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid #262c33;font:400 14.5px/1.5 'Golos Text',sans-serif;color:#9aa3ac">
+          <span style="font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#79828c;flex:0 0 44px">{{ n.date }}</span>
+          <span style="flex:1">{{ n.text }}</span>
+          <span onClick="{{ n.remove }}" style="color:#79828c;font-size:16px;cursor:pointer;width:24px;text-align:center">×</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #262c33;display:flex;gap:10px"><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #2c333b;color:#e7eaec;font:600 14px 'Golos Text',sans-serif">Вийти</a><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #4d2f29;color:#cc7a70;font:600 14px 'Golos Text',sans-serif">Видалити акаунт</a></div>
+    <sc-if value="{{ toastC }}" hint-placeholder-val="{{ false }}">
+      <div style="position:sticky;bottom:0;margin:16px -6px -70px;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:#1f242b;border:1px solid #2c333b;box-shadow:0 12px 32px rgba(0,0,0,.5);animation:toastin .25s cubic-bezier(0,0,.2,1);font:400 14px 'Golos Text',sans-serif;color:#e7eaec">Прибрано.<span onClick="{{ undoC }}" style="font-weight:600;color:#93b48b;cursor:pointer">Повернути</span></div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- 1d mobile first day light -->
+<div id="1d" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#1d" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">1d</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">МОБІЛЬНИЙ 390 · ПЕРШИЙ ДЕНЬ</span></div>
+  <div data-screen-label="1d Мобільний перший день" style="width:390px;height:844px;background:#eef0f1;border-radius:16px;box-shadow:0 12px 40px rgba(29,33,38,.2);overflow:auto;display:flex;flex-direction:column;padding:54px 22px 40px;box-sizing:border-box">
+    <div style="display:flex;flex-direction:column;gap:4px;padding-bottom:18px">
+      <h1 style="margin:0;font:700 22px 'Onest',sans-serif;letter-spacing:-.03em;color:#1d2126">Профіль</h1>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:12px"><span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#1d2126">Про тебе</span><span style="font:400 13px/1.45 'Golos Text',sans-serif;color:#5c646d">Не треба зараз згадувати про себе все. Закінчи одне-два речення. Решта зазвичай зʼясовується десь між «що на вечерю?» і третьою банкою гірчиці.</span></div>
+    <div style="display:flex;flex-direction:column;gap:2px;padding:12px 16px;border-radius:16px;background:#f8f9fa;border:1px solid #dde0e2">
+      <sc-for list="{{ rowsD }}" as="r" hint-placeholder-count="7">
+        <div style="display:flex;flex-direction:column">
+          <div style="position:relative;font:400 15.5px/1.5 'Golos Text',sans-serif;padding:7px 10px {{ r.padB }};margin:0 -10px;border-radius:8px;background:{{ r.bg }};transition:background .15s,padding .15s">
+            <span style="color:{{ r.startColor }}">{{ r.start }}</span> <span contentEditable="true" suppressContentEditableWarning="{{ true }}" dangerouslySetInnerHTML="{{ r.html }}" data-ph="{{ r.ph }}" onInput="{{ r.onInput }}" onFocus="{{ r.onFocus }}" onBlur="{{ r.onBlur }}" onKeyDown="{{ r.onKeyDown }}" style="color:#1d2126;border-bottom:1px dashed #ced3d6;padding-bottom:1px;transition:border-color .15s" style-focus="border-bottom-color:#58754e" style-hover="border-bottom-color:#7b838b"></span>
+            <span style="position:absolute;right:10px;bottom:4px;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:{{ r.counterColor }};opacity:{{ r.counterOpacity }};transition:opacity .4s;pointer-events:none">{{ r.counter }}</span>
+          </div>
+          <sc-if value="{{ r.active }}" hint-placeholder-val="{{ false }}">
+            <div style="margin:4px -4px 10px;background:#1d2126;color:#eef0f1;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;animation:hintin .25s cubic-bezier(0,0,.2,1)">
+              <p style="margin:0;font:400 14px/1.5 'Golos Text',sans-serif">{{ r.hint }}</p>
+              <sc-if value="{{ r.hasEx }}" hint-placeholder-val="{{ false }}"><span style="font:400 13px/1.5 'Golos Text',sans-serif;color:#c3c9ce">{{ r.exLine }}</span></sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:30px;padding-top:18px;border-top:1px solid #ced3d6;display:flex;flex-direction:column">
+      <div style="margin-bottom:6px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#1d2126">Нотатки</div>
+      <span style="font:400 14px/1.5 'Golos Text',sans-serif;color:#7b838b;padding:8px 0">Поки порожньо. Дай духовці трохи часу.</span>
+    </div>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #dde0e2;display:flex;gap:10px"><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #ced3d6;color:#1d2126;font:600 14px 'Golos Text',sans-serif">Вийти</a><a href="#" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:12px;border:1px solid #e0b4ab;color:#a8483d;font:600 14px 'Golos Text',sans-serif">Видалити акаунт</a></div>
+  </div>
+</div>
+
+</div>
+
+<!-- 1e components -->
+<div id="1e" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#1e" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">1e</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">СТАНИ РЯДКА · ЛІЧИЛЬНИК · НОТАТКА</span></div>
+  <div data-screen-label="1e Стани" style="width:1280px;background:#eef0f1;border-radius:16px;box-shadow:0 12px 40px rgba(29,33,38,.2);padding:28px 40px 32px;box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:26px 60px">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding-bottom:6px">СПОКІЙ · ПУНКТИР ПІД ЗАКІНЧЕННЯМ — «ТУТ ПИШЕТЬСЯ»</span>
+      <div style="font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px"><span style="color:#5c646d">Я люблю</b> <span style="border-bottom:1px dashed #ced3d6">тайську кухню, помідори, супи.</span></div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:12px 0 6px">ХОВЕР</span>
+      <div style="font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px;background:#e3e6e8"><span style="color:#5c646d">Я люблю</b> <span style="border-bottom:1px dashed #7b838b">тайську кухню, помідори, супи.</span></div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:12px 0 6px">ФОКУС · КУРСОР У ТЕКСТІ · ЛІЧИЛЬНИК ПІД ЧАС НАБОРУ</span>
+      <div style="position:relative;font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px;background:#f8f9fa"><span style="color:#5c646d">Я люблю</b> <span style="border-bottom:1px dashed #58754e">тайську кухню, помідори, супи, все з баклажа</span><span style="display:inline-block;width:1.5px;height:18px;background:#58754e;vertical-align:-3px;margin-left:1px"></span><span style="position:absolute;right:10px;bottom:-6px;padding:0 4px;background:#f8f9fa;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#7b838b;opacity:.6">51/250</span></div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:12px 0 6px">ПОРОЖНІЙ</span>
+      <div style="font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px"><span style="color:#5c646d">Я люблю</b> <span style="color:#7b838b;border-bottom:1px dashed #ced3d6">гостре, рибу, грузинську кухню</span></div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:12px 0 6px">«МЕНІ НЕ МОЖНА» · ЄДИНИЙ, ЩО ВІДРІЗНЯЄТЬСЯ</span>
+      <div style="font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px"><span style="color:#a8483d">Мені не можна</span> арахісу. Мідії — набряк.</div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:12px 0 6px">ЛІМІТ ВИЧЕРПАНО · ТЕКСТ НЕ ДОДАЄТЬСЯ, ЛІЧИЛЬНИК ЛИШАЄТЬСЯ</span>
+      <div style="position:relative;font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px;background:#f8f9fa"><span style="color:#5c646d">Готую зазвичай</b> ввечері, на одного-двох, з того, що є. До години — норм, довше — тільки на вихідних. У будні часто просто щось швидке на пательні, у неділю можу зайнятись тістом або поставити щось у духовку на дві-три години, поки читаю<span style="position:absolute;right:10px;bottom:-6px;padding:0 4px;background:#f8f9fa;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#96712c">Далі вже мемуари. Лишімо головне.</span></div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:12px 0 6px">ЛІМІТ У «МЕНІ НЕ МОЖНА» · БЕЗ ЖАРТУ</span>
+      <div style="position:relative;font:400 16px/1.55 'Golos Text',sans-serif;padding:7px 10px;margin:0 -10px;border-radius:8px;background:#f8f9fa"><span style="color:#a8483d">Мені не можна</span> арахіс, молюски, лактозу, глютен — целіакія, а ще яйця в сирому вигляді, будь-які горіхи, кунжут, селеру та гірчицю в усіх формах<span style="position:absolute;right:10px;bottom:-6px;padding:0 4px;background:#f8f9fa;font:400 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;color:#96712c">Все сюди вже не влізе. Лишімо головне.</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding-bottom:6px">ПІДКАЗКА · СПОКІЙ → З ФОКУСОМ (ПЕРЕХІД: FADE + Y6, 250MS)</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="background:#1d2126;color:#eef0f1;border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:10px;min-height:150px"><span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.55">Підказка</span><p style="margin:0;font:400 15px/1.55 'Golos Text',sans-serif">Стань у рядок — скажу, що тут писати.</p></div>
+        <div style="background:#1d2126;color:#eef0f1;border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:10px"><span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;opacity:.55">Мені не можна</span><p style="margin:0;font:400 15px/1.55 'Golos Text',sans-serif">Тільки алергії й медичні обмеження. Те, що небезпечно, а не просто не смакує. Я перевірятиму кожен рецепт і не пропонуватиму нічого з цього. «арахіс», «молюски», «лактозу». Якщо нічого такого нема — лишай порожнім.</p></div>
+      </div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:18px 0 6px">НОТАТКА · СПОКІЙ / ХОВЕР / ТОСТ</span>
+      <div style="display:flex;gap:14px;align-items:baseline;padding:8px 0;border-bottom:1px solid #dde0e2;font:400 15px/1.5 'Golos Text',sans-serif;color:#5c646d"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:#7b838b;flex:0 0 52px">04.09</span><span style="flex:1">Феттучіне вийшли пересолені — пармезан сам солоний, воду солити менше.</span></div>
+      <div style="display:flex;gap:14px;align-items:baseline;padding:8px 0;border-bottom:1px solid #dde0e2;font:400 15px/1.5 'Golos Text',sans-serif;color:#5c646d;background:#e3e6e8;margin:0 -12px;padding-left:12px;padding-right:12px;border-radius:8px"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:#7b838b;flex:0 0 52px">02.09</span><span style="flex:1">Духовка гріє градусів на 20 сильніше, ніж показує.</span><span style="color:#7b838b;font-size:14px">прибрати</span></div>
+      <div style="align-self:flex-start;margin-top:14px;display:flex;align-items:center;gap:6px;padding:11px 16px;border-radius:12px;background:#f8f9fa;border:1px solid #dde0e2;box-shadow:0 12px 32px rgba(29,33,38,.25);font:400 14px 'Golos Text',sans-serif;color:#1d2126">Прибрано. <span style="font-weight:600;color:#58754e">Повернути</span></div>
+      <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b;padding:18px 0 6px">НОТАТКИ · ПОРОЖНЬО</span>
+      <span style="font:400 14.5px/1.5 'Golos Text',sans-serif;color:#7b838b">Поки порожньо. Дай духовці трохи часу.</span>
+    </div>
+  </div>
+</div>
+
+<!-- 1f onboarding cards -->
+<div id="1f" style="display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:10px;align-items:baseline"><a href="#1f" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;background:#1d2126;color:#eef0f1;padding:3px 7px;border-radius:6px">1f</a><span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5158">КАРТКИ ОНБОРДИНГУ · СІМ ПІДКАЗОК · МІСЦЕ ПІД ІЛЮСТРАЦІЮ 3:2</span></div>
+  <div data-screen-label="1f Картки онбордингу" style="width:1280px;background:#eef0f1;border-radius:16px;box-shadow:0 12px 40px rgba(29,33,38,.2);padding:28px 40px 32px;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,1fr);gap:18px">
+    <sc-for list="{{ cards }}" as="c" hint-placeholder-count="7">
+      <div style="background:#f8f9fa;border:1px solid #dde0e2;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;gap:12px;padding-bottom:18px">
+        <img src="{{ c.img }}" alt="" style="aspect-ratio:3/2;width:100%;background:#ffffff;object-fit:cover;display:block"></img>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:0 16px">
+          <span style="font:400 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#7b838b">{{ c.n }} / 7</span>
+          <span style="font:700 19px/1.2 'Onest',sans-serif;letter-spacing:-.02em;color:{{ c.color }}">{{ c.start }}…</span>
+          <span style="font:400 14px/1.5 'Golos Text',sans-serif;color:#5c646d;text-wrap:pretty">{{ c.short }}</span>
+        </div>
+      </div>
+    </sc-for>
+    <div style="border-radius:18px;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;font:400 13px/1.5 'Golos Text',sans-serif;color:#7b838b"><span>Одна вертикальна картка всюди: ілюстрація 3:2 на всю ширину зверху, номер, заголовок, рядок, речення, кнопки. У стрічці — 400px, на мобільному — на всю ширину.</span></div>
+  </div>
+</div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const LIM1 = 'Все сюди вже не влізе. Лишімо головне.', LIM2 = 'Далі вже мемуари. Лишімо головне.';
+const ROWS = [
+  { k: 'name', start: 'Мене звати', ph: 'Семен', max: 30, lim: LIM1, hint: 'Імʼя. Просто імʼя. Решту біографії поки лишимо людям, які питають знак зодіаку.', ex: ['Семен'], card: 'Як тебе звати', body: 'Одного слова вистачить. Тут поки без автобіографії.' },
+  { k: 'no', start: 'Я не їм', ph: 'мʼяса, кінзи, нічого тваринного', max: 200, lim: LIM1, hint: 'Те, чого на твоєму столі просто не має бути. Категорія, дієта або конкретний продукт. Я це не пропонуватиму, навіть якщо воно є вдома. Кінза переживе.', ex: ['нічого тваринного', 'риби й морепродуктів', 'кінзи й оливок'], card: 'Це просто не їмо', body: 'Мʼясо, кінзу, морепродукти — що завгодно. Напиши прямо, і воно перестане лізти у вечерю.' },
+  { k: 'ban', start: 'Мені не можна', ph: 'арахіс, молюски, лактозу', max: 140, lim: LIM1, danger: true, hint: 'Тільки алергії й медичні обмеження. Те, що небезпечно, а не просто не смакує. Я перевірятиму кожен рецепт і не пропонуватиму нічого з цього. Якщо нічого такого нема — лишай порожнім.', ex: ['арахіс', 'молюски', 'лактозу'], card: 'Тут тільки важливе', body: 'Алергії й медичні обмеження. Якщо їх нема — тут нічого писати не треба.' },
+  { k: 'love', start: 'Я люблю', ph: 'гостре, рибу, грузинську кухню', max: 200, lim: LIM2, hint: 'Те, до чого тебе зазвичай тягне: кухня, продукт, страва, смак. Я дивитимусь у цей бік частіше, але не щовечора. Любити хачапурі — ще не означає жити в хачапурі.', ex: ['гостре й кисле', 'рибу', 'грузинську кухню'], card: 'До чого тебе тягне', body: 'Гостре, риба, паста, грузинське. Напрямок, а не довічний контракт.' },
+  { k: 'meh', start: 'Я не дуже люблю', ph: 'дуже гостре, багато мʼяса, довго готувати', max: 200, lim: LIM2, hint: 'Те, що можна, але краще не робити звичкою. Смаки, продукти або сам процес. Я спершу пошукаю інший варіант. Якщо дуже попросиш — сперечатись не буду.', ex: ['дуже гостре', 'багато мʼяса', 'довго стояти біля плити'], card: 'Можна. Просто не хочеться', body: 'Гостре, багато мʼяса, година біля плити. Я спершу піду коротшою дорогою.' },
+  { k: 'kit', start: 'У мене на кухні є', ph: 'аерогриль, блендер, ваги; без духовки', max: 260, lim: LIM1, hint: 'Плиту, духовку, мікрохвильовку, холодильник, морозилку, каструлі, пательні й ножі я вже припускаю. Напиши решту: аерогриль, гриль, мультиварка, сувід, міксер, комбайн, блендер, вок, казан, форми, ваги, термометр. Якщо базового нема — «без духовки». Так теж живуть.', ex: ['без духовки й мікрохвильовки, є блендер', 'блендер, ваги, міксер і форми', 'аерогриль, сувід, комбайн, вок, казан і термометр'], card: 'Що ще живе на кухні', body: 'Аерогриль, блендер, вок, ваги. Або «без духовки». Бо такі сюрпризи краще знати до рецепта.' },
+  { k: 'when', start: 'Я зазвичай готую', ph: 'ввечері, на двох, до години', max: 250, lim: LIM2, hint: 'Коли, на скількох і скільки на це зазвичай є сил. Щоб у вівторок о 21:10 раптом не народилось тригодинне рагу.', ex: ['ввечері, на двох, до години', 'на вихідних із запасом на тиждень', 'на одного, швидко, з того, що є'], card: 'Як це буває в житті', body: 'Коли, на скількох і скільки є часу. Бо «люблю готувати» і «сьогодні вівторок» — різні речі.' }
+];
+const FILLED = {
+  name: 'Пилип Костянтинович Білянсь',
+  no: 'мʼяса, птиці, риби, яєць і молочного — нічого тваринного взагалі. Кінзу не беру, оливки теж, і будь-які субпродукти. Соєвий соус із пшеницею — ні, беру тільки тамарі. Кокосове молоко з банки — теж ні',
+  ban: 'арахіс і все з арахісом, включно з соусами. Молюски — набряк, мідії й устриці особливо. Лактозу в чистому вигляді, тверді сири можна. Кунжут',
+  love: 'гостре й кисле, тайську та грузинську кухню, помідори в будь-якому вигляді, супи взимку. Усе з баклажанів і нуту. Хумус, аджику, ткемалі. Свіжий хліб із печі й будь-які овочі на грилі з димком',
+  meh: 'готувати великими порціями й розігрівати три дні. Дуже гостре без сенсу, багато олії, солодкі соуси. Довго стояти біля плити в будні. Замінники мʼяса з пакету, майонез, кріп у всьому — без кропу',
+  kit: 'аерогриль, гриль на балконі, мультиварка, занурювальний і стаціонарний блендер, кухонний комбайн із насадками, вок, чавунний казан, форми для запікання, ваги, термометр зі щупом, сувід, міксер, кавомолка, тостер, пресс для часнику',
+  when: 'ввечері після роботи, на одного-двох, до години часу. У будні — з того, що є в холодильнику, без походу в магазин. На вихідних можу довго й із задоволенням, тоді з запасом на понеділок-вівторок. Пізно ввечері — щось легке'
+};
+const NOTES = [
+  { id: 1, date: '04.09', text: 'Феттучіне вийшли пересолені — пармезан сам солоний, воду солити менше.' },
+  { id: 2, date: '04.09', text: 'Квас поставив, дріжджі 10 г на 3 л — перевірити через три дні.' },
+  { id: 3, date: '02.09', text: 'Духовка гріє градусів на 20 сильніше, ніж показує.' },
+  { id: 4, date: '30.08', text: 'Просив тиждень без макаронів.' }
+];
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    const mk = filled => ({ vals: Object.fromEntries(ROWS.map(r => [r.k, filled ? FILLED[r.k] : ''])), focus: null, hover: null, typing: null, key: 0 });
+    this.state = { A: mk(true), B: mk(false), C: mk(true), D: mk(false), notesA: NOTES, notesC: NOTES, toastA: null, toastC: null };
+    this.state.O1 = { i: 0, vals: {}, done: [] }; this.state.O2 = { i: 0, vals: {}, done: [] };
+    this.ohtml = { O1: ROWS.map(() => ({ __html: '' })), O2: ROWS.map(() => ({ __html: '' })) };
+    this.html = {};
+    ['A', 'B', 'C', 'D'].forEach(f => { this.html[f] = {}; ROWS.forEach(r => { this.html[f][r.k] = { __html: this.state[f].vals[r.k] }; }); });
+    this.timers = {};
+  }
+  upd(f, patch) { this.setState(s => ({ [f]: { ...s[f], ...(typeof patch === 'function' ? patch(s[f]) : patch) } })); }
+  rows(f, dark) {
+    const st = this.state[f];
+    const hoverBg = dark ? '#1f242b' : '#e3e6e8', focusBg = dark ? '#1f242b' : '#f8f9fa';
+    const strong = dark ? '#9aa3ac' : '#5c646d', danger = dark ? '#cc7a70' : '#a8483d';
+    const dim = dark ? '#79828c' : '#7b838b', amber = dark ? '#c9a86a' : '#96712c';
+    return ROWS.map(r => {
+      const max = r.max, len = (st.vals[r.k] || '').length, active = st.focus === r.k;
+      return {
+        start: r.start, startColor: r.danger ? danger : strong, html: this.html[f][r.k], ph: r.ph,
+        bg: active ? focusBg : st.hover === r.k ? hoverBg : 'transparent',
+        counter: len >= max ? r.lim : `${len}/${max}`,
+        counterOpacity: active ? (len >= max ? 1 : st.typing === r.k ? .8 : .45) : 0,
+        counterColor: len >= max ? amber : dim, padB: active ? '22px' : '7px',
+        active, hint: r.hint, exLine: '', hasEx: false,
+        enter: () => this.upd(f, { hover: r.k }), leave: () => this.upd(f, { hover: null }),
+        onFocus: () => this.upd(f, s => ({ focus: r.k, key: s.key + 1 })),
+        onBlur: () => this.upd(f, s => ({ focus: null, key: s.key + 1 })),
+        onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); return; } if ((e.target.textContent || '').length >= max && e.key.length === 1 && !e.metaKey && !e.ctrlKey) e.preventDefault(); },
+        onInput: e => {
+          const v = e.target.textContent || '';
+          clearTimeout(this.timers[f + r.k]);
+          this.timers[f + r.k] = setTimeout(() => this.upd(f, s => s.typing === r.k ? { typing: null } : {}), 1000);
+          this.upd(f, s => ({ vals: { ...s.vals, [r.k]: v }, typing: r.k }));
+        }
+      };
+    });
+  }
+  hint(f) {
+    const st = this.state[f], r = ROWS.find(x => x.k === st.focus);
+    return { label: r ? r.start : 'Підказка', text: r ? r.hint : 'Стань у рядок — скажу, що тут писати.', hasEx: false, ex: [], anim: (st.key % 2 ? 'hintin' : 'hintin2') + ' .25s cubic-bezier(0,0,.2,1)' };
+  }
+  notes(key, toastKey) {
+    return this.state[key].map((n, i) => ({ ...n, remove: () => {
+      clearTimeout(this.timers[toastKey]);
+      this.setState(s => ({ [key]: s[key].filter(x => x.id !== n.id), [toastKey]: { n, i } }));
+      this.timers[toastKey] = setTimeout(() => this.setState({ [toastKey]: null }), 5000);
+    } }));
+  }
+  undo(key, toastKey) {
+    return () => { const t = this.state[toastKey]; if (!t) return; clearTimeout(this.timers[toastKey]);
+      this.setState(s => { const arr = [...s[key]]; arr.splice(t.i, 0, t.n); return { [key]: arr, [toastKey]: null }; }); };
+  }
+  onb(f) {
+    const st = this.state[f], i = st.i, r = ROWS[i], finished = i >= ROWS.length;
+    const val = r ? (st.vals[r.k] || '') : '', max = r ? r.max : 1;
+    const advance = (saved) => { const el = this.oel && this.oel[f]; if (el) el.textContent = ''; this.setState(s => {
+      const o = s[f], row = ROWS[o.i], text = (o.vals[row.k] || '').trim();
+      return { [f]: { ...o, i: o.i + 1, done: [...o.done, { start: row.start, text: saved && text ? text : '—', meta: saved && text ? 'ЗАПИСАНО' : 'ПРОПУЩЕНО', metaColor: saved && text ? '#58754e' : '#7b838b', metaColorD: saved && text ? '#93b48b' : '#79828c' }] } };
+    }); };
+    const filled = st.done.filter(d => d.meta === 'ЗАПИСАНО').length;
+    return {
+      active: !finished, finished,
+      step: r ? `${i + 1} / 7` : '', imgs: r ? [{ src: `uploads/onb-${r.k}.png` }] : [], card: r ? r.card : '', body: r ? r.body : '', start: r ? r.start : '', ph: r ? r.ph : '',
+      titleColor: r && r.danger ? '#a8483d' : '#1d2126', titleColorD: r && r.danger ? '#cc7a70' : '#e7eaec',
+      startColor: r && r.danger ? '#a8483d' : '#5c646d', startColorD: r && r.danger ? '#cc7a70' : '#9aa3ac',
+      html: r ? this.ohtml[f][i] : { __html: '' },
+      counter: r ? (val.length >= max ? r.lim : `${val.length}/${max}`) : '',
+      counterColor: val.length >= max ? '#96712c' : '#7b838b', counterColorD: val.length >= max ? '#c9a86a' : '#79828c',
+      saveOpacity: val.trim() ? 1 : .4,
+      skipLabel: r && r.k === 'ban' ? 'Нічого такого' : 'Пропустити',
+      hintShort: r ? r.hint.split('. ')[0] + '.' : '',
+      onInput: e => { this.oel = this.oel || {}; this.oel[f] = e.target; const v = e.target.textContent || ''; this.setState(s => ({ [f]: { ...s[f], vals: { ...s[f].vals, [r.k]: v } } })); },
+      onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); if ((e.target.textContent || '').trim()) advance(true); return; } if ((e.target.textContent || '').length >= max && e.key.length === 1 && !e.metaKey && !e.ctrlKey) e.preventDefault(); },
+      save: () => { if (val.trim()) advance(true); }, skip: () => advance(false),
+      done: st.done,
+      finalText: filled === 7 ? 'Усі сім записав.' : filled === 0 ? 'Нічого не записав — теж варіант, зʼясуємо по ходу.' : `Записав ${filled} із семи. Решта зʼясується по ходу.`
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    return {
+      onbA: this.onb('O1'), onbB: this.onb('O2'),
+      rowsA: this.rows('A', false), rowsB: this.rows('B', true), rowsC: this.rows('C', true), rowsD: this.rows('D', false),
+      hintA: this.hint('A'), hintB: this.hint('B'),
+      notesA: this.notes('notesA', 'toastA'), notesAEmpty: s.notesA.length === 0, toastA: !!s.toastA, undoA: this.undo('notesA', 'toastA'),
+      notesC: this.notes('notesC', 'toastC'), notesCEmpty: s.notesC.length === 0, toastC: !!s.toastC, undoC: this.undo('notesC', 'toastC'),
+      cards: ROWS.map((r, i) => ({ n: i + 1, img: `uploads/onb-${r.k}.png`, start: r.card, short: r.body, color: r.danger ? '#a8483d' : '#1d2126' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

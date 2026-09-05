@@ -872,6 +872,12 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await repo.getVetoIndex(other_user_id)).toEqual([]);
     });
 
+    it('новий користувач має тариф beta', async () => {
+      const { repo } = ctx;
+      const { user_id } = await repo.createUserWithHousehold(`plan-${randomUUID()}@x.local`, 'Тест');
+      expect((await repo.getUser(user_id))?.plan).toBe('beta');
+    });
+
     it('deleteUserAccount забирає profile_text, нотатки й вето разом із людиною', async () => {
       const { repo, user_id } = ctx;
       await repo.patchProfileField(user_id, 'no', { text: 'риби' });

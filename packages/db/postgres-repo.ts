@@ -721,6 +721,7 @@ export class PostgresRepo implements Repo {
       name: r.name,
       email: r.email,
       created_at: new Date(r.created_at).toISOString(),
+      plan: (r.plan as string | null) ?? 'beta',
     };
   }
 
@@ -765,7 +766,7 @@ export class PostgresRepo implements Repo {
     const { rows } = await this.pool.query('SELECT * FROM "user" WHERE id = $1', [id]);
     const r = rows[0];
     if (!r) return null;
-    return { id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString() };
+    return { id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString(), plan: (r.plan as string | null) ?? 'beta' };
   }
 
   async getHousehold(id: string): Promise<HouseholdRow | null> {

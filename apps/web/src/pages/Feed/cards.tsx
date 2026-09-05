@@ -12,6 +12,7 @@ import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurr
 // на фронті. Субпуть, не '@kitchen/domain' — той тягне Repo/node:crypto,
 // а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
 import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
+import { PROFILE_FIELDS } from '@kitchen/domain/profile-fields';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
@@ -116,6 +117,8 @@ export interface CardProps {
   // PendingCard.selected[] це вміє давно, UI зʼявився з пост-кук списанням (№6).
   onApply?: (selected?: number[]) => void;
   onDismiss?: () => void;
+  // Раунд 4 §4: «Нічого такого» на картці поля `ban` — застосування зі status none.
+  onNone?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
   // Крок 4.2: назви незакреслених позицій списку покупок. Потрібні, щоб
@@ -792,7 +795,46 @@ export function ShoppingListCard({
 
 // ----- Profile -------------------------------------------------------------
 
-export function ProfileCard({ card, applied, applying, dismissed, undone, onApply, onDismiss }: CardProps) {
+export function ProfileCard(props: CardProps) {
+  if (props.card.field) return <ProfileFieldCard {...props} />;
+  return <ProfileOpsCard {...props} />;
+}
+
+// Раунд 4 §4: картка поля — рядок «Я не їм …» + «Записати». Застосована —
+// згорнутий рядок із міткою ЗАПИСАНО; пропущена — ПРОПУЩЕНО; для `ban`
+// замість «Пропустити» — «Нічого такого». Без ілюстрацій (онбординг — крок 7).
+function ProfileFieldCard({ card, applied, applying, dismissed, undone, onApply, onDismiss, onNone }: CardProps) {
+  const field = card.field!;
+  const lead = PROFILE_FIELDS[field].lead;
+  const text = (card.text ?? '').trim();
+  const closed = (applied && !undone) || dismissed;
+  const meta = dismissed ? 'ПРОПУЩЕНО' : applied && !undone ? 'ЗАПИСАНО' : null;
+  return (
+    <div className={stateClass(applied, undone)}>
+      <div className={styles.ops}>
+        <div className={styles.op} style={{ alignItems: 'baseline' }}>
+          <span className={styles['op-label']} style={{ lineHeight: 1.5 }}>
+            <span style={{ color: field === 'ban' ? 'var(--danger)' : 'var(--fg-muted)' }}>{lead}</span>{' '}
+            <span style={closed ? { color: 'var(--fg-muted)' } : undefined}>{text || '…'}</span>
+          </span>
+          {meta && (
+            <span className={styles['op-qty']} style={{ color: meta === 'ЗАПИСАНО' ? 'var(--accent)' : 'var(--fg-dim)' }}>{meta}</span>
+          )}
+        </div>
+      </div>
+      {!closed && !undone && onApply && (
+        <div className={styles['card-actions']}>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying} disabled={!text}>{CARD_BUTTON_LABEL.profile!}</Button>
+          {field === 'ban'
+            ? <Button variant="secondary" onClick={onNone} disabled={applying}>Нічого такого</Button>
+            : <Button variant="secondary" onClick={onDismiss} disabled={applying}>Пропустити</Button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProfileOpsCard({ card, applied, applying, dismissed, undone, onApply, onDismiss }: CardProps) {
   const items = (card.ops as ProfileItem[] | undefined ?? []);
   return (
     <div className={stateClass(applied, undone)}>

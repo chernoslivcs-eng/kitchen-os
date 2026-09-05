@@ -81,8 +81,10 @@ if ('skip' in backend) {
         [intent_id, user_id, 'тунець → seared', null, null, true, '2026-09-03T10:00:00Z', 'intent'],
       );
 
+      // Далі йдуть усі міграції з теки (0023 і новіші — 0024 user.plan…);
+      // перевіряємо, що 0023 серед застосованих, а не що вона єдина.
       const res = await migrate(pool, MIGRATIONS);
-      expect(res.applied).toEqual(['0023_profile_v2.sql']);
+      expect(res.applied).toContain('0023_profile_v2.sql');
     });
 
     afterAll(async () => {

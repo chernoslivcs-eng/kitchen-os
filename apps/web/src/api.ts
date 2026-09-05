@@ -49,7 +49,7 @@ function extractError(p: unknown): string | null {
 // ----- Types (мінімум, під те, що потрібно на MVP) ---------------------
 
 export interface Me {
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; plan?: string };
   household: {
     id: string;
     name: string;
@@ -153,6 +153,11 @@ export interface CartRow {
 export interface ChatCard {
   type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event';
   ops?: unknown[];
+  // Раунд 4 §4: картка поля профілю {field, mode, text} (замість ops).
+  field?: 'name' | 'no' | 'ban' | 'love' | 'meh' | 'kit' | 'when';
+  mode?: 'append' | 'replace';
+  text?: string;
+  onboarding?: boolean;
   // Відсічене вето каталогу: нехарчове, що не поїхало в комору.
   nonfood?: { label: string; value?: number | null; unit?: string | null }[];
   items?: unknown[];
@@ -326,10 +331,11 @@ export const api = {
       req<{ cards: { id: string; type: string; session_id: string | null; created_at: string | null }[] }>(
         '/v1/cards/pending',
       ),
-    apply: (id: string, selected?: number[]) =>
-      req<{ applied: number; undo_token: string; already: boolean; followup?: string }>(
+    // Раунд 4 §4: {none:true} — «Нічого такого» на картці поля ban.
+    apply: (id: string, selected?: number[], opts?: { none?: boolean }) =>
+      req<{ applied: number; undo_token: string; already: boolean; followup?: string; truncated?: boolean }>(
         `/v1/cards/${id}/apply`,
-        { method: 'POST', body: JSON.stringify({ selected }) },
+        { method: 'POST', body: JSON.stringify({ selected, ...(opts?.none ? { none: true } : {}) }) },
       ),
     undo: (id: string, undo_token: string) =>
       req<{ undone: boolean; already: boolean }>(
@@ -497,6 +503,15 @@ export const api = {
   },
 
   profile: () => req<{ profile: ProfileData; notes: NoteInfo[]; eaters: EaterInfo[]; inferred_traditions?: Tradition[] }>('/v1/profile'),
+  // Раунд 4: під PROFILE_V2 той самий GET віддає сім полів; форма відповіді
+  // і є ознакою прапора для клієнта (окремого «feature flag» ендпоінта нема).
+  profileAny: () => req<ProfileAnyResponse>('/v1/profile'),
+  profileV2: {
+    patchField: (key: string, body: { text: string } | { status: 'none' }) =>
+      req<{ field: ProfileFieldV2; veto_index: unknown[] }>(`/v1/profile/${key}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    removeNote: (id: string) => req<void>(`/v1/profile/notes/${id}`, { method: 'DELETE' }),
+    restoreNote: (id: string) => req<{ note: ProfileNoteV2 | null }>(`/v1/profile/notes/${id}/restore`, { method: 'POST', body: '{}' }),
+  },
   // Правка руками. Модель у стан не пише — але людина у своєму профілі пише,
   // і це рівно «дія — інтерфейс».
   profilePatch: (ops: { op: 'add' | 'remove'; kind: 'allergy' | 'wish' | 'anti' | 'equip' | 'tradition'; label: string; has?: boolean }[]) =>
@@ -586,6 +601,17 @@ export interface AttachmentUploaded {
   /* Пул-6 №4: ім'я файла живе тільки на клієнті — для чіпа в композиторі. */
   name?: string;
 }
+
+// Раунд 4, профіль як сім речень (GET /v1/profile під PROFILE_V2).
+export interface ProfileFieldV2 { text: string; status: 'empty' | 'filled' | 'none'; updated_at: string | null }
+export interface ProfileNoteV2 { id: string; text: string; source: 'assistant' | 'user'; created_at: string }
+export interface ProfileV2Response {
+  fields: Record<'name' | 'no' | 'ban' | 'love' | 'meh' | 'kit' | 'when', ProfileFieldV2>;
+  notes: ProfileNoteV2[];
+  defaults: { kit: string[] };
+}
+export type ProfileAnyResponse = ProfileV2Response | { profile: ProfileData; notes: NoteInfo[]; eaters: EaterInfo[] };
+export const isProfileV2 = (r: ProfileAnyResponse): r is ProfileV2Response => 'fields' in r;
 
 export interface ProfileData {
   user_id: string;

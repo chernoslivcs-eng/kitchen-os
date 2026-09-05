@@ -770,6 +770,25 @@ export function Feed() {
     }
   }
 
+  // Раунд 4 §4: «Нічого такого» на картці поля ban — застосування зі status
+  // none; картка вважається застосованою, undo є.
+  async function applyNone(turnId: string) {
+    const turn = turns.find((t) => t.id === turnId);
+    if (!turn?.cardId || turn.applying) return;
+    setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: true } : t));
+    try {
+      const r = await api.cards.apply(turn.cardId, undefined, { none: true });
+      setTurns((prev) => prev.map((t) => t.id === turnId
+        ? { ...t, applied: true, applying: false, undoToken: r.undo_token, justApplied: true }
+        : t,
+      ));
+      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', onUndo: () => undo(turnId, r.undo_token) });
+    } catch (err) {
+      setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
   async function dismissCard(turnId: string) {
     // Оптимістично: кнопка реагує одразу, а не після round-trip.
     setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, dismissed: true } : t));
@@ -885,6 +904,7 @@ export function Feed() {
                 undoAvailable={!!a.turn.undoToken}
                 onApply={(selected) => apply(a.turn!.id, selected)}
                 onDismiss={() => dismissCard(a.turn!.id)}
+                onNone={() => applyNone(a.turn!.id)}
                 onUndo={a.turn.undoToken ? () => undo(a.turn!.id, a.turn!.undoToken!) : undefined}
                 shoppingLabels={shoppingLabels}
                 onNonfoodToList={addNonfoodToList}
@@ -1346,6 +1366,7 @@ export function Feed() {
                 undoAvailable={!!t.undoToken}
                 onApply={(selected) => apply(t.id, selected)}
                 onDismiss={() => dismissCard(t.id)}
+                onNone={() => applyNone(t.id)}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 shoppingLabels={shoppingLabels}
                 onNonfoodToList={addNonfoodToList}

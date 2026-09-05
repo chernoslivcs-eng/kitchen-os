@@ -18,6 +18,8 @@ export interface UserRow {
   name: string;
   email: string;
   created_at: string;
+  /** Раунд 4, крок 6: тариф. Поки один — 'beta' (міграція 0024). */
+  plan: string;
 }
 
 export interface HouseholdRow {

@@ -5,7 +5,7 @@ import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
 import { PantryPage } from './pages/Pantry/Pantry';
 import { ShoppingPage } from './pages/Shopping/Shopping';
-import { ProfilePage } from './pages/Profile/Profile';
+import { ProfileRoute } from './pages/Profile/ProfileRoute';
 import { RecipePage } from './pages/Recipe/Recipe';
 import { CookOverlay } from './pages/Cook/Cook';
 import { useCookStore } from './store/cook';
@@ -106,7 +106,7 @@ export function App() {
             <Route path="/app" element={<Feed />} />
             <Route path="/pantry" element={<PantryPage />} />
             <Route path="/list" element={<ShoppingPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile" element={<ProfileRoute />} />
             <Route path="/recipe" element={<RecipePage />} />
             {/* Р-3: стабільна адреса — рецепт більше не живе тільки в router state. */}
             <Route path="/recipe/:id" element={<RecipePage />} />
