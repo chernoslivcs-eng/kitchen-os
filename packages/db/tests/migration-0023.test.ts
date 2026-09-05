@@ -1,6 +1,7 @@
 // Раунд 4, крок 2: міграція 0023 переносить старий профіль у сім речень.
 //
-// Ганяється в ОКРЕМІЙ тимчасовій базі на тому самому сервері (PG_TEST_URL):
+// Ганяється в ОКРЕМІЙ тимчасовій базі на тому самому сервері (PG_TEST_URL
+// або контейнер testcontainers — той самий вибір, що в контрактного тесту):
 // CREATE DATABASE → міграції 0001–0022 → старі дані → 0023 → DROP DATABASE.
 // Так перевіряється саме перенесення, а не «таблиці створились»: у головній
 // базі 0023 уже застосована контрактним тестом, і старих даних там нема.
@@ -19,15 +20,17 @@ import { dirname, join, resolve } from 'node:path';
 import pg from 'pg';
 import { migrate } from '../index.js';
 import { noteHash, VETO_PRESETS } from '@kitchen/domain';
+import { pickBackend } from './backend.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = resolve(HERE, '../../../migrations');
 
-const url = process.env.PG_TEST_URL;
+const backend = await pickBackend();
 
-if (!url) {
-  describe.skip('міграція 0023 · PG_TEST_URL не задано', () => { it('skipped', () => {}); });
+if ('skip' in backend) {
+  describe.skip(`міграція 0023 · ${backend.skip}`, () => { it('skipped', () => {}); });
 } else {
+  const url = backend.url;
   describe('міграція 0023: старий профіль → сім речень', () => {
     const dbname = `mig0023_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     const admin = new pg.Pool({ connectionString: url, max: 1 });
@@ -86,6 +89,7 @@ if (!url) {
       await pool?.end();
       await admin.query(`DROP DATABASE IF EXISTS ${dbname} WITH (FORCE)`);
       await admin.end();
+      await backend.stop?.();
       rmSync(before, { recursive: true, force: true });
     });
 

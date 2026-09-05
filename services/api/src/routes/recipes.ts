@@ -14,7 +14,12 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter } from '../rate-limit.js';
 
-export function recipesRoutes(app: FastifyInstance, repo: Repo) {
+export interface RecipesRouteOpts {
+  // Раунд 4: під прапором генерація читає [ПРО ЛЮДИНУ]+[НОТАТКИ] замість профілю v1.
+  profileV2?: boolean;
+}
+
+export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRouteOpts = {}) {
   // Публічний рецепт — без auth. Обмежуємо по IP щоб не могли скраулити всі UUID
   // (їх ~10^38 варіантів, але навіть спроба — це витрата ресурсів). 60/хв на IP
   // достатньо для реального юзера, замало для сканера.
@@ -60,7 +65,10 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
         && new Date(r.created_at).getTime() > dayAgo);
       // Ручний тест 04.09: нотатка, новіша за кешований рецепт, робить його
       // застарілим — інакше «менше вершків» ніколи не дійде до кроків.
-      if (same && !recipeStaleByNotes(same, await repo.listNotes(ctx.user_id, 20))) {
+      const staleNotes = opts.profileV2
+        ? (await repo.listProfileNotes(ctx.user_id)).map((n) => ({ created_at: n.created_at, recipe_title: null }))
+        : await repo.listNotes(ctx.user_id, 20);
+      if (same && !recipeStaleByNotes(same, staleNotes)) {
         return { id: same.id, recipe: same.payload, reused: true, meta: null, usage: null };
       }
     }
@@ -70,6 +78,8 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     const profile = await repo.getProfile(ctx.user_id);
     // Г-1: висновки людини йдуть у генерацію — «урок вбудовується в крок».
     const notes = await repo.listNotes(ctx.user_id, 20);
+    const profileText = opts.profileV2 ? await repo.getProfileText(ctx.user_id) : undefined;
+    const profileNotes = opts.profileV2 ? await repo.listProfileNotes(ctx.user_id) : undefined;
     // Пул-4 №4б: хвіст розмови в генерацію — «Буде» на «Арборіо є?» не
     // губиться між викликами. Кількості маскуються, як у чат-історії.
     let conversation: string | undefined;
@@ -88,7 +98,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
     let call: Awaited<ReturnType<typeof callRecipe>>;
     try {
-      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products, conversation });
+      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products, conversation, profileText, profileNotes });
     } catch (err) {
       req.log.error({ err }, 'recipe-model-call-failed');
       return reply.code(502).send({ error: 'model_unavailable' });

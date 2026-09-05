@@ -13,6 +13,8 @@ import {
   serializePantry as ctxSerializePantry,
   serializeProfile as ctxSerializeProfile,
   serializeNotes as ctxSerializeNotes,
+  serializeProfileText, serializeTraditionsV2,
+  type ProfileText, type ProfileNote,
   buildAliasMap,
   unaliasRecipeIds,
   unaliasProse,
@@ -160,6 +162,9 @@ export interface ChatArgs {
   recentCookRuns?: RecentCookRunSummary[];
   history?: { role: 'user' | 'assistant'; content: string }[];
   profile?: Profile | null;
+  // Раунд 4 (PROFILE_V2): сім речень і нотатки → [ПРО ЛЮДИНУ] + [НОТАТКИ].
+  profileText?: ProfileText | null;
+  profileNotes?: ProfileNote[];
   shopping?: ShoppingItemRow[];
   notes?: MemoryNote[];
   eaters?: EaterRow[];
@@ -419,6 +424,8 @@ export function buildDynamicContext(args: ChatArgs): string {
   return buildKitchenContext({
     pantry: args.pantry,
     profile: args.profile,
+    profileText: args.profileText,
+    profileNotes: args.profileNotes,
     shopping: args.shopping,
     recentCookRuns: args.recentCookRuns,
     notes: args.notes,
@@ -641,6 +648,9 @@ export async function callRecipe(args: {
   // Г-1: без цього recipe_gen НЕ БАЧИВ [ВИСНОВКИ З ГОТУВАННЯ] — щоденник
   // помилок лежав на кухні, а кухар писав рецепти в сусідній кімнаті.
   notes?: MemoryNote[];
+  // Раунд 4 (PROFILE_V2): замість [ПРОФІЛЬ]+[ВИСНОВКИ] — [ПРО ЛЮДИНУ]+[НОТАТКИ].
+  profileText?: ProfileText | null;
+  profileNotes?: ProfileNote[];
   products?: HouseholdProduct[];
   // Пул-4 №4б: recipe_gen сліпий до розмови — «Арборіо є?» → «Буде»
   // губилось між викликами. Хвіст діалогу їде в user-запит (НЕ в кеш).
@@ -660,9 +670,11 @@ export async function callRecipe(args: {
     : '';
   // Кеш-межа: role+recipe-generator стабільні; профіль/комора/висновки — динаміка.
   const stable = compose('recipe_gen', prompt);
-  const dynamic = ctxSerializeProfile(args.profile)
+  const dynamic = (args.profileText
+      ? serializeProfileText(args.profileText, args.profileNotes ?? []) + serializeTraditionsV2(args.profile)
+      : ctxSerializeProfile(args.profile))
     + pantryBlock
-    + ctxSerializeNotes(args.notes ?? []);
+    + (args.profileText ? '' : ctxSerializeNotes(args.notes ?? []));
   const convBlock = args.conversation
     ? `\n\n[ОСТАННІ РЕПЛІКИ РОЗМОВИ — рішення з них уже ухвалені, не перепитуй]\n${args.conversation}`
     : '';

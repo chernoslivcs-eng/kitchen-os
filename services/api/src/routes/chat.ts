@@ -34,6 +34,9 @@ import { vetoAllergens, stripAllergenMentionsFromReply } from '../allergen-veto.
 
 export interface ChatRouteOpts {
   rateLimit?: RateLimitCfg;
+  // Раунд 4: профіль як сім речень — [ПРО ЛЮДИНУ]+[НОТАТКИ] у контексті,
+  // note/intent → profile_note, картка поля через applyCard.
+  profileV2?: boolean;
   // M13: «асистент повинен мати руки» — та сама дія, що кнопка «Зібрати
   // кошик», доступна словами. Інʼєкція з retailRoutes() (server.ts) —
   // chat.ts не знає нічого про Сільпо, цифри/крипту/withRetryAuth, тільки
@@ -156,7 +159,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       let att_auto = false;
       let att_undo: string | undefined;
       if (call.card?.type === 'intake_diff' && card_id) {
-        const r = await applyCard(repo, card_id, [], user_id);
+        const r = await applyCard(repo, card_id, [], user_id, { profileV2: opts.profileV2 });
 
       // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
@@ -233,7 +236,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         await saveTurn(WRITEOFF_CARD_REPLY, card, card_id);
         // Пул-8 №2: списання застосовується одразу; «Як вийшло?» (раніше
         // followup ручного apply в cards.ts) їде тим самим ходом.
-        const applied = await applyCard(repo, card_id, [], user_id);
+        const applied = await applyCard(repo, card_id, [], user_id, { profileV2: opts.profileV2 });
 
       // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
@@ -269,6 +272,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Черга Д (№2): продукти дому — теги в серіалізацію (⚠, «~строк≈»).
     const products = await repo.listProducts(household_id);
     const profile = await repo.getProfile(user_id);
+    // Раунд 4: під прапором — сім речень і нотатки. `profile` (v1) лишається
+    // для календаря (традиції) і алерген-вето до кроку 4.
+    const profileText = opts.profileV2 ? await repo.getProfileText(user_id) : undefined;
+    const profileNotes = opts.profileV2 ? await repo.listProfileNotes(user_id) : undefined;
     // QA6-04: список у контекст — інакше в новій сесії модель каже «порожній»
     // при двох позиціях і додає дубль.
     const shopping = await repo.listShoppingItems(household_id);
@@ -279,8 +286,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     if (activeBatches === 0) {
       stage = 1;
     } else if (activeBatches >= 3) {
-      const empty = !profile
-        || (profile.allergies.length === 0 && profile.wishes.length === 0 && profile.antipatterns.length === 0);
+      const empty = profileText
+        ? (['no', 'ban', 'love'] as const).every((k) => profileText.fields[k].status === 'empty')
+        : !profile
+          || (profile.allergies.length === 0 && profile.wishes.length === 0 && profile.antipatterns.length === 0);
       if (empty) stage = 2;
     }
 
@@ -384,7 +393,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profile, shopping, notes, eaters, recentRecipes, products, retailConnected, retailKarpaty,
+        history, profile, profileText, profileNotes, shopping, notes, eaters, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
@@ -605,7 +614,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // Ручний тест 04.09: нотатка після готування («менше вершків, лимон»)
       // не скасовувала денний кеш — модель обіцяла оновлений рецепт, сервер
       // віддавав старий. Нотатка новіша за рецепт → генеруємо заново.
-      if (same?.payload && !recipeStaleByNotes(same, notes)) {
+      const staleNotes = profileNotes
+        ? profileNotes.map((n) => ({ created_at: n.created_at, recipe_title: null }))
+        : notes;
+      if (same?.payload && !recipeStaleByNotes(same, staleNotes)) {
         goRecipe = same.payload as Recipe;
         goId = same.id;
       } else {
@@ -614,7 +626,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         try {
           gen = await callRecipe({
             title: wantedTitle,
-            pantry, profile, notes, products,
+            pantry, profile, notes, products, profileText, profileNotes,
             conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
           });
         } catch (err) {
@@ -696,6 +708,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           profile,
           notes,
           products,
+          profileText, profileNotes,
           conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
         });
       } catch (err) {
@@ -857,7 +870,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // той, хто його виконує. Доки він мав власну копію списку, картка могла
     // отримати режим у мапі й не отримати його в рантаймі.
     if (call.card && card_id && applyModeFor(call.card) === 'auto') {
-      const r = await applyCard(repo, card_id, [], user_id);
+      const r = await applyCard(repo, card_id, [], user_id, { profileV2: opts.profileV2 });
       auto_applied = true;
       undo_token = r.undo_token;
       // Картка події стає артефактом лише тоді, коли знає, ЩО створила: id

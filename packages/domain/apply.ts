@@ -8,6 +8,8 @@
 
 import { randomUUID } from 'node:crypto';
 import { ownsEvent, traditionsFrom } from './occasions.js';
+import { appendProfileText, clampProfileText, noteHash, NOTE_TEXT_LIMIT } from './profile-text.js';
+import { isProfileFieldCard } from './types.js';
 import type { Tradition } from './occasion-rules.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
@@ -76,6 +78,17 @@ export interface ApplyResult {
    *  знає, ЩО саме вона створила, і не може стати артефактом із правкою на
    *  місці: id народжується тут, у applyEventOp, і нікуди не повертався. */
   event_ids?: (string | undefined)[];
+  /** Картка поля профілю (раунд 4): текст не вліз у ліміт і був обрізаний —
+   *  картка все одно застосована, репліка має сказати, що не влізло. */
+  truncated?: boolean;
+}
+
+export interface ApplyOpts {
+  /** Раунд 4: профіль як сім речень. Картка поля застосовується лише під прапором;
+   *  note/intent під прапором ідуть у profile_note (джерело [НОТАТКИ]). */
+  profileV2?: boolean;
+  /** «Нічого такого» на картці поля `ban`: status none, картка застосована. */
+  none?: boolean;
 }
 
 export async function applyCard(
@@ -83,6 +96,7 @@ export async function applyCard(
   card_id: string,
   selected: number[],
   actor_user_id: string,
+  opts: ApplyOpts = {},
 ): Promise<ApplyResult> {
   const pc = await repo.getPending(card_id);
   if (!pc) throw new Error(`card not found: ${card_id}`);
@@ -94,6 +108,44 @@ export async function applyCard(
   }
 
   const { card } = pc;
+
+  // Раунд 4 §4: картка поля профілю. Один текст в одне поле; undo повертає
+  // попереднє значення поля цілком (текст і статус).
+  if (isProfileFieldCard(card)) {
+    if (!opts.profileV2) throw new Error('profile field card requires PROFILE_V2');
+    const key = card.field;
+    if (opts.none && key !== 'ban') throw new Error('«Нічого такого» — лише для поля ban');
+    const before = (await repo.getProfileText(actor_user_id)).fields[key];
+    const snapshot: UndoSnapshot = {
+      kind: 'profile',
+      before: { profile_field_before: { field: key, value: { ...before } } },
+    };
+    let landed = 0;
+    let truncated = false;
+    if (opts.none) {
+      await repo.patchProfileField(actor_user_id, key, { status: 'none' });
+      landed = 1;
+    } else {
+      const add = (card.text ?? '').trim();
+      if (add) {
+        const next = card.mode === 'append' && before.status === 'filled'
+          ? appendProfileText(key, before.text, add)
+          : { text: clampProfileText(key, add), truncated: Array.from(add).length > Array.from(clampProfileText(key, add)).length };
+        await repo.patchProfileField(actor_user_id, key, { text: next.text });
+        truncated = next.truncated;
+        landed = 1;
+      }
+    }
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: new Date().toISOString(),
+      applied_ops: landed ? [0] : [],
+      undo_token,
+      undo_snapshot: snapshot,
+    });
+    await repo.markMessageApplied(pc.id, landed);
+    return { applied: landed, undo_token, already: false, truncated };
+  }
 
   // Кожен тип картки має власний обробник і власний знімок для undo.
   if (card.type === 'intake_diff') {
@@ -221,12 +273,15 @@ export async function applyCard(
     // Висновки не входять у документ профілю — вони окремі рядки, тож і
     // застосовуються окремо, і відкочуються поштучно.
     const added_note_ids: string[] = [];
+    const added_profile_note_ids: string[] = [];
     const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
       if (op.kind === 'note' || op.kind === 'intent') {
-        if (await applyNoteOp(repo, actor_user_id, op, added_note_ids, op.kind === 'intent' ? 'intent' : 'lesson')) landed++;
+        if (opts.profileV2) {
+          if (await applyProfileNoteOp(repo, actor_user_id, op, added_profile_note_ids, op.kind)) landed++;
+        } else if (await applyNoteOp(repo, actor_user_id, op, added_note_ids, op.kind === 'intent' ? 'intent' : 'lesson')) landed++;
         continue;
       }
       if (op.kind === 'member') {
@@ -236,6 +291,7 @@ export async function applyCard(
       if (applyProfileOp(next, op)) { landed++; profileTouched = true; }
     }
     if (added_note_ids.length) snapshot.before.added_note_ids = added_note_ids;
+    if (added_profile_note_ids.length) snapshot.before.added_profile_note_ids = added_profile_note_ids;
     if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
     if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
     // Порожній документ профілю не створюємо: картка з самих member/note
@@ -743,6 +799,32 @@ async function applyMemberOp(
   return true;
 }
 
+// Раунд 4, під PROFILE_V2: висновок/намір з ops-картки → profile_note
+// (source: user), як і перенесені міграцією 0023. Дедуп — по norm_hash серед
+// не видалених. remove тут не підтримується: людина прибирає нотатки на
+// сторінці профілю (§2.2 — «видаляє; не редагує»).
+async function applyProfileNoteOp(
+  repo: Repo,
+  user_id: string,
+  op: { op?: 'add' | 'remove'; label?: string; [k: string]: unknown },
+  added: string[],
+  kind: 'note' | 'intent',
+): Promise<boolean> {
+  const raw = (op.label ?? '').trim();
+  if (!raw || op.op === 'remove') return false;
+  const text = Array.from(kind === 'intent' ? `хотів: ${raw}` : raw).slice(0, NOTE_TEXT_LIMIT).join('');
+  const norm_hash = noteHash(text);
+  const existing = await repo.listProfileNotes(user_id, { limit: 200 });
+  if (existing.some((n) => n.norm_hash === norm_hash)) return false;
+  const id = randomUUID();
+  await repo.addProfileNote({
+    id, user_id, subject: null, text, source: 'user',
+    created_at: new Date().toISOString(), deleted_at: null, norm_hash,
+  });
+  added.push(id);
+  return true;
+}
+
 export function applyProfileOp(
   next: Profile,
   op: { op?: 'add' | 'remove'; kind?: ProfileKind; label?: string; has?: boolean },
@@ -877,6 +959,15 @@ export async function undoCard(
   // Profile: повертаємо блок як був до застосування картки.
   if (snap.before.profile_before) {
     await repo.upsertProfile(snap.before.profile_before);
+  }
+  // Раунд 4: поле профілю — назад попередній текст і статус.
+  if (snap.before.profile_field_before) {
+    const { field, value } = snap.before.profile_field_before;
+    await repo.patchProfileField(actor_user_id, field,
+      value.status === 'none' ? { status: 'none' } : { text: value.status === 'filled' ? value.text : '' });
+  }
+  for (const id of snap.before.added_profile_note_ids ?? []) {
+    await repo.deleteProfileNote(id);
   }
 
   await repo.updatePending(pc.id, { undone_at: new Date().toISOString() });

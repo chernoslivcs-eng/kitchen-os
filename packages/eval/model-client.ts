@@ -9,6 +9,8 @@ import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitc
 import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
   buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
+  serializeProfileText, serializeTraditionsV2, profileTextFromLegacy, profileNotesFromLegacy, emptyProfileText,
+  PROFILE_FIELD_KEYS, type ProfileText, type ProfileNote, type ProfileFieldKey,
 } from '@kitchen/domain';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
@@ -20,7 +22,22 @@ import type { ModelOutput } from './invariants.js';
 // TOKEN_AUDIT п.1: та сама кеш-межа, що в проді (model.ts cachedSystem) —
 // stable = складені правила, dynamic = контекст кухні. Розбіжність тут
 // означала б, що eval міряє інший конвеєр, ніж працює насправді.
-function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
+export const profileV2Enabled = () => process.env.PROFILE_V2 === '1';
+
+/** Фікстура: { no: "мʼяса й птиці", ban: "none", … } → ProfileText. */
+export function profileTextFromFixture(spec: Record<string, string>): ProfileText {
+  const p = emptyProfileText('u1');
+  for (const k of PROFILE_FIELD_KEYS as readonly ProfileFieldKey[]) {
+    const v = spec[k];
+    if (v === undefined) continue;
+    p.fields[k] = v === 'none'
+      ? { text: '', status: 'none', updated_at: null }
+      : { text: v, status: 'filled', updated_at: null };
+  }
+  return p;
+}
+
+export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
   const base = compose(call, prompt, { stage: fx.stage });
   if (call !== 'chat' && call !== 'recipe_gen') return { stable: base };
 
@@ -55,8 +72,22 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
         wishes: p.wishes ?? [],
         antipatterns: p.antipatterns ?? [],
         equipment: p.equipment ?? {},
+        traditions: p.traditions ?? null,
       }
     : null;
+  // Раунд 4: PROFILE_V2=1 — той самий прапор, що в проді. Фікстура з
+  // `profile_text` описує сім речень напряму; стара `profile` конвертується
+  // TS-двійником міграції 0023, `notes` — у нотатки (lesson як є, intent →
+  // «хотів: …»). Так один набір фікстур ганяється під обома прапорами.
+  const v2 = profileV2Enabled();
+  const profileText: ProfileText | undefined = v2
+    ? (fx.profile_text ? profileTextFromFixture(fx.profile_text) : profileTextFromLegacy(profile))
+    : undefined;
+  const profileNotes: ProfileNote[] | undefined = v2
+    ? (fx.profile_notes
+        ? (fx.profile_notes as ProfileNote[])
+        : profileNotesFromLegacy((fx.notes ?? []) as MemoryNote[]))
+    : undefined;
 
   // recipe_gen дзеркалить прод callRecipe: профіль + [КОМОРА] з АЛІАСАМИ
   // p1..pN + [ВИСНОВКИ З ГОТУВАННЯ]. Не buildKitchenContext — у проді
@@ -64,9 +95,9 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
   if (call === 'recipe_gen') {
     const alias = buildAliasMap(pantry);
     const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
-    const dynamic = serializeProfile(profile)
+    const dynamic = (profileText ? serializeProfileText(profileText, profileNotes ?? []) + serializeTraditionsV2(profile) : serializeProfile(profile))
       + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '')
-      + serializeNotes((fx.notes ?? []) as MemoryNote[]);
+      + (profileText ? '' : serializeNotes((fx.notes ?? []) as MemoryNote[]));
     return { stable: base, dynamic };
   }
 
@@ -75,6 +106,8 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
   const dynamic = buildKitchenContext({
     pantry,
     profile,
+    profileText,
+    profileNotes,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
     notes: (fx.notes ?? []) as MemoryNote[],
     queryText: (fx.conversation ?? []).filter((m) => m.role === 'user').slice(-3).map((m) => m.content).join('\n'),
@@ -249,6 +282,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       card,
       promptVersion: prompt.version,
       promptHash: hashPromptText(system.stable),
+      dynamic: system.dynamic,
       model,
       call,
       usage: (() => {

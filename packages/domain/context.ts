@@ -14,6 +14,8 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted, traditionsOf } from './occasions.js';
+import { isProfileFieldCard } from './types.js';
+import { PROFILE_FIELDS, serializeProfileText, type ProfileText, type ProfileNote } from './profile-text.js';
 import type { Tradition } from './occasion-rules.js';
 
 const TRADITION_UA: Record<Tradition, string> = {
@@ -31,6 +33,12 @@ export interface RecentCookRunSummary {
 export interface KitchenContext {
   pantry: PantryBatch[];
   profile?: Profile | null;
+  // Раунд 4 (PROFILE_V2): сім речень і нотатки. Коли задано profileText —
+  // замість [ПРОФІЛЬ] іде [ПРО ЛЮДИНУ] + [НОТАТКИ] на тому самому місці, а
+  // [ВИСНОВКИ З ГОТУВАННЯ]/[НАМІРИ] не рендеряться (їх джерело переїхало).
+  // `profile` лишається для календаря (традиції) і алерген-вето до кроку 4.
+  profileText?: ProfileText | null;
+  profileNotes?: ProfileNote[];
   shopping?: ShoppingItemRow[];
   recentCookRuns?: RecentCookRunSummary[];
   notes?: MemoryNote[];
@@ -117,6 +125,16 @@ export function serializeProfile(p?: Profile | null): string {
       + ' Це НЕ означає, що їх немає: найімовірніше, ще не питали.';
   }
   return '\n\n[ПРОФІЛЬ]\n' + parts.join('\n');
+}
+
+// Раунд 4: під PROFILE_V2 блок [ПРО ЛЮДИНУ] — лише її слова. Традиції —
+// перемикач календаря (раунд 5 вирішить, де він живе), тож ідуть окремим
+// коротким блоком і лише коли людина їх обирала (масив, не null).
+export function serializeTraditionsV2(p?: Profile | null): string {
+  if (!p || !Array.isArray(p.traditions)) return '';
+  return p.traditions.length
+    ? '\n\n[ТРАДИЦІЇ] обрано в профілі: ' + p.traditions.map((t) => TRADITION_UA[t]).join(', ')
+    : '\n\n[ТРАДИЦІЇ] вимкнено в профілі — релігійних свят і постів не пропонуй і про календар не питай';
 }
 
 // Комора: id · назва · зона · кількість · стан. Термін догоряння як «!Nдн»,
@@ -444,6 +462,9 @@ function relativeWhen(atMs: number, nowMs: number): string {
 // анти/алергій. Решта — пряме дзеркало Card['type'].
 function humanCardType(card: Card): string {
   if (card.type === 'profile') {
+    if (isProfileFieldCard(card)) {
+      return card.onboarding && !card.text.trim() ? `онбординг „${PROFILE_FIELDS[card.field].lead}"` : `записав у „${PROFILE_FIELDS[card.field].lead}"`;
+    }
     const ops = (card.ops ?? []) as { kind?: string }[];
     if (ops.length && ops.every((o) => o.kind === 'note')) return 'нотатка';
     return 'профіль';
@@ -463,7 +484,10 @@ function humanCardType(card: Card): string {
 function cardContentNames(card: Card): string[] {
   if (card.type === 'intake_diff') return card.ops.map((o) => o.label).filter(Boolean);
   if (card.type === 'shopping') return card.items.map((i) => i.label).filter(Boolean);
-  if (card.type === 'profile') return card.ops.map((o) => o.label).filter(Boolean);
+  if (card.type === 'profile') {
+    if (isProfileFieldCard(card)) return card.text.trim() ? [card.text.trim()] : [];
+    return (card.ops ?? []).map((o) => o.label).filter(Boolean);
+  }
   if (card.type === 'event') return card.ops.map((o) => o.title ?? '').filter(Boolean);
   if (card.type === 'recipe') return card.recipe?.t ? [card.recipe.t] : [];
   if (card.type === 'cook_photo') return card.recipe_title ? [card.recipe_title] : [];
@@ -486,8 +510,13 @@ export function renderRecentActions(cards: PendingCard[], now: Date): string {
       pc.dismissed_at ? new Date(pc.dismissed_at).getTime() : -Infinity,
     );
     const result = pc.dismissed_at ? 'відхилено' : pc.undone_at ? 'скасовано' : 'застосовано';
-    const type = humanCardType(pc.card);
-    const content = joinNames(cardContentNames(pc.card));
+    let type = humanCardType(pc.card);
+    let content = joinNames(cardContentNames(pc.card));
+    // Картка поля, застосована без тексту — це «Нічого такого» (лише ban).
+    if (isProfileFieldCard(pc.card) && pc.applied_at && !pc.card.text.trim()) {
+      type = `записав у „${PROFILE_FIELDS[pc.card.field].lead}"`;
+      content = 'нічого такого';
+    }
     return `• ${relativeWhen(resolvedMs, nowMs)} · ${type}${content ? `: ${content}` : ''} — ${result}`;
   });
   return '\n\n[ОСТАННІ ДІЇ] (поза цією розмовою, 2 дні. Застосоване — вже в даних вище, не записуй знову; '
@@ -503,7 +532,8 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n'
       + ctx.recentCookRuns.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
     : '\n\n[ОСТАННІ ГОТУВАННЯ] порожньо — жодного завершеного готування ще немає.';
-  return serializeProfile(ctx.profile)
+  const v2 = !!ctx.profileText;
+  return (v2 ? serializeProfileText(ctx.profileText!, ctx.profileNotes ?? []) + serializeTraditionsV2(ctx.profile) : serializeProfile(ctx.profile))
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
@@ -519,7 +549,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? [], undefined, traditionsOf(ctx.profile)), 'none', 120, ctx.products ?? [], ctx.queryText ?? '')
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
-    + serializeNotes(ctx.notes ?? [], ctx.notesTruncated)
+    + (v2 ? '' : serializeNotes(ctx.notes ?? [], ctx.notesTruncated))
     + renderRecentActions(ctx.recentActions ?? [], now)
     + serializeEaters(ctx.eaters ?? [])
     + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)

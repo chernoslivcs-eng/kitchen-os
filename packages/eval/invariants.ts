@@ -9,6 +9,8 @@ export interface ModelOutput {
   reply?: string;
   card?: any;
   raw: string;
+  /** Динамічний блок системного промпту, який пішов у модель (для інваріантів на вхід, не на вихід). */
+  dynamic?: string;
 }
 
 export type Verdict = { pass: boolean; detail?: string };
@@ -56,6 +58,23 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Раунд 4 §9 profile-verbatim: текст кожного заповненого поля стоїть у
+  // промті ДОСЛІВНО, після свого початку речення. Інваріант на ВХІД моделі:
+  // саме серіалізація, а не переказ, — обіцянка контракту.
+  'profile-verbatim': (out, fx) => {
+    const spec = (fx.profile_text ?? {}) as Record<string, string>;
+    const dyn = out.dynamic ?? '';
+    if (!dyn.includes('[ПРО ЛЮДИНУ — її власні слова]')) return fail('блоку [ПРО ЛЮДИНУ] у промті немає (PROFILE_V2 вимкнено?)');
+    const leads: Record<string, string> = {
+      name: 'Мене звати', no: 'Я не їм', ban: 'Мені не можна', love: 'Я люблю',
+      meh: 'Я не дуже люблю', kit: 'У мене на кухні є', when: 'Я зазвичай готую',
+    };
+    for (const [k, v] of Object.entries(spec)) {
+      const want = v === 'none' ? `${leads[k]} — нічого такого.` : `${leads[k]} ${v.replace(/\.+$/, '')}.`;
+      if (!dyn.includes(want)) return fail(`поле ${k}: у промті немає рядка «${want}»`);
+    }
+    return pass(`${Object.keys(spec).length} полів дослівно`);
+  },
   // Пул-4 №4б/в: генерація з хвостом розмови.
   'recipe-returned': (out) => {
     const c = out.card;
@@ -596,8 +615,8 @@ export const registry: Record<string, Invariant> = {
   // «натисни» — а воно легальне, коли назва кнопки за ним правдива
   // (CARD_BUTTON_LABEL, те саме, що рендерить cards.tsx). Забороняємо не
   // дію, а ВИГАДКУ: назву в лапках, якої немає в жодній картці, і два
-  // конкретні фантомні слова — «Застосувати»/«Записати» — таких кнопок
-  // не існує в жодному компоненті.
+  // конкретне фантомне слово — «Застосувати» — такої кнопки не існує в
+  // жодному компоненті («Записати» з раунду 4 — існує).
   'no-invented-buttons': (out) => {
     const reply = String(out.reply ?? '');
     // Апостроф — не сигнал: «Запам'ятати» і «Запамʼятати» — та сама кнопка,
@@ -612,7 +631,8 @@ export const registry: Record<string, Invariant> = {
     if (invented.length) {
       return fail(`вигадана назва кнопки в лапках: «${invented[0]}» — такої немає в CARD_BUTTON_LABEL`);
     }
-    const phantom = /застосувати|записати/i.exec(reply);
+    // Раунд 4: «Записати» — справжня кнопка картки профілю (CARD_BUTTON_LABEL).
+    const phantom = /застосувати/i.exec(reply);
     if (phantom) {
       return fail(`репліка називає неіснуючу кнопку: «${phantom[0]}»`);
     }

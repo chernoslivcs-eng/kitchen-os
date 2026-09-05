@@ -76,7 +76,7 @@ export function buildApp(
   if (profileV2) profileV2Routes(app, repo);
   else profileRoutes(app, repo);
   eaterRoutes(app, repo);
-  recipesRoutes(app, repo);
+  recipesRoutes(app, repo, { profileV2 });
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);
   chatRoute(app, repo, store, {
@@ -85,8 +85,9 @@ export function buildApp(
     retailSearch: retail?.attemptSearch,
     retailKarpaty: retail?.karpatyEnabled,
     retailCartExtend: retail?.attemptExtendCart,
+    profileV2,
   });
-  cardsRoutes(app, repo);
+  cardsRoutes(app, repo, { profileV2 });
   attachmentsRoutes(app, repo, store);
 
   // /health для uptime-probes. Легкий SELECT 1 для перевірки БД, метадані

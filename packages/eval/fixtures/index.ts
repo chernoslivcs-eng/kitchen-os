@@ -14,6 +14,10 @@ export interface Fixture {
   attachment?: { kind: 'text' | 'image'; path: string; content?: string };
   pantry?: unknown[];
   profile?: unknown;
+  // Раунд 4: сім речень напряму ({ no: "…", ban: "none" }) і нотатки v2.
+  // Без них під PROFILE_V2 стара `profile` конвертується TS-двійником міграції.
+  profile_text?: Record<string, string>;
+  profile_notes?: unknown[];
   audience?: unknown;
   conversation?: { role: 'user' | 'assistant'; content: string }[];
   stage?: 1 | 2;
@@ -233,6 +237,8 @@ export function loadFixtures(): Fixture[] {
     readJson('save-generated-recipe.json'),
     readJson('fish-week-is-event.json'),
     readJson('unapplied-profile-truth.json'),
+    // Раунд 4 §9: інваріант на вхід — під вимкненим прапором блоку нема, тож скіп.
+    { ...readJson('profile-verbatim.json'), skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — блоку [ПРО ЛЮДИНУ] у промті немає' },
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
     // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,
