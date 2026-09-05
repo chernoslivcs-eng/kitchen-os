@@ -1,0 +1,31 @@
+{
+  "id": "meh-less-meat",
+  "description": "Раунд 4 §9: «Я не дуже люблю багато мʼяса» — не вето, а нахил. Три мʼясні страви в [ОСТАННІ ДІЇ] → пропозиція має схилятись від мʼяса (мʼяка текстова перевірка: більшість варіантів без мʼяса).",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "meh": "багато мʼяса" },
+  "pantry": [
+    {"id":"p1","label":"Курячі стегна","zone":"fridge","v":600,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Помідори","zone":"fresh","v":600,"u":"g","state":"opened"},
+    {"id":"p4","label":"Кабачки","zone":"fresh","v":800,"u":"g","state":"sealed"},
+    {"id":"p5","label":"Фета","zone":"fridge","v":200,"u":"g","state":"sealed"},
+    {"id":"p6","label":"Рис","zone":"dry","v":1000,"u":"g","state":"sealed"}
+  ],
+  "recentActions": [
+    { "id": "a1", "message_id": "a1", "household_id": "h1", "user_id": "u1", "applied_at": "2026-09-10T12:00:00", "undone_at": null, "dismissed_at": null, "applied_ops": [0], "undo_token": null, "undo_snapshot": null,
+      "card": { "type": "recipe", "recipe": { "t": "Стейк з картоплею", "sv": 2, "tm": 30, "ing": [], "st": [] } } },
+    { "id": "a2", "message_id": "a2", "household_id": "h1", "user_id": "u1", "applied_at": "2026-09-09T19:00:00", "undone_at": null, "dismissed_at": null, "applied_ops": [0], "undo_token": null, "undo_snapshot": null,
+      "card": { "type": "recipe", "recipe": { "t": "Свинячі відбивні", "sv": 2, "tm": 30, "ing": [], "st": [] } } },
+    { "id": "a3", "message_id": "a3", "household_id": "h1", "user_id": "u1", "applied_at": "2026-09-09T12:00:00", "undone_at": null, "dismissed_at": null, "applied_ops": [0], "undo_token": null, "undo_snapshot": null,
+      "card": { "type": "recipe", "recipe": { "t": "Котлети яловичі", "sv": 2, "tm": 30, "ing": [], "st": [] } } }
+  ],
+  "conversation": [
+    { "role": "user", "content": "Що на вечерю?" }
+  ],
+  "invariants": [
+    "is-proposal",
+    "mostly-meatless",
+    "no-markdown"
+  ]
+}

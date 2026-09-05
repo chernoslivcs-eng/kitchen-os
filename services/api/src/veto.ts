@@ -1,4 +1,8 @@
-// Вето алергену на пропозиції — після моделі, до збереження.
+// Вето на пропозиції — після моделі, до збереження. Раунд 4, крок 4:
+// загальне вето по індексу (packages/domain/veto.ts) під PROFILE_V2; без
+// прапора — стара поведінка за profile.allergies + алергії їдців (нижче,
+// без змін). Обгортка applyVeto обирає гілку і віддає лог: кожне відхилення
+// — окремий запис {event:'veto', candidate, ingredient, row}.
 //
 // Еval 04.09 після 1.2: shared-meal-allergen — модель поклала «арахісову
 // пасту» в rescues французьких тостів на спільний сніданок, при тому що
@@ -18,7 +22,8 @@
 // null і чесна репліка: людина має дізнатись, що пропозиція знята, і чому.
 // Відсічене логується: частоту треба знати, це сигнал про промпт.
 
-import type { Card, EaterRow, Profile } from '@kitchen/domain';
+import type { Card, EaterRow, Profile, VetoRow } from '@kitchen/domain';
+import { vetoCard, vetoRecipe, stripVetoMentions, type Recipe } from '@kitchen/domain';
 import { root, meaningfulWords } from '@kitchen/catalog';
 
 export interface AllergenVetoResult {
@@ -134,4 +139,63 @@ export function stripAllergenMentionsFromReply(
   if (!next && call.card) next = ALLERGEN_REPLY_FALLBACK;
   call.reply = next;
   return { stripped };
+}
+
+// ----- Обгортка з прапором -------------------------------------------------
+
+export interface VetoLogEntry {
+  event: 'veto' | 'veto-reply' | 'veto-recipe';
+  candidate: string;
+  ingredient?: string;
+  row?: VetoRow;
+  legacy_hits?: string[];
+  stripped?: string;
+}
+
+export interface ApplyVetoArgs {
+  profileV2: boolean | undefined;
+  index: VetoRow[];
+  profile: Profile | null | undefined;
+  eaters: EaterRow[];
+  userText: string;
+  log: (e: VetoLogEntry) => void;
+}
+
+export interface ApplyVetoResult {
+  rejected: { title: string; hits: string[] }[];
+  emptied: boolean;
+  stripped: string[];
+}
+
+/** Мутує call (card/reply). Під прапором — індекс; без — allergies. Кожне відхилення йде в log. */
+export function applyVeto(call: { card: Card | null; reply?: string | null }, a: ApplyVetoArgs): ApplyVetoResult {
+  if (a.profileV2) {
+    const r = vetoCard(call, a.index);
+    for (const x of r.rejected) for (const row of x.rows) a.log({ event: 'veto', candidate: x.title, ingredient: x.ingredient, row });
+    const s = stripVetoMentions(call, a.index, a.userText);
+    for (const st of s.stripped) a.log({ event: 'veto-reply', candidate: st, stripped: st });
+    return {
+      rejected: r.rejected.map((x) => ({ title: x.title, hits: x.rows.map((w) => `${w.field}:${w.kind}:${w.ref}`) })),
+      emptied: r.emptied,
+      stripped: s.stripped,
+    };
+  }
+  const r = vetoAllergens(call, a.profile, a.eaters);
+  for (const x of r.removed) a.log({ event: 'veto', candidate: x.title, legacy_hits: x.hits });
+  const s = stripAllergenMentionsFromReply(call, a.profile, a.eaters, a.userText);
+  for (const st of s.stripped) a.log({ event: 'veto-reply', candidate: st, stripped: st });
+  return { rejected: r.removed, emptied: r.emptied, stripped: s.stripped };
+}
+
+/**
+ * Згенерований рецепт (прямий запит): усі інгредієнти проти індексу. Рядки
+ * з allergy=true рецепт не знімають — на прямий запит модель попереджає сама
+ * (recipe-generator.md); рядки без прапорця повертаються як список того, без
+ * чого треба перегенерувати. Кожен збіг — у лог.
+ */
+export function recipeVetoHits(recipe: Recipe, index: VetoRow[], log: (e: VetoLogEntry) => void): { avoid: string[] } {
+  const hits = vetoRecipe(recipe, index);
+  for (const h of hits) log({ event: 'veto-recipe', candidate: recipe.t, ingredient: h.ingredient, row: h.row });
+  const avoid = [...new Set(hits.filter((h) => !h.row.allergy).map((h) => h.ingredient))];
+  return { avoid };
 }

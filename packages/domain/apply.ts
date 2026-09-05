@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { ownsEvent, traditionsFrom } from './occasions.js';
 import { appendProfileText, clampProfileText, noteHash, NOTE_TEXT_LIMIT } from './profile-text.js';
 import { isProfileFieldCard } from './types.js';
+import { rebuildVetoIndex } from './veto-index.js';
 import type { Tradition } from './occasion-rules.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
@@ -136,6 +137,7 @@ export async function applyCard(
         landed = 1;
       }
     }
+    if (landed) await rebuildVetoIndex(repo, actor_user_id, key);
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -965,6 +967,7 @@ export async function undoCard(
     const { field, value } = snap.before.profile_field_before;
     await repo.patchProfileField(actor_user_id, field,
       value.status === 'none' ? { status: 'none' } : { text: value.status === 'filled' ? value.text : '' });
+    await rebuildVetoIndex(repo, actor_user_id, field);
   }
   for (const id of snap.before.added_profile_note_ids ?? []) {
     await repo.deleteProfileNote(id);

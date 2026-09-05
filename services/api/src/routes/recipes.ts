@@ -5,6 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
+import { recipeVetoHits } from '../veto.js';
 import { randomUUID } from 'node:crypto';
 import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
@@ -104,6 +105,26 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRou
       return reply.code(502).send({ error: 'model_unavailable' });
     }
     await recordUsage(repo, ctx, 'recipe_gen', call.meta, call.usage, started);
+
+    // Раунд 4, крок 4: вето по всіх інгредієнтах; дієтний збіг → одна
+    // перегенерація з «без …», алергійний — модель попереджає сама.
+    if (call.recipe && opts.profileV2) {
+      const vetoIndex = await repo.getVetoIndex(ctx.user_id);
+      // З розвʼязаними назвами: `p` без `n` інакше невидимий для вето.
+      const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, ...e }, e.event));
+      if (avoid.length) {
+        const again = await callRecipe({
+          title: title.trim(), pantry, profile, notes, products, conversation, profileText, profileNotes,
+          context: [context, `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`].filter(Boolean).join('\n'),
+        });
+        await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, started);
+        if (again.recipe) {
+          const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, retry: true, ...e }, e.event));
+          if (left.avoid.length) req.log.warn({ user_id: ctx.user_id, title, avoid: left.avoid }, 'veto-recipe-kept');
+          call = again;
+        }
+      }
+    }
 
     if (!call.recipe) {
       // QA4-06: раніше тут був 502, і людина бачила помилку там, де модель

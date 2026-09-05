@@ -11,7 +11,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import {
-  KIT_DEFAULTS, PROFILE_FIELD_KEYS, NOTES_IN_PROMPT,
+  KIT_DEFAULTS, PROFILE_FIELD_KEYS, NOTES_IN_PROMPT, rebuildVetoIndex,
   type ProfileFieldKey, type Repo,
 } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -46,8 +46,9 @@ export function profileV2Routes(app: FastifyInstance, repo: Repo) {
       else return reply.code(400).send({ error: 'bad_patch' });
 
       const field = await repo.patchProfileField(user_id, key, patch);
-      // Перебудова індексу — крок 4; тут віддаємо те, що є для поля.
-      const veto_index = (await repo.getVetoIndex(user_id)).filter((r) => r.field === key);
+      // Крок 4: індекс поля перебудовується при кожному записі в no/ban
+      // (§2.3); для решти полів — порожньо.
+      const veto_index = await rebuildVetoIndex(repo, user_id, key);
       return { field, veto_index };
     },
   );

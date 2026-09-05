@@ -239,6 +239,11 @@ export function loadFixtures(): Fixture[] {
     readJson('unapplied-profile-truth.json'),
     // Раунд 4 §9: інваріант на вхід — під вимкненим прапором блоку нема, тож скіп.
     { ...readJson('profile-verbatim.json'), skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — блоку [ПРО ЛЮДИНУ] у промті немає' },
+    // Раунд 4 §9, крок 4: дієта й «не можна» через вето по індексу (профіль — profile_text, лише під прапором).
+    ...['diet-pescatarian-steak', 'diet-vegan-fish-sauce', 'ban-without-word', 'meh-less-meat'].map((id) => ({
+      ...readJson(`${id}.json`),
+      skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — індексу вето немає',
+    })),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
     // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,

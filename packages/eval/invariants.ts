@@ -3,7 +3,17 @@
 // Ім'я з двокрапкою — параметричне: `topic-holds:плескавиц` → перевіряє входження підрядка.
 
 import type { Fixture } from './fixtures/index.js';
-import { applyMode, CARD_BUTTON_LABEL, type Card } from '@kitchen/domain';
+import { applyMode, CARD_BUTTON_LABEL, buildVetoIndex, vetoCard, vetoRecipe, stripVetoMentions, matchVeto, resolveRecipeLabels, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
+
+// Індекс вето з фікстури: profile_text.no / .ban → buildVetoIndex (той самий
+// витяг, що PATCH /v1/profile/:key у проді).
+function vetoIndexOf(fx: Fixture): VetoRow[] {
+  const pt = fx.profile_text ?? {};
+  return [
+    ...(pt.no && pt.no !== 'none' ? buildVetoIndex('u1', 'no', pt.no) : []),
+    ...(pt.ban && pt.ban !== 'none' ? buildVetoIndex('u1', 'ban', pt.ban) : []),
+  ];
+}
 
 export interface ModelOutput {
   reply?: string;
@@ -58,6 +68,59 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Раунд 4 §9, крок 4: вето по індексу з profile_text (no/ban). Перевірка
+  // «жодного мʼясного кандидата» — через саме вето, не через текст: пройдено,
+  // коли після вето лишився хоч один кандидат (модель або сама не запропонувала
+  // заборонене, або вето його зняло, а решта жива). detail — лог вето.
+  'veto-survivors': (out, fx) => {
+    const index = vetoIndexOf(fx);
+    if (!index.length) return fail('індекс порожній — profile_text без no/ban?');
+    const c = out.card;
+    if (c?.type === 'proposal') {
+      const call = { card: JSON.parse(JSON.stringify(c)) as Card, reply: out.reply ?? '' };
+      const r = vetoCard(call, index);
+      const log = r.rejected.map((x) => `${x.title} ← ${x.ingredient} [${x.rows.map((w) => `${w.field}:${w.kind}:${w.ref}`).join(', ')}]`);
+      if (r.emptied) return fail(`вето зняло всі кандидати: ${log.join('; ')}`);
+      return pass(r.rejected.length ? `вето зняло ${r.rejected.length}: ${log.join('; ')}` : 'вето не спрацювало — модель сама не пропонувала');
+    }
+    const rawRecipe = c?.recipe ?? (c && c.t && c.ing ? c : null);
+    if (rawRecipe) {
+      // Інгредієнт із комори — `p` без `n`; резолвимо назви по коморі
+      // фікстури, як прод по живій (resolveRecipeLabels), інакше «рибний
+      // соус» із комори невидимий для вето. Саме так фікстура впала вперше.
+      const recipe = resolveRecipeLabels(rawRecipe, (fx.pantry ?? []) as PantryBatch[]);
+      const hits = vetoRecipe(recipe, index);
+      return hits.length
+        ? fail(`рецепт зачепив індекс: ${hits.map((h) => `${h.ingredient} [${h.row.field}:${h.row.kind}:${h.row.ref}]`).join('; ')}`)
+        : pass(`${(recipe.ing ?? []).length} інгредієнтів чисті`);
+    }
+    return fail(`card.type=${c?.type ?? 'null'} — ні proposal, ні recipe`);
+  },
+  // Рядок з allergy=true: після серверної зачистки репліка не згадує алерген,
+  // якого людина сама не називала, і не порожня. Перевіряється результат
+  // конвеєра (як і veto-survivors), а не сира репліка: що саме вирізано —
+  // у detail, це сигнал про промпт, не провал продукту.
+  'veto-reply-clean': (out, fx) => {
+    const index = vetoIndexOf(fx);
+    const userText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
+    const call = { card: JSON.parse(JSON.stringify(out.card ?? null)) as Card | null, reply: out.reply ?? '' };
+    vetoCard(call, index);
+    const r = stripVetoMentions(call, index, userText);
+    if (!(call.reply ?? '').trim() && !call.card) return fail('після вето й зачистки не лишилось ні картки, ні репліки');
+    if (matchVeto(call.reply ?? '', index.filter((x) => x.allergy)).length) return fail(`алерген лишився в репліці: «${call.reply}»`);
+    return pass(r.stripped.length ? `сервер вирізав ${r.stripped.length}: «${r.stripped[0]}»` : 'модель сама не згадала');
+  },
+  // meh — не вето, а нахил: мʼяка перевірка, більшість варіантів без мʼяса.
+  'mostly-meatless': (out) => {
+    const c = out.card;
+    if (c?.type !== 'proposal' || !Array.isArray(c.items)) return fail(`card.type=${c?.type ?? 'null'}`);
+    const meat = /мʼяс|м'яс|стейк|свинин|ялович|курк|куряч|курч|індич|бекон|ковбас|котлет|фарш|барани|телятин/i;
+    const meaty = c.items.filter((it: { title?: string; desc?: string; rescues?: string[] }) =>
+      meat.test([it.title, it.desc, ...(it.rescues ?? [])].join(' ')));
+    return meaty.length * 2 <= c.items.length
+      ? pass(`${c.items.length - meaty.length}/${c.items.length} без мʼяса`)
+      : fail(`мʼясних ${meaty.length}/${c.items.length}: ${meaty.map((m: { title: string }) => m.title).join(', ')}`);
+  },
   // Раунд 4 §9 profile-verbatim: текст кожного заповненого поля стоїть у
   // промті ДОСЛІВНО, після свого початку речення. Інваріант на ВХІД моделі:
   // саме серіалізація, а не переказ, — обіцянка контракту.

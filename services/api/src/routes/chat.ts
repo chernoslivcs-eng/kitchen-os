@@ -24,7 +24,7 @@ import { localDay } from '../local-day.js';
 import { stampChatReceipt } from '../receipt-source.js';
 import { composeIntakeLabels } from '../intake-labels.js';
 import { vetoNonfood } from '../nonfood-veto.js';
-import { vetoAllergens, stripAllergenMentionsFromReply } from '../allergen-veto.js';
+import { applyVeto, recipeVetoHits, type VetoLogEntry } from '../veto.js';
 
 // POST /v1/chat
 //   { text?, attachments?: [{id}] } → { reply, card, card_id, usage, meta }
@@ -277,6 +277,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // для календаря (традиції) і алерген-вето до кроку 4.
     const profileText = opts.profileV2 ? await repo.getProfileText(user_id) : undefined;
     const profileNotes = opts.profileV2 ? await repo.listProfileNotes(user_id) : undefined;
+    const vetoIndex = opts.profileV2 ? await repo.getVetoIndex(user_id) : [];
     // QA6-04: список у контекст — інакше в новій сесії модель каже «порожній»
     // при двох позиціях і додає дубль.
     const shopping = await repo.listShoppingItems(household_id);
@@ -643,6 +644,27 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           return reply.code(502).send({ error: 'model_unavailable' });
         }
         await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted);
+        // Раунд 4, крок 4: прихований інгредієнт («рибний соус» у пад таї для
+        // вегана) — по всіх інгредієнтах. Дієтний збіг → одна перегенерація
+        // з явним «без …»; алергійний — лишаємо, модель попереджає сама.
+        // Перевіряємо з РОЗВʼЯЗАНИМИ назвами: інгредієнт із комори приходить
+        // як `p` без `n`, і без резолву «рибний соус» з комори був би невидимий.
+        if (gen.recipe && opts.profileV2) {
+          const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, ...e }, e.event));
+          if (avoid.length) {
+            const again = await callRecipe({
+              title: wantedTitle, pantry, profile, notes, products, profileText, profileNotes,
+              context: `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`,
+              conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
+            });
+            await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, genStarted);
+            if (again.recipe) {
+              const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, retry: true, ...e }, e.event));
+              if (left.avoid.length) req.log.warn({ user_id, title: wantedTitle, avoid: left.avoid }, 'veto-recipe-kept');
+              gen = again;
+            }
+          }
+        }
         if (gen.recipe) {
           const resolved = resolveRecipeLabels(gen.recipe, pantry);
           goId = randomUUID();
@@ -785,17 +807,15 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     composeIntakeLabels(call.card);
     // Аудит 04.09: тверда межа алергену — механікою, не лише міткою в рядку.
     // Еval після 1.2 зловив арахісову пасту в rescues на спільний сніданок.
-    const allergenVeto = vetoAllergens(call, profile, eaters);
-    if (allergenVeto.removed.length) {
-      req.log.warn({ user_id, removed: allergenVeto.removed, emptied: allergenVeto.emptied }, 'allergen-veto');
-    }
-    // Крок 6з: voice v3.1 просить не згадувати алерген зі своєї ініціативи —
-    // модель цього не тримає (qa5-allergen-proactive, KNOWN-FAILURES §10).
-    // Ріжемо речення з reply, якщо людина сама цей алерген не називала.
-    const allergenReplyClean = stripAllergenMentionsFromReply(call, profile, eaters, text ?? '');
-    if (allergenReplyClean.stripped.length) {
-      req.log.warn({ user_id, stripped: allergenReplyClean.stripped }, 'allergen-veto-reply');
-    }
+    // Раунд 4, крок 4: під прапором — вето по індексу (no/ban), без — по
+    // allergies. Кожне відхилення — окремий рядок логу з рядком індексу, який
+    // спрацював: на кроці 5 має бути видно, ЩО саме заблокувало.
+    // Крок 6з: речення з алергеном, якого людина сама не називала, ріжуться.
+    const veto = applyVeto(call, {
+      profileV2: opts.profileV2, index: vetoIndex, profile, eaters, userText: text ?? '',
+      log: (e: VetoLogEntry) => req.log.warn({ user_id, ...e }, e.event),
+    });
+    if (veto.emptied) req.log.warn({ user_id, rejected: veto.rejected }, 'veto-emptied');
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша
     // інтеграція вміє лише addToCart, не видалення з живого кошика Сільпо.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { vetoAllergens, ALLERGEN_VETO_REPLY, stripAllergenMentionsFromReply, ALLERGEN_REPLY_FALLBACK } from '../src/allergen-veto.js';
+import { vetoAllergens, ALLERGEN_VETO_REPLY, stripAllergenMentionsFromReply, ALLERGEN_REPLY_FALLBACK } from '../src/veto.js';
 import type { Card, EaterRow, Profile } from '@kitchen/domain';
 
 // Еval 04.09 після 1.2: shared-meal-allergen — арахісова паста в rescues на

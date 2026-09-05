@@ -1,0 +1,22 @@
+{
+  "id": "ban-without-word",
+  "description": "Раунд 4 §9: «Мені не можна арахіс» без слова «алергія» → рядок індексу з allergy=true: на непрямий запит («що на сніданок») арахіс не пропонується і не згадується в репліці (зачистка), попередження — лише на прямий запит.",
+  "call": "chat",
+  "now": "2026-09-10T09:00:00",
+  "profile_text": { "ban": "арахіс" },
+  "pantry": [
+    {"id":"p1","label":"Арахісова паста","zone":"dry","v":300,"u":"g","state":"opened"},
+    {"id":"p2","label":"Багет","zone":"dry","v":1,"u":"pcs","state":"opened"},
+    {"id":"p3","label":"Яйця","zone":"fridge","v":6,"u":"pcs","state":"sealed"},
+    {"id":"p4","label":"Молоко","zone":"fridge","v":900,"u":"ml","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Що на сніданок?" }
+  ],
+  "invariants": [
+    "is-proposal",
+    "veto-survivors",
+    "veto-reply-clean",
+    "no-markdown"
+  ]
+}

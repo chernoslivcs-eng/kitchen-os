@@ -16,3 +16,5 @@ export * from './product.js';
 export * from './modes.js';
 export * from './card-modes.js';
 export * from './profile-text.js';
+export * from './veto-index.js';
+export * from './veto.js';
