@@ -293,13 +293,13 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
     // в принципі: він шукав card, не знаходив, і клав уламок JSON у reply.
     // recipe_gen віддає голий JSON рецепта — загортаємо в card {type:'recipe'},
     // щоб інваріанти читали його тим самим шляхом, що продиктований рецепт.
-    let { reply, card } = call === 'attachment_parse'
-      ? parseAttachmentResponse(text)
+    let { reply, card, note } = call === 'attachment_parse'
+      ? { ...parseAttachmentResponse(text), note: null as string | null }
       : call === 'recipe_gen'
         ? (() => {
             const { parsed } = extractJson(text);
             const ok = parsed && typeof parsed === 'object' && 't' in parsed && 'ing' in parsed;
-            return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null };
+            return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null, note: null as string | null };
           })()
         : parseModelResponse(text);
     // Крок 7 п. 0: та сама механіка, що в chat.ts — «не їм» → поле no.
@@ -325,7 +325,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
           system: cachedSystem(system.stable, system.dynamic), messages: conv,
         });
         const text2 = resp2.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n');
-        ({ reply, card } = parseModelResponse(text2));
+        ({ reply, card, note } = parseModelResponse(text2));
         firstRaw = text;
         text = text2;
       }
@@ -335,6 +335,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       raw: text,
       reply,
       card,
+      note,
       promptVersion: prompt.version,
       promptHash: hashPromptText(system.stable),
       dynamic: system.dynamic,

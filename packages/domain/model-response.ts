@@ -69,20 +69,28 @@ function matchBrace(text: string, start: number): number {
 }
 
 // Повний розбір відповіді: текст → {reply, card}. Та сама логіка, що в проді.
-export function parseModelResponse(text: string): { reply: string; card: Card | null } {
+// Крок 8 (§7 контракту): необовʼязкове поле `note` — нотатка асистента.
+// Парсер терпимий до відсутності: старі відповіді без поля — note: null.
+export function noteFrom(o: Record<string, unknown>): string | null {
+  return typeof o.note === 'string' && o.note.trim() ? o.note.trim() : null;
+}
+
+export function parseModelResponse(text: string): { reply: string; card: Card | null; note: string | null } {
   const { parsed, residualText } = extractJson(text);
   let reply = residualText;
   let card: Card | null = null;
+  let note: string | null = null;
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
     if ('reply' in o && 'card' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = (o.card ?? null) as Card | null;
+      note = noteFrom(o);
     } else if (typeof o.type === 'string' && CARD_TYPES.includes(o.type)) {
       card = o as unknown as Card;
     }
   }
-  return { reply, card };
+  return { reply, card, note };
 }
 
 // Не плутати з AttachmentKind у types.ts — той про формат файлу (image|pdf|text),

@@ -1,17 +1,30 @@
 {
   "id": "intent-capture",
-  "description": "Пул-2 №6: «тримай в голові, колись зроблю» — це намір (kind:intent), не note і не wish. Модель пропонує записати його карткою profile.",
+  "description": "Пул-2 №6 → крок 8: «тримай в голові, колись зроблю» — це нотатка-намір у полі note, не картка.",
   "call": "chat",
-  "profile": { "allergies": [], "wishes": [], "antipatterns": [] },
+  "profile": {
+    "allergies": [],
+    "wishes": [],
+    "antipatterns": []
+  },
   "pantry": [
-    { "label": "рисовий папір", "zone": "dry", "value": 1, "unit": "pack", "state": "sealed" }
+    {
+      "label": "рисовий папір",
+      "zone": "dry",
+      "value": 1,
+      "unit": "pack",
+      "state": "sealed"
+    }
   ],
   "conversation": [
-    { "role": "user", "content": "Хочу колись зробити в'єтнамські роли з рисового паперу з креветками. Тримай в голові, ще не зараз." }
+    {
+      "role": "user",
+      "content": "Хочу колись зробити в'єтнамські роли з рисового паперу з креветками. Тримай в голові, ще не зараз."
+    }
   ],
   "invariants": [
-    "has-card",
-    "intent-op",
+    "note-present:рол",
+    "reply-no-note-jargon",
     "no-markdown"
   ]
 }

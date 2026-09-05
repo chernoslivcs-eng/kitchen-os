@@ -3,7 +3,7 @@
 // Ім'я з двокрапкою — параметричне: `topic-holds:плескавиц` → перевіряє входження підрядка.
 
 import type { Fixture } from './fixtures/index.js';
-import { applyMode, CARD_BUTTON_LABEL, buildVetoIndex, vetoCard, vetoRecipe, stripVetoMentions, matchVeto, resolveRecipeLabels, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
+import { applyMode, CARD_BUTTON_LABEL, buildVetoIndex, vetoCard, vetoRecipe, stripVetoMentions, matchVeto, resolveRecipeLabels, normalizeNoteText, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
 
 // Індекс вето з фікстури: profile_text.no / .ban → buildVetoIndex (той самий
 // витяг, що PATCH /v1/profile/:key у проді).
@@ -18,6 +18,8 @@ function vetoIndexOf(fx: Fixture): VetoRow[] {
 export interface ModelOutput {
   reply?: string;
   card?: any;
+  // Крок 8: нотатка асистента з відповіді (поле `note`).
+  note?: string | null;
   raw: string;
   /** Динамічний блок системного промпту, який пішов у модель (для інваріантів на вхід, не на вихід). */
   dynamic?: string;
@@ -72,6 +74,24 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Крок 8: нотатки асистента.
+  'note-null': (out) => (out.note ? fail(`note є: «${out.note}»`) : pass()),
+  // Крок 8: нотатка або відсутня, або її сервер і так відсіче як дубль
+  // наявних [НОТАТКИ] (acceptAssistantNote, norm_hash) — саме так у проді.
+  'note-null-or-duplicate': (out, fx) => {
+    if (!out.note) return pass('note null');
+    const existing = [
+      ...((fx.profile_notes ?? []) as { text?: string }[]).map((n) => n.text ?? ''),
+      ...((fx.notes ?? []) as { text?: string }[]).map((n) => n.text ?? ''),
+    ].map(normalizeNoteText);
+    return existing.includes(normalizeNoteText(out.note))
+      ? pass(`дубль наявної — сервер не запише: «${out.note}»`)
+      : fail(`нова нотатка там, де вже є: «${out.note}»`);
+  },
+  'reply-no-note-jargon': (out) => {
+    const hit = /нотатк|записав у нотат|запишу в нотат|записую в нотат/i.exec(String(out.reply ?? ''));
+    return hit ? fail(`службове слово в reply: «${hit[0]}»`) : pass();
+  },
   // Крок 7 (3): резюме «Про тебе» (no-card — існуючий інваріант нижче).
   'summary-order-ban-then-no': (out, fx) => {
     const r = String(out.reply ?? '').toLowerCase();
@@ -1292,6 +1312,16 @@ export const registry: Record<string, Invariant> = {
 // тобто перевірка була мертва з дня написання.
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
+
+  // Крок 8: note з фрагментом («note-present:сол»), ≤ 140 знаків.
+  if (base === 'note-present') {
+    return (out) => {
+      const n = out.note ?? '';
+      if (!n) return fail(`note null — reply: «${String(out.reply ?? '').slice(0, 120)}»`);
+      if (Array.from(n).length > 140) return fail(`note довша за 140: ${Array.from(n).length}`);
+      return n.toLowerCase().includes((arg ?? '').toLowerCase()) ? pass(n) : fail(`note без «${arg}»: «${n}»`);
+    };
+  }
 
   // Крок 7 (3): кількість речень у резюме, «a-b».
   if (base === 'summary-length') {

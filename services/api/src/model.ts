@@ -4,7 +4,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
-import {
+import { noteFrom,
   buildKitchenContext,
   type KitchenMode,
   type HouseholdEventRow,
@@ -194,6 +194,9 @@ export interface ChatArgs {
 export interface ChatCall {
   reply: string;
   card: Card | null;
+  // Крок 8 (§7): нотатка асистента — необовʼязкове поле відповіді; сервер
+  // (chat.ts → acceptAssistantNote) вирішує, чи писати.
+  note?: string | null;
   usage: { input: number; output: number; cached?: number; cache_write?: number };
   meta: {
     promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number;
@@ -356,6 +359,15 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // Крок 8: «нотатка: воду солити менше» → note без картки (для тестів маршруту).
+  const noteStub = /^нотатка:\s*(.+)$/i.exec(args.text.trim());
+  if (noteStub) {
+    return {
+      reply: 'Запамʼятаю.', card: null, note: noteStub[1]!.trim(),
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   // Раунд 4: картка поля профілю — «профіль no: селери» → {field:'no', text:'селери'}.
   const fieldCard = /^профіль (name|no|ban|love|meh|kit|when):\s*(.+)$/i.exec(args.text.trim());
   if (fieldCard) {
@@ -473,12 +485,13 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
 
 // Крок 6е: {reply,card} із сирого тексту відповіді — та сама логіка, потрібна
 // і першому виклику, і повторному в example-guard нижче.
-function parseChatText(text: string, stopReason: string | null): { reply: string; card: Card | null } {
+function parseChatText(text: string, stopReason: string | null): { reply: string; card: Card | null; note: string | null } {
   const { parsed, residualText } = extractJson(text);
   // Якщо JSON знайшовся — reply це те, що ЗАЛИШИЛОСЬ поза ним (може бути порожньо).
   // Якщо не знайшовся — residualText вже = text, тобто весь текст як reply.
   let reply = residualText;
   let card: Card | null = null;
+  let note: string | null = null;
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
     // Модель повертає одне з двох:
@@ -488,6 +501,7 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
     if ('reply' in o && 'card' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = normalizeCard(o.card ?? null);
+      note = noteFrom(o);
     } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit', 'event'].includes(o.type)) {
       card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
@@ -498,7 +512,7 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
   if (stopReason === 'max_tokens' && !card) {
     reply = INTAKE_TOO_BIG_REPLY;
   }
-  return { reply, card };
+  return { reply, card, note };
 }
 
 // example-guard (крок 6е): voice.md несе кілька повних зразків реплік для
@@ -606,7 +620,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
-  let { reply, card } = parseChatText(text, resp.stop_reason);
+  let { reply, card, note } = parseChatText(text, resp.stop_reason);
   let usage = usageFrom(resp.usage);
   let exampleCopy = false;
 
@@ -622,7 +636,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
-    ({ reply, card } = parseChatText(retryText, retryResp.stop_reason));
+    ({ reply, card, note } = parseChatText(retryText, retryResp.stop_reason));
     const retryUsage = usageFrom(retryResp.usage);
     usage = {
       input: usage.input + retryUsage.input,
@@ -647,6 +661,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   return {
     reply,
     card,
+    note,
     usage,
     meta: {
       promptVersion: prompt.version, model, mode: 'live',

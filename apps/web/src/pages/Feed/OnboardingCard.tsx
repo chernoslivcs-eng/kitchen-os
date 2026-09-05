@@ -148,6 +148,11 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
         </div>
       ) : (
         <div className={styles.panel} data-panel="done">
+          <div className={styles.illustration}>
+            {imgOk.done !== false && (
+              <img src="/onboarding/profile-empty.png" alt="" onError={() => setImgOk((m) => ({ ...m, done: false }))} />
+            )}
+          </div>
           <div className={styles.body}>
             <span className={styles.step}>Готово</span>
             <span className={styles.title}>{filledCount === 7 ? 'Усі сім записав.' : filledCount === 0 ? 'Нічого не записав — теж варіант, зʼясуємо по ходу.' : `Записав ${filledCount} із семи. Решта зʼясується по ходу.`}</span>

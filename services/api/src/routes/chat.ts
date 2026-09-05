@@ -4,7 +4,7 @@ import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } fro
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
-import { isProfileFieldCard, legacyOpsFromFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST } from '@kitchen/domain';
+import { isProfileFieldCard, legacyOpsFromFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -429,6 +429,15 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Крок 7: резюме — без картки, що б модель не віддала.
     if (summaryTurn) call.card = null;
+
+    // Крок 8 (§7): нотатка асистента — без картки й підтвердження; межі
+    // (140 знаків, дедуп, 3/день, не дубль профілю чи видаленої) тримає
+    // acceptAssistantNote. У промт потрапить наступним ходом ([НОТАТКИ]).
+    if (opts.profileV2 && !summaryTurn && call.note) {
+      const d = await acceptAssistantNote(repo, user_id, call.note);
+      if (d.accepted) req.log.info({ user_id, note: d.note.text }, 'note-added');
+      else req.log.info({ user_id, reason: d.reason, note: d.text }, 'note-skipped');
+    }
 
     // Крок 7 п. 0: «не їм / не вживаю» у репліці — це поле `no`, хай би що
     // обрала модель (флап кроку 4в: «ще не їм кінзи» → meh). Механіка до

@@ -1,0 +1,39 @@
+{
+  "id": "note-oversalted",
+  "description": "Крок 8: фідбек «пересолив» → діагноз у reply і нотатка про сіль у полі note (без картки, без слова «нотатка» в reply).",
+  "call": "chat",
+  "now": "2026-09-10T20:00:00",
+  "profile_text": {
+    "no": "мʼяса, птиці"
+  },
+  "pantry": [
+    {
+      "id": "p1",
+      "label": "Пармезан",
+      "zone": "fridge",
+      "v": 150,
+      "u": "g",
+      "state": "opened"
+    }
+  ],
+  "recentCookRuns": [
+    {
+      "title": "Феттучіне з пармезаном",
+      "rating": 3,
+      "verdict": "пересолив",
+      "finished_at": "2026-09-10T19:30:00"
+    }
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Пересолив феттучіне. Пармезан сам солоний, а я ще й воду солив як завжди."
+    }
+  ],
+  "invariants": [
+    "note-present:сол",
+    "no-card",
+    "reply-no-note-jargon",
+    "no-markdown"
+  ]
+}

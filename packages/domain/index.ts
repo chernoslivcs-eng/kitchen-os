@@ -19,3 +19,4 @@ export * from './profile-text.js';
 export * from './veto-index.js';
 export * from './veto.js';
 export * from './onboarding.js';
+export * from './assistant-notes.js';

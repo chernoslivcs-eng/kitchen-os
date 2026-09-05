@@ -1,6 +1,6 @@
 {
   "id": "onboarding-summary",
-  "description": "Крок 7 (3): «Показати, що вийшло» на заповненому профілі — 3–5 речень своїми словами: спершу «не можна», потім «не їм», решта; без переказу порожніх полів; в кінці — пропозиція почати з комори (чек, фото полиці або список). Без картки. Хід — серверний рядок PROFILE_SUMMARY_REQUEST (підставляється з домену в fixtures/index.ts).",
+  "description": "Крок 7 (3): «Показати, що вийшло» на заповненому профілі — 3–5 речень своїми словами: спершу «не можна», потім «не їм», решта; без переказу порожніх полів; в кінці — пропозиція почати з комори (чек, фото полиці або список). Без картки. Хід — серверний рядок PROFILE_SUMMARY_REQUEST (підставляється з домену в fixtures/index.ts). Довжина 3–5 речень резюме плюс одне про комору — до 6.",
   "call": "chat",
   "now": "2026-09-10T18:00:00",
   "profile_text": {
@@ -13,5 +13,12 @@
   },
   "pantry": [],
   "conversation": [],
-  "invariants": [ "no-card", "summary-order-ban-then-no", "summary-offers-pantry", "summary-length:3-5", "reply-no-service-markers", "no-markdown" ]
+  "invariants": [
+    "no-card",
+    "summary-order-ban-then-no",
+    "summary-offers-pantry",
+    "summary-length:3-6",
+    "reply-no-service-markers",
+    "no-markdown"
+  ]
 }

@@ -248,6 +248,11 @@ export function loadFixtures(): Fixture[] {
       ...readJson(`${id}.json`),
       skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — індексу вето немає',
     })),
+    // Крок 8: нотатки асистента (поле note) — лише під прапором (profile_note).
+    ...['note-oversalted', 'note-not-duplicate-profile', 'note-oven'].map((id) => ({
+      ...readJson(`${id}.json`),
+      skip: process.env.PROFILE_V2 === '1' ? undefined : 'PROFILE_V2 вимкнено — нотаток асистента немає',
+    })),
     // Крок 7 (3): резюме «Показати, що вийшло» — user-turn це серверний рядок з
     // домену (одне джерело з chat.ts), у JSON фікстури його нема навмисно.
     ...['onboarding-summary', 'onboarding-summary-empty'].map((id) => ({
