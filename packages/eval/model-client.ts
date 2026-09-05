@@ -10,7 +10,7 @@ import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
   buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
   serializeProfileText, serializeTraditionsV2, profileTextFromLegacy, profileNotesFromLegacy, emptyProfileText,
-  PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
+  PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, fieldByVerb, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
 } from '@kitchen/domain';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
@@ -302,6 +302,11 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
             return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null };
           })()
         : parseModelResponse(text);
+    // Крок 7 п. 0: та сама механіка, що в chat.ts — «не їм» → поле no.
+    if (call === 'chat' && card?.type === 'profile' && (card as { field?: string }).field) {
+      const lastUserText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
+      card = fieldByVerb(card as { field: ProfileFieldKey } & typeof card, lastUserText);
+    }
     let retried = false;
     let firstRaw = text;
     if (call === 'chat' && profileV2Enabled() && card?.type === 'proposal') {

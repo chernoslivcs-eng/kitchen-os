@@ -47,3 +47,10 @@ describe('картка поля від моделі під обома стана
     expect((await repo.getProfile(me.user_id))?.allergies).toEqual(['арахіс', 'селера']);
   });
 });
+
+describe('крок 7 п. 0: «не їм» → поле no незалежно від того, що обрала модель', () => {
+  it('стаб віддає meh на «профіль meh: не їм кінзи» — сервер перекладає в no', async () => {
+    const { body } = await chat(true, 'профіль meh: не їм кінзи');
+    expect(body.card).toMatchObject({ type: 'profile', field: 'no', text: 'не їм кінзи' });
+  });
+});

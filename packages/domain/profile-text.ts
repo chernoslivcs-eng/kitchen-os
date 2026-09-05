@@ -216,3 +216,16 @@ export function legacyOpsFromFieldCard(card: ProfileFieldCard): ProfileOpsCard {
   }
   return { type: 'profile', ops };
 }
+
+// ----- Крок 7, п. 0: поле за дієсловом людини — механікою, не лише промтом ---
+// Флап кроку 4в: «ще не їм кінзи» модель через раз клала в `meh`. Правило
+// kitchen-policy те саме («не їм» → no), але тримати його має сервер: якщо в
+// репліці людини є «не їм / не їмо / не вживаю / не їсть», а картка прийшла з
+// `meh` — поле стає `no` до застосування. Межі слова — кириличні (JS \b їх не
+// знає): «нема» чи «неїмо» не рахуються.
+export const NO_EAT_VERB_RE = /(?<!\p{L})не\s+(?:їм|їмо|їси|їсть|їсте|їдять|вживаю|вживаємо|вживає|пʼю|п'ю|пʼємо)(?!\p{L})/iu;
+
+export function fieldByVerb<T extends { field: ProfileFieldKey }>(card: T, userText: string): T {
+  if (card.field === 'meh' && NO_EAT_VERB_RE.test(userText)) return { ...card, field: 'no' };
+  return card;
+}

@@ -258,3 +258,25 @@ describe('appendProfileText — роздільник', () => {
     expect(appendProfileText('when', 'ввечері', 'на двох').text).toBe('ввечері. на двох');
   });
 });
+
+// ----- Крок 7, п. 0: «не їм» у репліці → поле no, а не meh --------------------
+
+import { fieldByVerb, NO_EAT_VERB_RE } from './profile-text.js';
+
+describe('fieldByVerb', () => {
+  const card = (field: 'meh' | 'no' | 'love') => ({ type: 'profile' as const, field, mode: 'append' as const, text: 'кінзи' });
+  it('«не їм / не їмо / не вживаю / не їсть» + картка meh → no', () => {
+    for (const t of ['Ще не їм кінзи', 'ми не їмо кінзи', 'не вживаю кінзу', 'він не їсть кінзи', 'Не Їм кінзи']) {
+      expect(fieldByVerb(card('meh'), t).field, t).toBe('no');
+    }
+  });
+  it('«не люблю» — лишається meh; поле no/love не чіпається', () => {
+    expect(fieldByVerb(card('meh'), 'не люблю кінзу').field).toBe('meh');
+    expect(fieldByVerb(card('love'), 'не їм кінзи').field).toBe('love');
+    expect(fieldByVerb(card('no'), 'не їм кінзи').field).toBe('no');
+  });
+  it('кирилична межа слова: «неїмо» чи «нема» не рахуються', () => {
+    expect(NO_EAT_VERB_RE.test('нема кінзи')).toBe(false);
+    expect(NO_EAT_VERB_RE.test('не їмо')).toBe(true);
+  });
+});

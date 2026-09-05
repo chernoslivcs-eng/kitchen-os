@@ -4,7 +4,7 @@ import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } fro
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
-import { isProfileFieldCard, legacyOpsFromFieldCard } from '@kitchen/domain';
+import { isProfileFieldCard, legacyOpsFromFieldCard, fieldByVerb } from '@kitchen/domain';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -418,6 +418,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Пул-4 №4а: службові [HH:MM] з історії не протікають у відповідь.
     if (call.reply) call.reply = stripHistoryStamps(call.reply);
+
+    // Крок 7 п. 0: «не їм / не вживаю» у репліці — це поле `no`, хай би що
+    // обрала модель (флап кроку 4в: «ще не їм кінзи» → meh). Механіка до
+    // адаптера й до застосування — щоб діяло під обома прапорами.
+    if (isProfileFieldCard(call.card)) call.card = fieldByVerb(call.card, text ?? '');
 
     // Раунд 4, крок 4 (a): промт уже віддає картку поля {field, mode, text}.
     // З вимкненим прапором перекладаємо її в ops-картку v1 ДО applyMode і
