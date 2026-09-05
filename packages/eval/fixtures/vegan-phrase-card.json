@@ -1,0 +1,10 @@
+{
+  "id": "vegan-phrase-card",
+  "description": "Крок 4в (2): «я веган» → картка поля no з розгорнутим переліком (мʼяса, птиці, риби, морепродуктів, яєць, молочного), а не слово «веган»; reply без службових дужок історії.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": {},
+  "pantry": [ {"id":"p1","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"} ],
+  "conversation": [ { "role": "user", "content": "я веган" } ],
+  "invariants": [ "profile-field:no", "profile-text-expands-vegan", "reply-no-service-markers", "no-markdown" ]
+}

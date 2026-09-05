@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow } from './types.js';
+import { noteHash, type ProfileNote, type VetoRow } from './profile-text.js';
 import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
 import { displayName } from './product.js';
 
@@ -761,6 +762,142 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       });
       expect(await repo.listOccasionCatches(household_id)).toHaveLength(2);
       expect(await repo.listOccasionCatches(household_id, 2026)).toHaveLength(1);
+    });
+
+
+    // ----- Раунд 4, крок 2: профіль як сім речень ---------------------------
+
+    it('profile_text: без записів — сім порожніх полів, а не null', async () => {
+      const { repo, user_id } = ctx;
+      const p = await repo.getProfileText(user_id);
+      expect(p.user_id).toBe(user_id);
+      expect(Object.keys(p.fields)).toEqual(['name', 'no', 'ban', 'love', 'meh', 'kit', 'when']);
+      expect(p.fields.no).toEqual({ text: '', status: 'empty', updated_at: null });
+    });
+
+    it('patchProfileField: текст → filled, обрізка по ліміту поля, інші поля не чіпає', async () => {
+      const { repo, user_id } = ctx;
+      const v = await repo.patchProfileField(user_id, 'no', { text: '  мʼяса й птиці  ' });
+      expect(v.text).toBe('мʼяса й птиці');
+      expect(v.status).toBe('filled');
+      expect(v.updated_at).toBeTruthy();
+
+      const long = await repo.patchProfileField(user_id, 'name', { text: 'П'.repeat(45) });
+      expect(long.text).toBe('П'.repeat(30));
+
+      const p = await repo.getProfileText(user_id);
+      expect(p.fields.no.text).toBe('мʼяса й птиці');
+      expect(p.fields.name.text).toBe('П'.repeat(30));
+      expect(p.fields.love.status).toBe('empty');
+    });
+
+    it('patchProfileField: «Нічого такого» — status none і порожній текст; порожній текст — знову empty', async () => {
+      const { repo, user_id } = ctx;
+      await repo.patchProfileField(user_id, 'ban', { text: 'арахіс' });
+      const none = await repo.patchProfileField(user_id, 'ban', { status: 'none' });
+      expect(none).toMatchObject({ text: '', status: 'none' });
+      expect((await repo.getProfileText(user_id)).fields.ban.status).toBe('none');
+
+      const cleared = await repo.patchProfileField(user_id, 'ban', { text: '   ' });
+      expect(cleared).toMatchObject({ text: '', status: 'empty' });
+    });
+
+    it('patchProfileField: чужий текст не протікає між людьми', async () => {
+      const { repo, user_id, other_user_id } = ctx;
+      await repo.patchProfileField(user_id, 'love', { text: 'тайську кухню' });
+      expect((await repo.getProfileText(other_user_id)).fields.love.status).toBe('empty');
+    });
+
+    it('нотатки: додати, прочитати найсвіжіші, мʼяко прибрати, повернути', async () => {
+      const { repo, user_id } = ctx;
+      const mk = (text: string, created_at: string, source: ProfileNote['source'] = 'assistant'): ProfileNote => ({
+        id: randomUUID(), user_id, subject: null, text, source, created_at, deleted_at: null, norm_hash: noteHash(text),
+      });
+      const a = mk('Духовка гріє на 20 сильніше', '2026-09-02T10:00:00.000Z');
+      const b = mk('Пармезан солоний — воду солити менше', '2026-09-04T10:00:00.000Z', 'user');
+      await repo.addProfileNote(a);
+      await repo.addProfileNote(b);
+
+      const list = await repo.listProfileNotes(user_id);
+      expect(list.map((n) => n.id)).toEqual([b.id, a.id]);
+      expect(list[0]).toMatchObject({ source: 'user', subject: null, deleted_at: null, norm_hash: noteHash(b.text) });
+
+      await repo.deleteProfileNote(a.id);
+      expect((await repo.listProfileNotes(user_id)).map((n) => n.id)).toEqual([b.id]);
+      const withDeleted = await repo.listProfileNotes(user_id, { include_deleted: true });
+      expect(withDeleted.find((n) => n.id === a.id)?.deleted_at).toBeTruthy();
+
+      await repo.restoreProfileNote(a.id);
+      expect((await repo.listProfileNotes(user_id)).map((n) => n.id)).toEqual([b.id, a.id]);
+    });
+
+    it('нотатки: ліміт і чужі не видно', async () => {
+      const { repo, user_id, other_user_id } = ctx;
+      for (let i = 0; i < 12; i++) {
+        const text = `нотатка ${i}`;
+        await repo.addProfileNote({
+          id: randomUUID(), user_id, subject: null, text, source: 'assistant',
+          created_at: new Date(Date.UTC(2026, 8, 1, 0, i)).toISOString(), deleted_at: null, norm_hash: noteHash(text),
+        });
+      }
+      await repo.addProfileNote({
+        id: randomUUID(), user_id: other_user_id, subject: null, text: 'чужа', source: 'assistant',
+        created_at: new Date().toISOString(), deleted_at: null, norm_hash: noteHash('чужа'),
+      });
+      const ten = await repo.listProfileNotes(user_id);
+      expect(ten).toHaveLength(10);
+      expect(ten[0]!.text).toBe('нотатка 11');
+      expect((await repo.listProfileNotes(user_id, { limit: 100 })).some((n) => n.text === 'чужа')).toBe(false);
+    });
+
+    it('veto_index: setVetoIndex замінює рядки поля, інше поле не чіпає; порядок зберігається', async () => {
+      const { repo, user_id, other_user_id } = ctx;
+      const row = (field: VetoRow['field'], label: string, extra: Partial<VetoRow> = {}): VetoRow => ({
+        user_id, field, kind: 'category', ref: label, label, allergy: field === 'ban', subject: null, ...extra,
+      });
+      await repo.setVetoIndex(user_id, 'no', [row('no', 'мʼясо'), row('no', 'кінза', { kind: 'free', ref: null })]);
+      await repo.setVetoIndex(user_id, 'ban', [row('ban', 'арахіс', { kind: 'product', ref: 'peanut' })]);
+      expect(await repo.getVetoIndex(user_id)).toEqual([
+        row('no', 'мʼясо'), row('no', 'кінза', { kind: 'free', ref: null }),
+        row('ban', 'арахіс', { kind: 'product', ref: 'peanut' }),
+      ]);
+
+      await repo.setVetoIndex(user_id, 'no', [row('no', 'птиця')]);
+      expect(await repo.getVetoIndex(user_id)).toEqual([
+        row('no', 'птиця'), row('ban', 'арахіс', { kind: 'product', ref: 'peanut' }),
+      ]);
+
+      await repo.setVetoIndex(user_id, 'ban', []);
+      expect(await repo.getVetoIndex(user_id)).toEqual([row('no', 'птиця')]);
+      expect(await repo.getVetoIndex(other_user_id)).toEqual([]);
+    });
+
+    it('новий користувач має тариф beta і порожні позначки; touchUser ставить їх', async () => {
+      const { repo } = ctx;
+      const { user_id } = await repo.createUserWithHousehold(`plan-${randomUUID()}@x.local`, 'Тест');
+      const u = await repo.getUser(user_id);
+      expect(u?.plan).toBe('beta');
+      expect(u?.welcome_seen_at).toBeNull();
+      expect(u?.profile_onboarding_at).toBeNull();
+      await repo.touchUser(user_id, 'welcome_seen_at', '2026-09-05T10:00:00.000Z');
+      await repo.touchUser(user_id, 'profile_onboarding_at', '2026-09-05T10:01:00.000Z');
+      const after = await repo.getUser(user_id);
+      expect(after?.welcome_seen_at).toBe('2026-09-05T10:00:00.000Z');
+      expect(after?.profile_onboarding_at).toBe('2026-09-05T10:01:00.000Z');
+    });
+
+    it('deleteUserAccount забирає profile_text, нотатки й вето разом із людиною', async () => {
+      const { repo, user_id } = ctx;
+      await repo.patchProfileField(user_id, 'no', { text: 'риби' });
+      await repo.addProfileNote({
+        id: randomUUID(), user_id, subject: null, text: 'x', source: 'user',
+        created_at: new Date().toISOString(), deleted_at: null, norm_hash: noteHash('x'),
+      });
+      await repo.setVetoIndex(user_id, 'no', [{ user_id, field: 'no', kind: 'free', ref: null, label: 'риби', allergy: false, subject: null }]);
+      await repo.deleteUserAccount(user_id);
+      expect((await repo.getProfileText(user_id)).fields.no.status).toBe('empty');
+      expect(await repo.listProfileNotes(user_id, { include_deleted: true })).toEqual([]);
+      expect(await repo.getVetoIndex(user_id)).toEqual([]);
     });
 
     it('undo з неправильним токеном — помилка; повторний undo — no-op', async () => {

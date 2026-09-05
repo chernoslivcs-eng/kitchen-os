@@ -56,7 +56,7 @@ describe('статус картки в історії — лише там, де 
     // Починається тими самими словами, що й правило в role.md — префікс не правиться.
     expect(turn!.content).toMatch(/\[НЕ ЗАСТОСОВАНО — у профілі\/бібліотеці цього ще НЕМАЄ/);
     // CARD_BUTTON_LABEL.profile — те саме, що рендерить ProfileCard у cards.tsx.
-    expect(turn!.content).toContain('кнопка «Запам\'ятати»');
+    expect(turn!.content).toContain('кнопка «Записати»');
     expect(turn!.content).toMatch(/не натискала/);
   });
 

@@ -1,0 +1,22 @@
+{
+  "id": "diet-pescatarian-steak",
+  "description": "Раунд 4 §9: «Я не їм мʼяса й птиці», у коморі яловичий стейк і тунець, «що на вечерю» → жодного мʼясного кандидата після вето. Перевірка через вето по індексу (лог/відсутність кандидата), не через текст репліки.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "no": "мʼяса й птиці" },
+  "pantry": [
+    {"id":"p1","label":"Стейк рібай","zone":"fridge","v":400,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Тунець стейк","zone":"freezer","v":300,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Картопля","zone":"dry","v":1000,"u":"g","state":"sealed"},
+    {"id":"p4","label":"Лимон","zone":"fresh","v":2,"u":"pcs","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "Що на вечерю?" }
+  ],
+  "invariants": [
+    "is-proposal",
+    "veto-survivors",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

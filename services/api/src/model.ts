@@ -4,7 +4,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
-import {
+import { noteFrom,
   buildKitchenContext,
   type KitchenMode,
   type HouseholdEventRow,
@@ -13,6 +13,8 @@ import {
   serializePantry as ctxSerializePantry,
   serializeProfile as ctxSerializeProfile,
   serializeNotes as ctxSerializeNotes,
+  serializeProfileText, serializeTraditionsV2,
+  type ProfileText, type ProfileNote, type VetoRow,
   buildAliasMap,
   unaliasRecipeIds,
   unaliasProse,
@@ -160,6 +162,13 @@ export interface ChatArgs {
   recentCookRuns?: RecentCookRunSummary[];
   history?: { role: 'user' | 'assistant'; content: string }[];
   profile?: Profile | null;
+  // Раунд 4 (PROFILE_V2): сім речень і нотатки → [ПРО ЛЮДИНУ] + [НОТАТКИ].
+  profileText?: ProfileText | null;
+  profileNotes?: ProfileNote[];
+  // Крок 4б: індекс вето → ⚠-мітки в [КОМОРА]; avoid — перегенерація після
+  // порожнього вето: «Без: …» їде в кінець репліки людини як серверний рядок.
+  vetoIndex?: VetoRow[];
+  avoid?: string[];
   shopping?: ShoppingItemRow[];
   notes?: MemoryNote[];
   eaters?: EaterRow[];
@@ -185,6 +194,9 @@ export interface ChatArgs {
 export interface ChatCall {
   reply: string;
   card: Card | null;
+  // Крок 8 (§7): нотатка асистента — необовʼязкове поле відповіді; сервер
+  // (chat.ts → acceptAssistantNote) вирішує, чи писати.
+  note?: string | null;
   usage: { input: number; output: number; cached?: number; cache_write?: number };
   meta: {
     promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number;
@@ -192,6 +204,8 @@ export interface ChatCall {
     // зразок voice.md. chat.ts логує це як 'example-copy' — сюди, а не в
     // model.ts, бо тільки маршрут має req.log.
     example_copy?: boolean;
+    // Крок 4в (2а): reply містив службові позначки — був повторний виклик.
+    service_markers?: boolean;
   };
 }
 
@@ -345,6 +359,25 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // Крок 8: «нотатка: воду солити менше» → note без картки (для тестів маршруту).
+  const noteStub = /^нотатка:\s*(.+)$/i.exec(args.text.trim());
+  if (noteStub) {
+    return {
+      reply: 'Запамʼятаю.', card: null, note: noteStub[1]!.trim(),
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  // Раунд 4: картка поля профілю — «профіль no: селери» → {field:'no', text:'селери'}.
+  const fieldCard = /^профіль (name|no|ban|love|meh|kit|when):\s*(.+)$/i.exec(args.text.trim());
+  if (fieldCard) {
+    return {
+      reply: 'Запишу.',
+      card: { type: 'profile', field: fieldCard[1]!.toLowerCase() as never, mode: 'append', text: fieldCard[2]!.trim() },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   // Традиція — перемикач профілю: стаб віддає картку profile з kind tradition,
   // яку сервер застосовує сам (applyModeFor), без «Запамʼятати».
   const trad = /(католи|іслам|мусульман|православ|юдей)/i.exec(args.text);
@@ -419,6 +452,9 @@ export function buildDynamicContext(args: ChatArgs): string {
   return buildKitchenContext({
     pantry: args.pantry,
     profile: args.profile,
+    profileText: args.profileText,
+    profileNotes: args.profileNotes,
+    vetoIndex: args.vetoIndex,
     shopping: args.shopping,
     recentCookRuns: args.recentCookRuns,
     notes: args.notes,
@@ -449,21 +485,25 @@ export function buildChatSystem(args: ChatArgs, promptText: string): string {
 
 // Крок 6е: {reply,card} із сирого тексту відповіді — та сама логіка, потрібна
 // і першому виклику, і повторному в example-guard нижче.
-function parseChatText(text: string, stopReason: string | null): { reply: string; card: Card | null } {
+function parseChatText(text: string, stopReason: string | null): { reply: string; card: Card | null; note: string | null } {
   const { parsed, residualText } = extractJson(text);
   // Якщо JSON знайшовся — reply це те, що ЗАЛИШИЛОСЬ поза ним (може бути порожньо).
   // Якщо не знайшовся — residualText вже = text, тобто весь текст як reply.
   let reply = residualText;
   let card: Card | null = null;
+  let note: string | null = null;
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
     // Модель повертає одне з двох:
-    //   { reply, card } — обгортка з окремим текстом і карткою
+    //   { reply, card?, note? } — обгортка з окремим текстом; card і note
+    //   необовʼязкові (крок 9: {reply, note} без card іде без картки, а не
+    //   порожньою реплікою)
     //   { type, ops|items|... } — саму картку без обгортки; reply тоді — те,
     //   що модель написала поруч із JSON у тому ж повідомленні
-    if ('reply' in o && 'card' in o) {
+    if ('reply' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = normalizeCard(o.card ?? null);
+      note = noteFrom(o);
     } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit', 'event'].includes(o.type)) {
       card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
@@ -474,7 +514,7 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
   if (stopReason === 'max_tokens' && !card) {
     reply = INTAKE_TOO_BIG_REPLY;
   }
-  return { reply, card };
+  return { reply, card, note };
 }
 
 // example-guard (крок 6е): voice.md несе кілька повних зразків реплік для
@@ -514,12 +554,40 @@ export function wordOverlapRatio(reply: string, example: string): number {
   return common / replyWords.length;
 }
 
+// Крок 4в (2а): службові позначки історії/контексту в reply. Ручний тест
+// 05.09 19:44: на «я веган» модель не дала картки, а переказала рядок історії
+// «[картка: профіль] записав у … [НЕ ЗАСТОСОВАНО — …]». Guard як
+// example-guard: один повторний виклик, далі — вирізати, що лишилось.
+// Список збігається з SERVICE_MARKER_RE в packages/eval/invariants.ts.
+export const SERVICE_MARKER_RE = /\[(?:картка:|рецепт у стрічці|НЕ ЗАСТОСОВАНО|ЗАСТОСОВАНО|ВІДХИЛЕНО|СКАСОВАНО|ПРО ЛЮДИНУ|КОМОРА|НОТАТКИ|ОСТАННІ ДІЇ|СЬОГОДНІ|СПИСОК ПОКУПОК|ДОМАШНІ|ТРАДИЦІЇ|СЕЗОН І СВЯТА|ТВОЇ ПЛАНИ|РЕЖИМ|МЕРЕЖІ|СЕРВЕР)[^\]]*\]/g;
+export const SERVICE_MARKER_GUARD_LINE = 'Перепиши репліку без службових позначок у квадратних дужках — вони не для людини.';
+export function hasServiceMarkers(reply: string): boolean {
+  return new RegExp(SERVICE_MARKER_RE.source).test(reply);
+}
+export function stripServiceMarkers(reply: string): string {
+  return reply
+    .split('\n')
+    // Рядок-імітація історії («[картка: …] записав у … [НЕ ЗАСТОСОВАНО …]») — цілком.
+    .filter((line) => !/\[(?:картка:|рецепт у стрічці)/.test(line))
+    .map((line) => line.replace(new RegExp(SERVICE_MARKER_RE.source, 'g'), '').replace(/[ \t]{2,}/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
 const EXAMPLE_COPY_THRESHOLD = 0.6;
 const EXAMPLE_COPY_GUARD_LINE = 'Перепиши репліку своїми словами, не повторюючи зразків.';
 
 export function matchesVoiceExample(reply: string, examples: string[]): boolean {
   if (!reply.trim() || !examples.length) return false;
   return examples.some((ex) => wordOverlapRatio(reply, ex) >= EXAMPLE_COPY_THRESHOLD);
+}
+
+// Крок 4б (b): вето зняло всі кандидати — один повторний виклик із явним
+// «без …». Рядок серверний, іде в user-turn (не в кеш і не в промт).
+export const AVOID_LINE = (avoid: string[]) =>
+  `[СЕРВЕР] Попередню пропозицію знято — там було те, чого людина не їсть: ${avoid.join(', ')}. Запропонуй інше, без цього.`;
+export function withAvoid(text: string, avoid?: string[]): string {
+  return avoid?.length ? `${text}\n\n${AVOID_LINE(avoid)}` : text;
 }
 
 export async function callChat(args: ChatArgs): Promise<ChatCall> {
@@ -537,7 +605,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
   const messages = [
     ...(args.history ?? []),
-    { role: 'user' as const, content: args.text },
+    { role: 'user' as const, content: withAvoid(args.text, args.avoid) },
   ];
   const callOpts = {
     model,
@@ -554,23 +622,23 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
-  let { reply, card } = parseChatText(text, resp.stop_reason);
+  let { reply, card, note } = parseChatText(text, resp.stop_reason);
   let usage = usageFrom(resp.usage);
   let exampleCopy = false;
 
-  const voiceExamples = parseVoiceExamples(prompt.blocks['voice'] ?? '');
-  if (matchesVoiceExample(reply, voiceExamples)) {
-    exampleCopy = true;
+  // Один повторний виклик із guard-рядком у кінці репліки людини — спільний
+  // для example-guard і guard-а службових позначок.
+  const retryWith = async (line: string) => {
     const retryMessages = [
       ...(args.history ?? []),
-      { role: 'user' as const, content: `${args.text}\n\n${EXAMPLE_COPY_GUARD_LINE}` },
+      { role: 'user' as const, content: `${withAvoid(args.text, args.avoid)}\n\n${line}` },
     ];
     const retryResp = await withRetry(() => client.messages.create({ ...callOpts, messages: retryMessages }));
     const retryText = retryResp.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
-    ({ reply, card } = parseChatText(retryText, retryResp.stop_reason));
+    ({ reply, card, note } = parseChatText(retryText, retryResp.stop_reason));
     const retryUsage = usageFrom(retryResp.usage);
     usage = {
       input: usage.input + retryUsage.input,
@@ -578,17 +646,31 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       cached: (usage.cached ?? 0) + (retryUsage.cached ?? 0),
       cache_write: (usage.cache_write ?? 0) + (retryUsage.cache_write ?? 0),
     };
+  };
+
+  const voiceExamples = parseVoiceExamples(prompt.blocks['voice'] ?? '');
+  if (matchesVoiceExample(reply, voiceExamples)) {
+    exampleCopy = true;
+    await retryWith(EXAMPLE_COPY_GUARD_LINE);
+  }
+  let serviceMarkers = false;
+  if (hasServiceMarkers(reply)) {
+    serviceMarkers = true;
+    await retryWith(SERVICE_MARKER_GUARD_LINE);
+    if (hasServiceMarkers(reply)) reply = stripServiceMarkers(reply);
   }
 
   return {
     reply,
     card,
+    note,
     usage,
     meta: {
       promptVersion: prompt.version, model, mode: 'live',
       // A3: слід тексту, що реально поїхав (стабільний префікс).
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
       example_copy: exampleCopy,
+      service_markers: serviceMarkers,
     },
   };
 }
@@ -641,6 +723,10 @@ export async function callRecipe(args: {
   // Г-1: без цього recipe_gen НЕ БАЧИВ [ВИСНОВКИ З ГОТУВАННЯ] — щоденник
   // помилок лежав на кухні, а кухар писав рецепти в сусідній кімнаті.
   notes?: MemoryNote[];
+  // Раунд 4 (PROFILE_V2): замість [ПРОФІЛЬ]+[ВИСНОВКИ] — [ПРО ЛЮДИНУ]+[НОТАТКИ].
+  profileText?: ProfileText | null;
+  profileNotes?: ProfileNote[];
+  vetoIndex?: VetoRow[];
   products?: HouseholdProduct[];
   // Пул-4 №4б: recipe_gen сліпий до розмови — «Арборіо є?» → «Буде»
   // губилось між викликами. Хвіст діалогу їде в user-запит (НЕ в кеш).
@@ -656,13 +742,15 @@ export async function callRecipe(args: {
   // помилку. Переклад назад — детермінований; невідомий аліас → дроп p.
   const alias = buildAliasMap(args.pantry ?? []);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`)
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, args.profile, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`, args.vetoIndex)
     : '';
   // Кеш-межа: role+recipe-generator стабільні; профіль/комора/висновки — динаміка.
   const stable = compose('recipe_gen', prompt);
-  const dynamic = ctxSerializeProfile(args.profile)
+  const dynamic = (args.profileText
+      ? serializeProfileText(args.profileText, args.profileNotes ?? []) + serializeTraditionsV2(args.profile)
+      : ctxSerializeProfile(args.profile))
     + pantryBlock
-    + ctxSerializeNotes(args.notes ?? []);
+    + (args.profileText ? '' : ctxSerializeNotes(args.notes ?? []));
   const convBlock = args.conversation
     ? `\n\n[ОСТАННІ РЕПЛІКИ РОЗМОВИ — рішення з них уже ухвалені, не перепитуй]\n${args.conversation}`
     : '';

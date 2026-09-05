@@ -15,7 +15,10 @@
 
 import type { MemoryNote, RecipeRow } from '@kitchen/domain';
 
-export function recipeStaleByNotes(recipe: Pick<RecipeRow, 'title' | 'requested_title' | 'created_at'>, notes: MemoryNote[]): boolean {
+export function recipeStaleByNotes(
+  recipe: Pick<RecipeRow, 'title' | 'requested_title' | 'created_at'>,
+  notes: Pick<MemoryNote, 'created_at' | 'recipe_title'>[],
+): boolean {
   const made = new Date(recipe.created_at).getTime();
   const titles = [recipe.title, recipe.requested_title].filter((t): t is string => !!t).map((t) => t.trim().toLowerCase());
   return notes.some((n) => {

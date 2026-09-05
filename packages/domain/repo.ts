@@ -8,6 +8,9 @@ import type {
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
+import type {
+  ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
+} from './profile-text.js';
 import type { OccasionRow } from './occasion-data.js';
 
 export interface UserRow {
@@ -15,7 +18,14 @@ export interface UserRow {
   name: string;
   email: string;
   created_at: string;
+  /** Раунд 4, крок 6: тариф. Поки один — 'beta' (міграція 0024). */
+  plan: string;
+  /** Крок 7 (міграція 0025): бачив Семена; картку «Про тебе» вже видано. */
+  welcome_seen_at: string | null;
+  profile_onboarding_at: string | null;
 }
+
+export type UserStampField = 'welcome_seen_at' | 'profile_onboarding_at';
 
 export interface HouseholdRow {
   id: string;
@@ -48,9 +58,33 @@ export interface Repo {
   listProducts(household_id: string): Promise<HouseholdProduct[]>;
   updateProduct(id: string, patch: Partial<Omit<HouseholdProduct, 'id' | 'household_id' | 'created_at'>>): Promise<void>;
 
-  // Профіль
+  // Профіль (v1 — до кроку 9 раунду 4 живе поруч із v2)
   getProfile(user_id: string): Promise<Profile | null>;
   upsertProfile(p: Profile): Promise<void>;
+
+  // Раунд 4: профіль як сім речень (AUDIT-ROUND-4.md §2). Читається завжди
+  // повністю — сім полів, порожні як status:'empty', а не null: серіалізації
+  // й онбордингу потрібен стан КОЖНОГО поля, не лише заповнених.
+  getProfileText(user_id: string): Promise<ProfileText>;
+  // Текст обрізається по ліміту поля тут, на межі сховища — щоб UI, картка
+  // і міграція не могли записати довше, ніж дизайн дозволяє прочитати.
+  // {status:'none'} — «Нічого такого»; порожній текст — назад у 'empty'.
+  patchProfileField(
+    user_id: string, key: ProfileFieldKey, patch: { text: string } | { status: 'none' },
+  ): Promise<ProfileFieldValue>;
+
+  // Нотатки від асистента (і перенесені висновки людини). Людина видаляє —
+  // мʼяко, для «Повернути»; не редагує. Назви з префіксом Profile, бо
+  // listNotes/deleteNote вже зайняті memory_note і живуть до кроку 9.
+  listProfileNotes(user_id: string, opts?: { limit?: number; include_deleted?: boolean }): Promise<ProfileNote[]>;
+  addProfileNote(n: ProfileNote): Promise<void>;
+  deleteProfileNote(id: string): Promise<void>;
+  restoreProfileNote(id: string): Promise<void>;
+
+  // Похідний вето-індекс. Перебудовується цілком на поле — тому set, а не
+  // insert/delete поштучно; порядок рядків зберігається (як у тексті).
+  getVetoIndex(user_id: string): Promise<VetoRow[]>;
+  setVetoIndex(user_id: string, field: VetoField, rows: VetoRow[]): Promise<void>;
 
   // Їдці дому — без акаунтів
   insertEater(e: EaterRow): Promise<void>;
@@ -89,6 +123,8 @@ export interface Repo {
   // через addMember. Своєї комори гість не має за визначенням — це те, за що платить хазяїн.
   findUserByEmail(email: string): Promise<UserRow | null>;
   getUser(id: string): Promise<UserRow | null>;
+  // Крок 7: разові позначки на користувачі (Семен, картка «Про тебе»).
+  touchUser(user_id: string, field: UserStampField, at: string): Promise<void>;
   createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;
   createUserOnly(email: string, name: string): Promise<string>;
   firstHouseholdOf(user_id: string): Promise<string | null>;

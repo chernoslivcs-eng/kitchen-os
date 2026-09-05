@@ -41,7 +41,9 @@ describe('тост після застосування', () => {
   });
 
   it('профіль рахує ops, не items', () => {
-    expect(appliedToast({ type: 'profile', ops: [{}, {}, {}, {}, {}] })).toBe('5 позицій у коморі');
+    // Крок 4в (5): профіль — не комора; те саме для картки поля.
+    expect(appliedToast({ type: 'profile', ops: [{}, {}, {}, {}, {}] })).toBe('Записано в „Про тебе"');
+    expect(appliedToast({ type: 'profile', field: 'no', mode: 'append', text: 'кінзи' })).toBe('Записано в „Про тебе"');
   });
 
   it('рецепт називає страву, а не рахує позиції', () => {

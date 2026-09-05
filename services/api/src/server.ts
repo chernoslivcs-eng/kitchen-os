@@ -17,9 +17,11 @@ import { recipesRoutes } from './routes/recipes.js';
 import { shoppingRoutes } from './routes/shopping.js';
 import { eventsRoutes } from './routes/events.js';
 import { adminOccasionsRoutes } from './routes/admin-occasions.js';
-import { profileRoutes } from './routes/profile.js';
+import { profileRoutes, eaterRoutes } from './routes/profile.js';
+import { profileV2Routes } from './routes/profile-v2.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
+import { onboardingRoutes } from './routes/onboarding.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
@@ -34,6 +36,10 @@ export interface BuildAppOpts {
   };
   google?: GoogleAuthOpts;
   retail?: RetailOpts;
+  // Раунд 4: профіль як сім речень. Env PROFILE_V2=1; за замовчуванням вимкнено —
+  // тоді API поводиться рівно як до раунду. Вмикається на локальному стенді на
+  // кроці 5, на проді — на кроці 9.
+  profileV2?: boolean;
 }
 
 export function buildApp(
@@ -67,18 +73,23 @@ export function buildApp(
   shoppingRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   eventsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   adminOccasionsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
-  profileRoutes(app, repo);
-  recipesRoutes(app, repo);
+  const profileV2 = opts.profileV2 ?? process.env.PROFILE_V2 === '1';
+  if (profileV2) profileV2Routes(app, repo);
+  else profileRoutes(app, repo);
+  eaterRoutes(app, repo);
+  recipesRoutes(app, repo, { profileV2 });
   cookRunsRoutes(app, repo);
-  sessionRoutes(app, repo);
+  sessionRoutes(app, repo, { profileV2 });
+  if (profileV2) onboardingRoutes(app, repo);
   chatRoute(app, repo, store, {
     rateLimit: opts.rateLimits?.chat,
     retailCart: retail?.attemptBuildCart,
     retailSearch: retail?.attemptSearch,
     retailKarpaty: retail?.karpatyEnabled,
     retailCartExtend: retail?.attemptExtendCart,
+    profileV2,
   });
-  cardsRoutes(app, repo);
+  cardsRoutes(app, repo, { profileV2 });
   attachmentsRoutes(app, repo, store);
 
   // /health для uptime-probes. Легкий SELECT 1 для перевірки БД, метадані

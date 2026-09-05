@@ -7,11 +7,13 @@ import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
 import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurrence } from '../../api';
+import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurrence, type ProfileFieldV2 } from '../../api';
+import { OnboardingCard } from './OnboardingCard';
 // Аудит раунд 3, крок 2: підпис кнопки — з card-modes.ts, не окрема правда
 // на фронті. Субпуть, не '@kitchen/domain' — той тягне Repo/node:crypto,
 // а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
 import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
+import { PROFILE_FIELDS } from '@kitchen/domain/profile-fields';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
@@ -116,6 +118,12 @@ export interface CardProps {
   // PendingCard.selected[] це вміє давно, UI зʼявився з пост-кук списанням (№6).
   onApply?: (selected?: number[]) => void;
   onDismiss?: () => void;
+  // Раунд 4 §4: «Нічого такого» на картці поля `ban` — застосування зі status none.
+  onNone?: () => void;
+  // Крок 7: картка «Про тебе» — стан панелей і зворотні виклики.
+  profileFields?: Record<string, ProfileFieldV2> | null;
+  onProfilePatched?: () => void;
+  onSummary?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
   // Крок 4.2: назви незакреслених позицій списку покупок. Потрібні, щоб
@@ -792,7 +800,47 @@ export function ShoppingListCard({
 
 // ----- Profile -------------------------------------------------------------
 
-export function ProfileCard({ card, applied, applying, dismissed, undone, onApply, onDismiss }: CardProps) {
+export function ProfileCard(props: CardProps) {
+  if (props.card.field) return <ProfileFieldCard {...props} />;
+  return <ProfileOpsCard {...props} />;
+}
+
+// Раунд 4 §4: картка поля — рядок «Я не їм …» + «Записати». Застосована —
+// згорнутий рядок із міткою ЗАПИСАНО; пропущена — ПРОПУЩЕНО; для `ban`
+// замість «Пропустити» — «Нічого такого». Без ілюстрацій (онбординг — крок 7).
+function ProfileFieldCard({ card, applied, applying, dismissed, undone, onApply, onDismiss, onNone }: CardProps) {
+  const field = card.field!;
+  const lead = PROFILE_FIELDS[field].lead;
+  const text = (card.text ?? '').trim();
+  const closed = (applied && !undone) || dismissed;
+  const meta = dismissed ? 'ПРОПУЩЕНО' : applied && !undone ? 'ЗАПИСАНО' : null;
+  return (
+    <div className={stateClass(applied, undone)}>
+      <div className={styles.ops}>
+        <div className={styles.op} style={{ alignItems: 'baseline' }}>
+          <span className={styles['op-label']} style={{ lineHeight: 1.5 }}>
+            <span style={{ color: field === 'ban' ? 'var(--danger)' : 'var(--fg-muted)' }}>{lead}</span>{' '}
+            <span style={closed ? { color: 'var(--fg-muted)' } : undefined}>{text || '…'}</span>
+          </span>
+          {meta && (
+            <span className={styles['op-qty']} style={{ color: meta === 'ЗАПИСАНО' ? 'var(--accent)' : 'var(--fg-dim)' }}>{meta}</span>
+          )}
+        </div>
+      </div>
+      {!closed && !undone && onApply && (
+        <div className={styles['card-actions']}>
+          <Button variant="primary" onClick={() => onApply?.()} loading={applying} disabled={!text}>{CARD_BUTTON_LABEL.profile!}</Button>
+          {/* Крок 4в (6): «Нічого такого» — лише на онбординг-картці ban; звичайна — «Пропустити». */}
+          {field === 'ban' && card.onboarding
+            ? <Button variant="secondary" onClick={onNone} disabled={applying}>Нічого такого</Button>
+            : <Button variant="secondary" onClick={onDismiss} disabled={applying}>Пропустити</Button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProfileOpsCard({ card, applied, applying, dismissed, undone, onApply, onDismiss }: CardProps) {
   const items = (card.ops as ProfileItem[] | undefined ?? []);
   return (
     <div className={stateClass(applied, undone)}>
@@ -1438,6 +1486,13 @@ export function Card(props: CardProps) {
     case 'recipe':      return <RecipeCard {...props} />;
     case 'cook_photo':  return <CookPhotoCard {...props} />;
     case 'recipe_link': return <RecipeLinkCard {...props} />;
+    // Крок 7: картка «Про тебе» — сім панелей; стан — з profile_text (props).
+    case 'onboarding':  return (
+      <OnboardingCard
+        card={props.card} cardId={props.cardId}
+        profileFields={props.profileFields} onProfilePatched={props.onProfilePatched} onSummary={props.onSummary}
+      />
+    );
     default:            return null;
   }
 }
@@ -1459,6 +1514,8 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
     const n = appliedCount ?? (card.ops?.length ?? 0);
     return `${n} ${plural(n, ['подія в календарі', 'події в календарі', 'подій у календарі'])}`;
   }
+  // Крок 4в (5): профіль — не комора. Одна фраза для обох форм картки (поле і ops).
+  if (card.type === 'profile') return 'Записано в „Про тебе"';
   const count = appliedCount ?? (card.type === 'shopping' || card.type === 'proposal'
     ? (card.items?.length ?? 0)
     : (card.ops?.length ?? 0));
@@ -1479,6 +1536,8 @@ export function labelFor(
   if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
   // M13: кошик — теж не дія в нас: він уже зібраний у мережі, CTA веде назовні.
   if (type === 'cart') return { text: 'КОШИК · СІЛЬПО', tone: 'muted' };
+  // Крок 7: «Про тебе» — не дія, статусу немає.
+  if (type === 'onboarding') return { text: 'ПРО ТЕБЕ', tone: 'muted' };
   if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
   if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.

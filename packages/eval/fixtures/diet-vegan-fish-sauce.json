@@ -1,0 +1,21 @@
+{
+  "id": "diet-vegan-fish-sauce",
+  "description": "Раунд 4 §9: прихований інгредієнт. Веган («нічого тваринного») просить пад тай — рибний соус має не потрапити в ing; вето читає ВСІ інгредієнти, не назву страви. Пройдено, коли рецепт переживає вето.",
+  "call": "recipe_gen",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "no": "нічого тваринного" },
+  "pantry": [
+    {"id":"p1","label":"Рисова локшина","zone":"dry","v":400,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Тофу","zone":"fridge","v":300,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Арахіс","zone":"dry","v":150,"u":"g","state":"opened"},
+    {"id":"p4","label":"Лайм","zone":"fresh","v":2,"u":"pcs","state":"sealed"},
+    {"id":"p5","label":"Рибний соус","zone":"dry","v":200,"u":"ml","state":"opened"},
+    {"id":"p6","label":"Соєвий соус","zone":"dry","v":200,"u":"ml","state":"opened"}
+  ],
+  "request": "Пад тай",
+  "invariants": [
+    "recipe-returned",
+    "veto-survivors",
+    "no-alias-leak"
+  ]
+}

@@ -3,18 +3,36 @@
 // Ім'я з двокрапкою — параметричне: `topic-holds:плескавиц` → перевіряє входження підрядка.
 
 import type { Fixture } from './fixtures/index.js';
-import { applyMode, CARD_BUTTON_LABEL, type Card } from '@kitchen/domain';
+import { applyMode, CARD_BUTTON_LABEL, buildVetoIndex, vetoCard, vetoRecipe, stripVetoMentions, matchVeto, resolveRecipeLabels, normalizeNoteText, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
+
+// Індекс вето з фікстури: profile_text.no / .ban → buildVetoIndex (той самий
+// витяг, що PATCH /v1/profile/:key у проді).
+function vetoIndexOf(fx: Fixture): VetoRow[] {
+  const pt = fx.profile_text ?? {};
+  return [
+    ...(pt.no && pt.no !== 'none' ? buildVetoIndex('u1', 'no', pt.no) : []),
+    ...(pt.ban && pt.ban !== 'none' ? buildVetoIndex('u1', 'ban', pt.ban) : []),
+  ];
+}
 
 export interface ModelOutput {
   reply?: string;
   card?: any;
+  // Крок 8: нотатка асистента з відповіді (поле `note`).
+  note?: string | null;
   raw: string;
+  /** Динамічний блок системного промпту, який пішов у модель (для інваріантів на вхід, не на вихід). */
+  dynamic?: string;
 }
 
 export type Verdict = { pass: boolean; detail?: string };
 export type Invariant = (out: ModelOutput, fx: Fixture) => Verdict;
 
 const pass = (detail?: string): Verdict => ({ pass: true, detail });
+
+// Крок 4в (2): службові позначки, які модель бачить в історії/контексті й не
+// має переказувати в reply. Той самий список, що guard у model.ts.
+const SERVICE_MARKER_RE = /\[(?:картка:|рецепт у стрічці|НЕ ЗАСТОСОВАНО|ЗАСТОСОВАНО|ВІДХИЛЕНО|СКАСОВАНО|ПРО ЛЮДИНУ|КОМОРА|НОТАТКИ|ОСТАННІ ДІЇ|СЬОГОДНІ|СПИСОК ПОКУПОК|ДОМАШНІ|ТРАДИЦІЇ|СЕЗОН І СВЯТА|ТВОЇ ПЛАНИ|РЕЖИМ|МЕРЕЖІ|СЕРВЕР)/;
 
 // `\b` у JS — межа [A-Za-z0-9_]; кирилиця вся «поза словом», тож
 // /\bні\b/.test('ні') === false. Кілька інваріантів через це місяцями або
@@ -56,6 +74,145 @@ function countReceiptLines(source: string): number {
 }
 
 export const registry: Record<string, Invariant> = {
+  // Крок 8: нотатки асистента.
+  'note-null': (out) => (out.note ? fail(`note є: «${out.note}»`) : pass()),
+  // Крок 8: нотатка або відсутня, або її сервер і так відсіче як дубль
+  // наявних [НОТАТКИ] (acceptAssistantNote, norm_hash) — саме так у проді.
+  'note-null-or-duplicate': (out, fx) => {
+    if (!out.note) return pass('note null');
+    const existing = [
+      ...((fx.profile_notes ?? []) as { text?: string }[]).map((n) => n.text ?? ''),
+      ...((fx.notes ?? []) as { text?: string }[]).map((n) => n.text ?? ''),
+    ].map(normalizeNoteText);
+    return existing.includes(normalizeNoteText(out.note))
+      ? pass(`дубль наявної — сервер не запише: «${out.note}»`)
+      : fail(`нова нотатка там, де вже є: «${out.note}»`);
+  },
+  'reply-no-note-jargon': (out) => {
+    const hit = /нотатк|записав у нотат|запишу в нотат|записую в нотат/i.exec(String(out.reply ?? ''));
+    return hit ? fail(`службове слово в reply: «${hit[0]}»`) : pass();
+  },
+  // Крок 7 (3): резюме «Про тебе» (no-card — існуючий інваріант нижче).
+  'summary-order-ban-then-no': (out, fx) => {
+    const r = String(out.reply ?? '').toLowerCase();
+    const pt = (fx.profile_text ?? {}) as Record<string, string>;
+    const banAt = pt.ban ? r.indexOf(String(pt.ban).split(/[,;]/)[0]!.trim().toLowerCase().slice(0, 5)) : -1;
+    const noAt = pt.no ? r.indexOf(String(pt.no).split(/[,;]/)[0]!.trim().toLowerCase().replace(/ʼ/g, '').slice(0, 3)) : -1;
+    const noAt2 = pt.no ? r.replace(/ʼ|'/g, '').indexOf(String(pt.no).split(/[,;]/)[0]!.trim().toLowerCase().replace(/ʼ|'/g, '').slice(0, 3)) : -1;
+    const noPos = noAt >= 0 ? noAt : noAt2;
+    if (banAt < 0) return fail(`«не можна» (${pt.ban}) у резюме не згадано`);
+    if (noPos < 0) return fail(`«не їм» (${pt.no}) у резюме не згадано`);
+    return banAt < noPos ? pass(`ban@${banAt} < no@${noPos}`) : fail(`порядок: не їм (@${noPos}) раніше за не можна (@${banAt})`);
+  },
+  'summary-offers-pantry': (out) => {
+    const r = String(out.reply ?? '');
+    return /чек|фото|полиц|список|комор/i.test(r) ? pass() : fail(`без пропозиції почати з комори: «${r.slice(0, 160)}»`);
+  },
+  'summary-no-invented': (out, fx) => {
+    const r = String(out.reply ?? '').toLowerCase();
+    const pt = (fx.profile_text ?? {}) as Record<string, string>;
+    const bad: string[] = [];
+    if (!pt.ban && /алерг|не можна/.test(r)) bad.push('алергія/не можна');
+    if (!pt.no && /не їси|не їш|веган|мʼяс|м'яс/.test(r)) bad.push('не їм');
+    if (!pt.kit && /аерогриль|блендер|духовк|мультиварк/.test(r)) bad.push('техніка');
+    if (!pt.love && /любиш|тягне/.test(r)) bad.push('любить');
+    return bad.length ? fail(`вигадано: ${bad.join(', ')} — «${r.slice(0, 160)}»`) : pass();
+  },
+  // Крок 4в (2): у reply нема службових позначок історії/контексту.
+  'reply-no-service-markers': (out) => {
+    const hit = SERVICE_MARKER_RE.exec(String(out.reply ?? ''));
+    return hit ? fail(`службова позначка в reply: «${hit[0]}»`) : pass();
+  },
+  // Крок 4в (2): «я веган» → розгорнутий перелік, не слово.
+  'profile-text-expands-vegan': (out) => {
+    const c = out.card;
+    if (!c || c.type !== 'profile' || !c.field) return fail(`card.type=${c?.type ?? 'null'} — очікував картку поля`);
+    const t = String(c.text ?? '').toLowerCase();
+    const want = [/мʼяс|м'яс/, /риб/, /яєц|яйц/, /молоч/];
+    const missing = want.filter((re) => !re.test(t));
+    return missing.length ? fail(`text «${c.text}» не розгортає: бракує ${missing.length} з 4 груп`) : pass(c.text);
+  },
+  // Крок 4в (4): відповідь без зустрічного питання.
+  'reply-no-question': (out) => {
+    const r = String(out.reply ?? '');
+    return r.includes('?') ? fail(`питання в reply: «${r}»`) : pass();
+  },
+  // Крок 4в (1): reply одним реченням каже про «не їм» (людина просить сама).
+  'reply-mentions-no-eat': (out) => {
+    const r = String(out.reply ?? '');
+    return /не їси|не їш|не їсте|не їмо|не для тебе|якщо не собі/i.test(r) ? pass() : fail(`reply без згадки «не їси»: «${r.slice(0, 160)}»`);
+  },
+  // Раунд 4 §9, крок 4: вето по індексу з profile_text (no/ban). Перевірка
+  // «жодного мʼясного кандидата» — через саме вето, не через текст: пройдено,
+  // коли після вето лишився хоч один кандидат (модель або сама не запропонувала
+  // заборонене, або вето його зняло, а решта жива). detail — лог вето.
+  'veto-survivors': (out, fx) => {
+    const index = vetoIndexOf(fx);
+    if (!index.length) return fail('індекс порожній — profile_text без no/ban?');
+    const c = out.card;
+    if (c?.type === 'proposal') {
+      const userText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
+      const call = { card: JSON.parse(JSON.stringify(c)) as Card, reply: out.reply ?? '' };
+      const r = vetoCard(call, index, userText);
+      const log = r.rejected.map((x) => `${x.title} ← ${x.ingredient} [${x.rows.map((w) => `${w.field}:${w.kind}:${w.ref}`).join(', ')}]`);
+      if (r.emptied) return fail(`вето зняло всі кандидати: ${log.join('; ')}`);
+      return pass(r.rejected.length ? `вето зняло ${r.rejected.length}: ${log.join('; ')}` : 'вето не спрацювало — модель сама не пропонувала');
+    }
+    const rawRecipe = c?.recipe ?? (c && c.t && c.ing ? c : null);
+    if (rawRecipe) {
+      // Інгредієнт із комори — `p` без `n`; резолвимо назви по коморі
+      // фікстури, як прод по живій (resolveRecipeLabels), інакше «рибний
+      // соус» із комори невидимий для вето. Саме так фікстура впала вперше.
+      const recipe = resolveRecipeLabels(rawRecipe, (fx.pantry ?? []) as PantryBatch[]);
+      const hits = vetoRecipe(recipe, index);
+      return hits.length
+        ? fail(`рецепт зачепив індекс: ${hits.map((h) => `${h.ingredient} [${h.row.field}:${h.row.kind}:${h.row.ref}]`).join('; ')}`)
+        : pass(`${(recipe.ing ?? []).length} інгредієнтів чисті`);
+    }
+    return fail(`card.type=${c?.type ?? 'null'} — ні proposal, ні recipe`);
+  },
+  // Рядок з allergy=true: після серверної зачистки репліка не згадує алерген,
+  // якого людина сама не називала, і не порожня. Перевіряється результат
+  // конвеєра (як і veto-survivors), а не сира репліка: що саме вирізано —
+  // у detail, це сигнал про промпт, не провал продукту.
+  'veto-reply-clean': (out, fx) => {
+    const index = vetoIndexOf(fx);
+    const userText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
+    const call = { card: JSON.parse(JSON.stringify(out.card ?? null)) as Card | null, reply: out.reply ?? '' };
+    vetoCard(call, index, userText);
+    const r = stripVetoMentions(call, index, userText);
+    if (!(call.reply ?? '').trim() && !call.card) return fail('після вето й зачистки не лишилось ні картки, ні репліки');
+    if (matchVeto(call.reply ?? '', index.filter((x) => x.allergy)).length) return fail(`алерген лишився в репліці: «${call.reply}»`);
+    return pass(r.stripped.length ? `сервер вирізав ${r.stripped.length}: «${r.stripped[0]}»` : 'модель сама не згадала');
+  },
+  // meh — не вето, а нахил: мʼяка перевірка, більшість варіантів без мʼяса.
+  'mostly-meatless': (out) => {
+    const c = out.card;
+    if (c?.type !== 'proposal' || !Array.isArray(c.items)) return fail(`card.type=${c?.type ?? 'null'}`);
+    const meat = /мʼяс|м'яс|стейк|свинин|ялович|курк|куряч|курч|індич|бекон|ковбас|котлет|фарш|барани|телятин/i;
+    const meaty = c.items.filter((it: { title?: string; desc?: string; rescues?: string[] }) =>
+      meat.test([it.title, it.desc, ...(it.rescues ?? [])].join(' ')));
+    return meaty.length * 2 <= c.items.length
+      ? pass(`${c.items.length - meaty.length}/${c.items.length} без мʼяса`)
+      : fail(`мʼясних ${meaty.length}/${c.items.length}: ${meaty.map((m: { title: string }) => m.title).join(', ')}`);
+  },
+  // Раунд 4 §9 profile-verbatim: текст кожного заповненого поля стоїть у
+  // промті ДОСЛІВНО, після свого початку речення. Інваріант на ВХІД моделі:
+  // саме серіалізація, а не переказ, — обіцянка контракту.
+  'profile-verbatim': (out, fx) => {
+    const spec = (fx.profile_text ?? {}) as Record<string, string>;
+    const dyn = out.dynamic ?? '';
+    if (!dyn.includes('[ПРО ЛЮДИНУ — її власні слова]')) return fail('блоку [ПРО ЛЮДИНУ] у промті немає (PROFILE_V2 вимкнено?)');
+    const leads: Record<string, string> = {
+      name: 'Мене звати', no: 'Я не їм', ban: 'Мені не можна', love: 'Я люблю',
+      meh: 'Я не дуже люблю', kit: 'У мене на кухні є', when: 'Я зазвичай готую',
+    };
+    for (const [k, v] of Object.entries(spec)) {
+      const want = v === 'none' ? `${leads[k]} — нічого такого.` : `${leads[k]} ${v.replace(/\.+$/, '')}.`;
+      if (!dyn.includes(want)) return fail(`поле ${k}: у промті немає рядка «${want}»`);
+    }
+    return pass(`${Object.keys(spec).length} полів дослівно`);
+  },
   // Пул-4 №4б/в: генерація з хвостом розмови.
   'recipe-returned': (out) => {
     const c = out.card;
@@ -596,8 +753,8 @@ export const registry: Record<string, Invariant> = {
   // «натисни» — а воно легальне, коли назва кнопки за ним правдива
   // (CARD_BUTTON_LABEL, те саме, що рендерить cards.tsx). Забороняємо не
   // дію, а ВИГАДКУ: назву в лапках, якої немає в жодній картці, і два
-  // конкретні фантомні слова — «Застосувати»/«Записати» — таких кнопок
-  // не існує в жодному компоненті.
+  // конкретне фантомне слово — «Застосувати» — такої кнопки не існує в
+  // жодному компоненті («Записати» з раунду 4 — існує).
   'no-invented-buttons': (out) => {
     const reply = String(out.reply ?? '');
     // Апостроф — не сигнал: «Запам'ятати» і «Запамʼятати» — та сама кнопка,
@@ -612,7 +769,8 @@ export const registry: Record<string, Invariant> = {
     if (invented.length) {
       return fail(`вигадана назва кнопки в лапках: «${invented[0]}» — такої немає в CARD_BUTTON_LABEL`);
     }
-    const phantom = /застосувати|записати/i.exec(reply);
+    // Раунд 4: «Записати» — справжня кнопка картки профілю (CARD_BUTTON_LABEL).
+    const phantom = /застосувати/i.exec(reply);
     if (phantom) {
       return fail(`репліка називає неіснуючу кнопку: «${phantom[0]}»`);
     }
@@ -941,10 +1099,11 @@ export const registry: Record<string, Invariant> = {
     return pass();
   },
 
+  // Крок 9: число буває словами («Сто грамів») — це та сама правда з [КОМОРА].
   'pantry-truth-100': (out) => {
     const reply = String(out.reply ?? '');
-    if (/500/.test(reply)) return fail('назвала 500 г з історії — блок каже 100');
-    if (!/100/.test(reply)) return fail('не назвала 100 г із [КОМОРА]');
+    if (/500|п[ʼ']?ятсот|пів\s*кіл/i.test(reply)) return fail('назвала 500 г з історії — блок каже 100');
+    if (!/100|(?<![а-яіїєґ])сто(?![а-яіїєґ])/i.test(reply)) return fail('не назвала 100 г із [КОМОРА]');
     return pass();
   },
 
@@ -1110,18 +1269,17 @@ export const registry: Record<string, Invariant> = {
     return pass(`when=${JSON.stringify(when)} days=${days} kind=${String(add.kind ?? '')}`);
   },
 
-  // 1.2 (s42): уподобання після фідбеку — note, привʼязана до щойно
-  // готованої страви. Без картки воно зникає в тексті.
+  // 1.2 (s42): уподобання після фідбеку — нотатка, привʼязана до щойно
+  // готованої страви. Без запису воно зникає в тексті. Крок 8: нотатка іде
+  // полем `note` відповіді (не карткою kind:note), назва страви — в її тексті.
   'preference-note-with-recipe': (out) => {
-    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
-    if (!c || c.type !== 'profile') return fail(`card.type=${c?.type ?? 'null'} — очікував profile з kind:note (уподобання)`);
-    const note = (c.ops ?? []).find((o) => o.kind === 'note' && (o.op ?? 'add') === 'add');
-    if (!note) return fail(`ops: ${(c.ops ?? []).map((o) => o.kind).join(',')} — note немає`);
-    const recipe = String(note.recipe ?? note.recipe_title ?? '').toLowerCase();
-    if (!recipe.includes('феттучіне')) return fail(`note без recipe або з чужою стравою: «${recipe || '—'}»`);
-    const label = String(note.label ?? '').toLowerCase();
-    if (!/овоч|черрі|томат|шпинат|спарж/.test(label)) return fail(`label не про овочевий смак: «${label}»`);
-    return pass(`note «${label}» до «${recipe}»`);
+    const n = String(out.note ?? '').trim();
+    if (!n) return fail(`note null — reply: «${String(out.reply ?? '').slice(0, 120)}»`);
+    if (Array.from(n).length > 140) return fail(`note довша за 140: ${Array.from(n).length}`);
+    const lc = n.toLowerCase();
+    if (!lc.includes('феттучіне')) return fail(`note без назви щойно готованої страви: «${n}»`);
+    if (!/овоч|черрі|томат|шпинат|спарж/.test(lc)) return fail(`note не про овочевий смак: «${n}»`);
+    return pass(`note «${n}»`);
   },
 
   // s42: «які овочі додати — черрі, шпинат, спаржу?» замість діагнозу —
@@ -1154,6 +1312,48 @@ export const registry: Record<string, Invariant> = {
 // тобто перевірка була мертва з дня написання.
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
+
+  // Крок 8: note з фрагментом («note-present:сол»), ≤ 140 знаків.
+  if (base === 'note-present') {
+    return (out) => {
+      const n = out.note ?? '';
+      if (!n) return fail(`note null — reply: «${String(out.reply ?? '').slice(0, 120)}»`);
+      if (Array.from(n).length > 140) return fail(`note довша за 140: ${Array.from(n).length}`);
+      return n.toLowerCase().includes((arg ?? '').toLowerCase()) ? pass(n) : fail(`note без «${arg}»: «${n}»`);
+    };
+  }
+
+  // Крок 7 (3): кількість речень у резюме, «a-b».
+  if (base === 'summary-length') {
+    return (out) => {
+      const [lo, hi] = (arg ?? '1-5').split('-').map(Number);
+      const n = String(out.reply ?? '').split(/(?<=[.!?…])\s+/).filter((x) => x.trim()).length;
+      return n >= lo! && n <= hi! ? pass(`${n} речень`) : fail(`${n} речень, очікував ${lo}–${hi}`);
+    };
+  }
+
+  // Крок 4в (3): картка поля профілю з полем `arg` (no|meh|ban|…).
+  if (base === 'profile-field') {
+    return (out) => {
+      const c = out.card;
+      if (!c || c.type !== 'profile') return fail(`card.type=${c?.type ?? 'null'} — очікував profile`);
+      if (!c.field) return fail(`картка profile без field (ops: ${JSON.stringify(c.ops).slice(0, 80)})`);
+      return c.field === arg ? pass(`${c.field}: «${c.text}»`) : fail(`field=${c.field}, очікував ${arg}; text «${c.text}»`);
+    };
+  }
+
+  // Крок 4в (1): прямий запит виконано — картка (cook_go/proposal/recipe) про названу страву.
+  if (base === 'direct-request-honored') {
+    return (out) => {
+      const c = out.card;
+      const want = (arg ?? '').toLowerCase();
+      if (!c) return fail(`картки немає — reply: «${String(out.reply ?? '').slice(0, 120)}»`);
+      const hay = c.type === 'cook_go' ? String(c.title ?? '')
+        : c.type === 'proposal' ? (c.items ?? []).map((i: { title?: string }) => i.title ?? '').join(' ')
+        : c.type === 'recipe' ? String(c.recipe?.t ?? '') : '';
+      return hay.toLowerCase().includes(want) ? pass(`${c.type}: ${hay}`) : fail(`${c.type} без «${want}»: ${hay}`);
+    };
+  }
 
   // Пул-5 №6: згода на страву → cook_go з дослівною назвою (аргумент —
   // обов'язковий фрагмент title, і назви страви, і механіки: `cook-go-card:сковород`).

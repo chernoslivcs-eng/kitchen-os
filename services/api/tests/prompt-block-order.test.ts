@@ -22,7 +22,7 @@ const ORDER = [
   '- УКРАЇНСЬКА:',                          // tone-language
   'CARD варіанти:',                         // card-schemas
   'Правила:',                               // card-routing
-  '- `kind:"intent"`',                      // kitchen-policy
+  '- НОТАТКА — поле `note`',                // kitchen-policy (крок 8)
   'МАТРИЦЯ ПРОПОЗИЦІЙ',                     // proposal-flow
   'Ти — продукт із людським голосом',       // voice, крок 6д (735a572): додано останнім у chat.compose
 ];

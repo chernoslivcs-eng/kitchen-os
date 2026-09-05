@@ -49,6 +49,7 @@ for (const fx of fixtures) {
     usage: result.usage,
     reply: result.reply,
     card: result.card,
+    note: result.note ?? null,
     latencyMs: result.latencyMs,
     raw: result.raw,
     residualText,

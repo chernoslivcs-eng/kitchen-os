@@ -9,34 +9,21 @@ import { describe, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { makePool, migrate, PostgresRepo, seedCatalog, seedOccasions, type Pool } from '../index.js';
 import { describeRepoContract } from '@kitchen/domain/contract';
+import { pickBackend } from './backend.js';
 
 interface Ctx {
   pool: Pool;
   stop?: () => Promise<void>;
 }
 
-async function pickBackend(): Promise<Ctx | { skip: string }> {
-  const url = process.env.PG_TEST_URL;
-  if (url) {
-    const pool = makePool(url);
-    return { pool };
-  }
-  try {
-    const mod = await import('@testcontainers/postgresql');
-    const container = await new mod.PostgreSqlContainer('postgres:16-alpine')
-      .withDatabase('kitchen')
-      .withUsername('kitchen')
-      .withPassword('kitchen')
-      .start();
-    const pool = makePool(container.getConnectionUri());
-    return { pool, stop: async () => { await pool.end(); await container.stop(); } };
-  } catch (err) {
-    const msg = (err as Error).message ?? String(err);
-    return { skip: `Docker недоступний (${msg.slice(0, 80)}) і PG_TEST_URL не задано` };
-  }
+async function pickCtx(): Promise<Ctx | { skip: string }> {
+  const b = await pickBackend();
+  if ('skip' in b) return b;
+  const pool = makePool(b.url);
+  return { pool, stop: async () => { await pool.end(); await b.stop?.(); } };
 }
 
-const backend = await pickBackend();
+const backend = await pickCtx();
 
 if ('skip' in backend) {
   describe.skip(`PostgresRepo · ${backend.skip}`, () => {
@@ -56,7 +43,7 @@ if ('skip' in backend) {
   describeRepoContract('PostgresRepo', {
     async make() {
       // Чистимо між тестами й сіємо household + user під FK.
-      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, memory_note, message, session, cook_run, recipe, shopping_item, eater, household_member, profile, household_event, user_occasion_mute, household_occasion_catch, household, "user" RESTART IDENTITY CASCADE');
+      await pool.query('TRUNCATE household_invite, token_usage, auth_challenge, auth_session, attachment, card_pending, pantry_batch, household_product, memory_note, message, session, cook_run, recipe, shopping_item, eater, household_member, profile, profile_text, profile_note, veto_index, household_event, user_occasion_mute, household_occasion_catch, household, "user" RESTART IDENTITY CASCADE');
       const household_id = randomUUID();
       const user_id = randomUUID();
       // Другий учасник того самого дому — під приватність календаря. Справжній
@@ -70,8 +57,7 @@ if ('skip' in backend) {
       return { repo, household_id, user_id, other_user_id };
     },
     async teardown() {
-      if (stop) await stop();
-      else await pool.end();
+      await stop!();
     },
   });
 }

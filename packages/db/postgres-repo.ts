@@ -9,7 +9,7 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, UserRow, HouseholdRow, HouseholdMemberRow,
+  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField,
   PantryBatch, PendingCard, Profile, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
@@ -18,7 +18,9 @@ import type {
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule,
+  ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
 } from '@kitchen/domain';
+import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
@@ -97,6 +99,31 @@ function eaterRow(r: Row): EaterRow {
     wishes: (r.wishes as string[] | null) ?? [],
     antipatterns: (r.antipatterns as string[] | null) ?? [],
     created_at: new Date(r.created_at as string).toISOString(),
+  };
+}
+
+function profileNoteRow(r: Row): ProfileNote {
+  return {
+    id: r.id as string,
+    user_id: r.user_id as string,
+    subject: (r.subject as string | null) ?? null,
+    text: r.text as string,
+    source: r.source as ProfileNote['source'],
+    created_at: new Date(r.created_at as string).toISOString(),
+    deleted_at: r.deleted_at ? new Date(r.deleted_at as string).toISOString() : null,
+    norm_hash: r.norm_hash as string,
+  };
+}
+
+function vetoRow(r: Row): VetoRow {
+  return {
+    user_id: r.user_id as string,
+    field: r.field as VetoField,
+    kind: r.kind as VetoRow['kind'],
+    ref: (r.ref as string | null) ?? null,
+    label: r.label as string,
+    allergy: r.allergy as boolean,
+    subject: (r.subject as string | null) ?? null,
   };
 }
 
@@ -396,6 +423,104 @@ export class PostgresRepo implements Repo {
     );
   }
 
+  // ----- Раунд 4: профіль як сім речень ------------------------------------
+
+  async getProfileText(user_id: string): Promise<ProfileText> {
+    const p = emptyProfileText(user_id);
+    const { rows } = await this.pool.query(
+      'SELECT key, text, status, updated_at FROM profile_text WHERE user_id = $1',
+      [user_id],
+    );
+    for (const r of rows as Row[]) {
+      const key = r.key as ProfileFieldKey;
+      if (!(key in p.fields)) continue;
+      p.fields[key] = {
+        text: r.text as string,
+        status: r.status as ProfileFieldValue['status'],
+        updated_at: new Date(r.updated_at as string).toISOString(),
+      };
+    }
+    return p;
+  }
+
+  async patchProfileField(
+    user_id: string, key: ProfileFieldKey, patch: { text: string } | { status: 'none' },
+  ): Promise<ProfileFieldValue> {
+    const text = 'status' in patch ? '' : clampProfileText(key, patch.text);
+    const status: ProfileFieldValue['status'] = 'status' in patch ? 'none' : text ? 'filled' : 'empty';
+    const { rows } = await this.pool.query(
+      `INSERT INTO profile_text (user_id, key, text, status, updated_at)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (user_id, key) DO UPDATE SET
+         text = EXCLUDED.text, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at
+       RETURNING text, status, updated_at`,
+      [user_id, key, text, status, new Date().toISOString()],
+    );
+    const r = rows[0] as Row;
+    return {
+      text: r.text as string,
+      status: r.status as ProfileFieldValue['status'],
+      updated_at: new Date(r.updated_at as string).toISOString(),
+    };
+  }
+
+  async listProfileNotes(user_id: string, opts: { limit?: number; include_deleted?: boolean } = {}): Promise<ProfileNote[]> {
+    const { limit = NOTES_IN_PROMPT, include_deleted = false } = opts;
+    const { rows } = await this.pool.query(
+      `SELECT * FROM profile_note WHERE user_id = $1 ${include_deleted ? '' : 'AND deleted_at IS NULL'}
+       ORDER BY created_at DESC LIMIT $2`,
+      [user_id, limit],
+    );
+    return rows.map(profileNoteRow);
+  }
+
+  async addProfileNote(n: ProfileNote): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO profile_note (id, user_id, subject, text, source, created_at, deleted_at, norm_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [n.id, n.user_id, n.subject, n.text, n.source, n.created_at, n.deleted_at, n.norm_hash],
+    );
+  }
+
+  async deleteProfileNote(id: string): Promise<void> {
+    await this.pool.query('UPDATE profile_note SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL', [id]);
+  }
+
+  async restoreProfileNote(id: string): Promise<void> {
+    await this.pool.query('UPDATE profile_note SET deleted_at = NULL WHERE id = $1', [id]);
+  }
+
+  // Порядок як в InMemoryRepo: спершу `no`, потім `ban`; всередині — за id
+  // (bigserial = порядок вставки = порядок у тексті).
+  async getVetoIndex(user_id: string): Promise<VetoRow[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM veto_index WHERE user_id = $1 ORDER BY (field = 'ban'), id`,
+      [user_id],
+    );
+    return rows.map(vetoRow);
+  }
+
+  async setVetoIndex(user_id: string, field: VetoField, rows: VetoRow[]): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM veto_index WHERE user_id = $1 AND field = $2', [user_id, field]);
+      for (const r of rows) {
+        await client.query(
+          `INSERT INTO veto_index (user_id, field, kind, ref, label, allergy, subject)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [user_id, field, r.kind, r.ref, r.label, r.allergy, r.subject],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
   async insertEater(e: EaterRow): Promise<void> {
     await this.pool.query(
       `INSERT INTO eater (id, household_id, name, allergies, wishes, antipatterns, created_at)
@@ -596,6 +721,9 @@ export class PostgresRepo implements Repo {
       name: r.name,
       email: r.email,
       created_at: new Date(r.created_at).toISOString(),
+      plan: (r.plan as string | null) ?? 'beta',
+      welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
+      profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
     };
   }
 
@@ -640,7 +768,17 @@ export class PostgresRepo implements Repo {
     const { rows } = await this.pool.query('SELECT * FROM "user" WHERE id = $1', [id]);
     const r = rows[0];
     if (!r) return null;
-    return { id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString() };
+    return {
+      id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString(), plan: (r.plan as string | null) ?? 'beta',
+      welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
+      profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
+    };
+  }
+
+  async touchUser(user_id: string, field: UserStampField, at: string): Promise<void> {
+    // Назва колонки — з закритого union, не з запиту.
+    const col = field === 'welcome_seen_at' ? 'welcome_seen_at' : 'profile_onboarding_at';
+    await this.pool.query(`UPDATE "user" SET ${col} = $2 WHERE id = $1`, [user_id, at]);
   }
 
   async getHousehold(id: string): Promise<HouseholdRow | null> {

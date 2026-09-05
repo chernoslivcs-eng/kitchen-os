@@ -5,7 +5,7 @@ import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
 import { PantryPage } from './pages/Pantry/Pantry';
 import { ShoppingPage } from './pages/Shopping/Shopping';
-import { ProfilePage } from './pages/Profile/Profile';
+import { ProfileRoute } from './pages/Profile/ProfileRoute';
 import { RecipePage } from './pages/Recipe/Recipe';
 import { CookOverlay } from './pages/Cook/Cook';
 import { useCookStore } from './store/cook';
@@ -17,7 +17,7 @@ import { AdminOccasionsPage } from './pages/Admin/AdminOccasions';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
-import { OnboardingPage, onboardingSeen } from './pages/Onboarding/Onboarding';
+import { OnboardingPage, onboardingSeen, markSeenLocally } from './pages/Onboarding/Onboarding';
 import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
 import { ArtifactPanel } from './components/ArtifactPanel/ArtifactPanel';
@@ -37,9 +37,15 @@ function Shell() {
   // це знайомство, а не стан дому, тож нове місце (інший браузер) покаже
   // його ще раз, і це нормально. Глибокі лінки (/recipe/:id) не перехоплює.
   const navigate = useNavigate();
+  // Крок 7 (AUDIT-NEXT-STEPS): перевірка по акаунту — welcome_seen_at із /v1/me;
+  // localStorage — кеш, щоб не блимати до відповіді сервера. Новий акаунт у
+  // тому самому браузері Семена побачить, той самий акаунт на новому пристрої — ні.
+  const me = useAuth((s) => s.me);
   useEffect(() => {
-    if (pathname === '/app' && !onboardingSeen()) navigate('/welcome', { replace: true });
-  }, [pathname, navigate]);
+    if (pathname !== '/app' || !me) return;
+    if (me.user.welcome_seen_at) { markSeenLocally(); return; }
+    if (!onboardingSeen()) navigate('/welcome', { replace: true });
+  }, [pathname, navigate, me]);
   return (
     <>
       <div key={pathname} className="screen-view">
@@ -106,7 +112,7 @@ export function App() {
             <Route path="/app" element={<Feed />} />
             <Route path="/pantry" element={<PantryPage />} />
             <Route path="/list" element={<ShoppingPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile" element={<ProfileRoute />} />
             <Route path="/recipe" element={<RecipePage />} />
             {/* Р-3: стабільна адреса — рецепт більше не живе тільки в router state. */}
             <Route path="/recipe/:id" element={<RecipePage />} />

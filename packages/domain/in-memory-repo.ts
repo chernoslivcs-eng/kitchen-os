@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow } from './repo.js';
+import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField } from './repo.js';
 import type {
   PantryBatch, PendingCard, Profile, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
@@ -9,12 +9,20 @@ import type {
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
+import {
+  clampProfileText, emptyProfileText, NOTES_IN_PROMPT,
+  type ProfileText, type ProfileFieldKey, type ProfileFieldValue, type ProfileNote, type VetoRow, type VetoField,
+} from './profile-text.js';
 import { BUILTIN_OCCASIONS, adminRowToOccasion, type OccasionRow } from './occasion-data.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
   private profiles = new Map<string, Profile>();
   private notes = new Map<string, MemoryNote>();
+  // Раунд 4: сім речень, нотатки, вето — окремо від Profile v1 до кроку 9.
+  private profileTexts = new Map<string, ProfileText>();
+  private profileNotes = new Map<string, ProfileNote>();
+  private vetoRows: VetoRow[] = [];
   private eaters = new Map<string, EaterRow>();
   private pending = new Map<string, PendingCard>();
   private attachments = new Map<string, AttachmentRecord>();
@@ -163,6 +171,68 @@ export class InMemoryRepo implements Repo {
     this.profiles.set(p.user_id, { ...p });
   }
 
+  // ----- Раунд 4: профіль як сім речень ------------------------------------
+
+  async getProfileText(user_id: string): Promise<ProfileText> {
+    const cur = this.profileTexts.get(user_id) ?? emptyProfileText(user_id);
+    const fields = {} as ProfileText['fields'];
+    for (const k of Object.keys(cur.fields) as ProfileFieldKey[]) fields[k] = { ...cur.fields[k] };
+    return { user_id, fields };
+  }
+
+  async patchProfileField(
+    user_id: string, key: ProfileFieldKey, patch: { text: string } | { status: 'none' },
+  ): Promise<ProfileFieldValue> {
+    const cur = this.profileTexts.get(user_id) ?? emptyProfileText(user_id);
+    const next: ProfileFieldValue = 'status' in patch
+      ? { text: '', status: 'none', updated_at: new Date().toISOString() }
+      : (() => {
+          const text = clampProfileText(key, patch.text);
+          return { text, status: text ? 'filled' : 'empty', updated_at: new Date().toISOString() };
+        })();
+    cur.fields[key] = next;
+    this.profileTexts.set(user_id, cur);
+    return { ...next };
+  }
+
+  async listProfileNotes(user_id: string, opts: { limit?: number; include_deleted?: boolean } = {}): Promise<ProfileNote[]> {
+    const { limit = NOTES_IN_PROMPT, include_deleted = false } = opts;
+    return [...this.profileNotes.values()]
+      .filter((n) => n.user_id === user_id && (include_deleted || !n.deleted_at))
+      .reverse()
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, limit)
+      .map((n) => ({ ...n }));
+  }
+
+  async addProfileNote(n: ProfileNote): Promise<void> {
+    this.profileNotes.set(n.id, { ...n });
+  }
+
+  async deleteProfileNote(id: string): Promise<void> {
+    const n = this.profileNotes.get(id);
+    if (n && !n.deleted_at) n.deleted_at = new Date().toISOString();
+  }
+
+  async restoreProfileNote(id: string): Promise<void> {
+    const n = this.profileNotes.get(id);
+    if (n) n.deleted_at = null;
+  }
+
+  // Порядок: спершу `no`, потім `ban`; всередині поля — як у тексті (порядок
+  // вставки). Так само читає PostgresRepo (ORDER BY field='ban', id).
+  async getVetoIndex(user_id: string): Promise<VetoRow[]> {
+    return this.vetoRows
+      .filter((r) => r.user_id === user_id)
+      .sort((a, b) => Number(a.field === 'ban') - Number(b.field === 'ban'))
+      .map((r) => ({ ...r }));
+  }
+
+  async setVetoIndex(user_id: string, field: VetoField, rows: VetoRow[]): Promise<void> {
+    this.vetoRows = this.vetoRows.filter((r) => !(r.user_id === user_id && r.field === field));
+    for (const r of rows) this.vetoRows.push({ ...r, user_id, field });
+  }
+
   async savePending(pc: PendingCard): Promise<void> {
     this.pending.set(pc.id, { ...pc });
   }
@@ -233,6 +303,11 @@ export class InMemoryRepo implements Repo {
     return this.users.get(id) ?? null;
   }
 
+  async touchUser(user_id: string, field: UserStampField, at: string): Promise<void> {
+    const u = this.users.get(user_id);
+    if (u) u[field] = at;
+  }
+
   async getUser(id: string): Promise<UserRow | null> {
     const u = this.users.get(id);
     return u ? { ...u } : null;
@@ -244,7 +319,7 @@ export class InMemoryRepo implements Repo {
     const user_id = randomUUID();
     const household_id = randomUUID();
     const now = new Date().toISOString();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: now });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
     this.usersByEmail.set(key, user_id);
     this.households.set(household_id, { id: household_id, name: `Дім ${name}`, created_at: now });
     this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
@@ -255,7 +330,7 @@ export class InMemoryRepo implements Repo {
     const key = email.toLowerCase();
     if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
     const user_id = randomUUID();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString() });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
     this.usersByEmail.set(key, user_id);
     return user_id;
   }
@@ -447,6 +522,9 @@ export class InMemoryRepo implements Repo {
     this.users.delete(user_id);
     for (const [hash, s] of this.sessions) if (s.user_id === user_id) this.sessions.delete(hash);
     this.profiles.delete(user_id);
+    this.profileTexts.delete(user_id);
+    for (const [id, n] of this.profileNotes) if (n.user_id === user_id) this.profileNotes.delete(id);
+    this.vetoRows = this.vetoRows.filter((r) => r.user_id !== user_id);
   }
 
   async getMessage(id: string): Promise<MessageRow | null> {

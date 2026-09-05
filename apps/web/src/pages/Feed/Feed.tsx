@@ -3,13 +3,13 @@
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
-import { api, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
+import { api, isProfileV2, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
 import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff} from './artifacts';
 import { useAuth } from '../../store/auth';
@@ -122,6 +122,15 @@ export function Feed() {
     && (t.card.ops as { kind?: string }[]).every((o) => o.kind === 'tradition');
 
   const [turns, setTurns] = useState<Turn[]>([]);
+  // Крок 7: стан панелей картки «Про тебе» — з profile_text; перечитується
+  // після кожного запису (з картки, зі сторінки, з фрази в чаті).
+  const [profileFields, setProfileFields] = useState<Record<string, ProfileFieldV2> | null>(null);
+  const loadProfileFields = useCallback(async () => {
+    try {
+      const r = await api.profileAny();
+      if (isProfileV2(r)) setProfileFields(r.fields);
+    } catch { /* без прапора чи офлайн — картки й так нема */ }
+  }, []);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   // M13 (канвас М6): чи можна пропонувати «зібрати кошик» — мережа активна.
   // cartNudgeShown — раз за сесію стрічки, не на кожен доданий інгредієнт.
@@ -242,6 +251,24 @@ export function Feed() {
       text: `У списку ${count} ${plural(count, ['позиція', 'позиції', 'позицій'])}, Сільпо підключено. Зібрати кошик — гляну ціни й наявність?`,
       cartNudge: true, fresh: true,
     }]);
+  }
+
+  // Крок 7: «Показати, що вийшло» — серверний хід без репліки людини; модель
+  // переказує «Про тебе» у голосі й пропонує почати з комори.
+  const [summaryBusy, setSummaryBusy] = useState(false);
+  async function requestSummary() {
+    if (summaryBusy) return;
+    setSummaryBusy(true);
+    try {
+      const r = await api.chat({ session_id: sessionId ?? undefined, action: 'profile_summary' });
+      setTurns((prev) => [...prev, {
+        id: newId(), role: 'assistant',
+        time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+        text: r.reply, card: null, fresh: true,
+      }]);
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    } finally { setSummaryBusy(false); }
   }
 
   async function acceptCartNudge(turnId: string) {
@@ -499,6 +526,7 @@ export function Feed() {
         const { session, messages } = await api.session.today();
         activate(session.id, session.created_at);
         setTurns(messages.map((m) => messageToTurn(m)));
+        if (messages.some((m) => m.card?.type === 'onboarding')) void loadProfileFields();
       } catch {/* offline: залишаємо порожню стрічку */}
       // M13: тихий синк чеків при відкритті стрічки. Не частіше ніж раз на
       // 10 хв (sessionStorage), 409 «не підключено» — мовчазний no-op:
@@ -758,12 +786,33 @@ export function Feed() {
       }
       // Оновлюємо лічильники для комори/списку — profile тепер теж може змінити те, що показуємо
       await refreshCounts();
+      // Крок 7: фраза в чаті заповнила поле — панель картки «Про тебе» стає «записано».
+      if (turn.card?.type === 'profile') void loadProfileFields();
       setToast({
         id: Date.now(),
         kind: 'ok',
         text: turn.card ? appliedToast(turn.card, r.applied) : 'Готово',
         onUndo: () => undo(turnId, r.undo_token),
       });
+    } catch (err) {
+      setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    }
+  }
+
+  // Раунд 4 §4: «Нічого такого» на картці поля ban — застосування зі status
+  // none; картка вважається застосованою, undo є.
+  async function applyNone(turnId: string) {
+    const turn = turns.find((t) => t.id === turnId);
+    if (!turn?.cardId || turn.applying) return;
+    setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: true } : t));
+    try {
+      const r = await api.cards.apply(turn.cardId, undefined, { none: true });
+      setTurns((prev) => prev.map((t) => t.id === turnId
+        ? { ...t, applied: true, applying: false, undoToken: r.undo_token, justApplied: true }
+        : t,
+      ));
+      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', onUndo: () => undo(turnId, r.undo_token) });
     } catch (err) {
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -885,6 +934,7 @@ export function Feed() {
                 undoAvailable={!!a.turn.undoToken}
                 onApply={(selected) => apply(a.turn!.id, selected)}
                 onDismiss={() => dismissCard(a.turn!.id)}
+                onNone={() => applyNone(a.turn!.id)}
                 onUndo={a.turn.undoToken ? () => undo(a.turn!.id, a.turn!.undoToken!) : undefined}
                 shoppingLabels={shoppingLabels}
                 onNonfoodToList={addNonfoodToList}
@@ -1346,6 +1396,10 @@ export function Feed() {
                 undoAvailable={!!t.undoToken}
                 onApply={(selected) => apply(t.id, selected)}
                 onDismiss={() => dismissCard(t.id)}
+                onNone={() => applyNone(t.id)}
+                profileFields={profileFields}
+                onProfilePatched={() => void loadProfileFields()}
+                onSummary={() => void requestSummary()}
                 onUndo={t.undoToken ? () => undo(t.id, t.undoToken!) : undefined}
                 shoppingLabels={shoppingLabels}
                 onNonfoodToList={addNonfoodToList}

@@ -5,6 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
+import { recipeVetoHits } from '../veto.js';
 import { randomUUID } from 'node:crypto';
 import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
@@ -14,7 +15,12 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter } from '../rate-limit.js';
 
-export function recipesRoutes(app: FastifyInstance, repo: Repo) {
+export interface RecipesRouteOpts {
+  // Раунд 4: під прапором генерація читає [ПРО ЛЮДИНУ]+[НОТАТКИ] замість профілю v1.
+  profileV2?: boolean;
+}
+
+export function recipesRoutes(app: FastifyInstance, repo: Repo, opts: RecipesRouteOpts = {}) {
   // Публічний рецепт — без auth. Обмежуємо по IP щоб не могли скраулити всі UUID
   // (їх ~10^38 варіантів, але навіть спроба — це витрата ресурсів). 60/хв на IP
   // достатньо для реального юзера, замало для сканера.
@@ -60,7 +66,10 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
         && new Date(r.created_at).getTime() > dayAgo);
       // Ручний тест 04.09: нотатка, новіша за кешований рецепт, робить його
       // застарілим — інакше «менше вершків» ніколи не дійде до кроків.
-      if (same && !recipeStaleByNotes(same, await repo.listNotes(ctx.user_id, 20))) {
+      const staleNotes = opts.profileV2
+        ? (await repo.listProfileNotes(ctx.user_id)).map((n) => ({ created_at: n.created_at, recipe_title: null }))
+        : await repo.listNotes(ctx.user_id, 20);
+      if (same && !recipeStaleByNotes(same, staleNotes)) {
         return { id: same.id, recipe: same.payload, reused: true, meta: null, usage: null };
       }
     }
@@ -70,6 +79,9 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     const profile = await repo.getProfile(ctx.user_id);
     // Г-1: висновки людини йдуть у генерацію — «урок вбудовується в крок».
     const notes = await repo.listNotes(ctx.user_id, 20);
+    const profileText = opts.profileV2 ? await repo.getProfileText(ctx.user_id) : undefined;
+    const profileNotes = opts.profileV2 ? await repo.listProfileNotes(ctx.user_id) : undefined;
+    const vetoIndex = opts.profileV2 ? await repo.getVetoIndex(ctx.user_id) : undefined;
     // Пул-4 №4б: хвіст розмови в генерацію — «Буде» на «Арборіо є?» не
     // губиться між викликами. Кількості маскуються, як у чат-історії.
     let conversation: string | undefined;
@@ -88,12 +100,32 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
     let call: Awaited<ReturnType<typeof callRecipe>>;
     try {
-      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products, conversation });
+      call = await callRecipe({ title: title.trim(), context, pantry, profile, notes, products, conversation, profileText, profileNotes, vetoIndex });
     } catch (err) {
       req.log.error({ err }, 'recipe-model-call-failed');
       return reply.code(502).send({ error: 'model_unavailable' });
     }
     await recordUsage(repo, ctx, 'recipe_gen', call.meta, call.usage, started);
+
+    // Раунд 4, крок 4: вето по всіх інгредієнтах; дієтний збіг → одна
+    // перегенерація з «без …», алергійний — модель попереджає сама.
+    if (call.recipe && opts.profileV2 && vetoIndex) {
+      // З розвʼязаними назвами: `p` без `n` інакше невидимий для вето.
+      // Назва — те, що людина обрала/попросила: названі нею рядки не вето.
+      const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, ...e }, e.event), `${title} ${context ?? ''}`);
+      if (avoid.length) {
+        const again = await callRecipe({
+          title: title.trim(), pantry, profile, notes, products, conversation, profileText, profileNotes, vetoIndex,
+          context: [context, `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`].filter(Boolean).join('\n'),
+        });
+        await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, started);
+        if (again.recipe) {
+          const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, retry: true, ...e }, e.event), `${title} ${context ?? ''}`);
+          if (left.avoid.length) req.log.warn({ user_id: ctx.user_id, title, avoid: left.avoid }, 'veto-recipe-kept');
+          call = again;
+        }
+      }
+    }
 
     if (!call.recipe) {
       // QA4-06: раніше тут був 502, і людина бачила помилку там, де модель

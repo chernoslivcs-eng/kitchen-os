@@ -5,18 +5,42 @@
 
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { Repo, Recipe, RecipeLinkCard } from '@kitchen/domain';
+import type { Repo, Recipe, RecipeLinkCard, OnboardingCard } from '@kitchen/domain';
+import { ONBOARDING_GREETING, isProfileEmpty } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { localDay } from '../local-day.js';
 
-export function sessionRoutes(app: FastifyInstance, repo: Repo) {
+export interface SessionRouteOpts {
+  // Раунд 4, крок 7: картка «Про тебе» видається тільки під PROFILE_V2.
+  profileV2?: boolean;
+}
+
+export function sessionRoutes(app: FastifyInstance, repo: Repo, opts: SessionRouteOpts = {}) {
   app.get('/v1/session/today', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
     const session = await repo.getOrCreateSessionForDay(user_id, localDay());
     // П.8 pre-deploy: recipe_link несе повний рецепт у кожному повідомленні —
     // без кепа стара сесія важить мегабайти. 200 останніх вистачає будь-якому
     // екрану; глибша історія — окрема задача пагінації, якщо знадобиться.
-    const messages = (await repo.listMessages(session.id)).slice(-200);
+    let messages = (await repo.listMessages(session.id)).slice(-200);
+
+    // Крок 7 (§4 контракту): перша розмова, усі сім полів порожні, картка ще
+    // не видавалась → вітання + картка в одному повідомленні, без моделі.
+    // Позначка на користувачі — щоб рівно один раз, а не раз на сесію.
+    if (opts.profileV2) {
+      const user = await repo.getUser(user_id);
+      if (user && !user.profile_onboarding_at && isProfileEmpty(await repo.getProfileText(user_id))) {
+        const now = new Date().toISOString();
+        const message = {
+          id: randomUUID(), session_id: session.id, role: 'assistant' as const,
+          text: ONBOARDING_GREETING, card: { type: 'onboarding' } as OnboardingCard,
+          applied: 0, created_at: now,
+        };
+        await repo.saveMessage(message);
+        await repo.touchUser(user_id, 'profile_onboarding_at', now);
+        messages = [...messages, message];
+      }
+    }
     return { session, messages };
   });
 

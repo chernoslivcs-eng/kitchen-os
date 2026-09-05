@@ -1,0 +1,241 @@
+{
+  "promptVersion": "2026-08-28",
+  "createdAt": "2026-09-05T18:05:00.838Z",
+  "model": "(default)",
+  "runs": [
+    {
+      "id": "onboarding-summary",
+      "call": "chat",
+      "invariants": {
+        "no-card": {
+          "pass": true
+        },
+        "summary-order-ban-then-no": {
+          "pass": true,
+          "detail": "ban@21 < no@61"
+        },
+        "summary-offers-pantry": {
+          "pass": true
+        },
+        "summary-length:3-6": {
+          "pass": true,
+          "detail": "6 речень"
+        },
+        "reply-no-service-markers": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "33f374da4e1c",
+      "usage": {
+        "input": 1429,
+        "output": 185,
+        "cached": 0,
+        "cache_write": 21040
+      },
+      "reply": "Пилип, тобі не можна арахіс — це я памʼятаю першим. Ти не їси мʼяса й птиці. Любиш тайську кухню, помідори й супи. Зазвичай готуєш ввечері, на одного-двох, до години. У тебе є гриль і блендер — це розширює можливості.\n\nТепер варто заповнити комору: скинь чек, фото полиці або просто перелічи, що є — щоб було з чого готувати.",
+      "card": null,
+      "latencyMs": 5849,
+      "raw": "```json\n{\n  \"reply\": \"Пилип, тобі не можна арахіс — це я памʼятаю першим. Ти не їси мʼяса й птиці. Любиш тайську кухню, помідори й супи. Зазвичай готуєш ввечері, на одного-двох, до години. У тебе є гриль і блендер — це розширює можливості.\\n\\nТепер варто заповнити комору: скинь чек, фото полиці або просто перелічи, що є — щоб було з чого готувати.\",\n  \"card\": null,\n  \"note\": null\n}\n```",
+      "residualText": "",
+      "note": null
+    },
+    {
+      "id": "onboarding-summary-empty",
+      "call": "chat",
+      "invariants": {
+        "no-card": {
+          "pass": true
+        },
+        "summary-no-invented": {
+          "pass": true
+        },
+        "summary-offers-pantry": {
+          "pass": true
+        },
+        "summary-length:1-3": {
+          "pass": true,
+          "detail": "3 речень"
+        },
+        "reply-no-service-markers": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "33f374da4e1c",
+      "usage": {
+        "input": 1306,
+        "output": 132,
+        "cached": 21040,
+        "cache_write": 0
+      },
+      "reply": "Семене, привіт. Поки що я знаю тільки твоє імʼя — решту дізнаюся з часом, коли готуватимемо й говоритимемо про страви. Почнемо з комори: скинь чек після покупок, фото полиці або просто перелічи, що є — буде з чого готувати.",
+      "card": null,
+      "latencyMs": 4852,
+      "raw": "```json\n{\n  \"reply\": \"Семене, привіт. Поки що я знаю тільки твоє імʼя — решту дізнаюся з часом, коли готуватимемо й говоритимемо про страви. Почнемо з комори: скинь чек після покупок, фото полиці або просто перелічи, що є — буде з чого готувати.\",\n  \"card\": null,\n  \"note\": null\n}\n```",
+      "residualText": "",
+      "note": null
+    },
+    {
+      "id": "note-oversalted",
+      "call": "chat",
+      "invariants": {
+        "note-present:сол": {
+          "pass": true,
+          "detail": "Феттучіне з пармезаном — воду на пасту солити менше, пармезан сам солоний"
+        },
+        "no-card": {
+          "pass": true
+        },
+        "reply-no-note-jargon": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "33f374da4e1c",
+      "usage": {
+        "input": 1192,
+        "output": 150,
+        "cached": 21040,
+        "cache_write": 0
+      },
+      "reply": "Записав. Схоже, сіль склалась із пармезаном — він і сам солоний. Наступного разу воду солити менше, а досолювати вже в кінці, коли сир у соусі. Хоч якась користь від учорашньої пасти лишилась.",
+      "card": null,
+      "latencyMs": 4206,
+      "raw": "```json\n{\n  \"reply\": \"Записав. Схоже, сіль склалась із пармезаном — він і сам солоний. Наступного разу воду солити менше, а досолювати вже в кінці, коли сир у соусі. Хоч якась користь від учорашньої пасти лишилась.\",\n  \"card\": null,\n  \"note\": \"Феттучіне з пармезаном — воду на пасту солити менше, пармезан сам солоний\"\n}\n```",
+      "residualText": "",
+      "note": "Феттучіне з пармезаном — воду на пасту солити менше, пармезан сам солоний"
+    },
+    {
+      "id": "note-not-duplicate-profile",
+      "call": "chat",
+      "invariants": {
+        "profile-field:no": {
+          "pass": true,
+          "detail": "no: «мʼяса, птиці, риби»"
+        },
+        "note-null": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "33f374da4e1c",
+      "usage": {
+        "input": 1134,
+        "output": 105,
+        "cached": 21040,
+        "cache_write": 0
+      },
+      "reply": "Запишу. Тепер у тебе: не їм мʼяса, птиці, риби.",
+      "card": {
+        "type": "profile",
+        "field": "no",
+        "mode": "replace",
+        "text": "мʼяса, птиці, риби"
+      },
+      "latencyMs": 4295,
+      "raw": "```json\n{\n  \"reply\": \"Запишу. Тепер у тебе: не їм мʼяса, птиці, риби.\",\n  \"card\": {\n    \"type\": \"profile\",\n    \"field\": \"no\",\n    \"mode\": \"replace\",\n    \"text\": \"мʼяса, птиці, риби\"\n  },\n  \"note\": null\n}\n```",
+      "residualText": "",
+      "note": null
+    },
+    {
+      "id": "note-oven",
+      "call": "chat",
+      "invariants": {
+        "note-present:духовк": {
+          "pass": true,
+          "detail": "духовка гріє на +20°C проти шкали"
+        },
+        "reply-no-note-jargon": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "33f374da4e1c",
+      "usage": {
+        "input": 1158,
+        "output": 117,
+        "cached": 21040,
+        "cache_write": 0
+      },
+      "reply": "Записав. Значить, коли в рецепті 180 — ставиш 160, інакше все підгорить. Добре, що помітив — це не та річ, яку варто з'ясовувати через підгорілі крила.",
+      "card": null,
+      "latencyMs": 4952,
+      "raw": "```json\n{\n  \"reply\": \"Записав. Значить, коли в рецепті 180 — ставиш 160, інакше все підгорить. Добре, що помітив — це не та річ, яку варто з'ясовувати через підгорілі крила.\",\n  \"card\": null,\n  \"note\": \"духовка гріє на +20°C проти шкали\"\n}\n```",
+      "residualText": "",
+      "note": "духовка гріє на +20°C проти шкали"
+    },
+    {
+      "id": "intent-capture",
+      "call": "chat",
+      "invariants": {
+        "note-present:рол": {
+          "pass": true,
+          "detail": "хотів: в'єтнамські роли з рисового паперу з креветками"
+        },
+        "reply-no-note-jargon": {
+          "pass": true
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "33f374da4e1c",
+      "usage": {
+        "input": 1272,
+        "output": 116,
+        "cached": 21040,
+        "cache_write": 0
+      },
+      "reply": "Запам'ятаю. Рисовий папір у тебе вже є — коли дійде до справи, треба буде лише креветки, овочі й соус. Скажи, коли буде час.",
+      "card": null,
+      "latencyMs": 3981,
+      "raw": "```json\n{\n  \"reply\": \"Запам'ятаю. Рисовий папір у тебе вже є — коли дійде до справи, треба буде лише креветки, овочі й соус. Скажи, коли буде час.\",\n  \"card\": null,\n  \"note\": \"хотів: в'єтнамські роли з рисового паперу з креветками\"\n}\n```",
+      "residualText": "",
+      "note": "хотів: в'єтнамські роли з рисового паперу з креветками"
+    },
+    {
+      "id": "notes-no-duplicate",
+      "call": "chat",
+      "invariants": {
+        "no-duplicate-note-card": {
+          "pass": true,
+          "detail": "картки немає — правильно"
+        },
+        "note-null-or-duplicate": {
+          "pass": true,
+          "detail": "дубль наявної — сервер не запише: «фует знімати, щойно краї хрусткі»"
+        },
+        "no-markdown": {
+          "pass": true
+        },
+        "addresses-informally": {
+          "pass": true
+        }
+      },
+      "promptHash": "33f374da4e1c",
+      "usage": {
+        "input": 1192,
+        "output": 79,
+        "cached": 21040,
+        "cache_write": 0
+      },
+      "reply": "Записав. Фует знімати, щойно краї хрусткі — наступного разу не передержу.",
+      "card": null,
+      "latencyMs": 2905,
+      "raw": "```json\n{\n  \"reply\": \"Записав. Фует знімати, щойно краї хрусткі — наступного разу не передержу.\",\n  \"card\": null,\n  \"note\": \"фует знімати, щойно краї хрусткі\"\n}\n```",
+      "residualText": "",
+      "note": "фует знімати, щойно краї хрусткі"
+    }
+  ]
+}

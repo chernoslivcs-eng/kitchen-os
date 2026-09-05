@@ -9,6 +9,8 @@ import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitc
 import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
   buildAliasMap, serializePantry, serializeProfile, serializeNotes, extractJson,
+  serializeProfileText, serializeTraditionsV2, profileTextFromLegacy, profileNotesFromLegacy, emptyProfileText,
+  PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, fieldByVerb, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
 } from '@kitchen/domain';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
@@ -20,7 +22,43 @@ import type { ModelOutput } from './invariants.js';
 // TOKEN_AUDIT п.1: та сама кеш-межа, що в проді (model.ts cachedSystem) —
 // stable = складені правила, dynamic = контекст кухні. Розбіжність тут
 // означала б, що eval міряє інший конвеєр, ніж працює насправді.
-function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
+export const profileV2Enabled = () => process.env.PROFILE_V2 === '1';
+
+export function vetoIndexOfText(p: ProfileText): VetoRow[] {
+  const f = p.fields;
+  return [
+    ...(f.no.status === 'filled' ? buildVetoIndex('u1', 'no', f.no.text) : []),
+    ...(f.ban.status === 'filled' ? buildVetoIndex('u1', 'ban', f.ban.text) : []),
+  ];
+}
+
+// Крок 4б (b): прод перегенеровує пропозицію, коли вето зняло всі кандидати,
+// одним повторним викликом із «[СЕРВЕР] … без …». Eval робить те саме, щоб
+// фікстури не падали на тому, що прод робить правильно. Рядок — той самий
+// (withAvoid у services/api/src/model.ts), продубльований тут дослівно:
+// eval не імпортує api.
+const AVOID_LINE = (avoid: string[]) =>
+  `[СЕРВЕР] Попередню пропозицію знято — там було те, чого людина не їсть: ${avoid.join(', ')}. Запропонуй інше, без цього.`;
+
+/** Фікстура: { no: "мʼяса й птиці", ban: "none", … } → ProfileText. */
+export function profileTextFromFixture(spec: Record<string, string>): ProfileText {
+  const p = emptyProfileText('u1');
+  for (const k of PROFILE_FIELD_KEYS as readonly ProfileFieldKey[]) {
+    const v = spec[k];
+    if (v === undefined) continue;
+    p.fields[k] = v === 'none'
+      ? { text: '', status: 'none', updated_at: null }
+      : { text: v, status: 'filled', updated_at: null };
+  }
+  return p;
+}
+
+function legacyProfileOf(fx: Fixture): Profile | null {
+  const p = fx.profile as Partial<Profile> | undefined;
+  return p ? { user_id: 'u1', allergies: p.allergies ?? [], wishes: p.wishes ?? [], antipatterns: p.antipatterns ?? [], equipment: p.equipment ?? {}, traditions: p.traditions ?? null } : null;
+}
+
+export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
   const base = compose(call, prompt, { stage: fx.stage });
   if (call !== 'chat' && call !== 'recipe_gen') return { stable: base };
 
@@ -55,8 +93,24 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
         wishes: p.wishes ?? [],
         antipatterns: p.antipatterns ?? [],
         equipment: p.equipment ?? {},
+        traditions: p.traditions ?? null,
       }
     : null;
+  // Раунд 4: PROFILE_V2=1 — той самий прапор, що в проді. Фікстура з
+  // `profile_text` описує сім речень напряму; стара `profile` конвертується
+  // TS-двійником міграції 0023, `notes` — у нотатки (lesson як є, intent →
+  // «хотів: …»). Так один набір фікстур ганяється під обома прапорами.
+  const v2 = profileV2Enabled();
+  const profileText: ProfileText | undefined = v2
+    ? (fx.profile_text ? profileTextFromFixture(fx.profile_text) : profileTextFromLegacy(profile))
+    : undefined;
+  const profileNotes: ProfileNote[] | undefined = v2
+    ? (fx.profile_notes
+        ? (fx.profile_notes as ProfileNote[])
+        : profileNotesFromLegacy((fx.notes ?? []) as MemoryNote[]))
+    : undefined;
+  // Крок 4б: індекс — з no/ban (той самий витяг, що PATCH у проді) → ⚠ у [КОМОРА].
+  const vetoIndex: VetoRow[] | undefined = profileText ? vetoIndexOfText(profileText) : undefined;
 
   // recipe_gen дзеркалить прод callRecipe: профіль + [КОМОРА] з АЛІАСАМИ
   // p1..pN + [ВИСНОВКИ З ГОТУВАННЯ]. Не buildKitchenContext — у проді
@@ -64,9 +118,9 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
   if (call === 'recipe_gen') {
     const alias = buildAliasMap(pantry);
     const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
-    const dynamic = serializeProfile(profile)
-      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '')
-      + serializeNotes((fx.notes ?? []) as MemoryNote[]);
+    const dynamic = (profileText ? serializeProfileText(profileText, profileNotes ?? []) + serializeTraditionsV2(profile) : serializeProfile(profile))
+      + '\n\n[КОМОРА]\n' + serializePantry(pantry, profile, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '', vetoIndex)
+      + (profileText ? '' : serializeNotes((fx.notes ?? []) as MemoryNote[]));
     return { stable: base, dynamic };
   }
 
@@ -75,6 +129,9 @@ function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): 
   const dynamic = buildKitchenContext({
     pantry,
     profile,
+    profileText,
+    profileNotes,
+    vetoIndex,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
     notes: (fx.notes ?? []) as MemoryNote[],
     queryText: (fx.conversation ?? []).filter((m) => m.role === 'user').slice(-3).map((m) => m.content).join('\n'),
@@ -175,6 +232,9 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
 
 export interface RunResult extends ModelOutput {
   promptVersion: string;
+  // Крок 4б (b): чи був повторний виклик після порожнього вето; сира перша відповідь.
+  retried?: boolean;
+  firstRaw?: string;
   // A3: слід тексту стабільного префікса — знахідки привʼязуються до редакції.
   promptHash?: string;
   model: string;
@@ -223,7 +283,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       system: cachedSystem(system.stable, system.dynamic),
       messages: fixtureAsUserTurn(fx),
     });
-    const text = resp.content
+    let text = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
@@ -233,22 +293,54 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
     // в принципі: він шукав card, не знаходив, і клав уламок JSON у reply.
     // recipe_gen віддає голий JSON рецепта — загортаємо в card {type:'recipe'},
     // щоб інваріанти читали його тим самим шляхом, що продиктований рецепт.
-    const { reply, card } = call === 'attachment_parse'
-      ? parseAttachmentResponse(text)
+    let { reply, card, note } = call === 'attachment_parse'
+      ? { ...parseAttachmentResponse(text), note: null as string | null }
       : call === 'recipe_gen'
         ? (() => {
             const { parsed } = extractJson(text);
             const ok = parsed && typeof parsed === 'object' && 't' in parsed && 'ing' in parsed;
-            return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null };
+            return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null, note: null as string | null };
           })()
         : parseModelResponse(text);
+    // Крок 7 п. 0: та сама механіка, що в chat.ts — «не їм» → поле no.
+    if (call === 'chat' && card?.type === 'profile' && (card as { field?: string }).field) {
+      const lastUserText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
+      card = fieldByVerb(card as { field: ProfileFieldKey } & typeof card, lastUserText);
+    }
+    let retried = false;
+    let firstRaw = text;
+    if (call === 'chat' && profileV2Enabled() && card?.type === 'proposal') {
+      const probe = { card: JSON.parse(JSON.stringify(card)) as typeof card, reply };
+      const index = vetoIndexOfText(fx.profile_text ? profileTextFromFixture(fx.profile_text) : profileTextFromLegacy(legacyProfileOf(fx)));
+      const lastUser = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
+      const r = vetoCard(probe, index, lastUser);
+      if (r.emptied) {
+        retried = true;
+        const avoid = [...new Set(r.rejected.map((x) => x.title))];
+        const conv = fixtureAsUserTurn(fx);
+        const last = conv[conv.length - 1]!;
+        conv[conv.length - 1] = { ...last, content: `${last.content}\n\n${AVOID_LINE(avoid)}` };
+        const resp2 = await client.messages.create({
+          model, max_tokens: 4096, temperature: spec.temperature ?? 1,
+          system: cachedSystem(system.stable, system.dynamic), messages: conv,
+        });
+        const text2 = resp2.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n');
+        ({ reply, card, note } = parseModelResponse(text2));
+        firstRaw = text;
+        text = text2;
+      }
+    }
 
     return {
       raw: text,
       reply,
       card,
+      note,
       promptVersion: prompt.version,
       promptHash: hashPromptText(system.stable),
+      dynamic: system.dynamic,
+      retried,
+      firstRaw: retried ? firstRaw : undefined,
       model,
       call,
       usage: (() => {

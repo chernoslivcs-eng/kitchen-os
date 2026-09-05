@@ -71,6 +71,23 @@ export function profileRoutes(app: FastifyInstance, repo: Repo) {
     },
   );
 
+  app.delete<{ Params: { id: string } }>(
+    '/v1/notes/:id',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      const mine = await repo.listNotes(user_id, 200);
+      if (!mine.some((n) => n.id === req.params.id)) {
+        return reply.code(404).send({ error: 'not_found' });
+      }
+      await repo.deleteNote(req.params.id);
+      return reply.code(204).send();
+    },
+  );
+}
+
+// Їдці — раунд 5, не профіль v1: реєструються незалежно від PROFILE_V2.
+export function eaterRoutes(app: FastifyInstance, repo: Repo) {
   // Їдець живе в домі, тож право на видалення — членство в домі, не авторство.
   app.delete<{ Params: { id: string } }>(
     '/v1/eaters/:id',
@@ -82,20 +99,6 @@ export function profileRoutes(app: FastifyInstance, repo: Repo) {
         return reply.code(404).send({ error: 'not_found' });
       }
       await repo.deleteEater(req.params.id);
-      return reply.code(204).send();
-    },
-  );
-
-  app.delete<{ Params: { id: string } }>(
-    '/v1/notes/:id',
-    { preHandler: authenticated(repo) },
-    async (req, reply) => {
-      const { user_id } = requireUser(req);
-      const mine = await repo.listNotes(user_id, 200);
-      if (!mine.some((n) => n.id === req.params.id)) {
-        return reply.code(404).send({ error: 'not_found' });
-      }
-      await repo.deleteNote(req.params.id);
       return reply.code(204).send();
     },
   );

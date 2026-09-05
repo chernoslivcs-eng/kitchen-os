@@ -7,7 +7,7 @@
 // рівно та діра, через яку QA-4 знайшов «модель не бачить ні історії, ні
 // профілю» на 128 зелених тестах.
 
-import { applyModeFor, maskHistoryQuantities, CARD_BUTTON_LABEL, type Card, type MessageRow } from '@kitchen/domain';
+import { applyModeFor, maskHistoryQuantities, CARD_BUTTON_LABEL, isProfileFieldCard, PROFILE_FIELDS, type Card, type MessageRow } from '@kitchen/domain';
 
 export interface HistoryTurn {
   role: 'user' | 'assistant';
@@ -39,6 +39,12 @@ export function summarizeCard(c: Card): string {
     return '[картка: покупки] ' + (c.items ?? []).map((i) => `${i.op ?? 'add'} ${i.label}`).join(' · ');
   }
   if (c.type === 'profile') {
+    // Раунд 4 §4: картка поля — «записав у „Я не їм": …» (той самий рядок,
+    // що [ОСТАННІ ДІЇ]); ops-картка — як і була.
+    if (isProfileFieldCard(c)) {
+      const lead = PROFILE_FIELDS[c.field].lead;
+      return `[картка: профіль] записав у „${lead}": ${c.text?.trim() || (c.onboarding ? '(онбординг, поле порожнє)' : '')}`;
+    }
     return '[картка: профіль] ' + (c.ops ?? []).map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
   }
   // QA9-02: recipe_link в історії був безликим «[картка]» — модель не бачила,
@@ -52,6 +58,11 @@ export function summarizeCard(c: Card): string {
   }
   if (c.type === 'recipe_edit') {
     return `[картка: правка рецепта «${c.title}»]`;
+  }
+  // Крок 7: картку «Про тебе» видає сервер; модель має знати, що вона є, і
+  // не питати анкетою те, що людина заповнює сама.
+  if (c.type === 'onboarding') {
+    return '[картка: «Про тебе» — сім речень, людина заповнює сама в стрічці; про це не питай]';
   }
   return '[картка]';
 }

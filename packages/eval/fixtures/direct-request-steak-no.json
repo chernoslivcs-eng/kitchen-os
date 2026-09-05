@@ -1,0 +1,13 @@
+{
+  "id": "direct-request-steak-no",
+  "description": "Крок 4в (1): «Я не їм мʼяса», але людина САМА просить стейк — не відмова, а страва + одне речення попередження («ти не їси мʼяса — це якщо не собі»), без алергійної серйозності.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "no": "мʼяса" },
+  "pantry": [
+    {"id":"p1","label":"Стейк рібай","zone":"fridge","v":400,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Картопля","zone":"dry","v":1000,"u":"g","state":"sealed"}
+  ],
+  "conversation": [ { "role": "user", "content": "Зроби мені стейк" } ],
+  "invariants": [ "direct-request-honored:стейк", "reply-mentions-no-eat", "no-markdown" ]
+}

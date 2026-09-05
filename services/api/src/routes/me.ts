@@ -19,7 +19,7 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
     ]);
     if (!user || !household) return reply.code(404).send({ error: 'user or household missing' });
     return {
-      user: { id: user.id, name: user.name, email: user.email },
+      user: { id: user.id, name: user.name, email: user.email, plan: user.plan, welcome_seen_at: user.welcome_seen_at },
       household: {
         id: household.id,
         name: household.name,
@@ -34,6 +34,20 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
       session_id,
     };
   });
+
+  // Раунд 4, крок 7 (AUDIT-NEXT-STEPS): «бачив Семена» — на сервері, по
+  // акаунту; localStorage у клієнта — лише кеш.
+  app.patch<{ Body: { welcome_seen?: boolean } }>(
+    '/v1/me',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { user_id } = requireUser(req);
+      if (req.body?.welcome_seen !== true) return reply.code(400).send({ error: 'nothing_to_patch' });
+      const at = new Date().toISOString();
+      await repo.touchUser(user_id, 'welcome_seen_at', at);
+      return { welcome_seen_at: at };
+    },
+  );
 
   // Пул-5 №1: повне видалення акаунта. Опитувальник — до видалення (щоб мати
   // email), сам delete зносить доми-де-єдиний-член каскадами. 204 і мертва кука.

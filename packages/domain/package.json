@@ -8,7 +8,8 @@
   "exports": {
     ".": "./index.ts",
     "./contract": "./contract.ts",
-    "./card-modes": "./card-modes.ts"
+    "./card-modes": "./card-modes.ts",
+    "./profile-fields": "./profile-fields.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

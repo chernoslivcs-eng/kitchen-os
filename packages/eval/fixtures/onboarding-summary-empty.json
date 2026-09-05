@@ -1,0 +1,10 @@
+{
+  "id": "onboarding-summary-empty",
+  "description": "Крок 7 (3): резюме на майже порожньому профілі (одне поле) — коротко, без вигадок: жодних алергій, дієт чи техніки, яких людина не називала; пропозиція почати з комори лишається.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "name": "Семен" },
+  "pantry": [],
+  "conversation": [],
+  "invariants": [ "no-card", "summary-no-invented", "summary-offers-pantry", "summary-length:1-3", "reply-no-service-markers", "no-markdown" ]
+}

@@ -1,6 +1,7 @@
 // Доменні типи. Свідомо на TypeScript, а не на Zod: schema-валідація — окремий шар
 // на межі HTTP (services/api). Тут — чиста форма.
 
+import type { ProfileFieldKey, ProfileFieldValue } from './profile-text.js';
 import type { Rule, Tradition } from './occasion-rules.js';
 
 export type Zone = 'dry' | 'fridge' | 'freezer' | 'fresh' | 'spices' | 'drinks';
@@ -167,7 +168,10 @@ export interface EventCard {
 
 export type ProfileKind = 'allergy' | 'wish' | 'anti' | 'equip' | 'tradition' | 'note' | 'member' | 'intent';
 
-export interface ProfileCard {
+// Раунд 4 (AUDIT-ROUND-4.md §4): картка профілю — одне поле, один текст.
+// Ops-форма лишається для того, що не є текстом людини і має власне сховище:
+// традиції (календар), домашні (їдці), висновки/наміри (нотатки — до кроку 8).
+export interface ProfileOpsCard {
   type: 'profile';
   ops: {
     op: 'add' | 'remove';
@@ -177,6 +181,23 @@ export interface ProfileCard {
     // додаткові поля з 03-prompts.md залишаємо через індекс
     [k: string]: unknown;
   }[];
+}
+
+export interface ProfileFieldCard {
+  type: 'profile';
+  field: ProfileFieldKey;
+  /** append — дописати через «. »; replace — лише онбординг і явне «поправ: …». */
+  mode: 'append' | 'replace';
+  text: string;
+  /** Онбординг-картка: друга дія «Пропустити» (dismiss), для ban — «Нічого такого». */
+  onboarding?: boolean;
+  illustration?: string;
+}
+
+export type ProfileCard = ProfileOpsCard | ProfileFieldCard;
+
+export function isProfileFieldCard(card: Card | null | undefined): card is ProfileFieldCard {
+  return !!card && card.type === 'profile' && typeof (card as ProfileFieldCard).field === 'string';
 }
 
 export interface RecipeIng {
@@ -329,7 +350,15 @@ export interface RetailSearchGoCard {
   query: string;
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard;
+// Раунд 4, крок 7: картка «Про тебе» — сім панелей в одному повідомленні.
+// Стан панелей — з profile_text.status; тут лише пропуски («Пропустити»),
+// щоб перезавантаження їх не скидало. Видає сервер, модель її не повертає.
+export interface OnboardingCard {
+  type: 'onboarding';
+  skipped?: ProfileFieldKey[];
+}
+
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard | OnboardingCard;
 
 // ----- Стан «на застосуванні» ------
 
@@ -364,7 +393,10 @@ export interface UndoSnapshot {
     removed_shopping_items?: ShoppingItemRow[];
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     checked_shopping_ids?: string[];    // UX9-27: intake add відмітив куплене — undo знімає галочку
-    profile_before?: Profile;           // profile: повернути весь блок
+    profile_before?: Profile;           // profile v1: повернути весь блок
+    // Раунд 4: картка поля — повернути попереднє значення поля (текст і статус).
+    profile_field_before?: { field: ProfileFieldKey; value: ProfileFieldValue };
+    added_profile_note_ids?: string[];  // під PROFILE_V2 note/intent ідуть у profile_note
     added_note_ids?: string[];          // note: висновки лише додаються, тож undo — це видалення
     added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється
     added_eater_ids?: string[];         // member add: undo видаляє

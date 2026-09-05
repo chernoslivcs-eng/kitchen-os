@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm --filter @kitchen/db migrate && pnpm --filter @kitchen/db exec tsx scripts/seed-catalog.ts && pnpm --filter @kitchen/db exec tsx scripts/seed-occasions.ts && pnpm run build:vercel-fn && pnpm --filter @kitchen/web build",
+  "buildCommand": "bash scripts/vercel-build.sh",
   "outputDirectory": "apps/web/dist",
   "framework": null,
   "functions": {

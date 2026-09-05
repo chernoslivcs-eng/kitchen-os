@@ -1,0 +1,37 @@
+{
+  "promptVersion": "2026-08-28",
+  "createdAt": "2026-09-05T17:27:01.462Z",
+  "model": "(default)",
+  "runs": [
+    {
+      "id": "no-vs-meh-cilantro-no",
+      "call": "chat",
+      "invariants": {
+        "profile-field:no": {
+          "pass": true,
+          "detail": "no: «кінзи»"
+        },
+        "no-markdown": {
+          "pass": true
+        }
+      },
+      "promptHash": "72ad7007c9a0",
+      "usage": {
+        "input": 1137,
+        "output": 107,
+        "cached": 21098,
+        "cache_write": 0
+      },
+      "reply": "Записав кінзу в нелюбе — сам не пропонуватиму. Якщо колись передумаєш, скажи — приберу.",
+      "card": {
+        "type": "profile",
+        "field": "no",
+        "mode": "append",
+        "text": "кінзи"
+      },
+      "latencyMs": 4554,
+      "raw": "```json\n{\n  \"reply\": \"Записав кінзу в нелюбе — сам не пропонуватиму. Якщо колись передумаєш, скажи — приберу.\",\n  \"card\": {\n    \"type\": \"profile\",\n    \"field\": \"meh\",\n    \"mode\": \"append\",\n    \"text\": \"кінзи\"\n  }\n}\n```",
+      "residualText": ""
+    }
+  ]
+}

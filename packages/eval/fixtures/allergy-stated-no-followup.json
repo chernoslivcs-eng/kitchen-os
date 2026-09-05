@@ -1,0 +1,10 @@
+{
+  "id": "allergy-stated-no-followup",
+  "description": "Крок 4в (4): «у мене алергія на кунжут» — людина вже сказала «алергія»; картка `ban` і жодного «алергія чи непереносимість?». Уточнення — лише коли сказали «непереносимість».",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "no": "мʼяса, птиці", "ban": "арахіс" },
+  "pantry": [ {"id":"p1","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"} ],
+  "conversation": [ { "role": "user", "content": "У мене алергія на кунжут" } ],
+  "invariants": [ "profile-field:ban", "reply-no-question", "no-markdown" ]
+}

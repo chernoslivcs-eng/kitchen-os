@@ -53,6 +53,9 @@ export const CARD_APPLY_MODE: Record<Card['type'], ApplyMode> = {
   cart: 'none',
   cart_go: 'none',
   retail_search_go: 'none',
+  // Раунд 4, крок 7: онбординг «Про тебе» — дії всередині картки йдуть у
+  // PATCH /v1/profile/:key, applyCard тут нема чого робити.
+  onboarding: 'none',
 };
 
 export function applyMode(type: Card['type']): ApplyMode {
@@ -69,7 +72,9 @@ export function applyMode(type: Card['type']): ApplyMode {
 // Значення — буквально те, що між <Button> і </Button> у JSX; звідти й
 // апостроф прямий («Запам'ятати»), не типографський.
 export const CARD_BUTTON_LABEL: Record<Card['type'], string | null> = {
-  profile: "Запам'ятати",
+  // Раунд 4 §4: одна кнопка «Записати» для картки поля; ops-картки
+  // (традиції, домашні, нотатки) підписуються так само — одне джерело.
+  profile: 'Записати',
   recipe: 'У рецепти',
   cook_photo: 'У журнал',
 
@@ -83,6 +88,7 @@ export const CARD_BUTTON_LABEL: Record<Card['type'], string | null> = {
   cart: null,
   cart_go: null,
   retail_search_go: null,
+  onboarding: null,
 };
 
 /**
@@ -92,10 +98,11 @@ export const CARD_BUTTON_LABEL: Record<Card['type'], string | null> = {
  * той самий — undo, не картка з кнопками.
  */
 export function applyModeFor(card: Card): ApplyMode {
-  if (card.type === 'profile' && card.ops?.length && card.ops.every((o) => o.kind === 'tradition')) return 'auto';
+  if (isTraditionCard(card)) return 'auto';
   return applyMode(card.type);
 }
 
 export function isTraditionCard(card: Card | null | undefined): boolean {
-  return !!card && card.type === 'profile' && !!card.ops?.length && card.ops.every((o) => o.kind === 'tradition');
+  if (!card || card.type !== 'profile' || !('ops' in card)) return false;
+  return !!card.ops?.length && card.ops.every((o) => o.kind === 'tradition');
 }

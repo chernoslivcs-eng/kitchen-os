@@ -14,6 +14,9 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch, Profile, ShoppingItemRow, MemoryNote, EaterRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
 import { serializeOccasions, fastingActive, isFastingRestricted, traditionsOf } from './occasions.js';
+import { isProfileFieldCard } from './types.js';
+import { PROFILE_FIELDS, serializeProfileText, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
+import { matchVeto } from './veto.js';
 import type { Tradition } from './occasion-rules.js';
 
 const TRADITION_UA: Record<Tradition, string> = {
@@ -31,6 +34,14 @@ export interface RecentCookRunSummary {
 export interface KitchenContext {
   pantry: PantryBatch[];
   profile?: Profile | null;
+  // Раунд 4 (PROFILE_V2): сім речень і нотатки. Коли задано profileText —
+  // замість [ПРОФІЛЬ] іде [ПРО ЛЮДИНУ] + [НОТАТКИ] на тому самому місці, а
+  // [ВИСНОВКИ З ГОТУВАННЯ]/[НАМІРИ] не рендеряться (їх джерело переїхало).
+  // `profile` лишається для календаря (традиції) і алерген-вето до кроку 4.
+  profileText?: ProfileText | null;
+  profileNotes?: ProfileNote[];
+  // Крок 4б: індекс вето → ⚠-мітки в рядках [КОМОРА].
+  vetoIndex?: VetoRow[];
   shopping?: ShoppingItemRow[];
   recentCookRuns?: RecentCookRunSummary[];
   notes?: MemoryNote[];
@@ -119,6 +130,16 @@ export function serializeProfile(p?: Profile | null): string {
   return '\n\n[ПРОФІЛЬ]\n' + parts.join('\n');
 }
 
+// Раунд 4: під PROFILE_V2 блок [ПРО ЛЮДИНУ] — лише її слова. Традиції —
+// перемикач календаря (раунд 5 вирішить, де він живе), тож ідуть окремим
+// коротким блоком і лише коли людина їх обирала (масив, не null).
+export function serializeTraditionsV2(p?: Profile | null): string {
+  if (!p || !Array.isArray(p.traditions)) return '';
+  return p.traditions.length
+    ? '\n\n[ТРАДИЦІЇ] обрано в профілі: ' + p.traditions.map((t) => TRADITION_UA[t]).join(', ')
+    : '\n\n[ТРАДИЦІЇ] вимкнено в профілі — релігійних свят і постів не пропонуй і про календар не питай';
+}
+
 // Комора: id · назва · зона · кількість · стан. Термін догоряння як «!Nдн»,
 // щоб модель могла згадати про нього в репліці (бриф §04: інформація — репліка).
 //
@@ -182,9 +203,14 @@ export function serializePantry(
   // спагеті?» ніколи не впирається у сховану позицію. Тільки додає рядки,
   // ніколи не віднімає — класу «не поклали потрібне» тут не буває.
   queryText = '',
+  // Раунд 4, крок 4б: під PROFILE_V2 межа власника — veto_index (категорія
+  // чи продукт позиції збігається з рядком індексу), а не allergies v1.
+  // Рядки з allergy=true дають ту саму ⚠АЛЕРГЕН, решта — ⚠НЕ ЇСТЬ. Алергії
+  // їдців лишаються старим механізмом (раунд 5).
+  vetoIndex?: VetoRow[],
 ): string {
   const allergens = [
-    ...(p?.allergies ?? []).map((a) => ({ label: a, who: '' })),
+    ...(vetoIndex ? [] : (p?.allergies ?? []).map((a) => ({ label: a, who: '' }))),
     ...eaters.flatMap((e) => e.allergies.map((a) => ({ label: a, who: ` в ${e.name}` }))),
   ]
     .filter((a) => a.label)
@@ -207,6 +233,15 @@ export function serializePantry(
         words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w))
         || tagRoots.some((t) => t === a.root || t.startsWith(a.root) || a.root.startsWith(t)))
       .map((a) => a.label + a.who);
+    // Індекс: за назвою партії й за позицією каталогу продукту (категорії
+    // ієрархії — «стейк рібай» → яловичина → мʼясо).
+    const vetoHits = vetoIndex?.length
+      ? matchVeto(b.label, vetoIndex).concat(
+          prod?.catalog_key ? matchVeto(BY_KEY.get(prod.catalog_key)?.name ?? '', vetoIndex) : [],
+        ).filter((r, i, arr) => arr.findIndex((x) => x.kind === r.kind && x.ref === r.ref) === i)
+      : [];
+    for (const r of vetoHits.filter((r) => r.allergy)) if (!hit.includes(r.ref!)) hit.push(r.ref!);
+    const noEat = vetoHits.filter((r) => !r.allergy).map((r) => r.ref!);
     const fastHit = fasting && (isFastingRestricted(b.label) || prod?.tags.fasting === true);
     const days = b.expires_at
       ? Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000)
@@ -219,8 +254,8 @@ export function serializePantry(
       : null;
     const ageDays = Math.floor((now - new Date(b.added_at).getTime()) / 86_400_000);
     return {
-      b, hit, fastHit, days, approxDays, ageDays,
-      marked: hit.length > 0 || fastHit,
+      b, hit, noEat, fastHit, days, approxDays, ageDays,
+      marked: hit.length > 0 || noEat.length > 0 || fastHit,
       urgent: b.state === 'opened' || (days != null && days <= 7) || (approxDays != null && approxDays <= 3),
     };
   });
@@ -263,7 +298,7 @@ export function serializePantry(
     hidden = scored.length - shown.length;
   }
 
-  const rows = shown.map(({ b, hit, fastHit, days, approxDays, ageDays }) => {
+  const rows = shown.map(({ b, hit, noEat, fastHit, days, approxDays, ageDays }) => {
     const shownId = ids === 'uuid' ? b.id : ids === 'none' ? null : (ids.get(b.id) ?? null);
     const parts = [...(shownId ? [shownId] : []), b.label, b.zone];
     if (b.value && b.unit) parts.push(`${b.value}${b.unit}`);
@@ -288,6 +323,9 @@ export function serializePantry(
     // «...теж є, але не беру» — теж пропозиція: людина щойно прочитала
     // спокусу. Тому «не згадуй ВЗАГАЛІ», а не лише «не пропонуй».
     if (hit.length) parts.push(`⚠АЛЕРГЕН (${hit.join(', ')}) — сам не пропонуй і НЕ ЗГАДУЙ цю позицію взагалі (навіть «є, але не беру»); просять прямо — дай і назви алергію першою фразою reply`);
+    // Раунд 4 §5: без прапорця алергії — просто не пропонувати, без
+    // попереджень і без згадки; на пряму просьбу — дати без коментарів.
+    else if (noEat.length) parts.push(`⚠НЕ ЇСТЬ (${noEat.join(', ')}) — сам не пропонуй і не згадуй цю позицію; просять прямо — дай, без попереджень`);
     // Третій flap calendar-lent: правило посту в середині контексту модель
     // ігнорувала і «рятувала» фарш тефтелями. Мітка в рядку партії — той
     // самий механізм, що двічі рятував з алергенами.
@@ -444,6 +482,9 @@ function relativeWhen(atMs: number, nowMs: number): string {
 // анти/алергій. Решта — пряме дзеркало Card['type'].
 function humanCardType(card: Card): string {
   if (card.type === 'profile') {
+    if (isProfileFieldCard(card)) {
+      return card.onboarding && !card.text.trim() ? `онбординг „${PROFILE_FIELDS[card.field].lead}"` : `записав у „${PROFILE_FIELDS[card.field].lead}"`;
+    }
     const ops = (card.ops ?? []) as { kind?: string }[];
     if (ops.length && ops.every((o) => o.kind === 'note')) return 'нотатка';
     return 'профіль';
@@ -463,7 +504,10 @@ function humanCardType(card: Card): string {
 function cardContentNames(card: Card): string[] {
   if (card.type === 'intake_diff') return card.ops.map((o) => o.label).filter(Boolean);
   if (card.type === 'shopping') return card.items.map((i) => i.label).filter(Boolean);
-  if (card.type === 'profile') return card.ops.map((o) => o.label).filter(Boolean);
+  if (card.type === 'profile') {
+    if (isProfileFieldCard(card)) return card.text.trim() ? [card.text.trim()] : [];
+    return (card.ops ?? []).map((o) => o.label).filter(Boolean);
+  }
   if (card.type === 'event') return card.ops.map((o) => o.title ?? '').filter(Boolean);
   if (card.type === 'recipe') return card.recipe?.t ? [card.recipe.t] : [];
   if (card.type === 'cook_photo') return card.recipe_title ? [card.recipe_title] : [];
@@ -486,8 +530,13 @@ export function renderRecentActions(cards: PendingCard[], now: Date): string {
       pc.dismissed_at ? new Date(pc.dismissed_at).getTime() : -Infinity,
     );
     const result = pc.dismissed_at ? 'відхилено' : pc.undone_at ? 'скасовано' : 'застосовано';
-    const type = humanCardType(pc.card);
-    const content = joinNames(cardContentNames(pc.card));
+    let type = humanCardType(pc.card);
+    let content = joinNames(cardContentNames(pc.card));
+    // Картка поля, застосована без тексту — це «Нічого такого» (лише ban).
+    if (isProfileFieldCard(pc.card) && pc.applied_at && !pc.card.text.trim()) {
+      type = `записав у „${PROFILE_FIELDS[pc.card.field].lead}"`;
+      content = 'нічого такого';
+    }
     return `• ${relativeWhen(resolvedMs, nowMs)} · ${type}${content ? `: ${content}` : ''} — ${result}`;
   });
   return '\n\n[ОСТАННІ ДІЇ] (поза цією розмовою, 2 дні. Застосоване — вже в даних вище, не записуй знову; '
@@ -503,7 +552,8 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n'
       + ctx.recentCookRuns.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
     : '\n\n[ОСТАННІ ГОТУВАННЯ] порожньо — жодного завершеного готування ще немає.';
-  return serializeProfile(ctx.profile)
+  const v2 = !!ctx.profileText;
+  return (v2 ? serializeProfileText(ctx.profileText!, ctx.profileNotes ?? []) + serializeTraditionsV2(ctx.profile) : serializeProfile(ctx.profile))
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.
@@ -516,10 +566,10 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
     // самому блоці — той самий механізм, що рятував з алергенами й постом.
     + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування. «~строк≈» — приблизна оцінка від відкриття: згадуй мʼяко — «варто передивитись», точні дні називай лише для «!Nдн». «?рід» — записано родовим словом, конкретний продукт невідомий: коли доходить до страви, доречно спитати ОДНИМ реченням, що це саме — але тільки якщо ти цього ще не питав у цій розмові. «?домисл.N%» — кількість або сама позиція домислена з розбору, не сказана людиною: не подавай її як точний факт («десь», «приблизно»), а коли вона стає важливою для страви чи покупки — уточни одним реченням; без мітки — не сумнівайся, число точне)\n'
-    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? [], undefined, traditionsOf(ctx.profile)), 'none', 120, ctx.products ?? [], ctx.queryText ?? '')
+    + serializePantry(ctx.pantry, ctx.profile, now.getTime(), ctx.eaters ?? [], fastingActive(now, ctx.profile?.wishes ?? [], undefined, traditionsOf(ctx.profile)), 'none', 120, ctx.products ?? [], ctx.queryText ?? '', ctx.vetoIndex)
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
-    + serializeNotes(ctx.notes ?? [], ctx.notesTruncated)
+    + (v2 ? '' : serializeNotes(ctx.notes ?? [], ctx.notesTruncated))
     + renderRecentActions(ctx.recentActions ?? [], now)
     + serializeEaters(ctx.eaters ?? [])
     + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
