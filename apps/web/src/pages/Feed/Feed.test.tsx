@@ -5,7 +5,8 @@
 //       у модулі, тож медіа-правило колонки 720 більше не програє інлайну;
 //   №2 вкладення видно в надісланій репліці;
 //   №3 очікування має час, а після 45 с — другий рядок;
-//   №4 «Стоп» рве виклик і не додає картку.
+//   №4 «Стоп» рве виклик і не додає картку;
+//   №5 поле не гасне, репліки стають у чергу — послідовно, глибина 3.
 //
 // CSS-модулі у vitest резолвляться в порожній обʼєкт, тому перевіряються не
 // імена класів (їх у DOM просто не буде), а те, що ЛАМАЛОСЬ: інлайн-стилі,
@@ -177,5 +178,63 @@ describe('№4 «Стоп»', () => {
     expect(q('[data-aborted]')?.textContent).toBe('зупинив');
     expect(host!.textContent).not.toContain('ось відповідь');
     expect(stopBtn()).toBeNull();
+  });
+});
+
+describe('№5 черга', () => {
+  it('три репліки поспіль — три виклики послідовно, порядок збережений', async () => {
+    await mount();
+    await type('перша'); await submit();
+    await type('друга'); await submit();
+    await type('третя'); await submit();
+
+    // Паралельних викликів немає: другий стартує лише коли перший завершився.
+    expect(chatCalls).toHaveLength(1);
+    expect(qa('[data-queued]')).toHaveLength(2);
+
+    await act(async () => {
+      waiting[0]!.resolve({ reply: 'р1', card: null, card_id: null });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(chatCalls).toHaveLength(2);
+    await act(async () => {
+      waiting[1]!.resolve({ reply: 'р2', card: null, card_id: null });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(chatCalls).toHaveLength(3);
+    expect(chatCalls.map((c) => c.body.text)).toEqual(['перша', 'друга', 'третя']);
+  });
+
+  it('поле й скріпка не гаснуть під час думання', async () => {
+    await mount();
+    await type('перша'); await submit();
+    expect(textarea().disabled).toBe(false);
+    expect(q<HTMLButtonElement>('button[aria-label="Додати вкладення"]')!.disabled).toBe(false);
+  });
+
+  it('глибина черги 3: наступна репліка блокована — «дай відповісти»', async () => {
+    await mount();
+    // Перша поїхала в модель, три стали в чергу — стеля.
+    for (const t of ['перша', 'друга', 'третя', 'четверта']) { await type(t); await submit(); }
+    expect(qa('[data-queued]')).toHaveLength(3);
+
+    await type('пʼята');
+    expect(sendBtn().disabled).toBe(true);
+    expect(sendBtn().title).toBe('дай відповісти');
+    await submit();
+    expect(qa('[data-queued]')).toHaveLength(3);
+    expect(chatCalls).toHaveLength(1);
+  });
+
+  it('«Стоп» знімає і поточний хід, і те, що чекає', async () => {
+    await mount();
+    await type('перша'); await submit();
+    await type('друга'); await submit();
+
+    await act(async () => { stopBtn()!.click(); });
+    expect(qa('[data-aborted]')).toHaveLength(2);
+    expect(qa('[data-queued]')).toHaveLength(0);
+    // Черга не поїхала далі: другий виклик так і не стартував.
+    expect(chatCalls).toHaveLength(1);
   });
 });

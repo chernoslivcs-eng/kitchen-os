@@ -38,6 +38,18 @@ function splitPhrases(text: string): string[] {
   return parts.length ? parts : [text];
 }
 
+// Пул-9 №5: скільки реплік можна поставити в чергу, поки модель відповідає.
+// Три — стеля, за якою розмова перестає бути розмовою: далі кнопка відправки
+// гасне з підказкою «дай відповісти».
+const QUEUE_MAX = 3;
+
+// Пул-9 №5: репліка, що вже стоїть у стрічці, але чекає свого виклику.
+interface QueuedTurn {
+  turnId: string;
+  text: string;
+  attachments: TurnAttachment[];
+}
+
 interface Toast {
   id: number;
   kind: 'ok' | 'err';
@@ -109,6 +121,12 @@ export function Feed() {
     return () => window.clearInterval(id);
   }, [waitStartedAt]);
 
+  // Пул-9 №5: черга реплік. Послідовна за визначенням — паралельні виклики
+  // дали б моделі застарілий стан комори й карток. Глибина 3: далі кнопка
+  // відправки блокується.
+  const [queue, setQueue] = useState<QueuedTurn[]>([]);
+  const queueRef = useRef<QueuedTurn[]>([]);
+  queueRef.current = queue;
   // Хід, який ЗАРАЗ у моделі — щоб «Стоп» позначив саме його.
   const currentTurnId = useRef<string | null>(null);
   const [pantryCount, setPantryCount] = useState<number | null>(null);
@@ -343,7 +361,10 @@ export function Feed() {
         text: `Кошик у Сільпо: знайшов ${r.card.found} з ${r.card.of}`,
         card: r.card, cardId: r.card_id, fresh: true,
       }]);
-      panel.setActive('cart');
+      // Пул-9 №6: раніше тут стояло `panel.setActive('cart')` — ключ, якого в
+      // списку вкладок не буває (артефакт кошика адресується card_id), тож
+      // рядок нічого не робив. Тепер кошик виводить наперед саме правило
+      // «новий артефакт із ходу», спільне для всіх типів.
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     } finally { setBuildingCart(false); }
@@ -688,8 +709,8 @@ export function Feed() {
       turnId = userTurn.id;
       setTurns((prev) => [...prev, userTurn]);
     } else {
-      // Повтор після помилки — знімаємо помітки.
-      setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: false, aborted: false } : t)));
+      // Повтор після помилки або старт із черги — знімаємо обидві помітки.
+      setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: false, queued: false, aborted: false } : t)));
     }
     currentTurnId.current = turnId;
 
@@ -751,27 +772,57 @@ export function Feed() {
     }
   }
 
-  // Пул-9 №4: «Стоп». Рве поточний виклик — обірвати думання було неможливо
-  // взагалі. Серверний виклик при цьому може добігти: якщо він устиг створити
+  // Пул-9 №4: «Стоп». Рве поточний виклик і чистить чергу — те, що чекало,
+  // теж більше не поїде (людина зупинила розмову, а не один хід).
+  // Серверний виклик поточного ходу може добігти: якщо він устиг створити
   // pending-картку, вона лишиться в /v1/cards/pending і прийде в панель
   // «чекають на тебе». У стрічку її не додаємо — там стоїть «зупинив».
   function stopSending() {
-    const stopped = currentTurnId.current;
+    const stopped = new Set<string>(queueRef.current.map((q) => q.turnId));
+    if (currentTurnId.current) stopped.add(currentTurnId.current);
+    queueRef.current = [];
+    setQueue([]);
     abortRef.current?.abort();
-    if (stopped) setTurns((prev) => prev.map((t) => (t.id === stopped ? { ...t, aborted: true } : t)));
+    setTurns((prev) => prev.map((t) => (stopped.has(t.id) ? { ...t, queued: false, aborted: true } : t)));
   }
 
   async function send(e: FormEvent) {
     e.preventDefault();
     const text = input.trim();
     if (!text && pending.length === 0) return;
+    if (sending && queue.length >= QUEUE_MAX) return;
     setInput('');
     const attachments: TurnAttachment[] = pending.map((p) => ({ id: p.id, kind: p.kind, name: p.name }));
     setPending([]);
     // Пул-7 №2: фокус лишається в полі — наступне повідомлення без кліку.
     composerInputRef.current?.focus();
+
+    // Пул-9 №5: поки модель відповідає, поле не гасне — наступна думка лягає
+    // в стрічку одразу і стає в чергу. Черга СУВОРО послідовна: другий хід
+    // мусить бачити комору й картки, які створив перший.
+    if (sending) {
+      const turn: Turn = {
+        id: newId(), role: 'user', time: hhmm(), queued: true,
+        ...(text ? { text } : {}),
+        ...(attachments.length ? { attachments } : {}),
+      };
+      setTurns((prev) => [...prev, turn]);
+      setQueue((prev) => [...prev, { turnId: turn.id, text, attachments }]);
+      return;
+    }
     await dispatchChat(text, attachments);
   }
+
+  // Пул-9 №5: черга рухається САМА, коли попередній виклик завершився (або
+  // його скасували). Ефект, а не рекурсія у finally: так наступний хід стартує
+  // вже з оновленого стану, а не з замикання, знятого до відповіді.
+  useEffect(() => {
+    if (sending || queue.length === 0) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void dispatchChat(next!.text, next!.attachments, next!.turnId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sending, queue]);
 
   async function apply(turnId: string, selected?: number[]) {
     const turn = turns.find((t) => t.id === turnId);
@@ -913,6 +964,10 @@ export function Feed() {
     panel.publish({
       artifacts: artifacts.map(({ key, kind, label, meta }) => ({ key, kind, label, meta })),
       pendingDot: housePending.length > 0,
+      // Пул-9 №6: «новий» для панелі — той, чий хід прийшов у цій сесії
+      // вкладки. `fresh` ставиться лише на ходи, які прилетіли відповіддю
+      // (messageToTurn історію ним не позначає), тому F5 сюди нічого не дає.
+      freshKeys: artifacts.filter((a) => a.turn?.fresh).map((a) => a.key),
       ghostTab: !listOpen && shoppingItems.length > 0
         ? { glyphKind: 'list', count: shoppingItems.length, onClick: () => openArtifact('list') }
         : null,
@@ -1213,6 +1268,10 @@ export function Feed() {
                   </a>
                 ))}
               </div>
+            )}
+            {t.queued && (
+              /* Пул-9 №5: репліка вже у стрічці, але виклик ще не стартував. */
+              <div className={styles['turn-note']} data-queued>чекає</div>
             )}
             {t.aborted && (
               /* Пул-9 №4: «Стоп». Хід лишається — це те, що людина сказала;
@@ -1612,14 +1671,13 @@ export function Feed() {
               }
             }}
             placeholder={listening ? 'Слухаю…' : pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
-            disabled={sending}
             autoFocus
           />
           <button
             type="button"
             className={styles['frame-btn-ghost']}
             onClick={() => fileInputRef.current?.click()}
-            disabled={sending || uploading}
+            disabled={uploading}
             aria-label="Додати вкладення"
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1670,10 +1728,13 @@ export function Feed() {
                   </svg>
                 </button>
               )}
+              {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
+                  в стрічку і стає в чергу. Гасне лише коли черга повна. */}
               <button
                 type="submit"
                 className={styles['frame-btn-solid']}
-                disabled={sending}
+                disabled={sending && queue.length >= QUEUE_MAX}
+                title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
                 aria-label="Надіслати"
               >↑</button>
             </>

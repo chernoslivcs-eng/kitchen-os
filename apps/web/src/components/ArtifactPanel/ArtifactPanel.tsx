@@ -33,7 +33,7 @@ export function PanelIcon() {
 
 export function ArtifactPanel() {
   const s = usePanelStore();
-  const { artifacts, render, extra, pendingDot, ghostTab, open, hidden, width, dragging, fresh } = s;
+  const { artifacts, render, extra, pendingDot, ghostTab, open, hidden, width, dragging, fresh, freshKeys } = s;
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
   const hasPanel = artifacts.length > 0 || !!extra;
 
@@ -80,7 +80,13 @@ export function ArtifactPanel() {
     return () => { b.classList.remove('with-panel', 'panel-hidden', styles['rail-dragging']!); b.style.removeProperty('--rail-w'); };
   }, [hasPanel, hidden, dragging, railEffective]);
 
-  // «Нове зʼявилось, поки панель згорнута» — крапка на смузі.
+  // Пул-9 №6: новий артефакт виходить наперед. Раніше `added` рахувався, але
+  // тільки ставив крапку на згорнутій смузі, а `shown` лишався першим у списку —
+  // рецепт чи кошик із чату доводилось відкривати руками.
+  //
+  // «Новий» — це артефакт із ходу ЦІЄЇ сесії вкладки (freshKeys від сторінки),
+  // а не будь-який новий ключ: історія при завантаженні теж приходить одним
+  // стрибком порожньо → повно, і панель відкривалась би на кожен F5.
   const seen = useRef<Set<string> | null>(null);
   const keys = artifacts.map((a) => a.key).join(',');
   useEffect(() => {
@@ -88,7 +94,9 @@ export function ArtifactPanel() {
     const first = seen.current === null;
     const added = first ? [] : [...now].filter((k) => !seen.current!.has(k));
     seen.current = now;
-    if (added.length && hidden) s.setFresh(true);
+    const fromTurn = added.filter((k) => freshKeys?.includes(k));
+    if (fromTurn.length) s.surfaceArtifact(fromTurn[fromTurn.length - 1]!);
+    else if (added.length && hidden) s.setFresh(true);
     if (!hidden) s.setFresh(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys, hidden]);

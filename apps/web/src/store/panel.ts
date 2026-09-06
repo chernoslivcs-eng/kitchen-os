@@ -30,12 +30,22 @@ export interface PanelPublication {
   pendingDot?: boolean;
   /** Приглушена вкладка-вхід (Стрічка: список покупок, поки він не відкритий). */
   ghostTab?: { glyphKind: ArtifactKey; count: number; onClick: () => void } | null;
+  /**
+   * Пул-9 №6: ключі артефактів, що прийшли ХОДОМ У ЦІЙ СЕСІЇ ВКЛАДКИ, а не
+   * з історії при завантаженні. Тільки такий артефакт панель виводить
+   * наперед; на F5 вона не має відкриватись самовільно, тому «новий у
+   * списку» саме по собі — недостатня ознака (історія теж приходить одним
+   * стрибком порожньо → повно).
+   */
+  freshKeys?: string[];
 }
 
 export const RAIL_IN_FLOW = '(min-width: 1200px)';
 export const RAIL_MIN = 280;
 export const RAIL_MAX = 560;
 export const RAIL_DEFAULT = 320;
+/** Пул-9 №6: вікно, у якому ручний вибір людини сильніший за новий артефакт. */
+export const MANUAL_PICK_GRACE_MS = 10_000;
 
 interface PanelStore extends PanelPublication {
   active: string | null;
@@ -47,6 +57,12 @@ interface PanelStore extends PanelPublication {
   dragging: boolean;
   /** Зʼявився новий артефакт, поки панель згорнута. */
   fresh: boolean;
+  /**
+   * Пул-9 №6: коли людина востаннє перемикала артефакт РУКАМИ (мс). Десять
+   * секунд після цього новий артефакт не перебиває вибір: інакше рецепт,
+   * що прийшов із чату, вирвав би з-під рук список покупок.
+   */
+  lastManualPick: number;
 
   publish: (p: PanelPublication) => void;
   clear: () => void;
@@ -59,6 +75,8 @@ interface PanelStore extends PanelPublication {
   setWidth: (px: number, persist?: boolean) => void;
   setDragging: (v: boolean) => void;
   setFresh: (v: boolean) => void;
+  /** Пул-9 №6: вивести артефакт наперед — крім випадку «людина щойно обрала руками». */
+  surfaceArtifact: (key: string) => void;
 }
 
 function readHidden(): boolean {
@@ -78,20 +96,28 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   extra: undefined,
   pendingDot: false,
   ghostTab: null,
+  freshKeys: [],
   active: null,
+  lastManualPick: 0,
   open: false,
   hidden: readHidden(),
   width: readWidth(),
   dragging: false,
   fresh: false,
 
-  publish: (p) => set({ artifacts: p.artifacts, render: p.render, extra: p.extra, pendingDot: !!p.pendingDot, ghostTab: p.ghostTab ?? null }),
+  publish: (p) => set({
+    artifacts: p.artifacts, render: p.render, extra: p.extra,
+    pendingDot: !!p.pendingDot, ghostTab: p.ghostTab ?? null,
+    freshKeys: p.freshKeys ?? [],
+  }),
   // Сторінка пішла — панель порожніє. Активний ключ лишається: повернення на
   // ту саму сторінку відкриє ту саму вкладку.
-  clear: () => set({ artifacts: [], render: () => null, extra: undefined, pendingDot: false, ghostTab: null, open: false }),
-  setActive: (key) => set({ active: key }),
+  clear: () => set({ artifacts: [], render: () => null, extra: undefined, pendingDot: false, ghostTab: null, freshKeys: [], open: false }),
+  // setActive/openArtifact — це завжди рука людини (вкладка в шапці панелі,
+  // слід у стрічці, рядок міні-списку). Звідси й відлік «не перебивати».
+  setActive: (key) => set({ active: key, lastManualPick: Date.now() }),
   openArtifact: (key) => {
-    set({ active: key });
+    set({ active: key, lastManualPick: Date.now() });
     if (inFlow()) get().expand(); else set({ open: true });
     requestAnimationFrame(() => {
       document.getElementById(`rail-${key}`)?.scrollIntoView({ block: 'nearest' });
@@ -114,4 +140,16 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   },
   setDragging: (dragging) => set({ dragging }),
   setFresh: (fresh) => set({ fresh }),
+  // Пул-9 №6: артефакт прийшов ходом — панель показує його. Раніше вона лише
+  // ставила крапку, коли була згорнута, а `shownArtifact` лишався першим у
+  // списку: новий рецепт із чату відкривався тільки руками.
+  surfaceArtifact: (key) => {
+    if (Date.now() - get().lastManualPick < MANUAL_PICK_GRACE_MS) {
+      // Людина щойно обрала руками — не вириваємо. Лишається крапка.
+      if (get().hidden) set({ fresh: true });
+      return;
+    }
+    set({ active: key });
+    if (get().hidden) get().expand();
+  },
 }));
