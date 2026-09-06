@@ -452,6 +452,52 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(msgs.find((m) => m.id === modelId)?.source).toBeUndefined();
     });
 
+    // Пул-9 №2: вкладення ходу. Причина тримати перевірку в контракті — та
+    // сама, що в `source` вище: InMemoryRepo збирає їх зі своєї мапи й
+    // «працює» задарма, а PostgresRepo мусить зробити окремий запит за
+    // attachment.message_id. Без цього тесту жива база перевіряла б лише те,
+    // що поле не заважає, а не те, що воно приїжджає.
+    it('вкладення ходу приїжджають із listMessages за message_id', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-06');
+      const withFiles = randomUUID();
+      const plain = randomUUID();
+      await repo.saveMessage({
+        id: withFiles, session_id: session.id, role: 'user',
+        // Текст ходу — те, що людина сказала; файли живуть окремо.
+        text: 'ось чек', card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+      await repo.saveMessage({
+        id: plain, session_id: session.id, role: 'user',
+        text: 'а що на вечерю', card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+
+      const a1 = randomUUID();
+      const a2 = randomUUID();
+      const loose = randomUUID();
+      const att = (id: string, message_id: string | null, content_type: string) => ({
+        id, message_id, household_id, user_id,
+        kind: (content_type.startsWith('image/') ? 'image' : 'text') as 'image' | 'text',
+        url: `mem://${id}`, content_type, bytes: 3, hint: null,
+        created_at: new Date().toISOString(),
+      });
+      await repo.saveAttachment(att(a1, null, 'image/jpeg'));
+      await repo.saveAttachment(att(a2, null, 'application/pdf'));
+      // Залитий, але ще не надісланий — до жодного ходу не належить.
+      await repo.saveAttachment(att(loose, null, 'text/plain'));
+      await repo.updateAttachment(a1, { message_id: withFiles });
+      await repo.updateAttachment(a2, { message_id: withFiles });
+
+      const msgs = await repo.listMessages(session.id);
+      const got = msgs.find((m) => m.id === withFiles)?.attachments ?? [];
+      expect([...got].map((x) => x.id).sort()).toEqual([a1, a2].sort());
+      expect(got.find((x) => x.id === a1)?.mime).toBe('image/jpeg');
+      expect(got.find((x) => x.id === a2)?.mime).toBe('application/pdf');
+      // Хід без файлів не тягне порожнього масиву, а неприв'язаний файл не
+      // прилипає до чужого ходу.
+      expect(msgs.find((m) => m.id === plain)?.attachments).toBeUndefined();
+    });
+
     // Календар. Перевірка живе саме тут, а не в тесті однієї реалізації:
     // rule — jsonb, supply — jsonb, buy — масив. Кожне з трьох тихо зникає в
     // Postgres без мапінгу, а InMemoryRepo пропускає їх сам собою через спред.

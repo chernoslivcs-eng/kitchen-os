@@ -441,9 +441,23 @@ export class InMemoryRepo implements Repo {
     // Аудит раунд 3: undone_at/dismissed_at не зберігаються на message —
     // приєднуються з card_pending за спільним id (message.id === pending.id),
     // те саме, що робить PostgresRepo LEFT JOIN'ом.
+    // Пул-9 №2: вкладення ходу приєднуються так само — за attachment.message_id.
+    const attByMsg = new Map<string, { id: string; mime: string | null }[]>();
+    for (const a of this.attachments.values()) {
+      if (!a.message_id) continue;
+      const list = attByMsg.get(a.message_id) ?? [];
+      list.push({ id: a.id, mime: a.content_type ?? null });
+      attByMsg.set(a.message_id, list);
+    }
     return (this.messages.get(session_id) ?? []).map((m) => {
       const pc = this.pending.get(m.id);
-      return { ...m, undone_at: pc?.undone_at ?? null, dismissed_at: pc?.dismissed_at ?? null };
+      const att = attByMsg.get(m.id);
+      return {
+        ...m,
+        undone_at: pc?.undone_at ?? null,
+        dismissed_at: pc?.dismissed_at ?? null,
+        ...(att ? { attachments: att } : {}),
+      };
     });
   }
   async deleteSession(id: string): Promise<void> {

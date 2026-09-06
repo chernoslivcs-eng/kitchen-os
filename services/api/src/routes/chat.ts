@@ -102,13 +102,23 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         payloads.push({ kind: rec.kind, buffer, content_type, hint: rec.hint ?? undefined });
       }
       // Спершу записуємо user-message (текст + факт вкладень).
-      const userMsgText = text?.trim() || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
+      // Пул-9 №2: текст ходу — те, що людина СКАЗАЛА. Якщо вона не сказала
+      // нічого, ход лишається без тексту: `[вкладення]` було підписом за неї,
+      // і воно ж витісняло самі файли зі стрічки. Тепер файли прив'язані до
+      // повідомлення (attachment.message_id) і рендеряться мініатюрами.
+      const userMsgId = randomUUID();
+      const userMsgText = text?.trim() || null;
       await repo.saveMessage({
-        id: randomUUID(), session_id: session.id, role: 'user',
+        id: userMsgId, session_id: session.id, role: 'user',
         text: userMsgText, card: null, applied: 0, created_at: new Date().toISOString(),
       });
+      // Прив'язка вкладень до ходу: без неї файли після F5 неможливо знайти
+      // (message_id лишався null з моменту заливки).
+      for (const { id } of attachments) {
+        await repo.updateAttachment(id, { message_id: userMsgId });
+      }
       if (!session.title) {
-        const title = deriveSessionTitle(userMsgText);
+        const title = deriveSessionTitle(userMsgText ?? (attachments.length === 1 ? 'вкладення' : `${attachments.length} вкладення`));
         if (title) await repo.setSessionTitle(session.id, title);
       }
 

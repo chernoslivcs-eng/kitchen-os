@@ -497,6 +497,10 @@ export interface MessageRow {
   // тут лише читання. Відсутнє/null = картка ще live (не undone, не dismissed).
   undone_at?: string | null;
   dismissed_at?: string | null;
+  // Пул-9 №2: вкладення, прикріплені до ЦЬОГО повідомлення (attachment.message_id).
+  // Приєднуються при listMessages, як undone_at/dismissed_at вище: джерело
+  // істини — таблиця attachment. Порожньо = ходів без файлів (переважна більшість).
+  attachments?: { id: string; mime: string | null }[];
 }
 
 export interface RecipeRow {
