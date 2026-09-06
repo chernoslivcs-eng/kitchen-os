@@ -22,16 +22,23 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 // Крок Ф1: «з останнього чека» — партії, створені останньою застосованою
 // intake-карткою з джерелом-чеком (retail_receipt / chat_receipt). Один запит
 // по закритих картках дому за рік; скасована картка чеком не рахується.
+//
+// Крок Ш1: цей запит і був причиною, чому /v1/pantry віддавався 14 секунд.
+// Раніше тут стояв listRecentResolved(limit 300) — SELECT cp.*, тобто `card` і
+// `undo_snapshot` (обидва jsonb) трьохсот карток їхали з Neon у застосунок,
+// парсились, і з них бралось ОДНЕ поле. Заміряно на копії прод-обсягу: 300
+// карток це 1268 kB jsonb і 726–1596 мс, решта обробника — 130 мс на все.
+// Тепер із бази виходить один рядок і три поля.
 const RECEIPT_WINDOW_DAYS = 365;
 export async function lastReceiptBatches(repo: Repo, household_id: string): Promise<{ ids: Set<string>; at: string | null; shop: string | null }> {
-  const cards = await repo.listRecentResolved(household_id, { since: new Date(Date.now() - RECEIPT_WINDOW_DAYS * 86_400_000), limit: 300 });
-  for (const pc of cards) {
-    if (!pc.applied_at || pc.undone_at || pc.card.type !== 'intake_diff') continue;
-    const src = (pc.card as IntakeCard).source;
-    if (!src) continue;
-    return { ids: new Set(pc.undo_snapshot?.before.created_batch_ids ?? []), at: src.at ?? pc.applied_at, shop: src.kind === 'retail_receipt' ? src.shop : null };
-  }
-  return { ids: new Set(), at: null, shop: null };
+  const last = await repo.lastAppliedIntake(household_id, new Date(Date.now() - RECEIPT_WINDOW_DAYS * 86_400_000));
+  if (!last) return { ids: new Set(), at: null, shop: null };
+  const src = last.source;
+  return {
+    ids: new Set(last.created_batch_ids),
+    at: src.at ?? last.applied_at,
+    shop: src.kind === 'retail_receipt' ? src.shop : null,
+  };
 }
 
 // Крок Ф2: «звідки» для картки — останній чек (з магазином і датою), інший чек

@@ -6,6 +6,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
+  LastAppliedIntake,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type {
@@ -103,6 +104,17 @@ export interface Repo {
   // те, що модель щойно закрила в ЦІЙ розмові: історія розмови вже це знає.
   // Впорядковано за часом рішення (max із applied_at/undone_at/dismissed_at) спадно.
   listRecentResolved(household_id: string, opts: { since: Date; limit: number; exclude_session_id?: string }): Promise<PendingCard[]>;
+
+  // Крок Ш1: «з останнього чека» для /v1/pantry. Окремий метод, а не опція
+  // listRecentResolved: там поведінка вже перевірена чатом, і міняти її заради
+  // комори немає підстав.
+  //
+  // Роут читав із трьохсот закритих карток рівно одне поле — created_batch_ids
+  // найсвіжішої застосованої intake-картки з джерелом. Заради нього тягнулись
+  // усі їхні `card` і `undo_snapshot`: 1268 kB на 300 карток, і саме ця
+  // передача з парсингом коштувала секунду з гаком на кожен відкритий екран
+  // комори. Тут із бази виходять три поля одного рядка.
+  lastAppliedIntake(household_id: string, since: Date): Promise<LastAppliedIntake | null>;
 
   // Вкладення
   saveAttachment(a: AttachmentRecord): Promise<void>;

@@ -426,6 +426,17 @@ export interface PendingCard {
   dismissed_at: string | null;
 }
 
+// Крок Ш1: рівно те, що комора читає з останньої застосованої intake-картки.
+// Не PendingCard: `card` і `undo_snapshot` цілком — це мегабайти jsonb, а
+// потрібні з них три поля.
+export interface LastAppliedIntake {
+  applied_at: string;
+  /** Джерело картки. Гарантовано об'єкт: картки без нього запит не бере. */
+  source: IntakeSource;
+  /** undo_snapshot.before.created_batch_ids — партії, створені цією карткою. */
+  created_batch_ids: string[];
+}
+
 // Знімок ДО застосування: чого досить, щоб відкотити.
 // Для intake — попередні партії (при correct/rename/open/deplete) + список створених id (add).
 export interface UndoSnapshot {

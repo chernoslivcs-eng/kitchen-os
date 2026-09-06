@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
-import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard } from './types.js';
+import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard, Card } from './types.js';
 import { noteHash, type ProfileNote, type VetoRow } from './profile-text.js';
 import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
 import { displayName } from './product.js';
@@ -1005,6 +1005,73 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
     // розмовою. message.id === card_pending.id (та сама інваріанта, що
     // listOpenPending уже покладається) — pending лінкується до сесії через
     // повідомлення-носія, яке треба створити самому.
+    // Крок Ш1: вузький шлях «з останнього чека» для /v1/pantry.
+    //
+    // Перевірка в контракті, а не в тесті однієї реалізації, з тієї самої
+    // причини, що `source` і вкладення вище: InMemoryRepo фільтрує мапу і
+    // «працює» задарма, а PostgresRepo мусить точно повторити це запитом —
+    // з jsonb_typeof, порядком за applied_at і частковим індексом. Розійтись
+    // вони можуть тихо, і побачить це тільки прод.
+    it('lastAppliedIntake: найсвіжіша застосована intake з джерелом', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-06');
+      const since = new Date(Date.now() - 3600_000);
+
+      const mk = async (card: Card): Promise<string> => {
+        const mid = randomUUID();
+        await repo.saveMessage({
+          id: mid, session_id: session.id, role: 'assistant', text: null,
+          card, applied: 0, created_at: new Date().toISOString(),
+        });
+        await createPending(repo, { message_id: mid, household_id, user_id, card });
+        return mid;
+      };
+      const receipt = (at: string, shop: string): IntakeCard => ({
+        type: 'intake_diff',
+        ops: [{ op: 'add', label: `покупка ${shop}` }],
+        source: { kind: 'retail_receipt', provider: 'silpo', shop, at, total: 100, nonfood: [], unmatched: [] },
+      });
+
+      // Порожньо, поки нічого не застосовано.
+      expect(await repo.lastAppliedIntake(household_id, since)).toBeNull();
+
+      // Старіший чек — застосований.
+      const oldId = await mk(receipt('2026-09-01T10:00:00.000Z', 'Стара'));
+      await applyCard(repo, oldId, [], user_id);
+      const first = await repo.lastAppliedIntake(household_id, since);
+      expect(first?.source.kind).toBe('retail_receipt');
+      expect((first?.source as { shop?: string }).shop).toBe('Стара');
+      // created_batch_ids — саме те поле, заради якого роут тягнув 300 карток.
+      expect(first?.created_batch_ids.length).toBe(1);
+
+      // Новіший чек витісняє старіший.
+      const newId = await mk(receipt('2026-09-06T10:00:00.000Z', 'Нова'));
+      await applyCard(repo, newId, [], user_id);
+      expect((((await repo.lastAppliedIntake(household_id, since))!).source as { shop?: string }).shop).toBe('Нова');
+
+      // Скасована не рахується — повертаємось до старішої.
+      const { undo_token } = await applyCard(repo, newId, [], user_id);
+      await undoCard(repo, newId, undo_token, user_id);
+      expect((((await repo.lastAppliedIntake(household_id, since))!).source as { shop?: string }).shop).toBe('Стара');
+
+      // Не-intake зверху не перебиває: картка списку не має нічого спільного
+      // з «звідки ця партія».
+      const shopId = await mk({ type: 'shopping', items: [{ op: 'add', label: 'молоко' }] });
+      await applyCard(repo, shopId, [], user_id);
+      expect((((await repo.lastAppliedIntake(household_id, since))!).source as { shop?: string }).shop).toBe('Стара');
+
+      // Intake БЕЗ джерела — теж не перебиває. Це те, що робив `if (!src)
+      // continue` старого циклу, і саме тут SQL міг розійтись із памʼяттю:
+      // без jsonb_typeof запит повернув би цю картку, і комора втратила б
+      // мітку чека там, де раніше знаходила старішу.
+      const plainId = await mk({ type: 'intake_diff', ops: [{ op: 'add', label: 'поклав руками' }] });
+      await applyCard(repo, plainId, [], user_id);
+      expect((((await repo.lastAppliedIntake(household_id, since))!).source as { shop?: string }).shop).toBe('Стара');
+
+      // Вікно: since пізніше за все застосоване — порожньо.
+      expect(await repo.lastAppliedIntake(household_id, new Date(Date.now() + 60_000))).toBeNull();
+    });
+
     it('listRecentResolved: бачить застосовані/скасовані/відхилені, ігнорує ще відкриті', async () => {
       const { repo, household_id, user_id } = ctx;
       const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-05');

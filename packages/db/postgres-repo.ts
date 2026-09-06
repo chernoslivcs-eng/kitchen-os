@@ -15,7 +15,7 @@ import type {
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
   SessionRow, MessageRow, EaterRow,
-  Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
+  Zone, Unit, BatchState, Provenance, Card, UndoSnapshot, LastAppliedIntake, IntakeSource,
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
@@ -578,6 +578,48 @@ export class PostgresRepo implements Repo {
       [household_id, opts.since, opts.exclude_session_id ?? null, opts.limit],
     );
     return rows.map(rowToPending);
+  }
+
+  // Крок Ш1: вузький запит замість SELECT cp.* по трьохстах картках.
+  //
+  // Стара дорога: listRecentResolved тягнула `card` і `undo_snapshot` усіх
+  // закритих карток дому за рік (заміряно на копії прод-обсягу: 300 карток =
+  // 1268 kB jsonb; 3000 карток = 11 MB у таблиці, LIMIT 300 усе одно віз
+  // ~1.1 MB), а обробник комори брав із них одне поле й решту викидав.
+  //
+  // Порядок за applied_at, а не за GREATEST(applied, undone, dismissed), як у
+  // listRecentResolved: серед рядків, які цей запит бере (застосовані й не
+  // скасовані), GREATEST і є applied_at — dismissed_at із applied_at
+  // взаємовиключні за контрактом картки. Перший рядок той самий.
+  //
+  // jsonb_typeof(...) = 'object' повторює `if (!src) continue` старого циклу:
+  // картка без джерела пропускається, і найсвіжішою вважається наступна за
+  // нею. Без цієї умови запит повернув би картку без чека, і комора втратила б
+  // мітку «з останнього чека» там, де раніше знаходила старішу. Контрактний
+  // тест на це є — і він падає, якщо умову прибрати.
+  async lastAppliedIntake(household_id: string, since: Date): Promise<LastAppliedIntake | null> {
+    const { rows } = await this.pool.query(
+      `SELECT cp.applied_at,
+              cp.card->'source' AS source,
+              cp.undo_snapshot->'before'->'created_batch_ids' AS ids
+         FROM card_pending cp
+        WHERE cp.household_id = $1
+          AND cp.applied_at IS NOT NULL
+          AND cp.undone_at IS NULL
+          AND cp.applied_at > $2
+          AND cp.card->>'type' = 'intake_diff'
+          AND jsonb_typeof(cp.card->'source') = 'object'
+        ORDER BY cp.applied_at DESC
+        LIMIT 1`,
+      [household_id, since],
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      applied_at: new Date(r.applied_at).toISOString(),
+      source: r.source as IntakeSource,
+      created_batch_ids: Array.isArray(r.ids) ? (r.ids as string[]) : [],
+    };
   }
 
   async getPending(id: string): Promise<PendingCard | null> {
