@@ -3,6 +3,7 @@
 // Клік на × — видаляємо запис без confirm; помилку показуємо тост-ом.
 
 import { useEffect, useState } from 'react';
+import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { api, type ShoppingItem } from '../../api';
 import { plural } from '../../lib/plural';
@@ -55,7 +56,7 @@ export function ShoppingPage() {
       setLoadFailed(true);
     } finally { setLoading(false); }
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); track('shopping_opened'); }, []);
 
   // UX9-15: два вікна на одному акаунті не бачили одне одного — застарілий
   // екран нічим не позначався. Мінімум: перечитуємо на поверненні фокуса.

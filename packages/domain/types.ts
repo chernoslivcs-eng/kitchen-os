@@ -514,6 +514,20 @@ export interface MessageRow {
   attachments?: { id: string; mime: string | null }[];
 }
 
+// Крок О1а: подія поведінки або серверний інцидент. Одна таблиця на обидва:
+// на стрічці дня вони читаються поруч, і розділяти їх сховищами означало б
+// зшивати два списки за часом на кожному відкритті /admin/pulse.
+export interface AppEventRow {
+  id: string;
+  user_id: string;
+  household_id: string | null;
+  /** Подія продукту («cook_started») або інцидент («incident:example-copy»). */
+  name: string;
+  /** Лише структурне: номер кроку, назва зрізу, рід вкладення. */
+  props: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface RecipeRow {
   id: string;
   owner_id: string;

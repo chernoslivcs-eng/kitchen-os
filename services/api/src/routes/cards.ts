@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { incident } from '../incident.js';
 import { randomUUID } from 'node:crypto';
 import { applyCard, undoCard, dismissCard, type Repo, type Unit } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -40,7 +41,7 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
       // взагалі проблема в житті, чи лише в підстроєному випадку.
       if (r.missed?.length) {
-        req.log.warn({ user_id, card_id: req.params.id, missed: r.missed }, 'intake-op-missed');
+        incident({ repo, log: req.log }, 'guard', 'intake-op-missed', { user_id, card_id: req.params.id, missed: r.missed });
       }
       // Правка №6: застосована пост-кук картка списання продовжує розмову
       // детермінованим «Як вийшло?» (0 токенів). Впізнаємо її за точним

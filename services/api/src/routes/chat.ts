@@ -13,6 +13,7 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
+import { incident } from '../incident.js';
 import { resolveWhen } from '../event-when.js';
 import { buildPeriodCard, droppedPeriodReply } from '../period-card.js';
 import {
@@ -54,6 +55,9 @@ export interface ChatRouteOpts {
 }
 
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
+  // Крок О1а: інциденти йдуть одним шляхом. sink локальний, бо repo приходить
+  // параметром роутера, а логер — з конкретного запиту.
+  const sink = (req: { log: Parameters<typeof incident>[0]['log'] }) => ({ repo, log: req.log });
   // Ліміт для чату — щоб залогінений юзер (свідомо чи ні) не наспамив у модель тисячу
   // запитів за хвилину. 30 запитів/хв — це «людина активно спілкується» на верхній межі,
   // явно замало для ліберпетлі. Ключ — user_id, не IP: розділяємо кухні в спільній мережі.
@@ -131,14 +135,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // два чеки в одному виклику давали 97 с (прод s41).
         call = mergeAttachmentCalls(await Promise.all(payloads.map((p) => callAttachmentParse([p]))));
       } catch (err) {
-        req.log.error({ err, user_id }, 'attachment-model-call-failed');
+        incident(sink(req), 'broke', 'attachment-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });
         return reply.code(502).send({ error: 'model_unavailable' });
       }
       await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
 
       // Пул-2 №5: нерозібрана/обірвана відповідь — чесний фолбек, не нутрощі.
       if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
-        req.log.warn({ user_id, raw: (call.reply ?? '').slice(0, 300) }, 'attachment-reply-debris');
+        incident(sink(req), 'guard', 'attachment-reply-debris', { user_id, household_id, session_id: session.id });
         call.reply = INTAKE_TOO_BIG_REPLY;
       }
 
@@ -182,14 +186,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
       // взагалі проблема в житті, чи лише в підстроєному випадку.
       if (r.missed?.length) {
-        req.log.warn({ user_id, card_id: card_id, missed: r.missed }, 'intake-op-missed');
+        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
       }
 
       // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
       // взагалі проблема в житті, чи лише в підстроєному випадку.
       if (r.missed?.length) {
-        req.log.warn({ user_id, card_id: card_id, missed: r.missed }, 'intake-op-missed');
+        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
       }
         att_auto = true;
         att_undo = r.undo_token;
@@ -259,7 +263,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
       // взагалі проблема в житті, чи лише в підстроєному випадку.
       if (applied.missed?.length) {
-        req.log.warn({ user_id, card_id: card_id, missed: applied.missed }, 'intake-op-missed');
+        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: applied.missed });
       }
         await repo.saveMessage({
           id: randomUUID(), session_id: session.id, role: 'assistant',
@@ -414,7 +418,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         recentActions,
       });
     } catch (err) {
-      req.log.error({ err, user_id }, 'chat-model-call-failed');
+      incident(sink(req), 'broke', 'chat-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });
       return reply.code(502).send({ error: 'model_unavailable' });
     }
     await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started);
@@ -422,7 +426,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Крок 6е: example-guard у model.ts уже перепитав модель — тут лише
     // фіксуємо частоту, як і решта логів навколо call.meta.
     if (call.meta.example_copy) {
-      req.log.warn({ user_id, model: call.meta.model }, 'example-copy');
+      incident(sink(req), 'guard', 'example-copy', { user_id, household_id, session_id: session.id, model: call.meta.model });
     }
 
     // Пул-4 №4а: службові [HH:MM] з історії не протікають у відповідь.
@@ -447,7 +451,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // Пул-2 №5: те саме для чату — сирий JSON у стрічку не протікає ніколи.
     if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
-      req.log.warn({ user_id, raw: (call.reply ?? '').slice(0, 300) }, 'chat-reply-debris');
+      incident(sink(req), 'guard', 'chat-reply-debris', { user_id, household_id, session_id: session.id });
       call.reply = INTAKE_TOO_BIG_REPLY;
     }
 
@@ -458,10 +462,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // читають applyMode() з домену замість того, щоб перелічувати типи руками.
     if (call.reply) call.reply = fixTense(call.reply, call.card);
     if (tenseViolation(call.reply ?? '', call.card)) {
-      req.log.warn(
-        { card_type: call.card!.type, reply: call.reply },
-        'tense-violation',
-      );
+      incident(sink(req), 'guard', 'tense-violation', { user_id, household_id, session_id: session.id, card_type: call.card!.type });
     }
 
     // Гвардія: юзер явно попросив рецепт/ідею, а модель не вернула картку.
@@ -470,10 +471,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // самій — не хочемо ретраяти й палити токени, поки не буде eval-циклу.
     const wantsRecipe = /(рецепт|приготувати|вечер|що готувати|давай зробимо|давай приготу)/i.test(text ?? '');
     if (wantsRecipe && !call.card) {
-      req.log.warn(
-        { user_id, text: (text ?? '').slice(0, 100), model: call.meta.model },
-        'proposal-card-missed: user asked for recipe, model returned no card',
-      );
+      incident(sink(req), 'guard', 'proposal-card-missed', { user_id, household_id, session_id: session.id, model: call.meta.model });
     }
 
     // QA5-01: чи не проліз алерген у пропозицію. Збіг за підрядком дає хибні
@@ -488,7 +486,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const hay = ((call.reply ?? '') + JSON.stringify(call.card ?? {})).toLowerCase();
       const hit = houseAllergies.filter((a) => hay.includes(a.label.toLowerCase()));
       if (hit.length) {
-        req.log.warn({ hit, user_id, model: call.meta.model }, 'response-contains-allergen');
+        incident(sink(req), 'guard', 'response-contains-allergen', { user_id, household_id, session_id: session.id, hit, model: call.meta.model });
       }
     }
 
@@ -657,7 +655,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
             conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
           });
         } catch (err) {
-          req.log.error({ err, user_id }, 'cook-go-model-call-failed');
+          incident(sink(req), 'broke', 'cook-go-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });
           return reply.code(502).send({ error: 'model_unavailable' });
         }
         await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted);
@@ -668,7 +666,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // як `p` без `n`, і без резолву «рибний соус» з комори був би невидимий.
         if (gen.recipe) {
           // Прямий запит («зроби мені стейк») — рядки, названі людиною, не вето.
-          const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, ...e }, e.event), text ?? '');
+          const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, ...e }), text ?? '');
           if (avoid.length) {
             const again = await callRecipe({
               title: wantedTitle, pantry, products, profileText, profileNotes, vetoIndex,
@@ -677,8 +675,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
             });
             await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, genStarted);
             if (again.recipe) {
-              const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, retry: true, ...e }, e.event), text ?? '');
-              if (left.avoid.length) req.log.warn({ user_id, title: wantedTitle, avoid: left.avoid }, 'veto-recipe-kept');
+              const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, retry: true, ...e }), text ?? '');
+              if (left.avoid.length) incident(sink(req), 'guard', 'veto-recipe-kept', { user_id, household_id, session_id: session.id, title: wantedTitle, avoid: left.avoid });
               gen = again;
             }
           }
@@ -759,7 +757,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
         });
       } catch (err) {
-        req.log.error({ err, user_id }, 'recipe-edit-model-call-failed');
+        incident(sink(req), 'broke', 'recipe-edit-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });
         return reply.code(502).send({ error: 'model_unavailable' });
       }
       await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted);
@@ -828,22 +826,22 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Крок 6з: речення з алергеном, якого людина сама не називала, ріжуться.
     let veto = applyVeto(call, {
       index: vetoIndex, userText: text ?? '',
-      log: (e: VetoLogEntry) => req.log.warn({ user_id, ...e }, e.event),
+      log: (e: VetoLogEntry) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, ...e }),
     });
     // Крок 4б (b): вето зняло всі кандидати — один повторний виклик із «без …»
     // (як для рецептів). Порожньо і після нього — репліка каже це прямо
     // (VETO_EMPTY_REPLY уже стоїть у call.reply), картки нема.
     if (veto.emptied) {
       const avoid = [...new Set(veto.rejected.flatMap((r) => [r.title]))];
-      req.log.warn({ user_id, avoid }, 'veto-emptied-retry');
+      incident(sink(req), 'guard', 'veto-emptied-retry', { user_id, household_id, session_id: session.id, avoid });
       const again = await callChat({ ...chatArgs, avoid });
       await recordUsage(repo, ctx, 'chat', again.meta, again.usage, started);
       const retryVeto = applyVeto(again, {
         index: vetoIndex, userText: text ?? '',
-        log: (e: VetoLogEntry) => req.log.warn({ user_id, retry: true, ...e }, e.event),
+        log: (e: VetoLogEntry) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, retry: true, ...e }),
       });
       if (!retryVeto.emptied) { call = again; veto = retryVeto; }
-      else req.log.warn({ user_id, rejected: retryVeto.rejected }, 'veto-emptied-final');
+      else incident(sink(req), 'guard', 'veto-emptied-final', { user_id, household_id, session_id: session.id, rejected: retryVeto.rejected });
     }
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша
@@ -897,7 +895,13 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // П2a: картка впала — reply не каже «прибрав». Лог із сирою карткою:
       // частота — сигнал про промпт чи довідник.
       if (!call.card) {
-        req.log.warn({ user_id, card: raw }, 'period-card-dropped');
+        // Що саме відкинуто — не «вміст комори», а посилання на наш довідник:
+        // без нього інцидент нечитний, бо полагодити промт чи довідник можна
+        // лише знаючи, на чому воно впало.
+        incident(sink(req), 'guard', 'period-card-dropped', {
+          user_id, household_id, session_id: session.id,
+          kind: raw.kind, set: raw.set, tradition: raw.tradition, unsubscribe: raw.unsubscribe,
+        });
         call.reply = droppedPeriodReply(raw);
       }
     }

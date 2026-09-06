@@ -4,6 +4,7 @@
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, useCallback } from 'react';
+import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
@@ -116,6 +117,20 @@ export function Feed() {
   // (React ще не перерендерив) — ref синхронізується в тому ж місці.
   const shoppingCountRef = useRef(0);
   const [input, setInput] = useState('');
+  // Крок О1а: найцінніша подія набору. Людина почала писати (≥10 знаків) і
+  // стерла, не надіславши — це і є місце, де вона не знайшла слів. Ловимо
+  // тільки перехід «було багато → стало порожньо», і тільки коли хід НЕ пішов:
+  // після відправки поле теж порожніє, але це протилежна новина.
+  const typedPeak = useRef(0);
+  const sentRef = useRef(false);
+  useEffect(() => {
+    if (input.length > typedPeak.current) typedPeak.current = input.length;
+    if (input.length === 0 && typedPeak.current >= 10) {
+      if (!sentRef.current) track('chat_input_abandoned', { chars: typedPeak.current });
+      typedPeak.current = 0;
+      sentRef.current = false;
+    }
+  }, [input]);
   const [sending, setSending] = useState(false);
   // DA-02: дев'ять секунд тиші на кожну відповідь моделі. Кіт: три крапки зі
   // stagger 150ms, мітка «КУХНЯ · <дієслово>» — завжди з дієсловом.
@@ -158,7 +173,7 @@ export function Feed() {
   const drag = useDropZone({
     pendingCount: pending.length,
     max: MAX_ATTACHMENTS,
-    onFiles: useCallback((files: File[]) => { void pickFiles(files); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
+    onFiles: useCallback((files: File[]) => { void pickFiles(files, 'drop'); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
     onFolder: useCallback(() => setToast({ id: Date.now(), kind: 'err', text: 'Тека не піде — перетягни файли' }), []),
   });
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -676,6 +691,7 @@ export function Feed() {
       const file = new File([text], 'вставка.txt', { type: 'text/plain' });
       const rec = await api.attachments.upload(file);
       setPending((p) => [...p, rec]);
+      track('attachment_added', { kind: rec.kind, how: 'paste' });
       setToast({ id: Date.now(), kind: 'ok', text: 'Список великий, тому прикріплю його окремо. Так нічого не загубиться.' });
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -684,7 +700,7 @@ export function Feed() {
     }
   }
 
-  async function pickFiles(list: FileList | File[] | null) {
+  async function pickFiles(list: FileList | File[] | null, how: 'clip' | 'paste' | 'drop' = 'clip') {
     if (!list || !('length' in list) || !list.length) return;
     if (pending.length + list.length > MAX_ATTACHMENTS) {
       setToast({ id: Date.now(), kind: 'err', text: `Максимум ${MAX_ATTACHMENTS} вкладень за раз` });
@@ -695,6 +711,8 @@ export function Feed() {
       for (const file of Array.from(list)) {
         const rec = await api.attachments.upload(file);
         setPending((p) => [...p, rec]);
+        // Крок О1а: рід і спосіб — без назви файла.
+        track('attachment_added', { kind: rec.kind, how });
       }
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -829,6 +847,7 @@ export function Feed() {
     const text = input.trim();
     if (!text && pending.length === 0) return;
     if (sending && queue.length >= QUEUE_MAX) return;
+    sentRef.current = true;
     setInput('');
     const attachments: TurnAttachment[] = pending.map((p) => ({ id: p.id, kind: p.kind, name: p.name }));
     setPending([]);
@@ -1708,7 +1727,7 @@ export function Feed() {
               const images = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
               if (images.length) {
                 e.preventDefault();
-                void pickFiles(images);
+                void pickFiles(images, 'paste');
                 return;
               }
               const text = e.clipboardData.getData('text/plain');

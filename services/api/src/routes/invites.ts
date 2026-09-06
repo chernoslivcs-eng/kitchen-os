@@ -8,6 +8,7 @@
 //     той самий 'kos', що й після magic-link
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { incident } from '../incident.js';
 import type { Repo, HouseholdRole } from '@kitchen/domain';
 import { createInvite, acceptInvite, inviteInfo, INVITE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
@@ -76,7 +77,7 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
         });
       } catch (err) {
         mail_sent = false;
-        app.log.warn({ err, email }, 'invite mail failed — link returned to owner');
+        incident({ repo, log: req.log }, 'broke', 'invite-mail-failed', { user_id, household_id: invite.household_id, err: String(err) });
       }
       return reply.code(201).send({
         id: invite.id,

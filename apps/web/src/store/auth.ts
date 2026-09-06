@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { api, ApiError, type Me } from '../api';
+import { setSentryUser, captureClientIncident } from '../lib/sentry';
 
 type Status = 'idle' | 'loading' | 'guest' | 'signed_in' | 'error';
 
@@ -25,12 +26,22 @@ export const useAuth = create<AuthState>((set) => ({
     set({ status: 'loading', error: null });
     try {
       const me = await api.me();
+      // Крок О1б: хто це — щоб падіння в Sentry зводилось зі стрічкою дня на
+      // /admin/pulse. Тільки id: пошта й імʼя туди не їдуть.
+      setSentryUser(me.user.id);
       set({ status: 'signed_in', me });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
+        setSentryUser(null);
         set({ status: 'guest', me: null });
         return;
       }
+      // Крок О1б: /v1/me не відповів на старті — застосунок для цієї людини
+      // зараз не існує взагалі. Найважливіший клієнтський сигнал, і сервер
+      // про нього не дізнається: запит до нього не доїхав.
+      captureClientIncident('boot-me-failed', {
+        status: err instanceof ApiError ? err.status : null,
+      });
       set({ status: 'error', error: (err as Error).message });
     }
   },
@@ -41,6 +52,7 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: async () => {
     try { await api.auth.logout(); } catch {}
+    setSentryUser(null);
     set({ status: 'guest', me: null });
   },
 }));

@@ -3,6 +3,7 @@
 // Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
 import { useEffect, useRef, useState } from 'react';
+import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
@@ -34,6 +35,8 @@ export function PantryPage() {
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState<FilterState>(INITIAL);
+  // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
+  const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
   const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
   // QA9-09: швидке «✕» на рядку — списати одним тапом, з ↩ Повернути.
   const [removed, setRemoved] = useState<PantryBatch | null>(null);
@@ -130,7 +133,7 @@ export function PantryPage() {
     }
   }
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(); track('pantry_opened'); }, []);
 
   // UX9-15: друге вікно показувало «КОМОРА 7» при 5 позиціях безкінечно.
   // Мінімум чесності: перечитуємо на поверненні фокуса/видимості.
@@ -169,7 +172,7 @@ export function PantryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingLive, products]);
   useEffect(() => {
-    if (editing) panel.openArtifact(`batch:${editing.id}`);
+    if (editing) { track('pantry_card_opened'); panel.openArtifact(`batch:${editing.id}`); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing?.id]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -265,9 +268,9 @@ export function PantryPage() {
           <FilterRails
             view={view}
             state={filter}
-            onSort={(k) => setFilter((f) => ({ ...f, sort: k }))}
-            onKind={(k) => setFilter((f) => toggleKind(f, k))}
-            onState={(k) => setFilter((f) => toggleState(f, k))}
+            onSort={(k) => { trackFilter({ sort: k }); setFilter((f) => ({ ...f, sort: k })); }}
+            onKind={(k) => { trackFilter({ kind: k }); setFilter((f) => toggleKind(f, k)); }}
+            onState={(k) => { trackFilter({ state: k }); setFilter((f) => toggleState(f, k)); }}
             onReset={() => setFilter((f) => resetFilter(f))}
           />
         )}

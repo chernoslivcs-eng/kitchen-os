@@ -14,6 +14,7 @@
 // обидва відкривають картку серії (PeriodSeries) відповідного набору.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { api, type EventOccurrence, type OccasionSet, type SubscriptionRow, type Tradition } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
@@ -109,6 +110,7 @@ export function CalendarPage() {
     selRef.current = { a: at, b: at };
     setSel({ a: at, b: at });
   };
+  useEffect(() => { track('calendar_opened'); }, []);
   useEffect(() => {
     const move = (ev: PointerEvent) => {
       const s = selRef.current;

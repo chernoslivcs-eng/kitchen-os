@@ -15,7 +15,7 @@ import type {
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
   SessionRow, MessageRow, EaterRow,
-  Zone, Unit, BatchState, Provenance, Card, UndoSnapshot, LastAppliedIntake, IntakeSource,
+  Zone, Unit, BatchState, Provenance, Card, UndoSnapshot, LastAppliedIntake, IntakeSource, AppEventRow,
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
@@ -647,6 +647,42 @@ export class PostgresRepo implements Repo {
       `UPDATE card_pending SET ${cols.join(', ')} WHERE id = $${i}`,
       vals,
     );
+  }
+
+  // Крок О1а: пачкою одним запитом. Двадцять подій — двадцять round-trip'ів
+  // до Neon коштували б більше, ніж уся решта обробника.
+  async saveAppEvents(rows: AppEventRow[]): Promise<void> {
+    if (!rows.length) return;
+    const values: unknown[] = [];
+    const chunks = rows.map((r, i) => {
+      const b = i * 6;
+      values.push(r.id, r.user_id, r.household_id, r.name, JSON.stringify(r.props), r.created_at);
+      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6})`;
+    });
+    await this.pool.query(
+      `INSERT INTO app_event (id, user_id, household_id, name, props, created_at)
+       VALUES ${chunks.join(',')} ON CONFLICT (id) DO NOTHING`,
+      values,
+    );
+  }
+
+  async listAppEvents(user_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]> {
+    const { rows } = await this.pool.query(
+      `SELECT id, user_id, household_id, name, props, created_at
+         FROM app_event
+        WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
+        ORDER BY created_at DESC
+        LIMIT $4`,
+      [user_id, opts.from, opts.to, opts.limit],
+    );
+    return rows.map((r): AppEventRow => ({
+      id: r.id,
+      user_id: r.user_id,
+      household_id: r.household_id ?? null,
+      name: r.name,
+      props: r.props ?? {},
+      created_at: new Date(r.created_at).toISOString(),
+    }));
   }
 
   async saveAttachment(a: AttachmentRecord): Promise<void> {

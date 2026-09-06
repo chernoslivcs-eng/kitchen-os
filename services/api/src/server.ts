@@ -1,4 +1,6 @@
 import './env.js';                      // MUST BE FIRST — заселяє process.env перед усім
+import { initSentry, flushSentry } from './sentry.js';
+initSentry();                          // одразу за env: DSN уже в process.env
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import multipart from '@fastify/multipart';
 import cookie from '@fastify/cookie';
@@ -16,6 +18,9 @@ import { pantryRoute } from './routes/pantry.js';
 import { recipesRoutes } from './routes/recipes.js';
 import { shoppingRoutes } from './routes/shopping.js';
 import { eventsRoutes } from './routes/events.js';
+import { trackRoutes } from './routes/track.js';
+import { incident } from './incident.js';
+import { pulseRoutes } from './routes/pulse.js';
 import { adminOccasionsRoutes } from './routes/admin-occasions.js';
 import { profileRoutes, eaterRoutes } from './routes/profile.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
@@ -60,6 +65,26 @@ export function buildApp(
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
     done(null, payload);
   });
+  // Крок О1: усе, що впало в обробнику й не було спіймано на місці. Без цього
+  // хука Sentry бачив би лише те, що ми передбачили назвати інцидентом, — а
+  // найдорожчі падіння якраз ті, яких ніхто не передбачив.
+  //
+  // Тільки 5xx: 400 від валідації схеми теж проходить сюди, але це не аварія,
+  // а відмова, і сипати нею в Sentry означало б втопити справжні падіння.
+  app.addHook('onError', (req, reply, err, done) => {
+    if ((err.statusCode ?? reply.statusCode ?? 500) < 500) return done();
+    incident({ repo, log: req.log }, 'broke', 'unhandled-route-error', {
+      user_id: req.user?.user_id ?? null,
+      household_id: req.user?.household_id ?? null,
+      route: `${req.method} ${req.routeOptions?.url ?? req.url}`,
+      err,
+    });
+    done();
+  });
+  // Лямбда засинає одразу після відповіді — без цього подія не встигає піти.
+  // Нічого не робить, якщо за запит нічого не сталось.
+  app.addHook('onResponse', async () => { await flushSentry(); });
+
   app.register(cookie);
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -71,6 +96,9 @@ export function buildApp(
   pantryRoute(app, repo);
   shoppingRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   eventsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
+  // Крок О1а: прийом подій поведінки й сторінка власника.
+  trackRoutes(app, repo);
+  pulseRoutes(app, repo);
   adminOccasionsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   profileRoutes(app, repo);
   eaterRoutes(app, repo);

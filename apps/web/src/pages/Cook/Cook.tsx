@@ -4,6 +4,7 @@
 // подія списання, тут ми зберігаємо тільки локальний стан.
 
 import { useEffect, useRef, useState } from 'react';
+import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Button } from '../../components/Button/Button';
@@ -43,12 +44,20 @@ export function CookOverlay() {
   // локу після переходу — рівно --dur-slow, тривалість зміни кроку.
   const [stepLocked, setStepLocked] = useState(false);
 
+  // Крок О1а: почали готувати. Кроки й фініш нижче — разом вони дають
+  // єдину криву, де видно, на чому люди зупиняються.
+  useEffect(() => { if (recipe) track('cook_started', { steps: recipe.st.length }); }, [recipe?.t]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (recipe) track('cook_step_reached', { step: stepIdx + 1, of: recipe.st.length }); }, [stepIdx]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   // Бриф-3 п.1: повернення на пройдений крок — тап по смузі або ↩.
   // Таймер при поверненні стає на паузу (він не «відмотує час», людина
   // сама вирішить, чи запускати).
   // Пул-3: «✕» — це закрити поп-ап. Людина лишається там, де була;
   // прогрес живе в kos-cook-live, банери повернуть назад.
   function exitToOrigin() {
+    // Крок О1а: кинуте готування — і на якому саме кроці. Це та подія, що
+    // каже, де рецепт перестає бути здійсненним.
+    if (!finishedRef.current) track('cook_abandoned', { step: stepIdx + 1, of: recipe?.st.length ?? 0 });
     closeOverlay();
   }
 
@@ -310,6 +319,7 @@ export function CookOverlay() {
   const finishedRef = useRef(false);
   async function finish() {
     if (finishing || finishedRef.current) return;
+    track('cook_finished', { steps: recipe?.st.length ?? 0 });
     stopAlarm();
     setFinishing(true);
     finishedRef.current = true;
