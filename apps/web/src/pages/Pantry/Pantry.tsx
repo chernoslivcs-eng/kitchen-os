@@ -3,35 +3,24 @@
 // Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
 import { useEffect, useRef, useState } from 'react';
+import { ZONE_OPTIONS, UNIT_OPTIONS, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
+import { usePanelStore } from '../../store/panel';
 import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { BatchCard } from './BatchCard';
+import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
-import { batchMatchesQuery } from '../../lib/recipe';
 import styles from './Pantry.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { useAuth } from '../../store/auth';
 
-const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
-const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
-  fresh: 'Свіже',
-  fridge: 'Холодильник',
-  freezer: 'Морозилка',
-  dry: 'Суха шафа',
-  spices: 'Спеції',
-  drinks: 'Напої',
-};
-
-function daysLeft(iso: string | null): number | null {
-  if (!iso) return null;
-  return Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
-}
 
 export function PantryPage() {
   const openNav = useNavStore((st) => st.setOpen);
@@ -42,7 +31,8 @@ export function PantryPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
-  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<FilterState>(INITIAL);
+  const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
   // QA9-09: швидке «✕» на рядку — списати одним тапом, з ↩ Повернути.
   const [removed, setRemoved] = useState<PantryBatch | null>(null);
   const removedTimer = useRef<number | null>(null);
@@ -123,6 +113,7 @@ export function PantryPage() {
       snapshotReady.current = true;
       setBatches(p.batches);
       setProducts(p.products ?? []);
+      setLastReceiptAt(p.last_receipt_at ?? null);
       setShoppingCount(s.count);
     } finally {
       setLoading(false);
@@ -144,18 +135,70 @@ export function PantryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const q = query.trim().toLowerCase();
-  // Пул-3: пошук бачить і невидиме — трійку продукту і категорії/аліаси
-  // каталогу («сир» → моцарела, камбоцола, пармезан).
+  // Крок Ф2: картка позиції живе в правій панелі артефактів (тій самій, що
+  // рецепт), не в модалці. Сторінка публікує в панель одну вкладку «batch:id»
+  // і рендер картки; дані картки — з живого списку, щоб після PATCH вона
+  // оновлювалась разом із рядком.
+  const panel = usePanelStore();
+  const editingLive = editing ? batches.find((b) => b.id === editing.id) ?? editing : null;
+  useEffect(() => {
+    if (!editingLive) { panel.clear(); return; }
+    const key = `batch:${editingLive.id}`;
+    panel.publish({
+      artifacts: [{ key, kind: 'batch', label: editingLive.label, meta: '' }],
+      render: () => (
+        <BatchCard
+          key={editingLive.id}
+          batch={editingLive}
+          product={products.find((pr) => pr.id === (editingLive.product_id ?? '')) ?? null}
+          onChanged={refresh}
+          onRemove={async () => { markLeaving(editingLive.id); await wait(250); await api.batches.remove(editingLive.id); setEditing(null); await refresh(); }}
+        />
+      ),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingLive, products]);
+  useEffect(() => {
+    if (editing) panel.openArtifact(`batch:${editing.id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing?.id]);
+  useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Раунд 5, крок Ф1: порядок / тільки / стан — логіка в filter.ts (спека
+  // дизайну один в один), тут лише стан і рендер.
   const productsById = new Map(products.map((p) => [p.id, p]));
-  const filtered = q
-    ? batches.filter((b) => batchMatchesQuery(q, b, productsById))
-    : batches;
-  const byZone = new Map<PantryBatch['zone'], PantryBatch[]>();
-  for (const b of filtered) {
-    if (!byZone.has(b.zone)) byZone.set(b.zone, []);
-    byZone.get(b.zone)!.push(b);
-  }
+  const view = applyFilter(batches, filter, { productsById, receiptAt: lastReceiptAt });
+  const q = filter.q.trim().toLowerCase();
+
+  const renderRow = (r: RowView, flat: boolean) => {
+    const b = r.it;
+    return (
+      /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
+         ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+        <button className={styles['row-main']} onClick={() => setEditing(b)}>
+          <FreshIcon fresh={r.fresh} />
+          <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
+            <span className={styles['name-text']}>{r.name}</span>
+            {flat ? (
+              <span className={styles['meta-line']}>
+                <span className={styles['zone-tag']}>{r.zone}</span>
+                {r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>}
+              </span>
+            ) : (r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>)}
+          </span>
+          {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
+          {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
+        </button>
+        <button
+          className={styles['row-x']}
+          aria-label={`Списати «${b.label}»`}
+          title="Закінчилось? Прибрати"
+          onClick={() => void quickRemove(b)}
+        >✕</button>
+      </div>
+    );
+  };
 
   return (
     <div className={styles.screen}>
@@ -178,20 +221,17 @@ export function PantryPage() {
             + Додати
           </button>
           {/* QA6-12: під час пошуку лічильник показував загальну кількість —
-              «9 ПОЗИЦІЙ» при одній видимій. */}
-          <div className={styles.meta}>
-            {q
-              ? `${filtered.length} З ${batches.length}`
-              : `${batches.length} ${plural(batches.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`}
-          </div>
+              «9 ПОЗИЦІЙ» при одній видимій. Крок Ф1: те саме для фільтра — «12 З 61». */}
+          <div className={styles.meta} data-testid="pantry-meta">{view.meta}</div>
       </>} />
 
       <div className={styles.body}>
-        {batches.length >= 8 && (
+        {batches.length > 0 && (
           <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Знайти в коморі"
+            value={filter.q}
+            onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+            placeholder="Знайти в коморі — продукт або категорію: «сир», «овочі»"
+            aria-label="Знайти в коморі"
             style={{
               width: '100%',
               padding: '10px 14px',
@@ -205,6 +245,16 @@ export function PantryPage() {
             }}
           />
         )}
+        {batches.length > 0 && (
+          <FilterRails
+            view={view}
+            state={filter}
+            onSort={(k) => setFilter((f) => ({ ...f, sort: k }))}
+            onKind={(k) => setFilter((f) => toggleKind(f, k))}
+            onState={(k) => setFilter((f) => toggleState(f, k))}
+            onReset={() => setFilter((f) => resetFilter(f))}
+          />
+        )}
         {loading && <SkeletonRows rows={5} />}
         {!loading && batches.length === 0 && (
           <div className={styles.empty}>
@@ -216,86 +266,40 @@ export function PantryPage() {
             </p>
           </div>
         )}
-        {!loading && batches.length > 0 && filtered.length === 0 && (
-          <div className={styles.empty} style={{ borderStyle: 'solid' }}>
-            <p>За «{query}» нічого. Спробуй інше слово.</p>
+        {!loading && view.empty && (
+          <div className={styles.empty} data-testid="filter-empty">
+            <h3>{view.emptyTitle}</h3>
+            <p>{view.emptyText} <button type="button" className={styles['link-btn']} onClick={() => setFilter((f) => resetFilter(f))}>Показати все</button></p>
+          </div>
+        )}
+        {!loading && batches.length > 0 && !view.empty && view.shown.length === 0 && (
+          <div className={styles.empty} data-testid="search-empty">
+            <h3>Нічого не знайшли</h3>
+            <p>За «{filter.q}» у коморі порожньо. <button type="button" className={styles['link-btn']} onClick={() => setFilter((f) => ({ ...resetFilter(f), q: '' }))}>Показати все</button></p>
           </div>
         )}
 
-        {(() => {
-          // Пул-6 №1: «КРАЩЕ НЕ ВІДКЛАДАТИ» — завжди зверху, на всю ширину сітки.
-          const burning = filtered.filter((b) => {
-            const d = daysLeft(b.expires_at);
-            return d != null && d <= 3;
-          });
-          if (!burning.length) return null;
-          return (
-            <div className={styles['burn-section']}>
-              <div className={styles['section-label']} style={{ color: 'var(--amber)' }}>
-                СПОЧАТКУ ГОРИТЬ
-              </div>
-              {burning.map((b) => {
-                const days = daysLeft(b.expires_at)!;
-                return (
-                  <button key={b.id} className={styles['burn-row']} onClick={() => setEditing(b)}>
-                    <span style={{ color: 'var(--amber)' }}>◔</span>
-                    <span className={styles['burn-label']}>{b.label}</span>
-                    <span className={styles['burn-days']}>{days <= 0 ? 'СЬОГОДНІ' : `≈${days} ${days === 1 ? 'ДЕНЬ' : days < 5 ? 'ДНІ' : 'ДНІВ'}`}</span>
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })()}
+        {view.grouped && view.groups.map((g) => (
+          <div key={g.zone} data-zone={g.zone}>
+            <div className={styles['section-label']}>{g.label} <span className={styles['section-count']}>{g.count}</span></div>
+            {g.items.map((r) => renderRow(r, false))}
+          </div>
+        ))}
 
-        {ZONE_ORDER.map((zone) => {
-          const items = byZone.get(zone);
-          if (!items?.length) return null;
-          return (
-            <div key={zone}>
-              <div className={styles['section-label']}>{ZONE_LABEL[zone]}</div>
-              {items.map((b) => {
-                const days = daysLeft(b.expires_at);
-                const urgent = b.state === 'opened' && days != null && days <= 5;
-                return (
-                  /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
-                     ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
-                  <div key={b.id} id={`batch-${b.id}`} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <button
-                      className={styles['row-main']}
-                      onClick={() => setEditing(b)}
-                    >
-                      {/* UX9-19: гліф стану має пояснювати себе сам. */}
-                      <span
-                        key={b.state}
-                        className={`${styles.mark} ${styles['mark-tick']} ${b.state === 'opened' ? styles.opened : ''}`}
-                        title={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
-                        aria-label={b.state === 'opened' ? 'Відкрита' : 'Запакована'}
-                      >
-                        {b.state === 'opened' ? '◔' : '●'}
-                      </span>
-                      <span className={styles.name}>
-                        {b.label}
-                        {urgent && days != null && (
-                          <span className={styles.hint}>ВІДКРИТО · ≈{days} {days === 1 ? 'ДЕНЬ' : 'ДНІ'}</span>
-                        )}
-                      </span>
-                      {b.value != null && b.unit && (
-                        <span className={styles.qty}>{formatQty(b.value, b.unit)}</span>
-                      )}
-                    </button>
-                    <button
-                      className={styles['row-x']}
-                      aria-label={`Списати «${b.label}»`}
-                      title="Закінчилось? Прибрати"
-                      onClick={() => void quickRemove(b)}
-                    >✕</button>
-                  </div>
-                );
-              })}
+        {!view.grouped && !view.empty && view.list.length > 0 && (
+          <div className={styles.flat} data-testid="flat-list">
+            <div className={styles['flat-head']}>
+              <span className={styles['flat-title']}>{view.flatLabel}</span>
+              {/* Крок Ф2: заголовок шкали одним рядком над колонкою значення;
+                  на вузькій ширині — скорочення. Колонка ваги без заголовка. */}
+              <span className={styles['flat-unit']} data-testid="unit-label">
+                <span className={styles['unit-long']}>{view.unitLabel}</span>
+                <span className={styles['unit-short']}>{view.unitShort}</span>
+              </span>
             </div>
-          );
-        })}
+            {view.list.map((r) => renderRow(r, true))}
+          </div>
+        )}
       </div>
 
       {removed && (
@@ -305,15 +309,6 @@ export function PantryPage() {
         </div>
       )}
 
-      {editing && (
-        <BatchEditSheet
-          product={products.find((pr) => pr.id === (editing?.product_id ?? '')) ?? null}
-          batch={editing}
-          onClose={() => setEditing(null)}
-          onChanged={async () => { await refresh(); setEditing(null); }}
-          onRemoving={async (id) => { markLeaving(id); await wait(250); }}
-        />
-      )}
 
       {adding && (
         <BatchAddSheet
@@ -326,167 +321,65 @@ export function PantryPage() {
   );
 }
 
-const ZONE_OPTIONS: { value: PantryBatch['zone']; label: string }[] = [
-  { value: 'fresh', label: 'Свіже' },
-  { value: 'fridge', label: 'Холодильник' },
-  { value: 'freezer', label: 'Морозилка' },
-  { value: 'dry', label: 'Суха шафа' },
-  { value: 'spices', label: 'Спеції' },
-  { value: 'drinks', label: 'Напої' },
-];
-const UNIT_OPTIONS: { value: PantryBatch['unit']; label: string }[] = [
-  { value: null, label: '—' },
-  { value: 'g', label: 'г' },
-  { value: 'ml', label: 'мл' },
-  { value: 'pcs', label: 'шт' },
-  { value: 'pack', label: 'пач' },
-];
-
-function BatchEditSheet({ batch, product, onClose, onChanged, onRemoving }: { batch: PantryBatch; product?: HouseholdProduct | null; onClose: () => void; onChanged: () => Promise<void>; onRemoving?: (id: string) => Promise<void> }) {
-  const [label, setLabel] = useState(batch.label);
-  const [value, setValue] = useState<string>(batch.value != null ? String(batch.value) : '');
-  const [unit, setUnit] = useState<PantryBatch['unit']>(batch.unit);
-  const [zone, setZone] = useState<PantryBatch['zone']>(batch.zone);
-  const [saving, setSaving] = useState(false);
-
-  async function save() {
-    setSaving(true);
-    try {
-      const v = value.trim() === '' ? null : Number(value.trim());
-      await api.batches.update(batch.id, {
-        label: label.trim(),
-        value: v,
-        unit,
-        zone,
-      });
-      await onChanged();
-    } catch (err) {
-      alert('Не вдалося зберегти. Спробуй ще раз.');
-    } finally { setSaving(false); }
-  }
-
-  async function toggleOpened() {
-    setSaving(true);
-    try {
-      // FIX-04: перемикач «Відкрито» шле ще й поточні поля форми, інакше тап
-      // тихо викидає все, що юзер щойно наредагував, і закриває шит.
-      const v = value.trim() === '' ? null : Number(value.trim());
-      await api.batches.update(batch.id, {
-        label: label.trim(),
-        value: v,
-        unit,
-        zone,
-        state: batch.state === 'sealed' ? 'opened' : 'sealed',
-      });
-      await onChanged();
-    } catch (err) {
-      alert(`Не вдалося зберегти: ${(err as Error).message}`);
-    } finally { setSaving(false); }
-  }
-
-  async function remove() {
-    if (!confirm('Прибрати з комори? Вважатимемо, що закінчилось. В історії лишиться.')) return;
-    setSaving(true);
-    try {
-      await onRemoving?.(batch.id);
-      await api.batches.remove(batch.id);
-      await onChanged();
-    } catch (err) {
-      alert('Не вдалося прибрати. Спробуй ще раз.');
-    } finally { setSaving(false); }
-  }
-
+// Три рядки над списком: порядок (одна шкала), тільки (один рід), стан (до
+// двох). На мобільному — рейки з горизонтальним скролом, підпис закріплений
+// зліва; активне слово прокручується у видиму зону (reveal() з дизайну).
+function FilterRails({ view, state, onSort, onKind, onState, onReset }: {
+  view: FilterView; state: FilterState;
+  onSort: (k: SortKey) => void; onKind: (k: KindKey) => void; onState: (k: StateKey) => void; onReset: () => void;
+}) {
+  const sortRef = useRef<HTMLDivElement>(null);
+  const kindRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef<HTMLDivElement>(null);
+  const reveal = (rail: HTMLDivElement | null, k: string | undefined) => {
+    if (!rail || !k) return;
+    const el = rail.querySelector<HTMLElement>(`[data-k="${k}"]`);
+    if (!el) return;
+    const l = el.offsetLeft - rail.offsetLeft, r = l + el.offsetWidth;
+    if (l < rail.scrollLeft + 12) rail.scrollLeft = l - 12;
+    else if (r > rail.scrollLeft + rail.clientWidth - 22) rail.scrollLeft = r - rail.clientWidth + 22;
+  };
+  useEffect(() => {
+    reveal(sortRef.current, state.sort);
+    reveal(kindRef.current, view.kinds.find((k) => k.on)?.key);
+    reveal(stateRef.current, [...view.states].reverse().find((k) => k.on)?.key);
+  }, [state.sort, state.cuts, view.kinds, view.states]);
   return (
-    <Sheet onClose={onClose} ariaLabel="Редагувати позицію">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MonoLabel>ПОЗИЦІЯ</MonoLabel>
-          <button
-            onClick={onClose}
-            style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
-            aria-label="Закрити"
-          >✕</button>
+    <div className={styles.rails} data-testid="filter-rails">
+      <div className={styles.rail}>
+        <span className={styles['rail-label']}>порядок</span>
+        <div className={`${styles['rail-words']} ${styles.hs}`} ref={sortRef} role="radiogroup" aria-label="Порядок">
+          {SORTS.map((s) => (
+            <button key={s.key} type="button" data-k={s.key} role="radio" aria-checked={s.key === state.sort}
+              className={`${styles.word} ${styles['word-sort']} ${s.key === state.sort ? styles['word-on'] : ''}`} onClick={() => onSort(s.key)}>{s.label}</button>
+          ))}
         </div>
-
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Назва</span>
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} />
-          {/* Пул-2 №11: партія показує на продукт дому — трійку і теги
-              правлять у чаті; ручна правка назви тут трійку НЕ міняє. */}
-          {product && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em', color: 'var(--fg-dim)', lineHeight: 1.5 }}>
-              ПРОДУКТ: {product.product}
-              {product.brand ? ` · БРЕНД: ${product.brand}` : ''}
-              {product.variant ? ` · ВАРІАНТ: ${product.variant}` : ''}
-              {' — назву, деталі й позначки простіше поправити в чаті.'}
-            </span>
-          )}
-        </label>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Кількість</span>
-            <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Одиниця</span>
-            <select
-              value={unit ?? ''}
-              onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
-              style={{
-                padding: '11px 12px', background: 'var(--bg-input)',
-                border: '1px solid var(--border)', borderRadius: 'var(--r)',
-                color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
-              }}
-            >
-              {UNIT_OPTIONS.map((o) => <option key={o.value ?? ''} value={o.value ?? ''}>{o.label}</option>)}
-            </select>
-          </label>
+        {view.dirty ? <button type="button" className={`${styles.reset} ${styles['reset-desktop']}`} onClick={onReset}>скинути</button> : <span />}
+      </div>
+      <div className={styles.rail}>
+        <span className={styles['rail-label']}>тільки</span>
+        <div className={`${styles['rail-words']} ${styles.hs}`} ref={kindRef} aria-label="Тільки">
+          {view.kinds.map((k) => (
+            <button key={k.key} type="button" data-k={k.key} aria-pressed={k.on}
+              className={`${styles.word} ${styles.chip} ${k.on ? styles['chip-on'] : ''}`} onClick={() => onKind(k.key)}>{k.label}</button>
+          ))}
         </div>
-
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Зона</span>
-          <select
-            value={zone}
-            onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}
-            style={{
-              padding: '11px 12px', background: 'var(--bg-input)',
-              border: '1px solid var(--border)', borderRadius: 'var(--r)',
-              color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
-            }}
-          >
-            {ZONE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-          {/* UX9-18: «● Запаковано» читалось як СТАН (і суперечило рядку) —
-              це ДІЯ. Дієслово + title знімають двозначність. */}
-          <Button
-            variant="secondary"
-            onClick={toggleOpened}
-            disabled={saving}
-            title={batch.state === 'sealed' ? 'Уже відкрили' : 'Ще запаковано'}
-          >
-            {batch.state === 'sealed' ? '◔ Позначити відкритою' : '● Позначити запакованою'}
-          </Button>
-          <div style={{ flex: 1 }} />
-          <Button onClick={save} loading={saving}>Зберегти</Button>
+        <span />
+      </div>
+      <div className={styles.rail}>
+        <span className={styles['rail-label']}>стан</span>
+        <div className={`${styles['rail-words']} ${styles.hs}`} ref={stateRef} aria-label="Стан">
+          {view.states.map((c) => (
+            <button key={c.key} type="button" data-k={c.key} aria-pressed={c.on} aria-disabled={c.full} disabled={c.full}
+              className={`${styles.word} ${styles.chip} ${c.on ? `${styles['chip-on']} ${styles[`tone-${c.tone}`]}` : ''} ${c.full ? styles['chip-full'] : ''}`}
+              onClick={() => onState(c.key)}>{c.label}</button>
+          ))}
         </div>
-
-        <button
-          onClick={remove}
-          disabled={saving}
-          style={{
-            marginTop: 4,
-            background: 'transparent', border: 0,
-            color: 'var(--danger)', fontFamily: 'var(--font-mono)',
-            fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '10px 0', cursor: 'pointer',
-          }}
-        >
-          Прибрати з комори
-        </button>
-    </Sheet>
+        <span />
+      </div>
+      {/* Мобільний (дизайн 1b): «скинути» під трьома рейками, праворуч. */}
+      {view.dirty && <button type="button" className={`${styles.reset} ${styles['reset-mobile']}`} onClick={onReset}>скинути</button>}
+    </div>
   );
 }
 

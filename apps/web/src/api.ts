@@ -79,6 +79,24 @@ export interface PantryBatch {
   last_by: string | null;
   last_action: string | null;
   product_id?: string | null;
+  // Раунд 5, крок Ф1 — поля фільтра комори (рахує сервер, нічого не пише):
+  // верхня категорія каталогу; БЖВ на 100 г (null — нема в каталозі), est —
+  // оцінка; days — до кінця свіжості (null — терміну нема); receipt — з
+  // останнього чека; no — «не їм»/«не можна» як ⚠ у промпті; added — днів від додавання.
+  cat?: string | null;
+  kcal?: number | null;
+  fat?: number | null;
+  prot?: number | null;
+  carb?: number | null;
+  est?: boolean | null;
+  days?: number | null;
+  receipt?: boolean;
+  no?: 'не їм' | 'не можна' | null;
+  added?: number;
+  /** Крок Ф2: вага штуки з каталогу (г) — для «на позицію» при одиниці шт. */
+  unit_weight?: number | null;
+  /** Крок Ф2: звідки позиція — останній/інший чек, «+ Додати», розмова. */
+  origin?: { kind: 'receipt' | 'manual' | 'chat'; shop: string | null; at: string };
 }
 
 // Черга Д (№2): продукт дому — трійка + невидимі теги.
@@ -98,6 +116,8 @@ export interface PantryList {
   count: number;
   batches: PantryBatch[];
   products?: HouseholdProduct[];
+  /** Крок Ф1: дата останнього чека — для підрядка «чек · 3 вер». */
+  last_receipt_at?: string | null;
 }
 
 // M13: рядок чека поза коморою — сірий «додати руками» або «не для комори».
@@ -313,7 +333,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(input),
       }),
-    update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state'>>) =>
+    update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state' | 'expires_at'>>) =>
       req<{ updated: boolean; batch: PantryBatch }>(`/v1/pantry/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(patch),
