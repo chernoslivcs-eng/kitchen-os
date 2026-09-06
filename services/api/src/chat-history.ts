@@ -159,6 +159,13 @@ export function buildChatHistory(messages: MessageRow[]): HistoryTurn[] {
       // Пул-3, pantry-truth: кількості запасів у репліках історії маскуються —
       // єдине число про запас, яке бачить модель, живе в [КОМОРА].
       if (m.text) parts.push(`${stamp} ${maskHistoryQuantities(m.text)}`);
+      // Пул-9 №2: факт вкладення більше не підміняє текст людини (`[вкладення]`
+      // у message.text ховав самі файли зі стрічки) — але з історії він зникати
+      // не має: модель по ньому розуміє, звідки взявся розбір. Тому мітка
+      // збирається тут, із прив'язаних файлів, а не зберігається як репліка.
+      if (m.attachments?.length) {
+        parts.push(`${m.text ? '' : stamp + ' '}[вкладення: ${m.attachments.length}]`);
+      }
       if (m.card) parts.push(summarizeCard(m.card) + cardStatus(m.card, m.applied, m.undone_at ?? null, m.dismissed_at ?? null));
       return { role: m.role, content: parts.join('\n') };
     })

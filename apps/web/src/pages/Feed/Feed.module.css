@@ -265,6 +265,53 @@
      відступ від краю рано чи пізно на нього наліз би. */
   position: relative;
 }
+/* Пул-9 №3: рядок очікування — спінер/крапки і час поруч. */
+.wait-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+.wait-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Пул-9: тиха мітка під ходом — «чекає» (репліка в черзі) і «зупинив»
+   (людина обірвала думання). Не помилка, тому не червоне: це стан. */
+.turn-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+  padding-top: 2px;
+}
+
+/* Пул-9 №1: смуга «краще не відкладати». Жила інлайновим `margin: 0 0 8px`
+   і `width: 100%` — інлайн бив медіа-правило `.composer-wrap > *` з
+   auto-марджинами, тож смуга починалась на 22px лівіше за композитор і на
+   22px не доходила праворуч. Тепер той самий горизонтальний інсет, що в
+   `.composer`, і та сама колонка 720 на широкому. */
+.stale-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 22px 8px;
+  padding: 10px 14px;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  border-radius: var(--r);
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  text-align: left;
+}
+.stale-strip-body { flex: 1; }
+
 .pending-attachments {
   padding: 10px 22px 0;
   display: flex;
@@ -288,6 +335,14 @@
   font-size: 12px;
   color: var(--fg-mono);
 }
+/* Пул-9 №2: у стрічці чіп — посилання на файл. Підкреслення й колір
+   посилання тут зайві: клікабельний сам квадратик. */
+a.att-chip {
+  text-decoration: none;
+  color: inherit;
+}
+a.att-chip:hover { border-color: var(--accent); }
+
 .att-thumb {
   width: 46px;
   height: 46px;
@@ -487,7 +542,7 @@
   }
   /* Правка №7: .timeline тут НЕМАЄ навмисно — вона лишається скрол-зоною на
      всю ширину (колесо працює будь-де), а колонку центрують її діти. */
-  .head, .composer {
+  .head, .composer, .stale-strip {
     max-width: 720px;
     width: 100%;
     margin-left: auto;

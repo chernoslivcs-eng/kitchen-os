@@ -417,10 +417,13 @@ export const api = {
     skip: (message_id: string, key: string) =>
       req<{ card: ChatCard }>(`/v1/onboarding/${message_id}`, { method: 'PATCH', body: JSON.stringify({ skip: key }) }),
   },
-  chat: (input: { text?: string; attachments?: { id: string }[]; session_id?: string; action?: 'profile_summary' }) =>
+  // Пул-9 №4: signal — «Стоп» під час думання. Виклик на сервері може добігти,
+  // але відповідь клієнт уже не приймає (AbortError у catch).
+  chat: (input: { text?: string; attachments?: { id: string }[]; session_id?: string; action?: 'profile_summary' }, signal?: AbortSignal) =>
     req<ChatResponse>('/v1/chat', {
       method: 'POST',
       body: JSON.stringify(input),
+      ...(signal ? { signal } : {}),
     }),
 
   // П2: довідник для картки серії і підписки дому.
@@ -763,6 +766,9 @@ export interface MessageInfo {
   // щоб «СКАСОВАНО»/«ВІДХИЛЕНО» переживали F5, а не лише поточну сесію вкладки.
   undone_at?: string | null;
   dismissed_at?: string | null;
+  // Пул-9 №2: файли, прикріплені до цього ходу (attachment.message_id).
+  // Стрічка малює з них мініатюри — і після F5 теж.
+  attachments?: { id: string; mime: string | null }[];
 }
 
 // Рецепт у бібліотеці. `status` рахує сервер проти поточної комори:

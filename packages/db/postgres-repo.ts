@@ -960,7 +960,7 @@ export class PostgresRepo implements Repo {
         ORDER BY m.created_at`,
       [session_id],
     );
-    return rows.map((r): MessageRow => ({
+    const out: MessageRow[] = rows.map((r): MessageRow => ({
       id: r.id,
       session_id: r.session_id,
       role: r.role as 'user' | 'assistant',
@@ -975,6 +975,31 @@ export class PostgresRepo implements Repo {
       undone_at: r.pc_undone_at ? new Date(r.pc_undone_at as string).toISOString() : null,
       dismissed_at: r.pc_dismissed_at ? new Date(r.pc_dismissed_at as string).toISOString() : null,
     }));
+
+    // Пул-9 №2: вкладення ходу. Окремим запитом, а не в JOIN вище: на один
+    // хід їх буває до пʼяти, і JOIN розмножив би рядки message разом із
+    // card (у recipe_link це повний рецепт). Індекс attachment_message_idx
+    // якраз під це.
+    const ids = out.filter((m) => m.role === 'user').map((m) => m.id);
+    if (ids.length) {
+      const att = await this.pool.query(
+        'SELECT id, message_id, content_type FROM attachment WHERE message_id = ANY($1)',
+        [ids],
+      );
+      if (att.rows.length) {
+        const byMsg = new Map<string, { id: string; mime: string | null }[]>();
+        for (const a of att.rows) {
+          const list = byMsg.get(a.message_id) ?? [];
+          list.push({ id: a.id, mime: a.content_type ?? null });
+          byMsg.set(a.message_id, list);
+        }
+        for (const m of out) {
+          const list = byMsg.get(m.id);
+          if (list) m.attachments = list;
+        }
+      }
+    }
+    return out;
   }
 
   async deleteSession(id: string): Promise<void> {

@@ -24,38 +24,13 @@ import { speechSupported, startDictation, type Dictation } from '../../lib/speec
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
 import { stepLabelsFrom } from '../../lib/recipe';
+import { type Turn, type TurnAttachment, attachmentKind, hhmm, newId, messageToTurn } from './turns';
 import styles from './Feed.module.css';
 
 const TRADITION_UA: Record<string, string> = { orthodox: 'православні', catholic: 'католицькі', islamic: 'ісламські', jewish: 'юдейські' };
 import panelStyles from '../../components/ArtifactPanel/ArtifactPanel.module.css';
 import { usePanelStore } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
-
-interface Turn {
-  id: string;
-  role: 'user' | 'assistant';
-  time: string;
-  text?: string;
-  card?: ChatCard | null;
-  cardId?: string | null;
-  applied?: boolean;
-  applying?: boolean;
-  dismissed?: boolean;
-  undoToken?: string;
-  undone?: boolean;
-  // UX9-02: відповідь не прийшла — хід позначений, під ним «↻ Повторити».
-  failed?: boolean;
-  // Моушн-кіт §02: щойно отримана відповідь з'являється «чанками по фразі».
-  // Історичні ходи (F5, зміна сесії) — без цього, інакше стрічка мерехтить.
-  fresh?: boolean;
-  // Пул-7 №4: щойно застосована — картка спалахує шавлією 700ms.
-  justApplied?: boolean;
-  // M13 (канвас М6): «список щойно поповнився рецептом» — Кухня пропонує
-  // зібрати кошик реплікою. Ephemeral: не персиститься на сервер, живе
-  // тільки в цій сесії стрічки (як toast) — старий хід при F5 не воскресає.
-  cartNudge?: boolean;
-  cartNudgeBusy?: boolean;
-}
 
 // Фрази для стрімінг-подачі: розріз по кінцях речень, коротке лишається цілим.
 function splitPhrases(text: string): string[] {
@@ -74,9 +49,11 @@ interface Toast {
   persist?: boolean;
 }
 
-function hhmm(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+// Пул-9 №3: секунди очікування як 0:07 / 1:23. Час — єдина справжня річ, яку
+// клієнт знає про хід виклику, тому він і показується.
+const LONG_WAIT_S = 45;
+function clock(sec: number): string {
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
 function formatBytes(b: number): string {
@@ -85,31 +62,6 @@ function formatBytes(b: number): string {
   return `${(b / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function messageToTurn(m: MessageInfo): Turn {
-  const d = new Date(m.created_at);
-  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const applied = m.applied > 0;
-  return {
-    id: newId(),
-    role: m.role,
-    time,
-    text: m.text ?? undefined,
-    card: m.card,
-    cardId: m.card ? m.id : null,     // message.id === card_id за нашою інваріантою
-    applied,
-    // Аудит раунд 3, крок 1: undone_at/dismissed_at тепер їдуть з історії
-    // (card_pending, приєднано на сервері) — досі скасовані/відхилені
-    // auto-картки після F5 показувались як «◌ ОЧІКУЄ», бо цих полів
-    // просто не було в MessageInfo.
-    undone: !!m.undone_at,
-    dismissed: !!m.dismissed_at,
-    // undoToken на клієнті не відновлюємо — apply вже пройшов, повторний
-    // apply/undo вимагатимуть нового токена. Кнопки undo після F5 нема.
-  };
-}
-
-let nextId = 1;
-const newId = () => `t${nextId++}`;
 
 
 export function Feed() {
@@ -144,6 +96,21 @@ export function Feed() {
   // DA-02: дев'ять секунд тиші на кожну відповідь моделі. Кіт: три крапки зі
   // stagger 150ms, мітка «КУХНЯ · <дієслово>» — завжди з дієсловом.
   const [thinkingVerb, setThinkingVerb] = useState('ДУМАЮ');
+  // Пул-9 №3: розбір чека триває 40–90 с, і один нерухомий рядок читався як
+  // зависання. Фейкових стадій не робимо (на другому чеку напис доїхав би до
+  // останньої і замер — гірше за чесний рядок): показуємо ОДНУ фразу, яку
+  // справді знаємо, і час, який теж справжній.
+  const [waitStartedAt, setWaitStartedAt] = useState<number | null>(null);
+  const [waited, setWaited] = useState(0);
+  useEffect(() => {
+    if (waitStartedAt === null) { setWaited(0); return; }
+    setWaited(0);
+    const id = window.setInterval(() => setWaited(Math.floor((Date.now() - waitStartedAt) / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, [waitStartedAt]);
+
+  // Хід, який ЗАРАЗ у моделі — щоб «Стоп» позначив саме його.
+  const currentTurnId = useRef<string | null>(null);
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
   // Моушн-2 №4: рядок rail, що змінився після apply/готування — флеш шавлією.
@@ -699,22 +666,44 @@ export function Feed() {
   // UX9-02: серцевина відправки — спільна для першої спроби і «↻ Повторити».
   // Помилка більше не ковтається: хід позначається failed, під ним кнопка
   // повтору, тост пояснює людською мовою.
-  async function dispatchChat(text: string, attachments: { id: string }[], retryTurnId?: string) {
+  // Пул-9 №4: контролер поточного виклику. «Стоп» рве саме його; серверний
+  // виклик при цьому може добігти — це нормально, ми просто не приймаємо
+  // відповідь (див. коментар у stopSending).
+  const abortRef = useRef<AbortController | null>(null);
+
+  async function dispatchChat(text: string, attachments: TurnAttachment[], existingTurnId?: string) {
     setSending(true);
     setThinkingVerb(attachments.length ? 'РОЗБИРАЮ' : 'ДУМАЮ');
+    setWaitStartedAt(Date.now());
 
-    let turnId = retryTurnId;
+    let turnId = existingTurnId;
     if (!turnId) {
-      const userTurnText = text || (attachments.length === 1 ? '[вкладення]' : `[${attachments.length} вкладення]`);
-      const userTurn: Turn = { id: newId(), role: 'user', time: hhmm(), text: userTurnText };
+      // Пул-9 №2: «[вкладення]» більше не підміняє репліку. Є текст —
+      // показуємо текст; нема — самі мініатюри.
+      const userTurn: Turn = {
+        id: newId(), role: 'user', time: hhmm(),
+        ...(text ? { text } : {}),
+        ...(attachments.length ? { attachments } : {}),
+      };
       turnId = userTurn.id;
       setTurns((prev) => [...prev, userTurn]);
     } else {
-      setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: false } : t)));
+      // Повтор після помилки — знімаємо помітки.
+      setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: false, aborted: false } : t)));
     }
+    currentTurnId.current = turnId;
 
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     try {
-      const res: ChatResponse = await api.chat({ text, attachments: attachments.length ? attachments : undefined, session_id: sessionId ?? undefined });
+      const res: ChatResponse = await api.chat(
+        {
+          text,
+          attachments: attachments.length ? attachments.map((a) => ({ id: a.id })) : undefined,
+          session_id: sessionId ?? undefined,
+        },
+        ctrl.signal,
+      );
       const turn: Turn = {
         id: newId(),
         role: 'assistant',
@@ -745,6 +734,9 @@ export function Feed() {
       // Правка №1: перша репліка дала сесії назву — сайдбар перечитає список.
       sessionStore.bump();
     } catch (err) {
+      // Пул-9 №4: обрив — не помилка. Хід уже позначений «зупинив» у
+      // stopSending, картку не додаємо, тост не показуємо.
+      if ((err as Error).name === 'AbortError') return;
       const raw = (err as Error).message;
       const human = raw === 'model_unavailable'
         ? 'Не вдалося відповісти. Спробуй ще раз за хвилину.'
@@ -752,8 +744,21 @@ export function Feed() {
       setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: true } : t)));
       setToast({ id: Date.now(), kind: 'err', text: human });
     } finally {
+      if (abortRef.current === ctrl) abortRef.current = null;
+      if (currentTurnId.current === turnId) currentTurnId.current = null;
       setSending(false);
+      setWaitStartedAt(null);
     }
+  }
+
+  // Пул-9 №4: «Стоп». Рве поточний виклик — обірвати думання було неможливо
+  // взагалі. Серверний виклик при цьому може добігти: якщо він устиг створити
+  // pending-картку, вона лишиться в /v1/cards/pending і прийде в панель
+  // «чекають на тебе». У стрічку її не додаємо — там стоїть «зупинив».
+  function stopSending() {
+    const stopped = currentTurnId.current;
+    abortRef.current?.abort();
+    if (stopped) setTurns((prev) => prev.map((t) => (t.id === stopped ? { ...t, aborted: true } : t)));
   }
 
   async function send(e: FormEvent) {
@@ -761,7 +766,7 @@ export function Feed() {
     const text = input.trim();
     if (!text && pending.length === 0) return;
     setInput('');
-    const attachments = pending.map((p) => ({ id: p.id }));
+    const attachments: TurnAttachment[] = pending.map((p) => ({ id: p.id, kind: p.kind, name: p.name }));
     setPending([]);
     // Пул-7 №2: фокус лишається в полі — наступне повідомлення без кліку.
     composerInputRef.current?.focus();
@@ -1185,12 +1190,41 @@ export function Feed() {
                 <div className={styles['turn-text']}>{t.text}</div>
               )
             )}
+            {t.attachments && t.attachments.length > 0 && (
+              /* Пул-9 №2: те, що людина закинула, лишається видимим у стрічці —
+                 ті самі квадратики, що в композиторі. Клік відкриває повний
+                 файл новою вкладкою (той самий /bytes, що й прев'ю). */
+              <div className={styles['pending-attachments']} data-turn-attachments>
+                {t.attachments.map((a) => (
+                  <a
+                    key={a.id}
+                    className={styles['att-chip']}
+                    href={`/v1/attachments/${a.id}/bytes`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={a.name ? `Відкрити ${a.name}` : 'Відкрити вкладення'}
+                  >
+                    {a.kind === 'image' ? (
+                      <img src={`/v1/attachments/${a.id}/bytes`} alt="" className={styles['att-thumb']} />
+                    ) : (
+                      <span className={styles['att-ext']}>{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                    )}
+                    {a.name && <span className={styles['att-name']}>{a.name}</span>}
+                  </a>
+                ))}
+              </div>
+            )}
+            {t.aborted && (
+              /* Пул-9 №4: «Стоп». Хід лишається — це те, що людина сказала;
+                 зникає тільки відповідь, якої вона більше не чекає. */
+              <div className={styles['turn-note']} data-aborted>зупинив</div>
+            )}
             {t.failed && (
               /* UX9-02: людина писала в мертвий продукт і не знала. Тепер хід
                  без відповіді позначений, повтор — одним тапом. */
               <button
                 type="button"
-                onClick={() => void dispatchChat(t.text ?? '', [], t.id)}
+                onClick={() => void dispatchChat(t.text ?? '', t.attachments ?? [], t.id)}
                 disabled={sending}
                 style={{
                   border: 0, background: 'none', padding: 0,
@@ -1427,16 +1461,27 @@ export function Feed() {
           <div className={styles.turn} aria-live="polite">
             <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
             {thinkingVerb === 'РОЗБИРАЮ' ? (
-              /* Пул-7 №4, кіт: розбір — спінер з текстом дії, не «думаю»-крапки. */
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+              /* Пул-7 №4, кіт: розбір — спінер з текстом дії, не «думаю»-крапки.
+                 Пул-9 №3: плюс час — єдине, що тут справді змінюється. */
+              <div className={styles['wait-line']}>
                 <span className={styles['parse-spinner']} />
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)' }}>
-                  Дивлюся, що тут…
+                <span className={styles['wait-text']} data-wait>
+                  Дивлюся, що тут… {clock(waited)}
                 </span>
               </div>
             ) : (
-              <div className={styles.thinking}>
-                <span /><span /><span />
+              <div className={styles['wait-line']}>
+                <div className={styles.thinking}>
+                  <span /><span /><span />
+                </div>
+                <span className={styles['wait-text']} data-wait>{clock(waited)}</span>
+              </div>
+            )}
+            {waited >= LONG_WAIT_S && (
+              /* Пул-9 №3: друга — і остання — фраза. Під нею є справжня подія:
+                 виклик триває довше, ніж триває майже будь-який виклик. */
+              <div className={styles['turn-note']} data-wait-long>
+                {thinkingVerb === 'РОЗБИРАЮ' ? 'Довгий чек, ще тримаю' : 'Ще тримаю'}
               </div>
             )}
           </div>
@@ -1475,27 +1520,12 @@ export function Feed() {
               const labels = staleBatches.map((b) => b.label).join(', ');
               setInput(`Що зробити з ${labels}? Їх краще використати першими.`);
             }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              width: '100%',
-              padding: '10px 14px',
-              margin: '0 0 8px',
-              background: 'var(--amber-bg)',
-              border: '1px solid var(--amber-border)',
-              borderRadius: 'var(--r)',
-              color: 'var(--amber)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              letterSpacing: '0.06em',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
+            className={styles['stale-strip']}
+            data-stale-strip
             aria-label="Запитати, що з цього приготувати"
           >
             <span>◔</span>
-            <span style={{ flex: 1 }}>
+            <span className={styles['stale-strip-body']}>
               КРАЩЕ НЕ ВІДКЛАДАТИ · {staleBatches.map((b) => (
                 b.days <= 0 ? `${b.label.toUpperCase()} (сьогодні)`
                 : b.days === 1 ? `${b.label.toUpperCase()} (завтра)`
@@ -1596,6 +1626,19 @@ export function Feed() {
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
           </button>
+          {/* Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп» — те саме
+              місце, той самий розмір. Обірвати думання було неможливо взагалі. */}
+          {sending && !listening && (
+            <button
+              type="button"
+              className={styles['frame-btn']}
+              onClick={stopSending}
+              aria-label="Зупинити"
+              data-stop
+            >
+              <span className={styles['mic-stop']} />
+            </button>
+          )}
           {listening ? (
             <>
               <button
@@ -1613,12 +1656,11 @@ export function Feed() {
               {/* UX9-05: мікрофон НЕ зникає при тексті — інакше додиктувати
                   неможливо в принципі (єдиний шлях був — стерти поле).
                   Свідоме відхилення від «🎙 морфить у ↑»: тепер поруч. */}
-              {speechSupported() && (
+              {speechSupported() && !sending && (
                 <button
                   type="button"
                   className={styles['frame-btn-ghost']}
                   onClick={toggleVoice}
-                  disabled={sending}
                   aria-label="Додиктувати"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1635,12 +1677,11 @@ export function Feed() {
                 aria-label="Надіслати"
               >↑</button>
             </>
-          ) : speechSupported() ? (
+          ) : speechSupported() && !sending ? (
             <button
               type="button"
               className={styles['frame-btn']}
               onClick={toggleVoice}
-              disabled={sending}
               aria-label="Продиктувати"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
