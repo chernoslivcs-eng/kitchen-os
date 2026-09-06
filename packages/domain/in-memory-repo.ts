@@ -5,7 +5,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
-  SessionRow, MessageRow, EaterRow,
+  SessionRow, MessageRow, EaterRow, LastAppliedIntake, IntakeCard,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -247,6 +247,31 @@ export class InMemoryRepo implements Repo {
     }
     out.sort((a, b) => b.resolvedMs - a.resolvedMs);
     return out.slice(0, opts.limit).map(({ resolvedMs: _resolvedMs, ...pc }) => pc);
+  }
+
+  // Крок Ш1: те саме, що робить вузький SQL у PostgresRepo — найсвіжіша
+  // застосована, не скасована intake-картка з джерелом. Тут це фільтр по мапі:
+  // джерело істини одне, форма відповіді спільна.
+  async lastAppliedIntake(household_id: string, since: Date): Promise<LastAppliedIntake | null> {
+    const sinceMs = since.getTime();
+    let best: PendingCard | null = null;
+    for (const pc of this.pending.values()) {
+      if (pc.household_id !== household_id) continue;
+      if (!pc.applied_at || pc.undone_at) continue;
+      if (new Date(pc.applied_at).getTime() <= sinceMs) continue;
+      if (pc.card?.type !== 'intake_diff') continue;
+      const src = (pc.card as IntakeCard).source;
+      // `!src` того самого змісту, що jsonb_typeof(...) = 'object' у SQL:
+      // картка без джерела пропускається, найсвіжішою стає наступна.
+      if (!src) continue;
+      if (!best || new Date(pc.applied_at).getTime() > new Date(best.applied_at!).getTime()) best = pc;
+    }
+    if (!best) return null;
+    return {
+      applied_at: best.applied_at!,
+      source: (best.card as IntakeCard).source!,
+      created_batch_ids: best.undo_snapshot?.before.created_batch_ids ?? [],
+    };
   }
 
   async saveAttachment(a: AttachmentRecord): Promise<void> {
