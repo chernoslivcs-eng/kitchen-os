@@ -328,7 +328,10 @@ export async function applyCard(
       undo_snapshot: snapshot,
     });
     await repo.markMessageApplied(pc.id, landed);
-    return { applied: landed, undo_token, already: false };
+    // П2: id створеного запису — щоб артефакт міг дописати правки людини
+    // (дати, «суворо») одразу після «Записати», не шукаючи запис навпомацки.
+    const eventIds = snapshot.before.added_event_ids ?? [];
+    return { applied: landed, undo_token, already: false, ...(eventIds.length ? { event_ids: eventIds } : {}) };
   }
 
   if (card.type === 'recipe') {

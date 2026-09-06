@@ -256,10 +256,21 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     },
   );
 
+  // П2: календар малює «Приховані: кавуни · повернути» і «Свята: юдейські ·
+  // змінити» з цього списку — тож рядок несе назву, рід і традицію з довідника.
   app.get('/v1/occasions/subscriptions', { preHandler: authenticated(repo) }, async (req) => {
     const { household_id } = requireUser(req);
+    const catalog = await repo.listOccasionCatalog();
     const rows = await repo.listOccasionSubscriptions(household_id);
-    return { subscriptions: rows.map((r) => ({ occasion_id: r.occasion_id, enabled: r.enabled, updated_at: r.updated_at })) };
+    return {
+      subscriptions: rows.map((r) => {
+        const row = catalog.find((o) => o.id === r.occasion_id);
+        return {
+          occasion_id: r.occasion_id, enabled: r.enabled, updated_at: r.updated_at,
+          title: row?.title ?? r.occasion_id, type: row?.type ?? null, tradition: row?.tradition ?? null,
+        };
+      }),
+    };
   });
 
   // Батч галочок: рядок пишеться лише як відхилення від дефолту; збіг із

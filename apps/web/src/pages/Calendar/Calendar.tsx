@@ -8,12 +8,14 @@
 // уперед (бо це про планування — «важливіше те, що буде»). На старті
 // сьогодні стоїть зверху; пігулка «СЬОГОДНІ» в шапці повертає до нього.
 //
-// Подія — той самий EventArtifact: на ≥1200 у правій панелі каркаса, нижче —
-// шторка. Один компонент, різний контейнер.
+// Подія — PeriodEvent (П2): на ≥1200 у правій панелі каркаса, нижче — шторка.
+// Системна — читання з «Не показувати», своя — правка на місці. Внизу
+// календаря два рядки: «Приховані: … · повернути» і «Свята: … · змінити» —
+// обидва відкривають картку серії (PeriodSeries) відповідного набору.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type EventOccurrence } from '../../api';
+import { api, type EventOccurrence, type OccasionSet, type SubscriptionRow, type Tradition } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { toneKey } from '../../lib/tone';
@@ -28,7 +30,8 @@ import {
   splitAxes, coversDay, edgeCaption, moreLabel, VISIBLE_LIMIT, MOBILE_RAILS, assignLanes,
 } from '../../lib/spans';
 import { Sheet } from '../../components/Sheet/Sheet';
-import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
+import { PeriodEvent, PeriodSeries, type PeriodChange } from '../../components/PeriodArtifact/PeriodArtifact';
+import { TRADITION_LABEL, TRADITION_SETS } from '../../lib/period';
 import { usePanelStore, RAIL_IN_FLOW } from '../../store/panel';
 import styles from './Calendar.module.css';
 
@@ -78,7 +81,8 @@ export function CalendarPage() {
   // перечитування; правлена — після перечитування флешить тінтом 700ms.
   const [leavingEvent, setLeavingEvent] = useState<string | null>(null);
   const [flashEvent, setFlashEvent] = useState<string | null>(null);
-  const onEventChanged = (id?: string, change?: 'add' | 'edit' | 'remove' | 'mute') => {
+  const onEventChanged = (id?: string, change?: PeriodChange) => {
+    if (change === 'subscribe') { setVersion((v) => v + 1); return; }
     if ((change === 'remove' || change === 'mute') && id) {
       setLeavingEvent(id);
       window.setTimeout(() => { setVersion((v) => v + 1); setLeavingEvent(null); }, 250);
@@ -140,6 +144,15 @@ export function CalendarPage() {
   const today = useMemo(() => dayStart(Date.now()), []);
   const from = useMemo(() => mondayOf(today - PAST_WEEKS * 7 * DAY), [today]);
 
+  // П2: підписки дому — для рядків «Приховані» і «Свята» внизу.
+  const [subs, setSubs] = useState<SubscriptionRow[]>([]);
+  useEffect(() => {
+    api.occasions.subscriptions().then(({ subscriptions }) => setSubs(subscriptions)).catch(() => {/* тихо */});
+  }, [version]);
+  const hidden = subs.filter((r) => !r.enabled && r.type !== 'tradition');
+  const traditions = [...new Set(subs.filter((r) => r.enabled && r.tradition).map((r) => r.tradition!))] as Tradition[];
+  const [openSeries, setOpenSeries] = useState<OccasionSet | null>(null);
+
   useEffect(() => {
     const to = new Date(from + WEEKS * 7 * DAY);
     api.events.list(iso(new Date(from)), iso(to))
@@ -174,18 +187,30 @@ export function CalendarPage() {
     return () => mq.removeEventListener('change', on);
   }, []);
   useEffect(() => {
-    if (!panelInFlow || !openEvent) { panel.clear(); return; }
-    const key = `event:${openEvent.id}`;
+    if (!panelInFlow || (!openEvent && !openSeries)) { panel.clear(); return; }
+    if (openSeries) {
+      const key = `series:${openSeries}`;
+      panel.publish({
+        artifacts: [{ key, kind: 'event', label: openSeries === 'seasons' ? 'Сезони' : `${TRADITION_LABEL[openSeries]} свята`, meta: '' }],
+        render: () => (
+          <PeriodSeries key={openSeries} set={openSeries}
+            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)} />
+        ),
+      });
+      panel.openArtifact(key);
+      return;
+    }
+    const key = `event:${openEvent!.id}`;
     panel.publish({
-      artifacts: [{ key, kind: 'event', label: openEvent.title, meta: '' }],
+      artifacts: [{ key, kind: 'event', label: openEvent!.title, meta: '' }],
       render: () => (
-        <EventArtifact key={openEvent.id} event={openEvent} compact
+        <PeriodEvent key={openEvent!.id} event={openEvent!}
           onClose={() => setOpenEvent(null)} onChanged={onEventChanged} />
       ),
     });
     panel.openArtifact(key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panelInFlow, openEvent]);
+  }, [panelInFlow, openEvent, openSeries]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Сьогодні зверху на старті; пігулка повертає до нього.
@@ -306,7 +331,7 @@ export function CalendarPage() {
                     className={`${styles.day} ${isToday ? styles.today : ''} ${inSel(d.at) ? styles.sel : ''} ${sel ? styles.selecting : ''}`}>
                     <div className={styles.gutter}>
                       {bars.map((e, lane) => e && (
-                        <span key={e.id} className={toneClass(e)}>
+                        <span key={e.id} className={`${toneClass(e)} ${e.scope === 'catalog' ? styles.sys : ''}`}>
                           <span className={`${styles.rail} ${dayStart(e.start) === d.at ? styles['rail-start'] : ''} ${dayStart(e.end) === d.at ? styles['rail-end'] : ''}`}
                             style={{ left: lane * 8 }} />
                           {dayStart(e.start) === d.at && <span className={`${styles.dot} ${styles['dot-start']}`} style={{ left: lane * 8 }} />}
@@ -349,16 +374,56 @@ export function CalendarPage() {
         })}
       </div>
 
+      {/* П2 (2e): внизу — що приховано і які свята увімкнені; обидва рядки
+          відкривають картку серії відповідного набору. */}
+      <div className={styles.foot} data-testid="calendar-foot">
+        <div className={styles['foot-row']}>
+          <span className={styles['foot-label']}>приховані</span>
+          <span className={styles['foot-value']}>{hidden.length ? hidden.map((h) => h.title).join(', ') : 'нічого'}</span>
+          <button type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries('seasons'); }}>
+            {hidden.length ? 'повернути' : 'сезони'}
+          </button>
+        </div>
+        <div className={styles['foot-row']}>
+          <span className={styles['foot-label']}>свята</span>
+          {traditions.length ? (
+            <>
+              <span className={styles['foot-value']}>{traditions.map((t) => TRADITION_LABEL[t]).join(', ')}</span>
+              {traditions.map((t) => (
+                <button key={t} type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries(t); }}>
+                  {traditions.length > 1 ? `змінити ${TRADITION_LABEL[t]}` : 'змінити'}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <span className={styles['foot-value']}>не обрано</span>
+              {TRADITION_SETS.map((t) => (
+                <button key={t} type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries(t); }}>
+                  {TRADITION_LABEL[t]}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+
       {creating && (
         <Sheet onClose={() => setCreating(null)} ariaLabel="Нова подія">
-          <EventArtifact mode="new" initial={creating} onClose={() => setCreating(null)}
+          <PeriodEvent initial={creating} onClose={() => setCreating(null)}
             onChanged={(id) => { if (id) openAfterCreate.current = id; setVersion((v) => v + 1); }} />
         </Sheet>
       )}
       {openEvent && !panelInFlow && (
         <Sheet onClose={() => setOpenEvent(null)} ariaLabel={openEvent.title}>
-          <EventArtifact key={openEvent.id} event={openEvent}
+          <PeriodEvent key={openEvent.id} event={openEvent}
             onClose={() => setOpenEvent(null)} onChanged={onEventChanged} />
+        </Sheet>
+      )}
+      {openSeries && !panelInFlow && (
+        <Sheet onClose={() => setOpenSeries(null)} ariaLabel={openSeries === 'seasons' ? 'Сезони' : `${TRADITION_LABEL[openSeries]} свята`}>
+          <PeriodSeries key={openSeries} set={openSeries}
+            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)} />
         </Sheet>
       )}
     </div>

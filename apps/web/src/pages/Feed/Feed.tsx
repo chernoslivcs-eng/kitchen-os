@@ -778,6 +778,7 @@ export function Feed() {
         ? { ...t, applied: true, applying: false, undoToken: r.undo_token, justApplied: true }
         : t,
       ));
+      // П2: картка period повертає id створеного запису — артефакт дописує правки людини.
       // Правка №6: застосована пост-кук картка списання продовжує розмову
       // детермінованим «Як вийшло?» — сервер уже записав його в сесію,
       // нам лишається показати хід без перезавантаження історії.
@@ -794,9 +795,11 @@ export function Feed() {
         text: turn.card ? appliedToast(turn.card, r.applied) : 'Готово',
         onUndo: () => undo(turnId, r.undo_token),
       });
+      return r;
     } catch (err) {
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+      throw err;
     }
   }
 
@@ -935,6 +938,7 @@ export function Feed() {
                 onApply={(selected) => apply(a.turn!.id, selected)}
                 onDismiss={() => dismissCard(a.turn!.id)}
                 onNone={() => applyNone(a.turn!.id)}
+                onOpenArtifact={() => openArtifact(a.key)}
                 onUndo={a.turn.undoToken ? () => undo(a.turn!.id, a.turn!.undoToken!) : undefined}
                 shoppingLabels={shoppingLabels}
                 onNonfoodToList={addNonfoodToList}
@@ -1397,6 +1401,7 @@ export function Feed() {
                 onApply={(selected) => apply(t.id, selected)}
                 onDismiss={() => dismissCard(t.id)}
                 onNone={() => applyNone(t.id)}
+                onOpenArtifact={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
                 profileFields={profileFields}
                 onProfilePatched={() => void loadProfileFields()}
                 onSummary={() => void requestSummary()}

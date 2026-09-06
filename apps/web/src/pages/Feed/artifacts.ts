@@ -5,6 +5,7 @@
 // чека), а перевірити її на екрані можна лише тоді, коли в сесії випадково
 // є потрібна картка. Тут вона перевіряється тестом на будь-яких даних.
 import type { ChatCard } from '../../api';
+import { TRADITION_LABEL } from '../../lib/period';
 
 // Крок Ф2: 'batch' — картка позиції комори в тій самій панелі.
 export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event' | 'batch';
@@ -116,6 +117,15 @@ export function pickArtifacts<T extends ArtifactTurn>(
       // поруч зі списком і правиться на місці (рішення 03.09).
       const first = (t.card?.ops as { title?: string }[] | undefined)?.find((o) => o.title);
       out.push({ key: t.cardId, kind: 'event', label: first?.title ?? 'Подія', meta: '', turn: t });
+    } else if (type === 'period' && t.cardId) {
+      // П2: період — серія (свята традиції, сезони, відписка) або один запис.
+      const c = t.card!;
+      const items = (c.items ?? []) as { title?: string }[];
+      const series = c.kind === 'tradition' || !!c.unsubscribe;
+      const label = series
+        ? (c.unsubscribe && items.length === 1 ? items[0]?.title ?? 'Сезон' : c.tradition ? `${TRADITION_LABEL[c.tradition]} свята` : 'Сезони')
+        : (c.title ?? 'Період');
+      out.push({ key: t.cardId, kind: 'event', label, meta: series && !c.unsubscribe ? String(items.length) : '', turn: t });
     } else if (isIntakeArtifact(t) && t.cardId && intakeAdds(t)) {
       out.push({
         key: t.cardId,
