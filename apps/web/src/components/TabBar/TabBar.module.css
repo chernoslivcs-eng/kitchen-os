@@ -132,15 +132,50 @@
   font-size: 11px;
   color: var(--fg-dim);
 }
-.spacer { display: block; flex: 1; }
+/* Крок С1: одна скрольована стрічка між брендом і профілем.
+ *
+ * Скрол мав лише .sessions, а цілі, «ЗАРАЗ» і роздільник стояли прибитими до
+ * колонки. На короткому екрані «ЗАРАЗ» із трьома подіями з'їдав висоту, і
+ * список сесій стискався до рядка-двох або зникав — до історії не дістатись.
+ *
+ * flex: 1 тут замінив колишній .spacer: висоту забирає сам блок, і він же
+ * притискає профіль донизу. Два flex-жадібні сусіди ділили б вільне місце
+ * навпіл, тож спейсера більше немає ні в розмітці, ні тут.
+ *
+ * min-height: 0 обов'язковий: без нього flex-нащадок не стискається нижче
+ * своєї контентної висоти, і overflow ніколи не спрацює.
+ *
+ * gap і align-items — inherit: у трьох контейнерах (шухляда, смужка 64,
+ * сайдбар 232) вони різні, і замість трьох копій медіа-правил блок просто
+ * бере те, що вже порахував батько.
+ */
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Дотяг до краю списку не має прокручувати сторінку під шухлядою. */
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  align-items: inherit;
+  align-self: stretch;
+  /* Тонка смуга й зарезервований жолоб: на macOS overlay-скролбар не займає
+     місця й stable нічого не змінює, а на Windows класична смуга інакше
+     з'їдала б ширину контенту рівно тоді, коли список став довгим, — і рядки
+     смикались би вбік у момент появи скролу. */
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
 
 /* Правка №1: блок сесій — тільки десктоп (мобайл має сегмент «Історія»). */
 .sessions {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 0;
-  overflow-y: auto;
+  /* Крок С1: власного overflow тут більше немає — скролиться весь стовпчик
+     (.scroll вище). Два вкладені скроли означали б, що колесо над списком
+     ганяє один, а над цілями інший. */
 }
 /* Блок «ЗАРАЗ». Один блок, три контейнери: у шухляді й сайдбарі це той самий
    рядок — назва плюс моно-дата під нею. */
@@ -370,13 +405,11 @@
 }
 
 @media (min-width: 1024px) {
-  /* Правка №1: сесії видимі; довгий список скролиться всередині блока. */
+  /* Правка №1: сесії видимі. Крок С1: скролить їх не цей блок, а .scroll. */
   .sessions {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-height: 0;
-    overflow-y: auto;
   }
   .wrap {
     position: fixed;
@@ -410,7 +443,6 @@
   /* Д01: логотип угорі, приглушений mono-лічильник, блок користувача внизу. */
   .brand { display: flex; }
   .count { display: inline; }
-  .spacer { display: block; flex: 1; }
   .user { display: flex; }
 }
 
@@ -427,6 +459,11 @@
   .now { display: none; }
   .backdrop { display: block; }
   .rail-more { display: flex; }
+  /* Крок С1: у смужці 64px жолоб не резервуємо — на Windows він зсунув би
+     44px-іконки з центру, а скролу тут не буває: пʼять цілей влазять завжди.
+     У розгорнутій шухляді (.wrap.open, 300px) поводимось як усюди. */
+  .scroll { scrollbar-gutter: auto; }
+  .wrap.open .scroll { scrollbar-gutter: stable; }
 
   .wrap.open {
     width: 300px;
@@ -486,7 +523,6 @@
     font-size: 9px;
     padding: 1px 5px;
   }
-  .spacer { display: block; flex: 1; }
   .user { display: flex; width: 44px; height: 44px; padding: 0; justify-content: center; }
   .user > span:nth-child(2) { display: none; }
 }
