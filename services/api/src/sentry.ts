@@ -87,17 +87,20 @@ export function scrub(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
 /**
  * Інцидент у Sentry. broke → рівень error, guard → warning: у Sentry це різні
  * списки, і власник має бачити «зламалось» окремо від «спрацював запобіжник».
+ *
+ * Повертає event_id — за ним подію знаходять пошуком. Ми віддаємо його людині
+ * (перші вісім знаків), щоб «щось зламалось» можна було назвати конкретно.
  */
 export function captureIncident(
   kind: 'broke' | 'guard',
   name: string,
   ctx: Record<string, unknown>,
-): void {
-  if (!on) return;
+): string | undefined {
+  if (!on) return undefined;
   pending = true;
   const { user_id, household_id, session_id, err, ...rest } = ctx;
   try {
-    Sentry.withScope((scope) => {
+    return Sentry.withScope((scope) => {
       scope.setLevel(kind === 'broke' ? 'error' : 'warning');
       scope.setTag('incident_kind', kind);
       scope.setTag('incident', name);
@@ -109,11 +112,11 @@ export function captureIncident(
       // `chat-model-call-failed` розсипається на сотню окремих проблем через
       // різні повідомлення провайдера.
       scope.setFingerprint([name]);
-      if (err instanceof Error) Sentry.captureException(err);
-      else Sentry.captureMessage(name);
+      return err instanceof Error ? Sentry.captureException(err) : Sentry.captureMessage(name);
     });
   } catch {
     // Те саме: спостережність не має права зламати обробник.
+    return undefined;
   }
 }
 

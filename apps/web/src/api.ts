@@ -674,6 +674,10 @@ export const api = {
     // id, коли розбираєш не свій день.
     pulse: (day: string, user?: string) =>
       req<Pulse>(`/v1/admin/pulse?day=${encodeURIComponent(day)}${user ? `&user=${encodeURIComponent(user)}` : ''}`),
+    // Крок О1: димовий тест символікації. `?dry=1` не вибухає — це лише
+    // перевірка доступу, якою сторінка /admin/boom вирішує, показати 404 чи
+    // впасти. Без прапорця той самий маршрут кидає справжній виняток.
+    boomDry: () => req<{ ok: true }>('/v1/admin/boom?dry=1'),
   },
 
   shopping: {

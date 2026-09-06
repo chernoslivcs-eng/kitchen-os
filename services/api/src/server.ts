@@ -21,6 +21,7 @@ import { eventsRoutes } from './routes/events.js';
 import { trackRoutes } from './routes/track.js';
 import { incident } from './incident.js';
 import { pulseRoutes } from './routes/pulse.js';
+import { boomRoutes } from './routes/boom.js';
 import { adminOccasionsRoutes } from './routes/admin-occasions.js';
 import { profileRoutes, eaterRoutes } from './routes/profile.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
@@ -72,13 +73,24 @@ export function buildApp(
   // Тільки 5xx: 400 від валідації схеми теж проходить сюди, але це не аварія,
   // а відмова, і сипати нею в Sentry означало б втопити справжні падіння.
   app.addHook('onError', (req, reply, err, done) => {
-    if ((err.statusCode ?? reply.statusCode ?? 500) < 500) return done();
-    incident({ repo, log: req.log }, 'broke', 'unhandled-route-error', {
+    // Статус беремо З ПОМИЛКИ, а не з відповіді: на момент цього хука fastify
+    // ще не проставив 500 у reply, там лежить дефолтна 200. Перший захід
+    // читав reply.statusCode як запасний варіант — і мовчки пропускав рівно те,
+    // заради чого хук написано: необроблений виняток без власного statusCode.
+    // Тепер запасний варіант — 500, а reply.statusCode бере участь, тільки
+    // якщо він уже сам по собі аварійний.
+    const status = err.statusCode ?? (reply.statusCode >= 500 ? reply.statusCode : 500);
+    if (status < 500) return done();
+    const code = incident({ repo, log: req.log }, 'broke', 'unhandled-route-error', {
       user_id: req.user?.user_id ?? null,
       household_id: req.user?.household_id ?? null,
       route: `${req.method} ${req.routeOptions?.url ?? req.url}`,
       err,
     });
+    // Код події їде у відповіді. Тіло лишаємо як є — його форму знає fastify і
+    // на неї спираються інші місця; заголовок нічого не ламає й доступний
+    // однаково і людині з curl, і клієнту.
+    if (code) reply.header('x-incident-code', code);
     done();
   });
   // Лямбда засинає одразу після відповіді — без цього подія не встигає піти.
@@ -99,6 +111,7 @@ export function buildApp(
   // Крок О1а: прийом подій поведінки й сторінка власника.
   trackRoutes(app, repo);
   pulseRoutes(app, repo);
+  boomRoutes(app, repo);
   adminOccasionsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   profileRoutes(app, repo);
   eaterRoutes(app, repo);
