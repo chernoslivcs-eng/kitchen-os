@@ -16,7 +16,8 @@ import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
-import { DropZone } from '../../components/DropZone/DropZone';
+import { useDropZone } from '../../components/DropZone/useDropZone';
+import { DropCard } from '../../components/DropZone/DropCard';
 import { useNavStore } from '../../store/nav';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
@@ -147,6 +148,14 @@ export function Feed() {
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
   const [uploading, setUploading] = useState(false);
+  // Крок Д1: перетягування. Кинути можна будь-де в стрічці — хук слухає window;
+  // малюють це два місця: картка в кінці стрічки і сам композитор.
+  const drag = useDropZone({
+    pendingCount: pending.length,
+    max: MAX_ATTACHMENTS,
+    onFiles: useCallback((files: File[]) => { void pickFiles(files); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
+    onFolder: useCallback(() => setToast({ id: Date.now(), kind: 'err', text: 'Тека не піде — перетягни файли' }), []),
+  });
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerInputRef = useRef<HTMLTextAreaElement>(null);
@@ -1045,16 +1054,6 @@ export function Feed() {
     <div
       className={styles.screen}
     >
-      {/* Крок Д1: перетягнути файл можна у все вікно стрічки, не в композитор.
-          Обробники живуть усередині DropZone на window — тут лише межі
-          (скільки вже стоїть, яка стеля) і той самий pickFiles, що у скріпки:
-          ліміт, помилки й uploading рахує він, дублювати нічого. */}
-      <DropZone
-        pendingCount={pending.length}
-        max={MAX_ATTACHMENTS}
-        onFiles={(files) => void pickFiles(files)}
-        onFolder={() => setToast({ id: Date.now(), kind: 'err', text: 'Тека не піде — перетягни файли' })}
-      />
       {/* Шапка лишилась тільки заради аватара на мобайлі. Заголовок «Кухня»
           і лічильники «КОМОРА N · СПИСОК N» прибрані: обидва числа стоять у
           бічному меню (на мобайлі — в нижній смузі), а назва екрана й так
@@ -1532,6 +1531,12 @@ export function Feed() {
           </div>
         ))}
 
+        {!historyOpen && drag && (
+          /* Кухня відповідає ходом, як на будь-що інше: картка стоїть у кінці
+             стрічки, над композитором, і зникає, щойно файл відпустили. */
+          <DropCard drag={drag} max={MAX_ATTACHMENTS} />
+        )}
+
         {!historyOpen && sending && (
           <div className={styles.turn} aria-live="polite">
             <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
@@ -1645,7 +1650,10 @@ export function Feed() {
         {/* Бриф-3 п.6 — канон композитора: одна пілюля, 📎 (ghost) і 🎙
             всередині фрейму справа; при наборі 🎙 морфить у ↑, 📎 лишається.
             «Обери інструмент» стало «запиши» — ввід виглядає як рядок журналу. */}
-        <form className={`${styles.composer} ${listening ? styles['composer-recording'] : ''}`} onSubmit={send}>
+        <form
+          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''} ${drag ? styles['composer-armed'] : ''}`}
+          onSubmit={send}
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -1686,7 +1694,12 @@ export function Feed() {
                 void pasteAsAttachment(text);
               }
             }}
-            placeholder={listening ? 'Слухаю…' : pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
+            placeholder={
+              drag ? 'Відпусти — файл піде в розмову'
+                : listening ? 'Слухаю…'
+                : pending.length > 0 ? 'Що з цим?'
+                : 'Записати в журнал…'
+            }
             autoFocus
           />
           <button
