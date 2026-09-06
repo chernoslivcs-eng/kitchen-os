@@ -102,10 +102,16 @@ function isCatalogWord(word: string): boolean {
   return false;
 }
 
+// К1а: «чому (ти) не пропонуєш / радиш / даєш / береш / готуєш …» — питання
+// про поведінку асистента, а не про їжу, навіть коли далі стоїть назва
+// продукту («чому ти не пропонуєш мʼясо?»). Гейт каталогу тут не діє.
+const BEHAVIOUR_QUESTION = /(?<!\p{L})чому\s+(ти\s+)?не\s+(пропону|рад|да|бер|готу)(єш|иш|ю)?(?!\p{L})/u;
+
 export function isProductQuestion(text: string): boolean {
   const t = text.toLowerCase();
   const ws = tokens(text);
   if (!ws.length) return false;
+  if (BEHAVIOUR_QUESTION.test(t)) return true;
 
   const asks = ws.some((w) => matchesStem(w, QUESTION_STEMS)) || QUESTION_PHRASES.some((re) => re.test(t));
   if (!asks) return false;

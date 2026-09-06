@@ -37,6 +37,15 @@ describe('isProductQuestion', () => {
   it.each(YES)('так: «%s»', (t) => expect(isProductQuestion(t)).toBe(true));
   it.each(NO)('ні: «%s»', (t) => expect(isProductQuestion(t)).toBe(false));
   it('порожньо — ні', () => expect(isProductQuestion('')).toBe(false));
+
+  // К1а: питання про поведінку асистента вмикає блок навіть із назвою продукту з каталогу.
+  it.each([
+    'чому ти не пропонуєш мʼясо?',
+    'чому не радиш рибу?',
+    'чому ти не даєш стейк на вечерю?',
+    'чому не готуєш курку?',
+  ])('так, про поведінку: «%s»', (t) => expect(isProductQuestion(t)).toBe(true));
+  it.each(['чому не солиш воду на пасту?', 'чому мʼясо сіре після смаження?'])('ні, «чому» без поведінки: «%s»', (t) => expect(isProductQuestion(t)).toBe(false));
 });
 
 describe('productMapFor', () => {
