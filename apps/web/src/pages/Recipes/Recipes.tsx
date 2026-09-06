@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type SavedRecipe } from '../../api';
 import { plural } from '../../lib/plural';
+import { formatDuration } from '@kitchen/domain/duration';
 import styles from './Recipes.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
@@ -208,7 +209,7 @@ export function RecipesPage() {
                     }}>
                       {chip.text}
                     </span>
-                    {r.time_total && <span>{r.time_total}ХВ</span>}
+                    {r.time_total && <span>{formatDuration(r.time_total, 'caps')}</span>}
                     {r.cooked_count > 0 && (
                       <span>ГОТУВАВ {r.cooked_count} {plural(r.cooked_count, ['РАЗ', 'РАЗИ', 'РАЗІВ'])}</span>
                     )}

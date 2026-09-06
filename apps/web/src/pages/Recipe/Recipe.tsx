@@ -10,6 +10,7 @@ import { api, type Recipe, type RecipeNutritionInfo } from '../../api';
 import { formatNutritionLine } from '../../lib/nutrition';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
+import { formatDuration } from '@kitchen/domain/duration';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
 import { useCookStore } from '../../store/cook';
@@ -134,7 +135,7 @@ export function RecipePage() {
   };
 
   const summary = [
-    recipe.tm ? `${recipe.tm}ХВ` : null,
+    recipe.tm ? formatDuration(recipe.tm, 'caps') : null,
     recipe.nu?.kcal ? `${recipe.nu.kcal}ККАЛ/ПОРЦІЮ` : null,
     recipe.nu ? `Б${Math.round(recipe.nu.p)} Ж${Math.round(recipe.nu.f)} В${Math.round(recipe.nu.c)}` : null,
   ].filter(Boolean).join(' · ');

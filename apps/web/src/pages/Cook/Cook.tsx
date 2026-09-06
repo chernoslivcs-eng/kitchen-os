@@ -15,11 +15,21 @@ import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
 
-function formatMS(secondsLeft: number): string {
+// Крок Т1: довгий крок (ферментація, тісто на ніч) відлічувався як «150:00» —
+// хвилини понад дві години перестають читатись.
+//
+// Формат вибирає ДОВЖИНА КРОКУ, а не залишок. Інакше відлік на 150 хв
+// перестрибував би з «2:00:01» на «119:59» посеред роботи — а таймер, що на
+// очах міняє одиниці, читається як зламаний. Крок довший за дві години живе в
+// год:хв:сек від першої секунди до нуля.
+export function formatMS(secondsLeft: number, stepSeconds = secondsLeft): string {
   const s = Math.max(0, Math.floor(secondsLeft));
-  const m = Math.floor(s / 60);
   const sec = s % 60;
-  return `${m}:${String(sec).padStart(2, '0')}`;
+  const totalM = Math.floor(s / 60);
+  if (stepSeconds <= 120 * 60) return `${totalM}:${String(sec).padStart(2, '0')}`;
+  const h = Math.floor(totalM / 60);
+  const m = totalM % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
 export function CookOverlay() {
@@ -447,7 +457,7 @@ export function CookOverlay() {
               {!!step?.s && (
                 <div className={styles.timer}>
                   <div className={`${styles['timer-value']} ${secondsLeft === 0 ? styles.done : ''}`}>
-                    {formatMS(secondsLeft)}
+                    {formatMS(secondsLeft, step.s)}
                   </div>
                   <div className={styles['timer-actions']}>
                     <button
