@@ -14,6 +14,13 @@ export interface RateLimitCfg {
 
 export interface RateLimiter {
   check(key: string): boolean;   // true = дозволено; false = 429
+  /**
+   * Крок Е1: скільки секунд лишилось до зняття ліміту. Смуга «забагато за раз»
+   * малює смужку, що стікає до нуля, і брати для неї константу означало б
+   * збрехати: людина побачила б, що час вийшов, а запит усе одно не пройшов.
+   * Мінімум 1 — «0 секунд» на екрані читається як «уже можна».
+   */
+  retryAfter(key: string): number;
   reset(): void;                 // для тестів
 }
 
@@ -30,6 +37,11 @@ export function makeRateLimiter(cfg: RateLimitCfg): RateLimiter {
       if (bucket.count >= cfg.max) return false;
       bucket.count++;
       return true;
+    },
+    retryAfter(key: string): number {
+      const bucket = buckets.get(key);
+      if (!bucket) return 1;
+      return Math.max(1, Math.ceil((bucket.resetAt - Date.now()) / 1000));
     },
     reset() { buckets.clear(); },
   };

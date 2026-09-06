@@ -15,6 +15,8 @@ import { BatchCard } from './BatchCard';
 import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
+import { Toast } from '../../components/ErrorState/Toast';
+import { PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Pantry.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
@@ -73,6 +75,8 @@ export function PantryPage() {
   // Моушн-кіт §03: після apply/готування змінений рядок підсвічується тінтом
   // шавлії 700ms — порівнюємо value/state зі знімком перед перечитуванням.
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
+  // Крок Е1: не вдалось завантажити ≠ порожньо.
+  const [loadFailed, setLoadFailed] = useState(false);
   const prevSnapshot = useRef<Map<string, string>>(new Map());
   const snapshotReady = useRef(false);
   async function refresh() {
@@ -115,6 +119,12 @@ export function PantryPage() {
       setProducts(p.products ?? []);
       setLastReceiptAt(p.last_receipt_at ?? null);
       setShoppingCount(s.count);
+      setLoadFailed(false);
+    } catch {
+      // Крок Е1: раніше виняток летів далі, а екран лишався з порожнім
+      // станом — тобто казав «у тебе нічого нема». Це різні речі, і в коморі
+      // різниця найдорожча.
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -202,6 +212,12 @@ export function PantryPage() {
 
   return (
     <div className={styles.screen}>
+      {loadFailed && (
+        <Toast
+          text={PANTRY_FAILED.text}
+          action={{ label: PANTRY_FAILED.cta, run: () => void refresh() }}
+        />
+      )}
       <AppHeader title="Комора" onMenu={() => openNav(true)} action={<>
           <button
             onClick={() => setAdding(true)}

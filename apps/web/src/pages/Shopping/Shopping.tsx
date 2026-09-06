@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { api, type ShoppingItem } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
+import { Toast } from '../../components/ErrorState/Toast';
+import { LIST_FAILED } from '../../components/ErrorState/copy';
 import styles from './Shopping.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
@@ -43,12 +45,17 @@ export function ShoppingPage() {
     }
   }
 
-  useEffect(() => {
-    (async () => {
-      try { setItems((await api.shopping.list()).items); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+  // Крок Е1: не вдалось принести ≠ список порожній.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const load = async () => {
+    try {
+      setItems((await api.shopping.list()).items);
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { void load(); }, []);
 
   // UX9-15: два вікна на одному акаунті не бачили одне одного — застарілий
   // екран нічим не позначався. Мінімум: перечитуємо на поверненні фокуса.
@@ -133,6 +140,12 @@ export function ShoppingPage() {
 
   return (
     <div className={styles.screen}>
+      {loadFailed && (
+        <Toast
+          text={LIST_FAILED.text}
+          action={{ label: LIST_FAILED.cta, run: () => void load() }}
+        />
+      )}
       <AppHeader title="Список" onMenu={() => openNav(true)} action={<>
           {checkedCount > 0 && (
             <button

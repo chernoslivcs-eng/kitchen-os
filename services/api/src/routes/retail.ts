@@ -20,6 +20,7 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 import { makeTokenCipher } from '../retail/crypto.js';
 import { SilpoProvider, RetailAuthError, type RetailFoundRow, type RetailProduct } from '../retail/silpo-provider.js';
 import { KarpatyProvider } from '../retail/karpaty-provider.js';
@@ -274,7 +275,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const { user_id } = requireUser(req);
     if (!limiter.check(user_id)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, limiter, user_id);
       return reply;
     }
   };

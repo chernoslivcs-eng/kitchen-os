@@ -27,6 +27,7 @@ import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
 import { stepLabelsFrom } from '../../lib/recipe';
 import { type Turn, type TurnAttachment, attachmentKind, hhmm, newId, messageToTurn } from './turns';
+import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
 const TRADITION_UA: Record<string, string> = { orthodox: 'православні', catholic: 'католицькі', islamic: 'ісламські', jewish: 'юдейські' };
@@ -61,7 +62,11 @@ interface Toast {
   id: number;
   kind: 'ok' | 'err';
   text: string;
-  onUndo?: () => void;
+  /**
+   * Крок Е1: дія словом праворуч. Раніше тут був тільки onUndo («↩ Скасувати»),
+   * і «Повторити» чи «Спробувати ще раз» не було куди покласти.
+   */
+  action?: { label: string; run: () => void };
   // Тост живе до setToast(null). Undo timeout — 18с (людина може відволіктись
   // на екран; 6с — не встигає). «Готую рецепт…» — persist:true, поки
   // openingRecipe не спаде до false.
@@ -484,7 +489,17 @@ export function Feed() {
         prevStale.current = new Map(stale.map((b) => [b.id, b.days]));
       }
       setStaleBatches(stale);
-    } catch { /* offline: лишаємо старе значення */ }
+    } catch {
+      // Крок Е1: раніше тут була тиша, і екран показував старі (або порожні)
+      // числа як правду. Порожньо ≠ не вдалось показати — і в коморі це
+      // різниця між «ти все зʼїв» і «я не бачу твоїх продуктів».
+      setToast({
+        id: Date.now(),
+        kind: 'err',
+        text: PANTRY_FAILED.text,
+        action: { label: PANTRY_FAILED.cta, run: () => void refreshCounts() },
+      });
+    }
   }
 
   useEffect(() => { void refreshCounts(); }, []);
@@ -647,7 +662,7 @@ export function Feed() {
     // Успіх без undo — 5с, помилка — 8с. «Готую рецепт…» — persist до кінця.
     // Моушн-кіт: тост auto 4с, з undo — 8с. 18с висіло як бажання «дати
     // більше часу», але дизайн свідомо тримає ритм — undo є і в журналі.
-    const ttl = toast.onUndo ? 8_000 : (toast.kind === 'err' ? 8_000 : 4_000);
+    const ttl = toast.action ? 8_000 : (toast.kind === 'err' ? 8_000 : 4_000);
     const t = setTimeout(() => setToast(null), ttl);
     return () => clearTimeout(t);
   }, [toast]);
@@ -762,8 +777,8 @@ export function Feed() {
           id: Date.now(),
           kind: 'ok',
           text: res.card ? appliedToast(res.card) : 'Готово',
-          onUndo: res.undo_token && res.card_id
-            ? () => undo(turn.id, res.undo_token!)
+          action: res.undo_token && res.card_id
+            ? { label: '↩ Скасувати', run: () => undo(turn.id, res.undo_token!) }
             : undefined,
         });
       }
@@ -773,12 +788,20 @@ export function Feed() {
       // Пул-9 №4: обрив — не помилка. Хід уже позначений «зупинив» у
       // stopSending, картку не додаємо, тост не показуємо.
       if ((err as Error).name === 'AbortError') return;
-      const raw = (err as Error).message;
-      const human = raw === 'model_unavailable'
-        ? 'Не вдалося відповісти. Спробуй ще раз за хвилину.'
-        : raw;
       setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, failed: true } : t)));
-      setToast({ id: Date.now(), kind: 'err', text: human });
+      // Крок Е1: «відповідь не прийшла» говорить голосом продукту, а не кодом
+      // помилки. Повтор — дією в тому самому тості, а не тільки кнопкою під
+      // ходом. Технічні причини (model_unavailable і решта) людині не потрібні:
+      // дія від них не змінюється.
+      const failedId = turnId!;
+      const failedText = text;
+      const failedAtt = attachments;
+      setToast({
+        id: Date.now(),
+        kind: 'err',
+        text: REPLY_FAILED.text,
+        action: { label: REPLY_FAILED.cta, run: () => void dispatchChat(failedText, failedAtt, failedId) },
+      });
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null;
       if (currentTurnId.current === turnId) currentTurnId.current = null;
@@ -864,7 +887,7 @@ export function Feed() {
         id: Date.now(),
         kind: 'ok',
         text: turn.card ? appliedToast(turn.card, r.applied) : 'Готово',
-        onUndo: () => undo(turnId, r.undo_token),
+        action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token) },
       });
       return r;
     } catch (err) {
@@ -886,7 +909,7 @@ export function Feed() {
         ? { ...t, applied: true, applying: false, undoToken: r.undo_token, justApplied: true }
         : t,
       ));
-      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', onUndo: () => undo(turnId, r.undo_token) });
+      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token) } });
     } catch (err) {
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -1798,17 +1821,18 @@ export function Feed() {
 
 
       {toast && (
-        <div className={styles.toast}>
-          <span className={toast.kind === 'ok' ? styles.ok : styles.err}>
-            {toast.kind === 'ok' ? '✓' : '✕'}
-          </span>
+        /* Крок Е1: значка статусу немає — ні ✓, ні ✕. Це той самий службовий
+           шар, від якого відмовились у моно-рядках: колір і галочка нічого не
+           додають до речення, яке й так усе каже. Дія — словом праворуч. */
+        <div className={styles.toast} role="status" data-toast>
           <span className={styles['toast-text']}>{toast.text}</span>
-          {toast.onUndo && (
+          {toast.action && (
             <button
               className={styles.undo}
-              onClick={() => { toast.onUndo?.(); setToast(null); }}
+              onClick={() => { toast.action!.run(); setToast(null); }}
+              data-toast-action
             >
-              ↩ Скасувати
+              {toast.action.label}
             </button>
           )}
         </div>

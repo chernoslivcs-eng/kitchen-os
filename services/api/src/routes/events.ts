@@ -25,6 +25,7 @@ import {
 } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 
 const DAY = 86_400_000;
 // Тижневе правило розгортається по днях, тож вікно запиту має стелю. Рік
@@ -109,7 +110,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const { user_id } = requireUser(req);
     if (!limiter.check(user_id)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, limiter, user_id);
       return reply;
     }
   };

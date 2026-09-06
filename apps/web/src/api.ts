@@ -19,15 +19,49 @@ export function buildHeaders(init: RequestInit): HeadersInit {
   };
 }
 
+// Крок Е1: три стани ловляться тут, а не в кожному викликачі — 401, 429 і
+// зникла мережа приходять із будь-якого запиту, і сорок місць не мусять про це
+// знати. Показує їх каркас смугою; сам запит як кидав ApiError, так і кидає —
+// поведінка викликачів не змінилась.
+//
+// Звʼязок зі стором — через глобальний гак, а не імпортом: api.ts тягнеться і в
+// тести, і в місця без React, і жорсткий імпорт стора зробив би його
+// обовʼязковим усюди. Каркас реєструє себе сам (registerIncidentSink), а поки
+// не зареєстрував — запити працюють як працювали.
+export interface IncidentSink {
+  setAuthExpired: (v: boolean) => void;
+  setThrottled: (seconds: number) => void;
+  setOffline: (v: boolean) => void;
+}
+let incidentSink: IncidentSink | null = null;
+export function registerIncidentSink(sink: IncidentSink | null) { incidentSink = sink; }
+const getIncident = () => incidentSink;
+
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    credentials: 'include',
-    headers: buildHeaders(init),
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...init,
+      credentials: 'include',
+      headers: buildHeaders(init),
+    });
+  } catch (err) {
+    // Мережі немає (або запит обірвано). AbortError — це «Стоп» із пул-9, він
+    // не має нічого спільного з офлайном.
+    if ((err as Error).name !== 'AbortError') getIncident()?.setOffline(true);
+    throw err;
+  }
+  getIncident()?.setOffline(false);
   const text = await res.text();
   const payload: unknown = text ? safeParse(text) : null;
   if (!res.ok) {
+    // 401 на /v1/me при старті — це «гість», а не «сесія протухла»; смуга там
+    // була б брехнею, і саме її обробляє store/auth.
+    if (res.status === 401 && path !== '/v1/me') getIncident()?.setAuthExpired(true);
+    if (res.status === 429) {
+      const header = Number(res.headers.get('Retry-After'));
+      getIncident()?.setThrottled(Number.isFinite(header) && header > 0 ? header : 60);
+    }
     const msg = extractError(payload) ?? `HTTP ${res.status}`;
     throw new ApiError(res.status, payload, msg);
   }

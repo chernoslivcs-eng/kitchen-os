@@ -1,0 +1,83 @@
+/* Крок Е1: анатомія повного екрана помилки. Числа з макета
+   design/ERROR-STATES-v1.dc.html, кольори токенами — обидві теми. */
+
+.screen {
+  min-height: 100dvh;
+  background: var(--bg-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+}
+.inner {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Моно-рядок говорить, код — хвіст. На 390 він переноситься, а не ламається. */
+.mono {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 6px 8px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+/* Чип коду: рамка, клік копіює. Кнопка, а не span — його натискають. */
+.code {
+  font: inherit;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  background: transparent;
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.code:hover { color: var(--fg); border-color: var(--fg-dim); }
+
+.h1 {
+  margin: 12px 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  max-width: 16ch;
+  text-wrap: balance;
+}
+/* Другий рядок приглушений — саме він тримає паузу між «все гаразд» і
+   «а от це — ні». Колір той самий, що в тіла. */
+.h1b { color: var(--fg-muted); }
+
+.body {
+  margin: 12px 0 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+
+.action { margin-top: 22px; }
+
+@media (max-width: 480px) {
+  .h1 { font-size: 25px; line-height: 1.2; max-width: none; }
+  /* На вузькому дія розтягується на всю ширину — як у макеті 1b. */
+  .action { width: 100%; }
+  .action > * { width: 100%; }
+}
