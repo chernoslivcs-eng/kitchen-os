@@ -9,6 +9,7 @@
     ".": "./index.ts",
     "./contract": "./contract.ts",
     "./card-modes": "./card-modes.ts",
+    "./duration": "./duration.ts",
     "./profile-fields": "./profile-fields.ts"
   },
   "scripts": {

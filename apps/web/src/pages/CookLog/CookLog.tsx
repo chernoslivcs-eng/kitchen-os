@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type CookRunWithRecipe } from '../../api';
 import { plural } from '../../lib/plural';
+import { formatDuration } from '@kitchen/domain/duration';
 import styles from './CookLog.module.css';
 import { useCookStore } from '../../store/cook';
 
@@ -196,7 +197,7 @@ export function CookLogPage() {
                         <div className={`${styles.dish} ${undone ? styles.undone : ''}`} style={{ paddingRight: 86 }}>{r.recipe.title}</div>
                         <div className={styles.sub}>
                           {timeLabel(r.finished_at ?? r.started_at)}
-                          {r.recipe.time_total && <> · {r.recipe.time_total}хв</>}
+                          {r.recipe.time_total && <> · {formatDuration(r.recipe.time_total)}</>}
                           {r.rating != null && !undone && (
                             <> · <span className={styles.stat}>{'★'.repeat(r.rating)}<span style={{ opacity: 0.3 }}>{'★'.repeat(5 - r.rating)}</span></span></>
                           )}

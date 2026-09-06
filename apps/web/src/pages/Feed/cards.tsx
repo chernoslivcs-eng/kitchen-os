@@ -15,6 +15,7 @@ import { OnboardingCard } from './OnboardingCard';
 // а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
 import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
 import { PROFILE_FIELDS } from '@kitchen/domain/profile-fields';
+import { formatDuration } from '@kitchen/domain/duration';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
@@ -895,7 +896,7 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
   // Канон Бриф-2 5б: «5 КРОКІВ · 25ХВ · 2 ПОРЦІЇ» — кроки першими, без прев'ю.
   const meta = [
     r.st?.length ? `${r.st.length} КРОКІВ` : null,
-    r.tm ? `${r.tm}ХВ` : null,
+    r.tm ? formatDuration(r.tm, 'caps') : null,
     r.sv ? `${r.sv} ${plural(r.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
     r.ing?.length ? `${r.ing.length} ІНГР` : null,
   ].filter(Boolean).join(' · ');
@@ -1112,7 +1113,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           {r.t}
         </div>
         <div style={{ marginTop: 5, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)' }}>
-          {r.tm ? <span>{r.tm} хв</span> : null}
+          {r.tm ? <span>{formatDuration(r.tm)}</span> : null}
           {r.nu?.kcal ? <span>{r.nu.kcal} ккал</span> : null}
           <button
             type="button"
