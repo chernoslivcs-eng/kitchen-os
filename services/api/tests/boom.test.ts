@@ -192,6 +192,9 @@ describe('GET /v1/admin/boom · код інциденту у відповіді'
     expect(received).toHaveLength(1);
     // Саме за цим кодом власник і знайде подію пошуком у Sentry.
     expect(String(received[0]!.event_id).startsWith(code)).toBe(true);
+    // Той самий код і в тілі — щоб людина, яка просто відкрила адресу в
+    // браузері, побачила його очима, а не в панелі мережі.
+    expect(r.json().incident).toBe(code);
     expect((received[0]!.tags as Record<string, string>).incident).toBe('unhandled-route-error');
     expect(received[0]!.level).toBe('error');
     // І стек у події — з нашими кадрами, а не з одного рядка обробника.
