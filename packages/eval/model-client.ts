@@ -8,11 +8,12 @@ const HERE_FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import {
   buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities, productMapFor,
+  subscribedRows, occasionSet, periodVetoRows, BUILTIN_OCCASIONS,
   buildAliasMap, serializePantry, extractJson,
-  serializeProfileText, serializeTraditions, emptyProfileText,
+  serializeProfileText, emptyProfileText,
   PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, fieldByVerb, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
 } from '@kitchen/domain';
-import type { PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard } from '@kitchen/domain';
+import type { PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard, HouseholdEventRow, OccasionSet } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
@@ -52,12 +53,27 @@ export function profileTextFromFixture(spec: Record<string, string>): ProfileTex
   return p;
 }
 
+/** П1: довідник крізь підписку фікстури ({occasion_id, enabled} або {set}). */
+export function occasionsOf(fx: Pick<Fixture, 'subscriptions'>) {
+  const subs = (fx.subscriptions ?? []).flatMap((s) =>
+    'set' in s ? occasionSet(BUILTIN_OCCASIONS, s.set as OccasionSet).map((r) => ({ occasion_id: r.id, enabled: true })) : [s]);
+  return subscribedRows(BUILTIN_OCCASIONS, subs);
+}
+
+/** П1: індекс вето на хід — профіль + суворі періоди по датах, як у проді (chat.ts). */
+export function vetoIndexOfFixture(fx: Fixture): VetoRow[] {
+  const profileText = fx.profile_text ? profileTextFromFixture(fx.profile_text) : emptyProfileText('u1');
+  const now = fx.now ? new Date(fx.now) : new Date();
+  return [...vetoIndexOfText(profileText), ...periodVetoRows(occasionsOf(fx), (fx.events ?? []) as HouseholdEventRow[], now)];
+}
+
 /** Профіль фікстури: сім речень (profile_text) і нотатки (profile_notes); без них — порожньо. */
 function profileOf(fx: Fixture): { profileText: ProfileText; profileNotes: ProfileNote[]; vetoIndex: VetoRow[] } {
   const profileText = fx.profile_text ? profileTextFromFixture(fx.profile_text) : emptyProfileText('u1');
   const profileNotes = (fx.profile_notes ?? []) as ProfileNote[];
   // Крок 4б: індекс — з no/ban (той самий витяг, що PATCH у проді) → ⚠ у [КОМОРА].
-  return { profileText, profileNotes, vetoIndex: vetoIndexOfText(profileText) };
+  // П1: плюс суворі періоди.
+  return { profileText, profileNotes, vetoIndex: vetoIndexOfFixture(fx) };
 }
 
 function lastUserText(fx: Fixture): string {
@@ -94,7 +110,7 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
   } as PantryBatch));
 
   const { profileText, profileNotes, vetoIndex } = profileOf(fx);
-  const traditions = fx.traditions ?? null;
+  const occasions = occasionsOf(fx);
 
   // recipe_gen дзеркалить прод callRecipe: [ПРО ЛЮДИНУ]+[НОТАТКИ] + [КОМОРА]
   // з АЛІАСАМИ p1..pN. Не buildKitchenContext — у проді генерація рецепта
@@ -102,7 +118,7 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
   if (call === 'recipe_gen') {
     const alias = buildAliasMap(pantry);
     const nowMs = fx.now ? new Date(fx.now).getTime() : Date.now();
-    const dynamic = serializeProfileText(profileText, profileNotes) + serializeTraditions(traditions)
+    const dynamic = serializeProfileText(profileText, profileNotes)
       + '\n\n[КОМОРА]\n' + serializePantry(pantry, nowMs, [], false, alias.toAlias, 120, [], fx.request ?? '', vetoIndex);
     return { stable: base, dynamic };
   }
@@ -113,7 +129,7 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
     pantry,
     profileText,
     profileNotes,
-    traditions,
+    occasions,
     vetoIndex,
     shopping: (fx.shopping ?? []) as ShoppingItemRow[],
     queryText: (fx.conversation ?? []).filter((m) => m.role === 'user').slice(-3).map((m) => m.content).join('\n'),

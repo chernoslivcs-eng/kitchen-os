@@ -1,0 +1,2127 @@
+{
+  "years": [
+    2026,
+    2027,
+    2028,
+    2029,
+    2030
+  ],
+  "note": "from/to включно, YYYY-MM-DD; approx — місячний календар, ±1 день; юдейські вікна починаються ввечері напередодні; tradition у Великодня — за чиєю пасхалією",
+  "entries": [
+    {
+      "occasion_id": "advent",
+      "tradition": "catholic",
+      "year": 2026,
+      "from": "2026-12-01",
+      "to": "2026-12-23"
+    },
+    {
+      "occasion_id": "advent",
+      "tradition": "catholic",
+      "year": 2027,
+      "from": "2027-12-01",
+      "to": "2027-12-23"
+    },
+    {
+      "occasion_id": "advent",
+      "tradition": "catholic",
+      "year": 2028,
+      "from": "2028-12-01",
+      "to": "2028-12-23"
+    },
+    {
+      "occasion_id": "advent",
+      "tradition": "catholic",
+      "year": 2029,
+      "from": "2029-12-01",
+      "to": "2029-12-23"
+    },
+    {
+      "occasion_id": "advent",
+      "tradition": "catholic",
+      "year": 2030,
+      "from": "2030-12-01",
+      "to": "2030-12-23"
+    },
+    {
+      "occasion_id": "apples",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-09-01",
+      "to": "2026-10-31"
+    },
+    {
+      "occasion_id": "apples",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-09-01",
+      "to": "2027-10-31"
+    },
+    {
+      "occasion_id": "apples",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-09-01",
+      "to": "2028-10-31"
+    },
+    {
+      "occasion_id": "apples",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-09-01",
+      "to": "2029-10-31"
+    },
+    {
+      "occasion_id": "apples",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-09-01",
+      "to": "2030-10-31"
+    },
+    {
+      "occasion_id": "apricot",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-25",
+      "to": "2026-07-25"
+    },
+    {
+      "occasion_id": "apricot",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-25",
+      "to": "2027-07-25"
+    },
+    {
+      "occasion_id": "apricot",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-25",
+      "to": "2028-07-25"
+    },
+    {
+      "occasion_id": "apricot",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-25",
+      "to": "2029-07-25"
+    },
+    {
+      "occasion_id": "apricot",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-25",
+      "to": "2030-07-25"
+    },
+    {
+      "occasion_id": "asparagus",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-04-20",
+      "to": "2026-06-15"
+    },
+    {
+      "occasion_id": "asparagus",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-04-20",
+      "to": "2027-06-15"
+    },
+    {
+      "occasion_id": "asparagus",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-04-20",
+      "to": "2028-06-15"
+    },
+    {
+      "occasion_id": "asparagus",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-04-20",
+      "to": "2029-06-15"
+    },
+    {
+      "occasion_id": "asparagus",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-04-20",
+      "to": "2030-06-15"
+    },
+    {
+      "occasion_id": "blueberry",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-07-01",
+      "to": "2026-08-10"
+    },
+    {
+      "occasion_id": "blueberry",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-07-01",
+      "to": "2027-08-10"
+    },
+    {
+      "occasion_id": "blueberry",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-07-01",
+      "to": "2028-08-10"
+    },
+    {
+      "occasion_id": "blueberry",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-07-01",
+      "to": "2029-08-10"
+    },
+    {
+      "occasion_id": "blueberry",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-07-01",
+      "to": "2030-08-10"
+    },
+    {
+      "occasion_id": "cherry",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-01",
+      "to": "2026-07-05"
+    },
+    {
+      "occasion_id": "cherry",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-01",
+      "to": "2027-07-05"
+    },
+    {
+      "occasion_id": "cherry",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-01",
+      "to": "2028-07-05"
+    },
+    {
+      "occasion_id": "cherry",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-01",
+      "to": "2029-07-05"
+    },
+    {
+      "occasion_id": "cherry",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-01",
+      "to": "2030-07-05"
+    },
+    {
+      "occasion_id": "cherry-sour",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-20",
+      "to": "2026-07-20"
+    },
+    {
+      "occasion_id": "cherry-sour",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-20",
+      "to": "2027-07-20"
+    },
+    {
+      "occasion_id": "cherry-sour",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-20",
+      "to": "2028-07-20"
+    },
+    {
+      "occasion_id": "cherry-sour",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-20",
+      "to": "2029-07-20"
+    },
+    {
+      "occasion_id": "cherry-sour",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-20",
+      "to": "2030-07-20"
+    },
+    {
+      "occasion_id": "citrus",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-12-01",
+      "to": "2027-01-31"
+    },
+    {
+      "occasion_id": "citrus",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-12-01",
+      "to": "2028-01-31"
+    },
+    {
+      "occasion_id": "citrus",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-12-01",
+      "to": "2029-01-31"
+    },
+    {
+      "occasion_id": "citrus",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-12-01",
+      "to": "2030-01-31"
+    },
+    {
+      "occasion_id": "citrus",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-12-01",
+      "to": "2031-01-31"
+    },
+    {
+      "occasion_id": "corn",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-07-15",
+      "to": "2026-08-31"
+    },
+    {
+      "occasion_id": "corn",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-07-15",
+      "to": "2027-08-31"
+    },
+    {
+      "occasion_id": "corn",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-07-15",
+      "to": "2028-08-31"
+    },
+    {
+      "occasion_id": "corn",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-07-15",
+      "to": "2029-08-31"
+    },
+    {
+      "occasion_id": "corn",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-07-15",
+      "to": "2030-08-31"
+    },
+    {
+      "occasion_id": "cranberry",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-09-15",
+      "to": "2026-10-31"
+    },
+    {
+      "occasion_id": "cranberry",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-09-15",
+      "to": "2027-10-31"
+    },
+    {
+      "occasion_id": "cranberry",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-09-15",
+      "to": "2028-10-31"
+    },
+    {
+      "occasion_id": "cranberry",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-09-15",
+      "to": "2029-10-31"
+    },
+    {
+      "occasion_id": "cranberry",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-09-15",
+      "to": "2030-10-31"
+    },
+    {
+      "occasion_id": "cucumber",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-20",
+      "to": "2026-08-31"
+    },
+    {
+      "occasion_id": "cucumber",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-20",
+      "to": "2027-08-31"
+    },
+    {
+      "occasion_id": "cucumber",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-20",
+      "to": "2028-08-31"
+    },
+    {
+      "occasion_id": "cucumber",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-20",
+      "to": "2029-08-31"
+    },
+    {
+      "occasion_id": "cucumber",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-20",
+      "to": "2030-08-31"
+    },
+    {
+      "occasion_id": "currant",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-20",
+      "to": "2026-07-20"
+    },
+    {
+      "occasion_id": "currant",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-20",
+      "to": "2027-07-20"
+    },
+    {
+      "occasion_id": "currant",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-20",
+      "to": "2028-07-20"
+    },
+    {
+      "occasion_id": "currant",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-20",
+      "to": "2029-07-20"
+    },
+    {
+      "occasion_id": "currant",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-20",
+      "to": "2030-07-20"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "catholic",
+      "year": 2026,
+      "from": "2026-04-05",
+      "to": "2026-04-07"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "catholic",
+      "year": 2027,
+      "from": "2027-03-28",
+      "to": "2027-03-30"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "catholic",
+      "year": 2028,
+      "from": "2028-04-16",
+      "to": "2028-04-18"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "catholic",
+      "year": 2029,
+      "from": "2029-04-01",
+      "to": "2029-04-03"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "catholic",
+      "year": 2030,
+      "from": "2030-04-21",
+      "to": "2030-04-23"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-04-12",
+      "to": "2026-04-14"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-05-02",
+      "to": "2027-05-04"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-04-16",
+      "to": "2028-04-18"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-04-08",
+      "to": "2029-04-10"
+    },
+    {
+      "occasion_id": "easter",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-04-28",
+      "to": "2030-04-30"
+    },
+    {
+      "occasion_id": "eid-adha",
+      "tradition": "islamic",
+      "year": 2026,
+      "from": "2026-05-27",
+      "to": "2026-05-30",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-adha",
+      "tradition": "islamic",
+      "year": 2027,
+      "from": "2027-05-17",
+      "to": "2027-05-20",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-adha",
+      "tradition": "islamic",
+      "year": 2028,
+      "from": "2028-05-05",
+      "to": "2028-05-08",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-adha",
+      "tradition": "islamic",
+      "year": 2029,
+      "from": "2029-04-24",
+      "to": "2029-04-27",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-adha",
+      "tradition": "islamic",
+      "year": 2030,
+      "from": "2030-04-14",
+      "to": "2030-04-17",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-fitr",
+      "tradition": "islamic",
+      "year": 2026,
+      "from": "2026-03-20",
+      "to": "2026-03-22",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-fitr",
+      "tradition": "islamic",
+      "year": 2027,
+      "from": "2027-03-10",
+      "to": "2027-03-12",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-fitr",
+      "tradition": "islamic",
+      "year": 2028,
+      "from": "2028-02-27",
+      "to": "2028-02-29",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-fitr",
+      "tradition": "islamic",
+      "year": 2029,
+      "from": "2029-02-15",
+      "to": "2029-02-17",
+      "approx": true
+    },
+    {
+      "occasion_id": "eid-fitr",
+      "tradition": "islamic",
+      "year": 2030,
+      "from": "2030-02-05",
+      "to": "2030-02-07",
+      "approx": true
+    },
+    {
+      "occasion_id": "epiphany-cath",
+      "tradition": "catholic",
+      "year": 2026,
+      "from": "2026-01-06",
+      "to": "2026-01-06"
+    },
+    {
+      "occasion_id": "epiphany-cath",
+      "tradition": "catholic",
+      "year": 2027,
+      "from": "2027-01-06",
+      "to": "2027-01-06"
+    },
+    {
+      "occasion_id": "epiphany-cath",
+      "tradition": "catholic",
+      "year": 2028,
+      "from": "2028-01-06",
+      "to": "2028-01-06"
+    },
+    {
+      "occasion_id": "epiphany-cath",
+      "tradition": "catholic",
+      "year": 2029,
+      "from": "2029-01-06",
+      "to": "2029-01-06"
+    },
+    {
+      "occasion_id": "epiphany-cath",
+      "tradition": "catholic",
+      "year": 2030,
+      "from": "2030-01-06",
+      "to": "2030-01-06"
+    },
+    {
+      "occasion_id": "good-friday",
+      "tradition": "catholic",
+      "year": 2026,
+      "from": "2026-04-03",
+      "to": "2026-04-03"
+    },
+    {
+      "occasion_id": "good-friday",
+      "tradition": "catholic",
+      "year": 2027,
+      "from": "2027-03-26",
+      "to": "2027-03-26"
+    },
+    {
+      "occasion_id": "good-friday",
+      "tradition": "catholic",
+      "year": 2028,
+      "from": "2028-04-14",
+      "to": "2028-04-14"
+    },
+    {
+      "occasion_id": "good-friday",
+      "tradition": "catholic",
+      "year": 2029,
+      "from": "2029-03-30",
+      "to": "2029-03-30"
+    },
+    {
+      "occasion_id": "good-friday",
+      "tradition": "catholic",
+      "year": 2030,
+      "from": "2030-04-19",
+      "to": "2030-04-19"
+    },
+    {
+      "occasion_id": "grapes",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-08-20",
+      "to": "2026-10-15"
+    },
+    {
+      "occasion_id": "grapes",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-08-20",
+      "to": "2027-10-15"
+    },
+    {
+      "occasion_id": "grapes",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-08-20",
+      "to": "2028-10-15"
+    },
+    {
+      "occasion_id": "grapes",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-08-20",
+      "to": "2029-10-15"
+    },
+    {
+      "occasion_id": "grapes",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-08-20",
+      "to": "2030-10-15"
+    },
+    {
+      "occasion_id": "hanukkah",
+      "tradition": "jewish",
+      "year": 2026,
+      "from": "2026-12-04",
+      "to": "2026-12-12"
+    },
+    {
+      "occasion_id": "hanukkah",
+      "tradition": "jewish",
+      "year": 2027,
+      "from": "2027-12-24",
+      "to": "2028-01-01"
+    },
+    {
+      "occasion_id": "hanukkah",
+      "tradition": "jewish",
+      "year": 2028,
+      "from": "2028-12-12",
+      "to": "2028-12-20"
+    },
+    {
+      "occasion_id": "hanukkah",
+      "tradition": "jewish",
+      "year": 2029,
+      "from": "2029-12-01",
+      "to": "2029-12-09"
+    },
+    {
+      "occasion_id": "hanukkah",
+      "tradition": "jewish",
+      "year": 2030,
+      "from": "2030-12-20",
+      "to": "2030-12-28"
+    },
+    {
+      "occasion_id": "honey-mushroom",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-09-15",
+      "to": "2026-10-31"
+    },
+    {
+      "occasion_id": "honey-mushroom",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-09-15",
+      "to": "2027-10-31"
+    },
+    {
+      "occasion_id": "honey-mushroom",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-09-15",
+      "to": "2028-10-31"
+    },
+    {
+      "occasion_id": "honey-mushroom",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-09-15",
+      "to": "2029-10-31"
+    },
+    {
+      "occasion_id": "honey-mushroom",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-09-15",
+      "to": "2030-10-31"
+    },
+    {
+      "occasion_id": "independence-day",
+      "tradition": "secular",
+      "year": 2026,
+      "from": "2026-08-24",
+      "to": "2026-08-24"
+    },
+    {
+      "occasion_id": "independence-day",
+      "tradition": "secular",
+      "year": 2027,
+      "from": "2027-08-24",
+      "to": "2027-08-24"
+    },
+    {
+      "occasion_id": "independence-day",
+      "tradition": "secular",
+      "year": 2028,
+      "from": "2028-08-24",
+      "to": "2028-08-24"
+    },
+    {
+      "occasion_id": "independence-day",
+      "tradition": "secular",
+      "year": 2029,
+      "from": "2029-08-24",
+      "to": "2029-08-24"
+    },
+    {
+      "occasion_id": "independence-day",
+      "tradition": "secular",
+      "year": 2030,
+      "from": "2030-08-24",
+      "to": "2030-08-24"
+    },
+    {
+      "occasion_id": "lent",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-02-23",
+      "to": "2026-04-11"
+    },
+    {
+      "occasion_id": "lent",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-03-15",
+      "to": "2027-05-01"
+    },
+    {
+      "occasion_id": "lent",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-02-28",
+      "to": "2028-04-15"
+    },
+    {
+      "occasion_id": "lent",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-02-19",
+      "to": "2029-04-07"
+    },
+    {
+      "occasion_id": "lent",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-03-11",
+      "to": "2030-04-27"
+    },
+    {
+      "occasion_id": "lent-cath",
+      "tradition": "catholic",
+      "year": 2026,
+      "from": "2026-02-18",
+      "to": "2026-04-02"
+    },
+    {
+      "occasion_id": "lent-cath",
+      "tradition": "catholic",
+      "year": 2027,
+      "from": "2027-02-10",
+      "to": "2027-03-25"
+    },
+    {
+      "occasion_id": "lent-cath",
+      "tradition": "catholic",
+      "year": 2028,
+      "from": "2028-03-01",
+      "to": "2028-04-13"
+    },
+    {
+      "occasion_id": "lent-cath",
+      "tradition": "catholic",
+      "year": 2029,
+      "from": "2029-02-14",
+      "to": "2029-03-29"
+    },
+    {
+      "occasion_id": "lent-cath",
+      "tradition": "catholic",
+      "year": 2030,
+      "from": "2030-03-06",
+      "to": "2030-04-18"
+    },
+    {
+      "occasion_id": "lisichky",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-15",
+      "to": "2026-09-15"
+    },
+    {
+      "occasion_id": "lisichky",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-15",
+      "to": "2027-09-15"
+    },
+    {
+      "occasion_id": "lisichky",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-15",
+      "to": "2028-09-15"
+    },
+    {
+      "occasion_id": "lisichky",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-15",
+      "to": "2029-09-15"
+    },
+    {
+      "occasion_id": "lisichky",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-15",
+      "to": "2030-09-15"
+    },
+    {
+      "occasion_id": "maslyana",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-02-16",
+      "to": "2026-02-22"
+    },
+    {
+      "occasion_id": "maslyana",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-03-08",
+      "to": "2027-03-14"
+    },
+    {
+      "occasion_id": "maslyana",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-02-21",
+      "to": "2028-02-27"
+    },
+    {
+      "occasion_id": "maslyana",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-02-12",
+      "to": "2029-02-18"
+    },
+    {
+      "occasion_id": "maslyana",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-03-04",
+      "to": "2030-03-10"
+    },
+    {
+      "occasion_id": "melon",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-08-01",
+      "to": "2026-09-30"
+    },
+    {
+      "occasion_id": "melon",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-08-01",
+      "to": "2027-09-30"
+    },
+    {
+      "occasion_id": "melon",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-08-01",
+      "to": "2028-09-30"
+    },
+    {
+      "occasion_id": "melon",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-08-01",
+      "to": "2029-09-30"
+    },
+    {
+      "occasion_id": "melon",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-08-01",
+      "to": "2030-09-30"
+    },
+    {
+      "occasion_id": "mothers-day",
+      "tradition": "secular",
+      "year": 2026,
+      "from": "2026-05-10",
+      "to": "2026-05-10"
+    },
+    {
+      "occasion_id": "mothers-day",
+      "tradition": "secular",
+      "year": 2027,
+      "from": "2027-05-09",
+      "to": "2027-05-09"
+    },
+    {
+      "occasion_id": "mothers-day",
+      "tradition": "secular",
+      "year": 2028,
+      "from": "2028-05-14",
+      "to": "2028-05-14"
+    },
+    {
+      "occasion_id": "mothers-day",
+      "tradition": "secular",
+      "year": 2029,
+      "from": "2029-05-13",
+      "to": "2029-05-13"
+    },
+    {
+      "occasion_id": "mothers-day",
+      "tradition": "secular",
+      "year": 2030,
+      "from": "2030-05-12",
+      "to": "2030-05-12"
+    },
+    {
+      "occasion_id": "mushroom",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-09-01",
+      "to": "2026-10-31"
+    },
+    {
+      "occasion_id": "mushroom",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-09-01",
+      "to": "2027-10-31"
+    },
+    {
+      "occasion_id": "mushroom",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-09-01",
+      "to": "2028-10-31"
+    },
+    {
+      "occasion_id": "mushroom",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-09-01",
+      "to": "2029-10-31"
+    },
+    {
+      "occasion_id": "mushroom",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-09-01",
+      "to": "2030-10-31"
+    },
+    {
+      "occasion_id": "new-potato",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-01",
+      "to": "2026-07-15"
+    },
+    {
+      "occasion_id": "new-potato",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-01",
+      "to": "2027-07-15"
+    },
+    {
+      "occasion_id": "new-potato",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-01",
+      "to": "2028-07-15"
+    },
+    {
+      "occasion_id": "new-potato",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-01",
+      "to": "2029-07-15"
+    },
+    {
+      "occasion_id": "new-potato",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-01",
+      "to": "2030-07-15"
+    },
+    {
+      "occasion_id": "new-year",
+      "tradition": "secular",
+      "year": 2026,
+      "from": "2026-12-30",
+      "to": "2027-01-01"
+    },
+    {
+      "occasion_id": "new-year",
+      "tradition": "secular",
+      "year": 2027,
+      "from": "2027-12-30",
+      "to": "2028-01-01"
+    },
+    {
+      "occasion_id": "new-year",
+      "tradition": "secular",
+      "year": 2028,
+      "from": "2028-12-30",
+      "to": "2029-01-01"
+    },
+    {
+      "occasion_id": "new-year",
+      "tradition": "secular",
+      "year": 2029,
+      "from": "2029-12-30",
+      "to": "2030-01-01"
+    },
+    {
+      "occasion_id": "new-year",
+      "tradition": "secular",
+      "year": 2030,
+      "from": "2030-12-30",
+      "to": "2031-01-01"
+    },
+    {
+      "occasion_id": "old-new-year",
+      "tradition": "secular",
+      "year": 2026,
+      "from": "2026-01-13",
+      "to": "2026-01-14"
+    },
+    {
+      "occasion_id": "old-new-year",
+      "tradition": "secular",
+      "year": 2027,
+      "from": "2027-01-13",
+      "to": "2027-01-14"
+    },
+    {
+      "occasion_id": "old-new-year",
+      "tradition": "secular",
+      "year": 2028,
+      "from": "2028-01-13",
+      "to": "2028-01-14"
+    },
+    {
+      "occasion_id": "old-new-year",
+      "tradition": "secular",
+      "year": 2029,
+      "from": "2029-01-13",
+      "to": "2029-01-14"
+    },
+    {
+      "occasion_id": "old-new-year",
+      "tradition": "secular",
+      "year": 2030,
+      "from": "2030-01-13",
+      "to": "2030-01-14"
+    },
+    {
+      "occasion_id": "peach",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-07-15",
+      "to": "2026-08-31"
+    },
+    {
+      "occasion_id": "peach",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-07-15",
+      "to": "2027-08-31"
+    },
+    {
+      "occasion_id": "peach",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-07-15",
+      "to": "2028-08-31"
+    },
+    {
+      "occasion_id": "peach",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-07-15",
+      "to": "2029-08-31"
+    },
+    {
+      "occasion_id": "peach",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-07-15",
+      "to": "2030-08-31"
+    },
+    {
+      "occasion_id": "persimmon",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-10-20",
+      "to": "2026-12-31"
+    },
+    {
+      "occasion_id": "persimmon",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-10-20",
+      "to": "2027-12-31"
+    },
+    {
+      "occasion_id": "persimmon",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-10-20",
+      "to": "2028-12-31"
+    },
+    {
+      "occasion_id": "persimmon",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-10-20",
+      "to": "2029-12-31"
+    },
+    {
+      "occasion_id": "persimmon",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-10-20",
+      "to": "2030-12-31"
+    },
+    {
+      "occasion_id": "pesach",
+      "tradition": "jewish",
+      "year": 2026,
+      "from": "2026-04-01",
+      "to": "2026-04-09"
+    },
+    {
+      "occasion_id": "pesach",
+      "tradition": "jewish",
+      "year": 2027,
+      "from": "2027-04-21",
+      "to": "2027-04-29"
+    },
+    {
+      "occasion_id": "pesach",
+      "tradition": "jewish",
+      "year": 2028,
+      "from": "2028-04-10",
+      "to": "2028-04-18"
+    },
+    {
+      "occasion_id": "pesach",
+      "tradition": "jewish",
+      "year": 2029,
+      "from": "2029-03-30",
+      "to": "2029-04-07"
+    },
+    {
+      "occasion_id": "pesach",
+      "tradition": "jewish",
+      "year": 2030,
+      "from": "2030-04-17",
+      "to": "2030-04-25"
+    },
+    {
+      "occasion_id": "plum",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-08-10",
+      "to": "2026-09-20"
+    },
+    {
+      "occasion_id": "plum",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-08-10",
+      "to": "2027-09-20"
+    },
+    {
+      "occasion_id": "plum",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-08-10",
+      "to": "2028-09-20"
+    },
+    {
+      "occasion_id": "plum",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-08-10",
+      "to": "2029-09-20"
+    },
+    {
+      "occasion_id": "plum",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-08-10",
+      "to": "2030-09-20"
+    },
+    {
+      "occasion_id": "pumpkin",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-10-01",
+      "to": "2026-11-30"
+    },
+    {
+      "occasion_id": "pumpkin",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-10-01",
+      "to": "2027-11-30"
+    },
+    {
+      "occasion_id": "pumpkin",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-10-01",
+      "to": "2028-11-30"
+    },
+    {
+      "occasion_id": "pumpkin",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-10-01",
+      "to": "2029-11-30"
+    },
+    {
+      "occasion_id": "pumpkin",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-10-01",
+      "to": "2030-11-30"
+    },
+    {
+      "occasion_id": "purim",
+      "tradition": "jewish",
+      "year": 2026,
+      "from": "2026-03-02",
+      "to": "2026-03-03"
+    },
+    {
+      "occasion_id": "purim",
+      "tradition": "jewish",
+      "year": 2027,
+      "from": "2027-03-22",
+      "to": "2027-03-23"
+    },
+    {
+      "occasion_id": "purim",
+      "tradition": "jewish",
+      "year": 2028,
+      "from": "2028-03-11",
+      "to": "2028-03-12"
+    },
+    {
+      "occasion_id": "purim",
+      "tradition": "jewish",
+      "year": 2029,
+      "from": "2029-02-28",
+      "to": "2029-03-01"
+    },
+    {
+      "occasion_id": "purim",
+      "tradition": "jewish",
+      "year": 2030,
+      "from": "2030-03-18",
+      "to": "2030-03-19"
+    },
+    {
+      "occasion_id": "radish",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-04-20",
+      "to": "2026-06-10"
+    },
+    {
+      "occasion_id": "radish",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-04-20",
+      "to": "2027-06-10"
+    },
+    {
+      "occasion_id": "radish",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-04-20",
+      "to": "2028-06-10"
+    },
+    {
+      "occasion_id": "radish",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-04-20",
+      "to": "2029-06-10"
+    },
+    {
+      "occasion_id": "radish",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-04-20",
+      "to": "2030-06-10"
+    },
+    {
+      "occasion_id": "ramadan",
+      "tradition": "islamic",
+      "year": 2026,
+      "from": "2026-02-18",
+      "to": "2026-03-19",
+      "approx": true
+    },
+    {
+      "occasion_id": "ramadan",
+      "tradition": "islamic",
+      "year": 2027,
+      "from": "2027-02-08",
+      "to": "2027-03-09",
+      "approx": true
+    },
+    {
+      "occasion_id": "ramadan",
+      "tradition": "islamic",
+      "year": 2028,
+      "from": "2028-01-28",
+      "to": "2028-02-26",
+      "approx": true
+    },
+    {
+      "occasion_id": "ramadan",
+      "tradition": "islamic",
+      "year": 2029,
+      "from": "2029-01-16",
+      "to": "2029-02-14",
+      "approx": true
+    },
+    {
+      "occasion_id": "ramadan",
+      "tradition": "islamic",
+      "year": 2030,
+      "from": "2030-01-06",
+      "to": "2030-02-04",
+      "approx": true
+    },
+    {
+      "occasion_id": "raspberry",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-20",
+      "to": "2026-07-31"
+    },
+    {
+      "occasion_id": "raspberry",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-20",
+      "to": "2027-07-31"
+    },
+    {
+      "occasion_id": "raspberry",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-20",
+      "to": "2028-07-31"
+    },
+    {
+      "occasion_id": "raspberry",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-20",
+      "to": "2029-07-31"
+    },
+    {
+      "occasion_id": "raspberry",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-20",
+      "to": "2030-07-31"
+    },
+    {
+      "occasion_id": "rhubarb",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-05-01",
+      "to": "2026-06-20"
+    },
+    {
+      "occasion_id": "rhubarb",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-05-01",
+      "to": "2027-06-20"
+    },
+    {
+      "occasion_id": "rhubarb",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-05-01",
+      "to": "2028-06-20"
+    },
+    {
+      "occasion_id": "rhubarb",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-05-01",
+      "to": "2029-06-20"
+    },
+    {
+      "occasion_id": "rhubarb",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-05-01",
+      "to": "2030-06-20"
+    },
+    {
+      "occasion_id": "rosh",
+      "tradition": "jewish",
+      "year": 2026,
+      "from": "2026-09-11",
+      "to": "2026-09-13"
+    },
+    {
+      "occasion_id": "rosh",
+      "tradition": "jewish",
+      "year": 2027,
+      "from": "2027-10-01",
+      "to": "2027-10-03"
+    },
+    {
+      "occasion_id": "rosh",
+      "tradition": "jewish",
+      "year": 2028,
+      "from": "2028-09-20",
+      "to": "2028-09-22"
+    },
+    {
+      "occasion_id": "rosh",
+      "tradition": "jewish",
+      "year": 2029,
+      "from": "2029-09-09",
+      "to": "2029-09-11"
+    },
+    {
+      "occasion_id": "rosh",
+      "tradition": "jewish",
+      "year": 2030,
+      "from": "2030-09-27",
+      "to": "2030-09-29"
+    },
+    {
+      "occasion_id": "sauerkraut",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-10-10",
+      "to": "2026-11-15"
+    },
+    {
+      "occasion_id": "sauerkraut",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-10-10",
+      "to": "2027-11-15"
+    },
+    {
+      "occasion_id": "sauerkraut",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-10-10",
+      "to": "2028-11-15"
+    },
+    {
+      "occasion_id": "sauerkraut",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-10-10",
+      "to": "2029-11-15"
+    },
+    {
+      "occasion_id": "sauerkraut",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-10-10",
+      "to": "2030-11-15"
+    },
+    {
+      "occasion_id": "shavuot",
+      "tradition": "jewish",
+      "year": 2026,
+      "from": "2026-05-21",
+      "to": "2026-05-23"
+    },
+    {
+      "occasion_id": "shavuot",
+      "tradition": "jewish",
+      "year": 2027,
+      "from": "2027-06-10",
+      "to": "2027-06-12"
+    },
+    {
+      "occasion_id": "shavuot",
+      "tradition": "jewish",
+      "year": 2028,
+      "from": "2028-05-30",
+      "to": "2028-06-01"
+    },
+    {
+      "occasion_id": "shavuot",
+      "tradition": "jewish",
+      "year": 2029,
+      "from": "2029-05-19",
+      "to": "2029-05-21"
+    },
+    {
+      "occasion_id": "shavuot",
+      "tradition": "jewish",
+      "year": 2030,
+      "from": "2030-06-06",
+      "to": "2030-06-08"
+    },
+    {
+      "occasion_id": "spas",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-08-17",
+      "to": "2026-08-21"
+    },
+    {
+      "occasion_id": "spas",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-08-17",
+      "to": "2027-08-21"
+    },
+    {
+      "occasion_id": "spas",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-08-17",
+      "to": "2028-08-21"
+    },
+    {
+      "occasion_id": "spas",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-08-17",
+      "to": "2029-08-21"
+    },
+    {
+      "occasion_id": "spas",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-08-17",
+      "to": "2030-08-21"
+    },
+    {
+      "occasion_id": "st-nicholas",
+      "tradition": "secular",
+      "year": 2026,
+      "from": "2026-12-05",
+      "to": "2026-12-06"
+    },
+    {
+      "occasion_id": "st-nicholas",
+      "tradition": "secular",
+      "year": 2027,
+      "from": "2027-12-05",
+      "to": "2027-12-06"
+    },
+    {
+      "occasion_id": "st-nicholas",
+      "tradition": "secular",
+      "year": 2028,
+      "from": "2028-12-05",
+      "to": "2028-12-06"
+    },
+    {
+      "occasion_id": "st-nicholas",
+      "tradition": "secular",
+      "year": 2029,
+      "from": "2029-12-05",
+      "to": "2029-12-06"
+    },
+    {
+      "occasion_id": "st-nicholas",
+      "tradition": "secular",
+      "year": 2030,
+      "from": "2030-12-05",
+      "to": "2030-12-06"
+    },
+    {
+      "occasion_id": "strawberry",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-05-25",
+      "to": "2026-06-30"
+    },
+    {
+      "occasion_id": "strawberry",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-05-25",
+      "to": "2027-06-30"
+    },
+    {
+      "occasion_id": "strawberry",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-05-25",
+      "to": "2028-06-30"
+    },
+    {
+      "occasion_id": "strawberry",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-05-25",
+      "to": "2029-06-30"
+    },
+    {
+      "occasion_id": "strawberry",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-05-25",
+      "to": "2030-06-30"
+    },
+    {
+      "occasion_id": "sukkot",
+      "tradition": "jewish",
+      "year": 2026,
+      "from": "2026-09-25",
+      "to": "2026-10-02"
+    },
+    {
+      "occasion_id": "sukkot",
+      "tradition": "jewish",
+      "year": 2027,
+      "from": "2027-10-15",
+      "to": "2027-10-22"
+    },
+    {
+      "occasion_id": "sukkot",
+      "tradition": "jewish",
+      "year": 2028,
+      "from": "2028-10-04",
+      "to": "2028-10-11"
+    },
+    {
+      "occasion_id": "sukkot",
+      "tradition": "jewish",
+      "year": 2029,
+      "from": "2029-09-23",
+      "to": "2029-09-30"
+    },
+    {
+      "occasion_id": "sukkot",
+      "tradition": "jewish",
+      "year": 2030,
+      "from": "2030-10-11",
+      "to": "2030-10-18"
+    },
+    {
+      "occasion_id": "tomato-day-2026",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-09-05",
+      "to": "2026-09-07"
+    },
+    {
+      "occasion_id": "tomato-day-2026",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-09-05",
+      "to": "2027-09-07"
+    },
+    {
+      "occasion_id": "tomato-day-2026",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-09-05",
+      "to": "2028-09-07"
+    },
+    {
+      "occasion_id": "tomato-day-2026",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-09-05",
+      "to": "2029-09-07"
+    },
+    {
+      "occasion_id": "tomato-day-2026",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-09-05",
+      "to": "2030-09-07"
+    },
+    {
+      "occasion_id": "valentine",
+      "tradition": "secular",
+      "year": 2026,
+      "from": "2026-02-14",
+      "to": "2026-02-14"
+    },
+    {
+      "occasion_id": "valentine",
+      "tradition": "secular",
+      "year": 2027,
+      "from": "2027-02-14",
+      "to": "2027-02-14"
+    },
+    {
+      "occasion_id": "valentine",
+      "tradition": "secular",
+      "year": 2028,
+      "from": "2028-02-14",
+      "to": "2028-02-14"
+    },
+    {
+      "occasion_id": "valentine",
+      "tradition": "secular",
+      "year": 2029,
+      "from": "2029-02-14",
+      "to": "2029-02-14"
+    },
+    {
+      "occasion_id": "valentine",
+      "tradition": "secular",
+      "year": 2030,
+      "from": "2030-02-14",
+      "to": "2030-02-14"
+    },
+    {
+      "occasion_id": "veg-peak",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-07-15",
+      "to": "2026-09-20"
+    },
+    {
+      "occasion_id": "veg-peak",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-07-15",
+      "to": "2027-09-20"
+    },
+    {
+      "occasion_id": "veg-peak",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-07-15",
+      "to": "2028-09-20"
+    },
+    {
+      "occasion_id": "veg-peak",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-07-15",
+      "to": "2029-09-20"
+    },
+    {
+      "occasion_id": "veg-peak",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-07-15",
+      "to": "2030-09-20"
+    },
+    {
+      "occasion_id": "wild-garlic",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-04-10",
+      "to": "2026-05-15"
+    },
+    {
+      "occasion_id": "wild-garlic",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-04-10",
+      "to": "2027-05-15"
+    },
+    {
+      "occasion_id": "wild-garlic",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-04-10",
+      "to": "2028-05-15"
+    },
+    {
+      "occasion_id": "wild-garlic",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-04-10",
+      "to": "2029-05-15"
+    },
+    {
+      "occasion_id": "wild-garlic",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-04-10",
+      "to": "2030-05-15"
+    },
+    {
+      "occasion_id": "womens-day",
+      "tradition": "secular",
+      "year": 2026,
+      "from": "2026-03-08",
+      "to": "2026-03-08"
+    },
+    {
+      "occasion_id": "womens-day",
+      "tradition": "secular",
+      "year": 2027,
+      "from": "2027-03-08",
+      "to": "2027-03-08"
+    },
+    {
+      "occasion_id": "womens-day",
+      "tradition": "secular",
+      "year": 2028,
+      "from": "2028-03-08",
+      "to": "2028-03-08"
+    },
+    {
+      "occasion_id": "womens-day",
+      "tradition": "secular",
+      "year": 2029,
+      "from": "2029-03-08",
+      "to": "2029-03-08"
+    },
+    {
+      "occasion_id": "womens-day",
+      "tradition": "secular",
+      "year": 2030,
+      "from": "2030-03-08",
+      "to": "2030-03-08"
+    },
+    {
+      "occasion_id": "xmas-cath",
+      "tradition": "catholic",
+      "year": 2026,
+      "from": "2026-12-24",
+      "to": "2026-12-26"
+    },
+    {
+      "occasion_id": "xmas-cath",
+      "tradition": "catholic",
+      "year": 2027,
+      "from": "2027-12-24",
+      "to": "2027-12-26"
+    },
+    {
+      "occasion_id": "xmas-cath",
+      "tradition": "catholic",
+      "year": 2028,
+      "from": "2028-12-24",
+      "to": "2028-12-26"
+    },
+    {
+      "occasion_id": "xmas-cath",
+      "tradition": "catholic",
+      "year": 2029,
+      "from": "2029-12-24",
+      "to": "2029-12-26"
+    },
+    {
+      "occasion_id": "xmas-cath",
+      "tradition": "catholic",
+      "year": 2030,
+      "from": "2030-12-24",
+      "to": "2030-12-26"
+    },
+    {
+      "occasion_id": "xmas-eve",
+      "tradition": "orthodox",
+      "year": 2026,
+      "from": "2026-12-20",
+      "to": "2026-12-24"
+    },
+    {
+      "occasion_id": "xmas-eve",
+      "tradition": "orthodox",
+      "year": 2027,
+      "from": "2027-12-20",
+      "to": "2027-12-24"
+    },
+    {
+      "occasion_id": "xmas-eve",
+      "tradition": "orthodox",
+      "year": 2028,
+      "from": "2028-12-20",
+      "to": "2028-12-24"
+    },
+    {
+      "occasion_id": "xmas-eve",
+      "tradition": "orthodox",
+      "year": 2029,
+      "from": "2029-12-20",
+      "to": "2029-12-24"
+    },
+    {
+      "occasion_id": "xmas-eve",
+      "tradition": "orthodox",
+      "year": 2030,
+      "from": "2030-12-20",
+      "to": "2030-12-24"
+    },
+    {
+      "occasion_id": "yom-kippur",
+      "tradition": "jewish",
+      "year": 2026,
+      "from": "2026-09-20",
+      "to": "2026-09-21"
+    },
+    {
+      "occasion_id": "yom-kippur",
+      "tradition": "jewish",
+      "year": 2027,
+      "from": "2027-10-10",
+      "to": "2027-10-11"
+    },
+    {
+      "occasion_id": "yom-kippur",
+      "tradition": "jewish",
+      "year": 2028,
+      "from": "2028-09-29",
+      "to": "2028-09-30"
+    },
+    {
+      "occasion_id": "yom-kippur",
+      "tradition": "jewish",
+      "year": 2029,
+      "from": "2029-09-18",
+      "to": "2029-09-19"
+    },
+    {
+      "occasion_id": "yom-kippur",
+      "tradition": "jewish",
+      "year": 2030,
+      "from": "2030-10-06",
+      "to": "2030-10-07"
+    },
+    {
+      "occasion_id": "young-cabbage",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-05-20",
+      "to": "2026-06-30"
+    },
+    {
+      "occasion_id": "young-cabbage",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-05-20",
+      "to": "2027-06-30"
+    },
+    {
+      "occasion_id": "young-cabbage",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-05-20",
+      "to": "2028-06-30"
+    },
+    {
+      "occasion_id": "young-cabbage",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-05-20",
+      "to": "2029-06-30"
+    },
+    {
+      "occasion_id": "young-cabbage",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-05-20",
+      "to": "2030-06-30"
+    },
+    {
+      "occasion_id": "young-garlic",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-10",
+      "to": "2026-07-10"
+    },
+    {
+      "occasion_id": "young-garlic",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-10",
+      "to": "2027-07-10"
+    },
+    {
+      "occasion_id": "young-garlic",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-10",
+      "to": "2028-07-10"
+    },
+    {
+      "occasion_id": "young-garlic",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-10",
+      "to": "2029-07-10"
+    },
+    {
+      "occasion_id": "young-garlic",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-10",
+      "to": "2030-07-10"
+    },
+    {
+      "occasion_id": "young-zucchini",
+      "tradition": null,
+      "year": 2026,
+      "from": "2026-06-10",
+      "to": "2026-07-31"
+    },
+    {
+      "occasion_id": "young-zucchini",
+      "tradition": null,
+      "year": 2027,
+      "from": "2027-06-10",
+      "to": "2027-07-31"
+    },
+    {
+      "occasion_id": "young-zucchini",
+      "tradition": null,
+      "year": 2028,
+      "from": "2028-06-10",
+      "to": "2028-07-31"
+    },
+    {
+      "occasion_id": "young-zucchini",
+      "tradition": null,
+      "year": 2029,
+      "from": "2029-06-10",
+      "to": "2029-07-31"
+    },
+    {
+      "occasion_id": "young-zucchini",
+      "tradition": null,
+      "year": 2030,
+      "from": "2030-06-10",
+      "to": "2030-07-31"
+    }
+  ]
+}

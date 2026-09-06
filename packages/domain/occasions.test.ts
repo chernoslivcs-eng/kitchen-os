@@ -1,9 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
-  easterDate, traditionsFrom, activeOccasions, upcomingEvents,
-  whenLabel, serializeOccasions, isFastingRestricted, fastingActive,
+  easterDate, activeOccasions, upcomingEvents,
+  whenLabel, isFastingRestricted, fastingActive,
   ruleActive, occurrencesInRange,
 } from './occasions.js';
+import { serializeNow, subscribedRows } from './periods.js';
+import { BUILTIN_OCCASIONS } from './occasion-data.js';
+import type { Tradition } from './occasion-rules.js';
+
+// П1: традиція — підписка. Для тестів: увімкнути весь набір традиції.
+const withTrads = (trads: Tradition[]) => subscribedRows(BUILTIN_OCCASIONS,
+  BUILTIN_OCCASIONS.filter((r) => r.type === 'tradition' && (r.tradition ? trads.includes(r.tradition) : trads.some((t) => t === 'orthodox' || t === 'catholic')))
+    .map((r) => ({ occasion_id: r.id, enabled: true })));
+const serializeOccasions = (now: Date, trads: Tradition[] = []) => serializeNow(withTrads(trads), [], now);
 
 const d = (y: number, m: number, day: number) => new Date(y, m - 1, day);
 const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
@@ -30,39 +39,13 @@ describe('пасхалія', () => {
   });
 });
 
-describe('розпізнавання традиції', () => {
-  it('порожні побажання — жодної традиції', () => {
-    expect(traditionsFrom([])).toEqual([]);
-    expect(traditionsFrom(['люблю гостре', 'багато зелені'])).toEqual([]);
-  });
-
-  it('«постуємо» → православна', () => {
-    expect(traditionsFrom(['постуємо у Великий піст'])).toContain('orthodox');
-  });
-
-  it('халяль → ісламська', () => {
-    expect(traditionsFrom(['дотримуємось халяль'])).toEqual(['islamic']);
-  });
-
-  it('кошер → юдейська', () => {
-    expect(traditionsFrom(['кошерна кухня'])).toEqual(['jewish']);
-  });
-
-  it('латиниця теж працює — люди пишуть halal', () => {
-    expect(traditionsFrom(['halal only'])).toEqual(['islamic']);
-  });
-
-  it('змішана сімʼя — дві традиції одночасно', () => {
-    const t = traditionsFrom(['святкуємо католицьке Різдво', 'і православний Великдень']);
-    expect(t).toContain('catholic');
-    expect(t).toContain('orthodox');
-  });
-});
-
 describe('що триває зараз', () => {
   it('серпень — овочевий пік і кавуни, без свят', () => {
-    const act = activeOccasions(d(2026, 8, 20), []);
-    expect(act.map((o) => o.id).sort()).toEqual(['melon', 'veg-peak']);
+    const ids = activeOccasions(d(2026, 8, 20), []).map((o) => o.id);
+    expect(ids).toContain('melon');
+    expect(ids).toContain('veg-peak');
+    expect(ids).not.toContain('spas');
+    expect(activeOccasions(d(2026, 8, 20), []).every((o) => o.type === 'season')).toBe(true);
   });
 
   // Головна перевірка гейта: Спас не показуємо людині, яка не згадувала
@@ -116,12 +99,13 @@ describe('що попереду', () => {
   });
 
   it('кінець сезону кавунів потрапляє в горизонт', () => {
-    const ev = upcomingEvents(d(2026, 9, 1), [], 21);
+    // П1: сезон кавунів тепер до 30 вересня (seasons-proposal.csv).
+    const ev = upcomingEvents(d(2026, 9, 12), [], 21);
     expect(ev.some((e) => e.title.includes('кавуни') && e.title.includes('останні дні'))).toBe(true);
   });
 
   it('місячні свята позначені як орієнтовні', () => {
-    const ev = upcomingEvents(d(2027, 1, 20), ['islamic'], 60);
+    const ev = upcomingEvents(d(2027, 1, 20), ['islamic'], 60).filter((e) => e.kind === 'tradition');
     expect(ev.length).toBeGreaterThan(0);
     expect(ev.every((e) => e.approx)).toBe(true);
   });
@@ -153,40 +137,41 @@ describe('whenLabel', () => {
 
 describe('блок для промпта', () => {
   it('містить активне й майбутнє', () => {
-    const s = serializeOccasions(d(2026, 8, 25), ['постуємо']);
-    expect(s).toContain('[СЕЗОН І СВЯТА]');
-    expect(s).toContain('ЗАРАЗ:');
+    const s = serializeOccasions(d(2026, 8, 25), ['orthodox']);
+    expect(s).toContain('[ЗАРАЗ]');
     expect(s).toContain('пік овочевого сезону');
-    expect(s).toContain('Варто докупити:');
+    expect(s).toContain('варто докупити:');
   });
 
   // Без цього застереження модель починає кожну репліку з календаря.
   it('каже, що це привід, а не обовʼязок', () => {
-    const s = serializeOccasions(d(2026, 8, 25), []);
+    const s = serializeOccasions(d(2026, 8, 25));
     expect(s).toContain('привід, а не обовʼязок');
     expect(s).toContain('не вигадуй');
   });
 
   it('мертвий сезон без традиції — порожній рядок, не витрачаємо токени', () => {
-    expect(serializeOccasions(d(2026, 6, 10), [])).toBe('');
+    // Середина лютого: цитрусові скінчились, черемша ще далеко за горизонтом; свят без підписки нема.
+    expect(serializeOccasions(d(2026, 2, 15))).toBe('');
   });
 
   // Піст — не привід, а обмеження, поки триває. Поки він стояв в одному абзаці
   // з сезоном грибів під спільним «привід, а не обовʼязок», модель у Великий
   // піст пропонувала вершковий суп-пюре, маючи блок посту перед очима.
   it('піст подається обмеженням, окремо від приводів', () => {
-    const s = serializeOccasions(d(2026, 3, 5), ['постуємо']);
-    expect(s).toContain('ТРИВАЄ ОБМЕЖЕННЯ');
-    expect(s).toContain('ніби переліченого просто немає в коморі');
-    expect(s).toContain('жодного мʼяса');
-    // Обмеження стоїть ПЕРЕД приводами: модель читає блок згори вниз.
-    expect(s.indexOf('ТРИВАЄ ОБМЕЖЕННЯ')).toBeLessThan(s.indexOf('ЗАРАЗ:'));
+    const s = serializeOccasions(d(2026, 3, 5), ['orthodox']);
+    expect(s).toContain('Великий піст · до 11 квіт. · жодного мʼяса');
+    expect(s).toContain('· суворо');
+    // Суворе стоїть ПЕРЕД мʼяким: 5 березня без сезонів, тож перевіряємо в травні з Масницею? Ні —
+    // на 10 квітня є черемша (мʼяко) і піст (суворо): модель читає блок згори вниз.
+    const both = serializeOccasions(d(2026, 4, 10), ['orthodox']);
+    expect(both.indexOf('· суворо')).toBeLessThan(both.indexOf('· мʼяко'));
   });
 
   it('сезон обмеженням не стає', () => {
-    const s = serializeOccasions(d(2026, 9, 10), []);
-    expect(s).toContain('ЗАРАЗ:');
-    expect(s).not.toContain('ТРИВАЄ ОБМЕЖЕННЯ');
+    const s = serializeOccasions(d(2026, 9, 10));
+    expect(s).toContain('сезон білих грибів · до 31 жовт.');
+    expect(s).not.toContain('· суворо');
   });
 
   // QA7-02: математика була правильна, але в блок ішло тільки активне зараз
@@ -196,7 +181,7 @@ describe('блок для промпта', () => {
   // репліки вигадувала дати (піст «2 березня», Великдень «19 квітня» — замість
   // 15 березня і 2 травня 2027).
   it('розпізнана традиція дає ключові дати незалежно від горизонту', () => {
-    const s = serializeOccasions(d(2026, 8, 30), ['святкуємо православні свята']);
+    const s = serializeOccasions(d(2026, 8, 30), ['orthodox']);
     expect(s).toContain('КЛЮЧОВІ ДАТИ');
     expect(s).toContain('Великдень 2027');
     expect(s).toContain('2 травня');
@@ -204,28 +189,28 @@ describe('блок для промпта', () => {
   });
 
   it('без традиції ключових дат немає', () => {
-    const s = serializeOccasions(d(2026, 8, 30), []);
+    const s = serializeOccasions(d(2026, 8, 30));
     expect(s).not.toContain('КЛЮЧОВІ ДАТИ');
     expect(s).not.toContain('Великдень');
   });
 
   it('католицька традиція — свої дати', () => {
-    const s = serializeOccasions(d(2026, 8, 30), ['ми католицька сімʼя']);
+    const s = serializeOccasions(d(2026, 8, 30), ['catholic']);
     expect(s).toContain('Великдень 2027');
     expect(s).toContain('28 березня');
   });
 
   it('гвардія посту: православний піст вмикає, католицька Страсна пʼятниця — ні', () => {
-    expect(fastingActive(d(2026, 3, 10), [], undefined, ['orthodox'])).toBe(true);
+    expect(fastingActive(d(2026, 3, 10), withTrads(['orthodox']), ['orthodox'])).toBe(true);
     // 3 квітня 2026 — католицька Страсна пʼятниця: обмеження є, гвардії немає.
-    expect(activeOccasions(d(2026, 4, 3), ['catholic']).map((o) => o.id)).toContain('good-friday');
-    expect(fastingActive(d(2026, 4, 3), [], undefined, ['catholic'])).toBe(false);
-    // Явний вибір перемагає побажання: «постуємо» + [] → гвардії немає.
-    expect(fastingActive(d(2026, 3, 10), ['постуємо'], undefined, [])).toBe(false);
+    expect(activeOccasions(d(2026, 4, 3), ['catholic'], withTrads(['catholic'])).map((o) => o.id)).toContain('good-friday');
+    expect(fastingActive(d(2026, 4, 3), withTrads(['catholic']), ['catholic'])).toBe(false);
+    // Без підписки — гвардії немає, хай що людина писала в побажаннях.
+    expect(fastingActive(d(2026, 3, 10), withTrads([]), [])).toBe(false);
   });
 
   it('ісламські дати завжди з позначкою орієнтовності', () => {
-    const s = serializeOccasions(d(2026, 8, 30), ['дотримуємось халяль']);
+    const s = serializeOccasions(d(2026, 8, 30), ['islamic']);
     expect(s).toContain('Рамадан');
     expect(s).toMatch(/Рамадан[^\n]*орієнтовно/);
   });
@@ -234,14 +219,14 @@ describe('блок для промпта', () => {
   // навпаки і переказувала людині як стан системи («календар заповнюється
   // поступово»). Тепер блок забороняє описувати механіку памʼяті.
   it('блок забороняє пояснювати механіку памʼяті', () => {
-    const s = serializeOccasions(d(2026, 8, 30), []);
+    const s = serializeOccasions(d(2026, 8, 30));
     expect(s).toContain('як улаштована твоя памʼять');
     expect(s).not.toContain('Якщо традиції не розпізнано — свят тут не буде');
   });
 
   it('традиція змінює вміст блоку', () => {
-    const plain = serializeOccasions(d(2026, 4, 12), []);
-    const orth = serializeOccasions(d(2026, 4, 12), ['постуємо']);
+    const plain = serializeOccasions(d(2026, 4, 12));
+    const orth = serializeOccasions(d(2026, 4, 12), ['orthodox']);
     expect(plain).not.toContain('Великдень');
     expect(orth).toContain('Великдень');
   });
@@ -266,9 +251,9 @@ describe('скоромні партії маркуються в піст', () =>
   });
 
   it('fastingActive: піст триває у березні для православних', () => {
-    expect(fastingActive(d(2026, 3, 5), ['постуємо'])).toBe(true);
-    expect(fastingActive(d(2026, 8, 30), ['постуємо'])).toBe(false);
-    expect(fastingActive(d(2026, 3, 5), [])).toBe(false);
+    expect(fastingActive(d(2026, 3, 5), withTrads(['orthodox']), ['orthodox'])).toBe(true);
+    expect(fastingActive(d(2026, 8, 30), withTrads(['orthodox']), ['orthodox'])).toBe(false);
+    expect(fastingActive(d(2026, 3, 5), withTrads([]), [])).toBe(false);
   });
 });
 

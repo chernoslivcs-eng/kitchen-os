@@ -28,14 +28,11 @@ describe('динамічний контекст', () => {
     expect(v2.indexOf('[СЬОГОДНІ]')).toBeGreaterThan(v2.indexOf('[НОТАТКИ'));
   });
 
-  it('традиції — окремим блоком, лише коли обрано', () => {
+  it('П1: блоку [ТРАДИЦІЇ] більше нема — свята йдуть у [ЗАРАЗ] за підпискою', () => {
     const p = emptyProfileText('u1');
-    const none = buildDynamicContext({ ...base, profileText: p, traditions: null });
-    expect(none).not.toContain('[ТРАДИЦІЇ]');
-    const off = buildDynamicContext({ ...base, profileText: p, traditions: [] });
-    expect(off).toContain('[ТРАДИЦІЇ] вимкнено');
-    const on = buildDynamicContext({ ...base, profileText: p, traditions: ['catholic'] });
-    expect(on).toContain('[ТРАДИЦІЇ] обрано в профілі: католицька');
+    const ctx = buildDynamicContext({ ...base, profileText: p });
+    expect(ctx).not.toContain('[ТРАДИЦІЇ]');
+    expect(ctx).not.toContain('[СЕЗОН І СВЯТА]');
   });
 });
 

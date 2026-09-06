@@ -14,11 +14,18 @@ import type { Rule } from '@kitchen/domain';
 
 export type EventWhen =
   | { date: string }        // людина назвала дату: '2026-09-12'
-  | { rel: string }         // '+7d', '+2w', 'today', 'tomorrow'
+  | { rel: string }         // '+7d', '+2w', 'today', 'tomorrow', 'sat' (найближча субота), 'month-end'
   | { weekly: number };     // 0=нд … 6=сб
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const REL = /^\+(\d{1,3})([dw])$/;
+// П1: «у суботу» — найближча субота від сьогодні (сьогодні включно), рахує
+// сервер; модель віддає лише назву дня. Українські скорочення — теж, бо
+// модель іноді пише їх попри інструкцію.
+const WEEKDAY: Record<string, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+  'нд': 0, 'пн': 1, 'вт': 2, 'ср': 3, 'чт': 4, 'пт': 5, 'сб': 6,
+};
 
 function iso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -51,6 +58,19 @@ export function resolveWhen(when: unknown, now = new Date(), days?: number): Rul
     if (rel === 'today') return span ? { t: 'once', at: iso(now), days: span } : { t: 'once', at: iso(now) };
     if (rel === 'tomorrow') {
       const at = shift(now, 1);
+      return span ? { t: 'once', at, days: span } : { t: 'once', at };
+    }
+    // Найближчий день тижня, сьогодні включно: «у суботу» в суботу — сьогодні.
+    const dow = WEEKDAY[rel.replace(/^next-/, '')];
+    if (dow !== undefined) {
+      const ahead = (dow - now.getDay() + 7) % 7;
+      const at = shift(now, rel.startsWith('next-') && ahead === 0 ? 7 : ahead);
+      return span ? { t: 'once', at, days: span } : { t: 'once', at };
+    }
+    // «До кінця місяця» — останній день поточного місяця.
+    if (rel === 'month-end' || rel === 'eom') {
+      const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const at = iso(last);
       return span ? { t: 'once', at, days: span } : { t: 'once', at };
     }
     const m = REL.exec(rel);

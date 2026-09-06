@@ -4,6 +4,7 @@ import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } fro
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
+import { subscribedRows, periodVetoRows } from '@kitchen/domain';
 import { isProfileFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
@@ -12,6 +13,7 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { resolveWhen } from '../event-when.js';
+import { buildPeriodCard } from '../period-card.js';
 import {
   isYes, isNo, extractRating, buildWriteoffOps, latestRunInSession,
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
@@ -278,8 +280,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Раунд 4: сім речень і нотатки; крок 11: традиції — з user.
     const profileText = await repo.getProfileText(user_id);
     const profileNotes = await repo.listProfileNotes(user_id);
-    const vetoIndex = await repo.getVetoIndex(user_id);
-    const traditions = (await repo.getUser(user_id))?.traditions ?? null;
+    const profileVeto = await repo.getVetoIndex(user_id);
     // QA6-04: список у контекст — інакше в новій сесії модель каже «порожній»
     // при двох позиціях і додає дубль.
     const shopping = await repo.listShoppingItems(household_id);
@@ -357,6 +358,11 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // свої: календар не спільний, і асистент доданого члена сімʼї не має
     // переказувати чужі плани так, ніби це спільна памʼять дому.
     const events = await repo.listOwnEvents(household_id, user_id);
+    // П1: довідник крізь підписку дому; суворі періоди (піст із довідника,
+    // strict-запис дому) стають рядками вето на цей хід — по датах, як
+    // «Я не їм» на період. Мʼякі у вето не йдуть.
+    const occasions = subscribedRows(await repo.listOccasionCatalog(), await repo.listOccasionSubscriptions(household_id));
+    const vetoIndex = [...profileVeto, ...periodVetoRows(occasions, events, new Date(), user_id)];
     const modes = detectModes(preMessages, recentCookRuns, new Date(), events);
     const openCart = modes.find((m) => m.kind === 'cart_open');
 
@@ -388,7 +394,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat(chatArgs = {
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profileText, profileNotes, vetoIndex, traditions, shopping, eaters, recentRecipes, products, retailConnected, retailKarpaty,
+        history, profileText, profileNotes, vetoIndex, occasions, shopping, eaters, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
@@ -636,7 +642,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         try {
           gen = await callRecipe({
             title: wantedTitle,
-            pantry, products, profileText, profileNotes, vetoIndex, traditions,
+            pantry, products, profileText, profileNotes, vetoIndex,
             conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
           });
         } catch (err) {
@@ -654,7 +660,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           const { avoid } = recipeVetoHits(resolveRecipeLabels(gen.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id, ...e }, e.event), text ?? '');
           if (avoid.length) {
             const again = await callRecipe({
-              title: wantedTitle, pantry, products, profileText, profileNotes, vetoIndex, traditions,
+              title: wantedTitle, pantry, products, profileText, profileNotes, vetoIndex,
               context: `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`,
               conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
             });
@@ -738,7 +744,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
             + '5. Сумніваєшся щодо вказівника — дай "n" з назвою без "p".',
           pantry,
           products,
-          profileText, profileNotes, vetoIndex, traditions,
+          profileText, profileNotes, vetoIndex,
           conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
         });
       } catch (err) {
@@ -870,6 +876,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         return rule ? { ...withId, rule } : null;
       }).filter((op): op is NonNullable<typeof op> => op !== null);
       call.card = ops.length ? { ...call.card, ops } : null;
+    }
+
+    // П1: картка period — сервер добудовує список свят чи дати запису; без
+    // добудови (невідомий сезон, порожня назва) картки нема.
+    if (call.card?.type === 'period') {
+      call.card = await buildPeriodCard(repo, call.card, household_id, new Date());
     }
 
     // Pending-картка створюється ЛИШЕ тут — після резолву дат подій і після

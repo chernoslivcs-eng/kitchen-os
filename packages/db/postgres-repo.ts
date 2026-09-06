@@ -17,10 +17,10 @@ import type {
   SessionRow, MessageRow, EaterRow,
   Zone, Unit, BatchState, Provenance, Card, UndoSnapshot,
   HouseholdProduct, ProductTriple,
-  HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule,
+  HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
 } from '@kitchen/domain';
-import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT, type Tradition } from '@kitchen/domain';
+import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
 
 type Row = Record<string, unknown>;
@@ -225,6 +225,15 @@ function rowToAdminOccasion(r: Row): AdminOccasionRow {
   };
 }
 
+// date-колонка приходить як Date о півночі локального часу сервера — назад у
+// 'YYYY-MM-DD' без UTC-зсуву.
+function dateOnly(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v === 'string') return v.slice(0, 10);
+  const d = v as Date;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function rowToEvent(r: Row): HouseholdEventRow {
   return {
     id: r.id as string,
@@ -235,6 +244,10 @@ function rowToEvent(r: Row): HouseholdEventRow {
     rule: r.rule as Rule,
     force: r.force as HouseholdEventRow['force'],
     restricts: (r.restricts as string | null) ?? null,
+    from: dateOnly(r.date_from),
+    to: dateOnly(r.date_to),
+    rule_text: (r.rule_text as string | null) ?? null,
+    strict: !!r.strict,
     buy: (r.buy as string[]) ?? [],
     recipe_id: (r.recipe_id as string | null) ?? null,
     servings: r.servings == null ? null : Number(r.servings),
@@ -382,9 +395,6 @@ export class PostgresRepo implements Repo {
   }
 
   // Крок 11 (0026): традиції — колонка на user. null — не обирала.
-  async setTraditions(user_id: string, traditions: Tradition[] | null): Promise<void> {
-    await this.pool.query('UPDATE "user" SET traditions = $2 WHERE id = $1', [user_id, traditions]);
-  }
 
   // ----- Раунд 4: профіль як сім речень ------------------------------------
 
@@ -658,7 +668,6 @@ export class PostgresRepo implements Repo {
       plan: (r.plan as string | null) ?? 'beta',
       welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
       profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
-      traditions: (r.traditions as Tradition[] | null) ?? null,
     };
   }
 
@@ -707,7 +716,6 @@ export class PostgresRepo implements Repo {
       id: r.id, name: r.name, email: r.email, created_at: new Date(r.created_at).toISOString(), plan: (r.plan as string | null) ?? 'beta',
       welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
       profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
-      traditions: (r.traditions as Tradition[] | null) ?? null,
     };
   }
 
@@ -1328,14 +1336,16 @@ export class PostgresRepo implements Repo {
     await this.pool.query(
       `INSERT INTO household_event
          (id, household_id, kind, title, note, rule, force, restricts, buy,
-          recipe_id, servings, supply, created_by, source, expires_at, done_at, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17)`,
+          recipe_id, servings, supply, created_by, source, expires_at, done_at, created_at,
+          date_from, date_to, rule_text, strict)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
       [
         e.id, e.household_id, e.kind, e.title, e.note,
         JSON.stringify(e.rule), e.force, e.restricts, e.buy,
         e.recipe_id, e.servings,
         e.supply == null ? null : JSON.stringify(e.supply),
-        e.created_by, e.source, e.expires_at, e.done_at, e.created_at,
+        e.created_by, e.source === 'model' ? 'chat' : e.source, e.expires_at, e.done_at, e.created_at,
+        e.from ?? null, e.to ?? null, e.rule_text ?? null, !!e.strict,
       ],
     );
   }
@@ -1343,7 +1353,8 @@ export class PostgresRepo implements Repo {
   async updateHouseholdEvent(
     id: string,
     patch: Partial<Pick<HouseholdEventRow,
-      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'>>,
+      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'
+      | 'from' | 'to' | 'rule_text' | 'strict' | 'force' | 'restricts' | 'kind'>>,
   ): Promise<void> {
     // COALESCE тут не годиться: null — легальне значення для note, supply,
     // expires_at і done_at, і «зняти дату» має відрізнятись від «не чіпати».
@@ -1362,6 +1373,13 @@ export class PostgresRepo implements Repo {
     if ('supply' in patch) put('supply', patch.supply == null ? null : JSON.stringify(patch.supply), '::jsonb');
     if ('expires_at' in patch) put('expires_at', patch.expires_at);
     if ('done_at' in patch) put('done_at', patch.done_at);
+    if ('from' in patch) put('date_from', patch.from ?? null);
+    if ('to' in patch) put('date_to', patch.to ?? null);
+    if ('rule_text' in patch) put('rule_text', patch.rule_text ?? null);
+    if ('strict' in patch) put('strict', !!patch.strict);
+    if ('force' in patch) put('force', patch.force);
+    if ('restricts' in patch) put('restricts', patch.restricts ?? null);
+    if ('kind' in patch) put('kind', patch.kind);
     if (!sets.length) return;
     vals.push(id);
     await this.pool.query(
@@ -1374,26 +1392,27 @@ export class PostgresRepo implements Repo {
     await this.pool.query('DELETE FROM household_event WHERE id = $1', [id]);
   }
 
-  async listMutedOccasions(user_id: string): Promise<string[]> {
+  async listOccasionSubscriptions(household_id: string): Promise<OccasionSubscriptionRow[]> {
     const { rows } = await this.pool.query(
-      'SELECT occasion_id FROM user_occasion_mute WHERE user_id = $1',
-      [user_id],
+      'SELECT * FROM occasion_subscription WHERE household_id = $1 ORDER BY occasion_id',
+      [household_id],
     );
-    return (rows as Row[]).map((r) => r.occasion_id as string);
+    return (rows as Row[]).map((r) => ({
+      household_id: r.household_id as string, occasion_id: r.occasion_id as string,
+      enabled: !!r.enabled, updated_at: new Date(r.updated_at as string).toISOString(),
+    }));
   }
 
-  async muteOccasion(user_id: string, occasion_id: string): Promise<void> {
+  async setOccasionSubscription(household_id: string, occasion_id: string, enabled: boolean | null): Promise<void> {
+    if (enabled === null) {
+      await this.pool.query('DELETE FROM occasion_subscription WHERE household_id = $1 AND occasion_id = $2', [household_id, occasion_id]);
+      return;
+    }
     await this.pool.query(
-      `INSERT INTO user_occasion_mute (user_id, occasion_id)
-       VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-      [user_id, occasion_id],
-    );
-  }
-
-  async unmuteOccasion(user_id: string, occasion_id: string): Promise<void> {
-    await this.pool.query(
-      'DELETE FROM user_occasion_mute WHERE user_id = $1 AND occasion_id = $2',
-      [user_id, occasion_id],
+      `INSERT INTO occasion_subscription (household_id, occasion_id, enabled)
+       VALUES ($1,$2,$3)
+       ON CONFLICT (household_id, occasion_id) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()`,
+      [household_id, occasion_id, enabled],
     );
   }
 

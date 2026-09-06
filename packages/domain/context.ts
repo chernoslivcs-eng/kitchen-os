@@ -13,15 +13,13 @@ import { root, meaningfulWords, categoryBreadth} from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
 import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
-import { serializeOccasions, fastingActive, isFastingRestricted, traditionsOf } from './occasions.js';
+import { fastingActive, isFastingRestricted } from './occasions.js';
+import { serializeNow, subscribedTraditions, subscribedRows } from './periods.js';
+import { BUILTIN_OCCASIONS, type OccasionRow } from './occasion-data.js';
 import { isProfileFieldCard } from './types.js';
-import { PROFILE_FIELDS, serializeProfileText, emptyProfileText, profileTextHints, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
+import { PROFILE_FIELDS, serializeProfileText, emptyProfileText, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
 import { pantryVetoRows } from './pantry-view.js';
-import type { Tradition } from './occasion-rules.js';
 
-const TRADITION_UA: Record<Tradition, string> = {
-  orthodox: 'православна', catholic: 'католицька', islamic: 'ісламська', jewish: 'юдейська',
-};
 import { serializeModes, type KitchenMode } from './modes.js';
 
 export interface RecentCookRunSummary {
@@ -37,9 +35,9 @@ export interface KitchenContext {
   // блок іде порожнім (і каже, що це не дозвіл).
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
-  // Крок 11: традиції — явний вибір на user (null — ще не обирала, тоді
-  // календар вгадує з її слів у profileText).
-  traditions?: Tradition[] | null;
+  // П1: довідник приводів уже КРІЗЬ підписку дому (subscribedRows). Без
+  // поля — весь вбудований довідник за дефолтами (сезони так, свята ні).
+  occasions?: OccasionRow[];
   // Крок 4б: індекс вето → ⚠-мітки в рядках [КОМОРА].
   vetoIndex?: VetoRow[];
   shopping?: ShoppingItemRow[];
@@ -96,17 +94,6 @@ export function todayLabel(now = new Date()): string {
   return now.toLocaleDateString('uk-UA', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
-}
-
-// Блок [ПРО ЛЮДИНУ] — лише її слова (serializeProfileText). Традиції —
-// перемикач календаря на user, тож ідуть окремим коротким блоком і лише коли
-// людина їх обирала (масив, не null). QA4-02 / M13-ROLE-VOICE п.1: порожній
-// профіль — НЕ дозвіл; це каже сам serializeProfileText.
-export function serializeTraditions(traditions?: Tradition[] | null): string {
-  if (!Array.isArray(traditions)) return '';
-  return traditions.length
-    ? '\n\n[ТРАДИЦІЇ] обрано в профілі: ' + traditions.map((t) => TRADITION_UA[t]).join(', ')
-    : '\n\n[ТРАДИЦІЇ] вимкнено в профілі — релігійних свят і постів не пропонуй і про календар не питай';
 }
 
 // Комора: id · назва · зона · кількість · стан. Термін догоряння як «!Nдн»,
@@ -482,16 +469,15 @@ export function buildKitchenContext(ctx: KitchenContext): string {
       + ctx.recentCookRuns.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
     : '\n\n[ОСТАННІ ГОТУВАННЯ] порожньо — жодного завершеного готування ще немає.';
   const profileText = ctx.profileText ?? emptyProfileText('');
-  const hints = profileTextHints(profileText);
-  const trads = traditionsOf(ctx.traditions, hints);
+  // П1: довідник крізь підписку; традиції — ті, чиї свята увімкнені.
+  const rows = ctx.occasions ?? subscribedRows(BUILTIN_OCCASIONS, []);
+  const trads = subscribedTraditions(rows);
   return serializeProfileText(profileText, ctx.profileNotes ?? [])
     + (ctx.productMap ? '\n\n' + ctx.productMap.trim() : '')
-    + serializeTraditions(ctx.traditions)
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
-    // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
-    // триває — і завжди порожній, поки традиція не розпізнана з побажань.
-    + serializeOccasions(now, hints, undefined, trads)
-    + serializeHouseholdEvents(ctx.events ?? [], now)
+    // П1: один блок [ЗАРАЗ] одразу за датою — приводи крізь підписку і
+    // записи дому одним списком; порожній, коли нічого не триває.
+    + serializeNow(rows, ctx.events ?? [], now)
     // UX9-04: чат-модель id партій не вживає НІДЕ — а отримувала uuid першим
     // словом кожного рядка. Шум і токени; вказівники бачить лише recipe_gen
     // (окрема серіалізація в callRecipe, з аліасами p1..pN).
@@ -499,7 +485,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
     // самому блоці — той самий механізм, що рятував з алергенами й постом.
     + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування. «~строк≈» — приблизна оцінка від відкриття: згадуй мʼяко — «варто передивитись», точні дні називай лише для «!Nдн». «?рід» — записано родовим словом, конкретний продукт невідомий: коли доходить до страви, доречно спитати ОДНИМ реченням, що це саме — але тільки якщо ти цього ще не питав у цій розмові. «?домисл.N%» — кількість або сама позиція домислена з розбору, не сказана людиною: не подавай її як точний факт («десь», «приблизно»), а коли вона стає важливою для страви чи покупки — уточни одним реченням; без мітки — не сумнівайся, число точне)\n'
-    + serializePantry(ctx.pantry, now.getTime(), ctx.eaters ?? [], fastingActive(now, hints, undefined, trads), 'none', 120, ctx.products ?? [], ctx.queryText ?? '', ctx.vetoIndex)
+    + serializePantry(ctx.pantry, now.getTime(), ctx.eaters ?? [], fastingActive(now, rows, trads), 'none', 120, ctx.products ?? [], ctx.queryText ?? '', ctx.vetoIndex)
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + renderRecentActions(ctx.recentActions ?? [], now)
@@ -533,43 +519,5 @@ export function maskHistoryQuantities(text: string): string {
     .trim();
 }
 
-/**
- * Плани людини в контекст — з короткими id, щоб модель могла на них послатись.
- * Саме людини, а не дому: календар не спільний елемент користування.
- *
- * Id вісім символів, не повні uuid: блок динамічний, тобто не кешується, і
- * двадцять подій повними ідентифікаторами коштували б ~700 зайвих символів
- * у КОЖНОМУ виклику. Префікс розгортає сервер (routes/chat.ts) — у межах
- * одного дому збіг практично неможливий, а перевірка все одно є.
- *
- * Закриті й згаслі події не йдуть: «мама привезе цибулю» через місяць — шум,
- * і саме проти нього писався expires_at.
- */
-export function serializeHouseholdEvents(events: HouseholdEventRow[], now = new Date()): string {
-  const live = events.filter((e) => {
-    if (e.done_at) return false;
-    if (e.expires_at && new Date(e.expires_at).getTime() < now.getTime()) return false;
-    return true;
-  });
-  if (!live.length) return '';
-
-  const DOW = ['неділі', 'понеділка', 'вівторка', 'середи', 'четверга', 'пʼятниці', 'суботи'];
-  const line = (e: HouseholdEventRow): string => {
-    const id = e.id.slice(0, 8);
-    let when = '';
-    if (e.rule.t === 'once') {
-      const [, m = '1', d = '1'] = e.rule.at.split('-');
-      when = `${Number(d)}.${Number(m)}`;
-      if (e.rule.days && e.rule.days > 1) when += ` (${e.rule.days} дн.)`;
-    } else if (e.rule.t === 'weekly') {
-      when = `що${DOW[e.rule.dow] ?? 'тижня'}`;
-    }
-    const tail = [e.note, e.servings ? `на ${e.servings}` : null].filter(Boolean).join('; ');
-    return `[${id}] ${when}: ${e.title}${tail ? ` — ${tail}` : ''}`;
-  };
-
-  return '\n\n[ТВОЇ ПЛАНИ] (те, що людина сама поставила в календар; id у дужках — щоб правити,'
-    + ' закривати чи прибирати карткою event. Нагадуй про план, коли він доречний,'
-    + ' і не переказуй увесь список без запиту)\n'
-    + live.map(line).join('\n');
-}
+// П1: [ТВОЇ ПЛАНИ] поглинув блок [ЗАРАЗ] (periods.ts, serializeNow) — плани
+// дому там разом із приводами довідника, з тими самими короткими id.

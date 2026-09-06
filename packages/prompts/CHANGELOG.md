@@ -5,6 +5,20 @@
 у тому самому PR. Карта — те, що асистент каже людині про додаток; розійдеться
 з кодом — асистент почне брехати про кнопки.
 
+## 2026-08-28 (06.09, раунд 5 крок П1) — періоди з правилом
+
+  card-schemas.md     нова картка `period` (tradition | diet | custom, from/to
+                      відносно, rule_text дослівно, strict, unsubscribe);
+                      ops-картка profile — лише member; event без custom
+  card-routing.md     ПЕРІОД З ПРАВИЛОМ → `period` (свята, дієта на період,
+                      гості, «не показуй кавуни»); `event` — supply | meal |
+                      constraint; id планів — з [ЗАРАЗ]; rel `sat`, `month-end`
+  kitchen-policy.md   правило ПЕРІОД: мʼяко — привід, на пряме прохання без
+                      попередження; суворо — як «Я не їм» на цей час
+  state-facts.md      [СЕЗОН І СВЯТА] + [ТВОЇ ПЛАНИ] + [ТРАДИЦІЇ] → один блок
+                      [ЗАРАЗ] (сервер: periods.ts, serializeNow)
+  proposal-flow.md, onboarding-stage2.md, product-map.md — та сама заміна
+
 ## 2026-08-28 (06.09, раунд 5 крок К1) — асистент знає сам додаток
 
   product-map.md      новий блок [ПРО ДОДАТОК]: екрани, копі кнопок, як що працює,

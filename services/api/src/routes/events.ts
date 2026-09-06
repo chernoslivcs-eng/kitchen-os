@@ -1,7 +1,10 @@
 // GET    /v1/events?from&to  → { events } — глобальні й домашні одним списком
-// POST   /v1/events          → створити подію дому
+// POST   /v1/events          → створити подію дому (П1: і diet/custom з from/to/rule_text/strict)
 // PATCH  /v1/events/:id      → правка
 // DELETE /v1/events/:id      → 204
+// GET    /v1/occasions?set=&year=          → набір для картки серії, з датами й галочками (П1)
+// GET/PUT /v1/occasions/subscriptions      → відхилення від дефолту / батч галочок (П1)
+// GET    /v1/now                            → активні сьогодні одним контрактом (П1)
 //
 // Ендпойнт відповідає на одне питання: що припадає на цей відрізок часу.
 // Не «що зараз» (це вміє контекст промпта) і не «що попереду» (це стрічка в
@@ -14,8 +17,12 @@
 
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import type { Repo, HouseholdEventRow, Rule, SupplyLine } from '@kitchen/domain';
-import { ownsEvent, occurrencesInRange, resolveTraditions, isWindowRow, yearInKitchen } from '@kitchen/domain';
+import type { Repo, HouseholdEventRow, Rule, SupplyLine, Tradition } from '@kitchen/domain';
+import {
+  ownsEvent, occurrencesInRange, isWindowRow, yearInKitchen,
+  subscribedRows, subscribedTraditions, occasionSet, isSubscribed, nowItems, buildOccasionTable, occasionWhat,
+  ruleFromDates, eventWindow, OCCASION_SETS, type OccasionSet,
+} from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 
@@ -32,6 +39,11 @@ export interface EventOccurrence {
   start: number;
   end: number;
   force: 'hint' | 'restrict';
+  /** П1: суворо/мʼяко словами, правило дослівно, дати включно. */
+  strict?: boolean;
+  rule_text?: string | null;
+  from?: string | null;
+  to?: string | null;
   /** Лише у власних подій: артефакт править дату на місці й мусить бачити правило. */
   rule?: Rule;
   meaning?: string;
@@ -55,6 +67,15 @@ function parseDay(v: unknown, fallback: Date): Date {
   const [y = 1970, m = 1, d = 1] = v.split('-').map(Number);
   const out = new Date(y, m - 1, d);
   return Number.isNaN(out.getTime()) ? fallback : out;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** П1: пара дат 'YYYY-MM-DD' включно; to за замовчуванням = from. */
+export function parseDates(from: unknown, to: unknown): { from: string; to: string } | null {
+  if (typeof from !== 'string' || !ISO_DAY.test(from)) return null;
+  const t = to == null ? from : to;
+  if (typeof t !== 'string' || !ISO_DAY.test(t) || t < from) return null;
+  return { from, to: t };
 }
 
 /**
@@ -105,12 +126,11 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
         ? new Date(from.getTime() + MAX_RANGE_DAYS * DAY)
         : to;
 
-      // Традиція — явний вибір на user, а без нього здогад зі слів людини —
-      // те саме правило, що в контексті промпта. Довідник без неї віддає самі сезони.
-      const trads = await resolveTraditions(repo, user_id);
-      // «Не показувати такі» — рішення людини про свій календар, і воно старше
-      // за будь-який привід.
-      const muted = new Set(await repo.listMutedOccasions(user_id));
+      // П1: довідник крізь підписку дому — сезони увімкнені, поки не
+      // відписались; свята традиції — коли підписались. Традиції для
+      // пасхалії — ті, чиї свята увімкнені.
+      const catalog = subscribedRows(await repo.listOccasionCatalog(), await repo.listOccasionSubscriptions(household_id));
+      const trads = subscribedTraditions(catalog);
       // Спіймані вікна: показуються на самій події, а не лічильником у потоці.
       const caught = new Map(
         (await repo.listOccasionCatches(household_id)).map((c) => [`${c.occasion_id}:${c.year}`, c]),
@@ -118,9 +138,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
 
       const out: EventOccurrence[] = [];
 
-      for (const o of await repo.listOccasionCatalog()) {
-        if (muted.has(o.id)) continue;
-        if (o.tradition && !trads.includes(o.tradition)) continue;
+      for (const o of catalog) {
         for (const occ of occurrencesInRange(o.rule, from, end, trads)) {
           const win = isWindowRow(o) ? o : null;
           out.push({
@@ -131,6 +149,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
             start: occ.start,
             end: occ.end,
             force: win?.restricts ? 'restrict' : 'hint',
+            strict: !!win?.restricts,
             ...(win?.meaning ? { meaning: win.meaning } : {}),
             ...(win?.restricts ? { restricts: win.restricts } : {}),
             ...(win?.buy?.length ? { buy: win.buy } : {}),
@@ -157,6 +176,10 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
             start: occ.start,
             end: occ.end,
             force: e.force,
+            strict: e.strict || e.force === 'restrict',
+            rule_text: e.rule_text ?? null,
+            from: e.from ?? null,
+            to: e.to ?? null,
             rule: e.rule,
             note: e.note,
             restricts: e.restricts,
@@ -174,22 +197,18 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     },
   );
 
-  // Вимкнути редакційну подію й повернути її назад.
-  //
-  // Обмеження вимкнути НЕ можна: піст — рамка, яку людина сама на себе взяла
-  // побажанням у профілі, і «не показувати» тут означало б тихо скасувати
-  // сказане. Знімається воно там, де ставилось — у побажаннях.
+  // «Не показувати» / «повернути» — те саме, що відписка від сезону: рядок
+  // підписки enabled=false, назад — рядок геть (дефолт). П1 зняв заборону на
+  // вимикання обмежень: піст тепер не рамка з профілю, а підписка на набір,
+  // і зняти одну галочку — звичайна дія картки серії.
   app.post<{ Params: { id: string } }>(
     '/v1/events/mute/:id',
     { preHandler: [authenticated(repo), limitCheck] },
     async (req, reply) => {
-      const { user_id } = requireUser(req);
+      const { household_id } = requireUser(req);
       const row = (await repo.listOccasionCatalog()).find((o) => o.id === req.params.id);
       if (!row) return reply.code(404).send({ error: 'not_found' });
-      if (isWindowRow(row) && row.restricts) {
-        return reply.code(409).send({ error: 'restriction_not_mutable' });
-      }
-      await repo.muteOccasion(user_id, req.params.id);
+      await repo.setOccasionSubscription(household_id, req.params.id, false);
       return { ok: true, muted: true };
     },
   );
@@ -198,17 +217,92 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     '/v1/events/mute/:id',
     { preHandler: [authenticated(repo), limitCheck] },
     async (req) => {
-      const { user_id } = requireUser(req);
-      await repo.unmuteOccasion(user_id, req.params.id);
+      const { household_id } = requireUser(req);
+      await repo.setOccasionSubscription(household_id, req.params.id, null);
       return { ok: true, muted: false };
     },
   );
+
+  // ── П1: довідник для картки серії ──────────────────────────────────────
+  // Набір традиції або сезони: рядки з датами (та сама арифметика, що
+  // data/occasions/table.json) і поточною галочкою — з рядка підписки або
+  // дефолту.
+  app.get<{ Querystring: { set?: string; year?: string } }>(
+    '/v1/occasions',
+    { preHandler: authenticated(repo) },
+    async (req, reply) => {
+      const { household_id } = requireUser(req);
+      const set = req.query.set as OccasionSet | undefined;
+      if (!set || !OCCASION_SETS.includes(set)) return reply.code(400).send({ error: 'set invalid' });
+      const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) return reply.code(400).send({ error: 'year invalid' });
+      const catalog = await repo.listOccasionCatalog();
+      const subs = await repo.listOccasionSubscriptions(household_id);
+      const rows = occasionSet(catalog, set);
+      const table = buildOccasionTable(rows, [year]);
+      const items = rows.map((r) => {
+        const entry = table.find((e) => e.occasion_id === r.id && (set === 'seasons' || !e.tradition || e.tradition === set));
+        const win = isWindowRow(r) ? r : null;
+        return {
+          occasion_id: r.id, title: r.title, type: r.type, tradition: r.tradition ?? null,
+          from: entry?.from ?? null, to: entry?.to ?? null, ...(entry?.approx ? { approx: true } : {}),
+          enabled: isSubscribed(r, subs), what: occasionWhat(r), strict: !!win?.restricts,
+          ...(win?.meaning ? { meaning: win.meaning } : {}),
+          ...(win?.buy?.length ? { buy: win.buy } : {}),
+          ...(r.source ? { source: r.source } : {}),
+        };
+      }).sort((a, b) => (a.from ?? '').localeCompare(b.from ?? ''));
+      return { set, year, items };
+    },
+  );
+
+  app.get('/v1/occasions/subscriptions', { preHandler: authenticated(repo) }, async (req) => {
+    const { household_id } = requireUser(req);
+    const rows = await repo.listOccasionSubscriptions(household_id);
+    return { subscriptions: rows.map((r) => ({ occasion_id: r.occasion_id, enabled: r.enabled, updated_at: r.updated_at })) };
+  });
+
+  // Батч галочок: рядок пишеться лише як відхилення від дефолту; збіг із
+  // дефолтом прибирає рядок.
+  app.put<{ Body: { occasion_id?: unknown; enabled?: unknown }[] | { subscriptions?: { occasion_id?: unknown; enabled?: unknown }[] } }>(
+    '/v1/occasions/subscriptions',
+    { preHandler: [authenticated(repo), limitCheck] },
+    async (req, reply) => {
+      const { household_id } = requireUser(req);
+      const list = Array.isArray(req.body) ? req.body : req.body?.subscriptions;
+      if (!Array.isArray(list)) return reply.code(400).send({ error: 'subscriptions invalid' });
+      const catalog = await repo.listOccasionCatalog();
+      const written: { occasion_id: string; enabled: boolean }[] = [];
+      for (const it of list) {
+        if (!it || typeof it.occasion_id !== 'string' || typeof it.enabled !== 'boolean') {
+          return reply.code(400).send({ error: 'subscriptions invalid' });
+        }
+        const row = catalog.find((o) => o.id === it.occasion_id);
+        if (!row) return reply.code(404).send({ error: 'not_found', occasion_id: it.occasion_id });
+        const enabled = it.enabled;
+        await repo.setOccasionSubscription(household_id, row.id, enabled === (row.type !== 'tradition') ? null : enabled);
+        written.push({ occasion_id: row.id, enabled });
+      }
+      const rows = await repo.listOccasionSubscriptions(household_id);
+      return { written, subscriptions: rows.map((r) => ({ occasion_id: r.occasion_id, enabled: r.enabled })) };
+    },
+  );
+
+  // Активні сьогодні одним контрактом — приводи крізь підписку і записи дому.
+  app.get('/v1/now', { preHandler: authenticated(repo) }, async (req) => {
+    const { household_id, user_id } = requireUser(req);
+    const catalog = subscribedRows(await repo.listOccasionCatalog(), await repo.listOccasionSubscriptions(household_id));
+    const events = await repo.listOwnEvents(household_id, user_id);
+    return { now: nowItems(catalog, events, new Date()) };
+  });
 
   app.post<{
     Body: {
       title?: string; kind?: string; rule?: unknown; note?: string | null;
       buy?: string[]; recipe_id?: string | null; servings?: number | null;
       supply?: SupplyLine[] | null; expires_at?: string | null;
+      // П1: період з правилом — дати замість rule, правило дослівно, суворо.
+      from?: string | null; to?: string | null; rule_text?: string | null; strict?: boolean;
     };
   }>(
     '/v1/events',
@@ -219,21 +313,28 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       const title = (b.title ?? '').trim();
       if (!title) return reply.code(400).send({ error: 'title required' });
 
-      const rule = parseRule(b.rule);
+      // П1: дати from/to — те саме, що rule once з тривалістю; приймаємо
+      // будь-яку з форм, тримаємо обидві в згоді.
+      const dates = parseDates(b.from, b.to);
+      if (b.from !== undefined && !dates) return reply.code(400).send({ error: 'dates invalid' });
+      const rule = dates ? ruleFromDates(dates.from, dates.to) : parseRule(b.rule);
       if (!rule) return reply.code(400).send({ error: 'rule invalid' });
 
       const kind = b.kind ?? 'custom';
-      if (!['meal', 'supply', 'constraint', 'custom'].includes(kind)) {
+      if (!['meal', 'supply', 'constraint', 'custom', 'diet'].includes(kind)) {
         return reply.code(400).send({ error: 'kind invalid' });
       }
+      const strict = !!b.strict;
+      const rule_text = (b.rule_text ?? '').trim() || null;
+      // Суворо без правила — порожня обіцянка (CHECK у 0017: restrict має текст).
+      if (strict && !rule_text) return reply.code(400).send({ error: 'rule_text required for strict' });
+      const win = dates ?? eventWindow({ rule, from: null, to: null });
 
       const row: HouseholdEventRow = {
         id: randomUUID(), household_id, kind: kind as HouseholdEventRow['kind'],
         title, note: b.note ?? null, rule,
-        // Обмеження дім собі не пише: піст приходить із довідника, а «тверда
-        // межа» без тексту обмеження — порожня обіцянка. CHECK у 0017 тримає
-        // той самий інваріант з боку БД.
-        force: 'hint', restricts: null,
+        force: strict ? 'restrict' : 'hint', restricts: strict ? rule_text : null,
+        from: win?.from ?? null, to: win?.to ?? null, rule_text, strict,
         buy: b.buy ?? [], recipe_id: b.recipe_id ?? null,
         servings: b.servings ?? null, supply: b.supply ?? null,
         created_by: user_id, source: 'user',
@@ -248,7 +349,8 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
   app.patch<{
     Params: { id: string };
     Body: Partial<Pick<HouseholdEventRow,
-      'title' | 'note' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'>> & { rule?: unknown };
+      'title' | 'note' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at' | 'rule_text' | 'strict' | 'kind'>>
+      & { rule?: unknown; from?: string | null; to?: string | null };
   }>(
     '/v1/events/:id',
     { preHandler: [authenticated(repo), limitCheck] },
@@ -277,6 +379,26 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
         const rule = parseRule(b.rule);
         if (!rule) return reply.code(400).send({ error: 'rule invalid' });
         patch.rule = rule;
+        const win = eventWindow({ rule, from: null, to: null });
+        patch.from = win?.from ?? null; patch.to = win?.to ?? null;
+      }
+      // П1: дати правлять і правило; правило дослівно; суворо ↔ force.
+      if ('from' in b || 'to' in b) {
+        const cur = eventWindow(existing!);
+        const dates = parseDates(b.from ?? cur?.from, b.to ?? cur?.to ?? b.from ?? cur?.from);
+        if (!dates) return reply.code(400).send({ error: 'dates invalid' });
+        patch.from = dates.from; patch.to = dates.to; patch.rule = ruleFromDates(dates.from, dates.to);
+      }
+      if ('rule_text' in b) patch.rule_text = (b.rule_text ?? '').trim() || null;
+      if ('kind' in b) {
+        if (!['meal', 'supply', 'constraint', 'custom', 'diet'].includes(b.kind ?? '')) return reply.code(400).send({ error: 'kind invalid' });
+        patch.kind = b.kind;
+      }
+      if ('strict' in b || 'rule_text' in b) {
+        const strict = 'strict' in b ? !!b.strict : (existing!.strict || existing!.force === 'restrict');
+        const text = 'rule_text' in b ? patch.rule_text ?? null : existing!.rule_text ?? existing!.restricts;
+        if (strict && !text) return reply.code(400).send({ error: 'rule_text required for strict' });
+        patch.strict = strict; patch.force = strict ? 'restrict' : 'hint'; patch.restricts = strict ? text : null;
       }
       await repo.updateHouseholdEvent(req.params.id, patch);
       return { event: await repo.getHouseholdEvent(req.params.id) };
@@ -308,7 +430,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       const { household_id, user_id } = requireUser(req);
       const e = await repo.getHouseholdEvent(req.params.id);
       if (!e || !ownsEvent(e, household_id, user_id)) return reply.code(404).send({ error: 'not_found' });
-      const trads = await resolveTraditions(repo, user_id);
+      const trads: Tradition[] = [];
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const occs = occurrencesInRange(e.rule, new Date(today.getTime() - 366 * DAY), new Date(today.getTime() + 366 * DAY), trads);
       const occ = occs.find((o) => o.end >= today.getTime()) ?? occs[occs.length - 1];
@@ -316,6 +438,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       const out: EventOccurrence = {
         id: e.id, scope: 'household', kind: e.kind, title: e.title,
         start: occ.start, end: occ.end, force: e.force, rule: e.rule,
+        strict: e.strict || e.force === 'restrict', rule_text: e.rule_text ?? null, from: e.from ?? null, to: e.to ?? null,
         note: e.note, restricts: e.restricts, buy: e.buy, recipe_id: e.recipe_id,
         servings: e.servings, supply: e.supply, done_at: e.done_at,
       };
@@ -335,10 +458,9 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
       if (!Number.isInteger(year) || year < 2000 || year > 2100) {
         return reply.code(400).send({ error: 'year invalid' });
       }
-      const trads = await resolveTraditions(repo, user_id);
-      const catalog = await repo.listOccasionCatalog();
+      const catalog = subscribedRows(await repo.listOccasionCatalog(), await repo.listOccasionSubscriptions(household_id));
       const catches = await repo.listOccasionCatches(household_id, year);
-      return { year, strips: yearInKitchen(year, catches, trads, catalog) };
+      return { year, strips: yearInKitchen(year, catches, subscribedTraditions(catalog), catalog) };
     },
   );
 }

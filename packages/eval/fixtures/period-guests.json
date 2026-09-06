@@ -1,0 +1,18 @@
+{
+  "id": "period-guests",
+  "description": "Раунд 5, крок П1: «у суботу гості на шістьох» → period kind custom, from — відносно на найближчу суботу ({rel:'sat'}), дату рахує сервер; servings 6. Не event і не дата з голови.",
+  "call": "chat",
+  "now": "2026-09-08T18:00:00",
+  "pantry": [
+    {"id":"p1","label":"Картопля","zone":"dry","v":2000,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Курка ціла","zone":"freezer","v":1800,"u":"g","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "у суботу гості на шістьох" }
+  ],
+  "invariants": [
+    "period-custom-rel:sat",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

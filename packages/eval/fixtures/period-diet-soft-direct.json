@@ -1,0 +1,47 @@
+{
+  "id": "period-diet-soft-direct",
+  "description": "Раунд 5, крок П1: активна мʼяка білкова дієта (запис дому в [ЗАРАЗ]), пряме прохання «зроби мені пасту» → рецепт або cook_go без попередження: мʼякий період — привід, не рамка.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "events": [
+    {
+      "id": "aaaaaaaa-0000-4000-8000-000000000001",
+      "household_id": "h1",
+      "kind": "diet",
+      "title": "білкова",
+      "note": null,
+      "rule": { "t": "once", "at": "2026-09-01", "days": 30 },
+      "force": "hint",
+      "restricts": null,
+      "from": "2026-09-01",
+      "to": "2026-09-30",
+      "rule_text": "більше білка, менше вуглеводів",
+      "strict": false,
+      "buy": [],
+      "recipe_id": null,
+      "servings": null,
+      "supply": null,
+      "created_by": "u1",
+      "source": "chat",
+      "expires_at": null,
+      "done_at": null,
+      "created_at": "2026-09-01T10:00:00.000Z"
+    }
+  ],
+  "pantry": [
+    {"id":"p1","label":"Спагеті","zone":"dry","v":500,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Помідори","zone":"fresh","v":500,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Пармезан","zone":"fridge","v":100,"u":"g","state":"opened"},
+    {"id":"p4","label":"Часник","zone":"dry","v":1,"u":"pcs","state":"sealed"},
+    {"id":"p5","label":"Курка філе","zone":"fridge","v":600,"u":"g","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "зроби мені пасту" }
+  ],
+  "invariants": [
+    "has-card",
+    "no-period-warning",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

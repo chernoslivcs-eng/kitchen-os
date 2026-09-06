@@ -144,12 +144,17 @@ if ('skip' in backend) {
       expect(rows[1]).toMatchObject({ text: 'хотів: тунець → seared', norm_hash: noteHash('хотів: тунець → seared') });
     });
 
-    // Крок 11 (0026): старі таблиці — в архів, traditions — на user.
-    it('0026: traditions переїхали на user; profile і memory_note — в *_archive, оригіналів нема', async () => {
-      const { rows: u } = await pool.query('SELECT traditions FROM "user" WHERE id = $1', [user_id]);
-      expect(u[0]).toEqual({ traditions: ['orthodox'] });
-      const { rows: bare } = await pool.query('SELECT traditions FROM "user" WHERE id = $1', [bare_user_id]);
-      expect(bare[0]).toEqual({ traditions: null });
+    // Крок 11 (0026): старі таблиці — в архів, traditions — на user; П1 (0027)
+    // знімає колонку з user — традиція тепер підписка дому.
+    it('0026/0027: profile і memory_note — в *_archive, оригіналів нема; user.traditions знято', async () => {
+      const { rows: cols } = await pool.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'user' AND column_name = 'traditions'",
+      );
+      expect(cols).toEqual([]);
+      const { rows: mute } = await pool.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_occasion_mute'",
+      );
+      expect(mute).toEqual([]);
       const { rows } = await pool.query('SELECT traditions, wishes FROM profile_archive WHERE user_id = $1', [user_id]);
       expect(rows[0]).toEqual({ traditions: ['orthodox'], wishes: ['веганство', 'весь наступний тиждень їсти рибу', 'Пісне на Великий піст'] });
       const { rows: mn } = await pool.query('SELECT count(*)::int AS n FROM memory_note_archive WHERE user_id = $1', [user_id]);

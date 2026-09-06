@@ -110,10 +110,11 @@ describe('профіль як сім речень', () => {
   it('GET віддає veto з індексу і їдців дому', async () => {
     await app.inject({ method: 'PATCH', url: '/v1/profile/ban', headers: { cookie }, payload: { text: 'арахісу' } });
     const r = await app.inject({ method: 'GET', url: '/v1/profile', headers: { cookie } });
-    const body = r.json() as { veto: { label: string; allergy: boolean }[]; eaters: unknown[]; traditions: unknown };
+    const body = r.json() as { veto: { label: string; allergy: boolean }[]; eaters: unknown[]; traditions?: unknown };
     expect(body.veto).toEqual([expect.objectContaining({ label: 'арахісу', allergy: true })]);
     expect(body.eaters).toEqual([]);
-    expect(body.traditions).toBeNull();
+    // П1: традиції — не поле профілю.
+    expect(body.traditions).toBeUndefined();
   });
 });
 

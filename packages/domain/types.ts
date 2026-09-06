@@ -154,7 +154,7 @@ export interface EventCard {
     /** Для edit/done/remove — id з блоку [ТВОЇ ПЛАНИ]. */
     id?: string;
     title?: string;
-    kind?: 'meal' | 'supply' | 'constraint' | 'custom';
+    kind?: 'meal' | 'supply' | 'constraint' | 'custom' | 'diet';
     when?: EventWhen;
     /** Скільки днів триває: «тиждень готуємо з нею». */
     days?: number;
@@ -166,13 +166,55 @@ export interface EventCard {
   }[];
 }
 
+// Раунд 5, крок П1: період з правилом. Модель віддає мінімум — рід, назву,
+// відносний час, правило словами людини; сервер добудовує: для традиції —
+// список свят з таблиці (items), для дієти/події дому — дати від [СЬОГОДНІ]
+// (resolved). Дати модель не рахує ніде. Підтвердження — «Записати».
+export interface PeriodCard {
+  type: 'period';
+  kind: 'tradition' | 'diet' | 'custom';
+  title?: string;
+  from?: EventWhen;
+  to?: EventWhen;
+  /** Тривалість, коли `to` не названо («на тиждень»). */
+  days?: number;
+  /** Правило людською мовою дослівно: «більше білка, менше вуглеводів». */
+  rule_text?: string;
+  /** Суворо = «Я не їм» на цей час. За замовчуванням мʼяко. */
+  strict?: boolean;
+  /** kind=tradition: чий набір свят. */
+  tradition?: Tradition;
+  /** «Не показуй мені кавуни»: id або назва сезону з довідника. */
+  unsubscribe?: string;
+  servings?: number | null;
+  // ── Добудовує сервер ──
+  /** tradition/unsubscribe: рядки довідника з датами; галочка = enabled. */
+  items?: PeriodItem[];
+  /** diet/custom: дати, пораховані сервером. */
+  resolved?: { from: string; to: string };
+}
+
+export interface PeriodItem {
+  occasion_id: string;
+  title: string;
+  from: string;
+  to: string;
+  approx?: boolean;
+  /** Поточний стан підписки (з рядка або дефолту). */
+  enabled: boolean;
+  /** Одним словом: піст · докупити · святкова вечеря · сезон. */
+  what: string;
+  strict: boolean;
+}
+
 // Крок 11: профіль v1 (allergy/wish/anti/equip/note/intent) прибрано —
 // текст людини живе в profile_text, нотатки — в profile_note (поле `note`).
-export type ProfileKind = 'tradition' | 'member';
+// П1: традиції пішли в підписки (картка `period`); ops-форма — лише домашні.
+export type ProfileKind = 'member';
 
 // Раунд 4 (AUDIT-ROUND-4.md §4): картка профілю — одне поле, один текст.
 // Ops-форма лишається для того, що не є текстом людини і має власне сховище:
-// традиції (user.traditions, календар) і домашні (їдці).
+// домашні (їдці).
 export interface ProfileOpsCard {
   type: 'profile';
   ops: {
@@ -360,7 +402,7 @@ export interface OnboardingCard {
   skipped?: ProfileFieldKey[];
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard | OnboardingCard;
+export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard | PeriodCard | OnboardingCard;
 
 // ----- Стан «на застосуванні» ------
 
@@ -384,7 +426,7 @@ export interface PendingCard {
 // Знімок ДО застосування: чого досить, щоб відкотити.
 // Для intake — попередні партії (при correct/rename/open/deplete) + список створених id (add).
 export interface UndoSnapshot {
-  kind: 'intake_diff' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'event';
+  kind: 'intake_diff' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'event' | 'period';
   before: {
     created_batch_ids?: string[];       // add: створені партії — видалити при undo
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
@@ -395,9 +437,8 @@ export interface UndoSnapshot {
     removed_shopping_items?: ShoppingItemRow[];
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     checked_shopping_ids?: string[];    // UX9-27: intake add відмітив куплене — undo знімає галочку
-    // Крок 11: традиції живуть на user; undefined — картка їх не чіпала,
-    // { value: null } — до картки людина ще не обирала.
-    traditions_before?: { value: Tradition[] | null };
+    // П1: підписки до картки period; enabled null — рядка не було (дефолт).
+    subscriptions_before?: { occasion_id: string; enabled: boolean | null }[];
     // Раунд 4: картка поля — повернути попереднє значення поля (текст і статус).
     profile_field_before?: { field: ProfileFieldKey; value: ProfileFieldValue };
     added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється
@@ -693,19 +734,28 @@ export interface HouseholdEventRow {
   //   meal       слот сітки: страва на дату
   //   supply     очікуване надходження — майбутня партія, а не побажання
   //   constraint «у вівторок мало часу»: рамка на день, не план
-  //   custom     привід дому: день народження, гості
-  kind: 'meal' | 'supply' | 'constraint' | 'custom';
+  //   custom     привід дому: день народження, гості, своє свято
+  //   diet       П1: дієта на період («цей місяць білкова»)
+  kind: 'meal' | 'supply' | 'constraint' | 'custom' | 'diet';
   title: string;
   note: string | null;
   rule: Rule;
   force: 'hint' | 'restrict';
   restricts: string | null;
+  // П1: період з правилом. from/to — 'YYYY-MM-DD' включно (rule once дублює
+  // їх для двигуна дат); rule_text — правило дослівно; strict ↔ force
+  // 'restrict' (суворо = «Я не їм» на цей час).
+  from: string | null;
+  to: string | null;
+  rule_text: string | null;
+  strict: boolean;
   buy: string[];
   recipe_id: string | null;
   servings: number | null;
   supply: SupplyLine[] | null;
   created_by: string | null;
-  source: 'user' | 'model';
+  /** 'chat' — з картки моделі (П1; старі рядки 'model' читаються як 'chat'). */
+  source: 'user' | 'chat' | 'model';
   // Згасання: «мама привезе цибулю — тиждень готуємо з нею» через місяць стає
   // шумом. Після expires_at подія не йде в контекст, але рядок лишається —
   // видалення знищило б історію.

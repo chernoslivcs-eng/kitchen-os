@@ -75,9 +75,9 @@ describe('рік на кухні', () => {
     expect(yearInKitchen(2026, [], ['orthodox']).some((s) => s.occasion_id === 'spas')).toBe(true);
   });
 
-  it('якір без вікна (солар) у рік не входить, а Рамадан — вікно з дат — входить', () => {
+  it('П1: Песах і Рамадан — вікна з дат по роках — входять у рік', () => {
     const strips = yearInKitchen(2026, [], ['jewish', 'islamic']);
-    expect(strips.some((s) => s.occasion_id === 'pesach' || s.title.toLowerCase().includes('песах'))).toBe(false);
+    expect(strips.some((s) => s.occasion_id === 'pesach')).toBe(true);
     expect(strips.some((s) => s.occasion_id === 'ramadan')).toBe(true);
   });
 });

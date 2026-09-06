@@ -43,6 +43,10 @@ export const CARD_APPLY_MODE: Record<Card['type'], ApplyMode> = {
   profile: 'confirm',
   recipe: 'confirm',
   cook_photo: 'confirm',
+  // П1: період — підписка на набір свят чи запис дому з правилом. Людина
+  // підтверджує в артефакті («Записати»); сервер сам не змінює ні календар,
+  // ні підписки з репліки.
+  period: 'confirm',
 
   // Нема apply-гілки: пропозиція, слід рецепта в стрічці, службові маркери
   // (їх chat-роут перехоплює синхронно) і кошик, зібраний уже в мережі.
@@ -75,6 +79,7 @@ export const CARD_BUTTON_LABEL: Record<Card['type'], string | null> = {
   // Раунд 4 §4: одна кнопка «Записати» для картки поля; ops-картки
   // (традиції, домашні, нотатки) підписуються так само — одне джерело.
   profile: 'Записати',
+  period: 'Записати',
   recipe: 'У рецепти',
   cook_photo: 'У журнал',
 
@@ -98,11 +103,5 @@ export const CARD_BUTTON_LABEL: Record<Card['type'], string | null> = {
  * той самий — undo, не картка з кнопками.
  */
 export function applyModeFor(card: Card): ApplyMode {
-  if (isTraditionCard(card)) return 'auto';
   return applyMode(card.type);
-}
-
-export function isTraditionCard(card: Card | null | undefined): boolean {
-  if (!card || card.type !== 'profile' || !('ops' in card)) return false;
-  return !!card.ops?.length && card.ops.every((o) => o.kind === 'tradition');
 }
