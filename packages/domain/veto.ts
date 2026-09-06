@@ -41,12 +41,30 @@ function footprint(text: string): { categories: Set<string>; keys: Set<string> }
   return { categories, keys };
 }
 
+/**
+ * Крок Ш3, мемо на запит. footprint() кличе resolveLabel, а той — найдорожча
+ * річ у коморі: 113 партій дають два виклики кожна, і серед них десятки
+ * повторів («молоко», «сир», однакові мітки різних партій).
+ *
+ * Кеш живе не в модулі, а в об'єкті, який передає той, хто робить прохід
+ * (VetoScope). Модульний кеш тут був би витоком між домами й між запитами
+ * лямбди: текст той самий, а індекс вето в кожного свій — і кешувати треба
+ * саме footprint (він від індексу не залежить), а не результат matchVeto.
+ */
+export type VetoScope = Map<string, ReturnType<typeof footprint>>;
+export const newVetoScope = (): VetoScope => new Map();
+
 /** Рядки індексу, які спрацьовують на цьому тексті. free — ніколи. */
-export function matchVeto(text: string, index: VetoRow[]): VetoRow[] {
+export function matchVeto(text: string, index: VetoRow[], scope?: VetoScope): VetoRow[] {
   const live = index.filter((r) => r.kind !== 'free' && r.ref);
   if (!live.length || !text.trim()) return [];
-  const fp = footprint(text);
-  return live.filter((r) => (r.kind === 'category' ? fp.categories.has(normalize(r.ref!)) : fp.keys.has(r.ref!)));
+  const cacheKey = normalize(text);
+  let fp = scope?.get(cacheKey);
+  if (!fp) {
+    fp = footprint(text);
+    scope?.set(cacheKey, fp);
+  }
+  return live.filter((r) => (r.kind === 'category' ? fp!.categories.has(normalize(r.ref!)) : fp!.keys.has(r.ref!)));
 }
 
 export interface VetoRejection { title: string; ingredient: string; rows: VetoRow[] }

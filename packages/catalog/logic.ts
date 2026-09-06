@@ -140,6 +140,61 @@ function headOf(ws: string[]): string | undefined {
   return ws.find((w) => /[а-яіїєґ]/.test(w)) ?? ws[0];
 }
 
+// Крок Ш3: передпідрахунок каталогу.
+//
+// resolveLabel на КОЖНОМУ виклику проходив усі позиції, а для кожного
+// кандидата (назва + аліаси) рахував normalize(cand) і wordsOf(cand) заново —
+// ~27 тисяч нормалізацій рядків на один виклик. Каталог при цьому незмінний.
+// Заміряно на проді: один виклик 44 мс, а комора кличе його двічі на партію.
+//
+// Тут не змінюється жодне правило матчингу — тільки момент, коли рахуються ті
+// самі значення. Правила матчингу це роки налагоджених винятків («Сільпо»
+// містить «сіль», «кедрова» містить «дрова»), і чіпати їх у кроці про
+// швидкість не можна.
+interface PreparedCand {
+  /** normalize(cand). Порожні кандидати в масив не потрапляють — як `if (!c) continue`. */
+  norm: string;
+  words: string[];
+  wordsSet: Set<string>;
+  /** cw.reduce((s, w) => s + w.length, 0) для гілки слів. */
+  weight: number;
+  /** cw.some((w) => /^[a-z0-9'’-]{4,}$/.test(w)) — властивість кандидата, не мітки. */
+  latinBrand: boolean;
+}
+interface PreparedItem { item: CatalogItem; cands: PreparedCand[] }
+
+// Ключ кешу — сам об'єкт каталогу: resolveLabel приймає catalog параметром, і
+// тести передають свої набори. WeakMap, щоб тестовий каталог не жив вічно.
+const PREPARED = new WeakMap<readonly CatalogItem[], PreparedItem[]>();
+
+// Ліниво, при першому виклику, а не на імпорті: холодний старт лямбди й так
+// дорогий, а seed.ts важить мегабайти.
+function prepare(catalog: readonly CatalogItem[]): PreparedItem[] {
+  const cached = PREPARED.get(catalog);
+  if (cached) return cached;
+  const out: PreparedItem[] = [];
+  for (const item of catalog) {
+    const cands: PreparedCand[] = [];
+    // Порядок кандидатів той самий — [name, ...aliases]. Він значущий:
+    // за рівних score і priority виграє той, хто раніше.
+    for (const cand of [item.name, ...item.aliases]) {
+      const norm = normalize(cand);
+      if (!norm) continue;
+      const words = wordsOf(cand);
+      cands.push({
+        norm,
+        words,
+        wordsSet: new Set(words),
+        weight: words.reduce((s, w) => s + w.length, 0),
+        latinBrand: words.some((w) => /^[a-z0-9'’-]{4,}$/.test(w)),
+      });
+    }
+    out.push({ item, cands });
+  }
+  PREPARED.set(catalog, out);
+  return out;
+}
+
 export function resolveLabel(
   label: string,
   minTier: MatchTier = 'anchored',
@@ -150,25 +205,24 @@ export function resolveLabel(
   const set = new Set(ws);
   const head = headOf(ws);
   let best: { key: string; tier: MatchTier; score: number; priority: number } | null = null;
-  for (const item of catalog) {
-    for (const cand of [item.name, ...item.aliases]) {
-      const c = normalize(cand);
-      if (!c) continue;
+  for (const { item, cands } of prepare(catalog)) {
+    for (const cand of cands) {
+      const c = cand.norm;
       let tier: MatchTier | null = null;
       let weight = 0;
       if (c === norm) { tier = 'exact'; weight = c.length; }
       else {
-        const cw = wordsOf(cand);
+        const cw = cand.words;
         // Кожне слово аліаса — цілим словом у мітці. Саме це вбиває цілий
         // рід підмін: «Сільпо» містить «сіль», «портерхаус» — «портер»,
         // «гель» — «ель», «картопляні» — «картопля», «кедрова» — «дрова».
         if (cw.length && cw.every((w) => set.has(w))) {
           const anchored = (head !== undefined && cw.includes(head))
             // Латинський бренд ідентифікує товар з будь-якої позиції.
-            || cw.some((w) => /^[a-z0-9'’-]{4,}$/.test(w));
+            || cand.latinBrand;
           tier = anchored ? 'anchored' : 'words';
-          weight = cw.reduce((s, w) => s + w.length, 0);
-        } else if (ws.length && ws.every((w) => new Set(cw).has(w))) {
+          weight = cand.weight;
+        } else if (ws.length && ws.every((w) => cand.wordsSet.has(w))) {
           // Зворотний бік: мітка вужча за аліас. «сир» ⊂ «сир твердий».
           // Межі слова стережуть і тут — «дрова» не входить у слова аліаса
           // «олія кедрова», тому стара підміна не повертається.
