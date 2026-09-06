@@ -40,6 +40,18 @@ describe('сортування', () => {
     expect(v.list[0]!.sub).toBe('не їм');   // no має пріоритет над «ще N дн»
     expect(v.flatLabel).toBe('найшвидше зіпсується — зверху');
   });
+  it('Ф2а: усередині групи — за added_at (новіше зверху), потім за назвою; порядок сервера не впливає', () => {
+    const items = [
+      b('Сир', { zone: 'fridge', added_at: '2026-09-01T00:00:00.000Z' }),
+      b('Айран', { zone: 'fridge', added_at: '2026-09-03T00:00:00.000Z' }),
+      b('Бринза', { zone: 'fridge', added_at: '2026-09-03T00:00:00.000Z' }),
+      b('Йогурт', { zone: 'fridge', added_at: '2026-09-02T00:00:00.000Z' }),
+    ];
+    const names = (list: PantryBatch[]) => applyFilter(list, INITIAL, ctx).groups[0]!.items.map((r) => r.name);
+    expect(names(items)).toEqual(['Айран', 'Бринза', 'Йогурт', 'Сир']);
+    expect(names([...items].reverse())).toEqual(['Айран', 'Бринза', 'Йогурт', 'Сир']);
+  });
+
   it('за місцем — групи за зонами в порядку брифу', () => {
     const v = applyFilter(ITEMS, INITIAL, ctx);
     expect(v.grouped).toBe(true);

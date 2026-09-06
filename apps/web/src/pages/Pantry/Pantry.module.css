@@ -125,8 +125,9 @@
 @media (min-width: 1024px) {
   .undo-bar { bottom: 26px; }
 }
+/* Ф2а: без кольору в базовому правилі — колір дають лише стани свіжості
+   (.fresh-*), інакше .row .mark перебивав їх специфічністю. */
 .row .mark {
-  color: var(--accent);
   width: 16px;
   text-align: center;
   font-family: var(--font-mono);

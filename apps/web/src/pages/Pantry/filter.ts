@@ -127,6 +127,10 @@ export function passQuery(it: PantryBatch, q: string, productsById: Map<string, 
   return batchMatchesQuery(q, it, productsById);
 }
 
+export function byAddedThenName(a: PantryBatch, b: PantryBatch): number {
+  return b.added_at.localeCompare(a.added_at) || a.label.localeCompare(b.label, 'uk');
+}
+
 export function sortItems(items: PantryBatch[], sort: SortDef): PantryBatch[] {
   if (!sort.by) return items;
   const by = sort.by;
@@ -193,8 +197,11 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
     sort, shown, dirty,
     meta: narrowed ? `${shown.length} З ${items.length}` : `${items.length} ${plural(items.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`,
     grouped: grouped && !empty,
+    // Ф2а: усередині групи порядок стабільний — новіші за added_at зверху,
+    // однакова дата — за назвою; не за порядком з сервера (терміновість/updated_at),
+    // щоб рядки не стрибали після правки.
     groups: grouped
-      ? ZONE_ORDER.map((z) => ({ zone: z, label: ZONE_LABEL[z], items: shown.filter((it) => it.zone === z) }))
+      ? ZONE_ORDER.map((z) => ({ zone: z, label: ZONE_LABEL[z], items: shown.filter((it) => it.zone === z).sort(byAddedThenName) }))
         .filter((g) => g.items.length).map((g) => ({ zone: g.zone, label: g.label, count: g.items.length, items: g.items.map(row) }))
       : [],
     list: grouped ? [] : shown.map(row),
