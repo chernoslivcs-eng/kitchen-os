@@ -389,6 +389,17 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
+  // П2a: «прибери сезонні» / «поверни сезони» → серія всіх сезонів з галочками за all.
+  const seasonsAll = /(прибери|зніми|без)\s+сезон|не показуй сезон|поверни сезон/i.exec(args.text);
+  if (seasonsAll) {
+    const all = /поверни/i.test(args.text);
+    return {
+      reply: all ? 'Поверну сезони — познач, які лишити.' : 'Зніму сезони з календаря — познач у картці, що лишити.',
+      card: { type: 'period', kind: 'tradition', set: 'seasons', all },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   // П1: «не показуй мені кавуни» → period з unsubscribe (назва як є).
   const unsub = /не показуй(?: мені)?\s+(.+)/i.exec(args.text);
   if (unsub) {

@@ -44,6 +44,8 @@ export interface SeriesProps {
   /** Чат: після PUT підписок — apply картки (індекси увімкнених рядків). */
   onApply?: (selected?: number[]) => void | Promise<unknown>;
   onDismiss?: () => void;
+  /** Чат: жодної галочки — apply зі status none (усе знято), не «Пропущено». */
+  onNone?: () => void | Promise<unknown>;
   /** Календар: підписки записано. */
   onDone?: (change: PeriodChange) => void;
   onClose?: () => void;
@@ -59,15 +61,18 @@ function setOfCard(card: ChatCard, items: PeriodItem[]): OccasionSet {
   return items.length && items.every((i) => i.what === 'сезон' || i.what === 'докупити' && !card.tradition) ? 'seasons' : 'seasons';
 }
 
-export function PeriodSeries({ card, cardId, set: setProp, applied, applying, dismissed, undone, onApply, onDismiss, onDone, onClose }: SeriesProps) {
+export function PeriodSeries({ card, cardId, set: setProp, applied, applying, dismissed, undone, onApply, onDismiss, onNone, onDone, onClose }: SeriesProps) {
   const footSlot = useContext(PanelFootSlot);
   const fromCard = card ? itemsOfCard(card) : null;
-  const set: OccasionSet = card ? (card.unsubscribe ? 'seasons' : setOfCard(card, fromCard ?? [])) : (setProp ?? 'seasons');
+  const set: OccasionSet = card ? (card.unsubscribe || card.set === 'seasons' ? 'seasons' : setOfCard(card, fromCard ?? [])) : (setProp ?? 'seasons');
+  // П2a: масова відписка — серія сезонів з усіма знятими (all:false) або
+  // всіма увімкненими (all:true); відписка одного — один рядок без галочки.
+  const single = !!card?.unsubscribe;
   const [items, setItems] = useState<PeriodItem[] | null>(fromCard);
   // З чату «хочу святкувати юдейські» — усе увімкнене, знімають зайве (1a);
   // відписка — той один рядок знятий; з календаря — як є в підписці.
   const [checked, setChecked] = useState<Set<string>>(() => new Set(
-    (fromCard ?? []).filter((i) => (card?.kind === 'tradition' && !card.unsubscribe) || i.enabled).map((i) => i.occasion_id),
+    (fromCard ?? []).filter((i) => card?.set === 'seasons' ? !!card.all : (card?.kind === 'tradition' && !card.unsubscribe) || i.enabled).map((i) => i.occasion_id),
   ));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -97,8 +102,10 @@ export function PeriodSeries({ card, cardId, set: setProp, applied, applying, di
 
   const closed = (applied && !undone) || dismissed;
   const k = seriesKicker(set);
-  const title = card?.unsubscribe && items?.length === 1 ? items[0]!.title : seriesTitle(set);
-  const text = card?.unsubscribe ? SERIES_TEXT.unsubscribe : set === 'seasons' ? SERIES_TEXT.seasons : SERIES_TEXT.tradition;
+  const title = single && items?.length === 1 ? items[0]!.title : seriesTitle(set);
+  const text = single ? SERIES_TEXT.unsubscribe
+    : card?.set === 'seasons' ? (card.all ? 'Поверну сезони в календар і підказки. Зніми, що не твоє.' : 'Зніму всі сезони з календаря і підказок. Що лишити — познач.')
+    : set === 'seasons' ? SERIES_TEXT.seasons : SERIES_TEXT.tradition;
   const range = items ? seriesRange(items) : '';
   const count = checked.size;
   const total = items?.length ?? 0;
@@ -122,6 +129,9 @@ export function PeriodSeries({ card, cardId, set: setProp, applied, applying, di
         // «усі»), а йде в «Пропущено»: PUT уже записав нулі.
         if (card.unsubscribe) await onApply(undefined);
         else if (selected.length) await onApply(selected);
+        // Жодної галочки — «усе знято»: apply зі status none (сервер знімає всі
+        // рядки картки), а не «Пропущено».
+        else if (onNone) await onNone();
         else onDismiss?.();
       }
       setSaved(count);
@@ -133,9 +143,9 @@ export function PeriodSeries({ card, cardId, set: setProp, applied, applying, di
   }
 
   const meta = dismissed ? 'Пропущено'
-    : (applied && !undone) || saved !== null ? `Записано в календар: ${saved ?? count}`
+    : (applied && !undone) || saved !== null ? (single ? 'Не показую' : `Записано в календар: ${saved ?? count}`)
     : undone ? 'Скасовано'
-    : items ? `${count} з ${total}` : '';
+    : single ? '' : items ? `${count} з ${total}` : '';
 
   const actions = (
     <div className={styles.actions}>
@@ -146,7 +156,7 @@ export function PeriodSeries({ card, cardId, set: setProp, applied, applying, di
             <button type="button" className={styles.ghost} onClick={onDismiss} disabled={busy || applying}>Ні</button>
           )}
           <button type="button" className={styles.primary} onClick={() => void save()} disabled={busy || applying || !items}>
-            {busy || applying ? 'Записую…' : 'Записати в календар'}
+            {busy || applying ? 'Записую…' : single ? 'Не показувати' : 'Записати в календар'}
           </button>
         </>
       )}

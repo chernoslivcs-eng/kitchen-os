@@ -280,15 +280,18 @@ export async function applyCard(
     let landed = 0;
     let chosen: number[] = [];
     if (card.items?.length) {
-      chosen = selected.length ? selected : card.items.map((_, i) => i);
+      // П2a: галочки — цільовий стан УСІХ рядків картки: позначені — увімкнути,
+      // решту — зняти. `none` (жодної галочки) — зняти все; без вибору — усе
+      // увімкнути (стара поведінка). Відписка — той один рядок знято.
+      chosen = opts.none ? [] : (selected.length ? selected : card.items.map((_, i) => i));
       const catalog = await repo.listOccasionCatalog();
       const current = await repo.listOccasionSubscriptions(pc.household_id);
-      const target = card.unsubscribe ? false : true;
-      for (const idx of chosen) {
-        const it = card.items[idx];
-        if (!it) continue;
+      const on = new Set(chosen);
+      for (let idx = 0; idx < card.items.length; idx++) {
+        const it = card.items[idx]!;
         const row = catalog.find((r) => r.id === it.occasion_id);
         if (!row) continue;
+        const target = card.unsubscribe ? false : on.has(idx);
         const before = current.find((s) => s.occasion_id === it.occasion_id);
         snapshot.before.subscriptions_before!.push({ occasion_id: it.occasion_id, enabled: before ? before.enabled : null });
         // Рядок лише як відхилення від дефолту.

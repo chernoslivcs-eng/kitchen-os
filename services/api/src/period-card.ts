@@ -41,6 +41,18 @@ export async function buildPeriodCard(repo: Repo, card: PeriodCard, household_id
     return { type: 'period', kind: 'tradition', title: card.title ?? row.title, unsubscribe: row.id, items: [{ ...it, enabled: false }] };
   }
 
+  // П2a: масова відписка / повернення — серія всіх сезонів (і редакційних)
+  // на рік, галочки за `all`. Людина повертає частину і тисне.
+  if (card.kind === 'tradition' && card.set === 'seasons') {
+    const rows = occasionSet(catalog, 'seasons');
+    const all = !!card.all;
+    const items = rows.map((r) => itemOf(r, subs, [], now)).filter((x): x is PeriodItem => !!x)
+      .map((it) => ({ ...it, enabled: all }))
+      .sort((a, b) => a.from.localeCompare(b.from));
+    if (!items.length) return null;
+    return { type: 'period', kind: 'tradition', set: 'seasons', all, title: card.title ?? 'сезони', items };
+  }
+
   if (card.kind === 'tradition') {
     if (!card.tradition) return null;
     const rows = occasionSet(catalog, card.tradition);
@@ -76,6 +88,16 @@ export async function buildPeriodCard(repo: Repo, card: PeriodCard, household_id
     from: card.from, to: card.to, days: card.days,
     resolved: { from, to },
   };
+}
+
+/**
+ * Картка впала (buildPeriodCard → null) — reply не бреше «прибрав». Детермінований
+ * текст замість репліки моделі; це запобіжник, а не заміна правилу в промті.
+ */
+export function droppedPeriodReply(card: PeriodCard): string {
+  if (card.unsubscribe) return `Не знайшов «${card.unsubscribe}» серед сезонів і свят. Скажи точніше або зніми внизу календаря.`;
+  if (card.kind === 'tradition') return 'Такої традиції в довіднику нема — можеш додати свої свята карткою.';
+  return 'Не зрозумів, що записати — назви період одним словом.';
 }
 
 function isoShift(iso: string, days: number): string {

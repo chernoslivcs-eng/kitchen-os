@@ -383,7 +383,10 @@ export function occasionWhat(row: OccasionRow): string {
 /** Рядок довідника за назвою людини («кавуни» → melon): стем-збіг зі словами назви. */
 export function findOccasionByTitle(rows: OccasionRow[], text: string): OccasionRow | null {
   const stem = (w: string) => (w.length <= 4 ? w : w.slice(0, -2));
-  const words = normalize(text).split(/[^\p{L}]+/u).filter((w) => w.length >= 3).map(stem);
+  // П2a: «сезонні», «свята», «день» — рід, не назва: «прибери сезонні» не має
+  // ставати сезоном білих грибів через слово «сезон» у його назві.
+  const GENERIC = new Set(['сезо', 'сезон', 'свят', 'свята', 'день', 'дні', 'пік']);
+  const words = normalize(text).split(/[^\p{L}]+/u).filter((w) => w.length >= 3).map(stem).filter((w) => !GENERIC.has(w));
   if (!words.length) return null;
   const exact = rows.find((r) => r.id === text.trim());
   if (exact) return exact;

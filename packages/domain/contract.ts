@@ -725,7 +725,9 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       };
       await createPending(repo, { message_id: mid, household_id, user_id, card: catholic });
       const r1 = await applyCard(repo, mid, [0], user_id);
-      expect(r1.applied).toBe(1);
+      // П2a: галочки — цільовий стан усіх рядків картки: Адвент увімкнено,
+      // Різдво знято (= дефолт, рядка нема). Лягло два рішення.
+      expect(r1.applied).toBe(2);
       expect((await repo.listOccasionSubscriptions(household_id)).map((s) => [s.occasion_id, s.enabled])).toEqual([['advent', true]]);
       await undoCard(repo, mid, r1.undo_token, user_id);
       expect(await repo.listOccasionSubscriptions(household_id)).toEqual([]);

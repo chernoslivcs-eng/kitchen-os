@@ -1,0 +1,22 @@
+{
+  "id": "period-seasons-off",
+  "description": "Раунд 5, крок П2a: «прибери сезонні з календаря» → картка period з set:'seasons' і all:false (серію всіх сезонів з усіма знятими галочками збере сервер). Reply майбутнім часом, без переліку «прибрав лисички, томати…»: нічого ще не знято, доки людина не натиснула.",
+  "call": "chat",
+  "now": "2026-09-06T18:00:00",
+  "pantry": [
+    {"id":"p1","label":"Молоко","zone":"fridge","v":1000,"u":"ml","state":"sealed"},
+    {"id":"p2","label":"Яйця","zone":"fridge","v":10,"u":"pcs","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "прибери сезонні з календаря" }
+  ],
+  "invariants": [
+    "is-period-card:kind=tradition,set=seasons,all=false",
+    "reply-lacks:прибрав",
+    "reply-lacks:зняв",
+    "reply-lacks:лисич",
+    "reply-matches:зніму|приберу|познач|у картці",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

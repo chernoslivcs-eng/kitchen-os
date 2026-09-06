@@ -184,6 +184,9 @@ export interface PeriodCard {
   strict?: boolean;
   /** kind=tradition: чий набір свят. */
   tradition?: Tradition;
+  /** П2a: масова відписка / повернення сезонів — серія всіх сезонів; all — з якими галочками. */
+  set?: 'seasons';
+  all?: boolean;
   /** «Не показуй мені кавуни»: id або назва сезону з довідника. */
   unsubscribe?: string;
   servings?: number | null;

@@ -163,3 +163,65 @@ describe('PeriodArtifact', () => {
     expect(onChanged).toHaveBeenCalledWith('e1', 'add');
   });
 });
+
+// П2a: масова відписка і відписка одного приводу.
+describe('PeriodSeries · П2a', () => {
+  let host: HTMLDivElement | undefined; let root: Root | undefined;
+  let calls: { url: string; method: string; body: unknown }[] = [];
+  beforeEach(() => {
+    calls = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(init.body as string) : null });
+      return new Response(JSON.stringify({ written: [], subscriptions: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+  });
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); });
+  async function mount(el: React.ReactElement) {
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter>{el}</MemoryRouter>); });
+  }
+  const click = async (el: Element | null) => act(async () => { (el as HTMLElement).click(); });
+  const byText = (text: string) => [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) ?? null;
+  const seasonsOff: ChatCard = {
+    type: 'period', kind: 'tradition', set: 'seasons', all: false, title: 'сезони',
+    items: [
+      { occasion_id: 'melon', title: 'кавуни й дині', from: '2026-08-01', to: '2026-09-30', enabled: false, what: 'сезон', strict: false },
+      { occasion_id: 'mushroom', title: 'сезон білих грибів', from: '2026-09-01', to: '2026-10-31', enabled: false, what: 'сезон', strict: false },
+    ],
+  };
+
+  it('серія сезонів з all:false — усе зняте, «0 з 2»; PUT несе всі рядки; жодної галочки → onNone', async () => {
+    const onApply = vi.fn(async () => {}); const onNone = vi.fn(async () => {});
+    await mount(<PeriodSeries card={seasonsOff} cardId="c9" onApply={onApply} onNone={onNone} />);
+    expect(host!.textContent).toContain('0 з 2');
+    expect(host!.querySelectorAll('[class*="item-off"]').length).toBe(2);
+    await click(byText('Записати в календар'));
+    expect(calls.find((c) => c.method === 'PUT')!.body).toEqual([{ occasion_id: 'melon', enabled: false }, { occasion_id: 'mushroom', enabled: false }]);
+    expect(onApply).not.toHaveBeenCalled();
+    expect(onNone).toHaveBeenCalled();
+  });
+
+  it('повернути частину: галочка → apply з індексом', async () => {
+    const onApply = vi.fn(async () => {}); const onNone = vi.fn(async () => {});
+    await mount(<PeriodSeries card={seasonsOff} cardId="c9" onApply={onApply} onNone={onNone} />);
+    await click(host!.querySelector('[data-occasion="mushroom"]'));
+    expect(host!.textContent).toContain('1 з 2');
+    await click(byText('Записати в календар'));
+    expect(calls.find((c) => c.method === 'PUT')!.body).toEqual([{ occasion_id: 'melon', enabled: false }, { occasion_id: 'mushroom', enabled: true }]);
+    expect(onApply).toHaveBeenCalledWith([1]);
+    expect(onNone).not.toHaveBeenCalled();
+  });
+
+  it('відписка одного: кнопка «Не показувати», без лічильника', async () => {
+    const one: ChatCard = { type: 'period', kind: 'tradition', unsubscribe: 'melon', title: 'кавуни й дині',
+      items: [{ occasion_id: 'melon', title: 'кавуни й дині', from: '2026-08-01', to: '2026-09-30', enabled: false, what: 'сезон', strict: false }] };
+    const onApply = vi.fn(async () => {});
+    await mount(<PeriodSeries card={one} cardId="c8" onApply={onApply} />);
+    expect(host!.textContent).not.toContain('з 1');
+    expect(byText('Записати в календар')).toBeNull();
+    await click(byText('Не показувати'));
+    expect(calls.find((c) => c.method === 'PUT')!.body).toEqual([{ occasion_id: 'melon', enabled: false }]);
+    expect(onApply).toHaveBeenCalledWith(undefined);
+    expect(host!.textContent).toContain('Не показую');
+  });
+});

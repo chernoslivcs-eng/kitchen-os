@@ -265,7 +265,7 @@ export function loadFixtures(): Fixture[] {
     // Раунд 5, крок К1: асистент знає сам додаток ([ПРО ДОДАТОК] за класифікатором).
     ...['product-silpo-connect', 'product-not-proposing-meat', 'product-calories-where', 'product-absent-feature', 'product-mixed'].map((id) => readJson(`${id}.json`)),
     // Раунд 5, крок П1: періоди з правилом — картка period, [ЗАРАЗ], вето суворих.
-    ...['period-jewish-intent', 'period-diet-month', 'period-lent-strict', 'period-diet-soft-direct', 'period-guests'].map((id) => readJson(`${id}.json`)),
+    ...['period-jewish-intent', 'period-diet-month', 'period-lent-strict', 'period-diet-soft-direct', 'period-guests', 'period-seasons-off'].map((id) => readJson(`${id}.json`)),
     readJson('off-topic-neighbor.json'),
     readJson('off-topic-joke.json'),
   ];

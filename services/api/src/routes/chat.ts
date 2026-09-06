@@ -13,7 +13,7 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { resolveWhen } from '../event-when.js';
-import { buildPeriodCard } from '../period-card.js';
+import { buildPeriodCard, droppedPeriodReply } from '../period-card.js';
 import {
   isYes, isNo, extractRating, buildWriteoffOps, latestRunInSession,
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
@@ -881,7 +881,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // П1: картка period — сервер добудовує список свят чи дати запису; без
     // добудови (невідомий сезон, порожня назва) картки нема.
     if (call.card?.type === 'period') {
-      call.card = await buildPeriodCard(repo, call.card, household_id, new Date());
+      const raw = call.card;
+      call.card = await buildPeriodCard(repo, raw, household_id, new Date());
+      // П2a: картка впала — reply не каже «прибрав». Лог із сирою карткою:
+      // частота — сигнал про промпт чи довідник.
+      if (!call.card) {
+        req.log.warn({ user_id, card: raw }, 'period-card-dropped');
+        call.reply = droppedPeriodReply(raw);
+      }
     }
 
     // Pending-картка створюється ЛИШЕ тут — після резолву дат подій і після

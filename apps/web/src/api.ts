@@ -234,6 +234,8 @@ export interface ChatCard {
   strict?: boolean;
   servings?: number | null;
   unsubscribe?: string;
+  set?: 'seasons';
+  all?: boolean;
   resolved?: { from: string; to: string };
   ops?: unknown[];
   // Раунд 4, крок 7: картка «Про тебе» — пропущені панелі (стан заповнених — з profile_text).

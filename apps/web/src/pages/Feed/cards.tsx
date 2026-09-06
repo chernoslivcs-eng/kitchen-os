@@ -1485,27 +1485,30 @@ export function PeriodChatCard(props: CardProps) {
   const items = ((card.items ?? []) as { occasion_id: string; title: string; from: string; to: string }[]).filter((i) => i && i.occasion_id);
   if (inPanel) {
     return form === 'series'
-      ? <PeriodSeries card={card} cardId={cardId} applied={applied} applying={applying} dismissed={dismissed} undone={undone} onApply={onApply} onDismiss={onDismiss} />
+      ? <PeriodSeries card={card} cardId={cardId} applied={applied} applying={applying} dismissed={dismissed} undone={undone} onApply={onApply} onDismiss={onDismiss} onNone={props.onNone} />
       : <PeriodEvent card={card} cardId={cardId} applied={applied} applying={applying} dismissed={dismissed} undone={undone}
           onApply={onApply as unknown as (selected?: number[]) => Promise<{ event_ids?: string[] } | void>} onDismiss={onDismiss} />;
   }
   const closed = (applied && !undone) || dismissed;
   const kicker = form === 'series'
-    ? (card.unsubscribe || !card.tradition ? 'СЕЗОНИ' : 'СВЯТА · З ТРАДИЦІЇ')
+    ? (card.unsubscribe || card.set === 'seasons' || !card.tradition ? 'СЕЗОНИ' : 'СВЯТА · З ТРАДИЦІЇ')
     : card.kind === 'diet' ? 'ДІЄТА' : 'ПОДІЯ ДОМУ';
   const kickerTone = form === 'series' ? (card.tradition ? 'var(--plum)' : 'var(--amber)') : 'var(--accent)';
   const title = form === 'series'
     ? (card.unsubscribe && items.length === 1 ? `${items[0]!.title} · не показувати`
+      : card.set === 'seasons' ? `Сезони · ${items.length}`
       : card.tradition ? `${TRADITION_LABEL[card.tradition][0]!.toUpperCase()}${TRADITION_LABEL[card.tradition].slice(1)} свята · ${items.length} на рік`
       : seriesTitle('seasons'))
     : (dedupeTitle(card.title ?? '', card.rule_text).title ?? card.title ?? 'період');
   const line = form === 'series'
-    ? (card.unsubscribe ? 'Зніму з календаря і з підказок.' : 'Дати з календаря на кілька років уперед. Зніми зайве — і в календар.')
+    ? (card.unsubscribe ? 'Зніму з календаря і з підказок.'
+      : card.set === 'seasons' ? (card.all ? 'Поверну сезони. Зніми, що не твоє.' : 'Зніму всі сезони з календаря і підказок. Що лишити — познач у картці.')
+      : 'Дати з календаря на кілька років уперед. Зніми зайве — і в календар.')
     : [dedupeTitle(card.title ?? '', card.rule_text).rule,
       card.resolved ? (card.resolved.from === card.resolved.to ? shortDate(card.resolved.from) : `з ${shortDate(card.resolved.from)} до ${shortDate(card.resolved.to)}`) : null,
       card.strict ? 'суворо' : null].filter(Boolean).join(' · ');
   const meta = dismissed ? 'Пропущено'
-    : applied && !undone ? (form === 'series' ? `Записано в календар: ${card.unsubscribe ? 1 : items.length}` : 'Записано в календар')
+    : applied && !undone ? (form === 'series' ? (card.unsubscribe ? 'Не показую' : card.set === 'seasons' ? 'Записано в календар' : `Записано в календар: ${items.length}`) : 'Записано в календар')
     : undone ? 'Скасовано'
     : form === 'series' ? `→ у календар: ${items.length}` : '→ у календар';
   return (

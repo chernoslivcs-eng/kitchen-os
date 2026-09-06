@@ -123,7 +123,7 @@ export function pickArtifacts<T extends ArtifactTurn>(
       const items = (c.items ?? []) as { title?: string }[];
       const series = c.kind === 'tradition' || !!c.unsubscribe;
       const label = series
-        ? (c.unsubscribe && items.length === 1 ? items[0]?.title ?? 'Сезон' : c.tradition ? `${TRADITION_LABEL[c.tradition]} свята` : 'Сезони')
+        ? (c.unsubscribe && items.length === 1 ? items[0]?.title ?? 'Сезон' : c.tradition && c.set !== 'seasons' ? `${TRADITION_LABEL[c.tradition]} свята` : 'Сезони')
         : (c.title ?? 'Період');
       out.push({ key: t.cardId, kind: 'event', label, meta: series && !c.unsubscribe ? String(items.length) : '', turn: t });
     } else if (isIntakeArtifact(t) && t.cardId && intakeAdds(t)) {
