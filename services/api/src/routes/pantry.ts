@@ -15,7 +15,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit, BatchState, IntakeCard } from '@kitchen/domain';
-import { pantryItemView } from '@kitchen/domain';
+import { pantryItemView, newVetoScope } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
 
@@ -83,7 +83,11 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     const [vetoIndex, receipt] = await Promise.all([repo.getVetoIndex(user_id), lastReceiptBatches(repo, household_id)]);
     const byId = new Map(products.map((p) => [p.id, p]));
     const now = Date.now();
-    const batches = active.map((b) => ({ ...b, ...pantryItemView(b, b.product_id ? byId.get(b.product_id) : undefined, vetoIndex, receipt.ids, now), origin: batchOrigin(b, receipt) }));
+    // Крок Ш3: один кеш footprint на весь прохід. Сотня партій дає десятки
+    // однакових текстів («молоко» різних партій, назва тієї самої позиції
+    // каталогу), і кожен із них інакше йшов би в resolveLabel заново.
+    const scope = newVetoScope();
+    const batches = active.map((b) => ({ ...b, ...pantryItemView(b, b.product_id ? byId.get(b.product_id) : undefined, vetoIndex, receipt.ids, now, scope), origin: batchOrigin(b, receipt) }));
     return {
       household_id,
       count: active.length,

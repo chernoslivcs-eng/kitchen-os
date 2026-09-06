@@ -6,7 +6,7 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 import type { PantryBatch } from './types.js';
 import type { HouseholdProduct } from './product.js';
 import type { VetoRow } from './profile-text.js';
-import { matchVeto } from './veto.js';
+import { matchVeto, type VetoScope } from './veto.js';
 import { kcalOf, isEstimate } from './nutrition.js';
 
 export type PantryNo = 'не їм' | 'не можна' | null;
@@ -16,10 +16,10 @@ export type PantryNo = 'не їм' | 'не можна' | null;
  * каталогу її продукту («стейк рібай» → яловичина → мʼясо). Те саме, що ставить
  * ⚠ у [КОМОРА] промпту — одне джерело для обох.
  */
-export function pantryVetoRows(b: Pick<PantryBatch, 'label'>, catalogKey: string | null | undefined, index: VetoRow[]): VetoRow[] {
+export function pantryVetoRows(b: Pick<PantryBatch, 'label'>, catalogKey: string | null | undefined, index: VetoRow[], scope?: VetoScope): VetoRow[] {
   if (!index.length) return [];
-  return matchVeto(b.label, index)
-    .concat(catalogKey ? matchVeto(BY_KEY.get(catalogKey)?.name ?? '', index) : [])
+  return matchVeto(b.label, index, scope)
+    .concat(catalogKey ? matchVeto(BY_KEY.get(catalogKey)?.name ?? '', index, scope) : [])
     .filter((r, i, arr) => arr.findIndex((x) => x.kind === r.kind && x.ref === r.ref) === i);
 }
 
@@ -98,6 +98,9 @@ export function pantryItemView(
   vetoIndex: VetoRow[],
   receiptBatchIds: ReadonlySet<string>,
   nowMs = Date.now(),
+  // Крок Ш3: спільний кеш footprint на один прохід комори. Не передали —
+  // працює як раніше, просто без економії.
+  scope?: VetoScope,
 ): PantryItemView {
   const key = b.catalog_key ?? prod?.catalog_key ?? null;
   const item = key ? BY_KEY.get(key) : undefined;
@@ -111,7 +114,7 @@ export function pantryItemView(
     est: n ? isEstimate(n) : null,
     days: daysLeft(b.expires_at, nowMs),
     receipt: receiptBatchIds.has(b.id),
-    no: vetoMarkOf(pantryVetoRows(b, prod?.catalog_key ?? null, vetoIndex)),
+    no: vetoMarkOf(pantryVetoRows(b, prod?.catalog_key ?? null, vetoIndex, scope)),
     added: Math.max(0, Math.floor((nowMs - new Date(b.added_at).getTime()) / 86_400_000)),
     unit_weight: item?.unit_weight ?? null,
   };
