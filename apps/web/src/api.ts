@@ -93,6 +93,10 @@ export interface PantryBatch {
   receipt?: boolean;
   no?: 'не їм' | 'не можна' | null;
   added?: number;
+  /** Крок Ф2: вага штуки з каталогу (г) — для «на позицію» при одиниці шт. */
+  unit_weight?: number | null;
+  /** Крок Ф2: звідки позиція — останній/інший чек, «+ Додати», розмова. */
+  origin?: { kind: 'receipt' | 'manual' | 'chat'; shop: string | null; at: string };
 }
 
 // Черга Д (№2): продукт дому — трійка + невидимі теги.
@@ -329,7 +333,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(input),
       }),
-    update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state'>>) =>
+    update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state' | 'expires_at'>>) =>
       req<{ updated: boolean; batch: PantryBatch }>(`/v1/pantry/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(patch),

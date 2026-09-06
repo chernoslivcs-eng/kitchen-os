@@ -22,7 +22,7 @@ const batch = (household_id: string, label: string, over: Partial<PantryBatch> =
   opened_at: null, expires_at: null, best_before_opened_days: null, added_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
   depleted_at: null, confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: null, ...over,
 } as PantryBatch);
-type Row = PantryBatch & { cat: string | null; kcal: number | null; est: boolean | null; days: number | null; receipt: boolean; no: string | null; added: number };
+type Row = PantryBatch & { cat: string | null; kcal: number | null; est: boolean | null; days: number | null; receipt: boolean; no: string | null; added: number; origin: { kind: string; shop: string | null; at: string } };
 
 describe('GET /v1/pantry — поля фільтра', () => {
   it('cat, days, no, added серіалізуються; без каталогу — null', async () => {
@@ -68,5 +68,45 @@ describe('GET /v1/pantry — поля фільтра', () => {
     expect(receipts).toEqual(['Сир']);
     expect(body.last_receipt_at).toBe('2026-09-03T10:00:00.000Z');
     void second;
+    // Крок Ф2: «звідки» — останній чек з датою чека, решта з розмови/рукою
+    const by = (l: string) => body.batches.find((b) => b.label === l)!;
+    expect(by('Сир').origin).toEqual({ kind: 'receipt', shop: null, at: '2026-09-03T10:00:00.000Z' });
+    expect(by('Молоко').origin.kind).toBe('chat');
+  });
+
+  it('origin: «+ Додати» — manual з датою додавання; retail-чек несе магазин', async () => {
+    const { repo, app, me } = await stand();
+    await app.inject({ method: 'POST', url: '/v1/pantry', headers: { cookie: me.cookie }, payload: { label: 'Сіль', value: 1, unit: 'pack', zone: 'dry' } });
+    const id = randomUUID();
+    await createPending(repo, { message_id: id, household_id: me.household_id, user_id: me.user_id, card: {
+      type: 'intake_diff', ops: [{ op: 'add', label: 'Йогурт', value: 1, unit: 'pcs', zone: 'fridge' }],
+      source: { kind: 'retail_receipt', provider: 'silpo', shop: 'Сільпо', at: '2026-09-04T09:00:00.000Z', total: 100, nonfood: [], unmatched: [] },
+    } as Card });
+    await applyCard(repo, id, [], me.user_id);
+    const body = (await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json() as { batches: Row[] };
+    const by = (l: string) => body.batches.find((b) => b.label === l)!;
+    expect(by('Сіль').origin.kind).toBe('manual');
+    expect(by('Йогурт').origin).toEqual({ kind: 'receipt', shop: 'Сільпо', at: '2026-09-04T09:00:00.000Z' });
+  });
+});
+
+describe('PATCH /v1/pantry/:id — картка (крок Ф2)', () => {
+  it('expires_at пишеться і знімається; state opened ставить opened_at, і воно лишається', async () => {
+    const { repo, app, me } = await stand();
+    const b = batch(me.household_id, 'Молоко');
+    await repo.insertBatch(b);
+    const set = (payload: Record<string, unknown>) => app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: { cookie: me.cookie }, payload });
+    expect((await set({ expires_at: '2026-09-10' })).statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.expires_at).toBe('2026-09-10T00:00:00.000Z');
+    expect((await set({ expires_at: 'not a date' })).statusCode).toBe(400);
+    expect((await set({ expires_at: null })).statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.expires_at).toBeNull();
+    const r = await set({ state: 'opened' });
+    const opened = (r.json() as { batch: PantryBatch }).batch.opened_at;
+    expect(opened).toBeTruthy();
+    // наступна правка кількості не скидає дату відкриття
+    await set({ value: 300 });
+    expect((await repo.getBatch(b.id))!.opened_at).toBe(opened);
+    expect((await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json().batches[0].opened_at).toBe(opened);
   });
 });

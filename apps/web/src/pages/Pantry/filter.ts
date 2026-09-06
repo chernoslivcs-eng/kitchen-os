@@ -14,8 +14,39 @@ export type StateKey = 'soon' | 'receipt' | 'no';
 export type CutKey = KindKey | StateKey;
 export type Tone = 'fg' | 'dim' | 'amber' | 'plum' | 'sage' | 'danger';
 
+// Крок Ф2: одна вісь іконок — свіжість. Пороги в одному місці:
+// зріз «скоро зіпсується» — ≤ SOON_CUT_DAYS; іконка — своя шкала:
+// «добігає» від FRESH_SOON_DAYS до FRESH_CHECK_DAYS днів, «перевірити» —
+// сьогодні або термін вийшов, інакше «свіже» (без терміну — теж свіже).
+export const SOON_CUT_DAYS = 3;
+export const FRESH_SOON_DAYS = 5;
+export const FRESH_CHECK_DAYS = 1;
+export type Freshness = 'fresh' | 'soon' | 'check';
+export function freshness(days: number | null | undefined): Freshness {
+  if (days == null || days > FRESH_SOON_DAYS) return 'fresh';
+  if (days >= FRESH_CHECK_DAYS) return 'soon';
+  return 'check';
+}
+
 export interface FilterState { sort: SortKey; cuts: CutKey[]; q: string }
 export const INITIAL: FilterState = { sort: 'zone', cuts: [], q: '' };
+
+export const ZONE_OPTIONS: { value: PantryBatch['zone']; label: string }[] = [
+  { value: 'fresh', label: 'Свіже' },
+  { value: 'fridge', label: 'Холодильник' },
+  { value: 'freezer', label: 'Морозилка' },
+  { value: 'dry', label: 'Суха шафа' },
+  { value: 'spices', label: 'Спеції' },
+  { value: 'drinks', label: 'Напої' },
+];
+export const UNIT_OPTIONS: { value: PantryBatch['unit']; label: string }[] = [
+  { value: null, label: '—' },
+  { value: 'g', label: 'г' },
+  { value: 'ml', label: 'мл' },
+  { value: 'pcs', label: 'шт' },
+  { value: 'pack', label: 'пач' },
+];
+
 
 export const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
 export const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
@@ -26,7 +57,8 @@ const days = (it: PantryBatch) => (it.days == null ? 999 : it.days);
 const num = (v: number | null | undefined) => (v == null ? null : v);
 const approx = (it: PantryBatch) => (it.est ? '≈' : '');
 // Позиція без БЖВ (нема в каталозі) — у кінці списку і без значення в колонці.
-const grams = (it: PantryBatch, v: number | null | undefined) => (v == null ? '' : `${approx(it)}${v} г`);
+// Крок Ф2: значення шкали — цілі («46 г», «0 г»); «≈» лишається на оцінках.
+const grams = (it: PantryBatch, v: number | null | undefined) => (v == null ? '' : `${approx(it)}${Math.round(v)} г`);
 
 interface SortDef {
   key: SortKey; label: string;
@@ -34,21 +66,23 @@ interface SortDef {
   by?: (it: PantryBatch) => number | null;
   val?: (it: PantryBatch) => string;
   unit?: string; head?: string;
+  /** Скорочення заголовка там, де повний не влазить («вугл. / 100 г»). */
+  unitShort?: string;
   color?: (it: PantryBatch) => Tone;
 }
 export const SORTS: SortDef[] = [
   { key: 'zone', label: 'за місцем' },
   { key: 'fresh', label: 'за свіжістю', by: (it) => days(it), val: (it) => (it.days == null ? '—' : it.days <= 0 ? 'сьогодні' : it.days === 1 ? '1 день' : `${it.days} дн`), unit: 'лишилось', color: (it) => (it.days != null && it.days <= 3 ? 'amber' : 'dim'), head: 'найшвидше зіпсується — зверху' },
-  { key: 'kcal', label: 'за калорійністю', by: (it) => (it.kcal == null ? null : -it.kcal), val: (it) => (it.kcal == null ? '' : approx(it) + it.kcal), unit: 'ккал / 100 г', color: () => 'fg', head: 'від ситного до легкого' },
-  { key: 'fat', label: 'за жирністю', by: (it) => (it.fat == null ? null : -it.fat), val: (it) => grams(it, it.fat), unit: 'жиру / 100 г', color: () => 'fg', head: 'від жирного до нежирного' },
-  { key: 'prot', label: 'за білком', by: (it) => (it.prot == null ? null : -it.prot), val: (it) => grams(it, it.prot), unit: 'білка / 100 г', color: () => 'fg', head: 'від білкового до небілкового' },
-  { key: 'carb', label: 'за вуглеводами', by: (it) => (it.carb == null ? null : -it.carb), val: (it) => grams(it, it.carb), unit: 'вуглеводів / 100 г', color: () => 'fg', head: 'від вуглеводного до безвуглеводного' },
+  { key: 'kcal', label: 'за калорійністю', by: (it) => (it.kcal == null ? null : -it.kcal), val: (it) => (it.kcal == null ? '' : `${approx(it)}${Math.round(it.kcal)} ккал`), unit: 'ккал / 100 г', unitShort: 'ккал / 100 г', color: () => 'fg', head: 'від ситного до легкого' },
+  { key: 'fat', label: 'за жирністю', by: (it) => (it.fat == null ? null : -it.fat), val: (it) => grams(it, it.fat), unit: 'жиру / 100 г', unitShort: 'жиру / 100 г', color: () => 'fg', head: 'від жирного до нежирного' },
+  { key: 'prot', label: 'за білком', by: (it) => (it.prot == null ? null : -it.prot), val: (it) => grams(it, it.prot), unit: 'білка / 100 г', unitShort: 'білка / 100 г', color: () => 'fg', head: 'від білкового до небілкового' },
+  { key: 'carb', label: 'за вуглеводами', by: (it) => (it.carb == null ? null : -it.carb), val: (it) => grams(it, it.carb), unit: 'вуглеводів / 100 г', unitShort: 'вугл. / 100 г', color: () => 'fg', head: 'від вуглеводного до безвуглеводного' },
   { key: 'added', label: 'за датою', by: (it) => num(it.added), val: (it) => (it.added == null ? '' : it.added <= 2 ? 'позавчора' : `${it.added} дн тому`), unit: 'додано', color: () => 'dim', head: 'нове зверху' },
 ];
 
 interface CutDef { key: CutKey; label: string; tone: Tone; group?: boolean; test: (it: PantryBatch) => boolean }
 export const CUTS: CutDef[] = [
-  { key: 'soon', label: 'скоро зіпсується', tone: 'amber', test: (it) => it.days != null && it.days <= 3 },
+  { key: 'soon', label: 'скоро зіпсується', tone: 'amber', test: (it) => it.days != null && it.days <= SOON_CUT_DAYS },
   { key: 'receipt', label: 'з останнього чека', tone: 'sage', test: (it) => !!it.receipt },
   { key: 'no', label: 'не їм / не можна', tone: 'plum', test: (it) => !!it.no },
   { key: 'meat', label: 'мʼясне', tone: 'fg', group: true, test: (it) => ['мʼясо', 'ковбаси'].includes(it.cat ?? '') },
@@ -109,7 +143,8 @@ export interface RowView {
   it: PantryBatch;
   name: string; qty: string; zone: string;
   sub: string; subTone: Tone;
-  mark: string; markTone: Tone;
+  /** Іконка ліворуч — лише свіжість (крок Ф2); «не їм / не можна» — тільки підрядок. */
+  fresh: Freshness;
   val: string; valTone: Tone;
 }
 
@@ -121,7 +156,7 @@ export interface FilterView {
   grouped: boolean;
   groups: { zone: PantryBatch['zone']; label: string; count: number; items: RowView[] }[];
   list: RowView[];
-  flatLabel: string; unitLabel: string;
+  flatLabel: string; unitLabel: string; unitShort: string;
   empty: boolean; emptyTitle: string; emptyText: string;
   kinds: { key: KindKey; label: string; on: boolean }[];
   states: { key: StateKey; label: string; tone: Tone; on: boolean; full: boolean }[];
@@ -136,32 +171,34 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   const receiptOn = active.some((c) => c.key === 'receipt');
   const receiptSub = ctx.receiptAt ? `чек · ${shortDate(ctx.receiptAt)}` : 'з чека';
   const row = (it: PantryBatch): RowView => {
-    const soon = it.days != null && it.days <= 3;
+    const soon = it.days != null && it.days <= SOON_CUT_DAYS;
     const sub = it.no ? it.no
       : soon && sort.key !== 'fresh' ? (it.days! <= 0 ? 'сьогодні' : `ще ${it.days} дн`)
         : receiptOn && sort.key !== 'added' ? receiptSub : '';
     return {
       it, name: it.label, qty: it.value != null && it.unit ? formatQty(it.value, it.unit) : '', zone: ZONE_LABEL[it.zone],
       sub, subTone: it.no ? 'plum' : soon ? 'amber' : 'sage',
-      mark: it.no === 'не можна' ? '✕' : it.no ? '−' : '●',
-      markTone: it.no === 'не можна' ? 'danger' : it.no ? 'plum' : 'sage',
+      fresh: freshness(it.days),
       val: sort.val ? sort.val(it) : '', valTone: sort.color ? sort.color(it) : 'fg',
     };
   };
   const grouped = sort.key === 'zone';
   const dirty = sort.key !== 'zone' || active.length > 0;
+  // Крок Ф2: «N з M» лише коли список звужено (зріз або пошук); саме
+  // сортування нічого не ховає — лічильник як без фільтра.
+  const narrowed = active.length > 0 || !!q;
   const empty = dirty && shown.length === 0 && !q;
   const last = active[active.length - 1];
   return {
     sort, shown, dirty,
-    meta: dirty || q ? `${shown.length} З ${items.length}` : `${items.length} ${plural(items.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`,
+    meta: narrowed ? `${shown.length} З ${items.length}` : `${items.length} ${plural(items.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`,
     grouped: grouped && !empty,
     groups: grouped
       ? ZONE_ORDER.map((z) => ({ zone: z, label: ZONE_LABEL[z], items: shown.filter((it) => it.zone === z) }))
         .filter((g) => g.items.length).map((g) => ({ zone: g.zone, label: g.label, count: g.items.length, items: g.items.map(row) }))
       : [],
     list: grouped ? [] : shown.map(row),
-    flatLabel: sort.head ?? '', unitLabel: sort.unit ?? '',
+    flatLabel: sort.head ?? '', unitLabel: sort.unit ?? '', unitShort: sort.unitShort ?? sort.unit ?? '',
     empty,
     emptyTitle: empty ? (last ? EMPTY_TITLE[last.key] ?? 'Нічого' : 'Порожньо') : '',
     emptyText: empty ? (active.length > 1 ? 'Разом ці умови нічого не лишають.' : active.some((c) => c.group) ? 'Можна докупити.' : 'Добре.') : '',

@@ -88,6 +88,8 @@ export interface PantryItemView {
   receipt: boolean;
   no: PantryNo;
   added: number;
+  /** Вага штуки з каталогу (г), якщо є — для «на позицію» при одиниці шт. */
+  unit_weight: number | null;
 }
 
 export function pantryItemView(
@@ -111,5 +113,6 @@ export function pantryItemView(
     receipt: receiptBatchIds.has(b.id),
     no: vetoMarkOf(pantryVetoRows(b, prod?.catalog_key ?? null, vetoIndex)),
     added: Math.max(0, Math.floor((nowMs - new Date(b.added_at).getTime()) / 86_400_000)),
+    unit_weight: item?.unit_weight ?? null,
   };
 }

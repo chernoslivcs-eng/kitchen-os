@@ -57,10 +57,10 @@ describe('pantryItemView', () => {
   it('усі поля з каталогу, терміну, чека й індексу', () => {
     const b = batch('Куряче філе', { catalog_key: 'chicken_fillet', expires_at: new Date(NOW + 2 * 86_400_000).toISOString() });
     const v = pantryItemView(b, undefined, buildVetoIndex('u1', 'no', 'мʼяса'), new Set([b.id]), NOW);
-    expect(v).toEqual({ cat: 'мʼясо', kcal: 114, fat: 2.62, prot: 22.5, carb: 0, est: false, days: 2, receipt: true, no: 'не їм', added: 5 });
+    expect(v).toEqual({ cat: 'мʼясо', kcal: 114, fat: 2.62, prot: 22.5, carb: 0, est: false, days: 2, receipt: true, no: 'не їм', added: 5, unit_weight: 180 });
   });
   it('невідомий продукт — усе null, receipt false', () => {
     const v = pantryItemView(batch('Щось xyz'), undefined, [], new Set(), NOW);
-    expect(v).toEqual({ cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: null, receipt: false, no: null, added: 5 });
+    expect(v).toEqual({ cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: null, receipt: false, no: null, added: 5, unit_weight: null });
   });
 });

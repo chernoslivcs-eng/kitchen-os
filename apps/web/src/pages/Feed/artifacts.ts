@@ -6,7 +6,8 @@
 // є потрібна картка. Тут вона перевіряється тестом на будь-яких даних.
 import type { ChatCard } from '../../api';
 
-export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event';
+// Крок Ф2: 'batch' — картка позиції комори в тій самій панелі.
+export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event' | 'batch';
 
 export interface ArtifactTurn {
   id: string;
@@ -135,4 +136,5 @@ export const ARTIFACT_GLYPH: Record<ArtifactKey, string> = {
   receipt: '▤',
   list: '☰',
   event: '◷',
+  batch: '●',
 };

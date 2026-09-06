@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { applyFilter, toggleKind, toggleState, resetFilter, stateFull, INITIAL, shortDate, type FilterState } from './filter';
+import { applyFilter, toggleKind, toggleState, resetFilter, stateFull, freshness, INITIAL, shortDate, type FilterState } from './filter';
 import type { PantryBatch } from '../../api';
 
 // Раунд 5, крок Ф1: логіка фільтра зі спеки дизайну.
@@ -28,7 +28,8 @@ describe('сортування', () => {
     expect(v.grouped).toBe(false);
     expect(v.list.map((r) => r.name)).toEqual(['Арахісова паста', 'Пармезан', 'Стейк рібай', 'Куряче філе', 'Огірки', 'Засіб для скла']);
     expect(v.list[0]!.val).toBe('≈50 г');
-    expect(v.list[1]!.val).toBe('25.8 г');
+    expect(v.list[1]!.val).toBe('26 г');    // крок Ф2: цілі
+    expect(v.list[4]!.val).toBe('0 г');
     expect(v.list[5]!.val).toBe('');
   });
   it('за свіжістю — без терміну в кінці; підрядок «ще N дн» не дублюється з колонкою', () => {
@@ -45,6 +46,11 @@ describe('сортування', () => {
     expect(v.groups.map((g) => g.label)).toEqual(['Свіже', 'Холодильник', 'Морозилка', 'Суха шафа']);
     expect(v.dirty).toBe(false);
     expect(v.meta).toBe('6 ПОЗИЦІЙ');
+  });
+  it('крок Ф2: саме сортування без зрізів не звужує список — лічильник без «з»', () => {
+    expect(applyFilter(ITEMS, st({ sort: 'fat' }), ctx).meta).toBe('6 ПОЗИЦІЙ');
+    expect(applyFilter(ITEMS, st({ sort: 'fat', cuts: ['meat'] }), ctx).meta).toBe('2 З 6');
+    expect(applyFilter(ITEMS, st({ q: 'сир' }), ctx).meta).toBe('1 З 6');
   });
 });
 
@@ -79,12 +85,29 @@ describe('зрізи', () => {
     const byDate = applyFilter(ITEMS, st({ sort: 'added', cuts: ['receipt'] }), ctx);
     expect(byDate.list.find((r) => r.name === 'Огірки')!.sub).toBe('');
   });
-  it('позначки: ● звичайне, − не їм, ✕ не можна', () => {
+  it('крок Ф2: іконка — лише свіжість (4 стани за days); «не їм / не можна» — тільки підрядок', () => {
+    expect(freshness(null)).toBe('fresh');
+    expect(freshness(9)).toBe('fresh');
+    expect(freshness(6)).toBe('fresh');
+    expect(freshness(5)).toBe('soon');
+    expect(freshness(1)).toBe('soon');
+    expect(freshness(0)).toBe('check');
+    expect(freshness(-3)).toBe('check');
     const v = applyFilter(ITEMS, st({ sort: 'kcal' }), ctx);
-    const m = Object.fromEntries(v.list.map((r) => [r.name, `${r.mark}${r.markTone}`]));
-    expect(m['Пармезан']).toBe('●sage');
-    expect(m['Куряче філе']).toBe('−plum');
-    expect(m['Арахісова паста']).toBe('✕danger');
+    const m = Object.fromEntries(v.list.map((r) => [r.name, r.fresh]));
+    expect(m['Куряче філе']).toBe('soon');
+    expect(m['Пармезан']).toBe('fresh');
+    expect(v.list.find((r) => r.name === 'Арахісова паста')!.sub).toBe('не можна');
+    expect(v.list.find((r) => r.name === 'Куряче філе')!.sub).toBe('не їм');
+    expect(JSON.stringify(v.list)).not.toMatch(/[−✕]/);
+  });
+  it('крок Ф2: ккал цілими з «ккал», заголовок і скорочення шкали', () => {
+    const v = applyFilter(ITEMS, st({ sort: 'kcal' }), ctx);
+    expect(v.list[0]!.val).toBe('≈600 ккал');
+    expect(v.unitLabel).toBe('ккал / 100 г');
+    const c = applyFilter(ITEMS, st({ sort: 'carb' }), ctx);
+    expect(c.unitLabel).toBe('вуглеводів / 100 г');
+    expect(c.unitShort).toBe('вугл. / 100 г');
   });
 });
 

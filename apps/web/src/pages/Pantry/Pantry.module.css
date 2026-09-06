@@ -131,7 +131,6 @@
   text-align: center;
   font-family: var(--font-mono);
 }
-.row .mark.opened { color: var(--amber); }
 .row .name {
   flex: 1;
   font-family: var(--font-body);
@@ -183,8 +182,7 @@
     align-content: start;
   }
   .body > input,           /* поле пошуку — на дві колонки */
-  .body > .empty,
-  .body > .burn-section {  /* «ГОРИТЬ» — завжди на всю ширину */
+  .body > .empty {
     grid-column: 1 / -1;
   }
 }
@@ -215,30 +213,6 @@
   to   { background: transparent; }
 }
 
-
-/* Пул-6 №1: секція «СПОЧАТКУ ГОРИТЬ». */
-.burn-section { display: flex; flex-direction: column; }
-.burn-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--font-body);
-  font-size: 15px;
-  color: var(--fg);
-}
-.burn-label { flex: 1; }
-.burn-days {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  color: var(--amber);
-}
 
 /* Пул-6 №4: fs-2 26 — заголовки екранів на ≥1024. */
 @media (min-width: 1024px) {
@@ -371,9 +345,11 @@
 .tone-plum { color: var(--plum); }
 .tone-sage { color: var(--accent); }
 .tone-danger { color: var(--danger); }
-.row .mark.tone-plum { color: var(--plum); }
-.row .mark.tone-danger { color: var(--danger); }
-.row .mark.tone-sage { color: var(--accent); }
+/* Крок Ф2: іконка ліворуч — лише свіжість, через токени. */
+.mark { display: inline-grid; place-items: center; }
+.fresh-fresh { color: var(--accent); }
+.fresh-soon { color: var(--amber); }
+.fresh-check { color: var(--danger); }
 
 .name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .meta-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
@@ -399,7 +375,7 @@
 .flat { display: flex; flex-direction: column; padding-top: 6px; animation: rowin 0.2s; }
 .flat-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
   padding: 0 0 4px;
   font-family: var(--font-mono);
@@ -408,6 +384,10 @@
   text-transform: uppercase;
   color: var(--fg-dim);
 }
+.flat-title { flex: 1; min-width: 0; }
+/* Крок Ф2: заголовок шкали одним рядком над колонкою значення; ваги — без заголовка. */
+.flat-unit { white-space: nowrap; text-align: right; }
+.unit-short { display: none; }
 @keyframes rowin { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 @media (min-width: 768px) {
@@ -421,8 +401,13 @@
   .reset { padding: 0; }
   .name-flat { flex-direction: row; align-items: baseline; gap: 12px; }
   .val { min-width: 110px; }
-  .flat-unit { width: 110px; text-align: right; }
-  .flat-head { padding-right: 44px; }  /* під колонку ✕ */
+  /* колонки: значення 110 + вага ≥ 64 + ✕ 44 (+ проміжки) — заголовок стоїть над значенням */
+  .qty-flat { min-width: 64px; text-align: right; }
+  .flat-unit { margin-right: calc(64px + 44px + 24px); }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .unit-long { display: none; }
+  .unit-short { display: inline; }
 }
 @media (max-width: 767px) {
   .reset-desktop { display: none; }
@@ -430,5 +415,82 @@
   .meta-line .zone-tag + .sub::before { content: '· '; color: var(--border-strong); }
   .qty-flat { display: none; }          /* плаский список на 390: назва · місце · значення (дизайн 1b) */
   .val { min-width: 0; }
-  .flat-head { padding-right: 44px; }
+  .flat-unit { margin-right: 44px; }    /* над колонкою значення, ✕ праворуч */
+  .unit-long { display: none; }
+  .unit-short { display: inline; }
 }
+
+/* ===== Крок Ф2: картка позиції в правій панелі ===== */
+.card { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px; }
+.card-title {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px dashed var(--border-strong);
+  background: transparent;
+  padding: 2px 0 4px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+}
+.card-title:focus { outline: none; border-bottom-color: var(--accent); }
+.card-sub {
+  margin-top: -8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--fg-dim); }
+.card-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.card-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 80px; }
+.card-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.card-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+.card-input:focus { outline: none; border-color: var(--accent); }
+.card-block { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.card-line { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; line-height: 1.45; color: var(--fg); }
+.card-action {
+  align-self: flex-start;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  background: transparent;
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.card-action:disabled { opacity: 0.5; cursor: default; }
+.card-remove {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--danger);
+  cursor: pointer;
+}
+.card-error { font-family: var(--font-body); font-size: 13px; color: var(--danger); }

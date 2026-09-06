@@ -23,15 +23,25 @@ import { BY_KEY } from '@kitchen/catalog/seed';
 // intake-карткою з джерелом-чеком (retail_receipt / chat_receipt). Один запит
 // по закритих картках дому за рік; скасована картка чеком не рахується.
 const RECEIPT_WINDOW_DAYS = 365;
-export async function lastReceiptBatches(repo: Repo, household_id: string): Promise<{ ids: Set<string>; at: string | null }> {
+export async function lastReceiptBatches(repo: Repo, household_id: string): Promise<{ ids: Set<string>; at: string | null; shop: string | null }> {
   const cards = await repo.listRecentResolved(household_id, { since: new Date(Date.now() - RECEIPT_WINDOW_DAYS * 86_400_000), limit: 300 });
   for (const pc of cards) {
     if (!pc.applied_at || pc.undone_at || pc.card.type !== 'intake_diff') continue;
     const src = (pc.card as IntakeCard).source;
     if (!src) continue;
-    return { ids: new Set(pc.undo_snapshot?.before.created_batch_ids ?? []), at: src.at ?? pc.applied_at };
+    return { ids: new Set(pc.undo_snapshot?.before.created_batch_ids ?? []), at: src.at ?? pc.applied_at, shop: src.kind === 'retail_receipt' ? src.shop : null };
   }
-  return { ids: new Set(), at: null };
+  return { ids: new Set(), at: null, shop: null };
+}
+
+// Крок Ф2: «звідки» для картки — останній чек (з магазином і датою), інший чек
+// (за provenance рядка чека), додано рукою (+ Додати), інакше з розмови.
+export interface BatchOrigin { kind: 'receipt' | 'manual' | 'chat'; shop: string | null; at: string }
+export function batchOrigin(b: PantryBatch, receipt: { ids: Set<string>; at: string | null; shop: string | null }): BatchOrigin {
+  if (receipt.ids.has(b.id)) return { kind: 'receipt', shop: receipt.shop, at: receipt.at ?? b.added_at };
+  if (b.provenance === 'receipt_line') return { kind: 'receipt', shop: null, at: b.added_at };
+  if (b.last_action === 'user_add') return { kind: 'manual', shop: null, at: b.added_at };
+  return { kind: 'chat', shop: null, at: b.added_at };
 }
 
 function urgencyScore(b: PantryBatch): number {
@@ -66,7 +76,7 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     const [vetoIndex, receipt] = await Promise.all([repo.getVetoIndex(user_id), lastReceiptBatches(repo, household_id)]);
     const byId = new Map(products.map((p) => [p.id, p]));
     const now = Date.now();
-    const batches = active.map((b) => ({ ...b, ...pantryItemView(b, b.product_id ? byId.get(b.product_id) : undefined, vetoIndex, receipt.ids, now) }));
+    const batches = active.map((b) => ({ ...b, ...pantryItemView(b, b.product_id ? byId.get(b.product_id) : undefined, vetoIndex, receipt.ids, now), origin: batchOrigin(b, receipt) }));
     return {
       household_id,
       count: active.length,
@@ -138,6 +148,8 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       unit?: Unit | null;
       zone?: Zone;
       state?: BatchState;
+      /** Крок Ф2: «свіже до» з картки — дата або null («без терміну»). */
+      expires_at?: string | null;
     };
   }>('/v1/pantry/:id', { preHandler: authenticated(repo) }, async (req, reply) => {
     const { user_id, household_id } = requireUser(req);
@@ -168,6 +180,11 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     if ('zone' in req.body) {
       if (!ZONES.includes(req.body.zone!)) return reply.code(400).send({ error: 'zone_invalid' });
       patch.zone = req.body.zone;
+    }
+    if ('expires_at' in req.body) {
+      const e = req.body.expires_at;
+      if (e != null && (typeof e !== 'string' || Number.isNaN(new Date(e).getTime()))) return reply.code(400).send({ error: 'expires_invalid' });
+      patch.expires_at = e == null ? null : new Date(e).toISOString();
     }
     if ('state' in req.body) {
       if (!STATES.includes(req.body.state!)) return reply.code(400).send({ error: 'state_invalid' });
