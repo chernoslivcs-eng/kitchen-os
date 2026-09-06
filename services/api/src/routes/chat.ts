@@ -12,6 +12,7 @@ import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 import { resolveWhen } from '../event-when.js';
 import { buildPeriodCard, droppedPeriodReply } from '../period-card.js';
 import {
@@ -61,7 +62,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const ctx = requireUser(req);
     if (!limiter.check(ctx.user_id)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, limiter, ctx.user_id);
       return reply;
     }
   };

@@ -18,6 +18,11 @@ import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
 import { OnboardingPage, onboardingSeen, markSeenLocally } from './pages/Onboarding/Onboarding';
+import { ErrorBoundary } from './components/ErrorState/ErrorBoundary';
+import { ErrorScreen } from './components/ErrorState/ErrorScreen';
+import { SERVER_DOWN } from './components/ErrorState/copy';
+import { IncidentStrips, useIncidentSink } from './components/ErrorState/IncidentStrips';
+import { LinkExpiredPage, LinkConsumedPage } from './pages/LinkGone/LinkGone';
 import { useAuth } from './store/auth';
 import { TabBar } from './components/TabBar/TabBar';
 import { ArtifactPanel } from './components/ArtifactPanel/ArtifactPanel';
@@ -46,8 +51,12 @@ function Shell() {
     if (me.user.welcome_seen_at) { markSeenLocally(); return; }
     if (!onboardingSeen()) navigate('/welcome', { replace: true });
   }, [pathname, navigate, me]);
+  // Крок Е1: 401/429/офлайн ловляться в api.req і показуються смугою тут —
+  // одне місце на всі екрани.
+  useIncidentSink();
   return (
     <>
+      <IncidentStrips />
       <div key={pathname} className="screen-view">
         <Outlet />
       </div>
@@ -74,6 +83,21 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     // Тихий стан завантаження: без спінера-на-весь-екран, просто чорне поле.
     // Робимо швидко — /me на локальному стеку відповідає за 20-30 мс.
     return <div style={{ minHeight: '100dvh', background: 'var(--bg-body)' }} />;
+  }
+  // Крок Е1: сервер не відповів на старті — це НЕ «ти гість». До цього такий
+  // випадок мовчки вів на лендинг, і людина бачила рекламу продукту, у який
+  // вона вже зайшла.
+  if (status === 'error') {
+    return (
+      <ErrorScreen
+        kicker={SERVER_DOWN.kicker}
+        h1a={SERVER_DOWN.h1a}
+        h1b={SERVER_DOWN.h1b}
+        body={SERVER_DOWN.body}
+        cta={SERVER_DOWN.cta}
+        onCta={() => void useAuth.getState().refresh()}
+      />
+    );
   }
   if (status !== 'signed_in') return <Navigate to="/" replace />;
   return <>{children}</>;
@@ -105,6 +129,7 @@ export function App() {
   return (
     <BrowserRouter>
       <Boot>
+        <ErrorBoundary>
         <Routes>
           <Route path="/" element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
@@ -126,8 +151,14 @@ export function App() {
           <Route path="/welcome" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />
           <Route path="/invite" element={<InvitePage />} />
+          {/* Крок Е1: сервер веде сюди браузер на 410 — щоб людина побачила
+              екран, а не сирий JSON. Два різні: «запізнився» і «вже спрацював»
+              це різні новини, і друга взагалі не про помилку. */}
+          <Route path="/link/expired" element={<LinkExpiredPage />} />
+          <Route path="/link/consumed" element={<LinkConsumedPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </ErrorBoundary>
         <CookHost />
         {/* Пул-7 №1: таймер, що вибіг поза Cook Mode, дзвонить звідусіль. */}
         <GlobalCookAlarm />

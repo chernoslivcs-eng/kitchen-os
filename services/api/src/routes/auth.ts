@@ -15,6 +15,7 @@ import type { Repo } from '@kitchen/domain';
 import { requestChallenge, verifyChallenge, logoutSession, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 
 export const COOKIE_NAME = 'kos';
 
@@ -38,7 +39,7 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     const email = ((req.body as { email?: string })?.email ?? '').toLowerCase().trim();
     const key = `${req.ip}:${email}`;
     if (!limiter.check(key)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, limiter, key);
       return reply;
     }
   };
@@ -74,6 +75,15 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     const out = await verifyChallenge(repo, raw, req.ip, req.headers['user-agent'] ?? null);
     if (!out.ok) {
       const code = out.reason === 'expired' ? 410 : out.reason === 'consumed' ? 410 : 404;
+      // Крок Е1: по лінку з листа приходить БРАУЗЕР, і сирий JSON `{"error":
+      // "expired"}` — це те, чого людина не має бачити ніколи. Віддаємо їй
+      // екран: два різні, бо «запізнився» і «вже спрацював» — різні новини, і
+      // друга не про помилку взагалі. Клієнтам, що просять JSON (і тестам),
+      // лишається той самий 410 з тим самим тілом.
+      const wantsHtmlPage = /text\/html/i.test(String(req.headers.accept ?? ''));
+      if (wantsHtmlPage && (out.reason === 'expired' || out.reason === 'consumed')) {
+        return reply.redirect(`/link/${out.reason}`);
+      }
       return reply.code(code).send({ error: out.reason });
     }
     reply.setCookie(COOKIE_NAME, out.result.raw_cookie, {

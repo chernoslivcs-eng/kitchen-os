@@ -15,6 +15,7 @@ import type { Recipe, RecipeIng } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { makeRateLimiter } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 
 export function recipesRoutes(app: FastifyInstance, repo: Repo) {
   // Публічний рецепт — без auth. Обмежуємо по IP щоб не могли скраулити всі UUID
@@ -23,7 +24,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
   const publicLimiter = makeRateLimiter({ max: 60, windowMs: 60_000 });
   const publicLimit = async (req: FastifyRequest, reply: FastifyReply) => {
     if (!publicLimiter.check(req.ip)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, publicLimiter, req.ip);
       return reply;
     }
   };
@@ -34,7 +35,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
   const genLimit = async (req: FastifyRequest, reply: FastifyReply) => {
     const ctx = requireUser(req);
     if (!genLimiter.check(ctx.user_id)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, genLimiter, ctx.user_id);
       return reply;
     }
   };

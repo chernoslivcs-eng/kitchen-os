@@ -1,0 +1,47 @@
+/* Крок Е1: тост. Числа з макета 1e. */
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 24px;
+  z-index: 70;
+  max-width: min(520px, calc(100vw - 32px));
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface-2);
+  box-shadow: var(--shadow-toast);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: toast-in 250ms var(--ease-enter, cubic-bezier(0, 0, 0.2, 1));
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.text {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--fg);
+  text-wrap: pretty;
+}
+/* Дія — слово, не кнопка з рамкою: у тоста одна дія, і вона очевидна. */
+.action {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

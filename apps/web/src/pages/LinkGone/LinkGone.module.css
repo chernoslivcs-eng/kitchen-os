@@ -1,0 +1,25 @@
+/* Крок Е1: поле пошти на екрані «надіслати новий лінк». Форма та сама, що на
+   вході — людина вже її бачила, і друга не потрібна. */
+.field { display: block; width: 100%; margin-top: 16px; }
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface-2);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  outline: 0;
+  text-align: center;
+}
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+.error {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--fg-muted);
+}

@@ -10,6 +10,7 @@ import type { PantryBatch, Repo, Zone, Unit } from '@kitchen/domain';
 import { resolveLabelToZone } from '@kitchen/catalog';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 
 export function shoppingRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit?: RateLimitCfg } = {}) {
   // П.6 pre-deploy: мутації списку були без ліміту. 60/хв — людина не
@@ -18,7 +19,7 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo, opts: { rateLim
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const { user_id } = requireUser(req);
     if (!limiter.check(user_id)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, limiter, user_id);
       return reply;
     }
   };

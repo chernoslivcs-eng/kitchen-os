@@ -14,6 +14,7 @@ import type { Mailer } from '../mailer.js';
 import { COOKIE_NAME } from './auth.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 
 function isSecure(): boolean {
   return process.env.NODE_ENV === 'production';
@@ -34,7 +35,7 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const key = (req as { user?: { user_id: string } }).user?.user_id ?? req.ip;
     if (!limiter.check(key)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, limiter, key);
       return reply;
     }
   };

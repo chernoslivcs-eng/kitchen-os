@@ -18,6 +18,7 @@ import type { Repo, AdminOccasionRow } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { requireAdmin } from '../middleware/admin.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
+import { tooMany } from '../too-many.js';
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 const MONTH_DAY_RE = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -46,7 +47,7 @@ export function adminOccasionsRoutes(app: FastifyInstance, repo: Repo, opts: { r
   const guard = [authenticated(repo), requireAdmin(repo), async (req: FastifyRequest, reply: FastifyReply) => {
     const { user_id } = requireUser(req);
     if (!limiter.check(user_id)) {
-      reply.code(429).send({ error: 'too many requests' });
+      tooMany(reply, limiter, user_id);
       return reply;
     }
   }];
