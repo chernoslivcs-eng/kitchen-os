@@ -6,7 +6,9 @@
 //   №2 вкладення видно в надісланій репліці;
 //   №3 очікування має час, а після 45 с — другий рядок;
 //   №4 «Стоп» рве виклик і не додає картку;
-//   №5 поле не гасне, репліки стають у чергу — послідовно, глибина 3.
+//   №5 поле не гасне, репліки стають у чергу — послідовно, глибина 3;
+//   №6 артефакт із ходу виходить у панель — включно з карткою серії (period),
+//       яка приїхала з періодом і в правилі №6 нічим не особлива.
 //
 // CSS-модулі у vitest резолвляться в порожній обʼєкт, тому перевіряються не
 // імена класів (їх у DOM просто не буде), а те, що ЛАМАЛОСЬ: інлайн-стилі,
@@ -17,6 +19,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { Feed } from './Feed';
+import { usePanelStore } from '../../store/panel';
+import { ArtifactPanel } from '../../components/ArtifactPanel/ArtifactPanel';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -64,7 +68,9 @@ async function mount() {
   document.body.appendChild(host);
   root = createRoot(host);
   await act(async () => {
-    root!.render(<MemoryRouter><Feed /></MemoryRouter>);
+    // Панель у продукті живе в каркасі поруч зі Стрічкою; правило «новий
+    // артефакт наперед» — стик між ними, тому монтуються обидві.
+    root!.render(<MemoryRouter><Feed /><ArtifactPanel /></MemoryRouter>);
   });
 }
 
@@ -91,6 +97,15 @@ beforeEach(() => {
   batches = [];
   installFetch();
   vi.useRealTimers();
+  // Панель живе в каркасі й переживає монтування Стрічки — між тестами
+  // її стан треба обнуляти самим.
+  usePanelStore.setState({ artifacts: [], freshKeys: [], active: null, lastManualPick: 0, hidden: false, fresh: false });
+  // jsdom не має ні matchMedia, ні ResizeObserver; rAF панелі рахує тінь над
+  // низом і до цих тестів стосунку не має.
+  vi.stubGlobal('matchMedia', (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('requestAnimationFrame', () => 0);
+  vi.stubGlobal('cancelAnimationFrame', () => {});
 });
 
 afterEach(async () => {
@@ -236,5 +251,53 @@ describe('№5 черга', () => {
     expect(qa('[data-queued]')).toHaveLength(0);
     // Черга не поїхала далі: другий виклик так і не стартував.
     expect(chatCalls).toHaveLength(1);
+  });
+});
+
+describe('№6 новий артефакт із ходу виходить у панель', () => {
+  // Правило одне на всі роди артефактів: ключ, що прийшов ходом цієї сесії
+  // вкладки, стає активним. Картка серії (period) не виняток — вона
+  // потрапляє в `pickArtifacts` так само, як кошик чи рецепт.
+  const seriesCard = {
+    type: 'period',
+    kind: 'tradition',
+    tradition: 'orthodox',
+    items: [
+      { occasion_id: 'o1', title: 'Великдень', from: '2026-04-12', to: '2026-04-12', enabled: true },
+      { occasion_id: 'o2', title: 'Різдво', from: '2026-01-07', to: '2026-01-07', enabled: true },
+    ],
+  };
+
+  it('картка серії з чату стає активною вкладкою', async () => {
+    await mount();
+    await type('додай православні свята');
+    await submit();
+    await act(async () => {
+      waiting[0]!.resolve({ reply: 'Додав', card: seriesCard, card_id: 'period-1' });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(usePanelStore.getState().active).toBe('period-1');
+    expect(usePanelStore.getState().freshKeys).toContain('period-1');
+  });
+
+  it('серія не перебиває того, що людина відкрила руками секунду тому', async () => {
+    await mount();
+    // Спершу приїхав рецепт і став активним; людина лишила його відкритим.
+    await type('рецепт'); await submit();
+    await act(async () => {
+      waiting[0]!.resolve({ reply: 'ось', card: { type: 'recipe_link', recipe_id: 'r1', title: 'Борщ' }, card_id: 'rec-1' });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    // Рука: перемкнула на нього ж свідомо, просто зараз.
+    await act(async () => { usePanelStore.getState().setActive('rec-1'); });
+
+    await type('додай православні свята'); await submit();
+    await act(async () => {
+      waiting[1]!.resolve({ reply: 'Додав', card: seriesCard, card_id: 'period-1' });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(usePanelStore.getState().active).toBe('rec-1');
   });
 });
