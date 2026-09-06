@@ -228,15 +228,25 @@ export function serializeNow(rows: OccasionRow[], events: HouseholdEventRow[], n
   const items = nowItems(rows, events, now);
   const lines: string[] = [];
   const seenEvent = new Set<string>();
+  const today = isoDay(now);
   for (const it of items) {
     if (it.source === 'catalog') {
       const row = rows.find((r) => r.id === it.occasion_id) as WindowOccasion | undefined;
+      const until = `до ${shortDate(it.to)}${it.approx ? ' (орієнтовно, місячний календар)' : ''}`;
+      // П1а: сезон — одним рядком, без сенсу і без покупок: сім активних
+      // сезонів у вересні коштували по абзацу кожен. Сенс лишається суворому
+      // (правило) і святу, що закінчується в межах семи днів.
+      if (it.kind === 'season' || it.kind === 'editorial') {
+        lines.push(`${it.title} · ${until}`);
+        continue;
+      }
+      const soon = spanDays(today, it.to) <= 7;
       const parts = [
         it.title,
-        `до ${shortDate(it.to)}${it.approx ? ' (орієнтовно, місячний календар)' : ''}`,
-        it.rule_text ?? it.meaning ?? null,
+        until,
+        it.strict ? (it.rule_text ?? null) : (soon ? it.meaning ?? null : null),
         it.strict ? 'суворо' : 'мʼяко',
-        row?.buy?.length ? `варто докупити: ${row.buy.join(', ')}` : null,
+        (it.strict || soon) && row?.buy?.length ? `варто докупити: ${row.buy.join(', ')}` : null,
       ].filter(Boolean);
       lines.push(parts.join(' · '));
     } else if (it.id) {

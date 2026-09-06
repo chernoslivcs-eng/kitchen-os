@@ -175,3 +175,40 @@ describe('дрібниці', () => {
     expect(occasionWhat(BUILTIN_OCCASIONS.find((r) => r.id === 'lent')!)).toBe('піст');
   });
 });
+
+// П1а: вето лише по інгредієнтах; сезони в [ЗАРАЗ] одним рядком.
+describe('П1а', () => {
+  const lentRows = subscribedRows(BUILTIN_OCCASIONS, occasionSet(BUILTIN_OCCASIONS, 'orthodox').map((r) => ({ occasion_id: r.id, enabled: true })));
+
+  it('«пісний плов без мʼяса» під суворим постом проходить; фарш у rescues — ні', async () => {
+    const { vetoCard } = await import('./veto.js');
+    const index = periodVetoRows(lentRows, [], d(2026, 3, 5));
+    const call = { card: { type: 'proposal' as const, items: [
+      { title: 'Пісний плов без мʼяса', desc: 'Рис, нут і гриби — без мʼяса і без вершків.', why: 'у піст саме те', rescues: ['нут сушений', 'рис', 'гриби печериці'], needs: [] },
+      { title: 'Тефтелі', desc: 'Соковиті', rescues: ['свинячий фарш'], needs: ['сметана'] },
+    ] }, reply: 'Два варіанти.' };
+    const r = vetoCard(call, index);
+    expect(r.rejected.map((x) => x.title)).toEqual(['Тефтелі']);
+    expect(call.card?.items.map((i) => i.title)).toEqual(['Пісний плов без мʼяса']);
+  });
+
+  it('[ЗАРАЗ] із сімома активними сезонами — по рядку на сезон, без сенсу', () => {
+    const s = serializeNow(subscribedRows(BUILTIN_OCCASIONS, []), [], d(2026, 9, 6));
+    const body = s.split('\n').filter((l) => l && !l.startsWith('[ЗАРАЗ]') && !l.startsWith('ПОПЕРЕДУ') && !l.startsWith('Сезони й свята'));
+    expect(body.length).toBeGreaterThanOrEqual(7);
+    for (const l of body) expect(l.length, l).toBeLessThanOrEqual(60);
+    expect(s).not.toContain('варто докупити');
+    expect(s).not.toContain('Свіжі білі бувають');
+    expect(s.length).toBeLessThan(1500);
+  });
+
+  it('свято в межах семи днів несе сенс, суворе — правило', () => {
+    const cath = subscribedRows(BUILTIN_OCCASIONS, occasionSet(BUILTIN_OCCASIONS, 'catholic').map((r) => ({ occasion_id: r.id, enabled: true })));
+    // 20 грудня: Адвент закінчується 23-го — сенс є.
+    expect(serializeNow(cath, [], d(2026, 12, 20))).toContain('Адвент · до 23 груд. · Чотири тижні до Різдва');
+    // 5 грудня: до кінця 18 днів — без сенсу.
+    expect(serializeNow(cath, [], d(2026, 12, 5))).toContain('Адвент · до 23 груд. · мʼяко');
+    expect(serializeNow(cath, [], d(2026, 12, 5))).not.toContain('Чотири тижні');
+    expect(serializeNow(lentRows, [], d(2026, 3, 5))).toContain('Великий піст · до 11 квіт. · жодного мʼяса');
+  });
+});

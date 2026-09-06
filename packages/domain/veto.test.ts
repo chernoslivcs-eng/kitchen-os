@@ -45,7 +45,8 @@ describe('vetoCard (proposal)', () => {
   });
 
   it('усе відхилено рядком з allergy=true → репліка про алергію', () => {
-    const card: Card = { type: 'proposal', items: [{ title: 'Тости', desc: 'з арахісовою пастою', rescues: [] }] };
+    // П1а: вето читає лише інгредієнти (rescues/needs), не desc.
+    const card: Card = { type: 'proposal', items: [{ title: 'Тости', desc: 'з арахісовою пастою', rescues: [], needs: ['арахісова паста'] }] };
     const call = { card, reply: 'Тости.' };
     const r = vetoCard(call, peanut);
     expect(r.emptied).toBe(true);
@@ -62,8 +63,8 @@ describe('vetoCard (proposal)', () => {
     expect(vetoCard(intake, pesc).rejected).toEqual([]);
   });
 
-  it('відмінок у тексті кандидата: «кінзою» ловиться категорією кінза', () => {
-    const card: Card = { type: 'proposal', items: [{ title: 'Салат', desc: 'Помідори з кінзою', rescues: [] }, { title: 'Суп', desc: 'Гарбузовий', rescues: [] }] };
+  it('відмінок у інгредієнті: «кінзою» ловиться категорією кінза; desc не сканується', () => {
+    const card: Card = { type: 'proposal', items: [{ title: 'Салат', desc: 'Помідори', rescues: [], needs: ['пучок з кінзою'] }, { title: 'Суп', desc: 'Гарбузовий з кінзою', rescues: [] }] };
     const r = vetoCard({ card, reply: '' }, cilantro);
     expect(r.rejected.map((x) => x.title)).toEqual(['Салат']);
   });
