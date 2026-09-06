@@ -50,9 +50,11 @@ export function initSentry(dsn = process.env.SENTRY_DSN, force = false): void {
     Sentry.init({
       dsn,
       environment: process.env.VERCEL_ENV ?? 'development',
-      // Реліз спільний із фронтом (той самий коміт) — інакше в Sentry це два
-      // різні світи, і подію з браузера не звести з подією з лямбди.
-      release: process.env.VERCEL_GIT_COMMIT_SHA,
+      // Реліз спільний із фронтом: коміт, якщо деплой із git-інтеграції, і id
+      // деплою, якщо з CLI (тоді коміта Vercel не знає — саме так ми й
+      // деплоїмо). Символікація від релізу не залежить: її тримає debug id,
+      // вшитий у бандл на збірці.
+      release: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.VERCEL_DEPLOYMENT_ID,
       defaultIntegrations: false,
       integrations: [Sentry.dedupeIntegration()],
       // Трейсів не збираємо: див. рішення 1 вгорі.
