@@ -1,0 +1,22 @@
+{
+  "id": "product-absent-feature",
+  "description": "Раунд 5, крок К1: «як відсканувати штрих-код?» → сканування в [ЗНЯТО]: «цього нема», без інструкції з камерою, без картки.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "pantry": [
+    {"id":"p1","label":"Молоко","zone":"fridge","v":1000,"u":"ml","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "як відсканувати штрих-код?" }
+  ],
+  "invariants": [
+    "no-card",
+    "reply-matches:нема|немає|не вмі|не підтрим|не чита|не розпізна|не скану",
+    "reply-lacks:наведи",
+    "reply-lacks:камер",
+    "reply-lacks:натисни",
+    "summary-length:1-3",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

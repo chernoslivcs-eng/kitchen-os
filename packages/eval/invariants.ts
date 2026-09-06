@@ -1424,6 +1424,37 @@ export function resolve(name: string): Invariant {
     };
   }
 
+  // Раунд 5, крок К1: текстові перевірки reply для фікстур про додаток.
+  // `reply-includes:профіл` / `reply-lacks:скан` — фрагмент без урахування
+  // регістру; `reply-matches:нема|немає` — регулярка (без «:» усередині);
+  // `reply-last-sentence:нотат` — фрагмент саме в останньому реченні
+  // (product-mixed: спершу їжа, про додаток — одним реченням у кінці).
+  if (base === 'reply-includes') {
+    return (out) => {
+      const r = String(out.reply ?? '');
+      return r.toLowerCase().includes((arg ?? '').toLowerCase()) ? pass() : fail(`reply без «${arg}»: «${r.slice(0, 160)}»`);
+    };
+  }
+  if (base === 'reply-lacks') {
+    return (out) => {
+      const r = String(out.reply ?? '');
+      return r.toLowerCase().includes((arg ?? '').toLowerCase()) ? fail(`reply містить «${arg}»: «${r.slice(0, 160)}»`) : pass();
+    };
+  }
+  if (base === 'reply-matches') {
+    return (out) => {
+      const r = String(out.reply ?? '');
+      return new RegExp(arg ?? '', 'iu').test(r) ? pass() : fail(`reply не збігається з /${arg}/: «${r.slice(0, 160)}»`);
+    };
+  }
+  if (base === 'reply-last-sentence') {
+    return (out) => {
+      const sentences = String(out.reply ?? '').split(/(?<=[.!?…])\s+/).filter((x) => x.trim());
+      const last = sentences[sentences.length - 1] ?? '';
+      return last.toLowerCase().includes((arg ?? '').toLowerCase()) ? pass(last) : fail(`останнє речення без «${arg}»: «${last}»`);
+    };
+  }
+
   if (base === 'reply-max-length') {
     return (out) => {
       const n = String(out.reply ?? '').trim().length;

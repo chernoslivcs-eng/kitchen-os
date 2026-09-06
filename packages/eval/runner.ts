@@ -173,6 +173,10 @@ async function main() {
     if (only && !allPassed && result.raw) {
       console.log('      --- RAW ---');
       console.log(result.raw.split('\n').map((l) => '      ' + l).join('\n').slice(0, 4000));
+    } else if (only && result.reply) {
+      // Раунд 5 К1: у --only і на PASS показуємо reply — щоб приклад репліки
+      // для звіту не коштував окремого прогону.
+      console.log(`      reply: ${String(result.reply).replace(/\s+/g, ' ').slice(0, 400)}`);
     }
     // Верифікація кешування очима: перший прогін пише кеш (cache_write>0),
     // повторний у межах TTL — читає (cached>0). Обидва 0 на живому виклику =

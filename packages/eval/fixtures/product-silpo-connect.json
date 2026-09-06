@@ -1,0 +1,23 @@
+{
+  "id": "product-silpo-connect",
+  "description": "Раунд 5, крок К1: питання про сам додаток. «Як підключити сільпо?» → відповідь з [ПРО ДОДАТОК]: Профіль → Мережі, без картки, без вигадок про сканування чеків чи QR.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "pantry": [
+    {"id":"p1","label":"Молоко","zone":"fridge","v":1000,"u":"ml","state":"sealed"},
+    {"id":"p2","label":"Яйця","zone":"fridge","v":10,"u":"pcs","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "як підключити сільпо?" }
+  ],
+  "invariants": [
+    "no-card",
+    "reply-includes:профіл",
+    "reply-includes:мереж",
+    "reply-lacks:скан",
+    "reply-lacks:qr",
+    "summary-length:1-3",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

@@ -6,6 +6,7 @@ import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt }
 import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
 import { noteFrom,
   buildKitchenContext,
+  productMapFor,
   type KitchenMode,
   type HouseholdEventRow,
   extractJson,
@@ -440,7 +441,10 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
  * інший. Це той самий клас помилки, через який контекст свого часу переїхав
  * у домен: копія, яку ніхто не звіряє, рано чи пізно бреше.
  */
-export function buildDynamicContext(args: ChatArgs): string {
+// Раунд 5, крок К1: карта додатку йде в динаміку (після [ПРО ЛЮДИНУ]), а не
+// в стабільний префікс — і лише на ходах, де репліка про додаток. Рішення
+// приймає productMapFor; тут воно лише прокидається.
+export function buildDynamicContext(args: ChatArgs, productMap?: string | null): string {
   // Пул-3: згадане в розмові — гарантовано в кепі комори.
   const queryText = [
     args.text,
@@ -464,6 +468,7 @@ export function buildDynamicContext(args: ChatArgs): string {
     recipesTruncated: args.recipesTruncated,
     recentActions: args.recentActions,
     queryText,
+    productMap: productMap ?? null,
   });
 }
 
@@ -474,8 +479,8 @@ export function buildDynamicContext(args: ChatArgs): string {
 //
 // Сам контекст живе в @kitchen/domain — його ділять прод і eval. Поки він сидів
 // тут, eval складав власний промпт і перевіряв не те, що працює у проді.
-export function buildChatSystem(args: ChatArgs, promptText: string): string {
-  return promptText + buildDynamicContext(args);
+export function buildChatSystem(args: ChatArgs, promptText: string, productMap?: string | null): string {
+  return promptText + buildDynamicContext(args, productMap);
 }
 
 // Крок 6е: {reply,card} із сирого тексту відповіді — та сама логіка, потрібна
@@ -595,7 +600,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   // стабільний префікс; buildKitchenContext — динаміка. buildChatSystem
   // лишається конкатенацією тих самих двох частин для тестів контексту.
   const stable = compose('chat', prompt, { stage: args.stage });
-  const dynamic = buildDynamicContext(args);
+  const dynamic = buildDynamicContext(args, productMapFor(args.text, prompt.blocks['product-map']));
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
   const messages = [
