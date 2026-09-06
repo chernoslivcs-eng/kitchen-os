@@ -2,16 +2,18 @@
 // Це те саме, що в брифі: «система пропонує, людина замикає».
 // Розмір і колір керуються ззовні через props/tokens.
 
-import type { CSSProperties } from 'react';
+import type { CSSProperties, Ref } from 'react';
 
 interface Props {
   size?: number;
   variant?: 'default' | 'wordmark';
   className?: string;
   style?: CSSProperties;
+  /** Крок Д1: зона перетягування анімує вузол окремо від кільця (він дихає). */
+  coreRef?: Ref<SVGCircleElement>;
 }
 
-export function Logo({ size = 44, variant = 'default', className, style }: Props) {
+export function Logo({ size = 44, variant = 'default', className, style, coreRef }: Props) {
   const mark = (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <circle
@@ -22,7 +24,7 @@ export function Logo({ size = 44, variant = 'default', className, style }: Props
         strokeDasharray="104 15"
         transform="rotate(-58 24 24)"
       />
-      <circle cx="24" cy="24" r="6" fill="var(--accent)" />
+      <circle ref={coreRef} cx="24" cy="24" r="6" fill="var(--accent)" style={{ transformOrigin: '24px 24px' }} />
     </svg>
   );
   if (variant === 'default') return <span className={className} style={style}>{mark}</span>;

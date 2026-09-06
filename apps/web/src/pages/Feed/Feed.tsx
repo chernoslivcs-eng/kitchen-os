@@ -16,6 +16,7 @@ import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
+import { DropZone } from '../../components/DropZone/DropZone';
 import { useNavStore } from '../../store/nav';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
@@ -37,6 +38,11 @@ function splitPhrases(text: string): string[] {
   const parts = text.split(/(?<=[.!?…])\s+/).filter(Boolean);
   return parts.length ? parts : [text];
 }
+
+// Стеля вкладень за раз. Була числом усередині pickFiles; крок Д1 додав другого
+// читача (зона перетягування каже про стелю ДО того, як людина відпустила), і
+// два «5» в різних місцях розійшлись би за перший же перегляд.
+const MAX_ATTACHMENTS = 5;
 
 // Пул-9 №5: скільки реплік можна поставити в чергу, поки модель відповідає.
 // Три — стеля, за якою розмова перестає бути розмовою: далі кнопка відправки
@@ -656,8 +662,8 @@ export function Feed() {
 
   async function pickFiles(list: FileList | File[] | null) {
     if (!list || !('length' in list) || !list.length) return;
-    if (pending.length + list.length > 5) {
-      setToast({ id: Date.now(), kind: 'err', text: 'Максимум 5 вкладень за раз' });
+    if (pending.length + list.length > MAX_ATTACHMENTS) {
+      setToast({ id: Date.now(), kind: 'err', text: `Максимум ${MAX_ATTACHMENTS} вкладень за раз` });
       return;
     }
     setUploading(true);
@@ -1039,6 +1045,16 @@ export function Feed() {
     <div
       className={styles.screen}
     >
+      {/* Крок Д1: перетягнути файл можна у все вікно стрічки, не в композитор.
+          Обробники живуть усередині DropZone на window — тут лише межі
+          (скільки вже стоїть, яка стеля) і той самий pickFiles, що у скріпки:
+          ліміт, помилки й uploading рахує він, дублювати нічого. */}
+      <DropZone
+        pendingCount={pending.length}
+        max={MAX_ATTACHMENTS}
+        onFiles={(files) => void pickFiles(files)}
+        onFolder={() => setToast({ id: Date.now(), kind: 'err', text: 'Тека не піде — перетягни файли' })}
+      />
       {/* Шапка лишилась тільки заради аватара на мобайлі. Заголовок «Кухня»
           і лічильники «КОМОРА N · СПИСОК N» прибрані: обидва числа стоять у
           бічному меню (на мобайлі — в нижній смузі), а назва екрана й так
@@ -1665,7 +1681,7 @@ export function Feed() {
                 return;
               }
               const text = e.clipboardData.getData('text/plain');
-              if (text.length > 1500 && text.includes('\n') && pending.length < 5) {
+              if (text.length > 1500 && text.includes('\n') && pending.length < MAX_ATTACHMENTS) {
                 e.preventDefault();
                 void pasteAsAttachment(text);
               }
