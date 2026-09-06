@@ -16,6 +16,7 @@ import { RecipesPage } from './pages/Recipes/Recipes';
 import { CalendarPage } from './pages/Calendar/Calendar';
 import { AdminOccasionsPage } from './pages/Admin/AdminOccasions';
 import { PulsePage } from './pages/Admin/Pulse';
+import { BoomPage } from './pages/Admin/Boom';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
@@ -155,6 +156,9 @@ export function App() {
             <Route path="/admin/occasions" element={<AdminOccasionsPage />} />
             {/* Крок О1: пульс дня. Як і приводи — тільки прямим посиланням. */}
             <Route path="/admin/pulse" element={<PulsePage />} />
+            {/* Крок О1: димовий тест символікації. Падає навмисно — ловить
+                ErrorBoundary вище. Ніде в навігації не показаний. */}
+            <Route path="/admin/boom" element={<BoomPage />} />
           </Route>
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
           {/* Знайомство з Семеном — поза каркасом: без табів і панелі, як /share. */}

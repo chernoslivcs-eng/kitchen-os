@@ -45,8 +45,11 @@ export interface IncidentSink {
 /**
  * Записати інцидент. Ніколи не кидає: інцидент — це вже погана новина, і
  * впасти на її записі означало б перетворити guard на broke.
+ *
+ * Повертає короткий код події Sentry (вісім знаків) або null, якщо Sentry
+ * вимкнений. Код їде людині — щоб вона могла назвати аварію, а не описувати.
  */
-export function incident(sink: IncidentSink, kind: IncidentKind, name: string, ctx: IncidentCtx = {}): void {
+export function incident(sink: IncidentSink, kind: IncidentKind, name: string, ctx: IncidentCtx = {}): string | null {
   const { user_id = null, household_id = null, session_id = null, ...rest } = ctx;
   // Лог лишається: у проді він єдиний, хто бачить подію одразу, до того як її
   // прочитають на /admin/pulse.
@@ -54,11 +57,14 @@ export function incident(sink: IncidentSink, kind: IncidentKind, name: string, c
   if (kind === 'broke') sink.log.error(line, name);
   else sink.log.warn(line, name);
 
-  captureIncident(kind, name, ctx);
+  const eventId = captureIncident(kind, name, ctx);
+  // Вісім знаків: достатньо, щоб знайти подію пошуком, і достатньо коротко,
+  // щоб людина продиктувала його голосом. Той самий формат, що в ErrorBoundary.
+  const code = eventId ? eventId.slice(0, 8) : null;
 
   // user_id обовʼязковий у схемі: подія без людини нікому не потрібна — за нею
   // неможливо ні зіставити з розмовою, ні спитати «що в неї сталось».
-  if (!user_id) return;
+  if (!user_id) return code;
   void sink.repo
     .saveAppEvents([{
       id: randomUUID(),
@@ -69,4 +75,5 @@ export function incident(sink: IncidentSink, kind: IncidentKind, name: string, c
       created_at: new Date().toISOString(),
     }])
     .catch((err) => sink.log.error({ err, name }, 'incident-save-failed'));
+  return code;
 }
