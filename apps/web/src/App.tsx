@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { startTracking } from './lib/track';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Landing } from './pages/Landing/Landing';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
@@ -14,11 +15,13 @@ import { CookLogPage } from './pages/CookLog/CookLog';
 import { RecipesPage } from './pages/Recipes/Recipes';
 import { CalendarPage } from './pages/Calendar/Calendar';
 import { AdminOccasionsPage } from './pages/Admin/AdminOccasions';
+import { PulsePage } from './pages/Admin/Pulse';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
 import { OnboardingPage, onboardingSeen, markSeenLocally } from './pages/Onboarding/Onboarding';
 import { ErrorBoundary } from './components/ErrorState/ErrorBoundary';
+import { captureCrash } from './lib/sentry';
 import { ErrorScreen } from './components/ErrorState/ErrorScreen';
 import { SERVER_DOWN } from './components/ErrorState/copy';
 import { IncidentStrips, useIncidentSink } from './components/ErrorState/IncidentStrips';
@@ -54,6 +57,8 @@ function Shell() {
   // Крок Е1: 401/429/офлайн ловляться в api.req і показуються смугою тут —
   // одне місце на всі екрани.
   useIncidentSink();
+  // Крок О1а: черга подій поведінки. Живе стільки, скільки відкритий застосунок.
+  useEffect(() => startTracking(), []);
   return (
     <>
       <IncidentStrips />
@@ -129,7 +134,10 @@ export function App() {
   return (
     <BrowserRouter>
       <Boot>
-        <ErrorBoundary>
+        {/* Крок О1б: місце під код інциденту, залишене в Е1, тепер заповнене.
+            captureCrash повертає вісім знаків event id — той самий, що людина
+            бачить чипом на екрані падіння й може продиктувати. */}
+        <ErrorBoundary onError={(e, info) => captureCrash(e, info.componentStack)}>
         <Routes>
           <Route path="/" element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
@@ -145,6 +153,8 @@ export function App() {
             <Route path="/recipes" element={<RecipesPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/admin/occasions" element={<AdminOccasionsPage />} />
+            {/* Крок О1: пульс дня. Як і приводи — тільки прямим посиланням. */}
+            <Route path="/admin/pulse" element={<PulsePage />} />
           </Route>
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />
           {/* Знайомство з Семеном — поза каркасом: без табів і панелі, як /share. */}

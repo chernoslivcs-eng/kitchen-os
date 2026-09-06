@@ -6,6 +6,7 @@
 // Пізніше додасться списання партій, поживність за складом, рейтинг post-hoc.
 
 import { randomUUID } from 'node:crypto';
+import { incident } from '../incident.js';
 import type { FastifyInstance } from 'fastify';
 import type { RecipeRow, Repo, CookRunBatchChange } from '@kitchen/domain';
 import { catchesFor, subscribedRows, subscribedTraditions } from '@kitchen/domain';
@@ -298,7 +299,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
           });
         }
       } catch (err) {
-        req.log.warn({ err }, 'occasion-catch failed');
+        incident({ repo, log: req.log }, 'broke', 'occasion-catch-failed', { user_id, err: String(err) });
       }
 
       // Правка №6: перше слово пост-готування — детерміноване питання в сесії

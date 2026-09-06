@@ -1,0 +1,170 @@
+/* Крок О1: пульс дня. Голий екран, як і сусідня адмінка приводів — макета під
+   нього немає, і вигадувати йому власну мову означало б додати шар рішень
+   там, де потрібна лише читабельність. Тому тільки токени й таблиця. */
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  color: var(--fg);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.who {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.day {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.nav {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 5px 10px;
+}
+.nav:hover { background: var(--bg-hover); color: var(--fg); }
+.nav:disabled { opacity: 0.4; cursor: default; }
+
+.block { margin-top: 32px; }
+
+.blockTitle {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: 0 0 10px;
+}
+
+/* Таблиця широка (сім колонок у розмовах) — крутиться вона, не сторінка. */
+.scroll { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  padding: 0 12px 6px 0;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 7px 12px 7px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-mono);
+  white-space: nowrap;
+}
+
+.dim { color: var(--fg-dim); }
+
+/* Репліки не обрізаємо трьома крапками: сенс дня саме в тому, ЩО людина
+   написала. Ширину тримає колонка, висоту — сам текст. */
+.text {
+  min-width: 260px;
+  max-width: 520px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.roleUser { color: var(--fg-strong); }
+.roleAssistant { color: var(--fg-muted); }
+
+.state {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border-radius: 5px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.applied   { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-border); }
+.undone    { color: var(--amber);  background: var(--amber-bg);  border-color: var(--amber-border); }
+.dismissed { color: var(--fg-dim); background: var(--bg-surface-2); border-color: var(--border); }
+.waiting   { color: var(--plum);   background: var(--plum-bg);   border-color: var(--plum-border); }
+
+/* Інцидент видно очима, не читанням: guard — бурштин, broke — червоне. */
+.guard { color: var(--amber); }
+.broke { color: var(--danger); }
+
+.money {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.card {
+  flex: 1 1 240px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.cardTitle {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin-bottom: 8px;
+}
+
+.big {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: var(--fg-strong);
+}
+
+.sub {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin-top: 6px;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--fg-dim);
+  padding: 10px 0;
+}

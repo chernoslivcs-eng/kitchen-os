@@ -5,7 +5,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
-  SessionRow, MessageRow, EaterRow, LastAppliedIntake, IntakeCard,
+  SessionRow, MessageRow, EaterRow, LastAppliedIntake, IntakeCard, AppEventRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -272,6 +272,24 @@ export class InMemoryRepo implements Repo {
       source: (best.card as IntakeCard).source!,
       created_batch_ids: best.undo_snapshot?.before.created_batch_ids ?? [],
     };
+  }
+
+  // Крок О1а: події. Масив, а не мапа — читання завжди по часу, не по id.
+  private appEvents: AppEventRow[] = [];
+
+  async saveAppEvents(rows: AppEventRow[]): Promise<void> {
+    this.appEvents.push(...rows.map((r) => ({ ...r })));
+  }
+
+  async listAppEvents(user_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]> {
+    return this.appEvents
+      .filter((e) => e.user_id === user_id)
+      .filter((e) => {
+        const t = new Date(e.created_at).getTime();
+        return t >= opts.from.getTime() && t < opts.to.getTime();
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, opts.limit);
   }
 
   async saveAttachment(a: AttachmentRecord): Promise<void> {

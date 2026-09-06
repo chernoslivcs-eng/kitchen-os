@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 // Дев-режим: Vite на :5173, API-сервер (@kitchen/api) на :3000. Проксі однакова
 // на всі /v1/* — cookie 'kos' лягає на 5173, magic-link теж «повертається» сюди
@@ -9,8 +10,21 @@ import react from '@vitejs/plugin-react';
 // (/sw.js?v=<id>) щоб кожен deploy інвалідував старий кеш PWA.
 const BUILD_ID = Date.now().toString(36);
 
+// Крок О1б. Реліз — коміт: під ним у Sentry лежать сорсмепи фронта І бекенду,
+// тож стек із браузера й стек із лямбди читаються в одному релізі.
+// Локально коміта немає — реліз порожній, і Sentry просто не групує по ньому.
+const RELEASE = process.env.VERCEL_GIT_COMMIT_SHA ?? '';
+// Токен дає лише Vercel (SENTRY_AUTH_TOKEN у змінних проєкту). Немає токена —
+// плагін не підключається взагалі: локальна збірка й preview не мають ні
+// падати, ні мовчки лізти в чужу організацію.
+const SENTRY_UPLOAD = Boolean(process.env.SENTRY_AUTH_TOKEN && RELEASE);
+
 export default defineConfig({
   build: {
+    // Сорсмепи потрібні, щоб стек у Sentry був про наш код, а не про
+    // `chunk-A1B2.js:1:48210`. Плагін нижче вивантажує їх і ВИДАЛЯЄ з dist —
+    // публікувати сорсмепи разом зі збіркою ми не хочемо.
+    sourcemap: SENTRY_UPLOAD ? true : false,
     rollupOptions: {
       output: {
         // П.8 pre-deploy: react-рантайм окремим чанком — кешується між
@@ -21,9 +35,26 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    ...(SENTRY_UPLOAD ? [sentryVitePlugin({
+      // Організація в регіоні EU — API там свій, дефолтний sentry.io відповів
+      // би 404 на вивантаження.
+      url: process.env.SENTRY_URL ?? 'https://de.sentry.io',
+      org: process.env.SENTRY_ORG ?? 'kitchen-os-le',
+      project: process.env.SENTRY_PROJECT ?? 'kitchen-web',
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      release: { name: RELEASE },
+      sourcemaps: { filesToDeleteAfterUpload: ['apps/web/dist/**/*.map', 'dist/**/*.map'] },
+      telemetry: false,
+      // Збірка не має падати через Sentry: якщо вивантаження не вдалось,
+      // деплой усе одно має поїхати — просто стеки будуть неточні.
+      errorHandler: (err) => { console.warn('sentry: сорсмепи не вивантажились —', err.message); },
+    })] : []),
+  ],
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
+    __SENTRY_RELEASE__: JSON.stringify(RELEASE),
   },
   server: {
     port: 5173,

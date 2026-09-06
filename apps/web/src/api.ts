@@ -93,6 +93,43 @@ export interface Me {
   session_id: string;
 }
 
+// --- Крок О1: /admin/pulse -------------------------------------------------
+
+export interface PulseTurn {
+  at: string;
+  role: 'user' | 'assistant';
+  text: string | null;
+  card_type: string | null;
+  /** Стан картки словом: застосована / скасована / відхилена / чекає. */
+  card_state: string | null;
+  latency_ms: number | null;
+  /** null — не «безкоштовно», а «ціни цієї моделі не знаємо». */
+  usd: number | null;
+}
+
+export interface PulseMoney {
+  calls: number;
+  input: number;
+  output: number;
+  cached: number;
+  usd: number;
+}
+
+export interface PulseEvent {
+  id: string;
+  name: string;
+  props: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Pulse {
+  day: string;
+  user_id: string;
+  turns: PulseTurn[];
+  money: { day: PulseMoney; week: PulseMoney };
+  events: PulseEvent[];
+}
+
 export interface PantryBatch {
   id: string;
   household_id: string;
@@ -633,6 +670,10 @@ export const api = {
       unpublish: (id: string) => req<{ ok: true }>(`/v1/admin/occasions/${id}/unpublish`, { method: 'POST', body: '{}' }),
       remove: (id: string) => req<null>(`/v1/admin/occasions/${id}`, { method: 'DELETE' }),
     },
+    // Крок О1: пульс дня. day — YYYY-MM-DD у місцевих межах, user — чужий
+    // id, коли розбираєш не свій день.
+    pulse: (day: string, user?: string) =>
+      req<Pulse>(`/v1/admin/pulse?day=${encodeURIComponent(day)}${user ? `&user=${encodeURIComponent(user)}` : ''}`),
   },
 
   shopping: {

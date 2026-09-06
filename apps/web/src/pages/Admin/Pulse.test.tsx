@@ -1,0 +1,177 @@
+// @vitest-environment jsdom
+//
+// Крок О1: пульс дня.
+//
+// Що тут може зламатись тихо і дорого: сторінка мовчки покаже неправду про
+// гроші або про стан картки, і власник ухвалить рішення по ній. Тому предмет
+// тесту — саме числа й слова, а не наявність розмітки.
+//
+// CSS-модулі у vitest резолвляться в порожній обʼєкт — перевіряємо текст і
+// data-атрибути, не класи.
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { PulsePage } from './Pulse';
+
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+let root: Root | undefined;
+let host: HTMLDivElement | undefined;
+
+const json = (o: unknown) =>
+  new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
+
+const at = (h: number, m: number) => {
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+};
+
+const PULSE = {
+  day: '2026-09-06',
+  user_id: 'u-1',
+  turns: [
+    { at: at(9, 12), role: 'user', text: 'купив куряче філе', card_type: null, card_state: null, latency_ms: null, usd: null },
+    { at: at(9, 12), role: 'assistant', text: 'Записав.', card_type: 'intake_diff', card_state: 'застосована', latency_ms: 2400, usd: 0.0123 },
+    { at: at(19, 40), role: 'assistant', text: 'Ось що можна', card_type: 'recipe', card_state: 'відхилена', latency_ms: 5100, usd: null },
+  ],
+  money: {
+    day: { calls: 4, input: 12000, output: 800, cached: 9000, usd: 0.0412 },
+    week: { calls: 21, input: 70000, output: 4200, cached: 51000, usd: 0.2610 },
+  },
+  events: [
+    { id: 'e1', name: 'pantry_opened', props: {}, created_at: at(9, 10) },
+    { id: 'e0', name: 'attachment_added', props: { kind: 'image', how: 'drop' }, created_at: at(9, 11) },
+    { id: 'e2', name: 'incident:response-contains-allergen', props: { kind: 'guard', allergen: 'горіхи' }, created_at: at(19, 41) },
+    { id: 'e3', name: 'incident:chat-model-call-failed', props: { kind: 'broke' }, created_at: at(19, 42) },
+  ],
+};
+
+let calls: string[];
+
+function install(body: unknown = PULSE, status = 200) {
+  calls = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    calls.push(url);
+    if (status !== 200) return new Response('{"error":"not_found"}', { status });
+    return json(body);
+  }));
+}
+
+async function mount() {
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  root = createRoot(host);
+  await act(async () => { root!.render(<PulsePage />); });
+}
+
+beforeEach(() => { install(); });
+afterEach(() => {
+  act(() => root?.unmount());
+  host?.remove();
+  root = undefined; host = undefined;
+  vi.unstubAllGlobals();
+});
+
+describe('пульс дня', () => {
+  it('питає сьогоднішній день у місцевих межах, не в UTC', async () => {
+    // Різниця між місцевим днем і UTC видно лише вранці й пізно ввечері —
+    // тобто рівно тоді, коли цю сторінку й відкривають. Щоб тест ловив це
+    // завжди, а не залежав від годинного поясу машини, пояс і час задаємо самі:
+    // 2026-09-05 22:00 UTC — це вже 6 вересня в Токіо.
+    const tz = process.env.TZ;
+    process.env.TZ = 'Asia/Tokyo';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-05T22:00:00Z'));
+    try {
+      await mount();
+      expect(calls[0]).toBe('/v1/admin/pulse?day=2026-09-06');
+    } finally {
+      vi.useRealTimers();
+      if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz;
+    }
+  });
+
+  it('показує стан картки словом, а не прапорцем', async () => {
+    await mount();
+    const text = host!.textContent!;
+    expect(text).toContain('застосована');
+    expect(text).toContain('відхилена');
+  });
+
+  it('репліку не обрізає — сенс дня саме в тому, що людина написала', async () => {
+    await mount();
+    expect(host!.textContent).toContain('купив куряче філе');
+  });
+
+  it('ціна ходу — чотири знаки; без них центи обнулились би', async () => {
+    await mount();
+    expect(host!.textContent).toContain('$0.0123');
+  });
+
+  it('невідома ціна — риска, і це не те саме, що нуль', async () => {
+    await mount();
+    const rows = [...host!.querySelectorAll('tbody tr')];
+    // Третій хід: виклик був (латентність є), а ціни моделі ми не знаємо.
+    const cells = [...rows[2]!.querySelectorAll('td')].map((c) => c.textContent);
+    expect(cells[5]).toBe('5.1 с');
+    expect(cells[6]).toBe('—');
+    // Репліка людини викликів не робила — там просто порожньо, не «$0».
+    const first = [...rows[0]!.querySelectorAll('td')].map((c) => c.textContent);
+    expect(first[6]).toBe('');
+  });
+
+  it('юніт-економіка порахована до місяця — заради неї сторінка й існує', async () => {
+    await mount();
+    expect(host!.textContent).toContain('$0.0412');
+    // 0.0412 × 30 — оце й зіставляють із $5 підписки.
+    expect(host!.textContent).toContain('$1.24');
+  });
+
+  it('інциденти в стрічці названі родом, а не кодом', async () => {
+    await mount();
+    const text = host!.textContent!;
+    expect(text).toContain('response-contains-allergen');
+    expect(text).toContain('запобіжник');
+    expect(text).toContain('зламалось');
+    // Префікс `incident:` — службовий, людині його читати не треба.
+    expect(text).not.toContain('incident:');
+  });
+
+  it('подробиці події видно, а рід інциденту в них не дублюється', async () => {
+    await mount();
+    expect(host!.textContent).toContain('allergen=горіхи');
+    expect(host!.textContent).not.toContain('kind=guard');
+  });
+
+  it('«kind» у звичайній події — не рід інциденту, і його не ховаємо', async () => {
+    await mount();
+    // attachment_added каже kind='image' — це рід ВКЛАДЕННЯ, і без нього
+    // подія втрачає половину сенсу: лишається спосіб без предмета.
+    expect(host!.textContent).toContain('kind=image');
+    expect(host!.textContent).toContain('how=drop');
+  });
+
+  it('стороннього зустрічає 404 — сторінка не видає, що вона існує', async () => {
+    install(null, 404);
+    await mount();
+    expect(host!.textContent).toBe('404');
+  });
+
+  it('стрілка «день →» не пускає в майбутнє', async () => {
+    await mount();
+    const next = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('день →'))!;
+    expect(next.disabled).toBe(true);
+  });
+
+  it('крок назад перепитує саме попередній день', async () => {
+    await mount();
+    const prev = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('← день'))!;
+    await act(async () => { prev.click(); });
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const y = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    expect(calls[calls.length - 1]).toBe(`/v1/admin/pulse?day=${y}`);
+  });
+});

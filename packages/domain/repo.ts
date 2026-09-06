@@ -6,7 +6,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
-  LastAppliedIntake,
+  LastAppliedIntake, AppEventRow,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type {
@@ -115,6 +115,13 @@ export interface Repo {
   // передача з парсингом коштувала секунду з гаком на кожен відкритий екран
   // комори. Тут із бази виходять три поля одного рядка.
   lastAppliedIntake(household_id: string, since: Date): Promise<LastAppliedIntake | null>;
+
+  // Крок О1а: події поведінки й серверні інциденти.
+  // Пишуться пачкою: клієнт шле до 20 за раз, сервер пише інцидент по одному,
+  // і обидва шляхи не мають різнитись.
+  saveAppEvents(rows: AppEventRow[]): Promise<void>;
+  /** Стрічка дня для /admin/pulse: від найсвіжішого, з кепом. */
+  listAppEvents(user_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]>;
 
   // Вкладення
   saveAttachment(a: AttachmentRecord): Promise<void>;

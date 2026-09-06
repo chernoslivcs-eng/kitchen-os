@@ -4,7 +4,11 @@ import './styles/tokens.css';
 import './styles/reset.css';
 import { App } from './App';
 import { initTheme } from './theme';
+import { initSentry } from './lib/sentry';
 
+// Крок О1б: раніше за все інше — інакше падіння в initTheme або в першому
+// рендері нікуди не полетить.
+initSentry();
 initTheme();
 
 // Реєструємо service worker лише в проді — у dev-режимі Vite HMR ламатиметься.

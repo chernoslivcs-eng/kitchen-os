@@ -10,6 +10,7 @@
 // прибрати за нами.
 
 import { useEffect, useState } from 'react';
+import { track } from '../../lib/track';
 import { Button } from '../Button/Button';
 import styles from './Strip.module.css';
 
@@ -31,6 +32,8 @@ interface Props {
 
 export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone }: Props) {
   const timed = !cta && typeof seconds === 'number' && seconds > 0;
+  // Смуга — теж показана помилка, і без неї стрічка дня була б неповною.
+  useEffect(() => { track('error_shown', { state: kicker }); }, [kicker]);
   const [left, setLeft] = useState(seconds ?? 0);
 
   useEffect(() => {

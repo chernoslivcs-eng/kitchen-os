@@ -3,6 +3,7 @@
 // показуємо повідомлення й пропонуємо повернутись у стрічку.
 
 import { useEffect, useState } from 'react';
+import { track } from '../../lib/track';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
@@ -23,6 +24,8 @@ export function RecipePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  // Крок О1а: рецепт відкрили. Назви страви не шлемо — лише факт і чи має адресу.
+  useEffect(() => { track('recipe_opened', { saved: !!id }); }, [id]);
   // Р-3: рецепт живе за адресою. State — лише миттєвий кеш для першого рендера;
   // джерело істини — GET /v1/recipes/:id, тому F5 більше нічого не губить.
   const [fetched, setFetched] = useState<Recipe | null>(null);
