@@ -15,9 +15,6 @@ else
 fi
 
 pnpm run build:vercel-fn
-# Фронт вивантажує свої сорсмепи сам — плагіном усередині vite (vite.config.ts),
-# бо тільки збирач знає, які чанки він щойно зробив.
-pnpm --filter @kitchen/web build
 
 # --- Крок О1б: сорсмепи лямбди в Sentry ------------------------------------
 #
@@ -25,28 +22,48 @@ pnpm --filter @kitchen/web build
 # стек у Sentry виглядає як `server.mjs:1:2841097`, тобто не виглядає ніяк.
 #
 # `sourcemaps inject` вшиває у бандл і в мапу спільний debug id — саме за ним
-# SDK і Sentry знаходять одне одного. Без inject завантажена мапа не
-# приклеїлась би до події.
+# SDK і Sentry знаходять одне одного. Реліз тут ні до чого: він потрібен лише
+# для групування, а склеювання стека з мапою тримається на debug id. Тому
+# умова — ТІЛЬКИ токен.
 #
-# Умова — токен: його дає лише Vercel (SENTRY_AUTH_TOKEN у змінних проєкту).
-# Локальна збірка й preview проходять цей блок повз, і це навмисно.
-if [ -n "${SENTRY_AUTH_TOKEN:-}" ] && [ -n "${VERCEL_GIT_COMMIT_SHA:-}" ]; then
+# Перший захід на це виглядав так: `[ -n "$SENTRY_AUTH_TOKEN" ] && [ -n
+# "$VERCEL_GIT_COMMIT_SHA" ]`. Деплой ідемо з CLI, з відокремленого worktree —
+# git-метаданих Vercel там не має звідки взяти, і весь блок мовчки пройшов
+# повз при цілком наявному токені. Звідси ж і правило нижче: кожна гілка
+# каже, ЩО саме її обрало.
+RELEASE="${VERCEL_GIT_COMMIT_SHA:-${VERCEL_DEPLOYMENT_ID:-}}"
+
+if [ -n "${SENTRY_AUTH_TOKEN:-}" ]; then
   export SENTRY_URL="${SENTRY_URL:-https://de.sentry.io}"   # організація в EU
   export SENTRY_ORG="${SENTRY_ORG:-kitchen-os-le}"
+  echo "vercel-build: сорсмепи лямбди → Sentry (реліз ${RELEASE:-<без релізу>})"
   # Помилка вивантаження не має валити деплой: продукт від цього працює так
-  # само, просто стеки будуть неточні. Тому весь блок під `|| true`.
+  # само, просто стеки будуть неточні.
   (
     set +e
     pnpm exec sentry-cli sourcemaps inject api-dist
-    pnpm exec sentry-cli sourcemaps upload \
-      --project "${SENTRY_PROJECT_API:-kitchen-api}" \
-      --release "$VERCEL_GIT_COMMIT_SHA" \
-      api-dist
+    if [ -n "$RELEASE" ]; then
+      pnpm exec sentry-cli sourcemaps upload \
+        --project "${SENTRY_PROJECT_API:-kitchen-api}" --release "$RELEASE" api-dist
+    else
+      pnpm exec sentry-cli sourcemaps upload \
+        --project "${SENTRY_PROJECT_API:-kitchen-api}" api-dist
+    fi
   ) || echo "vercel-build: сорсмепи лямбди не вивантажились — деплой продовжуємо"
-  # Мапа в лямбді більше не потрібна: debug id уже в бандлі, а зайві 15 МБ у
-  # функції — це зайвий cold start.
-  rm -f api-dist/*.map
 else
-  echo "vercel-build: SENTRY_AUTH_TOKEN не задано → сорсмепи не вивантажуємо"
-  rm -f api-dist/*.map
+  echo "vercel-build: SENTRY_AUTH_TOKEN не задано → сорсмепи лямбди не вивантажуємо"
 fi
+# Мапа в лямбді більше не потрібна: debug id уже в бандлі, а зайві мегабайти у
+# функції — це зайвий cold start.
+rm -f api-dist/*.map
+
+# Фронт вивантажує свої сорсмепи сам — плагіном усередині vite (vite.config.ts),
+# бо тільки збирач знає, які чанки він щойно зробив. Іде останнім, бо йому
+# потрібен той самий RELEASE, що й лямбді.
+export SENTRY_RELEASE="$RELEASE"
+pnpm --filter @kitchen/web build
+
+# Пояс і шлейки: сорсмепи фронта видаляє сам плагін (filesToDeleteAfterUpload),
+# але якщо він упаде до цього кроку, мапи лишаться в dist і поїдуть у світ —
+# а вони і є вихідний код. Тому ще раз, руками.
+find apps/web/dist -name '*.map' -delete 2>/dev/null || true

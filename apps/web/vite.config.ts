@@ -10,14 +10,18 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 // (/sw.js?v=<id>) щоб кожен deploy інвалідував старий кеш PWA.
 const BUILD_ID = Date.now().toString(36);
 
-// Крок О1б. Реліз — коміт: під ним у Sentry лежать сорсмепи фронта І бекенду,
-// тож стек із браузера й стек із лямбди читаються в одному релізі.
-// Локально коміта немає — реліз порожній, і Sentry просто не групує по ньому.
-const RELEASE = process.env.VERCEL_GIT_COMMIT_SHA ?? '';
-// Токен дає лише Vercel (SENTRY_AUTH_TOKEN у змінних проєкту). Немає токена —
-// плагін не підключається взагалі: локальна збірка й preview не мають ні
-// падати, ні мовчки лізти в чужу організацію.
-const SENTRY_UPLOAD = Boolean(process.env.SENTRY_AUTH_TOKEN && RELEASE);
+// Крок О1б. Реліз спільний із лямбдою — його рахує scripts/vercel-build.sh і
+// передає сюди через SENTRY_RELEASE (коміт, якщо деплой із git-інтеграції;
+// id деплою, якщо з CLI — тоді коміта Vercel просто не знає).
+//
+// Порожній реліз — нормальний стан: склеювання стека з мапою тримається на
+// debug id, який плагін вшиває сам, а реліз потрібен лише для групування.
+const RELEASE = process.env.SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA || '';
+// Умова — ТІЛЬКИ токен. Спершу тут стояло `token && RELEASE`, і перший же
+// деплой із CLI пройшов повз вивантаження при цілком наявному токені.
+// Немає токена — плагін не підключається взагалі: локальна збірка й preview
+// не мають ні падати, ні мовчки лізти в чужу організацію.
+const SENTRY_UPLOAD = Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 export default defineConfig({
   build: {
@@ -44,7 +48,7 @@ export default defineConfig({
       org: process.env.SENTRY_ORG ?? 'kitchen-os-le',
       project: process.env.SENTRY_PROJECT ?? 'kitchen-web',
       authToken: process.env.SENTRY_AUTH_TOKEN,
-      release: { name: RELEASE },
+      ...(RELEASE ? { release: { name: RELEASE } } : {}),
       sourcemaps: { filesToDeleteAfterUpload: ['apps/web/dist/**/*.map', 'dist/**/*.map'] },
       telemetry: false,
       // Збірка не має падати через Sentry: якщо вивантаження не вдалось,
