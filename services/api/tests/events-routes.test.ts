@@ -51,13 +51,12 @@ describe('events routes · календар', () => {
     expect(mushroom?.kind).toBe('season');
   });
 
-  it('свято без розпізнаної традиції не приходить, із традицією — приходить', async () => {
-    // Святвечір має tradition=orthodox і без побажань лишається невидимим.
+  it('свято без підписки не приходить, із підпискою — приходить', async () => {
+    // Святвечір має tradition=orthodox і без підписки лишається невидимим.
     expect((await list('2026-12-20', '2026-12-24')).some((e) => e.id === 'xmas-eve')).toBe(false);
 
-    // Пишемо слова людини прямо в репозиторій: тест про календар, а не про
-    // форму патча профілю — інакше він падав би від чужої зміни.
-    await repo.patchProfileField(me.user_id, 'love', { text: 'святкуємо православні свята' });
+    // П1: традиція — підписка дому, не слова в профілі.
+    await repo.setOccasionSubscription(me.household_id, 'xmas-eve', true);
     expect((await list('2026-12-20', '2026-12-24')).some((e) => e.id === 'xmas-eve')).toBe(true);
   });
 
@@ -153,13 +152,11 @@ describe('events routes · календар', () => {
     expect((await list('2026-09-05', '2026-09-07')).some((e) => e.id === 'tomato-day-2026')).toBe(true);
   });
 
-  it('обмеження вимкнути не можна — воно не привід, а рамка', async () => {
-    // Піст людина взяла на себе побажанням у профілі; «не показувати» тут
-    // означало б тихо скасувати сказане. Знімається там, де ставилось.
-    const res = await app.inject({
-      method: 'POST', url: '/v1/events/mute/lent', headers: { cookie: me.cookie }, payload: {},
-    });
-    expect(res.statusCode).toBe(409);
+  it('П1: «не показувати» — це рядок підписки enabled=false; повернути — рядок геть', async () => {
+    await app.inject({ method: 'POST', url: '/v1/events/mute/tomato-day-2026', headers: { cookie: me.cookie }, payload: {} });
+    expect((await repo.listOccasionSubscriptions(me.household_id)).map((r) => [r.occasion_id, r.enabled])).toEqual([['tomato-day-2026', false]]);
+    await app.inject({ method: 'DELETE', url: '/v1/events/mute/tomato-day-2026', headers: { cookie: me.cookie } });
+    expect(await repo.listOccasionSubscriptions(me.household_id)).toEqual([]);
   });
 
   it('вимкнути неіснуючу подію — 404, а не тихе «ок»', async () => {

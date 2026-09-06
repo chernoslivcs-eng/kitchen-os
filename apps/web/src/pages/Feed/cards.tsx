@@ -4,7 +4,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
-import { EventArtifact } from '../../components/EventArtifact/EventArtifact';
+import { PeriodEvent, PeriodSeries, periodForm } from '../../components/PeriodArtifact/PeriodArtifact';
+import { dedupeTitle, seriesTitle, shortDate, TRADITION_LABEL } from '../../lib/period';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { api, type ChatCard, type Recipe, type ReceiptLeftover, type EventOccurrence, type ProfileFieldV2 } from '../../api';
@@ -123,6 +124,8 @@ export interface CardProps {
   onSummary?: () => void;
   onUndo?: () => void;
   onOpen?: (index: number) => void;
+  // П2: картка period у стрічці — один кадр із дією «Відкрити», що веде в панель.
+  onOpenArtifact?: () => void;
   // Крок 4.2: назви незакреслених позицій списку покупок. Потрібні, щоб
   // ПЕРЕД застосуванням сказати, скільки рядків чека закриють список.
   // Той самий збіг рахує applyCard (UX9-27) — але вже після натискання,
@@ -1469,12 +1472,65 @@ export function EventCard({ card }: CardProps) {
     return <div className={styles['card-empty']}>Подію прибрано.</div>;
   }
   if (!ev) return null;
-  return <EventArtifact key={ev.id} event={ev} compact onChanged={load} />;
+  return <PeriodEvent key={ev.id} event={ev} onChanged={load} />;
+}
+
+// П2 (2f): картка period у стрічці — підпис, заголовок, одне речення, дія
+// «Відкрити» в панель; у панелі — повна серія або подія. Стани
+// «запропоновано / записано / пропущено» — тією ж механікою, що в профілю.
+export function PeriodChatCard(props: CardProps) {
+  const { card, cardId, applied, applying, dismissed, undone, onApply, onDismiss, onOpenArtifact } = props;
+  const inPanel = useContext(PanelFootSlot) !== null;
+  const form = periodForm(card);
+  const items = ((card.items ?? []) as { occasion_id: string; title: string; from: string; to: string }[]).filter((i) => i && i.occasion_id);
+  if (inPanel) {
+    return form === 'series'
+      ? <PeriodSeries card={card} cardId={cardId} applied={applied} applying={applying} dismissed={dismissed} undone={undone} onApply={onApply} onDismiss={onDismiss} onNone={props.onNone} />
+      : <PeriodEvent card={card} cardId={cardId} applied={applied} applying={applying} dismissed={dismissed} undone={undone}
+          onApply={onApply as unknown as (selected?: number[]) => Promise<{ event_ids?: string[] } | void>} onDismiss={onDismiss} />;
+  }
+  const closed = (applied && !undone) || dismissed;
+  const kicker = form === 'series'
+    ? (card.unsubscribe || card.set === 'seasons' || !card.tradition ? 'СЕЗОНИ' : 'СВЯТА · З ТРАДИЦІЇ')
+    : card.kind === 'diet' ? 'ДІЄТА' : 'ПОДІЯ ДОМУ';
+  const kickerTone = form === 'series' ? (card.tradition ? 'var(--plum)' : 'var(--amber)') : 'var(--accent)';
+  const title = form === 'series'
+    ? (card.unsubscribe && items.length === 1 ? `${items[0]!.title} · не показувати`
+      : card.set === 'seasons' ? `Сезони · ${items.length}`
+      : card.tradition ? `${TRADITION_LABEL[card.tradition][0]!.toUpperCase()}${TRADITION_LABEL[card.tradition].slice(1)} свята · ${items.length} на рік`
+      : seriesTitle('seasons'))
+    : (dedupeTitle(card.title ?? '', card.rule_text).title ?? card.title ?? 'період');
+  const line = form === 'series'
+    ? (card.unsubscribe ? 'Зніму з календаря і з підказок.'
+      : card.set === 'seasons' ? (card.all ? 'Поверну сезони. Зніми, що не твоє.' : 'Зніму всі сезони з календаря і підказок. Що лишити — познач у картці.')
+      : 'Дати з календаря на кілька років уперед. Зніми зайве — і в календар.')
+    : [dedupeTitle(card.title ?? '', card.rule_text).rule,
+      card.resolved ? (card.resolved.from === card.resolved.to ? shortDate(card.resolved.from) : `з ${shortDate(card.resolved.from)} до ${shortDate(card.resolved.to)}`) : null,
+      card.strict ? 'суворо' : null].filter(Boolean).join(' · ');
+  const meta = dismissed ? 'Пропущено'
+    : applied && !undone ? (form === 'series' ? (card.unsubscribe ? 'Не показую' : card.set === 'seasons' ? 'Записано в календар' : `Записано в календар: ${items.length}`) : 'Записано в календар')
+    : undone ? 'Скасовано'
+    : form === 'series' ? `→ у календар: ${items.length}` : '→ у календар';
+  return (
+    <div className={stateClass(applied, undone)} data-testid="period-chat-card">
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 'var(--tracking-caps)', textTransform: 'uppercase', color: kickerTone }}>{kicker}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17, lineHeight: 1.25, letterSpacing: '-0.01em', color: 'var(--fg)', marginTop: 6 }}>{title}</div>
+      {line && <div style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--fg-muted)', marginTop: 4 }}>{line}</div>}
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: applied && !undone ? 'var(--accent)' : 'var(--fg-dim)', marginTop: 6 }}>{meta}</div>
+      {!closed && !undone && (
+        <div className={styles['card-actions']}>
+          <Button variant="primary" onClick={onOpenArtifact} disabled={applying}>Відкрити</Button>
+          <Button variant="secondary" onClick={onDismiss} disabled={applying}>Ні</Button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Card(props: CardProps) {
   switch (props.card.type) {
     case 'event':       return <EventCard {...props} />;
+    case 'period':      return <PeriodChatCard {...props} />;
     case 'intake_diff': return <IntakeCard {...props} />;
     case 'cart':        return <RetailCartCard {...props} />;
     case 'proposal':    return <ProposalCard {...props} />;
@@ -1513,6 +1569,11 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
   }
   // Крок 4в (5): профіль — не комора. Одна фраза для обох форм картки (поле і ops).
   if (card.type === 'profile') return 'Записано в „Про тебе"';
+  // П2: серія — скільки рядків у календар; запис — один.
+  if (card.type === 'period') {
+    const n = appliedCount ?? (card.items?.length ?? 1);
+    return card.kind === 'tradition' || card.unsubscribe ? `Записано в календар: ${n}` : 'Записано в календар';
+  }
   const count = appliedCount ?? (card.type === 'shopping' || card.type === 'proposal'
     ? (card.items?.length ?? 0)
     : (card.ops?.length ?? 0));
@@ -1545,6 +1606,8 @@ export function labelFor(
     // Імпорт із книжки — не вигадка моделі, і мітка має це розрізняти.
     : type === 'recipe' ? 'РЕЦЕПТ'
     : type === 'cook_photo' ? 'ЖУРНАЛ'
+    // П2: період — календар; статус (ОЧІКУЄ) — з режиму confirm.
+    : type === 'period' ? 'КАЛЕНДАР'
     : 'ПРОПОЗИЦІЯ';
   // Аудит раунд 3, крок 3: статус — з режиму застосування (card-modes.ts),
   // не захардкожений тут другою правдою. mode === 'none' (proposal тощо) —

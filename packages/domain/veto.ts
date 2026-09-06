@@ -92,7 +92,10 @@ export function vetoCard(call: { card: Card | null; reply?: string | null }, ful
   const rejected: VetoRejection[] = [];
   const keep = call.card.items.filter((it) => {
     const named = candidateNamedByUser(it.title, userText);
-    const parts = [it.title, it.desc, it.why, ...(it.rescues ?? []), ...(it.needs ?? [])].filter((p): p is string => !!p);
+    // П1а: лише список інгредієнтів (rescues + needs). title/desc/why — мова
+    // страви, і «пісний плов без мʼяса» під суворим постом різався саме за
+    // слово «мʼяса» в описі: згадка відсутнього — не інгредієнт.
+    const parts = [...(it.rescues ?? []), ...(it.needs ?? [])].filter((p): p is string => !!p);
     for (const p of parts) {
       const rows = dietRowsOnly(matchVeto(p, index), named || candidateNamedByUser(p, userText));
       if (rows.length) { rejected.push({ title: it.title, ingredient: p, rows }); return false; }

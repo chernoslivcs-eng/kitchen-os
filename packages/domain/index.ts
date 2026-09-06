@@ -23,3 +23,6 @@ export * from './assistant-notes.js';
 export * from './nutrition.js';
 export * from './pantry-view.js';
 export * from './product-question.js';
+export * from './periods.js';
+export * from './hebrew-calendar.js';
+export * from './islamic-calendar.js';

@@ -85,6 +85,9 @@
 .t-own      { --t: var(--accent); }
 .t-season   { --t: var(--amber); }
 .t-restrict { --t: var(--plum); }
+.t-tradition { --t: var(--plum); }
+/* П2 (2e): системне — тлом, 45%; своє — яскраво у своєму тоні. */
+.sys { opacity: 0.45; }
 .t-grey     { --t: var(--fg-dim); }
 
 /* Заголовок тижня. */
@@ -242,3 +245,22 @@
 @keyframes ev-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(4px); } }
 .ev-flash { animation: ev-flash 700ms var(--ease-standard, ease) both !important; border-radius: 6px; }
 @keyframes ev-flash { from { background: color-mix(in srgb, var(--accent) 18%, transparent); } to { background: transparent; } }
+
+/* П2 (2e): підвал календаря — приховані сезони і свята традицій. */
+.foot {
+  margin: 18px 0 30px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 13.5px;
+  color: var(--fg-muted);
+}
+.foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.foot-label {
+  width: 72px; flex: none;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.foot-value { color: var(--fg-muted); }
+.foot-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
+.foot-link:hover { text-decoration: underline; }

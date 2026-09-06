@@ -209,6 +209,7 @@
    Сірий рід власної пари не має і бере поверхню-2 з сильною межею. */
 .t-own      { --t: var(--accent); --t-bg: var(--accent-bg); --t-border: var(--accent-border); }
 .t-season   { --t: var(--amber);  --t-bg: var(--amber-bg);  --t-border: var(--amber-border); }
+.t-tradition { --t: var(--plum);   --t-bg: var(--plum-bg);   --t-border: var(--plum-border); }
 .t-restrict { --t: var(--plum);   --t-bg: var(--plum-bg);   --t-border: var(--plum-border); }
 .t-grey     { --t: var(--fg-dim); --t-bg: var(--bg-surface-2); --t-border: var(--border-strong); }
 

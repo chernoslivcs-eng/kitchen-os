@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
-import { api, type SessionInfo, type EventOccurrence } from '../../api';
-import { whenLabel, isLive } from '../../lib/when';
-import { bubblesToNow } from '../../lib/spans';
-import { toneKey } from '../../lib/tone';
+import { api, type SessionInfo, type NowItem } from '../../api';
+import { toneOfNow, leftLabel } from '../../lib/period';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -38,25 +36,17 @@ interface Props {
 let shoppingCountCache: { value: number; at: number } | null = null;
 // «ЗАРАЗ» — той самий патерн кешу: блок живе в каркасі й не мусить смикати
 // календар на кожну навігацію.
-let nowCache: { value: EventOccurrence[]; at: number } | null = null;
+let nowCache: { value: NowItem[]; at: number } | null = null;
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
- * Дві події для блоку: спершу те, що триває (і закінчується раніше), потім
- * найближче попереду. Більше двох — це вже календар, а не натяк.
- *
- * Тривала подія підіймається сюди лише краями — перший день і останні три.
- * Піст на 48 днів не мовчить у «ЗАРАЗ» тільки двічі: на вході й на виході.
- * Середина нічого не змінює, і нагадувати про неї щодня означало б знецінити
- * блок так само, як його свого часу знецінили лічильники у звіті дня.
+ * П2: «Зараз» — з GET /v1/now (приводи крізь підписку і записи дому одним
+ * контрактом), до трьох активних; суворе — першим, далі за кінцем. Дієта в
+ * тому ж ряду, що сезон.
  */
-export function pickNow(events: EventOccurrence[], now = Date.now()): EventOccurrence[] {
-  const live = events
-    .filter((e) => isLive(e.start, e.end, now) && bubblesToNow(e, now))
-    .sort((a, b) => a.end - b.end);
-  const ahead = events.filter((e) => e.start > now).sort((a, b) => a.start - b.start);
-  return [...live, ...ahead].slice(0, 2);
+export function pickNow(items: NowItem[]): NowItem[] {
+  return [...items].sort((a, b) => Number(b.strict) - Number(a.strict) || a.to.localeCompare(b.to)).slice(0, 3);
 }
 
 export function TabBar({ shoppingCount }: Props) {
@@ -81,20 +71,18 @@ export function TabBar({ shoppingCount }: Props) {
   const pantryVersion = usePantryStore((s) => s.version);
 
   // Блок «ЗАРАЗ»: горизонт 21 день — той самий, що в контексті промпта.
-  const [nowEvents, setNowEvents] = useState<EventOccurrence[]>(nowCache?.value ?? []);
+  const [nowEvents, setNowEvents] = useState<NowItem[]>(nowCache?.value ?? []);
   // Моушн-кіт §03: картка, що пішла з «ЗАРАЗ», згортається 250ms exit, а не
   // зникає між двома фетчами; нова входить base/enter (див. .now-row).
   const [leavingNow, setLeavingNow] = useState<Set<string>>(new Set());
-  const nowRef = useRef<EventOccurrence[]>(nowEvents);
+  const nowRef = useRef<NowItem[]>(nowEvents);
   nowRef.current = nowEvents;
-  const nowKey = (e: EventOccurrence) => `${e.scope}:${e.id}:${e.start}`;
+  const nowKey = (e: NowItem) => `${e.occasion_id ?? e.id}:${e.from}`;
   useEffect(() => {
     if (nowCache && Date.now() - nowCache.at < 60_000) return;
-    const today = new Date();
-    const to = new Date(today.getTime() + 21 * 86_400_000);
-    api.events.list(iso(today), iso(to))
-      .then(({ events }) => {
-        const picked = pickNow(events);
+    api.events.now()
+      .then(({ now }) => {
+        const picked = pickNow(now);
         nowCache = { value: picked, at: Date.now() };
         const next = new Set(picked.map(nowKey));
         const gone = nowRef.current.map(nowKey).filter((k) => !next.has(k));
@@ -257,18 +245,16 @@ export function TabBar({ shoppingCount }: Props) {
           <div className={styles['now-label']}>ЗАРАЗ</div>
           {nowEvents.map((e) => (
             <button
-              key={`${e.scope}:${e.id}:${e.start}`}
-              className={`${styles['now-row']} ${styles[`t-${toneKey(e)}`]} ${leavingNow.has(nowKey(e)) ? styles['now-leave'] : ''}`}
+              key={nowKey(e)}
+              className={`${styles['now-row']} ${styles[`t-${toneOfNow(e)}`]} ${leavingNow.has(nowKey(e)) ? styles['now-leave'] : ''}`}
               onClick={() => navigate('/calendar')}
-              title={e.meaning ?? e.title}
+              title={e.rule_text ?? e.meaning ?? e.title}
             >
-              {/* ● — триває зараз, ◌ — попереду: той самий словник крапок, що
-                  в смужці 44px і в банері готування. */}
-              <span className={styles['now-dot']}>{isLive(e.start, e.end) ? '●' : '◌'}</span>
+              <span className={styles['now-dot']}>●</span>
               <span className={styles['now-text']}>
                 <span className={styles['now-title']}>{e.title}</span>
                 <span className={styles['now-when']}>
-                  {whenLabel(e.start, e.end)}{e.approx ? ' · орієнтовно' : ''}
+                  {leftLabel(e.from, e.to) ?? 'триває'}{e.approx ? ' · орієнтовно' : ''}{e.strict ? ' · суворо' : ''}
                 </span>
               </span>
             </button>

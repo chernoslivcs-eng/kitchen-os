@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { RecipeRow, Repo, CookRunBatchChange } from '@kitchen/domain';
-import { catchesFor, resolveTraditions } from '@kitchen/domain';
+import { catchesFor, subscribedRows, subscribedTraditions } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import type { Recipe } from '../model.js';
 import { WRITEOFF_PROMPT } from '../post-cook.js';
@@ -287,7 +287,9 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
       // «спіймав сезон грибів!» у відповідь на вечерю було б тим самим.
       // Помилка тут не має ламати готування: журнал важливіший за марку.
       try {
-        const hits = catchesFor(recipe, new Date(now), await resolveTraditions(repo, user_id));
+        // П1: спіймати можна лише те, на що дім підписаний.
+        const rows = subscribedRows(await repo.listOccasionCatalog(), await repo.listOccasionSubscriptions(household_id));
+        const hits = catchesFor(recipe, new Date(now), subscribedTraditions(rows), rows);
         for (const h of hits) {
           await repo.recordOccasionCatch({
             household_id, occasion_id: h.occasion_id,

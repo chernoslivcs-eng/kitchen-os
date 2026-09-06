@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
-import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow } from './types.js';
+import type { PantryBatch, IntakeCard, HouseholdEventRow, EventCard, AdminOccasionRow, PeriodCard } from './types.js';
 import { noteHash, type ProfileNote, type VetoRow } from './profile-text.js';
 import { createPending, applyCard, undoCard, dismissCard } from './apply.js';
 import { displayName } from './product.js';
@@ -465,7 +465,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         note: 'тиждень готуємо з нею',
         // Разова з тривалістю — форма, якої немає в жодного глобального свята.
         rule: { t: 'once', at: '2026-09-10', days: 7 },
-        force: 'hint', restricts: null,
+        force: 'hint', restricts: null, from: null, to: null, rule_text: null, strict: false,
         buy: [], recipe_id: null, servings: null,
         supply: [{ label: 'цибуля', v: 3, u: 'kg' }],
         created_by: user_id, source: 'user',
@@ -518,10 +518,11 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(lent && 'restricts' in lent ? lent.restricts : null).toContain('жодного мʼяса');
       expect(lent?.rule).toEqual({ t: 'easter', from: -48, to: -1 });
 
-      // Якорі — точки, а не сезони: meaning у них немає, і це не дефект.
+      // П1: Песах — вікно з дат гебрейського календаря, з вечора напередодні.
       const pesach = catalog.find((o) => o.id === 'pesach');
       expect(pesach?.tradition).toBe('jewish');
-      expect(pesach && 'meaning' in pesach && pesach.meaning != null).toBe(false);
+      expect(pesach?.rule).toMatchObject({ t: 'dates', days: 9 });
+      expect(pesach && pesach.rule.t === 'dates' ? pesach.rule.at[0] : '').toBe('2026-04-01');
 
       // Рамадан — вікно з дат по роках: має meaning, і орієнтовність не губиться
       // на дорозі через таблицю.
@@ -531,19 +532,22 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(ramadan && 'meaning' in ramadan ? ramadan.meaning : '').toContain('іфтар');
     });
 
-    // Традиції (крок 11 — на user): «не обирала» (null) і «вимкнула все» ([])
-    // — різні стани, і сховище мусить повертати їх різними.
-    it('традиції: null ≠ [], вибір переживає перечитування', async () => {
-      const { repo } = ctx;
-      // Справжній рядок user — ctx.user_id у памʼятній реалізації лише id.
-      const { user_id } = await repo.createUserWithHousehold(`trad-${randomUUID()}@x.local`, 'Т');
-      expect((await repo.getUser(user_id))?.traditions ?? null).toBeNull();
-      await repo.setTraditions(user_id, []);
-      expect((await repo.getUser(user_id))?.traditions).toEqual([]);
-      await repo.setTraditions(user_id, ['catholic', 'islamic']);
-      expect((await repo.getUser(user_id))?.traditions).toEqual(['catholic', 'islamic']);
-      await repo.setTraditions(user_id, null);
-      expect((await repo.getUser(user_id))?.traditions ?? null).toBeNull();
+    // П1: підписка дому на довідник. Рядок — лише відхилення від дефолту;
+    // null прибирає рядок, і сховище мусить розрізняти «нема рядка» від «false».
+    it('підписки: рядок живе як відхилення, null повертає дефолт', async () => {
+      const { repo, household_id } = ctx;
+      expect(await repo.listOccasionSubscriptions(household_id)).toEqual([]);
+      await repo.setOccasionSubscription(household_id, 'melon', false);
+      await repo.setOccasionSubscription(household_id, 'advent', true);
+      const rows = await repo.listOccasionSubscriptions(household_id);
+      expect(rows.map((r) => [r.occasion_id, r.enabled]).sort()).toEqual([['advent', true], ['melon', false]]);
+      // Повторний запис — той самий рядок, інше значення.
+      await repo.setOccasionSubscription(household_id, 'melon', true);
+      expect((await repo.listOccasionSubscriptions(household_id)).find((r) => r.occasion_id === 'melon')?.enabled).toBe(true);
+      await repo.setOccasionSubscription(household_id, 'melon', null);
+      expect((await repo.listOccasionSubscriptions(household_id)).map((r) => r.occasion_id)).toEqual(['advent']);
+      // Зняти те, чого не було, — тихо.
+      await repo.setOccasionSubscription(household_id, 'melon', null);
     });
 
     // Адмінка v0 (фаза 4): чернетка не потрапляє в жоден зі звичайних
@@ -608,7 +612,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(list[0]?.title).toBe('гості, шестеро');
       expect(list[0]?.servings).toBe(6);
       // Слід авторства: інакше не розібрати, звідки в календарі те, чого не просили.
-      expect(list[0]?.source).toBe('model');
+      expect(list[0]?.source).toBe('chat');
 
       await undoCard(repo, mid, undo_token, user_id);
       expect(await repo.listOwnEvents(household_id, user_id)).toHaveLength(0);
@@ -624,6 +628,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const base = {
         household_id, kind: 'custom' as const, note: null,
         rule: { t: 'once' as const, at: '2026-09-12' }, force: 'hint' as const, restricts: null,
+        from: null, to: null, rule_text: null, strict: false,
         buy: [], recipe_id: null, servings: null, supply: null, source: 'user' as const,
         expires_at: null, done_at: null, created_at: new Date().toISOString(),
       };
@@ -647,13 +652,11 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect((await repo.getHouseholdEvent(theirs))?.title).toBe('їхні гості');
     });
 
-    // Вимикання редакційної теж особисте: сама подія спільна для всіх, але
-    // рішення прибрати її зі свого календаря — про свій вигляд.
-    it('вимикання приватне: сусід по дому далі бачить подію', async () => {
-      const { repo, user_id, other_user_id } = ctx;
-      await repo.muteOccasion(user_id, 'tomato-day-2026');
-      expect(await repo.listMutedOccasions(user_id)).toEqual(['tomato-day-2026']);
-      expect(await repo.listMutedOccasions(other_user_id)).toEqual([]);
+    // П1: підписка домова — сусід по дому бачить той самий календар підписок.
+    it('підписка домова: сусід по дому бачить ту саму відписку', async () => {
+      const { repo, household_id } = ctx;
+      await repo.setOccasionSubscription(household_id, 'tomato-day-2026', false);
+      expect((await repo.listOccasionSubscriptions(household_id)).map((r) => r.occasion_id)).toEqual(['tomato-day-2026']);
     });
 
     it('картка event: правка й закриття вертаються повним рядком', async () => {
@@ -661,7 +664,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const id = randomUUID();
       await repo.insertHouseholdEvent({
         id, household_id, kind: 'custom', title: 'гості', note: 'четверо',
-        rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null,
+        rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null, from: null, to: null, rule_text: null, strict: false,
         buy: [], recipe_id: null, servings: 4, supply: null,
         created_by: user_id, source: 'user',
         expires_at: null, done_at: null, created_at: new Date().toISOString(),
@@ -693,7 +696,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       // стояти не може — це зовнішній ключ, і Postgres його не пустить.
       await repo.insertHouseholdEvent({
         id: alien, household_id, kind: 'custom', title: 'їхні гості',
-        note: null, rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null,
+        note: null, rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null, from: null, to: null, rule_text: null, strict: false,
         buy: [], recipe_id: null, servings: null, supply: null,
         created_by: other_user_id, source: 'user', expires_at: null, done_at: null,
         created_at: new Date().toISOString(),
@@ -708,22 +711,40 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await repo.getHouseholdEvent(alien)).not.toBeNull();
     });
 
-    it('«не показувати такі»: вимкнення живе, поки його не знято', async () => {
-      const { repo, user_id } = ctx;
-      expect(await repo.listMutedOccasions(user_id)).toEqual([]);
+    // П1: картка period — підписка на набір і запис дому з датами; undo
+    // повертає підписки і прибирає запис.
+    it('картка period: традиція → підписки, дієта → запис; undo вертає все', async () => {
+      const { repo, household_id, user_id } = ctx;
+      const mid = randomUUID();
+      const catholic: PeriodCard = {
+        type: 'period', kind: 'tradition', tradition: 'catholic',
+        items: [
+          { occasion_id: 'advent', title: 'Адвент', from: '2026-12-01', to: '2026-12-23', enabled: false, what: 'докупити', strict: false },
+          { occasion_id: 'xmas-cath', title: 'Різдво', from: '2026-12-24', to: '2026-12-26', enabled: false, what: 'святкова вечеря', strict: false },
+        ],
+      };
+      await createPending(repo, { message_id: mid, household_id, user_id, card: catholic });
+      const r1 = await applyCard(repo, mid, [0], user_id);
+      // П2a: галочки — цільовий стан усіх рядків картки: Адвент увімкнено,
+      // Різдво знято (= дефолт, рядка нема). Лягло два рішення.
+      expect(r1.applied).toBe(2);
+      expect((await repo.listOccasionSubscriptions(household_id)).map((s) => [s.occasion_id, s.enabled])).toEqual([['advent', true]]);
+      await undoCard(repo, mid, r1.undo_token, user_id);
+      expect(await repo.listOccasionSubscriptions(household_id)).toEqual([]);
 
-      await repo.muteOccasion(user_id, 'tomato-day-2026');
-      expect(await repo.listMutedOccasions(user_id)).toEqual(['tomato-day-2026']);
-
-      // Повторне вимкнення — не помилка й не другий рядок: людина могла
-      // натиснути двічі, і це не привід падати.
-      await repo.muteOccasion(user_id, 'tomato-day-2026');
-      expect(await repo.listMutedOccasions(user_id)).toHaveLength(1);
-
-      await repo.unmuteOccasion(user_id, 'tomato-day-2026');
-      expect(await repo.listMutedOccasions(user_id)).toEqual([]);
-      // Зняти те, чого не вимикали, теж має бути тихо.
-      await repo.unmuteOccasion(user_id, 'tomato-day-2026');
+      const mid2 = randomUUID();
+      const diet: PeriodCard = {
+        type: 'period', kind: 'diet', title: 'білкова', rule_text: 'більше білка, менше вуглеводів',
+        resolved: { from: '2026-09-06', to: '2026-10-05' },
+      };
+      await createPending(repo, { message_id: mid2, household_id, user_id, card: diet });
+      const r2 = await applyCard(repo, mid2, [], user_id);
+      expect(r2.applied).toBe(1);
+      const mine = await repo.listOwnEvents(household_id, user_id);
+      expect(mine).toHaveLength(1);
+      expect(mine[0]).toMatchObject({ kind: 'diet', title: 'білкова', from: '2026-09-06', to: '2026-10-05', strict: false, source: 'chat', rule: { t: 'once', at: '2026-09-06', days: 30 } });
+      await undoCard(repo, mid2, r2.undo_token, user_id);
+      expect(await repo.listOwnEvents(household_id, user_id)).toEqual([]);
     });
 
     it('спіймане вікно: пишеться раз на рік і памʼятає, чим саме', async () => {

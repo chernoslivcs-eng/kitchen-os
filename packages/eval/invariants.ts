@@ -3,16 +3,14 @@
 // Ім'я з двокрапкою — параметричне: `topic-holds:плескавиц` → перевіряє входження підрядка.
 
 import type { Fixture } from './fixtures/index.js';
-import { applyMode, CARD_BUTTON_LABEL, buildVetoIndex, vetoCard, vetoRecipe, stripVetoMentions, matchVeto, resolveRecipeLabels, normalizeNoteText, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
+import { vetoIndexOfFixture } from './model-client.js';
+import { applyMode, CARD_BUTTON_LABEL, vetoCard, vetoRecipe, stripVetoMentions, matchVeto, resolveRecipeLabels, normalizeNoteText, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
 
 // Індекс вето з фікстури: profile_text.no / .ban → buildVetoIndex (той самий
 // витяг, що PATCH /v1/profile/:key у проді).
+// П1: той самий індекс, що в конвеєрі (профіль + суворі періоди по датах).
 function vetoIndexOf(fx: Fixture): VetoRow[] {
-  const pt = fx.profile_text ?? {};
-  return [
-    ...(pt.no && pt.no !== 'none' ? buildVetoIndex('u1', 'no', pt.no) : []),
-    ...(pt.ban && pt.ban !== 'none' ? buildVetoIndex('u1', 'ban', pt.ban) : []),
-  ];
+  return vetoIndexOfFixture(fx);
 }
 
 export interface ModelOutput {
@@ -32,7 +30,7 @@ const pass = (detail?: string): Verdict => ({ pass: true, detail });
 
 // Крок 4в (2): службові позначки, які модель бачить в історії/контексті й не
 // має переказувати в reply. Той самий список, що guard у model.ts.
-const SERVICE_MARKER_RE = /\[(?:картка:|рецепт у стрічці|НЕ ЗАСТОСОВАНО|ЗАСТОСОВАНО|ВІДХИЛЕНО|СКАСОВАНО|ПРО ЛЮДИНУ|КОМОРА|НОТАТКИ|ОСТАННІ ДІЇ|СЬОГОДНІ|СПИСОК ПОКУПОК|ДОМАШНІ|ТРАДИЦІЇ|СЕЗОН І СВЯТА|ТВОЇ ПЛАНИ|РЕЖИМ|МЕРЕЖІ|СЕРВЕР)/;
+const SERVICE_MARKER_RE = /\[(?:картка:|рецепт у стрічці|НЕ ЗАСТОСОВАНО|ЗАСТОСОВАНО|ВІДХИЛЕНО|СКАСОВАНО|ПРО ЛЮДИНУ|КОМОРА|НОТАТКИ|ОСТАННІ ДІЇ|СЬОГОДНІ|СПИСОК ПОКУПОК|ДОМАШНІ|ЗАРАЗ|ПРО ДОДАТОК|РЕЖИМ|МЕРЕЖІ|СЕРВЕР)/;
 
 // `\b` у JS — межа [A-Za-z0-9_]; кирилиця вся «поза словом», тож
 // /\bні\b/.test('ні') === false. Кілька інваріантів через це місяцями або
@@ -1254,7 +1252,13 @@ export const registry: Record<string, Invariant> = {
 
   // s45/s46: «весь наступний тиждень риба» — план із часом, не wish і не intent.
   'event-with-duration': (out) => {
-    const c = out.card as { type?: string; ops?: Record<string, unknown>[] } | null;
+    const c = out.card as { type?: string; kind?: string; to?: unknown; days?: unknown; ops?: Record<string, unknown>[] } | null;
+    // П1: «весь тиждень риба» тепер може бути й періодом-дієтою — з кінцем або тривалістю.
+    if (c?.type === 'period') {
+      if (c.kind !== 'diet') return fail(`period kind=${c.kind} — очікував diet`);
+      if (!c.to && !(Number(c.days) >= 5)) return fail(`period без to і без days≥5: ${JSON.stringify(c)}`);
+      return pass(`period diet to=${JSON.stringify(c.to)} days=${String(c.days ?? '')}`);
+    }
     if (!c || c.type !== 'event') return fail(`card.type=${c?.type ?? 'null'} — очікував event (план із часом), а не побажання/намір`);
     const add = (c.ops ?? []).find((o) => (o.op ?? 'add') === 'add');
     if (!add) return fail('event без add');
@@ -1452,6 +1456,54 @@ export function resolve(name: string): Invariant {
       const sentences = String(out.reply ?? '').split(/(?<=[.!?…])\s+/).filter((x) => x.trim());
       const last = sentences[sentences.length - 1] ?? '';
       return last.toLowerCase().includes((arg ?? '').toLowerCase()) ? pass(last) : fail(`останнє речення без «${arg}»: «${last}»`);
+    };
+  }
+
+  // П1: картка period. `is-period-card:tradition=jewish` — рід і традиція,
+  // без жодної дати від моделі; `period-diet-to` — дієта, кінець відносно
+  // (+30d, +4w, month-end) або days, strict не задано; `period-custom-rel:sat`
+  // — подія дому з from.rel на день тижня, дати нема.
+  if (base === 'is-period-card') {
+    return (out) => {
+      const c = out.card as Record<string, unknown> | null;
+      if (!c || c.type !== 'period') return fail(`card.type=${String(c?.type ?? 'null')} — очікував period`);
+      const want = Object.fromEntries((arg ?? '').split(',').filter(Boolean).map((kv) => kv.split('=') as [string, string]));
+      for (const [k, v] of Object.entries(want)) {
+        if (String(c[k] ?? '') !== v) return fail(`${k}=${String(c[k] ?? 'null')}, очікував ${v}`);
+      }
+      const dated = JSON.stringify(c).match(/"date":"\d{4}-\d{2}-\d{2}"/);
+      if (c.kind === 'tradition' && (c.from || c.to || c.items || dated)) return fail(`традиція з датами від моделі: ${JSON.stringify(c).slice(0, 160)}`);
+      return pass(`period ${String(c.kind)}${c.tradition ? ` ${String(c.tradition)}` : ''}`);
+    };
+  }
+  if (base === 'period-diet-to') {
+    return (out) => {
+      const c = out.card as { type?: string; kind?: string; to?: { rel?: string; date?: string }; days?: number; strict?: unknown } | null;
+      if (!c || c.type !== 'period') return fail(`card.type=${c?.type ?? 'null'} — очікував period`);
+      if (c.kind !== 'diet') return fail(`kind=${c.kind} — очікував diet`);
+      if (c.strict === true) return fail('strict=true, хоч людина «суворо» не казала');
+      if (c.to?.date) return fail(`to.date=${c.to.date} — дату модель порахувала сама`);
+      const rel = c.to?.rel ?? '';
+      const ok = /^\+(2[8-9]|3[0-1])d$/.test(rel) || /^\+4w$/.test(rel) || rel === 'month-end' || rel === 'eom' || (Number(c.days) >= 28 && Number(c.days) <= 31);
+      return ok ? pass(`to=${JSON.stringify(c.to)} days=${String(c.days ?? '')}`) : fail(`кінець не «місяць»: to=${JSON.stringify(c.to)} days=${String(c.days ?? '')}`);
+    };
+  }
+  if (base === 'period-custom-rel') {
+    return (out) => {
+      const c = out.card as { type?: string; kind?: string; from?: { rel?: string; date?: string }; servings?: number } | null;
+      if (!c || c.type !== 'period') return fail(`card.type=${c?.type ?? 'null'} — очікував period`);
+      if (c.kind !== 'custom') return fail(`kind=${c.kind} — очікував custom`);
+      if (c.from?.date) return fail(`from.date=${c.from.date} — дату модель порахувала сама`);
+      const rel = (c.from?.rel ?? '').toLowerCase();
+      return rel === arg || rel === `next-${arg}` ? pass(`from.rel=${rel} servings=${String(c.servings ?? '')}`) : fail(`from.rel=${rel || '—'}, очікував ${arg}`);
+    };
+  }
+  // П1: мʼякий період на пряме прохання — без попередження.
+  if (base === 'no-period-warning') {
+    return (out) => {
+      const r = String(out.reply ?? '');
+      const hit = /попередж|порушу|відступ|не (?:їси|можна)|хоч (?:у|в) тебе|але (?:у|в) тебе (?:зараз )?(?:білков|дієт)|нагадаю, що|памʼятай, що/i.exec(r);
+      return hit ? fail(`попередження про період: «${hit[0]}» у «${r.slice(0, 160)}»`) : pass();
     };
   }
 

@@ -7,7 +7,7 @@
 
 import type { Card, Recipe } from './types.js';
 
-const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe', 'cook_photo'];
+const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe', 'cook_photo', 'event', 'period'];
 
 // Витягає ВСІ верхньорівневі JSON-обʼєкти з тексту й обирає карту з валідним
 // `type`. Модель іноді пише два обʼєкти в одну відповідь («ось intake для

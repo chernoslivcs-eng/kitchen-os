@@ -14,7 +14,7 @@ import {
   type ProfileText, type ProfileFieldKey, type ProfileFieldValue, type ProfileNote, type VetoRow, type VetoField,
 } from './profile-text.js';
 import { BUILTIN_OCCASIONS, adminRowToOccasion, type OccasionRow } from './occasion-data.js';
-import type { Tradition } from './occasion-rules.js';
+import type { OccasionSubscriptionRow } from './periods.js';
 
 export class InMemoryRepo implements Repo {
   private batches = new Map<string, PantryBatch>();
@@ -39,7 +39,7 @@ export class InMemoryRepo implements Repo {
   private shopping = new Map<string, ShoppingItemRow>();          // by id
   private retail = new Map<string, RetailConnectionRow>();        // `${user_id}:${provider}`
   private events = new Map<string, HouseholdEventRow>();
-  private muted = new Map<string, Set<string>>();   // household_id → occasion_id
+  private subscriptions = new Map<string, Map<string, OccasionSubscriptionRow>>();   // household_id → occasion_id → рядок
   private catches = new Map<string, OccasionCatchRow>();
   private adminOccasions = new Map<string, AdminOccasionRow>();
   private recipes = new Map<string, RecipeRow>();
@@ -136,10 +136,6 @@ export class InMemoryRepo implements Repo {
     this.eaters.delete(id);
   }
 
-  async setTraditions(user_id: string, traditions: Tradition[] | null): Promise<void> {
-    const u = this.users.get(user_id);
-    if (u) u.traditions = traditions ? [...traditions] : null;
-  }
 
   // ----- Раунд 4: профіль як сім речень ------------------------------------
 
@@ -289,7 +285,7 @@ export class InMemoryRepo implements Repo {
     const user_id = randomUUID();
     const household_id = randomUUID();
     const now = new Date().toISOString();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null, traditions: null });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: now, plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
     this.usersByEmail.set(key, user_id);
     this.households.set(household_id, { id: household_id, name: `Дім ${name}`, created_at: now });
     this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
@@ -300,7 +296,7 @@ export class InMemoryRepo implements Repo {
     const key = email.toLowerCase();
     if (this.usersByEmail.has(key)) throw new Error(`user exists: ${email}`);
     const user_id = randomUUID();
-    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null, traditions: null });
+    this.users.set(user_id, { id: user_id, name, email: key, created_at: new Date().toISOString(), plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
     this.usersByEmail.set(key, user_id);
     return user_id;
   }
@@ -646,7 +642,8 @@ export class InMemoryRepo implements Repo {
   async updateHouseholdEvent(
     id: string,
     patch: Partial<Pick<HouseholdEventRow,
-      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'>>,
+      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'
+      | 'from' | 'to' | 'rule_text' | 'strict' | 'force' | 'restricts' | 'kind'>>,
   ): Promise<void> {
     const e = this.events.get(id);
     if (!e) return;
@@ -657,18 +654,15 @@ export class InMemoryRepo implements Repo {
     this.events.delete(id);
   }
 
-  async listMutedOccasions(user_id: string): Promise<string[]> {
-    return [...(this.muted.get(user_id) ?? [])];
+  async listOccasionSubscriptions(household_id: string): Promise<OccasionSubscriptionRow[]> {
+    return [...(this.subscriptions.get(household_id)?.values() ?? [])].map((r) => ({ ...r }));
   }
 
-  async muteOccasion(user_id: string, occasion_id: string): Promise<void> {
-    const set = this.muted.get(user_id) ?? new Set<string>();
-    set.add(occasion_id);
-    this.muted.set(user_id, set);
-  }
-
-  async unmuteOccasion(user_id: string, occasion_id: string): Promise<void> {
-    this.muted.get(user_id)?.delete(occasion_id);
+  async setOccasionSubscription(household_id: string, occasion_id: string, enabled: boolean | null): Promise<void> {
+    const m = this.subscriptions.get(household_id) ?? new Map<string, OccasionSubscriptionRow>();
+    if (enabled === null) m.delete(occasion_id);
+    else m.set(occasion_id, { household_id, occasion_id, enabled, updated_at: new Date().toISOString() });
+    this.subscriptions.set(household_id, m);
   }
 
   async listAdminOccasions(): Promise<AdminOccasionRow[]> {

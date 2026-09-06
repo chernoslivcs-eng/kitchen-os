@@ -12,7 +12,7 @@ import type {
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
 } from './profile-text.js';
 import type { OccasionRow } from './occasion-data.js';
-import type { Tradition } from './occasion-rules.js';
+import type { OccasionSubscriptionRow } from './periods.js';
 
 export interface UserRow {
   id: string;
@@ -24,10 +24,6 @@ export interface UserRow {
   /** Крок 7 (міграція 0025): бачив Семена; картку «Про тебе» вже видано. */
   welcome_seen_at: string | null;
   profile_onboarding_at: string | null;
-  /** Крок 11 (міграція 0026): свята й пости яких традицій показувати. Явний
-   *  вибір людини; null — ще не обирала (тоді традицію виводимо з її слів у
-   *  profile_text). Порожній масив — обирала і вимкнула все. */
-  traditions: Tradition[] | null;
 }
 
 export type UserStampField = 'welcome_seen_at' | 'profile_onboarding_at';
@@ -64,7 +60,6 @@ export interface Repo {
   updateProduct(id: string, patch: Partial<Omit<HouseholdProduct, 'id' | 'household_id' | 'created_at'>>): Promise<void>;
 
   // Профіль (v1 — до кроку 9 раунду 4 живе поруч із v2)
-  setTraditions(user_id: string, traditions: Tradition[] | null): Promise<void>;
 
   // Раунд 4: профіль як сім речень (AUDIT-ROUND-4.md §2). Читається завжди
   // повністю — сім полів, порожні як status:'empty', а не null: серіалізації
@@ -222,19 +217,17 @@ export interface Repo {
   updateHouseholdEvent(
     id: string,
     patch: Partial<Pick<HouseholdEventRow,
-      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'>>,
+      'title' | 'note' | 'rule' | 'buy' | 'servings' | 'supply' | 'expires_at' | 'done_at'
+      | 'from' | 'to' | 'rule_text' | 'strict' | 'force' | 'restricts' | 'kind'>>,
   ): Promise<void>;
   deleteHouseholdEvent(id: string): Promise<void>;
 
-  // «Не показувати такі»: наявність id у списку = подія вимкнена для цієї
-  // людини. Знімається видаленням — двох способів сказати «показувати» немає.
-  //
-  // Ключ особистий, а не домовий: сама подія в довіднику спільна для всіх, але
-  // рішення прибрати її зі свого календаря — про свій вигляд. Якби ключем був
-  // дім, один вимкнув би «день томатів» усім, ні в кого не спитавши.
-  listMutedOccasions(user_id: string): Promise<string[]>;
-  muteOccasion(user_id: string, occasion_id: string): Promise<void>;
-  unmuteOccasion(user_id: string, occasion_id: string): Promise<void>;
+  // П1: підписка дому на довідник. Рядок існує лише як відхилення від
+  // дефолту (сезон/редакційне — увімкнено, свято традиції — вимкнено):
+  // enabled null — прибрати рядок, повернутись до дефолту. Ключ домовий:
+  // календар підписок спільний для дому, як комора й список.
+  listOccasionSubscriptions(household_id: string): Promise<OccasionSubscriptionRow[]>;
+  setOccasionSubscription(household_id: string, occasion_id: string, enabled: boolean | null): Promise<void>;
 
   // Спіймані вікна. Пишеться мовчки після готування, читається підсумком.
   // Повторне спіймання того самого вікна того самого року — не подія.

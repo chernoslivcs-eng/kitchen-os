@@ -1,0 +1,26 @@
+{
+  "id": "period-lent-strict",
+  "description": "Раунд 5, крок П1: дім підписаний на православні свята, 5 березня 2026 триває Великий піст (суворо, з довідника). «Що на вечерю» → жодного мʼяса й молочного: вето по категоріях періоду ріже кандидатів, reply згадує піст.",
+  "call": "chat",
+  "now": "2026-03-05T18:00:00",
+  "subscriptions": [{ "set": "orthodox" }],
+  "pantry": [
+    {"id":"p1","label":"Свинячий фарш","zone":"fridge","v":400,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Вершки 30%","zone":"fridge","v":200,"u":"ml","state":"sealed"},
+    {"id":"p3","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"},
+    {"id":"p4","label":"Гриби печериці","zone":"fridge","v":300,"u":"g","state":"sealed"},
+    {"id":"p5","label":"Цибуля","zone":"dry","v":4,"u":"pcs","state":"sealed"},
+    {"id":"p6","label":"Рис","zone":"dry","v":800,"u":"g","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "що на вечерю?" }
+  ],
+  "invariants": [
+    "is-proposal",
+    "veto-survivors",
+    "lent-no-meat-or-dairy",
+    "reply-includes:піст",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

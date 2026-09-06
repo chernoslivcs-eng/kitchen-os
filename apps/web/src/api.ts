@@ -170,8 +170,73 @@ export interface CartRow {
   alternatives?: { name: string; price: number; weighted: boolean; quantity: number }[];
 }
 
+export type OccasionSet = Tradition | 'seasons';
+
+export interface OccasionItem {
+  occasion_id: string;
+  title: string;
+  type: 'season' | 'tradition' | 'editorial';
+  tradition: Tradition | null;
+  from: string | null;
+  to: string | null;
+  approx?: boolean;
+  enabled: boolean;
+  what: string;
+  strict: boolean;
+  meaning?: string;
+  buy?: string[];
+  source?: string;
+}
+
+export interface SubscriptionRow {
+  occasion_id: string;
+  enabled: boolean;
+  updated_at: string;
+  title: string;
+  type: 'season' | 'tradition' | 'editorial' | null;
+  tradition: Tradition | null;
+}
+
+export interface NowItem {
+  kind: string;
+  title: string;
+  from: string;
+  to: string;
+  rule_text?: string;
+  strict: boolean;
+  source: 'catalog' | 'user' | 'chat';
+  occasion_id?: string;
+  id?: string;
+  approx?: boolean;
+  meaning?: string;
+  buy?: string[];
+  servings?: number | null;
+}
+
+// П2: рядок картки серії (свята традиції / сезони) — з довідника, дати з таблиці.
+export interface PeriodItem {
+  occasion_id: string;
+  title: string;
+  from: string;
+  to: string;
+  approx?: boolean;
+  enabled: boolean;
+  what: string;
+  strict: boolean;
+}
+
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event' | 'onboarding';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event' | 'period' | 'onboarding';
+  // П2: картка period — серія (tradition/unsubscribe → items) або запис (diet/custom → resolved).
+  kind?: 'tradition' | 'diet' | 'custom';
+  tradition?: Tradition;
+  rule_text?: string;
+  strict?: boolean;
+  servings?: number | null;
+  unsubscribe?: string;
+  set?: 'seasons';
+  all?: boolean;
+  resolved?: { from: string; to: string };
   ops?: unknown[];
   // Раунд 4, крок 7: картка «Про тебе» — пропущені панелі (стан заповнених — з profile_text).
   skipped?: string[];
@@ -221,6 +286,11 @@ export interface EventOccurrence {
   start: number;
   end: number;
   force: 'hint' | 'restrict';
+  /** П1: суворо/мʼяко словом, правило дослівно, дати включно ('YYYY-MM-DD'). */
+  strict?: boolean;
+  rule_text?: string | null;
+  from?: string | null;
+  to?: string | null;
   /** Лише у власних подій — щоб артефакт правив дату на місці. */
   rule?: { t: 'once'; at: string; days?: number } | { t: 'weekly'; dow: number } | { t: string };
   servings?: number | null;
@@ -353,6 +423,17 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  // П2: довідник для картки серії і підписки дому.
+  occasions: {
+    set: (set: OccasionSet, year?: number) =>
+      req<{ set: OccasionSet; year: number; items: OccasionItem[] }>(`/v1/occasions?set=${set}${year ? `&year=${year}` : ''}`),
+    subscriptions: () => req<{ subscriptions: SubscriptionRow[] }>('/v1/occasions/subscriptions'),
+    // Батч галочок: усі рядки картки — і увімкнені, і зняті; збіг із дефолтом прибирає рядок.
+    setSubscriptions: (list: { occasion_id: string; enabled: boolean }[]) =>
+      req<{ written: { occasion_id: string; enabled: boolean }[]; subscriptions: { occasion_id: string; enabled: boolean }[] }>(
+        '/v1/occasions/subscriptions', { method: 'PUT', body: JSON.stringify(list) },
+      ),
+  },
   cards: {
     // Черга Г (№3): панель ОЧІКУЮТЬ — всі незакриті картки дому.
     pending: () =>
@@ -361,7 +442,7 @@ export const api = {
       ),
     // Раунд 4 §4: {none:true} — «Нічого такого» на картці поля ban.
     apply: (id: string, selected?: number[], opts?: { none?: boolean }) =>
-      req<{ applied: number; undo_token: string; already: boolean; followup?: string; truncated?: boolean }>(
+      req<{ applied: number; undo_token: string; already: boolean; followup?: string; truncated?: boolean; event_ids?: string[] }>(
         `/v1/cards/${id}/apply`,
         { method: 'POST', body: JSON.stringify({ selected, ...(opts?.none ? { none: true } : {}) }) },
       ),
@@ -483,11 +564,14 @@ export const api = {
       req<{ from: number; to: number; events: EventOccurrence[] }>(
         `/v1/events?from=${from}&to=${to}`,
       ),
-    add: (body: { title: string; kind?: string; rule: unknown; note?: string | null }) =>
-      req<{ event: unknown }>('/v1/events', { method: 'POST', body: JSON.stringify(body) }),
+    // П2: запис дому — датами (from/to), правилом дослівно і «суворо»; rule лишається для старих форм.
+    add: (body: { title: string; kind?: string; rule?: unknown; note?: string | null; from?: string; to?: string; rule_text?: string | null; strict?: boolean; servings?: number | null }) =>
+      req<{ event: { id: string } }>('/v1/events', { method: 'POST', body: JSON.stringify(body) }),
     patch: (id: string, body: Record<string, unknown>) =>
       req<{ event: unknown }>(`/v1/events/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     remove: (id: string) => req<null>(`/v1/events/${id}`, { method: 'DELETE' }),
+    // П2: активні сьогодні одним контрактом — «Зараз» у бічній панелі.
+    now: () => req<{ now: NowItem[] }>('/v1/now'),
     // Одна власна подія — для артефакта в стрічці/панелі (картка знає лише id).
     get: (id: string) => req<{ event: EventOccurrence }>(`/v1/events/${id}`),
     // «Не показувати такі» — особисте рішення про редакційну подію, не дому.
@@ -536,8 +620,6 @@ export const api = {
     get: () => req<ProfileV2Response>('/v1/profile'),
     patchField: (key: string, body: { text: string } | { status: 'none' }) =>
       req<{ field: ProfileFieldV2; veto_index: unknown[] }>(`/v1/profile/${key}`, { method: 'PATCH', body: JSON.stringify(body) }),
-    setTraditions: (traditions: Tradition[] | null) =>
-      req<{ traditions: Tradition[] | null; effective: Tradition[] }>('/v1/profile/traditions', { method: 'PATCH', body: JSON.stringify({ traditions }) }),
     removeNote: (id: string) => req<void>(`/v1/profile/notes/${id}`, { method: 'DELETE' }),
     restoreNote: (id: string) => req<{ note: ProfileNoteV2 | null }>(`/v1/profile/notes/${id}/restore`, { method: 'POST', body: '{}' }),
   },
@@ -634,13 +716,11 @@ export interface ProfileV2Response {
   notes: ProfileNoteV2[];
   defaults: { kit: string[] };
   /** null — ще не обирала (календар іде за здогадом зі слів); [] — вимкнула все. */
-  traditions?: Tradition[] | null;
-  effective_traditions?: Tradition[];
   veto?: VetoRowInfo[];
   eaters?: EaterInfo[];
 }
 
-export type Tradition = 'orthodox' | 'catholic' | 'islamic' | 'jewish';
+export type Tradition = 'orthodox' | 'catholic' | 'islamic' | 'jewish' | 'secular';
 
 // ----- Recipe types -------------------------------------------------------
 

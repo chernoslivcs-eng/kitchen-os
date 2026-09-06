@@ -40,12 +40,15 @@ describe('динамічний контекст — одне джерело', ()
       id: 'abcdef12-3456-7890-abcd-ef1234567890',
       household_id: 'h1', kind: 'supply', title: 'мама привезе цибулю',
       note: 'тиждень готуємо з нею', rule: { t: 'once', at: '2026-09-10', days: 7 },
-      force: 'hint', restricts: null, buy: [], recipe_id: null, servings: null,
+      force: 'hint', restricts: null, from: null, to: null, rule_text: null, strict: false,
+      buy: [], recipe_id: null, servings: null,
       supply: null, created_by: 'u1', source: 'user',
       expires_at: null, done_at: null, created_at: new Date().toISOString(),
     }];
-    const out = buildDynamicContext({ ...base, events });
-    expect(out).toContain('[ТВОЇ ПЛАНИ]');
+    // П1: плани дому живуть у [ЗАРАЗ] разом із приводами довідника; now
+    // фіксуємо, щоб план був у горизонті блоку.
+    const out = buildDynamicContext({ ...base, events, now: new Date(2026, 8, 6, 12) } as never);
+    expect(out).toContain('[ЗАРАЗ]');
     expect(out).toContain('мама привезе цибулю');
     expect(out).toContain('[abcdef12]');
     // Повний uuid у динамічному блоці — це токени в кожному виклику.
@@ -57,13 +60,14 @@ describe('динамічний контекст — одне джерело', ()
       id: 'aaaaaaaa-0000-0000-0000-000000000000',
       household_id: 'h1', kind: 'custom', title: 'гості', note: null,
       rule: { t: 'once', at: '2026-09-12' }, force: 'hint', restricts: null,
+      from: null, to: null, rule_text: null, strict: false,
       buy: [], recipe_id: null, servings: null, supply: null,
       created_by: 'u1', source: 'user', expires_at: null, done_at: null,
       created_at: new Date().toISOString(), ...over,
     });
     expect(buildDynamicContext({ ...base, events: [mk({ done_at: new Date().toISOString() })] }))
-      .not.toContain('[ТВОЇ ПЛАНИ]');
+      .not.toContain('[aaaaaaaa]');
     expect(buildDynamicContext({ ...base, events: [mk({ expires_at: '2020-01-01T00:00:00.000Z' })] }))
-      .not.toContain('[ТВОЇ ПЛАНИ]');
+      .not.toContain('[aaaaaaaa]');
   });
 });

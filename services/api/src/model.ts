@@ -3,6 +3,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
+import type { OccasionRow } from '@kitchen/domain';
 import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
 import { noteFrom,
   buildKitchenContext,
@@ -12,8 +13,8 @@ import { noteFrom,
   extractJson,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
-  serializeProfileText, serializeTraditions, emptyProfileText,
-  type ProfileText, type ProfileNote, type VetoRow, type Tradition,
+  serializeProfileText, emptyProfileText,
+  type ProfileText, type ProfileNote, type VetoRow,
   buildAliasMap,
   unaliasRecipeIds,
   unaliasProse,
@@ -163,8 +164,8 @@ export interface ChatArgs {
   // Раунд 4: сім речень і нотатки → [ПРО ЛЮДИНУ] + [НОТАТКИ].
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
-  // Крок 11: традиції — явний вибір на user (null — календар вгадує зі слів).
-  traditions?: Tradition[] | null;
+  // П1: довідник приводів уже крізь підписку дому (subscribedRows).
+  occasions?: OccasionRow[];
   // Крок 4б: індекс вето → ⚠-мітки в [КОМОРА]; avoid — перегенерація після
   // порожнього вето: «Без: …» їде в кінець репліки людини як серверний рядок.
   vetoIndex?: VetoRow[];
@@ -376,15 +377,46 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
-  // Традиція — перемикач профілю: стаб віддає картку profile з kind tradition,
-  // яку сервер застосовує сам (applyModeFor), без «Запамʼятати».
-  const trad = /(католи|іслам|мусульман|православ|юдей)/i.exec(args.text);
+  // П1: «ми католики» → картка period з традицією; сервер добудовує список
+  // свят із довідника, людина підтверджує «Записати».
+  const trad = /(католи|іслам|мусульман|православ|юдей|світськ)/i.exec(args.text);
   if (trad) {
-    const label = /католи/i.test(trad[1]!) ? 'catholic' : /іслам|мусульман/i.test(trad[1]!) ? 'islamic' : /православ/i.test(trad[1]!) ? 'orthodox' : 'jewish';
-    const removing = /більше не|прибери|видали/i.test(args.text);
+    const label = /католи/i.test(trad[1]!) ? 'catholic' : /іслам|мусульман/i.test(trad[1]!) ? 'islamic' : /православ/i.test(trad[1]!) ? 'orthodox' : /світськ/i.test(trad[1]!) ? 'secular' : 'jewish';
     return {
-      reply: removing ? 'Прибрав.' : 'Записав, свята вже в календарі.',
-      card: { type: 'profile', ops: [{ op: removing ? 'remove' : 'add', kind: 'tradition', label }] },
+      reply: 'Ось свята — познач, які тримаєте.',
+      card: { type: 'period', kind: 'tradition', tradition: label },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  // П2a: «прибери сезонні» / «поверни сезони» → серія всіх сезонів з галочками за all.
+  const seasonsAll = /(прибери|зніми|без)\s+сезон|не показуй сезон|поверни сезон/i.exec(args.text);
+  if (seasonsAll) {
+    const all = /поверни/i.test(args.text);
+    return {
+      reply: all ? 'Поверну сезони — познач, які лишити.' : 'Зніму сезони з календаря — познач у картці, що лишити.',
+      card: { type: 'period', kind: 'tradition', set: 'seasons', all },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  // П1: «не показуй мені кавуни» → period з unsubscribe (назва як є).
+  const unsub = /не показуй(?: мені)?\s+(.+)/i.exec(args.text);
+  if (unsub) {
+    return {
+      reply: 'Приберу з календаря.',
+      card: { type: 'period', kind: 'tradition', unsubscribe: unsub[1]!.trim().replace(/[.!?]+$/, '') },
+      usage: { input: 0, output: 0 },
+      meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
+  // П1: «цей місяць білкова» → period diet, кінець — відносно, рахує сервер.
+  const diet = /(білков|без (?:мʼяса|м'яса|цукру|глютену)|дієт)/i.exec(args.text);
+  if (diet) {
+    const strict = /суворо|строго/i.test(args.text);
+    return {
+      reply: 'Запишу як період — підтвердь.',
+      card: { type: 'period', kind: 'diet', title: diet[1]!.startsWith('білков') ? 'білкова' : diet[1]!, rule_text: args.text, to: { rel: '+30d' }, ...(strict ? { strict: true } : {}) },
       usage: { input: 0, output: 0 },
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
@@ -454,7 +486,7 @@ export function buildDynamicContext(args: ChatArgs, productMap?: string | null):
     pantry: args.pantry,
     profileText: args.profileText,
     profileNotes: args.profileNotes,
-    traditions: args.traditions,
+    occasions: args.occasions,
     vetoIndex: args.vetoIndex,
     shopping: args.shopping,
     recentCookRuns: args.recentCookRuns,
@@ -504,7 +536,7 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = normalizeCard(o.card ?? null);
       note = noteFrom(o);
-    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit', 'event'].includes(o.type)) {
+    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit', 'event', 'period'].includes(o.type)) {
       card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }
@@ -724,7 +756,6 @@ export async function callRecipe(args: {
   profileText?: ProfileText | null;
   profileNotes?: ProfileNote[];
   vetoIndex?: VetoRow[];
-  traditions?: Tradition[] | null;
   products?: HouseholdProduct[];
   // Пул-4 №4б: recipe_gen сліпий до розмови — «Арборіо є?» → «Буде»
   // губилось між викликами. Хвіст діалогу їде в user-запит (НЕ в кеш).
@@ -745,7 +776,6 @@ export async function callRecipe(args: {
   // Кеш-межа: role+recipe-generator стабільні; профіль/комора/нотатки — динаміка.
   const stable = compose('recipe_gen', prompt);
   const dynamic = serializeProfileText(args.profileText ?? emptyProfileText(''), args.profileNotes ?? [])
-    + serializeTraditions(args.traditions)
     + pantryBlock;
   const convBlock = args.conversation
     ? `\n\n[ОСТАННІ РЕПЛІКИ РОЗМОВИ — рішення з них уже ухвалені, не перепитуй]\n${args.conversation}`

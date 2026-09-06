@@ -2,7 +2,6 @@
 // профіль — v1 (allergy/wish/anti/equip) і прапор PROFILE_V2 прибрано.
 //
 // GET    /v1/profile                    → { fields, notes, defaults: { kit }, veto, eaters }
-// PATCH  /v1/profile/traditions         { traditions: Tradition[] | null } — перемикач календаря
 // PATCH  /v1/profile/:key               { text } | { status: 'none' } — автозбереження
 // DELETE /v1/profile/notes/:id          → мʼяке видалення (для «Повернути»)
 // POST   /v1/profile/notes/:id/restore  → повернути; вікно 5 с — на клієнті, тут без обмеження
@@ -12,8 +11,8 @@
 
 import type { FastifyInstance } from 'fastify';
 import {
-  KIT_DEFAULTS, PROFILE_FIELD_KEYS, NOTES_IN_PROMPT, rebuildVetoIndex, resolveTraditions,
-  type ProfileFieldKey, type Repo, type Tradition,
+  KIT_DEFAULTS, PROFILE_FIELD_KEYS, NOTES_IN_PROMPT, rebuildVetoIndex,
+  type ProfileFieldKey, type Repo,
 } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 
@@ -28,14 +27,10 @@ export function profileRoutes(app: FastifyInstance, repo: Repo) {
       repo.getVetoIndex(user_id),
       repo.listEaters(household_id),
     ]);
-    const user = await repo.getUser(user_id);
     return {
       fields: text.fields,
       notes: notes.map((n) => ({ id: n.id, text: n.text, source: n.source, created_at: n.created_at })),
       defaults: { kit: [...KIT_DEFAULTS] },
-      // Явний вибір (null — ще не обирала) і те, що календар показує зараз.
-      traditions: user?.traditions ?? null,
-      effective_traditions: await resolveTraditions(repo, user_id),
       // Крок 11: сторінка рецепта позначає інгредієнти — межа власника з
       // індексу (label — слово людини, allergy — з ban), домашніх — з їдців.
       veto: veto.map((r) => ({ field: r.field, kind: r.kind, ref: r.ref, label: r.label, allergy: r.allergy })),
@@ -43,25 +38,7 @@ export function profileRoutes(app: FastifyInstance, repo: Repo) {
     };
   });
 
-  // Крок 11: традиції живуть на user, а не в полі тексту. null — «не обирала»
-  // (календар вгадує зі слів), [] — «вимкнула все». Реєструється ДО /:key,
-  // інакше «traditions» читалось би як назва поля.
-  const TRADITIONS: readonly Tradition[] = ['orthodox', 'catholic', 'islamic', 'jewish'];
-  app.patch<{ Body: { traditions?: unknown } }>(
-    '/v1/profile/traditions',
-    { preHandler: authenticated(repo) },
-    async (req, reply) => {
-      const { user_id } = requireUser(req);
-      const t = req.body?.traditions;
-      let next: Tradition[] | null;
-      if (t === null) next = null;
-      else if (Array.isArray(t) && t.every((x) => typeof x === 'string' && (TRADITIONS as readonly string[]).includes(x))) {
-        next = TRADITIONS.filter((x) => (t as string[]).includes(x));
-      } else return reply.code(400).send({ error: 'bad_traditions' });
-      await repo.setTraditions(user_id, next);
-      return { traditions: next, effective: await resolveTraditions(repo, user_id) };
-    },
-  );
+  // П1: традиції — підписки дому (PUT /v1/occasions/subscriptions), не поле профілю.
 
   app.patch<{ Params: { key: string }; Body: { text?: unknown; status?: unknown } }>(
     '/v1/profile/:key',

@@ -1,5 +1,5 @@
 import './env.js';                      // MUST BE FIRST — заселяє process.env перед усім
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import multipart from '@fastify/multipart';
 import cookie from '@fastify/cookie';
 import { InMemoryRepo, type Repo } from '@kitchen/domain';
@@ -27,6 +27,8 @@ import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
 import { retailRoutes, type RetailOpts } from './routes/retail.js';
 
 export interface BuildAppOpts {
+  /** Тести: власний логер Fastify (рівень + потік). */
+  logger?: FastifyServerOptions['logger'];
   rateLimits?: {
     authRequest?: RateLimitCfg;
     invite?: RateLimitCfg;
@@ -44,9 +46,11 @@ export function buildApp(
   opts: BuildAppOpts = {},
 ): FastifyInstance {
   const app = Fastify({
-    logger: process.env.NODE_ENV === 'test' ? false
+    // П2a: тест може дати свій логер (потік) — щоб перевірити warn-маркери
+    // маршруту (period-card-dropped) там, де їх побачить прод.
+    logger: opts.logger ?? (process.env.NODE_ENV === 'test' ? false
       : process.env.NODE_ENV === 'production' ? { level: 'warn' }
-      : true,
+      : true),
   });
   // П.6 pre-deploy: базові security-заголовки на кожній відповіді API.
   // CSP для статики живе у vercel.json (headers) — тут лише API-шар.

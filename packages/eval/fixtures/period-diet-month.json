@@ -1,0 +1,19 @@
+{
+  "id": "period-diet-month",
+  "description": "Раунд 5, крок П1: «цей місяць білкова» → period kind diet, кінець відносно (rel +30d або month-end), strict не заданий (мʼяко за замовчуванням), rule_text словами людини. Не картка профілю: дієта на період — не «Я не їм».",
+  "call": "chat",
+  "now": "2026-09-06T18:00:00",
+  "pantry": [
+    {"id":"p1","label":"Курка філе","zone":"fridge","v":600,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Яйця","zone":"fridge","v":10,"u":"pcs","state":"sealed"},
+    {"id":"p3","label":"Сир кисломолочний","zone":"fridge","v":400,"u":"g","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "цей місяць білкова" }
+  ],
+  "invariants": [
+    "period-diet-to",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

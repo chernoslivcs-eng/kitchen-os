@@ -13,7 +13,7 @@
 //
 // Два принципи лишаються з прототипу:
 //
-// 1. Традиція не окреме поле профілю, а висновок із побажань.
+// 1. Традиція — не поле профілю: це підписка на набір свят (periods.ts).
 // 2. Свято — привід, а не обовʼязок. Блок іде в системний промпт як контекст,
 //    із явною вказівкою згадувати лише коли доречно. Інакше асистент починає
 //    кожну розмову з календаря, і це швидко бісить.
@@ -24,11 +24,9 @@ import {
   type Rule, type Tradition, type Occurrence,
 } from './occasion-rules.js';
 import {
-  BUILTIN_OCCASIONS, TRADITION_PATTERNS, SKOROMNE_ROOTS, LEAN_EXCEPTIONS,
+  BUILTIN_OCCASIONS, SKOROMNE_ROOTS, LEAN_EXCEPTIONS,
   isWindowRow, type OccasionRow, type WindowOccasion, type OccasionKind,
 } from './occasion-data.js';
-import type { Repo } from './repo.js';
-import { profileTextHints } from './profile-text.js';
 
 export { easterDate, ruleActive, occurrencesInRange };
 export type { Rule, Tradition, Occurrence };
@@ -76,45 +74,16 @@ export interface UpcomingEvent {
   approx?: boolean;
 }
 
-export function traditionsFrom(hints: string[] = []): Tradition[] {
-  const text = hints.join(' ');
-  if (!text.trim()) return [];
-  return TRADITION_PATTERNS.filter((p) => p.re.test(text)).map((p) => p.id);
-}
-
 /** Чи цей рядок узагалі показувати цьому дому. */
 function visible(row: OccasionRow, trads: Tradition[]): boolean {
   return row.tradition ? trads.includes(row.tradition) : true;
 }
 
 /**
- * Що триває просто зараз. Сезони — для всіх; свята — лише за розпізнаною
- * традицією. Рухомі йдуть перед фіксованими: обмеження має потрапити в блок
- * раніше за привід, і порядок масиву це задає.
+ * Що триває просто зараз. Рядки — уже крізь підписку дому (periods.ts);
+ * `trads` — традиції, на які дім підписаний (для пасхалії). Рухомі йдуть
+ * перед фіксованими: обмеження має потрапити в блок раніше за привід.
  */
-/**
- * Традиції дому: явний вибір людини (user.traditions), а поки його немає —
- * здогад із її власних слів (profileTextHints). Порожній масив — теж вибір
- * («нічого не показувати»), і він перемагає будь-яке «постуємо» в тексті.
- */
-export function traditionsOf(
-  traditions: Tradition[] | null | undefined,
-  hints: string[] = [],
-): Tradition[] {
-  if (Array.isArray(traditions)) return traditions;
-  return traditionsFrom(hints);
-}
-
-/** Крок 11: традиції з двох джерел сховища одним викликом — для маршрутів. */
-export async function resolveTraditions(
-  repo: Pick<Repo, 'getUser' | 'getProfileText'>,
-  user_id: string,
-): Promise<Tradition[]> {
-  const user = await repo.getUser(user_id);
-  if (Array.isArray(user?.traditions)) return user.traditions;
-  return traditionsFrom(profileTextHints(await repo.getProfileText(user_id)));
-}
-
 export function activeOccasions(
   date = new Date(),
   trads: Tradition[] = [],
@@ -182,96 +151,48 @@ export function whenLabel(at: number, now = Date.now()): string {
 }
 
 /**
- * Блок для системного промпта. Порожній рядок, коли нічого не відбувається —
- * не витрачаємо токени на «сьогодні нічого особливого».
+ * Ключові дати року для підписаних традицій — завжди, коли традиція є (QA7-02:
+ * без цього блок із традицією побайтово збігався з блоком без неї, і модель
+ * на «Коли Великдень?» вигадувала дати). Рядки — для блоку [ЗАРАЗ].
  */
-export function serializeOccasions(
-  now = new Date(),
-  hints: string[] = [],
-  rows: OccasionRow[] = BUILTIN_OCCASIONS,
-  traditions?: Tradition[],
-): string {
-  const trads = traditions ?? traditionsFrom(hints);
-  const act = activeOccasions(now, trads, rows);
-  const soon = upcomingEvents(now, trads, 21, rows).slice(0, 4);
-  if (!act.length && !soon.length) return '';
-
-  const parts: string[] = [];
-  // Обмеження — окремо й першими. Поки вони стояли в одному абзаці з сезоном
-  // грибів, спільна приписка «привід, а не обовʼязок» поширювалась і на них.
-  const restricting = act.filter((o) => o.restricts);
-  if (restricting.length) {
-    // Формулювання «тверда межа, як алергія» тягнуло за собою й алергічний
-    // сценарій розмови: модель починала перепитувати замість пропонувати.
-    // Обмежуємо зміст пропозиції, а не спосіб розмови.
-    parts.push('ТРИВАЄ ОБМЕЖЕННЯ (людина сама сказала, що дотримується). Будуй пропозиції так,'
-      + ' ніби переліченого просто немає в коморі — не питай дозволу й не пропонуй порушити.'
-      + ' Це сильніше за порятунок: відкриті вершки чи мʼясо, що догоряє, в такі дні не рятують стравою'
-      + ' — запропонуй заморозити одним реченням, і все:\n'
-      + restricting.map((o) => `${o.title}: ${o.restricts}`).join('\n'));
-  }
-  if (act.length) {
-    parts.push('ЗАРАЗ: ' + act.map((o) =>
-      `${o.title}${o.approx ? ' (орієнтовно, місячний календар)' : ''} — ${o.meaning}${o.buy?.length ? ` Варто докупити: ${o.buy.join(', ')}.` : ''}`
-    ).join('\n'));
-  }
-  // QA7-02: без цього блок із розпізнаною традицією побайтово збігався з
-  // блоком без неї (найближче свято — за межами 21-денного горизонту), і
-  // модель на пряме «Коли Великдень?» відповідала «ще не розпізнано», а потім
-  // вигадувала дати. Ключові дати року — завжди, коли традиція відома.
-  if (trads.length) {
-    const y = now.getFullYear();
-    const fmt = (dt: Date) => dt.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
-    const anchors: string[] = [];
-    for (const t of trads) {
-      if (t !== 'orthodox' && t !== 'catholic') continue;
-      const label = t === 'catholic' ? 'католицький' : 'православний';
-      for (const yr of [y, y + 1]) {
-        const e = easterDate(yr, t);
-        if (e.getTime() < now.getTime() && yr === y) continue;  // торішній не потрібен
-        const lent = new Date(e);
-        // Православний піст — із Чистого понеділка (−48), католицький — із
-        // Попільної середи (−46).
-        lent.setDate(lent.getDate() - (t === 'catholic' ? 46 : 48));
-        anchors.push(`Великдень ${yr} (${label}) — ${fmt(e)}; Великий піст — з ${fmt(lent)}`);
-      }
-    }
-    // Місячні — тільки з позначкою орієнтовності; губити її не можна.
-    // Кожен якір — тільки найближче майбутнє входження: шість рядків Рамадану
-    // на два роки вперед — це шум, а не памʼять.
-    for (const r of rows) {
-      if (isWindowRow(r) || !visible(r, trads)) continue;
-      const at = nextAnchorAfter(r.rule, now.getTime());
-      if (at === null) continue;
-      const mark = r.rule.t === 'lunar' ? 'орієнтовно, місячний календар' : 'орієнтовно';
-      anchors.push(`${r.title} — ${fmt(new Date(at))} ${new Date(at).getFullYear()} (${mark})`);
-    }
-    // Вікна з датами по роках (Рамадан, Ід) — так само найближчий початок,
-    // і так само з позначкою: дата залежить від молодика.
-    for (const r of rows) {
-      if (!isWindowRow(r) || r.rule.t !== 'dates' || !visible(r, trads)) continue;
-      for (const yr of [y, y + 1]) {
-        const w = ruleWindow(r.rule, yr, trads);
-        if (!w || w.start <= now.getTime()) continue;
-        anchors.push(`${r.title} — ${fmt(new Date(w.start))} ${yr} (орієнтовно, місячний календар)`);
-        break;
-      }
-    }
-    if (anchors.length) {
-      parts.push('КЛЮЧОВІ ДАТИ (пораховані точно, називай упевнено; «орієнтовно» переказуй як орієнтовно):\n'
-        + anchors.join('\n'));
+export function keyDateLines(now: Date, trads: Tradition[], rows: OccasionRow[] = BUILTIN_OCCASIONS): string[] {
+  if (!trads.length) return [];
+  const y = now.getFullYear();
+  const fmt = (dt: Date) => dt.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+  const anchors: string[] = [];
+  for (const t of trads) {
+    if (t !== 'orthodox' && t !== 'catholic') continue;
+    const label = t === 'catholic' ? 'католицький' : 'православний';
+    for (const yr of [y, y + 1]) {
+      const e = easterDate(yr, t);
+      if (e.getTime() < now.getTime() && yr === y) continue;  // торішній не потрібен
+      const lent = new Date(e);
+      // Православний піст — із Чистого понеділка (−48), католицький — із
+      // Попільної середи (−46).
+      lent.setDate(lent.getDate() - (t === 'catholic' ? 46 : 48));
+      anchors.push(`Великдень ${yr} (${label}) — ${fmt(e)}; Великий піст — з ${fmt(lent)}`);
     }
   }
-  if (soon.length) {
-    parts.push('ПОПЕРЕДУ: ' + soon.map((e) =>
-      `${whenLabel(e.at, now.getTime())}: ${e.title}${e.approx ? ' (орієнтовно, місячний календар)' : ''}`
-    ).join('; '));
+  // Якорі (місячний/сонячний дрейф) — лише найближче майбутнє входження.
+  for (const r of rows) {
+    if (isWindowRow(r) || !visible(r, trads)) continue;
+    const at = nextAnchorAfter(r.rule, now.getTime());
+    if (at === null) continue;
+    const mark = r.rule.t === 'lunar' ? 'орієнтовно, місячний календар' : 'орієнтовно';
+    anchors.push(`${r.title} — ${fmt(new Date(at))} ${new Date(at).getFullYear()} (${mark})`);
   }
-  return '\n\n[СЕЗОН І СВЯТА]\n' + parts.join('\n')
-    + '\nСезони й свята — привід, а не обовʼязок: згадуй лише коли доречно, одним реченням усередині відповіді.'
-    + ' Не починай розмову з календаря. Дати, яких тут немає, не вигадуй — скажи, що не знаєш.'
-    + ' Ніколи не описуй, як улаштована твоя памʼять: ні «розпізнається», ні «заповнюється», ні «прийде автоматично» — людині це нічого не дає й звучить як відмовка.'
-    + ' Обмеження вище — виняток: воно діє, поки триває, і не залежить від доречності.';
+  // Вікна з датами по роках (Рамадан, Песах, Ханука) — найближчий початок;
+  // орієнтовність несемо, лише коли вона є (місячний календар).
+  for (const r of rows) {
+    if (!isWindowRow(r) || r.rule.t !== 'dates' || !visible(r, trads) || r.tradition === 'secular') continue;
+    for (const yr of [y, y + 1]) {
+      const w = ruleWindow(r.rule, yr, trads);
+      if (!w || w.start <= now.getTime()) continue;
+      anchors.push(`${r.title} — ${fmt(new Date(w.start))} ${yr}${r.approx ? ' (орієнтовно, місячний календар)' : ''}`);
+      break;
+    }
+  }
+  return anchors;
 }
 
 // ── Механічна гвардія посту ─────────────────────────────────────────────────
@@ -287,11 +208,9 @@ export function isFastingRestricted(label: string): boolean {
 /** Чи просто зараз триває піст для розпізнаної традиції. */
 export function fastingActive(
   now: Date,
-  hints: string[],
-  rows: OccasionRow[] = BUILTIN_OCCASIONS,
-  traditions?: Tradition[],
+  rows: OccasionRow[],
+  trads: Tradition[],
 ): boolean {
-  const trads = traditions ?? traditionsFrom(hints);
   // Гвардія мітить усе скоромне (мʼясо, рибу, молочне, яйця) — це міра
   // повного посту. Обмеження, вужчі за неї (Страсна пʼятниця в католиків —
   // тільки мʼясо), гвардію не вмикають: інакше риба стояла б «пісною» всупереч

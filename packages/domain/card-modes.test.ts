@@ -35,7 +35,8 @@ describe('режим застосування картки', () => {
 describe('подія близько — режим, а не блок', () => {
   const mk = (rule: HouseholdEventRow['rule'], over: Partial<HouseholdEventRow> = {}): HouseholdEventRow => ({
     id: 'e1', household_id: 'h1', kind: 'custom', title: 'гості', note: null,
-    rule, force: 'hint', restricts: null, buy: [], recipe_id: null, servings: null,
+    rule, force: 'hint', restricts: null, from: null, to: null, rule_text: null, strict: false,
+    buy: [], recipe_id: null, servings: null,
     supply: null, created_by: 'u1', source: 'user', expires_at: null, done_at: null,
     created_at: '2026-09-01T10:00:00.000Z', ...over,
   });

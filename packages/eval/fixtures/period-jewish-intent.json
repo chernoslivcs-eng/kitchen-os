@@ -1,0 +1,18 @@
+{
+  "id": "period-jewish-intent",
+  "description": "Раунд 5, крок П1: «хочу святкувати юдейські свята» → картка period з tradition:'jewish', без дат від моделі: список свят і дати підтягне сервер із таблиці, людина позначить галочками.",
+  "call": "chat",
+  "now": "2026-09-06T18:00:00",
+  "pantry": [
+    {"id":"p1","label":"Яйця","zone":"fridge","v":10,"u":"pcs","state":"sealed"},
+    {"id":"p2","label":"Борошно","zone":"dry","v":1000,"u":"g","state":"opened"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "хочу святкувати юдейські свята" }
+  ],
+  "invariants": [
+    "is-period-card:kind=tradition,tradition=jewish",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

@@ -7,7 +7,8 @@
 // нічого в базу другого разу не запишеться. Це критично: сітка мобільна, повтори бувають.
 
 import { randomUUID } from 'node:crypto';
-import { ownsEvent, traditionsFrom } from './occasions.js';
+import { ownsEvent } from './occasions.js';
+import { subscriptionDefault, ruleFromDates } from './periods.js';
 import { appendProfileText, clampProfileText, profileTextHints } from './profile-text.js';
 import { isProfileFieldCard } from './types.js';
 import { rebuildVetoIndex } from './veto-index.js';
@@ -245,37 +246,21 @@ export async function applyCard(
 
   if (card.type === 'profile') {
     const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
-    // Крок 11: ops-картка — лише традиції (user.traditions) і домашні (їдці).
-    // Текст людини йде карткою поля, нотатки — полем `note` відповіді.
-    const user = await repo.getUser(actor_user_id);
-    const tradBefore: Tradition[] | null = user?.traditions ? [...user.traditions] : null;
-    const hints = profileTextHints(await repo.getProfileText(actor_user_id));
-    let trads: Tradition[] | null = tradBefore ? [...tradBefore] : null;
+    // Крок 11: ops-картка — лише домашні (їдці). Текст людини йде карткою
+    // поля, нотатки — полем `note` відповіді; традиції (П1) — карткою period.
     const snapshot: UndoSnapshot = { kind: 'profile', before: {} };
     // QA4-05: рахуємо те, що СПРАВДІ лягло.
     let landed = 0;
-    let traditionsTouched = false;
     const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
       if (op.kind === 'member') {
         if (await applyMemberOp(repo, pc.household_id, op, memberTrace)) landed++;
-        continue;
-      }
-      if (op.kind === 'tradition') {
-        const next = applyTraditionOp(trads, hints, op);
-        if (next) { trads = next; landed++; traditionsTouched = true; }
       }
     }
     if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
     if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
-    if (traditionsTouched) {
-      // Знімок «до» — і null («не обирала»): undo має повернути саме здогад,
-      // а не порожній вибір.
-      snapshot.before.traditions_before = { value: tradBefore };
-      await repo.setTraditions(actor_user_id, trads);
-    }
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -285,6 +270,71 @@ export async function applyCard(
     });
     await repo.markMessageApplied(pc.id, landed);
     return { applied: landed, undo_token, already: false };
+  }
+
+  // П1: період. Традиція / відписка — батч підписок по items (галочки =
+  // selected); дієта / подія дому — один запис із датами, які порахував
+  // сервер (resolved). Знімок «до» — стан підписок і id створеного запису.
+  if (card.type === 'period') {
+    const snapshot: UndoSnapshot = { kind: 'period', before: { subscriptions_before: [], added_event_ids: [] } };
+    let landed = 0;
+    let chosen: number[] = [];
+    if (card.items?.length) {
+      // П2a: галочки — цільовий стан УСІХ рядків картки: позначені — увімкнути,
+      // решту — зняти. `none` (жодної галочки) — зняти все; без вибору — усе
+      // увімкнути (стара поведінка). Відписка — той один рядок знято.
+      chosen = opts.none ? [] : (selected.length ? selected : card.items.map((_, i) => i));
+      const catalog = await repo.listOccasionCatalog();
+      const current = await repo.listOccasionSubscriptions(pc.household_id);
+      const on = new Set(chosen);
+      for (let idx = 0; idx < card.items.length; idx++) {
+        const it = card.items[idx]!;
+        const row = catalog.find((r) => r.id === it.occasion_id);
+        if (!row) continue;
+        const target = card.unsubscribe ? false : on.has(idx);
+        const before = current.find((s) => s.occasion_id === it.occasion_id);
+        snapshot.before.subscriptions_before!.push({ occasion_id: it.occasion_id, enabled: before ? before.enabled : null });
+        // Рядок лише як відхилення від дефолту.
+        await repo.setOccasionSubscription(pc.household_id, it.occasion_id, target === subscriptionDefault(row) ? null : target);
+        landed++;
+      }
+    } else if (card.resolved && (card.kind === 'diet' || card.kind === 'custom')) {
+      chosen = [0];
+      const title = (card.title ?? card.rule_text ?? '').trim();
+      if (title) {
+        const strict = !!card.strict;
+        const rule_text = (card.rule_text ?? '').trim() || null;
+        const row: HouseholdEventRow = {
+          id: randomUUID(), household_id: pc.household_id,
+          kind: card.kind, title, note: null,
+          rule: ruleFromDates(card.resolved.from, card.resolved.to),
+          force: strict ? 'restrict' : 'hint',
+          restricts: strict ? (rule_text ?? title) : null,
+          from: card.resolved.from, to: card.resolved.to,
+          rule_text, strict,
+          buy: [], recipe_id: null,
+          servings: card.servings ?? null, supply: null,
+          created_by: actor_user_id, source: 'chat',
+          expires_at: null, done_at: null,
+          created_at: new Date().toISOString(),
+        };
+        await repo.insertHouseholdEvent(row);
+        snapshot.before.added_event_ids!.push(row.id);
+        landed++;
+      }
+    }
+    const undo_token = randomUUID();
+    await repo.updatePending(pc.id, {
+      applied_at: new Date().toISOString(),
+      applied_ops: chosen,
+      undo_token,
+      undo_snapshot: snapshot,
+    });
+    await repo.markMessageApplied(pc.id, landed);
+    // П2: id створеного запису — щоб артефакт міг дописати правки людини
+    // (дати, «суворо») одразу після «Записати», не шукаючи запис навпомацки.
+    const eventIds = snapshot.before.added_event_ids ?? [];
+    return { applied: landed, undo_token, already: false, ...(eventIds.length ? { event_ids: eventIds } : {}) };
   }
 
   if (card.type === 'recipe') {
@@ -600,14 +650,17 @@ async function applyEventOp(
       // Обмеження дім собі не пише: піст приходить із довідника, а тверда межа
       // без тексту — порожня обіцянка. Той самий інваріант тримає CHECK у 0017.
       force: 'hint', restricts: null,
+      from: op.rule.t === 'once' ? op.rule.at : null,
+      to: op.rule.t === 'once' ? isoShift(op.rule.at, Math.max(1, op.rule.days ?? 1) - 1) : null,
+      rule_text: null, strict: false,
       buy: [], recipe_id: null,
       servings: op.servings ?? null,
       supply: op.supply ?? null,
       created_by: actor_user_id,
-      // Слід авторства: подія, написана моделлю, відрізняється від написаної
+      // Слід авторства: подія з картки моделі відрізняється від написаної
       // руками — інакше неможливо розібрати, звідки в календарі те, чого не
       // просили.
-      source: 'model',
+      source: 'chat',
       expires_at: null, done_at: null,
       created_at: new Date().toISOString(),
     };
@@ -635,7 +688,11 @@ async function applyEventOp(
   const patch: Parameters<Repo['updateHouseholdEvent']>[1] = {};
   if (op.title?.trim()) patch.title = op.title.trim();
   if ('note' in op) patch.note = op.note ?? null;
-  if (op.rule) patch.rule = op.rule;
+  if (op.rule) {
+    patch.rule = op.rule;
+    // П1: from/to дублюють правило once — тримаємо їх у згоді.
+    if (op.rule.t === 'once') { patch.from = op.rule.at; patch.to = isoShift(op.rule.at, Math.max(1, op.rule.days ?? 1) - 1); }
+  }
   if ('servings' in op) patch.servings = op.servings ?? null;
   if ('supply' in op) patch.supply = op.supply ?? null;
   if (!Object.keys(patch).length) return false;
@@ -728,31 +785,12 @@ async function applyMemberOp(
   return true;
 }
 
-// Традиція — перемикач календаря на user.traditions. Перший дотик матеріалізує
-// здогад: людина, яка вимикає «православні», розпізнані з «постуємо», має
-// отримати вибір без них, а не той самий здогад назад зі своїх слів.
-// Повертає новий масив або null, якщо операція нічого не змінила (QA4-05:
-// applied рахує лише те, що справді лягло).
-export function applyTraditionOp(
-  current: Tradition[] | null,
-  hints: string[],
-  op: { op?: 'add' | 'remove'; label?: string },
-): Tradition[] | null {
-  const label = (op.label ?? '').trim() as Tradition;
-  if (!TRADITIONS.includes(label)) return null;
-  const chosen = Array.isArray(current);
-  const cur = new Set<Tradition>(current ?? traditionsFrom(hints));
-  if (op.op === 'remove') {
-    if (!cur.has(label) && chosen) return null;
-    cur.delete(label);
-  } else {
-    if (cur.has(label) && chosen) return null;
-    cur.add(label);
-  }
-  return TRADITIONS.filter((t) => cur.has(t));
+/** 'YYYY-MM-DD' + днів (локальний календар, без DST-зсувів). */
+function isoShift(iso: string, days: number): string {
+  const [y = 1970, m = 1, d = 1] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
-
-const TRADITIONS: Tradition[] = ['orthodox', 'catholic', 'islamic', 'jewish'];
 
 // ---------- undo ----------
 
@@ -823,8 +861,9 @@ export async function undoCard(
     else await repo.insertHouseholdEvent(e);
   }
   // Традиції: назад попередній вибір (і null — «не обирала»).
-  if (snap.before.traditions_before) {
-    await repo.setTraditions(actor_user_id, snap.before.traditions_before.value);
+  // П1: підписки назад — рядок як був, або без рядка (дефолт).
+  for (const sb of snap.before.subscriptions_before ?? []) {
+    await repo.setOccasionSubscription(pc.household_id, sb.occasion_id, sb.enabled);
   }
   // Раунд 4: поле профілю — назад попередній текст і статус.
   if (snap.before.profile_field_before) {

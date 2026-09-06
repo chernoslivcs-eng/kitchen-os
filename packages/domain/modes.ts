@@ -52,6 +52,8 @@ function nearestEvent(
   let best: { event: HouseholdEventRow; at: number; label: string } | null = null;
 
   for (const e of events) {
+    // П1: дієта — період, не подія: «СЬОГОДНІ: білкова» щоранку — шум.
+    if (e.kind === 'diet') continue;
     if (e.done_at) continue;
     if (e.expires_at && new Date(e.expires_at).getTime() < now.getTime()) continue;
 

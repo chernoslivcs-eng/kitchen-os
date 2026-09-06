@@ -1,0 +1,212 @@
+/* Період: дві картки одного хребта — серія (список із галочками) і подія
+   (один запис). Токени продукту, обидві теми; на 390 — той самий потік,
+   дії внизу в один ряд. Тон за джерелом: сезон — бурштин, свято з
+   традиції — слива, своє — шавлія. */
+
+.body { padding: 4px 4px 8px; display: flex; flex-direction: column; gap: 2px; animation: mode-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+@keyframes mode-in { from { opacity: 0; } to { opacity: 1; } }
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.plum  { color: var(--plum); }
+.amber { color: var(--amber); }
+.sage  { color: var(--accent); }
+.muted { color: var(--fg-dim); }
+
+/* Рід свого запису — три пігулки, активна в шавлії. */
+.kinds { display: flex; gap: 2px; margin-bottom: 8px; }
+.kind {
+  padding: 2px 7px;
+  border: 0; border-radius: 6px;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  cursor: pointer;
+}
+.kind-on { color: var(--accent); background: var(--accent-bg); }
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+}
+.title-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--border-strong);
+  background: transparent;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+}
+.title-input:focus, .date-input:focus, .rule-input:focus { outline: none; border-bottom-color: var(--accent); }
+.title-input::placeholder, .rule-input::placeholder { color: var(--fg-dim); font-weight: 400; }
+
+.range {
+  margin-top: 6px;
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+.range b { font-weight: 400; color: var(--fg); }
+.date-input {
+  width: 118px;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--border-strong);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg);
+  color-scheme: light dark;
+}
+.left { color: var(--fg-dim); }
+
+.label {
+  display: block;
+  margin: 18px 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.rule { margin: 0; font-size: 15px; line-height: 1.5; color: var(--fg); }
+.rule-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--border-strong);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--fg);
+}
+.strict-row { margin-top: 8px; display: flex; align-items: baseline; gap: 8px; font-size: 13.5px; color: var(--fg-muted); }
+.strict {
+  padding: 2px 9px;
+  border: 0; border-radius: 8px;
+  background: var(--bg-surface-2);
+  color: var(--fg-dim);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.strict-on { color: var(--plum); background: var(--plum-bg); }
+.strict-static { cursor: default; }
+.hint { flex: 1; min-width: 0; }
+
+.meaning { margin: 18px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--fg); }
+.text { margin: 14px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--fg); }
+.sub { margin-top: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+
+.block { margin-top: 18px; }
+.rows { display: flex; flex-direction: column; gap: 6px; }
+.row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 11px 14px;
+  border: 0; border-radius: 14px;
+  background: var(--bg-surface-2);
+  text-align: left; cursor: pointer;
+}
+.row:hover { background: var(--bg-hover); }
+.row-name { font-family: var(--font-body); font-size: 15px; color: var(--fg); }
+.row-go { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+/* Серія: рядок = галочка · назва + дати · що робить. */
+.list { margin-top: 12px; display: flex; flex-direction: column; }
+.item {
+  display: flex; align-items: baseline; gap: 10px;
+  width: 100%; padding: 9px 0;
+  border: 0; border-bottom: 1px solid var(--border);
+  background: transparent; text-align: left; cursor: pointer;
+  transition: opacity var(--dur-fast);
+}
+.item-off { opacity: 0.55; }
+.item-static { cursor: default; }
+.mark { width: 14px; flex: none; font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
+.item-off .mark { color: var(--fg-dim); }
+.item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.item-name { font-family: var(--font-body); font-size: 15px; color: var(--fg); }
+.item-off .item-name { text-decoration: line-through; }
+.item-when { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-dim); }
+.does { flex: none; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-dim); }
+.does-strict { color: var(--plum); }
+
+/* Підвал: мета зліва, дії праворуч в один ряд — і на 390 теж. */
+.actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
+  margin-top: 26px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.meta { flex: 1; min-width: 0; font-size: 13px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta-on { color: var(--accent); }
+.spacer { flex: 1; }
+.primary, .ghost, .remove {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+}
+.primary { border: 0; background: var(--accent); color: var(--accent-fg-on); }
+.primary:hover { background: var(--accent-strong); }
+.primary:disabled { opacity: 0.55; cursor: default; }
+.ghost { border: 0; padding: 0 14px; background: none; color: var(--fg-muted); }
+.ghost:disabled { opacity: 0.45; cursor: default; }
+.ghost:not(:disabled):hover { color: var(--fg); }
+.remove { border: 0; padding: 0 14px; background: none; color: var(--danger); }
+
+.toast {
+  margin-top: 14px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--fg);
+}
+.toast button { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; }
+.err { margin-top: 12px; font-size: 13px; color: var(--danger); }
+.loading { margin-top: 14px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--fg-dim); }
+
+@media (max-width: 480px) {
+  .date-input { width: 108px; }
+  .actions { gap: 6px; }
+  .primary, .ghost, .remove { padding-left: 14px; padding-right: 14px; }
+}

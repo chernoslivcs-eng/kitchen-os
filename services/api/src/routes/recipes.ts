@@ -74,7 +74,6 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     const profileText = await repo.getProfileText(ctx.user_id);
     const profileNotes = await repo.listProfileNotes(ctx.user_id);
     const vetoIndex = await repo.getVetoIndex(ctx.user_id);
-    const traditions = (await repo.getUser(ctx.user_id))?.traditions ?? null;
     // Пул-4 №4б: хвіст розмови в генерацію — «Буде» на «Арборіо є?» не
     // губиться між викликами. Кількості маскуються, як у чат-історії.
     let conversation: string | undefined;
@@ -93,7 +92,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     // UX9-02: падіння моделі → 502 з кодом, не сирий 500.
     let call: Awaited<ReturnType<typeof callRecipe>>;
     try {
-      call = await callRecipe({ title: title.trim(), context, pantry, products, conversation, profileText, profileNotes, vetoIndex, traditions });
+      call = await callRecipe({ title: title.trim(), context, pantry, products, conversation, profileText, profileNotes, vetoIndex });
     } catch (err) {
       req.log.error({ err }, 'recipe-model-call-failed');
       return reply.code(502).send({ error: 'model_unavailable' });
@@ -108,7 +107,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => req.log.warn({ user_id: ctx.user_id, ...e }, e.event), `${title} ${context ?? ''}`);
       if (avoid.length) {
         const again = await callRecipe({
-          title: title.trim(), pantry, products, conversation, profileText, profileNotes, vetoIndex, traditions,
+          title: title.trim(), pantry, products, conversation, profileText, profileNotes, vetoIndex,
           context: [context, `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`].filter(Boolean).join('\n'),
         });
         await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, started);
