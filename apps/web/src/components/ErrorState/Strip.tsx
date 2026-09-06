@@ -63,7 +63,7 @@ export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone }: P
         <span className={styles.body}>{body}</span>
       </div>
       {cta
-        ? <div className={styles.action}><Button onClick={onCta}>{cta}</Button></div>
+        ? <div className={styles.action}><Button variant="positive" onClick={onCta}>{cta}</Button></div>
         : <span className={styles.passes} data-strip-passes>мине саме</span>}
       {timed && (
         <span

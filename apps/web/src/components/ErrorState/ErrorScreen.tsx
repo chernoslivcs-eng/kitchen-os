@@ -68,7 +68,11 @@ export function ErrorScreen({ kicker, code, h1a, h1b, body, cta, onCta, children
         <p className={styles.body}>{body}</p>
         {children}
         <div className={styles.action}>
-          <Button onClick={onCta}>{cta}</Button>
+          {/* positive, не primary: за V7 це «шавлієва заливка — головний
+              перехід усередині продукту», і саме ним є «У стрічку» чи
+              «Надіслати новий». Чорнильна primary означає незворотну дію або
+              вихід із продукту — тут не те й не те. Макет зелений. */}
+          <Button variant="positive" onClick={onCta}>{cta}</Button>
         </div>
       </div>
     </div>
