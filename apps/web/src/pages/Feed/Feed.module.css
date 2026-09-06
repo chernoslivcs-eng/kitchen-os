@@ -412,6 +412,16 @@ a.att-chip:hover { border-color: var(--accent); }
   padding: 7px 8px 7px 16px;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
+/* Крок Д1 (макет v7): композитор «озброюється», поки файл над вікном. Він і є
+   ціль — накладки в цьому дизайні немає, тож стан має показати сам приймач. */
+.composer-armed {
+  border-color: var(--accent) !important;
+  border-width: 1.5px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent) !important;
+  transition: border-color 160ms, box-shadow 160ms;
+}
+.composer-armed .composer-input::placeholder { color: var(--accent); }
+
 .composer:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--focus-ring);

@@ -16,6 +16,8 @@ import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
+import { useDropZone } from '../../components/DropZone/useDropZone';
+import { DropCard } from '../../components/DropZone/DropCard';
 import { useNavStore } from '../../store/nav';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
@@ -37,6 +39,11 @@ function splitPhrases(text: string): string[] {
   const parts = text.split(/(?<=[.!?…])\s+/).filter(Boolean);
   return parts.length ? parts : [text];
 }
+
+// Стеля вкладень за раз. Була числом усередині pickFiles; крок Д1 додав другого
+// читача (зона перетягування каже про стелю ДО того, як людина відпустила), і
+// два «5» в різних місцях розійшлись би за перший же перегляд.
+const MAX_ATTACHMENTS = 5;
 
 // Пул-9 №5: скільки реплік можна поставити в чергу, поки модель відповідає.
 // Три — стеля, за якою розмова перестає бути розмовою: далі кнопка відправки
@@ -141,6 +148,14 @@ export function Feed() {
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
   const [uploading, setUploading] = useState(false);
+  // Крок Д1: перетягування. Кинути можна будь-де в стрічці — хук слухає window;
+  // малюють це два місця: картка в кінці стрічки і сам композитор.
+  const drag = useDropZone({
+    pendingCount: pending.length,
+    max: MAX_ATTACHMENTS,
+    onFiles: useCallback((files: File[]) => { void pickFiles(files); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
+    onFolder: useCallback(() => setToast({ id: Date.now(), kind: 'err', text: 'Тека не піде — перетягни файли' }), []),
+  });
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerInputRef = useRef<HTMLTextAreaElement>(null);
@@ -656,8 +671,8 @@ export function Feed() {
 
   async function pickFiles(list: FileList | File[] | null) {
     if (!list || !('length' in list) || !list.length) return;
-    if (pending.length + list.length > 5) {
-      setToast({ id: Date.now(), kind: 'err', text: 'Максимум 5 вкладень за раз' });
+    if (pending.length + list.length > MAX_ATTACHMENTS) {
+      setToast({ id: Date.now(), kind: 'err', text: `Максимум ${MAX_ATTACHMENTS} вкладень за раз` });
       return;
     }
     setUploading(true);
@@ -1516,6 +1531,12 @@ export function Feed() {
           </div>
         ))}
 
+        {!historyOpen && drag && (
+          /* Кухня відповідає ходом, як на будь-що інше: картка стоїть у кінці
+             стрічки, над композитором, і зникає, щойно файл відпустили. */
+          <DropCard drag={drag} max={MAX_ATTACHMENTS} />
+        )}
+
         {!historyOpen && sending && (
           <div className={styles.turn} aria-live="polite">
             <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
@@ -1629,7 +1650,10 @@ export function Feed() {
         {/* Бриф-3 п.6 — канон композитора: одна пілюля, 📎 (ghost) і 🎙
             всередині фрейму справа; при наборі 🎙 морфить у ↑, 📎 лишається.
             «Обери інструмент» стало «запиши» — ввід виглядає як рядок журналу. */}
-        <form className={`${styles.composer} ${listening ? styles['composer-recording'] : ''}`} onSubmit={send}>
+        <form
+          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''} ${drag ? styles['composer-armed'] : ''}`}
+          onSubmit={send}
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -1665,12 +1689,17 @@ export function Feed() {
                 return;
               }
               const text = e.clipboardData.getData('text/plain');
-              if (text.length > 1500 && text.includes('\n') && pending.length < 5) {
+              if (text.length > 1500 && text.includes('\n') && pending.length < MAX_ATTACHMENTS) {
                 e.preventDefault();
                 void pasteAsAttachment(text);
               }
             }}
-            placeholder={listening ? 'Слухаю…' : pending.length > 0 ? 'Що з цим?' : 'Записати в журнал…'}
+            placeholder={
+              drag ? 'Відпусти — файл піде в розмову'
+                : listening ? 'Слухаю…'
+                : pending.length > 0 ? 'Що з цим?'
+                : 'Записати в журнал…'
+            }
             autoFocus
           />
           <button

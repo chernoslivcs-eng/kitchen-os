@@ -1,0 +1,104 @@
+/* Крок Д1 (макет v7): картка перетягування. Геометрія й тайминги — з макета
+   «Зона перетягування v7 — картка»; кольори токенами, щоб жили обидві теми. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: card-in 240ms var(--ease-enter, cubic-bezier(0, 0, 0.2, 1));
+}
+@keyframes card-in {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.99); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Підпис ходу — той самий, що над рештою реплік Кухні. */
+.who {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+}
+
+.card {
+  max-width: 460px;
+  border-radius: 16px;
+  background: var(--bg-surface-2);
+  /* Рамка шавлієва, а не сіра: картка каже «я готова взяти», і це стан
+     очікування дії, не звичайний хід. */
+  border: 1px solid var(--accent-border);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--fg-strong);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+}
+
+/* Прев'ю — той самий квадрат 48×48, що в чіпів вкладень: людина побачить його
+   на тому ж місці за секунду, коли файл справді ляже. */
+.slot {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 10px;
+  border: 1.5px dashed var(--accent-border);
+  background: var(--accent-bg);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  animation: slot-pulse 1400ms ease-in-out infinite;
+  /* Слот тягнеться до курсора — зсув пише JS, перехід згладжує. */
+  transition: transform 160ms var(--ease-enter, cubic-bezier(0, 0, 0.2, 1));
+}
+@keyframes slot-pulse {
+  0%, 100% { border-color: var(--accent-border); }
+  50%      { border-color: var(--accent); }
+}
+
+.body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--fg-muted);
+}
+
+.effect {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--fg-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Картка лишається — вона несе зміст. Йде тільки рух. */
+  .wrap { animation: none; }
+  .slot { animation: none; transition: none; }
+}
