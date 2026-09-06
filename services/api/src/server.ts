@@ -64,6 +64,29 @@ export function buildApp(
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // Крок О1: код інциденту — не лише заголовком, а й у тілі 5xx. Заголовок
+    // бачить curl -i і клієнтський код; людина, яка відкрила адресу в
+    // браузері, не бачить його ніяк, а саме вона й читає цей код уголос.
+    //
+    // Робимо це тут, а не через setErrorHandler: форму тіла помилки знає
+    // fastify (у валідаційних там свої поля), і переписувати її означало б
+    // узяти на себе те, що вже працює. Тут ми лише ДОДАЄМО поле в готовий
+    // JSON, а якщо тіло не JSON — не чіпаємо взагалі.
+    const code = reply.getHeader('x-incident-code');
+    if (code && reply.statusCode >= 500 && typeof payload === 'string') {
+      try {
+        const body: unknown = JSON.parse(payload);
+        if (body && typeof body === 'object' && !Array.isArray(body)) {
+          // content-length fastify перераховує сам після onSend — перевірено
+          // на справжньому HTTP-сервері, не на inject. Ставити його руками
+          // означало б тримати рядок, який неможливо зламати тестом.
+          return done(null, JSON.stringify({ ...(body as Record<string, unknown>), incident: code }));
+        }
+      } catch {
+        // Не JSON — лишаємо як є. Тіло помилки важливіше за наш код.
+      }
+    }
     done(null, payload);
   });
   // Крок О1: усе, що впало в обробнику й не було спіймано на місці. Без цього
