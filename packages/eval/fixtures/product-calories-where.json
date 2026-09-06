@@ -1,0 +1,22 @@
+{
+  "id": "product-calories-where",
+  "description": "Раунд 5, крок К1: «де подивитись калорії?» → з [ПРО ДОДАТОК]: у коморі в картці продукту і під рецептом, зі згадкою «≈» (оцінка). Без картки.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "pantry": [
+    {"id":"p1","label":"Гречка","zone":"dry","v":800,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Яйця","zone":"fridge","v":10,"u":"pcs","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "де подивитись калорії?" }
+  ],
+  "invariants": [
+    "no-card",
+    "reply-includes:комор",
+    "reply-matches:картк|рядк|позиці",
+    "reply-includes:рецепт",
+    "reply-includes:≈",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

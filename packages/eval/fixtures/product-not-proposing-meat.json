@@ -1,0 +1,23 @@
+{
+  "id": "product-not-proposing-meat",
+  "description": "Раунд 5, крок К1: «чому ти не пропонуєш мʼясо?» при «Я не їм мʼяса» → пояснення через рядок профілю, і що на пряме прохання зробить. Класифікатор тут НЕ спрацьовує (нема слова зі словника продукту, є назва продукту) — відповідь іде з [ПРО ЛЮДИНУ] і правила ПРО ЛЮДИНУ в kitchen-policy.",
+  "call": "chat",
+  "now": "2026-09-10T18:00:00",
+  "profile_text": { "no": "мʼяса" },
+  "pantry": [
+    {"id":"p1","label":"Свинина ошийок","zone":"fridge","v":500,"u":"g","state":"sealed"},
+    {"id":"p2","label":"Картопля","zone":"dry","v":1000,"u":"g","state":"sealed"},
+    {"id":"p3","label":"Сир гауда","zone":"fridge","v":200,"u":"g","state":"sealed"},
+    {"id":"p4","label":"Помідори","zone":"fresh","v":400,"u":"g","state":"sealed"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "чому ти не пропонуєш мʼясо?" }
+  ],
+  "invariants": [
+    "no-card",
+    "reply-matches:не ї(м|си)",
+    "reply-matches:прям|попрос|скаж|захоч",
+    "no-markdown",
+    "addresses-informally"
+  ]
+}

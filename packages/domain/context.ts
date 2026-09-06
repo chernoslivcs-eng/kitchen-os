@@ -69,6 +69,10 @@ export interface KitchenContext {
   // поза цією розмовою — щоб модель не реконструювала стан дому із власних
   // минулих реплік. repo.listRecentResolved(), вікно й ліміт рахує викликач.
   recentActions?: PendingCard[];
+  // Раунд 5, крок К1: карта додатку — лише на ходах, де репліка схожа на
+  // питання про додаток (productMapFor у product-question.ts). Іде одразу
+  // за [ПРО ЛЮДИНУ]/[НОТАТКИ], перед [КОМОРА]: це довідка, не стан.
+  productMap?: string | null;
 }
 
 // M13: без цього блока модель на «замов через сільпо» відповідала categorичною
@@ -480,7 +484,9 @@ export function buildKitchenContext(ctx: KitchenContext): string {
   const profileText = ctx.profileText ?? emptyProfileText('');
   const hints = profileTextHints(profileText);
   const trads = traditionsOf(ctx.traditions, hints);
-  return serializeProfileText(profileText, ctx.profileNotes ?? []) + serializeTraditions(ctx.traditions)
+  return serializeProfileText(profileText, ctx.profileNotes ?? [])
+    + (ctx.productMap ? '\n\n' + ctx.productMap.trim() : '')
+    + serializeTraditions(ctx.traditions)
     + '\n\n[СЬОГОДНІ] ' + todayLabel(now)
     // Календар іде одразу за датою: він її пояснює. Порожній, якщо нічого не
     // триває — і завжди порожній, поки традиція не розпізнана з побажань.

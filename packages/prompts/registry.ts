@@ -30,6 +30,10 @@ export interface CallSpec {
   // маніфест, який казав "fast" там, де код брав smart.
   profile: 'fast' | 'smart';
   compose: string[];
+  // Раунд 5, крок К1: блоки, які сервер підмішує в ДИНАМІЧНУ частину промпту
+  // за умовою (product-map — лише на питаннях про додаток). Не в compose,
+  // бо не в стабільному префіксі; але мають існувати й проходити overlap-lint.
+  inject?: string[];
   temperature?: number;
   notes?: string;
 }
@@ -75,7 +79,7 @@ export function loadPrompt(version: string = latestVersion()): LoadedPrompt {
     blocks[key] = readFileSync(join(dir, file), 'utf-8');
   }
   for (const [call, spec] of Object.entries(manifest.calls)) {
-    for (const req of spec.compose) {
+    for (const req of [...spec.compose, ...(spec.inject ?? [])]) {
       const k = req.replace(/\?$/, '');
       if (!blocks[k]) {
         throw new Error(`Call ${call} needs block ${k}, missing from ${dir}`);

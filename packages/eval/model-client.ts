@@ -7,7 +7,7 @@ const HERE_FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
 import { compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
 import {
-  buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities,
+  buildKitchenContext, parseModelResponse, parseAttachmentResponse, maskHistoryQuantities, productMapFor,
   buildAliasMap, serializePantry, extractJson,
   serializeProfileText, serializeTraditions, emptyProfileText,
   PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, fieldByVerb, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
@@ -58,6 +58,12 @@ function profileOf(fx: Fixture): { profileText: ProfileText; profileNotes: Profi
   const profileNotes = (fx.profile_notes ?? []) as ProfileNote[];
   // Крок 4б: індекс — з no/ban (той самий витяг, що PATCH у проді) → ⚠ у [КОМОРА].
   return { profileText, profileNotes, vetoIndex: vetoIndexOfText(profileText) };
+}
+
+function lastUserText(fx: Fixture): string {
+  const conv = fx.conversation ?? [];
+  for (let i = conv.length - 1; i >= 0; i--) if (conv[i]!.role === 'user') return conv[i]!.content;
+  return '';
 }
 
 export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fixture): { stable: string; dynamic?: string } {
@@ -128,6 +134,9 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
     // розмовою. У проді рахує repo.listRecentResolved; фікстура описує
     // напряму, як і events/modes вище.
     recentActions: (fx.recentActions ?? []) as PendingCard[],
+    // Раунд 5, крок К1: карта додатку — той самий класифікатор, що в проді
+    // (callChat), на останній репліці людини.
+    productMap: productMapFor(lastUserText(fx), prompt.blocks['product-map']),
   });
   return { stable: base, dynamic };
 }

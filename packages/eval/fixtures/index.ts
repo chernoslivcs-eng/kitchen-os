@@ -260,6 +260,8 @@ export function loadFixtures(): Fixture[] {
     // Аудит раунд 3, крок 6в: voice.md v2, ВІДМОВА ПОЗА ТЕМОЮ — побутова
     // репліка без прохання (сусід через паркан) проти пряме прохання
     // розваги (анекдот).
+    // Раунд 5, крок К1: асистент знає сам додаток ([ПРО ДОДАТОК] за класифікатором).
+    ...['product-silpo-connect', 'product-not-proposing-meat', 'product-calories-where', 'product-absent-feature', 'product-mixed'].map((id) => readJson(`${id}.json`)),
     readJson('off-topic-neighbor.json'),
     readJson('off-topic-joke.json'),
   ];

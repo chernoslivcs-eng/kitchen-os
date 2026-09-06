@@ -22,3 +22,4 @@ export * from './onboarding.js';
 export * from './assistant-notes.js';
 export * from './nutrition.js';
 export * from './pantry-view.js';
+export * from './product-question.js';

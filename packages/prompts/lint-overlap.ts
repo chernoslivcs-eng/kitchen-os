@@ -47,7 +47,8 @@ export interface Overlap { marker: Marker; hits: Hit[]; files: string[] }
 function filesForCalls(prompt: LoadedPrompt, calls: CallName[]): string[] {
   const out: string[] = [];
   for (const call of calls) {
-    for (const n of prompt.manifest.calls[call].compose) {
+    const spec = prompt.manifest.calls[call];
+    for (const n of [...spec.compose, ...(spec.inject ?? [])]) {
       const f = n.replace(/\?$/, '');
       if (!out.includes(f)) out.push(f);
     }
