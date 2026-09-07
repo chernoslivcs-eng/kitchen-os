@@ -94,8 +94,8 @@ describe('хелпер incident()', () => {
   it('пише обидва роди в app_event під імʼям incident:*', async () => {
     const repo = new InMemoryRepo();
     const { user_id } = await repo.createUserWithHousehold('i@example.com', 'X');
-    incident({ repo, log: silent }, 'broke', 'chat-model-call-failed', { user_id, err: 'boom' });
-    incident({ repo, log: silent }, 'guard', 'example-copy', { user_id, model: 'haiku' });
+    incident({ repo, req: { log: silent } }, 'broke', 'chat-model-call-failed', { user_id, err: 'boom' });
+    incident({ repo, req: { log: silent } }, 'guard', 'example-copy', { user_id, model: 'haiku' });
     await new Promise((r) => setTimeout(r, 10));   // запис не блокує обробник
 
     const rows = await repo.listAppEvents(user_id, {
@@ -110,7 +110,7 @@ describe('хелпер incident()', () => {
     const repo = new InMemoryRepo();
     vi.spyOn(repo, 'saveAppEvents').mockRejectedValue(new Error('база лягла'));
     const log = { ...silentObj, error: vi.fn() };
-    expect(() => incident({ repo, log: log as never }, 'guard', 'intake-op-missed', { user_id: 'u1' })).not.toThrow();
+    expect(() => incident({ repo, req: { log: log as never } }, 'guard', 'intake-op-missed', { user_id: 'u1' })).not.toThrow();
     await new Promise((r) => setTimeout(r, 10));
     // Відмова саме ПІЙМАНА, а не залишена необробленою обіцянкою: інакше
     // процес у ноді падає цілком, і guard таки стає аварією.
@@ -120,7 +120,7 @@ describe('хелпер incident()', () => {
   it('без user_id у базу не пише: подія без людини нікому не потрібна', async () => {
     const repo = new InMemoryRepo();
     const spy = vi.spyOn(repo, 'saveAppEvents');
-    incident({ repo, log: silent }, 'broke', 'invite-mail-failed', {});
+    incident({ repo, req: { log: silent } }, 'broke', 'invite-mail-failed', {});
     expect(spy).not.toHaveBeenCalled();
   });
 });

@@ -299,7 +299,7 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
           });
         }
       } catch (err) {
-        incident({ repo, log: req.log }, 'broke', 'occasion-catch-failed', { user_id, err: String(err) });
+        incident({ repo, req }, 'broke', 'occasion-catch-failed', { user_id, err: String(err) });
       }
 
       // Правка №6: перше слово пост-готування — детерміноване питання в сесії

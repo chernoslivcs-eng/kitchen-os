@@ -96,7 +96,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     try {
       call = await callRecipe({ title: title.trim(), context, pantry, products, conversation, profileText, profileNotes, vetoIndex });
     } catch (err) {
-      incident({ repo, log: req.log }, 'broke', 'recipe-model-call-failed', { user_id: ctx.user_id, err: String(err) });
+      incident({ repo, req }, 'broke', 'recipe-model-call-failed', { user_id: ctx.user_id, err: String(err) });
       return reply.code(502).send({ error: 'model_unavailable' });
     }
     await recordUsage(repo, ctx, 'recipe_gen', call.meta, call.usage, started);
@@ -106,7 +106,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     if (call.recipe) {
       // З розвʼязаними назвами: `p` без `n` інакше невидимий для вето.
       // Назва — те, що людина обрала/попросила: названі нею рядки не вето.
-      const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => incident({ repo, log: req.log }, 'guard', e.event, { user_id: ctx.user_id, ...e }), `${title} ${context ?? ''}`);
+      const { avoid } = recipeVetoHits(resolveRecipeLabels(call.recipe, pantry), vetoIndex, (e) => incident({ repo, req }, 'guard', e.event, { user_id: ctx.user_id, ...e }), `${title} ${context ?? ''}`);
       if (avoid.length) {
         const again = await callRecipe({
           title: title.trim(), pantry, products, conversation, profileText, profileNotes, vetoIndex,
@@ -114,8 +114,8 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
         });
         await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, started);
         if (again.recipe) {
-          const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => incident({ repo, log: req.log }, 'guard', e.event, { user_id: ctx.user_id, retry: true, ...e }), `${title} ${context ?? ''}`);
-          if (left.avoid.length) incident({ repo, log: req.log }, 'guard', 'veto-recipe-kept', { user_id: ctx.user_id, title, avoid: left.avoid });
+          const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => incident({ repo, req }, 'guard', e.event, { user_id: ctx.user_id, retry: true, ...e }), `${title} ${context ?? ''}`);
+          if (left.avoid.length) incident({ repo, req }, 'guard', 'veto-recipe-kept', { user_id: ctx.user_id, title, avoid: left.avoid });
           call = again;
         }
       }
@@ -144,7 +144,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
     const bad = call.recipe.ing.filter(
       (i: RecipeIng) => 'q' in (i as object) || (i.v != null && typeof i.v !== 'number'),
     );
-    if (bad.length) incident({ repo, log: req.log }, 'guard', 'recipe-ing-schema-violation', { user_id: ctx.user_id, bad, title });
+    if (bad.length) incident({ repo, req }, 'guard', 'recipe-ing-schema-violation', { user_id: ctx.user_id, bad, title });
 
     // QA9-01: назва партії вморожується в payload зараз — рендер більше не
     // залежить від живої комори. Партію спишуть чи перейменують — рецепт

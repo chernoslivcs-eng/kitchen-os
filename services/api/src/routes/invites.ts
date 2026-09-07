@@ -77,7 +77,7 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
         });
       } catch (err) {
         mail_sent = false;
-        incident({ repo, log: req.log }, 'broke', 'invite-mail-failed', { user_id, household_id: invite.household_id, err: String(err) });
+        incident({ repo, req }, 'broke', 'invite-mail-failed', { user_id, household_id: invite.household_id, err: String(err) });
       }
       return reply.code(201).send({
         id: invite.id,

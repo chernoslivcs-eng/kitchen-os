@@ -89,7 +89,7 @@ describe('Sentry на сервері', () => {
 
   it('хелпер incident() доносить подію до Sentry САМ — без окремого виклику', async () => {
     const repo = new InMemoryRepo();
-    incident({ repo, log: silent }, 'guard', 'response-contains-allergen', { user_id: 'u2', allergen: 'горіхи' });
+    incident({ repo, req: { log: silent } }, 'guard', 'response-contains-allergen', { user_id: 'u2', allergen: 'горіхи' });
     await flushSentry(3000);
     expect(received).toHaveLength(1);
     expect((received[0]!.tags as Record<string, string>).incident).toBe('response-contains-allergen');
@@ -97,7 +97,7 @@ describe('Sentry на сервері', () => {
 
   it('інцидент без людини все одно летить: у базу він не пише, а в Sentry має', async () => {
     const repo = new InMemoryRepo();
-    incident({ repo, log: silent }, 'broke', 'occasion-catch-failed', {});
+    incident({ repo, req: { log: silent } }, 'broke', 'occasion-catch-failed', {});
     await flushSentry(3000);
     expect(received).toHaveLength(1);
     expect(received[0]!.user).toBeUndefined();

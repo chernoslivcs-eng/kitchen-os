@@ -41,7 +41,7 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
       // взагалі проблема в житті, чи лише в підстроєному випадку.
       if (r.missed?.length) {
-        incident({ repo, log: req.log }, 'guard', 'intake-op-missed', { user_id, card_id: req.params.id, missed: r.missed });
+        incident({ repo, req }, 'guard', 'intake-op-missed', { user_id, card_id: req.params.id, missed: r.missed });
       }
       // Правка №6: застосована пост-кук картка списання продовжує розмову
       // детермінованим «Як вийшло?» (0 токенів). Впізнаємо її за точним
