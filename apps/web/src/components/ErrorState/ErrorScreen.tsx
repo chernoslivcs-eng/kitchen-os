@@ -9,7 +9,7 @@
 // це розсиплеться за першої ж правки чи перекладу.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { track } from '../../lib/track';
+import { track, flushNow } from '../../lib/track';
 import { Button } from '../Button/Button';
 import { Logo } from '../Logo/Logo';
 import styles from './ErrorScreen.module.css';
@@ -39,7 +39,15 @@ export function ErrorScreen({ kicker, code, h1a, h1b, body, cta, onCta, children
   useEffect(() => () => window.clearTimeout(timer.current), []);
   // Крок О1а: поки Sentry немає, це єдиний слід того, що людина побачила
   // помилку. Кікер, а не текст: він і є ім'я стану.
-  useEffect(() => { track('error_shown', { state: kicker }); }, [kicker]);
+  //
+  // Крок А2: і одразу зливаємо. Цей екран малює ErrorBoundary, який стоїть НАД
+  // каркасом: до моменту, коли ми сюди дійшли, Shell уже розмонтований, його
+  // інтервал зупинений, а слухач visibilitychange знятий — чекати наступного
+  // тіку немає кому. Тому подія йде в мережу тут, а не за розкладом.
+  useEffect(() => {
+    track('error_shown', { state: kicker });
+    flushNow();
+  }, [kicker]);
 
   function copy() {
     if (!code) return;

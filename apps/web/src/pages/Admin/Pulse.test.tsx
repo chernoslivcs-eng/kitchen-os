@@ -12,7 +12,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter, Route, Routes, Outlet } from 'react-router-dom';
 import { PulsePage } from './Pulse';
+import type { AdminContext } from './AdminShell';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -31,14 +33,18 @@ const at = (h: number, m: number) => {
 const PULSE = {
   day: '2026-09-06',
   household_id: 'h-1',
+  household_name: 'Дім Пилипа',
+  guest: false,
   members: [
     { user_id: 'u-1', name: 'Пилип', role: 'owner' },
     { user_id: 'u-2', name: 'Оля', role: 'member' },
   ],
   turns: [
-    { at: at(9, 12), user_id: 'u-1', who: 'Пилип', role: 'user', text: 'купив куряче філе', card_type: null, card_state: null, latency_ms: null, usd: null },
-    { at: at(9, 12), user_id: 'u-1', who: 'Пилип', role: 'assistant', text: 'Записав.', card_type: 'intake_diff', card_state: 'застосована', latency_ms: 2400, usd: 0.0123 },
-    { at: at(19, 40), user_id: 'u-2', who: 'Оля', role: 'assistant', text: 'Ось що можна', card_type: 'recipe', card_state: 'відхилена', latency_ms: 5100, usd: null },
+    { at: at(9, 12), user_id: 'u-1', who: 'Пилип', role: 'user', text: 'купив куряче філе', card_type: null, card_state: null, latency_ms: null, usd: null, price_from: null },
+    { at: at(9, 12), user_id: 'u-1', who: 'Пилип', role: 'assistant', text: 'Записав.', card_type: 'intake_diff', card_state: 'застосована', latency_ms: 2400, usd: 0.0123, price_from: 'message' },
+    { at: at(19, 40), user_id: 'u-2', who: 'Оля', role: 'assistant', text: 'Ось що можна', card_type: 'recipe', card_state: 'відхилена', latency_ms: 5100, usd: null, price_from: 'time' },
+    // Старий рядок обліку: указівника на хід немає, ціна зшита за часом.
+    { at: at(20, 5), user_id: 'u-2', who: 'Оля', role: 'assistant', text: 'І ще одне', card_type: null, card_state: null, latency_ms: 3100, usd: 0.0044, price_from: 'time' },
   ],
   money: {
     day: { calls: 4, input: 12000, output: 800, cached: 9000, usd: 0.0412 },
@@ -67,11 +73,36 @@ function install(body: unknown = PULSE, status = 200) {
   }));
 }
 
-async function mount() {
+/**
+ * Крок А2: пульс живе всередині каркаса адмінки й бере з нього контекст дому.
+ * Тут каркас підмінений заглушкою — предмет цього файлу самі числа й слова, а
+ * доступ і рейка перевіряються в AdminShell.test.tsx.
+ */
+function ShellStub({ house }: { house: AdminContext['house'] }) {
+  const ctx: AdminContext = {
+    households: [], myHouseholdId: 'h-1', house,
+    hiddenTechnical: 0, technicalTotal: 0, showTechnical: false, setShowTechnical: () => {},
+    reload: () => {},
+  };
+  return <Outlet context={ctx} />;
+}
+
+async function mount(path = '/admin/pulse', house: AdminContext['house'] = null) {
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
-  await act(async () => { root!.render(<PulsePage />); });
+  await act(async () => {
+    root!.render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<ShellStub house={house} />}>
+            <Route path="/admin/pulse" element={<PulsePage />} />
+            <Route path="/admin/h/:household_id" element={<PulsePage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+  });
 }
 
 beforeEach(() => { install(); });
@@ -161,11 +192,8 @@ describe('пульс дня', () => {
     expect(host!.textContent).toContain('how=drop');
   });
 
-  it('стороннього зустрічає 404 — сторінка не видає, що вона існує', async () => {
-    install(null, 404);
-    await mount();
-    expect(host!.textContent).toBe('404');
-  });
+  // Крок А2: перевірка доступу переїхала на каркас — див. AdminShell.test.tsx.
+  // Тут її більше немає навмисно: два місця, що вирішують те саме, розходяться.
 
   it('стрілка «день →» не пускає в майбутнє', async () => {
     await mount();
@@ -217,6 +245,48 @@ describe('пульс дня', () => {
     // Хід Олі теж підписаний нею, а не власником.
     const third = [...rows[2]!.querySelectorAll('td')].map((c) => c.textContent);
     expect(third[1]).toBe('Оля');
+  });
+
+  it('точна ціна й оцінка виглядають по-різному — інакше на здогадці будували б економіку', async () => {
+    await mount();
+    const exact = host!.querySelector('[data-price-from="message"]')!;
+    const guessed = [...host!.querySelectorAll('[data-price-from="time"]')].map((n) => n.textContent);
+    expect(exact.textContent).toBe('$0.0123');
+    // «≈» — не прикраса: до А1 указівника на хід не існувало, і ціна зшивалась
+    // за часом. На такому числі не можна будувати юніт-економіку.
+    expect(exact.textContent).not.toContain('≈');
+    expect(guessed).toContain('≈ $0.0044');
+    // А там, де ціни моделі ми не знаємо, риска лишається рискою: «≈ —» не
+    // означало б нічого.
+    expect(guessed).toContain('—');
+  });
+
+  it('заголовок присвійний і каже, чий це дім', async () => {
+    await mount();
+    expect(host!.textContent).toContain('Пульс дому Пилипа');
+  });
+
+  it('у гостях це видно на екрані, а не лише в адресному рядку', async () => {
+    install({ ...PULSE, household_id: 'h-2', household_name: 'Дім Олі', guest: true });
+    await mount('/admin/h/h-2', { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: null, turns: 0, last_seen_at: null, mine: false, owner_name: 'Оля', owner_email: 'olya@gmail.com', technical: false });
+    expect(host!.textContent).toContain('Пульс дому Олі');
+    expect(host!.querySelector('[data-guest-tag]')).toBeTruthy();
+  });
+
+  it('чужий дім питається з household_id, свій — без нього', async () => {
+    await mount('/admin/h/h-2', { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: null, turns: 0, last_seen_at: null, mine: false, owner_name: null, owner_email: null, technical: false });
+    expect(calls[0]).toContain('household_id=h-2');
+    install();
+    await act(async () => { root?.unmount(); });
+    await mount();
+    expect(calls[0]).not.toContain('household_id');
+  });
+
+  it('дім, у якому нічого не сталось, не валить сторінку — і каже це словами', async () => {
+    install({ ...PULSE, turns: [], events: [], money: { day: { calls: 0, input: 0, output: 0, cached: 0, usd: 0 }, week: { calls: 0, input: 0, output: 0, cached: 0, usd: 0 }, byMember: [] } });
+    await mount();
+    expect(host!.querySelector('[data-nothing]')).toBeTruthy();
+    expect(host!.textContent).toContain('У цьому домі ще нічого не сталось');
   });
 
   it('події теж підписані людиною', async () => {

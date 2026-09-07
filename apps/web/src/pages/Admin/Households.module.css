@@ -1,0 +1,181 @@
+/* Крок А2: список домів. Форма таблиці — з макета: рядок клікабельний
+   цілком, «УВІЙТИ →» праворуч, дім без ходів приглушений, але присутній. */
+
+.page { color: var(--fg); }
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  color: var(--fg-strong);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--fg-dim);
+}
+
+/* Перемикач технічних домів. Виглядає як частина підпису, а не як кнопка:
+   це не дія над даними, а спосіб подивитись на них інакше. */
+.toggle {
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent-border);
+}
+.toggle:hover { color: var(--accent-strong); text-decoration-color: currentColor; }
+
+.block { display: flex; flex-direction: column; gap: 10px; }
+
+.blockHead { display: flex; align-items: baseline; gap: 12px; }
+
+.blockTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  color: var(--fg-muted);
+}
+
+.blockNote {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--fg-dim);
+}
+
+.table {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-body);
+}
+
+.rowHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) 70px 150px minmax(0, 1.4fr) 96px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.rowHead {
+  background: var(--bg-surface-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: var(--fg-dim);
+}
+
+.row {
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+.row:hover { background: var(--bg-hover); }
+
+/* Дім без жодного ходу лишається в списку — приглушений, але не прихований. */
+.silent .name { color: var(--fg-muted); }
+
+.who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.avatar {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-surface-2);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.names { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--fg-strong);
+}
+
+.mineTag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+/* Технічний дім видно в рядку — інакше, увімкнувши їх, легко сплутати
+   мовчазний тестовий дім із мовчазною живою людиною. А саме вона тут головна. */
+.techTag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  color: var(--fg-dim);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.owner {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dim { color: var(--fg-dim); }
+
+.enter {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  color: var(--accent);
+  text-align: right;
+}
+
+.empty {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-body);
+  padding: 26px 22px;
+  max-width: 560px;
+}
+.empty b { display: block; font-size: 15px; color: var(--fg-strong); margin-bottom: 6px; }
+.empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--fg-muted); }

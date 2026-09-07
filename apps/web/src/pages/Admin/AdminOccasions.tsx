@@ -23,7 +23,6 @@ const empty: AdminOccasionInput = {
 
 export function AdminOccasionsPage() {
   const [occasions, setOccasions] = useState<AdminOccasion[] | null>(null);
-  const [denied, setDenied] = useState(false);
   const [form, setForm] = useState<AdminOccasionInput>(empty);
   // buy/seeds редагуються рядком через кому — форма тримає масив, людина
   // пише текст; список — окремий стан, синхронізований лише в моменти
@@ -37,13 +36,12 @@ export function AdminOccasionsPage() {
   const load = () => {
     api.admin.occasions.list()
       .then(({ occasions }) => setOccasions(occasions))
-      .catch(() => setDenied(true));
+      // Крок А2: власного 404 тут більше немає — доступ тримає каркас адмінки,
+      // і відмова показує справжню сторінку продукту.
+      .catch(() => setOccasions([]));
   };
   useEffect(load, []);
 
-  if (denied) {
-    return <div style={{ padding: 24, fontFamily: 'var(--font-mono)', color: 'var(--fg-dim)' }}>404</div>;
-  }
   if (!occasions) return null;
 
   const startEdit = (o: AdminOccasion) => {

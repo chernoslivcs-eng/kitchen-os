@@ -43,6 +43,38 @@ export interface HouseholdMemberRow {
   joined_at: string;
 }
 
+/**
+ * Крок А2: рядок списку домів в адмінці.
+ *
+ * Пілот роздано, і кожна людина за лінком дістає ВЛАСНИЙ дім
+ * (`createUserWithHousehold`). Тобто дані пілотних людей пишуться з першої
+ * хвилини, а власник досі бачив тільки себе.
+ *
+ * Ім'я й пошта власника дому — свідомий виняток із «PII в адмінку не носимо».
+ * Він цих людей особисто кликав і має розрізняти їх у списку; далі за список
+ * ця пара не йде.
+ */
+export interface AdminHouseholdRow {
+  id: string;
+  name: string;
+  created_at: string;
+  /** Скільки людей у домі. */
+  people: number;
+  /** Останній хід (репліка людини або відповідь) — null, якщо ходів не було. */
+  last_turn_at: string | null;
+  /** Скільки реплік людей за весь час. Нуль — дім, у якому нічого не сталось. */
+  turns: number;
+  /**
+   * Коли в домі востаннє БУЛИ. Це не те саме, що хід: людина може зайти за
+   * лінком і не написати нічого — на пілоті таких буде більшість, і це
+   * найцінніший рядок у списку.
+   */
+  last_seen_at: string | null;
+  owner_id: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
+}
+
 export interface Repo {
   // Комора
   listBatches(household_id: string): Promise<PantryBatch[]>;
@@ -148,6 +180,17 @@ export interface Repo {
   firstHouseholdOf(user_id: string): Promise<string | null>;
   getHousehold(id: string): Promise<HouseholdRow | null>;
   listMembersOfHousehold(household_id: string): Promise<HouseholdMemberRow[]>;
+  /**
+   * Крок А2: усі доми з агрегатами — ОДНИМ запитом.
+   *
+   * Не циклом по домах із підзапитом на кожен: на вісімдесяти домах це вбило б
+   * і сторінку, і базу, якою в ту саму мить користуються живі люди. Агрегати
+   * рахує SQL.
+   *
+   * Доми без жодної активності присутні нарівні з рештою — саме вони тут
+   * найцінніші.
+   */
+  listAdminHouseholds(): Promise<AdminHouseholdRow[]>;
   roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null>;
   removeMember(household_id: string, user_id: string): Promise<void>;
   setMemberRole(household_id: string, user_id: string, role: HouseholdRole): Promise<void>;

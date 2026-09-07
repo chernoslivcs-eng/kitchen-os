@@ -110,6 +110,12 @@ export interface PulseTurn {
   latency_ms: number | null;
   /** null — не «безкоштовно», а «ціни цієї моделі не знаємо». */
   usd: number | null;
+  /**
+   * Крок А2: як порахована ціна. 'message' — точно, сумою рядків обліку цього
+   * ходу; 'time' — оцінка, зшита за часом (усе, що записано до А1). Точна ціна
+   * й оцінка не мають виглядати однаково.
+   */
+  price_from: 'message' | 'time' | null;
 }
 
 export interface PulseMoney {
@@ -144,11 +150,29 @@ export interface PulseEvent {
 export interface Pulse {
   day: string;
   household_id: string;
+  household_name: string | null;
+  /** Крок А2: відкрито ЧУЖИЙ дім. Екран мусить сказати це сам. */
+  guest: boolean;
   members: PulseMember[];
   turns: PulseTurn[];
   /** Підсумок дому — і окремим рядком кожна людина. */
   money: { day: PulseMoney; week: PulseMoney; byMember: PulseMemberMoney[] };
   events: PulseEvent[];
+}
+
+/** Крок А2: рядок списку домів. */
+export interface AdminHousehold {
+  id: string;
+  name: string;
+  people: number;
+  last_turn_at: string | null;
+  turns: number;
+  last_seen_at: string | null;
+  mine: boolean;
+  owner_name: string | null;
+  owner_email: string | null;
+  /** Пошта власника на зарезервованому домені (RFC 2606) — не жива людина. */
+  technical: boolean;
 }
 
 export interface PantryBatch {
@@ -694,7 +718,19 @@ export const api = {
     // Крок О1: пульс дня. day — YYYY-MM-DD у місцевих межах. Дім береться з
     // сесії того, хто відкрив: параметра «чий день» більше немає — показуємо
     // весь дім одразу.
-    pulse: (day: string) => req<Pulse>(`/v1/admin/pulse?day=${encodeURIComponent(day)}`),
+    // Крок А2: household_id необов'язковий — без нього свій дім, як було.
+    pulse: (day: string, household_id?: string) => req<Pulse>(
+      `/v1/admin/pulse?day=${encodeURIComponent(day)}`
+      + (household_id ? `&household_id=${encodeURIComponent(household_id)}` : ''),
+    ),
+    // Крок А2: список домів. Він же — перевірка доступу для всього каркаса
+    // адмінки: 404 звідси означає, що адмінки для цієї людини не існує.
+    households: (technical = false) => req<{
+      households: AdminHousehold[];
+      my_household_id: string;
+      hidden_technical: number;
+      technical_total: number;
+    }>(`/v1/admin/households${technical ? '?technical=1' : ''}`),
     // Крок О1: димовий тест символікації. `?dry=1` не вибухає — це лише
     // перевірка доступу, якою сторінка /admin/boom вирішує, показати 404 чи
     // впасти. Без прапорця той самий маршрут кидає справжній виняток.
