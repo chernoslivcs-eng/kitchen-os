@@ -23,9 +23,9 @@
 // Жодне з трьох не замінює двох інших, і жодне не має права впасти.
 
 import { randomUUID } from 'node:crypto';
-import type { FastifyBaseLogger } from 'fastify';
 import type { Repo } from '@kitchen/domain';
 import { captureIncident } from './sentry.js';
+import { keepUntilSent, type TelemetryHost } from './telemetry.js';
 
 export type IncidentKind = 'broke' | 'guard';
 
@@ -39,7 +39,15 @@ export interface IncidentCtx {
 
 export interface IncidentSink {
   repo: Repo;
-  log: FastifyBaseLogger;
+  /**
+   * Крок А1а: сам ЗАПИТ, а не тільки його логер. Логер ми з нього беремо, як
+   * і раніше; а ще на ньому лишається незавершений запис, якого сервер
+   * дочекається перед відправкою відповіді (telemetry.ts).
+   *
+   * Місця виклику від цього нічого не знають про заморозку лямбди: вони
+   * передають `req` замість `req.log`, і на цьому їхня участь закінчується.
+   */
+  req: TelemetryHost;
 }
 
 /**
@@ -54,8 +62,8 @@ export function incident(sink: IncidentSink, kind: IncidentKind, name: string, c
   // Лог лишається: у проді він єдиний, хто бачить подію одразу, до того як її
   // прочитають на /admin/pulse.
   const line = { kind, user_id, household_id, session_id, ...rest };
-  if (kind === 'broke') sink.log.error(line, name);
-  else sink.log.warn(line, name);
+  if (kind === 'broke') sink.req.log.error(line, name);
+  else sink.req.log.warn(line, name);
 
   const eventId = captureIncident(kind, name, ctx);
   // Вісім знаків: достатньо, щоб знайти подію пошуком, і достатньо коротко,
@@ -65,7 +73,11 @@ export function incident(sink: IncidentSink, kind: IncidentKind, name: string, c
   // user_id обовʼязковий у схемі: подія без людини нікому не потрібна — за нею
   // неможливо ні зіставити з розмовою, ні спитати «що в неї сталось».
   if (!user_id) return code;
-  void sink.repo
+  // Крок А1а: НЕ `void`. Проміс лишається в руках — обробник його не чекає, але
+  // сервер дочекається перед відправкою відповіді. Це та сама таблиця, на якій
+  // стоїть увесь моніторинг; втрачати її записи в гонці із заморозкою лямбди
+  // означало б не мати моніторингу саме тоді, коли він потрібен.
+  const write = sink.repo
     .saveAppEvents([{
       id: randomUUID(),
       user_id,
@@ -79,6 +91,7 @@ export function incident(sink: IncidentSink, kind: IncidentKind, name: string, c
       ua_family: null,
       created_at: new Date().toISOString(),
     }])
-    .catch((err) => sink.log.error({ err, name }, 'incident-save-failed'));
+    .catch((err) => sink.req.log.error({ err, name }, 'incident-save-failed'));
+  keepUntilSent(sink.req, write);
   return code;
 }

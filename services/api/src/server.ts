@@ -20,6 +20,7 @@ import { shoppingRoutes } from './routes/shopping.js';
 import { eventsRoutes } from './routes/events.js';
 import { trackRoutes } from './routes/track.js';
 import { incident } from './incident.js';
+import { settleTelemetry } from './telemetry.js';
 import { pulseRoutes } from './routes/pulse.js';
 import { boomRoutes } from './routes/boom.js';
 import { adminOccasionsRoutes } from './routes/admin-occasions.js';
@@ -31,6 +32,22 @@ import { onboardingRoutes } from './routes/onboarding.js';
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
 import { retailRoutes, type RetailOpts } from './routes/retail.js';
+
+/**
+ * Стеля флашу в Sentry — скільки ми готові тримати готову відповідь заради
+ * того, щоб подія долетіла.
+ *
+ * Секунда, а не типові для SDK дві. Рахунок такий: лямбда в iad1, приймач
+ * Sentry в EU — обмін укладається в 100–150 мс, тож секунда це шестикратний
+ * запас на поганий день. Далі чекати нема сенсу: подію ми вже й так втратили б
+ * не через мережу, а через щось гірше, а людина в цей час дивиться в екран.
+ *
+ * Ціна платиться ТІЛЬКИ на запитах, де інцидент справді стався. Там, де це
+ * аварія, людина й так отримує 5xx; там, де запобіжник, хід у чаті триває
+ * секунди через виклик моделі, і секунда стелі — це верхня межа, якої в
+ * житті майже не буває.
+ */
+const SENTRY_FLUSH_MS = 1000;
 
 export interface BuildAppOpts {
   /** Тести: власний логер Fastify (рівень + потік). */
@@ -104,7 +121,7 @@ export function buildApp(
     // якщо він уже сам по собі аварійний.
     const status = err.statusCode ?? (reply.statusCode >= 500 ? reply.statusCode : 500);
     if (status < 500) return done();
-    const code = incident({ repo, log: req.log }, 'broke', 'unhandled-route-error', {
+    const code = incident({ repo, req }, 'broke', 'unhandled-route-error', {
       user_id: req.user?.user_id ?? null,
       household_id: req.user?.household_id ?? null,
       route: `${req.method} ${req.routeOptions?.url ?? req.url}`,
@@ -116,9 +133,25 @@ export function buildApp(
     if (code) reply.header('x-incident-code', code);
     done();
   });
-  // Лямбда засинає одразу після відповіді — без цього подія не встигає піти.
-  // Нічого не робить, якщо за запит нічого не сталось.
-  app.addHook('onResponse', async () => { await flushSentry(); });
+  // Крок А1а: остання застава перед тим, як відповідь піде.
+  //
+  // Тут, а НЕ в `onResponse`: той хук спрацьовує вже після відправки, а
+  // `vercel-handler.ts` повертається одразу після `emit('request')` — для
+  // платформи функція скінчилась, і контейнер має право замерзнути тієї ж
+  // миті. Усе, що лишилось у повітрі, просто не станеться, і тиша буде
+  // єдиним симптомом. Саме так після А1 і зник серверний інцидент.
+  //
+  // Порядок навмисний: спершу наша база (це наші дані, і чекаємо їх без
+  // стелі), потім Sentry (чуже, по мережі, зі стелею).
+  //
+  // На звичайному ході обидва рядки коштують нуль: масиву телеметрії на
+  // запиті не існує, а flushSentry виходить одразу, коли за запит нічого не
+  // сталось.
+  app.addHook('onSend', async (req, _reply, payload) => {
+    await settleTelemetry(req);
+    await flushSentry(SENTRY_FLUSH_MS);
+    return payload;
+  });
 
   app.register(cookie);
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });

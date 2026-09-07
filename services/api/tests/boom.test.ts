@@ -114,7 +114,9 @@ describe('GET /v1/admin/boom', () => {
   it('інцидент лягає у стрічку дня власника — поруч із рештою подій', async () => {
     const owner = await signIn(app, mailer, 'owner@example.com');
     await get('/v1/admin/boom', owner.cookie);
-    await new Promise((r) => setTimeout(r, 10));   // запис не блокує відповідь
+    // Крок А1а: без жодного очікування. Запис інциденту завершується ДО того,
+    // як піде відповідь, — раніше тут стояла пауза «запис не блокує відповідь»,
+    // і саме та неблокуючість губила подію на проді.
     const rows = await repo.listAppEvents(owner.user_id, {
       from: new Date(Date.now() - 60_000), to: new Date(Date.now() + 60_000), limit: 50,
     });

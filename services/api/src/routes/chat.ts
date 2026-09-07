@@ -57,7 +57,9 @@ export interface ChatRouteOpts {
 export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentStore, opts: ChatRouteOpts = {}) {
   // Крок О1а: інциденти йдуть одним шляхом. sink локальний, бо repo приходить
   // параметром роутера, а логер — з конкретного запиту.
-  const sink = (req: { log: Parameters<typeof incident>[0]['log'] }) => ({ repo, log: req.log });
+  // Крок А1а: у раковину їде сам ЗАПИТ, а не його логер: на ньому ж лишається
+  // незавершений запис, якого сервер дочекається перед відповіддю (telemetry.ts).
+  const sink = (req: Parameters<typeof incident>[0]['req']) => ({ repo, req });
   // Ліміт для чату — щоб залогінений юзер (свідомо чи ні) не наспамив у модель тисячу
   // запитів за хвилину. 30 запитів/хв — це «людина активно спілкується» на верхній межі,
   // явно замало для ліберпетлі. Ключ — user_id, не IP: розділяємо кухні в спільній мережі.
