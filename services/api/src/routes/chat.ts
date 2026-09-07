@@ -5,8 +5,8 @@ import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
-import { isProfileFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
-import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
+import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
+import { cardFormError, createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -58,6 +58,26 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
   // Крок О1а: інциденти йдуть одним шляхом. sink локальний, бо repo приходить
   // параметром роутера, а логер — з конкретного запиту.
   const sink = (req: { log: Parameters<typeof incident>[0]['log'] }) => ({ repo, log: req.log });
+
+  /**
+   * Крок П3 (6.2): картка невідомої форми до бази не доходить. Тип ми
+   * перевіряли й раніше; форму — ніхто, і саме так у прод потрапила картка
+   * profile з опами {op, field, text}: три порожні рядки в стрічці й
+   * «Записати», яке не застосовує нічого.
+   *
+   * Репліку лишаємо як є: людині вона адресована, і мовчати замість неї
+   * гірше, ніж віддати без картки.
+   */
+  const guardCardForm = (
+    req: { log: Parameters<typeof incident>[0]['log'] },
+    card: Card | null,
+    ctx: Record<string, unknown>,
+  ): Card | null => {
+    const reason = cardFormError(card);
+    if (!reason) return card;
+    incident(sink(req), 'guard', 'card-form-rejected', { ...ctx, reason, card_type: card?.type ?? null });
+    return null;
+  };
   // Ліміт для чату — щоб залогінений юзер (свідомо чи ні) не наспамив у модель тисячу
   // запитів за хвилину. 30 запитів/хв — це «людина активно спілкується» на верхній межі,
   // явно замало для ліберпетлі. Ключ — user_id, не IP: розділяємо кухні в спільній мережі.
@@ -168,6 +188,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       stampChatReceipt(call.card, call.raw_kind);
       vetoNonfood(call.card);
       composeIntakeLabels(call.card);
+      call.card = guardCardForm(req, call.card, { user_id, household_id, session_id: session.id, from: 'attachment' });
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {
         await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -444,10 +465,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       else req.log.info({ user_id, reason: d.reason, note: d.text }, 'note-skipped');
     }
 
-    // Крок 7 п. 0: «не їм / не вживаю» у репліці — це поле `no`, хай би що
-    // обрала модель (флап кроку 4в: «ще не їм кінзи» → meh). Механіка до
-    // застосування.
-    if (isProfileFieldCard(call.card)) call.card = fieldByVerb(call.card, text ?? '');
+    // Крок П3 (1): fieldByVerb тут більше немає. Він виправляв поле картки,
+    // яку продукт писав у профіль за людину, — а такої картки більше не існує.
 
     // Пул-2 №5: те саме для чату — сирий JSON у стрічку не протікає ніколи.
     if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
@@ -913,6 +932,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // казала «Записав». У повідомлення при цьому йшла резолвлена копія, тож у
     // історії правило було видно, а в календарі — порожньо. Одна картка,
     // одне джерело: те, що ляже в повідомлення, те й застосовується.
+    call.card = guardCardForm(req, call.card, { user_id, household_id, session_id: session.id, from: 'chat' });
     const card_id = call.card ? randomUUID() : null;
     if (call.card && card_id) {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
@@ -967,6 +987,9 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     return {
       reply: replyText, card: call.card, card_id,
       auto_applied, undo_token,
+      // Крок П3 (3): куди відкрити профіль. Панель виїжджає лише тоді, коли
+      // від людини щось потрібно; продукт у поле нічого не вписує.
+      profile_focus: call.profile_focus ?? null,
       usage: call.usage, meta: call.meta,
     };
   });

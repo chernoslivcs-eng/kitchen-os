@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { incident } from '../incident.js';
 import { randomUUID } from 'node:crypto';
-import { applyCard, undoCard, dismissCard, type Repo, type Unit } from '@kitchen/domain';
+import { applyCard, undoCard, dismissCard, NOTHING_APPLICABLE, type Repo, type Unit } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { WRITEOFF_CARD_REPLY, FEEDBACK_PROMPT } from '../post-cook.js';
 
@@ -61,6 +61,14 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
       const msg = (err as Error).message;
       if (msg === 'forbidden') return reply.code(403).send({ error: msg });
       if (msg.startsWith('card not found')) return reply.code(404).send({ error: msg });
+      if (msg === NOTHING_APPLICABLE) {
+        // Крок П3 (6): картка лишилась відкритою — людина бачить, що не
+        // вийшло. Частоти цього ми не знаємо, тому інцидент, а не тиша.
+        const pc = await repo.getPending(req.params.id);
+        incident({ repo, log: req.log }, 'guard', 'card-nothing-applicable', {
+          user_id, card_id: req.params.id, card_type: pc?.card?.type ?? null,
+        });
+      }
       return reply.code(409).send({ error: msg });
     }
   });

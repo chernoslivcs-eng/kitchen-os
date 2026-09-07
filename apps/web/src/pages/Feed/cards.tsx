@@ -801,42 +801,38 @@ export function ShoppingListCard({
 
 // ----- Profile -------------------------------------------------------------
 
+/**
+ * Крок П3 (1): форма картки поля профілю ({field, text, mode}) померла —
+ * продукт не редагує профіль людини. Але в проді вже лежать повідомлення зі
+ * старою формою, і прочитати їх продукт мусить: історична картка показується
+ * застиглим рядком, без кнопок і без «Записати».
+ *
+ * Жива форма одна — домашні ({ops:[{op, kind:'member', label, …}]}).
+ */
 export function ProfileCard(props: CardProps) {
-  if (props.card.field) return <ProfileFieldCard {...props} />;
+  if (props.card.field) return <RetiredProfileFieldCard {...props} />;
   return <ProfileOpsCard {...props} />;
 }
 
-// Раунд 4 §4: картка поля — рядок «Я не їм …» + «Записати». Застосована —
-// згорнутий рядок із міткою ЗАПИСАНО; пропущена — ПРОПУЩЕНО; для `ban`
-// замість «Пропустити» — «Нічого такого». Без ілюстрацій (онбординг — крок 7).
-function ProfileFieldCard({ card, applied, applying, dismissed, undone, onApply, onDismiss, onNone }: CardProps) {
+// Крок П3 (1): те, що лишилось від картки поля, — читання. Рядок «Я не їм …»
+// з міткою, що з нею сталось, і жодної дії: писати в профіль з чату продукт
+// більше не вміє, а перемальовувати історію заднім числом ми не будемо.
+function RetiredProfileFieldCard({ card, applied, dismissed, undone }: CardProps) {
   const field = card.field!;
   const lead = PROFILE_FIELDS[field].lead;
   const text = (card.text ?? '').trim();
-  const closed = (applied && !undone) || dismissed;
-  const meta = dismissed ? 'ПРОПУЩЕНО' : applied && !undone ? 'ЗАПИСАНО' : null;
+  const meta = dismissed ? 'ПРОПУЩЕНО' : applied && !undone ? 'ЗАПИСАНО' : 'НЕ ЗАПИСАНО';
   return (
-    <div className={stateClass(applied, undone)}>
+    <div className={stateClass(applied, undone)} data-retired-profile-field={field}>
       <div className={styles.ops}>
         <div className={styles.op} style={{ alignItems: 'baseline' }}>
           <span className={styles['op-label']} style={{ lineHeight: 1.5 }}>
             <span style={{ color: field === 'ban' ? 'var(--danger)' : 'var(--fg-muted)' }}>{lead}</span>{' '}
-            <span style={closed ? { color: 'var(--fg-muted)' } : undefined}>{text || '…'}</span>
+            <span style={{ color: 'var(--fg-muted)' }}>{text || '…'}</span>
           </span>
-          {meta && (
-            <span className={styles['op-qty']} style={{ color: meta === 'ЗАПИСАНО' ? 'var(--accent)' : 'var(--fg-dim)' }}>{meta}</span>
-          )}
+          <span className={styles['op-qty']} style={{ color: meta === 'ЗАПИСАНО' ? 'var(--accent)' : 'var(--fg-dim)' }} data-meta>{meta}</span>
         </div>
       </div>
-      {!closed && !undone && onApply && (
-        <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={() => onApply?.()} loading={applying} disabled={!text}>{CARD_BUTTON_LABEL.profile!}</Button>
-          {/* Крок 4в (6): «Нічого такого» — лише на онбординг-картці ban; звичайна — «Пропустити». */}
-          {field === 'ban' && card.onboarding
-            ? <Button variant="secondary" onClick={onNone} disabled={applying}>Нічого такого</Button>
-            : <Button variant="secondary" onClick={onDismiss} disabled={applying}>Пропустити</Button>}
-        </div>
-      )}
     </div>
   );
 }

@@ -9,13 +9,12 @@
 import { randomUUID } from 'node:crypto';
 import { ownsEvent } from './occasions.js';
 import { subscriptionDefault, ruleFromDates } from './periods.js';
-import { appendProfileText, clampProfileText, profileTextHints } from './profile-text.js';
-import { isProfileFieldCard } from './types.js';
-import { rebuildVetoIndex } from './veto-index.js';
+import { profileTextHints } from './profile-text.js';
 import type { Tradition } from './occasion-rules.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
+import { isProfileFieldCard } from './types.js';
 import { normalizeTriple, displayName, catalogGroupsToAllergens, isCatalogFasting, type HouseholdProduct, type ProductTags, type ProductTriple } from './product.js';
 import type {
   Card,
@@ -62,6 +61,13 @@ export async function createPending(repo: Repo, args: CreatePendingArgs): Promis
   return pc;
 }
 
+/**
+ * Крок П3 (6): картку не було чим застосувати — жодна операція не належить
+ * до форм, які продукт уміє виконувати. Кидається ДО будь-якого запису, тож
+ * картка лишається відкритою; роут перекладає це на 409 і пише інцидент.
+ */
+export const NOTHING_APPLICABLE = 'card has no applicable operations';
+
 // ---------- застосування ----------
 
 export interface ApplyResult {
@@ -106,43 +112,13 @@ export async function applyCard(
 
   const { card } = pc;
 
-  // Раунд 4 §4: картка поля профілю. Один текст в одне поле; undo повертає
-  // попереднє значення поля цілком (текст і статус).
-  if (isProfileFieldCard(card)) {
-    const key = card.field;
-    if (opts.none && key !== 'ban') throw new Error('«Нічого такого» — лише для поля ban');
-    const before = (await repo.getProfileText(actor_user_id)).fields[key];
-    const snapshot: UndoSnapshot = {
-      kind: 'profile',
-      before: { profile_field_before: { field: key, value: { ...before } } },
-    };
-    let landed = 0;
-    let truncated = false;
-    if (opts.none) {
-      await repo.patchProfileField(actor_user_id, key, { status: 'none' });
-      landed = 1;
-    } else {
-      const add = (card.text ?? '').trim();
-      if (add) {
-        const next = card.mode === 'append' && before.status === 'filled'
-          ? appendProfileText(key, before.text, add)
-          : { text: clampProfileText(key, add), truncated: Array.from(add).length > Array.from(clampProfileText(key, add)).length };
-        await repo.patchProfileField(actor_user_id, key, { text: next.text });
-        truncated = next.truncated;
-        landed = 1;
-      }
-    }
-    if (landed) await rebuildVetoIndex(repo, actor_user_id, key);
-    const undo_token = randomUUID();
-    await repo.updatePending(pc.id, {
-      applied_at: new Date().toISOString(),
-      applied_ops: landed ? [0] : [],
-      undo_token,
-      undo_snapshot: snapshot,
-    });
-    await repo.markMessageApplied(pc.id, landed);
-    return { applied: landed, undo_token, already: false, truncated };
-  }
+  // Крок П3 (1): картку поля профілю продукт більше не застосовує. Він не
+  // редагує профіль людини — вона пише його сама на сторінці профілю або в
+  // картці «Про тебе». Історичні картки старої форми лишаються в базі й
+  // читаються (стрічка, [ОСТАННІ ДІЇ], історія для моделі), але застосувати
+  // їх уже нема чим: картка лишається відкритою, як і будь-яка інша, з якої
+  // нема чого застосувати.
+  if (isProfileFieldCard(card)) throw new Error(NOTHING_APPLICABLE);
 
   // Кожен тип картки має власний обробник і власний знімок для undo.
   if (card.type === 'intake_diff') {
@@ -246,19 +222,29 @@ export async function applyCard(
 
   if (card.type === 'profile') {
     const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
-    // Крок 11: ops-картка — лише домашні (їдці). Текст людини йде карткою
-    // поля, нотатки — полем `note` відповіді; традиції (П1) — карткою period.
+    // Крок П3: ops-картка профілю — ЛИШЕ домашні (їдці). Текст людини в
+    // профіль з чату більше не пишеться взагалі: вона пише його сама на
+    // сторінці профілю або в картці «Про тебе».
     const snapshot: UndoSnapshot = { kind: 'profile', before: {} };
     // QA4-05: рахуємо те, що СПРАВДІ лягло.
     let landed = 0;
+    // Крок П3 (6): скільки операцій ми взагалі впізнали. Раніше картка з
+    // трьома нерозпізнаними опами отримувала штамп «застосовано», не
+    // застосувавши нічого: applied_at ставився беззастережно, і людина бачила
+    // закриту картку там, де не сталось нічого.
+    let known = 0;
     const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
       if (op.kind === 'member') {
+        known++;
         if (await applyMemberOp(repo, pc.household_id, op, memberTrace)) landed++;
       }
     }
+    // Жодної впізнаної операції — картка лишається ВІДКРИТОЮ. Ні applied_at,
+    // ні undo_token: закрити те, чого не робили, гірше, ніж не закрити нічого.
+    if (!known) throw new Error(NOTHING_APPLICABLE);
     if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
     if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
     const undo_token = randomUUID();
@@ -865,13 +851,10 @@ export async function undoCard(
   for (const sb of snap.before.subscriptions_before ?? []) {
     await repo.setOccasionSubscription(pc.household_id, sb.occasion_id, sb.enabled);
   }
-  // Раунд 4: поле профілю — назад попередній текст і статус.
-  if (snap.before.profile_field_before) {
-    const { field, value } = snap.before.profile_field_before;
-    await repo.patchProfileField(actor_user_id, field,
-      value.status === 'none' ? { status: 'none' } : { text: value.status === 'filled' ? value.text : '' });
-    await rebuildVetoIndex(repo, actor_user_id, field);
-  }
+  // Крок П3 (1): відкоту поля профілю тут немає — картки, яка його писала,
+  // більше не існує. Знімок profile_field_before лишається в типах: у проді
+  // лежать старі рядки, і читати їх ми мусимо, а от відтворювати запис, якого
+  // продукт більше не робить, — ні.
 
   await repo.updatePending(pc.id, { undone_at: new Date().toISOString() });
   await repo.markMessageApplied(pc.id, 0);

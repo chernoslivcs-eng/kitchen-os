@@ -39,15 +39,18 @@ describe('перебудова veto_index', () => {
     expect((await repo.getVetoIndex(me.user_id)).filter((x) => x.field === 'ban')).toEqual([]);
   });
 
-  it('картка поля no → індекс; undo → індекс назад', async () => {
+  it('PATCH поля no → індекс перебудовується; наступний PATCH його замінює', async () => {
+    // Крок П3 (1): індекс більше не перебудовує картка — її не існує. Єдиний
+    // шлях у поле — сторінка профілю й картка «Про тебе», тобто PATCH.
     const me = await signIn(app, mailer, 'me@example.com');
-    await repo.patchProfileField(me.user_id, 'no', { text: 'кінзи' });
-    await repo.setVetoIndex(me.user_id, 'no', []);
-    const id = randomUUID();
-    await createPending(repo, { message_id: id, household_id: me.household_id, user_id: me.user_id, card: { type: 'profile', field: 'no', mode: 'append', text: 'риби' } });
-    const r = await applyCard(repo, id, [], me.user_id);
+    const patch = (text: string) => app.inject({
+      method: 'PATCH', url: '/v1/profile/no', headers: { cookie: me.cookie }, payload: { text },
+    });
+    await patch('кінзи');
+    expect((await repo.getVetoIndex(me.user_id)).map((x) => x.ref)).toEqual(['кінза']);
+    await patch('кінзи, риби');
     expect((await repo.getVetoIndex(me.user_id)).map((x) => x.ref)).toEqual(['кінза', 'риба']);
-    await undoCard(repo, id, r.undo_token, me.user_id);
+    await patch('кінзи');
     expect((await repo.getVetoIndex(me.user_id)).map((x) => x.ref)).toEqual(['кінза']);
   });
 });

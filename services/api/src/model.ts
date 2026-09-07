@@ -13,7 +13,7 @@ import { noteFrom,
   extractJson,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
-  serializeProfileText, emptyProfileText,
+  serializeProfileText, emptyProfileText, profileFocusFrom, type ProfileFieldKey,
   type ProfileText, type ProfileNote, type VetoRow,
   buildAliasMap,
   unaliasRecipeIds,
@@ -196,6 +196,8 @@ export interface ChatCall {
   // Крок 8 (§7): нотатка асистента — необовʼязкове поле відповіді; сервер
   // (chat.ts → acceptAssistantNote) вирішує, чи писати.
   note?: string | null;
+  /** Крок П3 (3): куди відкрити профіль. Вказівник для інтерфейсу, не запис. */
+  profile_focus?: ProfileFieldKey | null;
   usage: { input: number; output: number; cached?: number; cache_write?: number };
   meta: {
     promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number;
@@ -517,13 +519,15 @@ export function buildChatSystem(args: ChatArgs, promptText: string, productMap?:
 
 // Крок 6е: {reply,card} із сирого тексту відповіді — та сама логіка, потрібна
 // і першому виклику, і повторному в example-guard нижче.
-function parseChatText(text: string, stopReason: string | null): { reply: string; card: Card | null; note: string | null } {
+function parseChatText(text: string, stopReason: string | null): { reply: string; card: Card | null; note: string | null; profile_focus: ProfileFieldKey | null } {
   const { parsed, residualText } = extractJson(text);
   // Якщо JSON знайшовся — reply це те, що ЗАЛИШИЛОСЬ поза ним (може бути порожньо).
   // Якщо не знайшовся — residualText вже = text, тобто весь текст як reply.
   let reply = residualText;
   let card: Card | null = null;
   let note: string | null = null;
+  // Крок П3 (3): куди відкрити профіль. Вказівник, не запис.
+  let profile_focus: ProfileFieldKey | null = null;
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
     // Модель повертає одне з двох:
@@ -536,6 +540,7 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = normalizeCard(o.card ?? null);
       note = noteFrom(o);
+      profile_focus = profileFocusFrom(o);
     } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit', 'event', 'period'].includes(o.type)) {
       card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
@@ -546,7 +551,7 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
   if (stopReason === 'max_tokens' && !card) {
     reply = INTAKE_TOO_BIG_REPLY;
   }
-  return { reply, card, note };
+  return { reply, card, note, profile_focus };
 }
 
 // example-guard (крок 6е): voice.md несе кілька повних зразків реплік для
@@ -654,7 +659,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
-  let { reply, card, note } = parseChatText(text, resp.stop_reason);
+  let { reply, card, note, profile_focus } = parseChatText(text, resp.stop_reason);
   let usage = usageFrom(resp.usage);
   let exampleCopy = false;
 
@@ -670,7 +675,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
-    ({ reply, card, note } = parseChatText(retryText, retryResp.stop_reason));
+    ({ reply, card, note, profile_focus } = parseChatText(retryText, retryResp.stop_reason));
     const retryUsage = usageFrom(retryResp.usage);
     usage = {
       input: usage.input + retryUsage.input,
@@ -696,6 +701,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     reply,
     card,
     note,
+    profile_focus,
     usage,
     meta: {
       promptVersion: prompt.version, model, mode: 'live',
