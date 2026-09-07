@@ -17,6 +17,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { BoomPage } from './Boom';
 import { ErrorBoundary } from '../../components/ErrorState/ErrorBoundary';
+import { SMOKE_TEST_MARK } from '../../lib/sentry';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -62,6 +63,32 @@ describe('/admin/boom', () => {
     expect(stack).toContain('measureShelf');
     expect(stack).toContain('describeShelf');
     expect(stack).toContain('renderNightPlan');
+  });
+
+  it('текст винятку РІЗНИЙ на кожному прогоні — інакше дедуп з\'їдає другий', async () => {
+    // dedupeIntegration відкидає подію, ідентичну попередній надісланій. Два
+    // прогони поспіль кидали той самий виняток з того самого рядка — і другий
+    // мовчки не доїжджав. Спіймано на проді 07.09.2026.
+    const seen: Error[] = [];
+    await mount(<ErrorBoundary onError={(e) => { seen.push(e); return 'a1'; }}><BoomPage /></ErrorBoundary>);
+    await act(async () => { root?.unmount(); });
+    root = undefined; host?.remove(); host = undefined;
+    await mount(<ErrorBoundary onError={(e) => { seen.push(e); return 'a2'; }}><BoomPage /></ErrorBoundary>);
+
+    expect(seen).toHaveLength(2);
+    expect(seen[0]!.message).not.toBe(seen[1]!.message);
+    // Впізнаваний початок лишається — за ним шукають подію.
+    expect(seen[0]!.message).toContain('димовий тест символікації');
+    expect(seen[1]!.message).toContain('димовий тест символікації');
+  });
+
+  it('виняток позначений — за міткою captureCrash тримає групування сталим', async () => {
+    // Ціна різного тексту — «кожен прогін окрема проблема в Sentry». Її
+    // платить мітка: без неї фронтова половина засмітила б список, який
+    // власник читає щодня.
+    const seen: Error[] = [];
+    await mount(<ErrorBoundary onError={(e) => { seen.push(e); return 'a1b2c3d4'; }}><BoomPage /></ErrorBoundary>);
+    expect((seen[0] as Error & { [SMOKE_TEST_MARK]?: boolean })[SMOKE_TEST_MARK]).toBe(true);
   });
 
   it('код інциденту видно на екрані — за ним власник знайде подію', async () => {

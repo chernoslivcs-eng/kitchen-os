@@ -123,6 +123,33 @@ describe('GET /v1/admin/boom', () => {
     expect(rows.map((r) => r.name)).toContain('incident:unhandled-route-error');
   });
 
+  it('текст винятку РІЗНИЙ на кожному прогоні — інакше дедуп з\'їдає другий', async () => {
+    // У Sentry увімкнено dedupeIntegration: подія, ідентична попередній
+    // надісланій, відкидається мовчки. Два прогони поспіль кидали той самий
+    // виняток з того самого рядка — і другий не доїжджав. Спіймано на проді
+    // 07.09.2026: у app_event обидва інциденти, у Sentry тільки перший.
+    const owner = await signIn(app, mailer, 'owner@example.com');
+    const a = (await get('/v1/admin/boom', owner.cookie)).json().message as string;
+    const b = (await get('/v1/admin/boom', owner.cookie)).json().message as string;
+    expect(a).not.toBe(b);
+    // Але впізнаваний початок лишається — за ним тест і людина шукають подію.
+    expect(a).toContain('димовий тест символікації');
+    expect(b).toContain('димовий тест символікації');
+  });
+
+  it('імʼя інциденту стале — групування в Sentry від різного тексту не розсипається', async () => {
+    // Ціна різного тексту мала б бути «кожен прогін — окрема проблема».
+    // Її платить incident(): setFingerprint([name]), а name тут завжди один.
+    const owner = await signIn(app, mailer, 'owner@example.com');
+    await get('/v1/admin/boom', owner.cookie);
+    await get('/v1/admin/boom', owner.cookie);
+    const names = logged
+      .filter((l) => l.includes('unhandled-route-error'))
+      .map((l) => (JSON.parse(l) as { msg: string }).msg);
+    expect(names).toHaveLength(2);
+    expect(new Set(names).size).toBe(1);
+  });
+
   it('помилка з власним статусом 4xx у Sentry не летить — це відмова, не аварія', async () => {
     // Інакше кожна валідація втопила б справжні падіння. Перевіряємо тим же
     // хуком: беремо маршрут, який кидає помилку з statusCode 400.

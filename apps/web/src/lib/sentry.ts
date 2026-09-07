@@ -78,6 +78,26 @@ export function setSentryUser(user_id: string | null): void {
 }
 
 /**
+ * Мітка на винятку димового тесту.
+ *
+ * Той виняток навмисно РІЗНИЙ на кожному прогоні (див. pages/Admin/Boom.tsx),
+ * інакше `dedupeIntegration` вище з'їдає другий прогін поспіль. Але різний
+ * текст без цієї мітки мав би іншу ціну: Sentry групує падіння сам, і кожен
+ * димовий тест ризикував би стати ОКРЕМОЮ проблемою — за рік їх набралися б
+ * десятки в списку, який власник читає щодня.
+ *
+ * Тому тут ми прибиваємо групування руками. На сервері те саме робить
+ * `incident()` через `setFingerprint([name])`; це фронтовий бік тієї ж пари.
+ *
+ * Мітка живе тут, а не в сторінці, щоб залежність ішла в правильний бік:
+ * сторінка знає про lib, lib про сторінку — ні.
+ */
+export const SMOKE_TEST_MARK = '__kosSmokeTest';
+
+/** Стала група для всіх димових тестів, хай яким буде текст винятку. */
+const SMOKE_TEST_FINGERPRINT = ['smoke-test-render-crash'];
+
+/**
  * Падіння з ErrorBoundary. Повертає короткий код події — той самий, що людина
  * бачить чипом на екрані помилки й може назвати в листі.
  */
@@ -87,9 +107,13 @@ export function captureCrash(error: Error, componentStack?: string | null): stri
     return null;
   }
   try {
+    const smoke = (error as Error & { [SMOKE_TEST_MARK]?: boolean })[SMOKE_TEST_MARK] === true;
     const id = Sentry.captureException(error, {
       contexts: componentStack ? { react: { componentStack } } : undefined,
-      tags: { incident_kind: 'broke', incident: 'render-crash' },
+      tags: { incident_kind: 'broke', incident: smoke ? 'smoke-test' : 'render-crash' },
+      // Справжні падіння групує Sentry за їхніми стеками — саме так і треба.
+      // Прибиваємо тільки наш синтетичний, у якого текст навмисно плаває.
+      ...(smoke ? { fingerprint: SMOKE_TEST_FINGERPRINT } : {}),
     });
     // Вісім знаків: достатньо, щоб знайти подію пошуком, і достатньо коротко,
     // щоб людина продиктувала його голосом.

@@ -171,7 +171,9 @@ describe('GET /v1/admin/pulse', () => {
       method: 'POST', url: '/v1/events/track', headers: { cookie: owner.cookie },
       payload: { events: [{ name: 'pantry_opened' }] },
     });
-    const day = new Date().toISOString().slice(0, 10);
+    // Місцева дата, не UTC — див. dayBounds у pulse.ts.
+    const now = new Date();
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const r = await app.inject({ method: 'GET', url: `/v1/admin/pulse?day=${day}`, headers: { cookie: owner.cookie } });
     expect(r.statusCode).toBe(200);
     const body = r.json();
