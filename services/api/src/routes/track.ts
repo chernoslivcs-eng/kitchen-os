@@ -9,7 +9,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { AppEventRow, Repo } from '@kitchen/domain';
+import type { AppEventRow, DeviceClass, Repo } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
@@ -29,10 +29,41 @@ export const KNOWN_EVENTS = new Set([
   'attachment_added',
   'chat_input_abandoned',
   'error_shown',
+  // Крок А1: знайомство (Семен) і картка «Про тебе». Підкреслення — як у
+  // решти подій; через дефіс пишуться інциденти, і це інший набір.
+  'welcome_started', 'welcome_card_reached', 'welcome_finished', 'welcome_skipped',
+  'onboarding_started', 'onboarding_panel_reached', 'onboarding_finished', 'onboarding_skipped',
 ]);
+
+/**
+ * Клас пристрою — закритий список, як і імена подій. Порахував його клієнт (там
+ * же, де живуть межі розкладки), а тут ми тільки не пускаємо чуже слово в
+ * стовпчик, за яким потім рахуватимуть. Ширина при цьому пишеться незалежно —
+ * якщо клас колись розійдеться з межами, правдою лишиться вона.
+ */
+export const KNOWN_DEVICE_CLASSES = new Set<DeviceClass>(['mobile', 'tablet', 'desktop']);
+
+/** Стеля родини браузера й ОС: сюди їде «Safari · iOS», а не сирий User-Agent. */
+const UA_MAX = 40;
 
 interface TrackBody {
   events?: { name?: string; props?: Record<string, unknown>; at?: string }[];
+  /**
+   * Пристрій — один на пачку, а не на подію. Може не приїхати зовсім: у людини
+   * буває відкрита стара вкладка з клієнтом, який його ще не слав. Такий
+   * конверт мусить записатись нормально, з порожнім пристроєм.
+   */
+  device?: { w?: unknown; class?: unknown; ua?: unknown };
+}
+
+/** Розбирає конверт у три поля рядка. Усе, що не впізнали, стає null. */
+export function readDeviceEnvelope(d: TrackBody['device']): Pick<AppEventRow, 'viewport_w' | 'device_class' | 'ua_family'> {
+  const w = typeof d?.w === 'number' && Number.isFinite(d.w) && d.w > 0 && d.w < 100_000
+    ? Math.round(d.w) : null;
+  const cls = typeof d?.class === 'string' && KNOWN_DEVICE_CLASSES.has(d.class as DeviceClass)
+    ? d.class as DeviceClass : null;
+  const ua = typeof d?.ua === 'string' && d.ua.trim() ? d.ua.trim().slice(0, UA_MAX) : null;
+  return { viewport_w: w, device_class: cls, ua_family: ua };
 }
 
 export function trackRoutes(app: FastifyInstance, repo: Repo) {
@@ -49,6 +80,7 @@ export function trackRoutes(app: FastifyInstance, repo: Repo) {
     if (incoming.length > MAX_BATCH) return reply.code(400).send({ error: 'batch too large' });
 
     const now = Date.now();
+    const device = readDeviceEnvelope(req.body?.device);
     const rows: AppEventRow[] = [];
     for (const e of incoming) {
       if (!e?.name || !KNOWN_EVENTS.has(e.name)) continue;   // невідоме тихо викидаємо
@@ -63,6 +95,7 @@ export function trackRoutes(app: FastifyInstance, repo: Repo) {
         household_id,
         name: e.name,
         props: e.props && typeof e.props === 'object' ? e.props : {},
+        ...device,
         created_at: new Date(ok ? at : now).toISOString(),
       });
     }

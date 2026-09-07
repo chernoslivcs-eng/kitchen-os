@@ -653,14 +653,18 @@ export class PostgresRepo implements Repo {
   // до Neon коштували б більше, ніж уся решта обробника.
   async saveAppEvents(rows: AppEventRow[]): Promise<void> {
     if (!rows.length) return;
+    const COLS = 9;
     const values: unknown[] = [];
     const chunks = rows.map((r, i) => {
-      const b = i * 6;
-      values.push(r.id, r.user_id, r.household_id, r.name, JSON.stringify(r.props), r.created_at);
-      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6})`;
+      const b = i * COLS;
+      values.push(
+        r.id, r.user_id, r.household_id, r.name, JSON.stringify(r.props),
+        r.viewport_w, r.device_class, r.ua_family, r.created_at,
+      );
+      return `(${Array.from({ length: COLS }, (_, k) => `$${b + k + 1}`).join(',')})`;
     });
     await this.pool.query(
-      `INSERT INTO app_event (id, user_id, household_id, name, props, created_at)
+      `INSERT INTO app_event (id, user_id, household_id, name, props, viewport_w, device_class, ua_family, created_at)
        VALUES ${chunks.join(',')} ON CONFLICT (id) DO NOTHING`,
       values,
     );
@@ -682,7 +686,7 @@ export class PostgresRepo implements Repo {
   ): Promise<AppEventRow[]> {
     // Імʼя колонки — не з користувацького вводу, а з двох літералів вище.
     const { rows } = await this.pool.query(
-      `SELECT id, user_id, household_id, name, props, created_at
+      `SELECT id, user_id, household_id, name, props, viewport_w, device_class, ua_family, created_at
          FROM app_event
         WHERE ${column} = $1 AND created_at >= $2 AND created_at < $3
         ORDER BY created_at DESC
@@ -695,6 +699,9 @@ export class PostgresRepo implements Repo {
       household_id: r.household_id ?? null,
       name: r.name,
       props: r.props ?? {},
+      viewport_w: r.viewport_w ?? null,
+      device_class: r.device_class ?? null,
+      ua_family: r.ua_family ?? null,
       created_at: new Date(r.created_at).toISOString(),
     }));
   }
@@ -946,13 +953,14 @@ export class PostgresRepo implements Repo {
       `INSERT INTO token_usage
          (id, user_id, household_id, call, profile, model, prompt_version, mode,
           input_tokens, output_tokens, cached_tokens, latency_ms,
-          prompt_hash, prompt_chars, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          prompt_hash, prompt_chars, message_id, session_id, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
       [
         row.id, row.user_id, row.household_id, row.call, row.profile, row.model,
         row.prompt_version, row.mode,
         row.input_tokens, row.output_tokens, row.cached_tokens,
-        row.latency_ms, row.prompt_hash, row.prompt_chars, row.created_at,
+        row.latency_ms, row.prompt_hash, row.prompt_chars,
+        row.message_id, row.session_id, row.created_at,
       ],
     );
   }
@@ -1649,6 +1657,8 @@ export class PostgresRepo implements Repo {
       latency_ms: r.latency_ms ?? null,
       prompt_hash: r.prompt_hash ?? null,
       prompt_chars: r.prompt_chars ?? null,
+      message_id: r.message_id ?? null,
+      session_id: r.session_id ?? null,
       created_at: new Date(r.created_at).toISOString(),
     }));
   }

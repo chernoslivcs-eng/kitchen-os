@@ -1166,5 +1166,100 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(out[1]!.id).toBe(second);
       expect(out.map((pc) => pc.id)).not.toContain(first);
     });
+
+    // Крок А1: пристрій у подіях і привʼязка ціни до ходу.
+    //
+    // Обидва INSERT-и — сирий SQL зі списком колонок, і найтихіший спосіб їх
+    // зламати тут особливо близький: app_event пишеться ПАЧКОЮ, плейсхолдери
+    // рахуються арифметикою від кількості колонок. Розʼїхались списки — типи
+    // мовчать, памʼять мовчить, і тільки жива база каже правду. Тому перевірка
+    // стоїть у СПІЛЬНОМУ контракті, а не поруч із роутом.
+    describe('пристрій і привʼязка до ходу', () => {
+      it('app_event зберігає ширину, клас і родину — і віддає їх назад', async () => {
+        const { repo, household_id, user_id } = ctx;
+        const at = new Date().toISOString();
+        await repo.saveAppEvents([{
+          id: randomUUID(), user_id, household_id,
+          name: 'onboarding_panel_reached', props: { panel: 3 },
+          viewport_w: 390, device_class: 'mobile', ua_family: 'Safari · iOS',
+          created_at: at,
+        }]);
+        const [row] = await repo.listAppEvents(user_id, {
+          from: new Date(Date.now() - 60_000), to: new Date(Date.now() + 60_000), limit: 10,
+        });
+        expect(row!.viewport_w).toBe(390);
+        expect(row!.device_class).toBe('mobile');
+        expect(row!.ua_family).toBe('Safari · iOS');
+        expect(row!.props).toEqual({ panel: 3 });
+      });
+
+      it('пачка з кількох подій пише пристрій на КОЖЕН рядок', async () => {
+        // Саме тут ламається арифметика плейсхолдерів: на одному рядку
+        // розбіжність не видно, на трьох — значення поїдуть по колонках.
+        const { repo, household_id, user_id } = ctx;
+        const at = new Date().toISOString();
+        const mk = (name: string, w: number) => ({
+          id: randomUUID(), user_id, household_id, name, props: {},
+          viewport_w: w, device_class: (w >= 1024 ? 'desktop' : 'mobile') as 'desktop' | 'mobile',
+          ua_family: 'Chrome · macOS', created_at: at,
+        });
+        await repo.saveAppEvents([mk('welcome_started', 1440), mk('welcome_card_reached', 1440), mk('pantry_opened', 390)]);
+        const rows = await repo.listAppEvents(user_id, {
+          from: new Date(Date.now() - 60_000), to: new Date(Date.now() + 60_000), limit: 10,
+        });
+        expect(rows).toHaveLength(3);
+        const byName = Object.fromEntries(rows.map((r) => [r.name, r]));
+        expect(byName.welcome_started!.viewport_w).toBe(1440);
+        expect(byName.welcome_started!.device_class).toBe('desktop');
+        expect(byName.pantry_opened!.viewport_w).toBe(390);
+        expect(byName.pantry_opened!.device_class).toBe('mobile');
+        expect(rows.every((r) => r.ua_family === 'Chrome · macOS')).toBe(true);
+      });
+
+      it('подія без пристрою пишеться нормально — три null, а не відмова', async () => {
+        const { repo, household_id, user_id } = ctx;
+        await repo.saveAppEvents([{
+          id: randomUUID(), user_id, household_id,
+          name: 'pantry_opened', props: {},
+          viewport_w: null, device_class: null, ua_family: null,
+          created_at: new Date().toISOString(),
+        }]);
+        const [row] = await repo.listAppEvents(user_id, {
+          from: new Date(Date.now() - 60_000), to: new Date(Date.now() + 60_000), limit: 10,
+        });
+        expect(row!.name).toBe('pantry_opened');
+        expect(row!.viewport_w).toBeNull();
+        expect(row!.device_class).toBeNull();
+        expect(row!.ua_family).toBeNull();
+      });
+
+      it('token_usage тримає указівник на хід — і порожній указівник теж', async () => {
+        const { repo, household_id, user_id } = ctx;
+        const session = await repo.getOrCreateSessionForDay(user_id, '2026-09-07');
+        const message_id = randomUUID();
+        await repo.saveMessage({
+          id: message_id, session_id: session.id, role: 'user',
+          text: 'що приготувати', card: null, applied: 0, created_at: new Date().toISOString(),
+        });
+        const base = {
+          user_id, household_id, call: 'chat' as const, profile: 'stub' as const,
+          model: 'stub', prompt_version: 'test', mode: 'stub' as const,
+          input_tokens: 10, output_tokens: 5, cached_tokens: 0, latency_ms: 42,
+          prompt_hash: null, prompt_chars: null,
+        };
+        // Виклик у чаті — знає свій хід.
+        await repo.logTokenUsage({ ...base, id: randomUUID(), message_id, session_id: session.id, created_at: new Date().toISOString() });
+        // Виклик поза чатом — чесно порожній, і рядок від цього не відмовляється.
+        await repo.logTokenUsage({ ...base, id: randomUUID(), call: 'recipe_gen', message_id: null, session_id: null, created_at: new Date().toISOString() });
+
+        const rows = await repo.listTokenUsage(user_id, 10);
+        const inChat = rows.find((r) => r.call === 'chat')!;
+        const outside = rows.find((r) => r.call === 'recipe_gen')!;
+        expect(inChat.message_id).toBe(message_id);
+        expect(inChat.session_id).toBe(session.id);
+        expect(outside.message_id).toBeNull();
+        expect(outside.session_id).toBeNull();
+      });
+    });
   });
 }

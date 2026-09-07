@@ -12,6 +12,7 @@ import { api, type ChatCard, type ProfileFieldV2 } from '../../api';
 import { PROFILE_ROWS, type ProfileRowCopy } from '../../lib/profile-copy';
 import type { ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { Button } from '../../components/Button/Button';
+import { track } from '../../lib/track';
 import styles from './OnboardingCard.module.css';
 
 export interface OnboardingCardProps {
@@ -66,6 +67,43 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
   const done = index >= PROFILE_ROWS.length;
   const state = row ? panelState(row.k, profileFields, skipped) : 'empty';
 
+  /**
+   * Крок А1: «Про тебе» — сім панелей, на яких людина може мовчки застрягти,
+   * і досі жодна з них не лишала сліду. Саме тут пілотна людина натрапила на
+   * баг із введенням тексту на телефоні, і продукт про це не дізнався.
+   *
+   * У props тільки номер панелі — не ключ поля і тим паче не те, що людина
+   * написала. Правило 0029 діє й тут: подія каже, ДЕ людина, а не ЩО в неї
+   * вдома.
+   *
+   * Головна пастка цієї картки: вона живе в СТРІЧЦІ й перемальовується на
+   * кожному її відкритті. Наївне «подія на монтування» писало б «почав» і
+   * «закінчив» щоразу, коли людина просто прогорнула стрічку вгору, — і
+   * стовпчик, за яким ми збираємось рахувати проходження, показував би нашу
+   * перемальовку, а не її шлях.
+   */
+  const startedRef = useRef(false);
+  useEffect(() => {
+    // Поки profile_text не приїхав, index іще не справжній (панель рахується
+    // по порожнечі) — до того часу нам нема чого сказати. Готова картка
+    // «почав» не пише: людина її вже проходила.
+    if (startedRef.current || !profileFields) return;
+    startedRef.current = true;
+    // Рахуємо наново, а не з index: перерахунок початкової панелі стоїть у
+    // сусідньому ефекті, і в цьому кадрі index іще старий.
+    if (firstOpenPanel(profileFields, card.skipped ?? []) < PROFILE_ROWS.length) track('onboarding_started');
+  }, [profileFields, card.skipped]);
+
+  useEffect(() => {
+    // Тільки РУЧНЕ гортання. Стрибок 1 → 4, яким картка відкривається на
+    // місці зупинки, — не крок людини, а те саме асинхронне наведення
+    // порядку, яке вже стереже paged/settled вище.
+    if (!paged.current) return;
+    // Восьма «панель» — це «Готово»: дійшов до неї, значить пройшов усі сім.
+    if (index >= PROFILE_ROWS.length) track('onboarding_finished');
+    else track('onboarding_panel_reached', { panel: index + 1 });
+  }, [index]);
+
   // Текст панелі — з profile_text; contenteditable заповнюємо при зміні панелі.
   useEffect(() => {
     if (!row) return;
@@ -117,6 +155,10 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
       // Панель алергій: «Нічого такого» — це відповідь, а не пропуск.
       try { await api.profileV2.patchField(row.k, { status: 'none' }); onProfilePatched?.(); } catch { /* nop */ }
     } else {
+      // Крок А1: це і є пропуск — той самий, що потім підписує панель
+      // «ПРОПУЩЕНО». «Нічого такого» на алергіях вище пропуском НЕ рахуємо:
+      // продукт сам каже, що то відповідь, і подія мусить казати те саме.
+      track('onboarding_skipped', { panel: index + 1 });
       setSkipped((s) => [...new Set([...s, row.k])]);
       try { if (cardId) await api.onboarding.skip(cardId, row.k); } catch { /* пропуск лишається локально до перезавантаження */ }
     }

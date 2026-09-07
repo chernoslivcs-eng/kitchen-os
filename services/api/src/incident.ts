@@ -72,6 +72,11 @@ export function incident(sink: IncidentSink, kind: IncidentKind, name: string, c
       household_id,
       name: `incident:${name}`,
       props: { kind, ...(session_id ? { session_id } : {}), ...rest },
+      // Крок А1: інцидент — серверний, пристрою в нього немає. Ці три
+      // порожні тут не втрата даних, а факт: подію писав сервер, не вкладка.
+      viewport_w: null,
+      device_class: null,
+      ua_family: null,
       created_at: new Date().toISOString(),
     }])
     .catch((err) => sink.log.error({ err, name }, 'incident-save-failed'));
