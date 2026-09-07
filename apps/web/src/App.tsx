@@ -20,7 +20,7 @@ import { BoomPage } from './pages/Admin/Boom';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
-import { OnboardingPage, onboardingSeen, markSeenLocally } from './pages/Onboarding/Onboarding';
+import { OnboardingPage, shouldShowOnboarding, markSeenLocally } from './pages/Onboarding/Onboarding';
 import { ErrorBoundary } from './components/ErrorState/ErrorBoundary';
 import { captureCrash } from './lib/sentry';
 import { ErrorScreen } from './components/ErrorState/ErrorScreen';
@@ -46,14 +46,19 @@ function Shell() {
   // це знайомство, а не стан дому, тож нове місце (інший браузер) покаже
   // його ще раз, і це нормально. Глибокі лінки (/recipe/:id) не перехоплює.
   const navigate = useNavigate();
-  // Крок 7 (AUDIT-NEXT-STEPS): перевірка по акаунту — welcome_seen_at із /v1/me;
-  // localStorage — кеш, щоб не блимати до відповіді сервера. Новий акаунт у
-  // тому самому браузері Семена побачить, той самий акаунт на новому пристрої — ні.
+  // Крок О2 (2.2): джерело правди — СЕРВЕР (welcome_seen_at із /v1/me).
+  // localStorage лишається кешем: він тільки запамʼятовує «бачив», щоб не
+  // ходити зайвий раз, і не має права сказати «бачив» за сервера.
+  //
+  // Перший захід був `if (!onboardingSeen()) navigate(...)` з безіменною
+  // одиницею в localStorage, і на проді це означало: новий акаунт у браузері,
+  // де онбординг бачив хтось інший, Семена не отримував узагалі. Тепер кеш
+  // іменний — чужа позначка за цю людину не говорить.
   const me = useAuth((s) => s.me);
   useEffect(() => {
     if (pathname !== '/app' || !me) return;
-    if (me.user.welcome_seen_at) { markSeenLocally(); return; }
-    if (!onboardingSeen()) navigate('/welcome', { replace: true });
+    if (me.user.welcome_seen_at) { markSeenLocally(me.user.id); return; }
+    if (shouldShowOnboarding(me)) navigate('/welcome', { replace: true });
   }, [pathname, navigate, me]);
   // Крок Е1: 401/429/офлайн ловляться в api.req і показуються смугою тут —
   // одне місце на всі екрани.

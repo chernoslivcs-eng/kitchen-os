@@ -15,15 +15,40 @@ import styles from './Onboarding.module.css';
 
 export const ONBOARDING_SEEN_KEY = 'kos-onboarding-seen';
 
-export function onboardingSeen(): boolean {
-  try { return localStorage.getItem(ONBOARDING_SEEN_KEY) === '1'; } catch { return true; }
+/**
+ * Крок О2 (2.2): кеш ІМЕННИЙ. Раніше тут лежала одиниця — «в цьому браузері
+ * онбординг бачили», без уточнення хто. Через це новий акаунт у браузері, де
+ * Семена бачив хтось інший, його не отримував узагалі: чужа одиниця
+ * перебивала сервер.
+ *
+ * Тепер кеш каже, ХТО бачив, і тому не може говорити за іншу людину. Роль у
+ * нього лишилась одна — прикрити щілину між «людина щойно закрила онбординг»
+ * і «сервер це підтвердив»: meSeen() і refresh() летять слідом, і без кешу
+ * стрічка встигла б відкинути її назад на /welcome.
+ *
+ * Стара одиниця з попередніх версій ні з ким не збігається — тобто просто
+ * перестає діяти, і це правильно: приписати її комусь ми не можемо.
+ */
+export function onboardingSeen(userId: string): boolean {
+  try { return !!userId && localStorage.getItem(ONBOARDING_SEEN_KEY) === userId; } catch { return false; }
 }
-export function markSeenLocally() {
-  try { localStorage.setItem(ONBOARDING_SEEN_KEY, '1'); } catch { /* приватний режим — покажемо ще раз, не біда */ }
+export function markSeenLocally(userId: string) {
+  try { localStorage.setItem(ONBOARDING_SEEN_KEY, userId); } catch { /* приватний режим — покажемо ще раз, не біда */ }
 }
+/**
+ * Крок О2 (2.2): одне правило, за яким вирішується, чи показувати знайомство.
+ * Живе тут, а не в каркасі, бо це рішення продукту, а не навігації: сервер
+ * каже, чи людина його бачила; кеш має право лише підтвердити «щойно бачила»
+ * для ТІЄЇ САМОЇ людини, поки /v1/me ще не перечитався.
+ */
+export function shouldShowOnboarding(me: { user: { id: string; welcome_seen_at?: string | null } }): boolean {
+  if (me.user.welcome_seen_at) return false;
+  return !onboardingSeen(me.user.id);
+}
+
 // Крок 7: позначка — на сервері (welcome_seen_at), локально — кеш.
-function markSeen() {
-  markSeenLocally();
+function markSeen(userId: string) {
+  markSeenLocally(userId);
   void api.meSeen().then(() => useAuth.getState().refresh()).catch(() => { /* мережа — локальний кеш прикриє до наступного разу */ });
 }
 
@@ -92,7 +117,7 @@ export function OnboardingPage() {
     if (n < 0 || n >= CARDS.length) return;
     setDir(d); setStep(n);
   };
-  const finish = () => { markSeen(); navigate('/app', { replace: true }); };
+  const finish = () => { markSeen(useAuth.getState().me?.user.id ?? ''); navigate('/app', { replace: true }); };
 
   // Свайп: поріг 50px, як у канвасі.
   const tx = useRef(0);

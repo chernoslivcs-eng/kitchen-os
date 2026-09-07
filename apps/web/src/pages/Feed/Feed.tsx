@@ -3,7 +3,7 @@
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
@@ -37,6 +37,16 @@ import { usePanelStore } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
 
 // Фрази для стрімінг-подачі: розріз по кінцях речень, коротке лишається цілим.
+/**
+ * Крок О2 (1.1): «документ»-підложка під структурованим повідомленням — не для
+ * всіх карток. Онбординг малює власну панель (тло, рамка, радіус 18), і
+ * підложка під нею читалась як рамка в рамці. Окремий компонент, а не тернар у
+ * розмітці: інакше `<Card>` довелося б дублювати двадцятьма пропами двічі.
+ */
+function CardShell({ plain, className, children }: { plain: boolean; className: string; children: ReactNode }) {
+  return plain ? <>{children}</> : <div className={className}>{children}</div>;
+}
+
 function splitPhrases(text: string): string[] {
   const parts = text.split(/(?<=[.!?…])\s+/).filter(Boolean);
   return parts.length ? parts : [text];
@@ -1539,7 +1549,14 @@ export function Feed() {
             {t.card && t.card.type !== 'event' && !(isTraditionTurn(t) && t.applied) && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
-              <div className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.dismissed ? styles['doccard-off'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}>
+              /* О2 (1.1): онбординг має власну панель із тлом, рамкою і
+                 радіусом — велика підложка під нею була б рамкою в рамці.
+                 Той самий виняток, що вже зроблено для `event`, тільки
+                 подія не малює нічого, а ця картка малює себе сама. */
+              <CardShell
+                plain={t.card.type === 'onboarding'}
+                className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.dismissed ? styles['doccard-off'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}
+              >
               <Card
                 card={t.card}
                 cardId={t.cardId ?? undefined}
@@ -1568,7 +1585,7 @@ export function Feed() {
                 batchLabels={batchLabels}
                 stepLabels={stepLabels}
               />
-              </div>
+              </CardShell>
             )}
           </div>
         ))}

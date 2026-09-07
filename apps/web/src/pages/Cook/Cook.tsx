@@ -317,7 +317,17 @@ export function CookOverlay() {
   // скасовано свідомо (рішення Пилипа, 2026-08-30).
   const [finishing, setFinishing] = useState(false);
   const finishedRef = useRef(false);
-  async function finish() {
+  /**
+   * Крок О2 (3): `after` каже, куди йти після запису. «Поділитись
+   * результатом» — не обхідний шлях повз журнал: воно робить рівно ту саму
+   * роботу, що «Приготували», і лише потім веде на /share.
+   *
+   * Якщо запис у журнал не вдався — на /share НЕ йдемо. Ділитись нема чим:
+   * готування не записалось і продукти не спишуться. Поводимось так само, як
+   * на звичайному провалі «Приготували» — ведемо в стрічку, людину в пастці не
+   * тримаємо.
+   */
+  async function finish(after: 'feed' | 'share' = 'feed') {
     if (finishing || finishedRef.current) return;
     track('cook_finished', { steps: recipe?.st.length ?? 0 });
     stopAlarm();
@@ -330,6 +340,7 @@ export function CookOverlay() {
     if (!sid) {
       try { sid = (await api.session.today()).session.id; } catch {/* offline */}
     }
+    let saved = true;
     try {
       await api.cookRuns.save(recipe!, {
         skip_pantry: true,
@@ -337,14 +348,34 @@ export function CookOverlay() {
         session_id: sid ?? undefined,
         ask_writeoff: true,
       });
-    } catch {/* offline: запис у журнал не вийшов — не тримаємо людину в пастці */}
+    } catch { saved = false; /* offline: запис у журнал не вийшов — не тримаємо людину в пастці */ }
     closeOverlay();
+    if (after === 'share' && saved && recipe) {
+      // Той самий стан, що й точки входу зі стрічки.
+      navigate('/share', { state: { recipe, recipeId: state.recipeId } });
+      return;
+    }
     navigate('/app', sid ? { state: { sessionId: sid, at: Date.now() } } : undefined);
   }
 
   // Кнопки кроку — одні на два лейаути: мобільний футер і десктопна права
   // колонка (Д05: ↩ і «Крок готово ✓» живуть під таймером).
+  // Крок О2 (3): «Поділитись результатом» — окремим рядом ПІД рядком із
+  // поверненням і «Приготували», і тільки на останньому кроці. Головною
+  // лишається «Приготували»: ця — другорядна, тому тонована рамкою, як ↩.
+  const shareButton = (
+    <button
+      className={`${styles.main} ${styles['share-result']}`}
+      disabled={stepLocked || finishing}
+      onClick={() => void finish('share')}
+      data-share-result
+    >
+      Поділитись результатом
+    </button>
+  );
+
   const stepButtons = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
       {stepIdx > 0 && (
         /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
@@ -359,7 +390,7 @@ export function CookOverlay() {
         className={styles.main}
         style={{ flex: 1 }}
         disabled={stepLocked || finishing}
-        onClick={stepIdx === total - 1 ? finish : advanceStep}
+        onClick={stepIdx === total - 1 ? () => void finish() : advanceStep}
       >
         {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
             дії, а не навігація «Далі →». */}
@@ -371,11 +402,13 @@ export function CookOverlay() {
           className={styles.main}
           style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
           disabled={stepLocked || finishing}
-          onClick={finish}
+          onClick={() => void finish()}
         >
           {finishing ? 'Зберігаю…' : 'Приготували'}
         </button>
       )}
+    </div>
+    {stepIdx === total - 1 && shareButton}
     </div>
   );
 
@@ -518,9 +551,22 @@ export function CookOverlay() {
           <button
             className={`${styles.main} ${styles['finish-mobile']}`}
             disabled={finishing}
-            onClick={finish}
+            onClick={() => void finish()}
           >
             {finishing ? 'Зберігаю…' : 'Приготували'}
+          </button>
+        )}
+        {/* Крок О2 (3): на мобілці ряд кроків схований, тож другий вихід стоїть
+            тут — окремим рядом під «Приготували», тими самими правилами
+            видимості (.finish-mobile). */}
+        {stepIdx === total - 1 && (
+          <button
+            className={`${styles.main} ${styles['finish-mobile']} ${styles['share-result']}`}
+            disabled={finishing}
+            onClick={() => void finish('share')}
+            data-share-result
+          >
+            Поділитись результатом
           </button>
         )}
         <div className={styles.offline}>Тапни по краях, щоб гортати кроки. Інтернет для цього не потрібен.</div>
