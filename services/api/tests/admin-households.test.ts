@@ -18,6 +18,14 @@ import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn, type Signed } from './helpers.js';
 
+const localDay = () => {
+  // Місцева дата, не UTC: `dayBounds` у pulse.ts рахує межі саме в місцевому
+  // часі, і між місцевою північчю і UTC-північчю (00:00–03:00 у Києві) UTC-дата
+  // вказує на добу, яка вже скінчилась. Тест від цього падав щоночі.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 describe('GET /v1/admin/households', () => {
   let repo: InMemoryRepo;
   let mailer: ConsoleMailer;
@@ -160,7 +168,7 @@ describe('GET /v1/admin/pulse?household_id — чужий дім', () => {
 
   const pulse = (cookie: string, household_id?: string) => app.inject({
     method: 'GET', headers: { cookie },
-    url: `/v1/admin/pulse?day=${new Date().toISOString().slice(0, 10)}`
+    url: `/v1/admin/pulse?day=${localDay()}`
       + (household_id ? `&household_id=${household_id}` : ''),
   });
 

@@ -21,6 +21,24 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { requireAdmin } from '../middleware/admin.js';
 import { priceOf } from '../pricing.js';
 
+/**
+ * Сьогодні в МІСЦЕВИХ межах — тих самих, у яких рахує dayBounds нижче.
+ *
+ * Було `new Date().toISOString().slice(0, 10)`, тобто UTC-дата. Шов між ними
+ * відкривається щоночі: о 00:34 за Києвом UTC-дата ще вчорашня, а місцеві межі
+ * вчорашнього дня скінчились півгодини тому — і пульс без явного `?day=`
+ * віддавав порожній день. З кроком А2 це стало гірше, ніж порожня таблиця:
+ * екран упевнено каже «у цьому домі ще нічого не сталось».
+ *
+ * У продукті це було замасковано — `Pulse.tsx` завжди шле місцеву дату сам.
+ * Але замаскована неправда лишається неправдою, і тести, які б'ють в API
+ * напряму, ловили її щоночі з 00:00 до 03:00.
+ */
+function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** День у локальних межах: пульс читають по днях життя, не по UTC. */
 function dayBounds(day: string): { from: Date; to: Date } {
   const from = new Date(`${day}T00:00:00`);
@@ -163,7 +181,7 @@ export function pulseRoutes(app: FastifyInstance, repo: Repo) {
       // підібрати household_id і дізнатись, що такий дім існує, неможливо.
       const household_id = req.query.household_id ?? me.household_id;
       const guest = household_id !== me.household_id;
-      const day = req.query.day ?? new Date().toISOString().slice(0, 10);
+      const day = req.query.day ?? todayLocal();
       const { from, to } = dayBounds(day);
       const week = new Date(from);
       week.setDate(week.getDate() - 6);
