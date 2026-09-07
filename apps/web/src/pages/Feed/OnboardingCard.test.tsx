@@ -67,7 +67,9 @@ describe('картка «Про тебе»', () => {
     expect(host!.textContent).toContain('Мене звати');
     expect(host!.querySelector('[data-counter]')!.textContent).toBe('0/30');
     expect(btn('Записати').disabled).toBe(true);
-    expect(btn('Пропустити')).toBeTruthy();
+    // О2 (1.3): «Пропустити» стало «Далі», плюс з'явився «Назад».
+    expect(btn('Далі')).toBeTruthy();
+    expect(btn('Назад').disabled).toBe(true);   // на першій панелі — приглушений
   });
 
   it('«Записати» → PATCH /v1/profile/name і перехід на наступну відкриту панель', async () => {
@@ -80,9 +82,9 @@ describe('картка «Про тебе»', () => {
     expect(panel().dataset.panel).toBe('no');
   });
 
-  it('«Пропустити» → PATCH /v1/onboarding/:id {skip} і перехід; панель пропущена при поверненні', async () => {
+  it('«Далі» на ПОРОЖНІЙ панелі → PATCH /v1/onboarding/:id {skip} і перехід; панель пропущена при поверненні', async () => {
     await mount();
-    await act(async () => { btn('Пропустити').click(); });
+    await act(async () => { btn('Далі').click(); });
     expect(calls.find((c) => c.url === '/v1/onboarding/m1')).toMatchObject({ method: 'PATCH', body: { skip: 'name' } });
     expect(panel().dataset.panel).toBe('no');
     await act(async () => { btn('Назад').click(); });
@@ -145,3 +147,112 @@ describe('картка «Про тебе»', () => {
     expect(host!.querySelector('[data-counter]')!.textContent).toBe('Все сюди вже не влізе. Лишімо головне.');
   });
 });
+
+// --- Крок О2 --------------------------------------------------------------
+
+describe('О2: картка «Про тебе»', () => {
+  it('(1.3) ряд читається як речення: Назад · Далі · Записати, головне праворуч', async () => {
+    await mount();
+    const labels = [...host!.querySelectorAll('[class*="actions"] button')].map((b) => b.textContent);
+    expect(labels).toEqual(['Назад', 'Далі', 'Записати']);
+  });
+
+  it('(1.4) стрілок ← → більше немає, лічильник унизу лишився', async () => {
+    await mount();
+    const arrows = [...host!.querySelectorAll('button')].filter((b) => b.textContent === '←' || b.textContent === '→');
+    expect(arrows).toEqual([]);
+    expect(host!.querySelector('[class*="progress"]')!.textContent).toBe('1 / 7');
+  });
+
+  it('(2.1) «Далі» на ЗАПОВНЕНІЙ панелі нічого не пише — просто перехід', async () => {
+    // Людина вирішила перечитати свої відповіді: жодна з них не має
+    // перетворитись на пропуск дорогою.
+    await mount({ profileFields: { ...empty(), name: f('Пилип') } });
+    await act(async () => { btn('Назад').click(); });
+    expect(panel().dataset.panel).toBe('name');
+    expect(panel().dataset.state).toBe('filled');
+
+    calls.length = 0;
+    await act(async () => { btn('Далі').click(); });
+    expect(calls).toEqual([]);            // ні skip, ні PATCH
+    expect(panel().dataset.panel).toBe('no');
+
+    await act(async () => { btn('Назад').click(); });
+    expect(host!.querySelector('[data-meta]')!.textContent).toBe('ЗАПИСАНО');
+  });
+
+  it('(2.1) «Далі» на ПОРОЖНІЙ панелі пише пропуск', async () => {
+    await mount();
+    await act(async () => { btn('Далі').click(); });
+    expect(calls.find((c) => c.url === '/v1/onboarding/m1')).toMatchObject({ body: { skip: 'name' } });
+  });
+
+  it('(2.1) «Нічого такого» на вже відповіданій панелі алергій теж мовчить', async () => {
+    await mount({ profileFields: { ...empty(), name: f('a'), no: f('b'), ban: f('', 'none') } });
+    await act(async () => { btn('Назад').click(); });
+    expect(panel().dataset.panel).toBe('ban');
+    calls.length = 0;
+    await act(async () => { btn('Нічого такого').click(); });
+    expect(calls).toEqual([]);
+    expect(panel().dataset.panel).toBe('love');
+  });
+
+  it('(2.3) поля приїхали пізніше — картка перескакує на «Готово», а не лишається на 1/7', async () => {
+    // Стрічка тягне profile_text асинхронно: на першому рендері полів немає.
+    await mount({ profileFields: null, card: { type: 'onboarding', skipped: [] } as ChatCard });
+    expect(panel().dataset.panel).toBe('name');
+    const all = { ...empty(), name: f('a'), no: f('b'), ban: f('c'), love: f('d'), meh: f('e'), kit: f('g'), when: f('h') };
+    await act(async () => {
+      root!.render(<OnboardingCard card={{ type: 'onboarding' } as ChatCard} cardId="m1" profileFields={all} />);
+    });
+    expect(panel().dataset.panel).toBe('done');
+  });
+
+  it('(2.3) якщо людина вже гортає сама — перерахунок мовчить', async () => {
+    await mount({ profileFields: null, card: { type: 'onboarding', skipped: [] } as ChatCard });
+    await act(async () => { btn('Далі').click(); });          // пішла вручну
+    expect(panel().dataset.panel).toBe('no');
+    const all = { ...empty(), name: f('a'), no: f('b'), ban: f('c'), love: f('d'), meh: f('e'), kit: f('g'), when: f('h') };
+    await act(async () => {
+      root!.render(<OnboardingCard card={{ type: 'onboarding' } as ChatCard} cardId="m1" profileFields={all} />);
+    });
+    // Лишились там, де стояли: перебивати ручне гортання ми не маємо права.
+    expect(panel().dataset.panel).toBe('no');
+  });
+
+  it('(1.6) довгий текст лишається всередині свого блоку, а лінія — під ним', async () => {
+    await mount();
+    const box = host!.querySelector<HTMLElement>('[data-field-text]')!;
+    const edit = host!.querySelector<HTMLSpanElement>('[contenteditable]')!;
+    const counter = host!.querySelector<HTMLElement>('[data-counter]')!;
+
+    await act(async () => {
+      edit.textContent = 'дуже довгий текст, '.repeat(12);
+      edit.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    // Текст живе В блоці, що має лінію (border-bottom у .fieldText) — тому
+    // лінія завжди під ним. Раніше лінія стояла на самому .edit і при
+    // переносі перекреслювала рядок посередині.
+    expect(box.contains(edit)).toBe(true);
+    // Лічильник — ПОЗА блоком тексту, у потоці під ним: інакше він накриває
+    // текст, коли той доріс до низу.
+    expect(box.contains(counter)).toBe(false);
+    expect(box.nextElementSibling!.contains(counter)).toBe(true);
+    // Підказка лишилась над рядком і текст на неї не поліз.
+    const copy = host!.querySelector<HTMLElement>('[class*="copy"]')!;
+    expect(copy.contains(edit)).toBe(false);
+  });
+
+  it('(1.5) «Готово» тримає те саме вільне місце, що й панелі', async () => {
+    const all = { ...empty(), name: f('a'), no: f('b'), ban: f('c'), love: f('d'), meh: f('e'), kit: f('g'), when: f('h') };
+    await mount({ profileFields: all });
+    expect(panel().dataset.panel).toBe('done');
+    // Порожній блок тієї самої висоти — інакше кнопка «Показати, що вийшло»
+    // стрибнула б угору відносно решти панелей.
+    expect(host!.querySelector('[class*="spacer"]')).not.toBeNull();
+    expect([...host!.querySelectorAll('[class*="actions"] button')].map((b) => b.textContent))
+      .toEqual(['Назад', 'Показати, що вийшло']);
+  });
+});
+
