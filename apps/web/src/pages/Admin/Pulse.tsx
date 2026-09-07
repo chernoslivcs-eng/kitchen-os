@@ -18,7 +18,9 @@
 // 404 всім, крім пошти з ADMIN_EMAILS.
 
 import { useEffect, useState } from 'react';
+import { useOutletContext, useParams } from 'react-router-dom';
 import { api, type Pulse, type PulseMoney } from '../../api';
+import type { AdminContext } from './AdminShell';
 import styles from './Pulse.module.css';
 
 /** Локальний день, не UTC: пульс читають по днях життя. */
@@ -39,6 +41,23 @@ const hhmm = (iso: string) =>
 /** Долари з чотирма знаками: хід коштує центи, і два знаки все обнулили б. */
 const usd = (n: number | null) => (n === null ? '—' : `$${n.toFixed(4)}`);
 
+/**
+ * Крок А2: ціна хода й те, ЯК вона порахована.
+ *
+ * «≈» — не прикраса. До А1 указівника на хід не існувало, і ціна зшивалась
+ * здогадкою: найближчий виклик тієї самої людини в межах хвилини. На такому
+ * числі не можна будувати юніт-економіку, і людина мусить бачити різницю, а
+ * не здогадуватись про неї. Точна ціна йде без значка.
+ */
+function priceCell(t: { usd: number | null; latency_ms: number | null; price_from: 'message' | 'time' | null }) {
+  if (t.latency_ms === null && t.usd === null) return '';       // виклику не було
+  // «≈ —» було б нісенітницею: риска означає «ціни цієї моделі не знаємо», і
+  // приблизність тут нема до чого. Значок ставимо тільки поруч із числом.
+  if (t.usd === null) return '—';
+  if (t.price_from === 'time') return `≈ ${usd(t.usd)}`;
+  return usd(t.usd);
+}
+
 /** household_member.role словом: у таблиці «owner» нічого не пояснює. */
 const ROLE_WORD: Record<string, string> = { owner: 'власник', member: 'учасник' };
 
@@ -49,30 +68,51 @@ const STATE_CLASS: Record<string, string> = {
   'чекає': styles.waiting!,
 };
 
+/**
+ * «Дім Олі» → «дому Олі». Назва дому в базі має вигляд «Дім <ім'я>»
+ * (createUserWithHousehold), і присвійна форма з неї виходить одним рухом.
+ * Якщо дім перейменували руками — беремо назву в лапки, а не ламаємо мову.
+ */
+export function possessive(name: string): string {
+  const m = /^Дім\s+(.+)$/i.exec(name.trim());
+  return m ? `дому ${m[1]}` : `дому «${name}»`;
+}
+
 export function PulsePage() {
   const [day, setDay] = useState(today());
   const [data, setData] = useState<Pulse | null>(null);
-  const [denied, setDenied] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Крок А2: дім — з адреси. Немає в адресі — свій, як було.
+  const { household_id } = useParams();
+  const { house } = useOutletContext<AdminContext>();
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api.admin.pulse(day)
+    api.admin.pulse(day, household_id)
       .then((p) => { if (alive) { setData(p); setLoading(false); } })
-      .catch(() => { if (alive) { setDenied(true); setLoading(false); } });
+      // Крок А2: власного 404 тут більше немає — доступ перевіряє каркас, і
+      // відмова показує справжню сторінку продукту. Тут лишається тільки
+      // «не завантажилось».
+      .catch(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [day]);
+  }, [day, household_id]);
 
-  // Той самий 404, що на сервері: сторінка не видає, що вона існує.
-  if (denied) {
-    return <div style={{ padding: 24, fontFamily: 'var(--font-mono)', color: 'var(--fg-dim)' }}>404</div>;
-  }
+  // Порожньо ЦІЛКОМ: ні ходів, ні подій, ні жодного виклику моделі. Три
+  // порожні таблиці підряд сказали б те саме, але гірше — і за ними не видно
+  // головного: у цьому домі не сталось нічого, і це факт про людину.
+  const nothing = !!data && data.turns.length === 0 && data.events.length === 0
+    && data.money.day.calls === 0;
 
   return (
     <div className={styles.page} data-pulse>
       <div className={styles.head}>
-        <h1 className={styles.title}>Пульс</h1>
+        {/* Присвійний заголовок: власник дивиться на чужі гроші й чужі розмови,
+            і сплутати їх зі своїми — найлегша помилка тут. */}
+        <h1 className={styles.title}>
+          {data?.household_name ? `Пульс ${possessive(data.household_name)}` : 'Пульс'}
+        </h1>
+        {data?.guest && <span className={styles.guestTag} data-guest-tag>У ГОСТЯХ · ЛИШЕ ЧИТАННЯ</span>}
         <button type="button" className={styles.nav} onClick={() => setDay(shiftDay(day, -1))}>← день</button>
         <input
           type="date"
@@ -91,14 +131,32 @@ export function PulsePage() {
         </button>
         {data && (
           <span className={styles.who}>
-            дім {data.household_id} · {data.members.length} {data.members.length === 1 ? 'людина' : 'людей'}
+            {data.members.length} {data.members.length === 1 ? 'людина' : 'людей'}
           </span>
         )}
       </div>
 
       {loading && <div className={styles.empty}>…</div>}
 
-      {data && !loading && (
+      {/* Дім, у якому нічого не сталось. Це не помилка й не порожня сторінка —
+          це те, що справді сталось, і на пілоті таких домів буде більшість.
+          Тому окремий екран, а не три порожні таблиці підряд. */}
+      {data && !loading && nothing && (
+        <div className={styles.nothing} data-nothing>
+          {/* копі: головна фраза екрана «у цьому домі ще нічого не сталось». */}
+          <b>У цьому домі ще нічого не сталось</b>
+          <p>
+            Цього дня тут не було жодного ходу, жодної події і жодного виклику моделі.
+          </p>
+          <div className={styles.nothingRows}>
+            <div><span>Ходів</span><span>немає</span></div>
+            <div><span>Гроші</span><span>$0.0000 — виклику моделі не було жодного</span></div>
+            <div><span>Помилки</span><span>нічого не ламалось</span></div>
+          </div>
+        </div>
+      )}
+
+      {data && !loading && !nothing && (
         <>
           <section className={styles.block}>
             <h2 className={styles.blockTitle}>Розмови</h2>
@@ -137,8 +195,16 @@ export function PulsePage() {
                           <td className={styles.mono}>{t.latency_ms === null ? '' : `${(t.latency_ms / 1000).toFixed(1)} с`}</td>
                           {/* Порожньо, коли виклику моделі на цьому ході не було
                               (репліка людини); «—», коли виклик був, а ціни
-                              моделі ми не знаємо. Це різні новини. */}
-                          <td className={styles.mono}>{t.latency_ms === null && t.usd === null ? '' : usd(t.usd)}</td>
+                              моделі ми не знаємо. Це різні новини.
+                              «≈» — ціна зшита за часом, не за викликом. */}
+                          <td
+                            className={`${styles.mono} ${t.price_from === 'time' ? styles.dim : ''}`}
+                            data-price-from={t.price_from ?? undefined}
+                            title={t.price_from === 'time' ? 'зшито за часом, не за викликом — точніше не знаємо'
+                              : t.price_from === 'message' ? 'сума викликів цього ходу' : undefined}
+                          >
+                            {priceCell(t)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

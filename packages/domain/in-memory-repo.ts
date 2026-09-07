@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField } from './repo.js';
+import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow } from './repo.js';
 import type {
   PantryBatch, PendingCard, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
@@ -372,6 +372,44 @@ export class InMemoryRepo implements Repo {
       });
     }
     return out.sort((a, b) => a.joined_at.localeCompare(b.joined_at));
+  }
+
+  /**
+   * Крок А2: та сама семантика, що в SQL-версії — доми з агрегатами, і доми
+   * без жодної активності присутні нарівні з рештою.
+   */
+  async listAdminHouseholds(): Promise<AdminHouseholdRow[]> {
+    const out: AdminHouseholdRow[] = [];
+    for (const h of this.households.values()) {
+      const mem = this.members.filter((m) => m.household_id === h.id);
+      const userIds = new Set(mem.map((m) => m.user_id));
+      const sessionIds = [...this.chatSessions.values()]
+        .filter((s) => userIds.has(s.user_id)).map((s) => s.id);
+      const msgs = sessionIds.flatMap((id) => this.messages.get(id) ?? []);
+      const seen = [...this.sessions.values()]
+        .filter((a) => userIds.has(a.user_id)).map((a) => a.last_seen_at);
+      const ownerMem = [...mem].sort((a, b) => a.joined_at.localeCompare(b.joined_at))
+        .find((m) => m.role === 'owner');
+      const owner = ownerMem ? this.users.get(ownerMem.user_id) : undefined;
+      out.push({
+        id: h.id,
+        name: h.name,
+        created_at: h.created_at,
+        people: mem.length,
+        last_turn_at: msgs.length ? msgs.map((m) => m.created_at).sort().at(-1)! : null,
+        turns: msgs.filter((m) => m.role === 'user').length,
+        last_seen_at: seen.length ? seen.slice().sort().at(-1)! : null,
+        owner_id: owner?.id ?? null,
+        owner_name: owner?.name ?? null,
+        owner_email: owner?.email ?? null,
+      });
+    }
+    return out.sort((a, b) => {
+      if (a.last_turn_at && b.last_turn_at) return b.last_turn_at.localeCompare(a.last_turn_at);
+      if (a.last_turn_at) return -1;
+      if (b.last_turn_at) return 1;
+      return b.created_at.localeCompare(a.created_at);
+    });
   }
 
   async roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null> {

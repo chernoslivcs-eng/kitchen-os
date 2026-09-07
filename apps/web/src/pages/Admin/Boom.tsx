@@ -14,12 +14,11 @@
 // Кадри вглиб — з тієї ж причини, що на сервері: стек з одного рядка нічого не
 // каже про символікацію.
 //
-// Маршрут ніде не показаний — ні в TabBar, ні в шухляді. Стороннього зустрічає
-// 404: сторінка питає сервер (`?dry=1`), і той відповідає тим самим 404, що на
-// решті адмінки.
-
-import { useEffect, useState } from 'react';
-import { api } from '../../api';
+// Крок А2: власного гейта тут більше немає. Доступ перевіряє каркас адмінки
+// один раз (AdminShell), і відмова показує справжню 404 продукту — той самий
+// компонент, що на будь-яку неіснуючу адресу. Раніше кожна адмінська сторінка
+// малювала свій сірий прямокутник із написом «404», не схожий ні на що в
+// продукті, — і тим сама себе видавала.
 
 /** Кадр 3. */
 function measureShelf(shelf: string): number {
@@ -36,26 +35,7 @@ function renderNightPlan(): string {
   return describeShelf(['холодильник', 'морозилка']);
 }
 
-type Gate = 'checking' | 'allowed' | 'denied';
-
 export function BoomPage() {
-  const [gate, setGate] = useState<Gate>('checking');
-
-  useEffect(() => {
-    let alive = true;
-    api.admin.boomDry()
-      .then(() => { if (alive) setGate('allowed'); })
-      .catch(() => { if (alive) setGate('denied'); });
-    return () => { alive = false; };
-  }, []);
-
-  // Той самий 404, що й на сервері: сторінка не видає, що вона існує.
-  if (gate === 'denied') {
-    return <div style={{ padding: 24, fontFamily: 'var(--font-mono)', color: 'var(--fg-dim)' }}>404</div>;
-  }
-  if (gate === 'allowed') {
-    // Звідси вгору вже нічого не повернеться — ловить ErrorBoundary у каркасі.
-    return <>{renderNightPlan()}</>;
-  }
-  return null;
+  // Звідси вгору вже нічого не повернеться — ловить ErrorBoundary у каркасі.
+  return <>{renderNightPlan()}</>;
 }

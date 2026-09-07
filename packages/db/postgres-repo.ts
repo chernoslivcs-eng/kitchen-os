@@ -9,7 +9,7 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField,
+  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow,
   PantryBatch, PendingCard, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
@@ -846,6 +846,83 @@ export class PostgresRepo implements Repo {
       email: r.email,
       role: r.role as HouseholdRole,
       joined_at: new Date(r.joined_at).toISOString(),
+    }));
+  }
+
+  /**
+   * Крок А2: список домів для адмінки — ОДНИМ звертанням до бази.
+   *
+   * Головна вимога кроку, і вона не про естетику. Цикл «по домах × підзапит»
+   * на вісімдесяти домах — це вісімдесят кругів до Neon усередині одного
+   * відкриття сторінки, поверх бази, якою в ту саму мить хтось користується.
+   * Тому агрегати рахує SQL, а Node лише розкладає рядки.
+   *
+   * Чому CTE, а не один великий JOIN: household × member × session × message
+   * розмножує рядки добутком, і `count(DISTINCT …)` довелося б платити на
+   * кожному агрегаті. Кожен CTE згортає свою таблицю до одного рядка на дім,
+   * і далі це три дешеві LEFT JOIN по ключу.
+   *
+   * LEFT JOIN, а не INNER: дім, у якому нічого не сталось, мусить бути в
+   * списку. На пілоті таких більшість, і саме вони — те, заради чого список
+   * узагалі є.
+   */
+  async listAdminHouseholds(): Promise<AdminHouseholdRow[]> {
+    const { rows } = await this.pool.query(`
+      WITH people AS (
+        SELECT household_id, count(*)::int AS n
+          FROM household_member
+         GROUP BY household_id
+      ),
+      turns AS (
+        SELECT hm.household_id,
+               max(m.created_at) AS last_turn_at,
+               count(*) FILTER (WHERE m.role = 'user')::int AS n
+          FROM household_member hm
+          JOIN session s ON s.user_id = hm.user_id
+          JOIN message m ON m.session_id = s.id
+         GROUP BY hm.household_id
+      ),
+      seen AS (
+        -- «Заходили» — це не «писали». Людина, що відкрила продукт за лінком і
+        -- не сказала нічого, лишає слід тільки тут.
+        SELECT hm.household_id, max(a.last_seen_at) AS last_seen_at
+          FROM household_member hm
+          JOIN auth_session a ON a.user_id = hm.user_id
+         GROUP BY hm.household_id
+      ),
+      owner AS (
+        -- Найперший власник дому: у схемі роль 'owner' може бути не одна.
+        SELECT DISTINCT ON (hm.household_id)
+               hm.household_id, u.id, u.name, u.email
+          FROM household_member hm
+          JOIN "user" u ON u.id = hm.user_id
+         WHERE hm.role = 'owner'
+         ORDER BY hm.household_id, hm.joined_at
+      )
+      SELECT h.id, h.name, h.created_at,
+             coalesce(people.n, 0)  AS people,
+             turns.last_turn_at,
+             coalesce(turns.n, 0)   AS turns,
+             seen.last_seen_at,
+             owner.id AS owner_id, owner.name AS owner_name, owner.email AS owner_email
+        FROM household h
+        LEFT JOIN people ON people.household_id = h.id
+        LEFT JOIN turns  ON turns.household_id  = h.id
+        LEFT JOIN seen   ON seen.household_id   = h.id
+        LEFT JOIN owner  ON owner.household_id  = h.id
+       ORDER BY turns.last_turn_at DESC NULLS LAST, h.created_at DESC
+    `);
+    return rows.map((r): AdminHouseholdRow => ({
+      id: r.id,
+      name: r.name,
+      created_at: new Date(r.created_at).toISOString(),
+      people: r.people,
+      last_turn_at: r.last_turn_at ? new Date(r.last_turn_at).toISOString() : null,
+      turns: r.turns,
+      last_seen_at: r.last_seen_at ? new Date(r.last_seen_at).toISOString() : null,
+      owner_id: r.owner_id ?? null,
+      owner_name: r.owner_name ?? null,
+      owner_email: r.owner_email ?? null,
     }));
   }
 

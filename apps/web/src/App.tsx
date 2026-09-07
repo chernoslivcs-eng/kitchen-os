@@ -17,6 +17,8 @@ import { CalendarPage } from './pages/Calendar/Calendar';
 import { AdminOccasionsPage } from './pages/Admin/AdminOccasions';
 import { PulsePage } from './pages/Admin/Pulse';
 import { BoomPage } from './pages/Admin/Boom';
+import { AdminShell } from './pages/Admin/AdminShell';
+import { HouseholdsPage } from './pages/Admin/Households';
 import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
 import { InvitePage } from './pages/Invite/Invite';
 import { NotFoundPage } from './pages/NotFound/NotFound';
@@ -158,11 +160,17 @@ export function App() {
             <Route path="/cooklog" element={<CookLogPage />} />
             <Route path="/recipes" element={<RecipesPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/admin/occasions" element={<AdminOccasionsPage />} />
-            {/* Крок О1: пульс дня. Як і приводи — тільки прямим посиланням. */}
+          </Route>
+          {/* Крок А2: адмінка вийшла з каркаса продукту й має власний.
+              Навколо адмінських таблиць більше не видно Стрічки й Комори, а
+              перевірка доступу стоїть ОДНА — на каркасі, і відмова показує
+              справжню 404 продукту. Ніде в навігації продукту не показана. */}
+          <Route element={<RequireAuth><AdminShell /></RequireAuth>}>
+            <Route path="/admin" element={<HouseholdsPage />} />
+            {/* Свій дім — як було; :household_id — вхід у чужий, зі списку. */}
             <Route path="/admin/pulse" element={<PulsePage />} />
-            {/* Крок О1: димовий тест символікації. Падає навмисно — ловить
-                ErrorBoundary вище. Ніде в навігації не показаний. */}
+            <Route path="/admin/h/:household_id" element={<PulsePage />} />
+            <Route path="/admin/occasions" element={<AdminOccasionsPage />} />
             <Route path="/admin/boom" element={<BoomPage />} />
           </Route>
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />

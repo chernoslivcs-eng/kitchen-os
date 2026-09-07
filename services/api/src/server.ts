@@ -22,6 +22,7 @@ import { trackRoutes } from './routes/track.js';
 import { incident } from './incident.js';
 import { settleTelemetry } from './telemetry.js';
 import { pulseRoutes } from './routes/pulse.js';
+import { adminHouseholdsRoutes } from './routes/admin-households.js';
 import { boomRoutes } from './routes/boom.js';
 import { adminOccasionsRoutes } from './routes/admin-occasions.js';
 import { profileRoutes, eaterRoutes } from './routes/profile.js';
@@ -167,6 +168,8 @@ export function buildApp(
   // Крок О1а: прийом подій поведінки й сторінка власника.
   trackRoutes(app, repo);
   pulseRoutes(app, repo);
+  // Крок А2: список домів — з нього починається адмінка.
+  adminHouseholdsRoutes(app, repo);
   boomRoutes(app, repo);
   adminOccasionsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   profileRoutes(app, repo);
