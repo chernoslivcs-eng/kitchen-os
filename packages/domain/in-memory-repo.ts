@@ -282,8 +282,14 @@ export class InMemoryRepo implements Repo {
   }
 
   async listAppEvents(user_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]> {
+    return this.eventsWhere((e) => e.user_id === user_id, opts);
+  }
+  async listAppEventsForHousehold(household_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]> {
+    return this.eventsWhere((e) => e.household_id === household_id, opts);
+  }
+  private eventsWhere(pick: (e: AppEventRow) => boolean, opts: { from: Date; to: Date; limit: number }): AppEventRow[] {
     return this.appEvents
-      .filter((e) => e.user_id === user_id)
+      .filter(pick)
       .filter((e) => {
         const t = new Date(e.created_at).getTime();
         return t >= opts.from.getTime() && t < opts.to.getTime();
@@ -431,6 +437,13 @@ export class InMemoryRepo implements Repo {
   async listTokenUsage(user_id: string, limit = 100): Promise<TokenUsageRow[]> {
     return this.tokenUsage
       .filter((r) => r.user_id === user_id)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, limit)
+      .map((r) => ({ ...r }));
+  }
+  async listTokenUsageForHousehold(household_id: string, limit = 100): Promise<TokenUsageRow[]> {
+    return this.tokenUsage
+      .filter((r) => r.household_id === household_id)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, limit)
       .map((r) => ({ ...r }));

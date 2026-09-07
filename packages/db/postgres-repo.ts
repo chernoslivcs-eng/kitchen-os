@@ -667,13 +667,27 @@ export class PostgresRepo implements Repo {
   }
 
   async listAppEvents(user_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]> {
+    return this.appEventsWhere('user_id', user_id, opts);
+  }
+
+  /** Стрічка дня всього дому — для пульсу. Індекс — app_event_household_time_idx (0030). */
+  async listAppEventsForHousehold(household_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]> {
+    return this.appEventsWhere('household_id', household_id, opts);
+  }
+
+  private async appEventsWhere(
+    column: 'user_id' | 'household_id',
+    value: string,
+    opts: { from: Date; to: Date; limit: number },
+  ): Promise<AppEventRow[]> {
+    // Імʼя колонки — не з користувацького вводу, а з двох літералів вище.
     const { rows } = await this.pool.query(
       `SELECT id, user_id, household_id, name, props, created_at
          FROM app_event
-        WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
+        WHERE ${column} = $1 AND created_at >= $2 AND created_at < $3
         ORDER BY created_at DESC
         LIMIT $4`,
-      [user_id, opts.from, opts.to, opts.limit],
+      [value, opts.from, opts.to, opts.limit],
     );
     return rows.map((r): AppEventRow => ({
       id: r.id,
@@ -1606,9 +1620,19 @@ export class PostgresRepo implements Repo {
   }
 
   async listTokenUsage(user_id: string, limit = 100): Promise<TokenUsageRow[]> {
+    return this.tokenUsageWhere('user_id', user_id, limit);
+  }
+
+  /** Витрати всього дому: пульс рахує гроші по дому, не по одній людині. */
+  async listTokenUsageForHousehold(household_id: string, limit = 100): Promise<TokenUsageRow[]> {
+    return this.tokenUsageWhere('household_id', household_id, limit);
+  }
+
+  private async tokenUsageWhere(column: 'user_id' | 'household_id', value: string, limit: number): Promise<TokenUsageRow[]> {
+    // Імʼя колонки — не з користувацького вводу, а з двох літералів вище.
     const { rows } = await this.pool.query(
-      'SELECT * FROM token_usage WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
-      [user_id, limit],
+      `SELECT * FROM token_usage WHERE ${column} = $1 ORDER BY created_at DESC LIMIT $2`,
+      [value, limit],
     );
     return rows.map((r): TokenUsageRow => ({
       id: r.id,

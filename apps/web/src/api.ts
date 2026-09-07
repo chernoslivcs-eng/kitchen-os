@@ -95,8 +95,13 @@ export interface Me {
 
 // --- Крок О1: /admin/pulse -------------------------------------------------
 
+export type HouseholdRole = 'owner' | 'member';
+
 export interface PulseTurn {
   at: string;
+  /** Чий це хід: у домі з двох людей без імені стрічка нечитабельна. */
+  user_id: string;
+  who: string;
   role: 'user' | 'assistant';
   text: string | null;
   card_type: string | null;
@@ -115,8 +120,22 @@ export interface PulseMoney {
   usd: number;
 }
 
+export interface PulseMember {
+  user_id: string;
+  name: string;
+  role: HouseholdRole;
+}
+
+export interface PulseMemberMoney extends PulseMember {
+  day: PulseMoney;
+  week: PulseMoney;
+}
+
 export interface PulseEvent {
   id: string;
+  user_id: string;
+  who: string;
+  role: HouseholdRole | null;
   name: string;
   props: Record<string, unknown>;
   created_at: string;
@@ -124,9 +143,11 @@ export interface PulseEvent {
 
 export interface Pulse {
   day: string;
-  user_id: string;
+  household_id: string;
+  members: PulseMember[];
   turns: PulseTurn[];
-  money: { day: PulseMoney; week: PulseMoney };
+  /** Підсумок дому — і окремим рядком кожна людина. */
+  money: { day: PulseMoney; week: PulseMoney; byMember: PulseMemberMoney[] };
   events: PulseEvent[];
 }
 
@@ -670,10 +691,10 @@ export const api = {
       unpublish: (id: string) => req<{ ok: true }>(`/v1/admin/occasions/${id}/unpublish`, { method: 'POST', body: '{}' }),
       remove: (id: string) => req<null>(`/v1/admin/occasions/${id}`, { method: 'DELETE' }),
     },
-    // Крок О1: пульс дня. day — YYYY-MM-DD у місцевих межах, user — чужий
-    // id, коли розбираєш не свій день.
-    pulse: (day: string, user?: string) =>
-      req<Pulse>(`/v1/admin/pulse?day=${encodeURIComponent(day)}${user ? `&user=${encodeURIComponent(user)}` : ''}`),
+    // Крок О1: пульс дня. day — YYYY-MM-DD у місцевих межах. Дім береться з
+    // сесії того, хто відкрив: параметра «чий день» більше немає — показуємо
+    // весь дім одразу.
+    pulse: (day: string) => req<Pulse>(`/v1/admin/pulse?day=${encodeURIComponent(day)}`),
     // Крок О1: димовий тест символікації. `?dry=1` не вибухає — це лише
     // перевірка доступу, якою сторінка /admin/boom вирішує, показати 404 чи
     // впасти. Без прапорця той самий маршрут кидає справжній виняток.

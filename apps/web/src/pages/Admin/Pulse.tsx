@@ -1,8 +1,12 @@
 // Крок О1: /admin/pulse — те, що власник відкриває ввечері.
 //
-// Питання, на яке ця сторінка відповідає: «що сьогодні сталось у людини і
-// скільки це коштувало». Не «скільки DAU» — на одному користувачі когорти й
+// Питання, на яке ця сторінка відповідає: «що сьогодні сталось у ДОМІ і
+// скільки це коштувало». Не «скільки DAU» — на кількох людях когорти й
 // графіки не означають нічого, а один прожитий день означає все.
+//
+// Одиниця рахунку — дім: комора спільна, розмови спільні, рахунок за модель
+// приходить один. Поки сторінка дивилась на власника, витрати й поведінка
+// запрошених у дім не були видні ніде.
 //
 // Три блоки, і порядок не випадковий:
 //   1. Розмови — що людина сказала і що продукт відповів. Головне.
@@ -34,6 +38,9 @@ const hhmm = (iso: string) =>
 
 /** Долари з чотирма знаками: хід коштує центи, і два знаки все обнулили б. */
 const usd = (n: number | null) => (n === null ? '—' : `$${n.toFixed(4)}`);
+
+/** household_member.role словом: у таблиці «owner» нічого не пояснює. */
+const ROLE_WORD: Record<string, string> = { owner: 'власник', member: 'учасник' };
 
 const STATE_CLASS: Record<string, string> = {
   'застосована': styles.applied!,
@@ -82,7 +89,11 @@ export function PulsePage() {
         >
           день →
         </button>
-        {data && <span className={styles.who}>{data.user_id}</span>}
+        {data && (
+          <span className={styles.who}>
+            дім {data.household_id} · {data.members.length} {data.members.length === 1 ? 'людина' : 'людей'}
+          </span>
+        )}
       </div>
 
       {loading && <div className={styles.empty}>…</div>}
@@ -98,7 +109,7 @@ export function PulsePage() {
                   <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th>Час</th><th>Хто</th><th>Репліка</th>
+                        <th>Час</th><th>Людина</th><th>Хто</th><th>Репліка</th>
                         <th>Картка</th><th>Стан</th><th>Латентність</th><th>Ціна</th>
                       </tr>
                     </thead>
@@ -106,6 +117,11 @@ export function PulsePage() {
                       {data.turns.map((t, i) => (
                         <tr key={`${t.at}-${i}`}>
                           <td className={styles.mono}>{hhmm(t.at)}</td>
+                          {/* Чий це хід. У домі з двох людей стрічка без імені
+                              не читається взагалі. */}
+                          <td className={styles.mono}>{t.who}</td>
+                          {/* Рід репліки, не рід людини: «сказала» тут читалось
+                              неправильно рівно для половини дому. */}
                           <td className={styles.mono}>{t.role === 'user' ? 'людина' : 'Семен'}</td>
                           <td className={`${styles.text} ${t.role === 'user' ? styles.roleUser : styles.roleAssistant}`}>
                             {t.text ?? <span className={styles.dim}>—</span>}
@@ -134,17 +150,38 @@ export function PulsePage() {
           <section className={styles.block}>
             <h2 className={styles.blockTitle}>Гроші</h2>
             <div className={styles.money}>
-              <MoneyCard title="За день" m={data.money.day} />
-              <MoneyCard title="За тиждень" m={data.money.week} />
+              <MoneyCard title="Дім за день" m={data.money.day} />
+              <MoneyCard title="Дім за тиждень" m={data.money.week} />
               <div className={styles.card}>
-                <div className={styles.cardTitle}>Ціна дня на людину</div>
+                <div className={styles.cardTitle}>Ціна дня на дім</div>
                 <div className={styles.big}>{usd(data.money.day.usd)}</div>
                 {/* Оце і є та юніт-економіка, якої ми не знали: помножити на
-                    тридцять і зіставити з $5 підписки. */}
+                    тридцять і зіставити з ціною підписки. */}
                 <div className={styles.sub}>
                   ≈ ${(data.money.day.usd * 30).toFixed(2)} на місяць
                 </div>
               </div>
+            </div>
+            {/* Рахунок приходить один, але видно має бути, з чого він склався. */}
+            <div className={styles.scroll}>
+              <table className={styles.table} data-money-by-member>
+                <thead>
+                  <tr>
+                    <th>Людина</th><th>Роль</th><th>За день</th><th>Викликів</th><th>За тиждень</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.money.byMember.map((m) => (
+                    <tr key={m.user_id} data-member={m.user_id}>
+                      <td>{m.name}</td>
+                      <td className={`${styles.mono} ${styles.dim}`}>{ROLE_WORD[m.role] ?? m.role}</td>
+                      <td className={styles.mono}>{usd(m.day.usd)}</td>
+                      <td className={`${styles.mono} ${styles.dim}`}>{m.day.calls}</td>
+                      <td className={styles.mono}>{usd(m.week.usd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
 
@@ -156,7 +193,7 @@ export function PulsePage() {
                 <div className={styles.scroll}>
                   <table className={styles.table}>
                     <thead>
-                      <tr><th>Час</th><th>Подія</th><th>Подробиці</th></tr>
+                      <tr><th>Час</th><th>Людина</th><th>Подія</th><th>Подробиці</th></tr>
                     </thead>
                     <tbody>
                       {data.events.map((e) => {
@@ -165,6 +202,7 @@ export function PulsePage() {
                         return (
                           <tr key={e.id}>
                             <td className={styles.mono}>{hhmm(e.created_at)}</td>
+                            <td className={styles.mono}>{e.who}</td>
                             <td className={`${styles.mono} ${kind === 'broke' ? styles.broke : kind === 'guard' ? styles.guard : ''}`}>
                               {inc ? e.name.slice('incident:'.length) : e.name}
                               {kind && <span className={styles.dim}> · {kind === 'broke' ? 'зламалось' : 'запобіжник'}</span>}
