@@ -122,6 +122,13 @@ export interface Repo {
   saveAppEvents(rows: AppEventRow[]): Promise<void>;
   /** Стрічка дня для /admin/pulse: від найсвіжішого, з кепом. */
   listAppEvents(user_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]>;
+  /**
+   * Те саме по всьому дому. Окремий метод, а не цикл по учасниках: подій за
+   * день десятки, і збирати їх сімома запитами замість одного означало б
+   * платити за структуру, якої в даних немає — household_id стоїть у кожному
+   * рядку від самого початку.
+   */
+  listAppEventsForHousehold(household_id: string, opts: { from: Date; to: Date; limit: number }): Promise<AppEventRow[]>;
 
   // Вкладення
   saveAttachment(a: AttachmentRecord): Promise<void>;
@@ -158,6 +165,8 @@ export interface Repo {
   // Облік токенів
   logTokenUsage(row: TokenUsageRow): Promise<void>;
   listTokenUsage(user_id: string, limit?: number): Promise<TokenUsageRow[]>;
+  /** Витрати всього дому: пульс рахує гроші по дому, не по одній людині. */
+  listTokenUsageForHousehold(household_id: string, limit?: number): Promise<TokenUsageRow[]>;
 
   // Сесії й повідомлення
   getOrCreateSessionForDay(user_id: string, day: string): Promise<SessionRow>;

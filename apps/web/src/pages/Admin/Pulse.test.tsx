@@ -30,21 +30,29 @@ const at = (h: number, m: number) => {
 
 const PULSE = {
   day: '2026-09-06',
-  user_id: 'u-1',
+  household_id: 'h-1',
+  members: [
+    { user_id: 'u-1', name: 'Пилип', role: 'owner' },
+    { user_id: 'u-2', name: 'Оля', role: 'member' },
+  ],
   turns: [
-    { at: at(9, 12), role: 'user', text: 'купив куряче філе', card_type: null, card_state: null, latency_ms: null, usd: null },
-    { at: at(9, 12), role: 'assistant', text: 'Записав.', card_type: 'intake_diff', card_state: 'застосована', latency_ms: 2400, usd: 0.0123 },
-    { at: at(19, 40), role: 'assistant', text: 'Ось що можна', card_type: 'recipe', card_state: 'відхилена', latency_ms: 5100, usd: null },
+    { at: at(9, 12), user_id: 'u-1', who: 'Пилип', role: 'user', text: 'купив куряче філе', card_type: null, card_state: null, latency_ms: null, usd: null },
+    { at: at(9, 12), user_id: 'u-1', who: 'Пилип', role: 'assistant', text: 'Записав.', card_type: 'intake_diff', card_state: 'застосована', latency_ms: 2400, usd: 0.0123 },
+    { at: at(19, 40), user_id: 'u-2', who: 'Оля', role: 'assistant', text: 'Ось що можна', card_type: 'recipe', card_state: 'відхилена', latency_ms: 5100, usd: null },
   ],
   money: {
     day: { calls: 4, input: 12000, output: 800, cached: 9000, usd: 0.0412 },
     week: { calls: 21, input: 70000, output: 4200, cached: 51000, usd: 0.2610 },
+    byMember: [
+      { user_id: 'u-1', name: 'Пилип', role: 'owner', day: { calls: 3, input: 9000, output: 600, cached: 9000, usd: 0.0300 }, week: { calls: 15, input: 50000, output: 3000, cached: 40000, usd: 0.1800 } },
+      { user_id: 'u-2', name: 'Оля', role: 'member', day: { calls: 1, input: 3000, output: 200, cached: 0, usd: 0.0112 }, week: { calls: 6, input: 20000, output: 1200, cached: 11000, usd: 0.0810 } },
+    ],
   },
   events: [
-    { id: 'e1', name: 'pantry_opened', props: {}, created_at: at(9, 10) },
-    { id: 'e0', name: 'attachment_added', props: { kind: 'image', how: 'drop' }, created_at: at(9, 11) },
-    { id: 'e2', name: 'incident:response-contains-allergen', props: { kind: 'guard', allergen: 'горіхи' }, created_at: at(19, 41) },
-    { id: 'e3', name: 'incident:chat-model-call-failed', props: { kind: 'broke' }, created_at: at(19, 42) },
+    { id: 'e1', user_id: 'u-1', who: 'Пилип', role: 'owner', name: 'pantry_opened', props: {}, created_at: at(9, 10) },
+    { id: 'e0', user_id: 'u-1', who: 'Пилип', role: 'owner', name: 'attachment_added', props: { kind: 'image', how: 'drop' }, created_at: at(9, 11) },
+    { id: 'e2', user_id: 'u-2', who: 'Оля', role: 'member', name: 'incident:response-contains-allergen', props: { kind: 'guard', allergen: 'горіхи' }, created_at: at(19, 41) },
+    { id: 'e3', user_id: 'u-2', who: 'Оля', role: 'member', name: 'incident:chat-model-call-failed', props: { kind: 'broke' }, created_at: at(19, 42) },
   ],
 };
 
@@ -112,14 +120,14 @@ describe('пульс дня', () => {
 
   it('невідома ціна — риска, і це не те саме, що нуль', async () => {
     await mount();
-    const rows = [...host!.querySelectorAll('tbody tr')];
+    const rows = [...host!.querySelectorAll('table:not([data-money-by-member]) tbody tr')];
     // Третій хід: виклик був (латентність є), а ціни моделі ми не знаємо.
     const cells = [...rows[2]!.querySelectorAll('td')].map((c) => c.textContent);
-    expect(cells[5]).toBe('5.1 с');
-    expect(cells[6]).toBe('—');
+    expect(cells[6]).toBe('5.1 с');
+    expect(cells[7]).toBe('—');
     // Репліка людини викликів не робила — там просто порожньо, не «$0».
     const first = [...rows[0]!.querySelectorAll('td')].map((c) => c.textContent);
-    expect(first[6]).toBe('');
+    expect(first[7]).toBe('');
   });
 
   it('юніт-економіка порахована до місяця — заради неї сторінка й існує', async () => {
@@ -174,4 +182,49 @@ describe('пульс дня', () => {
     const y = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     expect(calls[calls.length - 1]).toBe(`/v1/admin/pulse?day=${y}`);
   });
+
+  it('гроші розкладені по людях, з роллю словом', async () => {
+    await mount();
+    const rows = [...host!.querySelectorAll('[data-money-by-member] tbody tr')];
+    expect(rows).toHaveLength(2);
+    const cells = rows.map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent));
+    // Імʼя · роль · за день · викликів · за тиждень.
+    expect(cells[0]).toEqual(['Пилип', 'власник', '$0.0300', '3', '$0.1800']);
+    expect(cells[1]).toEqual(['Оля', 'учасник', '$0.0112', '1', '$0.0810']);
+  });
+
+  it('роль перекладена — «owner» у таблиці нічого не пояснює', async () => {
+    await mount();
+    const text = host!.querySelector('[data-money-by-member]')!.textContent!;
+    expect(text).toContain('власник');
+    expect(text).toContain('учасник');
+    expect(text).not.toContain('owner');
+    expect(text).not.toContain('member');
+  });
+
+  it('підсумок дому стоїть окремо від рядків людей', async () => {
+    await mount();
+    // $0.0412 — це підсумок дому, і він не дорівнює жодному окремому рядку.
+    expect(host!.textContent).toContain('$0.0412');
+    expect(host!.textContent).toContain('Ціна дня на дім');
+  });
+
+  it('ходи підписані імʼям людини, а не лише роллю в діалозі', async () => {
+    await mount();
+    const rows = [...host!.querySelectorAll('table:not([data-money-by-member]) tbody tr')];
+    const cells = [...rows[0]!.querySelectorAll('td')].map((c) => c.textContent);
+    expect(cells[1]).toBe('Пилип');
+    // Хід Олі теж підписаний нею, а не власником.
+    const third = [...rows[2]!.querySelectorAll('td')].map((c) => c.textContent);
+    expect(third[1]).toBe('Оля');
+  });
+
+  it('події теж підписані людиною', async () => {
+    await mount();
+    const tables = [...host!.querySelectorAll('table')];
+    const events = tables[tables.length - 1]!;
+    const first = [...events.querySelectorAll('tbody tr')[0]!.querySelectorAll('td')].map((c) => c.textContent);
+    expect(first[1]).toBe('Пилип');
+  });
 });
+
