@@ -370,6 +370,11 @@ export interface ChatResponse {
    * вписує, людина дописує сама.
    */
   profile_focus?: ProfileFieldKey | null;
+  /**
+   * Крок П3: id нотатки, яку продукт щойно записав собі. Панель від цього НЕ
+   * виїжджає — нотатка просто буде підсвічена, коли людина відкриє профіль.
+   */
+  note_added?: string | null;
   followup?: string;
   raw_kind?: string | null;
   usage: { input: number; output: number; cached?: number };

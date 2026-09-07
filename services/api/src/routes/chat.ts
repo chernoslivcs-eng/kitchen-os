@@ -459,10 +459,15 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Крок 8 (§7): нотатка асистента — без картки й підтвердження; межі
     // (140 знаків, дедуп, 3/день, не дубль профілю чи видаленої) тримає
     // acceptAssistantNote. У промт потрапить наступним ходом ([НОТАТКИ]).
+    let note_added: string | null = null;
     if (!summaryTurn && call.note) {
       const d = await acceptAssistantNote(repo, user_id, call.note);
-      if (d.accepted) req.log.info({ user_id, note: d.note.text }, 'note-added');
-      else req.log.info({ user_id, reason: d.reason, note: d.text }, 'note-skipped');
+      if (d.accepted) {
+        // Крок П3 (3): «почув мимохідь» — панель НЕ виїжджає, але нотатка має
+        // бути підсвічена, коли людина туди зазирне. Клієнту потрібен її id.
+        note_added = d.note.id;
+        req.log.info({ user_id, note: d.note.text }, 'note-added');
+      } else req.log.info({ user_id, reason: d.reason, note: d.text }, 'note-skipped');
     }
 
     // Крок П3 (1): fieldByVerb тут більше немає. Він виправляв поле картки,
@@ -990,6 +995,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // Крок П3 (3): куди відкрити профіль. Панель виїжджає лише тоді, коли
       // від людини щось потрібно; продукт у поле нічого не вписує.
       profile_focus: call.profile_focus ?? null,
+      note_added,
       usage: call.usage, meta: call.meta,
     };
   });

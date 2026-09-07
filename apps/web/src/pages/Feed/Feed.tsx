@@ -10,7 +10,10 @@ import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
-import { api, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
+import { ProfileAbout } from '../Profile/ProfileAbout';
+import { SECTION } from '../../lib/profile-copy';
+import type { ProfileFieldKey } from '@kitchen/domain/profile-fields';
+import { api, type ProfileV2Response, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
 import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff} from './artifacts';
 import { useAuth } from '../../store/auth';
@@ -545,6 +548,22 @@ export function Feed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Крок П3 (2, 3): профіль у панелі артефактів — той самий компонент, що на
+  // сторінці. Дані тягнемо один раз: панель показує їх, PATCH ходить із
+  // самого компонента.
+  const [profileData, setProfileData] = useState<ProfileV2Response | null>(null);
+  // Куди поставити курсор, коли модель сказала «це належить профілю».
+  const [profileFocus, setProfileFocus] = useState<ProfileFieldKey | null>(null);
+  // Нотатки, записані в цій сесії вкладки: підсвічені, поки людина не гляне.
+  const [freshNotes, setFreshNotes] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    // Беремо лише відповідь, у якій справді є поля: панель не має падати на
+    // порожньому чи скороченому тілі.
+    api.profileV2.get().then((r) => { if (alive && r?.fields) setProfileData(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   // Межа групи «щойно додано» в списку — початок сесії, а не «останні N
   // хвилин»: дельта має сенс саме в межах розмови, у якій її додали.
@@ -810,6 +829,21 @@ export function Feed() {
             : undefined,
         });
       }
+      // Крок П3 (3): вузьке правило — панель виїжджає САМА лише тоді, коли від
+      // людини щось потрібно. `profile_focus` приходить, коли вона свідомо
+      // сказала про себе; продукт при цьому нічого не вписує — тільки ставить
+      // курсор у кінець її ж тексту. Ходить через surfaceArtifact, тож ручний
+      // вибір панелі у вікні поблажки не перебивається (пул-9 №6).
+      if (res.profile_focus) {
+        setProfileFocus(res.profile_focus);
+        panel.surfaceArtifact('profile');
+      }
+      // «Почув мимохідь» — панель НЕ виїжджає. Нотатка просто буде підсвічена,
+      // коли людина туди зазирне.
+      if (res.note_added) {
+        setFreshNotes((ids) => (ids.includes(res.note_added!) ? ids : [...ids, res.note_added!]));
+        void api.profileV2.get().then((r) => { if (r?.fields) setProfileData(r); }).catch(() => {});
+      }
       // Правка №1: перша репліка дала сесії назву — сайдбар перечитає список.
       sessionStore.bump();
     } catch (err) {
@@ -1029,7 +1063,12 @@ export function Feed() {
   const artifactKeys = artifacts.map((a) => a.key).join(',');
   useEffect(() => {
     panel.publish({
-      artifacts: artifacts.map(({ key, kind, label, meta }) => ({ key, kind, label, meta })),
+      artifacts: [
+        ...artifacts.map(({ key, kind, label, meta }) => ({ key, kind, label, meta })),
+        // Крок П3 (2): профіль стоїть у панелі завжди — його не «приносить
+        // хід», його відкривають, коли треба.
+        ...(profileData ? [{ key: 'profile', kind: 'profile' as const, label: SECTION.about, meta: '' }] : []),
+      ],
       pendingDot: housePending.length > 0,
       // Пул-9 №6: «новий» для панелі — той, чий хід прийшов у цій сесії
       // вкладки. `fresh` ставиться лише на ходи, які прилетіли відповіддю
@@ -1039,6 +1078,19 @@ export function Feed() {
         ? { glyphKind: 'list', count: shoppingItems.length, onClick: () => openArtifact('list') }
         : null,
       render: (key) => {
+        if (key === 'profile') {
+          // Крок П3 (2): ТОЙ САМИЙ компонент, що на /profile. Не копія.
+          return profileData
+            ? (
+              <ProfileAbout
+                initial={profileData}
+                focusKey={profileFocus}
+                onFocusHandled={() => setProfileFocus(null)}
+                freshNoteIds={freshNotes}
+              />
+            )
+            : null;
+        }
         const a = artifacts.find((x) => x.key === key);
         if (!a) return null;
         return (
@@ -1099,7 +1151,7 @@ export function Feed() {
       ) : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, buildingCart, sessionStartedAt, sessionId]);
+  }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, buildingCart, sessionStartedAt, sessionId, profileData, profileFocus, freshNotes]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
