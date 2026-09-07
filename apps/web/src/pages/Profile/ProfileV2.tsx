@@ -16,6 +16,7 @@ import { currentTheme, setThemeOverride, type ThemeChoice } from '../../theme';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { Sheet } from '../../components/Sheet/Sheet';
+import { ProfileAbout } from './ProfileAbout';
 import styles from './ProfileV2.module.css';
 
 type Fields = ProfileV2Response['fields'];
@@ -50,117 +51,8 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const me = useAuth((s) => s.me);
   const logout = useAuth((s) => s.logout);
 
-  // ----- Про тебе ---------------------------------------------------------
-  const [fields, setFields] = useState<Fields>(initial.fields);
-  const [focus, setFocus] = useState<ProfileFieldKey | null>(null);
-  const [hover, setHover] = useState<ProfileFieldKey | null>(null);
-  const [typing, setTyping] = useState<ProfileFieldKey | null>(null);
-  const [lens, setLens] = useState<Record<ProfileFieldKey, number>>(() =>
-    Object.fromEntries(PROFILE_ROWS.map((r) => [r.k, len(initial.fields[r.k].text)])) as Record<ProfileFieldKey, number>);
-  const [hintKey, setHintKey] = useState(0);
-  const [saveToast, setSaveToast] = useState<string | null>(null);
-  const edits = useRef<Partial<Record<ProfileFieldKey, HTMLSpanElement | null>>>({});
-  const lastSaved = useRef<Record<ProfileFieldKey, string>>(
-    Object.fromEntries(PROFILE_ROWS.map((r) => [r.k, initial.fields[r.k].text])) as Record<ProfileFieldKey, string>,
-  );
-  const timers = useRef<Record<string, number>>({});
-
-  // Текст у contenteditable живе в DOM, а не в стейті: перерендер стейтом
-  // скидав би курсор. Заповнюємо один раз на монтуванні.
-  useEffect(() => {
-    for (const r of PROFILE_ROWS) {
-      const el = edits.current[r.k];
-      if (el && el.textContent !== initial.fields[r.k].text) el.textContent = initial.fields[r.k].text;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => () => { for (const t of Object.values(timers.current)) window.clearTimeout(t); }, []);
-
-  const textOf = (k: ProfileFieldKey) => (edits.current[k]?.textContent ?? '').trim();
-
-  async function persist(k: ProfileFieldKey, attempt = 0) {
-    const text = textOf(k);
-    if (text === lastSaved.current[k]) return;
-    try {
-      const r = await api.profileV2.patchField(k, { text });
-      lastSaved.current[k] = r.field.text;
-      setFields((f) => ({ ...f, [k]: r.field }));
-      setSaveToast(null);
-    } catch {
-      setSaveToast(SECTION.saveFailed);
-      if (attempt === 0) timers.current[`retry-${k}`] = window.setTimeout(() => void persist(k, 1), RETRY_MS);
-    }
-  }
-
-  function onInput(k: ProfileFieldKey) {
-    setLens((l) => ({ ...l, [k]: len(textOf(k)) }));
-    setTyping(k);
-    window.clearTimeout(timers.current[`typing-${k}`]);
-    timers.current[`typing-${k}`] = window.setTimeout(() => setTyping((t) => (t === k ? null : t)), TYPING_HOLD_MS);
-    window.clearTimeout(timers.current[`save-${k}`]);
-    timers.current[`save-${k}`] = window.setTimeout(() => void persist(k), SAVE_DEBOUNCE_MS);
-  }
-  function onBlur(k: ProfileFieldKey) {
-    setFocus((f) => (f === k ? null : f));
-    setHintKey((n) => n + 1);
-    window.clearTimeout(timers.current[`save-${k}`]);
-    void persist(k);
-  }
-  function onFocus(k: ProfileFieldKey) { setFocus(k); setHintKey((n) => n + 1); }
-  function onKeyDown(k: ProfileFieldKey, row: ProfileRowCopy, e: KeyboardEvent<HTMLSpanElement>) {
-    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); return; }
-    // Ліміт: набір блокується, лічильник лишається з текстом ліміту.
-    if (len(e.currentTarget.textContent ?? '') >= row.max && e.key.length === 1 && !e.metaKey && !e.ctrlKey) e.preventDefault();
-  }
-  function onPaste(k: ProfileFieldKey, row: ProfileRowCopy, e: ClipboardEvent<HTMLSpanElement>) {
-    e.preventDefault();
-    const room = row.max - len(e.currentTarget.textContent ?? '');
-    if (room <= 0) return;
-    const chunk = Array.from(e.clipboardData.getData('text/plain').replace(/\s+/g, ' ')).slice(0, room).join('');
-    if (typeof document.execCommand === 'function') document.execCommand('insertText', false, chunk);
-    else e.currentTarget.textContent = (e.currentTarget.textContent ?? '') + chunk;
-    onInput(k);
-  }
-
-  const firstDay = PROFILE_ROWS.every((r) => fields[r.k].status === 'empty');
-  const hintRow = PROFILE_ROWS.find((r) => r.k === focus) ?? null;
-
-  const counter = (row: ProfileRowCopy) => {
-    const n = lens[row.k];
-    const atLimit = n >= row.max;
-    const active = focus === row.k;
-    return {
-      text: atLimit ? row.lim : `${n}/${row.max}`,
-      // Видно тільки під час набору (зникає ~1 с після останнього символа);
-      // при вичерпанні — текст ліміту тримається, поки рядок у фокусі.
-      visible: active && (typing === row.k || atLimit),
-      atLimit,
-    };
-  };
-
-  // ----- Нотатки ---------------------------------------------------------
-  const [notes, setNotes] = useState<ProfileNoteV2[]>(initial.notes);
-  const [noteToast, setNoteToast] = useState<{ note: ProfileNoteV2; index: number } | null>(null);
-  async function removeNote(n: ProfileNoteV2) {
-    const index = notes.findIndex((x) => x.id === n.id);
-    setNotes((ns) => ns.filter((x) => x.id !== n.id));
-    window.clearTimeout(timers.current['note-toast']);
-    setNoteToast({ note: n, index });
-    timers.current['note-toast'] = window.setTimeout(() => setNoteToast(null), NOTE_TOAST_MS);
-    try { await api.profileV2.removeNote(n.id); } catch {
-      // Сервер не прийняв — повертаємо як було, без окремого тосту.
-      setNotes((ns) => { const arr = [...ns]; arr.splice(index, 0, n); return arr; });
-      setNoteToast(null);
-    }
-  }
-  async function restoreNote() {
-    const t = noteToast;
-    if (!t) return;
-    window.clearTimeout(timers.current['note-toast']);
-    setNoteToast(null);
-    setNotes((ns) => { const arr = [...ns]; arr.splice(Math.min(t.index, arr.length), 0, t.note); return arr; });
-    try { await api.profileV2.restoreNote(t.note.id); } catch { /* рядок уже на місці; повторний DELETE поверне все назад */ }
-  }
+  // Крок П3 (2): «ПРО ТЕБЕ» і «НОТАТКИ» живуть у ProfileAbout — тому самому
+  // компоненті, який стоїть у панелі артефактів. Копії тут більше немає.
 
   // ----- Дім (9а(7)): люди, з якими ділиш комору — існуючі ендпоінти, як у v1 ---
   const refreshMe = useAuth((s) => s.refresh);
@@ -268,87 +160,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     <div className={`${styles.screen} screen-view`}>
       <div className={styles.head}><h1 className={styles.title}>{SECTION.title}</h1></div>
 
-      {/* ----- Про тебе ----- */}
-      <div className={styles.sectionLabel}>
-        <span>{SECTION.about}</span>
-        <span className={styles.sectionSubDesktop}>{SECTION.aboutDesktop}</span>
-      </div>
-      <p className={styles.sectionSubMobile}>{firstDay ? SECTION.aboutFirstDay : SECTION.aboutMobile}</p>
-      <div className={styles.card}>
-        <div className={styles.rows}>
-          {PROFILE_ROWS.map((row) => {
-            const active = focus === row.k;
-            const c = counter(row);
-            return (
-              <div key={row.k} className={styles.rowWrap}>
-                <div
-                  data-row={row.k}
-                  className={[styles.row, active ? styles.rowActive : '', hover === row.k && !active ? styles.rowHover : ''].filter(Boolean).join(' ')}
-                  onMouseEnter={() => setHover(row.k)}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={(e) => { if (e.target === e.currentTarget) edits.current[row.k]?.focus(); }}
-                >
-                  <span className={row.danger ? styles.startDanger : styles.start}>{row.start}</span>{' '}
-                  <span
-                    ref={(el) => { edits.current[row.k] = el; }}
-                    className={styles.edit}
-                    contentEditable
-                    suppressContentEditableWarning
-                    role="textbox"
-                    aria-label={row.start}
-                    data-ph={row.ph}
-                    spellCheck={false}
-                    onInput={() => onInput(row.k)}
-                    onFocus={() => onFocus(row.k)}
-                    onBlur={() => onBlur(row.k)}
-                    onKeyDown={(e) => onKeyDown(row.k, row, e)}
-                    onPaste={(e) => onPaste(row.k, row, e)}
-                  />
-                  <span
-                    className={[styles.counter, c.atLimit ? styles.counterLimit : ''].filter(Boolean).join(' ')}
-                    style={{ opacity: c.visible ? 1 : 0 }}
-                    aria-hidden={!c.visible}
-                    data-counter={row.k}
-                  >{c.text}</span>
-                </div>
-                {active && (
-                  <div className={styles.hintMobile} key={hintKey}>
-                    <p className={styles.hintText}>{row.hint}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <aside className={styles.hintAside} key={hintKey}>
-          <span className={styles.hintLabel}>{hintRow ? hintRow.start : HINT_IDLE.label}</span>
-          {/* 9а(5): приклади (`ex`) з копі не рендеряться — лишається текст підказки. */}
-          <p className={styles.hintText}>{hintRow ? hintRow.hint : HINT_IDLE.text}</p>
-        </aside>
-      </div>
-
-      {/* ----- Нотатки ----- */}
-      <div className={styles.section}>
-        <div className={styles.sectionLabel}>
-          <span>{SECTION.notes}</span>
-          <span className={styles.sectionSubDesktop}>{SECTION.notesDesktop}</span>
-        </div>
-        {notes.length === 0 && <span className={styles.empty}>{SECTION.notesEmpty}</span>}
-        {notes.map((n) => (
-          <div key={n.id} className={styles.note} data-note={n.id}>
-            <span className={styles.noteDate}>{fmtDate(n.created_at)}</span>
-            <span className={styles.noteText}>{n.text}</span>
-            <button type="button" className={styles.noteRemove} onClick={() => void removeNote(n)}>{SECTION.noteRemove}</button>
-            <button type="button" className={styles.noteX} aria-label={SECTION.noteRemove} onClick={() => void removeNote(n)}>×</button>
-          </div>
-        ))}
-        {noteToast && (
-          <div className={styles.toast} role="status">
-            {SECTION.removed}
-            <button type="button" className={styles.toastAction} onClick={() => void restoreNote()}>{SECTION.restore}</button>
-          </div>
-        )}
-      </div>
+      <ProfileAbout initial={initial} />
 
       {/* ----- Дім: список людей, запрошення, ролі — ендпоінти v1 без змін ----- */}
       {me && (
@@ -472,8 +284,6 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
         <div className={styles.sectionLabel}><span>{SECTION.data}</span></div>
         <p className={styles.dataText}>{SECTION.dataText}</p>
       </div>
-
-      {saveToast && <div className={`${styles.toast} ${styles.toastFixed}`} role="status">{saveToast}</div>}
 
       {exitOpen && (
         <Sheet onClose={() => !exitBusy && setExitOpen(false)} ariaLabel="Видалення акаунта">

@@ -157,3 +157,24 @@
   color: var(--fg-muted);
   max-width: 62ch;
 }
+
+/* Крок П3 (4): межа продукту — які слова він упізнав. Тихо, моно, під рядком;
+   не червоним і не як помилка людини. */
+.coverage {
+  margin-top: 4px;
+  font: 400 var(--fs-mono)/1.6 var(--font-mono);
+  letter-spacing: .06em;
+  color: var(--fg-dim);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.coverageUnknown { color: var(--amber); }
+
+/* Крок П3 (3): нотатка, якої людина ще не бачила. Знімається сама. */
+.noteFresh {
+  background: var(--accent-bg);
+  border-radius: 8px;
+  box-shadow: 0 0 0 6px var(--accent-bg);
+  transition: background var(--dur-slow, .4s), box-shadow var(--dur-slow, .4s);
+}

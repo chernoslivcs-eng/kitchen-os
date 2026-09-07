@@ -11,9 +11,9 @@ import {
   subscribedRows, occasionSet, periodVetoRows, BUILTIN_OCCASIONS,
   buildAliasMap, serializePantry, extractJson,
   serializeProfileText, emptyProfileText,
-  PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, fieldByVerb, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
+  PROFILE_FIELD_KEYS, buildVetoIndex, vetoCard, cardFormError, type ProfileText, type ProfileNote, type ProfileFieldKey, type VetoRow,
 } from '@kitchen/domain';
-import type { PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard, HouseholdEventRow, OccasionSet } from '@kitchen/domain';
+import type { Card, PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, RecentCookRunSummary, PendingCard, HouseholdEventRow, OccasionSet } from '@kitchen/domain';
 import type { Fixture } from './fixtures/index.js';
 import type { ModelOutput } from './invariants.js';
 
@@ -303,11 +303,10 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
             return { reply: '', card: ok ? { type: 'recipe' as const, recipe: parsed } : null, note: null as string | null };
           })()
         : parseModelResponse(text);
-    // Крок 7 п. 0: та сама механіка, що в chat.ts — «не їм» → поле no.
-    if (call === 'chat' && card?.type === 'profile' && (card as { field?: string }).field) {
-      const lastUserText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
-      card = fieldByVerb(card as { field: ProfileFieldKey } & typeof card, lastUserText);
-    }
+    // Крок П3: та сама межа, що в chat.ts — картка невідомої форми до
+    // застосування не доходить. Тут вона просто зникає з виходу, щоб eval
+    // перевіряв те саме, що побачить людина.
+    if (call === 'chat' && cardFormError((card ?? null) as Card | null)) card = null;
     let retried = false;
     let firstRaw = text;
     if (call === 'chat' && card?.type === 'proposal') {

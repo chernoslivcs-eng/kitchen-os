@@ -6,6 +6,7 @@
 // вердикти по тексту, якого користувач ніколи не побачить.
 
 import type { Card, Recipe } from './types.js';
+import { PROFILE_FIELD_KEYS, type ProfileFieldKey } from './profile-fields.js';
 
 const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe', 'cook_photo', 'event', 'period'];
 
@@ -77,22 +78,36 @@ export function noteFrom(o: Record<string, unknown>): string | null {
   return typeof o.note === 'string' && o.note.trim() ? o.note.trim() : null;
 }
 
-export function parseModelResponse(text: string): { reply: string; card: Card | null; note: string | null } {
+/**
+ * Крок П3 (3, 5): куди відкрити профіль. Вказівник, не запис — продукт нічого
+ * в поле не вписує. Невідомий ключ — null: краще не відкрити панель, ніж
+ * відкрити її на рядку, якого немає.
+ */
+export function profileFocusFrom(o: Record<string, unknown>): ProfileFieldKey | null {
+  const v = o.profile_focus;
+  return typeof v === 'string' && (PROFILE_FIELD_KEYS as readonly string[]).includes(v)
+    ? (v as ProfileFieldKey)
+    : null;
+}
+
+export function parseModelResponse(text: string): { reply: string; card: Card | null; note: string | null; profile_focus: ProfileFieldKey | null } {
   const { parsed, residualText } = extractJson(text);
   let reply = residualText;
   let card: Card | null = null;
   let note: string | null = null;
+  let profile_focus: ProfileFieldKey | null = null;
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>;
     if ('reply' in o) {
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = (o.card ?? null) as Card | null;
       note = noteFrom(o);
+      profile_focus = profileFocusFrom(o);
     } else if (typeof o.type === 'string' && CARD_TYPES.includes(o.type)) {
       card = o as unknown as Card;
     }
   }
-  return { reply, card, note };
+  return { reply, card, note, profile_focus };
 }
 
 // Не плутати з AttachmentKind у types.ts — той про формат файлу (image|pdf|text),

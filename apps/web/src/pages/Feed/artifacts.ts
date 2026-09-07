@@ -8,7 +8,9 @@ import type { ChatCard } from '../../api';
 import { TRADITION_LABEL } from '../../lib/period';
 
 // Крок Ф2: 'batch' — картка позиції комори в тій самій панелі.
-export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event' | 'batch';
+// Крок П3 (2): профіль — теж артефакт панелі. Не картка з чату: він там
+// стоїть завжди, поруч зі списком покупок.
+export type ArtifactKey = 'cart' | 'recipe' | 'receipt' | 'list' | 'event' | 'batch' | 'profile';
 
 export interface ArtifactTurn {
   id: string;
@@ -147,4 +149,5 @@ export const ARTIFACT_GLYPH: Record<ArtifactKey, string> = {
   list: '☰',
   event: '◷',
   batch: '●',
+  profile: '◍',
 };

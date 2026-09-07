@@ -1,6 +1,8 @@
 // Тонка обгортка над fetch — усе, що ходить у /v1/*. credentials:'include'
 // щоб cookie 'kos' приходила автоматично; в дев-режимі Vite проксить на fastify.
 
+import type { ProfileFieldKey } from '@kitchen/domain/profile-fields';
+
 export class ApiError extends Error {
   constructor(public status: number, public payload: unknown, message: string) {
     super(message);
@@ -362,6 +364,17 @@ export interface ChatResponse {
   // (пост-кук «Як вийшло?»).
   auto_applied?: boolean;
   undo_token?: string;
+  /**
+   * Крок П3: куди відкрити профіль — ключ рядка. Приходить, коли людина
+   * свідомо сказала про себе. Вказівник, не запис: продукт у поле нічого не
+   * вписує, людина дописує сама.
+   */
+  profile_focus?: ProfileFieldKey | null;
+  /**
+   * Крок П3: id нотатки, яку продукт щойно записав собі. Панель від цього НЕ
+   * виїжджає — нотатка просто буде підсвічена, коли людина відкриє профіль.
+   */
+  note_added?: string | null;
   followup?: string;
   raw_kind?: string | null;
   usage: { input: number; output: number; cached?: number };

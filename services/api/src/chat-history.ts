@@ -39,13 +39,24 @@ export function summarizeCard(c: Card): string {
     return '[картка: покупки] ' + (c.items ?? []).map((i) => `${i.op ?? 'add'} ${i.label}`).join(' · ');
   }
   if (c.type === 'profile') {
-    // Раунд 4 §4: картка поля — «записав у „Я не їм": …» (той самий рядок,
-    // що [ОСТАННІ ДІЇ]); ops-картка — як і була.
+    // Історична картка поля (крок П3 (1): форма померла, але в базі лежить).
+    // Читається як подія минулого — писати в профіль модель більше не може.
     if (isProfileFieldCard(c)) {
       const lead = PROFILE_FIELDS[c.field].lead;
-      return `[картка: профіль] записав у „${lead}": ${c.text?.trim() || (c.onboarding ? '(онбординг, поле порожнє)' : '')}`;
+      return `[картка: профіль, стара форма] у „${lead}": ${c.text?.trim() || '(порожнє)'}`;
     }
-    return '[картка: профіль] ' + (c.ops ?? []).map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
+    // Крок П3 (1): жива форма — домашні. Незнайомий оп не має перетворюватись
+    // на «add undefined: undefined»: у промт це їхало дослівно, і модель бачила
+    // слово undefined як факт про дім.
+    const ops = (c.ops ?? [])
+      .map((o) => {
+        const kind = typeof o.kind === 'string' ? o.kind : null;
+        const label = typeof o.label === 'string' && o.label.trim() ? o.label.trim() : null;
+        if (!kind || !label) return null;
+        return `${o.op ?? 'add'} ${kind}: ${label}`;
+      })
+      .filter((x): x is string => !!x);
+    return ops.length ? '[картка: профіль] ' + ops.join(' · ') : '[картка: профіль, форма незнайома]';
   }
   // QA9-02: recipe_link в історії був безликим «[картка]» — модель не бачила,
   // що рецепт лежить у стрічці, і на «поміняв?» відповідала навмання.

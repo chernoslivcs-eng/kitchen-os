@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { InMemoryRepo } from '../in-memory-repo.js';
-import { createPending, applyCard, undoCard, dismissCard } from '../apply.js';
+import { createPending, applyCard, undoCard, dismissCard, NOTHING_APPLICABLE } from '../apply.js';
 import { applyModeFor, CARD_BUTTON_LABEL } from '../card-modes.js';
 import { renderRecentActions } from '../context.js';
 import type { ProfileCard, PendingCard } from '../types.js';
@@ -32,93 +32,39 @@ describe('картка профілю v2', () => {
     expect(applyModeFor(field())).toBe('confirm');
   });
 
-  it('append у порожнє поле → текст як є, status filled; applied = 1', async () => {
+  // Крок П3 (1): усе, що нижче було про запис поля профілю з чату, померло
+  // разом із формою. Лишились дві перевірки — що застосувати її вже не можна
+  // і що вона нічого не змінює.
+  it('картку поля профілю більше не застосувати — вона лишається відкритою', async () => {
     const id = await pend(repo, field());
-    const r = await applyCard(repo, id, [], USER);
-    expect(r.applied).toBe(1);
-    expect(r.truncated).toBe(false);
-    expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: 'селери', status: 'filled' });
+    await expect(applyCard(repo, id, [], USER)).rejects.toThrow(NOTHING_APPLICABLE);
+    const pc = await repo.getPending(id);
+    expect(pc!.applied_at).toBeNull();
+    expect(pc!.undo_token).toBeNull();
+    // Профіль не змінився: продукт у нього більше не пише.
+    expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: '', status: 'empty' });
   });
 
-  it('append дописує (крок 4в: список іменників — через «, »); undo повертає попередній текст', async () => {
-    await repo.patchProfileField(USER, 'no', { text: 'кінзи' });
-    const id = await pend(repo, field({ text: 'селери' }));
-    const r = await applyCard(repo, id, [], USER);
-    expect((await repo.getProfileText(USER)).fields.no.text).toBe('кінзи, селери');
-    await undoCard(repo, id, r.undo_token, USER);
-    expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: 'кінзи', status: 'filled' });
-  });
-
-  it('append понад ліміт — картка застосовується, текст обрізано, truncated: true', async () => {
-    await repo.patchProfileField(USER, 'name', { text: 'П'.repeat(25) });
-    const id = await pend(repo, field({ field: 'name', text: 'Білянський' }));
-    const r = await applyCard(repo, id, [], USER);
-    expect(r.applied).toBe(1);
-    expect(r.truncated).toBe(true);
-    const got = (await repo.getProfileText(USER)).fields.name.text;
-    expect(Array.from(got).length).toBe(30);
-    expect(got.startsWith('П'.repeat(25) + '. ')).toBe(true);
-  });
-
-  it('replace замінює поле цілком; undo повертає', async () => {
-    await repo.patchProfileField(USER, 'love', { text: 'супи' });
-    const id = await pend(repo, field({ field: 'love', mode: 'replace', text: 'тайську кухню' }));
-    const r = await applyCard(repo, id, [], USER);
-    expect((await repo.getProfileText(USER)).fields.love.text).toBe('тайську кухню');
-    await undoCard(repo, id, r.undo_token, USER);
-    expect((await repo.getProfileText(USER)).fields.love.text).toBe('супи');
-  });
-
-  it('undo на поле, що було none, повертає none; на поле, що було empty — empty', async () => {
-    await repo.patchProfileField(USER, 'ban', { status: 'none' });
-    const id = await pend(repo, field({ field: 'ban', text: 'арахіс' }));
-    const r = await applyCard(repo, id, [], USER);
-    expect((await repo.getProfileText(USER)).fields.ban).toMatchObject({ text: 'арахіс', status: 'filled' });
-    await undoCard(repo, id, r.undo_token, USER);
-    expect((await repo.getProfileText(USER)).fields.ban).toMatchObject({ text: '', status: 'none' });
-
-    const id2 = await pend(repo, field({ field: 'meh', text: 'гостре' }));
-    const r2 = await applyCard(repo, id2, [], USER);
-    await undoCard(repo, id2, r2.undo_token, USER);
-    expect((await repo.getProfileText(USER)).fields.meh).toMatchObject({ text: '', status: 'empty' });
-  });
-
-  it('«Нічого такого» на ban → status none, картка застосована (applied_at), undo повертає', async () => {
-    const id = await pend(repo, field({ field: 'ban', mode: 'replace', text: '', onboarding: true }));
-    const r = await applyCard(repo, id, [], USER, { none: true });
-    expect(r.applied).toBe(1);
-    expect((await repo.getProfileText(USER)).fields.ban.status).toBe('none');
-    expect((await repo.getPending(id))?.applied_at).toBeTruthy();
-    await undoCard(repo, id, r.undo_token, USER);
+  it('«Нічого такого» на ban теж більше не проходить через картку', async () => {
+    const id = await pend(repo, field({ field: 'ban', text: '' }));
+    await expect(applyCard(repo, id, [], USER, { none: true })).rejects.toThrow(NOTHING_APPLICABLE);
     expect((await repo.getProfileText(USER)).fields.ban.status).toBe('empty');
   });
 
-  it('«Нічого такого» не для ban — помилка', async () => {
-    const id = await pend(repo, field({ field: 'no', onboarding: true }));
-    await expect(applyCard(repo, id, [], USER, { none: true })).rejects.toThrow(/ban/);
-  });
-
-  it('«Пропустити» на онбординг-картці — dismissed_at, поле не чіпається', async () => {
-    const id = await pend(repo, field({ field: 'when', mode: 'replace', text: '', onboarding: true }));
+  it('«Пропустити» на історичній картці — dismissed_at, поле не чіпається', async () => {
+    const id = await pend(repo, field({ onboarding: true } as never));
     await dismissCard(repo, id, USER);
-    expect((await repo.getPending(id))?.dismissed_at).toBeTruthy();
-    expect((await repo.getProfileText(USER)).fields.when.status).toBe('empty');
-  });
-
-  it('порожній текст в append — нічого не лягло, applied 0', async () => {
-    const id = await pend(repo, field({ text: '   ' }));
-    const r = await applyCard(repo, id, [], USER);
-    expect(r.applied).toBe(0);
+    expect((await repo.getPending(id))!.dismissed_at).not.toBeNull();
     expect((await repo.getProfileText(USER)).fields.no.status).toBe('empty');
   });
 
-  // Крок 11: ops-картка знає лише традиції й домашніх. Стара kind:note нікуди
-  // не лягає і не рахується як застосована (QA4-05).
-  it('ops-картка з kind:note (стара форма) нічого не пише', async () => {
+
+  it('ops-картка з kind:note (стара форма) нічого не пише і не закривається', async () => {
     const card = { type: 'profile', ops: [{ op: 'add', kind: 'note', label: 'воду солити менше' }] } as unknown as ProfileCard;
-    const r = await applyCard(repo, await pend(repo, card), [], USER);
-    expect(r.applied).toBe(0);
+    const id = await pend(repo, card);
+    await expect(applyCard(repo, id, [], USER)).rejects.toThrow(NOTHING_APPLICABLE);
     expect(await repo.listProfileNotes(USER)).toEqual([]);
+    expect((await repo.getPending(id))!.applied_at).toBeNull();
   });
 });
 

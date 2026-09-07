@@ -37,12 +37,25 @@ describe('динамічний контекст', () => {
 });
 
 describe('історія розмови', () => {
-  it('картка поля в історії: «записав у „…": …» і кнопка «Записати»', () => {
+  it('історична картка поля читається як стара форма, а не як дія продукту', () => {
+    // Крок П3 (1): у проді такі картки лежать, і модель має їх прочитати —
+    // але не як «записав», бо писати в профіль продукт більше не вміє.
     const card: ProfileCard = { type: 'profile', field: 'no', mode: 'append', text: 'селери' };
-    expect(summarizeCard(card)).toBe('[картка: профіль] записав у „Я не їм": селери');
-    const msg: MessageRow = { id: 'm1', session_id: 's1', role: 'assistant', text: 'Запишу.', card, applied: 0, created_at: '2026-09-05T10:00:00.000Z' };
-    const [turn] = buildChatHistory([msg]);
-    expect(turn!.content).toContain('кнопка «Записати»');
+    expect(summarizeCard(card)).toBe('[картка: профіль, стара форма] у „Я не їм": селери');
+  });
+
+  it('незнайома форма ops не дає «undefined» у промті', () => {
+    // Живий репро: картка з опами {op, field, text} їхала в історію як
+    // «add undefined: undefined» — модель бачила слово undefined як факт.
+    const card = { type: 'profile', ops: [{ op: 'add', field: 'ban', text: 'фундук' }] } as unknown as ProfileCard;
+    const line = summarizeCard(card);
+    expect(line).not.toContain('undefined');
+    expect(line).toBe('[картка: профіль, форма незнайома]');
+  });
+
+  it('домашні читаються як були', () => {
+    const card = { type: 'profile', ops: [{ op: 'add', kind: 'member', label: 'Оля' }] } as unknown as ProfileCard;
+    expect(summarizeCard(card)).toBe('[картка: профіль] add member: Оля');
   });
 });
 
@@ -64,27 +77,20 @@ describe('/v1/cards/:id/apply для картки поля', () => {
     return message_id;
   };
 
-  it('append → поле записано, undo повертає', async () => {
+  it('крок П3: картку поля більше не застосувати — 409, профіль не змінився, картка відкрита', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const id = await pend(me.user_id, me.household_id, { type: 'profile', field: 'love', mode: 'append', text: 'супи' });
     const r = await app.inject({ method: 'POST', url: `/v1/cards/${id}/apply`, headers: { cookie: me.cookie }, payload: {} });
-    expect(r.statusCode).toBe(200);
-    expect(r.json()).toMatchObject({ applied: 1, truncated: false });
-    expect((await repo.getProfileText(me.user_id)).fields.love.text).toBe('супи');
-    const u = await app.inject({ method: 'POST', url: `/v1/cards/${id}/undo`, headers: { cookie: me.cookie }, payload: { undo_token: r.json().undo_token } });
-    expect(u.statusCode).toBe(200);
+    expect(r.statusCode).toBe(409);
     expect((await repo.getProfileText(me.user_id)).fields.love.status).toBe('empty');
+    expect((await repo.getPending(id))!.applied_at).toBeNull();
   });
 
-  it('{none:true} на ban → status none; на іншому полі — 409', async () => {
+  it('{none:true} на ban — теж 409: «Нічого такого» живе лише в картці «Про тебе»', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const ban = await pend(me.user_id, me.household_id, { type: 'profile', field: 'ban', mode: 'replace', text: '', onboarding: true });
     const r = await app.inject({ method: 'POST', url: `/v1/cards/${ban}/apply`, headers: { cookie: me.cookie }, payload: { none: true } });
-    expect(r.statusCode).toBe(200);
-    expect((await repo.getProfileText(me.user_id)).fields.ban.status).toBe('none');
-
-    const no = await pend(me.user_id, me.household_id, { type: 'profile', field: 'no', mode: 'replace', text: '', onboarding: true });
-    const bad = await app.inject({ method: 'POST', url: `/v1/cards/${no}/apply`, headers: { cookie: me.cookie }, payload: { none: true } });
-    expect(bad.statusCode).toBe(409);
+    expect(r.statusCode).toBe(409);
+    expect((await repo.getProfileText(me.user_id)).fields.ban.status).toBe('empty');
   });
 });
