@@ -30,15 +30,34 @@ function whenWord(iso: string | null): string {
   return `${d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}, ${time}`;
 }
 
-/** Рядок про дім без ходів: коли заходили — це все, що ми про нього знаємо. */
-function silenceLine(h: AdminHousehold): string {
-  // копі: формулювання для дому, у якому нічого не сталось.
-  if (!h.last_seen_at) return 'не заходила жодного разу';
-  return `заходила ${whenWord(h.last_seen_at)} і не написала`;
+/**
+ * Дім, число словом. «1 дім · 2 доми · 5 домів» — і 11–14 теж «домів».
+ * Без цього підпис читався як «3 ДОМІВ», і адмінка починалася з граматичної
+ * помилки в першому ж рядку.
+ */
+export function houseWord(n: number): string {
+  const ten = n % 10;
+  const hundred = n % 100;
+  if (ten === 1 && hundred !== 11) return 'дім';
+  if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14)) return 'доми';
+  return 'домів';
+}
+
+/**
+ * Рядок про дім без ходів: коли заходили — це все, що ми про нього знаємо.
+ *
+ * Формулювання безрідне навмисно. Попереднє («заходила … і не написала»)
+ * приписувало жіночий рід кожній людині в списку — на пілоті це ламається на
+ * першому ж Михайлові.
+ */
+export function silenceLine(h: AdminHousehold): string {
+  if (!h.last_seen_at) return 'жодного входу за лінком';
+  return `останній вхід ${whenWord(h.last_seen_at)} · жодного повідомлення`;
 }
 
 export function HouseholdsPage() {
-  const { households } = useOutletContext<AdminContext>();
+  const { households, hiddenTechnical, technicalTotal, showTechnical, setShowTechnical } =
+    useOutletContext<AdminContext>();
   const navigate = useNavigate();
 
   const silent = households.filter((h) => h.turns === 0).length;
@@ -49,8 +68,26 @@ export function HouseholdsPage() {
         <h1 className={styles.title}>Зведення</h1>
         <span className={styles.kicker}>
           {/* копі: підпис під заголовком. Періоди й порівняння — наступні кроки. */}
-          УВЕСЬ ПРОДУКТ · {households.length} {households.length === 1 ? 'ДІМ' : 'ДОМІВ'}
-          {silent > 0 && ` · ${silent} БЕЗ ЖОДНОГО ХОДУ`}
+          Увесь продукт · {households.length} {houseWord(households.length)}
+          {silent > 0 && ` · ${silent} без жодного ходу`}
+          {/* Скільки приховано — і одразу спосіб їх побачити. Мовчазний фільтр,
+              про який ніде не сказано, з часом читається як втрачені дані. */}
+          {hiddenTechnical > 0 && (
+            <>
+              {' · '}
+              <button type="button" className={styles.toggle} data-show-technical onClick={() => setShowTechnical(true)}>
+                приховано {hiddenTechnical} технічних — показати
+              </button>
+            </>
+          )}
+          {showTechnical && technicalTotal > 0 && (
+            <>
+              {' · '}
+              <button type="button" className={styles.toggle} data-hide-technical onClick={() => setShowTechnical(false)}>
+                технічні показано — сховати
+              </button>
+            </>
+          )}
         </span>
       </div>
 
@@ -89,6 +126,7 @@ export function HouseholdsPage() {
                     <span className={styles.name}>
                       {h.name}
                       {h.mine && <span className={styles.mineTag}>твій</span>}
+                      {h.technical && !h.mine && <span className={styles.techTag}>технічний</span>}
                     </span>
                     {/* Пошта — щоб власник упізнав, кого саме він кликав. */}
                     <span className={styles.owner}>

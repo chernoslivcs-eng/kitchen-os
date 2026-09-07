@@ -171,6 +171,8 @@ export interface AdminHousehold {
   mine: boolean;
   owner_name: string | null;
   owner_email: string | null;
+  /** Пошта власника на зарезервованому домені (RFC 2606) — не жива людина. */
+  technical: boolean;
 }
 
 export interface PantryBatch {
@@ -723,7 +725,12 @@ export const api = {
     ),
     // Крок А2: список домів. Він же — перевірка доступу для всього каркаса
     // адмінки: 404 звідси означає, що адмінки для цієї людини не існує.
-    households: () => req<{ households: AdminHousehold[]; my_household_id: string }>('/v1/admin/households'),
+    households: (technical = false) => req<{
+      households: AdminHousehold[];
+      my_household_id: string;
+      hidden_technical: number;
+      technical_total: number;
+    }>(`/v1/admin/households${technical ? '?technical=1' : ''}`),
     // Крок О1: димовий тест символікації. `?dry=1` не вибухає — це лише
     // перевірка доступу, якою сторінка /admin/boom вирішує, показати 404 чи
     // впасти. Без прапорця той самий маршрут кидає справжній виняток.

@@ -29,6 +29,12 @@ export interface AdminContext {
   myHouseholdId: string;
   /** Дім, усередині якого зараз стоїмо (з адреси). Null — рівень продукту. */
   house: AdminHousehold | null;
+  /** Скільки технічних домів приховано зараз, і скільки їх узагалі. */
+  hiddenTechnical: number;
+  technicalTotal: number;
+  /** Показувати технічні доми. Перемикач живе в підписі Зведення. */
+  showTechnical: boolean;
+  setShowTechnical: (v: boolean) => void;
   reload: () => void;
 }
 
@@ -46,22 +52,27 @@ export function AdminShell() {
   const [gate, setGate] = useState<Gate>('checking');
   const [households, setHouseholds] = useState<AdminHousehold[]>([]);
   const [mine, setMine] = useState('');
+  const [hiddenTechnical, setHidden] = useState(0);
+  const [technicalTotal, setTechnicalTotal] = useState(0);
+  const [showTechnical, setShowTechnical] = useState(false);
   const [tick, setTick] = useState(0);
   const navigate = useNavigate();
   const { household_id } = useParams();
 
   useEffect(() => {
     let alive = true;
-    api.admin.households()
+    api.admin.households(showTechnical)
       .then((r) => {
         if (!alive) return;
         setHouseholds(r.households);
         setMine(r.my_household_id);
+        setHidden(r.hidden_technical);
+        setTechnicalTotal(r.technical_total);
         setGate('allowed');
       })
       .catch(() => { if (alive) setGate('denied'); });
     return () => { alive = false; };
-  }, [tick]);
+  }, [tick, showTechnical]);
 
   // Поки не знаємо — не показуємо нічого. Проблиск рейки перед 404 сказав би
   // сторонньому рівно те, що ми ховаємо.
@@ -72,7 +83,11 @@ export function AdminShell() {
 
   const house = household_id ? households.find((h) => h.id === household_id) ?? null : null;
   const guest = !!house && !house.mine;
-  const ctx: AdminContext = { households, myHouseholdId: mine, house, reload: () => setTick((n) => n + 1) };
+  const ctx: AdminContext = {
+    households, myHouseholdId: mine, house,
+    hiddenTechnical, technicalTotal, showTechnical, setShowTechnical,
+    reload: () => setTick((n) => n + 1),
+  };
 
   return (
     <div className={guest ? `${styles.wrap} ${styles.guest}` : styles.wrap} data-admin data-guest={guest ? '' : undefined}>

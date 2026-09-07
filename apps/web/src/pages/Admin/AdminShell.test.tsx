@@ -15,7 +15,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AdminShell } from './AdminShell';
-import { HouseholdsPage } from './Households';
+import { HouseholdsPage, houseWord } from './Households';
 import { NotFoundPage } from '../NotFound/NotFound';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -26,11 +26,15 @@ let calls: string[];
 
 const HOUSEHOLDS = {
   my_household_id: 'h-1',
+  hidden_technical: 2,
+  technical_total: 2,
   households: [
-    { id: 'h-1', name: 'Дім Пилипа', people: 2, last_turn_at: new Date().toISOString(), turns: 44, last_seen_at: new Date().toISOString(), mine: true, owner_name: 'Пилип', owner_email: 'p@example.com' },
-    { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: new Date().toISOString(), turns: 9, last_seen_at: new Date().toISOString(), mine: false, owner_name: 'Оля', owner_email: 'olya@example.com' },
+    { id: 'h-1', name: 'Дім Пилипа', people: 2, last_turn_at: new Date().toISOString(), turns: 44, last_seen_at: new Date().toISOString(), mine: true, owner_name: 'Пилип', owner_email: 'p@gmail.com', technical: false },
+    { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: new Date().toISOString(), turns: 9, last_seen_at: new Date().toISOString(), mine: false, owner_name: 'Оля', owner_email: 'olya@gmail.com', technical: false },
     // Дім, у якому нічого не сталось. На пілоті таких більшість.
-    { id: 'h-3', name: 'Дім Дани', people: 1, last_turn_at: null, turns: 0, last_seen_at: '2026-09-02T19:04:00.000Z', mine: false, owner_name: 'Дана', owner_email: 'dana@example.com' },
+    { id: 'h-3', name: 'Дім Дани', people: 1, last_turn_at: null, turns: 0, last_seen_at: '2026-09-02T19:04:00.000Z', mine: false, owner_name: 'Дана', owner_email: 'dana@gmail.com', technical: false },
+    // Дім, у який людина так і не зайшла жодного разу.
+    { id: 'h-4', name: 'Дім Марти', people: 1, last_turn_at: null, turns: 0, last_seen_at: null, mine: false, owner_name: 'Марта', owner_email: 'marta@gmail.com', technical: false },
   ],
 };
 
@@ -153,6 +157,20 @@ describe('каркас адмінки: рейка і дім', () => {
   });
 });
 
+describe('дім числом', () => {
+  it('1 дім · 2 доми · 5 домів — і 11–14 теж «домів»', () => {
+    expect(houseWord(1)).toBe('дім');
+    expect(houseWord(2)).toBe('доми');
+    expect(houseWord(4)).toBe('доми');
+    expect(houseWord(5)).toBe('домів');
+    expect(houseWord(11)).toBe('домів');
+    expect(houseWord(14)).toBe('домів');
+    expect(houseWord(21)).toBe('дім');
+    expect(houseWord(22)).toBe('доми');
+    expect(houseWord(0)).toBe('домів');
+  });
+});
+
 describe('список домів', () => {
   beforeEach(() => install(true));
 
@@ -164,14 +182,14 @@ describe('список домів', () => {
     // Саме текстом, а не порожньою коміркою: «ходів не було» — це факт про
     // людину, і на пілоті найцінніший.
     expect(silent!.textContent).toContain('ходів не було');
-    expect(silent!.textContent).toContain('не написала');
+    expect(silent!.textContent).toContain('жодного повідомлення');
   });
 
   it('власника дому видно поіменно — власник цих людей особисто кликав', async () => {
     await mount();
     const row = host!.querySelector('[data-household="h-2"]')!;
     expect(row.textContent).toContain('Оля');
-    expect(row.textContent).toContain('olya@example.com');
+    expect(row.textContent).toContain('olya@gmail.com');
   });
 
   it('свій дім помічений — щоб не сплутати його з чужим', async () => {
@@ -180,8 +198,33 @@ describe('список домів', () => {
     expect(host!.querySelector('[data-household="h-2"]')!.textContent).not.toContain('твій');
   });
 
+  it('дім, у який так і не зайшли, каже саме це', async () => {
+    await mount();
+    expect(host!.querySelector('[data-household="h-4"]')!.textContent)
+      .toContain('жодного входу за лінком');
+  });
+
+  it('рядок про тишу безрідний — на пілоті не всі «заходила»', async () => {
+    await mount();
+    const row = host!.querySelector('[data-household="h-3"]')!.textContent!;
+    expect(row).toContain('останній вхід');
+    expect(row).toContain('жодного повідомлення');
+    expect(row).not.toContain('заходила');
+    expect(row).not.toContain('написала');
+  });
+
+  it('технічні сховано, і в підписі сказано скільки — з перемикачем', async () => {
+    await mount();
+    const toggle = host!.querySelector('[data-show-technical]')!;
+    expect(toggle.textContent).toContain('приховано 2 технічних');
+    // Мовчазний фільтр, про який ніде не сказано, з часом читається як
+    // втрачені дані. Тому число й спосіб їх побачити — в одному рядку.
+    await act(async () => { (toggle as HTMLButtonElement).click(); });
+    expect(calls.at(-1)).toBe('/v1/admin/households?technical=1');
+  });
+
   it('порожній продукт каже це словами, а не порожньою таблицею', async () => {
-    install(true, { my_household_id: 'h-1', households: [] });
+    install(true, { my_household_id: 'h-1', households: [], hidden_technical: 0, technical_total: 0 });
     await mount();
     expect(host!.querySelector('[data-empty]')).toBeTruthy();
     expect(host!.textContent).toContain('Домів ще немає');

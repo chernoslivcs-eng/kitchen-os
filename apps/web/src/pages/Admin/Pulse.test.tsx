@@ -79,7 +79,11 @@ function install(body: unknown = PULSE, status = 200) {
  * доступ і рейка перевіряються в AdminShell.test.tsx.
  */
 function ShellStub({ house }: { house: AdminContext['house'] }) {
-  const ctx: AdminContext = { households: [], myHouseholdId: 'h-1', house, reload: () => {} };
+  const ctx: AdminContext = {
+    households: [], myHouseholdId: 'h-1', house,
+    hiddenTechnical: 0, technicalTotal: 0, showTechnical: false, setShowTechnical: () => {},
+    reload: () => {},
+  };
   return <Outlet context={ctx} />;
 }
 
@@ -264,13 +268,13 @@ describe('пульс дня', () => {
 
   it('у гостях це видно на екрані, а не лише в адресному рядку', async () => {
     install({ ...PULSE, household_id: 'h-2', household_name: 'Дім Олі', guest: true });
-    await mount('/admin/h/h-2', { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: null, turns: 0, last_seen_at: null, mine: false, owner_name: 'Оля', owner_email: 'olya@example.com' });
+    await mount('/admin/h/h-2', { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: null, turns: 0, last_seen_at: null, mine: false, owner_name: 'Оля', owner_email: 'olya@gmail.com', technical: false });
     expect(host!.textContent).toContain('Пульс дому Олі');
     expect(host!.querySelector('[data-guest-tag]')).toBeTruthy();
   });
 
   it('чужий дім питається з household_id, свій — без нього', async () => {
-    await mount('/admin/h/h-2', { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: null, turns: 0, last_seen_at: null, mine: false, owner_name: null, owner_email: null });
+    await mount('/admin/h/h-2', { id: 'h-2', name: 'Дім Олі', people: 1, last_turn_at: null, turns: 0, last_seen_at: null, mine: false, owner_name: null, owner_email: null, technical: false });
     expect(calls[0]).toContain('household_id=h-2');
     install();
     await act(async () => { root?.unmount(); });

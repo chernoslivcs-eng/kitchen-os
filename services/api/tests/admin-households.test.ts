@@ -29,15 +29,15 @@ describe('GET /v1/admin/households', () => {
     mailer = new ConsoleMailer();
     app = buildApp(repo, new InMemoryStore(), mailer);
     await app.ready();
-    process.env.ADMIN_EMAILS = 'owner@example.com';
-    owner = await signIn(app, mailer, 'owner@example.com');
+    process.env.ADMIN_EMAILS = 'owner@kitchen.local';
+    owner = await signIn(app, mailer, 'owner@kitchen.local');
   });
 
   const list = (cookie: string) =>
     app.inject({ method: 'GET', url: '/v1/admin/households', headers: { cookie } });
 
   it('стороннього не пускає — 404, а не 403', async () => {
-    const stranger = await signIn(app, mailer, 'stranger@example.com');
+    const stranger = await signIn(app, mailer, 'stranger@kitchen.local');
     const r = await list(stranger.cookie);
     // 403 сказав би «список є, тобі не можна». 404 не каже нічого.
     expect(r.statusCode).toBe(404);
@@ -51,7 +51,7 @@ describe('GET /v1/admin/households', () => {
 
   it('дім БЕЗ жодної активності присутній у списку — саме він тут найцінніший', async () => {
     // Людина зайшла за лінком і не написала нічого. На пілоті таких більшість.
-    const quiet = await signIn(app, mailer, 'quiet@example.com');
+    const quiet = await signIn(app, mailer, 'quiet@gmail.com');
 
     const r = await list(owner.cookie);
     expect(r.statusCode).toBe(200);
@@ -81,21 +81,59 @@ describe('GET /v1/admin/households', () => {
   });
 
   it('власника дому видно поіменно: це і є те, за чим власник упізнає людину', async () => {
-    const guest = await signIn(app, mailer, 'olya@example.com');
+    const guest = await signIn(app, mailer, 'olya@gmail.com');
     const { households } = (await list(owner.cookie)).json() as {
       households: { id: string; owner_name: string | null; owner_email: string | null; mine: boolean }[];
     };
     const row = households.find((h) => h.id === guest.household_id)!;
-    expect(row.owner_email).toBe('olya@example.com');
+    expect(row.owner_email).toBe('olya@gmail.com');
     expect(row.owner_name).toBeTruthy();
     expect(row.mine).toBe(false);
   });
 
+  it('технічні доми за замовчуванням не віддаються, і сказано скільки сховано', async () => {
+    // RFC 2606: example.com зарезервовано під приклади, тож така пошта не може
+    // належати живій людині. На проді таких дев'ять із шістнадцяти — сміття
+    // QA-прогонів, серед якого губився б мовчазний ЖИВИЙ дім.
+    await signIn(app, mailer, 'qa7-a@example.com');
+    await signIn(app, mailer, 'e2e-smoke@example.com');
+    await signIn(app, mailer, 'olya@gmail.com');
+
+    const body = (await list(owner.cookie)).json() as {
+      households: { owner_email: string | null }[]; hidden_technical: number; technical_total: number;
+    };
+    expect(body.households.map((h) => h.owner_email).sort())
+      .toEqual(['olya@gmail.com', 'owner@kitchen.local'].sort());
+    expect(body.hidden_technical).toBe(2);
+    expect(body.technical_total).toBe(2);
+  });
+
+  it('прапорець повертає їх у список — нічого не видалено', async () => {
+    await signIn(app, mailer, 'qa7-a@example.com');
+    const r = await app.inject({
+      method: 'GET', url: '/v1/admin/households?technical=1', headers: { cookie: owner.cookie },
+    });
+    const body = r.json() as { households: { owner_email: string | null; technical: boolean }[]; hidden_technical: number };
+    expect(body.households.map((h) => h.owner_email)).toContain('qa7-a@example.com');
+    // Показано — отже ховати нема чого; але позначку рядок несе далі.
+    expect(body.hidden_technical).toBe(0);
+    expect(body.households.find((h) => h.owner_email === 'qa7-a@example.com')!.technical).toBe(true);
+  });
+
+  it('СВІЙ дім не ховається, навіть якщо пошта технічна', async () => {
+    // Інакше адмін під тестовим акаунтом (локальний стенд) не побачив би себе
+    // й вирішив би, що зламався список.
+    process.env.ADMIN_EMAILS = 'dev@example.com';
+    const dev = await signIn(app, mailer, 'dev@example.com');
+    const body = (await list(dev.cookie)).json() as { households: { id: string; mine: boolean }[] };
+    expect(body.households.find((h) => h.id === dev.household_id)?.mine).toBe(true);
+  });
+
   it('видно ВСІ доми продукту, не лише свій', async () => {
-    await signIn(app, mailer, 'a@example.com');
-    await signIn(app, mailer, 'b@example.com');
+    await signIn(app, mailer, 'a@gmail.com');
+    await signIn(app, mailer, 'b@gmail.com');
     const { households } = (await list(owner.cookie)).json() as { households: unknown[] };
-    // owner + a + b + stranger-ів немає; рівно три доми.
+    // owner + a + b; рівно три доми.
     expect(households).toHaveLength(3);
   });
 });
@@ -112,9 +150,9 @@ describe('GET /v1/admin/pulse?household_id — чужий дім', () => {
     mailer = new ConsoleMailer();
     app = buildApp(repo, new InMemoryStore(), mailer);
     await app.ready();
-    process.env.ADMIN_EMAILS = 'owner@example.com';
-    owner = await signIn(app, mailer, 'owner@example.com');
-    olya = await signIn(app, mailer, 'olya@example.com');
+    process.env.ADMIN_EMAILS = 'owner@kitchen.local';
+    owner = await signIn(app, mailer, 'owner@kitchen.local');
+    olya = await signIn(app, mailer, 'olya@gmail.com');
     // У кожному домі — своя розмова.
     await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: owner.cookie }, payload: { session_id: 'o-1', text: 'мій хід' } });
     await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: olya.cookie }, payload: { session_id: 'l-1', text: 'чужий хід' } });

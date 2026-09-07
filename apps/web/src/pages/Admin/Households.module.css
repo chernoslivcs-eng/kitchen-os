@@ -25,6 +25,22 @@
   color: var(--fg-dim);
 }
 
+/* Перемикач технічних домів. Виглядає як частина підпису, а не як кнопка:
+   це не дія над даними, а спосіб подивитись на них інакше. */
+.toggle {
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent-border);
+}
+.toggle:hover { color: var(--accent-strong); text-decoration-color: currentColor; }
+
 .block { display: flex; flex-direction: column; gap: 10px; }
 
 .blockHead { display: flex; align-items: baseline; gap: 12px; }
@@ -109,6 +125,19 @@
   color: var(--accent);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+/* Технічний дім видно в рядку — інакше, увімкнувши їх, легко сплутати
+   мовчазний тестовий дім із мовчазною живою людиною. А саме вона тут головна. */
+.techTag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  color: var(--fg-dim);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 1px 6px;
 }
