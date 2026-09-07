@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useAuth } from '../../store/auth';
+import { track } from '../../lib/track';
 import styles from './Onboarding.module.css';
 
 export const ONBOARDING_SEEN_KEY = 'kos-onboarding-seen';
@@ -117,7 +118,26 @@ export function OnboardingPage() {
     if (n < 0 || n >= CARDS.length) return;
     setDir(d); setStep(n);
   };
-  const finish = () => { markSeen(useAuth.getState().me?.user.id ?? ''); navigate('/app', { replace: true }); };
+
+  /**
+   * Крок А1: знайомство — перше, що бачить нова людина, і досі воно не
+   * лишало по собі жодного сліду. Де саме людина закриває Семена (на другій
+   * картці чи на десятій) — питання, яке їй не поставиш.
+   *
+   * У props тільки номер: правило 0029 — назв продуктів і вмісту комори в
+   * подіях не буває. Тут їх і нема чому взятися, але правило те саме.
+   */
+  useEffect(() => { track('welcome_started'); }, []);
+  useEffect(() => { track('welcome_card_reached', { card: step + 1 }); }, [step]);
+
+  const finish = (how: 'finished' | 'skipped') => {
+    // «Пропустити» і «Почати з того, що є» ведуть в одне місце, але значать
+    // протилежне: одна людина дочитала, друга — ні. Розрізняємо.
+    if (how === 'finished') track('welcome_finished');
+    else track('welcome_skipped', { card: step + 1 });
+    markSeen(useAuth.getState().me?.user.id ?? '');
+    navigate('/app', { replace: true });
+  };
 
   // Свайп: поріг 50px, як у канвасі.
   const tx = useRef(0);
@@ -150,7 +170,7 @@ export function OnboardingPage() {
   const controls = (
     <div className={styles.controls}>
       <button type="button" className={styles.prev} onClick={() => go(step - 1, 'b')} disabled={step === 0} aria-label="Назад">←</button>
-      <button type="button" className={`${styles.next} ${last ? styles['next-final'] : ''}`} onClick={() => (last ? finish() : go(step + 1, 'f'))}>
+      <button type="button" className={`${styles.next} ${last ? styles['next-final'] : ''}`} onClick={() => (last ? finish('finished') : go(step + 1, 'f'))}>
         {last ? 'Почати з того, що є' : 'Далі'}
       </button>
     </div>
@@ -166,7 +186,7 @@ export function OnboardingPage() {
           <div className={styles.logo}><Mark size={26} /><span>Kitchen<em> OS</em></span></div>
           <div className={styles['desk-head-right']}>
             {progress}
-            <button type="button" className={styles.skip} onClick={finish}>Пропустити</button>
+            <button type="button" className={styles.skip} onClick={() => finish('skipped')}>Пропустити</button>
           </div>
         </div>
         <div className={styles.strip}>
@@ -203,7 +223,7 @@ export function OnboardingPage() {
       <div className={styles.phone} onTouchStart={onTS} onTouchEnd={onTE}>
         <div className={styles.head}>
           <div className={styles.logo}><Mark /><span>Kitchen<em> OS</em></span></div>
-          <button type="button" className={styles.skip} onClick={finish}>Пропустити</button>
+          <button type="button" className={styles.skip} onClick={() => finish('skipped')}>Пропустити</button>
         </div>
         {progress}
         <div className={styles['card-wrap']}>

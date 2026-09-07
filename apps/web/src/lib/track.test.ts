@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { track, startTracking, __resetTracking, __queue, MAX_BATCH } from './track';
 
-let sent: { events: { name: string; props?: Record<string, unknown> }[] }[];
+let sent: { events: { name: string; props?: Record<string, unknown> }[]; device?: { w: number; class: string; ua: string | null } }[];
 let stop: () => void;
 
 beforeEach(() => {
@@ -78,5 +78,28 @@ describe('черга', () => {
     track('cook_step_reached', { step: 3, of: 7 });
     await vi.advanceTimersByTimeAsync(10_000);
     expect(sent[0]!.events[0]!.props).toEqual({ step: 3, of: 7 });
+  });
+});
+
+describe('пристрій у конверті', () => {
+  // Крок А1: пристрій їде РАЗ НА ПАЧКУ. Двадцять однакових знімків в одному
+  // запиті були б двадцятьма копіями того самого факту.
+  it('конверт несе ширину й клас — один раз на всю пачку', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
+    track('welcome_started');
+    track('welcome_card_reached', { card: 1 });
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.device).toMatchObject({ w: 390, class: 'mobile' });
+    // У самих подіях пристрою немає — інакше він задвоївся б на кожному рядку.
+    expect(sent[0]!.events.every((e) => !('device' in e))).toBe(true);
+  });
+
+  it('клас у конверті рахується з ШИРИНИ, а не з чогось іще', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true });
+    track('pantry_opened');
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(sent[0]!.device).toMatchObject({ w: 1024, class: 'desktop' });
   });
 });

@@ -54,6 +54,10 @@ describe('GET /v1/admin/pulse · дім', () => {
     latency_ms: 1200,
     prompt_hash: null,
     prompt_chars: null,
+    // Крок А1: цей тест перевіряє гроші дому, а не прив'язку до ходу —
+    // зшивання за часом у pulse.ts лишається як було.
+    message_id: null,
+    session_id: null,
     created_at: new Date().toISOString(),
   });
 
@@ -119,7 +123,7 @@ describe('GET /v1/admin/pulse · дім', () => {
   it('події дому підписані людиною, чужі не видно', async () => {
     const at = new Date().toISOString();
     const ev = (user_id: string, household_id: string | null, name: string) =>
-      ({ id: randomUUID(), user_id, household_id, name, props: {}, created_at: at });
+      ({ id: randomUUID(), user_id, household_id, name, props: {}, viewport_w: null, device_class: null, ua_family: null, created_at: at });
     const other = await repo.createUserWithHousehold('stranger2@example.com', 'Чужий2');
     await repo.saveAppEvents([
       ev(owner.user_id, owner.household_id, 'pantry_opened'),

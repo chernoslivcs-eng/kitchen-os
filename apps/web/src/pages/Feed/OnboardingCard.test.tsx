@@ -256,3 +256,68 @@ describe('О2: картка «Про тебе»', () => {
   });
 });
 
+
+describe('Крок А1: події картки', () => {
+  // Картка живе в СТРІЧЦІ й перемальовується на кожному її відкритті. Наївна
+  // подія «на монтування» писала б «почав» і «закінчив» щоразу, коли людина
+  // просто прогорнула стрічку вгору — і стовпчик, за яким ми збираємось
+  // рахувати проходження, показував би нашу перемальовку, а не її шлях.
+  const filled = (): Record<string, ProfileFieldV2> =>
+    Object.fromEntries(['name', 'no', 'ban', 'love', 'meh', 'kit', 'when'].map((k) => [k, f('щось')]));
+
+  const sent = () => calls.filter((c) => c.url === '/v1/events/track')
+    .flatMap((c) => (c.body as { events: { name: string; props?: Record<string, unknown> }[] }).events);
+
+  async function flushEvents() {
+    // Черга шле пачкою раз на 10 с — женемо таймер, щоб побачити, що доїхало.
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+  }
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    const { __resetTracking, startTracking } = await import('../../lib/track');
+    __resetTracking();
+    startTracking();
+  });
+  afterEach(async () => {
+    const { __resetTracking } = await import('../../lib/track');
+    __resetTracking();
+    vi.useRealTimers();
+  });
+
+  it('свіжа картка пише «почав»', async () => {
+    await mount();
+    await flushEvents();
+    expect(sent().map((e) => e.name)).toContain('onboarding_started');
+  });
+
+  it('ГОТОВА картка при перемальовці стрічки не пише ні «почав», ні «закінчив»', async () => {
+    await mount({ profileFields: filled() });
+    await flushEvents();
+    const names = sent().map((e) => e.name);
+    expect(names).not.toContain('onboarding_started');
+    expect(names).not.toContain('onboarding_finished');
+    expect(names).not.toContain('onboarding_panel_reached');
+  });
+
+  it('гортання пише панель за номером, а «Далі» на порожній — пропуск', async () => {
+    await mount();
+    // Перша панель — «Далі» на порожній: це пропуск, той самий, що потім
+    // підписує панель «ПРОПУЩЕНО».
+    await act(async () => { btn('Далі').click(); });
+    await flushEvents();
+    const names = sent();
+    expect(names.find((e) => e.name === 'onboarding_skipped')?.props).toEqual({ panel: 1 });
+    expect(names.find((e) => e.name === 'onboarding_panel_reached')?.props).toEqual({ panel: 2 });
+  });
+
+  it('у props — тільки номер: ні ключа поля, ні тексту людини', async () => {
+    await mount();
+    await act(async () => { btn('Далі').click(); });
+    await flushEvents();
+    for (const e of sent().filter((x) => x.name.startsWith('onboarding_'))) {
+      const keys = Object.keys(e.props ?? {});
+      expect(keys.every((k) => k === 'panel')).toBe(true);
+    }
+  });
+});

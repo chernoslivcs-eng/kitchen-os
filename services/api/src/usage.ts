@@ -13,6 +13,24 @@ function deriveProfile(call: CallName, mode: CallMode): ModelProfile {
   return loadPrompt().manifest.calls[call].profile;
 }
 
+/**
+ * Крок А1: до якого ходу належить виклик.
+ *
+ * Передається тільки там, де хід справді є. Досі pulse.ts зшивав ціну з
+ * повідомленням здогадкою — найближчий виклик тієї самої людини в межах
+ * хвилини, — і на цій здогадці стояла вся юніт-економіка.
+ *
+ * Де ходу немає (розбір вкладення до створення повідомлення, генерація
+ * рецепта поза чатом, пошук по коморі) — цей аргумент не передається взагалі,
+ * і в базу йде null. Прив'язувати виклик до «найближчого» повідомлення ми не
+ * будемо: порожньо тут чесніше за здогадку.
+ */
+export interface UsageTurn {
+  /** Повідомлення людини, яке спричинило виклик. Null, коли його ще нема. */
+  message_id: string | null;
+  session_id: string;
+}
+
 export async function recordUsage(
   repo: Repo,
   ctx: UserContext,
@@ -20,6 +38,7 @@ export async function recordUsage(
   meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number },
   usage: { input: number; output: number; cached?: number },
   started_at_ms: number,
+  turn?: UsageTurn,
 ): Promise<void> {
   await repo.logTokenUsage({
     id: randomUUID(),
@@ -38,6 +57,8 @@ export async function recordUsage(
     // більше не невидиме для телеметрії (аудит: +3,2k ток. під тим самим version).
     prompt_hash: meta.prompt_hash ?? null,
     prompt_chars: meta.prompt_chars ?? null,
+    message_id: turn?.message_id ?? null,
+    session_id: turn?.session_id ?? null,
     created_at: new Date().toISOString(),
   });
 }

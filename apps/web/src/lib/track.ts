@@ -11,13 +11,21 @@
 //   — у props тільки СТРУКТУРНЕ: номер кроку, назва зрізу, рід вкладення.
 //     Назв продуктів і вмісту комори тут не буває ніколи.
 
+import { readDevice } from './device';
+
 export type EventName =
   | 'pantry_opened' | 'pantry_filter_changed' | 'pantry_card_opened'
   | 'recipe_opened' | 'cook_started' | 'cook_step_reached' | 'cook_finished' | 'cook_abandoned'
   | 'shopping_opened' | 'calendar_opened'
   | 'attachment_added'
   | 'chat_input_abandoned'
-  | 'error_shown';
+  | 'error_shown'
+  // Крок А1: знайомство (Семен, 11 карток) і картка «Про тебе» (7 панелей).
+  // Саме там людина може мовчки застрягти й піти — і саме там ми були сліпі.
+  // Підкреслення, як у решти подій продукту: через дефіс пишуться ІНЦИДЕНТИ
+  // ('intake-op-missed'), і це два різні набори.
+  | 'welcome_started' | 'welcome_card_reached' | 'welcome_finished' | 'welcome_skipped'
+  | 'onboarding_started' | 'onboarding_panel_reached' | 'onboarding_finished' | 'onboarding_skipped';
 
 interface Queued { name: EventName; props?: Record<string, unknown>; at: string }
 
@@ -37,7 +45,10 @@ async function flush(): Promise<void> {
       method: 'POST',
       credentials: 'include',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ events: batch }),
+      // Крок А1: пристрій — РАЗ НА ПАЧКУ, у конверт, а не в кожну подію.
+      // Двадцять однакових знімків в одному запиті були б двадцятьма копіями
+      // того самого факту; сервер проставить його на рядки сам.
+      body: JSON.stringify({ events: batch, device: readDevice() }),
       // keepalive — щоб пачка доїхала, коли вкладку вже згортають.
       keepalive: true,
     });

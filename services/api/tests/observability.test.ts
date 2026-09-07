@@ -184,9 +184,18 @@ describe('GET /v1/admin/pulse', () => {
 });
 
 describe('набір подій', () => {
-  it('закритий список — тринадцять точок, не кліки підряд', () => {
-    expect(KNOWN_EVENTS.size).toBe(13);
+  it('закритий список — двадцять одна точка, не кліки підряд', () => {
+    // Крок А1: тринадцять було до знайомства й картки «Про тебе»; вісім нових
+    // закривають рівно ті два місця, де людина могла мовчки застрягти.
+    expect(KNOWN_EVENTS.size).toBe(21);
     expect(KNOWN_EVENTS.has('chat_input_abandoned')).toBe(true);
     expect(KNOWN_EVENTS.has('error_shown')).toBe(true);
+  });
+
+  it('імена подій — через ПІДКРЕСЛЕННЯ; дефіс лишається за інцидентами', () => {
+    // Два різні набори, які легко змішати: подія продукту пишеться
+    // 'pantry_opened', інцидент — 'incident:intake-op-missed'. Ім'я з дефісом
+    // у цьому списку означало б, що межу вже перейшли.
+    for (const name of KNOWN_EVENTS) expect(name).not.toContain('-');
   });
 });
