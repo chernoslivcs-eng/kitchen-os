@@ -19,7 +19,7 @@ import type { FastifyInstance } from 'fastify';
 import type { AdminMoneyGroup, Repo } from '@kitchen/domain';
 import { authenticated } from '../middleware/session.js';
 import { requireAdmin } from '../middleware/admin.js';
-import { priceOf } from '../pricing.js';
+import { priceOf, priceFor, cacheWriteRate } from '../pricing.js';
 import { periodBounds, previousBounds, localDay, elapsedShare, type Period } from '../period.js';
 import { TECHNICAL_DOMAIN } from './admin-households.js';
 
@@ -60,11 +60,26 @@ export interface MoneyTotals {
   /** Скільки викликів були стабові. У гроші не входять, але були. */
   stub_calls: number;
   unpriced_calls: number;
+  /**
+   * Крок А5: токени, записані в кеш, і скільки це коштувало окремо.
+   * Найдорожчий рід вхідних — 1,25× ставки входу, у 12,5 раза дорожче за
+   * читання. Стоїть на початку кожної холодної сесії, тобто це найбільший
+   * важіль, який у нас є.
+   */
+  cache_write_tokens: number;
+  cache_write_usd: number;
+  /**
+   * Викликів у періоді, для яких запис не рахувався взагалі (рядок старший за
+   * міграцію 0032). Поки їх більше нуля, підсумок ЗАНИЖЕНИЙ, і екран мусить
+   * сказати це, а не змовчати.
+   */
+  calls_without_write: number;
 }
 
 const empty = (): MoneyTotals => ({
   calls: 0, usd: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0,
   cached_share: null, stub_calls: 0, unpriced_calls: 0,
+  cache_write_tokens: 0, cache_write_usd: 0, calls_without_write: 0,
 });
 
 /**
@@ -78,8 +93,15 @@ function priceGroup(g: AdminMoneyGroup): { usd: number; unpriced: number } {
     input_tokens: g.input_tokens,
     output_tokens: g.output_tokens,
     cached_tokens: g.cached_tokens,
+    cache_write_tokens: g.cache_write_tokens,
   });
   return one === null ? { usd: 0, unpriced: g.calls } : { usd: one, unpriced: 0 };
+}
+
+/** Скільки з ціни групи припадає саме на ЗАПИС у кеш. */
+function writeCostOf(g: AdminMoneyGroup): number {
+  const p = priceFor(g.model);
+  return p === null ? 0 : (g.cache_write_tokens * cacheWriteRate(p)) / 1_000_000;
 }
 
 /** Живі виклики — ті, за які справді платять. Стаб у гроші не входить. */
@@ -96,7 +118,11 @@ function fold(groups: AdminMoneyGroup[]): MoneyTotals {
     t.input_tokens += g.input_tokens;
     t.output_tokens += g.output_tokens;
     t.cached_tokens += g.cached_tokens;
+    t.cache_write_tokens += g.cache_write_tokens;
+    t.cache_write_usd += writeCostOf(g);
+    t.calls_without_write += g.rows_without_write;
   }
+  t.cache_write_usd = Number(t.cache_write_usd.toFixed(6));
   t.usd = Number(t.usd.toFixed(6));
   // Крок А4а: знаменник — ВХІД + КЕШ, бо це два окремі лічильники, а не один
   // усередині іншого. Зі старим знаменником частка виходила 256% — число, яке
@@ -273,6 +299,11 @@ export function moneyRoutes(app: FastifyInstance, repo: Repo) {
          * не «витратили нуль», ми стільки ще не збирали, і це інша новина.
          */
         collected_since: averages.first_usage_at,
+        /**
+         * Крок А5: відколи взагалі рахується запис у кеш. Період, що
+         * починається раніше, показує занижене число, і екран каже це рядком.
+         */
+        cache_write_since: averages.cache_write_since,
         percent_floor: PERCENT_FLOOR,
         technical_included: req.query.technical === '1',
       };

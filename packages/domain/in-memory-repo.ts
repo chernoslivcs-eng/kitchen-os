@@ -436,6 +436,7 @@ export class InMemoryRepo implements Repo {
           period, household_id: r.household_id, user_id: r.user_id,
           call: r.call, model: r.model, profile: r.profile, mode: r.mode, has_turn,
           calls: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0,
+          cache_write_tokens: 0, rows_without_write: 0,
           latency_sum_ms: 0, latency_n: 0,
         };
         buckets.set(key, g);
@@ -444,6 +445,8 @@ export class InMemoryRepo implements Repo {
       g.input_tokens += r.input_tokens;
       g.output_tokens += r.output_tokens;
       g.cached_tokens += r.cached_tokens;
+      if (r.cache_write_tokens === null) g.rows_without_write += 1;
+      else g.cache_write_tokens += r.cache_write_tokens;
       if (r.latency_ms !== null) { g.latency_sum_ms += r.latency_ms; g.latency_n += 1; }
     }
     return [...buckets.values()];
@@ -478,6 +481,9 @@ export class InMemoryRepo implements Repo {
       latency_n: lat.length,
       person_days: personDays.size,
       first_usage_at: all[0] ?? null,
+      cache_write_since: this.tokenUsage
+        .filter((r) => r.mode === 'live' && r.cache_write_tokens !== null)
+        .map((r) => r.created_at).sort()[0] ?? null,
     };
   }
 

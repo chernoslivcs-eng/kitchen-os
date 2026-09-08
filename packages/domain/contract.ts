@@ -1245,7 +1245,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
           user_id, household_id, call: 'chat' as const, profile: 'stub' as const,
           model: 'stub', prompt_version: 'test', mode: 'stub' as const,
           input_tokens: 10, output_tokens: 5, cached_tokens: 0, latency_ms: 42,
-          prompt_hash: null, prompt_chars: null,
+          prompt_hash: null, prompt_chars: null, cache_write_tokens: null,
         };
         // Виклик у чаті — знає свій хід.
         await repo.logTokenUsage({ ...base, id: randomUUID(), message_id, session_id: session.id, created_at: new Date().toISOString() });

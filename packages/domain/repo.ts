@@ -100,6 +100,14 @@ export interface AdminMoneyGroup {
   input_tokens: number;
   output_tokens: number;
   cached_tokens: number;
+  /**
+   * Крок А5: токени, записані в кеш. Найдорожчий рід вхідних (1,25× входу).
+   * Рядки, старші за міграцію 0032, дають тут 0 — і саме тому окремо
+   * рахується `rows_without_write`.
+   */
+  cache_write_tokens: number;
+  /** Скільки рядків групи взагалі не мають цього поля (записано до 0032). */
+  rows_without_write: number;
   /** Сума й кількість — щоб середнє рахувалось після згортання, а не до. */
   latency_sum_ms: number;
   latency_n: number;
@@ -117,6 +125,11 @@ export interface AdminMoneyAverages {
   person_days: number;
   /** Найперший облікований виклик узагалі — за ним видно, чого ще не збирали. */
   first_usage_at: string | null;
+  /**
+   * Крок А5: відколи ми взагалі рахуємо запис у кеш. Період, що починається
+   * раніше, — заниження, і екран мусить сказати це рядком, а не змовчати.
+   */
+  cache_write_since: string | null;
 }
 
 export interface Repo {
