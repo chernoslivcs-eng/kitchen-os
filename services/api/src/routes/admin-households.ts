@@ -33,7 +33,7 @@ import { requireAdmin } from '../middleware/admin.js';
  *
  * Нічого не видаляємо: прапорцем їх видно, і історія лишається цілою.
  */
-const TECHNICAL_DOMAIN = '@example.com';
+export const TECHNICAL_DOMAIN = '@example.com';
 
 const isTechnical = (email: string | null): boolean =>
   !!email && email.toLowerCase().trim().endsWith(TECHNICAL_DOMAIN);

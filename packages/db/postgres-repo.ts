@@ -9,7 +9,7 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow,
+  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminMoneyGroup, AdminMoneyAverages,
   PantryBatch, PendingCard, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
@@ -947,6 +947,122 @@ export class PostgresRepo implements Repo {
       owner_name: r.owner_name ?? null,
       owner_email: r.owner_email ?? null,
     }));
+  }
+
+  /**
+   * Крок А4: гроші розрізами. ОДИН запит на обидва періоди.
+   *
+   * Поруч, у pulse.ts, лежить приклад того, як НЕ треба: цикл по учасниках і
+   * запит на кожне повідомлення. На вісімдесяти домах він з'їв би і сторінку,
+   * і базу, з якої в ту саму мить хтось вантажить свою комору. Тут агрегує
+   * SQL, а Node лише ставить ціну на вже згорнуті групи.
+   *
+   * Групування дрібне навмисно: з одного результату складаються всі чотири
+   * розрізи (тип виклику, модель, дім, людина) і обидва періоди. Кардинальність
+   * — десятки рядків: домів шістнадцять, типів виклику три, моделей дві.
+   *
+   * `mode` НЕ фільтруємо тут: стабові виклики мусять бути видні окремим
+   * рядком «з них стабових». Відсіяти їх мовчки означало б, що виклики просто
+   * зникли, а це інша новина.
+   *
+   * Технічні доми відсіюються за поштою власника. Правило одне на продукт і
+   * приїжджає параметром — щоб тут не завелось його другого визначення.
+   */
+  async adminMoneyGroups(q: {
+    now: { from: Date; to: Date };
+    prev: { from: Date; to: Date };
+    technicalLike: string | null;
+  }): Promise<AdminMoneyGroup[]> {
+    const { rows } = await this.pool.query(`
+      SELECT CASE WHEN tu.created_at >= $1 AND tu.created_at < $2 THEN 'now' ELSE 'prev' END AS period,
+             tu.household_id,
+             tu.user_id,
+             tu.call, tu.model, tu.profile, tu.mode,
+             (tu.message_id IS NOT NULL) AS has_turn,
+             count(*)::int              AS calls,
+             sum(tu.input_tokens)::bigint  AS input_tokens,
+             sum(tu.output_tokens)::bigint AS output_tokens,
+             sum(tu.cached_tokens)::bigint AS cached_tokens,
+             coalesce(sum(tu.latency_ms), 0)::bigint      AS latency_sum_ms,
+             count(tu.latency_ms)::int                    AS latency_n
+        FROM token_usage tu
+       WHERE ((tu.created_at >= $1 AND tu.created_at < $2)
+           OR (tu.created_at >= $3 AND tu.created_at < $4))
+         AND ($5::text IS NULL OR NOT EXISTS (
+               SELECT 1 FROM household_member hm
+                 JOIN "user" u ON u.id = hm.user_id
+                WHERE hm.household_id = tu.household_id
+                  AND hm.role = 'owner'
+                  AND lower(u.email) LIKE $5))
+       GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
+    `, [q.now.from, q.now.to, q.prev.from, q.prev.to, q.technicalLike]);
+    return rows.map((r): AdminMoneyGroup => ({
+      period: r.period,
+      household_id: r.household_id ?? null,
+      user_id: r.user_id,
+      call: r.call,
+      model: r.model,
+      profile: r.profile,
+      mode: r.mode,
+      has_turn: r.has_turn,
+      calls: r.calls,
+      input_tokens: Number(r.input_tokens),
+      output_tokens: Number(r.output_tokens),
+      cached_tokens: Number(r.cached_tokens),
+      latency_sum_ms: Number(r.latency_sum_ms),
+      latency_n: r.latency_n,
+    }));
+  }
+
+  /**
+   * Крок А4: середні. Теж один запит — усе, що не зводиться з груп вище.
+   *
+   * `person_days` — пари «людина × місцевий день, у який вона ПИСАЛА». Це
+   * знаменник для «ходів на людину за день»: рахувати по всіх днях періоду
+   * означало б ділити на тишу, і на пілоті середнє впало б до нуля не тому,
+   * що люди мало пишуть, а тому, що днів багато.
+   *
+   * Місцевий день тут — `AT TIME ZONE $tz`, і пояс приїжджає той самий, у
+   * якому процес рахує межі періоду. Один спосіб рахувати добу на весь крок.
+   */
+  async adminMoneyAverages(q: {
+    now: { from: Date; to: Date };
+    technicalLike: string | null;
+    tz: string;
+  }): Promise<AdminMoneyAverages> {
+    const { rows } = await this.pool.query(`
+      WITH live AS (
+        SELECT tu.*
+          FROM token_usage tu
+         WHERE tu.created_at >= $1 AND tu.created_at < $2
+           AND tu.mode = 'live'
+           AND ($3::text IS NULL OR NOT EXISTS (
+                 SELECT 1 FROM household_member hm
+                   JOIN "user" u ON u.id = hm.user_id
+                  WHERE hm.household_id = tu.household_id
+                    AND hm.role = 'owner'
+                    AND lower(u.email) LIKE $3))
+      ),
+      person_day AS (
+        SELECT DISTINCT user_id, (created_at AT TIME ZONE $4)::date AS d
+          FROM live WHERE message_id IS NOT NULL
+      )
+      SELECT (SELECT count(DISTINCT message_id) FROM live WHERE message_id IS NOT NULL)::int AS turns,
+             (SELECT avg(latency_ms) FROM live)                                    AS latency_avg_ms,
+             (SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FROM live) AS latency_p95_ms,
+             (SELECT count(latency_ms) FROM live)::int                             AS latency_n,
+             (SELECT count(*) FROM person_day)::int                                AS person_days,
+             (SELECT min(created_at) FROM token_usage WHERE mode = 'live')          AS first_usage_at
+    `, [q.now.from, q.now.to, q.technicalLike, q.tz]);
+    const r = rows[0]!;
+    return {
+      turns: r.turns ?? 0,
+      latency_avg_ms: r.latency_avg_ms === null ? null : Math.round(Number(r.latency_avg_ms)),
+      latency_p95_ms: r.latency_p95_ms === null ? null : Math.round(Number(r.latency_p95_ms)),
+      latency_n: r.latency_n ?? 0,
+      person_days: r.person_days ?? 0,
+      first_usage_at: r.first_usage_at ? new Date(r.first_usage_at).toISOString() : null,
+    };
   }
 
   async roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null> {

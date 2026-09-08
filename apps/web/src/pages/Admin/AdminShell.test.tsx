@@ -38,15 +38,35 @@ const HOUSEHOLDS = {
   ],
 };
 
+/**
+ * Крок А4: Зведення тепер тягне ще й гроші, тож заглушка мусить розрізняти
+ * адреси. Порожній блок грошей — навмисно: предмет ЦЬОГО файлу каркас і
+ * список домів, а гроші перевіряються у Money.test.tsx.
+ */
+const EMPTY_MONEY = {
+  period: 'day', day: '2026-09-08',
+  from: '2026-09-08T00:00:00.000Z', to: '2026-09-09T00:00:00.000Z',
+  prev_from: '2026-09-07T00:00:00.000Z', prev_to: '2026-09-08T00:00:00.000Z',
+  totals: { calls: 0, usd: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0, cached_share: null, stub_calls: 0, unpriced_calls: 0 },
+  previous: { calls: 0, usd: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0, cached_share: null, stub_calls: 0, unpriced_calls: 0 },
+  byCall: [], byModel: [], byHousehold: [], byPerson: [],
+  avg: { usd_per_turn: null, turns: 0, latency_avg_ms: null, latency_p95_ms: null, latency_n: 0, turns_per_person_day: null, person_days: 0, human_wait_ms: null },
+  forecast: { month_usd: 0, month_elapsed: 0.1, per_household_usd: null, per_person_usd: null, households: 0, people: 0, sensitive_to: { cached_share: null, parse_share: null, long_tail_ms: null }, price_usd: null },
+  collected_since: null, percent_floor: 20, technical_included: false,
+};
+
 function install(ok: boolean, body: unknown = HOUSEHOLDS) {
   calls = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     calls.push(url);
-    return ok
-      ? new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
-      : new Response('{"error":"not_found"}', { status: 404, headers: { 'content-type': 'application/json' } });
+    if (!ok) return new Response('{"error":"not_found"}', { status: 404, headers: { 'content-type': 'application/json' } });
+    const payload = url.startsWith('/v1/admin/money') ? EMPTY_MONEY : body;
+    return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } });
   }));
 }
+
+/** Звертання по список домів — саме воно й перевіряє доступ. */
+const householdCalls = () => calls.filter((u) => u.startsWith('/v1/admin/households'));
 
 async function mount(path = '/admin') {
   host = document.createElement('div');
@@ -136,7 +156,9 @@ describe('каркас адмінки: рейка і дім', () => {
 
   it('доступ перевіряється ОДНИМ запитом — тим самим, що дає список домів', async () => {
     await mount();
-    expect(calls).toEqual(['/v1/admin/households']);
+    // Гроші — окремий блок зі своїм запитом (крок А4); каркас від цього
+    // другого способу перевіряти доступ не завів.
+    expect(householdCalls()).toEqual(['/v1/admin/households']);
   });
 
   it('у чужому домі каркас у стані «у гостях» — паспарту і присвійний підпис', async () => {
@@ -220,7 +242,7 @@ describe('список домів', () => {
     // Мовчазний фільтр, про який ніде не сказано, з часом читається як
     // втрачені дані. Тому число й спосіб їх побачити — в одному рядку.
     await act(async () => { (toggle as HTMLButtonElement).click(); });
-    expect(calls.at(-1)).toBe('/v1/admin/households?technical=1');
+    expect(householdCalls().at(-1)).toBe('/v1/admin/households?technical=1');
   });
 
   it('порожній продукт каже це словами, а не порожньою таблицею', async () => {

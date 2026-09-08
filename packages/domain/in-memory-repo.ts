@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow } from './repo.js';
+import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminMoneyGroup, AdminMoneyAverages } from './repo.js';
 import type {
   PantryBatch, PendingCard, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
@@ -410,6 +410,86 @@ export class InMemoryRepo implements Repo {
       if (b.last_turn_at) return 1;
       return b.created_at.localeCompare(a.created_at);
     });
+  }
+
+  /** Крок А4: та сама семантика, що в SQL-версії — групи, не сирі рядки. */
+  async adminMoneyGroups(q: {
+    now: { from: Date; to: Date };
+    prev: { from: Date; to: Date };
+    technicalLike: string | null;
+  }): Promise<AdminMoneyGroup[]> {
+    const inRange = (iso: string, b: { from: Date; to: Date }) => {
+      const t = new Date(iso).getTime();
+      return t >= b.from.getTime() && t < b.to.getTime();
+    };
+    const buckets = new Map<string, AdminMoneyGroup>();
+    for (const r of this.tokenUsage) {
+      const period = inRange(r.created_at, q.now) ? 'now'
+        : inRange(r.created_at, q.prev) ? 'prev' : null;
+      if (!period) continue;
+      if (this.isTechnicalHousehold(r.household_id, q.technicalLike)) continue;
+      const has_turn = r.message_id !== null;
+      const key = [period, r.household_id, r.user_id, r.call, r.model, r.profile, r.mode, has_turn].join('\u0000');
+      let g = buckets.get(key);
+      if (!g) {
+        g = {
+          period, household_id: r.household_id, user_id: r.user_id,
+          call: r.call, model: r.model, profile: r.profile, mode: r.mode, has_turn,
+          calls: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0,
+          latency_sum_ms: 0, latency_n: 0,
+        };
+        buckets.set(key, g);
+      }
+      g.calls += 1;
+      g.input_tokens += r.input_tokens;
+      g.output_tokens += r.output_tokens;
+      g.cached_tokens += r.cached_tokens;
+      if (r.latency_ms !== null) { g.latency_sum_ms += r.latency_ms; g.latency_n += 1; }
+    }
+    return [...buckets.values()];
+  }
+
+  async adminMoneyAverages(q: {
+    now: { from: Date; to: Date };
+    technicalLike: string | null;
+    tz: string;
+  }): Promise<AdminMoneyAverages> {
+    const live = this.tokenUsage.filter((r) => {
+      const t = new Date(r.created_at).getTime();
+      if (t < q.now.from.getTime() || t >= q.now.to.getTime()) return false;
+      if (r.mode !== 'live') return false;
+      return !this.isTechnicalHousehold(r.household_id, q.technicalLike);
+    });
+    const lat = live.map((r) => r.latency_ms).filter((n): n is number => n !== null).sort((a, b) => a - b);
+    const turns = new Set(live.filter((r) => r.message_id).map((r) => r.message_id));
+    // Пари «людина × місцевий день, у який вона писала» — знаменник для ходів.
+    const personDays = new Set(
+      live.filter((r) => r.message_id)
+        .map((r) => {
+          const d = new Date(r.created_at);
+          return `${r.user_id}:${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        }),
+    );
+    const all = this.tokenUsage.filter((r) => r.mode === 'live').map((r) => r.created_at).sort();
+    return {
+      turns: turns.size,
+      latency_avg_ms: lat.length ? Math.round(lat.reduce((n, x) => n + x, 0) / lat.length) : null,
+      latency_p95_ms: lat.length ? lat[Math.min(lat.length - 1, Math.floor(lat.length * 0.95))]! : null,
+      latency_n: lat.length,
+      person_days: personDays.size,
+      first_usage_at: all[0] ?? null,
+    };
+  }
+
+  /** Дім вважається технічним за поштою власника — те саме правило, що в SQL. */
+  private isTechnicalHousehold(household_id: string | null, like: string | null): boolean {
+    if (!like || !household_id) return false;
+    const suffix = like.replace(/^%/, '').toLowerCase();
+    const owner = this.members
+      .filter((m) => m.household_id === household_id && m.role === 'owner')
+      .map((m) => this.users.get(m.user_id))
+      .find(Boolean);
+    return !!owner && owner.email.toLowerCase().endsWith(suffix);
   }
 
   async roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null> {
