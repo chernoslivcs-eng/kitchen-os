@@ -56,7 +56,11 @@ export interface UsageTurn {
  */
 export async function recordUsage(
   repo: Repo,
-  ctx: UserContext,
+  // Читаються рівно два поля. `session_id` рядка приїжджає з `turn`, а не
+  // звідси, — тому вимагати повний `UserContext` означало б змушувати
+  // виклики без ходу (alt_filter у retail.ts) вигадувати сесію заради
+  // поля, яке ця функція навіть не читає.
+  ctx: Pick<UserContext, 'user_id' | 'household_id'>,
   call: CallName,
   meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number },
   calls: ModelCallUsage[],

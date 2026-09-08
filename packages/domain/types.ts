@@ -588,7 +588,11 @@ export interface ShoppingItemRow {
 
 // ----- Облік токенів ----------------------------------------------------
 
-export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen';
+// `alt_filter` жив у `manifest.json` від 01.09, але сюди не доїхав — і саме
+// це тримало дірку в обліку: рід викликів, який не можна було назвати в
+// типі, неможливо було й записати в `token_usage`. Колонка `call` — вільний
+// text без CHECK (міграція 0003), тож розширення типу міграції не потребує.
+export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen' | 'alt_filter';
 export type ModelProfile = 'fast' | 'smart' | 'stub';
 export type CallMode = 'live' | 'stub';
 

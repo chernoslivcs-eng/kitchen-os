@@ -79,6 +79,40 @@ describe('чат: retail_search_go → живий пошук наявності 
     expect(await repo.listShoppingItems(me.household_id)).toHaveLength(0);
   });
 
+  // Е2-Т2: другий (і останній) виклик `alt_filter` у продукті. Він живе не в
+  // `attemptBuildCart`, а в `searchSilpo`, куди `household_id` раніше просто
+  // не доїжджав — тому облік тут вимагав протягнути дім через `attemptSearch`.
+  // Пошук read-only, але модель у ньому платна так само, як у кошику.
+  it('пошук лишає рядок обліку alt_filter — з домом і без ходу', async () => {
+    // Каталог мусить НЕ впізнати кандидата — інакше вердикт дає категорія
+    // безкоштовно і моделі тут не буде взагалі (саме так поводяться швепси
+    // з харнесу вище).
+    const unknown = [product('id-zzz', 'Напій Zzyzx Blorp Original 0,33', 33)];
+    app = buildApp(repo, new InMemoryStore(), mailer, {
+      retail: {
+        silpo: {
+          clientId: 'c', tokenSecret: 's', devAccessToken: 'dev-token',
+          makeProvider: () => ({
+            receipts: async () => [],
+            findBatch: async (queries: string[]) =>
+              queries.map((q) => ({ query: q, candidates: unknown, product: unknown[0] ?? null })),
+            addToCart: async () => {},
+          }),
+        },
+      },
+    });
+    await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
+    await app.inject({
+      method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },
+      payload: { text: 'а які ще опції в сільпо є по швепсу?' },
+    });
+
+    const alt = (await repo.listTokenUsage(me.user_id)).filter((x) => x.call === 'alt_filter');
+    expect(alt).toHaveLength(1);
+    expect(alt[0]!.household_id).toBe(me.household_id);
+    expect(alt[0]!.message_id).toBeNull();
+  });
+
   // Живий репро 01.09: «який там вибір?» на швепс повертав ВСІ знайдені
   // (аж 15) одним суцільним реченням через кому — нечитабельний дамп.
   // Репліка мусить бути компактним списком (перенос рядка на позицію) і

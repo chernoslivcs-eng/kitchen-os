@@ -46,7 +46,7 @@ export interface ChatRouteOpts {
   retailCart?: (user_id: string, household_id: string, explicitItems?: string[]) => Promise<RetailCartAttempt>;
   // 01.09: «що є в наявності по X» — read-only пошук, той самий принцип
   // ін'єкції, що retailCart.
-  retailSearch?: (user_id: string, query: string) => Promise<RetailSearchAttempt>;
+  retailSearch?: (user_id: string, household_id: string, query: string) => Promise<RetailSearchAttempt>;
   /** Відкриті джерела без підключення (Стейки Карпат) — для блоку [МЕРЕЖІ]. */
   retailKarpaty?: boolean;
   // №4: «додай X» при відкритому кошику — дописати рядок у ТУ САМУ картку,
@@ -583,7 +583,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         await saveTurn(msg);
         return { reply: msg, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
-      const attempt = await opts.retailSearch(user_id, call.card.query);
+      const attempt = await opts.retailSearch(user_id, household_id, call.card.query);
       if (!attempt.ok) {
         const msg = attempt.error === 'not_connected'
           ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'

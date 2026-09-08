@@ -26,6 +26,7 @@ import { SilpoProvider, RetailAuthError, type RetailFoundRow, type RetailProduct
 import { KarpatyProvider } from '../retail/karpaty-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
 import { callAltFilter } from '../model.js';
+import { recordUsage } from '../usage.js';
 import { localDay } from '../local-day.js';
 
 export interface SilpoTokens {
@@ -199,7 +200,7 @@ export interface RetailHandle {
   /** Чи є відкриті джерела без підключення (Стейки Карпат) — для [МЕРЕЖІ]. */
   karpatyEnabled: boolean;
   attemptBuildCart(user_id: string, household_id: string, explicitItems?: string[]): Promise<RetailCartAttempt>;
-  attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt>;
+  attemptSearch(user_id: string, household_id: string, query: string): Promise<RetailSearchAttempt>;
   attemptExtendCart(user_id: string, card_id: string, items: string[]): Promise<RetailCartAttempt>;
 }
 
@@ -580,7 +581,22 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
             }
           });
         });
-        const llmKeep = unknownRefs.length ? (await callAltFilter(pairs)).keep : [];
+        // Крок А4б, остання дірка: `callAltFilter` уже повертає `calls`, і
+        // досі тут бралось лише `.keep`, а облік викидався. Тому рід
+        // `alt_filter` не існував у `token_usage` взагалі — ці гроші було
+        // видно тільки на Activity в OpenRouter, і кожна ціна на дім у Пульсі
+        // та Зведенні була занижена на невідому величину.
+        //
+        // `turn` не передається свідомо: ходу в цього виклику немає
+        // (збірка кошика — не репліка людини), і null тут чесніший за
+        // здогадку — див. `usage.ts`.
+        let llmKeep: boolean[] = [];
+        if (unknownRefs.length) {
+          const started = Date.now();
+          const alt = await callAltFilter(pairs);
+          llmKeep = alt.keep;
+          await recordUsage(repo, { user_id, household_id }, 'alt_filter', alt.meta, alt.calls, started);
+        }
         const llmMap = new Map<string, boolean>();
         unknownRefs.forEach((ref, i) => llmMap.set(`${ref.rowIdx}:${ref.altIdx}`, llmKeep[i] ?? true));
 
@@ -783,7 +799,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // й не пишеться в список покупок. Той самий гібридний фільтр категорій,
   // що альтернативи кошика (crossreference не випадковий — та сама
   // причина: наївний повнотекстовий пошук Сільпо плутає категорії).
-  async function searchSilpo(user_id: string, query: string): Promise<RetailSearchAttempt> {
+  async function searchSilpo(user_id: string, household_id: string, query: string): Promise<RetailSearchAttempt> {
     const conn = await repo.getRetailConnection(user_id, 'silpo');
     if (!conn || conn.status !== 'active') return { ok: false, error: 'not_connected' };
 
@@ -808,7 +824,16 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     });
     const unknownIdx = verdicts.reduce<number[]>((acc, v, i) => (v === 'unknown' ? [...acc, i] : acc), []);
     const pairs = unknownIdx.map((i) => ({ source: query, candidate: candidates[i]!.name }));
-    const llmKeep = pairs.length ? (await callAltFilter(pairs)).keep : [];
+    // Той самий облік, що в збірці кошика: другий (і останній) виклик
+    // `alt_filter` у продукті. Пошук — read-only, але модель тут платна так
+    // само, тож рядок у `token_usage` має бути й тут.
+    let llmKeep: boolean[] = [];
+    if (pairs.length) {
+      const started = Date.now();
+      const alt = await callAltFilter(pairs);
+      llmKeep = alt.keep;
+      await recordUsage(repo, { user_id, household_id }, 'alt_filter', alt.meta, alt.calls, started);
+    }
     const keepSet = new Set<number>();
     verdicts.forEach((v, i) => { if (v === 'keep') keepSet.add(i); });
     unknownIdx.forEach((i, j) => { if (llmKeep[j] ?? true) keepSet.add(i); });
@@ -887,9 +912,9 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   // Пошук по всіх джерелах одразу. Сільпо — лише якщо підключено; Стейки
   // Карпат — завжди, бо каталог відкритий. ok, коли відповіло хоч одне;
   // not_connected — лише коли нема ні підключеного Сільпо, ні відкритих джерел.
-  async function attemptSearch(user_id: string, query: string): Promise<RetailSearchAttempt> {
+  async function attemptSearch(user_id: string, household_id: string, query: string): Promise<RetailSearchAttempt> {
     const sources: RetailSource[] = [];
-    const silpoRes = await searchSilpo(user_id, query);
+    const silpoRes = await searchSilpo(user_id, household_id, query);
     sources.push({
       id: 'silpo', label: 'Сільпо',
       products: silpoRes.products ?? [], total: silpoRes.total ?? 0,

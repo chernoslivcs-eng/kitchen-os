@@ -1046,6 +1046,11 @@ export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCa
     const system = compose('alt_filter', prompt);
     const query = pairs.map((p, i) => `${i}. «${p.source}» → «${p.candidate}»`).join('\n');
 
+    // Позначка кешу тут ДЕКОРАТИВНА і жодного разу не спрацювала: поріг
+    // кешування — 1024 токени, а в цьому блоці їх 501. Лишена свідомо, а не
+    // забута: знімати її означало б, що в день, коли блок доросте до порога,
+    // кеш мовчки не ввімкнеться. Дописувати блок до порога заради кешу ми не
+    // будемо — це промпт, і haiku тут коштує копійки.
     const resp = await withRetry(() => client.messages.create({
       model,
       max_tokens: 4096,
