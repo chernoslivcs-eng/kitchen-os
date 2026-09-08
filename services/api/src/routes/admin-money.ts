@@ -98,7 +98,11 @@ function fold(groups: AdminMoneyGroup[]): MoneyTotals {
     t.cached_tokens += g.cached_tokens;
   }
   t.usd = Number(t.usd.toFixed(6));
-  t.cached_share = t.input_tokens > 0 ? t.cached_tokens / t.input_tokens : null;
+  // Крок А4а: знаменник — ВХІД + КЕШ, бо це два окремі лічильники, а не один
+  // усередині іншого. Зі старим знаменником частка виходила 256% — число, яке
+  // не могло існувати й показувало саме цю плутанину.
+  const inputAll = t.input_tokens + t.cached_tokens;
+  t.cached_share = inputAll > 0 ? t.cached_tokens / inputAll : null;
   return t;
 }
 
@@ -167,10 +171,27 @@ export function moneyRoutes(app: FastifyInstance, repo: Repo) {
       const totals = fold(nowGroups);
       const previous = fold(prevGroups);
 
+      // Крок А4а: назви замість uuid. Розріз без імен технічно правильний і
+      // непридатний для читання — власник не впізнає в ньому нікого.
+      // Довідник імен береться з того самого запиту, що вже потрібен списку
+      // домів; окремого циклу «на дім» тут не з'явилось.
+      const houses = await repo.listAdminHouseholds();
+      const houseName = new Map(houses.map((h) => [h.id, h.name] as const));
+      const personName = new Map<string, string>();
+      for (const h of houses) if (h.owner_id && h.owner_name) personName.set(h.owner_id, h.owner_name);
+
       const byCall = sliceBy(nowGroups, (g) => g.call, (k) => CALL_WORD[k] ?? k);
       const byModel = sliceBy(nowGroups, (g) => g.model, (k) => k);
-      const byHousehold = sliceBy(nowGroups, (g) => g.household_id ?? '—', (k) => k);
-      const byPerson = sliceBy(nowGroups, (g) => g.user_id, (k) => k);
+      // Ім'я, а якщо його немає — короткий id, а не тридцять шість знаків.
+      // Довідник знає ВЛАСНИКІВ домів; на пілоті це всі, бо кожен дім
+      // одноосібний. Запрошений учасник (їх поки нема жодного) лишиться
+      // коротким id: щоб знати його ім'я, потрібен ще один довідник, а
+      // цикл «на людину» — рівно те, чого цей блок і уникає.
+      const short = (k: string) => (k.length > 12 ? `${k.slice(0, 8)}…` : k);
+      const byHousehold = sliceBy(nowGroups, (g) => g.household_id ?? '—',
+        (k) => houseName.get(k) ?? short(k));
+      const byPerson = sliceBy(nowGroups, (g) => g.user_id,
+        (k) => personName.get(k) ?? short(k));
 
       // ---- Середні ------------------------------------------------------
       const households = new Set(nowGroups.filter(isLive).map((g) => g.household_id).filter(Boolean));

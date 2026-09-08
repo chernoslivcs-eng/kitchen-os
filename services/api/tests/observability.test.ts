@@ -131,11 +131,21 @@ describe('ціна виклику', () => {
     expect(priceFor('claude-sonnet-5')!.output).toBeGreaterThan(priceFor('claude-haiku-4-5')!.output);
   });
 
-  it('кешовані рахуються за зниженою ставкою', () => {
+  it('кешовані рахуються за зниженою ставкою — і НЕ заміщають вхідні', () => {
+    // Крок А4а: раніше тут стояло `cached → $0.10`, тобто мільйон кешованих
+    // ЗАМІНЯВ мільйон вхідних. Це кодувало хибне припущення, що кеш — частина
+    // входу. Він окремий лічильник: провайдер бере і за одне, і за друге.
     const base = { model: 'claude-haiku-4-5', input_tokens: 1_000_000, output_tokens: 0, cached_tokens: 0 };
-    const cached = { ...base, cached_tokens: 1_000_000 };
     expect(priceOf(base)).toBeCloseTo(1.0, 5);
-    expect(priceOf(cached)).toBeCloseTo(0.1, 5);
+
+    // Той самий вхід плюс мільйон із кешу — вхід нікуди не дівся.
+    const withCache = { ...base, cached_tokens: 1_000_000 };
+    expect(priceOf(withCache)).toBeCloseTo(1.1, 5);
+
+    // Але кеш справді вдесятеро дешевший — заради цього він і потрібен.
+    const freshInstead = { ...base, input_tokens: 2_000_000 };
+    expect(priceOf(freshInstead)).toBeCloseTo(2.0, 5);
+    expect(priceOf(withCache)!).toBeLessThan(priceOf(freshInstead)!);
   });
 
   it('невідома модель — null, а не нуль', () => {
