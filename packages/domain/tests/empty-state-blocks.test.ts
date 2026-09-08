@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  serializeShopping, serializeEaters,
+  serializeShopping,
   serializeRecentRecipes, buildKitchenContext,
 } from '../context.js';
 import { serializeProfileText, emptyProfileText } from '../profile-text.js';
@@ -74,12 +74,6 @@ describe('[ПРО ЛЮДИНУ] присутній завжди', () => {
 });
 
 describe('решта стан-блоків присутні завжди', () => {
-  it('[ДОМАШНІ] — порожньо означає «крім власника нікого не записано»', () => {
-    const s = serializeEaters([]);
-    expect(s).toContain('[ДОМАШНІ]');
-    expect(s).toMatch(/не записано/i);
-  });
-
   it('[ЗГЕНЕРОВАНІ РЕЦЕПТИ] — порожньо', () => {
     const s = serializeRecentRecipes([]);
     expect(s).toContain('[ЗГЕНЕРОВАНІ РЕЦЕПТИ]');

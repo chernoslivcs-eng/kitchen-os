@@ -4,7 +4,7 @@
 
 import type { Fixture } from './fixtures/index.js';
 import { vetoIndexOfFixture } from './model-client.js';
-import { applyMode, CARD_BUTTON_LABEL, vetoCard, vetoRecipe, stripVetoMentions, matchVeto, resolveRecipeLabels, normalizeNoteText, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
+import { applyMode, CARD_BUTTON_LABEL, vetoCard, vetoRecipe, matchVeto, resolveRecipeLabels, normalizeNoteText, type Card, type VetoRow, type PantryBatch } from '@kitchen/domain';
 
 // Індекс вето з фікстури: profile_text.no / .ban → buildVetoIndex (той самий
 // витяг, що PATCH /v1/profile/:key у проді).
@@ -166,19 +166,24 @@ export const registry: Record<string, Invariant> = {
     }
     return fail(`card.type=${c?.type ?? 'null'} — ні proposal, ні recipe`);
   },
-  // Рядок з allergy=true: після серверної зачистки репліка не згадує алерген,
-  // якого людина сама не називала, і не порожня. Перевіряється результат
-  // конвеєра (як і veto-survivors), а не сира репліка: що саме вирізано —
-  // у detail, це сигнал про промпт, не провал продукту.
+  // П5-В6: сервер більше не вирізає речень із репліки (stripVetoMentions
+  // прибрано). Правило лишилось те саме, але тепер його тримає ТІЛЬКИ промпт
+  // («Алергенний продукт у своїй ініціативі не згадуй ВЗАГАЛІ» —
+  // proposal-flow.md), тож інваріант перевіряє сиру репліку моделі, а не
+  // результат серверної зачистки. Провал тут відтепер означає промах промпту,
+  // а не дірку в конвеєрі — раніше конвеєр цей промах ховав.
   'veto-reply-clean': (out, fx) => {
     const index = vetoIndexOf(fx);
     const userText = [...(fx.conversation ?? [])].reverse().find((m) => m.role === 'user')?.content ?? '';
-    const call = { card: JSON.parse(JSON.stringify(out.card ?? null)) as Card | null, reply: out.reply ?? '' };
-    vetoCard(call, index, userText);
-    const r = stripVetoMentions(call, index, userText);
-    if (!(call.reply ?? '').trim() && !call.card) return fail('після вето й зачистки не лишилось ні картки, ні репліки');
-    if (matchVeto(call.reply ?? '', index.filter((x) => x.allergy)).length) return fail(`алерген лишився в репліці: «${call.reply}»`);
-    return pass(r.stripped.length ? `сервер вирізав ${r.stripped.length}: «${r.stripped[0]}»` : 'модель сама не згадала');
+    const reply = String(out.reply ?? '');
+    if (!reply.trim() && !out.card) return fail('ні картки, ні репліки');
+    // Алерген, який людина назвала сама, згадувати можна й треба — попередження
+    // на прямий запит і є те, заради чого знято заборону.
+    const named = new Set(matchVeto(userText, index).map((r) => `${r.kind}:${r.ref}`));
+    const leaked = matchVeto(reply, index.filter((x) => x.allergy)).filter((r) => !named.has(`${r.kind}:${r.ref}`));
+    return leaked.length
+      ? fail(`модель сама згадала алерген у репліці: ${leaked.map((r) => r.label).join(', ')} — «${reply.slice(0, 160)}»`)
+      : pass('модель сама не згадала');
   },
   // meh — не вето, а нахил: мʼяка перевірка, більшість варіантів без мʼяса.
   'mostly-meatless': (out) => {

@@ -42,14 +42,14 @@ describe('callChat: guard службових позначок', () => {
 
   it('позначка в reply → один повторний виклик із guard-рядком; чиста відповідь іде як є', async () => {
     createMock
-      .mockResolvedValueOnce(resp('{"reply":"Запишу веганство.\\n[картка: профіль] записав у „Я не їм": мʼяса [НЕ ЗАСТОСОВАНО — …]","card":null}'))
-      .mockResolvedValueOnce(resp('{"reply":"Запишу: без мʼяса, риби, яєць і молочного.","card":{"type":"profile","field":"no","mode":"append","text":"мʼяса, птиці, риби, яєць, молочного"}}'));
+      .mockResolvedValueOnce(resp('{"reply":"Запишу пасту.\\n[картка: комора] add помідори [НЕ ЗАСТОСОВАНО — …]","card":null}'))
+      .mockResolvedValueOnce(resp('{"reply":"Записав помідори.","card":{"type":"intake_diff","ops":[{"op":"add","label":"помідори"}]}}'));
     const r = await callChat(args);
     expect(createMock).toHaveBeenCalledTimes(2);
     const second = createMock.mock.calls[1]![0] as { messages: { content: string }[] };
     expect(second.messages.at(-1)!.content).toContain(SERVICE_MARKER_GUARD_LINE);
-    expect(r.reply).toBe('Запишу: без мʼяса, риби, яєць і молочного.');
-    expect(r.card).toMatchObject({ type: 'profile', field: 'no' });
+    expect(r.reply).toBe('Записав помідори.');
+    expect(r.card).toMatchObject({ type: 'intake_diff' });
     expect(r.meta.service_markers).toBe(true);
   });
 

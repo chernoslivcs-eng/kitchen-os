@@ -10,23 +10,24 @@
 // має залежати від того, куди модель подивилась: сервер має право ЗАБОРОНИТИ
 // те, що впізнав, і не має права вигадувати.
 //
-// Страву з рядком індексу прибираємо з картки. Лишилась хоч одна — картка
-// живе; не лишилось жодної — картка null і чесна репліка (VETO_EMPTY_REPLY).
-// Речення з продуктом із індексу, якого людина сама не називала, ріжуться з
-// reply (stripVetoMentions): згадка «але там алерген — не беру» — теж
-// пропозиція. Відсічене логується: частота — сигнал про промпт.
+// П5-В6: вето лишилось рівно одне — фільтр ВЛАСНОЇ ініціативи асистента.
+// Страву з рядком індексу прибираємо з картки; лишилась хоч одна — картка
+// живе, не лишилось жодної — картки немає, а репліка лишається як є.
+// Зачистки речень із reply (stripVetoMentions) більше немає: «є лосось, але
+// сам не пропоную» — чесне попередження, а не прихована пропозиція, і
+// вирізати його означало ховати від людини те, що вона й так має знати.
+// Те, що назвала людина, у вето не потрапляє взагалі (packages/domain/veto.ts).
 
 import type { Card, VetoRow } from '@kitchen/domain';
-import { vetoCard, vetoRecipe, stripVetoMentions, type Recipe } from '@kitchen/domain';
+import { vetoCard, vetoRecipe, type Recipe } from '@kitchen/domain';
 
 // ----- Обгортка з логом -----------------------------------------------------
 
 export interface VetoLogEntry {
-  event: 'veto' | 'veto-reply' | 'veto-recipe';
+  event: 'veto' | 'veto-recipe';
   candidate: string;
   ingredient?: string;
   row?: VetoRow;
-  stripped?: string;
 }
 
 export interface ApplyVetoArgs {
@@ -38,19 +39,15 @@ export interface ApplyVetoArgs {
 export interface ApplyVetoResult {
   rejected: { title: string; hits: string[] }[];
   emptied: boolean;
-  stripped: string[];
 }
 
-/** Мутує call (card/reply): індекс вето по картці й репліці. Кожне відхилення йде в log. */
+/** Мутує call.card: індекс вето по картці. Кожне відхилення йде в log. */
 export function applyVeto(call: { card: Card | null; reply?: string | null }, a: ApplyVetoArgs): ApplyVetoResult {
   const r = vetoCard(call, a.index, a.userText);
   for (const x of r.rejected) for (const row of x.rows) a.log({ event: 'veto', candidate: x.title, ingredient: x.ingredient, row });
-  const s = stripVetoMentions(call, a.index, a.userText);
-  for (const st of s.stripped) a.log({ event: 'veto-reply', candidate: st, stripped: st });
   return {
     rejected: r.rejected.map((x) => ({ title: x.title, hits: x.rows.map((w) => `${w.field}:${w.kind}:${w.ref}`) })),
     emptied: r.emptied,
-    stripped: s.stripped,
   };
 }
 

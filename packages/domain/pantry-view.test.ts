@@ -39,7 +39,7 @@ describe('no збігається з ⚠ у промпті на одному с�
   const index = [...buildVetoIndex('u1', 'no', 'мʼяса'), ...buildVetoIndex('u1', 'ban', 'арахіс')];
   const bs = [batch('Стейк рібай'), batch('Арахісова паста'), batch('Картопля'), batch('Куряче філе', { catalog_key: 'chicken_fillet' })];
   it('кожен рядок: не можна ↔ ⚠АЛЕРГЕН, не їм ↔ ⚠НЕ ЇСТЬ, null ↔ без мітки', () => {
-    const prompt = serializePantry(bs, NOW, [], false, 'none', 120, [], '', index);
+    const prompt = serializePantry(bs, NOW, false, 'none', 120, [], '', index);
     for (const b of bs) {
       const line = prompt.split('\n').find((l) => l.startsWith(b.label))!;
       const no = vetoMarkOf(pantryVetoRows(b, b.catalog_key, index));

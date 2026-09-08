@@ -16,7 +16,6 @@ describe('режим застосування картки', () => {
   });
 
   it('картка чекає тапу людини — confirm', () => {
-    expect(applyMode('profile')).toBe('confirm');
     expect(applyMode('recipe')).toBe('confirm');
     expect(applyMode('cook_photo')).toBe('confirm');
   });

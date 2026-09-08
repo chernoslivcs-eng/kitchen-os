@@ -20,7 +20,7 @@ import type { Card, Recipe } from './types.js';
  * віддати. Обʼєднання розширило б набір, що доходить до людини.
  *
  * Виведено з `card-schemas.md` версії 2026-08-28 (він у складі виклику
- * `chat`): там документовано одинадцять типів. Вісім тут; трьох немає
+ * `chat`): там документовано десять типів. Сім тут; трьох немає
  * свідомо:
  *
  *   `cook_go`, `cart_go`, `retail_search_go` — маркери ходу, не картки.
@@ -32,7 +32,7 @@ import type { Card, Recipe } from './types.js';
  * сервер конструює його сам (services/api/src/routes/chat.ts).
  */
 export const CHAT_CARD_TYPES: readonly string[] = [
-  'intake_diff', 'proposal', 'shopping', 'profile',
+  'intake_diff', 'proposal', 'shopping',
   'recipe', 'recipe_edit', 'event', 'period',
 ];
 

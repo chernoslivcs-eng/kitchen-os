@@ -5,7 +5,7 @@ import type {
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
-  SessionRow, MessageRow, EaterRow, LastAppliedIntake, IntakeCard, AppEventRow,
+  SessionRow, MessageRow, LastAppliedIntake, IntakeCard, AppEventRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -22,7 +22,6 @@ export class InMemoryRepo implements Repo {
   private profileTexts = new Map<string, ProfileText>();
   private profileNotes = new Map<string, ProfileNote>();
   private vetoRows: VetoRow[] = [];
-  private eaters = new Map<string, EaterRow>();
   private pending = new Map<string, PendingCard>();
   private attachments = new Map<string, AttachmentRecord>();
   private users = new Map<string, UserRow>();                 // by id
@@ -117,23 +116,6 @@ export class InMemoryRepo implements Repo {
     const cur = this.products.get(id);
     if (!cur) throw new Error(`product not found: ${id}`);
     this.products.set(id, { ...cur, ...patch, tags: { ...(patch.tags ?? cur.tags) } });
-  }
-
-  async insertEater(e: EaterRow): Promise<void> {
-    this.eaters.set(e.id, { ...e });
-  }
-  async listEaters(household_id: string): Promise<EaterRow[]> {
-    return [...this.eaters.values()]
-      .filter((e) => e.household_id === household_id)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-  }
-  async findEaterByName(household_id: string, name: string): Promise<EaterRow | null> {
-    const n = name.trim().toLowerCase();
-    return [...this.eaters.values()]
-      .find((e) => e.household_id === household_id && e.name.trim().toLowerCase() === n) ?? null;
-  }
-  async deleteEater(id: string): Promise<void> {
-    this.eaters.delete(id);
   }
 
 

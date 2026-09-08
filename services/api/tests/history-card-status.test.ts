@@ -44,31 +44,20 @@ describe('статус картки в історії — лише там, де 
     for (const t of history) expect(t.content).not.toMatch(/ЗАСТОСОВАНО/);
   });
 
-  it('profile на підтвердженні: мітка називає справжню кнопку і каже, що людина її не натискала', () => {
+  // Носій — картка періоду: profile був тут, доки П5-В4 не прибрав родину.
+  it('confirm-картка: мітка називає справжню кнопку і каже, що людина її не натискала', () => {
     const [turn] = buildChatHistory([
       msg({
-        text: 'Запишу кінзу.',
-        card: { type: 'profile', ops: [{ op: 'add', kind: 'anti', label: 'кінза' }] } as never,
+        text: 'Запишу піст.',
+        card: { type: 'period', kind: 'tradition', title: 'Великий піст' } as never,
         applied: 0,
       }),
     ]);
-    expect(turn!.content).toContain('[картка: профіль] add anti: кінза');
     // Починається тими самими словами, що й правило в role.md — префікс не правиться.
     expect(turn!.content).toMatch(/\[НЕ ЗАСТОСОВАНО — у профілі\/бібліотеці цього ще НЕМАЄ/);
-    // CARD_BUTTON_LABEL.profile — те саме, що рендерить ProfileCard у cards.tsx.
+    // CARD_BUTTON_LABEL.period — те саме, що рендерить картку у cards.tsx.
     expect(turn!.content).toContain('кнопка «Записати»');
     expect(turn!.content).toMatch(/не натискала/);
-  });
-
-  it('традиції — виняток у профілі (auto): застосована → [ЗАСТОСОВАНО]', () => {
-    const [turn] = buildChatHistory([
-      msg({
-        text: 'Записав: католицькі свята.',
-        card: { type: 'profile', ops: [{ op: 'add', kind: 'tradition', label: 'catholic' }] } as never,
-        applied: 1,
-      }),
-    ]);
-    expect(turn!.content).toContain('[ЗАСТОСОВАНО]');
   });
 
   it('auto-картка, що нічого не записала: «не сталось», а не «чекає»', () => {
@@ -98,7 +87,7 @@ describe('статус картки в історії — лише там, де 
     const [turn] = buildChatHistory([
       msg({
         text: 'Запишу кінзу.',
-        card: { type: 'profile', ops: [{ op: 'add', kind: 'anti', label: 'кінза' }] } as never,
+        card: { type: 'period', kind: 'custom', title: 'гості' } as never,
         applied: 0,
         dismissed_at: '2026-09-05T10:00:00.000Z',
       }),

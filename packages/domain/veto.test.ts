@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildVetoIndex } from './veto-index.js';
-import { vetoCard, vetoRecipe, stripVetoMentions, VETO_EMPTY_REPLY, ALLERGY_EMPTY_REPLY } from './veto.js';
+import { vetoCard, vetoRecipe } from './veto.js';
 import type { Card, Recipe } from './types.js';
 
 // Раунд 4, крок 4 (§5): вето по індексу. Кандидат відхиляється, якщо будь-який
@@ -41,16 +41,18 @@ describe('vetoCard (proposal)', () => {
     expect(r.rejected[0]!.rows.some((x) => x.ref === 'риба')).toBe(true);
     expect(r.emptied).toBe(true);
     expect(call.card).toBeNull();
-    expect(call.reply).toBe(VETO_EMPTY_REPLY);
+    // П5-В6: службової відмови замість репліки більше немає — репліка як була.
+    expect(call.reply).toBe('Пад тай.');
   });
 
-  it('усе відхилено рядком з allergy=true → репліка про алергію', () => {
+  it('усе відхилено рядком з allergy=true → картки немає, репліка ціла', () => {
     // П1а: вето читає лише інгредієнти (rescues/needs), не desc.
     const card: Card = { type: 'proposal', items: [{ title: 'Тости', desc: 'з арахісовою пастою', rescues: [], needs: ['арахісова паста'] }] };
     const call = { card, reply: 'Тости.' };
     const r = vetoCard(call, peanut);
     expect(r.emptied).toBe(true);
-    expect(call.reply).toBe(ALLERGY_EMPTY_REPLY);
+    expect(call.card).toBeNull();
+    expect(call.reply).toBe('Тости.');
   });
 
   it('free-рядки і meh не діють; порожній індекс — нічого не робить; не proposal — нічого', () => {
@@ -85,25 +87,6 @@ describe('vetoRecipe (згенерований рецепт, по всіх ін�
   });
 });
 
-describe('stripVetoMentions — тон', () => {
-  it('allergy-рядок: речення з алергеном ріжеться, якщо людина сама його не називала', () => {
-    const call = { card: proposal(), reply: 'Тримай. Арахісова паста теж лежить, але її не беру.' };
-    const r = stripVetoMentions(call, peanut, 'що на сніданок');
-    expect(r.stripped).toHaveLength(1);
-    expect(call.reply).toBe('Тримай.');
-  });
-
-  it('прямий запит — репліка не чіпається', () => {
-    const call = { card: proposal(), reply: 'У тебе алергія на арахіс — але зроблю, як просив.' };
-    expect(stripVetoMentions(call, peanut, 'зроби арахісову пасту').stripped).toEqual([]);
-  });
-
-  it('рядок без прапорця алергії: репліку не чіпаємо і не попереджаємо', () => {
-    const call = { card: proposal(), reply: 'Стейк не пропоную, ти ж мʼяса не їси.' };
-    expect(stripVetoMentions(call, pesc, 'що на вечерю').stripped).toEqual([]);
-  });
-});
-
 // ----- Крок 4б (a): ⚠-мітка в рядках [КОМОРА] за індексом -----------------
 
 import { serializePantry } from './context.js';
@@ -118,7 +101,7 @@ const batch = (id: string, label: string): PantryBatch => ({
 describe('serializePantry з veto_index', () => {
   it('рядок з allergy=true — та сама мітка ⚠АЛЕРГЕН; без прапорця — ⚠НЕ ЇСТЬ; чисте — без мітки', () => {
     const index = [...buildVetoIndex('u1', 'no', 'мʼяса'), ...buildVetoIndex('u1', 'ban', 'арахіс')];
-    const out = serializePantry([batch('b1', 'Стейк рібай'), batch('b2', 'Арахісова паста'), batch('b3', 'Картопля')], Date.now(), [], false, 'none', 120, [], '', index);
+    const out = serializePantry([batch('b1', 'Стейк рібай'), batch('b2', 'Арахісова паста'), batch('b3', 'Картопля')], Date.now(), false, 'none', 120, [], '', index);
     const lines = out.split('\n');
     expect(lines.find((l) => l.startsWith('Стейк рібай'))).toMatch(/⚠НЕ ЇСТЬ \(мʼясо\)/);
     expect(lines.find((l) => l.startsWith('Стейк рібай'))).not.toMatch(/АЛЕРГЕН/);
@@ -126,13 +109,13 @@ describe('serializePantry з veto_index', () => {
     expect(lines.find((l) => l.startsWith('Картопля'))).not.toMatch(/⚠/);
   });
 
-  it('межа власника — лише індекс; алергії їдців — за коренем у назві', () => {
-    const index = buildVetoIndex('u1', 'no', 'кінзи');
-    const eater = { id: 'e1', household_id: 'h1', name: 'Оксана', allergies: ['фундук'], wishes: [], antipatterns: [], created_at: '2026-09-01T00:00:00.000Z' };
-    const out = serializePantry([batch('b1', 'Картопля'), batch('b2', 'Фундук'), batch('b3', 'Кінза свіжа')], Date.now(), [eater], false, 'none', 120, [], '', index);
+  // П5-В5: їдців дому немає — джерело ⚠ лишилось одне, індекс власника.
+  it('межа власника — лише індекс, і мітки лишаються на місці', () => {
+    const index = [...buildVetoIndex('u1', 'no', 'кінзи'), ...buildVetoIndex('u1', 'ban', 'фундук')];
+    const out = serializePantry([batch('b1', 'Картопля'), batch('b2', 'Фундук'), batch('b3', 'Кінза свіжа')], Date.now(), false, 'none', 120, [], '', index);
     const lines = out.split('\n');
     expect(lines.find((l) => l.startsWith('Картопля'))).not.toMatch(/⚠/);
-    expect(lines.find((l) => l.startsWith('Фундук'))).toMatch(/⚠АЛЕРГЕН \(фундук в Оксана\)/);
+    expect(lines.find((l) => l.startsWith('Фундук'))).toMatch(/⚠АЛЕРГЕН \(фундук\)/);
     expect(lines.find((l) => l.startsWith('Кінза'))).toMatch(/⚠НЕ ЇСТЬ \(кінза\)/);
   });
 });
@@ -147,10 +130,13 @@ describe('vetoCard — прямий запит', () => {
     expect((call.card as { items: { title: string }[] }).items.map((i) => i.title)).toContain('Стейк рібай');
   });
 
-  it('allergy-рядок на прямий запит — як і був: кандидат знімається', () => {
+  it('allergy-рядок на прямий запит більше НЕ знімає страву (В6)', () => {
     const card: Card = { type: 'proposal', items: [{ title: 'Тости з арахісовою пастою', desc: '', rescues: ['арахісова паста'] }] };
-    const r = vetoCard({ card, reply: '' }, peanut, 'тости з арахісовою пастою');
-    expect(r.emptied).toBe(true);
+    const call = { card, reply: 'Тости.' };
+    const r = vetoCard(call, peanut, 'тости з арахісовою пастою');
+    expect(r.rejected).toEqual([]);
+    expect(r.emptied).toBe(false);
+    expect((call.card as { items: unknown[] }).items).toHaveLength(1);
   });
 
   it('без згадки в репліці людини — вето як раніше', () => {
@@ -158,8 +144,36 @@ describe('vetoCard — прямий запит', () => {
     expect(vetoCard(call, pesc, 'що на вечерю').rejected.map((x) => x.title)).toEqual(['Стейк рібай', 'Курячі стегна в духовці']);
   });
 
-  it('VETO_EMPTY_REPLY — без слова «пропозицію», у голосі', () => {
-    expect(VETO_EMPTY_REPLY).not.toMatch(/пропозиці/i);
+  // Живий випадок 07.09, заради якого написана В6: у вето категорія «риба» з
+  // allergy=true, людина просить лосося — і отримує його. Другий тест — та сама
+  // фраза довша за чотири слова: до В6 (2) footprint на ній каталог не питав,
+  // і виняток мовчки не спрацьовував саме на живій мові.
+  it('лосось при алергійному вето «риба»: коротка фраза', () => {
+    const fish = buildVetoIndex('u1', 'ban', 'рибу');
+    expect(fish.some((r) => r.allergy && r.ref === 'риба')).toBe(true);
+    const card: Card = { type: 'proposal', items: [{ title: 'Стейк з лосося', desc: '', rescues: ['лосось'] }] };
+    const call = { card, reply: 'Тримай.' };
+    const r = vetoCard(call, fish, 'Може стейк з лосося?');
+    expect(r.rejected).toEqual([]);
+    expect(call.card).not.toBeNull();
+  });
+
+  it('лосось при алергійному вето «риба»: фраза понад чотири слова', () => {
+    const fish = buildVetoIndex('u1', 'ban', 'рибу');
+    const card: Card = { type: 'proposal', items: [{ title: 'Стейк з лосося', desc: '', rescues: ['лосось'] }] };
+    const call = { card, reply: 'Тримай.' };
+    const r = vetoCard(call, fish, 'а може зробимо стейк з лосося на вечерю');
+    expect(r.rejected).toEqual([]);
+    expect(call.card).not.toBeNull();
+  });
+
+  it('сам не пропоную: те саме вето без прохання людини — страву знято', () => {
+    const fish = buildVetoIndex('u1', 'ban', 'рибу');
+    const card: Card = { type: 'proposal', items: [{ title: 'Стейк з лосося', desc: '', rescues: ['лосось'] }] };
+    const call = { card, reply: 'Тримай.' };
+    expect(vetoCard(call, fish, 'що на вечерю').emptied).toBe(true);
+    expect(call.card).toBeNull();
+    expect(call.reply).toBe('Тримай.');
   });
 });
 

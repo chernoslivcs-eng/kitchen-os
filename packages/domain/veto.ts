@@ -4,9 +4,11 @@
 // free-рядки вето не читає. Живе в домені, бо цим користуються прод (chat,
 // recipes) і eval — той самий закон, що context.ts і model-response.ts.
 //
-// Тон (§5): рядки з allergy=true — поточна поведінка allergen-veto (зачистка
-// згадки з репліки на непрямий запит, пряме попередження лишає модель);
-// рядки без прапорця — просто не пропонувати, без попереджень і згадок.
+// П5-В6: вето діє на те, що асистент пропонує САМ. Страва чи продукт, які
+// назвала людина, до нього не потрапляють узагалі (activeVetoRows,
+// rowsUnlessNamed) — ні дієтні рядки, ні алергійні. Речення з репліки більше
+// не вирізаються: «є лосось, але сам не пропоную» — чесне попередження, а не
+// прихована пропозиція. Попереджає словами модель, сервер лише не пропонує.
 
 import { normalize, resolveLabel } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
@@ -21,9 +23,16 @@ function footprint(text: string): { categories: Set<string>; keys: Set<string> }
   const categories = new Set<string>();
   const keys = new Set<string>();
   const ws = words(text);
-  // Коротка мітка («рибний соус», «курячі стегна») — резолвимо як позицію
-  // каталогу: категорії позиції несуть ієрархію, і «рибний соус» → риба.
-  if (ws.length && ws.length <= 4) {
+  // Мітку («рибний соус», «курячі стегна») резолвимо як позицію каталогу:
+  // категорії позиції несуть ієрархію, і «рибний соус» → риба.
+  //
+  // П5-В6 (2): межі «до чотирьох слів» більше немає. Вона стояла тут як
+  // здогад про «коротку мітку», а платила за неї фраза людини: «Може стейк з
+  // лосося?» проходила ледве, «а може зробимо стейк з лосося на вечерю» вже
+  // ні — і виняток на прямий запит мовчки не спрацьовував саме на довгих
+  // формулюваннях, тобто на живій мові. resolveLabel на довгій фразі просто
+  // не знаходить нічого; ціна — один зайвий виклик, не хибне вето.
+  if (ws.length) {
     const hit = resolveLabel(text, 'generic');
     const item = hit ? BY_KEY.get(hit.key) : undefined;
     // Список категорій позиції вже несе її власну ієрархію — предків не
@@ -70,24 +79,28 @@ export function matchVeto(text: string, index: VetoRow[], scope?: VetoScope): Ve
 export interface VetoRejection { title: string; ingredient: string; rows: VetoRow[] }
 export interface VetoCardResult { rejected: VetoRejection[]; emptied: boolean }
 
-export const VETO_EMPTY_REPLY = 'Те, що придумав, тобі не підходить — там є те, чого ти не їси. Скажи, від чого відштовхуватись, і знайду інше.';
-export const ALLERGY_EMPTY_REPLY = 'Зняв пропозицію: у ній був продукт, який тобі не можна. Скажи, від чого відштовхуватись — запропоную без нього.';
-
 /**
- * Крок 4в (1): прямий запит. Рядок «Я не їм» (allergy=false), який людина сама
- * назвала в репліці («зроби мені стейк»), на цей хід не діє — страву дають,
- * модель попереджає одним реченням. Ознака та сама, що в алергійному шляху
- * (matchVeto по тексту людини). Allergy-рядки поводяться як і були.
+ * Прямий запит. Рядок індексу, який людина сама назвала в репліці («зроби
+ * мені стейк», «може стейк з лосося?»), на цей хід не діє: страву дають,
+ * попереджає модель одним реченням.
+ *
+ * П5-В6 (1): раніше виняток обходив алергію — allergy-рядки викидались із
+ * входу до зіставлення (`index.filter((r) => !r.allergy)`), а потім лишались
+ * активними безумовно. Каталог у них ніхто не питав. Живий випадок 07.09: у
+ * вето категорія «риба» з allergy=true, людина сказала «Може стейк з
+ * лосося?» — сервер зняв страву й людині довелось виправдовуватись («я не
+ * для себе»). Обмеження діє на те, що асистент пропонує САМ; на прохання
+ * людини воно не діє незалежно від того, алергія це чи дієта.
  */
 export function activeVetoRows(index: VetoRow[], userText?: string): VetoRow[] {
   if (!userText) return index;
-  const named = new Set(matchVeto(userText, index.filter((r) => !r.allergy)).map((r) => `${r.kind}:${r.ref}`));
-  return index.filter((r) => r.allergy || !named.has(`${r.kind}:${r.ref}`));
+  const named = new Set(matchVeto(userText, index).map((r) => `${r.kind}:${r.ref}`));
+  return index.filter((r) => !named.has(`${r.kind}:${r.ref}`));
 }
 
 // Кандидат, якого людина назвала сама: стем слова з її репліки збігається зі
-// стемом слова в назві/інгредієнті («стейк» у «Стейк рібай»). Дієтні рядки
-// (allergy=false) на такий кандидат не діють; allergy — діють як і були.
+// стемом слова в назві/інгредієнті («стейк» у «Стейк рібай»). На такий
+// кандидат не діє ЖОДЕН рядок індексу — ні дієтний, ні алергійний (П5-В6).
 const STEM_STOP = new Set(['зроби', 'зробити', 'мені', 'дай', 'давай', 'хочу', 'рецепт', 'приготуй', 'приготувати', 'щось', 'будь', 'ласка', 'сьогодні', 'вечерю', 'вечеря', 'обід', 'сніданок']);
 function userStems(userText: string): Set<string> {
   return new Set(words(userText).filter((w) => !STEM_STOP.has(w)).map(stemUk).filter((w) => w.length >= 4));
@@ -98,7 +111,13 @@ export function candidateNamedByUser(candidate: string, userText?: string): bool
   if (!us.size) return false;
   return words(candidate).map(stemUk).some((w) => w.length >= 4 && us.has(w));
 }
-const dietRowsOnly = (rows: VetoRow[], named: boolean) => (named ? rows.filter((r) => r.allergy) : rows);
+// Сіра зона, названа свідомо. Межа «інгредієнт від асистента» проти «страва,
+// яку назвала людина» не завжди різка: анчоуси в путанесці — не ініціатива
+// асистента, а сама страва. Правило: інгредієнт, без якого названа страва не
+// є собою, вважається названим людиною (тому named кандидата поширюється на
+// всі його частини у vetoCard). Точність тут неповна, і це прийнятно —
+// помилка в цей бік дає людині те, що вона просила.
+const rowsUnlessNamed = (rows: VetoRow[], named: boolean) => (named ? [] : rows);
 
 /** Мутує картку proposal: прибирає страви, що зачепили індекс. Reply не чіпає, поки лишилась хоч одна. */
 export function vetoCard(call: { card: Card | null; reply?: string | null }, fullIndex: VetoRow[], userText?: string): VetoCardResult {
@@ -115,15 +134,19 @@ export function vetoCard(call: { card: Card | null; reply?: string | null }, ful
     // слово «мʼяса» в описі: згадка відсутнього — не інгредієнт.
     const parts = [...(it.rescues ?? []), ...(it.needs ?? [])].filter((p): p is string => !!p);
     for (const p of parts) {
-      const rows = dietRowsOnly(matchVeto(p, index), named || candidateNamedByUser(p, userText));
+      const rows = rowsUnlessNamed(matchVeto(p, index), named || candidateNamedByUser(p, userText));
       if (rows.length) { rejected.push({ title: it.title, ingredient: p, rows }); return false; }
     }
     return true;
   });
   if (!rejected.length) return none;
   if (keep.length) { call.card.items = keep; return { rejected, emptied: false }; }
+  // П5-В6: фільтр виїв картку до нуля. Репліку НЕ чіпаємо — раніше тут стояв
+  // VETO_EMPTY_REPLY / ALLERGY_EMPTY_REPLY, і саме він 07.09 сказав людині
+  // «Зняв пропозицію: у ній був продукт, який тобі не можна» на її ж прохання.
+  // Порожню картку не показуємо, репліку лишаємо як є: краще текст без картки,
+  // ніж службова відмова замість відповіді.
   call.card = null;
-  call.reply = rejected.some((r) => r.rows.some((x) => x.allergy)) ? ALLERGY_EMPTY_REPLY : VETO_EMPTY_REPLY;
   return { rejected, emptied: true };
 }
 
@@ -137,38 +160,7 @@ export function vetoRecipe(recipe: Recipe, fullIndex: VetoRow[], userText?: stri
     const name = (ing as { n?: string }).n;
     if (!name) continue;
     const named = candidateNamedByUser(name, userText);
-    for (const row of dietRowsOnly(matchVeto(name, index), named)) out.push({ ingredient: name, row });
+    for (const row of rowsUnlessNamed(matchVeto(name, index), named)) out.push({ ingredient: name, row });
   }
   return out;
-}
-
-// ----- Тон: зачистка згадок (лише allergy-рядки) ---------------------------
-
-function splitSentences(text: string): string[] {
-  return text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
-}
-
-export const VETO_REPLY_FALLBACK = 'Тримай варіанти.';
-
-/** Мутує call.reply: вирізає речення з алергеном (allergy-рядок індексу), якого людина сама не називала. */
-export function stripVetoMentions(
-  call: { card: Card | null; reply?: string | null },
-  index: VetoRow[],
-  userText: string,
-): { stripped: string[] } {
-  const allergy = index.filter((r) => r.allergy && r.kind !== 'free');
-  const reply = call.reply;
-  if (!reply || !allergy.length) return { stripped: [] };
-  const named = new Set(matchVeto(userText, allergy).map((r) => `${r.kind}:${r.ref}`));
-  const stripped: string[] = [];
-  const kept = splitSentences(reply).filter((s) => {
-    const hits = matchVeto(s, allergy).filter((r) => !named.has(`${r.kind}:${r.ref}`));
-    if (hits.length) { stripped.push(s.trim()); return false; }
-    return true;
-  });
-  if (!stripped.length) return { stripped };
-  let next = kept.join(' ').trim();
-  if (!next && call.card) next = VETO_REPLY_FALLBACK;
-  call.reply = next;
-  return { stripped };
 }

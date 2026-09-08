@@ -7,7 +7,7 @@
 // рівно та діра, через яку QA-4 знайшов «модель не бачить ні історії, ні
 // профілю» на 128 зелених тестах.
 
-import { applyModeFor, maskHistoryQuantities, CARD_BUTTON_LABEL, isProfileFieldCard, PROFILE_FIELDS, type Card, type MessageRow } from '@kitchen/domain';
+import { applyModeFor, maskHistoryQuantities, CARD_BUTTON_LABEL, type Card, type MessageRow } from '@kitchen/domain';
 
 export interface HistoryTurn {
   role: 'user' | 'assistant';
@@ -23,7 +23,7 @@ export interface HistoryTurn {
 // Це найімовірніша причина дублів у коморі.
 //
 // Захист від малформленої картки моделі: живий репро 01.09 — модель повернула
-// {"type":"shopping","ops":[...]} замість items (плутанина з intake_diff/profile,
+// {"type":"shopping","ops":[...]} замість items (плутанина з intake_diff,
 // де саме ops), картка збереглась як є (model.ts не валідує форму), і НАСТУПНИЙ
 // /v1/chat падав 500 тут же, при читанні історії. TS думає *.items/*.ops завжди
 // масив — жива відповідь моделі цю гарантію не тримає, тому `?? []` на кожному
@@ -37,15 +37,6 @@ export function summarizeCard(c: Card): string {
   }
   if (c.type === 'shopping') {
     return '[картка: покупки] ' + (c.items ?? []).map((i) => `${i.op ?? 'add'} ${i.label}`).join(' · ');
-  }
-  if (c.type === 'profile') {
-    // Раунд 4 §4: картка поля — «записав у „Я не їм": …» (той самий рядок,
-    // що [ОСТАННІ ДІЇ]); ops-картка — як і була.
-    if (isProfileFieldCard(c)) {
-      const lead = PROFILE_FIELDS[c.field].lead;
-      return `[картка: профіль] записав у „${lead}": ${c.text?.trim() || (c.onboarding ? '(онбординг, поле порожнє)' : '')}`;
-    }
-    return '[картка: профіль] ' + (c.ops ?? []).map((o) => `${o.op ?? 'add'} ${o.kind}: ${o.label}`).join(' · ');
   }
   // QA9-02: recipe_link в історії був безликим «[картка]» — модель не бачила,
   // що рецепт лежить у стрічці, і на «поміняв?» відповідала навмання.

@@ -56,17 +56,12 @@ export function RecipePage() {
     // Підтягнемо алергії з профілю, щоб позначити відповідні інгредієнти.
     // «Позначка, а не заборона» — рецепт лишається доступним, ми тільки попереджаємо.
     // Крок 11: межа власника — індекс із полів no/ban (label — слово людини,
-    // allergy — з «Мені не можна»), домашніх — їдці.
+    // allergy — з «Мені не можна»). П5-В5: їдців дому більше немає, отже це
+    // єдине джерело міток; другий рубіж поверх промахів моделі лишається.
     api.profileV2.get()
-      .then(({ veto, eaters }) => {
-        // DA-06: алергія їдця — теж мітка на інгредієнті («⚠ АЛЕРГІЯ ОКСАНИ»
-        // в хендофі). Другий рубіж поверх промахів моделі — QA7-06 показав,
-        // що перший (промпт) інколи мовчить.
+      .then(({ veto }) => {
         const rows = veto ?? [];
-        setAllergies([
-          ...rows.filter((r) => r.allergy).map((r) => ({ label: r.label, who: null as string | null })),
-          ...(eaters ?? []).flatMap((e) => e.allergies.map((a) => ({ label: a, who: e.name }))),
-        ]);
+        setAllergies(rows.filter((r) => r.allergy).map((r) => ({ label: r.label, who: null as string | null })));
         setAntis(rows.filter((r) => !r.allergy).map((r) => r.label));
       })
       .catch(() => {/* silent */});
