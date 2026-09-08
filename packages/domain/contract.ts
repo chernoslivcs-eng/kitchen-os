@@ -371,6 +371,40 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const b = await ctx.repo.getBatch(seeded.id);
       expect(b?.state).toBe('sealed');
       expect(b?.opened_at).toBeNull();
+      expect(b?.depleted_at).toBeNull();
+    });
+
+    it('correct зі state:sealed знімає І depleted_at — рядок не лишається суперечливим', async () => {
+      // Відкат мусить бути повний. Інакше партія виходить із правки з
+      // `state: 'sealed'` (жива) і непорожнім `depleted_at` (списана), і два
+      // поля одного рядка кажуть різне тим, хто їх читає: стрічка й комора
+      // дивляться на state, «кошик закінченого» — на depleted_at.
+      //
+      // Адресуємо ВКАЗІВНИКОМ, і це єдиний шлях, яким сюди можна дійти:
+      // findBatchByLabel списані партії пропускає, а getBatch — ні. Саме цей
+      // шлях П6-Т3 і зробив звичайним, почавши ставити batch_id на правках.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      const gone = randomUUID();
+      await createPending(ctx.repo, { message_id: gone, household_id: ctx.household_id, user_id: ctx.user_id,
+        card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'фарш' }] } });
+      await applyCard(ctx.repo, gone, [], ctx.user_id);
+      const dead = await ctx.repo.getBatch(seeded.id);
+      expect(dead?.state).toBe('depleted');
+      expect(dead?.depleted_at).not.toBeNull();
+
+      const mid = randomUUID();
+      const card: IntakeCard = {
+        type: 'intake_diff',
+        ops: [{ op: 'correct', label: 'фарш', batch_id: seeded.id, state: 'sealed' }],
+      };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { applied } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+      expect(applied).toBe(1);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state).toBe('sealed');
+      expect(b?.depleted_at, 'списання знято разом зі станом').toBeNull();
+      expect(b?.opened_at).toBeNull();
     });
 
     it('rename несе теги моделі в продукт — і каталог добирає решту', async () => {
