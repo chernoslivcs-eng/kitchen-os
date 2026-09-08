@@ -611,7 +611,13 @@ async function applyIntakeOp(
     // що асистент запропонує готувати, тож без цього уточнення в людини
     // питали дарма.
     const triple = normalizeTriple({ product: op.to });
-    const product = await ensureProduct(repo, household_id, triple, op.to, undefined, target.unit);
+    // Знахідка П6 §5.2 (№2): теги сюди йшли `undefined`, тобто мовчки
+    // губились — тоді як на `add` вони передаються. «Це не мʼясо, а
+    // свинина, і вона без лактози» одним ходом лишало продукт без
+    // lactose. Каталог при цьому нічого не втрачає: ensureProduct кладе
+    // модельні теги першими й добирає з каталогу лише ДІРКИ (алергени,
+    // скоромність), а не заміщає ними те, що сказала людина.
+    const product = await ensureProduct(repo, household_id, triple, op.to, op.tags, target.unit);
     const patch: Partial<PantryBatch> = {
       label: product ? displayName(product) : op.to,
       product_id: product?.id ?? target.product_id ?? null,
@@ -638,6 +644,32 @@ async function applyIntakeOp(
       if (norm.unit !== null) patch.unit = norm.unit;
     }
     if (op.zone !== undefined) patch.zone = op.zone;
+    // Знахідка П6 §5.2 (№1): `state` схема обіцяла, а correct його не читав.
+    // «Сметана вже відкрита» проходила як застосована — `last_action` таки
+    // писався, репліка казала «записав», — але opened_at не ставав, і мʼякий
+    // годинник «вжити до» не стартував. Мовчазна втрата того самого роду, що
+    // `value` на `deplete`.
+    //
+    // Дзеркалимо гілку `open`, а не `add`, і саме тому: на `add` партія лише
+    // народжується, строку в неї ще немає. Тут строк уже стоїть і описує
+    // ЗАПЕЧАТАНУ партію — поставити opened_at, не перерахувавши expires_at,
+    // означало б запустити годинник і лишити на екрані стару дату зіпсуття.
+    if (op.state === 'opened') {
+      const days = target.best_before_opened_days;
+      patch.state = 'opened';
+      patch.opened_at = new Date().toISOString();
+      patch.expires_at = days ? new Date(Date.now() + days * 86_400_000).toISOString() : target.expires_at;
+    } else if (op.state === 'sealed') {
+      // «Ні, я її ще не відкривав» — той самий відкат, що вже робить ручна
+      // правка партії в Коморі (routes/pantry.ts). `expires_at` не чіпаємо:
+      // він міг прийти й не з відкриття, а затерти відоме порожнім гірше,
+      // ніж лишити як було.
+      patch.state = 'sealed';
+      patch.opened_at = null;
+    }
+    // `last_action` лишається 'correct', а не стає 'open': людина ВИПРАВИЛА
+    // запис, а не відкрила пачку зараз. Плутати ці двоє в історії партії
+    // означало б вигадати подію, якої не було.
     await repo.updateBatch(target.id, patch);
     // Черга Д (№2): правка невидимих тегів — мердж у продукт партії.
     // Undo-снапшот продукту не робимо: теги — довідник, а не стан комори;
