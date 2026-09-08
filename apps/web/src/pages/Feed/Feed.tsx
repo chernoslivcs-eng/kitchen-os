@@ -1460,6 +1460,76 @@ export function Feed() {
                 )}
               </div>
             )}
+            {t.card?.type === 'shopping' && t.applied && (
+              /* Крок 4.5 + відкладений 3.2. Слід каже ДЕЛЬТУ, панель — стан:
+                 «+5 · разом 9» відповідає на «що модель узяла в роботу» без
+                 переліку, сам перелік — один тап праворуч.
+                 «Скасувати» — окреме моно-посилання в рядку ПІД слідом, а не
+                 друга дія всередині: у блока одна ціль натискання. І воно
+                 діє на цю дельту, а не на весь список. */
+              <div className={styles['trace-wrap']}>
+                <button
+                  type="button"
+                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.kind === 'list' ? styles['trace-on'] : ''}`}
+                  onClick={() => openArtifact('list')}
+                  disabled={t.undone}
+                >
+                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={styles['trace-body']}>
+                    <span className={styles['trace-kind']}>
+                      СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
+                    </span>
+                    <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
+                  </span>
+                  {!t.undone && <span className={styles['trace-go']}>→</span>}
+                </button>
+                {!t.undone && t.undoToken && (
+                  <button
+                    type="button"
+                    className={styles['trace-undo']}
+                    onClick={() => undo(t.id, t.undoToken!)}
+                  >СКАСУВАТИ</button>
+                )}
+              </div>
+            )}
+            {isWriteOff(t) && t.applied && !t.undone && (
+              /* Списання — подія, не річ. Артефакта в нього немає (нічого не
+                 додалось), тож пігулка зі стрілкою вела в порожнечу. Замість
+                 мертвої кнопки — рядок тексту: що саме пішло з комори.
+                 Дельту не пишемо: у картці лежить нове значення, а старого
+                 вона не несе, і вигадувати «−200 г» ми не будемо. */
+              <div className={styles['writeoff-line']}>
+                Використали: {((t.card?.ops ?? []) as { label?: string }[])
+                  .map((o) => o.label).filter(Boolean).join(', ')}
+              </div>
+            )}
+            {isIntakeArtifact(t) && !isWriteOff(t) && (
+              /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
+                 застосовано, він не стан, а рішення, якого чекають. Після
+                 «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
+              <button
+                type="button"
+                className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
+                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+              >
+                <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
+                <span className={styles['trace-body']}>
+                  <span className={styles['trace-kind']}>
+                    {/* Чек називається чеком, решта — тим, чим є: «це додав
+                        в комору» не чек, і вигадувати за людину, що вона
+                        робила, ми не будемо. */}
+                    {isReceiptSourced(t) ? 'ЧЕК' : 'У КОМОРУ'} · {receiptLines(t)}{' '}
+                    {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                  </span>
+                  <span className={styles['trace-value']}>
+                    {t.undone ? 'Скасовано'
+                      : t.applied ? `${t.card?.ops?.length ?? 0} у комору`
+                      : 'Потрібне твоє підтвердження'}
+                  </span>
+                </span>
+                {!t.undone && <span className={styles['trace-go']}>→</span>}
+              </button>
+            )}
             {/* Подія в стрічці — це слід (нижче), не картка: інакше під слідом стояла б порожня рамка (EventCard поза панеллю рендерить null). */}
             {t.card && t.card.type !== 'event' && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
