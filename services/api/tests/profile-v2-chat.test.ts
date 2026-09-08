@@ -1,16 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { randomUUID } from 'node:crypto';
-import { buildApp } from '../src/server.js';
+import { describe, it, expect } from 'vitest';
 import { buildDynamicContext } from '../src/model.js';
-import { summarizeCard, buildChatHistory } from '../src/chat-history.js';
-import { InMemoryRepo, createPending, emptyProfileText, type ProfileCard, type MessageRow } from '@kitchen/domain';
-import { InMemoryStore } from '../src/attachment-store.js';
-import { ConsoleMailer } from '../src/mailer.js';
-import { signIn } from './helpers.js';
+import { emptyProfileText } from '@kitchen/domain';
 
-// Раунд 4, крок 3: модель читає [ПРО ЛЮДИНУ] + [НОТАТКИ]; картка поля
-// застосовується через той самий /v1/cards/:id/apply, «Нічого такого» —
-// тілом {none:true}. Крок 11: профіль v1 і прапор прибрано.
+// Раунд 4, крок 3: модель ЧИТАЄ [ПРО ЛЮДИНУ] + [НОТАТКИ]. Крок 11: профіль v1
+// і прапор прибрано. П5-В4: писати в профіль модель більше не вміє — картки
+// поля немає, лишилось читання й рядок «впиши сама».
 
 const base = { user_id: 'u1', session_id: 's1', text: 'що на вечерю', pantry: [] };
 
@@ -34,57 +28,10 @@ describe('динамічний контекст', () => {
     expect(ctx).not.toContain('[ТРАДИЦІЇ]');
     expect(ctx).not.toContain('[СЕЗОН І СВЯТА]');
   });
-});
 
-describe('історія розмови', () => {
-  it('картка поля в історії: «записав у „…": …» і кнопка «Записати»', () => {
-    const card: ProfileCard = { type: 'profile', field: 'no', mode: 'append', text: 'селери' };
-    expect(summarizeCard(card)).toBe('[картка: профіль] записав у „Я не їм": селери');
-    const msg: MessageRow = { id: 'm1', session_id: 's1', role: 'assistant', text: 'Запишу.', card, applied: 0, created_at: '2026-09-05T10:00:00.000Z' };
-    const [turn] = buildChatHistory([msg]);
-    expect(turn!.content).toContain('кнопка «Записати»');
-  });
-});
-
-describe('/v1/cards/:id/apply для картки поля', () => {
-  let repo: InMemoryRepo;
-  let mailer: ConsoleMailer;
-  let app: ReturnType<typeof buildApp>;
-
-  beforeEach(async () => {
-    repo = new InMemoryRepo();
-    mailer = new ConsoleMailer();
-    app = buildApp(repo, new InMemoryStore(), mailer);
-    await app.ready();
-  });
-
-  const pend = async (user_id: string, household_id: string, card: ProfileCard) => {
-    const message_id = randomUUID();
-    await createPending(repo, { message_id, household_id, user_id, card });
-    return message_id;
-  };
-
-  it('append → поле записано, undo повертає', async () => {
-    const me = await signIn(app, mailer, 'me@example.com');
-    const id = await pend(me.user_id, me.household_id, { type: 'profile', field: 'love', mode: 'append', text: 'супи' });
-    const r = await app.inject({ method: 'POST', url: `/v1/cards/${id}/apply`, headers: { cookie: me.cookie }, payload: {} });
-    expect(r.statusCode).toBe(200);
-    expect(r.json()).toMatchObject({ applied: 1, truncated: false });
-    expect((await repo.getProfileText(me.user_id)).fields.love.text).toBe('супи');
-    const u = await app.inject({ method: 'POST', url: `/v1/cards/${id}/undo`, headers: { cookie: me.cookie }, payload: { undo_token: r.json().undo_token } });
-    expect(u.statusCode).toBe(200);
-    expect((await repo.getProfileText(me.user_id)).fields.love.status).toBe('empty');
-  });
-
-  it('{none:true} на ban → status none; на іншому полі — 409', async () => {
-    const me = await signIn(app, mailer, 'me@example.com');
-    const ban = await pend(me.user_id, me.household_id, { type: 'profile', field: 'ban', mode: 'replace', text: '', onboarding: true });
-    const r = await app.inject({ method: 'POST', url: `/v1/cards/${ban}/apply`, headers: { cookie: me.cookie }, payload: { none: true } });
-    expect(r.statusCode).toBe(200);
-    expect((await repo.getProfileText(me.user_id)).fields.ban.status).toBe('none');
-
-    const no = await pend(me.user_id, me.household_id, { type: 'profile', field: 'no', mode: 'replace', text: '', onboarding: true });
-    const bad = await app.inject({ method: 'POST', url: `/v1/cards/${no}/apply`, headers: { cookie: me.cookie }, payload: { none: true } });
-    expect(bad.statusCode).toBe(409);
+  // П5-В5: їдців дому немає — блок теж.
+  it('П5: блоку [ДОМАШНІ] більше нема', () => {
+    const ctx = buildDynamicContext({ ...base, profileText: emptyProfileText('u1') });
+    expect(ctx).not.toContain('[ДОМАШНІ]');
   });
 });

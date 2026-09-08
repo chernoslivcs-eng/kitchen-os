@@ -26,7 +26,7 @@ import { adminHouseholdsRoutes } from './routes/admin-households.js';
 import { moneyRoutes } from './routes/admin-money.js';
 import { boomRoutes } from './routes/boom.js';
 import { adminOccasionsRoutes } from './routes/admin-occasions.js';
-import { profileRoutes, eaterRoutes } from './routes/profile.js';
+import { profileRoutes } from './routes/profile.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
 import { onboardingRoutes } from './routes/onboarding.js';
@@ -176,7 +176,6 @@ export function buildApp(
   boomRoutes(app, repo);
   adminOccasionsRoutes(app, repo, { rateLimit: opts.rateLimits?.shopping });
   profileRoutes(app, repo);
-  eaterRoutes(app, repo);
   recipesRoutes(app, repo);
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);

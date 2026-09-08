@@ -32,3 +32,25 @@ describe('normalizeCard: items↔ops плутанина', () => {
     expect(normalizeCard('текст')).toBeNull();
   });
 });
+
+// П5-В4: модель може й далі слати картку profile — промпт її більше не
+// описує, але моделі бувають упертими, а прод і промпт роз'їжджаються рівно
+// на одному деплої. Голу картку гейтить CHAT_CARD_TYPES; обгортку
+// {reply, card} — ні, і саме нею приходять маркери ходу. Тому питання тут
+// інше: чи є в продукту така родина взагалі (CARD_APPLY_MODE).
+describe('normalizeCard: родина, якої продукт не знає', () => {
+  it('profile після П5 — null, а не порожня рамка в стрічці', () => {
+    expect(normalizeCard({ type: 'profile', field: 'no', mode: 'append', text: 'селери' })).toBeNull();
+    expect(normalizeCard({ type: 'profile', ops: [{ op: 'add', kind: 'member', label: 'Оксана' }] })).toBeNull();
+  });
+
+  it('вигаданий тип — теж null', () => {
+    expect(normalizeCard({ type: 'wishlist', items: [] })).toBeNull();
+  });
+
+  it('маркери ходу проходять: вони не в CHAT_CARD_TYPES, але родина жива', () => {
+    expect(normalizeCard({ type: 'cook_go', title: 'Шакшука' })).toMatchObject({ type: 'cook_go' });
+    expect(normalizeCard({ type: 'cart_go', items: [] })).toMatchObject({ type: 'cart_go' });
+    expect(normalizeCard({ type: 'retail_search_go', query: 'тофу' })).toMatchObject({ type: 'retail_search_go' });
+  });
+});

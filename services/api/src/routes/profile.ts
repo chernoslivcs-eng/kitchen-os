@@ -1,7 +1,7 @@
 // Раунд 4 (AUDIT-ROUND-4.md §6): профіль як сім речень. Крок 11: єдиний
 // профіль — v1 (allergy/wish/anti/equip) і прапор PROFILE_V2 прибрано.
 //
-// GET    /v1/profile                    → { fields, notes, defaults: { kit }, veto, eaters }
+// GET    /v1/profile                    → { fields, notes, defaults: { kit }, veto }
 // PATCH  /v1/profile/:key               { text } | { status: 'none' } — автозбереження
 // DELETE /v1/profile/notes/:id          → мʼяке видалення (для «Повернути»)
 // POST   /v1/profile/notes/:id/restore  → повернути; вікно 5 с — на клієнті, тут без обмеження
@@ -21,20 +21,19 @@ const isKey = (k: string): k is ProfileFieldKey => (PROFILE_FIELD_KEYS as readon
 export function profileRoutes(app: FastifyInstance, repo: Repo) {
   app.get('/v1/profile', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id, household_id } = requireUser(req);
-    const [text, notes, veto, eaters] = await Promise.all([
+    const [text, notes, veto] = await Promise.all([
       repo.getProfileText(user_id),
       repo.listProfileNotes(user_id, { limit: NOTES_IN_PROMPT }),
       repo.getVetoIndex(user_id),
-      repo.listEaters(household_id),
     ]);
     return {
       fields: text.fields,
       notes: notes.map((n) => ({ id: n.id, text: n.text, source: n.source, created_at: n.created_at })),
       defaults: { kit: [...KIT_DEFAULTS] },
       // Крок 11: сторінка рецепта позначає інгредієнти — межа власника з
-      // індексу (label — слово людини, allergy — з ban), домашніх — з їдців.
+      // індексу (label — слово людини, allergy — з ban). П5-В5: їдців дому
+      // більше немає, отже і другого джерела позначок.
       veto: veto.map((r) => ({ field: r.field, kind: r.kind, ref: r.ref, label: r.label, allergy: r.allergy })),
-      eaters: eaters.map((e) => ({ id: e.id, name: e.name, allergies: e.allergies, wishes: e.wishes, antipatterns: e.antipatterns })),
     };
   });
 
@@ -94,22 +93,4 @@ export function profileRoutes(app: FastifyInstance, repo: Repo) {
     reply.code(410).send({ error: 'profile_v1_gone' });
   app.patch('/v1/profile', { preHandler: authenticated(repo) }, gone);
   app.delete('/v1/notes/:id', { preHandler: authenticated(repo) }, gone);
-}
-
-// Їдці — раунд 5, не профіль v1.
-export function eaterRoutes(app: FastifyInstance, repo: Repo) {
-  // Їдець живе в домі, тож право на видалення — членство в домі, не авторство.
-  app.delete<{ Params: { id: string } }>(
-    '/v1/eaters/:id',
-    { preHandler: authenticated(repo) },
-    async (req, reply) => {
-      const { household_id } = requireUser(req);
-      const mine = await repo.listEaters(household_id);
-      if (!mine.some((e) => e.id === req.params.id)) {
-        return reply.code(404).send({ error: 'not_found' });
-      }
-      await repo.deleteEater(req.params.id);
-      return reply.code(204).send();
-    },
-  );
 }

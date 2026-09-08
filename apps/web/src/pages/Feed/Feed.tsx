@@ -10,6 +10,7 @@ import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
+import { applyMode } from '@kitchen/domain/card-modes';
 import { api, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
 import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff} from './artifacts';
@@ -31,7 +32,6 @@ import { type Turn, type TurnAttachment, attachmentKind, hhmm, newId, messageToT
 import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
-const TRADITION_UA: Record<string, string> = { orthodox: 'православні', catholic: 'католицькі', islamic: 'ісламські', jewish: 'юдейські' };
 import panelStyles from '../../components/ArtifactPanel/ArtifactPanel.module.css';
 import { usePanelStore } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
@@ -102,12 +102,6 @@ function formatBytes(b: number): string {
 export function Feed() {
   const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
-  // Картка профілю, у якій самі традиції: сервер застосовує її сам
-  // (applyModeFor), а стрічка показує слід замість картки з кнопками.
-  const isTraditionTurn = (t: { card?: { type: string; ops?: unknown[] } | null }) =>
-    !!t.card && t.card.type === 'profile' && !!t.card.ops?.length
-    && (t.card.ops as { kind?: string }[]).every((o) => o.kind === 'tradition');
-
   const [turns, setTurns] = useState<Turn[]>([]);
   // Крок 7: стан панелей картки «Про тебе» — з profile_text; перечитується
   // після кожного запису (з картки, зі сторінки, з фрази в чаті).
@@ -670,7 +664,15 @@ export function Feed() {
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        const target = [...turns].reverse().find((t) => t.card && !t.applied && !t.undone && t.cardId);
+        // П5-В6а: ціль — тільки картка, яку СПРАВДІ можна застосувати. Досі
+        // пошук дивився на «є cardId і ще не застосована» і влучав у
+        // пропозицію, у якої кнопок застосування немає взагалі: до П4-Т6 це
+        // давало тост «apply not implemented for card type: proposal», після —
+        // «card not found». В обох випадках людина читала рядок розробника
+        // замість репліки продукту. Режим береться з card-modes — того самого
+        // джерела, що вирішує, чи малювати кнопку.
+        const target = [...turns].reverse().find((t) => t.card && !t.applied && !t.undone && t.cardId
+          && applyMode(t.card.type) !== 'none');
         if (target) {
           e.preventDefault();
           void apply(target.id);
@@ -915,10 +917,9 @@ export function Feed() {
       if (r.followup) {
         setTurns((prev) => [...prev, { id: newId(), role: 'assistant', time: hhmm(), fresh: true, text: r.followup! }]);
       }
-      // Оновлюємо лічильники для комори/списку — profile тепер теж може змінити те, що показуємо
+      // Оновлюємо лічильники для комори/списку
       await refreshCounts();
       // Крок 7: фраза в чаті заповнила поле — панель картки «Про тебе» стає «записано».
-      if (turn.card?.type === 'profile') void loadProfileFields();
       setToast({
         id: Date.now(),
         kind: 'ok',
@@ -1459,105 +1460,8 @@ export function Feed() {
                 )}
               </div>
             )}
-            {isTraditionTurn(t) && t.applied && (
-              /* Традиція — перемикач профілю, застосований сервером сам, як
-                 подія. У стрічці — слід, не картка з «Запамʼятати»: стан живе
-                 в профілі, слід каже дельту і веде туди. */
-              <div className={styles['trace-wrap']}>
-                <button
-                  type="button"
-                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''}`}
-                  onClick={() => navigate('/profile')}
-                  disabled={t.undone}
-                >
-                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
-                  <span className={styles['trace-body']}>
-                    <span className={styles['trace-kind']}>
-                      {(t.card!.ops as { op?: string }[]).every((o) => o.op === 'remove') ? 'ІЗ ПРОФІЛЮ ПРИБРАНО' : '＋ ДОДАТИ ДО ТРАДИЦІЙ'}{t.undone ? ' · СКАСОВАНО' : ''}
-                    </span>
-                    <span className={styles['trace-value']}>
-                      {(t.card!.ops as { label?: string }[]).map((o) => TRADITION_UA[o.label ?? ''] ?? o.label).filter(Boolean).join(', ')}
-                    </span>
-                  </span>
-                  {!t.undone && <span className={styles['trace-go']}>→</span>}
-                </button>
-                {!t.undone && t.undoToken && (
-                  <button type="button" className={styles['trace-undo']} onClick={() => undo(t.id, t.undoToken!)}>СКАСУВАТИ</button>
-                )}
-              </div>
-            )}
-            {t.card?.type === 'shopping' && t.applied && (
-              /* Крок 4.5 + відкладений 3.2. Слід каже ДЕЛЬТУ, панель — стан:
-                 «+5 · разом 9» відповідає на «що модель узяла в роботу» без
-                 переліку, сам перелік — один тап праворуч.
-                 «Скасувати» — окреме моно-посилання в рядку ПІД слідом, а не
-                 друга дія всередині: у блока одна ціль натискання. І воно
-                 діє на цю дельту, а не на весь список. */
-              <div className={styles['trace-wrap']}>
-                <button
-                  type="button"
-                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.kind === 'list' ? styles['trace-on'] : ''}`}
-                  onClick={() => openArtifact('list')}
-                  disabled={t.undone}
-                >
-                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
-                  <span className={styles['trace-body']}>
-                    <span className={styles['trace-kind']}>
-                      СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
-                    </span>
-                    <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
-                  </span>
-                  {!t.undone && <span className={styles['trace-go']}>→</span>}
-                </button>
-                {!t.undone && t.undoToken && (
-                  <button
-                    type="button"
-                    className={styles['trace-undo']}
-                    onClick={() => undo(t.id, t.undoToken!)}
-                  >СКАСУВАТИ</button>
-                )}
-              </div>
-            )}
-            {isWriteOff(t) && t.applied && !t.undone && (
-              /* Списання — подія, не річ. Артефакта в нього немає (нічого не
-                 додалось), тож пігулка зі стрілкою вела в порожнечу. Замість
-                 мертвої кнопки — рядок тексту: що саме пішло з комори.
-                 Дельту не пишемо: у картці лежить нове значення, а старого
-                 вона не несе, і вигадувати «−200 г» ми не будемо. */
-              <div className={styles['writeoff-line']}>
-                Використали: {((t.card?.ops ?? []) as { label?: string }[])
-                  .map((o) => o.label).filter(Boolean).join(', ')}
-              </div>
-            )}
-            {isIntakeArtifact(t) && !isWriteOff(t) && (
-              /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
-                 застосовано, він не стан, а рішення, якого чекають. Після
-                 «Застосувати» стає звичайним шавлієвим — стан як у всіх. */
-              <button
-                type="button"
-                className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
-                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
-              >
-                <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
-                <span className={styles['trace-body']}>
-                  <span className={styles['trace-kind']}>
-                    {/* Чек називається чеком, решта — тим, чим є: «це додав
-                        в комору» не чек, і вигадувати за людину, що вона
-                        робила, ми не будемо. */}
-                    {isReceiptSourced(t) ? 'ЧЕК' : 'У КОМОРУ'} · {receiptLines(t)}{' '}
-                    {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
-                  </span>
-                  <span className={styles['trace-value']}>
-                    {t.undone ? 'Скасовано'
-                      : t.applied ? `${t.card?.ops?.length ?? 0} у комору`
-                      : 'Потрібне твоє підтвердження'}
-                  </span>
-                </span>
-                {!t.undone && <span className={styles['trace-go']}>→</span>}
-              </button>
-            )}
             {/* Подія в стрічці — це слід (нижче), не картка: інакше під слідом стояла б порожня рамка (EventCard поза панеллю рендерить null). */}
-            {t.card && t.card.type !== 'event' && !(isTraditionTurn(t) && t.applied) && (
+            {t.card && t.card.type !== 'event' && (
               /* Пул-6 №6, канон B: структуровані повідомлення системи — на
                  світлій «документ»-картці; службове (час/статус) лишається НАД. */
               /* О2 (1.1): онбординг має власну панель із тлом, рамкою і

@@ -12,11 +12,19 @@ import { describe, it, expect } from 'vitest';
 import { CHAT_CARD_TYPES, parseModelResponse } from '../model-response.js';
 
 describe('склад чатового списку типів', () => {
-  it('рівно вісім, і саме ці', () => {
+  it('рівно сім, і саме ці', () => {
     expect([...CHAT_CARD_TYPES].sort()).toEqual([
-      'event', 'intake_diff', 'period', 'profile',
+      'event', 'intake_diff', 'period',
       'proposal', 'recipe', 'recipe_edit', 'shopping',
     ]);
+  });
+
+  // П5-В4: профіль редагує людина на своїй сторінці. Якщо модель усе одно
+  // пришле картку профілю (промпт її більше не описує, але моделі бувають
+  // упертими), розбір мусить дати null, а не протягти мертву родину далі.
+  it('profile більше не приймається', () => {
+    expect(CHAT_CARD_TYPES).not.toContain('profile');
+    expect(parseModelResponse('{"type":"profile","field":"no","mode":"append","text":"селери"}').card).toBeNull();
   });
 
   it('cook_photo сюди не входить: його не віддає жодна модель', () => {

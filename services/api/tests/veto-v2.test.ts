@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { randomUUID } from 'node:crypto';
 import { buildApp } from '../src/server.js';
-import { InMemoryRepo, createPending, applyCard, undoCard } from '@kitchen/domain';
+import { InMemoryRepo } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
 import { applyVeto } from '../src/veto.js';
 
-// Раунд 4, крок 4: індекс перебудовується при кожному записі в no/ban
-// (PATCH, картка, undo), а вето читає індекс.
+// Раунд 4, крок 4: індекс перебудовується при кожному записі в no/ban, а вето
+// читає індекс. П5: запис лишився один — PATCH /v1/profile/:key, тобто рука
+// людини; картки профілю, яка теж його перебудовувала, більше немає.
 
 describe('перебудова veto_index', () => {
   let repo: InMemoryRepo;
@@ -37,18 +37,6 @@ describe('перебудова veto_index', () => {
     const none = await app.inject({ method: 'PATCH', url: '/v1/profile/ban', headers: { cookie: me.cookie }, payload: { status: 'none' } });
     expect(none.json().veto_index).toEqual([]);
     expect((await repo.getVetoIndex(me.user_id)).filter((x) => x.field === 'ban')).toEqual([]);
-  });
-
-  it('картка поля no → індекс; undo → індекс назад', async () => {
-    const me = await signIn(app, mailer, 'me@example.com');
-    await repo.patchProfileField(me.user_id, 'no', { text: 'кінзи' });
-    await repo.setVetoIndex(me.user_id, 'no', []);
-    const id = randomUUID();
-    await createPending(repo, { message_id: id, household_id: me.household_id, user_id: me.user_id, card: { type: 'profile', field: 'no', mode: 'append', text: 'риби' } });
-    const r = await applyCard(repo, id, [], me.user_id);
-    expect((await repo.getVetoIndex(me.user_id)).map((x) => x.ref)).toEqual(['кінза', 'риба']);
-    await undoCard(repo, id, r.undo_token!, me.user_id);
-    expect((await repo.getVetoIndex(me.user_id)).map((x) => x.ref)).toEqual(['кінза']);
   });
 });
 

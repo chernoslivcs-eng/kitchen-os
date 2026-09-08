@@ -5,7 +5,7 @@ import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
-import { isProfileFieldCard, fieldByVerb, PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
+import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
 import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
@@ -357,7 +357,6 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       }));
 
     // Їдці дому: страва готується на всіх, хто за столом.
-    const eaters = await repo.listEaters(ctx.household_id);
     // Останні згенеровані рецепти — щоб модель бачила, що вже пропонувала,
     // і трималась названого складу замість нового підходу на кожен тап.
     const RECIPES_CAP = 5;
@@ -417,7 +416,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     try {
       call = await callChat(chatArgs = {
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
-        history, profileText, profileNotes, vetoIndex, occasions, shopping, eaters, recentRecipes, products, retailConnected, retailKarpaty,
+        history, profileText, profileNotes, vetoIndex, occasions, shopping, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий
         // факт, який досі жив усередині гілки видалення й нікому не казався.
         modes,
@@ -452,11 +451,6 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       else req.log.info({ user_id, reason: d.reason, note: d.text }, 'note-skipped');
     }
 
-    // Крок 7 п. 0: «не їм / не вживаю» у репліці — це поле `no`, хай би що
-    // обрала модель (флап кроку 4в: «ще не їм кінзи» → meh). Механіка до
-    // застосування.
-    if (isProfileFieldCard(call.card)) call.card = fieldByVerb(call.card, text ?? '');
-
     // Пул-2 №5: те саме для чату — сирий JSON у стрічку не протікає ніколи.
     if (!call.card && looksLikeModelDebris(call.reply ?? '')) {
       incident(sink(req), 'guard', 'chat-reply-debris', { user_id, household_id, session_id: session.id });
@@ -484,12 +478,13 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
 
     // QA5-01: чи не проліз алерген у пропозицію. Збіг за підрядком дає хибні
     // спрацювання, тому це лог, а не блок — але без нього ніхто не дізнається,
-    // як часто це стається у проді. Власник — рядки ban з індексу (label —
-    // слово людини); QA7-06: алергії домашніх — у той самий детектор, з імʼям.
-    const houseAllergies = [
-      ...vetoIndex.filter((r) => r.allergy).map((r) => ({ label: r.label, who: 'owner' })),
-      ...eaters.flatMap((e) => e.allergies.map((a) => ({ label: a, who: e.name }))),
-    ].filter((a) => a.label);
+    // як часто це стається у проді. П5-В5: власник лишився єдиним джерелом —
+    // рядки ban з індексу (label — слово людини); гілка алергій домашніх
+    // пішла разом із їдцями. Гвардія лишається: вона логує, а не ріже.
+    const houseAllergies = vetoIndex
+      .filter((r) => r.allergy)
+      .map((r) => ({ label: r.label, who: 'owner' }))
+      .filter((a) => a.label);
     if (houseAllergies.length) {
       const hay = ((call.reply ?? '') + JSON.stringify(call.card ?? {})).toLowerCase();
       const hit = houseAllergies.filter((a) => hay.includes(a.label.toLowerCase()));
@@ -831,25 +826,20 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // Еval після 1.2 зловив арахісову пасту в rescues на спільний сніданок.
     // Раунд 4, крок 4: вето по індексу (no/ban). Кожне відхилення — окремий
     // рядок логу з рядком індексу, який спрацював.
-    // Крок 6з: речення з алергеном, якого людина сама не називала, ріжуться.
-    let veto = applyVeto(call, {
+    // П5-В6: фільтр тільки на власну ініціативу асистента. Те, що назвала
+    // людина, сюди не доходить; речення з репліки не вирізаються.
+    const veto = applyVeto(call, {
       index: vetoIndex, userText: text ?? '',
       log: (e: VetoLogEntry) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, ...e }),
     });
-    // Крок 4б (b): вето зняло всі кандидати — один повторний виклик із «без …»
-    // (як для рецептів). Порожньо і після нього — репліка каже це прямо
-    // (VETO_EMPTY_REPLY уже стоїть у call.reply), картки нема.
+    // Повторного виклику при emptied більше немає: він був другою половиною
+    // заборони (перепиши пропозицію без того, чого людина попросила) і коштував
+    // зайвий похід у модель. Картки немає — репліка лишається як є.
     if (veto.emptied) {
-      const avoid = [...new Set(veto.rejected.flatMap((r) => [r.title]))];
-      incident(sink(req), 'guard', 'veto-emptied-retry', { user_id, household_id, session_id: session.id, avoid });
-      const again = await callChat({ ...chatArgs, avoid });
-      await recordUsage(repo, ctx, 'chat', again.meta, again.calls, started, turn);
-      const retryVeto = applyVeto(again, {
-        index: vetoIndex, userText: text ?? '',
-        log: (e: VetoLogEntry) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, retry: true, ...e }),
+      incident(sink(req), 'guard', 'veto-emptied', {
+        user_id, household_id, session_id: session.id,
+        rejected: veto.rejected.map((r) => r.title),
       });
-      if (!retryVeto.emptied) { call = again; veto = retryVeto; }
-      else incident(sink(req), 'guard', 'veto-emptied-final', { user_id, household_id, session_id: session.id, rejected: retryVeto.rejected });
     }
     // 01.09 комент #4: «прибери X з замовлення» після того, як кошик уже
     // зібрано — сам список ми виправили (shopping-remove нижче), але наша

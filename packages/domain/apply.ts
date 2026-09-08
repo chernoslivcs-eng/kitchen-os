@@ -9,8 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import { ownsEvent } from './occasions.js';
 import { subscriptionDefault, ruleFromDates } from './periods.js';
-import { appendProfileText, clampProfileText, profileTextHints } from './profile-text.js';
-import { isProfileFieldCard } from './types.js';
+import { CARD_APPLY_MODE } from './card-modes.js';
 import { rebuildVetoIndex } from './veto-index.js';
 import type { Tradition } from './occasion-rules.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
@@ -27,7 +26,6 @@ import type {
   PendingCard,
   UndoSnapshot,
   Provenance,
-  EaterRow,
   ShoppingItemRow,
   Zone,
   Unit,
@@ -93,7 +91,6 @@ export interface ApplyResult {
    *  замість {kind, label}). Не помилка застосування, а помилка форми: її
    *  задає промпт, і лагодити її тут означало б ховати причину. Прапорець
    *  їде нагору, щоб маршрут завів інцидент — рівно один на картку. */
-  malformed?: boolean;
 }
 
 /**
@@ -114,7 +111,7 @@ function nothingLanded(extra: Partial<ApplyResult> = {}): ApplyResult {
 }
 
 export interface ApplyOpts {
-  /** «Нічого такого» на картці поля `ban`: status none, картка застосована. */
+  /** П2: «жодної галочки» в артефакті періоду — застосувати порожній вибір. */
   none?: boolean;
 }
 
@@ -136,45 +133,9 @@ export async function applyCard(
 
   const { card } = pc;
 
-  // Раунд 4 §4: картка поля профілю. Один текст в одне поле; undo повертає
-  // попереднє значення поля цілком (текст і статус).
-  if (isProfileFieldCard(card)) {
-    const key = card.field;
-    if (opts.none && key !== 'ban') throw new Error('«Нічого такого» — лише для поля ban');
-    const before = (await repo.getProfileText(actor_user_id)).fields[key];
-    const snapshot: UndoSnapshot = {
-      kind: 'profile',
-      before: { profile_field_before: { field: key, value: { ...before } } },
-    };
-    let landed = 0;
-    let truncated = false;
-    if (opts.none) {
-      await repo.patchProfileField(actor_user_id, key, { status: 'none' });
-      landed = 1;
-    } else {
-      const add = (card.text ?? '').trim();
-      if (add) {
-        const next = card.mode === 'append' && before.status === 'filled'
-          ? appendProfileText(key, before.text, add)
-          : { text: clampProfileText(key, add), truncated: Array.from(add).length > Array.from(clampProfileText(key, add)).length };
-        await repo.patchProfileField(actor_user_id, key, { text: next.text });
-        truncated = next.truncated;
-        landed = 1;
-      }
-    }
-    if (!landed) return nothingLanded({ truncated });
-    await rebuildVetoIndex(repo, actor_user_id, key);
-    const undo_token = randomUUID();
-    await repo.updatePending(pc.id, {
-      applied_at: new Date().toISOString(),
-      applied_ops: [0],
-      undo_token,
-      undo_snapshot: snapshot,
-    });
-    await repo.markMessageApplied(pc.id, landed);
-    return { applied: landed, undo_token, already: false, truncated };
-  }
-
+  // П5-В4: гілки картки поля профілю тут більше немає. Профіль редагує людина
+  // на своїй сторінці (PATCH /v1/profile/:key), асистент лише каже, куди
+  // вписати. Індекс вето перебудовується там же (routes/profile.ts).
   // Кожен тип картки має власний обробник і власний знімок для undo.
   if (card.type === 'intake_diff') {
     // Захист від малформленої картки моделі (живий репро 01.09: shopping
@@ -291,56 +252,6 @@ export async function applyCard(
     return { applied: landed, undo_token, already: false, event_ids };
   }
 
-  if (card.type === 'profile') {
-    const chosen = selected.length ? selected : (card.ops ?? []).map((_, i) => i);
-    // Крок 11: ops-картка — лише домашні (їдці). Текст людини йде карткою
-    // поля, нотатки — полем `note` відповіді; традиції (П1) — карткою period.
-    const snapshot: UndoSnapshot = { kind: 'profile', before: {} };
-    // QA4-05: рахуємо те, що СПРАВДІ лягло.
-    let landed = 0;
-    // П4-Т3: applied_ops несе те, що лягло, а не те, що вибрали. Досі цикл
-    // умів тільки kind 'member', а в applied_ops писав УСІ індекси — слід
-    // застосування стверджував більше, ніж сталось.
-    const landedOps: number[] = [];
-    const missed: string[] = [];
-    // Живий випадок 07.09: модель прислала ops у формі картки ПОЛЯ
-    // ({op, field, text}) замість форми ops-картки ({kind, label}). Картку
-    // НЕ лагодимо на льоту: форму задає промпт, а промпт ми не чіпаємо.
-    // Наше — не збрехати про результат і лишити слід, за яким видно причину.
-    let malformed = false;
-    const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
-    for (const idx of chosen) {
-      const op = card.ops[idx];
-      if (!op) continue;
-      const o = op as { kind?: string; label?: string; op?: string; field?: string; text?: string };
-      if (!o.kind && (o.field !== undefined || o.text !== undefined)) malformed = true;
-      if (o.kind === 'member' && await applyMemberOp(repo, pc.household_id, op, memberTrace)) {
-        landed++;
-        landedOps.push(idx);
-        continue;
-      }
-      // Промах читає розробник у лозі, не людина, — тому тут видно й причину:
-      // який kind прийшов (або що його не було).
-      missed.push(`${o.op ?? 'add'} «${o.label ?? o.text ?? '(без назви)'}» (kind: ${o.kind ?? 'немає'})`);
-    }
-    if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
-    if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
-    const trace = { missed, ...(malformed ? { malformed: true } : {}) };
-    if (!landed) return nothingLanded(trace);
-    const undo_token = randomUUID();
-    await repo.updatePending(pc.id, {
-      applied_at: new Date().toISOString(),
-      applied_ops: landedOps,
-      undo_token,
-      undo_snapshot: snapshot,
-    });
-    await repo.markMessageApplied(pc.id, landed);
-    return { applied: landed, undo_token, already: false, ...trace };
-  }
-
-  // П1: період. Традиція / відписка — батч підписок по items (галочки =
-  // selected); дієта / подія дому — один запис із датами, які порахував
-  // сервер (resolved). Знімок «до» — стан підписок і id створеного запису.
   if (card.type === 'period') {
     const snapshot: UndoSnapshot = { kind: 'period', before: { subscriptions_before: [], added_event_ids: [] } };
     let landed = 0;
@@ -465,6 +376,14 @@ export async function applyCard(
     return { applied: 1, undo_token, already: false };
   }
 
+  // П5-В4: у проді лежать pending-картки родини `profile`, якої код більше
+  // не знає (П4 і П5 їдуть в один деплой, старі картки лишаються в базі).
+  // Кинути звідси означало б показати людині рядок розробника — рівно те, що
+  // П4-Т6 і П5-В6а прибирали з інших шляхів. Нічого не лягло — так і кажемо:
+  // картка лишається відкритою, «Ні» на ній працює.
+  if (!(card.type in CARD_APPLY_MODE)) {
+    return nothingLanded({ missed: [`тип картки більше не підтримується: ${(card as { type: string }).type}`] });
+  }
   throw new Error(`apply not implemented for card type: ${(card as { type: string }).type}`);
 }
 
@@ -825,47 +744,6 @@ async function applyShoppingOp(
   return 'landed';
 }
 
-// «Зі мною живе Оксана, вона веганка» → окремий запис їдця в домі.
-// Обмеження лежать у ньому, а не в профілі власника. Прототип, 2160:
-// «Обмеження учасника кладуться в його ж запис».
-async function applyMemberOp(
-  repo: Repo,
-  household_id: string,
-  op: {
-    op?: 'add' | 'remove'; label?: string;
-    diet?: unknown; allergies?: unknown; wishes?: unknown; antipatterns?: unknown; avoid?: unknown;
-    [k: string]: unknown;
-  },
-  trace: { added: string[]; removed: EaterRow[] },
-): Promise<boolean> {
-  const name = (op.label ?? '').trim();
-  if (!name) return false;
-  const existing = await repo.findEaterByName(household_id, name);
-  if (op.op === 'remove') {
-    if (!existing) return false;
-    await repo.deleteEater(existing.id);
-    trace.removed.push(existing);
-    return true;
-  }
-  if (existing) return false;
-  const strs = (v: unknown): string[] =>
-    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!x.trim()) : [];
-  const diet = typeof op.diet === 'string' && op.diet.trim() ? [op.diet.trim()] : [];
-  const eater: EaterRow = {
-    id: randomUUID(),
-    household_id,
-    name,
-    allergies: strs(op.allergies),
-    // Дієта — це побажання, як і в профілі власника: окремого поля немає.
-    wishes: [...new Set([...diet, ...strs(op.wishes)])],
-    antipatterns: [...strs(op.antipatterns), ...strs(op.avoid)],
-    created_at: new Date().toISOString(),
-  };
-  await repo.insertEater(eater);
-  trace.added.push(eater.id);
-  return true;
-}
-
 /** 'YYYY-MM-DD' + днів (локальний календар, без DST-зсувів). */
 function isoShift(iso: string, days: number): string {
   const [y = 1970, m = 1, d = 1] = iso.split('-').map(Number);
@@ -909,14 +787,6 @@ export async function undoCard(
   // UX9-27: intake відмітив куплене — undo повертає галочку назад.
   for (const id of snap.before.checked_shopping_ids ?? []) {
     await repo.toggleShoppingItem(id, false);
-  }
-  // Висновки: точковий відкат — видаляємо рівно те, що ця картка додала.
-  for (const id of snap.before.added_eater_ids ?? []) {
-    await repo.deleteEater(id);
-  }
-  // Видалений їдець повертається з усіма обмеженнями — знімок повний.
-  for (const e of snap.before.removed_eaters ?? []) {
-    await repo.insertEater(e);
   }
   if (snap.before.photo_before) {
     await repo.updateCookRun(snap.before.photo_before.run_id, { photo_url: snap.before.photo_before.photo_url });

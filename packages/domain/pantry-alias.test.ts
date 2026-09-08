@@ -34,11 +34,11 @@ describe('pantry alias', () => {
   it('serializePantry з мапою — аліас замість uuid; ids:"none" — без id взагалі', () => {
     const bs = [batch(UUID_A, 'Спагеті')];
     const m = buildAliasMap(bs);
-    const aliased = serializePantry(bs, Date.now(), [], false, m.toAlias);
+    const aliased = serializePantry(bs, Date.now(), false, m.toAlias);
     expect(aliased).toContain('p1 · Спагеті');
     expect(aliased).not.toContain(UUID_A);
 
-    const bare = serializePantry(bs, Date.now(), [], false, 'none');
+    const bare = serializePantry(bs, Date.now(), false, 'none');
     expect(bare).toContain('Спагеті');
     expect(bare).not.toContain(UUID_A);
     expect(bare).not.toContain('p1');
@@ -87,13 +87,13 @@ describe('serializePantry: хард-кеп', () => {
       batch(`id-${i}`, `Продукт ${i}`, { added_at: new Date(2026, 0, 1 + i).toISOString() }));
 
   it('до кепу — без змін і без хвостового рядка', () => {
-    const s = serializePantry(many(10), Date.now(), [], false, 'none');
+    const s = serializePantry(many(10), Date.now(), false, 'none');
     expect(s.split('\n')).toHaveLength(10);
     expect(s).not.toContain('і ще');
   });
 
   it('понад кеп — рівно cap рядків + хвіст лише з числом', () => {
-    const s = serializePantry(many(80), Date.now(), [], false, 'none', 60);
+    const s = serializePantry(many(80), Date.now(), false, 'none', 60);
     const lines = s.split('\n');
     expect(lines).toHaveLength(61);                      // 60 рядків + хвіст
     expect(lines[60]).toBe('…і ще 20 позицій — спитай, якщо треба');
@@ -104,7 +104,7 @@ describe('serializePantry: хард-кеп', () => {
   it('відбір: свіжі виживають, квота тримає найстаріших, ріжеться середина', () => {
     // Пул-3: 10 найстаріших активних захищені квотою (мости «що купити?»
     // будуються від залежаного) — тому відрізається середньо-старе.
-    const s = serializePantry(many(80), Date.now(), [], false, 'none', 60);
+    const s = serializePantry(many(80), Date.now(), false, 'none', 60);
     expect(s).toContain('Продукт 79');       // найновіший
     expect(s).toContain('Продукт 0 ·');      // найстаріший — у квоті залежаних
     expect(s).not.toContain('Продукт 15 ·'); // середина — відрізана
@@ -114,7 +114,7 @@ describe('serializePantry: хард-кеп', () => {
     const bs = many(80);
     bs[0] = batch('id-0', 'Арахісова паста', { added_at: new Date(2026, 0, 1).toISOString() });
     const index = buildVetoIndex('u1', 'ban', 'арахіс');
-    const s = serializePantry(bs, Date.now(), [], false, 'none', 60, [], '', index);
+    const s = serializePantry(bs, Date.now(), false, 'none', 60, [], '', index);
     expect(s).toContain('Арахісова паста');
     expect(s).toContain('⚠АЛЕРГЕН');
   });
@@ -122,7 +122,7 @@ describe('serializePantry: хард-кеп', () => {
   it('термінова (відкрита) партія виживає попри вік', () => {
     const bs = many(80);
     bs[1] = batch('id-1', 'Відкриті вершки', { added_at: new Date(2026, 0, 2).toISOString(), state: 'opened' });
-    const s = serializePantry(bs, Date.now(), [], false, 'none', 60);
+    const s = serializePantry(bs, Date.now(), false, 'none', 60);
     expect(s).toContain('Відкриті вершки');
   });
 });

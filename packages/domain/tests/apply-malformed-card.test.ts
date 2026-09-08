@@ -1,5 +1,5 @@
 // Живий репро (01.09): модель повертає {"type":"shopping","ops":[...]}
-// замість items (плутанина з intake_diff/profile) — нічого не валідує
+// замість items (плутанина з intake_diff) — нічого не валідує
 // форму на вході, тож малформлена картка доходить до applyCard. Клік
 // «У список»/«Застосувати» на такій картці мусить деградувати чемно
 // (нуль застосованих, а не 500), а не кидати TypeError на .map().
@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { InMemoryRepo } from '../in-memory-repo.js';
 import { createPending, applyCard } from '../apply.js';
-import type { IntakeCard, ShoppingCard, ProfileCard } from '../types.js';
+import type { IntakeCard, ShoppingCard } from '../types.js';
 
 describe('applyCard переживає малформлену картку (поле переплутане з іншого типу)', () => {
   async function pend(repo: InMemoryRepo, card: unknown) {
@@ -35,10 +35,12 @@ describe('applyCard переживає малформлену картку (по
     expect(r.applied).toBe(0);
   });
 
-  it('profile без ops — apply не падає', async () => {
+  // П5-В4: родини `profile` більше немає — картка невідомого типу так само
+  // мусить деградувати нулем, а не падати. Той самий контракт, інший вхід.
+  it('картка типу, якого більше немає (profile) — apply не падає', async () => {
     const repo = new InMemoryRepo();
-    const malformed = { type: 'profile', items: [{ op: 'add', kind: 'note', label: 'x' }] };
-    const { message_id, user_id } = await pend(repo, malformed as unknown as ProfileCard);
+    const stale = { type: 'profile', field: 'no', mode: 'append', text: 'селери' };
+    const { message_id, user_id } = await pend(repo, stale);
     const r = await applyCard(repo, message_id, [], user_id);
     expect(r.applied).toBe(0);
   });

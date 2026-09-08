@@ -13,7 +13,6 @@
   "generic-word": [
     "attachment-parser",
     "card-routing",
-    "kitchen-policy",
     "role"
   ],
   "units": [
@@ -27,11 +26,6 @@
   "urgency-jargon": [
     "proposal-flow",
     "role"
-  ],
-  "vegan": [
-    "card-schemas",
-    "kitchen-policy",
-    "onboarding-stage2"
   ],
   "dates-server": [
     "card-routing",

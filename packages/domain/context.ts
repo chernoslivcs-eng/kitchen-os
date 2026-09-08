@@ -10,13 +10,11 @@
 // алергени, не дійшовши до обмеження (QA5-01).
 
 import { root, meaningfulWords, categoryBreadth} from '@kitchen/catalog';
-import { BY_KEY } from '@kitchen/catalog/seed';
-import type { PantryBatch, ShoppingItemRow, EaterRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
-import { catalogGroupsToAllergens, type HouseholdProduct } from './product.js';
+import type { PantryBatch, ShoppingItemRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
+import { type HouseholdProduct } from './product.js';
 import { fastingActive, isFastingRestricted } from './occasions.js';
 import { serializeNow, subscribedTraditions, subscribedRows } from './periods.js';
 import { BUILTIN_OCCASIONS, type OccasionRow } from './occasion-data.js';
-import { isProfileFieldCard } from './types.js';
 import { PROFILE_FIELDS, serializeProfileText, emptyProfileText, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
 import { pantryVetoRows } from './pantry-view.js';
 
@@ -42,7 +40,6 @@ export interface KitchenContext {
   vetoIndex?: VetoRow[];
   shopping?: ShoppingItemRow[];
   recentCookRuns?: RecentCookRunSummary[];
-  eaters?: EaterRow[];
   recentRecipes?: RecipeRow[];
   // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈».
   products?: HouseholdProduct[];
@@ -102,12 +99,10 @@ export function todayLabel(now = new Date()): string {
 // QA5-01: алерген позначається ПРЯМО В РЯДКУ ПАРТІЇ, а не окремим правилом —
 // правило за пів промпту від даних ігнорувалось. Збіг за коренем, не за
 // підрядком: «шоколад з мигдалем».includes('мигдаль') дає false через відмінок.
-// QA7-06: алергія домашнього — така сама тверда межа, як алергія власника,
-// і позначається так само в рядку партії. Раніше мітка ставилась тільки за
-// профілем власника, а алергії їдців лежали в блоці [ДОМАШНІ] в кінці промпту
-// — і модель пропонувала арахісову пасту на сніданок для дому, де живе людина
-// з алергією на арахіс. Той самий урок, що QA5-01: правило далеко від даних
-// не працює, мітка мусить стояти там, куди модель дивиться.
+// QA7-06 (історія): алергії їдців дому теж давали ⚠ у рядку партії — доти,
+// доки П5-В5 не прибрав їдців зовсім. Урок лишається чинним для того джерела,
+// що лишилось: правило далеко від даних не працює, мітка мусить стояти там,
+// куди модель дивиться, — у самому рядку [КОМОРА], а не блоком у кінці.
 // Партія записана родовим словом, а не назвою продукту. Міряємо по БАЗІ
 // трійки («крем-брускетта» з «Крем-брускетта Ponti з чорних оливок»), а не
 // по видимій назві: категорійність — властивість продукту, не рядка з
@@ -135,7 +130,6 @@ export function isDoubtful(b: Pick<PantryBatch, 'confidence' | 'provenance'>): b
 export function serializePantry(
   bs: PantryBatch[],
   now = Date.now(),
-  eaters: EaterRow[] = [],
   fasting = false,
   // UX9-03/04: як показувати id партій. За замовчуванням — сирі uuid (як
   // було); Map uuid→alias — короткі p1..pN для recipe_gen (переписувати 36
@@ -160,35 +154,25 @@ export function serializePantry(
   queryText = '',
   // Раунд 4, крок 4б: межа власника — veto_index (категорія чи продукт
   // позиції збігається з рядком індексу). Рядки з allergy=true дають ⚠АЛЕРГЕН,
-  // решта — ⚠НЕ ЇСТЬ. Алергії їдців — за коренем у назві (раунд 5).
+  // решта — ⚠НЕ ЇСТЬ.
+  //
+  // П5-В5: їдців дому більше немає, тож джерело ⚠ лишилось одне — індекс
+  // власника (pantryVetoRows: назва партії + назва позиції каталогу за
+  // catalog_key). Мітки в рядках нікуди не діваються — саме заради них
+  // знімається заборона; зникає лише приписка « в <імʼя>» і зіставлення
+  // алергій їдця з тегами продукту, якому більше нема з чим зіставлятись.
   vetoIndex?: VetoRow[],
 ): string {
-  const allergens = eaters
-    .flatMap((e) => e.allergies.map((a) => ({ label: a, who: ` в ${e.name}` })))
-    .filter((a) => a.label)
-    .map((a) => ({ ...a, root: root(a.label) }));
-
   const prodById = new Map(products.map((pr) => [pr.id, pr]));
   const active = bs.filter((b) => b.state !== 'depleted');
 
   const scored = active.map((b) => {
     const prod = b.product_id ? prodById.get(b.product_id) : undefined;
-    const words = meaningfulWords(b.label).map(root);
-    // Три джерела ⚠: корінь у назві АБО тег продукту АБО алерген-групи
-    // каталогу через catalog_key («мідії» → «молюски» без жодного кореня).
-    const catGroups = prod?.catalog_key
-      ? catalogGroupsToAllergens(BY_KEY.get(prod.catalog_key)?.allergen_groups ?? [])
-      : [];
-    const tagRoots = [...(prod?.tags.allergens ?? []), ...catGroups].map(root);
-    const hit = allergens
-      .filter((a) =>
-        words.some((w) => w === a.root || w.startsWith(a.root) || a.root.startsWith(w))
-        || tagRoots.some((t) => t === a.root || t.startsWith(a.root) || a.root.startsWith(t)))
-      .map((a) => a.label + a.who);
     // Індекс: за назвою партії й за позицією каталогу продукту (категорії
     // ієрархії — «стейк рібай» → яловичина → мʼясо).
     // Крок Ф1: той самий збіг, що дає `no` в GET /v1/pantry (pantry-view.ts).
     const vetoHits = vetoIndex?.length ? pantryVetoRows(b, prod?.catalog_key ?? null, vetoIndex) : [];
+    const hit: string[] = [];
     for (const r of vetoHits.filter((r) => r.allergy)) if (!hit.includes(r.ref!)) hit.push(r.ref!);
     const noEat = vetoHits.filter((r) => !r.allergy).map((r) => r.ref!);
     const fastHit = fasting && (isFastingRestricted(b.label) || prod?.tags.fasting === true);
@@ -326,31 +310,6 @@ export function serializeCookRun(r: RecentCookRunSummary, now = Date.now(), late
   return parts.join(' · ');
 }
 
-// Їдці дому: «зі мною живе Оксана, вона веганка». Страва готується на всіх,
-// хто за столом, тому алергія їдця — така сама тверда межа, як алергія
-// власника, і позначається тими самими словами.
-export function serializeEaters(eaters: EaterRow[]): string {
-  // M13-ROLE-VOICE п.1: порожньо — це «крім власника нікого не записано»,
-  // а не «нікого немає». Різниця та сама, що в профілі: могли не спитати.
-  if (!eaters.length) {
-    return '\n\n[ДОМАШНІ] порожньо — крім власника, їдців не записано.';
-  }
-  const lines = eaters.map((e) => {
-    const parts = [e.name];
-    if (e.allergies.length) parts.push(`АЛЕРГІЯ (тверда межа — ніколи не пропонуй сам): ${e.allergies.join(', ')}`);
-    if (e.antipatterns.length) parts.push(`не їсть: ${e.antipatterns.join(', ')}`);
-    if (e.wishes.length) parts.push(`тягне до: ${e.wishes.join(', ')}`);
-    return '— ' + parts.join(' · ');
-  });
-  return '\n\n[ДОМАШНІ]\n' + lines.join('\n')
-    + '\nСтрава готується на всіх за столом: обмеження домашніх враховуй нарівні з профілем.'
-    + ' Якщо трапеза СПІЛЬНА («на нас», «на двох», «на сімʼю», «на вечерю всім») — алерген будь-кого з домашніх'
-    + ' ВИКЛЮЧАЄ страву з пропозицій, а не додає позначку: за спільним столом «позначка, не заборона» не працює.'
-    + ' Виключення покриває і НЕДОКУПЛЕНЕ: класти алерген у needs («докупити пармезан») для спільної страви так само не можна —'
-    + ' підбирай страви, яким алерген не потрібен узагалі.'
-    + ' Попередження про алерген ЗАВЖДИ перша фраза reply, ніколи не в why/desc — why це слот переконування, не безпеки.';
-}
-
 // Останні згенеровані рецепти. Без цього блоку модель не бачила ВЛАСНИХ
 // рецептів: «а що ти там пропонував з борщем?» — і вона вигадувала борщ
 // заново, з іншим мʼясом і іншими калоріями (скріни Пилипа: 280 ккал з
@@ -396,15 +355,9 @@ function relativeWhen(atMs: number, nowMs: number): string {
   return days === 0 ? `сьогодні ${hhmm}` : days === 1 ? `вчора ${hhmm}` : `${days} дн тому`;
 }
 
-// Тип по-людськи: картка поля — за початком речення, ops-картка (традиції,
-// домашні) — «профіль». Решта — пряме дзеркало Card['type'].
+// Тип по-людськи. Пряме дзеркало Card['type']: гілка картки профілю пішла
+// разом із родиною (П5-В4).
 function humanCardType(card: Card): string {
-  if (card.type === 'profile') {
-    if (isProfileFieldCard(card)) {
-      return card.onboarding && !card.text.trim() ? `онбординг „${PROFILE_FIELDS[card.field].lead}"` : `записав у „${PROFILE_FIELDS[card.field].lead}"`;
-    }
-    return 'профіль';
-  }
   const NAMES: Partial<Record<Card['type'], string>> = {
     intake_diff: 'комора', shopping: 'список', event: 'подія',
     cook_photo: 'готування', recipe: 'рецепт',
@@ -420,10 +373,6 @@ function humanCardType(card: Card): string {
 function cardContentNames(card: Card): string[] {
   if (card.type === 'intake_diff') return card.ops.map((o) => o.label).filter(Boolean);
   if (card.type === 'shopping') return card.items.map((i) => i.label).filter(Boolean);
-  if (card.type === 'profile') {
-    if (isProfileFieldCard(card)) return card.text.trim() ? [card.text.trim()] : [];
-    return (card.ops ?? []).map((o) => o.label).filter(Boolean);
-  }
   if (card.type === 'event') return card.ops.map((o) => o.title ?? '').filter(Boolean);
   if (card.type === 'recipe') return card.recipe?.t ? [card.recipe.t] : [];
   if (card.type === 'cook_photo') return card.recipe_title ? [card.recipe_title] : [];
@@ -446,13 +395,8 @@ export function renderRecentActions(cards: PendingCard[], now: Date): string {
       pc.dismissed_at ? new Date(pc.dismissed_at).getTime() : -Infinity,
     );
     const result = pc.dismissed_at ? 'відхилено' : pc.undone_at ? 'скасовано' : 'застосовано';
-    let type = humanCardType(pc.card);
-    let content = joinNames(cardContentNames(pc.card));
-    // Картка поля, застосована без тексту — це «Нічого такого» (лише ban).
-    if (isProfileFieldCard(pc.card) && pc.applied_at && !pc.card.text.trim()) {
-      type = `записав у „${PROFILE_FIELDS[pc.card.field].lead}"`;
-      content = 'нічого такого';
-    }
+    const type = humanCardType(pc.card);
+    const content = joinNames(cardContentNames(pc.card));
     return `• ${relativeWhen(resolvedMs, nowMs)} · ${type}${content ? `: ${content}` : ''} — ${result}`;
   });
   return '\n\n[ОСТАННІ ДІЇ] (поза цією розмовою, 2 дні. Застосоване — вже в даних вище, не записуй знову; '
@@ -485,11 +429,10 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     // блока (500 з «купив» + 100 з блока = «600 г»). Рядок-нагадування в
     // самому блоці — той самий механізм, що рятував з алергенами й постом.
     + '\n\n[КОМОРА] (ПОВНИЙ перелік станом на зараз — інших партій не існує. Покупки з розмови ВЖЕ влиті в ці рядки, а готування вже віднято. Протокол на «скільки є X?»: знайди рядок X нижче → назви його число → крапка. Число менше, ніж купували? Так і має бути — різницю зʼїли готування. «~строк≈» — приблизна оцінка від відкриття: згадуй мʼяко — «варто передивитись», точні дні називай лише для «!Nдн». «?рід» — записано родовим словом, конкретний продукт невідомий: коли доходить до страви, доречно спитати ОДНИМ реченням, що це саме — але тільки якщо ти цього ще не питав у цій розмові. «?домисл.N%» — кількість або сама позиція домислена з розбору, не сказана людиною: не подавай її як точний факт («десь», «приблизно»), а коли вона стає важливою для страви чи покупки — уточни одним реченням; без мітки — не сумнівайся, число точне)\n'
-    + serializePantry(ctx.pantry, now.getTime(), ctx.eaters ?? [], fastingActive(now, rows, trads), 'none', 120, ctx.products ?? [], ctx.queryText ?? '', ctx.vetoIndex)
+    + serializePantry(ctx.pantry, now.getTime(), fastingActive(now, rows, trads), 'none', 120, ctx.products ?? [], ctx.queryText ?? '', ctx.vetoIndex)
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + renderRecentActions(ctx.recentActions ?? [], now)
-    + serializeEaters(ctx.eaters ?? [])
     + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
     + serializeRetail(ctx.retailConnected, ctx.retailKarpaty)
     // Режим — ОСТАННІМ: це найлетючіше й найдієвіше, що є в контексті, і

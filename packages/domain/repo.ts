@@ -2,7 +2,7 @@
 // і локального дев-режиму) і PostgresRepo (пізніше). Домен не знає про SQL.
 
 import type {
-  PantryBatch, PendingCard, AttachmentRecord, EaterRow,
+  PantryBatch, PendingCard, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
@@ -173,12 +173,6 @@ export interface Repo {
   // insert/delete поштучно; порядок рядків зберігається (як у тексті).
   getVetoIndex(user_id: string): Promise<VetoRow[]>;
   setVetoIndex(user_id: string, field: VetoField, rows: VetoRow[]): Promise<void>;
-
-  // Їдці дому — без акаунтів
-  insertEater(e: EaterRow): Promise<void>;
-  listEaters(household_id: string): Promise<EaterRow[]>;
-  findEaterByName(household_id: string, name: string): Promise<EaterRow | null>;
-  deleteEater(id: string): Promise<void>;
 
   // Картки на застосуванні
   savePending(pc: PendingCard): Promise<void>;

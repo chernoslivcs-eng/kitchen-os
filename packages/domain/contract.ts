@@ -348,13 +348,6 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       });
       expect((await repo.listInvitesForHousehold(household_id)).some((i) => i.email === 'invited@example.com')).toBe(true);
 
-      const eater_id = randomUUID();
-      await repo.insertEater({
-        id: eater_id, household_id, name: 'Смок-їдець',
-        allergies: ['арахіс'], wishes: [], antipatterns: [], created_at: now,
-      });
-      expect((await repo.listEaters(household_id)).some((e) => e.id === eater_id)).toBe(true);
-
       const recipe_id = randomUUID();
       await repo.saveRecipe({
         id: recipe_id, owner_id: user_id, origin: 'imported', title: 'Смок-рецепт',

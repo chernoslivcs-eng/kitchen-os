@@ -210,42 +210,10 @@ export interface PeriodItem {
   strict: boolean;
 }
 
-// Крок 11: профіль v1 (allergy/wish/anti/equip/note/intent) прибрано —
-// текст людини живе в profile_text, нотатки — в profile_note (поле `note`).
-// П1: традиції пішли в підписки (картка `period`); ops-форма — лише домашні.
-export type ProfileKind = 'member';
-
-// Раунд 4 (AUDIT-ROUND-4.md §4): картка профілю — одне поле, один текст.
-// Ops-форма лишається для того, що не є текстом людини і має власне сховище:
-// домашні (їдці).
-export interface ProfileOpsCard {
-  type: 'profile';
-  ops: {
-    op: 'add' | 'remove';
-    kind: ProfileKind;
-    label: string;
-    pin?: boolean;
-    // додаткові поля з 03-prompts.md залишаємо через індекс
-    [k: string]: unknown;
-  }[];
-}
-
-export interface ProfileFieldCard {
-  type: 'profile';
-  field: ProfileFieldKey;
-  /** append — дописати через «. »; replace — лише онбординг і явне «поправ: …». */
-  mode: 'append' | 'replace';
-  text: string;
-  /** Онбординг-картка: друга дія «Пропустити» (dismiss), для ban — «Нічого такого». */
-  onboarding?: boolean;
-  illustration?: string;
-}
-
-export type ProfileCard = ProfileOpsCard | ProfileFieldCard;
-
-export function isProfileFieldCard(card: Card | null | undefined): card is ProfileFieldCard {
-  return !!card && card.type === 'profile' && typeof (card as ProfileFieldCard).field === 'string';
-}
+// П5-В4: родини карток `profile` більше немає. Профіль — сім речень, які
+// людина пише сама (PATCH /v1/profile/:key, сторінка Профілю й картка
+// `onboarding`); асистент лише каже, у яке поле це вписати. Ops-форма жила
+// заради домашніх (їдців), яких прибрала В5.
 
 export interface RecipeIng {
   p?: string;   // id партії з комори — модель показує пальцем
@@ -405,7 +373,7 @@ export interface OnboardingCard {
   skipped?: ProfileFieldKey[];
 }
 
-export type Card = IntakeCard | ProposalCard | ShoppingCard | ProfileCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard | PeriodCard | OnboardingCard;
+export type Card = IntakeCard | ProposalCard | ShoppingCard | RecipeCard | CookPhotoCard | RecipeLinkCard | RecipeEditCard | CookGoCard | CartCard | CartGoCard | RetailSearchGoCard | EventCard | PeriodCard | OnboardingCard;
 
 // ----- Стан «на застосуванні» ------
 
@@ -445,9 +413,8 @@ export interface UndoSnapshot {
     created_batch_ids?: string[];       // add: створені партії — видалити при undo
     modified_batches?: PantryBatch[];   // rename/correct/open/deplete: повернути в цей стан
     // M13 01.09: auto-apply shopping зробив undo remove живим шляхом (раніше
-    // requires-click ховав цю дірку) — повний рядок, не тільки id, той самий
-    // патерн, що removed_eaters нижче: видалений рядок треба ВІДТВОРИТИ, id
-    // саме по собі для цього не досить.
+    // requires-click ховав цю дірку) — повний рядок, не тільки id: видалений
+    // рядок треба ВІДТВОРИТИ, id саме по собі для цього не досить.
     removed_shopping_items?: ShoppingItemRow[];
     added_shopping_ids?: string[];      // shopping add: видалити при undo
     checked_shopping_ids?: string[];    // UX9-27: intake add відмітив куплене — undo знімає галочку
@@ -456,28 +423,12 @@ export interface UndoSnapshot {
     // Раунд 4: картка поля — повернути попереднє значення поля (текст і статус).
     profile_field_before?: { field: ProfileFieldKey; value: ProfileFieldValue };
     added_recipe_ids?: string[];        // recipe: імпортований рецепт при undo видаляється
-    added_eater_ids?: string[];         // member add: undo видаляє
     photo_before?: { run_id: string; photo_url: string | null };  // cook_photo: повернути як було
-    removed_eaters?: EaterRow[];        // member remove: undo повертає повний рядок
     added_event_ids?: string[];         // event add: undo видаляє створене
     // edit/done/remove: повний рядок ДО зміни. Як і з позиціями списку, id
     // самого по собі не досить — видалену подію треба відтворити.
     events_before?: HouseholdEventRow[];
   };
-}
-
-// Їдець без акаунта: «зі мною живе Оксана, вона веганка». Не user і не
-// household_member — Оксана не логіниться й не пише в комору, вона просто
-// їсть те, що тут готують. Обмеження лежать у її записі, а не розмазуються
-// по анти-полю власника рядком «на двох: …», як радив промпт шість прогонів.
-export interface EaterRow {
-  id: string;
-  household_id: string;
-  name: string;
-  allergies: string[];
-  wishes: string[];
-  antipatterns: string[];
-  created_at: string;
 }
 
 export interface SessionRow {

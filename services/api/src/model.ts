@@ -12,6 +12,7 @@ import { noteFrom,
   type HouseholdEventRow,
   extractJson,
   CHAT_CARD_TYPES,
+  CARD_APPLY_MODE,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
   serializeProfileText, emptyProfileText,
@@ -22,7 +23,7 @@ import { noteFrom,
   type RecentCookRunSummary,
 } from '@kitchen/domain';
 import type {
-  Card, PantryBatch, ShoppingItemRow, EaterRow, RecipeRow,
+  Card, PantryBatch, ShoppingItemRow, RecipeRow,
   Recipe, RecipeIng, RecipeStep, HouseholdProduct, PendingCard,
 } from '@kitchen/domain';
 // Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
@@ -30,8 +31,8 @@ import type {
 export type { Recipe, RecipeIng, RecipeStep } from '@kitchen/domain';
 
 // Живий репро 01.09: модель повернула {"type":"shopping","ops":[...]}
-// замість items — shopping.items і intake_diff/profile.ops мають майже
-// однакову форму елемента ({op,label,...}), тож плутанина природна.
+// замість items — shopping.items і intake_diff.ops мають майже однакову
+// форму елемента ({op,label,...}), тож плутанина природна.
 // Ненормалізована картка доходила до summarizeCard/applyCard і кидала
 // TypeError на .map() у НАСТУПНОМУ ході (де читається історія) —
 // одна погана відповідь моделі блокувала розмову назавжди.
@@ -39,11 +40,20 @@ export type { Recipe, RecipeIng, RecipeStep } from '@kitchen/domain';
 // нічим (жодного масиву під жодною назвою) — повертаємо як є, це вже
 // справа summarizeCard/applyCard деградувати чемно (`?? []`), не тут.
 const ITEMS_TYPES = new Set(['shopping']);
-const OPS_TYPES = new Set(['intake_diff', 'profile']);
+const OPS_TYPES = new Set(['intake_diff']);
 export function normalizeCard(raw: unknown): Card | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
   if (typeof o.type !== 'string') return null;
+  // П5-В4: родина, якої продукт більше не знає, не доходить до людини.
+  // CHAT_CARD_TYPES тут не годиться — він гейтить лише ГОЛУ картку, а
+  // маркери ходу (cook_go/cart_go/retail_search_go) свідомо не в ньому й
+  // приходять саме в обгортці {reply, card}. Питання інше: «чи є в продукту
+  // така родина взагалі», і на нього відповідає CARD_APPLY_MODE — той самий
+  // ключ, за яким applyCard вирішує, що вміє. Без цього картка profile від
+  // упертої моделі створювала б pending-рядок і порожню рамку в стрічці:
+  // диспетчер cards.tsx рендерить для неї null, а мітка каже «ОЧІКУЄ».
+  if (!(o.type in CARD_APPLY_MODE)) return null;
   if (ITEMS_TYPES.has(o.type) && !Array.isArray(o.items) && Array.isArray(o.ops)) {
     const { ops, ...rest } = o;
     return { ...rest, items: ops } as unknown as Card;
@@ -204,7 +214,6 @@ export interface ChatArgs {
   vetoIndex?: VetoRow[];
   avoid?: string[];
   shopping?: ShoppingItemRow[];
-  eaters?: EaterRow[];
   recentRecipes?: RecipeRow[];
   // Черга Д (№2): продукти дому — теги живлять ⚠-мітки і «~строк≈» комори.
   products?: HouseholdProduct[];
@@ -401,16 +410,6 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
-  // Раунд 4: картка поля профілю — «профіль no: селери» → {field:'no', text:'селери'}.
-  const fieldCard = /^профіль (name|no|ban|love|meh|kit|when):\s*(.+)$/i.exec(args.text.trim());
-  if (fieldCard) {
-    return {
-      reply: 'Запишу.',
-      card: { type: 'profile', field: fieldCard[1]!.toLowerCase() as never, mode: 'append', text: fieldCard[2]!.trim() },
-      calls: [ZERO_USAGE],
-      meta: { promptVersion, model: 'stub', mode: 'stub' },
-    };
-  }
   // П1: «ми католики» → картка period з традицією; сервер добудовує список
   // свят із довідника, людина підтверджує «Записати».
   const trad = /(католи|іслам|мусульман|православ|юдей|світськ)/i.exec(args.text);
@@ -524,7 +523,6 @@ export function buildDynamicContext(args: ChatArgs, productMap?: string | null):
     vetoIndex: args.vetoIndex,
     shopping: args.shopping,
     recentCookRuns: args.recentCookRuns,
-    eaters: args.eaters,
     recentRecipes: args.recentRecipes,
     products: args.products,
     events: args.events,
@@ -802,7 +800,7 @@ export async function callRecipe(args: {
   // помилку. Переклад назад — детермінований; невідомий аліас → дроп p.
   const alias = buildAliasMap(args.pantry ?? []);
   const pantryBlock = args.pantry
-    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, Date.now(), [], false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`, args.vetoIndex)
+    ? '\n\n[КОМОРА]\n' + ctxSerializePantry(args.pantry, Date.now(), false, alias.toAlias, 120, args.products ?? [], `${args.title}\n${args.context ?? ''}`, args.vetoIndex)
     : '';
   // Кеш-межа: role+recipe-generator стабільні; профіль/комора/нотатки — динаміка.
   const stable = compose('recipe_gen', prompt);

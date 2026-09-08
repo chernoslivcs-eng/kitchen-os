@@ -1,4 +1,4 @@
-// Типи карток: intake_diff, proposal, shopping, profile, recipe. Кожна — компонент.
+// Типи карток: intake_diff, proposal, shopping, recipe. Кожна — компонент.
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
@@ -84,24 +84,6 @@ type ShoppingItem = {
 const ZONE_LABELS: Record<string, string> = {
   fresh: 'Свіже', fridge: 'Холодильник', freezer: 'Морозилка',
   dry: 'Суха шафа', spices: 'Спеції', drinks: 'Напої',
-};
-
-// Крок 11: ops-картка профілю знає лише традиції й домашніх; текст людини
-// йде карткою поля (ProfileFieldCard нижче).
-const KIND_LABELS: Record<string, string> = {
-  tradition: 'ТРАДИЦІЇ',
-  member: 'ДОМАШНІ',
-};
-
-type ProfileItem = {
-  op?: 'add' | 'remove';
-  kind?: 'tradition' | 'member';
-  label?: string;
-  // UX9-32: обмеження member-опа мають бути ВИДИМІ до підтвердження.
-  diet?: string;
-  allergies?: string[];
-  antipatterns?: string[];
-  wishes?: string[];
 };
 
 export interface CardProps {
@@ -799,92 +781,6 @@ export function ShoppingListCard({
   );
 }
 
-// ----- Profile -------------------------------------------------------------
-
-export function ProfileCard(props: CardProps) {
-  if (props.card.field) return <ProfileFieldCard {...props} />;
-  return <ProfileOpsCard {...props} />;
-}
-
-// Раунд 4 §4: картка поля — рядок «Я не їм …» + «Записати». Застосована —
-// згорнутий рядок із міткою ЗАПИСАНО; пропущена — ПРОПУЩЕНО; для `ban`
-// замість «Пропустити» — «Нічого такого». Без ілюстрацій (онбординг — крок 7).
-function ProfileFieldCard({ card, applied, applying, dismissed, undone, onApply, onDismiss, onNone }: CardProps) {
-  const field = card.field!;
-  const lead = PROFILE_FIELDS[field].lead;
-  const text = (card.text ?? '').trim();
-  const closed = (applied && !undone) || dismissed;
-  const meta = dismissed ? 'ПРОПУЩЕНО' : applied && !undone ? 'ЗАПИСАНО' : null;
-  return (
-    <div className={stateClass(applied, undone)}>
-      <div className={styles.ops}>
-        <div className={styles.op} style={{ alignItems: 'baseline' }}>
-          <span className={styles['op-label']} style={{ lineHeight: 1.5 }}>
-            <span style={{ color: field === 'ban' ? 'var(--danger)' : 'var(--fg-muted)' }}>{lead}</span>{' '}
-            <span style={closed ? { color: 'var(--fg-muted)' } : undefined}>{text || '…'}</span>
-          </span>
-          {meta && (
-            <span className={styles['op-qty']} style={{ color: meta === 'ЗАПИСАНО' ? 'var(--accent)' : 'var(--fg-dim)' }}>{meta}</span>
-          )}
-        </div>
-      </div>
-      {!closed && !undone && onApply && (
-        <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={() => onApply?.()} loading={applying} disabled={!text}>{CARD_BUTTON_LABEL.profile!}</Button>
-          {/* Крок 4в (6): «Нічого такого» — лише на онбординг-картці ban; звичайна — «Пропустити». */}
-          {field === 'ban' && card.onboarding
-            ? <Button variant="secondary" onClick={onNone} disabled={applying}>Нічого такого</Button>
-            : <Button variant="secondary" onClick={onDismiss} disabled={applying}>Пропустити</Button>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProfileOpsCard({ card, applied, applying, dismissed, undone, onApply, onDismiss }: CardProps) {
-  const items = (card.ops as ProfileItem[] | undefined ?? []);
-  return (
-    <div className={stateClass(applied, undone)}>
-      <div className={styles.ops}>
-        {items.map((it, i) => {
-          // UX9-32: «+ Оля / ДОМАШНІ» без самого обмеження — підтвердження
-          // наосліп. Показуємо, що саме запишеться.
-          const details = [
-            it.diet,
-            it.allergies?.length ? `алергії: ${it.allergies.join(', ')}` : null,
-            it.antipatterns?.length ? it.antipatterns.join(' · ') : null,
-            it.wishes?.length ? it.wishes.join(' · ') : null,
-          ].filter(Boolean);
-          return (
-            <div key={i} className={styles.op} style={details.length ? { alignItems: 'flex-start' } : undefined}>
-              <span className={styles['op-sign']}>{it.op === 'remove' ? '−' : '+'}</span>
-              <span className={styles['op-label']}>
-                {it.label ?? '—'}
-                {details.length > 0 && (
-                  <span style={{ display: 'block', marginTop: 2, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45 }}>
-                    {details.join(' · ')}
-                  </span>
-                )}
-              </span>
-              {it.kind && (
-                <span className={styles['op-qty']}>{KIND_LABELS[it.kind] ?? it.kind.toUpperCase()}</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {!applied && !undone && !dismissed && onApply && (
-        <div className={styles['card-actions']}>
-          <Button variant="primary" onClick={() => onApply?.()} loading={applying}>{CARD_BUTTON_LABEL.profile!}</Button>
-          <Button variant="secondary" onClick={onDismiss}>Ні</Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ----- Диспатчер за типом --------------------------------------------------
-
 // ----- Recipe --------------------------------------------------------------
 
 // Рецепт, розібраний із вкладення: сторінка книжки, скрін із телеграму.
@@ -1536,7 +1432,6 @@ export function Card(props: CardProps) {
     case 'cart':        return <RetailCartCard {...props} />;
     case 'proposal':    return <ProposalCard {...props} />;
     case 'shopping':    return <ShoppingCard {...props} />;
-    case 'profile':     return <ProfileCard {...props} />;
     case 'recipe':      return <RecipeCard {...props} />;
     case 'cook_photo':  return <CookPhotoCard {...props} />;
     case 'recipe_link': return <RecipeLinkCard {...props} />;
@@ -1566,7 +1461,6 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
   // відкритою, і людина бачить у ній самі позиції.
   if (appliedCount === 0) {
     switch (card.type) {
-      case 'profile':     return 'У „Про тебе" нічого не змінилось';
       case 'shopping':    return 'У списку нічого не змінилось';
       case 'intake_diff': return 'У коморі нічого не змінилось';
       case 'event':
@@ -1585,8 +1479,6 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
     const n = appliedCount ?? (card.ops?.length ?? 0);
     return `${n} ${plural(n, ['подія в календарі', 'події в календарі', 'подій у календарі'])}`;
   }
-  // Крок 4в (5): профіль — не комора. Одна фраза для обох форм картки (поле і ops).
-  if (card.type === 'profile') return 'Записано в „Про тебе"';
   // П2: серія — скільки рядків у календар; запис — один.
   if (card.type === 'period') {
     const n = appliedCount ?? (card.items?.length ?? 1);
@@ -1620,7 +1512,6 @@ export function labelFor(
   if (dismissed) return { text: '✕ ВІДХИЛЕНО', tone: 'muted' };
   const base = type === 'intake_diff' ? 'КОМОРА'
     : type === 'shopping' ? 'СПИСОК'
-    : type === 'profile' ? 'ПРОФІЛЬ'
     // Імпорт із книжки — не вигадка моделі, і мітка має це розрізняти.
     : type === 'recipe' ? 'РЕЦЕПТ'
     : type === 'cook_photo' ? 'ЖУРНАЛ'

@@ -429,7 +429,7 @@ export interface PeriodItem {
 }
 
 export interface ChatCard {
-  type: 'intake_diff' | 'proposal' | 'shopping' | 'profile' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event' | 'period' | 'onboarding';
+  type: 'intake_diff' | 'proposal' | 'shopping' | 'recipe' | 'cook_photo' | 'recipe_link' | 'cart' | 'event' | 'period' | 'onboarding';
   // П2: картка period — серія (tradition/unsubscribe → items) або запис (diet/custom → resolved).
   kind?: 'tradition' | 'diet' | 'custom';
   tradition?: Tradition;
@@ -851,7 +851,6 @@ export const api = {
     removeNote: (id: string) => req<void>(`/v1/profile/notes/${id}`, { method: 'DELETE' }),
     restoreNote: (id: string) => req<{ note: ProfileNoteV2 | null }>(`/v1/profile/notes/${id}/restore`, { method: 'POST', body: '{}' }),
   },
-  deleteEater: (id: string) => req<void>(`/v1/eaters/${id}`, { method: 'DELETE' }),
 
   households: {
     listInvites: (household_id: string) =>
@@ -945,7 +944,6 @@ export interface ProfileV2Response {
   defaults: { kit: string[] };
   /** null — ще не обирала (календар іде за здогадом зі слів); [] — вимкнула все. */
   veto?: VetoRowInfo[];
-  eaters?: EaterInfo[];
 }
 
 export type Tradition = 'orthodox' | 'catholic' | 'islamic' | 'jewish' | 'secular';
@@ -963,14 +961,6 @@ export interface RecipeStep {
   c: string;
   s?: number;                // сек. для таймера, якщо крок часовий
 }
-export interface EaterInfo {
-  id: string;
-  name: string;
-  allergies: string[];
-  wishes: string[];
-  antipatterns: string[];
-}
-
 export interface SessionInfo {
   id: string;
   user_id: string;

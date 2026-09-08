@@ -25,11 +25,11 @@ let applyBody: unknown;
 const json = (o: unknown) =>
   new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
 
-// Картка, яку гілка профілю не вміє застосувати: вона обробляє лише
-// kind: 'member'. Саме ця форма дала три штампи на нулі в проді.
+// П5-В4: ловили це на картці профілю, якої більше немає. Носій — рецепт:
+// та сама родина на підтвердженні, з кнопками «У рецепти» і «Ні».
 const unknownOpCard = {
-  type: 'profile',
-  ops: [{ kind: 'preference', op: 'add', label: 'люблю гостре' }],
+  type: 'recipe',
+  recipe: { t: 'Плескавиця', sv: 2, tm: 30, ing: [], st: [] },
 };
 
 function installFetch(applyResult: unknown) {
@@ -62,7 +62,7 @@ async function mountAndGetCard() {
   const el = q<HTMLTextAreaElement>('textarea')!;
   await act(async () => {
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
-    setter.call(el, 'я люблю гостре');
+    setter.call(el, 'збережи цей рецепт');
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await act(async () => { q<HTMLButtonElement>('button[type="submit"]')!.click(); });
@@ -94,19 +94,21 @@ describe('нульове застосування: картка не закри�
     installFetch({ applied: 0, undo_token: null, already: false });
     await mountAndGetCard();
 
-    await act(async () => { buttonByText('Записати')!.click(); });
+    await act(async () => { buttonByText('У рецепти')!.click(); });
     expect(applyBody).toBeTruthy();
 
-    // Тост: не «Записано в „Про тебе"», а те, що сталось насправді.
+    // Тост: не «у рецептах», а те, що сталось насправді. Рецепт місця не
+    // називає (у appliedToast для нуля названі лише комора, список і
+    // календар) — це знахідка П5, не правка П5.
     const toast = q<HTMLElement>('[data-toast]');
-    expect(toast?.textContent).toContain('нічого не змінилось');
-    expect(toast?.textContent).not.toContain('Записано');
+    expect(toast?.textContent).toContain('Нічого не змінилось');
+    expect(toast?.textContent).not.toContain('у рецептах');
 
     // Скасовувати нічого — кнопки бути не повинно.
     expect(q('[data-toast-action]')).toBeNull();
 
     // Картка лишається робочою: обидві кнопки на місці, «Ні» доступне.
-    expect(buttonByText('Записати')).toBeTruthy();
+    expect(buttonByText('У рецепти')).toBeTruthy();
     expect(buttonByText('Ні')).toBeTruthy();
   });
 
@@ -114,10 +116,10 @@ describe('нульове застосування: картка не закри�
     installFetch({ applied: 1, undo_token: 'tok-1', already: false });
     await mountAndGetCard();
 
-    await act(async () => { buttonByText('Записати')!.click(); });
+    await act(async () => { buttonByText('У рецепти')!.click(); });
 
-    expect(q<HTMLElement>('[data-toast]')?.textContent).toContain('Записано в „Про тебе"');
+    expect(q<HTMLElement>('[data-toast]')?.textContent).toContain('«Плескавиця» — у рецептах');
     expect(q<HTMLElement>('[data-toast-action]')?.textContent).toContain('Скасувати');
-    expect(buttonByText('Записати')).toBeUndefined();
+    expect(buttonByText('У рецепти')).toBeUndefined();
   });
 });

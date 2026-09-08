@@ -51,10 +51,12 @@ describe('detectRepeat (юніти)', () => {
     expect(detectRepeat('що на вечерю', [m({ text: 'що на вечерю' }), plain], T0 + 1000)).toBeNull();
   });
 
-  it('s40: «Не їм помідори і субпродукти» двічі за 12 с після застосованого profile', () => {
-    const prof = m({ role: 'assistant', text: 'Записав.', card: { type: 'profile', ops: [{ kind: 'anti', label: 'помідори' }, { kind: 'anti', label: 'субпродукти' }] } as never, applied: 2 });
-    const hit = detectRepeat('Не їм помідори і субпродукти', [m({ text: 'Не їм помідори і субпродукти' }), prof], T0 + 12_000);
-    expect(hit).toEqual({ card_type: 'profile', ops: 2 });
+  // s40 ловили на картці профілю; П5-В4 родину прибрав, правило лишилось —
+  // друга однакова репліка після ЗАСТОСОВАНОЇ картки не пише вдруге.
+  it('та сама репліка двічі за 12 с після застосованої картки події', () => {
+    const ev = m({ role: 'assistant', text: 'Записав.', card: { type: 'event', ops: [{ op: 'add', title: 'гості' }] } as never, applied: 1 });
+    const hit = detectRepeat('у суботу гості', [m({ text: 'у суботу гості' }), ev], T0 + 12_000);
+    expect(hit).toEqual({ card_type: 'event', ops: 1 });
     expect(repeatReply(hit!)).toBe('Побачив. Другий раз не записую — воно вже є.');
   });
 
@@ -71,15 +73,10 @@ describe('detectRepeat (юніти)', () => {
   });
 
   // Наступна правка: «скажи, скільки» лише там, де повтор МІГ БИ бути
-  // другою покупкою/дією з кількістю (intake_diff, shopping). event/profile —
-  // без хвоста і без числа: друга «не їм кінзу» не означає «два рази не їж».
+  // другою покупкою/дією з кількістю (intake_diff, shopping). event — без
+  // хвоста і без числа: друга «у суботу гості» не означає «гості двічі».
   it('repeatReply: event — без хвоста «скажи, скільки»', () => {
     expect(repeatReply({ card_type: 'event', ops: 1 }))
-      .toBe('Побачив. Другий раз не записую — воно вже є.');
-  });
-
-  it('repeatReply: profile — без хвоста «скажи, скільки»', () => {
-    expect(repeatReply({ card_type: 'profile', ops: 3 }))
       .toBe('Побачив. Другий раз не записую — воно вже є.');
   });
 });
@@ -133,7 +130,7 @@ describe('POST /v1/chat: повтор після застосованої кар
     await repo.saveMessage({ id: randomUUID(), session_id: session.id, role: 'user', text: 'Не люблю кінзу', card: null, applied: 0, created_at: now });
     await repo.saveMessage({
       id: randomUUID(), session_id: session.id, role: 'assistant', text: 'Запишу.',
-      card: { type: 'profile', ops: [{ kind: 'anti', label: 'кінза' }] } as never, applied: 0, created_at: now,
+      card: { type: 'intake_diff', ops: [{ op: 'add', label: 'кінза' }] } as never, applied: 0, created_at: now,
     });
     const res = await app.inject({
       method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie },

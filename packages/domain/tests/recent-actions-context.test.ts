@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderRecentActions } from '../context.js';
-import type { PendingCard, IntakeCard, ProfileCard } from '../types.js';
+import type { PendingCard, IntakeCard } from '../types.js';
 
 // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — те, що сталось із даними дому поза
 // цією розмовою. Без блока модель судить про стан лише з власних минулих
@@ -44,7 +44,7 @@ describe('renderRecentActions', () => {
     const dismissed = pending({
       id: 'p-dismissed',
       dismissed_at: '2026-09-09T09:00:00',
-      card: { type: 'profile', field: 'no', mode: 'append', text: 'кінзи' } as ProfileCard,
+      card: { type: 'period', kind: 'custom', title: 'гості' } as never,
     });
 
     const out = renderRecentActions([applied, undone, dismissed], now);

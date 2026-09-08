@@ -21,7 +21,7 @@ import type { MessageRow } from '@kitchen/domain';
 export const REPEAT_WINDOW_MS = 15 * 60_000;
 
 export interface RepeatHit {
-  card_type: 'intake_diff' | 'shopping' | 'event' | 'profile';
+  card_type: 'intake_diff' | 'shopping' | 'event';
   ops: number;
 }
 
@@ -48,15 +48,15 @@ export function detectRepeat(text: string, messages: MessageRow[], now = Date.no
   const answer = messages.slice(userIdx + 1).find((m) => m.role === 'assistant' && m.card);
   if (!answer || !answer.card || answer.applied <= 0) return null;
   const type = answer.card.type;
-  if (type !== 'intake_diff' && type !== 'shopping' && type !== 'event' && type !== 'profile') return null;
+  if (type !== 'intake_diff' && type !== 'shopping' && type !== 'event') return null;
   return { card_type: type, ops: answer.applied };
 }
 
 export function repeatReply(hit: RepeatHit): string {
   // «Скажи, скільки» має сенс лише там, де повтор МІГ БИ бути другою
-  // покупкою/дією з кількістю (intake_diff, shopping). Подія й профіль —
-  // не рахуються повторами: друга «не їм кінзу» не означає «два рази не їж».
-  if (hit.card_type === 'event' || hit.card_type === 'profile') {
+  // покупкою/дією з кількістю (intake_diff, shopping). Подія — ні: друга
+  // «у суботу гості» не означає «гості двічі».
+  if (hit.card_type === 'event') {
     return 'Побачив. Другий раз не записую — воно вже є.';
   }
   const n = hit.ops;

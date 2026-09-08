@@ -106,26 +106,15 @@ describe('профіль як сім речень', () => {
     expect(n.statusCode).toBe(410);
   });
 
-  // Крок 11: сторінка рецепта позначає інгредієнти з veto (власник) і eaters.
-  it('GET віддає veto з індексу і їдців дому', async () => {
+  // Крок 11: сторінка рецепта позначає інгредієнти з veto (власник).
+  // П5-В5: їдців дому більше немає — ні в тілі відповіді, ні в продукті.
+  it('GET віддає veto з індексу і не віддає їдців', async () => {
     await app.inject({ method: 'PATCH', url: '/v1/profile/ban', headers: { cookie }, payload: { text: 'арахісу' } });
     const r = await app.inject({ method: 'GET', url: '/v1/profile', headers: { cookie } });
-    const body = r.json() as { veto: { label: string; allergy: boolean }[]; eaters: unknown[]; traditions?: unknown };
+    const body = r.json() as { veto: { label: string; allergy: boolean }[]; eaters?: unknown; traditions?: unknown };
     expect(body.veto).toEqual([expect.objectContaining({ label: 'арахісу', allergy: true })]);
-    expect(body.eaters).toEqual([]);
+    expect(body.eaters).toBeUndefined();
     // П1: традиції — не поле профілю.
     expect(body.traditions).toBeUndefined();
-  });
-});
-
-describe('їдці', () => {
-  it('DELETE /v1/eaters/:id', async () => {
-    const { repo, mailer, app } = mk();
-    await app.ready();
-    const me = await signIn(app, mailer, 'me@example.com');
-    const id = randomUUID();
-    await repo.insertEater({ id, household_id: me.household_id, name: 'Оксана', allergies: [], wishes: [], antipatterns: [], created_at: new Date().toISOString() });
-    expect((await app.inject({ method: 'DELETE', url: `/v1/eaters/${id}`, headers: { cookie: me.cookie } })).statusCode).toBe(204);
-    expect(await repo.listEaters(me.household_id)).toEqual([]);
   });
 });
