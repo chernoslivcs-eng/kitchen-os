@@ -188,20 +188,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       let att_undo: string | undefined;
       if (call.card?.type === 'intake_diff' && card_id) {
         const r = await applyCard(repo, card_id, [], user_id);
-
-      // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
-      // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
-      // взагалі проблема в житті, чи лише в підстроєному випадку.
-      if (r.missed?.length) {
-        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
-      }
-
-      // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
-      // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
-      // взагалі проблема в житті, чи лише в підстроєному випадку.
-      if (r.missed?.length) {
-        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
-      }
+        // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
+        // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
+        // взагалі проблема в житті, чи лише в підстроєному випадку.
+        if (r.missed?.length) {
+          incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
+        }
         att_auto = true;
         att_undo = r.undo_token;
       }
@@ -265,13 +257,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // Пул-8 №2: списання застосовується одразу; «Як вийшло?» (раніше
         // followup ручного apply в cards.ts) їде тим самим ходом.
         const applied = await applyCard(repo, card_id, [], user_id);
-
-      // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
-      // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
-      // взагалі проблема в житті, чи лише в підстроєному випадку.
-      if (applied.missed?.length) {
-        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: applied.missed });
-      }
+        // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
+        // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
+        // взагалі проблема в житті, чи лише в підстроєному випадку.
+        if (applied.missed?.length) {
+          incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: applied.missed });
+        }
         await repo.saveMessage({
           id: randomUUID(), session_id: session.id, role: 'assistant',
           text: FEEDBACK_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
