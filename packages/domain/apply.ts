@@ -155,8 +155,15 @@ export async function applyCard(
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      if (await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot)) landed++;
-      else missed.push(`${op.op} «${op.label}»`);
+      const res = await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot);
+      if (res === 'landed') landed++;
+      // П6-Т2: малформлену операцію відрізняємо в тексті промаху. До людини
+      // `missed` не доходить — це рядок для лога, а «модель прислала поле,
+      // якого операція не читає» і «цілі немає в коморі» мають рахуватись там
+      // окремо: причини різні, і лікуються вони в різних місцях.
+      else missed.push(res === 'malformed'
+        ? `${op.op} «${op.label}» — value на deplete`
+        : `${op.op} «${op.label}»`);
     }
     // UX9-27: «купив X» закриває X у списку покупок. Інакше продукт одночасно
     // вважав, що олія В КОМОРІ і що олію ТРЕБА купити. Збіг — точний за назвою
@@ -486,9 +493,29 @@ async function applyIntakeOp(
   household_id: string,
   actor: string,
   snap: UndoSnapshot,
-  // Повертає true, якщо операція справді змінила стан. false означає, що
-  // ціль не знайшлась — і тоді картка НЕ має рапортувати про зміну.
-): Promise<boolean> {
+  // 'landed' — операція справді змінила стан. 'missed' — ціль не знайшлась.
+  // 'malformed' — картка просить того, чого ця операція не вміє (П6-Т2 нижче).
+  // Ні в другому, ні в третьому випадку картка НЕ має рапортувати про зміну.
+): Promise<'landed' | 'missed' | 'malformed'> {
+  // П6-Т2: `deplete` з `value` — це не команда, а малформлена операція.
+  //
+  // Схема, яку бачить модель, дозволяє `value` на всіх ops; гілка `deplete`
+  // нижче його не читає і списує партію ЦІЛКОМ. Виміряний випадок (07.09):
+  // на «половину томатів зʼїли» модель віддала {op:'deplete', value:250} і
+  // написала в репліці «лишилось 250 г» — партія зникала вся, а людина
+  // читала, що лишилось півпачки, і скасовувати не мала причин.
+  //
+  // Тихо трактувати це як `correct` не можна: лагодження форми на льоту —
+  // рівно те, від чого продукт відмовився в П4-Т3. Форму диктує промпт (там
+  // для часткового споживання названо `correct` із залишком), наше діло —
+  // не збрехати про результат. Тому операція не виконується зовсім, а промах
+  // лишає слід у лозі: якщо модель усе-таки шле таке, ми маємо це ПОБАЧИТИ,
+  // а не приховати.
+  //
+  // Перевірка стоїть ДО пошуку цілі навмисно: малформленість — властивість
+  // самої операції, і чіпати заради неї undo-знімок нема за що.
+  if (op.op === 'deplete' && (op as { value?: unknown }).value !== undefined) return 'malformed';
+
   if (op.op === 'add') {
     const id = randomUUID();
     const provenance: Provenance = (op.evidence as Provenance) ?? 'user_statement';
@@ -533,7 +560,7 @@ async function applyIntakeOp(
     // позиція про картку не знає. Тому сесію можна видалити — зникне вікно,
     // не вміст холодильника.
     op.batch_id = id;
-    return true;
+    return 'landed';
   }
 
   // Вказівник сильніший за назву. Хто знає позицію — адресує її точно; назва
@@ -547,8 +574,8 @@ async function applyIntakeOp(
   if (!target) {
     // Мовчки не СТВОРЮЄМО — це правильно: одруківка моделі не має народжувати
     // позиції з повітря. Але й мовчки РАПОРТУВАТИ про зміну не можна: далі
-    // false доходить до лічильника, і картка каже правду замість «застосовано».
-    return false;
+    // 'missed' доходить до лічильника, і картка каже правду замість «застосовано».
+    return 'missed';
   }
   snap.before.modified_batches!.push({ ...target });
 
@@ -614,7 +641,7 @@ async function applyIntakeOp(
       if (prod) await repo.updateProduct(prod.id, { tags: { ...prod.tags, ...op.tags } });
     }
   }
-  return true;
+  return 'landed';
 }
 
 /**

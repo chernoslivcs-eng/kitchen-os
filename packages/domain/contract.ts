@@ -315,6 +315,43 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await ctx.repo.listBatches(ctx.household_id)).toHaveLength(0);
     });
 
+    it('deplete з value: партія недоторкана, промах, нуль застосованого', async () => {
+      // П6-Т2. Виміряний випадок (07.09): на «половину томатів зʼїли» модель
+      // віддає {op:'deplete', value:250} і пише в репліці «лишилось 250 г» —
+      // бо схема дозволяє `value` на всіх операціях, а імені для часткового
+      // споживання їй не дали. Гілка `deplete` `value` не читає: партія
+      // зникала ЦІЛКОМ, а людина читала, що лишилось півпачки.
+      //
+      // Тихо трактувати таку картку як `correct` не можна — це лагодження
+      // форми на льоту, від якого продукт відмовився в П4-Т3: форму диктує
+      // промпт. Операція малформлена, отже не виконується зовсім і лишає
+      // слід у `missed` — щоб частота цього була видима в лозі, а не зникла.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      const mid = randomUUID();
+      const card = { type: 'intake_diff', ops: [{ op: 'deplete', label: 'фарш', value: 250 }] } as unknown as IntakeCard;
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { applied, missed, undo_token } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state, 'партія лишається живою').toBe('sealed');
+      expect(b?.value, 'кількість не змінилась — сервер не рахує частку').toBe(seeded.value);
+      expect(b?.depleted_at).toBeNull();
+      expect(applied).toBe(0);
+      expect(undo_token, 'нічого не лягло — скасовувати нема чого').toBeNull();
+      expect(missed).toEqual(['deplete «фарш» — value на deplete']);
+    });
+
+    it('deplete БЕЗ value працює як працював — повне списання не зачеплене', async () => {
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'deplete', label: 'фарш' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { applied, missed } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+      expect(applied).toBe(1);
+      expect(missed).toEqual([]);
+      expect((await ctx.repo.getBatch(seeded.id))?.state).toBe('depleted');
+    });
+
     it('чужий актор — forbidden', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };
