@@ -732,11 +732,6 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ rating, verdict }),
       }),
-    setPhoto: (id: string, photo_url: string | null) =>
-      req<{ updated: boolean; photo_url: string | null }>(`/v1/cook-runs/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ photo_url }),
-      }),
   },
 
   attachments: {
