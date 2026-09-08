@@ -237,6 +237,51 @@ describe('GET /v1/admin/money', () => {
     expect(members).not.toHaveBeenCalled();
   });
 
+  it('частка кешу рахується від ВХІД + КЕШ — «256%» бути не може', async () => {
+    // Кеш і вхід — два окремі лічильники. Зі старим знаменником (самим лише
+    // входом) частка виходила більшою за сто відсотків, і це показувало не
+    // економію, а плутанину.
+    await repo.logTokenUsage(usage({ input_tokens: 2_000, cached_tokens: 22_000 }));
+    const b = (await money()).json();
+    expect(b.totals.cached_share).toBeGreaterThan(0);
+    expect(b.totals.cached_share).toBeLessThanOrEqual(1);
+    expect(b.totals.cached_share).toBeCloseTo(22_000 / 24_000, 6);
+  });
+
+  it('сума по РОЗРІЗАХ дорівнює сумі по РЯДКАХ — на цьому сходяться екрани', async () => {
+    // Зведення ставить ціну на згорнутих групах, Пульс — на рядках. Поки
+    // формула була нелінійною, вони розходились на 25% за той самий день.
+    // Суміш навмисна: рядки, де кеш більший за вхід, І рядок без кешу зовсім.
+    // Саме на такій суміші нелінійна формула й розходиться — якщо всі рядки
+    // затискаються однаково, група випадково збігається з сумою, і тест
+    // мовчить про поламане.
+    const rows = [
+      { input_tokens: 1_991, cached_tokens: 22_710, output_tokens: 326 },
+      { input_tokens: 1_761, cached_tokens: 22_710, output_tokens: 218 },
+      { input_tokens: 6_942, cached_tokens: 22_372, output_tokens: 356 },
+      { input_tokens: 500_000, cached_tokens: 0, output_tokens: 1_000 },
+    ];
+    for (const r of rows) await repo.logTokenUsage(usage(r));
+
+    const { priceOf } = await import('../src/pricing.js');
+    const perRow = rows.reduce((n, r) => n + (priceOf({ model: HAIKU, ...r }) ?? 0), 0);
+
+    const b = (await money()).json();
+    expect(b.totals.usd).toBeCloseTo(perRow, 6);
+    const sliceSum = b.byCall.reduce((n: number, s: { usd: number }) => n + s.usd, 0);
+    expect(sliceSum).toBeCloseTo(perRow, 6);
+  });
+
+  it('розрізи за домом і людиною названі імʼям, а не uuid', async () => {
+    // Розріз без імен технічно правильний і непридатний для читання: власник
+    // не впізнає в ньому нікого.
+    await repo.logTokenUsage(usage());
+    const b = (await money()).json();
+    expect(b.byHousehold[0].label).not.toMatch(/^[0-9a-f]{8}-/);
+    expect(b.byHousehold[0].label).toContain('Дім');
+    expect(b.byPerson[0].label).not.toMatch(/^[0-9a-f]{8}-/);
+  });
+
   it('порожній період каже «стільки ще не збирали», а не «нуль»', async () => {
     // Нуль читається як «нічого не витратили». Тому сторінка віддає дату
     // першого обліченого виклику — і клієнт має чим відрізнити одне від іншого.
