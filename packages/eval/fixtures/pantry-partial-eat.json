@@ -1,0 +1,13 @@
+{
+  "id": "pantry-partial-eat",
+  "description": "П6: зʼїли ЧАСТИНУ. Виміряний збій 07.09 — на «половину томатів зʼїли» модель віддавала {op:'deplete', value:250} і писала «лишилось 250 г»: deplete було єдиним дієсловом споживання, яке їй назвали, а value гілка deplete не читає — партія зникала цілком. Правильна форма — correct із ЗАЛИШКОМ, партія лишається жива.",
+  "call": "chat",
+  "now": "2026-09-08T19:00:00",
+  "pantry": [
+    {"id":"b1","label":"томати","zone":"fresh","v":500,"u":"g"}
+  ],
+  "conversation": [
+    { "role": "user", "content": "половину томатів зʼїли" }
+  ],
+  "invariants": ["partial-eat-is-correct", "intake-count:томат=250", "no-markdown", "addresses-informally"]
+}

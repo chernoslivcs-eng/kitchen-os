@@ -302,6 +302,24 @@ export const registry: Record<string, Invariant> = {
     return dup ? fail(`дубльований op: «${dup}»`) : pass(`${labels.length} унікальних ops`);
   },
 
+  // П6: зʼїли ЧАСТИНУ — партія лишається жива. Виміряно 07.09: на «половину
+  // томатів зʼїли» модель віддавала {op:'deplete', value:250} — єдине дієслово
+  // споживання, яке їй назвали, плюс поле, якого гілка `deplete` не читає.
+  // Партія зникала цілком, а репліка казала «лишилось 250 г». Форма, яку
+  // модель мала на увазі, — `correct` із залишком; ім'я їй просто не дали.
+  'partial-eat-is-correct': (out) => {
+    const c = out.card;
+    if (!c || c.type !== 'intake_diff') return fail(`card.type=${c?.type ?? 'null'} — очікував intake_diff`);
+    const ops = (c.ops ?? []) as { op?: string; label?: string; value?: number }[];
+    const bad = ops.find((o) => o.op === 'deplete');
+    if (bad) return fail(`deplete «${bad.label}» — зʼїли ЧАСТИНУ, партія лишається жива`);
+    const hit = ops.find((o) => o.op === 'correct');
+    if (!hit) return fail(`ops: ${ops.map((o) => o.op ?? 'add').join(',') || '(порожньо)'} — correct немає`);
+    return hit.value != null
+      ? pass(`correct ${hit.label}=${hit.value}`)
+      : fail('correct без value — залишок не названий');
+  },
+
   'no-availability-excuse': (out) => {
     const r = out.reply ?? '';
     const hit = /рідко (буває|зустрічається|трапляється)|важко (знайти|дістати)|не буває в магазин|складно (знайти|дістати)/i.exec(r);
