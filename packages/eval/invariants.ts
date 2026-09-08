@@ -119,14 +119,6 @@ export const registry: Record<string, Invariant> = {
     return hit ? fail(`службова позначка в reply: «${hit[0]}»`) : pass();
   },
   // Крок 4в (2): «я веган» → розгорнутий перелік, не слово.
-  'profile-text-expands-vegan': (out) => {
-    const c = out.card;
-    if (!c || c.type !== 'profile' || !c.field) return fail(`card.type=${c?.type ?? 'null'} — очікував картку поля`);
-    const t = String(c.text ?? '').toLowerCase();
-    const want = [/мʼяс|м'яс/, /риб/, /яєц|яйц/, /молоч/];
-    const missing = want.filter((re) => !re.test(t));
-    return missing.length ? fail(`text «${c.text}» не розгортає: бракує ${missing.length} з 4 груп`) : pass(c.text);
-  },
   // Крок 4в (4): відповідь без зустрічного питання.
   'reply-no-question': (out) => {
     const r = String(out.reply ?? '');
@@ -709,7 +701,10 @@ export const registry: Record<string, Invariant> = {
     // reply або rk мають назвати алерген вголос — не подати як звичайний рядок.
     const reply = String(out.reply ?? '').toLowerCase();
     const rk = String(out.card?.recipe?.rk ?? out.card?.rk ?? '').toLowerCase();
-    const acknowledged = /алерг|мідії ж|обережно|мамі|мама/.test(reply + ' ' + rk);
+    // «мама» звідси прибрано разом із `eaters`: слово приходило в репліку з
+    // тексту самої людини, і фікстура зеленіла, нічого не перевіривши (П5 §3
+    // №14 назвав це, але передбачив зелену — вийшла червона).
+    const acknowledged = /алерг|мідії ж|обережно|не можна/.test(reply + ' ' + rk);
     return acknowledged
       ? pass()
       : fail('алерген не названо вголос у reply/rk — правило «ніколи не подавай як звичайний інгредієнт» порушене');
@@ -1147,7 +1142,9 @@ export const registry: Record<string, Invariant> = {
     const hay = JSON.stringify(card).toLowerCase()
       .replace(/без\s+[а-яіїєʼ']*(вершк|молок|молоч|сметан|йогурт|кефір|сир)[а-яіїєʼ']*/g, '');
     const dairy = ['молок', 'вершк', 'сметан', 'йогурт', 'кефір', 'сир '].filter((w) => hay.includes(w));
-    return dairy.length ? fail(`молочне в пропозиції для Олі: ${dairy.join(', ')}`) : pass();
+    // П5-В2: обмеження більше не з `eaters`, а з «Мені не можна» в профілі —
+    // імені в тексті помилки тому немає.
+    return dairy.length ? fail(`молочне в пропозиції при «не можна»: ${dairy.join(', ')}`) : pass();
   },
 
   // UX9-23: rescues — обіцянка «страва це використає», ковбаса — не хліб.
@@ -1353,6 +1350,46 @@ export function resolve(name: string): Invariant {
       const [lo, hi] = (arg ?? '1-5').split('-').map(Number);
       const n = String(out.reply ?? '').split(/(?<=[.!?…])\s+/).filter((x) => x.trim()).length;
       return n >= lo! && n <= hi! ? pass(`${n} речень`) : fail(`${n} речень, очікував ${lo}–${hi}`);
+    };
+  }
+
+  // П5 прибрав картку поля профілю: людина вписує рядок сама, а модель лише
+  // НАЗИВАЄ поле в репліці (kitchen-policy.md, рядок 4). Продуктове питання
+  // фікстур залишилось те саме — чи розрізняє модель «не можна» / «не їм» /
+  // «не дуже люблю», — змінилось лише, де шукати відповідь: не в card.field,
+  // а в тексті репліки. Тому `profile-field:X` тут заміщається на
+  // `reply-names-field:X`; сам `profile-field` живий, поки на ньому лишається
+  // хоч одна фікстура.
+  //
+  // Звіряємось із підписом рядка, а не з ключем: людина в інтерфейсі бачить
+  // «Я не дуже люблю», слова `meh` вона не знає й модель його вимовляти не
+  // мусить. Лапки й регістр ігноруємо — вони не частина відповіді.
+  if (base === 'reply-names-field') {
+    const LEAD: Record<string, RegExp> = {
+      no: /я\s+не\s+їм/i,
+      ban: /мені\s+не\s+можна/i,
+      meh: /я\s+не\s+дуже\s+люблю/i,
+      love: /(?<!не\s{0,3}дуже\s{0,3})я\s+люблю/i,
+      kit: /у\s+мене\s+на\s+кухні\s+є/i,
+      when: /я\s+зазвичай\s+готую/i,
+      name: /мене\s+звати/i,
+    };
+    return (out) => {
+      const want = LEAD[arg ?? ''];
+      if (!want) return fail(`невідоме поле «${arg}»`);
+      const reply = String(out.reply ?? '');
+      if (want.test(reply)) {
+        // Репліка, що називає ще й інше поле, — це хедж, а не помилка
+        // маршрутизації: потрібне поле вона все одно назвала. Кажемо про це
+        // в деталі, щоб було видно очима, і не червонимо.
+        const also = Object.entries(LEAD)
+          .filter(([k, re]) => k !== arg && re.test(reply)).map(([k]) => k);
+        return pass(also.length ? `назвала ${arg} (а ще ${also.join(', ')})` : `назвала ${arg}`);
+      }
+      const found = Object.entries(LEAD).filter(([, re]) => re.test(reply)).map(([k]) => k);
+      return fail(found.length
+        ? `назвала поле ${found.join(', ')}, а мало бути ${arg} — репліка: «${reply.slice(0, 140)}»`
+        : `поля профілю не названо взагалі — репліка: «${reply.slice(0, 140)}»`);
     };
   }
 
