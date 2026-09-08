@@ -129,6 +129,13 @@
 }
 .row:last-child { border-bottom: 0; }
 
+/* Крок А4б: рядок звірки читається як ОДИН рядок рахунку — п'ять величин
+   поспіль. У вузькій колонці значення вони ламаються на чотири рядки, і
+   порівняння оком, заради якого рядок існує, перестає працювати. Тут значення
+   бере всю ширину, а підпис іде під ним. */
+.rowsWide .row { grid-template-columns: 210px minmax(0, 1fr); }
+.rowsWide .rowNote { grid-column: 2; margin-top: 4px; }
+
 .rowLabel { font-size: 13px; color: var(--fg-muted); }
 .rowValue { font-family: var(--font-mono); font-size: 13px; color: var(--fg-strong); }
 .rowNote { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-dim); line-height: 1.5; }
