@@ -67,6 +67,38 @@ export function cachedSystem(stable: string, dynamic?: string): Anthropic.TextBl
   return blocks;
 }
 
+/**
+ * Крок А4б: облік одного ФАКТИЧНОГО виклику моделі.
+ *
+ * Рядок у `token_usage` = один такий запис, не один логічний крок. Доки
+ * обробник складав usage кількох викликів в один рядок, гроші сходились
+ * (сума правильна), а знаменник — ні: «ціна одного виклику» на екрані була
+ * завищена рівно у стільки разів, скільки викликів злилось. Звірка з
+ * рахунком OpenRouter 08.09 показала 11 викликів проти наших 8, парами.
+ *
+ * Тому канал виклику моделі віддає СПИСОК, а не суму. Складати список у
+ * підсумок можна будь-коли (`sumUsage`), розкласти суму назад — ніколи.
+ */
+export interface ModelCallUsage {
+  input: number;
+  output: number;
+  cached?: number;
+  cache_write?: number;
+}
+
+/** Виклик без мережі (стаб): він БУВ, просто нічого не коштував. */
+export const ZERO_USAGE: ModelCallUsage = { input: 0, output: 0 };
+
+/** Підсумок кроку. Для відповіді клієнту й для тестів — не для обліку. */
+export function sumUsage(calls: ModelCallUsage[]): ModelCallUsage {
+  return calls.reduce<ModelCallUsage>((acc, c) => ({
+    input: acc.input + c.input,
+    output: acc.output + c.output,
+    cached: (acc.cached ?? 0) + (c.cached ?? 0),
+    cache_write: (acc.cache_write ?? 0) + (c.cache_write ?? 0),
+  }), { input: 0, output: 0, cached: 0, cache_write: 0 });
+}
+
 // Cache-поля відповіді: прямий Anthropic їх віддає завжди; чи прокидає їх
 // OpenRouter — перевіряється живим викликом (обидва 0 = не прокидає, фіксуємо
 // як знахідку, не підганяємо).
@@ -196,7 +228,8 @@ export interface ChatCall {
   // Крок 8 (§7): нотатка асистента — необовʼязкове поле відповіді; сервер
   // (chat.ts → acceptAssistantNote) вирішує, чи писати.
   note?: string | null;
-  usage: { input: number; output: number; cached?: number; cache_write?: number };
+  /** По одному запису на фактичний виклик моделі (крок А4б). */
+  calls: ModelCallUsage[];
   meta: {
     promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number;
     // Крок 6е: чи довелось перепитувати модель, бо reply дослівно повторював
@@ -225,7 +258,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       return {
         reply: `Заміню в рецепті — зараз оновлю.`,
         card: { type: 'recipe_edit', title: q[1]!.trim(), instruction: args.text },
-        usage: { input: 0, output: 0 },
+        calls: [ZERO_USAGE],
         meta: { promptVersion, model: 'stub', mode: 'stub' },
       };
     }
@@ -252,14 +285,14 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       return {
         reply: 'Зараз гляну ціни й наявність.',
         card: items?.length ? { type: 'cart_go', items } : { type: 'cart_go' },
-        usage: { input: 0, output: 0 },
+        calls: [ZERO_USAGE],
         meta: { promptVersion, model: 'stub', mode: 'stub' },
       };
     }
     return {
       reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
       card: null,
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -275,14 +308,14 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
       return {
         reply: 'Зараз гляну, що є.',
         card: { type: 'retail_search_go', query },
-        usage: { input: 0, output: 0 },
+        calls: [ZERO_USAGE],
         meta: { promptVersion, model: 'stub', mode: 'stub' },
       };
     }
     return {
       reply: 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.',
       card: null,
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -292,7 +325,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: 'Тримай рецепт.',
       card: { type: 'cook_go', title: go[1]!.trim() },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -308,7 +341,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
         return {
           reply: 'Додаю в кошик.',
           card: { type: 'cart_go', items },
-          usage: { input: 0, output: 0 },
+          calls: [ZERO_USAGE],
           meta: { promptVersion, model: 'stub', mode: 'stub' },
         };
       }
@@ -324,7 +357,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: `Додав ${label} у список.`,
       card: { type: 'shopping', items: [{ op: 'add', label }] },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -338,7 +371,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: `Прибрав ${label} зі списку.`,
       card: { type: 'shopping', items: [{ op: 'remove', label }] },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -354,7 +387,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: 'Продовжив на тиждень.',
       card: { type: 'event', ops: [{ op: 'edit', id: args.events[0].id.slice(0, 8), days: 7 }] },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -363,7 +396,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
   if (noteStub) {
     return {
       reply: 'Запамʼятаю.', card: null, note: noteStub[1]!.trim(),
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -373,7 +406,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: 'Запишу.',
       card: { type: 'profile', field: fieldCard[1]!.toLowerCase() as never, mode: 'append', text: fieldCard[2]!.trim() },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -385,7 +418,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: 'Ось свята — познач, які тримаєте.',
       card: { type: 'period', kind: 'tradition', tradition: label },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -396,7 +429,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: all ? 'Поверну сезони — познач, які лишити.' : 'Зніму сезони з календаря — познач у картці, що лишити.',
       card: { type: 'period', kind: 'tradition', set: 'seasons', all },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -406,7 +439,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: 'Приберу з календаря.',
       card: { type: 'period', kind: 'tradition', unsubscribe: unsub[1]!.trim().replace(/[.!?]+$/, '') },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -417,7 +450,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
     return {
       reply: 'Запишу як період — підтвердь.',
       card: { type: 'period', kind: 'diet', title: diet[1]!.startsWith('білков') ? 'білкова' : diet[1]!, rule_text: args.text, to: { rel: '+30d' }, ...(strict ? { strict: true } : {}) },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -431,7 +464,7 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
         type: 'event',
         ops: [{ op: 'add', kind: 'custom', title: `гості${n ? `, ${servings}` : ''}`, when: { rel: '+2d' }, ...(n ? { servings: n } : {}) }],
       },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -444,14 +477,14 @@ function stub(args: ChatArgs, promptVersion: string): ChatCall {
         type: 'intake_diff',
         ops: [{ op: 'add', label, evidence: 'user_statement', confidence: 0.9 }],
       },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
   return {
     reply: `[STUB без ANTHROPIC_API_KEY] відповідь на: ${args.text}`,
     card: null,
-    usage: { input: 0, output: 0 },
+    calls: [ZERO_USAGE],
     meta: { promptVersion, model: 'stub', mode: 'stub' },
   };
 }
@@ -655,7 +688,9 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     .map((b) => b.text)
     .join('\n');
   let { reply, card, note } = parseChatText(text, resp.stop_reason);
-  let usage = usageFrom(resp.usage);
+  // Крок А4б: не сума, а список. Повторний виклик guard-а — це другий рядок у
+  // рахунку OpenRouter, і в нашому обліку він теж має бути другим рядком.
+  const calls: ModelCallUsage[] = [usageFrom(resp.usage)];
   let exampleCopy = false;
 
   // Один повторний виклик із guard-рядком у кінці репліки людини — спільний
@@ -671,13 +706,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       .map((b) => b.text)
       .join('\n');
     ({ reply, card, note } = parseChatText(retryText, retryResp.stop_reason));
-    const retryUsage = usageFrom(retryResp.usage);
-    usage = {
-      input: usage.input + retryUsage.input,
-      output: usage.output + retryUsage.output,
-      cached: (usage.cached ?? 0) + (retryUsage.cached ?? 0),
-      cache_write: (usage.cache_write ?? 0) + (retryUsage.cache_write ?? 0),
-    };
+    calls.push(usageFrom(retryResp.usage));
   };
 
   const voiceExamples = parseVoiceExamples(prompt.blocks['voice'] ?? '');
@@ -696,7 +725,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     reply,
     card,
     note,
-    usage,
+    calls,
     meta: {
       promptVersion: prompt.version, model, mode: 'live',
       // A3: слід тексту, що реально поїхав (стабільний префікс).
@@ -712,7 +741,8 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
 export interface RecipeCall {
   recipe: Recipe | null;
   raw: string;
-  usage: { input: number; output: number; cached?: number; cache_write?: number };
+  /** По одному запису на фактичний виклик моделі (крок А4б). */
+  calls: ModelCallUsage[];
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
 }
 
@@ -742,7 +772,7 @@ function recipeStub(title: string, promptVersion: string, pantry?: PantryBatch[]
       ],
     },
     raw: '',
-    usage: { input: 0, output: 0 },
+    calls: [ZERO_USAGE],
     meta: { promptVersion, model: 'stub', mode: 'stub' },
   };
 }
@@ -809,7 +839,7 @@ export async function callRecipe(args: {
   return {
     recipe,
     raw: recipe ? text : unaliasProse(text, aliasLabels),
-    usage: usageFrom(resp.usage),
+    calls: [usageFrom(resp.usage)],
     meta: {
       promptVersion: prompt.version, model, mode: 'live',
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
@@ -830,7 +860,8 @@ export interface AttachmentCall {
   reply: string;
   card: Card | null;
   raw_kind: 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other' | null;
-  usage: { input: number; output: number; cached?: number; cache_write?: number };
+  /** По одному запису на фактичний виклик моделі (крок А4б). */
+  calls: ModelCallUsage[];
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
 }
 
@@ -851,7 +882,7 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
         type: 'intake_diff',
         ops: [{ op: 'add', label, evidence: 'receipt_line', confidence: 0.9 }],
       },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -874,7 +905,7 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
           st: [{ t: 'Готувати', c: text.slice(0, 120) }],
         },
       },
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -884,7 +915,7 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
       reply: 'Виглядає як готова страва.',
       card: null,
       raw_kind: 'dish',
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
   }
@@ -892,7 +923,7 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
     reply: `[STUB без ANTHROPIC_API_KEY] отримав ${atts.length} вкладень.`,
     card: null,
     raw_kind: null,
-    usage: { input: 0, output: 0 },
+    calls: [ZERO_USAGE],
     meta: { promptVersion, model: 'stub', mode: 'stub' },
   };
 }
@@ -955,7 +986,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     reply,
     card,
     raw_kind,
-    usage: usageFrom(resp.usage),
+    calls: [usageFrom(resp.usage)],
     meta: {
       promptVersion: prompt.version, model, mode: 'live',
       prompt_hash: hashPromptText(system), prompt_chars: system.length,
@@ -970,7 +1001,8 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
 export interface AltFilterPair { source: string; candidate: string }
 export interface AltFilterCall {
   keep: boolean[]; // той самий порядок/довжина, що вхідні pairs
-  usage: { input: number; output: number; cached?: number };
+  /** По одному запису на фактичний виклик моделі (крок А4б). */
+  calls: ModelCallUsage[];
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
 }
 
@@ -979,13 +1011,13 @@ function altFilterStub(pairs: AltFilterPair[], promptVersion: string): AltFilter
   const NONFOOD = /крем|бальзам|шампунь|\bмило\b|засіб для|гель для/i;
   const bad = (s: string) => ALC.test(s) || NONFOOD.test(s);
   const keep = pairs.map((p) => !(bad(p.candidate) && !bad(p.source)));
-  return { keep, usage: { input: 0, output: 0 }, meta: { promptVersion, model: 'stub', mode: 'stub' } };
+  return { keep, calls: [ZERO_USAGE], meta: { promptVersion, model: 'stub', mode: 'stub' } };
 }
 
 export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCall> {
   const prompt = loadPrompt();
   if (!pairs.length) {
-    return { keep: [], usage: { input: 0, output: 0 }, meta: { promptVersion: prompt.version, model: 'stub', mode: 'stub' } };
+    return { keep: [], calls: [ZERO_USAGE], meta: { promptVersion: prompt.version, model: 'stub', mode: 'stub' } };
   }
   const client = makeClient();
   if (!client) return altFilterStub(pairs, prompt.version);
@@ -1017,13 +1049,13 @@ export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCa
 
     return {
       keep,
-      usage: usageFrom(resp.usage),
+      calls: [usageFrom(resp.usage)],
       meta: { promptVersion: prompt.version, model, mode: 'live' },
     };
   } catch {
     return {
       keep: pairs.map(() => true),
-      usage: { input: 0, output: 0 },
+      calls: [ZERO_USAGE],
       meta: { promptVersion: prompt.version, model: 'error-fallback', mode: 'live' },
     };
   }

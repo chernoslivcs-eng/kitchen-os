@@ -192,9 +192,13 @@ export interface MoneySlice {
 export interface MoneyTotals {
   calls: number;
   usd: number;
+  /** СВІЖІ вхідні. Не підсумок входу — підсумок нижче. */
   input_tokens: number;
   output_tokens: number;
   cached_tokens: number;
+  /** Крок А4б: весь вхід — свіжі + прочитані + записані. Колонка «Input» у рахунку. */
+  input_all_tokens: number;
+  /** Прочитане з кешу до ВСЬОГО входу — той самий знаменник, що в рахунку. */
   cached_share: number | null;
   stub_calls: number;
   unpriced_calls: number;
@@ -214,6 +218,14 @@ export interface AdminMoney {
   prev_to: string;
   totals: MoneyTotals;
   previous: MoneyTotals;
+  /** П'ять величин у формі OpenRouter Activity. Ті самі числа, що в totals. */
+  reconcile: {
+    calls: number;
+    input_tokens: number;
+    output_tokens: number;
+    cached_share: number | null;
+    usd: number;
+  };
   byCall: MoneySlice[];
   byModel: MoneySlice[];
   byHousehold: MoneySlice[];
@@ -244,6 +256,8 @@ export interface AdminMoney {
   collected_since: string | null;
   /** Відколи рахується запис у кеш. Раніше — число занижене, і це видно рядком. */
   cache_write_since: string | null;
+  /** Відколи рядок обліку = один виклик. Раніше — ціна одного виклику завищена. */
+  calls_split_since: string;
   percent_floor: number;
   technical_included: boolean;
 }

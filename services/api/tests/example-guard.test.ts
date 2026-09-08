@@ -13,7 +13,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
   },
 }));
 
-const { wordOverlapRatio, matchesVoiceExample, callChat } = await import('../src/model.js');
+const { wordOverlapRatio, matchesVoiceExample, callChat, sumUsage } = await import('../src/model.js');
 
 function resp(text: string, over: Partial<{ stop_reason: string }> = {}) {
   return {
@@ -93,7 +93,7 @@ describe('callChat: example-guard ретраїть дослівний повто
     expect(call.meta.example_copy).toBe(false);
   });
 
-  it('сумує usage обох викликів, коли ретрай стався', async () => {
+  it('крок А4б: ретрай — ДРУГИЙ запис обліку, а не доданок до першого', async () => {
     const prompt = loadPrompt();
     const example = (prompt.blocks['voice'] ?? '').match(/^Ситуація:.*\n(.+)$/m)?.[1];
     createMock
@@ -105,8 +105,13 @@ describe('callChat: example-guard ретраїть дослівний повто
       });
 
     const call = await callChat(args);
-    expect(call.usage.input).toBe(30);
-    expect(call.usage.output).toBe(13);
-    expect(call.usage.cached).toBe(3);
+    // Було два звернення до моделі — має бути два рядки в обліку. Досі вони
+    // складались в один, і в рахунку OpenRouter за 8 вересня це видно парами:
+    // 11:05 — $0,114 + $0,0347, у нас один рядок $0,1490.
+    expect(call.calls).toHaveLength(2);
+    expect(call.calls[0]).toMatchObject({ input: 10, output: 5 });
+    expect(call.calls[1]).toMatchObject({ input: 20, output: 8, cached: 3 });
+    // Сума кроку не змінилась — гроші й раніше були праві.
+    expect(sumUsage(call.calls)).toMatchObject({ input: 30, output: 13, cached: 3 });
   });
 });

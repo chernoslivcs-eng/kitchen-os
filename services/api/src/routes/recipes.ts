@@ -11,7 +11,7 @@ import { recipeNutritionFor, loadRecipeBatches } from '../nutrition.js';
 import { randomUUID } from 'node:crypto';
 import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
-import { callRecipe } from '../model.js';
+import { callRecipe, sumUsage } from '../model.js';
 import type { Recipe, RecipeIng } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
@@ -99,7 +99,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       incident({ repo, req }, 'broke', 'recipe-model-call-failed', { user_id: ctx.user_id, err: String(err) });
       return reply.code(502).send({ error: 'model_unavailable' });
     }
-    await recordUsage(repo, ctx, 'recipe_gen', call.meta, call.usage, started);
+    await recordUsage(repo, ctx, 'recipe_gen', call.meta, call.calls, started);
 
     // Раунд 4, крок 4: вето по всіх інгредієнтах; дієтний збіг → одна
     // перегенерація з «без …», алергійний — модель попереджає сама.
@@ -112,7 +112,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
           title: title.trim(), pantry, products, conversation, profileText, profileNotes, vetoIndex,
           context: [context, `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`].filter(Boolean).join('\n'),
         });
-        await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, started);
+        await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.calls, started);
         if (again.recipe) {
           const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => incident({ repo, req }, 'guard', e.event, { user_id: ctx.user_id, retry: true, ...e }), `${title} ${context ?? ''}`);
           if (left.avoid.length) incident({ repo, req }, 'guard', 'veto-recipe-kept', { user_id: ctx.user_id, title, avoid: left.avoid });
@@ -136,7 +136,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
         .replace(/\n{2,}/g, ' ')
         .trim()
         .slice(0, 400);
-      return reply.send({ recipe: null, reply: clean, meta: call.meta, usage: call.usage });
+      return reply.send({ recipe: null, reply: clean, meta: call.meta, usage: sumUsage(call.calls) });
     }
 
     // QA4-03: модель вигадує схему `ing`, коли промпт її не описує. Логуємо
@@ -189,7 +189,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       }
     }
 
-    return { id: draft_id, recipe: call.recipe, meta: call.meta, usage: call.usage };
+    return { id: draft_id, recipe: call.recipe, meta: call.meta, usage: sumUsage(call.calls) };
   });
 
   // Р-3: адреса рецепта. 404 і для чужого — не підтверджуємо існування id.

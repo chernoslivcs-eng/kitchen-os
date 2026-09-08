@@ -10,7 +10,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Repo, AttachmentRecord, AttachmentKind } from '@kitchen/domain';
 import { createPending } from '@kitchen/domain';
 import type { AttachmentStore } from '../attachment-store.js';
-import { callAttachmentParse } from '../model.js';
+import { callAttachmentParse, sumUsage } from '../model.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { stampChatReceipt } from '../receipt-source.js';
@@ -105,7 +105,7 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
     const call = await callAttachmentParse([{
       kind: att.kind, buffer, content_type, hint,
     }]);
-    await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started);
+    await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.calls, started);
 
     stampChatReceipt(call.card, call.raw_kind);
     vetoNonfood(call.card);
@@ -127,7 +127,7 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
       card: call.card,
       card_id,
       raw_kind: call.raw_kind,
-      usage: call.usage,
+      usage: sumUsage(call.calls),
       meta: call.meta,
     };
   });

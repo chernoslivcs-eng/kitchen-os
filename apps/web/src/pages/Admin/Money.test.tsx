@@ -35,8 +35,11 @@ const MONEY = {
   to: '2026-09-09T00:00:00.000Z',
   prev_from: '2026-09-07T00:00:00.000Z',
   prev_to: '2026-09-08T00:00:00.000Z',
-  totals: { calls: 40, usd: 4.2, input_tokens: 900_000, output_tokens: 40_000, cached_tokens: 450_000, cached_share: 0.5, stub_calls: 7, unpriced_calls: 3, cache_write_tokens: 220_000, cache_write_usd: 0.825, calls_without_write: 0 },
-  previous: { calls: 30, usd: 2.9, input_tokens: 600_000, output_tokens: 30_000, cached_tokens: 200_000, cached_share: 0.33, stub_calls: 0, unpriced_calls: 0, cache_write_tokens: 0, cache_write_usd: 0, calls_without_write: 0 },
+  // Крок А4б: вхід — три доданки, і 1 570 000 = 900 000 + 450 000 + 220 000.
+  // Частка кешу рахується від УСЬОГО входу: 450 000 / 1 570 000 = 28,7%.
+  totals: { calls: 40, usd: 4.2, input_tokens: 900_000, output_tokens: 40_000, cached_tokens: 450_000, input_all_tokens: 1_570_000, cached_share: 450_000 / 1_570_000, stub_calls: 7, unpriced_calls: 3, cache_write_tokens: 220_000, cache_write_usd: 0.825, calls_without_write: 0 },
+  previous: { calls: 30, usd: 2.9, input_tokens: 600_000, output_tokens: 30_000, cached_tokens: 200_000, input_all_tokens: 800_000, cached_share: 0.25, stub_calls: 0, unpriced_calls: 0, cache_write_tokens: 0, cache_write_usd: 0, calls_without_write: 0 },
+  reconcile: { calls: 40, input_tokens: 1_570_000, output_tokens: 40_000, cached_share: 450_000 / 1_570_000, usd: 4.2 },
   byCall: [slice({ key: 'attachment_parse', label: 'розбір вкладення', calls: 4, usd: 3.0, usd_per_call: 0.75 }), slice()],
   byModel: [slice({ key: 'claude-haiku-4-5', label: 'claude-haiku-4-5' }), slice({ key: 'llama-3', label: 'llama-3', calls: 3, usd: 0, usd_per_call: null, unpriced_calls: 3 })],
   byHousehold: [slice({ key: 'h-1', label: 'h-1' })],
@@ -53,6 +56,7 @@ const MONEY = {
   },
   collected_since: '2026-08-29T19:52:00.000Z',
   cache_write_since: '2026-09-08T00:00:00.000Z',
+  calls_split_since: '2026-09-09T00:00:00+03:00',
   percent_floor: 20,
   technical_included: false,
 };
@@ -155,19 +159,68 @@ describe('блок грошей', () => {
     // Це впіймано НЕ тестом, а очима на проді: сервер уже рахував правильно, а
     // клієнт перераховував частку сам зі старим знаменником — і показував
     // «256%». Число, якого не може існувати, простояло на екрані цілий деплой.
+    // Крок А4б: знаменник — увесь вхід, разом із записаними в кеш.
+    // 1 327 752 / (518 329 + 1 327 752 + 220 000) = 64%.
     install({
       ...MONEY,
-      totals: { ...MONEY.totals, input_tokens: 518_329, cached_tokens: 1_327_752, cached_share: 0.719 },
+      totals: {
+        ...MONEY.totals, input_tokens: 518_329, cached_tokens: 1_327_752,
+        input_all_tokens: 2_066_081, cached_share: 1_327_752 / 2_066_081,
+      },
     });
     await mount();
     const text = host!.textContent!;
-    expect(text).toContain('з кешу 72%');
+    expect(text).toContain('з кешу 64%');
     expect(text).not.toContain('256%');
     // Частка — саме частка: понад сто відсотків вона бути не може. (Зростання
     // витрат поруч цілком може бути +410% — це інша величина, і її не чіпаємо.)
     const share = /з кешу (\d+)%/.exec(text);
     expect(share).toBeTruthy();
     expect(Number(share![1])).toBeLessThanOrEqual(100);
+  });
+
+  // Крок А4б: числа мають сходитись із рахунком, і це має бути видно оком.
+  it('головне число токенів — увесь вхід, а не самі свіжі', async () => {
+    // Показували 35 742 там, де рахунок каже 227 744 (8 вересня): у верхню
+    // цифру не входили ні прочитані з кешу, ні записані в нього. Гроші від
+    // цього не страждали — страждав читач, який бачить її як підсумок.
+    await mount();
+    const card = [...host!.querySelectorAll('div')].find((d) => d.textContent?.startsWith('Токени'))!;
+    // toLocaleString('uk-UA') розділяє тисячі нерозривним пробілом — звідси regexp.
+    expect(card.textContent).toMatch(/1\s570\s000/);
+    expect(card.textContent).not.toMatch(/900\s000/);
+  });
+
+  it('рядок звірки дає ті самі п\'ять величин, що й підсумок блоку', async () => {
+    // Заради цього рядка крок і зроблено: власник відкриває OpenRouter Activity
+    // поруч і бачить, сходиться чи ні, — без арифметики в стовпчик.
+    await mount();
+    const row = host!.querySelector('[data-reconcile]')!;
+    const text = row.textContent!;
+    expect(text).toMatch(/40 викликів/);
+    expect(text).toMatch(/1\s570\s000\s+вхідних/);
+    expect(text).toMatch(/40\s000\s+вихідних/);
+    expect(text).toContain('з кешу 29%');
+    expect(text).toContain('$4.2000');
+    // Розкладка входу поруч: три доданки, три різні ставки.
+    expect(text).toMatch(/свіжих 900\s000/);
+    expect(text).toMatch(/з кешу 450\s000/);
+    expect(text).toMatch(/записано 220\s000/);
+  });
+
+  it('період до розсування записів названо застереженням, а не змовчано', async () => {
+    // Ціна одного виклику за такі дні завищена рівно у стільки разів, скільки
+    // викликів злилось в один рядок. Перерахувати заднім числом нема з чого —
+    // лишається сказати.
+    await mount();
+    expect(host!.querySelector('[data-calls-merged]')).toBeTruthy();
+    expect(host!.querySelector('[data-calls-merged]')!.textContent).toContain('ціна одного виклику завищена');
+  });
+
+  it('період після розсування застереження не носить — там воно було б брехнею', async () => {
+    install({ ...MONEY, from: '2026-09-20T00:00:00.000Z', to: '2026-09-21T00:00:00.000Z' });
+    await mount();
+    expect(host!.querySelector('[data-calls-merged]')).toBeNull();
   });
 
   it('запис у кеш показаний окремим рядком — це найбільший важіль', async () => {

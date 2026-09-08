@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { callChat, callAttachmentParse, callRecipe, type AttachmentPayload } from '../model.js';
+import { callChat, callAttachmentParse, callRecipe, sumUsage, type AttachmentPayload } from '../model.js';
 import { mergeAttachmentCalls } from '../attachment-merge.js';
 import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
@@ -143,7 +143,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       // Крок А1: цей розбір належить ЦЬОМУ ходу — повідомлення людини вже
       // записане вище (userMsgId). Це та сама прив'язка, яку pulse.ts досі
       // вгадував за часом.
-      await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.usage, started, {
+      await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.calls, started, {
         message_id: userMsgId, session_id: session.id,
       });
 
@@ -208,7 +208,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       return {
         reply: call.reply, card: call.card, card_id,
         auto_applied: att_auto, undo_token: att_undo,
-        raw_kind: call.raw_kind, usage: call.usage, meta: call.meta,
+        raw_kind: call.raw_kind, usage: sumUsage(call.calls), meta: call.meta,
       };
     }
 
@@ -435,7 +435,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       incident(sink(req), 'broke', 'chat-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });
       return reply.code(502).send({ error: 'model_unavailable' });
     }
-    await recordUsage(repo, ctx, 'chat', call.meta, call.usage, started, turn);
+    await recordUsage(repo, ctx, 'chat', call.meta, call.calls, started, turn);
 
     // Крок 6е: example-guard у model.ts уже перепитав модель — тут лише
     // фіксуємо частоту, як і решта логів навколо call.meta.
@@ -537,14 +537,14 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
             id: randomUUID(), session_id: session.id, role: 'assistant',
             text: reply, card: null, applied: 0, created_at: new Date().toISOString(),
           });
-          return { reply, card: ext.card, card_id: openCart.ref, usage: call.usage, meta: call.meta };
+          return { reply, card: ext.card, card_id: openCart.ref, usage: sumUsage(call.calls), meta: call.meta };
         }
         // Не вийшло — падаємо у звичайне збирання нижче, а не мовчимо.
       }
       if (!opts.retailCart) {
         const msg = 'Замовлення через мережу тут ще не підключене.';
         await saveTurn(msg, null);
-        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        return { reply: msg, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
       const attempt = await opts.retailCart(user_id, household_id, call.card.items);
       if (!attempt.ok) {
@@ -554,7 +554,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           ? 'Список покупок порожній — нема що замовляти.'
           : 'Сільпо зараз не відповідає — спробуй за хвилину.';
         await saveTurn(msg, null);
-        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        return { reply: msg, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
       const card = attempt.card!;
       let cartReply = call.reply || `Кошик у Сільпо: знайшов ${card.found} з ${card.of}`;
@@ -571,7 +571,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         }
       }
       const card_id = await saveTurn(cartReply, card);
-      return { reply: cartReply, card, card_id, usage: call.usage, meta: call.meta };
+      return { reply: cartReply, card, card_id, usage: sumUsage(call.calls), meta: call.meta };
     }
 
     // 01.09: «які ще опції в сільпо є по X» — питання про наявність, не
@@ -592,7 +592,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       if (!opts.retailSearch) {
         const msg = 'Пошук у мережі тут ще не підключений.';
         await saveTurn(msg);
-        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        return { reply: msg, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
       const attempt = await opts.retailSearch(user_id, call.card.query);
       if (!attempt.ok) {
@@ -600,7 +600,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           ? 'Спершу підключи Сільпо: Профіль → Мережі → Підключити.'
           : 'Сільпо зараз не відповідає — спробуй за хвилину.';
         await saveTurn(msg);
-        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        return { reply: msg, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
       // Кілька джерел (04.09): кожне — своїм абзацом, у тому ж форматі. Джерело
       // без підключення чи без відповіді — одним чесним рядком, не мовчки.
@@ -620,7 +620,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         });
         const msg = parts.join('\n\n');
         await saveTurn(msg, 'retail_search');
-        return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        return { reply: msg, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
       const products = attempt.products ?? [];
       const total = attempt.total ?? products.length;
@@ -636,7 +636,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           + (restCount > 0 ? `\n— і ще ${restCount}` : '')
         : `У Сільпо не знайшов нічого по «${call.card.query}».`;
       await saveTurn(msg, 'retail_search');
-      return { reply: msg, card: null, card_id: null, usage: call.usage, meta: call.meta };
+      return { reply: msg, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
     }
 
     if (call.card?.type === 'cook_go') {
@@ -672,7 +672,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           incident(sink(req), 'broke', 'cook-go-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });
           return reply.code(502).send({ error: 'model_unavailable' });
         }
-        await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted, turn);
+        await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.calls, genStarted, turn);
         // Раунд 4, крок 4: прихований інгредієнт («рибний соус» у пад таї для
         // вегана) — по всіх інгредієнтах. Дієтний збіг → одна перегенерація
         // з явним «без …»; алергійний — лишаємо, модель попереджає сама.
@@ -687,7 +687,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
               context: `Без: ${avoid.join(', ')} — людина цього не їсть. Заміни або прибери, решту не чіпай.`,
               conversation: history.slice(-6).map((h) => `${h.role === 'user' ? 'людина' : 'кухар'}: ${h.content}`).join('\n') || undefined,
             });
-            await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.usage, genStarted, turn);
+            await recordUsage(repo, ctx, 'recipe_gen', again.meta, again.calls, genStarted, turn);
             if (again.recipe) {
               const left = recipeVetoHits(resolveRecipeLabels(again.recipe, pantry), vetoIndex, (e) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, retry: true, ...e }), text ?? '');
               if (left.avoid.length) incident(sink(req), 'guard', 'veto-recipe-kept', { user_id, household_id, session_id: session.id, title: wantedTitle, avoid: left.avoid });
@@ -715,7 +715,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
             id: randomUUID(), session_id: session.id, role: 'assistant',
             text: proseReply, card: null, applied: 0, created_at: new Date().toISOString(),
           });
-          return { reply: proseReply, card: null, card_id: null, usage: call.usage, meta: call.meta };
+          return { reply: proseReply, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
         }
       }
       const goCard: Card = { type: 'recipe_link', recipe_id: goId!, title: goRecipe!.t, recipe: goRecipe! };
@@ -724,7 +724,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         id: randomUUID(), session_id: session.id, role: 'assistant',
         text: goReply, card: goCard, applied: 0, created_at: new Date().toISOString(),
       });
-      return { reply: goReply, card: goCard, card_id: null, usage: call.usage, meta: call.meta };
+      return { reply: goReply, card: goCard, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
     }
 
     if (call.card?.type === 'recipe_edit') {
@@ -741,7 +741,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           id: randomUUID(), session_id: session.id, role: 'assistant',
           text: reply, card: null, applied: 0, created_at: new Date().toISOString(),
         });
-        return { reply, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        return { reply, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
 
       const genStarted = Date.now();
@@ -774,7 +774,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         incident(sink(req), 'broke', 'recipe-edit-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });
         return reply.code(502).send({ error: 'model_unavailable' });
       }
-      await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.usage, genStarted, turn);
+      await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.calls, genStarted, turn);
 
       if (!gen.recipe) {
         // Модель відповіла прозою (неоднозначна правка) — віддаємо як репліку.
@@ -784,7 +784,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           id: randomUUID(), session_id: session.id, role: 'assistant',
           text: reply, card: null, applied: 0, created_at: new Date().toISOString(),
         });
-        return { reply, card: null, card_id: null, usage: call.usage, meta: call.meta };
+        return { reply, card: null, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
       }
 
       // Захист «база перемагає»: інгредієнт, чий p ІСНУЄ в базовому рецепті,
@@ -825,7 +825,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         id: randomUUID(), session_id: session.id, role: 'assistant',
         text: call.reply ?? null, card: linkCard, applied: 0, created_at: new Date().toISOString(),
       });
-      return { reply: call.reply, card: linkCard, card_id: null, usage: call.usage, meta: call.meta };
+      return { reply: call.reply, card: linkCard, card_id: null, usage: sumUsage(call.calls), meta: call.meta };
     }
 
     // Вето каталогу ДО збереження: картка має відповідати тому, що справді
@@ -849,7 +849,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       const avoid = [...new Set(veto.rejected.flatMap((r) => [r.title]))];
       incident(sink(req), 'guard', 'veto-emptied-retry', { user_id, household_id, session_id: session.id, avoid });
       const again = await callChat({ ...chatArgs, avoid });
-      await recordUsage(repo, ctx, 'chat', again.meta, again.usage, started, turn);
+      await recordUsage(repo, ctx, 'chat', again.meta, again.calls, started, turn);
       const retryVeto = applyVeto(again, {
         index: vetoIndex, userText: text ?? '',
         log: (e: VetoLogEntry) => incident(sink(req), 'guard', e.event, { user_id, household_id, session_id: session.id, retry: true, ...e }),
@@ -981,7 +981,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     return {
       reply: replyText, card: call.card, card_id,
       auto_applied, undo_token,
-      usage: call.usage, meta: call.meta,
+      usage: sumUsage(call.calls), meta: call.meta,
     };
   });
 }
