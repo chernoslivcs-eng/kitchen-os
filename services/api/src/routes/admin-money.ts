@@ -26,6 +26,50 @@ import { TECHNICAL_DOMAIN } from './admin-households.js';
 /** Скільки подій має бути за спиною, щоб відсоток не брехав. */
 export const PERCENT_FLOOR = 20;
 
+/**
+ * Крок А4б: відколи рядок обліку гарантовано дорівнює одному виклику моделі.
+ *
+ * До цієї мітки обробник, який робив кілька звернень (повтор guard-а в чаті,
+ * розбір кількох вкладень паралельно), складав їх в ОДИН рядок. Гроші за такі
+ * дні праві, а «ціна одного виклику» завищена рівно у стільки разів, скільки
+ * викликів злилось. Заднім числом це не відновити: рядок не пам'ятає, скількох
+ * викликів він був сумою.
+ *
+ * Мітка — КОНСТАНТА, а не запит до бази, і це навмисно: у даних немає ознаки,
+ * за якою злитий рядок відрізнявся б від чесного. Дата взята з запасом — на
+ * початок доби ПІСЛЯ викочування, бо рядки самого дня викочування (до нього)
+ * ще злиті.
+ */
+export const CALLS_SPLIT_SINCE = '2026-09-09T00:00:00+03:00';
+
+/**
+ * Крок А4б: підсумок у тій самій формі, у якій його показує OpenRouter на
+ * сторінці Activity — рівно ці п'ять величин і рівно в такому складі.
+ *
+ * Це не ще один підсумок, а ВИГЛЯД наявного: власник відкриває дві вкладки
+ * поруч і за десять секунд бачить, сходиться чи ні. Доти доводити, що формула
+ * права, означало двадцять хвилин арифметики в стовпчик — разово, вручну й
+ * тільки тоді, коли хтось запідозрив негаразд.
+ */
+export interface MoneyReconcile {
+  calls: number;
+  /** Увесь вхід: свіжі + прочитані + записані. Колонка «Input» у рахунку. */
+  input_tokens: number;
+  output_tokens: number;
+  cached_share: number | null;
+  usd: number;
+}
+
+export function reconcileOf(t: MoneyTotals): MoneyReconcile {
+  return {
+    calls: t.calls,
+    input_tokens: t.input_all_tokens,
+    output_tokens: t.output_tokens,
+    cached_share: t.cached_share,
+    usd: t.usd,
+  };
+}
+
 /** Типи виклику словом. Невідомий лишається як є — вигадувати назву гірше. */
 const CALL_WORD: Record<string, string> = {
   chat: 'розмова',
@@ -52,10 +96,27 @@ export interface MoneySlice {
 export interface MoneyTotals {
   calls: number;
   usd: number;
+  /** СВІЖІ вхідні — те, за що платять повну ставку. Не підсумок входу. */
   input_tokens: number;
   output_tokens: number;
   cached_tokens: number;
-  /** Частка кешу серед вхідних. null — вхідних не було, ділити нема на що. */
+  /**
+   * Крок А4б: ВЕСЬ вхід — свіжі + прочитані з кешу + записані в кеш.
+   *
+   * Рівно це число OpenRouter кладе в колонку «Input» на сторінці Activity, і
+   * рівно його мусимо показувати ми. Досі головним числом на екрані стояли
+   * самі свіжі: 35 742 проти справжніх 227 744 за 8 вересня — занижено в 6,4
+   * раза. Гроші не страждали (у ціні всі три доданки), страждав читач.
+   */
+  input_all_tokens: number;
+  /**
+   * Частка ПРОЧИТАНОГО з кешу в усьому вході. Знаменник — `input_all_tokens`.
+   *
+   * Крок А4б: доти знаменником був вхід+кеш без записаних, і виходило 76% там,
+   * де рахунок каже 49,3%. Обидва числа арифметично чесні — але звірятись ми
+   * маємо з рахунком, а не з власним знаменником. Записане в кеш до «з кешу»
+   * не належить узагалі: за нього платять 1,25× ставки входу.
+   */
   cached_share: number | null;
   /** Скільки викликів були стабові. У гроші не входять, але були. */
   stub_calls: number;
@@ -78,7 +139,7 @@ export interface MoneyTotals {
 
 const empty = (): MoneyTotals => ({
   calls: 0, usd: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0,
-  cached_share: null, stub_calls: 0, unpriced_calls: 0,
+  input_all_tokens: 0, cached_share: null, stub_calls: 0, unpriced_calls: 0,
   cache_write_tokens: 0, cache_write_usd: 0, calls_without_write: 0,
 });
 
@@ -124,11 +185,11 @@ function fold(groups: AdminMoneyGroup[]): MoneyTotals {
   }
   t.cache_write_usd = Number(t.cache_write_usd.toFixed(6));
   t.usd = Number(t.usd.toFixed(6));
-  // Крок А4а: знаменник — ВХІД + КЕШ, бо це два окремі лічильники, а не один
-  // усередині іншого. Зі старим знаменником частка виходила 256% — число, яке
-  // не могло існувати й показувало саме цю плутанину.
-  const inputAll = t.input_tokens + t.cached_tokens;
-  t.cached_share = inputAll > 0 ? t.cached_tokens / inputAll : null;
+  // Три окремі лічильники, жоден не всередині іншого — це вже з'ясовано на
+  // А4а (69 зі 105 вересневих рядків мають cached > input, тож «кеш усередині
+  // входу» неможливий). Разом вони і є вхід, який показує рахунок.
+  t.input_all_tokens = t.input_tokens + t.cached_tokens + t.cache_write_tokens;
+  t.cached_share = t.input_all_tokens > 0 ? t.cached_tokens / t.input_all_tokens : null;
   return t;
 }
 
@@ -288,6 +349,8 @@ export function moneyRoutes(app: FastifyInstance, repo: Repo) {
         prev_to: prev.to.toISOString(),
         totals,
         previous,
+        /** Звірка з рахунком. Ті самі числа, що в підсумку — інша форма. */
+        reconcile: reconcileOf(totals),
         byCall,
         byModel,
         byHousehold,
@@ -304,6 +367,11 @@ export function moneyRoutes(app: FastifyInstance, repo: Repo) {
          * починається раніше, показує занижене число, і екран каже це рядком.
          */
         cache_write_since: averages.cache_write_since,
+        /**
+         * Крок А4б: відколи рядок обліку = один виклик. Період, що починається
+         * раніше, показує ЗАВИЩЕНУ ціну одного виклику, і екран каже це рядком.
+         */
+        calls_split_since: CALLS_SPLIT_SINCE,
         percent_floor: PERCENT_FLOOR,
         technical_included: req.query.technical === '1',
       };

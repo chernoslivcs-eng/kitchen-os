@@ -135,16 +135,53 @@ export function MoneyBlock({ technical }: { technical: boolean }) {
             </div>
             <div className={styles.card}>
               <div className={styles.cardTitle}>Токени</div>
-              <div className={styles.big}>{num(data.totals.input_tokens)}</div>
+              {/* Крок А4б: головне число — ВЕСЬ вхід, як у рахунку. Доти тут
+                  стояли самі свіжі: 35 742 проти справжніх 227 744 за 8
+                  вересня. Гроші від цього не страждали (у ціні всі три
+                  доданки), страждав читач: він бачить верхню цифру як
+                  підсумок, а це була чверть від однієї шостої. */}
+              <div className={styles.big}>{num(data.totals.input_all_tokens)}</div>
               <div className={styles.sub}>
                 вхідних · {num(data.totals.output_tokens)} вихідних
                 {data.totals.cached_share !== null && (
-                  // Крок А4а: знаменник — ВХІД + КЕШ. Два окремі лічильники, а не
-                  // один усередині іншого; зі старим знаменником виходило 256%.
-                  <> · з кешу {shareWord(data.totals.cached_tokens, data.totals.input_tokens + data.totals.cached_tokens, data.percent_floor)}</>
+                  // Знаменник — ВЕСЬ вхід, разом із записаними. Зі старим
+                  // виходило 76% там, де рахунок каже 49,3%.
+                  <> · з кешу {shareWord(data.totals.cached_tokens, data.totals.input_all_tokens, data.percent_floor)}</>
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Крок А4б: звірка з рахунком. Ті самі п'ять величин і в тому
+              самому складі, у якому їх кладе OpenRouter на сторінці Activity —
+              власник відкриває дві вкладки поруч і за десять секунд бачить,
+              сходиться чи ні. Доти довести, що формула права, означало
+              двадцять хвилин арифметики в стовпчик. */}
+          <div className={styles.rows} data-reconcile>
+            <Row
+              label="Звірка з рахунком"
+              value={[
+                `${num(data.reconcile.calls)} викликів`,
+                `${num(data.reconcile.input_tokens)} вхідних`,
+                `${num(data.reconcile.output_tokens)} вихідних`,
+                data.reconcile.cached_share === null ? null
+                  : `з кешу ${shareWord(data.totals.cached_tokens, data.totals.input_all_tokens, data.percent_floor)}`,
+                usd(data.reconcile.usd),
+              ].filter(Boolean).join(' · ')}
+              // копі: підпис до звірки. Має сказати, ЩО з чим порівнювати.
+              note="ті самі п'ять величин, що OpenRouter показує на Activity — відкрий поруч і порівняй"
+            />
+            <Row
+              label="…з чого вхід"
+              value={[
+                `свіжих ${num(data.totals.input_tokens)}`,
+                `з кешу ${num(data.totals.cached_tokens)}`,
+                `записано ${num(data.totals.cache_write_tokens)}`,
+              ].join(' · ')}
+              // копі: розкладка входу. Три окремі лічильники, різні ставки.
+              note="три різні ставки: повна, десята частина, 1,25×"
+              dim
+            />
           </div>
 
           {/* Крок А5: запис у кеш — окремим рядком, одразу під підсумком.
@@ -183,6 +220,16 @@ export function MoneyBlock({ technical }: { technical: boolean }) {
             floor={data.percent_floor}
             total={data.totals.calls}
           />
+          {new Date(data.from) < new Date(data.calls_split_since) && (
+            // копі: застереження про старі періоди. Головне — не змовчати:
+            // без нього завищена ціна виклику виглядає як виміряна.
+            <div className={styles.unpriced} data-calls-merged>
+              До {new Date(data.calls_split_since).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })} один
+              рядок обліку міг покривати кілька викликів моделі — за такі дні ціна одного виклику завищена
+              рівно у стільки разів, скільки викликів злилось. Сума грошей права й тоді, і тепер; перерахувати
+              кількість заднім числом нема з чого.
+            </div>
+          )}
           <Slices title="ЗА МОДЕЛЛЮ" slices={data.byModel} floor={data.percent_floor} total={data.totals.calls} />
           <Slices title="ЗА ДОМОМ" slices={data.byHousehold} floor={data.percent_floor} total={data.totals.calls} />
           <Slices title="ЗА ЛЮДИНОЮ" slices={data.byPerson} floor={data.percent_floor} total={data.totals.calls} />

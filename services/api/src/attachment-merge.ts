@@ -7,8 +7,9 @@
 //
 // Злиття: intake_diff — конкатенація ops; reply — одне речення про кількість
 // плюс перша репліка моделі (вона вже в голосі); raw_kind — receipt, якщо хоч
-// один чек; usage — сума. Різнорідні вкладення (чек + фото страви) не
-// зливаються в один кошик — інтейк лишається, решта згадується в reply.
+// один чек; облік — по одному запису на виклик. Різнорідні вкладення (чек +
+// фото страви) не зливаються в один кошик — інтейк лишається, решта
+// згадується в reply.
 
 import type { Card } from '@kitchen/domain';
 import type { AttachmentCall } from './model.js';
@@ -22,15 +23,11 @@ export function mergeAttachmentCalls(calls: AttachmentCall[]): AttachmentCall {
   const raw_kind = kinds.includes('receipt') ? 'receipt'
     : kinds.includes('shelf') ? 'shelf'
     : (kinds.find((k) => k) ?? null);
-  const usage = calls.reduce(
-    (acc, c) => ({
-      input: acc.input + c.usage.input,
-      output: acc.output + c.usage.output,
-      cached: (acc.cached ?? 0) + (c.usage.cached ?? 0),
-      cache_write: (acc.cache_write ?? 0) + (c.usage.cache_write ?? 0),
-    }),
-    { input: 0, output: 0, cached: 0, cache_write: 0 },
-  );
+  // Крок А4б: usage НЕ складається. Два вкладення — це два виклики моделі й
+  // два рядки в рахунку OpenRouter (звірка 08.09: 11:14, $0,0528 + $0,0790,
+  // у нас один рядок $0,1319). Сума грошей від злиття не страждала, страждав
+  // знаменник: «ціна одного виклику» виходила вдвічі більшою за справжню.
+  const perCall = calls.flatMap((c) => c.calls);
   const first = calls.find((c) => c.reply)?.reply ?? '';
   // Ручний тест 04.09: «2 вкладення, разом 21 — Одинадцять позицій із Сільпо…»
   // — моя кількість зіткнулась із моделевою фразою про перший чек. Репліка
@@ -39,5 +36,5 @@ export function mergeAttachmentCalls(calls: AttachmentCall[]): AttachmentCall {
   const reply = ops.length
     ? `Розібрав ${calls.length} вкладення — разом ${ops.length}. Розкласти?`
     : first;
-  return { reply, card, raw_kind, usage, meta: calls[0]!.meta };
+  return { reply, card, raw_kind, calls: perCall, meta: calls[0]!.meta };
 }

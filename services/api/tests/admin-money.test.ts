@@ -312,6 +312,68 @@ describe('GET /v1/admin/money', () => {
     expect(b.cache_write_since).toBeTruthy();
   });
 
+  // Крок А4б: числа мають сходитись із рахунком, і це має бути видно оком.
+  //
+  // Звірка Зведення за 8 вересня з рядками OpenRouter: гроші зійшлись
+  // ($0,5866 проти $0,5874 — уся різниця в округленні самих рядків рахунку),
+  // а головне число токенів було занижене в 6,4 раза: 35 742 проти 227 744.
+  // У нього не входили ні прочитані з кешу, ні записані в нього.
+  it('головне число входу = свіжі + прочитані + записані', async () => {
+    await repo.logTokenUsage(usage({
+      input_tokens: 12_841, cached_tokens: 22_372, cache_write_tokens: 22_372, output_tokens: 1_323,
+    }));
+    const b = (await money()).json();
+    expect(b.totals.input_tokens).toBe(12_841);          // самі свіжі, як було
+    expect(b.totals.input_all_tokens).toBe(57_585);      // те, що показує рахунок
+    expect(b.totals.input_all_tokens).toBe(
+      b.totals.input_tokens + b.totals.cached_tokens + b.totals.cache_write_tokens,
+    );
+  });
+
+  it('частка кешу рахується від УСЬОГО входу — того самого, що в рахунку', async () => {
+    // День 8 вересня: 112 198 прочитаних із 227 744 вхідних. OpenRouter каже
+    // 49,3%; наш старий знаменник (без записаних) давав 76%. Обидва числа
+    // арифметично чесні — але звірятись ми маємо з рахунком.
+    await repo.logTokenUsage(usage({
+      input_tokens: 35_742, cached_tokens: 112_198, cache_write_tokens: 79_804, output_tokens: 9_819,
+    }));
+    const b = (await money()).json();
+    expect(b.totals.input_all_tokens).toBe(227_744);
+    expect(b.totals.cached_share).toBeCloseTo(112_198 / 227_744, 6);
+    expect(Math.round(b.totals.cached_share * 100)).toBe(49);
+  });
+
+  it('рядок звірки дає ТІ САМІ п\'ять величин, що й підсумок блоку', async () => {
+    // Це не другий підсумок, а вигляд наявного. Розійдуться — і звірка з
+    // рахунком почне доводити не те, що показано на екрані.
+    await repo.logTokenUsage(usage({
+      input_tokens: 1_000, cached_tokens: 2_000, cache_write_tokens: 3_000, output_tokens: 400,
+    }));
+    const b = (await money()).json();
+    expect(b.reconcile).toEqual({
+      calls: b.totals.calls,
+      input_tokens: b.totals.input_all_tokens,
+      output_tokens: b.totals.output_tokens,
+      cached_share: b.totals.cached_share,
+      usd: b.totals.usd,
+    });
+  });
+
+  it('старий рядок, у якому кілька викликів злиті в один, не валить сторінку', async () => {
+    // Такий рядок нічим не відрізняється від чесного — саме тому перерахувати
+    // його заднім числом і неможливо. Сторінка мусить його показати, а
+    // застереження про період приїжджає окремо, датою.
+    await repo.logTokenUsage(usage({
+      created_at: '2026-09-01T10:00:00.000Z',
+      input_tokens: 14_293, cached_tokens: 22_372, cache_write_tokens: 22_372, output_tokens: 1_323,
+    }));
+    const b = (await money('?period=month&day=2026-09-01')).json();
+    expect(b.totals.calls).toBe(1);
+    expect(b.calls_split_since).toBe('2026-09-09T00:00:00+03:00');
+    // Період почався раніше за розсування — екран має чим сказати це.
+    expect(new Date(b.from).getTime()).toBeLessThan(new Date(b.calls_split_since).getTime());
+  });
+
   it('порожній період каже «стільки ще не збирали», а не «нуль»', async () => {
     // Нуль читається як «нічого не витратили». Тому сторінка віддає дату
     // першого обліченого виклику — і клієнт має чим відрізнити одне від іншого.
