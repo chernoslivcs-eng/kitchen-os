@@ -157,7 +157,7 @@ export function MoneyBlock({ technical }: { technical: boolean }) {
               власник відкриває дві вкладки поруч і за десять секунд бачить,
               сходиться чи ні. Доти довести, що формула права, означало
               двадцять хвилин арифметики в стовпчик. */}
-          <div className={styles.rows} data-reconcile>
+          <div className={`${styles.rows} ${styles.rowsWide}`} data-reconcile>
             <Row
               label="Звірка з рахунком"
               value={[
