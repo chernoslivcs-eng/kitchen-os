@@ -41,7 +41,12 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
       // взагалі проблема в житті, чи лише в підстроєному випадку.
       if (r.missed?.length) {
-        incident({ repo, req }, 'guard', 'intake-op-missed', { user_id, card_id: req.params.id, missed: r.missed });
+        // П4-Т1: у списку покупок свій інцидент. Злити його з коморою в один
+        // `intake-op-missed` означало б рахувати два різні дефекти однією
+        // цифрою — і не побачити, коли виросте саме один із них.
+        const pc = await repo.getPending(req.params.id);
+        const name = pc?.card?.type === 'shopping' ? 'shopping-op-missed' : 'intake-op-missed';
+        incident({ repo, req }, 'guard', name, { user_id, card_id: req.params.id, missed: r.missed });
       }
       // Правка №6: застосована пост-кук картка списання продовжує розмову
       // детермінованим «Як вийшло?» (0 токенів). Впізнаємо її за точним

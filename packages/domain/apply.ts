@@ -71,8 +71,14 @@ export interface ApplyResult {
   /** Мітки операцій, які не знайшли своєї позиції й нічого не зробили.
    *  Порожньо в переважній більшості випадків; непорожньо — привід
    *  подивитись у лог, бо людині сказали «Запишу», а стан не змінився.
-   *  Заповнює поки лише гілка intake_diff. */
+   *  Заповнюють гілки intake_diff і shopping. */
   missed?: string[];
+  /** П4-Т1: скільки операцій НЕ змінили стан, бо бажаний стан уже був
+   *  (дубль `add` на позицію, яка в списку вже лежить). Це не промах:
+   *  промах — «не змогли», а тут ціль досягнута, просто не нами й не зараз.
+   *  Злити це в `missed` означало б збрехати навпаки. Окреме від
+   *  `already` вище: те — про повторний виклик усієї картки. */
+  already_there?: number;
   /** Картка event: id події на кожну операцію, вирівняно з card.ops
    *  (undefined — операція не приземлилась). Без цього картка в стрічці не
    *  знає, ЩО саме вона створила, і не може стати артефактом із правкою на
@@ -199,10 +205,21 @@ export async function applyCard(
   if (card.type === 'shopping') {
     const chosen = selected.length ? selected : (card.items ?? []).map((_, i) => i);
     const snapshot: UndoSnapshot = { kind: 'shopping', before: { added_shopping_ids: [], removed_shopping_items: [] } };
+    // П4-Т1: рахувати те, що СПРАВДІ лягло — як це вже робить гілка комори
+    // вище. Раніше тут стояло chosen.length, тобто «скільки операцій ВИБРАЛИ»,
+    // і картка завжди звітувала успіх: дубль на add і remove неіснуючої
+    // позиції виходили з applyShoppingOp тихо, а людині казали «6 позицій».
+    // Три наслідки, і вони різні: «уже так» — не промах, ціль досягнута.
+    let landed = 0;
+    let already_there = 0;
+    const missed: string[] = [];
     for (const idx of chosen) {
       const item = card.items[idx];
       if (!item) continue;
-      await applyShoppingOp(repo, item, pc.household_id, actor_user_id, snapshot);
+      const r = await applyShoppingOp(repo, item, pc.household_id, actor_user_id, snapshot);
+      if (r === 'landed') landed++;
+      else if (r === 'already') already_there++;
+      else missed.push(`${item.op ?? 'add'} «${item.label || '(без назви)'}»`);
     }
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
@@ -211,8 +228,8 @@ export async function applyCard(
       undo_token,
       undo_snapshot: snapshot,
     });
-    await repo.markMessageApplied(pc.id, chosen.length);
-    return { applied: chosen.length, undo_token, already: false };
+    await repo.markMessageApplied(pc.id, landed);
+    return { applied: landed, undo_token, already: false, missed, already_there };
   }
 
   if (card.type === 'event') {
@@ -706,27 +723,30 @@ async function applyShoppingOp(
   household_id: string,
   actor: string,
   snap: UndoSnapshot,
-): Promise<void> {
-  if (!item.label) return;
+): Promise<'landed' | 'already' | 'missed'> {
+  // Позиція без назви застосувати неможливо. Раніше вихід був мовчазний;
+  // тепер він лишає слід у `missed` — не для людини (це поле до неї не
+  // доходить), а для лога. Відсікати таке треба раніше, у normalizeCard.
+  if (!item.label) return 'missed';
   if (item.op === 'remove') {
     const existing = await repo.findShoppingItemByLabel(household_id, item.label);
-    if (existing) {
-      await repo.deleteShoppingItem(existing.id);
-      // Повний рядок, не тільки id — після delete рядка вже нема в БД,
-      // undo мусить його ВІДТВОРИТИ, не просто «знати, що він був».
-      snap.before.removed_shopping_items ??= [];
-      snap.before.removed_shopping_items.push(existing);
-    }
-    return;
+    if (!existing) return 'missed';
+    await repo.deleteShoppingItem(existing.id);
+    // Повний рядок, не тільки id — після delete рядка вже нема в БД,
+    // undo мусить його ВІДТВОРИТИ, не просто «знати, що він був».
+    snap.before.removed_shopping_items ??= [];
+    snap.before.removed_shopping_items.push(existing);
+    return 'landed';
   }
   // Дефолт — add. v/u не прийшли окремо — перевіряємо, чи кількість не
   // впаялась текстом у хвіст label (живий репро «Kronenbourg 0.5 л»).
   const extracted = item.v == null && item.u == null
     ? extractTrailingQuantity(item.label)
     : { label: item.label, value: item.v ?? null, unit: item.u ?? null };
-  // Якщо вже є з тим самим (очищеним) label — не дублюємо.
+  // Якщо вже є з тим самим (очищеним) label — не дублюємо. Це не промах:
+  // бажаний стан («олія в списку») уже досягнутий.
   const existing = await repo.findShoppingItemByLabel(household_id, extracted.label);
-  if (existing) return;
+  if (existing) return 'already';
   const id = randomUUID();
   await repo.insertShoppingItem({
     id, household_id,
@@ -742,6 +762,7 @@ async function applyShoppingOp(
   });
   snap.before.added_shopping_ids ??= [];
   snap.before.added_shopping_ids.push(id);
+  return 'landed';
 }
 
 // «Зі мною живе Оксана, вона веганка» → окремий запис їдця в домі.
