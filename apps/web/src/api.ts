@@ -198,6 +198,11 @@ export interface MoneyTotals {
   cached_share: number | null;
   stub_calls: number;
   unpriced_calls: number;
+  /** Крок А5: токени, записані в кеш, і скільки це коштувало окремо. */
+  cache_write_tokens: number;
+  cache_write_usd: number;
+  /** Викликів, для яких запис не рахувався: підсумок на стільки занижений. */
+  calls_without_write: number;
 }
 
 export interface AdminMoney {
@@ -237,6 +242,8 @@ export interface AdminMoney {
   };
   /** Найперший облічений виклик. Раніше за нього — «не збирали», а не «нуль». */
   collected_since: string | null;
+  /** Відколи рахується запис у кеш. Раніше — число занижене, і це видно рядком. */
+  cache_write_since: string | null;
   percent_floor: number;
   technical_included: boolean;
 }

@@ -93,6 +93,40 @@ describe('A3: prompt_hash/prompt_chars у token_usage', () => {
     expect(rows[0]!.prompt_chars).toBe(42_000);
   });
 
+  it('крок А5: cache_write доїжджає до бази, а не гине по дорозі', async () => {
+    // model.ts діставав `cache_creation_input_tokens` і вів його аж сюди, а
+    // recordUsage не мав такого поля в сигнатурі — найдорожчий рід вхідних
+    // токенів не потрапляв у базу взагалі.
+    const repo = new InMemoryRepo();
+    const { recordUsage } = await import('../src/usage.js');
+    await recordUsage(
+      repo,
+      { user_id: 'u1', household_id: 'h1' } as Parameters<typeof recordUsage>[1],
+      'chat',
+      { promptVersion: '2026-08-28', model: 'stub', mode: 'live' },
+      { input: 1_420, output: 220, cached: 0, cache_write: 22_700 },
+      Date.now(),
+    );
+    expect((await repo.listTokenUsage('u1'))[0]!.cache_write_tokens).toBe(22_700);
+  });
+
+  it('крок А5: провайдер не сказав про запис — це null, а НЕ нуль', async () => {
+    // Різниця вирішальна для чесності старих періодів. Нуль означав би «записів
+    // не було» і робив би період повним; null означає «ми не знаємо», і саме
+    // за ним екран каже, що підсумок занижений.
+    const repo = new InMemoryRepo();
+    const { recordUsage } = await import('../src/usage.js');
+    await recordUsage(
+      repo,
+      { user_id: 'u1', household_id: 'h1' } as Parameters<typeof recordUsage>[1],
+      'chat',
+      { promptVersion: '2026-08-28', model: 'stub', mode: 'live' },
+      { input: 10, output: 5 },     // поля cache_write немає взагалі
+      Date.now(),
+    );
+    expect((await repo.listTokenUsage('u1'))[0]!.cache_write_tokens).toBeNull();
+  });
+
   it('без hash у meta — null, не падає (stub-режим)', async () => {
     const repo = new InMemoryRepo();
     const { recordUsage } = await import('../src/usage.js');

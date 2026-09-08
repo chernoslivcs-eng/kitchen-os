@@ -38,7 +38,7 @@ function usage(over: Partial<TokenUsageRow> & { created_at: string }): TokenUsag
     prompt_version: 'test', mode: 'live',
     input_tokens: 0, output_tokens: 0, cached_tokens: 0,
     latency_ms: 1000, prompt_hash: null, prompt_chars: null,
-    message_id: null, session_id: null,
+    message_id: null, session_id: null, cache_write_tokens: null,
     ...over,
   };
 }

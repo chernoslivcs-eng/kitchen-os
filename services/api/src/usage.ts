@@ -36,7 +36,7 @@ export async function recordUsage(
   ctx: UserContext,
   call: CallName,
   meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number },
-  usage: { input: number; output: number; cached?: number },
+  usage: { input: number; output: number; cached?: number; cache_write?: number },
   started_at_ms: number,
   turn?: UsageTurn,
 ): Promise<void> {
@@ -59,6 +59,13 @@ export async function recordUsage(
     prompt_chars: meta.prompt_chars ?? null,
     message_id: turn?.message_id ?? null,
     session_id: turn?.session_id ?? null,
+    // Крок А5: найдорожчий рід вхідних токенів. model.ts діставав його з
+    // відповіді й вів аж сюди, а тут він гинув — поля просто не було в
+    // сигнатурі. Тепер доїжджає до бази.
+    //
+    // `?? null`, а не `?? 0`: провайдер, який поля не прокидає (перевіряється
+    // живим викликом), має лишити «не знаємо», а не «записів не було».
+    cache_write_tokens: usage.cache_write ?? null,
     created_at: new Date().toISOString(),
   });
 }

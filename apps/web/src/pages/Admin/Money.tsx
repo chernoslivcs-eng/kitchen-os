@@ -147,6 +147,35 @@ export function MoneyBlock({ technical }: { technical: boolean }) {
             </div>
           </div>
 
+          {/* Крок А5: запис у кеш — окремим рядком, одразу під підсумком.
+              Не в розрізах: це не «на що витрачено», а «чим саме дорогий
+              холодний старт». Найбільший важіль, який у нас є — кожна нова
+              сесія починається з нього. */}
+          {(data.totals.cache_write_tokens > 0 || data.totals.calls_without_write > 0) && (
+            <div className={styles.rows} data-cache-write>
+              <Row
+                label="Запис у кеш"
+                value={data.totals.cache_write_tokens > 0
+                  ? `${usd(data.totals.cache_write_usd)} · ${num(data.totals.cache_write_tokens)} ток.`
+                  : '—'}
+                // копі: пояснення до запису в кеш.
+                note="1,25× ставки входу — у 12,5 раза дорожче за читання; стоїть на початку кожної холодної сесії"
+              />
+              {data.totals.calls_without_write > 0 && (
+                // копі: рядок чесності про старі дані. Головне — не змовчати:
+                // без нього занижене число виглядає як повне.
+                <Row
+                  label="…але не за весь період"
+                  value={`${num(data.totals.calls_without_write)} з ${num(data.totals.calls)}`}
+                  note={data.cache_write_since
+                    ? `до ${new Date(data.cache_write_since).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })} запис у кеш не враховано — ці виклики порахувати вже нема з чого`
+                    : 'запис у кеш ще не рахувався в жодному виклику цього періоду'}
+                  dim
+                />
+              )}
+            </div>
+          )}
+
           <Slices
             title="НА ЩО"
             note="ГОЛОВНА КОЛОНКА — ЦІНА ОДНОГО ВИКЛИКУ"

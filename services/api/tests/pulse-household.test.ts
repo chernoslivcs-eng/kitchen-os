@@ -65,6 +65,7 @@ describe('GET /v1/admin/pulse · дім', () => {
     // зшивання за часом у pulse.ts лишається як було.
     message_id: null,
     session_id: null,
+    cache_write_tokens: null,
     created_at: new Date().toISOString(),
   });
 

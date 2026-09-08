@@ -57,6 +57,7 @@ describe('GET /v1/admin/money', () => {
     prompt_chars: null,
     message_id: null,
     session_id: null,
+    cache_write_tokens: null,
     created_at: new Date().toISOString(),
     ...over,
   });
@@ -280,6 +281,35 @@ describe('GET /v1/admin/money', () => {
     expect(b.byHousehold[0].label).not.toMatch(/^[0-9a-f]{8}-/);
     expect(b.byHousehold[0].label).toContain('Дім');
     expect(b.byPerson[0].label).not.toMatch(/^[0-9a-f]{8}-/);
+  });
+
+  it('запис у кеш видно окремо — це найдорожчий рід вхідних', async () => {
+    await repo.logTokenUsage(usage({ input_tokens: 1_420, cached_tokens: 0, cache_write_tokens: 22_700, output_tokens: 220 }));
+    const b = (await money()).json();
+    expect(b.totals.cache_write_tokens).toBe(22_700);
+    expect(b.totals.cache_write_usd).toBeGreaterThan(0);
+    // Це частина загальної суми, а не додаток до неї.
+    expect(b.totals.cache_write_usd).toBeLessThanOrEqual(b.totals.usd);
+  });
+
+  it('рядок без запису (null) рахується як нуль записаних і не валить сторінку', async () => {
+    // Усе, що записано до міграції 0032. Порахувати їх уже нема з чого.
+    await repo.logTokenUsage(usage({ cache_write_tokens: null }));
+    const r = await money();
+    expect(r.statusCode).toBe(200);
+    const b = r.json();
+    expect(b.totals.cache_write_tokens).toBe(0);
+    expect(b.totals.calls_without_write).toBe(1);
+  });
+
+  it('період із старими рядками помічений як НЕПОВНИЙ, а не показаний як повний', async () => {
+    // Мовчати тут не можна: занижене число виглядає точно так само, як повне.
+    await repo.logTokenUsage(usage({ cache_write_tokens: null }));
+    await repo.logTokenUsage(usage({ cache_write_tokens: 5_000 }));
+    const b = (await money()).json();
+    expect(b.totals.calls).toBe(2);
+    expect(b.totals.calls_without_write).toBe(1);
+    expect(b.cache_write_since).toBeTruthy();
   });
 
   it('порожній період каже «стільки ще не збирали», а не «нуль»', async () => {

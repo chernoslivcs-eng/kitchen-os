@@ -35,8 +35,8 @@ const MONEY = {
   to: '2026-09-09T00:00:00.000Z',
   prev_from: '2026-09-07T00:00:00.000Z',
   prev_to: '2026-09-08T00:00:00.000Z',
-  totals: { calls: 40, usd: 4.2, input_tokens: 900_000, output_tokens: 40_000, cached_tokens: 450_000, cached_share: 0.5, stub_calls: 7, unpriced_calls: 3 },
-  previous: { calls: 30, usd: 2.9, input_tokens: 600_000, output_tokens: 30_000, cached_tokens: 200_000, cached_share: 0.33, stub_calls: 0, unpriced_calls: 0 },
+  totals: { calls: 40, usd: 4.2, input_tokens: 900_000, output_tokens: 40_000, cached_tokens: 450_000, cached_share: 0.5, stub_calls: 7, unpriced_calls: 3, cache_write_tokens: 220_000, cache_write_usd: 0.825, calls_without_write: 0 },
+  previous: { calls: 30, usd: 2.9, input_tokens: 600_000, output_tokens: 30_000, cached_tokens: 200_000, cached_share: 0.33, stub_calls: 0, unpriced_calls: 0, cache_write_tokens: 0, cache_write_usd: 0, calls_without_write: 0 },
   byCall: [slice({ key: 'attachment_parse', label: 'розбір вкладення', calls: 4, usd: 3.0, usd_per_call: 0.75 }), slice()],
   byModel: [slice({ key: 'claude-haiku-4-5', label: 'claude-haiku-4-5' }), slice({ key: 'llama-3', label: 'llama-3', calls: 3, usd: 0, usd_per_call: null, unpriced_calls: 3 })],
   byHousehold: [slice({ key: 'h-1', label: 'h-1' })],
@@ -52,6 +52,7 @@ const MONEY = {
     price_usd: null,
   },
   collected_since: '2026-08-29T19:52:00.000Z',
+  cache_write_since: '2026-09-08T00:00:00.000Z',
   percent_floor: 20,
   technical_included: false,
 };
@@ -169,10 +170,33 @@ describe('блок грошей', () => {
     expect(Number(share![1])).toBeLessThanOrEqual(100);
   });
 
+  it('запис у кеш показаний окремим рядком — це найбільший важіль', async () => {
+    await mount();
+    const row = host!.querySelector('[data-cache-write]')!;
+    expect(row).toBeTruthy();
+    expect(row.textContent).toContain('$0.8250');
+    // toLocaleString('uk-UA') розділяє розряди НЕРОЗРИВНИМ пробілом — звичайний
+    // тут не збігся б, і тест падав би на правильній розмітці.
+    expect(row.textContent).toMatch(/220\s000\s*ток\./);
+    // І поруч сказано, ЧОМУ це важливо, а не просто число.
+    expect(row.textContent).toContain('холодної сесії');
+  });
+
+  it('неповний період названо неповним — інакше занижене число виглядає як повне', async () => {
+    install({
+      ...MONEY,
+      totals: { ...MONEY.totals, calls_without_write: 26 },
+    });
+    await mount();
+    const row = host!.querySelector('[data-cache-write]')!.textContent!;
+    expect(row).toMatch(/26\s*з\s*40/);
+    expect(row).toContain('не враховано');
+  });
+
   it('порожній період каже «не збирали», а не «$0.00»', async () => {
     install({
       ...MONEY,
-      totals: { calls: 0, usd: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0, cached_share: null, stub_calls: 0, unpriced_calls: 0 },
+      totals: { calls: 0, usd: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0, cached_share: null, stub_calls: 0, unpriced_calls: 0, cache_write_tokens: 0, cache_write_usd: 0, calls_without_write: 0 },
       collected_since: '2026-12-01T00:00:00.000Z',
     });
     await mount();

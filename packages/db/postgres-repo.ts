@@ -983,6 +983,8 @@ export class PostgresRepo implements Repo {
              sum(tu.input_tokens)::bigint  AS input_tokens,
              sum(tu.output_tokens)::bigint AS output_tokens,
              sum(tu.cached_tokens)::bigint AS cached_tokens,
+             coalesce(sum(tu.cache_write_tokens), 0)::bigint            AS cache_write_tokens,
+             count(*) FILTER (WHERE tu.cache_write_tokens IS NULL)::int AS rows_without_write,
              coalesce(sum(tu.latency_ms), 0)::bigint      AS latency_sum_ms,
              count(tu.latency_ms)::int                    AS latency_n
         FROM token_usage tu
@@ -1009,6 +1011,8 @@ export class PostgresRepo implements Repo {
       input_tokens: Number(r.input_tokens),
       output_tokens: Number(r.output_tokens),
       cached_tokens: Number(r.cached_tokens),
+      cache_write_tokens: Number(r.cache_write_tokens),
+      rows_without_write: r.rows_without_write,
       latency_sum_ms: Number(r.latency_sum_ms),
       latency_n: r.latency_n,
     }));
@@ -1052,7 +1056,9 @@ export class PostgresRepo implements Repo {
              (SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FROM live) AS latency_p95_ms,
              (SELECT count(latency_ms) FROM live)::int                             AS latency_n,
              (SELECT count(*) FROM person_day)::int                                AS person_days,
-             (SELECT min(created_at) FROM token_usage WHERE mode = 'live')          AS first_usage_at
+             (SELECT min(created_at) FROM token_usage WHERE mode = 'live')          AS first_usage_at,
+             (SELECT min(created_at) FROM token_usage
+               WHERE mode = 'live' AND cache_write_tokens IS NOT NULL)                AS cache_write_since
     `, [q.now.from, q.now.to, q.technicalLike, q.tz]);
     const r = rows[0]!;
     return {
@@ -1062,6 +1068,7 @@ export class PostgresRepo implements Repo {
       latency_n: r.latency_n ?? 0,
       person_days: r.person_days ?? 0,
       first_usage_at: r.first_usage_at ? new Date(r.first_usage_at).toISOString() : null,
+      cache_write_since: r.cache_write_since ? new Date(r.cache_write_since).toISOString() : null,
     };
   }
 
@@ -1169,14 +1176,14 @@ export class PostgresRepo implements Repo {
       `INSERT INTO token_usage
          (id, user_id, household_id, call, profile, model, prompt_version, mode,
           input_tokens, output_tokens, cached_tokens, latency_ms,
-          prompt_hash, prompt_chars, message_id, session_id, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+          prompt_hash, prompt_chars, message_id, session_id, cache_write_tokens, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
       [
         row.id, row.user_id, row.household_id, row.call, row.profile, row.model,
         row.prompt_version, row.mode,
         row.input_tokens, row.output_tokens, row.cached_tokens,
         row.latency_ms, row.prompt_hash, row.prompt_chars,
-        row.message_id, row.session_id, row.created_at,
+        row.message_id, row.session_id, row.cache_write_tokens, row.created_at,
       ],
     );
   }
@@ -1875,6 +1882,7 @@ export class PostgresRepo implements Repo {
       prompt_chars: r.prompt_chars ?? null,
       message_id: r.message_id ?? null,
       session_id: r.session_id ?? null,
+      cache_write_tokens: r.cache_write_tokens ?? null,
       created_at: new Date(r.created_at).toISOString(),
     }));
   }
