@@ -75,6 +75,50 @@ export interface AdminHouseholdRow {
   owner_email: string | null;
 }
 
+/**
+ * Крок А4: рядок агрегату грошей. Один рядок — одна група, а не один виклик.
+ *
+ * Групування навмисно дрібне: із нього Node складає ВСІ розрізи (за типом
+ * виклику, за моделлю, за домом, за людиною) і обидва періоди — замість
+ * чотирьох окремих запитів. Рядків виходять десятки, а не тисячі.
+ *
+ * Долари тут не рахуються: прайс живе в `pricing.ts` і залежить від моделі,
+ * тож ціну ставить Node — але вже на згорнутих групах, а не на сирих рядках.
+ */
+export interface AdminMoneyGroup {
+  /** 'now' — вибраний період, 'prev' — попередній такий самий, для порівняння. */
+  period: 'now' | 'prev';
+  household_id: string | null;
+  user_id: string;
+  call: string;
+  model: string;
+  profile: string;
+  mode: string;
+  /** Чи має цей виклик указівник на хід (message_id після А1). */
+  has_turn: boolean;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  /** Сума й кількість — щоб середнє рахувалось після згортання, а не до. */
+  latency_sum_ms: number;
+  latency_n: number;
+}
+
+/** Крок А4: середні по періоду. Одним рядком — усе, що не зводиться з груп. */
+export interface AdminMoneyAverages {
+  /** Скільки було ХОДІВ: різних message_id, а не викликів. */
+  turns: number;
+  latency_avg_ms: number | null;
+  /** Довгий хвіст: 95-й процентиль. Середнє саме по собі ховає саме його. */
+  latency_p95_ms: number | null;
+  latency_n: number;
+  /** Пар «людина × місцевий день, у який вона писала». Знаменник для ходів. */
+  person_days: number;
+  /** Найперший облікований виклик узагалі — за ним видно, чого ще не збирали. */
+  first_usage_at: string | null;
+}
+
 export interface Repo {
   // Комора
   listBatches(household_id: string): Promise<PantryBatch[]>;
@@ -191,6 +235,25 @@ export interface Repo {
    * найцінніші.
    */
   listAdminHouseholds(): Promise<AdminHouseholdRow[]>;
+  /**
+   * Крок А4: гроші розрізами — ОДНИМ запитом на обидва періоди.
+   *
+   * `technicalLike` — шаблон пошти власника, чиї доми в підсумки не входять
+   * (`%@example.com`). Правило одне на весь продукт і живе в
+   * routes/admin-households.ts; сюди приїжджає параметром, щоб не з'явилось
+   * другого визначення «що таке технічний дім».
+   */
+  adminMoneyGroups(q: {
+    now: { from: Date; to: Date };
+    prev: { from: Date; to: Date };
+    technicalLike: string | null;
+  }): Promise<AdminMoneyGroup[]>;
+  /** Крок А4: середні по періоду — теж одним запитом. `tz` для меж місцевого дня. */
+  adminMoneyAverages(q: {
+    now: { from: Date; to: Date };
+    technicalLike: string | null;
+    tz: string;
+  }): Promise<AdminMoneyAverages>;
   roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null>;
   removeMember(household_id: string, user_id: string): Promise<void>;
   setMemberRole(household_id: string, user_id: string, role: HouseholdRole): Promise<void>;

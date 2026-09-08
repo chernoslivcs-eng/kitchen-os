@@ -15,6 +15,7 @@
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import type { AdminContext } from './AdminShell';
 import type { AdminHousehold } from '../../api';
+import { MoneyBlock } from './Money';
 import styles from './Households.module.css';
 
 /** «сьогодні, 21:02» / «2 вер., 19:04» — свій день читається інакше за чужий. */
@@ -90,6 +91,10 @@ export function HouseholdsPage() {
           )}
         </span>
       </div>
+
+      {/* Крок А4: гроші стоять НАД списком домів. Питання «на що йдуть гроші»
+          старше за питання «хто ці доми» — список нижче лишається як був. */}
+      <MoneyBlock technical={showTechnical} />
 
       <section className={styles.block}>
         <div className={styles.blockHead}>

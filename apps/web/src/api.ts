@@ -175,6 +175,72 @@ export interface AdminHousehold {
   technical: boolean;
 }
 
+/** Крок А4: розріз грошей — за типом виклику, моделлю, домом, людиною. */
+export interface MoneySlice {
+  key: string;
+  label: string;
+  calls: number;
+  usd: number;
+  /** null — ціни цих моделей прайс не знає, ділити нема що. */
+  usd_per_call: number | null;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  unpriced_calls: number;
+}
+
+export interface MoneyTotals {
+  calls: number;
+  usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  cached_share: number | null;
+  stub_calls: number;
+  unpriced_calls: number;
+}
+
+export interface AdminMoney {
+  period: 'day' | 'week' | 'month';
+  day: string;
+  from: string;
+  to: string;
+  prev_from: string;
+  prev_to: string;
+  totals: MoneyTotals;
+  previous: MoneyTotals;
+  byCall: MoneySlice[];
+  byModel: MoneySlice[];
+  byHousehold: MoneySlice[];
+  byPerson: MoneySlice[];
+  avg: {
+    usd_per_turn: number | null;
+    turns: number;
+    latency_avg_ms: number | null;
+    latency_p95_ms: number | null;
+    latency_n: number;
+    turns_per_person_day: number | null;
+    person_days: number;
+    /** Завжди null і навмисно: скільки чекала людина — ми не міряємо. */
+    human_wait_ms: number | null;
+  };
+  forecast: {
+    month_usd: number;
+    month_elapsed: number;
+    per_household_usd: number | null;
+    per_person_usd: number | null;
+    households: number;
+    people: number;
+    sensitive_to: { cached_share: number | null; parse_share: number | null; long_tail_ms: number | null };
+    /** Ціни підписки ще немає — платежів на пілоті не існує. */
+    price_usd: number | null;
+  };
+  /** Найперший облічений виклик. Раніше за нього — «не збирали», а не «нуль». */
+  collected_since: string | null;
+  percent_floor: number;
+  technical_included: boolean;
+}
+
 export interface PantryBatch {
   id: string;
   household_id: string;
@@ -725,6 +791,13 @@ export const api = {
     ),
     // Крок А2: список домів. Він же — перевірка доступу для всього каркаса
     // адмінки: 404 звідси означає, що адмінки для цієї людини не існує.
+    // Крок А4: гроші розрізами й прогноз. period — day|week|month; day —
+    // будь-який день усередині періоду, у МІСЦЕВИХ межах.
+    money: (period: 'day' | 'week' | 'month', day?: string, technical = false) => req<AdminMoney>(
+      `/v1/admin/money?period=${period}`
+      + (day ? `&day=${encodeURIComponent(day)}` : '')
+      + (technical ? '&technical=1' : ''),
+    ),
     households: (technical = false) => req<{
       households: AdminHousehold[];
       my_household_id: string;
