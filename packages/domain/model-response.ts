@@ -7,7 +7,34 @@
 
 import type { Card, Recipe } from './types.js';
 
-const CARD_TYPES = ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe', 'cook_photo', 'event', 'period'];
+/**
+ * П4-Т5: один список типів замість двох, що розійшлись.
+ *
+ * Тут було ['…','recipe','cook_photo',…], а в services/api/src/model.ts —
+ * своя копія з `recipe_edit` замість них. Недороблений переїзд: `extractJson`
+ * уже жив у домені, а перевірку типу лишили на місці. Розійшовшись, копії
+ * почали давати різні відповіді на те саме питання — і eval перевіряв не той
+ * набір, що працює в проді.
+ *
+ * Склад — НЕ обʼєднання копій, а те, що промпт цього виклику дозволяє моделі
+ * віддати. Обʼєднання розширило б набір, що доходить до людини.
+ *
+ * Виведено з `card-schemas.md` версії 2026-08-28 (він у складі виклику
+ * `chat`): там документовано одинадцять типів. Вісім тут; трьох немає
+ * свідомо:
+ *
+ *   `cook_go`, `cart_go`, `retail_search_go` — маркери ходу, не картки.
+ *   Прибрати їх на користь поля `intent` — окреме рішення, і воно неможливе
+ *   без правки промпту. До того часу вони й не ходять цією гілкою: модель
+ *   віддає їх в обгортці {reply, card}, а обгортка типів не гейтить.
+ *
+ * `cook_photo` тут був зайвий за побудовою: його не віддає жодна модель —
+ * сервер конструює його сам (services/api/src/routes/chat.ts).
+ */
+export const CHAT_CARD_TYPES: readonly string[] = [
+  'intake_diff', 'proposal', 'shopping', 'profile',
+  'recipe', 'recipe_edit', 'event', 'period',
+];
 
 // Витягає ВСІ верхньорівневі JSON-обʼєкти з тексту й обирає карту з валідним
 // `type`. Модель іноді пише два обʼєкти в одну відповідь («ось intake для
@@ -45,9 +72,12 @@ export function extractJson(raw: string): { parsed: unknown; residualText: strin
   const wrapper = found.find((o) =>
     o && typeof o === 'object' && 'reply' in (o as object),
   );
+  // Список тут — тільки для розвʼязання нічиї між кількома JSON. Виклики, що
+  // не про чат (розбір вкладення, генерація рецепта, alt-filter), віддають
+  // обʼєкти БЕЗ поля `type` — для них ця гілка порожня й нічого не гейтить.
   const card = found.find((o) => {
     const t = (o as { type?: unknown } | null)?.type;
-    return typeof t === 'string' && CARD_TYPES.includes(t);
+    return typeof t === 'string' && CHAT_CARD_TYPES.includes(t);
   });
   return { parsed: wrapper ?? card ?? found[0] ?? null, residualText: residual.trim() };
 }
@@ -88,7 +118,7 @@ export function parseModelResponse(text: string): { reply: string; card: Card | 
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = (o.card ?? null) as Card | null;
       note = noteFrom(o);
-    } else if (typeof o.type === 'string' && CARD_TYPES.includes(o.type)) {
+    } else if (typeof o.type === 'string' && CHAT_CARD_TYPES.includes(o.type)) {
       card = o as unknown as Card;
     }
   }
