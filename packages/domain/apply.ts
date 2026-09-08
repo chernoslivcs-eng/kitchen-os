@@ -578,6 +578,12 @@ async function applyIntakeOp(
     return 'missed';
   }
   snap.before.modified_batches!.push({ ...target });
+  // П6-Т3: картка запамʼятовує партію, якої торкнулась, — не тільки на `add`
+  // (там це стоїть із черги Д), а й на правках. Без цього слід у стрічці не
+  // має чим адресувати позицію: `label` веде у findBatchByLabel, тобто в
+  // ПЕРШИЙ збіг без сортування, і при двох однойменних партіях відкрилась би
+  // не та. Напрямок лишається односторонній: партія про картку не знає.
+  op.batch_id = target.id;
 
   if (op.op === 'deplete') {
     await repo.updateBatch(target.id, {
