@@ -195,7 +195,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
           incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
         }
         att_auto = true;
-        att_undo = r.undo_token;
+        att_undo = r.undo_token ?? undefined;
       }
       return {
         reply: call.reply, card: call.card, card_id,
@@ -952,7 +952,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     if (call.card && card_id && applyModeFor(call.card) === 'auto') {
       const r = await applyCard(repo, card_id, [], user_id);
       auto_applied = true;
-      undo_token = r.undo_token;
+      undo_token = r.undo_token ?? undefined;
       // Картка події стає артефактом лише тоді, коли знає, ЩО створила: id
       // народжується в applyEventOp і без цього кроку зникав. Дописуємо його
       // в ops і в збережене повідомлення — і відповідь, і історія несуть

@@ -45,7 +45,7 @@ describe('картка профілю v2', () => {
     const id = await pend(repo, field({ text: 'селери' }));
     const r = await applyCard(repo, id, [], USER);
     expect((await repo.getProfileText(USER)).fields.no.text).toBe('кінзи, селери');
-    await undoCard(repo, id, r.undo_token, USER);
+    await undoCard(repo, id, r.undo_token!, USER);
     expect((await repo.getProfileText(USER)).fields.no).toMatchObject({ text: 'кінзи', status: 'filled' });
   });
 
@@ -65,7 +65,7 @@ describe('картка профілю v2', () => {
     const id = await pend(repo, field({ field: 'love', mode: 'replace', text: 'тайську кухню' }));
     const r = await applyCard(repo, id, [], USER);
     expect((await repo.getProfileText(USER)).fields.love.text).toBe('тайську кухню');
-    await undoCard(repo, id, r.undo_token, USER);
+    await undoCard(repo, id, r.undo_token!, USER);
     expect((await repo.getProfileText(USER)).fields.love.text).toBe('супи');
   });
 
@@ -74,12 +74,12 @@ describe('картка профілю v2', () => {
     const id = await pend(repo, field({ field: 'ban', text: 'арахіс' }));
     const r = await applyCard(repo, id, [], USER);
     expect((await repo.getProfileText(USER)).fields.ban).toMatchObject({ text: 'арахіс', status: 'filled' });
-    await undoCard(repo, id, r.undo_token, USER);
+    await undoCard(repo, id, r.undo_token!, USER);
     expect((await repo.getProfileText(USER)).fields.ban).toMatchObject({ text: '', status: 'none' });
 
     const id2 = await pend(repo, field({ field: 'meh', text: 'гостре' }));
     const r2 = await applyCard(repo, id2, [], USER);
-    await undoCard(repo, id2, r2.undo_token, USER);
+    await undoCard(repo, id2, r2.undo_token!, USER);
     expect((await repo.getProfileText(USER)).fields.meh).toMatchObject({ text: '', status: 'empty' });
   });
 
@@ -89,7 +89,7 @@ describe('картка профілю v2', () => {
     expect(r.applied).toBe(1);
     expect((await repo.getProfileText(USER)).fields.ban.status).toBe('none');
     expect((await repo.getPending(id))?.applied_at).toBeTruthy();
-    await undoCard(repo, id, r.undo_token, USER);
+    await undoCard(repo, id, r.undo_token!, USER);
     expect((await repo.getProfileText(USER)).fields.ban.status).toBe('empty');
   });
 

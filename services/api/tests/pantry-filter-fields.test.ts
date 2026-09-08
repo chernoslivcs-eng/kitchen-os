@@ -61,7 +61,7 @@ describe('GET /v1/pantry — поля фільтра', () => {
     const second = await apply(receiptCard('Сир', '2026-09-03T10:00:00.000Z'));
     // третій чек застосовано й скасовано — не рахується
     const third = await apply(receiptCard('Йогурт', '2026-09-05T10:00:00.000Z'));
-    await undoCard(repo, third.id, third.r.undo_token, me.user_id);
+    await undoCard(repo, third.id, third.r.undo_token!, me.user_id);
 
     const body = (await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json() as { batches: Row[]; last_receipt_at: string | null };
     const receipts = body.batches.filter((b) => b.receipt).map((b) => b.label);

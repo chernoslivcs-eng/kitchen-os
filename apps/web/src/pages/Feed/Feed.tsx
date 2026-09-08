@@ -897,8 +897,15 @@ export function Feed() {
     setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: true } : t));
     try {
       const r = await api.cards.apply(turn.cardId, selected);
+      // П4-Т2: закриває картку ФАКТ, а не сам виклик. Раніше тут стояло
+      // applied: true безумовно — сервер міг сказати «не застосовано, токена
+      // немає», а картка все одно закривалась і пропонувала скасувати ніщо.
+      // Нуль лишає картку відкритою: тапнути ще раз можна, «Ні» працює.
+      const landed = r.applied > 0;
       setTurns((prev) => prev.map((t) => t.id === turnId
-        ? { ...t, applied: true, applying: false, undoToken: r.undo_token, justApplied: true }
+        ? landed
+          ? { ...t, applied: true, applying: false, undoToken: r.undo_token ?? undefined, justApplied: true }
+          : { ...t, applying: false }
         : t,
       ));
       // П2: картка period повертає id створеного запису — артефакт дописує правки людини.
@@ -916,7 +923,11 @@ export function Feed() {
         id: Date.now(),
         kind: 'ok',
         text: turn.card ? appliedToast(turn.card, r.applied) : 'Готово',
-        action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token) },
+        // Скасовувати нічого — не пропонувати. Кнопка без роботи гірша за
+        // її відсутність: вона стверджує, що робота була.
+        ...(landed && r.undo_token
+          ? { action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token!) } }
+          : {}),
       });
       return r;
     } catch (err) {
@@ -935,10 +946,10 @@ export function Feed() {
     try {
       const r = await api.cards.apply(turn.cardId, undefined, { none: true });
       setTurns((prev) => prev.map((t) => t.id === turnId
-        ? { ...t, applied: true, applying: false, undoToken: r.undo_token, justApplied: true }
+        ? { ...t, applied: true, applying: false, undoToken: r.undo_token ?? undefined, justApplied: true }
         : t,
       ));
-      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token) } });
+      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', ...(r.undo_token ? { action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token!) } } : {}) });
     } catch (err) {
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });

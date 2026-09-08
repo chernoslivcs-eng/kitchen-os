@@ -66,7 +66,9 @@ export async function createPending(repo: Repo, args: CreatePendingArgs): Promis
 
 export interface ApplyResult {
   applied: number;   // скільки ops дійсно ЛЯГЛО в стан у цьому виклику
-  undo_token: string;
+  /** П4-Т2: null, коли не лягло нічого. Скасовувати нема чого, отже й токена
+   *  немає — а клієнт по ньому впізнає, що картку закривати не можна. */
+  undo_token: string | null;
   already: boolean;  // true = повторний виклик, змін не було
   /** Мітки операцій, які не знайшли своєї позиції й нічого не зробили.
    *  Порожньо в переважній більшості випадків; непорожньо — привід
@@ -87,6 +89,23 @@ export interface ApplyResult {
   /** Картка поля профілю (раунд 4): текст не вліз у ліміт і був обрізаний —
    *  картка все одно застосована, репліка має сказати, що не влізло. */
   truncated?: boolean;
+}
+
+/**
+ * П4-Т2: нічого не лягло — нічого й не штампуємо.
+ *
+ * Досі пʼять гілок писали applied_at, applied_ops, undo_token і кликали
+ * markMessageApplied БЕЗУМОВНО. Наслідок бачила людина: підтвердження
+ * («Записано в „Про тебе"») на порожньому місці, кнопка скасування нічого,
+ * і жодного виходу — dismissCard відмовляв із «already applied, use undo»,
+ * бо applied_at уже стояв. У проді таких штампів на нулі три, усі profile.
+ *
+ * Без applied_at картка лишається відкритою: тапнути ще раз можна, «Ні»
+ * знову працює. Ніякої нової машини станів це не потребує — достатньо не
+ * закривати те, що не сталось.
+ */
+function nothingLanded(extra: Partial<ApplyResult> = {}): ApplyResult {
+  return { applied: 0, undo_token: null, already: false, ...extra };
 }
 
 export interface ApplyOpts {
@@ -138,11 +157,12 @@ export async function applyCard(
         landed = 1;
       }
     }
-    if (landed) await rebuildVetoIndex(repo, actor_user_id, key);
+    if (!landed) return nothingLanded({ truncated });
+    await rebuildVetoIndex(repo, actor_user_id, key);
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
-      applied_ops: landed ? [0] : [],
+      applied_ops: [0],
       undo_token,
       undo_snapshot: snapshot,
     });
@@ -187,6 +207,7 @@ export async function applyCard(
         snapshot.before.checked_shopping_ids!.push(hit.id);
       }
     }
+    if (!landed) return nothingLanded({ missed });
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -221,6 +242,9 @@ export async function applyCard(
       else if (r === 'already') already_there++;
       else missed.push(`${item.op ?? 'add'} «${item.label || '(без назви)'}»`);
     }
+    // Дубль на add — не привід штампувати картку: стан не змінився, отже й
+    // скасовувати нічого. Людина побачить у списку те саме, що й до тапу.
+    if (!landed) return nothingLanded({ missed, already_there });
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -250,6 +274,7 @@ export async function applyCard(
           : op.id;
       }
     }
+    if (!landed) return nothingLanded({ event_ids });
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -278,6 +303,7 @@ export async function applyCard(
     }
     if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
     if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
+    if (!landed) return nothingLanded();
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -340,6 +366,7 @@ export async function applyCard(
         landed++;
       }
     }
+    if (!landed) return nothingLanded();
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
