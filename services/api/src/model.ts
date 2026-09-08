@@ -11,6 +11,7 @@ import { noteFrom,
   type KitchenMode,
   type HouseholdEventRow,
   extractJson,
+  CHAT_CARD_TYPES,
   parseAttachmentResponse,
   serializePantry as ctxSerializePantry,
   serializeProfileText, emptyProfileText,
@@ -569,7 +570,7 @@ function parseChatText(text: string, stopReason: string | null): { reply: string
       reply = typeof o.reply === 'string' ? o.reply : residualText;
       card = normalizeCard(o.card ?? null);
       note = noteFrom(o);
-    } else if (typeof o.type === 'string' && ['intake_diff', 'proposal', 'shopping', 'profile', 'recipe_edit', 'event', 'period'].includes(o.type)) {
+    } else if (typeof o.type === 'string' && CHAT_CARD_TYPES.includes(o.type)) {
       card = normalizeCard(o);
       // reply вже дорівнює residualText — те, що модель написала поза JSON.
     }

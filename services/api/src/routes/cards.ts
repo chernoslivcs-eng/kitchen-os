@@ -12,6 +12,11 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
     const { household_id } = requireUser(req);
     // proposal — не рішення, а меню моменту: його не «застосовують», тож у
     // черзі рішень воно висіло б вічно. Показуємо тільки дійові картки.
+    //
+    // П4-Т6 прибрав причину на боці ЗАПИСУ: нових pending для applyMode
+    // 'none' більше не створюється. Фільтр лишається не для страховки, а
+    // заради 47 рядків, які вже лежать у проді: чистити дані заборонено,
+    // отже без нього вони випливли б у панель ОЧІКУЮТЬ живими.
     const open = (await repo.listOpenPending(household_id, 40))
       .filter((pc) => pc.card.type !== 'proposal')
       .slice(0, 12);
@@ -40,8 +45,21 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
       // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
       // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
       // взагалі проблема в житті, чи лише в підстроєному випадку.
-      if (r.missed?.length) {
-        incident({ repo, req }, 'guard', 'intake-op-missed', { user_id, card_id: req.params.id, missed: r.missed });
+      if (r.malformed) {
+        // П4-Т3: картка прийшла не тієї форми — і це причина, а не наслідок.
+        // Інцидент ЗАМІСТЬ загального промаху, а не поруч: подія одна, бо
+        // діагноз один, і роздвоєння тут коштувало б точності лічильника.
+        incident({ repo, req }, 'guard', 'profile-card-malformed',
+          { user_id, card_id: req.params.id, missed: r.missed });
+      } else if (r.missed?.length) {
+        // П4-Т1: кожна родина має свій інцидент. Злити їх в один
+        // `intake-op-missed` означало б рахувати різні дефекти однією цифрою —
+        // і не побачити, коли виросте саме один із них.
+        const pc = await repo.getPending(req.params.id);
+        const name = pc?.card?.type === 'shopping' ? 'shopping-op-missed'
+          : pc?.card?.type === 'profile' ? 'profile-op-missed'
+          : 'intake-op-missed';
+        incident({ repo, req }, 'guard', name, { user_id, card_id: req.params.id, missed: r.missed });
       }
       // Правка №6: застосована пост-кук картка списання продовжує розмову
       // детермінованим «Як вийшло?» (0 токенів). Впізнаємо її за точним

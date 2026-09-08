@@ -91,7 +91,7 @@ describe('rename переобчислює продукт, а не тільки �
       type: 'intake_diff',
       ops: [{ op: 'rename', label: 'мʼясо', to: 'свинина' }],
     });
-    await undoCard(repo, r.message_id, r.undo_token, who.user_id);
+    await undoCard(repo, r.message_id, r.undo_token!, who.user_id);
 
     const back = (await repo.listBatches(who.household_id))[0]!;
     expect(back.label).toBe('мʼясо');

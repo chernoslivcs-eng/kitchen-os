@@ -648,7 +648,7 @@ export const api = {
       ),
     // Раунд 4 §4: {none:true} — «Нічого такого» на картці поля ban.
     apply: (id: string, selected?: number[], opts?: { none?: boolean }) =>
-      req<{ applied: number; undo_token: string; already: boolean; followup?: string; truncated?: boolean; event_ids?: string[] }>(
+      req<{ applied: number; undo_token: string | null; already: boolean; followup?: string; truncated?: boolean; event_ids?: string[]; missed?: string[]; already_there?: number }>(
         `/v1/cards/${id}/apply`,
         { method: 'POST', body: JSON.stringify({ selected, ...(opts?.none ? { none: true } : {}) }) },
       ),
@@ -731,11 +731,6 @@ export const api = {
       req<{ updated: boolean; rating: number | null; verdict: string | null; photo_url: string | null }>(`/v1/cook-runs/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ rating, verdict }),
-      }),
-    setPhoto: (id: string, photo_url: string | null) =>
-      req<{ updated: boolean; photo_url: string | null }>(`/v1/cook-runs/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ photo_url }),
       }),
   },
 

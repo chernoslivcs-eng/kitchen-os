@@ -47,7 +47,7 @@ describe('перебудова veto_index', () => {
     await createPending(repo, { message_id: id, household_id: me.household_id, user_id: me.user_id, card: { type: 'profile', field: 'no', mode: 'append', text: 'риби' } });
     const r = await applyCard(repo, id, [], me.user_id);
     expect((await repo.getVetoIndex(me.user_id)).map((x) => x.ref)).toEqual(['кінза', 'риба']);
-    await undoCard(repo, id, r.undo_token, me.user_id);
+    await undoCard(repo, id, r.undo_token!, me.user_id);
     expect((await repo.getVetoIndex(me.user_id)).map((x) => x.ref)).toEqual(['кінза']);
   });
 });

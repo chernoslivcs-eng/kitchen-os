@@ -66,13 +66,21 @@ export async function createPending(repo: Repo, args: CreatePendingArgs): Promis
 
 export interface ApplyResult {
   applied: number;   // скільки ops дійсно ЛЯГЛО в стан у цьому виклику
-  undo_token: string;
+  /** П4-Т2: null, коли не лягло нічого. Скасовувати нема чого, отже й токена
+   *  немає — а клієнт по ньому впізнає, що картку закривати не можна. */
+  undo_token: string | null;
   already: boolean;  // true = повторний виклик, змін не було
   /** Мітки операцій, які не знайшли своєї позиції й нічого не зробили.
    *  Порожньо в переважній більшості випадків; непорожньо — привід
    *  подивитись у лог, бо людині сказали «Запишу», а стан не змінився.
-   *  Заповнює поки лише гілка intake_diff. */
+   *  Заповнюють гілки intake_diff і shopping. */
   missed?: string[];
+  /** П4-Т1: скільки операцій НЕ змінили стан, бо бажаний стан уже був
+   *  (дубль `add` на позицію, яка в списку вже лежить). Це не промах:
+   *  промах — «не змогли», а тут ціль досягнута, просто не нами й не зараз.
+   *  Злити це в `missed` означало б збрехати навпаки. Окреме від
+   *  `already` вище: те — про повторний виклик усієї картки. */
+  already_there?: number;
   /** Картка event: id події на кожну операцію, вирівняно з card.ops
    *  (undefined — операція не приземлилась). Без цього картка в стрічці не
    *  знає, ЩО саме вона створила, і не може стати артефактом із правкою на
@@ -81,6 +89,28 @@ export interface ApplyResult {
   /** Картка поля профілю (раунд 4): текст не вліз у ліміт і був обрізаний —
    *  картка все одно застосована, репліка має сказати, що не влізло. */
   truncated?: boolean;
+  /** П4-Т3: ops-картка профілю прийшла у формі картки ПОЛЯ ({op, field, text}
+   *  замість {kind, label}). Не помилка застосування, а помилка форми: її
+   *  задає промпт, і лагодити її тут означало б ховати причину. Прапорець
+   *  їде нагору, щоб маршрут завів інцидент — рівно один на картку. */
+  malformed?: boolean;
+}
+
+/**
+ * П4-Т2: нічого не лягло — нічого й не штампуємо.
+ *
+ * Досі пʼять гілок писали applied_at, applied_ops, undo_token і кликали
+ * markMessageApplied БЕЗУМОВНО. Наслідок бачила людина: підтвердження
+ * («Записано в „Про тебе"») на порожньому місці, кнопка скасування нічого,
+ * і жодного виходу — dismissCard відмовляв із «already applied, use undo»,
+ * бо applied_at уже стояв. У проді таких штампів на нулі три, усі profile.
+ *
+ * Без applied_at картка лишається відкритою: тапнути ще раз можна, «Ні»
+ * знову працює. Ніякої нової машини станів це не потребує — достатньо не
+ * закривати те, що не сталось.
+ */
+function nothingLanded(extra: Partial<ApplyResult> = {}): ApplyResult {
+  return { applied: 0, undo_token: null, already: false, ...extra };
 }
 
 export interface ApplyOpts {
@@ -132,11 +162,12 @@ export async function applyCard(
         landed = 1;
       }
     }
-    if (landed) await rebuildVetoIndex(repo, actor_user_id, key);
+    if (!landed) return nothingLanded({ truncated });
+    await rebuildVetoIndex(repo, actor_user_id, key);
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
-      applied_ops: landed ? [0] : [],
+      applied_ops: [0],
       undo_token,
       undo_snapshot: snapshot,
     });
@@ -181,6 +212,7 @@ export async function applyCard(
         snapshot.before.checked_shopping_ids!.push(hit.id);
       }
     }
+    if (!landed) return nothingLanded({ missed });
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -199,11 +231,25 @@ export async function applyCard(
   if (card.type === 'shopping') {
     const chosen = selected.length ? selected : (card.items ?? []).map((_, i) => i);
     const snapshot: UndoSnapshot = { kind: 'shopping', before: { added_shopping_ids: [], removed_shopping_items: [] } };
+    // П4-Т1: рахувати те, що СПРАВДІ лягло — як це вже робить гілка комори
+    // вище. Раніше тут стояло chosen.length, тобто «скільки операцій ВИБРАЛИ»,
+    // і картка завжди звітувала успіх: дубль на add і remove неіснуючої
+    // позиції виходили з applyShoppingOp тихо, а людині казали «6 позицій».
+    // Три наслідки, і вони різні: «уже так» — не промах, ціль досягнута.
+    let landed = 0;
+    let already_there = 0;
+    const missed: string[] = [];
     for (const idx of chosen) {
       const item = card.items[idx];
       if (!item) continue;
-      await applyShoppingOp(repo, item, pc.household_id, actor_user_id, snapshot);
+      const r = await applyShoppingOp(repo, item, pc.household_id, actor_user_id, snapshot);
+      if (r === 'landed') landed++;
+      else if (r === 'already') already_there++;
+      else missed.push(`${item.op ?? 'add'} «${item.label || '(без назви)'}»`);
     }
+    // Дубль на add — не привід штампувати картку: стан не змінився, отже й
+    // скасовувати нічого. Людина побачить у списку те саме, що й до тапу.
+    if (!landed) return nothingLanded({ missed, already_there });
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -211,8 +257,8 @@ export async function applyCard(
       undo_token,
       undo_snapshot: snapshot,
     });
-    await repo.markMessageApplied(pc.id, chosen.length);
-    return { applied: chosen.length, undo_token, already: false };
+    await repo.markMessageApplied(pc.id, landed);
+    return { applied: landed, undo_token, already: false, missed, already_there };
   }
 
   if (card.type === 'event') {
@@ -233,6 +279,7 @@ export async function applyCard(
           : op.id;
       }
     }
+    if (!landed) return nothingLanded({ event_ids });
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -251,25 +298,44 @@ export async function applyCard(
     const snapshot: UndoSnapshot = { kind: 'profile', before: {} };
     // QA4-05: рахуємо те, що СПРАВДІ лягло.
     let landed = 0;
+    // П4-Т3: applied_ops несе те, що лягло, а не те, що вибрали. Досі цикл
+    // умів тільки kind 'member', а в applied_ops писав УСІ індекси — слід
+    // застосування стверджував більше, ніж сталось.
+    const landedOps: number[] = [];
+    const missed: string[] = [];
+    // Живий випадок 07.09: модель прислала ops у формі картки ПОЛЯ
+    // ({op, field, text}) замість форми ops-картки ({kind, label}). Картку
+    // НЕ лагодимо на льоту: форму задає промпт, а промпт ми не чіпаємо.
+    // Наше — не збрехати про результат і лишити слід, за яким видно причину.
+    let malformed = false;
     const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      if (op.kind === 'member') {
-        if (await applyMemberOp(repo, pc.household_id, op, memberTrace)) landed++;
+      const o = op as { kind?: string; label?: string; op?: string; field?: string; text?: string };
+      if (!o.kind && (o.field !== undefined || o.text !== undefined)) malformed = true;
+      if (o.kind === 'member' && await applyMemberOp(repo, pc.household_id, op, memberTrace)) {
+        landed++;
+        landedOps.push(idx);
+        continue;
       }
+      // Промах читає розробник у лозі, не людина, — тому тут видно й причину:
+      // який kind прийшов (або що його не було).
+      missed.push(`${o.op ?? 'add'} «${o.label ?? o.text ?? '(без назви)'}» (kind: ${o.kind ?? 'немає'})`);
     }
     if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
     if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
+    const trace = { missed, ...(malformed ? { malformed: true } : {}) };
+    if (!landed) return nothingLanded(trace);
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
-      applied_ops: chosen,
+      applied_ops: landedOps,
       undo_token,
       undo_snapshot: snapshot,
     });
     await repo.markMessageApplied(pc.id, landed);
-    return { applied: landed, undo_token, already: false };
+    return { applied: landed, undo_token, already: false, ...trace };
   }
 
   // П1: період. Традиція / відписка — батч підписок по items (галочки =
@@ -323,6 +389,7 @@ export async function applyCard(
         landed++;
       }
     }
+    if (!landed) return nothingLanded();
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
@@ -339,6 +406,16 @@ export async function applyCard(
 
   if (card.type === 'recipe') {
     const r = card.recipe;
+    // П4-Т8: єдина гілка, яка звітувала успіх, не перевіривши, чи є що
+    // зберігати. Без назви в бібліотеку лягав рецепт-порожнеча, а картка
+    // казала «збережено» — рівно та брехня, по яку йшов увесь захід.
+    //
+    // Умова не вигадана: `parseAttachmentResponse` уже тримає рівно її
+    // (`if (r?.t)`, model-response.ts) — «без назви зберігати нічого, картка
+    // була б кнопкою в порожнечу». Але то захист РОЗБОРУ вкладення, і
+    // чатовий шлях, яким recipe у проді й ходить, повз нього проходив.
+    // Тут вона тримає обидва шляхи незалежно від того, хто зробив картку.
+    if (!r?.t?.trim()) return nothingLanded();
     const now = new Date().toISOString();
     const id = randomUUID();
     await repo.saveRecipe({
@@ -706,27 +783,30 @@ async function applyShoppingOp(
   household_id: string,
   actor: string,
   snap: UndoSnapshot,
-): Promise<void> {
-  if (!item.label) return;
+): Promise<'landed' | 'already' | 'missed'> {
+  // Позиція без назви застосувати неможливо. Раніше вихід був мовчазний;
+  // тепер він лишає слід у `missed` — не для людини (це поле до неї не
+  // доходить), а для лога. Відсікати таке треба раніше, у normalizeCard.
+  if (!item.label) return 'missed';
   if (item.op === 'remove') {
     const existing = await repo.findShoppingItemByLabel(household_id, item.label);
-    if (existing) {
-      await repo.deleteShoppingItem(existing.id);
-      // Повний рядок, не тільки id — після delete рядка вже нема в БД,
-      // undo мусить його ВІДТВОРИТИ, не просто «знати, що він був».
-      snap.before.removed_shopping_items ??= [];
-      snap.before.removed_shopping_items.push(existing);
-    }
-    return;
+    if (!existing) return 'missed';
+    await repo.deleteShoppingItem(existing.id);
+    // Повний рядок, не тільки id — після delete рядка вже нема в БД,
+    // undo мусить його ВІДТВОРИТИ, не просто «знати, що він був».
+    snap.before.removed_shopping_items ??= [];
+    snap.before.removed_shopping_items.push(existing);
+    return 'landed';
   }
   // Дефолт — add. v/u не прийшли окремо — перевіряємо, чи кількість не
   // впаялась текстом у хвіст label (живий репро «Kronenbourg 0.5 л»).
   const extracted = item.v == null && item.u == null
     ? extractTrailingQuantity(item.label)
     : { label: item.label, value: item.v ?? null, unit: item.u ?? null };
-  // Якщо вже є з тим самим (очищеним) label — не дублюємо.
+  // Якщо вже є з тим самим (очищеним) label — не дублюємо. Це не промах:
+  // бажаний стан («олія в списку») уже досягнутий.
   const existing = await repo.findShoppingItemByLabel(household_id, extracted.label);
-  if (existing) return;
+  if (existing) return 'already';
   const id = randomUUID();
   await repo.insertShoppingItem({
     id, household_id,
@@ -742,6 +822,7 @@ async function applyShoppingOp(
   });
   snap.before.added_shopping_ids ??= [];
   snap.before.added_shopping_ids.push(id);
+  return 'landed';
 }
 
 // «Зі мною живе Оксана, вона веганка» → окремий запис їдця в домі.

@@ -188,22 +188,17 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       let att_undo: string | undefined;
       if (call.card?.type === 'intake_diff' && card_id) {
         const r = await applyCard(repo, card_id, [], user_id);
-
-      // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
-      // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
-      // взагалі проблема в житті, чи лише в підстроєному випадку.
-      if (r.missed?.length) {
-        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
-      }
-
-      // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
-      // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
-      // взагалі проблема в житті, чи лише в підстроєному випадку.
-      if (r.missed?.length) {
-        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
-      }
-        att_auto = true;
-        att_undo = r.undo_token;
+        // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
+        // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
+        // взагалі проблема в житті, чи лише в підстроєному випадку.
+        if (r.missed?.length) {
+          incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
+        }
+        // П4-Т2, авто-шлях: прапорець несе ФАКТ, а не сам виклик. Раніше
+        // стояло true безумовно — і клієнт закривав картку навіть тоді, коли
+        // сервер щойно вирішив її не штампувати.
+        att_auto = r.applied > 0;
+        att_undo = r.undo_token ?? undefined;
       }
       return {
         reply: call.reply, card: call.card, card_id,
@@ -265,20 +260,19 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         // Пул-8 №2: списання застосовується одразу; «Як вийшло?» (раніше
         // followup ручного apply в cards.ts) їде тим самим ходом.
         const applied = await applyCard(repo, card_id, [], user_id);
-
-      // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
-      // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
-      // взагалі проблема в житті, чи лише в підстроєному випадку.
-      if (applied.missed?.length) {
-        incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: applied.missed });
-      }
+        // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
+        // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це
+        // взагалі проблема в житті, чи лише в підстроєному випадку.
+        if (applied.missed?.length) {
+          incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: applied.missed });
+        }
         await repo.saveMessage({
           id: randomUUID(), session_id: session.id, role: 'assistant',
           text: FEEDBACK_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
         });
         return {
           reply: WRITEOFF_CARD_REPLY, card, card_id,
-          auto_applied: true, undo_token: applied.undo_token, followup: FEEDBACK_PROMPT,
+          auto_applied: applied.applied > 0, undo_token: applied.undo_token ?? undefined, followup: FEEDBACK_PROMPT,
           usage: zeroUsage, meta: detMeta,
         };
       }
@@ -928,7 +922,16 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // історії правило було видно, а в календарі — порожньо. Одна картка,
     // одне джерело: те, що ляже в повідомлення, те й застосовується.
     const card_id = call.card ? randomUUID() : null;
-    if (call.card && card_id) {
+    // П4-Т6: облік застосувань — лише там, де застосування буває. Родини з
+    // applyMode 'none' (пропозиція, слід рецепта, кошик, службові маркери,
+    // онбординг) не мають apply-гілки взагалі: рядок у card_pending для них
+    // ніколи не стане ані застосованим, ані відхиленим — він просто висить.
+    // У проді таких 47, усі від proposal.
+    //
+    // Рядок їм і не потрібен: id картки народжується тут незалежно від
+    // pending і далі служить id повідомлення, тож стрічка малює пропозицію
+    // так само, а «Відкрити» й «Уточнити» працюють як працювали.
+    if (call.card && card_id && applyModeFor(call.card) !== 'none') {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
     }
 
@@ -960,8 +963,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // отримати режим у мапі й не отримати його в рантаймі.
     if (call.card && card_id && applyModeFor(call.card) === 'auto') {
       const r = await applyCard(repo, card_id, [], user_id);
-      auto_applied = true;
-      undo_token = r.undo_token;
+      auto_applied = r.applied > 0;
+      undo_token = r.undo_token ?? undefined;
       // Картка події стає артефактом лише тоді, коли знає, ЩО створила: id
       // народжується в applyEventOp і без цього кроку зникав. Дописуємо його
       // в ops і в збережене повідомлення — і відповідь, і історія несуть

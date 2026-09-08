@@ -78,7 +78,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(batches).toHaveLength(1);
       expect(batches[0]!.label).toBe('Моцарела');
 
-      const res = await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
+      const res = await undoCard(ctx.repo, mid, undo_token!, ctx.user_id);
       expect(res.undone).toBe(true);
       expect(await ctx.repo.listBatches(ctx.household_id)).toHaveLength(0);
     });
@@ -240,7 +240,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       let items = await ctx.repo.listShoppingItems(ctx.household_id);
       expect(items.find((i) => i.id === itemId)!.checked).toBe(true);
 
-      await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
+      await undoCard(ctx.repo, mid, undo_token!, ctx.user_id);
       items = await ctx.repo.listShoppingItems(ctx.household_id);
       expect(items.find((i) => i.id === itemId)!.checked).toBe(false);
     });
@@ -278,7 +278,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const { undo_token } = await applyCard(ctx.repo, mid, [], ctx.user_id);
       expect((await ctx.repo.getBatch(seeded.id))?.label).toBe('Крем-брюле Pont');
 
-      await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
+      await undoCard(ctx.repo, mid, undo_token!, ctx.user_id);
       expect((await ctx.repo.getBatch(seeded.id))?.label).toBe('Крем-брусок');
     });
 
@@ -660,7 +660,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       // Слід авторства: інакше не розібрати, звідки в календарі те, чого не просили.
       expect(list[0]?.source).toBe('chat');
 
-      await undoCard(repo, mid, undo_token, user_id);
+      await undoCard(repo, mid, undo_token!, user_id);
       expect(await repo.listOwnEvents(household_id, user_id)).toHaveLength(0);
     });
 
@@ -726,7 +726,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect((await repo.getHouseholdEvent(id))?.title).toBe('гості, шестеро');
       expect((await repo.getHouseholdEvent(id))?.servings).toBe(6);
 
-      await undoCard(repo, mid, undo_token, user_id);
+      await undoCard(repo, mid, undo_token!, user_id);
       const back = await repo.getHouseholdEvent(id);
       expect(back?.title).toBe('гості');
       expect(back?.servings).toBe(4);
@@ -775,7 +775,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       // Різдво знято (= дефолт, рядка нема). Лягло два рішення.
       expect(r1.applied).toBe(2);
       expect((await repo.listOccasionSubscriptions(household_id)).map((s) => [s.occasion_id, s.enabled])).toEqual([['advent', true]]);
-      await undoCard(repo, mid, r1.undo_token, user_id);
+      await undoCard(repo, mid, r1.undo_token!, user_id);
       expect(await repo.listOccasionSubscriptions(household_id)).toEqual([]);
 
       const mid2 = randomUUID();
@@ -789,7 +789,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       const mine = await repo.listOwnEvents(household_id, user_id);
       expect(mine).toHaveLength(1);
       expect(mine[0]).toMatchObject({ kind: 'diet', title: 'білкова', from: '2026-09-06', to: '2026-10-05', strict: false, source: 'chat', rule: { t: 'once', at: '2026-09-06', days: 30 } });
-      await undoCard(repo, mid2, r2.undo_token, user_id);
+      await undoCard(repo, mid2, r2.undo_token!, user_id);
       expect(await repo.listOwnEvents(household_id, user_id)).toEqual([]);
     });
 
@@ -965,9 +965,9 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
       const { undo_token } = await applyCard(ctx.repo, mid, [], ctx.user_id);
       await expect(undoCard(ctx.repo, mid, randomUUID(), ctx.user_id)).rejects.toThrow(/mismatch/);
-      const r1 = await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
+      const r1 = await undoCard(ctx.repo, mid, undo_token!, ctx.user_id);
       expect(r1.undone).toBe(true);
-      const r2 = await undoCard(ctx.repo, mid, undo_token, ctx.user_id);
+      const r2 = await undoCard(ctx.repo, mid, undo_token!, ctx.user_id);
       expect(r2.already).toBe(true);
     });
 
@@ -1051,7 +1051,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
 
       // Скасована не рахується — повертаємось до старішої.
       const { undo_token } = await applyCard(repo, newId, [], user_id);
-      await undoCard(repo, newId, undo_token, user_id);
+      await undoCard(repo, newId, undo_token!, user_id);
       expect((((await repo.lastAppliedIntake(household_id, since))!).source as { shop?: string }).shop).toBe('Стара');
 
       // Не-intake зверху не перебиває: картка списку не має нічого спільного
@@ -1092,7 +1092,7 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
 
       const undoneId = await mkPending('скасована');
       const { undo_token } = await applyCard(repo, undoneId, [], user_id);
-      await undoCard(repo, undoneId, undo_token, user_id);
+      await undoCard(repo, undoneId, undo_token!, user_id);
 
       const dismissedId = await mkPending('відхилена');
       await dismissCard(repo, dismissedId, user_id);
