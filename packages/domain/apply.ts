@@ -89,6 +89,11 @@ export interface ApplyResult {
   /** Картка поля профілю (раунд 4): текст не вліз у ліміт і був обрізаний —
    *  картка все одно застосована, репліка має сказати, що не влізло. */
   truncated?: boolean;
+  /** П4-Т3: ops-картка профілю прийшла у формі картки ПОЛЯ ({op, field, text}
+   *  замість {kind, label}). Не помилка застосування, а помилка форми: її
+   *  задає промпт, і лагодити її тут означало б ховати причину. Прапорець
+   *  їде нагору, щоб маршрут завів інцидент — рівно один на картку. */
+  malformed?: boolean;
 }
 
 /**
@@ -293,26 +298,44 @@ export async function applyCard(
     const snapshot: UndoSnapshot = { kind: 'profile', before: {} };
     // QA4-05: рахуємо те, що СПРАВДІ лягло.
     let landed = 0;
+    // П4-Т3: applied_ops несе те, що лягло, а не те, що вибрали. Досі цикл
+    // умів тільки kind 'member', а в applied_ops писав УСІ індекси — слід
+    // застосування стверджував більше, ніж сталось.
+    const landedOps: number[] = [];
+    const missed: string[] = [];
+    // Живий випадок 07.09: модель прислала ops у формі картки ПОЛЯ
+    // ({op, field, text}) замість форми ops-картки ({kind, label}). Картку
+    // НЕ лагодимо на льоту: форму задає промпт, а промпт ми не чіпаємо.
+    // Наше — не збрехати про результат і лишити слід, за яким видно причину.
+    let malformed = false;
     const memberTrace = { added: [] as string[], removed: [] as EaterRow[] };
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      if (op.kind === 'member') {
-        if (await applyMemberOp(repo, pc.household_id, op, memberTrace)) landed++;
+      const o = op as { kind?: string; label?: string; op?: string; field?: string; text?: string };
+      if (!o.kind && (o.field !== undefined || o.text !== undefined)) malformed = true;
+      if (o.kind === 'member' && await applyMemberOp(repo, pc.household_id, op, memberTrace)) {
+        landed++;
+        landedOps.push(idx);
+        continue;
       }
+      // Промах читає розробник у лозі, не людина, — тому тут видно й причину:
+      // який kind прийшов (або що його не було).
+      missed.push(`${o.op ?? 'add'} «${o.label ?? o.text ?? '(без назви)'}» (kind: ${o.kind ?? 'немає'})`);
     }
     if (memberTrace.added.length) snapshot.before.added_eater_ids = memberTrace.added;
     if (memberTrace.removed.length) snapshot.before.removed_eaters = memberTrace.removed;
-    if (!landed) return nothingLanded();
+    const trace = { missed, ...(malformed ? { malformed: true } : {}) };
+    if (!landed) return nothingLanded(trace);
     const undo_token = randomUUID();
     await repo.updatePending(pc.id, {
       applied_at: new Date().toISOString(),
-      applied_ops: chosen,
+      applied_ops: landedOps,
       undo_token,
       undo_snapshot: snapshot,
     });
     await repo.markMessageApplied(pc.id, landed);
-    return { applied: landed, undo_token, already: false };
+    return { applied: landed, undo_token, already: false, ...trace };
   }
 
   // П1: період. Традиція / відписка — батч підписок по items (галочки =
