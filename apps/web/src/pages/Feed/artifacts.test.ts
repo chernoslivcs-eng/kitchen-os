@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn, isWriteOff} from './artifacts';
+import { isIntakeArtifact, pickArtifacts, receiptLines, type ArtifactTurn, isWriteOff, survivingBatches, goneLabels, type LiveBatch } from './artifacts';
 import type { ChatCard } from '../../api';
 
 const turn = (id: string, card: Partial<ChatCard> | null, cardId: string | null = id): ArtifactTurn =>
@@ -187,5 +187,84 @@ describe('isWriteOff — списання це подія, а не річ', () =
     const fill = { id: 'b', cardId: 'b', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'y' }] } };
     expect(pickArtifacts([wo] as never).length, 'списання не артефакт').toBe(0);
     expect(pickArtifacts([fill] as never).length, 'наповнення артефакт').toBe(1);
+  });
+});
+
+// П6-Т3. Списання досі малювалось одним способом на два різні випадки.
+// Після «зʼїли все» партії немає — рядок тексту без стрілки правильний.
+// Після «зʼїли половину» партія ЖИВА з новим числом, і сховати її за тим
+// самим рядком означає не показати єдине, що людина хоче побачити.
+describe('survivingBatches — часткове списання лишає що показати', () => {
+  const live = (...ids: string[]): Map<string, LiveBatch> =>
+    new Map(ids.map((id) => [id, { label: `позиція ${id}`, value: 250, unit: 'g' }]));
+  const wo = (ops: unknown[], extra: Partial<ArtifactTurn> = {}): ArtifactTurn =>
+    ({ id: 't', cardId: 't', card: { type: 'intake_diff', ops } as never, applied: true, ...extra });
+
+  it('партія лишилась у живих — її й показуємо', () => {
+    const t = wo([{ op: 'correct', label: 'томати', batch_id: 'b1', value: 250 }]);
+    expect(survivingBatches(t, live('b1'))).toEqual([{ id: 'b1', label: 'позиція b1', value: 250, unit: 'g' }]);
+    expect(goneLabels(t, live('b1')), 'жива позиція в текстовий рядок не йде').toEqual([]);
+  });
+
+  it('повне списання: партії в живих немає — показувати нема чого', () => {
+    const t = wo([{ op: 'deplete', label: 'томати', batch_id: 'b1' }]);
+    expect(survivingBatches(t, live())).toEqual([]);
+    expect(goneLabels(t, live())).toEqual(['томати']);
+  });
+
+  it('мішана картка: жива йде в слід, зʼїдена — в рядок тексту', () => {
+    const t = wo([
+      { op: 'correct', label: 'спагеті', batch_id: 'b1', value: 100 },
+      { op: 'deplete', label: 'бекон', batch_id: 'b2' },
+    ]);
+    expect(survivingBatches(t, live('b1')).map((b) => b.id)).toEqual(['b1']);
+    expect(goneLabels(t, live('b1'))).toEqual(['бекон']);
+  });
+
+  it('без batch_id адресувати нічого: слід лишається текстом', () => {
+    // Старі картки в історії (до того, як сервер став ставити вказівник на
+    // правках) — і саме тому назву тут за ключ не беремо: findBatchByLabel
+    // повертає ПЕРШИЙ збіг, і при двох однойменних відкрилась би не та.
+    const t = wo([{ op: 'correct', label: 'томати', value: 250 }]);
+    expect(survivingBatches(t, live('b1'))).toEqual([]);
+    expect(goneLabels(t, live('b1'))).toEqual(['томати']);
+  });
+
+  it('незастосована й скасована картка партії не міняли', () => {
+    const ops = [{ op: 'correct', label: 'томати', batch_id: 'b1', value: 250 }];
+    expect(survivingBatches(wo(ops, { applied: false }), live('b1'))).toEqual([]);
+    expect(survivingBatches(wo(ops, { undone: true }), live('b1'))).toEqual([]);
+  });
+
+  it('наповнення слідом списання не стає', () => {
+    const t = wo([{ op: 'add', label: 'томати', batch_id: 'b1' }]);
+    expect(survivingBatches(t, live('b1'))).toEqual([]);
+    expect(goneLabels(t, live('b1'))).toEqual([]);
+  });
+});
+
+describe('pickArtifacts — жива партія стає вкладкою batch', () => {
+  const live = new Map<string, LiveBatch>([['b1', { label: 'томати', value: 250, unit: 'g' }]]);
+
+  it('часткове списання відкриває вкладку позиції, повне — ні', () => {
+    const partial = { id: 'a', cardId: 'a', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1', value: 250 }] } };
+    const full = { id: 'c', cardId: 'c', applied: true, card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'бекон', batch_id: 'b9' }] } };
+    expect(pickArtifacts([partial] as never, null, live)).toEqual([
+      { key: 'batch:b1', kind: 'batch', label: 'томати', meta: '', turn: partial },
+    ]);
+    expect(pickArtifacts([full] as never, null, live)).toEqual([]);
+  });
+
+  it('без мапи живих партій екран лишається таким, як був', () => {
+    const partial = { id: 'a', cardId: 'a', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1' }] } };
+    expect(pickArtifacts([partial] as never)).toEqual([]);
+  });
+
+  it('два списання тієї самої партії — одна вкладка, не дві', () => {
+    // Партія — це стан, а не документ ходу: другий обід із тих самих томатів
+    // не заводить другої картки позиції.
+    const one = { id: 'a', cardId: 'a', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1' }] } };
+    const two = { id: 'b', cardId: 'b', applied: true, card: { type: 'intake_diff', ops: [{ op: 'correct', label: 'томати', batch_id: 'b1' }] } };
+    expect(pickArtifacts([one, two] as never, null, live).map((a) => a.key)).toEqual(['batch:b1']);
   });
 });

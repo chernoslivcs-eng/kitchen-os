@@ -223,6 +223,9 @@ export function loadFixtures(): Fixture[] {
     readJson('recipe-edit-keeps-cast.json'),
     readJson('servings-scale.json'),
     readJson('pantry-truth.json'),
+    // П6: зʼїли ЧАСТИНУ — correct із залишком, не deplete. Єдина фікстура
+    // корпусу, що взагалі торкається списання: на нього не було жодної.
+    readJson('pantry-partial-eat.json'),
     readJson('shopping-truth.json'),
     readJson('cart-extend-mode.json'),
     readJson('cook-chronology.json'),

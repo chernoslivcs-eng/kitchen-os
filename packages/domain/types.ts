@@ -56,10 +56,16 @@ export type IntakeOp =
   // Модель id не бачить і не заповнює: для неї лишається label, як було.
   | { op: 'deplete'; label: string; batch_id?: string }
   | { op: 'open'; label: string; batch_id?: string }
-  | { op: 'rename'; label: string; to: string; batch_id?: string }
+  // `tags` тут не декорація: перейменування — заява «це інший продукт», і
+  // теги нового продукту приходять тією самою реплікою («це не мʼясо, а
+  // свинина, і вона без лактози»). Схема моделі їх дозволяла завжди.
+  | { op: 'rename'; label: string; to: string; batch_id?: string; tags?: import('./product.js').ProductTags }
   // correct може правити й невидимі теги продукту партії («камбоцола без
   // лактози») — мердж, не заміна; редагування тегів існує ТІЛЬКИ цим шляхом.
-  | { op: 'correct'; label: string; batch_id?: string; value?: number; unit?: Unit; zone?: Zone; tags?: import('./product.js').ProductTags };
+  // `state` на correct — та сама пара, що на `add`: «сметана вже відкрита»
+  // це виправлення стану, а не подія відкриття.
+  | { op: 'correct'; label: string; batch_id?: string; value?: number; unit?: Unit; zone?: Zone;
+      state?: 'sealed' | 'opened'; tags?: import('./product.js').ProductTags };
 
 // M13: рядок чека, який НЕ став op'ом — сірий «додати руками» (unmatched)
 // або згорнутий «не для комори» (nonfood). Живе в source картки, щоб стрічка

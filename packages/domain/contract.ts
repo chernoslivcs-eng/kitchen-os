@@ -315,6 +315,161 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(await ctx.repo.listBatches(ctx.household_id)).toHaveLength(0);
     });
 
+    it('correct зі state:opened відкриває партію І пересуває «вжити до»', async () => {
+      // Знахідка П6 §5.2 (№1). Схема дозволяє `state` на всіх операціях, `add`
+      // його читає, `correct` — ні. «Сметана вже відкрита» проходила як
+      // застосована (last_action писався, репліка казала «записав»), а
+      // opened_at не ставав: мʼякий годинник «вжити до» не стартував.
+      //
+      // Дзеркало гілки `open`, не `add`: у партії ВЖЕ є строк, і він описує
+      // запечатану. Поставити opened_at без перерахунку expires_at означало б
+      // запустити годинник, лишивши на екрані стару дату зіпсуття.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      expect(seeded.state, 'вихідна — запечатана без строку').toBe('sealed');
+      expect(seeded.expires_at).toBeNull();
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'correct', label: 'фарш', state: 'opened' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { applied, undo_token } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+      expect(applied).toBe(1);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state).toBe('opened');
+      expect(b?.opened_at, 'годинник стартував').not.toBeNull();
+      expect(b?.expires_at, 'і дата зіпсуття пересунулась разом із ним').not.toBeNull();
+      // best_before_opened_days у сіянці — 3 дні; строк має лягти приблизно туди.
+      const days = (new Date(b!.expires_at!).getTime() - Date.now()) / 86_400_000;
+      expect(days).toBeGreaterThan(2.9);
+      expect(days).toBeLessThan(3.1);
+      // Людина ВИПРАВИЛА запис, а не відкрила пачку зараз — історія партії
+      // не має вигадувати події, якої не було.
+      expect(b?.last_action).toBe('correct');
+
+      await undoCard(ctx.repo, mid, undo_token!, ctx.user_id);
+      const back = await ctx.repo.getBatch(seeded.id);
+      expect(back?.state).toBe('sealed');
+      expect(back?.opened_at).toBeNull();
+      expect(back?.expires_at).toBeNull();
+    });
+
+    it('correct зі state:sealed знімає годинник назад', async () => {
+      // «Ні, я її ще не відкривав». Той самий відкат, що вже робить ручна
+      // правка партії в Коморі; expires_at не чіпаємо — він міг прийти й не
+      // з відкриття.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      const open = randomUUID();
+      await createPending(ctx.repo, { message_id: open, household_id: ctx.household_id, user_id: ctx.user_id,
+        card: { type: 'intake_diff', ops: [{ op: 'open', label: 'фарш' }] } });
+      await applyCard(ctx.repo, open, [], ctx.user_id);
+      expect((await ctx.repo.getBatch(seeded.id))?.opened_at).not.toBeNull();
+
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'correct', label: 'фарш', state: 'sealed' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state).toBe('sealed');
+      expect(b?.opened_at).toBeNull();
+      expect(b?.depleted_at).toBeNull();
+    });
+
+    it('correct зі state:sealed знімає І depleted_at — рядок не лишається суперечливим', async () => {
+      // Відкат мусить бути повний. Інакше партія виходить із правки з
+      // `state: 'sealed'` (жива) і непорожнім `depleted_at` (списана), і два
+      // поля одного рядка кажуть різне тим, хто їх читає: стрічка й комора
+      // дивляться на state, «кошик закінченого» — на depleted_at.
+      //
+      // Адресуємо ВКАЗІВНИКОМ, і це єдиний шлях, яким сюди можна дійти:
+      // findBatchByLabel списані партії пропускає, а getBatch — ні. Саме цей
+      // шлях П6-Т3 і зробив звичайним, почавши ставити batch_id на правках.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      const gone = randomUUID();
+      await createPending(ctx.repo, { message_id: gone, household_id: ctx.household_id, user_id: ctx.user_id,
+        card: { type: 'intake_diff', ops: [{ op: 'deplete', label: 'фарш' }] } });
+      await applyCard(ctx.repo, gone, [], ctx.user_id);
+      const dead = await ctx.repo.getBatch(seeded.id);
+      expect(dead?.state).toBe('depleted');
+      expect(dead?.depleted_at).not.toBeNull();
+
+      const mid = randomUUID();
+      const card: IntakeCard = {
+        type: 'intake_diff',
+        ops: [{ op: 'correct', label: 'фарш', batch_id: seeded.id, state: 'sealed' }],
+      };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { applied } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+      expect(applied).toBe(1);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state).toBe('sealed');
+      expect(b?.depleted_at, 'списання знято разом зі станом').toBeNull();
+      expect(b?.opened_at).toBeNull();
+    });
+
+    it('rename несе теги моделі в продукт — і каталог добирає решту', async () => {
+      // Знахідка П6 §5.2 (№2). ensureProduct на `rename` діставав `undefined`
+      // замість op.tags, тоді як на `add` — самі теги. Один хід «це не X, а
+      // молоко, і воно живе відкритим пʼять днів» лишав продукт без обох.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id, 'Крем-брусок');
+      expect(seeded.best_before_opened_days, 'сіянка живе три дні').toBe(3);
+      const mid = randomUUID();
+      const card: IntakeCard = {
+        type: 'intake_diff',
+        ops: [{ op: 'rename', label: 'Крем-брусок', to: 'молоко', tags: { shelf_open_days: 5 } }],
+      };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      // Видимий наслідок: строк відкритої партії йде за тегом моделі, не за
+      // старими трьома днями сіянки.
+      expect(b?.best_before_opened_days).toBe(5);
+      const prod = await ctx.repo.getProduct(b!.product_id!);
+      expect(prod?.tags.shelf_open_days).toBe(5);
+      // Каталог не витіснено: алергени й скоромність він добирає в ДІРКИ,
+      // а модельні теги лишаються зверху.
+      expect(prod?.tags.allergens).toEqual(['молоко']);
+      expect(prod?.tags.fasting).toBe(true);
+    });
+
+    it('deplete з value: партія недоторкана, промах, нуль застосованого', async () => {
+      // П6-Т2. Виміряний випадок (07.09): на «половину томатів зʼїли» модель
+      // віддає {op:'deplete', value:250} і пише в репліці «лишилось 250 г» —
+      // бо схема дозволяє `value` на всіх операціях, а імені для часткового
+      // споживання їй не дали. Гілка `deplete` `value` не читає: партія
+      // зникала ЦІЛКОМ, а людина читала, що лишилось півпачки.
+      //
+      // Тихо трактувати таку картку як `correct` не можна — це лагодження
+      // форми на льоту, від якого продукт відмовився в П4-Т3: форму диктує
+      // промпт. Операція малформлена, отже не виконується зовсім і лишає
+      // слід у `missed` — щоб частота цього була видима в лозі, а не зникла.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      const mid = randomUUID();
+      const card = { type: 'intake_diff', ops: [{ op: 'deplete', label: 'фарш', value: 250 }] } as unknown as IntakeCard;
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { applied, missed, undo_token } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state, 'партія лишається живою').toBe('sealed');
+      expect(b?.value, 'кількість не змінилась — сервер не рахує частку').toBe(seeded.value);
+      expect(b?.depleted_at).toBeNull();
+      expect(applied).toBe(0);
+      expect(undo_token, 'нічого не лягло — скасовувати нема чого').toBeNull();
+      expect(missed).toEqual(['deplete «фарш» — value на deplete']);
+    });
+
+    it('deplete БЕЗ value працює як працював — повне списання не зачеплене', async () => {
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'deplete', label: 'фарш' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      const { applied, missed } = await applyCard(ctx.repo, mid, [], ctx.user_id);
+      expect(applied).toBe(1);
+      expect(missed).toEqual([]);
+      expect((await ctx.repo.getBatch(seeded.id))?.state).toBe('depleted');
+    });
+
     it('чужий актор — forbidden', async () => {
       const mid = randomUUID();
       const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'add', label: 'x' }] };

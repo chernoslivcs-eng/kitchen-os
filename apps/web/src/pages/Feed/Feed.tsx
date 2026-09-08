@@ -3,7 +3,7 @@
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
@@ -11,9 +11,11 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { applyMode } from '@kitchen/domain/card-modes';
-import { api, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type MessageInfo, type ShoppingItem } from '../../api';
+import { api, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
 import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
-import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff} from './artifacts';
+import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
+import { BatchCard } from '../Pantry/BatchCard';
+import { formatQty } from '../../lib/units';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -349,27 +351,38 @@ export function Feed() {
   // Перечитуємо на bump комори — той самий сигнал, яким користується TabBar
   // після apply/undo й після готування.
   const pantryVersion = usePantryStore((st) => st.version);
-  const [livePositions, setLivePositions] = useState<Map<string, LivePosition>>(new Map());
+  // П6-Т3: тримаємо саму партію цілком, а не три її поля. Слід часткового
+  // списання відкриває картку позиції (`batch`) прямо тут, у панелі, — а їй
+  // потрібен весь рядок комори: зона, терміни, БЖВ, походження. Другого
+  // запиту для цього не робимо: /v1/pantry віддає це тим самим викликом.
+  const [liveBatches, setLiveBatches] = useState<Map<string, PantryBatch>>(new Map());
+  const [liveProducts, setLiveProducts] = useState<HouseholdProduct[]>([]);
   useEffect(() => {
     let alive = true;
     api.pantry()
       .then((p) => {
         if (!alive) return;
-        const m = new Map<string, LivePosition>();
+        const m = new Map<string, PantryBatch>();
         for (const b of p.batches ?? []) {
           if (b.state === 'depleted') continue;
-          m.set(b.id, { label: b.label, value: b.value ?? null, unit: b.unit ?? null });
+          m.set(b.id, b);
         }
-        setLivePositions(m);
+        setLiveBatches(m);
+        setLiveProducts(p.products ?? []);
       })
       .catch(() => { /* комора недоступна — картки просто малюють знімок */ });
     return () => { alive = false; };
   }, [pantryVersion]);
+  const livePositions = useMemo<Map<string, LivePosition>>(() => {
+    const m = new Map<string, LivePosition>();
+    for (const [id, b] of liveBatches) m.set(id, { label: b.label, value: b.value ?? null, unit: b.unit ?? null });
+    return m;
+  }, [liveBatches]);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   // Список «сам не з'являється й сам не тримається» (V4): вкладка виникає
   // лише коли її відкрили — слідом дельти або з порожньої панелі.
   const [listOpen, setListOpen] = useState(false);
-  const artifacts = pickArtifacts(turns, listOpen ? shoppingItems.length : null);
+  const artifacts = pickArtifacts(turns, listOpen ? shoppingItems.length : null, livePositions);
   const artifactKeyOf = (t: Turn) => artifacts.find((a) => a.turn?.id === t.id)?.key;
   // Панель живе в каркасі (Shell → ArtifactPanel); Стрічка лише публікує в
   // неї свої артефакти. Активна вкладка, ширина, згорнутість — у сторі.
@@ -1046,7 +1059,12 @@ export function Feed() {
       // Пул-9 №6: «новий» для панелі — той, чий хід прийшов у цій сесії
       // вкладки. `fresh` ставиться лише на ходи, які прилетіли відповіддю
       // (messageToTurn історію ним не позначає), тому F5 сюди нічого не дає.
-      freshKeys: artifacts.filter((a) => a.turn?.fresh).map((a) => a.key),
+      // П6-Т3: партія сюди НЕ йде. «Новий артефакт» відкриває панель сам, і
+      // для чека чи рецепта це правильно — його принесли показати. Партію
+      // ніхто не приносив: списання після готування чіпає по пʼять позицій, і
+      // панель відчинялась би сама після кожної вечері. Слід зі стрілкою в
+      // стрічці стоїть — відкриває його тап, як і сказано в брифі.
+      freshKeys: artifacts.filter((a) => a.turn?.fresh && a.kind !== 'batch').map((a) => a.key),
       ghostTab: !listOpen && shoppingItems.length > 0
         ? { glyphKind: 'list', count: shoppingItems.length, onClick: () => openArtifact('list') }
         : null,
@@ -1055,7 +1073,24 @@ export function Feed() {
         if (!a) return null;
         return (
           <LivePositions.Provider value={livePositions}>
-            {a.kind === 'list' ? (
+            {a.kind === 'batch' ? (
+              /* П6-Т3: часткове списання показує саму ПОЗИЦІЮ — ту саму
+                 картку партії, що відкриває Комора. Дані беремо з живої
+                 комори, а не зі знімка ходу: людина відкриває слід рівно
+                 щоб побачити, скільки лишилось ЗАРАЗ. */
+              (() => {
+                const b = liveBatches.get(a.key.slice('batch:'.length));
+                if (!b) return null;
+                return (
+                  <BatchCard
+                    batch={b}
+                    product={liveProducts.find((pr) => pr.id === (b.product_id ?? '')) ?? null}
+                    onChanged={async () => { usePantryStore.getState().bump(); }}
+                    onRemove={async () => { await api.batches.remove(b.id); usePantryStore.getState().bump(); }}
+                  />
+                );
+              })()
+            ) : a.kind === 'list' ? (
               <ShoppingListCard
                 items={shoppingItems}
                 sessionStartedAt={sessionStartedAt}
@@ -1111,7 +1146,7 @@ export function Feed() {
       ) : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, buildingCart, sessionStartedAt, sessionId]);
+  }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, liveBatches, liveProducts, buildingCart, sessionStartedAt, sessionId]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -1492,17 +1527,47 @@ export function Feed() {
                 )}
               </div>
             )}
-            {isWriteOff(t) && t.applied && !t.undone && (
-              /* Списання — подія, не річ. Артефакта в нього немає (нічого не
-                 додалось), тож пігулка зі стрілкою вела в порожнечу. Замість
-                 мертвої кнопки — рядок тексту: що саме пішло з комори.
-                 Дельту не пишемо: у картці лежить нове значення, а старого
-                 вона не несе, і вигадувати «−200 г» ми не будемо. */
-              <div className={styles['writeoff-line']}>
-                Використали: {((t.card?.ops ?? []) as { label?: string }[])
-                  .map((o) => o.label).filter(Boolean).join(', ')}
-              </div>
-            )}
+            {isWriteOff(t) && t.applied && !t.undone && (() => {
+              /* П6-Т3. Списання буває двох родів, і слід у них різний.
+                 «Зʼїли все» лишається рядком тексту без стрілки: партії
+                 більше немає, артефакта в неї теж — пігулка вела б у
+                 порожнечу (живий репро 02.09, після карбонари).
+                 «Зʼїли половину» — інша річ: партія жива, з новим числом, і
+                 саме її людина йде перевіряти. Їй — звичайна пігулка зі
+                 стрілкою в картку позиції.
+                 Дельту не пишемо в жодному з них: у картці лежить нове
+                 значення, старого вона не несе, вигадувати «−200 г» не
+                 будемо. */
+              const alive = survivingBatches(t, livePositions);
+              const gone = goneLabels(t, livePositions);
+              return (
+                <>
+                  {alive.length > 0 && (
+                    <div className={styles['trace-wrap']}>
+                      <button
+                        type="button"
+                        className={`${styles.trace} ${shownArtifact?.key === `batch:${alive[0]!.id}` ? styles['trace-on'] : ''}`}
+                        onClick={() => openArtifact(`batch:${alive[0]!.id}`)}
+                      >
+                        <span className={styles['trace-dot']}>●</span>
+                        <span className={styles['trace-body']}>
+                          <span className={styles['trace-kind']}>
+                            СПИСАНО{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}` : ''}
+                          </span>
+                          <span className={styles['trace-value']}>
+                            {alive.map((b) => [b.label, formatQty(b.value, b.unit)].filter(Boolean).join(' ')).join(', ')}
+                          </span>
+                        </span>
+                        <span className={styles['trace-go']}>→</span>
+                      </button>
+                    </div>
+                  )}
+                  {gone.length > 0 && (
+                    <div className={styles['writeoff-line']}>Використали: {gone.join(', ')}</div>
+                  )}
+                </>
+              );
+            })()}
             {isIntakeArtifact(t) && !isWriteOff(t) && (
               /* Слід чека. Єдиний слід, що буває БУРШТИНОВИМ: поки чек не
                  застосовано, він не стан, а рішення, якого чекають. Після

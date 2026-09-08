@@ -155,8 +155,15 @@ export async function applyCard(
     for (const idx of chosen) {
       const op = card.ops[idx];
       if (!op) continue;
-      if (await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot)) landed++;
-      else missed.push(`${op.op} «${op.label}»`);
+      const res = await applyIntakeOp(repo, op, pc.household_id, actor_user_id, snapshot);
+      if (res === 'landed') landed++;
+      // П6-Т2: малформлену операцію відрізняємо в тексті промаху. До людини
+      // `missed` не доходить — це рядок для лога, а «модель прислала поле,
+      // якого операція не читає» і «цілі немає в коморі» мають рахуватись там
+      // окремо: причини різні, і лікуються вони в різних місцях.
+      else missed.push(res === 'malformed'
+        ? `${op.op} «${op.label}» — value на deplete`
+        : `${op.op} «${op.label}»`);
     }
     // UX9-27: «купив X» закриває X у списку покупок. Інакше продукт одночасно
     // вважав, що олія В КОМОРІ і що олію ТРЕБА купити. Збіг — точний за назвою
@@ -486,9 +493,29 @@ async function applyIntakeOp(
   household_id: string,
   actor: string,
   snap: UndoSnapshot,
-  // Повертає true, якщо операція справді змінила стан. false означає, що
-  // ціль не знайшлась — і тоді картка НЕ має рапортувати про зміну.
-): Promise<boolean> {
+  // 'landed' — операція справді змінила стан. 'missed' — ціль не знайшлась.
+  // 'malformed' — картка просить того, чого ця операція не вміє (П6-Т2 нижче).
+  // Ні в другому, ні в третьому випадку картка НЕ має рапортувати про зміну.
+): Promise<'landed' | 'missed' | 'malformed'> {
+  // П6-Т2: `deplete` з `value` — це не команда, а малформлена операція.
+  //
+  // Схема, яку бачить модель, дозволяє `value` на всіх ops; гілка `deplete`
+  // нижче його не читає і списує партію ЦІЛКОМ. Виміряний випадок (07.09):
+  // на «половину томатів зʼїли» модель віддала {op:'deplete', value:250} і
+  // написала в репліці «лишилось 250 г» — партія зникала вся, а людина
+  // читала, що лишилось півпачки, і скасовувати не мала причин.
+  //
+  // Тихо трактувати це як `correct` не можна: лагодження форми на льоту —
+  // рівно те, від чого продукт відмовився в П4-Т3. Форму диктує промпт (там
+  // для часткового споживання названо `correct` із залишком), наше діло —
+  // не збрехати про результат. Тому операція не виконується зовсім, а промах
+  // лишає слід у лозі: якщо модель усе-таки шле таке, ми маємо це ПОБАЧИТИ,
+  // а не приховати.
+  //
+  // Перевірка стоїть ДО пошуку цілі навмисно: малформленість — властивість
+  // самої операції, і чіпати заради неї undo-знімок нема за що.
+  if (op.op === 'deplete' && (op as { value?: unknown }).value !== undefined) return 'malformed';
+
   if (op.op === 'add') {
     const id = randomUUID();
     const provenance: Provenance = (op.evidence as Provenance) ?? 'user_statement';
@@ -533,7 +560,7 @@ async function applyIntakeOp(
     // позиція про картку не знає. Тому сесію можна видалити — зникне вікно,
     // не вміст холодильника.
     op.batch_id = id;
-    return true;
+    return 'landed';
   }
 
   // Вказівник сильніший за назву. Хто знає позицію — адресує її точно; назва
@@ -547,10 +574,16 @@ async function applyIntakeOp(
   if (!target) {
     // Мовчки не СТВОРЮЄМО — це правильно: одруківка моделі не має народжувати
     // позиції з повітря. Але й мовчки РАПОРТУВАТИ про зміну не можна: далі
-    // false доходить до лічильника, і картка каже правду замість «застосовано».
-    return false;
+    // 'missed' доходить до лічильника, і картка каже правду замість «застосовано».
+    return 'missed';
   }
   snap.before.modified_batches!.push({ ...target });
+  // П6-Т3: картка запамʼятовує партію, якої торкнулась, — не тільки на `add`
+  // (там це стоїть із черги Д), а й на правках. Без цього слід у стрічці не
+  // має чим адресувати позицію: `label` веде у findBatchByLabel, тобто в
+  // ПЕРШИЙ збіг без сортування, і при двох однойменних партіях відкрилась би
+  // не та. Напрямок лишається односторонній: партія про картку не знає.
+  op.batch_id = target.id;
 
   if (op.op === 'deplete') {
     await repo.updateBatch(target.id, {
@@ -578,7 +611,13 @@ async function applyIntakeOp(
     // що асистент запропонує готувати, тож без цього уточнення в людини
     // питали дарма.
     const triple = normalizeTriple({ product: op.to });
-    const product = await ensureProduct(repo, household_id, triple, op.to, undefined, target.unit);
+    // Знахідка П6 §5.2 (№2): теги сюди йшли `undefined`, тобто мовчки
+    // губились — тоді як на `add` вони передаються. «Це не мʼясо, а
+    // свинина, і вона без лактози» одним ходом лишало продукт без
+    // lactose. Каталог при цьому нічого не втрачає: ensureProduct кладе
+    // модельні теги першими й добирає з каталогу лише ДІРКИ (алергени,
+    // скоромність), а не заміщає ними те, що сказала людина.
+    const product = await ensureProduct(repo, household_id, triple, op.to, op.tags, target.unit);
     const patch: Partial<PantryBatch> = {
       label: product ? displayName(product) : op.to,
       product_id: product?.id ?? target.product_id ?? null,
@@ -605,6 +644,37 @@ async function applyIntakeOp(
       if (norm.unit !== null) patch.unit = norm.unit;
     }
     if (op.zone !== undefined) patch.zone = op.zone;
+    // Знахідка П6 §5.2 (№1): `state` схема обіцяла, а correct його не читав.
+    // «Сметана вже відкрита» проходила як застосована — `last_action` таки
+    // писався, репліка казала «записав», — але opened_at не ставав, і мʼякий
+    // годинник «вжити до» не стартував. Мовчазна втрата того самого роду, що
+    // `value` на `deplete`.
+    //
+    // Дзеркалимо гілку `open`, а не `add`, і саме тому: на `add` партія лише
+    // народжується, строку в неї ще немає. Тут строк уже стоїть і описує
+    // ЗАПЕЧАТАНУ партію — поставити opened_at, не перерахувавши expires_at,
+    // означало б запустити годинник і лишити на екрані стару дату зіпсуття.
+    if (op.state === 'opened') {
+      const days = target.best_before_opened_days;
+      patch.state = 'opened';
+      patch.opened_at = new Date().toISOString();
+      patch.expires_at = days ? new Date(Date.now() + days * 86_400_000).toISOString() : target.expires_at;
+    } else if (op.state === 'sealed') {
+      // «Ні, я її ще не відкривав» — той самий відкат, що вже робить ручна
+      // правка партії в Коморі. `expires_at` не чіпаємо: він міг прийти й не
+      // з відкриття, а затерти відоме порожнім гірше, ніж лишити як було.
+      patch.state = 'sealed';
+      patch.opened_at = null;
+      // Ручна правка знімає й `depleted_at` (routes/pantry.ts:205) — інакше
+      // лишається рядок «запечатано, але зі штампом споживання». Шлях сюди
+      // відкрив сам П6: тепер картка несе `batch_id`, а пошук цілі за id
+      // спожиті партії НЕ відсіює — на відміну від findBatchByLabel, де
+      // `state <> 'depleted'` стоїть прямо в запиті.
+      patch.depleted_at = null;
+    }
+    // `last_action` лишається 'correct', а не стає 'open': людина ВИПРАВИЛА
+    // запис, а не відкрила пачку зараз. Плутати ці двоє в історії партії
+    // означало б вигадати подію, якої не було.
     await repo.updateBatch(target.id, patch);
     // Черга Д (№2): правка невидимих тегів — мердж у продукт партії.
     // Undo-снапшот продукту не робимо: теги — довідник, а не стан комори;
@@ -614,7 +684,7 @@ async function applyIntakeOp(
       if (prod) await repo.updateProduct(prod.id, { tags: { ...prod.tags, ...op.tags } });
     }
   }
-  return true;
+  return 'landed';
 }
 
 /**
