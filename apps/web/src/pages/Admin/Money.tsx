@@ -139,7 +139,9 @@ export function MoneyBlock({ technical }: { technical: boolean }) {
               <div className={styles.sub}>
                 вхідних · {num(data.totals.output_tokens)} вихідних
                 {data.totals.cached_share !== null && (
-                  <> · з кешу {shareWord(data.totals.cached_tokens, data.totals.input_tokens, data.percent_floor)}</>
+                  // Крок А4а: знаменник — ВХІД + КЕШ. Два окремі лічильники, а не
+                  // один усередині іншого; зі старим знаменником виходило 256%.
+                  <> · з кешу {shareWord(data.totals.cached_tokens, data.totals.input_tokens + data.totals.cached_tokens, data.percent_floor)}</>
                 )}
               </div>
             </div>

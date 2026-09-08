@@ -150,6 +150,25 @@ describe('блок грошей', () => {
     expect(row.textContent).toContain('поза виміром');
   });
 
+  it('частка кешу на екрані ніколи не більша за 100%', async () => {
+    // Це впіймано НЕ тестом, а очима на проді: сервер уже рахував правильно, а
+    // клієнт перераховував частку сам зі старим знаменником — і показував
+    // «256%». Число, якого не може існувати, простояло на екрані цілий деплой.
+    install({
+      ...MONEY,
+      totals: { ...MONEY.totals, input_tokens: 518_329, cached_tokens: 1_327_752, cached_share: 0.719 },
+    });
+    await mount();
+    const text = host!.textContent!;
+    expect(text).toContain('з кешу 72%');
+    expect(text).not.toContain('256%');
+    // Частка — саме частка: понад сто відсотків вона бути не може. (Зростання
+    // витрат поруч цілком може бути +410% — це інша величина, і її не чіпаємо.)
+    const share = /з кешу (\d+)%/.exec(text);
+    expect(share).toBeTruthy();
+    expect(Number(share![1])).toBeLessThanOrEqual(100);
+  });
+
   it('порожній період каже «не збирали», а не «$0.00»', async () => {
     install({
       ...MONEY,
