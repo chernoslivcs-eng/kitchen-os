@@ -12,6 +12,11 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
     const { household_id } = requireUser(req);
     // proposal — не рішення, а меню моменту: його не «застосовують», тож у
     // черзі рішень воно висіло б вічно. Показуємо тільки дійові картки.
+    //
+    // П4-Т6 прибрав причину на боці ЗАПИСУ: нових pending для applyMode
+    // 'none' більше не створюється. Фільтр лишається не для страховки, а
+    // заради 47 рядків, які вже лежать у проді: чистити дані заборонено,
+    // отже без нього вони випливли б у панель ОЧІКУЮТЬ живими.
     const open = (await repo.listOpenPending(household_id, 40))
       .filter((pc) => pc.card.type !== 'proposal')
       .slice(0, 12);

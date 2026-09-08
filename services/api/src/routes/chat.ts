@@ -922,7 +922,16 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // історії правило було видно, а в календарі — порожньо. Одна картка,
     // одне джерело: те, що ляже в повідомлення, те й застосовується.
     const card_id = call.card ? randomUUID() : null;
-    if (call.card && card_id) {
+    // П4-Т6: облік застосувань — лише там, де застосування буває. Родини з
+    // applyMode 'none' (пропозиція, слід рецепта, кошик, службові маркери,
+    // онбординг) не мають apply-гілки взагалі: рядок у card_pending для них
+    // ніколи не стане ані застосованим, ані відхиленим — він просто висить.
+    // У проді таких 47, усі від proposal.
+    //
+    // Рядок їм і не потрібен: id картки народжується тут незалежно від
+    // pending і далі служить id повідомлення, тож стрічка малює пропозицію
+    // так само, а «Відкрити» й «Уточнити» працюють як працювали.
+    if (call.card && card_id && applyModeFor(call.card) !== 'none') {
       await createPending(repo, { message_id: card_id, household_id, user_id, card: call.card });
     }
 
