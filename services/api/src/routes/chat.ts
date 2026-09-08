@@ -194,7 +194,10 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         if (r.missed?.length) {
           incident(sink(req), 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: r.missed });
         }
-        att_auto = true;
+        // П4-Т2, авто-шлях: прапорець несе ФАКТ, а не сам виклик. Раніше
+        // стояло true безумовно — і клієнт закривав картку навіть тоді, коли
+        // сервер щойно вирішив її не штампувати.
+        att_auto = r.applied > 0;
         att_undo = r.undo_token ?? undefined;
       }
       return {
@@ -269,7 +272,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
         });
         return {
           reply: WRITEOFF_CARD_REPLY, card, card_id,
-          auto_applied: true, undo_token: applied.undo_token, followup: FEEDBACK_PROMPT,
+          auto_applied: applied.applied > 0, undo_token: applied.undo_token ?? undefined, followup: FEEDBACK_PROMPT,
           usage: zeroUsage, meta: detMeta,
         };
       }
@@ -951,7 +954,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // отримати режим у мапі й не отримати його в рантаймі.
     if (call.card && card_id && applyModeFor(call.card) === 'auto') {
       const r = await applyCard(repo, card_id, [], user_id);
-      auto_applied = true;
+      auto_applied = r.applied > 0;
       undo_token = r.undo_token ?? undefined;
       // Картка події стає артефактом лише тоді, коли знає, ЩО створила: id
       // народжується в applyEventOp і без цього кроку зникав. Дописуємо його
