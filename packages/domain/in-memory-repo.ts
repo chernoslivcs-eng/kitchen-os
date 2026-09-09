@@ -74,7 +74,11 @@ export class InMemoryRepo implements Repo {
   }
 
   async insertBatch(b: PantryBatch): Promise<void> {
-    this.batches.set(b.id, { ...b });
+    // А1: `depleted_reason` нормалізуємо до null, як це робить rowToBatch у
+    // Postgres. Інакше два репозиторії відповідають по-різному на те саме
+    // питання — «причини нема»: тут `undefined`, там `null`, — і контрактний
+    // тест перестає бути контрактом.
+    this.batches.set(b.id, { depleted_reason: null, ...b });
   }
 
   async updateBatch(id: string, patch: Partial<PantryBatch>): Promise<void> {

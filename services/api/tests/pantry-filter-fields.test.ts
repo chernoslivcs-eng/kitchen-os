@@ -109,4 +109,82 @@ describe('PATCH /v1/pantry/:id — картка (крок Ф2)', () => {
     expect((await repo.getBatch(b.id))!.opened_at).toBe(opened);
     expect((await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json().batches[0].opened_at).toBe(opened);
   });
+
+  it('«Позначити відкритою» запускає годинник — і не подовжує коротший власний строк', async () => {
+    // А2, третє місце. Ручна правка стану взагалі не рахувала `expires_at`:
+    // «Позначити відкритою» ставило opened_at і мовчки лишало партію без
+    // строку, хоч `best_before_opened_days` у неї був. А там, де строк уже
+    // стояв, його треба не перезаписати, а взяти менший.
+    const { repo, app, me } = await stand();
+    const soon = new Date(Date.now() + 1 * 86_400_000).toISOString();
+
+    const fresh = batch(me.household_id, 'Сметана', { best_before_opened_days: 5 });
+    await repo.insertBatch(fresh);
+    await app.inject({ method: 'PATCH', url: `/v1/pantry/${fresh.id}`, headers: { cookie: me.cookie }, payload: { state: 'opened' } });
+    const days = (new Date((await repo.getBatch(fresh.id))!.expires_at!).getTime() - Date.now()) / 86_400_000;
+    expect(days, 'годинник стартував на пʼять днів').toBeGreaterThan(4.9);
+    expect(days).toBeLessThan(5.1);
+
+    const dying = batch(me.household_id, 'Вершки', { best_before_opened_days: 5, expires_at: soon });
+    await repo.insertBatch(dying);
+    await app.inject({ method: 'PATCH', url: `/v1/pantry/${dying.id}`, headers: { cookie: me.cookie }, payload: { state: 'opened' } });
+    expect((await repo.getBatch(dying.id))!.expires_at, 'власний строк коротший — він і лишається').toBe(soon);
+  });
+});
+
+describe('причина списання (А1)', () => {
+  it('DELETE і PATCH приймають причину; без неї — null, чуже значення — 400', async () => {
+    // А1. Метрика питає не «як списали», а «чому»: `last_action` розрізняє
+    // спосіб (`user_delete` / `user_edit`), а зʼїдене від зіпсованого — ні.
+    //
+    // Ключове тут — рядок про null. Обидва шляхи мусять лишати причину
+    // порожньою, коли її не передали: дефолт зробив би метрику не
+    // відсутньою, а брехливою.
+    const { repo, app, me } = await stand();
+    const del = (id: string, payload?: Record<string, unknown>) =>
+      app.inject({ method: 'DELETE', url: `/v1/pantry/${id}`, headers: { cookie: me.cookie }, payload });
+
+    const rotten = batch(me.household_id, 'Сметана');
+    await repo.insertBatch(rotten);
+    expect((await del(rotten.id, { reason: 'spoiled' })).statusCode).toBe(200);
+    expect((await repo.getBatch(rotten.id))!.depleted_reason).toBe('spoiled');
+
+    const silent = batch(me.household_id, 'Кефір');
+    await repo.insertBatch(silent);
+    expect((await del(silent.id)).statusCode).toBe(200);
+    expect((await repo.getBatch(silent.id))!.state).toBe('depleted');
+    expect((await repo.getBatch(silent.id))!.depleted_reason, 'не спитали — не вигадуємо').toBeNull();
+
+    const eaten = batch(me.household_id, 'Йогурт');
+    await repo.insertBatch(eaten);
+    const patch = (payload: Record<string, unknown>) =>
+      app.inject({ method: 'PATCH', url: `/v1/pantry/${eaten.id}`, headers: { cookie: me.cookie }, payload });
+    expect((await patch({ state: 'depleted', reason: 'eaten' })).statusCode).toBe(200);
+    expect((await repo.getBatch(eaten.id))!.depleted_reason).toBe('eaten');
+
+    // Перелік закритий: вільний текст у метрику не потрапляє.
+    const bad = batch(me.household_id, 'Молоко');
+    await repo.insertBatch(bad);
+    expect((await del(bad.id, { reason: 'набридло' })).statusCode).toBe(400);
+    expect((await repo.getBatch(bad.id))!.state, 'відмова нічого не списала').toBe('sealed');
+  });
+
+  it('повернення партії в комору знімає причину разом зі станом', async () => {
+    // Той самий клас, що undo готування: жива партія з міткою «зіпсувалось»
+    // порахувалась би вдруге при наступному списанні.
+    const { repo, app, me } = await stand();
+    const b = batch(me.household_id, 'Вершки');
+    await repo.insertBatch(b);
+    const patch = (payload: Record<string, unknown>) =>
+      app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: { cookie: me.cookie }, payload });
+
+    await patch({ state: 'depleted', reason: 'spoiled' });
+    expect((await repo.getBatch(b.id))!.depleted_reason).toBe('spoiled');
+
+    await patch({ state: 'sealed' });
+    const back = await repo.getBatch(b.id);
+    expect(back!.state).toBe('sealed');
+    expect(back!.depleted_at).toBeNull();
+    expect(back!.depleted_reason, 'причина пішла за станом').toBeNull();
+  });
 });

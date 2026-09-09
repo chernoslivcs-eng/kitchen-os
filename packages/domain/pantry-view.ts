@@ -79,6 +79,30 @@ export function daysLeft(expires_at: string | null, nowMs = Date.now()): number 
   return Math.round((new Date(expires_at).getTime() - nowMs) / 86_400_000);
 }
 
+/**
+ * Строк партії після відкриття: МЕНШЕ з двох — того, що вже стояло, і того, що
+ * дає `best_before_opened_days` від сьогодні.
+ *
+ * Відкриття може тільки скоротити життя продукту, ніколи не подовжити. Раніше
+ * тут був безумовний перезапис, і пачка, якій лишався день, від самого факту
+ * відкриття починала жити стільки, скільки живе щойно відкрита. Виміряно на
+ * проді 09.09.2026: із 37 партій із `best_before_opened_days` відкриття
+ * подовжило б строк 14 (гірчиця — з 14 днів на 60; спаржа з нульовим залишком
+ * «ожила» б на три дні).
+ */
+export function expiryOnOpen(
+  prev: string | null,
+  openDays: number | null,
+  nowMs = Date.now(),
+): string | null {
+  if (!openDays) return prev;
+  const fromOpen = nowMs + openDays * 86_400_000;
+  if (!prev) return new Date(fromOpen).toISOString();
+  return Math.min(new Date(prev).getTime(), fromOpen) === fromOpen
+    ? new Date(fromOpen).toISOString()
+    : prev;
+}
+
 export interface PantryItemView {
   cat: string | null;
   kcal: number | null; fat: number | null; prot: number | null; carb: number | null;

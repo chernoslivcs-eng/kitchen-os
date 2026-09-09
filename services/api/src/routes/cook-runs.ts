@@ -254,6 +254,10 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
           await repo.updateBatch(batch.id, {
             state: 'depleted',
             depleted_at: now,
+            // А1: єдине списання, де причину знає сам код. Рецепт вжив не
+            // менше залишку — партія пішла в страву, не в смітник. Решта
+            // шляхів лишає null, поки причину не спитають у людини.
+            depleted_reason: 'eaten',
             last_by: user_id,
             last_action: 'cook',
           });
@@ -379,6 +383,10 @@ export function cookRunsRoutes(app: FastifyInstance, repo: Repo) {
           await repo.updateBatch(ch.id, {
             state: ch.prev_state,
             depleted_at: ch.prev_depleted_at,
+            // А1: причина йде за станом. Партія повертається в комору живою —
+            // мітка «зʼїли» на ній стала б другим зарахуванням у метрику,
+            // коли ту саму партію спишуть іще раз.
+            depleted_reason: null,
             last_by: user_id,
             last_action: 'undo_cook',
           });

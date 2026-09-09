@@ -7,6 +7,16 @@ import type { Rule, Tradition } from './occasion-rules.js';
 export type Zone = 'dry' | 'fridge' | 'freezer' | 'fresh' | 'spices' | 'drinks';
 export type Unit = 'g' | 'ml' | 'pcs' | 'pack';
 export type BatchState = 'sealed' | 'opened' | 'depleted';
+// А1: чому партія зникла з комори. Без цього поля головна метрика продукту
+// (AGENT-BRIEF.md:120 — «частка позицій, списаних як зіпсувалось») не рахується
+// взагалі: зʼїдене й викинуте лягають в один і той самий `depleted`.
+//   eaten   — зʼїли або використали в готуванні
+//   spoiled — зіпсувалось; це і є чисельник метрики
+//   removed — прибрали з комори цілим (помилка обліку, дубль, віддали)
+// `null` — не питали й не знаємо. Це чесний стан, а не дефолт: масовий скрипт
+// і чатовий `deplete` причини не знають, і вигадувати її за них не можна.
+export type DepletedReason = 'eaten' | 'spoiled' | 'removed';
+export const DEPLETED_REASONS: DepletedReason[] = ['eaten', 'spoiled', 'removed'];
 export type Provenance = 'receipt_line' | 'package_label' | 'user_statement' | 'visual_guess' | 'inference';
 
 export interface PantryBatch {
@@ -23,6 +33,9 @@ export interface PantryBatch {
   best_before_opened_days: number | null;
   added_at: string;
   depleted_at: string | null;
+  // Необовʼязкове з тієї самої причини, що `product_id`: старі рядки його не
+  // мають і бекфілу не буде — ми не знаємо, що з ними сталося.
+  depleted_reason?: DepletedReason | null;
   confidence: number;
   provenance: Provenance;
   staple: boolean;
