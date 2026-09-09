@@ -8,6 +8,7 @@ import type { HouseholdProduct } from './product.js';
 import type { VetoRow } from './profile-text.js';
 import { matchVeto, type VetoScope } from './veto.js';
 import { kcalOf, isEstimate } from './nutrition.js';
+import { shelfSealedDays } from './shelf-life.js';
 
 export type PantryNo = 'не їм' | 'не можна' | null;
 
@@ -128,11 +129,16 @@ export const ZONE_SHELF_DAYS: Record<Zone, number> = {
  */
 export function effectiveExpiry(
   b: Pick<PantryBatch, 'expires_at' | 'added_at' | 'zone'>,
-  _catalogKey: string | null = null,
+  catalogKey: string | null = null,
   _nowMs = Date.now(),
 ): string | null {
   if (b.expires_at) return b.expires_at;
-  const days = ZONE_SHELF_DAYS[b.zone];
+  // Б2: каталог за категорією. `null` — позиція не псується (Р3), строку немає
+  // взагалі; `undefined` — каталогу нема чого сказати або зона з ним не згодна,
+  // і тоді працює таблиця зон.
+  const fromCatalog = shelfSealedDays(catalogKey, b.zone);
+  if (fromCatalog === null) return null;
+  const days = fromCatalog ?? ZONE_SHELF_DAYS[b.zone];
   if (days == null) return null;
   return new Date(new Date(b.added_at).getTime() + days * 86_400_000).toISOString();
 }

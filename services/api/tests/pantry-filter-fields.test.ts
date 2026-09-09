@@ -37,10 +37,11 @@ describe('GET /v1/pantry — поля фільтра', () => {
     const body = res.json() as { batches: Row[]; last_receipt_at: string | null };
     const by = (l: string) => body.batches.find((b) => b.label === l)!;
     // Б1: `days` більше не буває null у позиції, яка може псуватись. Філе має
-    // ручну дату (2 дні) — вона бʼє розрахунок; пармезан її не має, і строк
-    // рахується від зони: fridge живе 21 день, три минуло.
+    // ручну дату (2 дні) — вона бʼє і зону, і каталог.
+    // Б2: пармезан ручної дати не має, і його строк дає КАТАЛОГ, а не зона —
+    // твердий сир живе 60 днів проти плоского 21 у холодильнику, три минуло.
     expect(by('Куряче філе')).toMatchObject({ cat: 'мʼясо', days: 2, no: 'не їм', receipt: false, added: 3, est: false });
-    expect(by('Пармезан')).toMatchObject({ cat: 'сири', days: 18, no: null, receipt: false });
+    expect(by('Пармезан')).toMatchObject({ cat: 'сири', days: 57, no: null, receipt: false });
     // Позиції поза каталогом строк теж отримують — від зони: dry живе 540 днів.
     expect(by('Невідоме xyz')).toMatchObject({ cat: null, kcal: null, est: null, days: 537, no: null });
     expect(body.last_receipt_at).toBeNull();

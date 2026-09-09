@@ -66,6 +66,34 @@ describe('effectiveExpiry — строк рахується, а не збері�
   });
 });
 
+describe('каталог поверх зони, зона — арбітр (Б2, Р1/Р3)', () => {
+  it('цибуля в тій самій зоні, що салат, живе місяцями — каталог знає, зона ні', () => {
+    // Виміряна діра таблиці зон: у проді зона `fresh` тримає і багети (два
+    // дні), і шість цибуль із часниками (місяці). Плоскі сім днів помиляються
+    // тут у пʼятдесят разів в обидва боки.
+    const onion = batch('цибуля', { zone: 'fresh', catalog_key: 'onion_yellow' });
+    expect(daysLeft(effectiveExpiry(onion, 'onion_yellow', NOW), NOW)).toBe(115);
+
+    const bread = batch('багет', { zone: 'dry', catalog_key: 'bread_baguette' });
+    expect(daysLeft(effectiveExpiry(bread, 'bread_baguette', NOW), NOW)).toBe(-2);
+  });
+
+  it('сіль не псується — строку немає взагалі, і це рішення, а не незнання', () => {
+    // Р3: після Б2 порожній строк означає рівно «не псується». Позиція не
+    // потрапляє у зріз «скоро зіпсується» ніколи — `filter.ts` вимагає days != null.
+    const salt = batch('сіль', { zone: 'spices', catalog_key: 'spice_salt_table' });
+    expect(effectiveExpiry(salt, 'spice_salt_table', NOW)).toBeNull();
+  });
+
+  it('зона бʼє каталог, коли вони не згодні — саме тут гасяться помилки резолвера', () => {
+    // `свіжі помідори → Помідори пелаті` (консерва, dry) — чотири партії в
+    // проді. Каталог сказав би «не псується»; зона `fresh` каже сім днів, і
+    // права вона. Те саме з `лосось морожений → лосось охолоджений`.
+    const tomato = batch('помідори', { zone: 'fresh', catalog_key: 'pomodori_pelati' });
+    expect(daysLeft(effectiveExpiry(tomato, 'pomodori_pelati', NOW), NOW)).toBe(2);
+  });
+});
+
 describe('daysLeft', () => {
   it('днів до expires_at, null без терміну', () => {
     expect(daysLeft(new Date(NOW + 3 * 86_400_000).toISOString(), NOW)).toBe(3);
