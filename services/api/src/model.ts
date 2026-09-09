@@ -150,8 +150,29 @@ function modelFor(profile: 'fast' | 'smart'): string {
     return process.env.MODEL_FAST
       ?? (isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001');
   }
+  // 09.09: перехід із Sonnet 5 на Gemini 3.8 Flash. Підстави виміряні, не оцінені:
+  //
+  //   ЯКІСТЬ — 70 із 82 фікстур зелені без жодного налаштування під цю модель.
+  //   На живому чеку з 52 позицій ті самі 49/3, але назви точніші: «спагеттіні
+  //   Barilla No3» проти «спагеттіні Barilla», «плямовивідник Vanish» проти
+  //   «засіб від плям». Пропозиції тримають усі чотири обмеження профілю.
+  //
+  //   ГРОШІ — хід дешевшає вдесятеро: $0,0065 проти $0,0725 холодним. Причина не
+  //   в ставці за токен, а в записі кешу: $0,04/млн проти $2,50. Навіть якщо
+  //   кешування через OpenRouter не працює зовсім (не перевірено — лічильники
+  //   повертають read=write, чого при справжньому кеші не буває), хід коштує
+  //   $0,0136 — усе одно вп'ятеро дешевше.
+  //
+  //   ЦІНА — швидкість. Скрізь повільніше на 15–100%: чек 67,8 с проти 49,0,
+  //   рецепт 34,5 проти 16,5. Власник тестував саме в такому вигляді й прийняв.
+  //
+  //   ЩО ЛИШИЛОСЬ — дисципліна трійки на чеках: бренд іде у `variant`, `brand`
+  //   порожній, три чекові фікстури з трьох червоні. Лікується правилом у
+  //   промпті, як лікували для Sonnet 02.09. Окремий захід.
+  //
+  // Пряма гілка (без OpenRouter) лишається на Sonnet: Gemini там недоступна.
   return process.env.MODEL_SMART
-    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-5' : 'claude-sonnet-5');
+    ?? (isOpenRouter() ? 'google/gemini-3.8-flash' : 'claude-sonnet-5');
 }
 
 // Яка модель обслуговує виклик — вирішує маніфест, не код. Доки мапінг жив у
@@ -760,6 +781,11 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
 export interface RecipeCall {
   recipe: Recipe | null;
   raw: string;
+  /** Чому обірвалось, якщо обірвалось: `max_tokens` проти малформленої
+   *  відповіді. На екрані вони не розрізняються — запасний шлях ріже до
+   *  400 знаків своїм `.slice`, і обрив ліміту виглядає як проза. */
+  stopReason?: string | null;
+  outputTokens?: number | null;
   /** По одному запису на фактичний виклик моделі (крок А4б). */
   calls: ModelCallUsage[];
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
@@ -834,7 +860,13 @@ export async function callRecipe(args: {
     : `${args.title}${convBlock}`;
   const resp = await withRetry(() => client.messages.create({
     model,
-    max_tokens: 3072,
+    // 09.09: було 3072. На Gemini 3.8 Flash ШІСТЬ генерацій поспіль не дійшли
+    // до полів `ing` і `st` — а парсер вимагає саме їх, тож картка не
+    // складалась і спрацьовував запасний шлях QA4-06, який показує сирий
+    // текст як репліку. Людина бачила нутрощі JSON у чаті.
+    // Рецепт із кроками, таймінгами, `rk` і `nu` у 3072 не завжди влазить
+    // навіть на Sonnet; на багатослівнішій моделі не влазить регулярно.
+    max_tokens: 5000,
     temperature: prompt.manifest.calls.recipe_gen.temperature,
     ...thinkingOff(model),
     system: cachedSystem(stable, dynamic),
@@ -858,6 +890,12 @@ export async function callRecipe(args: {
   }
   return {
     recipe,
+    // Чому картка не склалась — окремо від того, ЩО модель сказала. Без
+    // `stop_reason` обрив ліміту не відрізнити від малформленої відповіді:
+    // на екрані і те, і те виглядає однаково, бо запасний шлях ріже до 400
+    // знаків своїм `.slice`.
+    stopReason: resp.stop_reason ?? null,
+    outputTokens: resp.usage?.output_tokens ?? null,
     raw: recipe ? text : unaliasProse(text, aliasLabels),
     calls: [usageFrom(resp.usage)],
     meta: {

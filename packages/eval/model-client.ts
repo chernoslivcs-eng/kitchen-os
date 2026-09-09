@@ -161,7 +161,7 @@ export const PROFILES = () => ({
   fast: process.env.MODEL_FAST
     ?? (isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001'),
   smart: process.env.MODEL_SMART
-    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-5' : 'claude-sonnet-5'),
+    ?? (isOpenRouter() ? 'google/gemini-3.8-flash' : 'claude-sonnet-5'),
 });
 
 function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {

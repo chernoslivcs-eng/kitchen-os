@@ -4,19 +4,60 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@kitchen/web", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@kitchen/web",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "api",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@kitchen/api", "start"],
+      "runtimeArgs": [
+        "--filter",
+        "@kitchen/api",
+        "start"
+      ],
       "port": 3000
     },
     {
       "name": "api-mem",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["PG_URL=", "pnpm", "--filter", "@kitchen/api", "start"],
+      "runtimeArgs": [
+        "PG_URL=",
+        "pnpm",
+        "--filter",
+        "@kitchen/api",
+        "start"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "api-demo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PG_URL=",
+        "OPENROUTER_API_KEY=",
+        "ANTHROPIC_API_KEY=",
+        "pnpm",
+        "--filter",
+        "@kitchen/api",
+        "start"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "api-gemini",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PG_URL=",
+        "MODEL_SMART=google/gemini-3.8-flash",
+        "pnpm",
+        "--filter",
+        "@kitchen/api",
+        "start"
+      ],
       "port": 3000
     }
   ]

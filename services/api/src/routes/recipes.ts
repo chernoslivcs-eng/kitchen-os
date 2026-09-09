@@ -125,7 +125,8 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       // QA4-06: раніше тут був 502, і людина бачила помилку там, де модель
       // правильно сказала, що завдання неоднозначне («400 г лосося — це мало
       // на шістьох»). Тепер це діалог: клієнт покаже reply як репліку кухаря.
-      req.log.info({ raw: call.raw.slice(0, 200) }, 'recipe-returned-prose-not-json');
+      req.log.info({ raw: call.raw.slice(0, 200), stop: call.stopReason, out: call.outputTokens },
+        'recipe-returned-prose-not-json');
       // QA5-06: `raw` — сирий текст моделі, а цей канал обходить контракт із
       // card-rules.md. Зачищаємо маркдаун, інакше юзер бачить зірочки як текст.
       const clean = call.raw
