@@ -34,6 +34,7 @@ async function seedFarsh(
   repo: Repo,
   household_id: string,
   label = 'Яловично-свинячий фарш',
+  over: Partial<PantryBatch> = {},
 ): Promise<PantryBatch> {
   const b: PantryBatch = {
     id: randomUUID(),
@@ -54,6 +55,7 @@ async function seedFarsh(
     staple: false,
     last_by: null,
     last_action: 'add',
+    ...over,
   };
   await repo.insertBatch(b);
   return b;
@@ -278,6 +280,27 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(b?.expires_at).not.toBeNull();
     });
 
+    it('open: коротший власний строк переживає відкриття — банка не молодшає', async () => {
+      // А2. `open` рахував строк ТІЛЬКИ від дати відкриття й перезаписував ним
+      // будь-що, що вже стояло. Тобто пачка, якій лишався день, від того, що її
+      // відкрили, починала жити три. Виміряно на проді 09.09: 14 партій із 37
+      // відкриття б подовжило (гірчиця — з 14 днів на 60).
+      //
+      // Правило: відкриття може тільки СКОРОТИТИ життя, ніколи не подовжити.
+      const soon = new Date(Date.now() + 1 * 86_400_000).toISOString();
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id, 'фарш', { expires_at: soon });
+      expect(seeded.best_before_opened_days, 'відкриття дало б три дні').toBe(3);
+
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'open', label: 'фарш' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state).toBe('opened');
+      expect(b?.expires_at, 'власний строк лишився, бо він коротший').toBe(soon);
+    });
+
     it('rename: змінює label, undo повертає', async () => {
       const seeded = await seedFarsh(ctx.repo, ctx.household_id, 'Крем-брусок');
       const mid = randomUUID();
@@ -413,6 +436,36 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(b?.state).toBe('sealed');
       expect(b?.depleted_at, 'списання знято разом зі станом').toBeNull();
       expect(b?.opened_at).toBeNull();
+    });
+
+    it('причина списання зберігається — і знімається разом зі станом', async () => {
+      // А1. Головна метрика продукту (AGENT-BRIEF.md:120) — «частка позицій,
+      // списаних як зіпсувалось». Поля причини не було взагалі: зʼїдене й
+      // викинуте лягали в один і той самий `depleted`.
+      //
+      // Друга половина тесту важливіша за першу. Партія, яку повернули з
+      // кошика, мусить втратити й причину: інакше вона порахується вдруге,
+      // коли її спишуть знову — вже з іншої причини або без неї.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id);
+      await ctx.repo.updateBatch(seeded.id, {
+        state: 'depleted',
+        depleted_at: new Date().toISOString(),
+        depleted_reason: 'spoiled',
+      });
+      expect((await ctx.repo.getBatch(seeded.id))?.depleted_reason).toBe('spoiled');
+
+      const mid = randomUUID();
+      const card: IntakeCard = {
+        type: 'intake_diff',
+        ops: [{ op: 'correct', label: 'фарш', batch_id: seeded.id, state: 'sealed' }],
+      };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      expect((await applyCard(ctx.repo, mid, [], ctx.user_id)).applied).toBe(1);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state).toBe('sealed');
+      expect(b?.depleted_at).toBeNull();
+      expect(b?.depleted_reason, 'причина пішла за станом — інакше порахується вдруге').toBeNull();
     });
 
     it('rename несе теги моделі в продукт — і каталог добирає решту', async () => {

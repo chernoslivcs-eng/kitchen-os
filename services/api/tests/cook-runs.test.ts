@@ -96,6 +96,9 @@ describe('POST /v1/cook-runs', () => {
     expect(body.depleted).toBe(1);
     expect(body.partial).toBe(0);
     expect((await repo.getBatch(b1))?.state).toBe('depleted');
+    // А1: єдиний шлях, де причину знає сам код і питати нікого не треба —
+    // рецепт зʼїв залишок. Решта шляхів лишає null, поки її не спитають.
+    expect((await repo.getBatch(b1))?.depleted_reason).toBe('eaten');
   });
 
   // QA4-03: коли модель не дала v/u (або дала «q»:"400g" замість них),
@@ -172,6 +175,10 @@ describe('POST /v1/cook-runs', () => {
     expect((await repo.getBatch(b1))?.state).toBe('sealed');
     expect((await repo.getBatch(b2))?.state).toBe('sealed');
     expect((await repo.getBatch(b2))?.depleted_at).toBeNull();
+    // А1: причина йде за станом. Партія, повернута з undo, не має лишатись
+    // із міткою «зʼїли» — інакше метрика порахує її вдруге при наступному
+    // списанні, вже з іншої причини.
+    expect((await repo.getBatch(b2))?.depleted_reason).toBeNull();
 
     // Повторний undo — 200 з already:true
     const undo2 = await app.inject({

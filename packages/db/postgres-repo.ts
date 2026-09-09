@@ -15,7 +15,7 @@ import type {
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
   RecipeRow, RecipeListItem, CookRunRow, CookRunChanges, CookRunWithRecipe,
   SessionRow, MessageRow,
-  Zone, Unit, BatchState, Provenance, Card, UndoSnapshot, LastAppliedIntake, IntakeSource, AppEventRow,
+  Zone, Unit, BatchState, DepletedReason, Provenance, Card, UndoSnapshot, LastAppliedIntake, IntakeSource, AppEventRow,
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
@@ -146,6 +146,7 @@ function rowToBatch(r: Row): PantryBatch {
     best_before_opened_days: (r.best_before_opened_days as number | null) ?? null,
     added_at: new Date(r.added_at as string).toISOString(),
     depleted_at: r.depleted_at ? new Date(r.depleted_at as string).toISOString() : null,
+    depleted_reason: (r.depleted_reason as DepletedReason | null) ?? null,
     confidence: Number(r.confidence),
     provenance: r.provenance as Provenance,
     staple: r.staple as boolean,
@@ -303,11 +304,12 @@ export class PostgresRepo implements Repo {
       `INSERT INTO pantry_batch (
          id, household_id, catalog_key, label, zone, value, unit, state,
          opened_at, expires_at, best_before_opened_days, added_at, depleted_at,
-         confidence, provenance, staple, last_by, last_action, product_id
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+         depleted_reason, confidence, provenance, staple, last_by, last_action, product_id
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
       [
         b.id, b.household_id, b.catalog_key, b.label, b.zone, b.value, b.unit, b.state,
         b.opened_at, b.expires_at, b.best_before_opened_days, b.added_at, b.depleted_at,
+        b.depleted_reason ?? null,
         b.confidence, b.provenance, b.staple, b.last_by, b.last_action, b.product_id ?? null,
       ],
     );

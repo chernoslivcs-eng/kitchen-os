@@ -14,8 +14,8 @@
 //   лишається в last_by/last_action.
 
 import type { FastifyInstance } from 'fastify';
-import type { PantryBatch, Repo, Zone, Unit, BatchState, IntakeCard } from '@kitchen/domain';
-import { pantryItemView, newVetoScope } from '@kitchen/domain';
+import type { PantryBatch, Repo, Zone, Unit, BatchState, DepletedReason, IntakeCard } from '@kitchen/domain';
+import { pantryItemView, newVetoScope, expiryOnOpen, DEPLETED_REASONS } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
 
@@ -161,6 +161,8 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       state?: BatchState;
       /** Крок Ф2: «свіже до» з картки — дата або null («без терміну»). */
       expires_at?: string | null;
+      /** А1: чому партія зникла. Має сенс лише разом зі `state: 'depleted'`. */
+      reason?: DepletedReason;
     };
   }>('/v1/pantry/:id', { preHandler: authenticated(repo) }, async (req, reply) => {
     const { user_id, household_id } = requireUser(req);
@@ -197,12 +199,37 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       if (e != null && (typeof e !== 'string' || Number.isNaN(new Date(e).getTime()))) return reply.code(400).send({ error: 'expires_invalid' });
       patch.expires_at = e == null ? null : new Date(e).toISOString();
     }
+    // А1: перелік причин закритий — вільний текст у метрику не потрапляє.
+    const reason = req.body.reason;
+    if (reason !== undefined && !DEPLETED_REASONS.includes(reason)) {
+      return reply.code(400).send({ error: 'reason_invalid' });
+    }
     if ('state' in req.body) {
       if (!STATES.includes(req.body.state!)) return reply.code(400).send({ error: 'state_invalid' });
       patch.state = req.body.state;
-      if (req.body.state === 'opened' && !batch.opened_at) patch.opened_at = new Date().toISOString();
-      if (req.body.state === 'depleted') patch.depleted_at = new Date().toISOString();
-      if (req.body.state === 'sealed') { patch.opened_at = null; patch.depleted_at = null; }
+      if (req.body.state === 'opened' && !batch.opened_at) {
+        patch.opened_at = new Date().toISOString();
+        // А2: «Позначити відкритою» досі ставило тільки opened_at — годинник
+        // «вжити до» з картки не стартував узагалі, на відміну від тих самих
+        // слів у чаті. Менше з двох: відкриття скорочує строк, не подовжує.
+        patch.expires_at = expiryOnOpen(
+          'expires_at' in patch ? patch.expires_at ?? null : batch.expires_at,
+          batch.best_before_opened_days,
+        );
+      }
+      if (req.body.state === 'depleted') {
+        patch.depleted_at = new Date().toISOString();
+        // А1: причина — тільки якщо її передали. Дефолту немає навмисно:
+        // вигадане значення зробило б метрику брехливою, а не відсутньою.
+        if (reason !== undefined) patch.depleted_reason = reason;
+      }
+      if (req.body.state === 'sealed') {
+        patch.opened_at = null;
+        patch.depleted_at = null;
+        // Партія повернулась у комору жива — причина йде за станом, інакше
+        // вона порахується вдруге при наступному списанні.
+        patch.depleted_reason = null;
+      }
     }
 
     await repo.updateBatch(batch.id, patch);
@@ -212,7 +239,7 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
 
   // Прибрати = м'яке депляціонування. Так само як «зʼїли/вилили» — партія зникає
   // зі списку, але лишається в історії. Ніякого hard-delete через API поки що.
-  app.delete<{ Params: { id: string } }>(
+  app.delete<{ Params: { id: string }; Body?: { reason?: DepletedReason } }>(
     '/v1/pantry/:id',
     { preHandler: authenticated(repo) },
     async (req, reply) => {
@@ -220,9 +247,16 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       const batch = await repo.getBatch(req.params.id);
       if (!batch) return reply.code(404).send({ error: 'not_found' });
       if (batch.household_id !== household_id) return reply.code(403).send({ error: 'not_yours' });
+      // А1: той самий закритий перелік, що в PATCH. Причини немає — лишаємо
+      // порожньою: «прибрали» ще не означає «зіпсувалось».
+      const reason = req.body?.reason;
+      if (reason !== undefined && !DEPLETED_REASONS.includes(reason)) {
+        return reply.code(400).send({ error: 'reason_invalid' });
+      }
       await repo.updateBatch(batch.id, {
         state: 'depleted',
         depleted_at: new Date().toISOString(),
+        ...(reason !== undefined ? { depleted_reason: reason } : {}),
         last_by: user_id,
         last_action: 'user_delete',
       });
