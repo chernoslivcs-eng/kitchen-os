@@ -464,7 +464,12 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // читають applyMode() з домену замість того, щоб перелічувати типи руками.
     if (call.reply) call.reply = fixTense(call.reply, call.card);
     if (tenseViolation(call.reply ?? '', call.card)) {
-      incident(sink(req), 'guard', 'tense-violation', { user_id, household_id, session_id: session.id, card_type: call.card!.type });
+      // `card?.type`, а не `card!`: знак оклику тут був безпечний лише через
+      // ранній `return false` у `tenseViolation` на порожній картці — тобто
+      // рівно доти, доки той гард НЕ вміє спрацьовувати без картки. Перша ж
+      // спроба його розширити (а вона напрошується: після П5 профіль картки
+      // не має) валила б цей рядок TypeError'ом просто в проді.
+      incident(sink(req), 'guard', 'tense-violation', { user_id, household_id, session_id: session.id, card_type: call.card?.type ?? null });
     }
 
     // Гвардія: юзер явно попросив рецепт/ідею, а модель не вернула картку.

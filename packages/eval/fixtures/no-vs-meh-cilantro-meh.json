@@ -1,10 +1,29 @@
 {
   "id": "no-vs-meh-cilantro-meh",
-  "description": "Крок 4в (3): «не люблю кінзу» — це `meh`.",
+  "description": "Крок 4в (3): «не люблю кінзу» — це `meh`. П5: картки поля більше немає — модель НАЗИВАЄ поле в репліці (kitchen-policy.md, рядок 4), тож перевіряємо репліку. Питання те саме: «не люблю» — це нахил, не заборона.",
   "call": "chat",
   "now": "2026-09-10T18:00:00",
-  "profile_text": { "no": "мʼяса, птиці" },
-  "pantry": [ {"id":"p1","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"} ],
-  "conversation": [ { "role": "user", "content": "Не люблю кінзу" } ],
-  "invariants": [ "profile-field:meh", "no-markdown" ]
+  "profile_text": {
+    "no": "мʼяса, птиці"
+  },
+  "pantry": [
+    {
+      "id": "p1",
+      "label": "Нут сушений",
+      "zone": "dry",
+      "v": 500,
+      "u": "g",
+      "state": "sealed"
+    }
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Не люблю кінзу"
+    }
+  ],
+  "invariants": [
+    "reply-names-field:meh",
+    "no-markdown"
+  ]
 }

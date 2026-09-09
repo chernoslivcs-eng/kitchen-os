@@ -1,6 +1,6 @@
 {
   "id": "note-not-duplicate-profile",
-  "description": "Крок 8: «я не їм риби» — це поле профілю (картка no), а не нотатка: note має бути null.",
+  "description": "«я не їм риби» — це поле профілю, а не нотатка: note має бути null. П5: картки поля немає, тож перевіряємо, що модель НАЗВАЛА поле в репліці. `note-null` лишається як був — він і був головним тут: факт про себе не дублюється в нотатку.",
   "call": "chat",
   "now": "2026-09-10T18:00:00",
   "profile_text": {
@@ -23,7 +23,7 @@
     }
   ],
   "invariants": [
-    "profile-field:no",
+    "reply-names-field:no",
     "note-null",
     "no-markdown"
   ]

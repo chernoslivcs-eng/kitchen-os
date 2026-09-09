@@ -1,10 +1,29 @@
 {
   "id": "no-vs-meh-cilantro-no",
-  "description": "Крок 4в (3): «ще не їм кінзи» — це `no`, не `meh`: «не їм / не вживаю» → «Я не їм» незалежно від продукту.",
+  "description": "Крок 4в (3): «ще не їм кінзи» — це `no`, не `meh`: «не їм / не вживаю» → «Я не їм» незалежно від продукту. П5: картки поля більше немає — модель НАЗИВАЄ поле в репліці (kitchen-policy.md, рядок 4), тож перевіряємо репліку. Питання те саме: «не їм» ≠ «не дуже люблю».",
   "call": "chat",
   "now": "2026-09-10T18:00:00",
-  "profile_text": { "no": "мʼяса, птиці" },
-  "pantry": [ {"id":"p1","label":"Нут сушений","zone":"dry","v":500,"u":"g","state":"sealed"} ],
-  "conversation": [ { "role": "user", "content": "Ще не їм кінзи" } ],
-  "invariants": [ "profile-field:no", "no-markdown" ]
+  "profile_text": {
+    "no": "мʼяса, птиці"
+  },
+  "pantry": [
+    {
+      "id": "p1",
+      "label": "Нут сушений",
+      "zone": "dry",
+      "v": 500,
+      "u": "g",
+      "state": "sealed"
+    }
+  ],
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Ще не їм кінзи"
+    }
+  ],
+  "invariants": [
+    "reply-names-field:no",
+    "no-markdown"
+  ]
 }

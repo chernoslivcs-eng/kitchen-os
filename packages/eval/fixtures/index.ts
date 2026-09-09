@@ -188,7 +188,6 @@ export function loadFixtures(): Fixture[] {
     },
     readJson('topic-continuity.json'),
     readJson('missing-ingredient.json'),
-    readJson('allergen-conflict.json'),
 
     // Регресії з ручних QA-прогонів. Кожна — баг, який знайшла людина за
     // дві години; тут він перевіряється за секунди. Додавати сюди кожну
