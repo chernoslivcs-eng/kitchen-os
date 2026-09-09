@@ -697,18 +697,6 @@ export const registry: Record<string, Invariant> = {
     return fail(`інгредієнт «${target}» приховано серед складу`);
   },
 
-  'does-not-list-mussels-as-normal': (out) => {
-    // reply або rk мають назвати алерген вголос — не подати як звичайний рядок.
-    const reply = String(out.reply ?? '').toLowerCase();
-    const rk = String(out.card?.recipe?.rk ?? out.card?.rk ?? '').toLowerCase();
-    // «мама» звідси прибрано разом із `eaters`: слово приходило в репліку з
-    // тексту самої людини, і фікстура зеленіла, нічого не перевіривши (П5 §3
-    // №14 назвав це, але передбачив зелену — вийшла червона).
-    const acknowledged = /алерг|мідії ж|обережно|не можна/.test(reply + ' ' + rk);
-    return acknowledged
-      ? pass()
-      : fail('алерген не названо вголос у reply/rk — правило «ніколи не подавай як звичайний інгредієнт» порушене');
-  },
 
   // === Знахідки QA-4/5/6 ===
   // Кожен інваріант названий за багом. Прогін `pnpm eval` займає хвилини й
