@@ -21,7 +21,15 @@ describe('рядки картки', () => {
     expect(freshLine(b())).toBe('свіже до 8 вер · ще 2 дні');
     expect(freshLine(b({ days: 0 }))).toBe('свіже до 8 вер · сьогодні');
     expect(freshLine(b({ days: -1 }))).toBe('свіже до 8 вер · термін вийшов');
-    expect(freshLine(b({ expires_at: null, days: null }))).toBe('без терміну');
+    // Б3. Досі «без терміну» означало одночасно «не псується» і «ми не знаємо»,
+    // і так виглядали 245 із 246 позицій. Після Б1/Б2 незнання зникло:
+    // порожній строк — це рішення каталогу, і картка каже саме його.
+    expect(freshLine(b({ expires_at: null, days: null }))).toBe('не псується');
+    // Розрахований строк не вдає точну дату — так само, як «~строк≈» у
+    // промпті проти точного «!Nдн». Дата лишається за тим, що ввела людина.
+    expect(freshLine(b({ expires_at: null, days: 5 }))).toBe('≈ще 5 днів');
+    expect(freshLine(b({ expires_at: null, days: 0 }))).toBe('≈сьогодні');
+    expect(freshLine(b({ expires_at: null, days: -2 }))).toBe('≈термін вийшов');
     expect(originLine(b())).toBe('чек Сільпо · 3 вер');
     expect(originLine(b({ origin: { kind: 'receipt', shop: null, at: '2026-09-03T10:00:00.000Z' } }))).toBe('чек · 3 вер');
     expect(originLine(b({ origin: { kind: 'manual', shop: null, at: '2026-09-01T10:00:00.000Z' } }))).toBe('додано рукою · 1 вер');
