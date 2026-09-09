@@ -62,6 +62,41 @@ describe('зона як арбітр', () => {
     expect(shelfSealedDays('pomodori_pelati', 'fresh')).toBeUndefined();
   });
 
+  it('правило знає зону, де партія ЛЕЖИТЬ, — беремо його, а не таблицю зон', () => {
+    // Досі будь-яка розбіжність зон виходила на таблицю зон, хоч `ShelfMap`
+    // часто має запис саме для тієї зони, де партія лежить, — і ми його
+    // викидали. Содова в холодильнику діставала 21 день замість 180, які
+    // правило вже знало.
+    //
+    // `Швепс` і `Квас` живуть у `drinks`; правило напоїв має `fridge: 180`.
+    expect(shelfSealedDays('drink_schweppes', 'fridge')).toBe(180);
+    // `Песто` живе у `spices`; правило соусів має `fridge: 180`.
+    expect(shelfSealedDays('pesto', 'fridge')).toBe(180);
+
+    // Напрям при хибному ключі стає «коротше, ніж треба» — хибна тривога, не
+    // мовчання: `Лосось охолоджений` (fridge) у морозилці дає 180 замість 270.
+    expect(shelfSealedDays('salmon_fresh', 'freezer')).toBe(180);
+
+    // Правило мовчить про цю зону — лишається таблиця зон. `Шпинат свіжий`
+    // має записи лише для `fresh` і `fridge`.
+    expect(shelfSealedDays('veg_spinach_fresh', 'freezer')).toBeUndefined();
+  });
+
+  it('головний випадок не зламано: свіжі помідори в пелаті так само гасяться', () => {
+    // Правило «консерви» — це `days: null`, тобто запису для `fresh` у ньому
+    // немає взагалі. Тож нове читання зони на нього не поширюється, арбітр
+    // спрацьовує як раніше й строк дає зона.
+    expect(shelfSealedDays('pomodori_pelati', 'fresh')).toBeUndefined();
+    expect(shelfSealedDays('pomodori_pelati', 'dry')).toBeNull();
+  });
+
+  it('сирокопчена ковбаска не рахується як свіже мʼясо', () => {
+    // Кабанос має `categories: снеки, ковбаски, мʼясо, свинина`. Токена
+    // «ковбаски» в правилі копченого не було — тільки «ковбаса», — тож
+    // запечатана ковбаска падала в правило мʼяса й діставала чотири дні.
+    expect(shelfSealedDays('r2sn_grill_kabanosy', 'fridge')).toBe(30);
+  });
+
   it('невідомий ключ і порожній ключ — мовчання, а не здогад', () => {
     expect(shelfSealedDays(null, 'fridge')).toBeUndefined();
     expect(shelfSealedDays('такого_ключа_немає', 'fridge')).toBeUndefined();
