@@ -45,7 +45,7 @@
   ],
   "invariants": [
     "not-a-refusal",
-    "mentions-allergen-out-loud:мідії",
+    "mentions-allergen-out-loud:міді",
     "does-not-hide-ingredient",
     "does-not-list-mussels-as-normal"
   ]

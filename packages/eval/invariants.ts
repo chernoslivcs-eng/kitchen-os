@@ -1328,9 +1328,14 @@ export const registry: Record<string, Invariant> = {
 };
 
 // Параметричні — аргумент ЗАВЖДИ через двокрапку: `topic-holds:плескавиц`,
-// `mentions-allergen-out-loud:мідії`, `needs-mentions:креветк`. Дефіс не працює:
+// `mentions-allergen-out-loud:міді`, `needs-mentions:креветк`. Дефіс не працює:
 // `needs-mentions-креветк` у фікстурі мовчки падав як «невідомий інваріант»,
 // тобто перевірка була мертва з дня написання.
+//
+// І аргумент — СТЕБЛО, а не словникова форма: усі матчери шукають підрядком,
+// тож `«мідіями».includes(«мідії»)` це false. Приклад вище довго стояв тут у
+// повній формі («мідії») і рівно так і зламав allergen-conflict: модель
+// відповіла правильно, перевірка впала на орудному відмінку.
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
 
