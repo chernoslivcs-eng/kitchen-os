@@ -339,6 +339,49 @@ describe('retail routes · silpo', () => {
     expect((msg?.card as { type?: string })?.type).toBe('cart');
   });
 
+  // Е2-Т2: `alt_filter` — рід викликів, якого в `token_usage` не було ВЗАГАЛІ.
+  // `callAltFilter` повертав облік у полі `calls`, а обидва місця виклику
+  // брали з результату лише `.keep`. Наслідок не «неточність»: кожна ціна на
+  // дім у Пульсі та Зведенні була занижена на невідому величину, бо ці гроші
+  // видно було тільки на Activity в OpenRouter.
+  it('build-cart: виклик alt_filter лишає рядок обліку — з домом і без ходу', async () => {
+    await connect();
+    await app.inject({
+      method: 'POST', url: '/v1/shopping', headers: { cookie: me.cookie },
+      payload: { label: 'вода мінеральна' },
+    });
+
+    // Кандидат, якого каталог не впізнає, — саме той випадок, заради якого
+    // існує ЛЛМ-фільтр: категорій він не знає, вирішує модель.
+    const hit = {
+      id: 'id-water', name: 'Вода мінеральна', slug: 'water', price: 200, oldPrice: null,
+      stock: true, available: true, weighted: false, step: 1, companyId: 'c1', branchId: 'b1',
+    };
+    const unknown = { ...hit, id: 'id-unknown', name: 'Напій Zzyzx Blorp Original 0,33', slug: 'zzyzx' };
+    providerImpl = () => ({
+      receipts: async () => [],
+      findBatch: async (queries: string[]) =>
+        queries.map((q) => ({ query: q, candidates: [hit, unknown], product: hit })),
+      addToCart: async () => {},
+    });
+
+    const r = await app.inject({
+      method: 'POST', url: '/v1/retail/silpo/build-cart', headers: { cookie: me.cookie },
+    });
+    expect(r.statusCode).toBe(200);
+
+    const rows = await repo.listTokenUsage(me.user_id);
+    const alt = rows.filter((x) => x.call === 'alt_filter');
+    expect(alt).toHaveLength(1);
+    // Дім проставлений — інакше витрату не можна віднести на дім, а вся
+    // юніт-економіка рахується саме по домах.
+    expect(alt[0]!.household_id).toBe(me.household_id);
+    // Ходу в цього виклику НЕМАЄ: збірка кошика — не репліка людини. Порожньо
+    // тут чесніше за здогадку (`usage.ts`, крок А1).
+    expect(alt[0]!.message_id).toBeNull();
+    expect(alt[0]!.session_id).toBeNull();
+  });
+
   it('build-cart: промах отримує заміну третьою фазою (головне слово каталогу)', async () => {
     await connect();
     await app.inject({

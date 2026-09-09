@@ -75,6 +75,7 @@ const CALL_WORD: Record<string, string> = {
   chat: 'розмова',
   attachment_parse: 'розбір вкладення',
   recipe_gen: 'генерація рецепта',
+  alt_filter: 'фільтр альтернатив',
   recipe_import: 'імпорт рецепта',
   pantry_search: 'пошук по коморі',
 };
