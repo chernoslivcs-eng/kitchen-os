@@ -272,7 +272,11 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
   try {
     const resp = await client.messages.create({
       model,
-      max_tokens: 4096,
+      // Дзеркалить прод: services/api/src/model.ts ставить 16384 саме на
+      // attachment_parse — чек на 20+ позицій із трійками й тегами в 4096 не
+      // влазить, JSON обривається посеред рядка, і фікстура падає як «немає
+      // ops», хоча модель відпрацювала. Спіймано 09.09 на receipt-till-photo.
+      max_tokens: call === 'attachment_parse' ? 16384 : 4096,
       temperature: spec.temperature ?? (call === 'attachment_parse' ? 0 : 1),
       // Дзеркалить прод (services/api/src/model.ts, thinkingOff): Sonnet 5 думає
       // за замовчуванням, і на наших коротких структурованих репліках це 78%
