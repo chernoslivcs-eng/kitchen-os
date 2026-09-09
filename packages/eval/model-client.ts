@@ -157,11 +157,11 @@ const baseURL = () => (isOpenRouter() ? 'https://openrouter.ai/api' : undefined)
 
 // Дефолти дзеркалять services/api/src/model.ts. Профіль виклику бере з
 // маніфесту — там єдине джерело, щоб eval і прод не розійшлись.
-const PROFILES = () => ({
+export const PROFILES = () => ({
   fast: process.env.MODEL_FAST
     ?? (isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001'),
   smart: process.env.MODEL_SMART
-    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-4.5' : 'claude-sonnet-5'),
+    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-5' : 'claude-sonnet-5'),
 });
 
 function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
@@ -274,6 +274,10 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       model,
       max_tokens: 4096,
       temperature: spec.temperature ?? (call === 'attachment_parse' ? 0 : 1),
+      // Дзеркалить прод (services/api/src/model.ts, thinkingOff): Sonnet 5 думає
+      // за замовчуванням, і на наших коротких структурованих репліках це 78%
+      // виходу. Без цього рядка еваль міряв би не ту поведінку, що в проді.
+      ...(/sonnet-5/.test(model) ? { thinking: { type: 'disabled' as const } } : {}),
       system: cachedSystem(system.stable, system.dynamic),
       messages: fixtureAsUserTurn(fx),
     });

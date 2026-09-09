@@ -151,13 +151,32 @@ function modelFor(profile: 'fast' | 'smart'): string {
       ?? (isOpenRouter() ? 'anthropic/claude-haiku-4.5' : 'claude-haiku-4-5-20251001');
   }
   return process.env.MODEL_SMART
-    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-4.5' : 'claude-sonnet-5');
+    ?? (isOpenRouter() ? 'anthropic/claude-sonnet-5' : 'claude-sonnet-5');
 }
 
 // Яка модель обслуговує виклик — вирішує маніфест, не код. Доки мапінг жив у
 // двох місцях, вони розійшлись (QA5-12).
 function modelForCall(call: CallName, prompt: LoadedPrompt): string {
   return modelFor(prompt.manifest.calls[call].profile);
+}
+
+/**
+ * Sonnet 5 ДУМАЄ ЗА ЗАМОВЧУВАННЯМ — на відміну від 4.5, де пропущений `thinking`
+ * означав «не думати». Вимір 09.09 на репліці «у мене алергія на кінзу»:
+ * 384 вихідних токени, з них 301 роздумів — 78% виходу на завдання «назви поле
+ * профілю». Видимої відповіді там 83 токени.
+ *
+ * Наші репліки короткі й структуровані (JSON із карткою), тож думання тут коштує
+ * учетверо більше виходу й не окупається: теплий хід із думанням дешевший за 4.5
+ * на 16%, без думання — на 39%.
+ *
+ * Шлемо ТІЛЬКИ на sonnet-5. У haiku інша механіка (`budget_tokens`), і пропущений
+ * `thinking` там і так означає «не думати» — параметр їй не адресований.
+ *
+ * Якщо після евалу вердикти просядуть — вмикати назад тут, одним рядком.
+ */
+function thinkingOff(model: string): { thinking?: { type: 'disabled' } } {
+  return /sonnet-5/.test(model) ? { thinking: { type: 'disabled' } } : {};
 }
 function makeClient(): Anthropic | null {
   const key = apiKey();
@@ -679,6 +698,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     // Температура з маніфесту: на 1.0 (дефолт) поведінка фліпала між
     // запусками — фікстури падали через раз на тих самих правилах.
     temperature: prompt.manifest.calls.chat.temperature,
+    ...thinkingOff(model),
     system: cachedSystem(stable, dynamic),
   };
   const resp = await withRetry(() => client.messages.create({ ...callOpts, messages }));
@@ -816,6 +836,7 @@ export async function callRecipe(args: {
     model,
     max_tokens: 3072,
     temperature: prompt.manifest.calls.recipe_gen.temperature,
+    ...thinkingOff(model),
     system: cachedSystem(stable, dynamic),
     messages: [{ role: 'user', content: userText }],
   }));
@@ -986,6 +1007,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     // відповіді; 8192 обрізало живий кейс. Платимо за фактичне.
     max_tokens: 16384,
     temperature: 0,
+    ...thinkingOff(model),
     // System тут повністю статичний — кешується цілком, без динаміки.
     system: cachedSystem(system),
     messages: [{ role: 'user', content: parts }],

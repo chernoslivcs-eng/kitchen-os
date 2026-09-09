@@ -6,7 +6,7 @@ import { runOutcome } from './verdict.js';
 import { loadFixtures, type Fixture } from './fixtures/index.js';
 import { resolve as resolveInvariant, type Verdict } from './invariants.js';
 import { loadPrompt } from '@kitchen/prompts';
-import { runOne, type RunResult } from './model-client.js';
+import { runOne, PROFILES, type RunResult } from './model-client.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SNAP_DIR = join(HERE, 'snapshots');
@@ -115,7 +115,10 @@ async function main() {
   const prompt = loadPrompt(version);
 
   console.log(`Prompt version: ${prompt.version}`);
-  console.log(`Model: fast=${process.env.MODEL_FAST ?? 'claude-haiku-4-5-20251001'} smart=${process.env.MODEL_SMART ?? 'claude-sonnet-5'}`);
+  // Друкуємо ТЕ, ЧИМ ганяємо, а не підставлений дефолт: банер довго називав
+  // claude-sonnet-5, поки прогін ішов на 4.5 через OpenRouter.
+  const mdl = PROFILES();
+  console.log(`Model: ${mdl.smart} (smart) · ${mdl.fast} (fast)`);
   if (only) console.log(`Фільтр --only: ${[...only].join(', ')} (снапшот і діф не пишуться)`);
   console.log('');
 
