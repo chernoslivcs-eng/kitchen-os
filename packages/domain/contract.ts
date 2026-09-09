@@ -176,7 +176,15 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(b.label).toBe('камбоцола');                     // слово юзера, не каталожна назва
     });
 
-    it('add: модельні теги перемагають каталожні дефолти', async () => {
+    // Модельні теги перемагають каталожні — крім `fasting`. Виняток заведено
+    // 09.09 після виміру на проді: в одному розборі чека модель поставила
+    // `fasting: false` на фует, тунець, камамбер і яйця, а `true` — на шпинат,
+    // часник і олію. Скоромність — властивість класу, її знає каталог.
+    //
+    // Тест тримає межу винятку з обох боків: `fasting` іде за каталогом, а
+    // `lactose` і `catalog_key` лишаються там, де були. Якщо правило колись
+    // розповзеться на решту тегів, впаде саме цей рядок.
+    it('add: модельні теги перемагають каталожні — крім fasting', async () => {
       const mid = randomUUID();
       await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card: {
         type: 'intake_diff', ops: [
@@ -187,8 +195,8 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       await applyCard(ctx.repo, mid, [], ctx.user_id);
       const b = (await ctx.repo.listBatches(ctx.household_id))[0]!;
       const prod = (await ctx.repo.getProduct(b.product_id!))!;
-      expect(prod.tags.lactose).toBe('low');
-      expect(prod.tags.fasting).toBe(false);                 // модель сказала — каталог мовчить
+      expect(prod.tags.lactose).toBe('low');                 // модельне поле — за моделлю
+      expect(prod.tags.fasting).toBe(true);                  // камбоцола скоромна за каталогом; слово моделі тут не важить
       expect(prod.catalog_key).toBe('cambozola_cheese');     // key все одно резолвиться
     });
 
@@ -427,8 +435,8 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(b?.best_before_opened_days).toBe(5);
       const prod = await ctx.repo.getProduct(b!.product_id!);
       expect(prod?.tags.shelf_open_days).toBe(5);
-      // Каталог не витіснено: алергени й скоромність він добирає в ДІРКИ,
-      // а модельні теги лишаються зверху.
+      // Каталог не витіснено: алергени він добирає в ДІРКУ, скоромність
+      // ставить сам, а решта модельних тегів лишається зверху.
       expect(prod?.tags.allergens).toEqual(['молоко']);
       expect(prod?.tags.fasting).toBe(true);
     });
