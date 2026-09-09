@@ -1358,8 +1358,9 @@ export function resolve(name: string): Invariant {
   // фікстур залишилось те саме — чи розрізняє модель «не можна» / «не їм» /
   // «не дуже люблю», — змінилось лише, де шукати відповідь: не в card.field,
   // а в тексті репліки. Тому `profile-field:X` тут заміщається на
-  // `reply-names-field:X`; сам `profile-field` живий, поки на ньому лишається
-  // хоч одна фікстура.
+  // `reply-names-field:X`. Сам `profile-field` прибрано: після переносу
+  // `allergy-stated-no-followup` на нього не лишилось жодної фікстури, а
+  // перевіряв він `card.type === 'profile'` — родину, якої немає з П5.
   //
   // Звіряємось із підписом рядка, а не з ключем: людина в інтерфейсі бачить
   // «Я не дуже люблю», слова `meh` вона не знає й модель його вимовляти не
@@ -1390,16 +1391,6 @@ export function resolve(name: string): Invariant {
       return fail(found.length
         ? `назвала поле ${found.join(', ')}, а мало бути ${arg} — репліка: «${reply.slice(0, 140)}»`
         : `поля профілю не названо взагалі — репліка: «${reply.slice(0, 140)}»`);
-    };
-  }
-
-  // Крок 4в (3): картка поля профілю з полем `arg` (no|meh|ban|…).
-  if (base === 'profile-field') {
-    return (out) => {
-      const c = out.card;
-      if (!c || c.type !== 'profile') return fail(`card.type=${c?.type ?? 'null'} — очікував profile`);
-      if (!c.field) return fail(`картка profile без field (ops: ${JSON.stringify(c.ops).slice(0, 80)})`);
-      return c.field === arg ? pass(`${c.field}: «${c.text}»`) : fail(`field=${c.field}, очікував ${arg}; text «${c.text}»`);
     };
   }
 
