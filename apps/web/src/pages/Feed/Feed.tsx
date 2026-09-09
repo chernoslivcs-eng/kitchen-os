@@ -497,14 +497,13 @@ export function Feed() {
       // Догоряння: беремо активні партії з expires_at ≤ 3 днів. Показуємо 3 перших.
       // Це «підказка одним рядком», не панель — юзер може її ігнорувати або тапнути,
       // щоб модель сама запропонувала, що з ними зробити.
-      const now = Date.now();
+      // Б1: беремо `days`, який уже порахував сервер (pantryItemView), а не
+      // колонку `expires_at`. Доти цей рядок бачив лише партії з ручною
+      // датою — одну з 246; тепер строк є в кожної, і рахувати його вдруге
+      // на клієнті означало б завести п'яте місце з власним порогом.
       const stale = p.batches
-        .filter((b) => b.state !== 'depleted' && b.expires_at)
-        .map((b) => ({
-          id: b.id,
-          label: b.label,
-          days: Math.round((new Date(b.expires_at!).getTime() - now) / 86_400_000),
-        }))
+        .filter((b) => b.state !== 'depleted' && b.days != null)
+        .map((b) => ({ id: b.id, label: b.label, days: b.days! }))
         .filter((b) => b.days <= 3)
         .sort((a, b) => a.days - b.days)
         .slice(0, 3);

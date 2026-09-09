@@ -11,7 +11,7 @@ import { ownsEvent } from './occasions.js';
 import { subscriptionDefault, ruleFromDates } from './periods.js';
 import { CARD_APPLY_MODE } from './card-modes.js';
 import { rebuildVetoIndex } from './veto-index.js';
-import { expiryOnOpen } from './pantry-view.js';
+import { expiryOnOpen, effectiveExpiry } from './pantry-view.js';
 import type { Tradition } from './occasion-rules.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
@@ -611,7 +611,12 @@ async function applyIntakeOp(
     });
   } else if (op.op === 'open') {
     // А2: менше з двох — відкриття скорочує життя, а не подовжує (expiryOnOpen).
-    const expires_at = expiryOnOpen(target.expires_at, target.best_before_opened_days);
+    // Б1: другим числом іде РОЗРАХОВАНИЙ строк, а не колонка. У запечатаної
+    // партії колонка порожня, і без цього відкриття знову подовжувало б життя.
+    const expires_at = expiryOnOpen(
+      effectiveExpiry(target, target.catalog_key),
+      target.best_before_opened_days,
+    );
     await repo.updateBatch(target.id, {
       state: 'opened',
       opened_at: new Date().toISOString(),
@@ -674,8 +679,11 @@ async function applyIntakeOp(
     if (op.state === 'opened') {
       patch.state = 'opened';
       patch.opened_at = new Date().toISOString();
-      // А2: те саме менше-з-двох, що в гілці `open`.
-      patch.expires_at = expiryOnOpen(target.expires_at, target.best_before_opened_days);
+      // А2: те саме менше-з-двох, що в гілці `open`; Б1 — від розрахованого.
+      patch.expires_at = expiryOnOpen(
+        effectiveExpiry(target, target.catalog_key),
+        target.best_before_opened_days,
+      );
     } else if (op.state === 'sealed') {
       // «Ні, я її ще не відкривав» — той самий відкат, що вже робить ручна
       // правка партії в Коморі. `expires_at` не чіпаємо: він міг прийти й не

@@ -301,6 +301,30 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(b?.expires_at, 'власний строк лишився, бо він коротший').toBe(soon);
     });
 
+    it('open не подовжує РОЗРАХОВАНИЙ строк — не лише збережений', async () => {
+      // Б1 відкрив чорний хід до бага, який закрив А2. `expiryOnOpen` брав
+      // менше з двох, але другим числом читав КОЛОНКУ `expires_at` — а після
+      // Б1 у запечатаної партії колонка порожня, і строк живе розрахунком.
+      // Тобто помідор, якому за зоною лишився день, від відкриття знову
+      // почав би жити стільки, скільки живе щойно відкритий.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id, 'помідори', {
+        zone: 'fresh',                                  // 7 днів за таблицею
+        added_at: new Date(Date.now() - 6 * 86_400_000).toISOString(),
+        best_before_opened_days: 5,
+      });
+      expect(seeded.expires_at, 'у БД строку немає — він рахується').toBeNull();
+
+      const mid = randomUUID();
+      const card: IntakeCard = { type: 'intake_diff', ops: [{ op: 'open', label: 'помідори' }] };
+      await createPending(ctx.repo, { message_id: mid, household_id: ctx.household_id, user_id: ctx.user_id, card });
+      await applyCard(ctx.repo, mid, [], ctx.user_id);
+
+      const b = await ctx.repo.getBatch(seeded.id);
+      expect(b?.state).toBe('opened');
+      const days = (new Date(b!.expires_at!).getTime() - Date.now()) / 86_400_000;
+      expect(days, 'лишився розрахований день, а не пʼять від відкриття').toBeLessThan(1.1);
+    });
+
     it('rename: змінює label, undo повертає', async () => {
       const seeded = await seedFarsh(ctx.repo, ctx.household_id, 'Крем-брусок');
       const mid = randomUUID();

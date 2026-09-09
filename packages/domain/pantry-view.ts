@@ -3,7 +3,7 @@
 // індекс вето, термін партії, останній чек. Нічого не пишеться.
 
 import { BY_KEY } from '@kitchen/catalog/seed';
-import type { PantryBatch } from './types.js';
+import type { PantryBatch, Zone } from './types.js';
 import type { HouseholdProduct } from './product.js';
 import type { VetoRow } from './profile-text.js';
 import { matchVeto, type VetoScope } from './veto.js';
@@ -73,6 +73,70 @@ export function topCategory(categories: readonly string[]): string | null {
   return best;
 }
 
+/**
+ * Скільки живе ЗАПЕЧАТАНА партія в цій зоні, днів. Запасний варіант: діє там,
+ * де каталог позицію не впізнав або не знає її строку в цій зоні.
+ *
+ * Числа й наслідок кожного виміряні на 246 живих партіях
+ * (SHELF-LIFE-REPORT-0909.md §8.1). Обрано «помірну» таблицю: вона лишає в
+ * зрізі «скоро зіпсується» 19 позицій із 246, тоді як коротша дає 46, а
+ * довша — 13. При будь-якій із трьох `dry`, `spices`, `drinks` і `freezer`
+ * дають у зріз НУЛЬ: увесь рух — у `fresh`, і він чесний (помідори й багети
+ * віком десять днів справді на межі).
+ *
+ * Зона — арбітр, а не порада: коли каталожне число суперечить фізиці зони,
+ * виграє зона. Підстава — резолвер помиляється приблизно на 9 % живої комори
+ * (`свіжі помідори → пелаті`, `лосось морожений → охолоджений`), але 8 із 13
+ * хибних ключів мають ТУ САМУ зону, тобто схожу фізику. Право вето збиває
+ * 9 % хибних ключів до приблизно 1 % хибних строків.
+ */
+export const ZONE_SHELF_DAYS: Record<Zone, number> = {
+  // Овочі, зелень, хліб. У проді ця зона тримає і помідори з баклажанами
+  // (5-10 днів), і багети (1-2). Сім — середина, яка не кричить про перші
+  // й не мовчить про другі довше ніж на добу.
+  fresh: 7,
+  // Запечатана молочка, сири, ковбаси. Орієнтир — `best_before_opened_days`
+  // тих самих продуктів у проді: 3-60 днів для ВІДКРИТИХ, медіана 7.
+  // Запечатане живе помітно довше; 21 не дає жодної позиції в зріз на
+  // нинішній коморі.
+  fridge: 21,
+  // Девʼять місяців — типова межа домашньої морозилки, після якої псується
+  // не безпека, а смак.
+  freezer: 270,
+  // Вісімнадцять місяців — звичайний «краще спожити до» на бакалії.
+  dry: 540,
+  // Три роки. Спеції не псуються, вони вивітрюються; це радше «варто
+  // оновити», ніж «зіпсувалось».
+  spices: 1095,
+  // Рік — межа для закритих напоїв; відкриті живуть за
+  // `best_before_opened_days`, як і решта відкритого.
+  drinks: 365,
+};
+
+/**
+ * Строк партії. Рахується, а не зберігається (Р2): у БД його ніхто не пише.
+ *
+ * Порядок джерел:
+ *   1. `expires_at` партії — ручна дата з картки або дата, поставлена при
+ *      відкритті. Єдиний писач колонки, тож вона означає рівно «людина
+ *      сказала» і бʼє розрахунок завжди — і коротша, і довша.
+ *   2. `added_at` + `ZONE_SHELF_DAYS[зона]`.
+ *
+ * Обчислення замість колонки дає три речі: зміна зони одразу дає новий строк
+ * без правки даних, зміна таблиці переоцінює всю комору без міграції, а
+ * бекфіл на 246 наявних партій не потрібен узагалі.
+ */
+export function effectiveExpiry(
+  b: Pick<PantryBatch, 'expires_at' | 'added_at' | 'zone'>,
+  _catalogKey: string | null = null,
+  _nowMs = Date.now(),
+): string | null {
+  if (b.expires_at) return b.expires_at;
+  const days = ZONE_SHELF_DAYS[b.zone];
+  if (days == null) return null;
+  return new Date(new Date(b.added_at).getTime() + days * 86_400_000).toISOString();
+}
+
 /** Днів до кінця свіжості — та сама арифметика, що в «Зараз» у стрічці. */
 export function daysLeft(expires_at: string | null, nowMs = Date.now()): number | null {
   if (!expires_at) return null;
@@ -136,7 +200,9 @@ export function pantryItemView(
     prot: n ? n.protein : null,
     carb: n ? n.carbs : null,
     est: n ? isEstimate(n) : null,
-    days: daysLeft(b.expires_at, nowMs),
+    // Б1: строк рахується, а не читається з колонки. Ручна дата всередині
+    // effectiveExpiry лишається сильнішою за таблицю зон.
+    days: daysLeft(effectiveExpiry(b, key, nowMs), nowMs),
     receipt: receiptBatchIds.has(b.id),
     no: vetoMarkOf(pantryVetoRows(b, prod?.catalog_key ?? null, vetoIndex, scope)),
     added: Math.max(0, Math.floor((nowMs - new Date(b.added_at).getTime()) / 86_400_000)),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { topCategory, daysLeft, pantryItemView, pantryVetoRows, vetoMarkOf } from './pantry-view.js';
+import { topCategory, daysLeft, effectiveExpiry, pantryItemView, pantryVetoRows, vetoMarkOf } from './pantry-view.js';
 import { serializePantry } from './context.js';
 import { buildVetoIndex } from './veto-index.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
@@ -24,6 +24,45 @@ describe('topCategory', () => {
     expect(topCategory(['тунець в олії', 'тунець', 'риба', 'консерви', 'тваринне'])).toBe('консерви');
     expect(topCategory(['рідина для посуду', 'побутова хімія', 'нехарчове'])).toBe('побутове');
     expect(topCategory(['щось', 'дивне'])).toBeNull();
+  });
+});
+
+describe('effectiveExpiry — строк рахується, а не зберігається (Б1, Р2)', () => {
+  it('запечатана партія без дати отримує строк від added_at і зони', () => {
+    // Досі 245 із 246 партій були «без терміну», тобто мовчазно свіжі. Строк —
+    // чиста функція від дати завантаження й зони, і рахується на льоту: у БД
+    // його ніхто не пише.
+    const b = batch('помідори', { zone: 'fresh' });   // додано 5 днів тому
+    const exp = effectiveExpiry(b, null, NOW);
+    expect(exp).not.toBeNull();
+    expect(daysLeft(exp, NOW), 'fresh живе 7 днів, 5 минуло').toBe(2);
+  });
+
+  it('зона змінює строк без жодної правки даних', () => {
+    // Заради цього Р2 і вибрав обчислення замість колонки: та сама партія,
+    // перекладена в морозилку, одразу живе інакше.
+    const added = new Date(NOW - 5 * 86_400_000).toISOString();
+    const inFridge = effectiveExpiry(batch('гуляш', { zone: 'fridge', added_at: added }), null, NOW);
+    const inFreezer = effectiveExpiry(batch('гуляш', { zone: 'freezer', added_at: added }), null, NOW);
+    expect(daysLeft(inFridge, NOW)).toBe(16);
+    expect(daysLeft(inFreezer, NOW)).toBe(265);
+  });
+
+  it('ручна дата бʼє розрахунок — і коротша, і довша', () => {
+    // `expires_at` лишається з єдиним писачем (ручний PATCH) і означає рівно
+    // одне: «людина сказала». Це сильніше за будь-яку таблицю.
+    const soon = new Date(NOW + 1 * 86_400_000).toISOString();
+    const late = new Date(NOW + 900 * 86_400_000).toISOString();
+    expect(effectiveExpiry(batch('х', { zone: 'fresh', expires_at: soon }), null, NOW)).toBe(soon);
+    expect(effectiveExpiry(batch('х', { zone: 'fresh', expires_at: late }), null, NOW)).toBe(late);
+  });
+
+  it('прострочене не обнуляється — воно лишається простроченим', () => {
+    // Партія, яка пролежала довше за свій строк, має показувати мінус, а не
+    // «сьогодні»: інакше зріз «скоро зіпсується» ховав би найгірші позиції.
+    const old = new Date(NOW - 30 * 86_400_000).toISOString();
+    const exp = effectiveExpiry(batch('салат', { zone: 'fresh', added_at: old }), null, NOW);
+    expect(daysLeft(exp, NOW)).toBe(-23);
   });
 });
 
@@ -59,8 +98,11 @@ describe('pantryItemView', () => {
     const v = pantryItemView(b, undefined, buildVetoIndex('u1', 'no', 'мʼяса'), new Set([b.id]), NOW);
     expect(v).toEqual({ cat: 'мʼясо', kcal: 114, fat: 2.62, prot: 22.5, carb: 0, est: false, days: 2, receipt: true, no: 'не їм', added: 5, unit_weight: 180 });
   });
-  it('невідомий продукт — усе null, receipt false', () => {
+  it('невідомий продукт — БЖВ null, але строк тепер є: він від зони, не від каталогу', () => {
+    // Б1 змінив саме це. Раніше `days: null` означало «мовчазно свіже» — і так
+    // виглядали 245 із 246 позицій. Тепер позиція без каталогу все одно має
+    // строк: fridge живе 21 день, пʼять минуло.
     const v = pantryItemView(batch('Щось xyz'), undefined, [], new Set(), NOW);
-    expect(v).toEqual({ cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: null, receipt: false, no: null, added: 5, unit_weight: null });
+    expect(v).toEqual({ cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: 16, receipt: false, no: null, added: 5, unit_weight: null });
   });
 });
