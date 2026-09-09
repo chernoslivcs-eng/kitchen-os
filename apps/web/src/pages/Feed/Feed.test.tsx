@@ -27,7 +27,7 @@ import { ArtifactPanel } from '../../components/ArtifactPanel/ArtifactPanel';
 interface ChatCall { body: { text?: string; attachments?: { id: string }[] } }
 let chatCalls: ChatCall[];
 let waiting: { resolve: (body: unknown) => void; reject: (e: Error) => void }[];
-let batches: { id: string; label: string; state: string; expires_at: string | null }[];
+let batches: { id: string; label: string; state: string; expires_at: string | null; days: number | null }[];
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
@@ -119,7 +119,7 @@ afterEach(async () => {
 
 describe('№1 смуга «Краще не відкладати»', () => {
   beforeEach(() => {
-    batches = [{ id: 'b1', label: 'сметана', state: 'opened', expires_at: new Date(Date.now() + 86_400_000).toISOString() }];
+    batches = [{ id: 'b1', label: 'сметана', state: 'opened', expires_at: new Date(Date.now() + 86_400_000).toISOString(), days: 1 }];
   });
 
   it('стилі живуть у модулі, не інлайном — інакше auto-марджини колонки програють', async () => {

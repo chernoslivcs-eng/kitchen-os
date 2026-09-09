@@ -16,7 +16,7 @@ import { fastingActive, isFastingRestricted } from './occasions.js';
 import { serializeNow, subscribedTraditions, subscribedRows } from './periods.js';
 import { BUILTIN_OCCASIONS, type OccasionRow } from './occasion-data.js';
 import { PROFILE_FIELDS, serializeProfileText, emptyProfileText, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
-import { pantryVetoRows } from './pantry-view.js';
+import { pantryVetoRows, effectiveExpiry, daysLeft } from './pantry-view.js';
 
 import { serializeModes, type KitchenMode } from './modes.js';
 
@@ -182,9 +182,21 @@ export function serializePantry(
     // Приблизний «вжити до»: expires_at немає, партія відкрита, і теги (або
     // сама партія) знають, скільки живе відкрите. НЕ точна дата — «~».
     const shelf = prod?.tags.shelf_open_days ?? b.best_before_opened_days;
-    const approxDays = days == null && b.state === 'opened' && b.opened_at && shelf != null
+    const openApprox = days == null && b.state === 'opened' && b.opened_at && shelf != null
       ? shelf - Math.floor((now - new Date(b.opened_at).getTime()) / 86_400_000)
       : null;
+    // Б1: запечатана партія теж дістає приблизний строк — від дати
+    // завантаження, зони й каталогу. Досі 245 із 246 позицій ішли в контекст
+    // узагалі без позначки часу.
+    //
+    // Саме приблизний, і це принципово: `state-facts.md` наказує читати
+    // «!Nдн» як «саме стільки днів». Розрахунок такої точності не має, і
+    // видати його за точний означало б збрехати рівно так, як робив зразок
+    // «все свіже» в розборі вкладення.
+    const zoneApprox = days == null && openApprox == null
+      ? daysLeft(effectiveExpiry(b, prod?.catalog_key ?? null, now), now)
+      : null;
+    const approxDays = openApprox ?? zoneApprox;
     const ageDays = Math.floor((now - new Date(b.added_at).getTime()) / 86_400_000);
     return {
       b, hit, noEat, fastHit, days, approxDays, ageDays,

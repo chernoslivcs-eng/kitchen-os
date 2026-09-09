@@ -11,6 +11,7 @@
 
 import { root, meaningfulWords } from '@kitchen/catalog';
 import type { PantryBatch } from './types.js';
+import { effectiveExpiry, daysLeft } from './pantry-view.js';
 
 export interface RecipeIngredient {
   p?: string;              // id партії — модель показала пальцем
@@ -37,9 +38,11 @@ export interface RecipeMatch {
 // в serializePantry (мітка «!Nдн») і в чіпі «СКОРО ЗГОРИТЬ» на Feed.
 function isUrgent(b: PantryBatch, now: number): boolean {
   if (b.state === 'opened') return true;
-  if (!b.expires_at) return false;
-  const days = Math.round((new Date(b.expires_at).getTime() - now) / 86_400_000);
-  return days <= 7;
+  // Б1: строк рахується, а не читається з колонки. Доти запечатана партія без
+  // ручної дати не могла бути терміновою НІКОЛИ — тобто «рецепт рятує» не
+  // спрацьовувало на 245 із 246 позицій.
+  const days = daysLeft(effectiveExpiry(b, b.catalog_key, now), now);
+  return days != null && days <= 7;
 }
 
 // Той самий збіг за коренем, що в мітці алергену: `.includes()` не бачить

@@ -15,7 +15,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit, BatchState, DepletedReason, IntakeCard } from '@kitchen/domain';
-import { pantryItemView, newVetoScope, expiryOnOpen, DEPLETED_REASONS } from '@kitchen/domain';
+import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, DEPLETED_REASONS } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
 
@@ -52,10 +52,15 @@ export function batchOrigin(b: PantryBatch, receipt: { ids: Set<string>; at: str
 }
 
 function urgencyScore(b: PantryBatch): number {
-  // Менше — терміновіше. Відкрите з датою → перше. Свіже — до `expires_at`. Інше — далеко.
+  // Менше — терміновіше. Відкрите з датою → перше; решта — за строком.
+  //
+  // Б1: строк тепер рахується (effectiveExpiry), а не читається з колонки.
+  // Доти 245 із 246 позицій отримували MAX_SAFE_INTEGER і сортувались просто
+  // за added_at — тобто «за терміновістю» насправді ніколи не працювало.
   const now = Date.now();
-  if (b.state === 'opened' && b.expires_at) return new Date(b.expires_at).getTime() - now;
-  if (b.expires_at) return new Date(b.expires_at).getTime() - now + 30 * 86_400_000;
+  const exp = effectiveExpiry(b, b.catalog_key, now);
+  if (b.state === 'opened' && exp) return new Date(exp).getTime() - now;
+  if (exp) return new Date(exp).getTime() - now + 30 * 86_400_000;
   return Number.MAX_SAFE_INTEGER;
 }
 
@@ -212,8 +217,12 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
         // А2: «Позначити відкритою» досі ставило тільки opened_at — годинник
         // «вжити до» з картки не стартував узагалі, на відміну від тих самих
         // слів у чаті. Менше з двох: відкриття скорочує строк, не подовжує.
+        // Б1: другим числом — РОЗРАХОВАНИЙ строк (колонка в запечатаної
+        // партії порожня), інакше відкриття знову подовжувало б життя.
         patch.expires_at = expiryOnOpen(
-          'expires_at' in patch ? patch.expires_at ?? null : batch.expires_at,
+          'expires_at' in patch
+            ? patch.expires_at ?? null
+            : effectiveExpiry(batch, batch.catalog_key),
           batch.best_before_opened_days,
         );
       }
