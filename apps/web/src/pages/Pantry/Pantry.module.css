@@ -91,7 +91,7 @@
   .row-x:hover { background: var(--danger-bg); color: var(--danger); }
 }
 
-/* Плашка «Списано · ↩ Повернути» — над таб-баром, зникає за 6 с. */
+/* Плашка «Списано · Повернути» — над таб-баром, зникає за 6 с. */
 .undo-bar {
   position: fixed;
   left: 50%;

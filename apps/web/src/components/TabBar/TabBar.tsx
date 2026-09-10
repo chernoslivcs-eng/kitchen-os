@@ -248,7 +248,7 @@ export function TabBar({ shoppingCount }: Props) {
       >
         {cookLive || nowEvents.length ? (
           <span className={styles.dots}>
-            {nowEvents.length > 0 && <span className={styles['dot-amber']}>◌</span>}
+            {nowEvents.length > 0 && <span className={styles['dot-amber']} aria-hidden />}
             {cookLive && <span className={styles['dot-sage']} aria-hidden />}
           </span>
         ) : '⋯'}

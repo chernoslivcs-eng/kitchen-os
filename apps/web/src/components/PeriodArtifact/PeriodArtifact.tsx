@@ -26,6 +26,7 @@ import {
   STRICT_HINT, SOFT_HINT, OWN_KIND_LABEL, ownKindOf, todayIso, daysBetween, plural, type OwnKind,
 } from '../../lib/period';
 import styles from './PeriodArtifact.module.css';
+import { Icon } from '../Icon/Icon';
 
 export type PeriodChange = 'add' | 'edit' | 'remove' | 'mute' | 'subscribe';
 
@@ -178,7 +179,7 @@ export function PeriodSeries({ card, cardId, set: setProp, applied, applying, di
               <button key={i.occasion_id} type="button" role="listitem" aria-pressed={on}
                 className={`${styles.item} ${on ? '' : styles['item-off']} ${closed ? styles['item-static'] : ''}`}
                 onClick={() => toggle(i.occasion_id)} data-occasion={i.occasion_id}>
-                <span className={styles.mark}>{on ? '✓' : '○'}</span>
+                <span className={styles.mark}>{on ? <Icon name="sys.done" size={12} inherit decorative /> : <span className={styles['mark-off']} aria-hidden />}</span>
                 <span className={styles['item-body']}>
                   <span className={styles['item-name']}>{i.title}</span>
                   <span className={styles['item-when']}>
@@ -242,7 +243,8 @@ function kickerOf(e: EventOccurrence): { text: string; tone: 'amber' | 'plum' | 
   if (e.kind === 'season') return { text: 'сезон · з довідника', tone: 'amber' };
   if (e.kind === 'editorial' || e.source) return { text: `від ${e.source ?? 'редакції'}`, tone: 'amber' };
   if (e.kind === 'tradition') return { text: 'свято · з традиції', tone: 'plum' };
-  if (e.kind === 'supply') return { text: '＋ завіз', tone: 'sage' };
+  // Етап 1.5: повноширинний ＋ знято — канон забороняє гліфи-символи в тексті.
+  if (e.kind === 'supply') return { text: 'завіз', tone: 'sage' };
   if (e.kind === 'meal') return { text: 'страва на день', tone: 'sage' };
   if (e.kind === 'constraint') return { text: 'рамка дня', tone: 'muted' };
   return { text: 'подія', tone: 'sage' };
@@ -374,7 +376,7 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
           )}
           {(event?.buy?.length ?? 0) > 0 ? (
             <button type="button" className={styles.primary} onClick={() => void addAllToList()} disabled={busy || added}>
-              {added ? 'У списку ✓' : 'Додати в список'}
+              {added ? 'У списку' : 'Додати в список'}
             </button>
           ) : (
             <button type="button" className={styles.primary} onClick={() => navigate('/app', { state: { composePrefix: `${event?.title} — ` } })}>

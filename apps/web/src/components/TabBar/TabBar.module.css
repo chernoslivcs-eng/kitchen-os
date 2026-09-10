@@ -66,7 +66,7 @@
    готування. Вони кажуть різне й можуть світитись одночасно, тож зливати їх
    в одну означало б втратити половину сигналу. */
 .dots { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; }
-.dot-amber { color: var(--amber); font-size: 9px; }
+.dot-amber { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--amber); flex: none; }
 /* Крапка стану — коло 6 px, яке несе колір (tokens-v3 · Канон компонентів).
  * Було текстовим гліфом ● на font-size 9px; етап 1.5 зняв гліфи, тому коло
  * тепер малює CSS, а не шрифт. */

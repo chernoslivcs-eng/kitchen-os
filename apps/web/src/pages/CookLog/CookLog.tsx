@@ -189,7 +189,7 @@ export function CookLogPage() {
                         />
                       ) : (
                         <div className={`${styles.icon} ${undone ? styles.undone : ''}`}>
-                          {undone ? '↩' : '✓'}
+                          <Icon name={undone ? 'sys.undo' : 'sys.done'} size={16} inherit decorative />
                         </div>
                       )}
                       <div className={styles.info}>

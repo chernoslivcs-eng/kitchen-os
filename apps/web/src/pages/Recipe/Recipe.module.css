@@ -100,13 +100,19 @@
   border-bottom: 1px solid var(--border);
 }
 .ing:last-child { border-bottom: 0; }
+/* Крапка стану складника — коло 6 px, яке несе колір (tokens-v3).
+ * Було гліфами ● / ○ на font-size 12px; етап 1.5 зняв гліфи, тому «є» це
+ * залите коло, а «бракує» — контурне. */
 .ing-mark {
-  color: var(--accent);
-  font-size: 12px;
-  width: 12px;
-  text-align: center;
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  align-self: center;
 }
-.ing-mark.missing { color: var(--fg-dim); }
+.ing-mark.missing { background: transparent; border: 1.5px solid var(--fg-dim); }
 .ing-name { flex: 1; font-family: var(--font-body); font-size: 15px; color: var(--fg); }
 .ing-name.missing { color: var(--fg-mono); }
 .ing-qty {

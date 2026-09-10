@@ -7,6 +7,7 @@ import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { api, type ShoppingItem } from '../../api';
 import { plural } from '../../lib/plural';
+import { Icon } from '../../components/Icon/Icon';
 import { formatQty } from '../../lib/units';
 import { Toast } from '../../components/ErrorState/Toast';
 import { LIST_FAILED } from '../../components/ErrorState/copy';
@@ -215,7 +216,7 @@ export function ShoppingPage() {
               onClick={() => toggle(it)}
               aria-label={it.checked ? 'Зняти галочку' : 'Позначити куплене'}
             >
-              <span className={styles['check-box']}>{it.checked ? '✓' : ''}</span>
+              <span className={styles['check-box']}>{it.checked ? <Icon name="sys.done" size={16} inherit decorative /> : null}</span>
             </button>
             {/* Папіркат UX-9: у магазині тапають по НАЗВІ, не по кружечку 24px.
                 Весь рядок-тіло — тогл; ✕ лишається окремою мішенню праворуч. */}

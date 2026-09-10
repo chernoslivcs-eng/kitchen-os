@@ -10,7 +10,12 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
+/* Індикатор запису — коло 6 px. Було гліфом ● у тексті (етап 1.5). */
+.rec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger, currentColor); flex: none; }
 .timer {
   font-family: var(--font-mono);
   font-size: 12px;

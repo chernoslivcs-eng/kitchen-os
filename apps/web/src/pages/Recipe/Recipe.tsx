@@ -197,7 +197,6 @@ export function RecipePage() {
             return (
               <div key={i} className={styles.ing}>
                 <span className={`${styles['ing-mark']} ${ing.p ? '' : styles.missing}`}>
-                  {ing.p ? '●' : '○'}
                 </span>
                 <span className={`${styles['ing-name']} ${ing.p ? '' : styles.missing}`}>
                   {name}

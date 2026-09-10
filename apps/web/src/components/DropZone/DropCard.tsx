@@ -28,7 +28,7 @@ export function copyFor(d: DragState, max: number): Copy {
         title: 'Зараз прийму',
         slot: 'PDF',
         body: 'Прочитаю позиції й ціни, розкладу в комору.',
-        effect: '→ у комору · позиції з чека',
+        effect: 'у комору · позиції з чека',
       };
     case 'image':
       return {
@@ -36,7 +36,7 @@ export function copyFor(d: DragState, max: number): Copy {
         title: 'Зараз подивлюсь',
         slot: 'JPG',
         body: 'Розберу, що видно на фото, і додам у комору.',
-        effect: '→ у комору · що видно на фото',
+        effect: 'у комору · що видно на фото',
       };
     case 'many':
       return {
@@ -44,7 +44,7 @@ export function copyFor(d: DragState, max: number): Copy {
         title: 'Зараз розберу',
         slot: `×${d.count}`,
         body: 'Візьму всі за раз.',
-        effect: `→ у комору · до ${max} файлів за раз`,
+        effect: `у комору · до ${max} файлів за раз`,
       };
     case 'full':
       return {

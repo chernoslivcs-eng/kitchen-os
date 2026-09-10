@@ -39,7 +39,7 @@ export function PantryPage() {
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
   const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
   const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
-  // QA9-09: швидке «✕» на рядку — списати одним тапом, з ↩ Повернути.
+  // QA9-09: швидкий хрестик на рядку — списати одним тапом, із «Повернути».
   const [removed, setRemoved] = useState<PantryBatch | null>(null);
   const removedTimer = useRef<number | null>(null);
 
@@ -325,7 +325,7 @@ export function PantryPage() {
       {removed && (
         <div className={styles['undo-bar']} role="status">
           <span style={{ flex: 1 }}>Списано «{removed.label}»</span>
-          <button type="button" onClick={() => void undoRemove()}>↩ Повернути</button>
+          <button type="button" onClick={() => void undoRemove()}><Icon name="sys.undo" size={16} inherit decorative /> Повернути</button>
         </div>
       )}
 
