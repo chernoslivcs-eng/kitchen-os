@@ -278,6 +278,32 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
       expect(b?.state).toBe('opened');
       expect(b?.opened_at).not.toBeNull();
       expect(b?.expires_at).not.toBeNull();
+      // Р4: писач названий. Тут строк порахувало правило каталогу, і рядок
+      // НЕ має права підписати його «поставила людина».
+      expect(b?.expires_source).toBe('category');
+    });
+
+    it('Р4: строк, поставлений рукою, підписаний людиною — і це не те саме, що відкриття', async () => {
+      // Первинна претензія реєстру: «перемикач „поставити дату" є, шляху
+      // запису немає». `expires_at` мав ДВОХ писачів — картку (людина) і
+      // `expiryOnOpen` на відкритті, — і розрізнити їх було нічим. Тому
+      // «строк поставила людина» на екрані було обіцянкою без даних.
+      const seeded = await seedFarsh(ctx.repo, ctx.household_id, 'сметана');
+      expect(seeded.expires_source ?? null, 'нова партія писача не має').toBeNull();
+
+      // Рука людини.
+      const byHand = '2026-09-20T00:00:00.000Z';
+      await ctx.repo.updateBatch(seeded.id, { expires_at: byHand, expires_source: 'manual' });
+      const manual = await ctx.repo.getBatch(seeded.id);
+      expect(manual?.expires_at).toBe(byHand);
+      expect(manual?.expires_source).toBe('manual');
+
+      // Знято дату — знято й писача: порожня колонка не має лишатись
+      // підписаною «поставила людина».
+      await ctx.repo.updateBatch(seeded.id, { expires_at: null, expires_source: null });
+      const cleared = await ctx.repo.getBatch(seeded.id);
+      expect(cleared?.expires_at).toBeNull();
+      expect(cleared?.expires_source ?? null).toBeNull();
     });
 
     it('open: коротший власний строк переживає відкриття — банка не молодшає', async () => {

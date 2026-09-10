@@ -256,7 +256,10 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
       zone: ZONE_LABEL[it.zone],
       fresh: st,
       scale: hasScale(it.catalog_key),
-      time: timeWord(it.days, it.catalog_key),
+      // Р4: «до 14 вер» — тільки коли дату поставила ЛЮДИНА. Розрахунок на
+      // відкритті теж пише `expires_at`, але він не точна дата, а оцінка, і
+      // подавати його як «до …» означало б видавати здогадку за слово людини.
+      time: timeWord(it.days, it.catalog_key, it.expires_source === 'manual' ? shortDate(it.expires_at) : null),
       // Прострочене — danger; «добігає» і «перевірити» — бурштин; решта тихо.
       // Без шкали тон завжди тихий: якщо ми не довіряємо числу настільки, щоб
       // показати строк, то й фарбувати його тривогою не маємо права. Інакше

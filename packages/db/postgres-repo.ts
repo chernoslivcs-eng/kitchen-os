@@ -147,6 +147,8 @@ function rowToBatch(r: Row): PantryBatch {
     added_at: new Date(r.added_at as string).toISOString(),
     depleted_at: r.depleted_at ? new Date(r.depleted_at as string).toISOString() : null,
     depleted_reason: (r.depleted_reason as DepletedReason | null) ?? null,
+    // Р4: звідки `expires_at` — людина чи розрахунок на відкритті.
+    expires_source: (r.expires_source as PantryBatch['expires_source']) ?? null,
     confidence: Number(r.confidence),
     provenance: r.provenance as Provenance,
     staple: r.staple as boolean,
@@ -304,13 +306,15 @@ export class PostgresRepo implements Repo {
       `INSERT INTO pantry_batch (
          id, household_id, catalog_key, label, zone, value, unit, state,
          opened_at, expires_at, best_before_opened_days, added_at, depleted_at,
-         depleted_reason, confidence, provenance, staple, last_by, last_action, product_id
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+         depleted_reason, confidence, provenance, staple, last_by, last_action, product_id,
+         expires_source
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
       [
         b.id, b.household_id, b.catalog_key, b.label, b.zone, b.value, b.unit, b.state,
         b.opened_at, b.expires_at, b.best_before_opened_days, b.added_at, b.depleted_at,
         b.depleted_reason ?? null,
         b.confidence, b.provenance, b.staple, b.last_by, b.last_action, b.product_id ?? null,
+        b.expires_source ?? null,
       ],
     );
   }

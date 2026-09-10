@@ -157,3 +157,12 @@
   color: var(--fg-muted);
   max-width: 62ch;
 }
+
+/* Р8: база кухні — те, чого людина не писала. Тихо, роллю caption, і під
+ * полем, не в ньому: інакше воно читалося б як її власні слова. */
+.baseline {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--fg-dim);
+  padding: 2px 0 6px;
+}

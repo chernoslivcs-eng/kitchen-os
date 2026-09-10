@@ -621,6 +621,8 @@ async function applyIntakeOp(
       state: 'opened',
       opened_at: new Date().toISOString(),
       expires_at,
+      // Р4: строк порахувало правило каталогу, не людина.
+      expires_source: 'category',
       last_by: actor,
       last_action: 'open',
     });
@@ -680,6 +682,7 @@ async function applyIntakeOp(
       patch.state = 'opened';
       patch.opened_at = new Date().toISOString();
       // А2: те саме менше-з-двох, що в гілці `open`; Б1 — від розрахованого.
+      patch.expires_source = 'category';
       patch.expires_at = expiryOnOpen(
         effectiveExpiry(target, target.catalog_key),
         target.best_before_opened_days,

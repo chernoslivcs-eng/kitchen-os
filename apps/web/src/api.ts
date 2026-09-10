@@ -273,6 +273,8 @@ export interface PantryBatch {
   state: 'sealed' | 'opened' | 'depleted';
   opened_at: string | null;
   expires_at: string | null;
+  /** Р4: звідки `expires_at` — 'manual' (людина) чи 'category' (розрахунок). */
+  expires_source?: 'manual' | 'category' | null;
   best_before_opened_days: number | null;
   added_at: string;
   depleted_at: string | null;
