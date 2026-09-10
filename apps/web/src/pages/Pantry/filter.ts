@@ -94,7 +94,12 @@ export const SORTS: SortDef[] = [
 
 interface CutDef { key: CutKey; label: string; tone: Tone; group?: boolean; test: (it: PantryBatch) => boolean }
 export const CUTS: CutDef[] = [
-  { key: 'soon', label: 'скоро зіпсується', tone: 'amber', test: (it) => it.days != null && it.days <= SOON_CUT_DAYS },
+  // Зріз кличе ту саму `isSoon`, що й решта, — і додає `hasScale`. Без
+  // каталожного ключа партія у зріз НЕ потрапляє: її число — здогадка таблиці
+  // зон, і рядок його не показує. Фільтр, який довіряє числу, що рядок
+  // відмовляється показати, обіцяє знання, якого немає.
+  // Прострочене у зріз потрапляє: `isSoon(-9)` це `true` навмисно.
+  { key: 'soon', label: 'скоро зіпсується', tone: 'amber', test: (it) => isSoon(it.days) && hasScale(it.catalog_key) },
   { key: 'receipt', label: 'з останнього чека', tone: 'sage', test: (it) => !!it.receipt },
   { key: 'no', label: 'не їм / не можна', tone: 'plum', test: (it) => !!it.no },
   { key: 'meat', label: 'мʼясне', tone: 'fg', group: true, test: (it) => ['мʼясо', 'ковбаси'].includes(it.cat ?? '') },

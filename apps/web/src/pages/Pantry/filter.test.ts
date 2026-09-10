@@ -203,3 +203,23 @@ describe('тон часу без шкали', () => {
     expect(v.list[0]!.timeTone).toBe('dim');
   });
 });
+
+describe('зріз «скоро зіпсується» і прострочене', () => {
+  it('прострочене у зріз потрапляє — воно не «вже не наша справа»', () => {
+    const items = [
+      b('Прострочене', { days: -9 }),
+      b('Добігає', { days: 2 }),
+      b('Добре', { days: 30 }),
+    ];
+    const v = applyFilter(items, st({ sort: 'fat', cuts: ['soon'] }), ctx);
+    expect(v.list.map((r) => r.name).sort()).toEqual(['Добігає', 'Прострочене']);
+  });
+
+  it('позиція без ключа у зріз НЕ потрапляє, хоч число в неї є', () => {
+    // Інакше фільтр обіцяв би знання, якого рядок не показує: у списку
+    // «скоро зіпсується» стояв би рядок зі словом «без категорії».
+    const noKey = b('Невідоме', { catalog_key: null, days: 1 });
+    const v = applyFilter([noKey], st({ sort: 'fat', cuts: ['soon'] }), ctx);
+    expect(v.list).toEqual([]);
+  });
+});

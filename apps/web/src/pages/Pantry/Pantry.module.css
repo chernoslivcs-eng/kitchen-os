@@ -358,15 +358,20 @@
 .fresh-check { color: var(--danger); }
 .fresh-overdue { color: var(--danger); }
 
-.name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* Назва — головний елемент рядка, тому вона РОСТЕ, а слоти ні. Плюс підлога:
+ * без неї метадані з'їдали ідентичність до «Кр…» і «М…» — рівно те, що
+ * вилізло очима на двох колонках. Пріоритет рядка не має перевертатись. */
+.name { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 7em; }
 .meta-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .reset-mobile { align-self: flex-end; margin: 4px 22px 0; padding: 0; }
-.name-text { font-family: var(--font-body); font-size: 16px; color: var(--fg); }
-.sub, .zone-tag {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-}
-.zone-tag { color: var(--border-strong); }
+/* Роль `row` за tokens-v3: 15/1.4/500. Було 16 без ваги. */
+.name-text { font-size: 15px; line-height: 1.4; font-weight: 500; color: var(--fg); }
+/* Роль `caption` 13/1.4. Було 10.5 моно — і 10.5 порушувало власне правило
+ * канону «dim тільки ≥ 13px». */
+.sub, .zone-tag { font-size: 13px; line-height: 1.4; }
+/* Другий випадок того самого дефекту, що `.section-count`: токен РАМКИ у ролі
+ * тексту. `line2` — рамка контролів, ніколи не текст. */
+.zone-tag { color: var(--fg-dim); }
 .val {
   flex: none;
   min-width: 72px;
@@ -562,3 +567,7 @@
 /* Місце шкали для позиції без каталогу — порожнє, але не нульове: інакше
  * назви таких рядків стрибали б на 12 px ліворуч. */
 .mark-none { width: 12px; height: 12px; flex: none; }
+
+/* Кількість не переноситься: «300 г» на двох рядках — дефект за будь-якої
+ * ширини, окремо від питання про кількість колонок (DEBT §30). */
+.qty { white-space: nowrap; }
