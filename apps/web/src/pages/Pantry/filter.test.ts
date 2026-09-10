@@ -101,18 +101,28 @@ describe('зрізи', () => {
     const byDate = applyFilter(ITEMS, st({ sort: 'added', cuts: ['receipt'] }), ctx);
     expect(byDate.list.find((r) => r.name === 'Огірки')!.sub).toBe('');
   });
-  it('крок Ф2: іконка — лише свіжість (4 стани за days); «не їм / не можна» — тільки підрядок', () => {
-    expect(freshness(null)).toBe('fresh');
-    expect(freshness(9)).toBe('fresh');
-    expect(freshness(6)).toBe('fresh');
+  // ПЕРЕПИСАНО в етапі 2a, свідомо. Тест належав кроку Ф2, і фіксував дві
+  // речі, які редизайн v3 змінює:
+  //   1. `freshness(-3) === 'check'` — прострочене й сьогоднішнє були одним
+  //      станом. Рішення Р3: станів чотири, `overdue` окремо. Підстава — 10
+  //      прострочених зі 113 позицій у даних Б1 бачились як «сьогодні»;
+  //   2. `'fresh'` як імʼя стану — рішення Р22 віддає слово «свіже» ЗОНІ, і
+  //      стан тепер `'good'` («Добре»).
+  // Друга половина твердження Ф2 — «не їм / не можна» тільки підрядком —
+  // лишається чинною тут, але її скасовує рішення Р10 (два слоти в рядку);
+  // це робота наступного кроку 2a, і тест на неї переписуватиметься окремо.
+  it('етап 2a: стан рядка — чотири за days, прострочене окремо (Р3, Р22)', () => {
+    expect(freshness(null)).toBe('good');
+    expect(freshness(9)).toBe('good');
+    expect(freshness(6)).toBe('good');
     expect(freshness(5)).toBe('soon');
     expect(freshness(1)).toBe('soon');
     expect(freshness(0)).toBe('check');
-    expect(freshness(-3)).toBe('check');
+    expect(freshness(-3)).toBe('overdue');
     const v = applyFilter(ITEMS, st({ sort: 'kcal' }), ctx);
     const m = Object.fromEntries(v.list.map((r) => [r.name, r.fresh]));
     expect(m['Куряче філе']).toBe('soon');
-    expect(m['Пармезан']).toBe('fresh');
+    expect(m['Пармезан']).toBe('good');
     expect(v.list.find((r) => r.name === 'Арахісова паста')!.sub).toBe('не можна');
     expect(v.list.find((r) => r.name === 'Куряче філе')!.sub).toBe('не їм');
     expect(JSON.stringify(v.list)).not.toMatch(/[−✕]/);

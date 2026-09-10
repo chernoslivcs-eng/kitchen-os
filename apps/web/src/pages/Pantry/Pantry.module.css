@@ -343,9 +343,12 @@
 .tone-danger { color: var(--danger); }
 /* Крок Ф2: іконка ліворуч — лише свіжість, через токени. */
 .mark { display: inline-grid; place-items: center; }
-.fresh-fresh { color: var(--accent); }
+/* Етап 2a: чотири стани замість трьох. `fresh-fresh` перейменовано на
+ * `fresh-good` — слово «свіже» позначає ЗОНУ і більше нічого (Р22). */
+.fresh-good { color: var(--accent); }
 .fresh-soon { color: var(--amber); }
 .fresh-check { color: var(--danger); }
+.fresh-overdue { color: var(--danger); }
 
 .name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .meta-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }

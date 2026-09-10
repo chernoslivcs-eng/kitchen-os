@@ -3,6 +3,7 @@
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
+import { isSoon } from '@kitchen/domain/shelf-thresholds';
 import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
@@ -505,7 +506,9 @@ export function Feed() {
       const stale = p.batches
         .filter((b) => b.state !== 'depleted' && b.days != null)
         .map((b) => ({ id: b.id, label: b.label, days: b.days! }))
-        .filter((b) => b.days <= 3)
+        // Етап 2a (Р2): було власною копією літерала 3 — тепер поріг один
+        // і живе в домені разом із рештою драбини.
+        .filter((b) => isSoon(b.days))
         .sort((a, b) => a.days - b.days)
         .slice(0, 3);
       {

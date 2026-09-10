@@ -14,19 +14,21 @@ export type StateKey = 'soon' | 'receipt' | 'no';
 export type CutKey = KindKey | StateKey;
 export type Tone = 'fg' | 'dim' | 'amber' | 'plum' | 'sage' | 'danger';
 
-// Крок Ф2: одна вісь іконок — свіжість. Пороги в одному місці:
-// зріз «скоро зіпсується» — ≤ SOON_CUT_DAYS; іконка — своя шкала:
-// «добігає» від FRESH_SOON_DAYS до FRESH_CHECK_DAYS днів, «перевірити» —
-// сьогодні або термін вийшов, інакше «свіже» (без терміну — теж свіже).
-export const SOON_CUT_DAYS = 3;
-export const FRESH_SOON_DAYS = 5;
-export const FRESH_CHECK_DAYS = 1;
-export type Freshness = 'fresh' | 'soon' | 'check';
-export function freshness(days: number | null | undefined): Freshness {
-  if (days == null || days > FRESH_SOON_DAYS) return 'fresh';
-  if (days >= FRESH_CHECK_DAYS) return 'soon';
-  return 'check';
-}
+// Етап 2a (рішення Р2): пороги більше не живуть тут. Вони переїхали в
+// `@kitchen/domain/shelf-thresholds` — файл СТОРІНКИ не місце для контракту,
+// і саме тому число 3 встигло розмножитись: Feed тримав власну копію
+// літералом, а промт — сьому добу третім числом.
+//
+// Реекспорт лишається, щоб не переписувати місця вжитку заради шляху імпорту.
+import {
+  SOON_CUT_DAYS, freshness, isSoon, type Freshness,
+} from '@kitchen/domain/shelf-thresholds';
+export {
+  SOON_CUT_DAYS, FRESH_SOON_DAYS, FRESH_CHECK_DAYS,
+  freshness, isSoon, noTermReason, timeWord,
+  FRESHNESS_LABEL, NO_TERM_LABEL,
+  type Freshness, type NoTermReason,
+} from '@kitchen/domain/shelf-thresholds';
 
 export interface FilterState { sort: SortKey; cuts: CutKey[]; q: string }
 export const INITIAL: FilterState = { sort: 'zone', cuts: [], q: '' };

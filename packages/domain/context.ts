@@ -9,6 +9,7 @@
 // читає [КОМОРА] згори вниз, і якщо профіль після — вона встигає перелічити
 // алергени, не дійшовши до обмеження (QA5-01).
 
+import { CONTEXT_URGENT_DAYS } from './shelf-thresholds.js';
 import { root, meaningfulWords, categoryBreadth} from '@kitchen/catalog';
 import type { PantryBatch, ShoppingItemRow, RecipeRow, Recipe, HouseholdEventRow, Card, PendingCard } from './types.js';
 import { type HouseholdProduct } from './product.js';
@@ -250,9 +251,11 @@ export function serializePantry(
     if (b.state === 'opened') parts.push('вдкр');
     // Вік партії — щоб «свіже» і «лежить другий тиждень» розрізнялись.
     if (ageDays >= 2) parts.push(`дод.${ageDays}дн`);
-    if (days != null && days <= 7) parts.push(`!${days}дн`);
+    // Етап 2a (Р2): сьома доба — третя драбина, і вона тепер названа в
+    // shelf-thresholds разом з іншими двома. Число те саме, місце одне.
+    if (days != null && days <= CONTEXT_URGENT_DAYS) parts.push(`!${days}дн`);
     // Приблизна оцінка (з тегів продукту) — «~», щоб модель говорила м'яко.
-    if (approxDays != null && approxDays <= 7) parts.push(`~строк≈${approxDays}дн`);
+    if (approxDays != null && approxDays <= CONTEXT_URGENT_DAYS) parts.push(`~строк≈${approxDays}дн`);
     // «?рід» — записано КАТЕГОРІЄЮ, не продуктом: під «мʼясо» в каталозі 560
     // позицій, під «сир» 270. Рахує каталог, не модель, тож ознака однакова
     // завжди. Поріг 100 відсікає вузькі категорії («ковбаса» 58, «олія» 49):
