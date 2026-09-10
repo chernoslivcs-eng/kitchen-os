@@ -244,7 +244,7 @@ export function SharePage() {
               Завантажити PNG
             </Button>
           )}
-          <Button variant="secondary" onClick={copyCaption}>{copied ? 'Скопійовано ✓' : 'Скопіювати підпис'}</Button>
+          <Button variant="secondary" onClick={copyCaption}>{copied ? 'Скопійовано' : 'Скопіювати підпис'}</Button>
         </div>
         {shareUrl && (
           <div className={styles.hint} style={{ marginTop: -6 }}>

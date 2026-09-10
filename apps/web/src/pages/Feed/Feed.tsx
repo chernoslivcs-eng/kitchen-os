@@ -1,7 +1,7 @@
 // Стрічка — робочий цикл продукту з тризмісткою карток: intake_diff, proposal,
 // shopping, profile. Дизайн ближче до брифу 04 Стрічка: заголовок «Кухня»,
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
-// переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
+// переходи між станами картки (ОЧІКУЄ → ЗАСТОСОВАНО → СКАСОВАНО).
 
 import { isSoon } from '@kitchen/domain/shelf-thresholds';
 import { Icon } from '../../components/Icon/Icon';
@@ -824,7 +824,7 @@ export function Feed() {
           kind: 'ok',
           text: res.card ? appliedToast(res.card) : 'Готово',
           action: res.undo_token && res.card_id
-            ? { label: '↩ Скасувати', run: () => undo(turn.id, res.undo_token!) }
+            ? { label: 'Скасувати', run: () => undo(turn.id, res.undo_token!) }
             : undefined,
         });
       }
@@ -943,7 +943,7 @@ export function Feed() {
         // Скасовувати нічого — не пропонувати. Кнопка без роботи гірша за
         // її відсутність: вона стверджує, що робота була.
         ...(landed && r.undo_token
-          ? { action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token!) } }
+          ? { action: { label: 'Скасувати', run: () => undo(turnId, r.undo_token!) } }
           : {}),
       });
       return r;
@@ -966,7 +966,7 @@ export function Feed() {
         ? { ...t, applied: true, applying: false, undoToken: r.undo_token ?? undefined, justApplied: true }
         : t,
       ));
-      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', ...(r.undo_token ? { action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token!) } } : {}) });
+      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', ...(r.undo_token ? { action: { label: 'Скасувати', run: () => undo(turnId, r.undo_token!) } } : {}) });
     } catch (err) {
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -1141,8 +1141,8 @@ export function Feed() {
                 if (turn) document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
                 else if (pc.session_id) void loadHistorySession(pc.session_id);
               }}>
-              <span className={panelStyles['rail-label']}>{labelFor(pc.type as never).text.replace(' · ◌ ОЧІКУЄ', '')}</span>
-              <span className={panelStyles['rail-meta']} style={{ color: 'var(--amber)' }}>◌</span>
+              <span className={panelStyles['rail-label']}>{labelFor(pc.type as never).text.replace(' · ОЧІКУЄ', '')}</span>
+              <span className={panelStyles['rail-meta']} style={{ color: 'var(--amber)' }} aria-hidden><Icon name="live.thinking" size={12} inherit decorative /></span>
             </button>
           ))}
         </div>
@@ -1270,7 +1270,7 @@ export function Feed() {
                       }).catch(() => {/* тихо */});
                     }}
                     style={{ color: 'var(--fg-dim)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
-                  >✕</span>
+                  ><Icon name="sys.close" size={12} inherit /></span>
                   <span style={{ color: 'var(--fg-dim)', fontSize: 12 }}>→</span>
                 </button>
               );
@@ -1435,7 +1435,7 @@ export function Feed() {
                 className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-dot']} aria-hidden />
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
                     КОШИК · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
@@ -1455,7 +1455,7 @@ export function Feed() {
                 className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-dot']} aria-hidden />
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>РЕЦЕПТ</span>
                   <span className={styles['trace-value']}>{t.card.title ?? 'Рецепт'}</span>
@@ -1465,7 +1465,7 @@ export function Feed() {
             )}
             {t.card?.type === 'event' && t.applied && (
               /* Слід події — як у списку: дельта в сліді, стан у панелі.
-                 Канвас: «Кухня повертає слід ＋ ПОДІЯ · ГОСТІ В СБ · СКАСУВАТИ,
+                 Канвас: «Кухня повертає слід ПОДІЯ · ГОСТІ В СБ · СКАСУВАТИ,
                  як із будь-яким артефактом. Форма — для тих, хто хоче натиснути». */
               <div className={styles['trace-wrap']}>
                 <button
@@ -1474,7 +1474,7 @@ export function Feed() {
                   onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
                   disabled={t.undone}
                 >
-                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
                       {(() => {
@@ -1482,7 +1482,7 @@ export function Feed() {
                         const ops = (t.card.ops as { op?: string }[] | undefined) ?? [];
                         const kinds = new Set(ops.map((o) => o.op ?? 'add'));
                         const word = kinds.size === 1
-                          ? ({ add: '＋ ПОДІЯ', edit: 'ПОДІЮ ОНОВЛЕНО', done: 'ПОДІЯ ЗАВЕРШИЛАСЬ', remove: 'ПОДІЮ ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
+                          ? ({ add: 'ПОДІЯ', edit: 'ПОДІЮ ОНОВЛЕНО', done: 'ПОДІЯ ЗАВЕРШИЛАСЬ', remove: 'ПОДІЮ ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
                           : `ПОДІЯ · ${ops.length} ЗМІНИ`;
                         return word;
                       })()}{t.undone ? ' · СКАСОВАНО' : ''}
@@ -1512,7 +1512,7 @@ export function Feed() {
                   onClick={() => openArtifact('list')}
                   disabled={t.undone}
                 >
-                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
                       СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
@@ -1552,7 +1552,7 @@ export function Feed() {
                         className={`${styles.trace} ${shownArtifact?.key === `batch:${alive[0]!.id}` ? styles['trace-on'] : ''}`}
                         onClick={() => openArtifact(`batch:${alive[0]!.id}`)}
                       >
-                        <span className={styles['trace-dot']}>●</span>
+                        <span className={styles['trace-dot']} aria-hidden />
                         <span className={styles['trace-body']}>
                           <span className={styles['trace-kind']}>
                             СПИСАНО{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}` : ''}
@@ -1580,7 +1580,7 @@ export function Feed() {
                 className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
+                <span className={`${styles['trace-dot']} ${!t.applied && !t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
                     {/* Чек називається чеком, решта — тим, чим є: «це додав
@@ -1691,7 +1691,7 @@ export function Feed() {
             className={panelStyles['rail-pill']}
             onClick={() => openArtifact(shownArtifact.key)}
           >
-            <span className={panelStyles['rail-pill-dot']}>●</span>
+            <span className={panelStyles['rail-pill-dot']} aria-hidden />
             <span className={panelStyles['rail-pill-label']}>{shownArtifact.label}</span>
             {shownArtifact.meta && <span className={panelStyles['rail-pill-meta']}>{shownArtifact.meta}</span>}
             {openArtifacts.length > 1 && (

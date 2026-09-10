@@ -269,7 +269,7 @@ export function RecipesPage() {
                 }}
                 aria-label={`Прибрати «${r.title}» з рецептів`}
                 title="Прибрати з рецептів"
-              >✕</button>
+              ><Icon name="sys.close" size={16} inherit /></button>
             </div>
           );
         })}

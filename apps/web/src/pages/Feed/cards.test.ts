@@ -4,15 +4,19 @@ import { labelFor, appliedToast } from './cards';
 // Мітка над карткою — єдине, що каже людині, куди саме поїде «Так».
 // Для картки рецепта вона мовчки казала «ПРОПОЗИЦІЯ», бо тип провалювався
 // в дефолтну гілку: імпорт із книжки виглядав як вигадка моделі.
+// Етап 2a: гліфи ◌ ✓ ↩ ✕ знято з міток карток. Вони пережили етапи 1.5 і 1.6,
+// бо мітка малюється лише коли в чаті є картка, а прогін аудиту туди не
+// заходить (DEBT §26 — четвертий приклад тієї самої сліпоти).
+// Капс у самих словах лишається: це блок 1 COPY-DEBT, окрема робота.
 describe('мітка над карткою', () => {
   it('рецепт має власну мітку, не «ПРОПОЗИЦІЯ»', () => {
-    expect(labelFor('recipe').text).toBe('РЕЦЕПТ · ◌ ОЧІКУЄ');
+    expect(labelFor('recipe').text).toBe('РЕЦЕПТ · ОЧІКУЄ');
   });
 
   it('решта типів не зачеплена', () => {
-    expect(labelFor('intake_diff').text).toBe('КОМОРА · ◌ ОЧІКУЄ');
-    expect(labelFor('shopping').text).toBe('СПИСОК · ◌ ОЧІКУЄ');
-    expect(labelFor('period').text).toBe('КАЛЕНДАР · ◌ ОЧІКУЄ');
+    expect(labelFor('intake_diff').text).toBe('КОМОРА · ОЧІКУЄ');
+    expect(labelFor('shopping').text).toBe('СПИСОК · ОЧІКУЄ');
+    expect(labelFor('period').text).toBe('КАЛЕНДАР · ОЧІКУЄ');
   });
 
   // Аудит раунд 3, крок 3: статус — з applyMode (card-modes.ts). proposal —
@@ -23,9 +27,9 @@ describe('мітка над карткою', () => {
   });
 
   it('стан переважає тип', () => {
-    expect(labelFor('recipe', true).text).toBe('✓ ЗАСТОСОВАНО');
-    expect(labelFor('recipe', false, true).text).toBe('↩ СКАСОВАНО');
-    expect(labelFor('recipe', false, false, true).text).toBe('✕ ВІДХИЛЕНО');
+    expect(labelFor('recipe', true).text).toBe('ЗАСТОСОВАНО');
+    expect(labelFor('recipe', false, true).text).toBe('СКАСОВАНО');
+    expect(labelFor('recipe', false, false, true).text).toBe('ВІДХИЛЕНО');
   });
 });
 

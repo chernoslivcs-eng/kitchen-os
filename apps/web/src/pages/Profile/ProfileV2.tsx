@@ -409,7 +409,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
               <span className={styles.listNameMuted}>
                 {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам:` : `Лист не дійшов. Передай ${lastInvite.email} лінк сам, месенджером:`}
               </span>
-              <button type="button" className={styles.listAction} onClick={() => void copyInviteLink()}>{linkCopied ? '✓ Скопійовано' : 'Скопіювати лінк'}</button>
+              <button type="button" className={styles.listAction} onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати лінк'}</button>
             </div>
           )}
         </div>
@@ -429,7 +429,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
             {retail === 'disconnected' && <span className={styles.listMeta}>ВІДКЛЮЧЕНО</span>}
             {retail === 'none' && <a className={styles.listAction} href="/v1/retail/silpo/connect">Підключити</a>}
             {retail === 'expired' && <a className={styles.listAction} href="/v1/retail/silpo/connect">Увійти знову</a>}
-            {retail === 'disconnected' && <button type="button" className={styles.listAction} onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути ↩</button>}
+            {retail === 'disconnected' && <button type="button" className={styles.listAction} onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
             {retail === 'active' && <button type="button" className={styles.listActionDim} onClick={() => void retailDisconnect()} disabled={retailBusy}>Відключити</button>}
           </div>
           {karpaty && (

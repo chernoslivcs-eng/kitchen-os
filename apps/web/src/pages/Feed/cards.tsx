@@ -139,6 +139,13 @@ export interface CardProps {
 // Аудит 04.09 (3.3): confidence з картки ніде не показувався, хоч лендинг
 // обіцяє «домислено 60%» як перше правило довіри. Поріг той самий, що в
 // [КОМОРА] (isDoubtful у @kitchen/domain): нижче 0.8 або evidence: inference.
+/** Позначка групи: залите коло — є/зроблено, кільце — чекає, знак — куплено. */
+function GroupMark({ mark }: { mark: 'dot' | 'ring' | 'done' | 'none' }) {
+  if (mark === 'none') return null;
+  if (mark === 'done') return <Icon name="sys.done" size={12} inherit decorative />;
+  return <span className={mark === 'dot' ? styles['gmark'] : styles['gmark-ring']} aria-hidden />;
+}
+
 function doubtLabel(op: { confidence?: number; evidence?: string }): string | null {
   const c = op.confidence;
   const doubtful = op.evidence === 'inference' || (typeof c === 'number' && c < 0.8);
@@ -237,10 +244,13 @@ function ClarifyRow({
 // показати СТРУКТУРУ рішення (скільки в комору, скільки в побут, скільки
 // не впізнано), а не всі дев'ятнадцять позицій одразу.
 function ReceiptGroup({
-  tone, glyph, title, count, action, actionLabel, actionDisabled, children, rows, tail,
+  tone, mark, title, count, action, actionLabel, actionDisabled, children, rows, tail,
 }: {
   tone: 'accent' | 'amber' | 'muted';
-  glyph: string;
+  /** Стан групи, не символ. Був `glyph: string` із гліфами ◌ ● ✓ прямо в
+   *  розмітці — вони пережили етапи 1.5 і 1.6, бо картки чату відкриваються
+   *  лише з даними, а прогін аудиту туди не заходить (DEBT §26). */
+  mark: 'dot' | 'ring' | 'done' | 'none';
   title: string;
   count: number;
   action?: () => void;
@@ -261,7 +271,7 @@ function ReceiptGroup({
     <div className={styles.rgroup}>
       <div className={styles['rgroup-head']}>
         <span className={`${styles['rgroup-title']} ${styles[`tone-${tone}`]}`}>
-          {glyph} {title} · {count}
+          <GroupMark mark={mark} /> {title} · {count}
         </span>
         {action && actionLabel && (
           <button
@@ -294,13 +304,13 @@ function NonfoodGroup({
   return (
     <ReceiptGroup
       tone="amber"
-      glyph="◌"
+      mark="ring"
       title="НЕ ДЛЯ КОМОРИ"
       count={rows.length}
       action={onNonfoodToList && !sent
         ? () => { onNonfoodToList(rows.map((r) => r.name)); setSent(true); }
         : undefined}
-      actionLabel={sent ? '✓ У СПИСКУ' : 'У СПИСОК'}
+      actionLabel={sent ? 'У СПИСКУ' : 'У СПИСОК'}
       actionDisabled={sent}
       rows={rows.map((r, i) => (
         <div key={i} className={styles.rrow} style={{ color: 'var(--fg-muted)' }}>
@@ -404,7 +414,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
         )}
       </span>
       {applied && !undone && undoAvailable && onUndo && (
-        <Button size="strip" variant="text" onClick={onUndo}>Скасувати ↩</Button>
+        <Button size="strip" variant="text" onClick={onUndo}>Скасувати</Button>
       )}
       {actionable && <Button size="strip" variant="text" onClick={onDismiss}>Ні</Button>}
       {actionable && (
@@ -444,7 +454,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
         <>
           <ReceiptGroup
             tone="accent"
-            glyph="●"
+            mark="dot"
             title={writeOff ? "З КОМОРИ" : "У КОМОРУ"}
             count={ops.length - off.size - goneCount}
             action={actionable && ops.length > 1
@@ -461,16 +471,16 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                     aria-label={op.label ?? 'позиція'}
                     className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
                     onClick={() => toggle(i)}
-                  >{off.has(i) ? '' : '✓'}</button>
+                  >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</button>
                 ) : (
-                  <span className={`${styles.rbox} ${styles['rbox-on']}`}>✓</span>
+                  <span className={`${styles.rbox} ${styles['rbox-on']}`}><Icon name="sys.done" size={12} inherit decorative /></span>
                 )}
                 <span className={styles['rrow-name']}>
                   {op.op === 'rename'
                     ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
                     : op.label ?? '—'}
                   {inList.has(i) && (
-                    <span className={styles['rrow-qty']} style={{ marginLeft: 8 }}>✓ У СПИСКУ</span>
+                    <span className={styles['rrow-qty']} style={{ marginLeft: 8 }}>У СПИСКУ</span>
                   )}
                   {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
                 </span>
@@ -491,7 +501,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           {inList.size > 0 && (
             <ReceiptGroup
               tone="muted"
-              glyph="✓"
+              mark="done"
               title="ВЖЕ У СПИСКУ"
               count={inList.size}
               action={() => setShowInList((v) => !v)}
@@ -512,7 +522,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           {receipt && receipt.unmatched.length > 0 && (
             <ReceiptGroup
               tone="amber"
-              glyph="◌"
+              mark="ring"
               title="НЕ ВПЕВНЕНИЙ"
               count={receipt.unmatched.length}
             >
@@ -549,7 +559,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                   role="checkbox"
                   aria-checked={!off.has(i)}
                   className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
-                >{off.has(i) ? '' : '✓'}</span>
+                >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</span>
               )}
               <span className={styles['op-sign']}>{signFor(op.op)}</span>
               <span className={styles['op-label']}>
@@ -580,7 +590,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
       {intakeFoot}
       {!receipt && applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
-          <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
+          <Button variant="secondary" onClick={onUndo}>Скасувати</Button>
         </div>
       )}
     </div>
@@ -605,7 +615,7 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
               <MonoLabel>ВИКОРИСТАЄ</MonoLabel>
               <div className={styles.chips}>
                 {it.rescues!.map((r, j) => (
-                  <span key={j} className={styles.chip}>● {r}</span>
+                  <span key={j} className={styles.chip}><span className={styles.gmark} aria-hidden /> {r}</span>
                 ))}
               </div>
             </div>
@@ -665,7 +675,7 @@ export function ShoppingCard({ card, applied, applying, dismissed, undone, undoA
       )}
       {applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
-          <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
+          <Button variant="secondary" onClick={onUndo}>Скасувати</Button>
         </div>
       )}
     </div>
@@ -705,7 +715,7 @@ export function ShoppingListCard({
         aria-label={it.label}
         className={`${styles.rbox} ${it.checked ? styles['rbox-bought'] : ''}`}
         onClick={() => onToggle(it.id, !it.checked)}
-      >{it.checked ? '✓' : ''}</button>
+      >{it.checked ? <Icon name="sys.done" size={12} inherit decorative /> : null}</button>
       <span className={`${styles['rrow-name']} ${it.checked ? styles['srow-done'] : ''}`}>{it.label}</span>
       {!it.checked && <span className={styles['srow-src']}>{sourceLabel(it)}</span>}
       {it.value != null && it.unit && (
@@ -757,16 +767,16 @@ export function ShoppingListCard({
       </div>
 
       {g.fresh.length > 0 && (
-        <ReceiptGroup tone="accent" glyph="●" title="ЩОЙНО ДОДАНО" count={g.fresh.length}
+        <ReceiptGroup tone="accent" mark="dot" title="ЩОЙНО ДОДАНО" count={g.fresh.length}
           rows={g.fresh.map((it) => row(it, 'fresh'))} />
       )}
       {g.earlier.length > 0 && (
-        <ReceiptGroup tone="muted" glyph="·" title="РАНІШЕ" count={g.earlier.length}
+        <ReceiptGroup tone="muted" mark="none" title="РАНІШЕ" count={g.earlier.length}
           rows={g.earlier.map((it) => row(it))} />
       )}
       {g.bought.length > 0 && (
         <ReceiptGroup
-          tone="muted" glyph="✓" title="КУПЛЕНО" count={g.bought.length}
+          tone="muted" mark="done" title="КУПЛЕНО" count={g.bought.length}
           action={() => onRemoveBought(g.bought.map((i) => i.id))}
           actionLabel="ПРИБРАТИ"
           rows={g.bought.map((it) => row(it, 'bought'))}
@@ -820,7 +830,7 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
       )}
       {applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
-          <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
+          <Button variant="secondary" onClick={onUndo}>Скасувати</Button>
         </div>
       )}
     </div>
@@ -865,7 +875,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
       )}
       {applied && !undone && undoAvailable && onUndo && (
         <div className={styles['card-actions']}>
-          <Button variant="secondary" onClick={onUndo}>↩ Скасувати</Button>
+          <Button variant="secondary" onClick={onUndo}>Скасувати</Button>
         </div>
       )}
     </div>
@@ -969,7 +979,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           className={styles['head-act']}
           title="Поділитись"
           aria-label="Поділитись"
-        >↗</button>
+        ><Icon name="sys.out" size={16} inherit /></button>
       )}
     </>
   );
@@ -980,7 +990,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
     <div className={styles['card-foot']}>
       {missIdx.length > 0 && onNeedToList && (
         <span className={`${styles['strip-state']} ${styles['strip-state-warn']}`}>
-          ○ БРАКУЄ {missIdx.length}
+          <span className={styles['miss-mark']} aria-hidden /> БРАКУЄ {missIdx.length}
         </span>
       )}
       {missIdx.length > 0 && onNeedToList && (
@@ -989,7 +999,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           variant="text"
           disabled={!leftToList.length}
           onClick={addAllMissing}
-        >{leftToList.length ? 'У список' : '✓ у списку'}</Button>
+        >{leftToList.length ? 'У список' : 'Уже в списку'}</Button>
       )}
       {onCook && (
         <Button size="strip" variant="positive" onClick={() => onCook(scaled, rid)}>
@@ -1078,7 +1088,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
               >
                 <span className={styles['recipe-ing-name']}>
                   {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
-                  {added && <span className={styles['recipe-ing-added']}> ✓ у списку</span>}
+                  {added && <span className={styles['recipe-ing-added']}> уже в списку</span>}
                 </span>
                 {ing.v != null && ing.u
                   ? <span className={styles['recipe-ing-qty']}>{formatQty(ing.v, ing.u)}</span>
@@ -1198,7 +1208,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
         target="_blank"
         rel="noreferrer"
         className={styles['strip-main']}
-      >Оформити в Сільпо ↗</a>
+      >Оформити в Сільпо <Icon name="sys.out" size={16} inherit decorative /></a>
     </div>
   );
   const cartFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
@@ -1494,7 +1504,7 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
   return `${count} ${plural(count, forms)}`;
 }
 
-// Мета-мітка перед карткою, залежно від типу й стану — на кшталт «КОМОРА · ◌ ОЧІКУЄ».
+// Мета-мітка перед карткою, залежно від типу й стану — на кшталт «КОМОРА · ОЧІКУЄ».
 export function labelFor(
   type: ChatCard['type'],
   applied?: boolean,
@@ -1507,10 +1517,10 @@ export function labelFor(
   if (type === 'cart') return { text: 'КОШИК · СІЛЬПО', tone: 'muted' };
   // Крок 7: «Про тебе» — не дія, статусу немає.
   if (type === 'onboarding') return { text: 'ПРО ТЕБЕ', tone: 'muted' };
-  if (undone) return { text: '↩ СКАСОВАНО', tone: 'muted' };
-  if (applied) return { text: '✓ ЗАСТОСОВАНО', tone: 'applied' };
-  // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «◌ ОЧІКУЄ» назавжди.
-  if (dismissed) return { text: '✕ ВІДХИЛЕНО', tone: 'muted' };
+  if (undone) return { text: 'СКАСОВАНО', tone: 'muted' };
+  if (applied) return { text: 'ЗАСТОСОВАНО', tone: 'applied' };
+  // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «ОЧІКУЄ» назавжди.
+  if (dismissed) return { text: 'ВІДХИЛЕНО', tone: 'muted' };
   const base = type === 'intake_diff' ? 'КОМОРА'
     : type === 'shopping' ? 'СПИСОК'
     // Імпорт із книжки — не вигадка моделі, і мітка має це розрізняти.
@@ -1524,5 +1534,5 @@ export function labelFor(
   // нічого чекати, лише тип, без «· ОЧІКУЄ».
   return applyMode(type) === 'none'
     ? { text: base, tone: 'muted' }
-    : { text: `${base} · ◌ ОЧІКУЄ`, tone: 'pending' };
+    : { text: `${base} · ОЧІКУЄ`, tone: 'pending' };
 }

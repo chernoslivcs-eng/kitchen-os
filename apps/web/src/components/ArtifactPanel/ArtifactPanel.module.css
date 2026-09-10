@@ -204,7 +204,7 @@
     color: var(--fg);
     cursor: pointer;
   }
-  .rail-pill-dot { color: var(--accent); flex: none; }
+  .rail-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
   .rail-pill-label {
     overflow: hidden;
     text-overflow: ellipsis;

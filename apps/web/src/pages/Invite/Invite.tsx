@@ -78,7 +78,7 @@ export function InvitePage() {
               Що є вдома — бачать усі. А коли готуємо, враховуємо кожного за столом.
             </p>
           </div>
-          <div className={styles['field-foot']}>◌ ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
+          <div className={styles['field-foot']}>ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
         </div>
       </div>
 

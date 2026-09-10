@@ -15,7 +15,7 @@
 import {
   MessageCircle, Boxes, BookOpen, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
-  Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft,
+  Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark,
   Sprout, Refrigerator, Snowflake, Archive, FlaskConical, Wine,
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
@@ -65,6 +65,7 @@ export const ICONS = {
   'sys.profile':   { glyph: User,              label: 'Профіль',       family: 'system' },
   'sys.menu':      { glyph: Menu,              label: 'Меню',          family: 'system' },
   'sys.back':      { glyph: ArrowLeft,         label: 'Назад',         family: 'system' },
+  'sys.later':     { glyph: Bookmark,          label: 'Колись',        family: 'system' },
 
   // ---- зони комори: четверта сімʼя (Р21) ----
   // `sprout` замість `leaf` — звільняє `leaf` для «Зелень» і «пісне».

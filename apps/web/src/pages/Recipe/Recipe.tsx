@@ -249,7 +249,7 @@ export function RecipePage() {
                       onClick={() => toggleDone(i)}
                       aria-label={done ? 'Скасувати виконання' : 'Позначити готовим'}
                     >
-                      {done ? '✓' : i + 1}
+                      {done ? <Icon name="sys.done" size={12} inherit decorative /> : i + 1}
                     </button>
                     <div className={styles['step-thread']} />
                   </div>
@@ -280,7 +280,10 @@ export function RecipePage() {
           onClick={saveForLater}
           disabled={savedId !== null || saving}
         >
-          <span key={savedId ? 'on' : 'off'} className={styles['save-tick']}>{savedId ? '✓ Збережено' : saving ? '…' : '☆ Колись'}</span>
+          <span key={savedId ? 'on' : 'off'} className={styles['save-tick']}>{savedId
+            ? <><Icon name="sys.done" size={16} inherit decorative /> Збережено</>
+            : saving ? '…'
+              : <><Icon name="sys.later" size={16} inherit decorative /> Колись</>}</span>
         </Button>
         <Button
           variant="primary"

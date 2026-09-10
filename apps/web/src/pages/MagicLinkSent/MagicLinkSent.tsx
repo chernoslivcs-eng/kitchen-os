@@ -67,13 +67,13 @@ export function MagicLinkSent() {
               Вона бачить, що є вдома, і спершу підхоплює те, що варто використати раніше.
             </p>
           </div>
-          <div className={styles['field-foot']}>◌ ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
+          <div className={styles['field-foot']}>ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
         </div>
       </div>
 
       <div className={styles['form-panel']}>
         <div className={styles['form-head']}>
-          <span className={styles.mono}>◌ ЛІНК ЛЕТИТЬ</span>
+          <span className={styles.mono}>ЛІНК ЛЕТИТЬ</span>
           <h2 className={styles['form-title']}>Перевір пошту</h2>
           {email && <p className={own.mail}>{maskEmail(email)}</p>}
           <p className={styles['form-sub']}>Посилання діє 15 хвилин і працює один раз.</p>

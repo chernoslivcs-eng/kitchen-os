@@ -13,6 +13,7 @@
 // календаря два рядки: «Приховані: … · повернути» і «Свята: … · змінити» —
 // обидва відкривають картку серії (PeriodSeries) відповідного набору.
 
+import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
@@ -264,7 +265,7 @@ export function CalendarPage() {
         title="Календар"
         onMenu={() => openNav(true)}
         action={(
-          <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">＋</button>
+          <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія"><Icon name="sys.add" size={20} inherit /></button>
         )}
       />
 

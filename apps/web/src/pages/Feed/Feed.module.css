@@ -917,7 +917,17 @@ a.att-chip:hover { border-color: var(--accent); }
 .trace-pending .trace-kind,
 .trace-pending .trace-go { color: var(--amber); }
 .trace-pending .trace-value { color: var(--fg); }
-.trace-dot { color: var(--accent-strong); font-size: 13px; line-height: 1; flex: none; }
+/* Крапка слідa — коло 6 px, яке несе колір стану. Була гліфом ● / ○ / ◌ на
+ * font-size 13px: три різні символи в тексті замість одного кола з двома
+ * формами. Пережило етапи 1.5 і 1.6, бо сліди зʼявляються лише коли в чаті є
+ * що показати (DEBT §26). */
+.trace-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent-strong);
+  flex: none; margin-top: 5px;
+}
+/* Скасоване й те, що чекає — контурне коло: форма несе стан, не символ. */
+.trace-dot-off { background: transparent; border: 1.5px solid currentColor; }
 .trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 /* Метадані — моно 10, і саме вони мутед. */
 .trace-kind {

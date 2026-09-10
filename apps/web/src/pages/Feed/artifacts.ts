@@ -205,11 +205,17 @@ export function pickArtifacts<T extends ArtifactTurn>(
   return out;
 }
 
-export const ARTIFACT_GLYPH: Record<ArtifactKey, string> = {
-  cart: '◈',
-  recipe: '✳',
-  receipt: '▤',
-  list: '☰',
-  event: '◷',
-  batch: '●',
-};
+/**
+ * Знак артефакта. Був набором із шести заборонених гліфів (◈ ✳ ▤ ☰ ◷ ●) —
+ * цілою підсистемою, яка пережила етапи 1.5 і 1.6, бо панель артефактів
+ * відкривається лише коли артефакт є, а прогін аудиту туди не заходить
+ * (DEBT §26).
+ */
+export const ARTIFACT_ICON = {
+  cart: 'sys.cart',
+  recipe: 'sys.recipes',
+  receipt: 'sys.receipt',
+  list: 'sys.list',
+  event: 'sys.calendar',
+  batch: 'sys.pantry',
+} as const satisfies Record<ArtifactKey, string>;

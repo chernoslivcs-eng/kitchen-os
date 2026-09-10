@@ -12,7 +12,8 @@
 // padding-left через body.with-sidebar.
 
 import { useEffect, useRef, useState } from 'react';
-import { ARTIFACT_GLYPH } from '../../pages/Feed/artifacts';
+import { ARTIFACT_ICON } from '../../pages/Feed/artifacts';
+import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
 import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, RAIL_DEFAULT } from '../../store/panel';
 import styles from './ArtifactPanel.module.css';
@@ -145,14 +146,14 @@ export function ArtifactPanel() {
                   <button key={a.key} type="button"
                     className={`${styles['rail-tab']} ${a.key === shown.key ? styles['rail-tab-on'] : ''}`}
                     onClick={() => s.setActive(a.key)} title={a.label} aria-label={a.label} aria-current={a.key === shown.key}>
-                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH[a.kind]}</span>
+                    <span className={styles['rail-tab-glyph']}><Icon name={ARTIFACT_ICON[a.kind]} size={16} inherit decorative /></span>
                     {a.meta && <span className={styles['rail-tab-badge']}>{a.meta}</span>}
                   </button>
                 ))}
                 {ghostTab && (
                   <button type="button" className={`${styles['rail-tab']} ${styles['rail-tab-ghost']}`} onClick={ghostTab.onClick}
                     title="Відкрити список покупок" aria-label="Відкрити список покупок">
-                    <span className={styles['rail-tab-glyph']}>{ARTIFACT_GLYPH[ghostTab.glyphKind]}</span>
+                    <span className={styles['rail-tab-glyph']}><Icon name={ARTIFACT_ICON[ghostTab.glyphKind]} size={16} inherit decorative /></span>
                     <span className={styles['rail-tab-badge']}>{ghostTab.count}</span>
                   </button>
                 )}
@@ -185,7 +186,7 @@ export function ArtifactPanel() {
         {shown && (
           <button type="button" className={`${styles['mini-marker']} ${styles['mini-marker-on']} ${fresh ? styles['mini-fresh'] : ''}`}
             onClick={miniClick} aria-label={`Відкрити: ${shown.label}${fresh ? ' (нове)' : ''}`}>
-            <span className={styles['mini-glyph']}>{ARTIFACT_GLYPH[shown.kind]}</span>
+            <span className={styles['mini-glyph']}><Icon name={ARTIFACT_ICON[shown.kind]} size={16} inherit decorative /></span>
             {shown.meta && <span className={styles['mini-badge']}>{shown.meta}</span>}
             <span className={styles['mini-hint']}>{shown.label}</span>
           </button>
@@ -200,7 +201,7 @@ export function ArtifactPanel() {
             {miniOthers.map((a) => (
               <button key={a.key} type="button" className={styles['mini-list-row']}
                 onClick={() => { setMiniListOpen(false); s.openArtifact(a.key); }}>
-                <span className={styles['mini-list-name']}>{ARTIFACT_GLYPH[a.kind]} {a.label}</span>
+                <span className={styles['mini-list-name']}><Icon name={ARTIFACT_ICON[a.kind]} size={16} inherit decorative /> {a.label}</span>
                 {a.meta && <span className={styles['mini-list-meta']}>{a.meta}</span>}
               </button>
             ))}
