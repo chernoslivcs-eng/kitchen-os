@@ -14,6 +14,7 @@ import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
+import { Icon } from '../../components/Icon/Icon';
 import { useCookStore } from '../../store/cook';
 
 interface RecipeLocationState {
@@ -119,7 +120,7 @@ export function RecipePage() {
         <div className={styles.info}>
           <p>Рецепт не знайдено.</p>
           <p style={{ marginTop: 12 }}>
-            <Button onClick={() => navigate('/app')}>← Назад у стрічку</Button>
+            <Button onClick={() => navigate('/app')}>Назад у стрічку</Button>
           </p>
         </div>
       </div>
@@ -146,7 +147,7 @@ export function RecipePage() {
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
-        <button className={styles.iconbtn} onClick={() => navigate(-1)} aria-label="Назад">←</button>
+        <button className={styles.iconbtn} onClick={() => navigate(-1)} aria-label="Назад"><Icon name="sys.back" size={18} inherit /></button>
         <MonoLabel className={styles['head-meta']}>РЕЦЕПТ · КРОК {Math.min(currentStep + 1, recipe.st.length)}/{recipe.st.length}</MonoLabel>
         <div style={{ display: 'flex', gap: 8 }}>
           {/* Правка №10: екран — тонка адресна сторінка (F5/закладки); робота

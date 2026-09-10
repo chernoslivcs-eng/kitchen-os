@@ -10,6 +10,8 @@ import { RollingNumber } from '../RollingNumber/RollingNumber';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
 import styles from './TabBar.module.css';
+import { Icon } from '../Icon/Icon';
+import type { IconName } from '../Icon/icons';
 import { useCookStore } from '../../store/cook';
 import { useNavStore } from '../../store/nav';
 
@@ -23,7 +25,7 @@ function sessionLabel(s: SessionInfo): { when: string; title: string } {
 
 interface TabDef {
   path: string;
-  glyph: string;
+  icon: IconName;
   label: string;
   badge?: number;
 }
@@ -117,18 +119,23 @@ export function TabBar({ shoppingCount }: Props) {
   // Бриф-2 п.2: чотири таби — канон. Профіль живе аватаром у шапці екранів
   // (на десктопі — блоком унизу сайдбара, Д01), журнал сесій — сегментом
   // «Історія» в Стрічці, журнал готувань — лінком із Рецептів.
-  // Пʼять цілей. Календар — рішення 03.09; гліф ◷ («коли»), а не ▦: сітка
+  // Пʼять цілей. Календар — рішення 03.09; знак «коли», а не сітка: сітка
   // читалась би як місячний вид, якого в продукті немає.
+  //
+  // Етап 1.5: текстові гліфи ◉ ▤ ❋ ☰ ◷ замінені знаками зі словника
+  // (components/Icon/icons.ts). Канон забороняє гліфи-символи в ролі знаків,
+  // і аудит їх лічить. «Комора» — `boxes`, не `refrigerator`: холодильник
+  // належить ЗОНІ холодильника, а комора як місце — це склад речей.
   //
   // Лічильники Комори й Рецептів зняті. «Комора 23» — число, що знецінює себе
   // за тиждень, і продукт уже раз таке викинув зі звіту дня. Бейдж лишається
   // лише на Списку й лише коли є непозначене: це дія, а не рахунок.
   const tabs: TabDef[] = [
-    { path: '/app', glyph: '◉', label: 'Стрічка' },
-    { path: '/pantry', glyph: '▤', label: 'Комора' },
-    { path: '/recipes', glyph: '❋', label: 'Рецепти' },
-    { path: '/list', glyph: '☰', label: 'Список', badge: shoppingCount ?? shopCount ?? undefined },
-    { path: '/calendar', glyph: '◷', label: 'Календар' },
+    { path: '/app', icon: 'sys.chat', label: 'Стрічка' },
+    { path: '/pantry', icon: 'sys.pantry', label: 'Комора' },
+    { path: '/recipes', icon: 'sys.recipes', label: 'Рецепти' },
+    { path: '/list', icon: 'sys.list', label: 'Список', badge: shoppingCount ?? shopCount ?? undefined },
+    { path: '/calendar', icon: 'sys.calendar', label: 'Календар' },
   ];
 
   const initial = (meName?.trim()[0] ?? '·').toUpperCase();
@@ -220,7 +227,7 @@ export function TabBar({ shoppingCount }: Props) {
             className={`${styles.tab} ${active ? styles.active : ''}`}
             onClick={() => navigate(t.path)}
           >
-            <span className={styles.glyph}>{t.glyph}</span>
+            <Icon name={t.icon} size={18} decorative className={styles.glyph} />
             <span>{t.label}</span>
             {t.badge != null && t.badge > 0 && <span className={styles.badge}><RollingNumber value={t.badge} /></span>}
           </button>
@@ -242,7 +249,7 @@ export function TabBar({ shoppingCount }: Props) {
         {cookLive || nowEvents.length ? (
           <span className={styles.dots}>
             {nowEvents.length > 0 && <span className={styles['dot-amber']}>◌</span>}
-            {cookLive && <span className={styles['dot-sage']}>●</span>}
+            {cookLive && <span className={styles['dot-sage']} aria-hidden />}
           </span>
         ) : '⋯'}
       </button>
@@ -259,7 +266,7 @@ export function TabBar({ shoppingCount }: Props) {
               onClick={() => navigate('/calendar')}
               title={e.rule_text ?? e.meaning ?? e.title}
             >
-              <span className={styles['now-dot']}>●</span>
+              <span className={styles['now-dot']} aria-hidden />
               <span className={styles['now-text']}>
                 <span className={styles['now-title']}>{e.title}</span>
                 <span className={styles['now-when']}>
@@ -284,7 +291,7 @@ export function TabBar({ shoppingCount }: Props) {
               returnSessionId: cookLive.returnSessionId ?? activeSessionId,
             })}
           >
-            <span className={styles['cook-live-dot']}>●</span>
+            <span className={styles['cook-live-dot']} aria-hidden />
             <span className={styles['cook-live-text']}>
               <span className={styles['cook-live-title']}>{cookLive.recipe.t}</span>
               <span className={styles['cook-live-meta']}>
@@ -311,7 +318,7 @@ export function TabBar({ shoppingCount }: Props) {
                 className={styles['session-x']}
                 aria-label={`Видалити розмову «${title}»`}
                 onClick={(e) => void removeSession(e, s.id, s.title)}
-              >✕</button>
+              ><Icon name="sys.close" size={16} inherit /></button>
             </div>
           );
         })}

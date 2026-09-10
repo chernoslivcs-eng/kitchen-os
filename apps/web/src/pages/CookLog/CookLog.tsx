@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Icon } from '../../components/Icon/Icon';
 import { api, type CookRunWithRecipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
@@ -92,7 +93,7 @@ export function CookLogPage() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate(-1)} aria-label="Назад" style={{ width: 38, height: 38, border: '1px solid var(--border-strong)', borderRadius: 10, background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 16 }}>←</button>
+          <button onClick={() => navigate(-1)} aria-label="Назад" style={{ width: 38, height: 38, border: '1px solid var(--border-strong)', borderRadius: 10, background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 16 }}><Icon name="sys.back" size={18} inherit /></button>
           <div className={styles.title}>Журнал</div>
         </div>
         <div className={styles.meta}>{activeCount} {plural(activeCount, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</div>

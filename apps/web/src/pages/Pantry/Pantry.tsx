@@ -13,6 +13,7 @@ import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { BatchCard } from './BatchCard';
+import { Icon } from '../../components/Icon/Icon';
 import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
@@ -187,7 +188,7 @@ export function PantryPage() {
     const b = r.it;
     return (
       /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
-         ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
+         Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
       <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
         <button className={styles['row-main']} onClick={() => setEditing(b)}>
           <FreshIcon fresh={r.fresh} />
@@ -208,7 +209,7 @@ export function PantryPage() {
           aria-label={`Списати «${b.label}»`}
           title="Закінчилось? Прибрати"
           onClick={() => void quickRemove(b)}
-        >✕</button>
+        ><Icon name="sys.close" size={16} inherit /></button>
       </div>
     );
   };
@@ -433,7 +434,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
             onClick={onClose}
             style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
             aria-label="Закрити"
-          >✕</button>
+          ><Icon name="sys.close" size={16} inherit /></button>
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

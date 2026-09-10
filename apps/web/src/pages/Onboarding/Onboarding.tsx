@@ -13,6 +13,7 @@ import { api } from '../../api';
 import { useAuth } from '../../store/auth';
 import { track } from '../../lib/track';
 import styles from './Onboarding.module.css';
+import { Icon } from '../../components/Icon/Icon';
 
 export const ONBOARDING_SEEN_KEY = 'kos-onboarding-seen';
 
@@ -169,7 +170,7 @@ export function OnboardingPage() {
   );
   const controls = (
     <div className={styles.controls}>
-      <button type="button" className={styles.prev} onClick={() => go(step - 1, 'b')} disabled={step === 0} aria-label="Назад">←</button>
+      <button type="button" className={styles.prev} onClick={() => go(step - 1, 'b')} disabled={step === 0} aria-label="Назад"><Icon name="sys.back" size={16} inherit /></button>
       <button type="button" className={`${styles.next} ${last ? styles['next-final'] : ''}`} onClick={() => (last ? finish('finished') : go(step + 1, 'f'))}>
         {last ? 'Почати з того, що є' : 'Далі'}
       </button>

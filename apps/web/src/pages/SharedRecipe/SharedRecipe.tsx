@@ -52,7 +52,7 @@ export function SharedRecipePage() {
         <div className={styles.info}>
           <p>{error ?? 'Рецепт не знайдено.'}</p>
           <p style={{ marginTop: 12 }}>
-            <Button onClick={() => navigate('/')}>← На головну</Button>
+            <Button onClick={() => navigate('/')}>На головну</Button>
           </p>
         </div>
       </div>

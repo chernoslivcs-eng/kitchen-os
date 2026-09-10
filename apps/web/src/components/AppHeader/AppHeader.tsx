@@ -13,6 +13,7 @@
 
 import type { ReactNode } from 'react';
 import styles from './AppHeader.module.css';
+import { Icon } from '../Icon/Icon';
 
 interface Props {
   /** Якір «де я»: після вибору цілі шухляда закривається, лишається заголовок. */
@@ -31,7 +32,7 @@ export function AppHeader({ title, action, onMenu }: Props) {
         className={styles.burger}
         aria-label="Меню"
         onClick={onMenu}
-      >☰</button>
+      ><Icon name="sys.menu" size={20} inherit /></button>
       <h1 className={styles.title}>{title}</h1>
       <div className={styles.action}>{action}</div>
     </header>
