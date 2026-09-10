@@ -49,3 +49,54 @@ describe('токени v3', () => {
     expect(css).toMatch(/:root[^{]*\{[^}]*color-scheme:\s*dark/);
   });
 });
+
+const roles = readFileSync(fileURLToPath(new URL('./roles.css', import.meta.url)), 'utf8');
+
+// Роль несе ВСІ параметри: кегль, інтерліньяж, вагу, трекінг. Компонент не має
+// власного значення — тільки роль. Числа з tokens-v3.md, таблиця «Типографіка».
+const ROLES: Record<string, { size: string; line: string; weight: string; track: string }> = {
+  display: { size: '40px', line: '1.05', weight: '700', track: '-0.03em' },
+  h1:      { size: '32px', line: '1.05', weight: '700', track: '-0.03em' },
+  h2:      { size: '22px', line: '1.2',  weight: '600', track: '-0.02em' },
+  h3:      { size: '17px', line: '1.3',  weight: '600', track: '-0.01em' },
+  body:    { size: '16px', line: '1.55', weight: '400', track: '0' },
+  row:     { size: '15px', line: '1.4',  weight: '500', track: '0' },
+  small:   { size: '14px', line: '1.5',  weight: '400', track: '0' },
+  caption: { size: '13px', line: '1.4',  weight: '400', track: '0' },
+  label:   { size: '12px', line: '1.3',  weight: '500', track: '0.01em' },
+  timer:   { size: '112px', line: '1',   weight: '700', track: '-0.04em' },
+};
+
+describe('ролі типографіки v3', () => {
+  it('десять ролей, кожна з повним набором параметрів', () => {
+    for (const [name, p] of Object.entries(ROLES)) {
+      // Якір на початок рядка обовʼязковий: `.t-timer` стоїть останнім у
+      // груповому селекторі спільних правил, і без якоря регексп бере той блок.
+      const m = roles.match(new RegExp(`(?:^|\\n)\\.t-${name}\\s*\\{([^}]+)\\}`));
+      expect(m, `.t-${name} оголошено`).not.toBeNull();
+      const body = m![1]!;
+      expect(body, `.t-${name} font-size`).toContain(`font-size: ${p.size}`);
+      expect(body, `.t-${name} line-height`).toContain(`line-height: ${p.line}`);
+      expect(body, `.t-${name} font-weight`).toContain(`font-weight: ${p.weight}`);
+      expect(body, `.t-${name} letter-spacing`).toContain(`letter-spacing: ${p.track}`);
+    }
+  });
+
+  // Р24: `audit-thresholds.md` вимагає «написань трекінгу ≤ 4» і перелічує
+  // чотири: -0.03 / -0.02 / -0.01 / 0.01em. Але таблиця ролей у tokens-v3.md
+  // визначає шість написань — до тих чотирьох додаються `0` (body, row, small,
+  // caption) і `-0.04em` (timer). Тобто дві специфікації бандла суперечать одна
+  // одній, і поріг аудиту недосяжний за власним канонів.
+  // Тест тримає те, що канон РОЛЕЙ справді визначає; число порога вирішується
+  // в завданні 1.3, де пороги й ставляться.
+  it('Р24: написань трекінгу шість — рівно ті, що визначає таблиця ролей', () => {
+    const uniq = new Set(
+      (roles.match(/letter-spacing:\s*([^;]+);/g) ?? []).map((d) => d.replace(/.*:\s*/, '').replace(/;$/, '').trim()),
+    );
+    expect([...uniq].sort()).toEqual(['-0.01em', '-0.02em', '-0.03em', '-0.04em', '0', '0.01em']);
+  });
+
+  it('табличні цифри — на всіх ролях одним правилом', () => {
+    expect(roles).toMatch(/font-variant-numeric:\s*tabular-nums/);
+  });
+});
