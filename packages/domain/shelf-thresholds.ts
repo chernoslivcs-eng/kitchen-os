@@ -52,6 +52,14 @@ export function freshness(days: number | null | undefined): Freshness {
   return 'check';
 }
 
+/**
+ * Чи має рядок шкалу часу. Без каталожного ключа — не має: шкала обіцяла б
+ * точність, якої немає (PLAN §2). У проді таких 17 %.
+ */
+export function hasScale(catalog_key: string | null | undefined): boolean {
+  return !!catalog_key;
+}
+
 /** Чи потрапляє партія у зріз «скоро зіпсується». Прострочене — потрапляє. */
 export function isSoon(days: number | null | undefined): boolean {
   return days != null && days <= SOON_CUT_DAYS;
@@ -89,9 +97,19 @@ export function timeWord(
   catalog_key: string | null | undefined,
   exactDate?: string | null,
 ): string {
+  // Позиція без каталожного ключа НЕ показує строк, навіть коли число є
+  // (PLAN §2: «рядок без шкали й категорії, з тихою позначкою „без
+  // категорії"»). Число для неї приходить із таблиці ЗОН, тобто означає «речі
+  // в холодильнику живуть 21 день» — і на сирому курячому філе це вигадка,
+  // яка виглядає як знання. Виміряно на живому засіві: шість позицій без
+  // ключа, і філе дістало 21 день замість двох.
+  //
+  // Виняток — рука людини: якщо дату поставили вручну, вона старша за будь-яку
+  // здогадку і показується.
+  if (exactDate) return `до ${exactDate}`;
+  if (!catalog_key) return NO_TERM_LABEL.unknown;
   if (days == null) return NO_TERM_LABEL[noTermReason(catalog_key)];
   if (days < 0) return `−${Math.abs(days)} дн`;
-  if (exactDate) return `до ${exactDate}`;
   if (days === 0) return 'сьогодні';
   if (days === 1) return '1 день';
   return `≈ ще ${days} дн`;

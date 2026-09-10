@@ -10,8 +10,12 @@ import { usePanelStore } from '../../store/panel';
 // Раунд 5, крок Ф1: рейки фільтра на сторінці — «стан» не вмикає третій,
 // «скинути» повертає групи, сортування дає плаский список з колонкою.
 
+// Етап 2a: фікстури дістали `catalog_key`. Доти всі мали `null`, і тести
+// перевіряли строк, порахований із таблиці ЗОН, — тобто здогадку, а не знання.
+// Позиція без ключа тепер шкали не має взагалі (PLAN §2), і саме на неї
+// заведено окремий випадок нижче.
 const b = (label: string, over: Partial<PantryBatch> = {}): PantryBatch => ({
-  id: label, household_id: 'h1', catalog_key: null, label, zone: 'fridge', value: 100, unit: 'g', state: 'sealed',
+  id: label, household_id: 'h1', catalog_key: `key_${label}`, label, zone: 'fridge', value: 100, unit: 'g', state: 'sealed',
   opened_at: null, expires_at: null, best_before_opened_days: null, added_at: '2026-09-01T00:00:00.000Z', depleted_at: null,
   confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: null,
   cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: null, receipt: false, no: null, added: 5, ...over,

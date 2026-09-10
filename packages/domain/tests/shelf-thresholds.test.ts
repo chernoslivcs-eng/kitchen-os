@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   SOON_CUT_DAYS, FRESH_SOON_DAYS, FRESH_CHECK_DAYS, CONTEXT_URGENT_DAYS,
-  freshness, isSoon, noTermReason, timeWord, FRESHNESS_LABEL,
+  freshness, isSoon, noTermReason, timeWord, hasScale, FRESHNESS_LABEL,
 } from '../shelf-thresholds.js';
 
 describe('пороги свіжості — одне місце (Р2)', () => {
@@ -84,5 +84,25 @@ describe('слово часу — чотири написання', () => {
   it('сьогодні й завтра — словами, бо числа тут читаються гірше', () => {
     expect(timeWord(0, 'milk')).toBe('сьогодні');
     expect(timeWord(1, 'milk')).toBe('1 день');
+  });
+});
+
+describe('позиція без каталожного ключа (17% комори)', () => {
+  it('строку не показує, навіть коли число є — воно з таблиці ЗОН', () => {
+    // Виміряно на живому засіві: «Куряче філе» без ключа дістало 21 день від
+    // зони `fridge` замість двох. Впевнене «≈ ще 21 дн» на сирому мʼясі гірше,
+    // ніж тиха позначка «без категорії».
+    expect(timeWord(21, null)).toBe('без категорії');
+    expect(timeWord(1095, null)).toBe('без категорії');
+    expect(hasScale(null)).toBe(false);
+  });
+
+  it('але рука людини старша за здогадку зони', () => {
+    expect(timeWord(21, null, '14 вер')).toBe('до 14 вер');
+  });
+
+  it('з ключем усе як було', () => {
+    expect(timeWord(21, 'chicken_fillet')).toBe('≈ ще 21 дн');
+    expect(hasScale('chicken_fillet')).toBe(true);
   });
 });

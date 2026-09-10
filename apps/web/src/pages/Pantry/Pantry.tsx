@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
-import { ZONE_OPTIONS, UNIT_OPTIONS, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
+import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ORIGIN_LABEL, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useNavigate } from 'react-router-dom';
@@ -191,17 +191,32 @@ export function PantryPage() {
          Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
       <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
         <button className={styles['row-main']} onClick={() => setEditing(b)}>
-          <FreshIcon fresh={r.fresh} />
+          {/* Без каталожного ключа шкали немає (PLAN §2) — місце тримаємо,
+              щоб назви не стрибали по рядках. */}
+          {r.scale ? <FreshIcon fresh={r.fresh} /> : <span className={styles['mark-none']} aria-hidden />}
+          {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
           <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
-            <span className={styles['name-text']}>{r.name}</span>
-            {flat ? (
-              <span className={styles['meta-line']}>
-                <span className={styles['zone-tag']}>{r.zone}</span>
-                {r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>}
-              </span>
-            ) : (r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>)}
+            <span className={styles['name-text']} title={r.name}>{r.name}</span>
+            {r.passport && <span className={styles.passport}>{r.passport}</span>}
+            {flat && <span className={styles['meta-line']}><span className={styles['zone-tag']}>{r.zone}</span></span>}
           </span>
+          {/* Слот безпеки. Обмеження людини — слива: контур на «не їм»,
+              заливка зі знаком на «не можна» (tokens-v3 · Слоти рядка). */}
+          {r.safety && (
+            <span className={`${styles.safety} ${r.safety === 'не можна' ? styles['safety-hard'] : ''}`} data-safety={r.safety}>
+              {r.safety === 'не можна' && <Icon name="cook.ban" size={12} inherit decorative />}
+              {r.safety}
+            </span>
+          )}
+          {/* Слот походження. Іконка 12 без тексту — підпис несе aria. */}
+          {r.origin && (
+            <span className={styles.origin} data-origin={r.origin} title={ORIGIN_LABEL[r.origin]}>
+              <Icon name={ORIGIN_ICON[r.origin]} size={12} inherit />
+            </span>
+          )}
           {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
+          {/* Слот часу — четверте слово («−9 дн») сюди й приходить. */}
+          <span className={`${styles.time} ${styles[`tone-${r.timeTone}`]}`} data-time>{r.time}</span>
           {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
         </button>
         <button
@@ -299,7 +314,15 @@ export function PantryPage() {
 
         {view.grouped && view.groups.map((g) => (
           <div key={g.zone} data-zone={g.zone}>
-            <div className={styles['section-label']}>{g.label} <span className={styles['section-count']}>{g.count}</span></div>
+            {/* Хедер зони за каноном v3: чорнило, 44 px, знак 15, назва 14/600,
+                лічильник 13/400 на opacity .6. Раніше лічильник фарбувався
+                токеном РАМКИ (--border-strong) — 1.32:1, найгучніший провал
+                контрасту в усій базі аудиту. */}
+            <div className={styles['section-label']}>
+              <Icon name={ZONE_ICON[g.zone] as 'zone.fresh'} size={16} inherit decorative />
+              <span className={styles['section-name']}>{g.label}</span>
+              <span className={styles['section-count']}>{g.count}</span>
+            </div>
             {g.items.map((r) => renderRow(r, false))}
           </div>
         ))}

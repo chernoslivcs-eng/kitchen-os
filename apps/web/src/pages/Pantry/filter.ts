@@ -21,11 +21,11 @@ export type Tone = 'fg' | 'dim' | 'amber' | 'plum' | 'sage' | 'danger';
 //
 // Реекспорт лишається, щоб не переписувати місця вжитку заради шляху імпорту.
 import {
-  SOON_CUT_DAYS, freshness, isSoon, type Freshness,
+  SOON_CUT_DAYS, freshness, isSoon, timeWord, hasScale, type Freshness,
 } from '@kitchen/domain/shelf-thresholds';
 export {
   SOON_CUT_DAYS, FRESH_SOON_DAYS, FRESH_CHECK_DAYS,
-  freshness, isSoon, noTermReason, timeWord,
+  freshness, isSoon, noTermReason, timeWord, hasScale,
   FRESHNESS_LABEL, NO_TERM_LABEL,
   type Freshness, type NoTermReason,
 } from '@kitchen/domain/shelf-thresholds';
@@ -51,6 +51,16 @@ export const UNIT_OPTIONS: { value: PantryBatch['unit']; label: string }[] = [
 
 
 export const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
+/**
+ * Знак зони — з четвертої сімʼї словника (етап 1.5). Зони мають власні знаки,
+ * а не позичені: раніше «Свіже» брало `leaf` у «Зелень», а «Спеції» — `flame`
+ * у «Горить», і чотири з шести конфліктували.
+ */
+export const ZONE_ICON: Record<PantryBatch['zone'], `zone.${string}`> = {
+  fresh: 'zone.fresh', fridge: 'zone.fridge', freezer: 'zone.freezer',
+  dry: 'zone.dry', spices: 'zone.spices', drinks: 'zone.drinks',
+};
+
 export const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
   fresh: 'Свіже', fridge: 'Холодильник', freezer: 'Морозилка', dry: 'Суха шафа', spices: 'Спеції', drinks: 'Напої',
 };
@@ -145,14 +155,50 @@ export function sortItems(items: PantryBatch[], sort: SortDef): PantryBatch[] {
   });
 }
 
+/**
+ * Рядок комори — ТРИ осі в трьох окремих каналах (етап 2a, рішення Р10).
+ *
+ * Досі всі три ділили один канал `sub`: одна стрічка показувала або безпеку,
+ * або час, або походження — що перше збіглось. Тобто «не їм» ховало строк, а
+ * строк ховав чек. Слоти за tokens-v3 · «Слоти рядка комори»:
+ *
+ *   [шкала] [назва · паспортна] [безпека] [походження] [час] [кількість]
+ *
+ * Крок Ф2 зводив рядок до однієї осі не тому, що осей мало, а тому що мітки
+ * стояли НА СПІЛЬНІЙ осі й змагалися. Окремі канали цього не створюють.
+ */
 export interface RowView {
   it: PantryBatch;
-  name: string; qty: string; zone: string;
-  sub: string; subTone: Tone;
-  /** Іконка ліворуч — лише свіжість (крок Ф2); «не їм / не можна» — тільки підрядок. */
+  /** «Наше імʼя» — те, як цю річ називає людина. */
+  name: string;
+  /** Другий ярус: паспортна назва постачальника. Порожня, коли трійка без брендa. */
+  passport: string;
+  qty: string; zone: string;
   fresh: Freshness;
+  /** Без каталожного ключа шкали немає — вона обіцяла б точність, якої нема. */
+  scale: boolean;
+  /** Слово часу — чотири написання з домену. */
+  time: string; timeTone: Tone;
+  /** Свій слот: обмеження людини. Не змагається з часом. */
+  safety: 'не їм' | 'не можна' | null;
+  /** Свій слот: звідки партія. Іконка 12, без тексту. */
+  origin: OriginKind | null;
   val: string; valTone: Tone;
 }
+
+/**
+ * Походження партії. Три, бо стільки віддає API (`origin.kind`) — а не чотири,
+ * як у макеті: «зі списку» рішенням Р6 знято, покупка зі списку все одно
+ * приходить чеком або рукою.
+ */
+export type OriginKind = 'receipt' | 'manual' | 'chat';
+
+export const ORIGIN_ICON: Record<OriginKind, 'sys.receipt' | 'live.byHand' | 'sys.chat'> = {
+  receipt: 'sys.receipt', manual: 'live.byHand', chat: 'sys.chat',
+};
+export const ORIGIN_LABEL: Record<OriginKind, string> = {
+  receipt: 'з чека', manual: 'рукою', chat: 'з розмови',
+};
 
 export interface FilterView {
   sort: SortDef;
@@ -177,14 +223,30 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   const receiptOn = active.some((c) => c.key === 'receipt');
   const receiptSub = ctx.receiptAt ? `чек · ${shortDate(ctx.receiptAt)}` : 'з чека';
   const row = (it: PantryBatch): RowView => {
-    const soon = it.days != null && it.days <= SOON_CUT_DAYS;
-    const sub = it.no ? it.no
-      : soon && sort.key !== 'fresh' ? (it.days! <= 0 ? 'сьогодні' : `ще ${it.days} дн`)
-        : receiptOn && sort.key !== 'added' ? receiptSub : '';
+    const st = freshness(it.days);
+    // Другий ярус — бренд і різновид із трійки продукту. Назва не може бути
+    // найгучнішим елементом рядка, якщо половина її — код калібру (PLAN §2).
+    const prod = it.product_id ? ctx.productsById.get(it.product_id) : undefined;
+    const passport = [prod?.brand, prod?.variant].filter(Boolean).join(' · ');
     return {
-      it, name: it.label, qty: it.value != null && it.unit ? formatQty(it.value, it.unit) : '', zone: ZONE_LABEL[it.zone],
-      sub, subTone: it.no ? 'plum' : soon ? 'amber' : 'sage',
-      fresh: freshness(it.days),
+      it, name: it.label, passport,
+      qty: it.value != null && it.unit ? formatQty(it.value, it.unit) : '',
+      zone: ZONE_LABEL[it.zone],
+      fresh: st,
+      scale: hasScale(it.catalog_key),
+      time: timeWord(it.days, it.catalog_key),
+      // Прострочене — danger; «добігає» і «перевірити» — бурштин; решта тихо.
+      // Без шкали тон завжди тихий: якщо ми не довіряємо числу настільки, щоб
+      // показати строк, то й фарбувати його тривогою не маємо права. Інакше
+      // «без категорії» світилося б червоним на позиції, про яку ми нічого не
+      // знаємо — саме це й вилізло на живому засіві.
+      timeTone: !hasScale(it.catalog_key) ? 'dim'
+        : st === 'overdue' ? 'danger' : st === 'good' ? 'dim' : 'amber',
+      safety: it.no ?? null,
+      // На партії два поля про походження: новіше `origin.kind` і старіше
+      // `receipt` булевим. Беремо перше, друге лишаємо запасним — інакше
+      // партії до бекфілу втратили б слот, який щойно отримали.
+      origin: it.origin?.kind ?? (it.receipt ? 'receipt' : null),
       val: sort.val ? sort.val(it) : '', valTone: sort.color ? sort.color(it) : 'fg',
     };
   };

@@ -5,8 +5,12 @@ import type { PantryBatch } from '../../api';
 
 // Раунд 5, крок Ф1: логіка фільтра зі спеки дизайну.
 
+// Етап 2a: фікстури дістали `catalog_key`. Доти всі мали `null`, і тести
+// перевіряли строк, порахований із таблиці ЗОН, — тобто здогадку, а не знання.
+// Позиція без ключа тепер шкали не має взагалі (PLAN §2), і саме на неї
+// заведено окремий випадок нижче.
 const b = (label: string, over: Partial<PantryBatch> = {}): PantryBatch => ({
-  id: label, household_id: 'h1', catalog_key: null, label, zone: 'fridge', value: 100, unit: 'g', state: 'sealed',
+  id: label, household_id: 'h1', catalog_key: `key_${label}`, label, zone: 'fridge', value: 100, unit: 'g', state: 'sealed',
   opened_at: null, expires_at: null, best_before_opened_days: null, added_at: '2026-09-01T00:00:00.000Z', depleted_at: null,
   confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: null,
   cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: null, receipt: false, no: null, added: 5, ...over,
@@ -41,7 +45,11 @@ describe('сортування', () => {
     expect(v.list[0]!.name).toBe('Куряче філе');
     expect(v.list[0]!.val).toBe('2 дн');
     expect(v.list[0]!.valTone).toBe('amber');
-    expect(v.list[0]!.sub).toBe('не їм');   // no має пріоритет над «ще N дн»
+    // Етап 2a: пріоритету більше НЕМА — і це вся суть трьох каналів. Раніше
+    // «не їм» перебивало строк, бо ділило з ним один підрядок; тепер обидва
+    // видні одночасно, кожен у своєму слоті.
+    expect(v.list[0]!.safety).toBe('не їм');
+    expect(v.list[0]!.time).toBe('≈ ще 2 дн');
     expect(v.flatLabel).toBe('найшвидше зіпсується — зверху');
   });
   it('Ф2а: усередині групи — за added_at (новіше зверху), потім за назвою; порядок сервера не впливає', () => {
@@ -94,12 +102,17 @@ describe('зрізи', () => {
     expect(v.list.map((r) => r.name)).toEqual(['Куряче філе']);
     expect(v.meta).toBe('1 з 6');
   });
-  it('підрядок «чек · дата» при активному чеку, крім сортування за датою', () => {
+  // ПЕРЕПИСАНО в етапі 2a. Підрядок «чек · дата» був СПОСОБОМ показати
+  // походження в каналі, який ділився з безпекою й часом, — і тому зʼявлявся
+  // лише за активного зрізу «з останнього чека» й лише коли інші дві осі
+  // молчали. Рішення Р10 дало походженню власний слот: тепер воно видне
+  // ЗАВЖДИ і не залежить ні від фільтра, ні від сортування.
+  it('етап 2a: походження — свій слот, видне завжди (Р10)', () => {
     const v = applyFilter(ITEMS, st({ sort: 'fat', cuts: ['receipt'] }), ctx);
-    expect(v.list.find((r) => r.name === 'Огірки')!.sub).toBe('чек · 3 вер');
-    expect(v.list.find((r) => r.name === 'Огірки')!.subTone).toBe('sage');
+    expect(v.list.find((r) => r.name === 'Огірки')!.origin).toBe('receipt');
+    // Сортування за датою більше нічого не глушить.
     const byDate = applyFilter(ITEMS, st({ sort: 'added', cuts: ['receipt'] }), ctx);
-    expect(byDate.list.find((r) => r.name === 'Огірки')!.sub).toBe('');
+    expect(byDate.list.find((r) => r.name === 'Огірки')!.origin).toBe('receipt');
   });
   // ПЕРЕПИСАНО в етапі 2a, свідомо. Тест належав кроку Ф2, і фіксував дві
   // речі, які редизайн v3 змінює:
@@ -123,8 +136,8 @@ describe('зрізи', () => {
     const m = Object.fromEntries(v.list.map((r) => [r.name, r.fresh]));
     expect(m['Куряче філе']).toBe('soon');
     expect(m['Пармезан']).toBe('good');
-    expect(v.list.find((r) => r.name === 'Арахісова паста')!.sub).toBe('не можна');
-    expect(v.list.find((r) => r.name === 'Куряче філе')!.sub).toBe('не їм');
+    expect(v.list.find((r) => r.name === 'Арахісова паста')!.safety).toBe('не можна');
+    expect(v.list.find((r) => r.name === 'Куряче філе')!.safety).toBe('не їм');
     expect(JSON.stringify(v.list)).not.toMatch(/[−✕]/);
   });
   it('крок Ф2: ккал цілими з «ккал», заголовок і скорочення шкали', () => {
@@ -164,5 +177,29 @@ describe('пошук, скинути, порожній стан', () => {
   it('shortDate — «3 вер»', () => {
     expect(shortDate('2026-09-03T10:00:00.000Z')).toBe('3 вер');
     expect(shortDate(null)).toBe('');
+  });
+});
+
+describe('позиція без каталожного ключа — 17% комори', () => {
+  it('шкали немає, строк не показується, число зони не видається за знання', () => {
+    // Виміряно на живому засіві 11.09: шість позицій, заведених рукою, дістали
+    // `catalog_key: null` і числа з таблиці зон — «Куряче філе» 21 день замість
+    // двох, «Сіль» 1095. Впевнене «≈ ще 21 дн» на сирому мʼясі гірше за тиху
+    // позначку.
+    const noKey = b('Щось невідоме', { catalog_key: null, days: 21 });
+    // Плаский порядок, бо `list` наповнюється лише поза групуванням за зонами.
+    const v = applyFilter([noKey], st({ sort: 'fat' }), ctx);
+    expect(v.list[0]!.scale).toBe(false);
+    expect(v.list[0]!.time).toBe('без категорії');
+  });
+});
+
+describe('тон часу без шкали', () => {
+  it('«без категорії» тихе навіть на простроченій даті', () => {
+    // Виміряно очима 11.09: позиція без ключа з days=-9 світилася червоним
+    // «без категорії» — тобто ми не довіряли числу, але фарбували тривогою.
+    const v = applyFilter([b('Помідори', { catalog_key: null, days: -9 })], st({ sort: 'fat' }), ctx);
+    expect(v.list[0]!.time).toBe('без категорії');
+    expect(v.list[0]!.timeTone).toBe('dim');
   });
 });
