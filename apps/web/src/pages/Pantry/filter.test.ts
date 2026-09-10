@@ -223,3 +223,26 @@ describe('зріз «скоро зіпсується» і прострочене
     expect(v.list).toEqual([]);
   });
 });
+
+describe('порожній стан фільтра роду', () => {
+  it('називає позиції без категорії — вони для родів невидимі', () => {
+    // PLAN §2: досі це було мовчазне зникнення. Людина ставила «мʼясне»,
+    // бачила «Порожньо» і не мала звідки знати, що частина комори просто не
+    // має роду. У проді таких 19 зі 113.
+    const items = [b('Невідоме А', { catalog_key: null }), b('Невідоме Б', { catalog_key: null })];
+    const v = applyFilter(items, st({ sort: 'fat', cuts: ['meat'] }), ctx);
+    expect(v.empty).toBe(true);
+    expect(v.emptyText).toContain('немає категорії');
+  });
+
+  it('коли без категорії лише частина — каже числом', () => {
+    const items = [b('Невідоме', { catalog_key: null }), b('Молоко', { cat: 'молочне' })];
+    const v = applyFilter(items, st({ sort: 'fat', cuts: ['meat'] }), ctx);
+    expect(v.emptyText).toContain('1 позиція без категорії');
+  });
+
+  it('без фільтра роду причина не змінилась', () => {
+    const v = applyFilter([b('Молоко', { days: 30 })], st({ sort: 'fat', cuts: ['soon'] }), ctx);
+    expect(v.emptyText).toBe('Добре.');
+  });
+});

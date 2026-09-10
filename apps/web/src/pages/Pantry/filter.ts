@@ -219,6 +219,23 @@ export interface FilterView {
   states: { key: StateKey; label: string; tone: Tone; on: boolean; full: boolean }[];
 }
 
+/**
+ * Чому зріз нічого не лишив. Окремим випадком — позиції без каталожного ключа:
+ * вони невидимі для фільтрів роду, бо роду в них немає.
+ */
+function emptyReason(active: CutDef[], all: PantryBatch[]): string {
+  const noKey = all.filter((it) => !it.catalog_key).length;
+  const byKind = active.some((c) => c.group);
+  if (byKind && noKey > 0) {
+    const tail = noKey === all.length
+      ? 'У жодної позиції в коморі немає категорії, тому роди їх не бачать.'
+      : `${noKey} ${plural(noKey, ['позиція', 'позиції', 'позицій'])} без категорії — роди їх не бачать.`;
+    return active.length > 1 ? `Разом ці умови нічого не лишають. ${tail}` : tail;
+  }
+  if (active.length > 1) return 'Разом ці умови нічого не лишають.';
+  return byKind ? 'Можна докупити.' : 'Добре.';
+}
+
 export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { productsById: Map<string, HouseholdProduct>; receiptAt?: string | null }): FilterView {
   const sort = SORTS.find((s) => s.key === st.sort) ?? SORTS[0]!;
   const active = CUTS.filter((c) => st.cuts.includes(c.key));
@@ -278,7 +295,12 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
     flatLabel: sort.head ?? '', unitLabel: sort.unit ?? '', unitShort: sort.unitShort ?? sort.unit ?? '',
     empty,
     emptyTitle: empty ? (last ? EMPTY_TITLE[last.key] ?? 'Нічого' : 'Порожньо') : '',
-    emptyText: empty ? (active.length > 1 ? 'Разом ці умови нічого не лишають.' : active.some((c) => c.group) ? 'Можна докупити.' : 'Добре.') : '',
+    // PLAN §2, останній пункт: фільтри РОДІВ не бачать позицій без каталогу —
+    // рід беруть із `it.cat`, а без ключа він null. Досі це було мовчазне
+    // зникнення: людина ставила «мʼясне», отримувала «Порожньо» і не мала
+    // звідки знати, що частина комори просто не має роду. Тепер порожній стан
+    // це називає, і числом.
+    emptyText: empty ? emptyReason(active, items) : '',
     kinds: CUTS.filter((c) => c.group).map((c) => ({ key: c.key as KindKey, label: c.label, on: st.cuts.includes(c.key) })),
     states: CUTS.filter((c) => !c.group).map((c) => ({ key: c.key as StateKey, label: c.label, tone: c.tone, on: st.cuts.includes(c.key), full: stateFull(st, c.key as StateKey) })),
   };
