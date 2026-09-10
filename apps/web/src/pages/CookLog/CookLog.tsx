@@ -33,6 +33,23 @@ function timeLabel(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/**
+ * Оцінка — це ДАНІ, а не рядок символів. Було `'★'.repeat(rating)`: число
+ * малювалося текстом, тобто screen reader читав пʼять зірочок замість «4 з 5»,
+ * а канон забороняє гліфи в ролі знаків. Тепер знаки — Lucide, а число живе в
+ * aria-label.
+ */
+function Rating({ value }: { value: number }) {
+  return (
+    <span className={styles.stat} role="img" aria-label={`${value} з 5`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Icon key={n} name="cook.rating" size={12} inherit decorative
+          className={n <= value ? undefined : styles['star-off']} />
+      ))}
+    </span>
+  );
+}
+
 export function CookLogPage() {
   const navigate = useNavigate();
   const cookOpen = useCookStore((s) => s.open);
@@ -144,7 +161,7 @@ export function CookLogPage() {
           }}>
             <span style={{ color: 'var(--fg-dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
             <span style={{ color: 'var(--fg)' }}>{weekRuns.length} {plural(weekRuns.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</span>
-            {avgRating != null && <> · <span style={{ color: 'var(--accent)' }}>★{avgRating.toFixed(1)}</span></>}
+            {avgRating != null && <> · <span style={{ color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="cook.rating" size={12} inherit decorative />{avgRating.toFixed(1)}</span></>}
             {pantryUsed > 0 && <> · <span style={{ color: 'var(--fg)' }}>{pantryUsed} З ТОГО, ЩО БУЛО ВДОМА</span></>}
           </div>
         )}
@@ -198,7 +215,7 @@ export function CookLogPage() {
                           {timeLabel(r.finished_at ?? r.started_at)}
                           {r.recipe.time_total && <> · {formatDuration(r.recipe.time_total)}</>}
                           {r.rating != null && !undone && (
-                            <> · <span className={styles.stat}>{'★'.repeat(r.rating)}<span style={{ opacity: 0.3 }}>{'★'.repeat(5 - r.rating)}</span></span></>
+                            <> · <Rating value={r.rating} /></>
                           )}
                           {!undone && (deplete + partial > 0) && (
                             <> · <span className={styles.stat}>{deplete + partial} з того, що було вдома</span></>

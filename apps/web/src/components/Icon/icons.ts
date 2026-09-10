@@ -20,7 +20,7 @@ import {
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
-  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, History,
+  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, History, Star,
   Flame, Sparkles, Pencil, TriangleAlert, CalendarDays, Recycle,
   type LucideIcon,
 } from 'lucide-react';
@@ -121,6 +121,7 @@ export const ICONS = {
   'cook.love':     { glyph: Heart,         label: 'Люблю',         family: 'cooking' },
   'cook.done':     { glyph: History,       label: 'Готував',       family: 'cooking' },
   'cook.rescue':   { glyph: Recycle,       label: 'Використає',    family: 'cooking' },
+  'cook.rating':   { glyph: Star,          label: 'Оцінка',        family: 'cooking' },
 
   // ---- живі стани й тривога ----
   'live.burning':  { glyph: Flame,         label: 'Горить',        family: 'live' },

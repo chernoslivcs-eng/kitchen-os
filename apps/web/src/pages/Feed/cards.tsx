@@ -477,7 +477,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 )}
                 <span className={styles['rrow-name']}>
                   {op.op === 'rename'
-                    ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
+                    ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
                     : op.label ?? '—'}
                   {inList.has(i) && (
                     <span className={styles['rrow-qty']} style={{ marginLeft: 8 }}>У СПИСКУ</span>
@@ -564,17 +564,17 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               <span className={styles['op-sign']}>{signFor(op.op)}</span>
               <span className={styles['op-label']}>
                 {op.op === 'rename'
-                  ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
+                  ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
                   : op.label ?? '—'}
                 {op.op === 'correct' && (op as { zone?: string }).zone && (
                   <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--fg-dim)' }}>
-                    → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
+                    <Icon name="sys.next" size={12} inherit decorative /> {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
                   </span>
                 )}
                 {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
               </span>
               {op.value != null && op.unit && (
-                <span className={styles['op-qty']}>{op.op === 'correct' ? '→ ' : ''}{formatQty(op.value, op.unit)}</span>
+                <span className={styles['op-qty']}>{op.op === 'correct' ? <><Icon name="sys.next" size={12} inherit decorative /> </> : null}{formatQty(op.value, op.unit)}</span>
               )}
             </div>
           ))}
@@ -912,7 +912,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           color: 'inherit', textDecoration: 'none',
         }}
       >
-        <span style={{ color: 'var(--fg-dim)' }}>◇</span>
+        <span style={{ color: 'var(--fg-dim)' }}><Icon name="sys.recipes" size={16} inherit decorative /></span>
         <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>
           {card.title ?? 'Рецепт'}
         </span>

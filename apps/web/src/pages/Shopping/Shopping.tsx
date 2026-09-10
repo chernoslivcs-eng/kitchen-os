@@ -248,7 +248,7 @@ export function ShoppingPage() {
             }}
           >
             <span>{building ? 'Шукаю все це в Сільпо…' : 'Зібрати кошик у Сільпо'}</span>
-            <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} →</span>
+            <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} <Icon name="sys.next" size={12} inherit decorative /></span>
           </button>
         )}
 
@@ -266,7 +266,7 @@ export function ShoppingPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
           >
-            {retailStatus === 'none' ? 'Підключити Сільпо й не шукати все вручну' : 'Увійти в Сільпо, щоб зібрати кошик'} →
+            {retailStatus === 'none' ? 'Підключити Сільпо й не шукати все вручну' : 'Увійти в Сільпо, щоб зібрати кошик'} <Icon name="sys.next" size={12} inherit decorative />
           </a>
         )}
       </div>
