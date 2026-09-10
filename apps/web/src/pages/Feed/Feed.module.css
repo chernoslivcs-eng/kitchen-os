@@ -1121,12 +1121,15 @@ a.att-chip:hover { border-color: var(--accent); }
   font-size: 15px;
   line-height: 1.35;
 }
+/* Номер кроку рецепта — це ЗМІСТ, не оздоба. Був 12 px у токені РАМКИ:
+ * четвертий випадок того самого патерну, і кегль нижчий за 13, на якому канон
+ * узагалі дозволяє `dim`. */
 .recipe-step-n {
   flex: none;
-  width: 12px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--border-strong);
+  width: 14px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim);
 }
 .recipe-step-t { flex: 1; min-width: 0; }
 .recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim); }

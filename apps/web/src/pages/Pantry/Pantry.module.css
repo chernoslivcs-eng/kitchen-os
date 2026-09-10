@@ -421,7 +421,8 @@
 @media (max-width: 767px) {
   .reset-desktop { display: none; }
   .flat-unit { margin-left: auto; }
-  .meta-line .zone-tag + .sub::before { content: '· '; color: var(--border-strong); }
+  /* Роздільник — токеном тексту, не рамки (третій випадок того самого патерну). */
+  .meta-line .zone-tag + .sub::before { content: '· '; color: var(--fg-dim); }
   .qty-flat { display: none; }          /* плаский список на 390: назва · місце · значення (дизайн 1b) */
   .val { min-width: 0; }
   .flat-unit { margin-right: 44px; }    /* над колонкою значення, ✕ праворуч */
