@@ -233,3 +233,54 @@ body.dz-drag #root {
   body.dz-drag #root { transform: none; }
   #root { transition: none; }
 }
+
+/* ---- Шар імен v3 (ai/project/tokens-v3.md) ----
+ * Заводиться ПОРУЧ зі старими іменами, не замість них: споживачі переїжджають
+ * покомпонентно в етапах 2a+. Тест — styles/tokens.test.ts, тримає точні
+ * значення обох тем.
+ *
+ * Р18: `:root` лишається темним. Міграція імен не має права перевернути
+ * дефолт теми — «Тема · Авто» вже підтверджена як свідоме відхилення.
+ *
+ * Р16 (рішення 10.09): шістнадцятка v3 не покриває сімки вже вживаних
+ * похідних — `--accent-strong`, `--accent-bg-strong`, `--accent-dim`,
+ * `--accent-fg-on`, `--amber-border`, `--plum-border`, `--border-strong`.
+ * Це ховер заливки, текст на заливці й рамка семантики: те, чого канон не
+ * передбачив. Похідні дописуються в іменах v3 нижче, а не через `color-mix()`
+ * — при жорсткому порозі «текст < 4.5:1 = 0» змішування в двох темах дає
+ * непередбачувані контрасти.
+ *
+ * Маркери `v3-light` / `v3-dark` читає тест: селектор `[data-theme='light']`
+ * у файлі вже є вище, зі старими іменами.
+ */
+
+/* v3-light */
+:root[data-theme='light'] {
+  --canvas: #c9ccd0; --bg: #f4f3ef; --card: #ffffff;
+  --line: #f0eee9; --line2: #e6e4de; --faint: #c9cbcd;
+  --ink: #1a1c1e; --muted: #6b6f74; --dim: #9a9ea3;
+  --sage: #5b7a4f; --sage-bg: #e8efe3;
+  --amber: #a67c2e; --amber-bg: #f6ecd6;
+  --plum: #8a5c78; --plum-bg: #f1e5ec;
+  --danger: #b5473c;
+
+  /* похідні (Р16) — форма та сама, що в шістнадцятці */
+  --sage-strong: #4a6640; --sage-bg-strong: #dae6d2; --sage-on: #f4f3ef;
+  --amber-line: #e4d3ab; --plum-line: #dfc7d6; --line2-strong: #d5d2ca;
+}
+
+/* v3-dark */
+:root,
+:root[data-theme='dark'] {
+  --canvas: #0c0d0f; --bg: #16181b; --card: #1f2226;
+  --line: #2a2e33; --line2: #33383e; --faint: #4a4f55;
+  --ink: #ecebe7; --muted: #a3a7ac; --dim: #6f7379;
+  --sage: #93b48b; --sage-bg: #26312a;
+  --amber: #d2ad6b; --amber-bg: #332a1c;
+  --plum: #c99ab4; --plum-bg: #2f2329;
+  --danger: #d47f74;
+
+  /* похідні (Р16) */
+  --sage-strong: #a9c6a1; --sage-bg-strong: #2f3d33; --sage-on: #141a12;
+  --amber-line: #4a3d26; --plum-line: #4a3040; --line2-strong: #3d434a;
+}
