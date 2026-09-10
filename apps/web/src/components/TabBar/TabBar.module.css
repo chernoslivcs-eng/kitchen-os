@@ -197,7 +197,6 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
   color: var(--fg-dim);
   padding: 0 12px 6px;
 }
@@ -240,8 +239,6 @@
 .now-when {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--t);
   opacity: 0.75;
 }
@@ -289,8 +286,6 @@
 .cook-live-meta {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--accent);
   opacity: 0.75;
 }
@@ -345,7 +340,6 @@
 .session-when {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.05em;
   color: var(--fg-dim);
 }
 .session-title {
@@ -367,8 +361,6 @@
   color: var(--fg-dim);
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   cursor: pointer;
   text-align: left;
 }

@@ -21,7 +21,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .body {
@@ -93,7 +92,6 @@
   font-size: 11px;
   color: var(--fg-dim);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
 }
 .delete {
   border: 0;

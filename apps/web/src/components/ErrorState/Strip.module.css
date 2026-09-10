@@ -32,8 +32,6 @@
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--fg-muted);
 }
 
@@ -64,7 +62,6 @@
   flex: none;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
   color: var(--fg-muted);
 }
 

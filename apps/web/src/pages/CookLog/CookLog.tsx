@@ -139,9 +139,7 @@ export function CookLogPage() {
             marginTop: 4,
             fontFamily: 'var(--font-mono)',
             fontSize: 12,
-            letterSpacing: '0.06em',
             color: 'var(--fg-muted)',
-            textTransform: 'uppercase',
             lineHeight: 1.5,
           }}>
             <span style={{ color: 'var(--fg-dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
@@ -236,8 +234,6 @@ export function CookLogPage() {
                           borderRadius: 'var(--r-pill)',
                           fontFamily: 'var(--font-mono)',
                           fontSize: 10,
-                          letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
                           color: 'var(--fg-muted)',
                           cursor: 'pointer',
                         }}

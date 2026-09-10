@@ -10,7 +10,6 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
   margin-bottom: 8px;
 }
 .plum  { color: var(--plum); }
@@ -27,7 +26,6 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
   color: var(--fg-dim);
   cursor: pointer;
 }
@@ -87,7 +85,6 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .rule { margin: 0; font-size: 15px; line-height: 1.5; color: var(--fg); }
@@ -162,7 +159,7 @@
 .item-name { font-family: var(--font-body); font-size: 15px; color: var(--fg); }
 .item-off .item-name { text-decoration: line-through; }
 .item-when { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-dim); }
-.does { flex: none; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-dim); }
+.does { flex: none; font-family: var(--font-mono); font-size: 10.5px;color: var(--fg-dim); }
 .does-strict { color: var(--plum); }
 
 /* Підвал: мета зліва, дії праворуч в один ряд — і на 390 теж. */
@@ -205,7 +202,7 @@
 }
 .toast button { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; }
 .err { margin-top: 12px; font-size: 13px; color: var(--danger); }
-.loading { margin-top: 14px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--fg-dim); }
+.loading { margin-top: 14px; font-family: var(--font-mono); font-size: 11px;color: var(--fg-dim); }
 
 @media (max-width: 480px) {
   .date-input { width: 108px; }

@@ -3,6 +3,7 @@
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
 // переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
 
+import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -1168,7 +1169,7 @@ export function Feed() {
         title={historyOpen ? 'Історія' : 'Кухня'}
         onMenu={() => openNav(true)}
         action={
-          <button onClick={startFreshSession} className={styles['head-new']}>＋ Нова розмова</button>
+          <button onClick={startFreshSession} className={styles['head-new']}><Icon name="sys.add" size={16} inherit decorative /> Нова розмова</button>
         }
       />
 
@@ -1199,7 +1200,7 @@ export function Feed() {
               Готуємо · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
               <CookCountdown deadline={cookLive.deadline} />
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 13, color: 'var(--accent)' }}>
               Продовжити ›
             </span>
           </button>
@@ -1248,7 +1249,7 @@ export function Feed() {
                     }}>
                       {s.title ?? dayLabel}
                     </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase', marginTop: 3 }}>
+                    <div style={{ fontSize: 13, color: 'var(--fg-dim)', marginTop: 3 }}>
                       {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
                     </div>
                   </div>
@@ -1265,9 +1266,9 @@ export function Feed() {
                         if (s.id === sessionId) void startFreshSession();
                       }).catch(() => {/* тихо */});
                     }}
-                    style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
+                    style={{ color: 'var(--fg-dim)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
                   >✕</span>
-                  <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>
+                  <span style={{ color: 'var(--fg-dim)', fontSize: 12 }}>→</span>
                 </button>
               );
             })}
@@ -1400,8 +1401,8 @@ export function Feed() {
                 disabled={sending}
                 style={{
                   border: 0, background: 'none', padding: 0,
-                  color: 'var(--danger)', fontFamily: 'var(--font-mono)',
-                  fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer',
+                  color: 'var(--danger)',
+                  fontSize: 12, cursor: 'pointer',
                   textAlign: 'inherit',
                 }}
               >

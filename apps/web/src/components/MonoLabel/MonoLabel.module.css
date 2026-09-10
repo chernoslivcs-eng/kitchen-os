@@ -1,12 +1,17 @@
-/* Mono-мітка — той самий IBM Plex Mono, малий кегль, широкий трекінг, uppercase.
- * У брифі вона всюди: у мета-рядках стрічки (18:42 КОМОРА), у секційних заголовках,
- * у чипах. Стан через колір: default fg-dim, semantic — accent/amber/plum/danger.
+/* Мета-мітка. Була моно + капс + широкий трекінг — «мова станів і метаданих».
+ * Етап 1.6 (рішення Р20) зняв і гарнітуру, і капс: канон каже «шрифт один» і
+ * «капс не використовується». Метадані тепер відрізняє РОЛЬ (caption 13/1.4)
+ * і колір, а не шрифт — і саме тому компонент лишився: тон він несе
+ * правильно, це в ньому й було цінне.
+ *
+ * Імʼя MonoLabel лишається, щоб не переписувати сім екранів заради слова;
+ * моно в ньому більше немає нічого.
  */
 .label {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   color: var(--fg-dim);
   font-weight: 500;
   display: inline-flex;

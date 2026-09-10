@@ -160,9 +160,7 @@ export function ShoppingPage() {
                 padding: '5px 12px',
                 color: 'var(--accent)',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 11,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                fontSize: 13,
                 cursor: unpacking ? 'wait' : 'pointer',
               }}
             >

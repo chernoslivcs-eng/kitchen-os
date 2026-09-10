@@ -2,6 +2,7 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
+import { Icon } from '../../components/Icon/Icon';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
 import { PeriodEvent, PeriodSeries, periodForm } from '../../components/PeriodArtifact/PeriodArtifact';
@@ -144,7 +145,7 @@ function doubtLabel(op: { confidence?: number; evidence?: string }): string | nu
   if (!doubtful) return null;
   return typeof c === 'number' ? `домислено ${Math.round(c * 100)}%` : 'домислено';
 }
-const DOUBT_STYLE = { marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--amber, #96712c)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' };
+const DOUBT_STYLE = { marginLeft: 8, fontSize: 13, color: 'var(--amber, #96712c)' as const };
 
 function stateClass(applied?: boolean, undone?: boolean): string {
   return [
@@ -202,13 +203,13 @@ function ClarifyRow({
             type="button" disabled={busy} onClick={() => setValue((v) => Math.max(1, v - 1))}
             style={{ border: 0, background: 'none', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
           >−</button>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minWidth: 14, textAlign: 'center' }}>{value}</span>
+          <span style={{ fontSize: 12, minWidth: 14, textAlign: 'center' }}>{value}</span>
           <button
             type="button" disabled={busy} onClick={() => setValue((v) => v + 1)}
             style={{ border: 0, background: 'none', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
           >+</button>
         </div>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)' }}>{formatUnit(line.unit)}</span>
+        <span style={{ fontSize: 13, color: 'var(--accent)' }}>{formatUnit(line.unit)}</span>
         <button
           type="button"
           disabled={busy || !cardId}
@@ -349,8 +350,8 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   const signFor = (op?: IntakeOp['op']) => {
     if (op === 'deplete') return '−';
     if (op === 'open') return '◔';
-    if (op === 'rename') return '✎';
-    if (op === 'correct') return '✎';
+    // Етап 1.6: гліф ✎ знято — знак «рукою» зі словника.
+    if (op === 'rename' || op === 'correct') return 'live.byHand';
     return '+';
   };
   // M13: intake з чека — шапка-джерело, сірі «додати руками», згорнуте
@@ -556,7 +557,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                   ? <>{op.label ?? '—'} → {(op as { to?: string }).to ?? '—'}</>
                   : op.label ?? '—'}
                 {op.op === 'correct' && (op as { zone?: string }).zone && (
-                  <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--fg-dim)' }}>
                     → {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
                   </span>
                 )}
@@ -844,14 +845,14 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-dim)' }}>IMG</span>
+            <span style={{ fontSize: 10, color: 'var(--fg-dim)' }}>IMG</span>
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: 'var(--fg)' }}>
             {card.recipe_title ?? 'Готування'}
           </div>
-          <div style={{ marginTop: 2, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>
+          <div style={{ marginTop: 2, fontSize: 13, color: 'var(--fg-dim)' }}>
             Фото до цієї вечері
           </div>
         </div>
@@ -901,11 +902,11 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           color: 'inherit', textDecoration: 'none',
         }}
       >
-        <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)' }}>◇</span>
+        <span style={{ color: 'var(--fg-dim)' }}>◇</span>
         <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>
           {card.title ?? 'Рецепт'}
         </span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+        <span style={{ fontSize: 13, color: 'var(--accent)' }}>
           Рецепт →
         </span>
       </Link>
@@ -959,7 +960,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           className={styles['head-act']}
           title={saved ? 'Уже в рецептах' : 'У рецепти'}
           aria-label={saved ? 'Уже в рецептах' : 'У рецепти'}
-        >{saved ? '✓' : '✎'}</button>
+        ><Icon name={saved ? 'sys.done' : 'live.byHand'} size={16} inherit decorative /></button>
       )}
       {onShare && (
         <button
@@ -1040,7 +1041,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
               >{n}</button>
             ))}
             {sv !== (r.sv ?? 1) && (
-              <span style={{ alignSelf: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>база {r.sv}</span>
+              <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--fg-dim)' }}>база {r.sv}</span>
             )}
           </div>
         )}
@@ -1410,10 +1411,10 @@ export function PeriodChatCard(props: CardProps) {
     : form === 'series' ? `→ у календар: ${items.length}` : '→ у календар';
   return (
     <div className={stateClass(applied, undone)} data-testid="period-chat-card">
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 'var(--tracking-caps)', textTransform: 'uppercase', color: kickerTone }}>{kicker}</div>
+      <div style={{ fontSize: 10, letterSpacing: 'var(--tracking-caps)', color: kickerTone }}>{kicker}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17, lineHeight: 1.25, letterSpacing: '-0.01em', color: 'var(--fg)', marginTop: 6 }}>{title}</div>
       {line && <div style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--fg-muted)', marginTop: 4 }}>{line}</div>}
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: applied && !undone ? 'var(--accent)' : 'var(--fg-dim)', marginTop: 6 }}>{meta}</div>
+      <div style={{ fontSize: 12, color: applied && !undone ? 'var(--accent)' : 'var(--fg-dim)', marginTop: 6 }}>{meta}</div>
       {!closed && !undone && (
         <div className={styles['card-actions']}>
           <Button variant="primary" onClick={onOpenArtifact} disabled={applying}>Відкрити</Button>

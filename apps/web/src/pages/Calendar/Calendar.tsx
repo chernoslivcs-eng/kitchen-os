@@ -354,7 +354,7 @@ export function CalendarPage() {
                           <button key={`${e.scope}:${e.id}`} type="button"
                             className={`${styles.ev} ${e.kind === 'constraint' ? styles['ev-constraint'] : ''} ${e.kind === 'editorial' || e.source ? styles['ev-editorial'] : ''} ${evMotion(e.id)}`}
                             onClick={() => setOpenEvent(e)}>
-                            {e.kind === 'supply' ? '＋ ' : ''}{e.title}
+                            {e.title}
                           </button>
                         ))}
                         {more && (
@@ -362,7 +362,7 @@ export function CalendarPage() {
                         )}
                         {isToday && (
                           <button type="button" className={styles.ask} onClick={() => navigate('/app')}>
-                            {empty ? 'Що на вечерю? →' : '＋ Що на вечерю?'}
+                            {empty ? 'Що на вечерю?' : 'Що на вечерю?'}
                           </button>
                         )}
                         {!isToday && empty && <span className={styles.empty}>Поки нічого. Рідкісний спокій.</span>}

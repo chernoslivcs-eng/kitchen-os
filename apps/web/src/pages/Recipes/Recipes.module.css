@@ -21,7 +21,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .body {
@@ -48,7 +47,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
   margin: 18px 0 6px;
 }
@@ -110,7 +108,6 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .stat {

@@ -17,7 +17,6 @@
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 10px;
-  letter-spacing: 0.06em;
   color: var(--fg-dim);
 }
 
@@ -37,8 +36,6 @@
 .kicker {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--accent);
 }
 
@@ -72,7 +69,6 @@
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 10px;
-  letter-spacing: 0.06em;
   color: var(--accent);
   animation: slot-pulse 1400ms ease-in-out infinite;
   /* Слот тягнеться до курсора — зсув пише JS, перехід згладжує. */
@@ -93,7 +89,6 @@
 .effect {
   font-family: var(--font-mono);
   font-size: 12px;
-  letter-spacing: 0.03em;
   color: var(--fg-dim);
 }
 

@@ -33,7 +33,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 
@@ -58,7 +57,6 @@
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .desc {
@@ -87,7 +85,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 
@@ -210,8 +207,6 @@
   border-radius: var(--r-pill);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 

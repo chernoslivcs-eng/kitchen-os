@@ -232,9 +232,7 @@ export function PantryPage() {
               padding: '5px 12px',
               color: 'var(--fg-muted)',
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
+              fontSize: 13,
               cursor: 'pointer',
             }}
           >
@@ -429,7 +427,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
   return (
     <Sheet onClose={onClose} ariaLabel="Додати позицію в комору">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MonoLabel>ДОДАТИ ПРОДУКТ</MonoLabel>
+          <MonoLabel>Додати продукт</MonoLabel>
           <button
             onClick={onClose}
             style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
@@ -438,7 +436,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Назва</span>
+          <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Назва</span>
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -450,11 +448,11 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
 
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Кількість</span>
+            <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Кількість</span>
             <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Одиниця</span>
+            <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Одиниця</span>
             <select
               value={unit ?? ''}
               onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
@@ -470,7 +468,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Зона</span>
+          <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Зона</span>
           <select
             value={zone}
             onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}

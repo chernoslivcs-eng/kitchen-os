@@ -48,6 +48,26 @@ describe('токени v3', () => {
   it('Р18: :root лишається темним — міграція імен не перевертає дефолт', () => {
     expect(css).toMatch(/:root[^{]*\{[^}]*color-scheme:\s*dark/);
   });
+
+  // Етап 1.6 (Р19): гарнітура одна. Тест стоїть на токенах, а не на 42 файлах
+  // CSS: усі три імені — псевдоніми Onest, тому «гарнітур 1» тримається тут.
+  it('Р19: усі три шрифтові токени ведуть на Onest', () => {
+    for (const name of ['font-display', 'font-body', 'font-mono']) {
+      const m = css.match(new RegExp(`--${name}:\\s*([^;]+);`));
+      expect(m?.[1], `--${name}`).toContain("'Onest'");
+    }
+    // Без коментарів: у комментарі до Р19 обидві гарнітури названі навмисно —
+    // там сказано, що їх ЗНЯТО, і тест не має падати на власному поясненні.
+    const decls = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(decls, 'Golos Text знято').not.toContain('Golos');
+    expect(decls, 'IBM Plex Mono знято').not.toContain('Plex Mono');
+  });
+
+  // Етап 1.6 (Р20): капсу немає, тому й трекінгу під капс немає.
+  it('Р20: трекінг під капс зведений у нуль', () => {
+    expect(css).toMatch(/--tracking-mono:\s*0;/);
+    expect(css).toMatch(/--tracking-caps:\s*0;/);
+  });
 });
 
 const roles = readFileSync(fileURLToPath(new URL('./roles.css', import.meta.url)), 'utf8');

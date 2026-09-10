@@ -194,7 +194,6 @@
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--fg-dim);
-  letter-spacing: 0.04em;
 }
 
 .card-actions { display: flex; gap: 10px; margin-top: 4px; }
@@ -284,7 +283,6 @@
 .turn-note {
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
   color: var(--fg-dim);
   padding-top: 2px;
 }
@@ -306,7 +304,6 @@
   color: var(--amber);
   font-family: var(--font-mono);
   font-size: 12px;
-  letter-spacing: 0.06em;
   cursor: pointer;
   text-align: left;
 }
@@ -357,7 +354,6 @@ a.att-chip:hover { border-color: var(--accent); }
   place-items: center;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
   color: var(--fg-muted);
 }
 .att-remove {
@@ -927,7 +923,6 @@ a.att-chip:hover { border-color: var(--accent); }
 .trace-kind {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
   color: var(--accent-dim, var(--fg-muted));
 }
 /* Суть — те, по що клікають. */
@@ -1039,7 +1034,6 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.04em;
   color: var(--accent);
 }
 /* Обсягова математика. У макеті V3 її немає, але вона там і не малювалась:
@@ -1088,7 +1082,6 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
   color: var(--accent);
 }
 .cart-alt-warn {
@@ -1245,7 +1238,6 @@ a.att-chip:hover { border-color: var(--accent); }
   min-width: 0;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.1em;
 }
 /* Групова дія в шапці секції — саме та функціональність, якої бракувало:
    не 19 окремих тапів, а один по групі. */
@@ -1257,7 +1249,6 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
   color: var(--accent);
 }
 .rgroup-act:disabled { color: var(--fg-dim); cursor: default; }
@@ -1269,7 +1260,6 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
   color: var(--accent);
 }
 .rrow {
@@ -1328,7 +1318,6 @@ a.att-chip:hover { border-color: var(--accent); }
   flex: none;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
   color: var(--fg-dim);
 }
 /* Низ у два поверхи: поле «додати» і рядок стану з виходом у кошик. */
@@ -1358,7 +1347,6 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
   color: var(--fg-dim);
 }
 .trace-undo:hover { color: var(--fg); }
@@ -1401,7 +1389,6 @@ a.att-chip:hover { border-color: var(--accent); }
   padding: 6px 12px 2px;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.04em;
   color: var(--fg-dim);
 }
 
@@ -1424,8 +1411,6 @@ a.att-chip:hover { border-color: var(--accent); }
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
 }

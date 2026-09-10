@@ -8,6 +8,7 @@
 // щось купуєш: рецепт переїжджає з «далеко» в «можу зараз» без жодної дії.
 
 import { useEffect, useState } from 'react';
+import { Icon } from '../../components/Icon/Icon';
 import { useNavigate } from 'react-router-dom';
 import { api, type SavedRecipe } from '../../api';
 import { plural } from '../../lib/plural';
@@ -102,22 +103,20 @@ export function RecipesPage() {
             onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}
             style={{
               background: 'transparent', border: 0, padding: '5px 4px',
-              color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11,
-              letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
+              color: 'var(--accent)', fontSize: 13, cursor: 'pointer',
             }}
           >
-            + Імпорт
+            <Icon name="sys.add" size={16} inherit decorative /> Імпорт
           </button>
           <button
             onClick={() => navigate('/cooklog')}
             style={{
               background: 'transparent', border: '1px solid var(--border-strong)',
               borderRadius: 'var(--r-pill)', padding: '5px 10px', color: 'var(--fg-muted)',
-              fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em',
-              textTransform: 'uppercase', cursor: 'pointer',
+              fontSize: 10, cursor: 'pointer',
             }}
           >
-            ✎ Журнал
+            <Icon name="live.byHand" size={16} inherit decorative /> Журнал
           </button>
           <div className={styles.meta}>
             {readyCount > 0
@@ -232,8 +231,7 @@ export function RecipesPage() {
                     <div style={{
                       marginTop: 5,
                       fontFamily: 'var(--font-mono)',
-                      fontSize: 11,
-                      letterSpacing: '0.04em',
+                      fontSize: 13,
                       color: 'var(--amber)',
                     }}>
                       БРАКУЄ: {r.missing.join(', ')}
@@ -245,8 +243,7 @@ export function RecipesPage() {
                     <div style={{
                       marginTop: 3,
                       fontFamily: 'var(--font-mono)',
-                      fontSize: 11,
-                      letterSpacing: '0.04em',
+                      fontSize: 13,
                       color: 'var(--accent)',
                     }}>
                       ВИКОРИСТАЄ: {r.rescues.join(', ')}

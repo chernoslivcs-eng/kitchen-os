@@ -21,7 +21,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 
@@ -37,7 +36,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
   margin-bottom: 6px;
 }
@@ -148,7 +146,6 @@
   font-size: 11px;
   color: var(--amber);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   display: block;
 }
 
@@ -265,8 +262,6 @@
   box-sizing: border-box;
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .rail-words {
@@ -359,8 +354,6 @@
 .sub, .zone-tag {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 .zone-tag { color: var(--border-strong); }
 .val {
@@ -382,7 +375,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .flat-title { flex: 1; min-width: 0; }
@@ -440,8 +432,6 @@
   margin-top: -8px;
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--fg-dim); }
@@ -450,8 +440,6 @@
 .card-label {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--fg-dim);
 }
 .card-input {
@@ -476,8 +464,6 @@
   padding: 6px 12px;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--fg-muted);
   cursor: pointer;
 }
@@ -489,8 +475,6 @@
   padding: 10px 0;
   font-family: var(--font-mono);
   font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--danger);
   cursor: pointer;
 }

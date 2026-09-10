@@ -28,8 +28,6 @@
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--fg-muted);
 }
 
@@ -37,8 +35,6 @@
 .code {
   font: inherit;
   font-weight: 400;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--fg-muted);
   background: transparent;
   padding: 1px 5px;

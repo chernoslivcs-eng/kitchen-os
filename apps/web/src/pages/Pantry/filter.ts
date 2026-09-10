@@ -195,7 +195,8 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   const last = active[active.length - 1];
   return {
     sort, shown, dirty,
-    meta: narrowed ? `${shown.length} З ${items.length}` : `${items.length} ${plural(items.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`,
+    // Етап 1.6: капс знято й тут — він був вписаний у самі рядки, не лише в CSS.
+    meta: narrowed ? `${shown.length} з ${items.length}` : `${items.length} ${plural(items.length, ['позиція', 'позиції', 'позицій'])}`,
     grouped: grouped && !empty,
     // Ф2а: усередині групи порядок стабільний — новіші за added_at зверху,
     // однакова дата — за назвою; не за порядком з сервера (терміновість/updated_at),

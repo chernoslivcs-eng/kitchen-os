@@ -22,6 +22,10 @@ const ITEMS: PantryBatch[] = [
 const ctx = { productsById: new Map(), receiptAt: '2026-09-03T10:00:00.000Z' };
 const st = (over: Partial<FilterState> = {}): FilterState => ({ ...INITIAL, ...over });
 
+// Етап 1.6 (рішення Р20): капс знято. Він був вписаний не лише в CSS, а й
+// у самі рядки — тому лічильник тепер «6 позицій», а не «6 ПОЗИЦІЙ».
+// Тест переписаний свідомо, а не видалений: він і далі стежить за формою
+// лічильника, просто форма змінилась разом із каноном.
 describe('сортування', () => {
   it('за жирністю — спадний порядок, без значення в кінці, оцінка з ≈', () => {
     const v = applyFilter(ITEMS, st({ sort: 'fat' }), ctx);
@@ -57,12 +61,12 @@ describe('сортування', () => {
     expect(v.grouped).toBe(true);
     expect(v.groups.map((g) => g.label)).toEqual(['Свіже', 'Холодильник', 'Морозилка', 'Суха шафа']);
     expect(v.dirty).toBe(false);
-    expect(v.meta).toBe('6 ПОЗИЦІЙ');
+    expect(v.meta).toBe('6 позицій');
   });
   it('крок Ф2: саме сортування без зрізів не звужує список — лічильник без «з»', () => {
-    expect(applyFilter(ITEMS, st({ sort: 'fat' }), ctx).meta).toBe('6 ПОЗИЦІЙ');
-    expect(applyFilter(ITEMS, st({ sort: 'fat', cuts: ['meat'] }), ctx).meta).toBe('2 З 6');
-    expect(applyFilter(ITEMS, st({ q: 'сир' }), ctx).meta).toBe('1 З 6');
+    expect(applyFilter(ITEMS, st({ sort: 'fat' }), ctx).meta).toBe('6 позицій');
+    expect(applyFilter(ITEMS, st({ sort: 'fat', cuts: ['meat'] }), ctx).meta).toBe('2 з 6');
+    expect(applyFilter(ITEMS, st({ q: 'сир' }), ctx).meta).toBe('1 з 6');
   });
 });
 
@@ -88,7 +92,7 @@ describe('зрізи', () => {
   it('фільтри перетинаються: мʼясне + з останнього чека', () => {
     const v = applyFilter(ITEMS, st({ sort: 'fat', cuts: ['meat', 'receipt'] }), ctx);
     expect(v.list.map((r) => r.name)).toEqual(['Куряче філе']);
-    expect(v.meta).toBe('1 З 6');
+    expect(v.meta).toBe('1 з 6');
   });
   it('підрядок «чек · дата» при активному чеку, крім сортування за датою', () => {
     const v = applyFilter(ITEMS, st({ sort: 'fat', cuts: ['receipt'] }), ctx);
@@ -128,7 +132,7 @@ describe('пошук, скинути, порожній стан', () => {
     expect(applyFilter(ITEMS, st({ q: 'сир' }), ctx).shown.map((x) => x.label)).toEqual(['Пармезан']);
     expect(applyFilter(ITEMS, st({ q: 'овоч' }), ctx).shown.map((x) => x.label)).toEqual(['Огірки']);
     expect(applyFilter(ITEMS, st({ q: 'мʼяс', cuts: ['receipt'] }), ctx).shown.map((x) => x.label)).toEqual(['Куряче філе']);
-    expect(applyFilter(ITEMS, st({ q: 'сир' }), ctx).meta).toBe('1 З 6');
+    expect(applyFilter(ITEMS, st({ q: 'сир' }), ctx).meta).toBe('1 з 6');
   });
   it('«скинути» повертає «за місцем» без зрізів і групи; пошук не чіпає', () => {
     const s = resetFilter(st({ sort: 'fat', cuts: ['meat', 'soon'], q: 'x' }));

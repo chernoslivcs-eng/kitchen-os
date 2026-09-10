@@ -15,9 +15,7 @@
 .rail-title {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
   color: var(--fg-dim);
-  text-transform: uppercase;
   padding-bottom: 4px;
 }
 .rail-row {
@@ -44,7 +42,6 @@
 .rail-meta {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.04em;
   flex: none;
 }
 /* Правка №7: зона чату закінчується перед панеллю — відступ на РІВНІ ЕКРАНА,
@@ -204,7 +201,6 @@
     box-shadow: 0 6px 20px rgba(29, 33, 38, 0.16);
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: 0.06em;
     color: var(--fg);
     cursor: pointer;
   }

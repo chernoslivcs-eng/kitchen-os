@@ -120,9 +120,17 @@
 
 /* --- Типографіка ---------------------------------------------------------- */
 :root {
+  /* Етап 1.6 (рішення Р19): гарнітура одна — Onest. Golos Text і IBM Plex
+   * Mono зняті. Імена --font-body і --font-mono лишаються псевдонімами: на
+   * них спирається 334 місця в 42 файлах CSS, і зводити три гарнітури в одну
+   * правильно ОДНИМ місцем, а не покомпонентним переїздом.
+   *
+   * --font-mono більше не моно. Те, за чим його брали — рівна ширина цифр —
+   * дає font-variant-numeric: tabular-nums, і воно вже стоїть на ролях
+   * (roles.css) та в body. Гарнітура для цього не потрібна. */
   --font-display: 'Onest', system-ui, -apple-system, sans-serif;
-  --font-body:    'Golos Text', system-ui, -apple-system, sans-serif;
-  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --font-body:    'Onest', system-ui, -apple-system, sans-serif;
+  --font-mono:    'Onest', system-ui, -apple-system, sans-serif;
 
   /* Розміри у брифі: H1 42-46, H2 24-30, body 15-17, meta mono 11-13 */
   --fs-1:   42px;      /* headline */
@@ -130,12 +138,18 @@
   --fs-3:   19px;      /* card title mobile */
   --fs-body:16px;
   --fs-small:14px;
-  --fs-mono:11px;
+  /* Етап 1.6: мета-мітка була 11px — це й робило «найчастіший кегль» екрана
+   * 10–11 замість 14–16. Роль caption каже 13. */
+  --fs-mono:13px;
 
   --tracking-tight: -0.03em;
   --tracking-body:   0;
-  --tracking-mono:  0.06em;    /* .1em+ під caps */
-  --tracking-caps:  0.14em;
+  /* Етап 1.6 (Р20): капсу немає, тому трекінгу під капс немає теж. Обидва
+   * зведені в нуль, а не видалені: на них спирається розмітка, і нуль тут
+   * означає рішення, а не забутий токен. Написань трекінгу поза таблицею
+   * ролей має бути нуль — це метрика аудиту. */
+  --tracking-mono:  0;
+  --tracking-caps:  0;
 
   --lh-tight: 1.15;
   --lh-body:  1.55;

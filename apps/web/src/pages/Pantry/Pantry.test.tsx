@@ -49,11 +49,15 @@ const word = (label: string) => [...host!.querySelectorAll<HTMLButtonElement>('[
 const click = async (el: HTMLElement) => { await act(async () => { el.click(); }); };
 const names = () => [...host!.querySelectorAll<HTMLElement>('[data-batch]')].map((x) => x.dataset.batch);
 
+// Етап 1.6 (рішення Р20): капс знято. Він був вписаний не лише в CSS, а й
+// у самі рядки — тому лічильник тепер «6 позицій», а не «6 ПОЗИЦІЙ».
+// Тест переписаний свідомо, а не видалений: він і далі стежить за формою
+// лічильника, просто форма змінилась разом із каноном.
 describe('PantryPage · фільтр', () => {
-  it('за замовчуванням — групи за місцем і лічильник «N ПОЗИЦІЙ»; за жирністю — плаский список спадно, без значення в кінці', async () => {
+  it('за замовчуванням — групи за місцем і лічильник «N позицій»; за жирністю — плаский список спадно, без значення в кінці', async () => {
     await mount();
     expect(host!.querySelectorAll('[data-zone]').length).toBe(3);
-    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 ПОЗИЦІЇ');
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 позиції');
     await click(word('за жирністю'));
     expect(host!.querySelectorAll('[data-zone]').length).toBe(0);
     expect(host!.querySelector('[data-testid="flat-list"]')).not.toBeNull();
@@ -63,7 +67,7 @@ describe('PantryPage · фільтр', () => {
     expect(host!.textContent).toContain('від жирного до нежирного');
     expect(host!.querySelector('[data-testid="unit-label"]')!.textContent).toContain('жиру / 100 г');
     // саме сортування не звужує список — лічильник як без фільтра
-    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 ПОЗИЦІЇ');
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 позиції');
   });
 
   it('крок Ф2: іконка лише за свіжістю — свіже / добігає / перевірити; «не їм» без іконки, лише підрядком; −/✕ нема; «Спочатку горить» нема', async () => {
@@ -121,7 +125,7 @@ describe('PantryPage · фільтр', () => {
     await click(third);
     expect(third.getAttribute('aria-pressed')).toBe('false');
     expect(names()).toEqual(['Огірки', 'Куряче філе']);
-    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('2 З 4');
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('2 з 4');
 
     await click(word('мʼясне'));
     expect(names()).toEqual(['Куряче філе']);
@@ -146,6 +150,6 @@ describe('PantryPage · фільтр', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(names()).toEqual(['Пармезан']);
-    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('1 З 4');
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('1 з 4');
   });
 });

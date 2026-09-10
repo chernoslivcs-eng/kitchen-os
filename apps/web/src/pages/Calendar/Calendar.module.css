@@ -26,8 +26,6 @@
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   cursor: pointer;
 }
 .today-pill:hover { background: var(--accent-bg); }
@@ -56,7 +54,7 @@
 }
 .monthbar-right { display: flex; align-items: center; gap: 10px; }
 .month { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--fg-muted); }
-.weekno { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; color: var(--fg-dim); text-transform: uppercase; }
+.weekno { font-family: var(--font-mono); font-size: 10px;color: var(--fg-dim);}
 
 /* Легенда тривалих: що триває зараз. */
 .legend {
@@ -74,8 +72,6 @@
   color: var(--t);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -98,7 +94,7 @@
   padding: 14px 0 4px;
 }
 .week-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--fg-muted); }
-.week-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-dim); }
+.week-tag { font-family: var(--font-mono); font-size: 10px;color: var(--fg-dim); }
 .week-tag.t-restrict { color: var(--plum); }
 
 /* Рядок дня: жолоб · дата · вміст. Межа — лише під вмістом і датою, жолоб
@@ -156,7 +152,7 @@
 
 .dn { width: 44px; flex: none; display: flex; flex-direction: column; }
 @media (min-width: 768px) { .dn { width: 56px; } }
-.dow { font-family: var(--font-mono); font-size: 10px; color: var(--fg-dim); text-transform: uppercase; }
+.dow { font-family: var(--font-mono); font-size: 10px; color: var(--fg-dim);}
 .num { font-family: var(--font-display); font-weight: 600; font-size: 18px; color: var(--fg-dim); line-height: 1.2; }
 
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -188,8 +184,6 @@
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--t, var(--fg-dim));
   white-space: nowrap;
   overflow: hidden;
@@ -258,8 +252,7 @@
 .foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .foot-label {
   width: 72px; flex: none;
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--fg-dim);
+  font-family: var(--font-mono); font-size: 10px;color: var(--fg-dim);
 }
 .foot-value { color: var(--fg-muted); }
 .foot-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
