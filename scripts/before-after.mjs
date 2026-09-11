@@ -15,6 +15,7 @@
 // --stub-any prefix=STATUS  будь-який метод за префіксом шляху (POST теж) — «не записалось»
 // --scale — те саме, що в side-by-side.mjs (див. там)
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
+// --click-after / --actions-after  те саме, але лише на половині «стало»
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
 //           move:X,Y · wait:MS · press:KEY · type:TEXT · focus:SEL · swipe:SEL:up ·
 //           down:SEL · drag:X,Y · up:  (перетягування без відпускання — стан ручки) · blur: ·
@@ -171,7 +172,8 @@ async function shoot(base, theme, side) {
   const path = arg('path', '/');
   await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  const click = arg('click', null);
+  // --click-after / --actions-after — лише на половині «стало» (елемента в «було» ще нема).
+  const click = [arg('click', null), side === 'after' ? arg('click-after', null) : null].filter(Boolean).join(' ;; ');
   if (click) { for (const sel of click.split(';;').map((x) => x.trim()).filter(Boolean)) { await page.click(sel); await page.waitForTimeout(800); } }
   const hover = arg('hover', null);
   if (hover) { await page.hover(hover); await page.waitForTimeout(400); }
@@ -196,6 +198,7 @@ async function shoot(base, theme, side) {
     return { video: out };
   }
   await runActions(page, arg('actions', null));
+  if (side === 'after') await runActions(page, arg('actions-after', null));
   const appSel = arg('app-sel', null);
   if (appSel) { const el = await page.waitForSelector(appSel, { timeout: 15000 }); png = await el.screenshot({ type: 'png' }); const bb = await el.boundingBox(); if (bb) imgW = Math.round(bb.width); }
   else png = await page.screenshot({ type: 'png', fullPage: has('full') });

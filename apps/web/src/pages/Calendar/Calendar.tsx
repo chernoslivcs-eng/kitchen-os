@@ -440,6 +440,13 @@ export function CalendarPage() {
             {top && <span className={styles.sub}>{monthName(top.days[3]!.at)} · тиждень {top.num}</span>}
             <span className={styles['head-gap']} />
             <button type="button" className={styles['today-pill']} onClick={goToday}>Сьогодні</button>
+            {/* №26: вхід до підписок у шапці — власник не знаходив рядки внизу
+                стрічки. ≥768 — пілюля зі знаком і словом, 390 — коло 36 зі
+                знаком → шторка; на ≥1200 — панель. */}
+            <button type="button" className={styles['subs-btn']} onClick={() => { setOpenEvent(null); setOpenSeries(traditions[0] ?? 'orthodox'); }}
+              aria-label="Підписки" title="Що впливає на кухню протягом року" data-subscriptions>
+              <Icon name="sys.tradition" size={16} inherit decorative /><span className={styles['subs-text']}>Підписки</span>
+            </button>
             <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">
               <Icon name="sys.add" size={16} inherit decorative /><span className={styles['add-text']}>Подія</span>
             </button>

@@ -38,6 +38,21 @@
   font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
   cursor: pointer; white-space: nowrap;
 }
+/* №26: «Підписки» — пілюля 36 на card зі знаком (390 — лише знак, коло 36). */
+.subs-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 36px; height: 36px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--ink);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  cursor: pointer; white-space: nowrap;
+}
+.subs-btn > [data-icon] { color: var(--muted); }
+.subs-text { display: none; }
+@media (min-width: 768px) {
+  .subs-btn { width: auto; padding: 0 12px 0 10px; border-radius: var(--r-pill); }
+  .subs-text { display: inline; }
+}
 .add {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   width: 36px; height: 36px; padding: 0;
