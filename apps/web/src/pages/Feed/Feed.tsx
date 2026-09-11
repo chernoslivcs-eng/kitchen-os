@@ -187,7 +187,6 @@ export function Feed() {
   queueRef.current = queue;
   // Хід, який ЗАРАЗ у моделі — щоб «Стоп» позначив саме його.
   const currentTurnId = useRef<string | null>(null);
-  const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [batchLabels, setBatchLabels] = useState<Map<string, string>>(new Map());
   // №4а: кроки рецептів у стрічці — тільки product.
   const [stepLabels, setStepLabels] = useState<Map<string, string>>(new Map());
@@ -530,7 +529,6 @@ export function Feed() {
           .filter((i) => !i.checked)
           .map((i) => i.label.trim().toLowerCase()),
       ));
-      setPantryCount(p.count);
       // Пул-5 №5: сайдбар теж дізнається про свіжий лічильник — bump скидає
       // його кеш і TabBar перечитує (патерн useSessionStore).
       usePantryStore.getState().bump();
@@ -1387,51 +1385,9 @@ export function Feed() {
           </div>
         )}
 
-        {/* Папіркат UX-9: онбординговий заголовок показувався на КОЖНОМУ
-            порожньому чаті — «онбординг без онбордингу». Тепер тільки поки
-            комора порожня; новий чат бувалого акаунта — просто чиста стрічка. */}
-        {!historyOpen && turns.length === 0 && pantryCount === 0 && (
-          <div className={styles.empty}>
-            <h3>Що зʼявилось удома або що готуємо?</h3>
-            <p>
-              Напиши як звичайно: «купив моцарелу» або «що зробити з вершками?».
-              Перед змінами все покажемо.
-            </p>
-            {pantryCount === 0 && (
-              <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-                {/* QA8-14 / хендоф №03: три входи, не один. Людина з відкритим
-                    холодильником і без чека теж має куди тапнути.
-                    UX9-25: голос — четвертий вхід, бо телефон на кухні. */}
-                {[
-                  { label: '📷 Сфотографувати полицю', action: () => fileInputRef.current?.click() },
-                  { label: '🧾 Кинути чек', action: () => fileInputRef.current?.click() },
-                  ...(speechSupported() ? [{ label: '🎙 Продиктувати', action: () => toggleVoice() }] : []),
-                  { label: 'Перелічити текстом', action: () => composerInputRef.current?.focus() },
-                ].map((cta, i) => (
-                  <button
-                    key={cta.label}
-                    type="button"
-                    onClick={cta.action}
-                    style={{
-                      padding: '12px 20px',
-                      minWidth: 260,
-                      background: i === 0 ? 'var(--sage-bg)' : 'transparent',
-                      border: i === 0 ? '1px solid var(--sage)' : '1px solid var(--line2)',
-                      borderRadius: 'var(--r)',
-                      color: i === 0 ? 'var(--sage)' : 'var(--muted)',
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {cta.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {/* №44 (пакет 3): заставки порожнього чату нема — порожня розмова =
+            порожня стрічка над композитором (Screens «Чат»). Три входи
+            (чек · фото · диктовка) живуть у «+» і в гнізді композитора. */}
 
         {!historyOpen && turns.map((t) => (
           <div key={t.id} id={`turn-${t.id}`} className={`${styles.turn} ${t.role === 'user' ? styles['turn-user'] : ''}`}>

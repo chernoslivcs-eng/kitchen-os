@@ -594,25 +594,6 @@ a.att-chip:hover { border-color: var(--sage); }
   }
 }
 
-/* ----- Empty state --------------------------------------------------- */
-.empty {
-  border: 1px dashed var(--line2);
-  border-radius: var(--r-xl);
-  padding: 20px;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.55;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.empty h3 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 17px;
-  color: var(--ink);
-}
-
 /* Пульс диктування — той самий breathe 1.2s із моушн-токенів */
 @keyframes pulse {
   0%, 100% { opacity: 1; }
