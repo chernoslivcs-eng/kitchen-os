@@ -13,10 +13,10 @@
 //     осях — не конфлікт: «Напої» як категорія продукту й як зона комори це
 //     одне й те саме, тому там знак спільний навмисно.
 import {
-  MessageCircle, Boxes, BookOpen, ListChecks, Calendar, House, ShoppingCart, Receipt,
+  MessageCircle, BookOpen, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
   Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark,
-  Sprout, Refrigerator, Snowflake, Archive, FlaskConical, Wine,
+  Refrigerator, Snowflake, Archive, FlaskConical, Wine,
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
@@ -37,10 +37,14 @@ export interface IconSpec {
 
 export const ICONS = {
   // ---- система: навігація, дії, місця ----
-  // «Комора» — `boxes`, а не `refrigerator`: холодильник належить ЗОНІ
-  // холодильника, а комора як місце — це склад речей, не прилад.
+  // «Комора» — `refrigerator`, як каже бандл (Responsive.dc.html, 12 разів).
+  // Тут стояв `boxes` за міркуванням «холодильник належить зоні, а комора —
+  // склад речей»: логічно, і все одно не моє. Бандл каже — робиться як у
+  // бандлі (межа зони, 11.09). Те, що знак тепер несе два значення — і
+  // «Комора» в навігації, і зона «Холодильник», — записано як колізія, яку
+  // успадковано з бандла й винесено дизайн-чату, а не приховано.
   'sys.chat':      { glyph: MessageCircle,     label: 'Чат',           family: 'system' },
-  'sys.pantry':    { glyph: Boxes,             label: 'Комора',        family: 'system' },
+  'sys.pantry':    { glyph: Refrigerator,      label: 'Комора',        family: 'system' },
   'sys.recipes':   { glyph: BookOpen,          label: 'Рецепти',       family: 'system' },
   'sys.list':      { glyph: ListChecks,        label: 'Список',        family: 'system' },
   'sys.calendar':  { glyph: Calendar,          label: 'Календар',      family: 'system' },
@@ -67,14 +71,27 @@ export const ICONS = {
   'sys.back':      { glyph: ArrowLeft,         label: 'Назад',         family: 'system' },
   'sys.later':     { glyph: Bookmark,          label: 'Колись',        family: 'system' },
 
-  // ---- зони комори: четверта сімʼя (Р21) ----
-  // `sprout` замість `leaf` — звільняє `leaf` для «Зелень» і «пісне».
-  // `flask-conical` замість `flame` — звільняє `flame` для «Горить».
-  'zone.fresh':    { glyph: Sprout,        label: 'Свіже',       family: 'zones' },
+  // ---- зони комори ----
+  // Знаки — ті, що бандл ставить зонам у Screens.dc.html: leaf · refrigerator ·
+  // snowflake · archive · wine. Досі тут була МОЯ «четверта сімʼя» (sprout,
+  // flask-conical…) — вибір там, де бандл не мовчав, і тому не мій. Відкат
+  // 11.09 за межею зони.
+  //
+  // Що лишилось відкритим, і кому: чи потрібна зонам окрема вісь знаків
+  // взагалі, і якщо так — які. Це питання дизайн-чату, не реалізації
+  // (QUESTIONS-FOR-DESIGN-CHAT.md). Поки воно відкрите, `leaf` несе два
+  // значення (зона «Свіже» і категорія «Зелень»), і тест це називає, а не
+  // ховає.
+  //
+  // Єдиний виняток — «Спеції». Бандл ставить туди `flame`, а правило HANDOFF
+  // «flame — тільки Горить» старше за набір (рішення Р21: «Спеції → новий
+  // знак»). Знак ще не обраний; `flask-conical` тут — заглушка до відповіді
+  // дизайн-чату, і саме так підписана.
+  'zone.fresh':    { glyph: Leaf,          label: 'Свіже',       family: 'zones' },
   'zone.fridge':   { glyph: Refrigerator,  label: 'Холодильник', family: 'zones' },
   'zone.freezer':  { glyph: Snowflake,     label: 'Морозилка',   family: 'zones' },
   'zone.dry':      { glyph: Archive,       label: 'Суха шафа',   family: 'zones' },
-  'zone.spices':   { glyph: FlaskConical,  label: 'Спеції',      family: 'zones' },
+  'zone.spices':   { glyph: FlaskConical,  label: 'Спеції',      family: 'zones' }, // ЗАГЛУШКА — див. вище
   'zone.drinks':   { glyph: Wine,          label: 'Напої',       family: 'zones' },
 
   // ---- продукти: категорії каталогу ----
@@ -142,3 +159,13 @@ export const RESERVED: { glyph: LucideIcon; only: string }[] = [
 
 /** Один зміст на двох осях — не конфлікт. Тут перелічено навмисні збіги. */
 export const SHARED_ON_PURPOSE = ['Напої', 'Морозилка'];
+
+/**
+ * Колізії, успадковані з бандла й винесені дизайн-чату. Це НЕ дозвіл — це
+ * список того, що тест знає і чекає відповіді. Коли дизайн-чат вирішить,
+ * запис звідси зникає, і тест знову падатиме на цьому знаку.
+ */
+export const PENDING_DESIGN_CHAT: { glyph: LucideIcon; meanings: string[]; question: string }[] = [
+  { glyph: Leaf, meanings: ['Свіже', 'Зелень'], question: 'зонам потрібна окрема вісь знаків?' },
+  { glyph: Refrigerator, meanings: ['Комора', 'Холодильник'], question: 'навігаційна «Комора» і зона — один знак?' },
+];
