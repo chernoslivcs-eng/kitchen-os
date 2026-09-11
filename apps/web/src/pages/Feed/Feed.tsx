@@ -1464,7 +1464,7 @@ export function Feed() {
                   </span>
                   <span className={styles['trace-value']}>{Math.round(t.card.total ?? 0)} ₴</span>
                 </span>
-                <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
+                <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>
               </button>
             )}
             {t.card?.type === 'recipe_link' && (
@@ -1503,7 +1503,7 @@ export function Feed() {
                       {((t.card.ops as { title?: string }[] | undefined) ?? []).map((o) => o.title).filter(Boolean).join(', ') || 'подія'}
                     </span>
                   </span>
-                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
+                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>}
                 </button>
                 {!t.undone && t.undoToken && (
                   <button type="button" className={styles['trace-undo']} onClick={() => undo(t.id, t.undoToken!)}>СКАСУВАТИ</button>
@@ -1520,7 +1520,7 @@ export function Feed() {
               <div className={styles['trace-wrap']}>
                 <button
                   type="button"
-                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.kind === 'list' ? styles['trace-on'] : ''}`}
+                  className={`${styles.trace} ${styles['trace-soft']} ${t.undone ? styles['trace-undone'] : ''}`}
                   onClick={() => openArtifact('list')}
                   disabled={t.undone}
                 >
@@ -1531,7 +1531,7 @@ export function Feed() {
                     </span>
                     <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
                   </span>
-                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
+                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>}
                 </button>
                 {!t.undone && t.undoToken && (
                   <button
@@ -1573,7 +1573,7 @@ export function Feed() {
                             {alive.map((b) => [b.label, formatQty(b.value, b.unit)].filter(Boolean).join(' ')).join(', ')}
                           </span>
                         </span>
-                        <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
+                        <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>
                       </button>
                     </div>
                   )}
@@ -1609,7 +1609,7 @@ export function Feed() {
                       : 'чекає рішення'}
                   </span>
                 </span>
-                {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
+                {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>}
               </button>
             )}
             {/* Подія в стрічці — це слід (нижче), не картка: інакше під слідом стояла б порожня рамка (EventCard поза панеллю рендерить null). */}

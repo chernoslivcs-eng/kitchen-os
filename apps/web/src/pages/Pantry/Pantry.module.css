@@ -74,7 +74,11 @@
   gap: 12px;
   flex: 1;
   min-width: 0;
-  padding: 0;
+  /* Клікабельний увесь рядок, не лише текст: кнопка тягнеться на висоту
+     рядка, відступи рядка — її, а не контейнера (власник, 11.09). */
+  align-self: stretch;
+  padding: 11px 0 11px 12px;
+  margin: -11px 0 -11px -12px;
   background: transparent;
   border: 0;
   text-align: left;

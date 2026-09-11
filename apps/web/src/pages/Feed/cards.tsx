@@ -1107,18 +1107,29 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCa
           </div>
         )}
       </div>
-      <div className={styles['rcard-acts']}>
-        <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-ink']}`} onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? 'Розгорнути' : 'Згорнути'} title={collapsed ? 'Розгорнути' : 'Згорнути'}>
-          <Icon name={collapsed ? 'sys.add' : 'live.nothing'} size={16} inherit decorative />
-        </button>
-        <span className={styles['rcard-acts-sep']} aria-hidden />
-        <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-sage']}`} onClick={onOpen} aria-label="Рецепт" title="Рецепт →">
-          <Icon name="cook.go" size={18} inherit decorative />
-        </button>
-        {onAsk && (
-          <button type="button" className={styles['rcard-act']} onClick={() => onAsk(title)} aria-label="Уточнити" title="Уточнити">
-            <Icon name="sys.reply" size={16} inherit decorative />
+      {/* Дії належать рецепту й видимі лише розгорнутому (Prototype
+          `propDesk`: згорнутий рядок має тільки «+»; розгорнутий —
+          cooking-pot і reply; «−» згортає — Screens 4a). */}
+      <div className={styles['rcard-acts']} data-recipe-actions={collapsed ? 'collapsed' : 'open'}>
+        {collapsed ? (
+          <button type="button" className={styles['rcard-act']} onClick={() => setCollapsed(false)} aria-label="Розгорнути" title="Розгорнути">
+            <Icon name="sys.add" size={16} inherit decorative />
           </button>
+        ) : (
+          <>
+            <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-ink']}`} onClick={() => setCollapsed(true)} aria-label="Згорнути" title="Згорнути">
+              <Icon name="live.nothing" size={16} inherit decorative />
+            </button>
+            <span className={styles['rcard-acts-sep']} aria-hidden />
+            <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-sage']}`} onClick={onOpen} aria-label="Готуємо" title="Готуємо">
+              <Icon name="cook.go" size={18} inherit decorative />
+            </button>
+            {onAsk && (
+              <button type="button" className={styles['rcard-act']} onClick={() => onAsk(title)} aria-label="Уточнити" title="Уточнити">
+                <Icon name="sys.reply" size={16} inherit decorative />
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
