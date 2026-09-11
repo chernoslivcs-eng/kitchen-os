@@ -65,10 +65,12 @@ const names = () => [...host!.querySelectorAll<HTMLElement>('[data-batch]')].map
 // Тест переписаний свідомо, а не видалений: він і далі стежить за формою
 // лічильника, просто форма змінилась разом із каноном.
 describe('PantryPage · фільтр', () => {
-  it('за замовчуванням — групи за місцем і лічильник «N позицій»; за жирністю — плаский список спадно, без значення в кінці', async () => {
+  it('за замовчуванням — групи за місцем і лічильник «N · чек …» (Screens); за жирністю — плаский список спадно, без значення в кінці', async () => {
     await mount();
     expect(host!.querySelectorAll('[data-zone]').length).toBe(3);
-    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 позиції');
+    // Крок 1 things-v3: «113 · 10 прострочено · чек 7 вер» — число, хвіст
+    // прострочених лише коли вони є (тут нема), чек з last_receipt_at.
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 · чек 3 вер');
     await openFilter();
     await click(word('за жирністю'));
     expect(host!.querySelectorAll('[data-zone]').length).toBe(0);
@@ -79,7 +81,7 @@ describe('PantryPage · фільтр', () => {
     expect(host!.textContent).toContain('від жирного до нежирного');
     expect(host!.querySelector('[data-testid="unit-label"]')!.textContent).toContain('жиру / 100 г');
     // саме сортування не звужує список — лічильник як без фільтра
-    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 позиції');
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 · чек 3 вер');
   });
 
   // ПЕРЕПИСАНО в етапі 2a, свідомо і не мовчки.
@@ -230,5 +232,57 @@ describe('2c: хрестик у рядку — списано одразу, пр
     await click(host!.querySelector<HTMLButtonElement>('[data-batch="Огірки"] [aria-label^="Списати"]')!);
     await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
     expect(sent.some((b) => (b as { reason?: string }).reason)).toBe(false);
+  });
+});
+
+// Крок 1 things-v3 (Screens «Комора · збірка» / «мобайл»): чіпи зон, банер
+// «розрахунки скінчились», крапка часу в слоті часу.
+describe('PantryPage · крок 1 v3: чіпи зон · банер · слот часу', () => {
+  it('чіпи зон рахують усю комору; чіп звужує до однієї зони, «Усе» повертає; лічильник чіпа не міняється під зрізом', async () => {
+    await mount();
+    const chips = () => [...host!.querySelectorAll<HTMLButtonElement>('[data-zone-chip]')].map((c) => c.textContent);
+    expect(chips()).toEqual(['Свіже1', 'Холодильник2', 'Суха шафа1']);
+    await click(host!.querySelector<HTMLButtonElement>('[data-zone-chip="fridge"]')!);
+    expect([...host!.querySelectorAll<HTMLElement>('[data-zone]')].map((z) => z.dataset.zone)).toEqual(['fridge']);
+    expect(host!.querySelector('[data-zone-chip="fridge"]')!.getAttribute('aria-pressed')).toBe('true');
+    // повторний тап по тому ж чіпу = «Усе»
+    await click(host!.querySelector<HTMLButtonElement>('[data-zone-chip="fridge"]')!);
+    expect(host!.querySelectorAll('[data-zone]').length).toBe(3);
+    // зріз «з останнього чека» лишає 2 позиції, а чіпи й далі рахують усю комору
+    await openFilter();
+    await click(word('з останнього чека'));
+    expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('2 з 4');
+    expect(chips()).toEqual(['Свіже1', 'Холодильник2', 'Суха шафа1']);
+    // слово порядку в ряду чіпів — поточний порядок
+    expect(host!.querySelector('[data-sort-word]')!.textContent).toBe('за місцем');
+  });
+
+  it('банер «N розрахунків скінчились» — лише коли є прострочене зі шкалою; «Перевірити N» відкриває «за свіжістю»; без прострочених банера нема', async () => {
+    await mount();
+    expect(host!.querySelector('[data-ended-banner]')).toBeNull();
+    await act(async () => { root!.unmount(); }); host!.remove();
+    ITEMS.push(b('Стейк', { days: -9, cat: 'мʼясо', receipt: true }), b('Помідори', { days: 0, zone: 'fresh' }));
+    try {
+      await mount();
+      const banner = host!.querySelector('[data-ended-banner]')!;
+      expect(banner).not.toBeNull();
+      expect(banner.querySelector('[data-banner-check]')!.textContent).toBe('Перевірити 1');
+      // підрядок — три найтерміновіші: −9 · сьогодні · 2 дн
+      expect(banner.textContent).toContain('Стейк −9 дн');
+      expect(banner.textContent).toContain('Помідори');
+      // хвіст шапки: «6 · 1 прострочено · чек 3 вер»
+      expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('6 · 1 прострочено · чек 3 вер');
+      await click(banner.querySelector<HTMLButtonElement>('[data-banner-check]')!);
+      expect(host!.querySelector('[data-testid="filter-rails"]')).not.toBeNull();
+      expect(host!.querySelector('[data-testid="filter-rails"] [role="radio"][aria-checked="true"]')!.textContent).toBe('за свіжістю');
+      expect(names()[0]).toBe('Стейк');
+    } finally { ITEMS.splice(4); }
+  });
+
+  it('крапка часу стоїть у слоті часу, а не ліворуч від назви (Components «ROW ANATOMY»)', async () => {
+    await mount();
+    const row = host!.querySelector('[data-batch="Куряче філе"]')!;
+    expect(row.querySelector('[data-time] [data-fresh]')!.getAttribute('data-fresh')).toBe('soon');
+    expect(row.querySelector('[data-time]')!.textContent).toBe('≈ ще 2 дн');
   });
 });

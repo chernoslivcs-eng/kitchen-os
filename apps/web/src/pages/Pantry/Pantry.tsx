@@ -2,9 +2,9 @@
 // Порядок зон — з брифу §01: свіже → холодильник → морозилка → комора → спеції → напої.
 // Тап на партію → sheet із деталями, звідки можна відредагувати або прибрати.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
-import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
+import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, ZONE_ORDER, ZONE_LABEL, applyFilter, toggleKind, toggleState, resetFilter, shortDate, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -45,6 +45,11 @@ export function PantryPage() {
   // Рейки фільтра — за кнопкою «Фільтр» (Screens); брудний фільтр — крапка на кнопці.
   const [filterOpen, setFilterOpen] = useState(() => !!(location.state as { sort?: string } | null)?.sort);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Крок 1 (things-v3, Screens «Комора · збірка»): чіп зони звужує екран до
+  // однієї зони; «Усе» повертає всі. Це не зріз фільтра — рейки його не знають.
+  const [zoneFocus, setZoneFocus] = useState<PantryBatch['zone'] | null>(null);
+  const colsRef = useRef<HTMLDivElement>(null);
+  const cols = useZoneColumns(colsRef);
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
   const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
   const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
@@ -203,17 +208,39 @@ export function PantryPage() {
   const productsById = new Map(products.map((p) => [p.id, p]));
   const view = applyFilter(batches, filter, { productsById, receiptAt: lastReceiptAt });
   const q = filter.q.trim().toLowerCase();
+  // Крок 1 (Screens «Комора · збірка»): чіпи зон рахують усю комору, не зріз —
+  // «Холодильник 31» лишається 31 і під фільтром; звужує лише чіп.
+  const zoneCounts = new Map<PantryBatch['zone'], number>();
+  for (const b of batches) zoneCounts.set(b.zone, (zoneCounts.get(b.zone) ?? 0) + 1);
+  const zoneChips = ZONE_ORDER.filter((z) => zoneCounts.has(z));
+  const groups = view.groups.filter((g) => !zoneFocus || g.zone === zoneFocus);
+  const list = view.list.filter((r) => !zoneFocus || r.it.zone === zoneFocus);
+  // Банер «N розрахунків скінчились» (Screens): партії, чий строк за каталогом
+  // минув — у рядку це «−N дн» тоном danger. Підрядок — три найтерміновіші
+  // (прострочені й ті, що добігають), решта «нижче за свіжістю».
+  const allRows = view.grouped ? view.groups.flatMap((g) => g.items) : view.list;
+  const ended = allRows.filter((r) => r.timeTone === 'danger');
+  const urgent = allRows.filter((r) => r.scale && r.it.days != null && (r.timeTone === 'danger' || r.timeTone === 'amber'))
+    .sort((a, b) => (a.it.days ?? 0) - (b.it.days ?? 0));
+  const overdue = batches.filter((b) => b.days != null && b.days < 0 && b.catalog_key).length;
+  // Емфаза за правилом ⚠1 (Screens: «на 18 видимих рядках 600 + колір мають
+  // три: стейк, помідори, фует») — три найтерміновіші, решта звичайним 500.
+  const hot = new Set(urgent.slice(0, 3).map((r) => r.it.id));
+  // Шапка (Screens): «113 · 10 прострочено · чек 7 вер»; звужений список —
+  // «12 з 61», як і було (крок Ф2). Хвіст на 390 ховається — кадр «мобайл»
+  // дає лише число.
+  const metaTail = [
+    overdue > 0 ? `${overdue} прострочено` : '',
+    lastReceiptAt ? `чек ${shortDate(lastReceiptAt)}` : '',
+  ].filter(Boolean);
 
   const renderRow = (r: RowView, flat: boolean) => {
     const b = r.it;
     return (
       /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
          Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
-      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--line)' }}>
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`}>
         <button className={styles['row-main']} onClick={() => setEditing(b)}>
-          {/* Без каталожного ключа шкали немає (PLAN §2) — місце тримаємо,
-              щоб назви не стрибали по рядках. */}
-          {r.scale ? <FreshIcon fresh={r.fresh} /> : <span className={styles['mark-none']} aria-hidden />}
           {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
           <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
             <span className={styles['name-text']} title={r.name}>{r.name}</span>
@@ -235,8 +262,13 @@ export function PantryPage() {
             </span>
           )}
           {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
-          {/* Слот часу — четверте слово («−9 дн») сюди й приходить. */}
-          <span className={`${styles.time} ${styles[`tone-${r.timeTone}`]}`} data-time>{r.time}</span>
+          {/* Слот часу — крапка 6 несе колір стану, слово — зміст (Components
+              «ROW ANATOMY»). Четверте слово («−9 дн») сюди й приходить. Без
+              каталожного ключа шкали немає (PLAN §2) — місце тримаємо. */}
+          <span className={`${styles.time} ${styles[`tone-${r.timeTone}`]}`} data-time>
+            {r.scale ? <FreshIcon fresh={r.fresh} /> : <span className={styles['mark-none']} aria-hidden />}
+            {r.time}
+          </span>
           {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
         </button>
         <button
@@ -266,7 +298,7 @@ export function PantryPage() {
       <AppHeader title="Комора" onMenu={() => openNav(true)} fill action={<>
           {/* QA6-12: під час пошуку лічильник показував загальну кількість —
               «9 ПОЗИЦІЙ» при одній видимій. Крок Ф1: те саме для фільтра — «12 З 61». */}
-          <div className={styles.meta} data-testid="pantry-meta">{view.meta}</div>
+          <div className={styles.meta} data-testid="pantry-meta">{view.meta}{filter.cuts.length === 0 && !q && metaTail.map((t) => <span key={t} className={styles['meta-tail']}> · {t}</span>)}</div>
           <span className={styles['head-gap']} />
           {batches.length > 0 && (
             <label className={styles.search} data-search>
@@ -288,7 +320,7 @@ export function PantryPage() {
             </button>
           )}
           {batches.length > 0 && (
-            <button type="button" className={`${styles['head-icon']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`}
+            <button type="button" className={`${styles['head-icon']} ${styles['head-filter']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`}
               onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-toggle>
               <Icon name="sys.filter" size={16} inherit decorative />
               {view.dirty && <span className={styles['head-badge']} aria-hidden />}
@@ -307,6 +339,29 @@ export function PantryPage() {
               placeholder="Продукт або категорія" aria-label="Знайти в коморі" className={styles['search-input']} autoFocus />
           </label>
         )}
+        {batches.length > 0 && (
+          /* Ряд чіпів (Screens «Комора · збірка» / «мобайл»): «Усе» чорнилом,
+             зони на card зі знаком 14 і лічильником dim; праворуч — слово
+             порядку зі знаком «↕» (відкриває рейки). На 390 другий чіп —
+             «Фільтр» колом 34, як у кадрі; слово порядку ховається. */
+          <div className={styles.chips} data-zone-chips>
+            <button type="button" className={`${styles['zone-chip']} ${zoneFocus === null ? styles['zone-chip-on'] : ''}`}
+              aria-pressed={zoneFocus === null} onClick={() => setZoneFocus(null)}>Усе</button>
+            <button type="button" className={`${styles['zone-chip']} ${styles['chip-filter']} ${filterOpen || view.dirty ? styles['zone-chip-on'] : ''}`}
+              onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-chip>
+              <Icon name="sys.filter" size={16} inherit decorative />
+            </button>
+            {zoneChips.map((z) => (
+              <button key={z} type="button" className={`${styles['zone-chip']} ${zoneFocus === z ? styles['zone-chip-on'] : ''}`}
+                aria-pressed={zoneFocus === z} onClick={() => setZoneFocus((cur) => (cur === z ? null : z))} data-zone-chip={z}>
+                <Icon name={ZONE_ICON[z] as 'zone.fresh'} size={16} inherit decorative />{ZONE_LABEL[z]}<span className={styles['zone-chip-n']}>{zoneCounts.get(z)}</span>
+              </button>
+            ))}
+            <button type="button" className={styles['chips-sort']} onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen} data-sort-word>
+              <Icon name="sys.sort" size={16} inherit decorative />{view.sort.label}
+            </button>
+          </div>
+        )}
         {batches.length > 0 && filterOpen && (
           <FilterRails
             view={view}
@@ -316,6 +371,30 @@ export function PantryPage() {
             onState={(k) => { trackFilter({ state: k }); setFilter((f) => toggleState(f, k)); }}
             onReset={() => setFilter((f) => resetFilter(f))}
           />
+        )}
+        {!loading && ended.length > 0 && !view.dirty && !q && (
+          /* Банер (Screens «Комора · збірка»): знак flame у бурштиновому
+             квадраті 38 · заголовок 15/600 · підрядок 12 muted · «Приготувати
+             з цього» чорнилом 36 (у чат) · «Перевірити N» контуром (порядок
+             «за свіжістю» з розкритими рейками — прострочене зверху, і на
+             кожному «ще годиться / зіпсувалось»). На 390 — компактно: одна
+             дія-знак, «Перевірити» — тап по тексту. */
+          <div className={styles.banner} data-ended-banner>
+            <span className={styles['banner-icon']}><Icon name="live.burning" size={20} inherit decorative /></span>
+            <button type="button" className={styles['banner-text']} onClick={() => { setFilter((f) => ({ ...f, sort: 'fresh' })); setFilterOpen(true); }} data-banner-check-tap>
+              <span className={styles['banner-title']}>{ended.length} {plural(ended.length, ['розрахунок скінчився', 'розрахунки скінчились', 'розрахунків скінчились'])}</span>
+              <span className={styles['banner-sub']}>
+                {urgent.slice(0, 3).map((r) => `${r.name} ${r.time}`).join(', ')}
+                {urgent.length > 3 ? ' — решта нижче за свіжістю' : ''}
+              </span>
+            </button>
+            <button type="button" className={styles['banner-main']} onClick={() => navigate('/app', { state: { composePrefix: 'Приготуй щось із того, що горить: ' } })} aria-label="Приготувати з цього" data-banner-cook>
+              <Icon name="cook.go" size={16} inherit decorative /><span className={styles['banner-main-text']}>Приготувати з цього</span>
+            </button>
+            <button type="button" className={styles['banner-ghost']} onClick={() => { setFilter((f) => ({ ...f, sort: 'fresh' })); setFilterOpen(true); }} data-banner-check>
+              Перевірити {ended.length}
+            </button>
+          </div>
         )}
         {loading && <SkeletonRows rows={5} />}
         {!loading && batches.length === 0 && (
@@ -341,21 +420,33 @@ export function PantryPage() {
           </div>
         )}
 
-        {view.grouped && view.groups.map((g) => (
-          <div key={g.zone} data-zone={g.zone} className={styles['zone-card']}>
-            {/* Хедер зони як у бандлі: заливка чорнилом, текст bg, 44 px, знак 16,
-                назва 14/600, лічильник 12 на opacity .7 (бандл .6 — у темній це
-                4.4:1, тому .7: 8.1 / 6.1). Зона — картка на полотні bg. */}
-            <div className={styles['section-label']}>
-              <Icon name={ZONE_ICON[g.zone] as 'zone.fresh'} size={16} inherit decorative />
-              <span className={styles['section-name']}>{g.label}</span>
-              <span className={styles['section-count']}>{g.count}</span>
-            </div>
-            {g.items.map((r) => renderRow(r, false))}
+        {view.grouped && groups.length > 0 && (
+          /* Зони — колонки з чергуванням (Screens «Комора · збірка»: Свіже ·
+             Морозилка ліворуч, Холодильник · Суха шафа праворуч; R0 на 1920 —
+             три). Колонок стільки, скільки дає ширина САМОГО екрана комори,
+             не вікна (власник, 11.09): 1 · 2 від 1000 · 3 від 1500. */
+          <div className={styles['zone-cols']} ref={colsRef} data-zone-cols={cols}>
+            {Array.from({ length: cols }, (_, ci) => (
+              <div key={ci} className={styles['zone-col']}>
+                {groups.filter((_, gi) => gi % cols === ci).map((g) => (
+                  <div key={g.zone} data-zone={g.zone} className={styles['zone-card']}>
+                    {/* Хедер зони як у бандлі: заливка чорнилом, текст bg, 44 px, знак 16,
+                        назва 14/600, лічильник 12 на opacity .7 (бандл .6 — у темній це
+                        4.4:1, тому .7: 8.1 / 6.1). Зона — картка на полотні bg. */}
+                    <div className={styles['section-label']}>
+                      <Icon name={ZONE_ICON[g.zone] as 'zone.fresh'} size={16} inherit decorative />
+                      <span className={styles['section-name']}>{g.label}</span>
+                      <span className={styles['section-count']}>{g.count}</span>
+                    </div>
+                    {g.items.map((r) => renderRow(r, false))}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
-        ))}
+        )}
 
-        {!view.grouped && !view.empty && view.list.length > 0 && (
+        {!view.grouped && !view.empty && list.length > 0 && (
           <div className={styles.flat} data-testid="flat-list">
             <div className={styles['flat-head']}>
               <span className={styles['flat-title']}>{view.flatLabel}</span>
@@ -366,7 +457,7 @@ export function PantryPage() {
                 <span className={styles['unit-short']}>{view.unitShort}</span>
               </span>
             </div>
-            {view.list.map((r) => renderRow(r, true))}
+            {list.map((r) => renderRow(r, true))}
           </div>
         )}
       </div>
@@ -401,6 +492,28 @@ export function PantryPage() {
 
     </div>
   );
+}
+
+// Скільки колонок зон уміщує екран комори. Розкладка бандла — колонки з
+// чергуванням зон (не сітка рядками: картки різної висоти не тримають один
+// одного), тому кількість колонок потрібна в розмітці, а не лише в CSS.
+// Пороги — за Responsive: ≤ 1024 одна (з рейкою 60 контент 964), 1440 дві,
+// 1920 три (R0).
+function useZoneColumns(ref: { current: HTMLElement | null }): number {
+  const [cols, setCols] = useState(1);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const apply = () => {
+      const w = el.getBoundingClientRect().width;
+      setCols(w >= 1500 ? 3 : w >= 1000 ? 2 : 1);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  return cols;
 }
 
 // Три рядки над списком: порядок (одна шкала), тільки (один рід), стан (до

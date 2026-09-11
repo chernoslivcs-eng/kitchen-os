@@ -28,6 +28,8 @@ const st = (over: Partial<FilterState> = {}): FilterState => ({ ...INITIAL, ...o
 
 // Етап 1.6 (рішення Р20): капс знято. Він був вписаний не лише в CSS, а й
 // у самі рядки — тому лічильник тепер «6 позицій», а не «6 ПОЗИЦІЙ».
+// Крок 1 things-v3 (Screens «Комора · збірка»): лічильник — голе число «6»;
+// хвіст «· N прострочено · чек …» додає сторінка.
 // Тест переписаний свідомо, а не видалений: він і далі стежить за формою
 // лічильника, просто форма змінилась разом із каноном.
 describe('сортування', () => {
@@ -69,10 +71,10 @@ describe('сортування', () => {
     expect(v.grouped).toBe(true);
     expect(v.groups.map((g) => g.label)).toEqual(['Свіже', 'Холодильник', 'Морозилка', 'Суха шафа']);
     expect(v.dirty).toBe(false);
-    expect(v.meta).toBe('6 позицій');
+    expect(v.meta).toBe('6');
   });
   it('крок Ф2: саме сортування без зрізів не звужує список — лічильник без «з»', () => {
-    expect(applyFilter(ITEMS, st({ sort: 'fat' }), ctx).meta).toBe('6 позицій');
+    expect(applyFilter(ITEMS, st({ sort: 'fat' }), ctx).meta).toBe('6');
     expect(applyFilter(ITEMS, st({ sort: 'fat', cuts: ['meat'] }), ctx).meta).toBe('2 з 6');
     expect(applyFilter(ITEMS, st({ q: 'сир' }), ctx).meta).toBe('1 з 6');
   });

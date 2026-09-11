@@ -300,7 +300,9 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   return {
     sort, shown, dirty,
     // Етап 1.6: капс знято й тут — він був вписаний у самі рядки, не лише в CSS.
-    meta: narrowed ? `${shown.length} з ${items.length}` : `${items.length} ${plural(items.length, ['позиція', 'позиції', 'позицій'])}`,
+    // Крок 1 things-v3 (Screens «Комора · збірка» / «мобайл»): лічильник —
+    // голе число «113»; хвіст «· 10 прострочено · чек 7 вер» додає сторінка.
+    meta: narrowed ? `${shown.length} з ${items.length}` : `${items.length}`,
     grouped: grouped && !empty,
     // Ф2а: усередині групи порядок стабільний — новіші за added_at зверху,
     // однакова дата — за назвою; не за порядком з сервера (терміновість/updated_at),

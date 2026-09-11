@@ -59,6 +59,37 @@
         "start"
       ],
       "port": 3000
+    },
+    {
+      "name": "api-demo-3010",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PG_URL=",
+        "OPENROUTER_API_KEY=",
+        "ANTHROPIC_API_KEY=",
+        "PORT=3010",
+        "APP_URL=http://localhost:5180",
+        "pnpm",
+        "--filter",
+        "@kitchen/api",
+        "start"
+      ],
+      "port": 3010
+    },
+    {
+      "name": "web-5180",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:3010",
+        "pnpm",
+        "--filter",
+        "@kitchen/web",
+        "dev",
+        "--",
+        "--port",
+        "5180"
+      ],
+      "port": 5180
     }
   ]
 }
