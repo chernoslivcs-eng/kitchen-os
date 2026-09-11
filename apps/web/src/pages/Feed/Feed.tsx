@@ -710,16 +710,8 @@ export function Feed() {
     return () => document.removeEventListener('keydown', onKey);
   }, [turns]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!toast || toast.persist) return;
-    // Undo toast — довше вікно (людина може прочитати й натиснути).
-    // Успіх без undo — 5с, помилка — 8с. «Готую рецепт…» — persist до кінця.
-    // Моушн-кіт: тост auto 4с, з undo — 8с. 18с висіло як бажання «дати
-    // більше часу», але дизайн свідомо тримає ритм — undo є і в журналі.
-    const ttl = toast.action ? 8_000 : (toast.kind === 'err' ? 8_000 : 4_000);
-    const t = setTimeout(() => setToast(null), ttl);
-    return () => clearTimeout(t);
-  }, [toast]);
+  // №11: час тоста тримає сам компонент (4 с / 8 с з дією) — тут лише
+  // «persist» для «Готую рецепт…» (без onDismiss тост стоїть до кінця).
 
   // Пул-2 №4: простиня з буфера (інвентар, довгий список) не мусить іти
   // чат-конвеєром — він обрізається стелею відповіді. Вставка >1500 символів
@@ -1906,6 +1898,7 @@ export function Feed() {
           tone={toast.kind === 'ok' ? 'sage' : toast.kind === 'warn' ? 'amber' : 'danger'}
           text={toast.text}
           action={toast.action ? { label: toast.action.label, run: () => { toast.action!.run(); setToast(null); } } : undefined}
+          onDismiss={toast.persist ? undefined : () => setToast(null)}
         />
       )}
     </div>

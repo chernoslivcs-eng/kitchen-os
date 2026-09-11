@@ -12,6 +12,7 @@
 // --theme   light | dark | both (типово both — окремий файл на тему)
 // --path · --width · --height · --email · --log · --click · --init-storage ·
 // --stub-json · --stub-messages · --stub-rest · --app-sel · --full · --reduce ·
+// --stub-any prefix=STATUS  будь-який метод за префіксом шляху (POST теж) — «не записалось»
 // --scale — те саме, що в side-by-side.mjs (див. там)
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
@@ -110,6 +111,15 @@ async function shoot(base, theme, side) {
         if (/^\d{3}$/.test(val)) return route.fulfill({ status: Number(val), contentType: 'application/json', body: '{}' });
         return route.fulfill({ status: 200, contentType: 'application/json', body: val });
       });
+    }
+  }
+  // --stub-any prefix=STATUS[;prefix=STATUS] — будь-який метод, шлях за префіксом
+  // (POST/PATCH теж): «запис не пройшов» → тост помилки, без бази.
+  const stubAny = arg('stub-any', null);
+  if (stubAny) {
+    for (const pair of stubAny.split(';')) {
+      const i = pair.indexOf('='); const prefix = pair.slice(0, i).trim(); const val = pair.slice(i + 1).trim();
+      await page.route((u) => u.pathname.startsWith(prefix), (route) => val === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(val), contentType: 'application/json', body: '{"error":"stub"}' }));
     }
   }
   const stubFile = arg('stub-messages', null);
