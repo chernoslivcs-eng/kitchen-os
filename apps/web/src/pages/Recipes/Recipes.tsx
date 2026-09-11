@@ -3,9 +3,13 @@
 // зникав назавжди. QA-6 намацав це відчуттям «двічі отримав різото й обидва
 // рази втратив».
 //
-// Фільтри — з прототипу: «Можу зараз» (ready) / «Майже» (near) / «Готував».
-// Стан рахує сервер проти поточної комори, тому список змінюється сам, коли
-// щось купуєш: рецепт переїжджає з «далеко» в «можу зараз» без жодної дії.
+// Форма — Screens D5 (v3): сегмент «Збережені · N / Журнал», «Записати свій»,
+// фільтри пігулками з лічильниками, картка — знак страви, назва + слово стану
+// в роді, рядок часу · калорій · «готував», під ним «бракує: …» і
+// «використає: …». Стан рахує сервер проти поточної комори, тому список
+// змінюється сам, коли щось купуєш: рецепт переїжджає з «далеко» в «можу
+// зараз» без жодної дії. «Знайти рецепт» із D5 не зроблено — у прототипі це
+// напис без поведінки, а поле без пошуку за ним було б обіцянкою без даних.
 
 import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon/Icon';
@@ -17,43 +21,28 @@ import styles from './Recipes.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
-import { useAuth } from '../../store/auth';
-
-type Filter = 'all' | 'ready' | 'near' | 'cooked';
-
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: 'Усі' },
-  { id: 'ready', label: 'Можу приготувати зараз' },
-  { id: 'near', label: 'Майже' },
-  { id: 'cooked', label: 'Готував' },
-];
-
-function statusChip(r: SavedRecipe): { text: string; color: string; bg: string; border: string } {
-  if (r.status === 'ready') {
-    return { text: 'МОЖУ ЗАРАЗ', color: 'var(--sage)', bg: 'var(--sage-bg)', border: 'var(--sage)' };
-  }
-  if (r.status === 'near') {
-    return { text: `−${r.missing.length}`, color: 'var(--amber)', bg: 'var(--amber-bg)', border: 'var(--amber-line)' };
-  }
-  return { text: `${r.have} З ${r.total}`, color: 'var(--dim)', bg: 'transparent', border: 'var(--line2)' };
-}
+import { FILTERS, filterCounts, matches, rank, statusWord, type Filter } from './library';
+import { Toast } from '../../components/ErrorState/Toast';
+import { RECIPES_FAILED } from '../../components/ErrorState/copy';
 
 export function RecipesPage() {
   const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
-  const [shoppingCount, setShoppingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  // Етап 5 (п.1): не принести ≠ порожньо. Раніше catch підставляв [] і екран
+  // казав «Тут поки жодного рецепта» — Errors: «порожній екран каже „у тебе
+  // нічого нема", і це брехня». Тепер — тост із повтором, список як був.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   async function refresh() {
     try {
-      const [r, s] = await Promise.all([
-        api.savedRecipes.list().catch(() => ({ recipes: [] as SavedRecipe[] })),
-        api.shopping.list().catch(() => ({ count: 0 })),
-      ]);
+      const r = await api.savedRecipes.list();
       setRecipes(r.recipes);
-      setShoppingCount(s.count);
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -61,18 +50,9 @@ export function RecipesPage() {
 
   useEffect(() => { void refresh(); }, []);
 
-  const shown = recipes.filter((r) => {
-    if (filter === 'ready') return r.status === 'ready';
-    if (filter === 'near') return r.status === 'near';
-    if (filter === 'cooked') return r.cooked_count > 0;
-    return true;
-  });
-
-  // Порядок як у прототипі: спершу те, що можна робити зараз.
-  const rank = (r: SavedRecipe) => (r.status === 'ready' ? 0 : r.status === 'near' ? 1 : 2);
+  const shown = recipes.filter((r) => matches(r, filter));
   const sorted = [...shown].sort((a, b) => rank(a) - rank(b));
-
-  const readyCount = recipes.filter((r) => r.status === 'ready').length;
+  const counts = filterCounts(recipes);
 
   // Моушн-кіт §03: прибраний рецепт згортається 250ms exit, а не щезає.
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
@@ -95,39 +75,35 @@ export function RecipesPage() {
 
   return (
     <div className={styles.screen}>
+      {loadFailed && (
+        <Toast text={RECIPES_FAILED.text} action={{ label: RECIPES_FAILED.cta, run: () => void refresh() }} />
+      )}
       <AppHeader title="Рецепти" onMenu={() => openNav(true)} action={<>
+          {/* Сегмент, не кнопка (D5, B1): «Збережені · N» — це весь список;
+              «Журнал» — окремий екран готувань. */}
+          <div className={styles.segment} role="tablist">
+            <span role="tab" aria-selected="true" className={`${styles.seg} ${styles['seg-on']}`}>
+              Збережені{recipes.length > 0 && <span className={styles['seg-n']}>· {recipes.length}</span>}
+            </span>
+            <button type="button" role="tab" aria-selected="false" className={styles.seg} onClick={() => navigate('/cooklog')}>Журнал</button>
+          </div>
           {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
               лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
               моделі явний сигнал на recipe-картку (DA2-23). */}
-          <button
-            onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}
-            style={{
-              background: 'transparent', border: 0, padding: '5px 4px',
-              color: 'var(--sage)', fontSize: 13, cursor: 'pointer',
-            }}
-          >
-            <Icon name="sys.add" size={16} inherit decorative /> Імпорт
+          {/* На 390 бандл (Screens D5 · 390) ставить у шапку лише круглі
+              знаки: сегмент ховається, «Журнал» — знаком «готував». */}
+          <button type="button" className={styles['journal-icon']} aria-label="Журнал" title="Журнал" onClick={() => navigate('/cooklog')}>
+            <Icon name="cook.done" size={16} inherit decorative />
           </button>
-          <button
-            onClick={() => navigate('/cooklog')}
-            style={{
-              background: 'transparent', border: '1px solid var(--line2)',
-              borderRadius: 'var(--r-pill)', padding: '5px 10px', color: 'var(--muted)',
-              fontSize: 10, cursor: 'pointer',
-            }}
-          >
-            <Icon name="live.byHand" size={16} inherit decorative /> Журнал
+          <button type="button" className={styles.write} aria-label="Записати свій"
+            onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}>
+            <Icon name="sys.import" size={16} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
           </button>
-          <div className={styles.meta}>
-            {readyCount > 0
-              ? `${readyCount} МОЖУ ЗАРАЗ`
-              : `${recipes.length} ${plural(recipes.length, ['РЕЦЕПТ', 'РЕЦЕПТИ', 'РЕЦЕПТІВ'])}`}
-          </div>
       </>} />
 
       <div className={styles.body}>
         {loading && <SkeletonRows rows={4} />}
-        {!loading && recipes.length === 0 && (
+        {!loading && !loadFailed && recipes.length === 0 && (
           <div className={styles.empty}>
             <h3>Тут поки жодного рецепта</h3>
             {/* UX9-20: кнопка в стрічці зветься «У рецепти» — підказка вчила
@@ -140,32 +116,21 @@ export function RecipesPage() {
         )}
 
         {recipes.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+          <div className={styles.filters}>
             {FILTERS.map((f) => {
               const active = filter === f.id;
               return (
-                <button
-                  key={f.id}
-                  onClick={() => setFilter(f.id)}
-                  style={{
-                    // Канон Бриф-2 5б: активний фільтр — інверсна пігулка,
-                    // шавлія лишається для семантики (МОЖУ ЗАРАЗ), не для стану.
-                    height: 32,
-                    padding: '0 13px',
-                    borderRadius: 'var(--r-pill)',
-                    border: `1px solid ${active ? 'var(--btn-primary-bg)' : 'var(--line2)'}`,
-                    background: active ? 'var(--btn-primary-bg)' : 'transparent',
-                    color: active ? 'var(--btn-primary-fg)' : 'var(--muted)',
-                    fontFamily: 'var(--font-body)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
+                <button key={f.id} type="button" onClick={() => setFilter(f.id)} aria-pressed={active}
+                  className={`${styles.filter} ${active ? styles['filter-on'] : ''}`} data-filter={f.id}>
+                  {f.id === 'ready' && <span className={`${styles['filter-dot']} ${styles.sage}`} aria-hidden />}
+                  {f.id === 'near' && <span className={`${styles['filter-dot']} ${styles.amber}`} aria-hidden />}
+                  {f.id === 'cooked' && <Icon name="sys.done" size={12} inherit decorative />}
                   {f.label}
+                  <span className={styles['filter-n']} data-count>{counts[f.id]}</span>
                 </button>
               );
             })}
+            <span className={styles['filters-hint']}>спершу те, що можна зараз</span>
           </div>
         )}
 
@@ -178,11 +143,12 @@ export function RecipesPage() {
         {/* Пул-6 №5: ≥768 — 2 колонки тими самими рядками, row-wise. */}
         <div className={styles.grid}>
         {sorted.map((r) => {
-          const chip = statusChip(r);
+          const st = statusWord(r);
           return (
-            <div key={r.id} style={{ position: 'relative' }} className={leavingIds.has(r.id) ? styles['card-leave'] : ''}>
+            <div key={r.id} className={`${styles.slot} ${leavingIds.has(r.id) ? styles['card-leave'] : ''}`}>
               <button
-                className={styles.card}
+                className={`${styles.card} ${st.tone === 'far' ? styles['card-far'] : ''}`}
+                data-status={r.status}
                 /* Правка №10: рецепт — хід розмови. Тап відкриває сесію з
                    рецептом у чаті (близнюк реюзається на бекенді), не екран. */
                 onClick={async () => {
@@ -194,59 +160,33 @@ export function RecipesPage() {
                   }
                 }}
               >
+                <span className={styles.icon}><Icon name="cook.type" size={20} inherit decorative /></span>
                 <div className={styles.info}>
-                  <div className={styles.dish}>{r.title}</div>
-
-                  <div className={styles.sub} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: 'var(--r-pill)',
-                      border: `1px solid ${chip.border}`,
-                      background: chip.bg,
-                      color: chip.color,
-                      fontSize: 10,
-                    }}>
-                      {chip.text}
+                  <div className={styles['dish-row']}>
+                    <span className={styles.dish}>{r.title}</span>
+                    <span className={`${styles.status} ${styles[`status-${st.tone}`]}`}>
+                      <span className={styles['status-dot']} aria-hidden />{st.text}
                     </span>
-                    {r.time_total && <span>{formatDuration(r.time_total, 'caps')}</span>}
+                  </div>
+
+                  <div className={styles.sub}>
+                    {r.time_total && <span className={styles.stat}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.time_total)}</span>}
+                    {r.payload.nu?.kcal && <span className={styles.stat}>≈ {r.payload.nu.kcal} ккал</span>}
                     {r.cooked_count > 0 && (
-                      <span>ГОТУВАВ {r.cooked_count} {plural(r.cooked_count, ['РАЗ', 'РАЗИ', 'РАЗІВ'])}</span>
+                      <span className={styles.stat}><Icon name="cook.done" size={12} inherit decorative />{r.cooked_count} {plural(r.cooked_count, ['раз', 'рази', 'разів'])}</span>
                     )}
                   </div>
 
-                  {r.descr && (
-                    <div style={{
-                      marginTop: 5,
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 13,
-                      color: 'var(--muted)',
-                      lineHeight: 1.45,
-                    }}>
-                      {r.descr}
-                    </div>
-                  )}
-
                   {/* Найкорисніший рядок екрана: що саме докупити. */}
                   {r.missing.length > 0 && (
-                    <div style={{
-                      marginTop: 5,
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 13,
-                      color: 'var(--amber)',
-                    }}>
-                      БРАКУЄ: {r.missing.join(', ')}
+                    <div className={`${styles.line} ${styles['line-missing']}`}>
+                      <Icon name="cook.missing" size={12} inherit decorative />бракує: {r.missing.join(', ')}
                     </div>
                   )}
-
                   {/* Чому саме зараз — те, що рецепт рятує з комори. */}
                   {r.rescues.length > 0 && (
-                    <div style={{
-                      marginTop: 3,
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 13,
-                      color: 'var(--sage)',
-                    }}>
-                      ВИКОРИСТАЄ: {r.rescues.join(', ')}
+                    <div className={`${styles.line} ${styles['line-rescues']}`}>
+                      <Icon name="live.burning" size={12} inherit decorative />використає: {r.rescues.join(', ')}
                     </div>
                   )}
                 </div>
@@ -254,19 +194,8 @@ export function RecipesPage() {
 
               {/* QA9-08: ✕ на КОЖНОМУ рядку — «готував, не зберіг» раніше
                   висів у бібліотеці назавжди без жодного способу прибрати. */}
-              <button
+              <button type="button" className={styles.remove}
                 onClick={(e) => { e.stopPropagation(); void unsave(r); }}
-                style={{
-                  position: 'absolute',
-                  top: 8, right: 0,
-                  width: 44, height: 44,
-                  background: 'transparent',
-                  border: 0,
-                  borderRadius: 'var(--r)',
-                  color: 'var(--dim)',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
                 aria-label={`Прибрати «${r.title}» з рецептів`}
                 title="Прибрати з рецептів"
               ><Icon name="sys.close" size={16} inherit /></button>

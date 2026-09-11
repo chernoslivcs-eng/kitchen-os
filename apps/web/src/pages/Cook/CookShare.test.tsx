@@ -13,6 +13,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { CookOverlay } from './Cook';
 import { useCookStore } from '../../store/cook';
+import { useIncidentStore } from '../../store/incident';
+import { loadUnsavedRun } from '../../lib/cook-session';
 import type { Recipe } from '../../api';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -135,6 +137,12 @@ describe('О2 (3): «Поділитись результатом»', () => {
     saveFails = true;
     await act(async () => { shareBtns()[0]!.click(); });
     expect(where()).toBe('/app');
+    // Етап 5 (п.6): але не мовчимо — те саме тіло запиту лежить у сховку і в
+    // сторі, звідки смуга «не записалось» шле його ще раз.
+    const stash = loadUnsavedRun();
+    expect(stash?.recipe.t).toBe(RECIPE.t);
+    expect(stash?.opts).toEqual({ skip_pantry: true, recipe_id: undefined, session_id: 's1', ask_writeoff: true });
+    expect(useIncidentStore.getState().unsavedCook?.recipe.t).toBe(RECIPE.t);
   });
 
   it('«Приготували» лишається головною і веде в стрічку', async () => {

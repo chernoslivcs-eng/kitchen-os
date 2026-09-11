@@ -13,15 +13,15 @@
 //     осях — не конфлікт: «Напої» як категорія продукту й як зона комори це
 //     одне й те саме, тому там знак спільний навмисно.
 import {
-  MessageCircle, BookOpen, ListChecks, Calendar, House, ShoppingCart, Receipt,
+  MessageCircle, BookOpen, BookMarked, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
-  Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark,
+  Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
   Refrigerator, Snowflake, Archive, FlaskConical, Wine,
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
-  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, History, Star,
-  Flame, Sparkles, Pencil, TriangleAlert, CalendarDays, Recycle,
+  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import,
+  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -65,6 +65,8 @@ export const ICONS = {
   'sys.out':       { glyph: ExternalLink,      label: 'Назовні',       family: 'system' },
   'sys.collapse':  { glyph: PanelLeftClose,    label: 'Згорнути',      family: 'system' },
   'sys.theme':     { glyph: SunMoon,           label: 'Тема',          family: 'system' },
+  // Смуга «вхід · час оновитись» (Errors E2) — log-in, як у бандлі.
+  'sys.login':     { glyph: LogIn,             label: 'Увійти',        family: 'system' },
   'sys.sound':     { glyph: Volume2,           label: 'Звук',          family: 'system' },
   'sys.profile':   { glyph: User,              label: 'Профіль',       family: 'system' },
   'sys.menu':      { glyph: Menu,              label: 'Меню',          family: 'system' },
@@ -136,16 +138,37 @@ export const ICONS = {
   'cook.time':     { glyph: Clock,         label: 'Час',           family: 'cooking' },
   'cook.ban':      { glyph: Ban,           label: 'Не можна',      family: 'cooking' },
   'cook.love':     { glyph: Heart,         label: 'Люблю',         family: 'cooking' },
-  'cook.done':     { glyph: History,       label: 'Готував',       family: 'cooking' },
-  'cook.rescue':   { glyph: Recycle,       label: 'Використає',    family: 'cooking' },
+  // Бібліотека рецептів (Screens D5): «готував 2 рази» і «Знову» в журналі —
+  // rotate-ccw, один зміст «повторно»; «бракує: …» — кошик-basket (не cart:
+  // cart — кошик мережі). «використає: …» іде під flame: рядок називає те,
+  // що горить, — той самий зміст, не другий.
+  'cook.done':     { glyph: RotateCcw,     label: 'Готував, знову',family: 'cooking' },
+  'cook.missing':  { glyph: ShoppingBasket,label: 'Бракує',        family: 'cooking' },
+  'sys.import':    { glyph: Import,        label: 'Записати свій', family: 'system' },
   'cook.rating':   { glyph: Star,          label: 'Оцінка',        family: 'cooking' },
 
   // ---- живі стани й тривога ----
   'live.burning':  { glyph: Flame,         label: 'Горить',        family: 'live' },
   'live.thinking': { glyph: Sparkles,      label: 'Думаю',         family: 'live' },
   'live.overdue':  { glyph: TriangleAlert, label: 'Прострочено',   family: 'live' },
-  'live.season':   { glyph: CalendarDays,  label: 'Сезон',         family: 'live' },
+  // Роди періодів — як у бандлі (Components A2 кікер, Screens D3 чіпи):
+  // сезон — sun / бурштин, традиція — church / слива, завіз — truck / шавлія,
+  // подія дому — users / шавлія. Рамка дня — без знака (muted).
+  'live.season':   { glyph: Sun,           label: 'Сезон',         family: 'live' },
+  'live.tradition':{ glyph: Church,        label: 'Свято, піст',   family: 'live' },
+  'live.supply':   { glyph: Truck,         label: 'Завіз',         family: 'live' },
+  'live.household':{ glyph: Users,         label: 'Подія дому',    family: 'live' },
   'live.byHand':   { glyph: Pencil,        label: 'Рукою',         family: 'live' },
+  // Стани дії — рядок над композитором (Components · «Стани дії»). Знаки з
+  // бандла, як намальовано: ліміт — пісочний годинник, мережа — wifi-off,
+  // «нічого не змінилось» — мінус. «Стоп» — квадрат, знак зупинки.
+  'live.limit':    { glyph: Hourglass,     label: 'Ліміт',         family: 'live' },
+  'live.offline':  { glyph: WifiOff,       label: 'Немає звʼязку', family: 'live' },
+  'live.nothing':  { glyph: Minus,         label: 'Нічого не змінилось', family: 'live' },
+  'sys.stop':      { glyph: Square,        label: 'Стоп',          family: 'system' },
+  'sys.retry':     { glyph: RotateCw,      label: 'Повторити',     family: 'system' },
+  // Джерело події «з каталогу» в «Дім зараз» — book-marked, як у бандлі (Components).
+  'sys.tradition': { glyph: BookMarked,    label: 'З каталогу',    family: 'system' },
 } as const satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;
@@ -168,4 +191,7 @@ export const SHARED_ON_PURPOSE = ['Напої', 'Морозилка'];
 export const PENDING_DESIGN_CHAT: { glyph: LucideIcon; meanings: string[]; question: string }[] = [
   { glyph: Leaf, meanings: ['Свіже', 'Зелень'], question: 'зонам потрібна окрема вісь знаків?' },
   { glyph: Refrigerator, meanings: ['Комора', 'Холодильник'], question: 'навігаційна «Комора» і зона — один знак?' },
+  // Бандл ставить users і на «2 порції» (Redesign, Prototype, Screens D1), і на
+  // «Мама · чт – нд» / «подія дому» (Screens D3, Redesign). Один знак — два змісти.
+  { glyph: Users, meanings: ['Порції', 'Подія дому'], question: 'порції й подія дому — один знак?' },
 ];

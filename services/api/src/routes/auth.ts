@@ -39,7 +39,7 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     const email = ((req.body as { email?: string })?.email ?? '').toLowerCase().trim();
     const key = `${req.ip}:${email}`;
     if (!limiter.check(key)) {
-      tooMany(reply, limiter, key);
+      tooMany(reply, limiter, key, 'auth');
       return reply;
     }
   };

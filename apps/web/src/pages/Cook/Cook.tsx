@@ -12,7 +12,8 @@ import { Button } from '../../components/Button/Button';
 import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
-import { saveCookSession, loadCookSession, clearCookSession } from '../../lib/cook-session';
+import { useIncidentStore } from '../../store/incident';
+import { saveCookSession, loadCookSession, clearCookSession, stashUnsavedRun } from '../../lib/cook-session';
 import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
@@ -342,14 +343,24 @@ export function CookOverlay() {
       try { sid = (await api.session.today()).session.id; } catch {/* offline */}
     }
     let saved = true;
+    const opts = {
+      skip_pantry: true,
+      recipe_id: state.recipeId,
+      session_id: sid ?? undefined,
+      ask_writeoff: true,
+    };
     try {
-      await api.cookRuns.save(recipe!, {
-        skip_pantry: true,
-        recipe_id: state.recipeId,
-        session_id: sid ?? undefined,
-        ask_writeoff: true,
-      });
-    } catch { saved = false; /* offline: запис у журнал не вийшов — не тримаємо людину в пастці */ }
+      await api.cookRuns.save(recipe!, opts);
+    } catch {
+      // Офлайн, 5xx — людину в пастці не тримаємо, але й не мовчимо (етап 5,
+      // п.6): те саме тіло запиту лягає у сховок, смуга над колонкою каже
+      // «не записалось», «Повторити» шле його ще раз. Без цього готування
+      // — єдиний автоматичний писач знаменника метрики — губилось би тихо.
+      saved = false;
+      const run = { recipe: recipe!, opts, at: Date.now() };
+      stashUnsavedRun(run);
+      useIncidentStore.getState().setUnsavedCook(run);
+    }
     closeOverlay();
     if (after === 'share' && saved && recipe) {
       // Той самий стан, що й точки входу зі стрічки.

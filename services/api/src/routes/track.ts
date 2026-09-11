@@ -73,7 +73,7 @@ export function trackRoutes(app: FastifyInstance, repo: Repo) {
 
   app.post<{ Body: TrackBody }>('/v1/events/track', { preHandler: authenticated(repo) }, async (req, reply) => {
     const { user_id, household_id } = requireUser(req);
-    if (!limiter.check(user_id)) return tooMany(reply, limiter, user_id);
+    if (!limiter.check(user_id)) return tooMany(reply, limiter, user_id, 'track');
 
     const incoming = req.body?.events;
     if (!Array.isArray(incoming) || !incoming.length) return { accepted: 0 };

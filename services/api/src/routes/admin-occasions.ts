@@ -47,7 +47,7 @@ export function adminOccasionsRoutes(app: FastifyInstance, repo: Repo, opts: { r
   const guard = [authenticated(repo), requireAdmin(repo), async (req: FastifyRequest, reply: FastifyReply) => {
     const { user_id } = requireUser(req);
     if (!limiter.check(user_id)) {
-      tooMany(reply, limiter, user_id);
+      tooMany(reply, limiter, user_id, 'admin');
       return reply;
     }
   }];

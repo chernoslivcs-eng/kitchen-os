@@ -276,7 +276,7 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const { user_id } = requireUser(req);
     if (!limiter.check(user_id)) {
-      tooMany(reply, limiter, user_id);
+      tooMany(reply, limiter, user_id, 'retail');
       return reply;
     }
   };

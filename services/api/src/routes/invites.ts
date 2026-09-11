@@ -36,7 +36,7 @@ export function invitesRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, 
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const key = (req as { user?: { user_id: string } }).user?.user_id ?? req.ip;
     if (!limiter.check(key)) {
-      tooMany(reply, limiter, key);
+      tooMany(reply, limiter, key, 'invite');
       return reply;
     }
   };

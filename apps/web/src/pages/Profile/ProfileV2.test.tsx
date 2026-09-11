@@ -263,3 +263,57 @@ describe('Р8: база кухні названа окремо', () => {
     expect(host.querySelectorAll('[data-baseline]').length).toBe(1);
   });
 });
+
+describe('етап 4 · лічильник за 20 знаків до стелі, на всіх пʼятьох лімітах (PLAN §3, §6)', () => {
+  // ~~Р7~~ зняв «лічильника на 30 немає» як помилку МАКЕТА (макет демонстрував
+  // патерн на одному полі), але не як вимогу до реалізації. Реалізація мусить
+  // показувати його на кожному ліміті — 30, 140, 200, 250, 260 — і не лише під
+  // час набору, а щойно до стелі лишається 20 знаків: обрізати не мовчки.
+  const LIMITS: Record<string, number> = { name: 30, ban: 140, no: 200, when: 250, kit: 260 };
+
+  for (const [k, max] of Object.entries(LIMITS)) {
+    it(`${k}: за 20 знаків до ${max} — видно без набору; далі від стелі — ні`, async () => {
+      await mount();
+      const el = edit(k);
+      // Далеко від стелі, набір давно скінчився — лічильника не видно.
+      await act(async () => { el.textContent = 'а'.repeat(Math.max(1, max - 40)); fire(el, 'input'); el.focus(); fire(el, 'focusin'); });
+      const c = host.querySelector<HTMLElement>(`[data-counter="${k}"]`)!;
+      // За 20 до стелі — видно, і без набору.
+      await act(async () => { el.textContent = 'а'.repeat(max - 20); fire(el, 'input'); });
+      await act(async () => { await new Promise((r) => setTimeout(r, 1300)); });
+      expect(c.style.opacity, `${k}: лічильник за 20 до ${max}`).toBe('1');
+      expect(c.textContent).toBe(`${max - 20}/${max}`);
+    });
+  }
+});
+
+describe('етап 4 · status — три різні форми, не тон (PLAN §6, Б2)', () => {
+  // filled — чорний текст; empty — плейсхолдер сірий курсив; none — «нічого
+  // такого» сірим БЕЗ курсиву. Три різні речі: «є», «не казав», «свідомо ні».
+  // Доти none і empty виглядали однаково — обидва порожнім полем із
+  // плейсхолдером, тобто «нічого такого» читалось як «ще не відповідав».
+  it('none — «нічого такого» видно словом, і воно не курсив', async () => {
+    await mount();  // ban: field('', 'none')
+    const row = host.querySelector<HTMLElement>('[data-row="ban"]')!;
+    expect(row.getAttribute('data-status')).toBe('none');
+    const none = row.querySelector<HTMLElement>('[data-none]');
+    expect(none, 'слово «нічого такого» є').toBeTruthy();
+    expect(none!.textContent).toBe('нічого такого');
+  });
+
+  it('empty — плейсхолдер, а не слово; курсив несе CSS, не розмітка', async () => {
+    await mount();  // meh: field('')
+    const row = host.querySelector<HTMLElement>('[data-row="meh"]')!;
+    expect(row.getAttribute('data-status')).toBe('empty');
+    expect(row.querySelector('[data-none]')).toBeNull();
+    expect(edit('meh').getAttribute('data-ph')).toBeTruthy();
+  });
+
+  it('filled — текст, без плейсхолдера і без слова', async () => {
+    await mount();  // name: 'Пилип'
+    const row = host.querySelector<HTMLElement>('[data-row="name"]')!;
+    expect(row.getAttribute('data-status')).toBe('filled');
+    expect(row.querySelector('[data-none]')).toBeNull();
+    expect(edit('name').textContent).toBe('Пилип');
+  });
+});

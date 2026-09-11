@@ -472,15 +472,9 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
   }
 
   return (
-    <Sheet onClose={onClose} ariaLabel="Додати позицію в комору">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MonoLabel>Додати продукт</MonoLabel>
-          <button
-            onClick={onClose}
-            style={{ background: 'transparent', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 20 }}
-            aria-label="Закрити"
-          ><Icon name="sys.close" size={16} inherit /></button>
-        </div>
+    <Sheet onClose={onClose} ariaLabel="Додати позицію в комору" kind="batch">
+        {/* «Закрити» тепер у шапці шторки (одна колода з панеллю) — свій ✕ зайвий. */}
+        <MonoLabel>Додати продукт</MonoLabel>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 13, color: 'var(--dim)' }}>Назва</span>

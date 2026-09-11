@@ -822,15 +822,17 @@ a.att-chip:hover { border-color: var(--sage); }
   background: var(--sage);
   vertical-align: -2px;
   margin-left: 3px;
+  /* Блимання — через токен (під reduce стоїть); caret-gone 1ms — не рух, а
+     затримка зникнення, тривалість тут не має значення і під reduce теж. */
   animation:
-    caret-blink 0.9s steps(2) infinite,
-    caret-gone 1ms forwards; /* delay інлайном */
+    caret-blink var(--dur-breathe) steps(2) infinite,
+    caret-gone var(--dur-fast, 1ms) forwards; /* delay інлайном */
 }
 @keyframes caret-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 @keyframes caret-gone { to { opacity: 0; visibility: hidden; } }
 
 /* Пул-7 №4: apply — картка спалахує шавлією 700ms (кіт: ✓ + флеш). */
-.doccard-flash { animation: doccard-flash 700ms var(--ease-standard, ease); }
+.doccard-flash { animation: doccard-flash var(--dur-flash) var(--ease-standard, ease); }
 /* Моушн-кіт: після «Ні» картка не щезає — осідає й пригасає base, підпис сліду каже, що сталось. */
 .doccard { transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease), transform var(--dur-base, 250ms) var(--ease-standard, ease); }
 .doccard-off { opacity: .55; transform: scale(.985); }
@@ -862,7 +864,7 @@ a.att-chip:hover { border-color: var(--sage); }
   border-radius: 999px;
   border: 2px solid var(--line2);
   border-top-color: var(--sage);
-  animation: spin 0.9s linear infinite;
+  animation: spin var(--dur-breathe) linear infinite;
   flex: none;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

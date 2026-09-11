@@ -8,13 +8,14 @@
 // полагодив). Смуга стоїть НАД колонкою й не зсуває стрічку стрибком: у неї
 // власна обгортка, а поява — 220 мс.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { registerIncidentSink } from '../../api';
+import { api, registerIncidentSink } from '../../api';
+import { clearUnsavedRun } from '../../lib/cook-session';
 import { useIncidentStore } from '../../store/incident';
 import { useAuth } from '../../store/auth';
 import { Strip } from './Strip';
-import { AUTH_STRIP, THROTTLED_STRIP, OFFLINE_STRIP } from './copy';
+import { COOK_UNSAVED_STRIP, AUTH_STRIP, THROTTLED_STRIP, THROTTLED_BY_KIND, OFFLINE_STRIP } from './copy';
 import styles from './IncidentStrips.module.css';
 
 /** Реєструє стор як приймач подій із api.req. Кличеться раз, у каркасі. */
@@ -44,18 +45,36 @@ export function IncidentStrips() {
   const authExpired = useIncidentStore((s) => s.authExpired);
   const throttledUntil = useIncidentStore((s) => s.throttledUntil);
   const throttledFor = useIncidentStore((s) => s.throttledFor);
-  const offline = useIncidentStore((s) => s.offline);
+  const throttledKind = useIncidentStore((s) => s.throttledKind);
+  // Етап 3: на стрічці ліміт і мережу показує рядок стану дії — смуги за них
+  // мовчать, щоб не казати одне двічі. Сесія — смугою завжди.
+  const rowMounted = useIncidentStore((s) => s.actionRowMounted);
+  const offline = useIncidentStore((s) => s.offline) && !rowMounted;
   const clearThrottled = useIncidentStore((s) => s.clearThrottled);
   const setAuthExpired = useIncidentStore((s) => s.setAuthExpired);
+  const unsavedCook = useIncidentStore((s) => s.unsavedCook);
+  const setUnsavedCook = useIncidentStore((s) => s.setUnsavedCook);
+  const [retrying, setRetrying] = useState(false);
+  // Той самий запит, що не пройшов, — не новий: тіло взято зі сховку.
+  const retryCook = async () => {
+    if (!unsavedCook || retrying) return;
+    setRetrying(true);
+    try {
+      await api.cookRuns.save(unsavedCook.recipe, unsavedCook.opts);
+      clearUnsavedRun();
+      setUnsavedCook(null);
+    } catch { /* смуга лишається — стан не минув */ } finally { setRetrying(false); }
+  };
 
-  const throttled = throttledUntil !== null && throttledUntil > Date.now();
-  if (!authExpired && !throttled && !offline) return null;
+  const throttled = !rowMounted && throttledUntil !== null && throttledUntil > Date.now();
+  if (!authExpired && !throttled && !offline && !unsavedCook) return null;
 
   return (
     <div className={styles.host} data-incident-strips>
       <div className={styles.column}>
         {authExpired && (
           <Strip
+            tone="plum" icon="sys.login"
             kicker={AUTH_STRIP.kicker}
             h1a={AUTH_STRIP.h1a}
             h1b={AUTH_STRIP.h1b}
@@ -70,18 +89,38 @@ export function IncidentStrips() {
             }}
           />
         )}
-        {throttled && (
+        {throttled && (() => {
+          // Етап 3: слово за видом ліміту, якщо сервер його назвав; інакше —
+          // загальна смуга, як і було. Старе поле, старий сервер — не ламається.
+          const copy = (throttledKind && THROTTLED_BY_KIND[throttledKind]) || THROTTLED_STRIP;
+          return (
+            <Strip
+              tone="amber" icon="live.limit"
+              kicker={copy.kicker}
+              h1a={copy.h1a}
+              h1b={copy.h1b}
+              body={copy.body}
+              seconds={throttledFor}
+              onDone={clearThrottled}
+              kind={throttledKind ?? 'generic'}
+            />
+          );
+        })()}
+        {unsavedCook && (
           <Strip
-            kicker={THROTTLED_STRIP.kicker}
-            h1a={THROTTLED_STRIP.h1a}
-            h1b={THROTTLED_STRIP.h1b}
-            body={THROTTLED_STRIP.body}
-            seconds={throttledFor}
-            onDone={clearThrottled}
+            tone="plum" icon="sys.retry"
+            kind="cook_unsaved"
+            kicker={COOK_UNSAVED_STRIP.kicker}
+            h1a={COOK_UNSAVED_STRIP.h1a}
+            h1b={COOK_UNSAVED_STRIP.h1b}
+            body={COOK_UNSAVED_STRIP.body}
+            cta={retrying ? 'Записую…' : COOK_UNSAVED_STRIP.cta}
+            onCta={() => void retryCook()}
           />
         )}
         {offline && (
           <Strip
+            tone="card" icon="live.offline"
             kicker={OFFLINE_STRIP.kicker}
             h1a={OFFLINE_STRIP.h1a}
             h1b={OFFLINE_STRIP.h1b}

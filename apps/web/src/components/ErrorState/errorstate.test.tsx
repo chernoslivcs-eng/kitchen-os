@@ -16,7 +16,8 @@ import { ErrorScreen } from './ErrorScreen';
 import { Strip } from './Strip';
 import { IncidentStrips, useIncidentSink } from './IncidentStrips';
 import { useIncidentStore } from '../../store/incident';
-import { AUTH_STRIP, THROTTLED_STRIP, NOT_FOUND } from './copy';
+import { AUTH_STRIP, THROTTLED_STRIP, THROTTLED_BY_KIND, NOT_FOUND } from './copy';
+import { api, registerIncidentSink } from '../../api';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -119,6 +120,16 @@ describe('смуги', () => {
     expect(host!.textContent).toContain(AUTH_STRIP.cta);
     // Хрестика немає ніде — і в смузі з дією теж.
     expect(host!.textContent).not.toContain('×');
+    // Етап 5 (п.7), Errors E2: рід кольором — «треба дія» = plum.
+    expect(q('[data-strip]')!.getAttribute('data-strip-tone')).toBe('plum');
+  });
+
+  it('E2: тон роду — 429 amber, офлайн card', async () => {
+    await mount(<IncidentStrips />);
+    await act(async () => { useIncidentStore.getState().setThrottled(30); });
+    expect(q('[data-strip]')!.getAttribute('data-strip-tone')).toBe('amber');
+    await act(async () => { useIncidentStore.getState().clearThrottled(); useIncidentStore.getState().setOffline(true); });
+    expect(q('[data-strip]')!.getAttribute('data-strip-tone')).toBe('card');
   });
 
   it('429 показує смугу БЕЗ кнопки, з «мине саме» і смужкою', async () => {
@@ -129,6 +140,41 @@ describe('смуги', () => {
     expect(txt('[data-strip-passes]')).toBe('мине саме');
     expect(q('[data-strip-drain]')).toBeTruthy();
     expect(host!.querySelector('button')).toBeNull();
+  });
+
+  // Етап 3 (рішення 11.09): 429 називає, ЯКИЙ ліміт. Сервер шле `kind` у
+  // тілі; клієнт має працювати і без нього — стара смуга запасна.
+  it('429 з kind — смуга називає ліміт; без kind — загальна, як і було', async () => {
+    await mount(<IncidentStrips />);
+    await act(async () => { useIncidentStore.getState().setThrottled(30, 'recipe_gen'); });
+    expect(host!.textContent).toContain(THROTTLED_BY_KIND.recipe_gen!.h1a);
+    expect(host!.textContent).not.toContain(THROTTLED_STRIP.h1a);
+    expect(q('[data-strip]')?.getAttribute('data-strip-kind')).toBe('recipe_gen');
+
+    await act(async () => { useIncidentStore.getState().clearThrottled(); });
+    await act(async () => { useIncidentStore.getState().setThrottled(30); });
+    expect(host!.textContent).toContain(THROTTLED_STRIP.h1a);
+    expect(q('[data-strip]')?.getAttribute('data-strip-kind')).toBe('generic');
+
+    // Вид, для якого слова немає, — теж загальна смуга, не порожнеча.
+    await act(async () => { useIncidentStore.getState().clearThrottled(); });
+    await act(async () => { useIncidentStore.getState().setThrottled(30, 'track'); });
+    expect(host!.textContent).toContain(THROTTLED_STRIP.h1a);
+  });
+
+  it('req(): kind із тіла 429 доходить у стор; без поля — null', async () => {
+    const calls: [number, string | null | undefined][] = [];
+    registerIncidentSink({ setAuthExpired() {}, setThrottled: (s, k) => { calls.push([s, k]); }, setOffline() {} });
+    vi.stubGlobal('fetch', vi.fn(async () =>
+      new Response(JSON.stringify({ error: 'too many requests', kind: 'chat' }), { status: 429, headers: { 'Retry-After': '42', 'content-type': 'application/json' } })));
+    await expect(api.pantry()).rejects.toBeTruthy();
+    expect(calls.at(-1)).toEqual([42, 'chat']);
+    vi.stubGlobal('fetch', vi.fn(async () =>
+      new Response(JSON.stringify({ error: 'too many requests' }), { status: 429, headers: { 'Retry-After': '7', 'content-type': 'application/json' } })));
+    await expect(api.pantry()).rejects.toBeTruthy();
+    expect(calls.at(-1)).toEqual([7, null]);
+    registerIncidentSink(null);
+    vi.unstubAllGlobals();
   });
 
   it('смужка стікає за реальний час, а не за константу', async () => {

@@ -8,7 +8,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { api, type Recipe, type RecipeNutritionInfo } from '../../api';
-import { formatNutritionLine } from '../../lib/nutrition';
+import { formatNutritionLine, formatModelEstimate } from '../../lib/nutrition';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
@@ -133,10 +133,12 @@ export function RecipePage() {
     setDoneSteps(next);
   };
 
+  // Р12: у шапці — час і ОЦІНКА моделі, підписана як оцінка. Розрахунок з
+  // каталогу стоїть під інгредієнтами і підписаний як з каталогу. Два числа
+  // на одній сторінці — два різні джерела, і тепер обидва так і кажуть.
   const summary = [
     recipe.tm ? formatDuration(recipe.tm, 'caps') : null,
-    recipe.nu?.kcal ? `${recipe.nu.kcal}ККАЛ/ПОРЦІЮ` : null,
-    recipe.nu ? `Б${Math.round(recipe.nu.p)} Ж${Math.round(recipe.nu.f)} В${Math.round(recipe.nu.c)}` : null,
+    recipe.nu?.kcal ? formatModelEstimate(recipe.nu) : null,
   ].filter(Boolean).join(' · ');
   const sv = recipe.sv ?? 1;
   const stepBtn: React.CSSProperties = {

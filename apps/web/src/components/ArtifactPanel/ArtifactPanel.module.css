@@ -60,7 +60,7 @@
 
 /* Моушн-2 №4: rail — нові рядки в'їжджають, змінені спалахують шавлією. */
 .rail-row { animation: rail-row-in var(--dur-base, 250ms) var(--ease-enter, ease); }
-.rail-flash { animation: row-flash-rail 700ms var(--ease-standard, ease) both; }
+.rail-flash { animation: row-flash-rail var(--dur-flash) var(--ease-standard, ease) both; }
 
 /* Пул-6 №2: rail — смужка/оверлей/колапс. */
 /* Керування панеллю — ліворуч, артефакти — праворуч. Кнопка в тій самій

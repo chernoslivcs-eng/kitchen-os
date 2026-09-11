@@ -102,6 +102,11 @@
   --dur-base:    250ms;    /* card state, toast */
   --dur-slow:    400ms;    /* step change, screen transition */
   --dur-breathe: 1200ms;   /* pending pulse, spinner */
+  /* Етап 5 (п.3): тривалості, які жили числами в модулях. Під reduce — 0,
+     як і решта: спалах стає миттєвим станом, пульс тривоги — сталим кольором. */
+  --dur-flash:   700ms;    /* спалах «це щойно змінилось» (рядок, подія, картка) */
+  --dur-pulse:   1400ms;   /* шимер скелетона, пульс слоту дропзони */
+  --dur-alarm:   30s;      /* пульс «таймер вийшов» у Cook Mode */
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter:    cubic-bezier(0, 0, 0.2, 1);
@@ -114,6 +119,9 @@
     --dur-base: 0ms;
     --dur-slow: 0ms;
     --dur-breathe: 0ms;
+    --dur-flash: 0ms;
+    --dur-pulse: 0ms;
+    --dur-alarm: 0ms;
   }
 }
 

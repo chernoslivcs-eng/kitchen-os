@@ -17,15 +17,18 @@
 
 .panel {
   width: 100%;
-  max-width: 720px;
+  /* Та сама геометрія, що в шторки артефакта (.rail-open): стеля 560,
+     радіус 16, відступи 16, лінія зверху й та сама тінь. */
+  max-width: 560px;
   background: var(--card);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-height: 90dvh;
-  overflow-y: auto;
+  max-height: 82vh;
+  overflow: hidden;
   animation: sheet-in var(--dur-slow, 400ms) var(--ease-enter, ease);
   /* Пружина назад після недотягнутого драгу. */
   transition: transform var(--dur-base, 250ms) var(--ease-standard, ease);
@@ -35,3 +38,30 @@
 }
 @keyframes sheet-in  { from { transform: translateY(105%); } to { transform: translateY(0); } }
 @keyframes sheet-out { from { transform: translateY(0); } to { transform: translateY(105%); } }
+
+/* Ручка (Screens D3c: 36×4, line2) — знак, що шторку можна стягнути. */
+.handle {
+  flex: none;
+  width: 36px; height: 4px;
+  margin: 0 auto 6px;
+  border-radius: 2px;
+  background: var(--line2);
+}
+.head { flex: none; }
+/* «Закрити» — той самий знак панелі й той самий квадрат, що .rail-collapse
+   у шторці артефакта (там він display:none поза .rail-open, тому тут свій). */
+.close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px; height: 34px;
+  margin-right: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.close:hover { background: var(--line); border-color: var(--line); color: var(--ink); }
+.tab { margin-left: auto; cursor: default; }
+.content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px; }

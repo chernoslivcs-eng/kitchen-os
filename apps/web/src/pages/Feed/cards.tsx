@@ -2,6 +2,7 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
+import { formatModelEstimate } from '../../lib/nutrition';
 import { Icon } from '../../components/Icon/Icon';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
@@ -424,7 +425,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
           loading={applying}
           disabled={off.size === ops.length}
-        >{writeOff ? 'Списати' : 'Застосувати'} {goingIn}</Button>
+        >{writeOff ? 'Списати' : 'Застосувати'} {off.size ? `${goingIn} із ${ops.length}` : goingIn}</Button>
       )}
     </div>
   ) : null;
@@ -1021,7 +1022,8 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         </div>
         <div style={{ marginTop: 5, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)' }}>
           {r.tm ? <span>{formatDuration(r.tm)}</span> : null}
-          {r.nu?.kcal ? <span>{r.nu.kcal} ккал</span> : null}
+          {/* Р12: у чаті — оцінка моделі, і сказано, що оцінка. */}
+          {r.nu?.kcal ? <span>{formatModelEstimate(r.nu, 'short')}</span> : null}
           <button
             type="button"
             onClick={() => setPickServings((v) => !v)}
@@ -1505,11 +1507,39 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
 }
 
 // Мета-мітка перед карткою, залежно від типу й стану — на кшталт «КОМОРА · ОЧІКУЄ».
+/**
+ * Результат застосування — те, що сервер віддає з першого дня
+ * (applied / missed / already_there / truncated), а слід доти викидав.
+ * PLAN §4: «частковий успіх — слід „застосовано 9 із 14 · 5 пропущено"».
+ */
+export interface ApplyOutcome {
+  applied: number;
+  total: number;
+  missed?: string[];
+  alreadyThere?: number;
+  truncated?: boolean;
+}
+
+/** Хвіст мітки для часткового успіху; порожній, коли все влучило. */
+function outcomeTail(o?: ApplyOutcome): string {
+  if (!o || o.applied >= o.total) return '';
+  const parts = [`${o.applied} із ${o.total}`];
+  // Три різні причини недобору — три різні слова. «Пропущено» ≠ «уже було»
+  // ≠ «не вмістило»: перше — сервер не впізнав, друге — дубль, третє — стеля.
+  if (o.missed?.length) parts.push(`${o.missed.length} пропущено`);
+  if (o.alreadyThere) parts.push(`${o.alreadyThere} уже було`);
+  if (o.truncated) parts.push('решту не вмістило');
+  return ' · ' + parts.join(' · ');
+}
+
 export function labelFor(
   type: ChatCard['type'],
   applied?: boolean,
   undone?: boolean,
   dismissed?: boolean,
+  outcome?: ApplyOutcome,
+  /** Скільки рядків чекає рішення — «ОЧІКУЄ · 14». Той самий M, що потім у «9 із 14». */
+  pendingCount?: number,
 ): { text: string; tone: 'pending' | 'applied' | 'muted' } {
   // Слід рецепта — не дія: жодного «ОЧІКУЄ», просто мітка.
   if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
@@ -1518,7 +1548,7 @@ export function labelFor(
   // Крок 7: «Про тебе» — не дія, статусу немає.
   if (type === 'onboarding') return { text: 'ПРО ТЕБЕ', tone: 'muted' };
   if (undone) return { text: 'СКАСОВАНО', tone: 'muted' };
-  if (applied) return { text: 'ЗАСТОСОВАНО', tone: 'applied' };
+  if (applied) return { text: `ЗАСТОСОВАНО${outcomeTail(outcome)}`, tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «ОЧІКУЄ» назавжди.
   if (dismissed) return { text: 'ВІДХИЛЕНО', tone: 'muted' };
   const base = type === 'intake_diff' ? 'КОМОРА'
@@ -1532,7 +1562,9 @@ export function labelFor(
   // Аудит раунд 3, крок 3: статус — з режиму застосування (card-modes.ts),
   // не захардкожений тут другою правдою. mode === 'none' (proposal тощо) —
   // нічого чекати, лише тип, без «· ОЧІКУЄ».
+  // Етап 3: слід ДО застосування несе кількість — бурштином. Після — та сама
+  // функція дасть «9 із 14» чорнилом. Один слід, два моменти, одна функція.
   return applyMode(type) === 'none'
     ? { text: base, tone: 'muted' }
-    : { text: `${base} · ОЧІКУЄ`, tone: 'pending' };
+    : { text: `${base} · ОЧІКУЄ${pendingCount ? ` · ${pendingCount}` : ''}`, tone: 'pending' };
 }

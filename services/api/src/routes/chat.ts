@@ -68,7 +68,7 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const ctx = requireUser(req);
     if (!limiter.check(ctx.user_id)) {
-      tooMany(reply, limiter, ctx.user_id);
+      tooMany(reply, limiter, ctx.user_id, 'chat');
       return reply;
     }
   };

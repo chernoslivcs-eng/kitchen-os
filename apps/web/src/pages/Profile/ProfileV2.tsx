@@ -125,15 +125,20 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const firstDay = PROFILE_ROWS.every((r) => fields[r.k].status === 'empty');
   const hintRow = PROFILE_ROWS.find((r) => r.k === focus) ?? null;
 
+  // Етап 4 (PLAN §3, §6): лічильник зʼявляється за 20 знаків до стелі — на
+  // кожному з пʼяти лімітів (30 / 140 / 200 / 250 / 260), і не лише під час
+  // набору. Обрізати не мовчки: людина має бачити межу ДО того, як у неї
+  // впреться. Доти лічильник жив лише ~1 с після останнього символа — тобто
+  // з'являвся, коли вже пізно.
+  const COUNTER_AHEAD = 20;
   const counter = (row: ProfileRowCopy) => {
     const n = lens[row.k];
     const atLimit = n >= row.max;
+    const near = row.max - n <= COUNTER_AHEAD;
     const active = focus === row.k;
     return {
       text: atLimit ? row.lim : `${n}/${row.max}`,
-      // Видно тільки під час набору (зникає ~1 с після останнього символа);
-      // при вичерпанні — текст ліміту тримається, поки рядок у фокусі.
-      visible: active && (typing === row.k || atLimit),
+      visible: active && (typing === row.k || atLimit || near),
       atLimit,
     };
   };
@@ -281,14 +286,24 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
             const c = counter(row);
             return (
               <div key={row.k} className={styles.rowWrap}>
+                {/* Етап 4 (PLAN §6, Б2): status — три різні ФОРМИ, не тон.
+                    filled — чорний текст; empty — плейсхолдер сірим курсивом
+                    (єдине місце курсиву в продукті, tokens-v3); none — слово
+                    «нічого такого» сірим без курсиву. Доти none і empty
+                    виглядали однаково, і «свідомо ні» читалось як «ще не
+                    відповідав». */}
                 <div
                   data-row={row.k}
-                  className={[styles.row, active ? styles.rowActive : '', hover === row.k && !active ? styles.rowHover : ''].filter(Boolean).join(' ')}
+                  data-status={fields[row.k].status}
+                  className={[styles.row, active ? styles.rowActive : '', hover === row.k && !active ? styles.rowHover : '', fields[row.k].status === 'none' ? styles.rowNone : ''].filter(Boolean).join(' ')}
                   onMouseEnter={() => setHover(row.k)}
                   onMouseLeave={() => setHover(null)}
                   onClick={(e) => { if (e.target === e.currentTarget) edits.current[row.k]?.focus(); }}
                 >
                   <span className={row.danger ? styles.startDanger : styles.start}>{row.start}</span>{' '}
+                  {fields[row.k].status === 'none' && !fields[row.k].text && (
+                    <span className={styles.none} data-none onClick={() => edits.current[row.k]?.focus()}>нічого такого</span>
+                  )}
                   <span
                     ref={(el) => { edits.current[row.k] = el; }}
                     className={styles.edit}
