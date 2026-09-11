@@ -108,8 +108,9 @@ export function TabBar({ shoppingCount }: Props) {
   // Лічильники Комори й Рецептів зняті. «Комора 23» — число, що знецінює себе
   // за тиждень, і продукт уже раз таке викинув зі звіту дня. Бейдж лишається
   // лише на Списку й лише коли є непозначене: це дія, а не рахунок.
+  // 6b-6: у сайдбарі й барі ціль зветься «Чат» (Prototype nav, Responsive R1–R3).
   const tabs: TabDef[] = [
-    { path: '/app', icon: 'sys.chat', label: 'Стрічка' },
+    { path: '/app', icon: 'sys.chat', label: 'Чат' },
     { path: '/pantry', icon: 'sys.pantry', label: 'Комора' },
     { path: '/recipes', icon: 'sys.recipes', label: 'Рецепти' },
     { path: '/list', icon: 'sys.list', label: 'Список', badge: shoppingCount ?? shopCount ?? undefined },
@@ -117,6 +118,12 @@ export function TabBar({ shoppingCount }: Props) {
   ];
 
   const initial = (meName?.trim()[0] ?? '·').toUpperCase();
+  // Рядок профілю (Prototype nav): імʼя · «дім «Назва» · N» — дім і кількість
+  // їдців із /v1/me; на 390 (R3) — «дім · N · профіль».
+  const household = useAuth((s) => s.me?.household ?? null);
+  const homeLine = household
+    ? `дім «${household.name}» · ${household.members.length}`
+    : null;
 
   // Правка №1: сесії — у сайдбарі (тільки десктоп: блок схований у мобільній
   // верстці CSS-ом, як brand/user). Список оновлюється, коли Feed сіпає
@@ -163,18 +170,19 @@ export function TabBar({ shoppingCount }: Props) {
         onClick={() => setOpen(false)}
         aria-hidden="true"
       />
-    <div className={`${styles.wrap} ${open ? styles.open : ''}`}>
+    <div className={`${styles.wrap} ${open ? styles.open : ''}`} data-nav>
       {/* Д01: знак + вордмарк угорі сайдбара. На мобільному приховано. */}
       <div className={styles.brand}>
-        {/* Prototype nav: у рейці логотип і є кнопка «Розгорнути» (30, коло);
-            окрема кнопка «панель» лишається в розгорнутому сайдбарі та шухляді. */}
+        {/* Prototype nav: логотип у рейці теж розгортає (30, коло). Кнопка
+            «панель» (R1: одна на всі три контейнери) стоїть під логотипом у
+            рейці й праворуч від вордмарка в сайдбарі/шухляді. */}
         <button type="button" className={styles['brand-btn']}
           onClick={() => { if (window.innerWidth >= 1024) toggleExpanded(); else setOpen(!open); }}
           aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
           title={expanded || open ? 'Згорнути' : 'Розгорнути'} data-brand-btn>
           <Logo size={26} />
         </button>
-        <span className={styles['brand-name']}>Kitchen OS</span>
+        <span className={styles['brand-name']}>Kitchen<span className={styles['brand-os']}> OS</span></span>
         {/* Одна кнопка «панель» на всі контейнери (Responsive R1): у рейці
             ≥1024 розгортає сайдбар, у сайдбарі — згортає; у рейці 768–1023
             розсуває шухляду; у шухляді — закриває її. */}
@@ -195,6 +203,7 @@ export function TabBar({ shoppingCount }: Props) {
           Бренд лишається вгорі, профіль унизу: вони справді закріплені.
           «Історія →» за макетом іде в кінці списку, отже всередині скролу. */}
       <div className={styles.scroll} data-nav-scroll>
+      {/* Цілі: у шухляді 390 (R3) їх немає — вони в нижньому барі. */}
       {tabs.map((t) => {
         const active = pathname === t.path;
         return (
@@ -208,8 +217,10 @@ export function TabBar({ shoppingCount }: Props) {
             <Icon name={t.icon} size={18} decorative className={styles.glyph} />
             <span>{t.label}</span>
             {t.badge != null && t.badge > 0 && <span className={styles.badge}><RollingNumber value={t.badge} /></span>}
-            {/* Responsive R1: на «Коморі» в рейці — крапка danger, коли щось горить. */}
+            {/* Responsive R1: на «Коморі» в рейці — крапка danger, коли щось горить;
+                у сайдбарі й шухляді — те саме число праворуч (12/500 danger). */}
             {t.path === '/pantry' && (pantryFacts?.soon ?? 0) > 0 && <span className={styles['tab-dot']} aria-hidden />}
+            {t.path === '/pantry' && (pantryFacts?.soon ?? 0) > 0 && <span className={styles['tab-count']}>{pantryFacts!.soon}</span>}
           </button>
         );
       })}
@@ -219,9 +230,13 @@ export function TabBar({ shoppingCount }: Props) {
           панелі «Дім зараз». Сайдбар = Kitchen OS · цілі · «Розмови · + Нова» ·
           сесії по днях · рядок профілю (Prototype nav). Решта — 6b-6. */}
       <div className={styles.sessions}>
-        <div className={styles['sessions-divider']} />
+        {/* ≥768: «Розмови · + Нова» (Prototype nav); 390: рядок-картка
+            «+ Нова розмова» шавлією (R3) — одна дія, дві форми, перемикає CSS. */}
         <div className={styles['sessions-head']}><span className={styles['sessions-label']}>Розмови</span>
         <button className={styles['session-new']} onClick={newSession}><Icon name="sys.add" size={12} inherit decorative /> Нова</button></div>
+        <button className={styles['session-new-row']} onClick={newSession} data-new-session-row>
+          <Icon name="sys.add" size={16} inherit decorative /> Нова розмова
+        </button>
         {sessions.map((s, i) => {
           const { when, title } = sessionLabel(s);
           const day = dayLabel(s.day);
@@ -260,7 +275,13 @@ export function TabBar({ shoppingCount }: Props) {
         onClick={() => navigate('/profile')}
       >
         <span className={styles['user-avatar']}>{initial}</span>
-        <span>{meName ?? 'Профіль'}</span>
+        <span className={styles['user-text']}>
+          <span className={styles['user-name']}>{meName ?? 'Профіль'}</span>
+          {homeLine && <span className={styles['user-home']}>{homeLine}<span className={styles['user-home-tail']}> · профіль</span></span>}
+        </span>
+        {/* Prototype малює settings-2; у словнику такого знака нема, а
+            system-знак тягне запис у спільний motion.ts — тож шеврон, як у R3. */}
+        <Icon name="sys.next" size={16} inherit decorative className={styles['user-chev']} />
       </button>
     </div>
       {/* Етап 6a, Screens D5 · 390: нижній бар із пʼяти цілей (закриває ⚠6).
@@ -276,7 +297,7 @@ export function TabBar({ shoppingCount }: Props) {
                 <Icon name={t.icon} size={20} inherit decorative />
                 {t.badge != null && t.badge > 0 && <span className={styles['bar-badge']}>{t.badge}</span>}
               </span>
-              <span className={styles['bar-label']}>{t.label === 'Стрічка' ? 'Чат' : t.label}</span>
+              <span className={styles['bar-label']}>{t.label}</span>
             </button>
           );
         })}

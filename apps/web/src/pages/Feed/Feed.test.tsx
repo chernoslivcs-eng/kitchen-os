@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
 // Пул-9: композитор і стрічка під час думання.
-//   №1 вирівнювання смуги «Краще не відкладати» — не інлайн-марджин, а клас
-//       у модулі, тож медіа-правило колонки 720 більше не програє інлайну;
+//   №1 (смуга «Краще не відкладати») знято в 6b-6 — рядка над композитором
+//       більше нема, факт живе в «Дім зараз»;
 //   №2 вкладення видно в надісланій репліці;
 //   №3 очікування має час, а після 45 с — другий рядок;
 //   №4 «Стоп» рве виклик і не додає картку;
@@ -115,30 +115,6 @@ afterEach(async () => {
   host = undefined;
   vi.unstubAllGlobals();
   vi.useRealTimers();
-});
-
-describe('№1 смуга «Краще не відкладати»', () => {
-  beforeEach(() => {
-    batches = [{ id: 'b1', label: 'сметана', state: 'opened', expires_at: new Date(Date.now() + 86_400_000).toISOString(), days: 1 }];
-  });
-
-  it('стилі живуть у модулі, не інлайном — інакше auto-марджини колонки програють', async () => {
-    await mount();
-    const strip = q<HTMLButtonElement>('[data-stale-strip]');
-    expect(strip).toBeTruthy();
-    // Саме інлайновий margin бив медіа-правило `.composer-wrap > *` і зсував
-    // смугу ліворуч. Жодного інлайн-стилю на ній тепер немає.
-    expect(strip!.getAttribute('style')).toBeNull();
-  });
-
-  it('смуга — прямий сусід композитора в одній обгортці', async () => {
-    await mount();
-    const strip = q<HTMLElement>('[data-stale-strip]')!;
-    const form = q<HTMLFormElement>('form')!;
-    // Обидва — прямі діти `.composer-wrap`: інсет має задаватись однією
-    // системою правил, а не двома різними.
-    expect(strip.parentElement).toBe(form.parentElement);
-  });
 });
 
 describe('№2 вкладення в надісланій репліці', () => {

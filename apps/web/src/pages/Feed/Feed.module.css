@@ -336,28 +336,6 @@
   padding-top: 2px;
 }
 
-/* Пул-9 №1: смуга «краще не відкладати». Жила інлайновим `margin: 0 0 8px`
-   і `width: 100%` — інлайн бив медіа-правило `.composer-wrap > *` з
-   auto-марджинами, тож смуга починалась на 22px лівіше за композитор і на
-   22px не доходила праворуч. Тепер той самий горизонтальний інсет, що в
-   `.composer`, і та сама колонка 720 на широкому. */
-.stale-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 22px 8px;
-  padding: 10px 14px;
-  background: var(--amber-bg);
-  border: 1px solid var(--amber-line);
-  border-radius: var(--r);
-  color: var(--amber);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  cursor: pointer;
-  text-align: left;
-}
-.stale-strip-body { flex: 1; }
-
 .pending-attachments {
   padding: 10px 22px 0;
   display: flex;
@@ -583,7 +561,7 @@ a.att-chip:hover { border-color: var(--sage); }
 @media (min-width: 720px) {
   /* Правка №7: .timeline тут НЕМАЄ навмисно — вона лишається скрол-зоною на
      всю ширину (колесо працює будь-де), а колонку центрують її діти. */
-  .head, .composer, .stale-strip {
+  .head, .composer {
     max-width: 720px;
     width: 100%;
     margin-left: auto;

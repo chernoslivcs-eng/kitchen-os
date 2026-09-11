@@ -3,7 +3,6 @@
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
 // переходи між станами картки (ОЧІКУЄ → ЗАСТОСОВАНО → СКАСОВАНО).
 
-import { isSoon } from '@kitchen/domain/shelf-thresholds';
 import { Toast } from '../../components/ErrorState/Toast';
 import { Icon } from '../../components/Icon/Icon';
 import { ActionState } from '../../components/ActionState/ActionState';
@@ -178,10 +177,6 @@ export function Feed() {
   // Хід, який ЗАРАЗ у моделі — щоб «Стоп» позначив саме його.
   const currentTurnId = useRef<string | null>(null);
   const [pantryCount, setPantryCount] = useState<number | null>(null);
-  const [staleBatches, setStaleBatches] = useState<{ id: string; label: string; days: number }[]>([]);
-  // Моушн-2 №4: рядок rail, що змінився після apply/готування — флеш шавлією.
-  const [railFlash, setRailFlash] = useState<Set<string>>(new Set());
-  const prevStale = useRef<Map<string, number>>(new Map());
   const [batchLabels, setBatchLabels] = useState<Map<string, string>>(new Map());
   // №4а: кроки рецептів у стрічці — тільки product.
   const [stepLabels, setStepLabels] = useState<Map<string, string>>(new Map());
@@ -521,34 +516,9 @@ export function Feed() {
       setStepLabels(stepLabelsFrom(p.batches, p.products));
       setShoppingCount(s.count);
       shoppingCountRef.current = s.count;
-      // Догоряння: беремо активні партії з expires_at ≤ 3 днів. Показуємо 3 перших.
-      // Це «підказка одним рядком», не панель — юзер може її ігнорувати або тапнути,
-      // щоб модель сама запропонувала, що з ними зробити.
-      // Б1: беремо `days`, який уже порахував сервер (pantryItemView), а не
-      // колонку `expires_at`. Доти цей рядок бачив лише партії з ручною
-      // датою — одну з 246; тепер строк є в кожної, і рахувати його вдруге
-      // на клієнті означало б завести п'яте місце з власним порогом.
-      const stale = p.batches
-        .filter((b) => b.state !== 'depleted' && b.days != null)
-        .map((b) => ({ id: b.id, label: b.label, days: b.days! }))
-        // Етап 2a (Р2): було власною копією літерала 3 — тепер поріг один
-        // і живе в домені разом із рештою драбини.
-        .filter((b) => isSoon(b.days))
-        .sort((a, b) => a.days - b.days)
-        .slice(0, 3);
-      {
-        // Флеш рядків rail, чиї дні змінились (готування/списання зачепило партію).
-        const prev = prevStale.current;
-        if (prev.size) {
-          const changed = new Set(stale.filter((b) => prev.has(b.id) && prev.get(b.id) !== b.days).map((b) => b.id));
-          if (changed.size) {
-            setRailFlash(changed);
-            window.setTimeout(() => setRailFlash(new Set()), 800);
-          }
-        }
-        prevStale.current = new Map(stale.map((b) => [b.id, b.days]));
-      }
-      setStaleBatches(stale);
+      // 6b-6: капс-рядок «КРАЩЕ НЕ ВІДКЛАДАТИ · …» над композитором знято —
+      // у бандлі його нема; ті самі партії (isSoon) живуть у «Дім зараз»
+      // (store/homeNow.ts · HomeNow «Горить · N» → «Готуємо»).
     } catch {
       // Крок Е1: раніше тут була тиша, і екран показував старі (або порожні)
       // числа як правду. Порожньо ≠ не вдалось показати — і в коморі це
@@ -1769,30 +1739,6 @@ export function Feed() {
             виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
             композитором: видиме завжди, доки готування живе. */}
 
-        {staleBatches.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              // Тап по підказці — питання моделі, не відкриття панелі. Модель бачить
-              // ті ж партії в контексті (з !Nдн-маркерами), відповість по-своєму.
-              const labels = staleBatches.map((b) => b.label).join(', ');
-              setInput(`Що зробити з ${labels}? Їх краще використати першими.`);
-            }}
-            className={styles['stale-strip']}
-            data-stale-strip
-            aria-label="Запитати, що з цього приготувати"
-          >
-            <span>◔</span>
-            <span className={styles['stale-strip-body']}>
-              КРАЩЕ НЕ ВІДКЛАДАТИ · {staleBatches.map((b) => (
-                b.days <= 0 ? `${b.label.toUpperCase()} (сьогодні)`
-                : b.days === 1 ? `${b.label.toUpperCase()} (завтра)`
-                : `${b.label.toUpperCase()} (${b.days}дн)`
-              )).join(' · ')}
-            </span>
-            <span><Icon name="sys.next" size={12} inherit decorative /></span>
-          </button>
-        )}
         {pending.length > 0 && (
           <div className={styles['pending-attachments']}>
             {/* Правка №9: квадратик-прев'ю замість назви й ваги. Зображення —
