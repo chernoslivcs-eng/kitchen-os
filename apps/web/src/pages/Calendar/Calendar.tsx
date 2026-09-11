@@ -427,7 +427,7 @@ export function CalendarPage() {
   return (
     <div className={styles.screen}>
       {loadFailed && (
-        <Toast text={CALENDAR_FAILED.text} action={{ label: CALENDAR_FAILED.cta, run: () => setVersion((v) => v + 1) }} />
+        <Toast tone="danger" text={CALENDAR_FAILED.text} action={{ label: CALENDAR_FAILED.cta, run: () => setVersion((v) => v + 1) }} />
       )}
       {/* Шапка (D3a/D3b): h1 · «Вересень · тиждень 37» · розпірка · «Сьогодні»
           пігулкою на card · «Подія» чорнилом (на 390 — коло зі знаком). */}

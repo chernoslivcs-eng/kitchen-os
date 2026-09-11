@@ -21,7 +21,7 @@ export const lastEmail = (): string => {
   try { return localStorage.getItem(LAST_EMAIL_KEY) ?? ''; } catch { return ''; }
 };
 
-function LinkGone({ copy }: { copy: ErrorCopy }) {
+function LinkGone({ copy, tone }: { copy: ErrorCopy; tone: 'amber' | 'sage' }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState(lastEmail);
   const [sent, setSent] = useState(false);
@@ -46,6 +46,7 @@ function LinkGone({ copy }: { copy: ErrorCopy }) {
   if (sent) {
     return (
       <ErrorScreen
+        tone="sage"
         kicker="лист пішов"
         h1a="Новий лінк у дорозі."
         h1b="Він теж живе 15 хвилин."
@@ -58,6 +59,7 @@ function LinkGone({ copy }: { copy: ErrorCopy }) {
 
   return (
     <ErrorScreen
+      tone={tone}
       kicker={copy.kicker}
       h1a={copy.h1a}
       h1b={copy.h1b}
@@ -82,5 +84,5 @@ function LinkGone({ copy }: { copy: ErrorCopy }) {
   );
 }
 
-export const LinkExpiredPage = () => <LinkGone copy={LINK_EXPIRED} />;
-export const LinkConsumedPage = () => <LinkGone copy={LINK_CONSUMED} />;
+export const LinkExpiredPage = () => <LinkGone copy={LINK_EXPIRED} tone="amber" />;
+export const LinkConsumedPage = () => <LinkGone copy={LINK_CONSUMED} tone="sage" />;

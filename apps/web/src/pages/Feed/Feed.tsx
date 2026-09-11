@@ -4,6 +4,7 @@
 // переходи між станами картки (ОЧІКУЄ → ЗАСТОСОВАНО → СКАСОВАНО).
 
 import { isSoon } from '@kitchen/domain/shelf-thresholds';
+import { Toast } from '../../components/ErrorState/Toast';
 import { Icon } from '../../components/Icon/Icon';
 import { ActionState } from '../../components/ActionState/ActionState';
 import { useIncidentStore } from '../../store/incident';
@@ -78,9 +79,10 @@ interface QueuedTurn {
   attachments: TurnAttachment[];
 }
 
-interface Toast {
+interface ToastState {
   id: number;
-  kind: 'ok' | 'err';
+  /** Рід крапки (E3): ok → шавлія, warn → бурштин («Тека не піде», «Максимум N»), err → danger. */
+  kind: 'ok' | 'err' | 'warn';
   text: string;
   /**
    * Крок Е1: дія словом праворуч. Раніше тут був тільки onUndo («↩ Скасувати»),
@@ -183,7 +185,7 @@ export function Feed() {
   const [batchLabels, setBatchLabels] = useState<Map<string, string>>(new Map());
   // №4а: кроки рецептів у стрічці — тільки product.
   const [stepLabels, setStepLabels] = useState<Map<string, string>>(new Map());
-  const [toast, setToast] = useState<Toast | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -193,7 +195,7 @@ export function Feed() {
     pendingCount: pending.length,
     max: MAX_ATTACHMENTS,
     onFiles: useCallback((files: File[]) => { void pickFiles(files, 'drop'); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
-    onFolder: useCallback(() => setToast({ id: Date.now(), kind: 'err', text: 'Тека не піде — перетягни файли' }), []),
+    onFolder: useCallback(() => setToast({ id: Date.now(), kind: 'warn', text: 'Тека не піде — перетягни файли' }), []),
   });
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -770,7 +772,7 @@ export function Feed() {
   async function pickFiles(list: FileList | File[] | null, how: 'clip' | 'paste' | 'drop' = 'clip') {
     if (!list || !('length' in list) || !list.length) return;
     if (pending.length + list.length > MAX_ATTACHMENTS) {
-      setToast({ id: Date.now(), kind: 'err', text: `Максимум ${MAX_ATTACHMENTS} вкладень за раз` });
+      setToast({ id: Date.now(), kind: 'warn', text: `Максимум ${MAX_ATTACHMENTS} вкладень за раз` });
       return;
     }
     setUploading(true);
@@ -1951,21 +1953,14 @@ export function Feed() {
 
 
       {toast && (
-        /* Крок Е1: значка статусу немає — ні ✓, ні ✕. Це той самий службовий
-           шар, від якого відмовились у моно-рядках: колір і галочка нічого не
-           додають до речення, яке й так усе каже. Дія — словом праворуч. */
-        <div className={styles.toast} role="status" data-toast>
-          <span className={styles['toast-text']}>{toast.text}</span>
-          {toast.action && (
-            <button
-              className={styles.undo}
-              onClick={() => { toast.action!.run(); setToast(null); }}
-              data-toast-action
-            >
-              {toast.action.label}
-            </button>
-          )}
-        </div>
+        /* Етап 10 (Errors E3): той самий Toast, що в Коморі й Списку — крапка
+           роду (ok → sage, err → danger), речення, дія словом («Скасувати»,
+           «Повторити»). Дія закриває тост сама. */
+        <Toast
+          tone={toast.kind === 'ok' ? 'sage' : toast.kind === 'warn' ? 'amber' : 'danger'}
+          text={toast.text}
+          action={toast.action ? { label: toast.action.label, run: () => { toast.action!.run(); setToast(null); } } : undefined}
+        />
       )}
     </div>
   );

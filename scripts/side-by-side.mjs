@@ -31,7 +31,11 @@
 //           рахують висоти від нього — для пари ставити той самий, що й у застосунку
 // --scale N  deviceScaleFactor обох знімків (типово 2). Кадри вищі за ~8000 px (лендінг)
 //           на 2× обрізаються стелею текстури Chromium — для них --scale 1
+// --stub-rest STATUS|abort  усі інші GET /v1/* у застосунку — цим статусом і тілом {} або обривом (щоб живий API
+//           на :3000 не підкидав 401 у стор інцидентів, коли міряємо іншу смугу)
+// --app-sel селектор у застосунку — знімати лише цей елемент (смуга E2, тост E3), не вʼюпорт
 // --stub-json path=json[;path=json]  відповідати на GET path у застосунку цим JSON
+//           (значення `abort` — обірвати запит, як зникла мережа)
 //           (лише в мережі цього знімка; база не чіпається). Для лендінгу без API:
 //           --stub-json '/v1/auth/providers={"google":true};/v1/me=401'  (число = статус без тіла)
 //
@@ -131,7 +135,7 @@ assertTheme('кадра', await frame.evaluate((el) => {
 }));
 
 // ── рендер застосунку ──────────────────────────────────────────────────────
-let appPng = null; let appNote = 'застосунок не знімався (--url не задано)';
+let appPng = null; let appNote = 'застосунок не знімався (--url не задано)'; let appImgW = WIDTH;
 if (URL_BASE) {
   // Сесія кешується у файлі стану (--state, типово out/.sbs-state.json):
   // magic-link має ліміт 5 на 15 хв, а пар на здачу — десять.
@@ -149,12 +153,16 @@ if (URL_BASE) {
   }
   const page = await appCtx.newPage();
   await page.emulateMedia({ colorScheme: THEME });
+  // Загальна заглушка реєструється ПЕРШОЮ: Playwright віддає перевагу пізнішим route(), тож точкові --stub-json її перебивають.
+  const stubRest = arg('stub-rest', null);
+  if (stubRest) await page.route((u) => u.pathname.startsWith('/v1/'), (route) => route.request().method() !== 'GET' ? route.continue() : stubRest === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(stubRest), contentType: 'application/json', body: '{}' }));
   const stubJson = arg('stub-json', null);
   if (stubJson) {
     for (const pair of stubJson.split(';')) {
       const i = pair.indexOf('='); const path = pair.slice(0, i).trim(); const val = pair.slice(i + 1).trim();
       await page.route((u) => u.pathname === path, async (route) => {
         if (route.request().method() !== 'GET') return route.continue();
+        if (val === 'abort') return route.abort('internetdisconnected');
         if (/^\d{3}$/.test(val)) return route.fulfill({ status: Number(val), contentType: 'application/json', body: '{}' });
         return route.fulfill({ status: 200, contentType: 'application/json', body: val });
       });
@@ -208,7 +216,9 @@ if (URL_BASE) {
   const click = arg('click', null);
   if (click) { for (const sel of click.split(';;').map((x) => x.trim()).filter(Boolean)) { await page.click(sel); await page.waitForTimeout(800); } }
   assertTheme('застосунку', await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
-  appPng = await page.screenshot({ type: 'png', fullPage: has('full') });
+  const appSel = arg('app-sel', null);
+  if (appSel) { const el = await page.waitForSelector(appSel, { timeout: 15000 }); appPng = await el.screenshot({ type: 'png' }); const bb = await el.boundingBox(); if (bb) appImgW = Math.round(bb.width); }
+  else appPng = await page.screenshot({ type: 'png', fullPage: has('full') });
   appNote = `${URL_BASE}${path ?? ''} · ${WIDTH}×${HEIGHT} · ${THEME}`;
 }
 
@@ -224,9 +234,9 @@ const html = `<!doctype html><meta charset="utf-8">
 </style>
 <div class="wrap">
   <div class="col"><div class="cap">Бандл · ${DC} <span>${frameLabel} · ${Math.round(frameBox.width)}×${Math.round(frameBox.height)}</span></div><img src="${b64(framePng)}" width="${Math.round(frameBox.width)}"></div>
-  <div class="col"><div class="cap">Рендер <span>${appNote}</span></div>${appPng ? `<img src="${b64(appPng)}" width="${WIDTH}">` : ''}</div>
+  <div class="col"><div class="cap">Рендер <span>${appNote}</span></div>${appPng ? `<img src="${b64(appPng)}" width="${appImgW}">` : ''}</div>
 </div>`;
-const outCtx = await browser.newContext({ viewport: { width: Math.round(frameBox.width) + WIDTH + 100, height: Math.max(Math.round(frameBox.height), HEIGHT) + 80 }, deviceScaleFactor: 1 });
+const outCtx = await browser.newContext({ viewport: { width: Math.round(frameBox.width) + appImgW + 100, height: Math.max(Math.round(frameBox.height), HEIGHT) + 80 }, deviceScaleFactor: 1 });
 const outPage = await outCtx.newPage();
 await outPage.setContent(html);
 await outPage.waitForTimeout(300);
