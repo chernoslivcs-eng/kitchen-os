@@ -1,11 +1,14 @@
+// «Перевір пошту» — сторінка лендінгу, не окремий застосунок (Auth.dc.html,
+// пакет C3): каркас AuthShell, замість форми — той самий email-піл, але вже
+// «відправлений»: mail-check шавлією, маска адреси, «Змінити» на місці кнопки,
+// таймер повтору — в реченні під ним. Поведінка (маска, 60 с, повтор) — як була.
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '../../components/Button/Button';
 import { api } from '../../api';
-import { RingField } from '../SignIn/RingField';
-import { Mark } from '../SignIn/SignIn';
-import styles from '../SignIn/SignIn.module.css';
-import own from './MagicLinkSent.module.css';
+import { Icon } from '../../components/Icon/Icon';
+import { lastEmail } from '../LinkGone/LinkGone';
+import { AuthShell } from '../Auth/AuthShell';
+import styles from '../Auth/Auth.module.css';
 
 interface LinkState { email?: string }
 
@@ -17,12 +20,12 @@ export function maskEmail(email: string): string {
   return `${user[0]}***@${domain}`;
 }
 
-// Пул-8: верстка — канон входу «кільце замикається» (як /invite). Стара
-// власна колонка розсипалась після редизайну пул-6 №8.
 export function MagicLinkSent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const email = (location.state as LinkState | null)?.email ?? null;
+  // Пошта — зі стану переходу; без нього (перезавантаження, прямий захід) — з
+  // тієї ж комірки, куди її кладе useMagicLink для LinkGone.
+  const email = (location.state as LinkState | null)?.email ?? (lastEmail() || null);
 
   // DA-22: таймер зворотного відліку до повторної відправки. Без нього людина
   // не знає, коли кнопка оживе, і «через 15 хвилин» читається як «іди звідси».
@@ -46,68 +49,24 @@ export function MagicLinkSent() {
   const mm = Math.floor(left / 60);
   const ss = String(left % 60).padStart(2, '0');
 
-  const [animateField] = useState(() =>
-    typeof window !== 'undefined'
-    && window.matchMedia('(min-width: 1024px)').matches
-    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-
   return (
-    <div className={styles.screen}>
-      <div className={styles['field-panel']}>
-        <RingField animate={animateField} />
-        <div className={styles['field-shade']} />
-        <div className={styles['field-content']}>
-          <div className={styles['field-logo']}>
-            <Mark />
-            <span>Kitchen OS</span>
-          </div>
-          <div className={styles['field-hero']}>
-            <h1 className={styles['field-title']}>Не «що б поїсти».<br />А «що приготувати з того, що є».</h1>
-            <p className={styles['field-sub']}>
-              Вона бачить, що є вдома, і спершу підхоплює те, що варто використати раніше.
-            </p>
-          </div>
-          <div className={styles['field-foot']}>ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
-        </div>
+    <AuthShell tone="sage" kickIcon="auth.sent" kick="Лінк летить" h1a="Перевір пошту." h1b="Один клік — і ти всередині."
+      sub="Посилання діє 15 хвилин і працює один раз." foot="Пароля немає. Лінк одноразовий.">
+      <div className={styles.sentPill}>
+        <span className={styles.sentIcon}><Icon name="auth.delivered" size={20} inherit decorative /></span>
+        <span className={styles.sentText}>
+          {email && <span className={styles.sentMail}>{maskEmail(email)}</span>}
+          <span className={styles.sentNote}>лист летить<span className={styles.deskOnly}> · відкрий на цьому пристрої</span></span>
+        </span>
+        <button type="button" className={styles.change} onClick={() => navigate('/', { replace: true })}>Змінити</button>
       </div>
-
-      <div className={styles['form-panel']}>
-        <div className={styles['form-head']}>
-          <span className={styles.mono}>ЛІНК ЛЕТИТЬ</span>
-          <h2 className={styles['form-title']}>Перевір пошту</h2>
-          {email && <p className={own.mail}>{maskEmail(email)}</p>}
-          <p className={styles['form-sub']}>Посилання діє 15 хвилин і працює один раз.</p>
-        </div>
-        <div className={styles.form}>
-          <Button
-            variant="secondary"
-            size="lg"
-            block
-            onClick={() => navigate('/', { replace: true })}
-          >
-            Змінити email
-          </Button>
-        </div>
-        <div className={styles['form-foot']}>
-          <span>
-            {resent && 'Надіслали ще раз. '}
-            Лист не прийшов?{' '}
-            {left > 0 ? (
-              <span>Надіслати ще раз · {mm}:{ss}</span>
-            ) : (
-              <button
-                onClick={() => void resend()}
-                style={{
-                  background: 'none', border: 0, padding: 0, cursor: 'pointer',
-                  color: 'var(--sage)', font: 'inherit', textDecoration: 'underline',
-                }}
-              >
-                Надіслати ще раз
-              </button>
-            )}
-          </span>
-        </div>
-      </div>
-    </div>
+      <span className={styles.resend}>
+        {resent && 'Надіслали ще раз. '}
+        Лист не прийшов?{' '}
+        {left > 0
+          ? <span className={styles.resendWait}>Надіслати ще раз · {mm}:{ss}</span>
+          : <button type="button" className={styles.resendBtn} onClick={() => void resend()}>Надіслати ще раз</button>}
+      </span>
+    </AuthShell>
   );
 }

@@ -31,10 +31,9 @@ import { fileURLToPath } from 'node:url';
 // у наборі — гейт бачить лише те, що йому назвали.
 // Трикрапка «…» у наборі НЕ стоїть: це типографіка — обрізка, «зберігаю…».
 const GLYPHS = '◌●○✓✕＋→←↩↗☆★⟳◈✳▤☰◷◉❋⌀▦◇◆■□⋯';
-// Landing знято з винятків 11.09 (етап 9): лендінг v3 на Icon і токенах, гліфів
-// у ньому нуль — гейт тепер його бачить. SignIn лишається до етапу /sent:
-// RingField малює «✓» у підказці й піде разом із ним.
-const SKIP_DIRS = ['Admin', 'SignIn'];
+// Landing і SignIn знято з винятків 11.09 (етапи 9 і 9а): лендінг v3 і Sent /
+// Invite на Icon і токенах, гліфів у них нуль; теки SignIn більше нема.
+const SKIP_DIRS = ['Admin'];
 
 const SRC = fileURLToPath(new URL('.', import.meta.url));
 

@@ -17,7 +17,7 @@ export type MotionKey =
 /** Живі стани (Icons «Живі стани»): йдуть, поки триває процес, без наведення. */
 export type LiveKey = 'flame' | 'timer' | 'mic' | 'think';
 
-export const MOTION: Record<Extract<IconName, `sys.${string}` | `landing.${string}`>, MotionKey | null> = {
+export const MOTION: Record<Extract<IconName, `sys.${string}` | `landing.${string}` | `auth.${string}`>, MotionKey | null> = {
   // 24 знаки масиву `system` бандла — кожен зі своїм рухом.
   'sys.chat':       'bubble',   // бабл ледь дихає
   'sys.pantry':     'door',     // нижні дверцята прочиняються (власні шляхи)
@@ -51,6 +51,7 @@ export const MOTION: Record<Extract<IconName, `sys.${string}` | `landing.${strin
   // Лендінг (етап 9): знаки системної сімʼї з блоку «landing» в icons.ts —
   // у масиві бандла їх немає, тому статичні.
   'landing.opened': null, 'landing.leftover': null, 'landing.recent': null, 'landing.variety': null, 'landing.toPanel': null,
+  'auth.sent': null, 'auth.delivered': null, 'auth.household': null, 'auth.otherUser': null,
 };
 
 /** Знаки, які бандл малює власними шляхами (Icons.dc.html:218-229), щоб
