@@ -43,11 +43,26 @@ export async function lastReceiptBatches(repo: Repo, household_id: string): Prom
 
 // Крок Ф2: «звідки» для картки — останній чек (з магазином і датою), інший чек
 // (за provenance рядка чека), додано рукою (+ Додати), інакше з розмови.
-export interface BatchOrigin { kind: 'receipt' | 'manual' | 'chat'; shop: string | null; at: string }
+//
+// Р6 (рішення 10.09): четверте — домислене. Домен знає пʼять provenance, а
+// сюди доходило три: `inference` падав у «з розмови», тобто те, що модель
+// домислила з розбору, показувалось як слово людини. «Домислено 60 %» —
+// обіцянка лендінгу, і саме з `inference` робиться мітка «?домисл.N%» у
+// промті (context.ts). `package_label` і `visual_guess` лишаються в «розмові»
+// навмисно: вони не змінюють дії людини. «Зі списку» не заводиться — покупка
+// зі списку все одно приходить чеком або рукою.
+export interface BatchOrigin {
+  kind: 'receipt' | 'manual' | 'chat' | 'inference';
+  shop: string | null;
+  at: string;
+  /** Лише для `inference`: та сама впевненість, що в «?домисл.N%». */
+  confidence?: number;
+}
 export function batchOrigin(b: PantryBatch, receipt: { ids: Set<string>; at: string | null; shop: string | null }): BatchOrigin {
   if (receipt.ids.has(b.id)) return { kind: 'receipt', shop: receipt.shop, at: receipt.at ?? b.added_at };
   if (b.provenance === 'receipt_line') return { kind: 'receipt', shop: null, at: b.added_at };
   if (b.last_action === 'user_add') return { kind: 'manual', shop: null, at: b.added_at };
+  if (b.provenance === 'inference') return { kind: 'inference', shop: null, at: b.added_at, confidence: b.confidence };
   return { kind: 'chat', shop: null, at: b.added_at };
 }
 

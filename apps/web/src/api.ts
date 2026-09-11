@@ -307,7 +307,8 @@ export interface PantryBatch {
   /** Крок Ф2: вага штуки з каталогу (г) — для «на позицію» при одиниці шт. */
   unit_weight?: number | null;
   /** Крок Ф2: звідки позиція — останній/інший чек, «+ Додати», розмова. */
-  origin?: { kind: 'receipt' | 'manual' | 'chat'; shop: string | null; at: string };
+  /** Р6: четверте походження — домислене, з тією ж впевненістю, що в «?домисл.N%». */
+  origin?: { kind: 'receipt' | 'manual' | 'chat' | 'inference'; shop: string | null; at: string; confidence?: number };
 }
 
 // Черга Д (№2): продукт дому — трійка + невидимі теги.

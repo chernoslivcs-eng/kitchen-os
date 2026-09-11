@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
-import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ORIGIN_LABEL, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
+import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useNavigate } from 'react-router-dom';
@@ -221,7 +221,7 @@ export function PantryPage() {
           )}
           {/* Слот походження. Іконка 12 без тексту — підпис несе aria. */}
           {r.origin && (
-            <span className={styles.origin} data-origin={r.origin} title={ORIGIN_LABEL[r.origin]}>
+            <span className={styles.origin} data-origin={r.origin} title={r.originTitle} aria-label={r.originTitle}>
               <Icon name={ORIGIN_ICON[r.origin]} size={12} inherit />
             </span>
           )}

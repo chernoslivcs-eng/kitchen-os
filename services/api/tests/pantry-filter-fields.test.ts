@@ -93,6 +93,24 @@ describe('GET /v1/pantry — поля фільтра', () => {
     expect(by('Сіль').origin.kind).toBe('manual');
     expect(by('Йогурт').origin).toEqual({ kind: 'receipt', shop: 'Сільпо', at: '2026-09-04T09:00:00.000Z' });
   });
+
+  it('Р6: домислене — четверте походження, з відсотком; доти воно падало в «з розмови»', async () => {
+    // Домен знає пʼять provenance, API віддавав три. `inference` — рівно те,
+    // з чого робиться мітка «?домисл.N%» у промті (context.ts), і «домислено
+    // 60 %» — обіцянка лендінгу, яка на екран не виходила взагалі: партія,
+    // яку модель домислила з розбору, показувалась як «з розмови», тобто як
+    // слово людини. Тест на GET — на тому шарі, де походження стає видимим.
+    const { repo, app, me } = await stand();
+    await repo.insertBatch(batch(me.household_id, 'Кетчуп', { provenance: 'inference', confidence: 0.6 }));
+    await repo.insertBatch(batch(me.household_id, 'Хліб', { provenance: 'user_statement', confidence: 1 }));
+    const body = (await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json() as { batches: (Row & { origin: { confidence?: number } })[] };
+    const by = (l: string) => body.batches.find((b) => b.label === l)!;
+    expect(by('Кетчуп').origin.kind).toBe('inference');
+    expect(by('Кетчуп').origin.confidence).toBe(0.6);
+    // Сказане людиною — як і було.
+    expect(by('Хліб').origin.kind).toBe('chat');
+    expect(by('Хліб').origin.confidence).toBeUndefined();
+  });
 });
 
 describe('PATCH /v1/pantry/:id — картка (крок Ф2)', () => {

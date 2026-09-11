@@ -188,22 +188,36 @@ export interface RowView {
   safety: 'не їм' | 'не можна' | null;
   /** Свій слот: звідки партія. Іконка 12, без тексту. */
   origin: OriginKind | null;
+  /** Підпис слота походження — з відсотком для домисленого. */
+  originTitle: string;
   val: string; valTone: Tone;
 }
 
 /**
- * Походження партії. Три, бо стільки віддає API (`origin.kind`) — а не чотири,
- * як у макеті: «зі списку» рішенням Р6 знято, покупка зі списку все одно
- * приходить чеком або рукою.
+ * Походження партії. Чотири (Р6): чек · рука · розмова · домислене. Не ті
+ * чотири, що в макеті — «зі списку» знято (покупка зі списку все одно
+ * приходить чеком або рукою), а домислене піднято: доти партія, яку модель
+ * домислила з розбору, показувалась як «з розмови», тобто як слово людини.
+ *
+ * Знак домисленого — ЗАГЛУШКА: бандл для цього походження знака не має
+ * (у ньому було «зі списку»). `live.thinking` тут тому, що це знак моделі, і
+ * саме так підписано. Вибір — дизайн-чату (QUESTIONS-FOR-DESIGN-CHAT §1).
  */
-export type OriginKind = 'receipt' | 'manual' | 'chat';
+export type OriginKind = 'receipt' | 'manual' | 'chat' | 'inference';
 
-export const ORIGIN_ICON: Record<OriginKind, 'sys.receipt' | 'live.byHand' | 'sys.chat'> = {
-  receipt: 'sys.receipt', manual: 'live.byHand', chat: 'sys.chat',
+export const ORIGIN_ICON: Record<OriginKind, 'sys.receipt' | 'live.byHand' | 'sys.chat' | 'live.thinking'> = {
+  receipt: 'sys.receipt', manual: 'live.byHand', chat: 'sys.chat', inference: 'live.thinking', // inference — ЗАГЛУШКА
 };
 export const ORIGIN_LABEL: Record<OriginKind, string> = {
-  receipt: 'з чека', manual: 'рукою', chat: 'з розмови',
+  receipt: 'з чека', manual: 'рукою', chat: 'з розмови', inference: 'домислено',
 };
+
+/** Підпис походження з відсотком, коли він є: «домислено · 60 %». */
+export function originTitle(o: { kind: OriginKind; confidence?: number } | null | undefined): string {
+  if (!o) return '';
+  const base = ORIGIN_LABEL[o.kind];
+  return o.kind === 'inference' && o.confidence != null ? `${base} · ${Math.round(o.confidence * 100)} %` : base;
+}
 
 export interface FilterView {
   sort: SortDef;
@@ -272,6 +286,7 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
       // `receipt` булевим. Беремо перше, друге лишаємо запасним — інакше
       // партії до бекфілу втратили б слот, який щойно отримали.
       origin: it.origin?.kind ?? (it.receipt ? 'receipt' : null),
+      originTitle: originTitle(it.origin ?? (it.receipt ? { kind: 'receipt' } : null)),
       val: sort.val ? sort.val(it) : '', valTone: sort.color ? sort.color(it) : 'fg',
     };
   };

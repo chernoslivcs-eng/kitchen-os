@@ -267,3 +267,22 @@ describe('Р4: точна дата — лише коли її поставила
     expect(v.list[0]!.time).toBe('≈ ще 9 дн');
   });
 });
+
+describe('Р6: домислене — четверте походження', () => {
+  it('рядок показує його своїм знаком і підписує з відсотком', () => {
+    const v = applyFilter(
+      [b('Кетчуп', { origin: { kind: 'inference', shop: null, at: '2026-09-01T00:00:00.000Z', confidence: 0.6 } })],
+      st({ sort: 'fat' }), ctx,
+    );
+    expect(v.list[0]!.origin).toBe('inference');
+    expect(v.list[0]!.originTitle).toBe('домислено · 60 %');
+  });
+
+  it('сказане людиною — без відсотка, як і було', () => {
+    const v = applyFilter(
+      [b('Хліб', { origin: { kind: 'chat', shop: null, at: '2026-09-01T00:00:00.000Z' } })],
+      st({ sort: 'fat' }), ctx,
+    );
+    expect(v.list[0]!.originTitle).toBe('з розмови');
+  });
+});
