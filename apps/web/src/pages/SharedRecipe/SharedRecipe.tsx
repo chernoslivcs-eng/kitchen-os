@@ -1,19 +1,27 @@
-// Публічний read-only рецепт. Гість переходить із розшареного лінка й бачить те саме,
-// що бачив автор — назву, час, порції, інгредієнти, кроки. Без Cook Mode, без комори,
-// без «показу пальцем» на партії.
+// Публічний read-only рецепт /r/:id. Гість переходить із розшареного лінка й
+// бачить те саме, що бачив автор — назву, час, порції, склад, кроки. Без
+// Cook Mode, без комори, без «показу пальцем» на партії.
 //
-// Signed-in юзер бачить кнопку «Готуй у себе» — вона приймає рецепт у власну стрічку
-// й може одразу піти в Cook Mode. Не signed-in — «Увійти в Kitchen OS».
+// Крок 4 things-v3 — форма за Screens «Публічний рецепт · 1440» (B2): шапка
+// без рейки (логотип · «спільний рецепт» · «Увійти»), сітка minmax(0,1fr)
+// 340 до 1040 по центру, h1 display, рядок «час · порції · ≈ ккал», кроки
+// номерами чорнилом без таймерів, «Склад · N» праворуч, шавлієва картка з
+// єдиною дією: гостю — «Увійти в Кухню» (з поверненням сюди), своєму —
+// «Готуй у себе» (підтверджене відхилення, HANDOFF). На 390 склад згортається
+// над кроками, картка стає липкою знизу.
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
+import { Logo } from '../../components/Logo/Logo';
+import { Icon } from '../../components/Icon/Icon';
 import { useAuth } from '../../store/auth';
-import type { Recipe } from '../../api';
+import type { Recipe, RecipeNutritionInfo } from '../../api';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
+import { formatDuration } from '@kitchen/domain/duration';
 import { renderStepContent } from '../../lib/recipe';
+import { kcalLine } from '../Recipe/Recipe';
 import styles from './SharedRecipe.module.css';
 
 interface SharedRecipeResponse {
@@ -21,6 +29,7 @@ interface SharedRecipeResponse {
   title: string;
   recipe: Recipe;
   created_at: string;
+  nutrition_calc?: RecipeNutritionInfo | null;
 }
 
 export function SharedRecipePage() {
@@ -30,6 +39,8 @@ export function SharedRecipePage() {
   const [data, setData] = useState<SharedRecipeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // 390: склад — акордеон над кроками (підпис кадра B2).
+  const [ingOpen, setIngOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -43,12 +54,24 @@ export function SharedRecipePage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const signedIn = status === 'signed_in';
+  const head = (
+    <header className={styles.top}>
+      <Logo size={30} />
+      <span className={styles['top-name']}>Кухня</span>
+      <span className={styles['top-kicker']}>спільний рецепт</span>
+      <span className={styles['top-gap']} />
+      {!signedIn && <button type="button" className={styles['top-login']} onClick={() => navigate(`/?next=/r/${id}`)}>Увійти</button>}
+    </header>
+  );
+
   if (loading) {
-    return <div className={styles.screen}><div style={{ padding: 22, color: 'var(--muted)' }}>Завантажую…</div></div>;
+    return <div className={styles.screen}>{head}<div className={styles.info}>Завантажую…</div></div>;
   }
   if (error || !data) {
     return (
       <div className={styles.screen}>
+        {head}
         <div className={styles.info}>
           <p>{error ?? 'Рецепт не знайдено.'}</p>
           <p style={{ marginTop: 12 }}>
@@ -60,74 +83,69 @@ export function SharedRecipePage() {
   }
 
   const r = data.recipe;
-  const summary = [
-    r.tm ? `${r.tm}ХВ` : null,
-    r.sv ? `${r.sv} ${plural(r.sv, ['ПОРЦІЯ', 'ПОРЦІЇ', 'ПОРЦІЙ'])}` : null,
-    r.nu?.kcal ? `${r.nu.kcal}ККАЛ` : null,
-  ].filter(Boolean).join(' · ');
-
+  const kcal = kcalLine(data.nutrition_calc ?? null, r.nu);
   const takeIntoOwnKitchen = () => {
-    // Розшарений рецепт — це чужий payload. У «своїй кухні» він має жити відірвано:
-    // спочатку відкриємо його як recipe без збереження, потім при потребі cook run
-    // збереже його вже під нашого owner.
+    // Розшарений рецепт — чужий payload. У «своїй кухні» він живе відірвано:
+    // відкриваємо як recipe без збереження; cook run збереже під нашого owner.
     navigate('/recipe', { state: { recipe: r } });
   };
 
+  const action = (
+    <div className={styles.cta} data-testid="cta">
+      <span className={styles['cta-text']}>
+        <b>Готуй у себе.</b> Кухня звірить склад із твоєю коморою й поведе по кроках із таймерами.
+      </span>
+      {signedIn ? (
+        <button type="button" className={styles['cta-btn']} onClick={takeIntoOwnKitchen} data-cook-mine>Готуй у себе</button>
+      ) : (
+        <button type="button" className={styles['cta-btn']} onClick={() => navigate(`/?next=/r/${id}`)} data-login>
+          Увійти в Кухню<Icon name="sys.next" size={16} inherit decorative />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.screen}>
-      <div className={styles.head}>
-        <MonoLabel className={styles['head-meta']}>СПІЛЬНИЙ РЕЦЕПТ · KITCHEN OS</MonoLabel>
-      </div>
-
+      {head}
       <div className={styles.body}>
-        <h1 className={styles.title}>{r.t}</h1>
-        {summary && <div className={styles.summary}>{summary}</div>}
-        {r.d && <div className={styles.desc}>{r.d}</div>}
-        {r.rk && <div className={styles.rk}>{r.rk}</div>}
-
-        <div className={styles.section}>
-          <MonoLabel>ІНГРЕДІЄНТИ</MonoLabel>
-          {r.ing.map((ing, i) => (
-            <div key={i} className={styles.ing}>
-              <span className={styles['ing-mark']}>•</span>
-              <span className={styles['ing-name']}>{ing.n ?? 'інгредієнт'}</span>
-              {ing.v != null && ing.u && (
-                <span className={styles['ing-qty']}>{formatQty(ing.v, ing.u)}</span>
-              )}
+        <div className={styles.main}>
+          <div className={styles.lead}>
+            <h1 className={`${styles.title} t-display`}>{r.t}</h1>
+            <div className={styles.meta}>
+              {r.tm ? <span className={styles['meta-item']}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.tm)}</span> : null}
+              {r.sv ? <span className={styles['meta-item']}><Icon name="cook.portions" size={12} inherit decorative />{r.sv} {plural(r.sv, ['порція', 'порції', 'порцій'])}</span> : null}
+              {kcal && <span>{kcal.replace(' · на порцію', '')}</span>}
             </div>
-          ))}
-        </div>
-
-        <div className={styles.section}>
-          <MonoLabel>КРОКИ</MonoLabel>
-          <div className={styles.steps}>
+            {r.d && <p className={styles.desc}>{r.d}</p>}
+          </div>
+          {/* 390: акордеон складу над кроками. */}
+          <button type="button" className={styles['ing-toggle']} onClick={() => setIngOpen((v) => !v)} aria-expanded={ingOpen}>
+            <Icon name="cook.missing" size={16} inherit decorative />Склад · {r.ing.length}
+            <span className={styles['top-gap']} />
+            <Icon name={ingOpen ? 'sys.opened' : 'sys.open'} size={16} inherit decorative />
+          </button>
+          <div className={`${styles.card} ${styles['card-steps']}`} data-testid="steps">
             {r.st.map((step, i) => (
               <div key={i} className={styles.step}>
-                <div className={styles['step-rail']}>
-                  <div className={`${styles['step-num']} ${styles.pending}`}>{i + 1}</div>
-                  <div className={styles['step-thread']} />
-                </div>
-                <div className={styles['step-body']}>
-                  <div className={`${styles['step-title']} ${styles.pending}`}>
-                    {step.t}. {renderStepContent(step.c, r.ing)}
-                  </div>
-                </div>
+                <span className={styles['step-num']}>{i + 1}</span>
+                <span className={styles['step-text']}><b>{step.t}.</b> {renderStepContent(step.c, r.ing)}</span>
               </div>
             ))}
           </div>
         </div>
-      </div>
-
-      <div className={styles.foot}>
-        {status === 'signed_in' ? (
-          <Button variant="primary" size="lg" onClick={takeIntoOwnKitchen}>
-            Готуй у себе
-          </Button>
-        ) : (
-          <Button variant="primary" size="lg" onClick={() => navigate(`/?next=/r/${id}`)}>
-            Увійти в Kitchen OS →
-          </Button>
-        )}
+        <aside className={`${styles.aside} ${ingOpen ? styles['aside-open'] : ''}`}>
+          <div className={`${styles.card} ${styles['card-ing']}`} data-testid="ingredients">
+            <div className={styles['card-head']}><Icon name="cook.missing" size={16} inherit decorative />Склад · {r.ing.length}</div>
+            {r.ing.map((ing, i) => (
+              <div key={i} className={styles.ing}>
+                <span className={styles['ing-name']}>{ing.n ?? 'інгредієнт'}</span>
+                <span className={styles['ing-qty']}>{ing.v != null && ing.u ? formatQty(ing.v, ing.u) : '—'}</span>
+              </div>
+            ))}
+          </div>
+          {action}
+        </aside>
       </div>
     </div>
   );

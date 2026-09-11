@@ -113,6 +113,67 @@ for (const label of ['Молоко', 'Яйця', 'Масло']) {
   await repo.insertShoppingItem({ id: randomUUID(), household_id, label, reason: null, value: null, unit: null, zone: null, checked: false, added_by: user_id, source: 'user', created_at: iso(-2) });
 }
 
+// ── Рецепти (Screens «Рецепти · 1440», «Рецепт · 1440») і журнал («Журнал · 1440») ──
+const byLabel = new Map((await repo.listBatches(household_id)).map((b) => [b.label, b.id]));
+const P_ = (label: string) => byLabel.get(label);
+type R = { id: string; title: string; descr: string; minutes: number; sv?: number; ing: { n: string; v?: number; u?: string; p?: string }[]; st: { t: string; c: string; s?: number }[]; kcal?: number; saved?: boolean; daysAgo?: number };
+const recipeIds: Record<string, string> = {};
+const recipe = async (r: R) => {
+  const id = randomUUID();
+  recipeIds[r.id] = id;
+  await repo.saveRecipe({
+    id, owner_id: user_id, origin: 'generated', title: r.title, descr: r.descr, character: null, risk: null,
+    base_servings: r.sv ?? 2, time_total: r.minutes,
+    nutrition: r.kcal ? { kcal: r.kcal, p: 22, f: 18, c: 68 } : null,
+    payload: { t: r.title, sv: r.sv ?? 2, tm: r.minutes, ch: '', d: r.descr, rk: '', nu: r.kcal ? { kcal: r.kcal, p: 22, f: 18, c: 68 } : undefined, ing: r.ing, st: r.st },
+    created_at: iso(-(r.daysAgo ?? 5)), saved_at: r.saved === false ? null : iso(-(r.daysAgo ?? 5)),
+  });
+  return id;
+};
+await recipe({ id: 'pasta', title: 'Паста з печеними помідорами й часником', minutes: 25, kcal: 540,
+  descr: 'Помідори печуться повільно, доки не стануть майже джемом, і саме вони роблять соус. Часник кладеться цілим і давиться вже в олії.',
+  ing: [
+    { n: 'Помідори', v: 600, u: 'g', p: P_('Помідори') }, { n: 'Спагеті', v: 200, u: 'g' }, { n: 'Часник', v: 4, u: 'pcs' },
+    { n: 'Олія оливкова', v: 45, u: 'ml' }, { n: 'Пармезан', v: 40, u: 'g' }, { n: 'Фует', v: 60, u: 'g', p: P_('Фует') },
+  ],
+  st: [
+    { t: 'Розігріти', c: 'Духовку на 200°. Помідори розрізати навпіл, викласти на лист зрізом догори, часник — цілими зубцями в шкірці.' },
+    { t: 'Пекти', c: 'Полити олією, посолити. 20 хвилин, доки краї не почнуть темніти.', s: 1200 },
+    { t: 'Паста', c: 'Спагеті в киплячу солону воду на 9 хвилин. Пів склянки води лишити.', s: 540 },
+    { t: 'Зібрати', c: 'Часник видавити з шкірки, розтерти з помідорами прямо на листі. Пасту туди ж, долити води, перемішати.' },
+  ] });
+await recipe({ id: 'shak', title: 'Шакшука з фуетом', minutes: 20, kcal: 420, descr: 'Яйця в томатах, фует — наприкінці.',
+  ing: [{ n: 'Помідори', v: 400, u: 'g', p: P_('Помідори') }, { n: 'Яйця', v: 4, u: 'pcs', p: P_('Яйця') }, { n: 'Фует', v: 80, u: 'g', p: P_('Фует') }, { n: 'Цибуля', v: 1, u: 'pcs', p: P_('Цибуля') }],
+  st: [{ t: 'Соус', c: 'Цибулю й помідори тушкувати 10 хвилин.', s: 600 }, { t: 'Яйця', c: 'Зробити ямки, вбити яйця, накрити на 5 хвилин.', s: 300 }] });
+await recipe({ id: 'rice', title: 'Рис із креветками та лимоном', minutes: 30, kcal: 480, descr: 'Швидка вечеря з морозилки.',
+  ing: [{ n: 'Креветки', v: 300, u: 'g', p: P_('Креветки') }, { n: 'Рис', v: 200, u: 'g' }, { n: 'Лимон', v: 1, u: 'pcs' }, { n: 'Часник', v: 2, u: 'pcs' }],
+  st: [{ t: 'Рис', c: 'Відварити рис.', s: 900 }, { t: 'Креветки', c: 'Обсмажити з часником 3 хвилини, додати лимон.', s: 180 }], daysAgo: 8 });
+await recipe({ id: 'borsch', title: 'Борщ', minutes: 100, kcal: 380, descr: 'З маминою цибулею.',
+  ing: [{ n: 'Буряк', v: 300, u: 'g' }, { n: 'Капуста', v: 300, u: 'g' }, { n: 'Цибуля', v: 1, u: 'pcs', p: P_('Цибуля') }, { n: 'Фарш яловичий', v: 300, u: 'g', p: P_('Фарш яловичий') }],
+  st: [{ t: 'Бульйон', c: 'Фарш обсмажити, залити водою, варити 40 хвилин.', s: 2400 }, { t: 'Овочі', c: 'Додати буряк і капусту, ще 30 хвилин.', s: 1800 }], daysAgo: 12 });
+await recipe({ id: 'omelet', title: 'Омлет із фетою', minutes: 10, kcal: 320, descr: 'Сніданок на пʼять хвилин.',
+  ing: [{ n: 'Яйця', v: 3, u: 'pcs', p: P_('Яйця') }, { n: 'Фета', v: 60, u: 'g' }, { n: 'Масло', v: 10, u: 'g', p: P_('Масло') }],
+  st: [{ t: 'Збити', c: 'Яйця з сіллю.' }, { t: 'Смажити', c: 'На маслі 4 хвилини, фету зверху.', s: 240 }], daysAgo: 20 });
+
+const run = async (rid: string, o: { daysAgo: number; hour: number; minutes: number; rating?: number; verdict?: string; used?: number; undone?: boolean }) => {
+  const fin = new Date(now - o.daysAgo * DAY); fin.setHours(o.hour, o.daysAgo === 0 ? 42 : o.hour === 8 ? 15 : 5, 0, 0);
+  const start = new Date(fin.getTime() - o.minutes * 60_000);
+  const ids = [...byLabel.values()].slice(0, o.used ?? 0);
+  await repo.saveCookRun({
+    id: randomUUID(), household_id, user_id, recipe_id: recipeIds[rid]!, servings: 2,
+    started_at: start.toISOString(), finished_at: fin.toISOString(), rating: o.rating ?? null, verdict: o.verdict ?? null, photo_url: null,
+    changes: { batches: ids.map((id) => ({ id, op: 'deplete' as const, prev_state: 'sealed' as const, prev_depleted_at: null })) },
+    undone_at: o.undone ? fin.toISOString() : null, session_id: null,
+  });
+};
+await run('pasta', { daysAgo: 0, hour: 19, minutes: 27, rating: 4, verdict: 'помідори треба було пекти довше', used: 3 });
+await run('shak', { daysAgo: 1, hour: 8, minutes: 20, rating: 5, used: 4 });
+await run('rice', { daysAgo: 1, hour: 20, minutes: 30, undone: true });
+await run('borsch', { daysAgo: 4, hour: 18, minutes: 100, used: 6 });
+await run('omelet', { daysAgo: 4, hour: 8, minutes: 10 });
+await run('pasta', { daysAgo: 9, hour: 19, minutes: 25, rating: 4 });
+console.log(`stand-seed: рецепт «Паста…» — /recipe/${recipeIds.pasta} · /r/${recipeIds.pasta}`);
+
 const app = buildApp(repo, new InMemoryStore(), new ConsoleMailer());
 await app.listen({ port: PORT, host: '127.0.0.1' });
 console.log(`stand-seed: API на :${PORT} · дім ${household_id.slice(0, 8)} · вхід ${EMAIL} · ${(await repo.listBatches(household_id)).length} партій`);

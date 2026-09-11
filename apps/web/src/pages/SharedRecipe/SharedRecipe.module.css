@@ -1,194 +1,87 @@
-/* Екран рецепта — 09 з брифу. Мобайл-фьорст.
- * Каркас: шапка (назад/мета/CookMode) → тайтл + мета → інгредієнти → кроки → футер.
- */
+/* Публічний рецепт — крок 4 things-v3, Screens «Публічний рецепт · 1440» (B2):
+   без рейки; сітка minmax(0,1fr) 340, gap 32, поля 16 32, до 1040 по центру. */
 .screen {
   min-height: 100dvh;
   background: var(--bg);
   display: flex;
   flex-direction: column;
 }
+.info { padding: 22px 32px; color: var(--muted); font-size: 14px; }
 
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 22px 8px;
-  gap: 10px;
+.top {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; max-width: 1040px; margin: 0 auto;
+  padding: 16px 32px 0;
 }
-.iconbtn {
-  height: 42px;
-  width: 42px;
-  border-radius: var(--r);
-  border: 1px solid var(--line2);
-  color: var(--muted);
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  cursor: pointer;
-  background: transparent;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-.iconbtn:hover { background: var(--line); color: var(--ink); }
-.head-meta {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
+.top-name { font-size: 14px; font-weight: 600; color: var(--ink); margin-left: -4px; }
+.top-kicker { font-size: 13px; color: var(--muted); }
+.top-gap { flex: 1; }
+.top-login {
+  height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-pill);
+  background: var(--card); color: var(--ink); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer;
 }
 
 .body {
   flex: 1;
-  overflow-y: auto;
-  padding: 16px 22px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 26px;
-  line-height: 1.15;
-  letter-spacing: var(--tracking-tight);
-  color: var(--ink);
-}
-.summary {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
-}
-.desc {
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--muted);
-}
-.rk {
-  font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--muted);
-  border-left: 2px solid var(--amber);
-  padding-left: 12px;
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
-}
-.section-label {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
-}
-
-/* Інгредієнти — той самий рядковий стиль, що в стрічці */
-.ing {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--line);
-}
-.ing:last-child { border-bottom: 0; }
-.ing-mark {
-  color: var(--sage);
-  font-size: 12px;
-  width: 12px;
-  text-align: center;
-}
-.ing-mark.missing { color: var(--dim); }
-.ing-name { flex: 1; font-family: var(--font-body); font-size: 15px; color: var(--ink); }
-.ing-name.missing { color: var(--muted); }
-.ing-qty {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--dim);
-}
-
-/* Кроки — вертикальний таймлайн з нумерованими кружечками */
-.steps { display: flex; flex-direction: column; }
-.step { display: flex; gap: 14px; }
-.step-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: none;
-  width: 24px;
-}
-.step-num {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--r-pill);
+  width: 100%; max-width: 1040px; margin: 0 auto;
   display: grid;
-  place-items: center;
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 13px;
-  flex: none;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 32px;
+  padding: 16px 32px 32px;
+  align-items: start;
 }
-.step-num.done { background: var(--sage); color: var(--sage-on); }
-.step-num.current { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
-.step-num.pending { border: 1px solid var(--line2); color: var(--dim); }
-.step-thread {
-  flex: 1;
-  width: 1px;
-  background: var(--line);
-  margin-top: 2px;
-}
-.step:last-child .step-thread { display: none; }
-.step-body {
-  flex: 1;
-  padding-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.step-title {
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.45;
-  color: var(--ink);
-}
-.step-title.done { color: var(--muted); text-decoration: line-through; }
-.step-title.pending { color: var(--muted); }
-.step-timer {
-  align-self: flex-start;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--sage);
-  background: transparent;
-  color: var(--sage);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  cursor: pointer;
-}
+.main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.aside { display: flex; flex-direction: column; gap: 12px; }
+.lead { display: flex; flex-direction: column; gap: 8px; }
+/* h1 — display; кадр «Публічний рецепт · 1440» дає 34 (tokens-v3). */
+.title { margin: 0; color: var(--ink); font-size: 34px; letter-spacing: -.03em; line-height: 1.1; }
+.meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.meta-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.desc { margin: 4px 0 0; font-size: 15px; line-height: 1.55; color: var(--muted); max-width: 560px; }
 
-/* Футер — головна дія «Крок готово», плюс secondary «Приготували» */
-.foot {
-  padding: 12px 22px 20px;
-  border-top: 1px solid var(--line);
-  background: var(--bg);
-  display: flex;
-  gap: 10px;
-}
-.foot > :first-child { flex: 1; }
+.card { background: var(--card); border-radius: 14px; box-shadow: var(--sh-a), var(--sh-b); padding: 4px 18px; }
+.card-ing { padding: 6px 18px 4px; }
+.card-head { display: flex; align-items: center; gap: 8px; height: 40px; color: var(--muted); font-size: 13px; font-weight: 500; }
+.ing { display: flex; align-items: center; min-height: 42px; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink); }
+.ing-name { flex: 1; min-width: 0; }
+.ing-qty { color: var(--muted); white-space: nowrap; }
 
-/* Стан помилки/завантаження */
-.info {
-  padding: 20px;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.55;
-}
+/* Кроки — номери чорнилом, без галочок і таймерів. */
+.step { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.step:last-child { border-bottom: 0; }
+.step-num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.step-text { flex: 1; min-width: 0; font-size: 15px; line-height: 1.5; padding-top: 3px; color: var(--ink); }
+.step-text b { font-weight: 600; }
 
-@media (min-width: 720px) {
-  .body, .head, .foot { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
+/* Шавлієва картка з єдиною дією. */
+.cta { background: var(--sage-bg); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.cta-text { font-size: 14px; line-height: 1.45; color: var(--sage); }
+.cta-text b { font-weight: 600; }
+.cta-btn {
+  height: 42px; border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-body); font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.ing-toggle { display: none; }
+
+@media (max-width: 767px) {
+  .top { padding: 14px 16px 0; }
+  .body { display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 12px 16px 0; }
+  .main, .aside { display: contents; }
+  .lead { order: 1; }
+  .title { font-size: 26px; }
+  /* Склад — акордеон над кроками: кнопка-шапка завжди, картка — коли розкрито. */
+  .ing-toggle {
+    order: 2; display: flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 16px; border: 0; border-radius: 14px;
+    background: var(--card); color: var(--muted); box-shadow: var(--sh-a), var(--sh-b);
+    font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left;
+  }
+  .card-ing { order: 3; display: none; padding: 0 16px 4px; }
+  .aside-open .card-ing { display: block; }
+  .card-ing .card-head { display: none; }
+  .card-steps { order: 4; padding: 4px 16px; }
+  .cta { order: 5; position: sticky; bottom: 0; margin: 0 -16px; border-radius: 14px 14px 0 0; padding: 14px 16px 24px; }
 }
