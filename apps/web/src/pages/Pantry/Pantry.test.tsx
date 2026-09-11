@@ -174,3 +174,52 @@ describe('PantryPage · фільтр', () => {
     expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('1 з 4');
   });
 });
+
+describe('2c: хрестик у рядку — списано одразу, причина в плашці, необовʼязкова (⚠3)', () => {
+  it('✕ шле PATCH state:depleted БЕЗ причини; кнопка в плашці шле ОКРЕМИЙ PATCH лише з reason', async () => {
+    // Роут приймає причину на вже списану партію окремим запитом (2c, шар 1,
+    // тест у services/api/tests). Цей — що плашка справді його шле, і саме
+    // без state: інакше роут би сприйняв це як повторне списання.
+    const sent: { url: string; body: unknown }[] = [];
+    const base = fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PATCH') sent.push({ url, body: JSON.parse(String(init.body)) });
+      if (init?.method === 'PATCH') return new Response(JSON.stringify({ updated: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+      return base(url, init);
+    }));
+    await mount();
+    const x = host!.querySelector<HTMLButtonElement>('[data-batch="Огірки"] [aria-label^="Списати"]')!;
+    await click(x);
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(sent.at(-1)).toMatchObject({ body: { state: 'depleted' } });
+    expect((sent.at(-1)!.body as Record<string, unknown>).reason, 'з ✕ причини нема').toBeUndefined();
+
+    // Плашка є, трійка в ній є, і списання вже сталось.
+    const bar = host!.querySelector('[role="status"]')!;
+    expect(bar.textContent).toContain('Списано');
+    const reasons = [...bar.querySelectorAll<HTMLButtonElement>('[data-reason]')].map((b) => b.dataset.reason);
+    expect(reasons).toEqual(['eaten', 'spoiled', 'removed']);
+
+    await click(bar.querySelector<HTMLButtonElement>('[data-reason="spoiled"]')!);
+    const last = sent.at(-1)!;
+    expect(last.url).toMatch(/\/v1\/pantry\//);
+    expect(last.body).toEqual({ reason: 'spoiled' });
+    // Названа причина показана, трійка сховалась, «Повернути» лишилось.
+    expect(bar.querySelectorAll('[data-reason]').length).toBe(0);
+    expect(bar.textContent).toContain('зіпсувалось');
+    expect(bar.textContent).toContain('Повернути');
+  });
+
+  it('не натиснули — причина не надсилається: метрика порожня, не вигадана', async () => {
+    const sent: unknown[] = [];
+    const base = fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PATCH') { sent.push(JSON.parse(String(init.body))); return new Response('{"updated":true}', { status: 200, headers: { 'content-type': 'application/json' } }); }
+      return base(url, init);
+    }));
+    await mount();
+    await click(host!.querySelector<HTMLButtonElement>('[data-batch="Огірки"] [aria-label^="Списати"]')!);
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(sent.some((b) => (b as { reason?: string }).reason)).toBe(false);
+  });
+});

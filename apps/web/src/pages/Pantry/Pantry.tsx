@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ORIGIN_LABEL, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
-import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
+import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -57,6 +57,7 @@ export function PantryPage() {
     try {
       await Promise.all([api.batches.update(b.id, { state: 'depleted' }), wait(250)]);
       setRemoved(b);
+      setRemovedReason(null);
       if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
       removedTimer.current = window.setTimeout(() => setRemoved(null), 8000);
       await refresh();
@@ -64,10 +65,20 @@ export function PantryPage() {
     finally { unmarkLeaving(b.id); }
   }
 
+  // 2c: причина, яку людина назвала в плашці після ✕. Скидається разом із
+  // плашкою; «Повернути» знімає її і на сервері (роут: state → sealed ⇒
+  // depleted_reason → null).
+  const [removedReason, setRemovedReason] = useState<DepletedReason | null>(null);
+  async function tellReason(b: PantryBatch, reason: DepletedReason) {
+    setRemovedReason(reason);
+    try { await api.batches.update(b.id, { reason }); } catch { setRemovedReason(null); }
+  }
+
   async function undoRemove() {
     if (!removed) return;
     const prev = removed;
     setRemoved(null);
+    setRemovedReason(null);
     if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
     try {
       // Повертаємо той стан, що був: sealed чи opened.
@@ -345,7 +356,20 @@ export function PantryPage() {
 
       {removed && (
         <div className={styles['undo-bar']} role="status">
-          <span style={{ flex: 1 }}>Списано «{removed.label}»</span>
+          <span className={styles['undo-label']}>Списано «{removed.label}»</span>
+          {/* 2c, ⚠3: з хрестика причина НЕобовʼязкова — партія вже списана,
+              трійка приходить сюди й іде ОКРЕМИМ запитом на вже depleted
+              партію (роут це приймає з 2c, шар 1). Не натиснули — нічого не
+              сталось, метрика лишається порожньою, а не вигаданою. */}
+          {!removedReason && (
+            <span className={styles['undo-reasons']} role="group" aria-label="Чому списали">
+              {(Object.keys(DEPLETED_REASON_LABEL) as DepletedReason[]).map((r) => (
+                <button key={r} type="button" data-reason={r} className={styles['undo-reason']}
+                  onClick={() => void tellReason(removed, r)}>{DEPLETED_REASON_LABEL[r]}</button>
+              ))}
+            </span>
+          )}
+          {removedReason && <span className={styles['undo-told']}>{DEPLETED_REASON_LABEL[removedReason]}</span>}
           <button type="button" onClick={() => void undoRemove()}><Icon name="sys.undo" size={16} inherit decorative /> Повернути</button>
         </div>
       )}
