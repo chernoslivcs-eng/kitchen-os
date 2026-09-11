@@ -41,8 +41,9 @@ export interface PanelPublication {
 }
 
 export const RAIL_IN_FLOW = '(min-width: 1200px)';
-export const RAIL_MIN = 280;
-export const RAIL_MAX = 560;
+// HANDOFF «Артефакти»: ліва кромка тягнеться 300–720.
+export const RAIL_MIN = 300;
+export const RAIL_MAX = 720;
 export const RAIL_DEFAULT = 320;
 /** Пул-9 №6: вікно, у якому ручний вибір людини сильніший за новий артефакт. */
 export const MANUAL_PICK_GRACE_MS = 10_000;
@@ -53,7 +54,8 @@ interface PanelStore extends PanelPublication {
   open: boolean;
   /** Панель у потоці згорнута до смуги 52px (персистентно). */
   hidden: boolean;
-  width: number;
+  /** Ширина картки, потягнута рукою; null — типова за екраном (ArtifactPanel). */
+  width: number | null;
   dragging: boolean;
   /** Зʼявився новий артефакт, поки панель згорнута. */
   fresh: boolean;
@@ -82,11 +84,14 @@ interface PanelStore extends PanelPublication {
 function readHidden(): boolean {
   try { return localStorage.getItem('kos-rail-hidden') === '1'; } catch { return false; }
 }
-function readWidth(): number {
+/** Ширина, яку людина потягла сама; null — ще не тягнула, панель бере типову за екраном (340 → 420). */
+function readWidth(): number | null {
   try {
-    const v = Number(localStorage.getItem('kos-rail-width'));
-    return Number.isFinite(v) && v >= RAIL_MIN && v <= RAIL_MAX ? v : RAIL_DEFAULT;
-  } catch { return RAIL_DEFAULT; }
+    const raw = localStorage.getItem('kos-rail-width');
+    if (raw === null) return null;
+    const v = Number(raw);
+    return Number.isFinite(v) && v >= RAIL_MIN && v <= RAIL_MAX ? v : null;
+  } catch { return null; }
 }
 const inFlow = () => typeof window !== 'undefined' && window.matchMedia(RAIL_IN_FLOW).matches;
 

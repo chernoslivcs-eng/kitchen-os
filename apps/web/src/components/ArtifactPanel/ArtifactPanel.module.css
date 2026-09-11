@@ -272,16 +272,16 @@
 .rail-dragging .rail { transition: none !important; }
 .rail-dragging { cursor: col-resize; user-select: none; }
 
-.rail-handle { display: none !important; }
+.rail-handle { display: none; }
 @media (min-width: 1200px) {
   /* Ручки немає на планшеті й мобайлі (V1) — там немає й панелі. */
   :global(body.with-sidebar) .rail:not(.rail-hidden) .rail-handle {
     display: grid;
     place-items: center;
     position: absolute;
-    top: 0; bottom: 0;
-    left: -6px;
-    width: 12px;          /* зона захоплення ширша за саму риску */
+    top: 16px; bottom: 16px;
+    left: 10px;
+    width: 12px;          /* зона захоплення ширша за саму риску, на кромці картки */
     cursor: col-resize;
     z-index: 2;
     touch-action: none;   /* інакше pointermove зʼїдає скрол сторінки */
@@ -602,14 +602,14 @@
        (Screens «Чат · збірка»: aside 380, card, r18, тінь, відступ 16 від
        країв). Ширина 340 на 1440 → 420 на 1920 (Responsive R0), рахується
        від ширини вікна в ArtifactPanel.tsx; тут лише полотно. */
-    width: var(--rail-w, 340px);
+    width: var(--rail-w, 372px);
     transition: width 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
     background: transparent;
-    padding: 16px 16px 16px 0;
+    padding: 16px;
     /* Крок 1.2: скролить ТІЛО, не панель. Поки скролилась панель цілком,
        разом із вмістом їхали й вкладки, і «Оформити» — на довгому кошику
        зникав і спосіб перемкнутись, і сама дія. */
-    overflow: hidden;
+    overflow: visible;  /* тінь картки лягає й на полотно зліва; відсікає сама картка */
   }
 }
 @media (min-width: 1200px) {

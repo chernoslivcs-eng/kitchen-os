@@ -75,10 +75,14 @@ export function ArtifactPanel() {
   }, []);
   // Етап 6b: ширина — за шириною екрана, не ручкою: 340 на 1440 → 420 на
   // 1920 (Responsive R0), між ними лінійно; менше 1440 — 340, стеля 420.
+  // Ширина картки: типова — 340 на 1440 → 420 на 1920 (Responsive R0),
+  // між ними лінійно; потягнута рукою (HANDOFF: кромка 300–720) — має
+  // перевагу, поки людина її не скинула дабл-кліком.
   const railCeiling = Math.max(RAIL_MIN, Math.min(RAIL_MAX, vw - RAIL_OVERHEAD));
   const byViewport = Math.round(Math.max(340, Math.min(420, 340 + ((vw - 1440) * 80) / 480)));
-  const railEffective = Math.min(byViewport, railCeiling);
-  void width;
+  const railEffective = Math.min(width ?? byViewport, railCeiling);
+  // Полотно панелі = картка + 16 з кожного боку: тінь картки має куди лягти.
+  const RAIL_GUTTER = 16;
 
   // Резерв ширини для контенту сторінки — класами на body, як у сайдбара.
   useEffect(() => {
@@ -86,7 +90,7 @@ export function ArtifactPanel() {
     b.classList.toggle('with-panel', hasPanel && !hidden);
     b.classList.toggle('panel-hidden', hasPanel && hidden);
     b.classList.toggle(styles['rail-dragging']!, dragging);
-    b.style.setProperty('--rail-w', `${railEffective}px`);
+    b.style.setProperty('--rail-w', `${railEffective + RAIL_GUTTER * 2}px`);
     return () => { b.classList.remove('with-panel', 'panel-hidden', styles['rail-dragging']!); b.style.removeProperty('--rail-w'); };
   }, [hasPanel, hidden, dragging, railEffective]);
 
@@ -111,6 +115,26 @@ export function ArtifactPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys, hidden]);
 
+  const lastDown = useRef(0);
+  function onHandleDown(e: React.PointerEvent<HTMLDivElement>) {
+    const now = Date.now();
+    const isDouble = now - lastDown.current < 400;
+    lastDown.current = now;
+    if (isDouble) { s.setWidth(byViewport); try { localStorage.removeItem('kos-rail-width'); } catch { /* ок */ } return; }
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const startX = e.clientX; const startW = railEffective;
+    s.setDragging(true);
+    let last = startW;
+    const move = (ev: PointerEvent) => {
+      last = Math.round(Math.max(RAIL_MIN, Math.min(railCeiling, startW - (ev.clientX - startX))));
+      s.setWidth(last, false);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      s.setDragging(false); s.setWidth(last);
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   function miniClick() { if (window.matchMedia(RAIL_IN_FLOW).matches) s.expand(); else s.setOpen(true); }
 
   if (!hasPanel) return null;
@@ -119,6 +143,12 @@ export function ArtifactPanel() {
   return (
     <>
       <aside className={`${styles.rail} ${open ? styles['rail-open'] : ''} ${hidden ? styles['rail-hidden'] : ''}`}>
+        {/* HANDOFF «Артефакти»: ліва кромка тягнеться 300–720. Дабл-клік —
+            назад до типової за екраном. */}
+        <div className={styles['rail-handle']} onPointerDown={onHandleDown} role="separator" aria-orientation="vertical" aria-label="Ширина панелі">
+          <span className={styles['rail-handle-bar']} />
+          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
+        </div>
         {shown && (
           <div id={`rail-${shown.key}`} className={styles['rail-artifact']}>
             <div className={styles['rail-tabs']}>

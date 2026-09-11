@@ -1206,24 +1206,22 @@ export function Feed() {
         {/* Пул-2 №2: на десктопі фрейм живе в сайдбарі (TabBar) — цей банер
             лишається тільки для мобільної верстки (клас ховає його ≥1024). */}
         {cookLive && !historyOpen && (
+          /* Prototype: чіп родини «card + тінь» (як чіпи рецепта/кошика), без
+             бордера: знак, назва, підрядок, шеврон. Що триває — каже слово. */
           <button
-            className={`${styles['cook-banner-mobile']} ${styles['banner-in']}`}
+            type="button"
+            className={`${styles['cook-banner-mobile']} ${styles['banner-in']} ${styles.trace}`}
             onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              border: '1px solid var(--sage)', borderRadius: 14,
-              padding: '13px 16px', margin: '0 0 8px', background: 'var(--card)',
-              cursor: 'pointer', textAlign: 'left', width: '100%',
-            }}
           >
-            <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sage)', flex: 'none' }} />
-            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--sage)' }}>
-              Готуємо · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
-              <CookCountdown deadline={cookLive.deadline} />
+            <span className={styles['trace-icon']}><Icon name="cook.go" size={18} inherit decorative /></span>
+            <span className={styles['trace-body']}>
+              <span className={styles['trace-kind']}>Готуємо · {cookLive.recipe.t}</span>
+              <span className={styles['trace-value']}>
+                крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)} з {cookLive.recipe.st.length}
+                <CookCountdown deadline={cookLive.deadline} /> · продовжити
+              </span>
             </span>
-            <span style={{ fontSize: 13, color: 'var(--sage)' }}>
-              Продовжити ›
-            </span>
+            <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>
           </button>
         )}
 
@@ -1348,9 +1346,10 @@ export function Feed() {
                 репліках без картки (репіт-гард, інші детерміновані, звичайний
                 текст моделі) теж немає, лише час. Картка є — тип картки й
                 статус лишаються (labelFor нижче). */}
-            <MonoLabel tone="muted">
+            {/* Prototype: над реплікою людини службового рядка немає — ані
+                часу, ані «ТИ»; хто говорить, каже форма бабла. */}
+            {t.role !== 'user' && <MonoLabel tone="muted">
               {t.time}
-              {t.role === 'user' && ' ТИ'}
               {t.role === 'assistant' && t.card && (
                 <>
                   {' '}
@@ -1368,7 +1367,7 @@ export function Feed() {
                   })()}
                 </>
               )}
-            </MonoLabel>
+            </MonoLabel>}
             {t.text && (
               t.role === 'assistant' && t.fresh ? (
                 <div className={`${styles['turn-text']} ${styles['reply-phrases']}`}>
