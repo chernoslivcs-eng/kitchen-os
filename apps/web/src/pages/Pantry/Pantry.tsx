@@ -287,6 +287,7 @@ export function PantryPage() {
     <div className={styles.screen}>
       {loadFailed && (
         <Toast
+          tone="danger"
           text={PANTRY_FAILED.text}
           action={{ label: PANTRY_FAILED.cta, run: () => void refresh() }}
         />

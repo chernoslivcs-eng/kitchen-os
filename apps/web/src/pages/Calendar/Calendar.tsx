@@ -259,7 +259,7 @@ export function CalendarPage() {
   return (
     <div className={styles.screen}>
       {loadFailed && (
-        <Toast text={CALENDAR_FAILED.text} action={{ label: CALENDAR_FAILED.cta, run: () => setVersion((v) => v + 1) }} />
+        <Toast tone="danger" text={CALENDAR_FAILED.text} action={{ label: CALENDAR_FAILED.cta, run: () => setVersion((v) => v + 1) }} />
       )}
       <AppHeader
         title="Календар"

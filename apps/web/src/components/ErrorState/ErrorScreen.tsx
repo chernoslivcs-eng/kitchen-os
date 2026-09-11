@@ -1,27 +1,30 @@
-// Крок Е1: повний екран, коли щось пішло не так.
-//
-// Анатомія — та сама, що в наявній 404, і це навмисно: логотип, моно-рядок,
-// заголовок, тіло, ОДНА дія. Нової форми для помилок не вигадуємо.
+// Етап 10 (Errors E1): повний екран, коли щось пішло не так — за
+// «Kitchen OS - Errors.dc.html». Анатомія одна на всі пʼять станів: розірване
+// кільце з крапкою роду · кікер · заголовок у два тони · тіло · одна кнопка.
+// Код інциденту — лише коли він є (CRASH), лише внизу, лише dim.
 //
 // Заголовок — два поля, а не один рядок із крапкою. Це механізм, не оформлення:
-// «Комора на місці.» основним кольором, «Цей екран — ні.» приглушеним, перенос
-// між ними. Спершу заспокоїли, потім сказали проблему; збережене одним рядком,
-// це розсиплеться за першої ж правки чи перекладу.
+// «Комора на місці.» чорнилом, «Цей екран — ні.» приглушеним, перенос між
+// ними. Спершу заспокоїли, потім сказали проблему; збережене одним рядком, це
+// розсиплеться за першої ж правки чи перекладу.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { track, flushNow } from '../../lib/track';
-import { Button } from '../Button/Button';
-import { Logo } from '../Logo/Logo';
 import styles from './ErrorScreen.module.css';
 
+/** Рід крапки в кільці (Errors E1): danger — впав екран; amber — сервер/лінк,
+ *  почекати; sage — «все добре» (лінк уже спрацював — не помилка); dim — 404. */
+export type ErrorTone = 'danger' | 'amber' | 'sage' | 'dim';
+
 export interface ErrorScreenProps {
-  /** Моно-рядок ГОВОРИТЬ: «екран здався», не «ПОМИЛКА · 500». Малими — регістр робить CSS. */
+  /** Кікер ГОВОРИТЬ: «екран здався», не «ПОМИЛКА · 500». Маленький, muted, без капсу. */
   kicker: string;
   /**
-   * Код інциденту — хвіст моно-рядка, копіюється кліком. Немає коду — немає
-   * чипа: порожній чип гірший за його відсутність.
+   * Код інциденту — рядок унизу екрана, копіюється кліком. Немає коду — немає
+   * рядка: порожній рядок гірший за його відсутність.
    */
   code?: string | null;
+  tone?: ErrorTone;
   h1a: string;
   h1b: string;
   body: string;
@@ -33,7 +36,7 @@ export interface ErrorScreenProps {
 
 const COPIED_MS = 1600;
 
-export function ErrorScreen({ kicker, code, h1a, h1b, body, cta, onCta, children }: ErrorScreenProps) {
+export function ErrorScreen({ kicker, code, tone = 'amber', h1a, h1b, body, cta, onCta, children }: ErrorScreenProps) {
   const [copied, setCopied] = useState(false);
   const timer = useRef(0);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -60,33 +63,30 @@ export function ErrorScreen({ kicker, code, h1a, h1b, body, cta, onCta, children
   }
 
   return (
-    <div className={styles.screen} data-error-screen>
+    <div className={styles.screen} data-error-screen data-error-tone={tone}>
       <div className={styles.inner}>
-        <Logo size={54} />
-        <div className={styles.mono}>
-          <span data-error-kicker>{kicker}</span>
-          {code && (
-            <button type="button" className={styles.code} onClick={copy} title="Скопіювати код" data-error-code>
-              {copied ? 'скопійовано' : code}
-            </button>
-          )}
+        {/* Розірване кільце з логотипа, розімкнуте більше звичного; крапка несе рід. */}
+        <span className={styles.ring} aria-hidden="true"><span className={styles.ringGap} /><span className={`${styles.dot} ${styles[`dot-${tone}`]}`} /></span>
+        <div className={styles.text}>
+          <span className={styles.kicker} data-error-kicker>{kicker}</span>
+          <h1 className={styles.h1}>
+            <span>{h1a}</span>
+            {/* Другий рядок буває порожній (404 має заголовок в один рядок) — тоді ні спана, ні паузи. */}
+            {h1b && <span className={styles.h1b}>{h1b}</span>}
+          </h1>
+          <p className={styles.body}>{body}</p>
         </div>
-        <h1 className={styles.h1}>
-          {h1a}
-          {/* Другий рядок буває порожній (404 має заголовок в один рядок) —
-              тоді ні переносу, ні порожнього спана. */}
-          {h1b && <><br /><span className={styles.h1b}>{h1b}</span></>}
-        </h1>
-        <p className={styles.body}>{body}</p>
         {children}
         <div className={styles.action}>
-          {/* positive, не primary: за V7 це «шавлієва заливка — головний
-              перехід усередині продукту», і саме ним є «У стрічку» чи
-              «Надіслати новий». Чорнильна primary означає незворотну дію або
-              вихід із продукту — тут не те й не те. Макет зелений. */}
-          <Button variant="positive" onClick={onCta}>{cta}</Button>
+          {/* Errors E1: одна кнопка, чорнило 44/10 — тіло вже сказало, що робити. */}
+          <button type="button" className={styles.cta} onClick={onCta}>{cta}</button>
         </div>
       </div>
+      {code && (
+        <span className={styles.code}>
+          інцидент · <button type="button" className={styles.codeBtn} onClick={copy} title="Скопіювати код" data-error-code>{copied ? 'скопійовано' : code}</button>
+        </span>
+      )}
     </div>
   );
 }

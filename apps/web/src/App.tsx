@@ -115,6 +115,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     return (
       <ErrorScreen
         kicker={SERVER_DOWN.kicker}
+        tone="amber"
         h1a={SERVER_DOWN.h1a}
         h1b={SERVER_DOWN.h1b}
         body={SERVER_DOWN.body}

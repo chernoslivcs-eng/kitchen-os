@@ -84,7 +84,7 @@ export function RecipesPage() {
   return (
     <div className={styles.screen}>
       {loadFailed && (
-        <Toast text={RECIPES_FAILED.text} action={{ label: RECIPES_FAILED.cta, run: () => void refresh() }} />
+        <Toast tone="danger" text={RECIPES_FAILED.text} action={{ label: RECIPES_FAILED.cta, run: () => void refresh() }} />
       )}
       <AppHeader title="Рецепти" onMenu={() => openNav(true)} fill action={<>
           {/* Сегмент, не кнопка (кадр «Рецепти · 1440»): «Збережені · N» — це

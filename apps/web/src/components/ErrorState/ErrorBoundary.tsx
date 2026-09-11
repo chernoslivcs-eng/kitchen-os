@@ -51,6 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <ErrorScreen
         kicker={CRASH.kicker}
+        tone="danger"
         code={this.state.incidentCode}
         h1a={CRASH.h1a}
         h1b={CRASH.h1b}

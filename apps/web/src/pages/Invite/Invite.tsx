@@ -6,13 +6,12 @@
 // Етап 9а (Auth.dc.html, пакет C4): сторінка лендінгу — AuthShell, дім карткою,
 // кнопка — той самий чорний піл, що «Продовжити з Google». Аватарів і
 // «3 людини · 61 позиція» з кадру немає: /v1/invites/info віддає лише пошту,
-// назву дому й роль (DEVIATIONS-V3-landing Р49). Недійсне запрошення — ErrorScreen (E1).
+// назву дому й роль (DEVIATIONS-V3-landing Р49). Недійсне запрошення — AuthShell з кікером danger (етап 10).
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { useAuth } from '../../store/auth';
 import { Icon } from '../../components/Icon/Icon';
-import { ErrorScreen } from '../../components/ErrorState/ErrorScreen';
 import { AuthShell } from '../Auth/AuthShell';
 import styles from '../Auth/Auth.module.css';
 
@@ -56,9 +55,13 @@ export function InvitePage() {
   }
 
   if (state.kind === 'dead') {
+    // Етап 10: недійсне запрошення — на AuthShell з кікером danger (Auth.dc.html:
+    // «Errors E1 із кікером danger і „На головну“»). Копі — з Invite до етапу 9а.
     return (
-      <ErrorScreen kicker="запрошення · недійсне" h1a="Запрошення недійсне." h1b="Цей лінк уже не працює."
-        body="Попроси надіслати новий." cta="На головну" onCta={() => navigate('/')} />
+      <AuthShell tone="danger" kickIcon="auth.household" kick="запрошення · недійсне" h1a="Запрошення недійсне." h1b="Цей лінк уже не працює."
+        sub="Попроси надіслати новий." foot={FOOT}>
+        <button type="button" className={styles.accept} onClick={() => navigate('/')}>На головну</button>
+      </AuthShell>
     );
   }
 

@@ -143,6 +143,7 @@ export function ShoppingPage() {
     <div className={styles.screen}>
       {loadFailed && (
         <Toast
+          tone="danger"
           text={LIST_FAILED.text}
           action={{ label: LIST_FAILED.cta, run: () => void load() }}
         />

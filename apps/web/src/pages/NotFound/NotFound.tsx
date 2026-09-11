@@ -5,7 +5,7 @@
 // Крок Е1: анатомія переїхала в спільний ErrorScreen, тіло копі лишилось
 // дослівно. Змінився тільки моно-рядок: «ПОМИЛКА · 404» був службовим
 // підписом, «тут нічого не готують» говорить тим самим голосом, що решта
-// продукту. Код 404 стоїть чипом — тим самим, що носитиме код інциденту.
+// продукту. Етап 10 (Errors E1): коду немає — він лише на CRASH; крапка в кільці dim.
 
 import { useNavigate } from 'react-router-dom';
 import { ErrorScreen } from '../../components/ErrorState/ErrorScreen';
@@ -18,7 +18,7 @@ export function NotFoundPage() {
   return (
     <ErrorScreen
       kicker={NOT_FOUND.kicker}
-      code="404"
+      tone="dim"
       h1a={NOT_FOUND.h1a}
       h1b={NOT_FOUND.h1b}
       body={NOT_FOUND.body}
