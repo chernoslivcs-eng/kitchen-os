@@ -22,6 +22,23 @@ const HEIGHT = Number(arg('height', 900));
 // провал контрасту в одній темі не видно з іншої — тому прогін на кожну.
 const THEME = arg('theme', 'auto');
 
+// Запобіжник (DEBT §37): аудит ганяється лише на локальному чи на засіві.
+// Скрипт не клікає — лише goto + evaluate, — але логіниться через
+// POST /v1/auth/request, а це на проді — лист і сесія в живому домі. Тому
+// прод відкидається за адресою, а не за домовленістю.
+const PROD_HOSTS = [/vercel\.app$/i, /kitchen-os/i];
+try {
+  const host = new URL(URL_BASE).hostname;
+  const local = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+  if (!local && PROD_HOSTS.some((re) => re.test(host))) {
+    console.error(`design-audit: відмова — ${host} схоже на прод. Аудит ганяється лише локально або на засіві.`);
+    process.exit(2);
+  }
+} catch {
+  console.error(`design-audit: --url не адреса: ${URL_BASE}`);
+  process.exit(2);
+}
+
 const SCREENS = [
   ['Кухня', '/app'], ['Комора', '/pantry'], ['Рецепти', '/recipes'],
   ['Список', '/list'], ['Календар', '/calendar'], ['Профіль', '/profile'],
