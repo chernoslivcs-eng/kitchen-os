@@ -158,6 +158,19 @@ describe('оболонка 6a', () => {
     expect(document.body.classList.contains('nav-expanded')).toBe(false);
   });
 
+  // Prototype nav: у рейці кнопки «панель» немає — розгортає сам логотип.
+  it('логотип у рейці — той самий тогл: ≥1024 сайдбар, нижче — шухляда', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    await mount();
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-brand-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(true);
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-brand-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-brand-btn]')!.click(); });
+    expect(useNavStore.getState().open).toBe(true);
+  });
+
   it('нижній бар — пʼять цілей, активна позначена; бейдж списку на місці', async () => {
     await mount();
     const bar = host!.querySelector('[data-tab-bar]')!;

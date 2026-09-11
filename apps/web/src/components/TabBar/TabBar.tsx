@@ -235,7 +235,14 @@ export function TabBar({ shoppingCount }: Props) {
     <div className={`${styles.wrap} ${open ? styles.open : ''}`}>
       {/* Д01: знак + вордмарк угорі сайдбара. На мобільному приховано. */}
       <div className={styles.brand}>
-        <Logo size={26} />
+        {/* Prototype nav: у рейці логотип і є кнопка «Розгорнути» (30, коло);
+            окрема кнопка «панель» лишається в розгорнутому сайдбарі та шухляді. */}
+        <button type="button" className={styles['brand-btn']}
+          onClick={() => { if (window.innerWidth >= 1024) toggleExpanded(); else setOpen(!open); }}
+          aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
+          title={expanded || open ? 'Згорнути' : 'Розгорнути'} data-brand-btn>
+          <Logo size={26} />
+        </button>
         <span className={styles['brand-name']}>Kitchen OS</span>
         {/* Одна кнопка «панель» на всі контейнери (Responsive R1): у рейці
             ≥1024 розгортає сайдбар, у сайдбарі — згортає; у рейці 768–1023
