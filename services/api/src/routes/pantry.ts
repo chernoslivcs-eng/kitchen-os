@@ -203,6 +203,10 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       const e = req.body.expires_at;
       if (e != null && (typeof e !== 'string' || Number.isNaN(new Date(e).getTime()))) return reply.code(400).send({ error: 'expires_invalid' });
       patch.expires_at = e == null ? null : new Date(e).toISOString();
+      // Р4: писач названий. Дату з картки ставить ЛЮДИНА, і це єдине місце в
+      // продукті, де так. Знято дату — знято й писача: інакше порожня колонка
+      // лишалась би підписаною «поставила людина».
+      patch.expires_source = e == null ? null : 'manual';
     }
     // А1: перелік причин закритий — вільний текст у метрику не потрапляє.
     const reason = req.body.reason;
@@ -219,6 +223,8 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
         // слів у чаті. Менше з двох: відкриття скорочує строк, не подовжує.
         // Б1: другим числом — РОЗРАХОВАНИЙ строк (колонка в запечатаної
         // партії порожня), інакше відкриття знову подовжувало б життя.
+        // Р4: тут писач — правило каталогу (`shelf_open_days`), не людина.
+        patch.expires_source = 'category';
         patch.expires_at = expiryOnOpen(
           'expires_at' in patch
             ? patch.expires_at ?? null

@@ -115,6 +115,35 @@ describe('PATCH /v1/pantry/:id — картка (крок Ф2)', () => {
     expect((await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json().batches[0].opened_at).toBe(opened);
   });
 
+  it('Р4: дата з картки підписана ЛЮДИНОЮ, дата з відкриття — правилом каталогу; тест іде через роут', async () => {
+    // Контрактний тест у домені пише 'manual' напряму в репозиторій — і тому
+    // проходив, коли роут писача ще не ставив. Він міряв, що колонка вміє
+    // зберігати слово, а не що картка його ставить. Цей тест іде через
+    // PATCH, тобто саме той шар, де «людина» і вирішується.
+    const { repo, app, me } = await stand();
+    const b = batch(me.household_id, 'Сметана', { catalog_key: 'sour_cream', best_before_opened_days: 5 });
+    await repo.insertBatch(b);
+    const set = (payload: Record<string, unknown>) => app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: { cookie: me.cookie }, payload });
+
+    // Рука людини — з картки.
+    expect((await set({ expires_at: '2026-09-20' })).statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.expires_source).toBe('manual');
+    // І на веб воно виходить тим самим словом — рядок на нього й дивиться.
+    const listed = (await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json().batches[0];
+    expect(listed.expires_source).toBe('manual');
+
+    // Знято дату — знято й писача: порожня колонка не має лишатись
+    // підписаною «поставила людина».
+    expect((await set({ expires_at: null })).statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.expires_source ?? null).toBeNull();
+
+    // Відкриття — писач інший, і той самий expires_at більше не «до 20 вер».
+    expect((await set({ state: 'opened' })).statusCode).toBe(200);
+    const opened = (await repo.getBatch(b.id))!;
+    expect(opened.expires_at).toBeTruthy();
+    expect(opened.expires_source).toBe('category');
+  });
+
   it('«Позначити відкритою» запускає годинник — і не подовжує коротший власний строк', async () => {
     // А2, третє місце. Ручна правка стану взагалі не рахувала `expires_at`:
     // «Позначити відкритою» ставило opened_at і мовчки лишало партію без
