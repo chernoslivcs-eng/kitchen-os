@@ -241,7 +241,7 @@ export function PantryPage() {
     return (
       /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
          Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
-      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`}>
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''}`} data-open={editing?.id === b.id || undefined}>
         <button className={styles['row-main']} onClick={() => setEditing(b)}>
           {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
           <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
@@ -263,7 +263,6 @@ export function PantryPage() {
               <Icon name={ORIGIN_ICON[r.origin]} size={12} inherit />
             </span>
           )}
-          {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
           {/* Слот часу — крапка 6 несе колір стану, слово — зміст (Components
               «ROW ANATOMY»). Четверте слово («−9 дн») сюди й приходить. Без
               каталожного ключа шкали немає (PLAN §2) — місце тримаємо. */}
@@ -272,6 +271,10 @@ export function PantryPage() {
             {r.time}
           </span>
           {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
+          {/* №5 (рішення власника): число порядку («≈24 г», «120 ккал») —
+              останнім стовпчиком, після кількості; підпис шкали стоїть над
+              ним по тому ж краю. Назва — першою, як у порядку «за місцем». */}
+          {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
         </button>
         <button
           className={styles['row-x']}

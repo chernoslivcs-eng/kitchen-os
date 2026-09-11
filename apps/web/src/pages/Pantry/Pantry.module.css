@@ -114,21 +114,38 @@
 /* Рядок 48 (Components «ROW ANATOMY»; Screens 390 — теж 48): відступ 4/0,
    волосина line знизу, крім останнього. */
 .row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 48px;
-  padding: 4px 0;
-  margin: 0;
+  /* №4: підсвітка наведення й відкритої картки — --bg r10, на 8 px ширша за
+     текст з обох боків (margin 0 −8 · padding 0 8), як активні рядки
+     сайдбара й профілю; текст стоїть там само, де стояв. Заливка не
+     обрізається відступом картки, бо картка має 18 (16 на 390) — запас є. */
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 10px;
   background: transparent;
-  border-bottom: 1px solid var(--line);
   transition: background var(--dur-fast) var(--ease-standard);
 }
-.row:last-child { border-bottom: 0; }
+/* Волосина між рядками — по ширині тексту, не по ширині підсвітки. */
+.row::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+}
+.row:last-child::after { display: none; }
 /* Hover — тільки на pointer-девайсах, щоб на touch-сенсорі стан не «застрягав» */
 @media (hover: hover) {
-  .row:hover { background: var(--line); }
+  .row:hover { background: var(--bg); }
 }
+/* Відкрита картка позиції — той самий патерн, що наведення. */
+.row-open { background: var(--bg); }
 .row:focus-visible { outline: 2px solid var(--sage); outline-offset: -2px; }
 
 /* QA9-09: тіло рядка — окрема кнопка (редагування), ✕ — списати одним тапом. */
@@ -297,7 +314,7 @@
 }
 @keyframes row-out {
   from { opacity: 1; max-height: 80px; }
-  to   { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
+  to   { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
 }
 
 /* Моушн-кіт: гліф стану ●/◔ «клацає» при перемиканні (key за станом). */
@@ -470,10 +487,11 @@
   .rail-words { flex-wrap: wrap; white-space: normal; overflow: visible; padding-right: 0; gap: 6px; }
   .reset { padding: 0; }
   .name-flat { flex-direction: row; align-items: baseline; gap: 12px; }
-  .val { min-width: 110px; }
-  /* колонки: значення 110 + вага ≥ 64 + ✕ 44 (+ проміжки) — заголовок стоїть над значенням */
+  .val { min-width: 80px; }
   .qty-flat { min-width: 64px; text-align: right; }
-  .flat-unit { margin-right: calc(64px + 44px + 24px); }
+  /* №5: значення — останній стовпчик перед ✕ 44 (+ проміжок 12); підпис
+     шкали — над ним, по правому краю значення. */
+  .flat-unit { margin-right: calc(44px + 12px); }
 }
 @media (min-width: 768px) and (max-width: 1023px) {
   .unit-long { display: none; }
@@ -486,7 +504,7 @@
   .meta-line .zone-tag + .sub::before { content: '· '; color: var(--dim); }
   .qty-flat { display: none; }          /* плаский список на 390: назва · місце · значення (дизайн 1b) */
   .val { min-width: 0; }
-  .flat-unit { margin-right: 44px; }    /* над колонкою значення, ✕ праворуч */
+  .flat-unit { margin-right: calc(44px + 12px); }    /* над колонкою значення, ✕ праворуч */
   .unit-long { display: none; }
   .unit-short { display: inline; }
 }
