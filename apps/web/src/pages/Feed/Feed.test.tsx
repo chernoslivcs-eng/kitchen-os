@@ -277,3 +277,20 @@ describe('№6 новий артефакт із ходу виходить у п�
     expect(usePanelStore.getState().active).toBe('rec-1');
   });
 });
+
+// FIXES-V3-2 №29–№30: одне головне гніздо праворуч — порожнє поле → мікрофон
+// (або «надіслати» в спокої, де диктовки нема), є текст → «надіслати» на тому
+// ж місці; підпису «⌘K» у полі нема, клавіша працює.
+describe('№29 · одне гніздо', () => {
+  it('у гнізді завжди одна кнопка; з текстом — «надіслати»; ⌘K фокусує композитор без підпису в полі', async () => {
+    await mount();
+    expect(qa('[data-slot]')).toHaveLength(1);
+    expect(host!.textContent).not.toContain('⌘K');
+    await type('привіт');
+    expect(qa('[data-slot]')).toHaveLength(1);
+    expect(q('[data-slot]')!.getAttribute('data-slot')).toBe('send');
+    (document.activeElement as HTMLElement | null)?.blur();
+    await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true })); });
+    expect(document.activeElement).toBe(q('textarea'));
+  });
+});

@@ -1895,38 +1895,56 @@ export function Feed() {
                вискакувала сама, ховала бар і половину стрічки. */
             autoFocus={pointerDevice}
           />
-          {/* Screens «Чат · збірка»: підказка «⌘K» dim перед мікрофоном — композитор
-              ловить ⌘K з будь-де (Components «Композитор (⌘K з будь-де)»). */}
-          <span className={styles['composer-kbd']} aria-hidden>⌘K</span>
-          {/* 6b-5c, Screens/Prototype: мікрофон 42 простий muted — завжди на
-              місці, кольори стану лише поки слухає; «надіслати» 42 чорнилом
-              arrow-up — завжди, з порожнім драфтом світле коло й muted стрілка.
-              Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп». */}
-          {sending && !listening ? (
-            <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop>
-              <span className={styles['mic-stop']} />
-            </button>
-          ) : listening ? (
-            /* 1.5b: рух — на знаку (mic пульсує 1.2 с), не на контейнері:
-               кільце micpulse знято. Кольори стану — лише поки слухає. */
-            <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true">
-              <Icon name="sys.voice" size={18} inherit decorative live="mic" />
-            </button>
-          ) : speechSupported() ? (
-            <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic>
-              <Icon name="sys.voice" size={18} inherit decorative />
-            </button>
-          ) : null}
-          {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
-              в стрічку і стає в чергу. Гасне лише коли черга повна. */}
-          <button
-            type="submit"
-            className={`${styles['frame-btn-solid']} ${!(input.trim() || pending.length > 0) ? styles['frame-btn-idle'] : ''}`}
-            disabled={(sending && queue.length >= QUEUE_MAX) || !(input.trim() || pending.length > 0)}
-            title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
-            aria-label="Надіслати"
-            data-send
-          ><Icon name="sys.send" size={18} inherit decorative /></button>
+          {/* №29 (рішення власника, відхилення від Screens/Prototype «mic + send
+              поруч»): одне головне гніздо праворуч — поле порожнє → мікрофон;
+              є текст чи вкладення → стрілка надсилання на тому ж місці;
+              диктовка — гніздо «слухаю»; поки модель думає й поле порожнє —
+              «Стоп» (Пул-9 №4). №30: підпис «⌘K» з поля знято — сама клавіша
+              (фокус у композитор з будь-якого екрана) лишається. */}
+          {(() => {
+            const hasDraft = !!(input.trim() || pending.length > 0);
+            if (listening) {
+              /* 1.5b: рух — на знаку (mic пульсує 1.2 с), не на контейнері. */
+              return (
+                <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true" data-slot="listening">
+                  <Icon name="sys.voice" size={18} inherit decorative live="mic" />
+                </button>
+              );
+            }
+            if (hasDraft) {
+              /* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
+                 в стрічку і стає в чергу. Гасне лише коли черга повна. */
+              return (
+                <button
+                  type="submit"
+                  className={styles['frame-btn-solid']}
+                  disabled={sending && queue.length >= QUEUE_MAX}
+                  title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
+                  aria-label="Надіслати"
+                  data-send data-slot="send"
+                ><Icon name="sys.send" size={18} inherit decorative /></button>
+              );
+            }
+            if (sending) {
+              return (
+                <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop data-slot="stop">
+                  <span className={styles['mic-stop']} />
+                </button>
+              );
+            }
+            if (speechSupported()) {
+              return (
+                <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic data-slot="mic">
+                  <Icon name="sys.voice" size={18} inherit decorative />
+                </button>
+              );
+            }
+            return (
+              <button type="submit" className={`${styles['frame-btn-solid']} ${styles['frame-btn-idle']}`} disabled aria-label="Надіслати" data-send data-slot="send-idle">
+                <Icon name="sys.send" size={18} inherit decorative />
+              </button>
+            );
+          })()}
         </form>
       </div>
 

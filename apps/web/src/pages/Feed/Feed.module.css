@@ -494,8 +494,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .attach-item:hover { background: var(--line); }
 .attach-hint { font-size: 11px; color: var(--dim); padding: 6px 12px 4px; }
 /* «⌘K» dim 12 перед мікрофоном (Screens «Чат · збірка»); на дотиках — ні. */
-.composer-kbd { flex: none; align-self: center; padding-right: 6px; font-family: var(--font-body); font-size: 12px; color: var(--dim); }
-@media (hover: none), (max-width: 767px) { .composer-kbd { display: none; } }
+/* №30: підпис «⌘K» з поля знято; клавіша лишається (ефект у Feed.tsx). */
 
 /* №24 · D1 (Responsive): пунктирна шавлієва рамка 1.5 по стрічці, поки файл
    над вікном — ціль одна, куди б не кинув. */
