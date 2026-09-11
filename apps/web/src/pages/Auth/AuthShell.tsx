@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from '../../components/Icon/Icon';
 import type { IconName } from '../../components/Icon/icons';
 import styles from './Auth.module.css';
+import { useLightOnly } from '../../lib/useLightOnly';
 
 interface Props {
   tone: 'sage' | 'plum' | 'danger';
@@ -20,6 +21,8 @@ interface Props {
 }
 
 export function AuthShell({ tone, kickIcon, kick, h1a, h1b, sub, foot, children }: Props) {
+  // №2: той самий каркас, що лендінг — світлий, без стрибка світле → темне по лінку.
+  useLightOnly();
   return (
     <div className={styles.page}>
       <header className={styles.header}>

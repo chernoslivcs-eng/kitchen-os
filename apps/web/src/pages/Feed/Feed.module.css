@@ -86,6 +86,13 @@
   max-width: 720px;
 }
 .turn { display: flex; flex-direction: column; gap: 6px; }
+/* №3 (Prototype): розмова росте знизу, від композитора — коли ходів мало,
+   вони стоять над ним, а не під шапкою. Саме margin-top: auto на першому
+   ході, не justify-content: flex-end на контейнері: у flex-end довга стрічка
+   не прокручується до початку (верх вилітає за overflow), а auto-відступ
+   стискається до 0, щойно вміст вищий за контейнер, і скрол лишається
+   звичайним. */
+.seg-view-today > .turn:first-child { margin-top: auto; }
 
 .seg-new { color: var(--sage); font-weight: 600; }
 
