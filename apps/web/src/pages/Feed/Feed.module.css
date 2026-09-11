@@ -1186,10 +1186,13 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
 }
 .cook-go:hover { filter: brightness(0.96); }
-/* Підвал рецепта: «У список · N» текстом над «Готуємо», кнопка на всю ширину. */
-.recipe-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+/* Підвал рецепта (№8, Prototype recipe aside): підвал малює слот панелі —
+   12 18 18 + волосина (.rail-foot); тут — жодного власного відступу.
+   «Готуємо» — 48 r12 на всю ширину. `flex: 1` у стовпчику давав
+   flex-basis 0 → кнопка стискалась до рядка тексту (23 px), тому flex: none. */
+.recipe-foot { flex-direction: column; align-items: stretch; gap: 10px; padding: 0; margin: 0; }
 .recipe-foot .recipe-tolist { text-align: center; }
-.recipe-foot .cook-go { width: 100%; }
+.recipe-foot .cook-go { flex: none; width: 100%; height: 48px; border-radius: 12px; }
 .recipe-miss {
   flex: 1;
   font-family: var(--font-mono);
