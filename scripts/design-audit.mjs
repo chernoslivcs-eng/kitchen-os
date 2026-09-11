@@ -39,10 +39,14 @@ try {
   process.exit(2);
 }
 
-const SCREENS = [
-  ['Кухня', '/app'], ['Комора', '/pantry'], ['Рецепти', '/recipes'],
-  ['Список', '/list'], ['Календар', '/calendar'], ['Профіль', '/profile'],
-];
+// --screens "Назва=/шлях;Назва=/шлях" — замість шести екранів застосунку
+// (лендінг: --screens "Лендінг=/" без --email — «/» не потребує входу).
+const SCREENS = arg('screens', null)
+  ? arg('screens').split(';').map((p) => { const i = p.indexOf('='); return [p.slice(0, i).trim(), p.slice(i + 1).trim()]; })
+  : [
+    ['Кухня', '/app'], ['Комора', '/pantry'], ['Рецепти', '/recipes'],
+    ['Список', '/list'], ['Календар', '/calendar'], ['Профіль', '/profile'],
+  ];
 
 // Пороги приймання — з ai/project/audit-thresholds.md (рішення Р14, 10.09:
 // audit-thresholds перемагає; TASK-DESIGN-SYSTEM.md §С1–С3 з його «шість

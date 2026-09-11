@@ -23,6 +23,17 @@
 //           знімку, у мережі; база не чіпається. Для карток, яких стаб не віддає
 //           (пропозиції), і для пар без прогонів моделі. Дані — з файлу, не з бази.
 //
+// --reduce  prefers-reduced-motion: reduce на ОБОХ сторінках — кадр і застосунок
+//           стають статичним кінцевим станом (лендінг: жива сесія, reveal)
+// --full    застосунок знімається на всю висоту сторінки (лендінг), не лише вʼюпорт
+// --dc-viewport WxH  вʼюпорт сторінки бандла (типово 2400x1600); кадри з vh (Landing Live)
+//           рахують висоти від нього — для пари ставити той самий, що й у застосунку
+// --scale N  deviceScaleFactor обох знімків (типово 2). Кадри вищі за ~8000 px (лендінг)
+//           на 2× обрізаються стелею текстури Chromium — для них --scale 1
+// --stub-json path=json[;path=json]  відповідати на GET path у застосунку цим JSON
+//           (лише в мережі цього знімка; база не чіпається). Для лендінгу без API:
+//           --stub-json '/v1/auth/providers={"google":true};/v1/me=401'  (число = статус без тіла)
+//
 // Бандл читається з file:// і потребує мережі для шрифту Onest і lucide з
 // unpkg — так само, як його дивиться дизайн-чат. Застосунок — лише локальний
 // або засів (той самий запобіжник, що в design-audit).
@@ -59,7 +70,10 @@ if (URL_BASE) {
 const browser = await chromium.launch();
 
 // ── кадр бандла ────────────────────────────────────────────────────────────
-const dcCtx = await browser.newContext({ viewport: { width: 2400, height: 1600 }, deviceScaleFactor: 2 });
+const [DC_W, DC_H] = (arg('dc-viewport', '2400x1600')).split('x').map(Number);
+const REDUCE = has('reduce');
+const SCALE = Number(arg('scale', 2));
+const dcCtx = await browser.newContext({ viewport: { width: DC_W, height: DC_H }, deviceScaleFactor: SCALE, reducedMotion: REDUCE ? 'reduce' : 'no-preference' });
 const dcPage = await dcCtx.newPage();
 await dcPage.goto(pathToFileURL(dcPath).href, { waitUntil: 'networkidle' }).catch(() => {});
 await dcPage.waitForTimeout(800);
@@ -115,7 +129,7 @@ if (URL_BASE) {
   const STATE_FILE = STATE ?? 'out/.sbs-state.json';
   const haveState = existsSync(STATE_FILE);
   const appCtx = await browser.newContext({
-    viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 2,
+    viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: SCALE, reducedMotion: REDUCE ? 'reduce' : 'no-preference',
     ...(haveState ? { storageState: STATE_FILE } : {}),
     ...(WIDTH < 768 ? { isMobile: true, hasTouch: true } : {}),
   });
@@ -126,6 +140,17 @@ if (URL_BASE) {
   }
   const page = await appCtx.newPage();
   await page.emulateMedia({ colorScheme: THEME });
+  const stubJson = arg('stub-json', null);
+  if (stubJson) {
+    for (const pair of stubJson.split(';')) {
+      const i = pair.indexOf('='); const path = pair.slice(0, i).trim(); const val = pair.slice(i + 1).trim();
+      await page.route((u) => u.pathname === path, async (route) => {
+        if (route.request().method() !== 'GET') return route.continue();
+        if (/^\d{3}$/.test(val)) return route.fulfill({ status: Number(val), contentType: 'application/json', body: '{}' });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: val });
+      });
+    }
+  }
   const stubFile = arg('stub-messages', null);
   if (stubFile) {
     const extra = JSON.parse(readFileSync(stubFile, 'utf8'));
@@ -162,7 +187,7 @@ if (URL_BASE) {
   const click = arg('click', null);
   if (click) { await page.click(click); await page.waitForTimeout(800); }
   assertTheme('застосунку', await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
-  appPng = await page.screenshot({ type: 'png', fullPage: false });
+  appPng = await page.screenshot({ type: 'png', fullPage: has('full') });
   appNote = `${URL_BASE}${path ?? ''} · ${WIDTH}×${HEIGHT} · ${THEME}`;
 }
 
