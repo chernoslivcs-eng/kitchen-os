@@ -23,14 +23,12 @@ import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
 import styles from './Recipes.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
-import { AppHeader } from '../../components/AppHeader/AppHeader';
-import { useNavStore } from '../../store/nav';
+import { RecipesHead, SearchRow } from './RecipesHead';
 import { FILTERS, filterCounts, matches, rank, statusWord, type Filter } from './library';
 import { Toast } from '../../components/ErrorState/Toast';
 import { RECIPES_FAILED } from '../../components/ErrorState/copy';
 
 export function RecipesPage() {
-  const openNav = useNavStore((st) => st.setOpen);
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,43 +84,15 @@ export function RecipesPage() {
       {loadFailed && (
         <Toast tone="danger" text={RECIPES_FAILED.text} action={{ label: RECIPES_FAILED.cta, run: () => void refresh() }} />
       )}
-      <AppHeader title="Рецепти" onMenu={() => openNav(true)} fill action={<>
-          {/* Сегмент, не кнопка (кадр «Рецепти · 1440»): «Збережені · N» — це
-              весь список; «Журнал» — окремий екран готувань. */}
-          <div className={styles.segment} role="tablist">
-            <span role="tab" aria-selected="true" className={`${styles.seg} ${styles['seg-on']}`}>
-              Збережені{recipes.length > 0 && <span className={styles['seg-n']}>· {recipes.length}</span>}
-            </span>
-            <button type="button" role="tab" aria-selected="false" className={styles.seg} onClick={() => navigate('/cooklog')}>Журнал</button>
-          </div>
-          <span className={styles['head-gap']} />
-          <label className={styles.search} data-search>
-            <Icon name="sys.search" size={16} inherit decorative />
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти рецепт" aria-label="Знайти рецепт" />
-          </label>
-          {/* На 390 бандл ставить у шапку лише круглі знаки: пошук і «записати
-              свій»; сегмент ховається. «Журнал» на 390 кадр не показує —
-              лишаємо знаком, бо екран існує (DEVIATIONS). */}
-          <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} aria-label="Знайти рецепт" aria-pressed={searchOpen}
-            onClick={() => setSearchOpen((v) => !v)}>
-            <Icon name="sys.search" size={16} inherit decorative />
-          </button>
-          <button type="button" className={styles['head-icon']} aria-label="Журнал" title="Журнал" onClick={() => navigate('/cooklog')}>
-            <Icon name="cook.done" size={16} inherit decorative />
-          </button>
-          {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
-              лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
-              моделі явний сигнал на recipe-картку (DA2-23). */}
-          <button type="button" className={styles.write} aria-label="Записати свій"
-            onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}>
-            <Icon name="sys.import" size={16} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
-          </button>
-      </>} />
+      <RecipesHead tab="saved" savedCount={recipes.length} query={query} onQuery={setQuery} searchOpen={searchOpen} onSearchOpen={setSearchOpen} />
 
       <div className={styles.body}>
         {loading && <SkeletonRows rows={4} />}
+        {/* №43: порожньо — та сама форма, що й контент: пунктирна картка на
+            місці першої картки сітки (ліворуч), заголовок 16/600 + текст
+            muted. Один патерн із Журналом. */}
         {!loading && !loadFailed && recipes.length === 0 && (
-          <div className={styles.empty}>
+          <div className={styles.empty} data-empty>
             <h3>Тут поки жодного рецепта</h3>
             {/* UX9-20: кнопка в стрічці зветься «У рецепти» — підказка вчила
                 неіснуючій назві. */}
@@ -133,12 +103,7 @@ export function RecipesPage() {
           </div>
         )}
 
-        {searchOpen && (
-          <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
-            <Icon name="sys.search" size={16} inherit decorative />
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти рецепт" aria-label="Знайти рецепт" autoFocus />
-          </label>
-        )}
+        {searchOpen && <SearchRow tab="saved" query={query} onQuery={setQuery} />}
         {recipes.length > 0 && (
           <div className={styles.filters}>
             {FILTERS.map((f) => {
@@ -159,7 +124,7 @@ export function RecipesPage() {
         )}
 
         {!loading && recipes.length > 0 && sorted.length === 0 && (
-          <div className={styles.empty} style={{ borderStyle: 'solid' }}>
+          <div className={`${styles.empty} ${styles['empty-filter']}`}>
             <p>Тут нічого. Або фільтр суворий, або холодильник має інші плани.</p>
           </div>
         )}

@@ -66,15 +66,7 @@
 }
 .again:hover { color: var(--ink); }
 
-.empty {
-  border: 1px dashed var(--line2);
-  border-radius: 14px;
-  padding: 20px;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.55;
-}
-.empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 6px; }
+/* Порожній стан — спільний з Рецептами (Recipes.module.css .empty, №43). */
 
 @media (max-width: 767px) {
   .again { width: 34px; padding: 0; justify-content: center; }

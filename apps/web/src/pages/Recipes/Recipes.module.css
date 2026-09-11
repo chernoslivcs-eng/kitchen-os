@@ -18,18 +18,31 @@
   gap: 0;
 }
 @media (min-width: 768px) { .body { padding: 0 32px 24px; } }
+/* №43 · порожньо (Components «Стани, яких у макетах зазвичай нема»): та сама
+   форма, що й контент — пунктирна картка на місці першої картки сітки
+   (ліворуч, ширина однієї колонки з 768), заголовок 16/600 + текст muted.
+   Один патерн на «Збережені» і «Журнал» (CookLog бере цей клас). */
 .empty {
-  text-align: center;
-  padding: 60px 20px;
+  border: 1px dashed var(--line2);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 12px;
   color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
 }
 .empty h3 {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 20px;
+  font-weight: 600;
+  font-size: 16px;
   color: var(--ink);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
+.empty p { margin: 0; }
+@media (min-width: 768px) { .empty { width: calc(50% - 6px); } }
+/* «Нічого за фільтром / пошуком» — той самий контур, суцільний: список є,
+   зріз порожній. */
+.empty-filter { border-style: solid; }
 
 /* ── Шапка: сегмент 36 r10 · пошук 260×40 · «Записати свій» 40 r10 ─────── */
 .segment {
