@@ -7,9 +7,9 @@
 // ті самі, що у вʼюпортів, мінус рейка: 1024 − 60 = 964, 768 − 64 = 704.
 //   ≥964   пілюля · «+ Нова» · розпірка · чіпи родів · «Дім зараз · ще N»
 //   704…   (R2) пілюля 36 без «· сьогодні» · розпірка · компактні чіпи 36/13:
-//          flame «10» · moon «піст» · timer «6:32» (знак + найкоротший факт);
-//          «Нова» і «Дім зараз» нема — панель відкриває тап по будь-якому чіпу
-//          (тимчасово, QUESTIONS §14)
+//          flame «10» · moon «піст» · timer «6:32» (знак + найкоротший факт) ·
+//          «Дім ●●● N» (№27: згорнутий чіп дому лишається, тап — панель; §14
+//          закрито); «Нова» нема
 //   <704   (G3) panel-left-open · пілюля · розпірка · «Дім ●●● N»
 // Чіпи — по одному на рід і лише коли стан є: danger flame «Прострочено N»,
 // plum moon «Піст · до 27 вер», sage timer «Готуємо · таймер». Сезони й свої
@@ -42,7 +42,6 @@ export interface ChatHeadProps {
 }
 
 export function ChatHead(p: ChatHeadProps) {
-  const mid = p.form === 'mid';
   const kinds: ('danger' | 'plum' | 'sage')[] = [];
   if (p.home.overdue > 0) kinds.push('danger');
   if (p.home.strict) kinds.push('plum');
@@ -72,7 +71,7 @@ export function ChatHead(p: ChatHeadProps) {
       <span className={styles.gap} />
 
       {p.home.overdue > 0 && (
-        <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} onClick={mid ? p.onHome : p.onOverdue} data-chip-overdue>
+        <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} onClick={p.onOverdue} data-chip-overdue>
           {/* Живий стан: flame дихає, поки є позиції ≤ 3 дні (1.5b). */}
           <Icon name="live.burning" size={16} inherit decorative live="flame" />
           <span className={styles.long}>Прострочено </span>{p.home.overdue}
@@ -86,7 +85,7 @@ export function ChatHead(p: ChatHeadProps) {
         </button>
       )}
       {p.cookLive && (
-        <button type="button" className={`${styles.chip} ${styles['chip-sage']}`} onClick={mid ? p.onHome : p.onCook} data-chip-cooking>
+        <button type="button" className={`${styles.chip} ${styles['chip-sage']}`} onClick={p.onCook} data-chip-cooking>
           {/* Живий стан: timer тікає, поки таймер біжить (1.5b). */}
           <Icon name="cook.timer" size={16} inherit decorative live={p.cookLive.deadline ? 'timer' : undefined} />
           <span className={styles.long}>Готуємо · </span><CookCountdown deadline={p.cookLive.deadline} />

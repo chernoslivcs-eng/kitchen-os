@@ -67,7 +67,7 @@
 /* Пороги контейнера = пороги вʼюпортів мінус рейка: 1024 − 60 = 964,
    768 − 64 = 704 — щоб вʼюпорт 768 отримував правило 768, а не 390. */
 /* 768 (R2): 0 16; пілюля 36/14 без «· сьогодні»; компактні чіпи 36/13 —
-   знак 14 + найкоротший факт; «Нова» і «Дім зараз» нема. */
+   знак 14 + найкоротший факт; «Нова» нема; «Дім зараз» — згорнуто (№27). */
 .short { display: none; }
 @container chat (max-width: 963px) {
   .newBtn { display: none; }
@@ -78,7 +78,12 @@
   .chip > [data-icon] > svg { width: 14px; height: 14px; }
   .long { display: none; }
   .short { display: inline; }
-  .chip-home { display: none; }
+  /* №27 (рішення власника, відхилення від R2): «Дім зараз» на вузькому
+     контейнері не зникає — згорнута форма G3 «Дім ●●● N» поруч із компактними
+     чіпами; тап відкриває панель (закриває QUESTIONS §14). */
+  .chip-home { display: inline-flex; height: 36px; padding: 0 4px 0 12px; font-size: 13px; }
+  .home-wide { display: none; }
+  .home-narrow { display: inline-flex; }
 }
 /* 390 (G3): panel-left-open 40 на card · пілюля 36 · «Дім ●●● N» 36; 14 16 8. */
 @container chat (max-width: 703px) {
