@@ -2,6 +2,7 @@
 // Дизайн зі стрічки брифу: без бордер-колообгортки, тримаємось лініями й розділами
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
+import { formatModelEstimate } from '../../lib/nutrition';
 import { Icon } from '../../components/Icon/Icon';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
@@ -1021,7 +1022,8 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         </div>
         <div style={{ marginTop: 5, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)' }}>
           {r.tm ? <span>{formatDuration(r.tm)}</span> : null}
-          {r.nu?.kcal ? <span>{r.nu.kcal} ккал</span> : null}
+          {/* Р12: у чаті — оцінка моделі, і сказано, що оцінка. */}
+          {r.nu?.kcal ? <span>{formatModelEstimate(r.nu, 'short')}</span> : null}
           <button
             type="button"
             onClick={() => setPickServings((v) => !v)}
