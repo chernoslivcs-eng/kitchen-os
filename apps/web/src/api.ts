@@ -30,7 +30,7 @@ export function buildHeaders(init: RequestInit): HeadersInit {
 // не зареєстрував — запити працюють як працювали.
 export interface IncidentSink {
   setAuthExpired: (v: boolean) => void;
-  setThrottled: (seconds: number) => void;
+  setThrottled: (seconds: number, kind?: string | null) => void;
   setOffline: (v: boolean) => void;
 }
 let incidentSink: IncidentSink | null = null;
@@ -60,7 +60,11 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.status === 401 && path !== '/v1/me') getIncident()?.setAuthExpired(true);
     if (res.status === 429) {
       const header = Number(res.headers.get('Retry-After'));
-      getIncident()?.setThrottled(Number.isFinite(header) && header > 0 ? header : 60);
+      // Етап 3: `kind` у тілі каже, ЯКИЙ ліміт. Поля може не бути — тоді null,
+      // і смуга лишається загальною.
+      const kind = payload && typeof payload === 'object' && typeof (payload as { kind?: unknown }).kind === 'string'
+        ? (payload as { kind: string }).kind : null;
+      getIncident()?.setThrottled(Number.isFinite(header) && header > 0 ? header : 60, kind);
     }
     const msg = extractError(payload) ?? `HTTP ${res.status}`;
     throw new ApiError(res.status, payload, msg);

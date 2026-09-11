@@ -14,7 +14,7 @@ import { registerIncidentSink } from '../../api';
 import { useIncidentStore } from '../../store/incident';
 import { useAuth } from '../../store/auth';
 import { Strip } from './Strip';
-import { AUTH_STRIP, THROTTLED_STRIP, OFFLINE_STRIP } from './copy';
+import { AUTH_STRIP, THROTTLED_STRIP, THROTTLED_BY_KIND, OFFLINE_STRIP } from './copy';
 import styles from './IncidentStrips.module.css';
 
 /** Реєструє стор як приймач подій із api.req. Кличеться раз, у каркасі. */
@@ -44,6 +44,7 @@ export function IncidentStrips() {
   const authExpired = useIncidentStore((s) => s.authExpired);
   const throttledUntil = useIncidentStore((s) => s.throttledUntil);
   const throttledFor = useIncidentStore((s) => s.throttledFor);
+  const throttledKind = useIncidentStore((s) => s.throttledKind);
   const offline = useIncidentStore((s) => s.offline);
   const clearThrottled = useIncidentStore((s) => s.clearThrottled);
   const setAuthExpired = useIncidentStore((s) => s.setAuthExpired);
@@ -70,16 +71,22 @@ export function IncidentStrips() {
             }}
           />
         )}
-        {throttled && (
-          <Strip
-            kicker={THROTTLED_STRIP.kicker}
-            h1a={THROTTLED_STRIP.h1a}
-            h1b={THROTTLED_STRIP.h1b}
-            body={THROTTLED_STRIP.body}
-            seconds={throttledFor}
-            onDone={clearThrottled}
-          />
-        )}
+        {throttled && (() => {
+          // Етап 3: слово за видом ліміту, якщо сервер його назвав; інакше —
+          // загальна смуга, як і було. Старе поле, старий сервер — не ламається.
+          const copy = (throttledKind && THROTTLED_BY_KIND[throttledKind]) || THROTTLED_STRIP;
+          return (
+            <Strip
+              kicker={copy.kicker}
+              h1a={copy.h1a}
+              h1b={copy.h1b}
+              body={copy.body}
+              seconds={throttledFor}
+              onDone={clearThrottled}
+              kind={throttledKind ?? 'generic'}
+            />
+          );
+        })()}
         {offline && (
           <Strip
             kicker={OFFLINE_STRIP.kicker}

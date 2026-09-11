@@ -25,7 +25,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
   const publicLimiter = makeRateLimiter({ max: 60, windowMs: 60_000 });
   const publicLimit = async (req: FastifyRequest, reply: FastifyReply) => {
     if (!publicLimiter.check(req.ip)) {
-      tooMany(reply, publicLimiter, req.ip);
+      tooMany(reply, publicLimiter, req.ip, 'recipe_public');
       return reply;
     }
   };
@@ -36,7 +36,7 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
   const genLimit = async (req: FastifyRequest, reply: FastifyReply) => {
     const ctx = requireUser(req);
     if (!genLimiter.check(ctx.user_id)) {
-      tooMany(reply, genLimiter, ctx.user_id);
+      tooMany(reply, genLimiter, ctx.user_id, 'recipe_gen');
       return reply;
     }
   };

@@ -19,7 +19,7 @@ export function shoppingRoutes(app: FastifyInstance, repo: Repo, opts: { rateLim
   const limitCheck = async (req: FastifyRequest, reply: FastifyReply) => {
     const { user_id } = requireUser(req);
     if (!limiter.check(user_id)) {
-      tooMany(reply, limiter, user_id);
+      tooMany(reply, limiter, user_id, 'shopping');
       return reply;
     }
   };

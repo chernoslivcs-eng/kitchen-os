@@ -15,6 +15,8 @@ import { Button } from '../Button/Button';
 import styles from './Strip.module.css';
 
 interface Props {
+  /** Етап 3: вид ліміту для смуги 429 — лише як позначка в розмітці. */
+  kind?: string;
   kicker: string;
   h1a: string;
   h1b: string;
@@ -30,7 +32,7 @@ interface Props {
   onDone?: () => void;
 }
 
-export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone }: Props) {
+export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kind }: Props) {
   const timed = !cta && typeof seconds === 'number' && seconds > 0;
   // Смуга — теж показана помилка, і без неї стрічка дня була б неповною.
   //
@@ -64,7 +66,7 @@ export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone }: P
   }, [timed, seconds]);
 
   return (
-    <div className={styles.strip} data-strip role="status">
+    <div className={styles.strip} data-strip role="status" data-strip-kind={kind}>
       <div className={styles.text}>
         <div className={styles.mono}>
           <span>{kicker}</span>

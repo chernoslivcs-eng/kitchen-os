@@ -15,10 +15,15 @@ interface IncidentStore {
   throttledUntil: number | null;
   /** Скільки секунд ліміт тривав від початку — щоб смужка стікала з правильної частки. */
   throttledFor: number;
+  /**
+   * Етап 3: ЯКИЙ ліміт — з поля `kind` у тілі 429. Необовʼязкове: старий сервер
+   * його не шле, і тоді смуга лишається загальною («дай хвилину наздогнати»).
+   */
+  throttledKind: string | null;
   offline: boolean;
 
   setAuthExpired: (v: boolean) => void;
-  setThrottled: (seconds: number) => void;
+  setThrottled: (seconds: number, kind?: string | null) => void;
   clearThrottled: () => void;
   setOffline: (v: boolean) => void;
 }
@@ -27,16 +32,17 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
   authExpired: false,
   throttledUntil: null,
   throttledFor: 0,
+  throttledKind: null,
   offline: false,
 
   setAuthExpired: (authExpired) => set({ authExpired }),
-  setThrottled: (seconds) => {
+  setThrottled: (seconds, kind = null) => {
     const until = Date.now() + seconds * 1000;
     // Довший ліміт перебиває коротший: якщо два запити впіймали 429, лишається
     // той час, коли справді можна буде знову.
     if ((get().throttledUntil ?? 0) > until) return;
-    set({ throttledUntil: until, throttledFor: seconds });
+    set({ throttledUntil: until, throttledFor: seconds, throttledKind: kind });
   },
-  clearThrottled: () => set({ throttledUntil: null, throttledFor: 0 }),
+  clearThrottled: () => set({ throttledUntil: null, throttledFor: 0, throttledKind: null }),
   setOffline: (offline) => set({ offline }),
 }));
