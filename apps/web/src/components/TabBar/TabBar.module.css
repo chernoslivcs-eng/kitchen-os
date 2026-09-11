@@ -86,6 +86,11 @@
  * Кегля тут більше немає: етап 1.5 замінив гліф на svg, і font-size 17px
  * заодно був тим, що робив «навігацію дрібнішою за контент» в аудиті. */
 .tab .glyph { width: 18px; height: 18px; flex: none; }
+/* Знак бере колір кнопки: у спокої muted, активна — bg на чорнилі (Prototype
+   nav: `color: var(--bg)`), як у нижньому барі на 390. Знак сам ставить
+   muted через .icon — тут перебиваємо. */
+.tab .glyph { color: var(--muted); }
+.tab.active .glyph { color: inherit; }
 .tab.active {
   background: var(--line);
   color: var(--ink);
