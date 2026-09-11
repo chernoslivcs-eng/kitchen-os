@@ -24,7 +24,7 @@
       "destination": "/api/index"
     },
     {
-      "source": "/((?!assets|manifest.webmanifest|icon.svg|sw.js|api/).*)",
+      "source": "/((?!assets|fonts/|manifest.webmanifest|icon.svg|sw.js|api/).*)",
       "destination": "/index.html"
     }
   ],
