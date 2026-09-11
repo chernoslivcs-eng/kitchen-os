@@ -405,34 +405,28 @@ a.att-chip:hover { border-color: var(--sage); }
   min-height: 52px;
   border-radius: 26px;
   background: var(--card);
-  border: 1px solid var(--line2);
+  /* 6b-5 (Prototype, композитор): картка на тіні `--sh` = sh-a + sh-b, без
+     рамки; фокус нічим не обводиться — каретка й тінь і є стан. Шавлієвий
+     контур знято за правилом канону: шавлія — рід факту, не стан контролу. */
+  border: 0;
+  box-shadow: var(--sh-a), var(--sh-b);
   display: flex;
   gap: 4px;
   align-items: flex-end;
   padding: 5px 5px 5px 18px;
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+  transition: box-shadow var(--dur-fast);
 }
 /* Крок Д1 (макет v7): композитор «озброюється», поки файл над вікном. Він і є
-   ціль — накладки в цьому дизайні немає, тож стан має показати сам приймач. */
+   ціль — накладки в цьому дизайні немає, тож стан має показати сам приймач.
+   Стан контролу — чорнило (inset 1.5), не шавлія. */
 .composer-armed {
-  border-color: var(--sage) !important;
-  border-width: 1.5px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sage) 12%, transparent) !important;
-  transition: border-color 160ms, box-shadow 160ms;
+  box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b) !important;
 }
-.composer-armed .composer-input::placeholder { color: var(--sage); }
+.composer-armed .composer-input::placeholder { color: var(--ink); }
 
-.composer:focus-within {
-  border-color: var(--sage);
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-.composer-recording {
-  border-color: var(--sage) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 10%, transparent) !important;
-  /* Моушн-2 №3: цегляний бордер в'їжджає, а не вмикається (150ms enter). */
-  transition: border-color var(--dur-fast, 150ms) var(--ease-enter, ease),
-              box-shadow var(--dur-fast, 150ms) var(--ease-enter, ease);
-}
+/* Запис: сам композитор не міняється (Prototype) — стан несе кнопка .mic-live;
+   клас лишається як гачок для тестів і стану. */
+.composer-recording { }
 .composer-input {
   flex: 1;
   min-width: 0;
@@ -473,11 +467,16 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
   transition: background var(--dur-fast);
 }
+/* Головне гніздо композитора (мікрофон на порожньому полі · стоп під час
+   думання) — чорнило, як «надіслати»: те саме місце, той самий вигляд.
+   Prototype тримає мікрофон прозорим поруч із «надіслати»; тут кнопки
+   міняються місцями, тож гніздо одне і воно чорнильне (рішення власника 11.09). */
 .frame-btn {
-  border: 1px solid var(--line2);
-  background: transparent;
-  color: var(--muted);
+  border: 0;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
 }
+.frame-btn:hover:not(:disabled) { background: var(--btn-primary-hover); }
 .frame-btn-ghost {
   border: 0;
   background: transparent;
