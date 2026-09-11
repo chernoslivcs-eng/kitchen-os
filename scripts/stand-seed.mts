@@ -35,6 +35,7 @@ const repo = new InMemoryRepo();
 const { user_id, household_id } = await repo.createUserWithHousehold(EMAIL, 'Пилип');
 // Семена вже бачили — стрічка не перекидає на /welcome.
 await repo.touchUser(user_id, 'welcome_seen_at', iso(-10));
+await repo.touchUser(user_id, 'profile_onboarding_at', iso(-10));
 
 // ── Продукти дому (трійка → паспорт «бренд · тип» у підзаголовку рядка) ──
 type P = { product: string; brand?: string; variant?: string; key: string; unit?: 'g' | 'ml' | 'pcs' | null };
@@ -106,6 +107,11 @@ const veto = (field: 'no' | 'ban', kind: VetoRow['kind'], ref: string, label: st
   ({ user_id, field, kind, ref, label, allergy: field === 'ban', subject: null });
 await repo.setVetoIndex(user_id, 'no', [veto('no', 'category', 'яловичина', 'яловичину'), veto('no', 'category', 'шоколад', 'шоколад')]);
 await repo.setVetoIndex(user_id, 'ban', [veto('ban', 'category', 'ракоподібні', 'креветки')]);
+
+// ── Список покупок: три позиції, які закриє чек (Screens: «✓ у списку») ──
+for (const label of ['Молоко', 'Яйця', 'Масло']) {
+  await repo.insertShoppingItem({ id: randomUUID(), household_id, label, reason: null, value: null, unit: null, zone: null, checked: false, added_by: user_id, source: 'user', created_at: iso(-2) });
+}
 
 const app = buildApp(repo, new InMemoryStore(), new ConsoleMailer());
 await app.listen({ port: PORT, host: '127.0.0.1' });

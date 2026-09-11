@@ -154,6 +154,11 @@ function doubtLabel(op: { confidence?: number; evidence?: string }): string | nu
   return typeof c === 'number' ? `домислено ${Math.round(c * 100)}%` : 'домислено';
 }
 const DOUBT_STYLE = { marginLeft: 8, fontSize: 13, color: 'var(--amber, #96712c)' as const };
+/** Паспорт рядка чека — «бренд · тип» із трійки op (Screens: «Сільпо · ковбаса с/в»). */
+function passportOf(op: object): string {
+  const o = op as { brand?: string; variant?: string };
+  return [o.brand, o.variant].filter(Boolean).join(' · ');
+}
 
 function stateClass(applied?: boolean, undone?: boolean): string {
   return [
@@ -181,60 +186,47 @@ function ClarifyRow({
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(Math.max(1, Math.round(line.quantity)));
   const [busy, setBusy] = useState(false);
-  if (!editing) {
-    return (
-      <div className={styles.op}>
-        <span className={styles['op-sign']} style={{ color: 'var(--dim)' }}>?</span>
-        <span className={styles['op-label']} style={{ color: 'var(--dim)' }}>«{line.name}»</span>
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          style={{
-            border: '1px solid var(--line)', background: 'none', borderRadius: 999,
-            padding: '4px 10px', color: 'var(--dim)', fontFamily: 'var(--font-body)',
-            fontSize: 12, fontWeight: 500, cursor: 'pointer', flex: 'none',
-          }}
-        >уточнити</button>
-      </div>
-    );
-  }
+  // Screens «Чат · збірка» / Components: рядок 40 — пунктирна рамка 20 r6
+  // бурштином · «сирий рядок чека» 14 muted · ціна 13 muted; під ним чіпи
+  // 32/999 на bg. У бандлі чіпи — здогадки каталогу («шоколад», «солодке») і
+  // «✎ своє»; контракт уточнення тут інший — кількість і одиниця
+  // (clarifyLine), тож чіп один: «уточнити» → степер, «ок» переносить рядок
+  // у ops тим самим шляхом, що впізнане каталогом.
   return (
-    <div className={styles.op} style={{ background: 'var(--sage-bg)', margin: '0 -20px', padding: '11px 20px' }}>
-      <span className={styles['op-sign']} style={{ color: 'var(--dim)' }}>?</span>
-      <span className={styles['op-label']}>«{line.name}»</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, background: 'var(--card)',
-          border: '1px solid var(--sage)', borderRadius: 8, padding: '3px 8px',
-        }}>
-          <button
-            type="button" disabled={busy} onClick={() => setValue((v) => Math.max(1, v - 1))}
-            style={{ border: 0, background: 'none', color: 'var(--sage)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
-          >−</button>
-          <span style={{ fontSize: 12, minWidth: 14, textAlign: 'center' }}>{value}</span>
-          <button
-            type="button" disabled={busy} onClick={() => setValue((v) => v + 1)}
-            style={{ border: 0, background: 'none', color: 'var(--sage)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
-          >+</button>
-        </div>
-        <span style={{ fontSize: 13, color: 'var(--sage)' }}>{formatUnit(line.unit)}</span>
-        <button
-          type="button"
-          disabled={busy || !cardId}
-          onClick={async () => {
-            if (!cardId) return;
-            setBusy(true);
-            try {
-              const r = await api.cards.clarifyLine(cardId, index, value, line.unit);
-              onClarified(r.card);
-            } catch { setBusy(false); }
-          }}
-          style={{
-            border: 0, background: 'var(--sage)', color: 'var(--sage-on)', borderRadius: 999,
-            padding: '5px 10px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
-            cursor: 'pointer', opacity: busy ? 0.6 : 1,
-          }}
-        >ок</button>
+    <div className={styles['rc-unk']}>
+      <div className={styles['rc-unk-row']}>
+        <span className={`${styles.rbox} ${styles['rbox-unknown']}`} aria-hidden />
+        <span className={styles['rc-unk-name']}>«{line.name}»</span>
+        {line.price > 0 && <span className={styles['rrow-qty']}>{Math.round(line.price)} ₴</span>}
+      </div>
+      <div className={styles['rc-unk-chips']}>
+        {!editing ? (
+          <button type="button" className={styles['rc-chip']} onClick={() => setEditing(true)}>
+            <Icon name="live.byHand" size={12} inherit decorative />уточнити
+          </button>
+        ) : (
+          <>
+            <span className={styles['rc-stepper']}>
+              <button type="button" disabled={busy} onClick={() => setValue((v) => Math.max(1, v - 1))} aria-label="Менше"><Icon name="live.nothing" size={12} inherit decorative /></button>
+              <span className={styles['rc-stepper-n']}>{value}</span>
+              <button type="button" disabled={busy} onClick={() => setValue((v) => v + 1)} aria-label="Більше"><Icon name="sys.add" size={12} inherit decorative /></button>
+              <span className={styles['rc-stepper-u']}>{formatUnit(line.unit)}</span>
+            </span>
+            <button
+              type="button"
+              className={`${styles['rc-chip']} ${styles['rc-chip-ok']}`}
+              disabled={busy || !cardId}
+              onClick={async () => {
+                if (!cardId) return;
+                setBusy(true);
+                try {
+                  const r = await api.cards.clarifyLine(cardId, index, value, line.unit);
+                  onClarified(r.card);
+                } catch { setBusy(false); }
+              }}
+            >ок</button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -245,9 +237,11 @@ function ClarifyRow({
 // показати СТРУКТУРУ рішення (скільки в комору, скільки в побут, скільки
 // не впізнано), а не всі дев'ятнадцять позицій одразу.
 function ReceiptGroup({
-  tone, mark, title, count, action, actionLabel, actionDisabled, children, rows, tail,
+  tone, mark, title, count, action, actionLabel, actionTone, actionDisabled, children, rows, tail,
 }: {
   tone: 'accent' | 'amber' | 'muted';
+  /** Тон дії групи: muted (Screens «зняти всі») · sage («у список побуту») · amber («уточнити»). */
+  actionTone?: 'sage' | 'amber';
   /** Стан групи, не символ. Був `glyph: string` із гліфами ◌ ● ✓ прямо в
    *  розмітці — вони пережили етапи 1.5 і 1.6, бо картки чату відкриваються
    *  лише з даними, а прогін аудиту туди не заходить (DEBT §26). */
@@ -266,7 +260,8 @@ function ReceiptGroup({
   // null у rows — позиція, якої вже немає (зʼїли). Відсіюємо ДО слайсу,
   // інакше «ЩЕ N» рахував би порожні місця й ховав живі рядки.
   const real = rows?.filter(Boolean);
-  const shown = real && !all ? real.slice(0, 4) : real;
+  // Screens «Чат · збірка»: шість рядків, далі «Ще N ▾».
+  const shown = real && !all ? real.slice(0, 6) : real;
   const hidden = real ? real.length - (shown?.length ?? 0) : 0;
   return (
     <div className={styles.rgroup}>
@@ -277,7 +272,7 @@ function ReceiptGroup({
         {action && actionLabel && (
           <button
             type="button"
-            className={`${styles['rgroup-act']} ${tone === 'amber' ? styles['tone-amber'] : ''}`}
+            className={`${styles['rgroup-act']} ${actionTone === 'amber' ? styles['tone-amber'] : actionTone === 'sage' ? styles['tone-accent'] : ''}`}
             onClick={action}
             disabled={actionDisabled}
           >{actionLabel}</button>
@@ -287,8 +282,9 @@ function ReceiptGroup({
       {children}
       {tail && <div className={styles['rgroup-tail']}>{tail}</div>}
       {hidden > 0 && (
+        /* Screens «Чат · збірка»: «Ще 6 ▾» — 36, 13 muted, шеврон зі словника. */
         <button type="button" className={styles['rgroup-more']} onClick={() => setAll(true)}>
-          ЩЕ {hidden} ▾
+          Ще {hidden}<Icon name="sys.open" size={12} inherit decorative />
         </button>
       )}
     </div>
@@ -304,18 +300,22 @@ function NonfoodGroup({
   const [sent, setSent] = useState(false);
   return (
     <ReceiptGroup
-      tone="amber"
-      mark="ring"
-      title="НЕ ДЛЯ КОМОРИ"
+      tone="muted"
+      mark="none"
+      actionTone="sage"
+      title="Не для комори"
       count={rows.length}
       action={onNonfoodToList && !sent
         ? () => { onNonfoodToList(rows.map((r) => r.name)); setSent(true); }
         : undefined}
-      actionLabel={sent ? 'У СПИСКУ' : 'У СПИСОК'}
+      /* Screens: «у список побуту» шавлією в шапці групи; рядки — тихі, без
+         чекбокса (бандл ставить знак роду речі — spray-can, shopping-basket —
+         яких у словнику нема; замість них порожнє місце). */
+      actionLabel={sent ? 'у списку побуту' : 'у список побуту'}
       actionDisabled={sent}
       rows={rows.map((r, i) => (
-        <div key={i} className={styles.rrow} style={{ color: 'var(--muted)' }}>
-          <span className={styles.rbox} />
+        <div key={i} className={`${styles.rrow} ${styles['rrow-quiet']}`}>
+          <span className={styles['rrow-gap']} aria-hidden />
           <span className={styles['rrow-name']}>{r.name}</span>
           {r.qty && <span className={styles['rrow-qty']}>{r.qty}</span>}
         </div>
@@ -385,7 +385,6 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   // Повний список одразу — «звалище»: чек легко несе 10+ позицій. Згорнуто
   // за замовчуванням, як «не для комори» нижче; для звичайного (короткого)
   // intake_diff з чату список і так короткий — розгорнутий одразу.
-  const [showInList, setShowInList] = useState(false);
   // Крок 4.2: які рядки чека закриють позиції списку покупок. Той самий
   // збіг (точний за назвою, trim+lower) рахує applyCard — але вже ПІСЛЯ
   // натискання, і людина дізнавалась про наслідок постфактум. Тут вона
@@ -404,28 +403,31 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   const writeOff = ops.length > 0 && !ops.some((o) => o.op === 'add');
   const goingIn = ops.length - off.size;
   const footSlot = useContext(PanelFootSlot);
+  // Низ за Screens «Чат · збірка»: «15 додамо додому · 3 уже в списку · 2 не
+  // їжа, у список» 13 muted · «Ні» текстом 38 · «Застосувати 15» чорнилом
+  // 38 r10 13/600 — число те, яке справді застосує.
+  const inListOn = [...inList].filter((i) => !off.has(i)).length;
   const intakeFootRaw = anyReceipt && (actionable || (applied && !undone)) ? (
-    <div className={styles['card-foot']}>
-      <span className={styles['strip-state']}>
+    <div className={`${styles['card-foot']} ${styles['rc-foot']}`}>
+      <span className={styles['rc-sum']}>
         {goingIn} {writeOff
           ? (applied && !undone ? 'є вдома' : 'використаємо')
           : (applied && !undone ? 'уже вдома' : 'додамо додому')}
-        {receipt && receipt.nonfood.length > 0 && (
-          <span className={styles['strip-state-dim']}> · {receipt.nonfood.length} не їжа, у список</span>
-        )}
+        {inListOn > 0 && <> · {inListOn} уже в списку</>}
+        {nonfoodRows.length > 0 && <> · {nonfoodRows.length} не їжа, у список</>}
       </span>
       {applied && !undone && undoAvailable && onUndo && (
-        <Button size="strip" variant="text" onClick={onUndo}>Скасувати</Button>
+        <button type="button" className={styles['rc-no']} onClick={onUndo}>Скасувати</button>
       )}
-      {actionable && <Button size="strip" variant="text" onClick={onDismiss}>Ні</Button>}
+      {actionable && <button type="button" className={styles['rc-no']} onClick={onDismiss}>Ні</button>}
       {actionable && (
-        <Button
-          size="strip"
-          variant="primary"
+        <button
+          type="button"
+          className={styles['rc-apply']}
           onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
-          loading={applying}
-          disabled={off.size === ops.length}
-        >{writeOff ? 'Списати' : 'Застосувати'} {off.size ? `${goingIn} із ${ops.length}` : goingIn}</Button>
+          disabled={applying || off.size === ops.length}
+          data-apply
+        >{writeOff ? 'Списати' : 'Застосувати'} {goingIn}</button>
       )}
     </div>
   ) : null;
@@ -434,17 +436,15 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
   return (
     <div className={stateClass(applied, undone)}>
       {anyReceipt && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 6 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '-0.015em' }}>
-            {receipt ? 'Чек Сільпо' : 'Чек'}
-          </div>
-          {/* Мережевий чек знає магазин і суму; чек із чату — ні, і вигадувати
-              їх не будемо: підзаголовок чесно коротший. */}
-          <MonoLabel>
-            {receipt
-              ? `${receiptDate(receipt.at)} · ${receipt.shop} · ${Math.round(receipt.total)}₴`
-              : receiptDate(liveCard.source!.at)}
-          </MonoLabel>
+        /* Шапка документа за Screens: «Чек Сільпо · 07.09» 15/600 · «19 рядків»
+           13 dim (сума — з Components «7 вер · 1 284 ₴ · 14»). Мережевий чек
+           знає магазин і суму; чек із чату — ні, і вигадувати їх не будемо. */
+        <div className={styles['rc-head']}>
+          <span className={styles['rc-title']}>{receipt ? `Чек ${receipt.shop}` : 'Чек'} · {receiptDate(liveCard.source!.at)}</span>
+          <span className={styles['rc-meta']}>
+            {ops.length + nonfoodRows.length + (receipt?.unmatched.length ?? 0)} {plural(ops.length + nonfoodRows.length + (receipt?.unmatched.length ?? 0), ['рядок', 'рядки', 'рядків'])}
+            {receipt ? ` · ${String(Math.round(receipt.total)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} ₴` : ''}
+          </span>
         </div>
       )}
       {/* ── Чек: чотири секції замість суцільного списку ──────────────
@@ -453,17 +453,22 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           секція не малюється, але наявна каже, що розбір відбувся. */}
       {anyReceipt && (
         <>
+          {/* Screens «Чат · збірка»: «У комору · 15» шавлією · «зняти всі»;
+              рядок 40 — чекбокс 20 r6, назва 14/500 + паспорт 12 dim (бренд ·
+              тип з трійки op), «у списку» 12 шавлією зі знаком списку,
+              кількість 13 muted. Увесь рядок — тогл (Prototype), знятий — .5. */}
           <ReceiptGroup
             tone="accent"
-            mark="dot"
-            title={writeOff ? "З КОМОРИ" : "У КОМОРУ"}
+            mark="none"
+            title={writeOff ? 'З комори' : 'У комору'}
             count={ops.length - off.size - goneCount}
             action={actionable && ops.length > 1
               ? () => setOff((prev) => (prev.size === ops.length ? new Set() : new Set(ops.map((_, i) => i))))
               : undefined}
-            actionLabel={off.size === ops.length ? 'ПОВЕРНУТИ ВСІ' : 'ЗНЯТИ ВСІ'}
+            actionLabel={off.size === ops.length ? 'повернути всі' : 'зняти всі'}
             rows={ops.map((op, i) => op.gone ? null : (
-              <div key={i} className={styles.rrow} style={off.has(i) ? { opacity: 0.45 } : undefined}>
+              <div key={i} className={`${styles.rrow} ${off.has(i) ? styles['rrow-off'] : ''} ${actionable && ops.length > 1 ? styles['rrow-tap'] : ''}`}
+                onClick={actionable && ops.length > 1 ? () => toggle(i) : undefined}>
                 {actionable && ops.length > 1 ? (
                   <button
                     type="button"
@@ -471,20 +476,23 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                     aria-checked={!off.has(i)}
                     aria-label={op.label ?? 'позиція'}
                     className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
-                    onClick={() => toggle(i)}
+                    onClick={(e) => { e.stopPropagation(); toggle(i); }}
                   >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</button>
                 ) : (
                   <span className={`${styles.rbox} ${styles['rbox-on']}`}><Icon name="sys.done" size={12} inherit decorative /></span>
                 )}
                 <span className={styles['rrow-name']}>
-                  {op.op === 'rename'
-                    ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
-                    : op.label ?? '—'}
-                  {inList.has(i) && (
-                    <span className={styles['rrow-qty']} style={{ marginLeft: 8 }}>У СПИСКУ</span>
-                  )}
-                  {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
+                  <span className={styles['rrow-title']}>
+                    {op.op === 'rename'
+                      ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
+                      : op.label ?? '—'}
+                    {doubtLabel(op) && <span style={DOUBT_STYLE}>{doubtLabel(op)}</span>}
+                  </span>
+                  {passportOf(op) && <span className={styles['rrow-sub']}>{passportOf(op)}</span>}
                 </span>
+                {inList.has(i) && (
+                  <span className={styles['rrow-inlist']} data-in-list><Icon name="sys.list" size={12} inherit decorative />у списку</span>
+                )}
                 {op.value != null && op.unit && (
                   <span className={styles['rrow-qty']}>{formatQty(op.value, op.unit)}</span>
                 )}
@@ -495,36 +503,13 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               : undefined}
           />
 
-          {/* «Вже у списку» — НЕ п'ятий кошик рядків, а примітка про перетин.
-              Позиція, що є в списку покупок, усе одно їде в комору: винести
-              її окремою групою означало б прибрати її з першої. Тому тут
-              лічильник і «показати», а самі рядки позначені в секції вище. */}
-          {inList.size > 0 && (
-            <ReceiptGroup
-              tone="muted"
-              mark="done"
-              title="ВЖЕ У СПИСКУ"
-              count={inList.size}
-              action={() => setShowInList((v) => !v)}
-              actionLabel={showInList ? 'СХОВАТИ' : 'ПОКАЗАТИ'}
-            >
-              {showInList && (
-                <div className={styles.rrow} style={{ color: 'var(--dim)' }}>
-                  <span className={styles['rrow-name']}>
-                    {[...inList].map((i) => ops[i]?.label).filter(Boolean).join(', ')}
-                  </span>
-                </div>
-              )}
-            </ReceiptGroup>
-          )}
-
           {nonfoodRows.length > 0 && <NonfoodGroup rows={nonfoodRows} onNonfoodToList={onNonfoodToList} />}
 
           {receipt && receipt.unmatched.length > 0 && (
             <ReceiptGroup
               tone="amber"
-              mark="ring"
-              title="НЕ ВПЕВНЕНИЙ"
+              mark="none"
+              title="Не впевнений"
               count={receipt.unmatched.length}
             >
               {/* Ключ за назвою, не індексом: «ок» вирізає рядок із unmatched
