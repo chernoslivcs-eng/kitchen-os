@@ -204,3 +204,24 @@ $ git show main:packages/catalog/seed.ts | grep -c "key: "
    завантаження фото ~2 МБ проходить.
 5. Фікс 4 (ресайз на клієнті) — до того, як хтось спробує фото з телефона.
 6. Фікси 6 і 8 — окремими задачами після запуску.
+
+## Після деплою — шрифт (хотфікс 11.09)
+
+CSP у `vercel.json` (`style-src 'self' 'unsafe-inline'; font-src 'self'`)
+діє лише на Vercel: локально шрифт із чужого домену завантажиться, на проді —
+ні, і жоден 200-й чи греп бандла цього не покаже. Onest віддається зі свого
+домену (`apps/web/public/fonts/`, `@font-face` у `tokens.css`), а гейт
+`apps/web/src/styles/csp.test.ts` не пустить у `index.html` чи CSS зовнішнє
+джерело, якого CSP не дозволяє. Після кожного деплою — у консолі проду:
+
+```js
+[...document.fonts].some(f => f.family === 'Onest' && f.status === 'loaded')
+```
+
+Має бути `true`. `false` = усе в system-ui, шукати в Network → Font.
+Те саме одним рядком (лише читання, без входу):
+
+```bash
+node scripts/font-check.mjs --url https://kitchen-os-coral.vercel.app --out out/font-after.png
+```
+
