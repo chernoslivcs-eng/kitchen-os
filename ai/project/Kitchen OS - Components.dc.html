@@ -15,14 +15,65 @@
 body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
 a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 * { box-sizing:border-box; }
-.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); }
-.v3[data-theme="dark"] { --bg:#16181b; --card:#1f2226; --line:#2a2e33; --line2:#33383e; --ink:#ecebe7; --muted:#a3a7ac; --dim:#6f7379; --sage:#93b48b; --sage-bg:#26312a; --amber:#d2ad6b; --amber-bg:#332a1c; --plum:#c99ab4; --plum-bg:#2f2329; --danger:#d47f74; --danger-bg:#3a2320; --sh:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4); --sh2:0 12px 40px rgba(0,0,0,.5); }
+.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18);  --glass-bg:color-mix(in srgb, var(--card) 72%, transparent); --glass-edge:rgba(255,255,255,.7); --glass-top:rgba(255,255,255,.9); --glass-side:rgba(255,255,255,.5); --glass-sh:0 12px 40px rgba(26,28,30,.16), 0 0 0 1px rgba(255,255,255,.6); --chat-grad:linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 32%, var(--bg)) 0, var(--bg) 240px); }
+.v3[data-theme="dark"] { --bg:#16181b; --card:#1f2226; --line:#2a2e33; --line2:#33383e; --ink:#ecebe7; --muted:#a3a7ac; --dim:#6f7379; --sage:#93b48b; --sage-bg:#26312a; --amber:#d2ad6b; --amber-bg:#332a1c; --plum:#c99ab4; --plum-bg:#2f2329; --danger:#d47f74; --danger-bg:#3a2320; --sh:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4); --sh2:0 12px 40px rgba(0,0,0,.5);  --glass-bg:color-mix(in srgb, var(--card) 78%, transparent); --glass-edge:rgba(255,255,255,.10); --glass-top:rgba(255,255,255,.16); --glass-side:rgba(255,255,255,.07); --glass-sh:0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06); --chat-grad:linear-gradient(to bottom, color-mix(in srgb, var(--sage-bg) 65%, var(--bg)) 0, var(--bg) 260px); }
 @keyframes kos-bar { from { transform:scaleY(.25); opacity:.5; } to { transform:scaleY(1); opacity:1; } }
 @keyframes kos-ring { 0%,100% { transform:rotate(0); } 15% { transform:rotate(12deg); } 30% { transform:rotate(-10deg); } 45% { transform:rotate(6deg); } 60% { transform:rotate(0); } }
+.glass-rail { background:var(--glass-bg); backdrop-filter:blur(18px) saturate(1.25); -webkit-backdrop-filter:blur(18px) saturate(1.25); border-right:1px solid var(--glass-edge); box-shadow:inset -1px 0 0 var(--glass-side); }
+.glass-panel { background:var(--glass-bg) !important; backdrop-filter:blur(18px) saturate(1.25); -webkit-backdrop-filter:blur(18px) saturate(1.25); position:relative; isolation:isolate; }
+.glass-panel::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; border:1px solid var(--glass-edge); box-shadow:inset 0 1px 0 var(--glass-top), inset 1px 0 0 var(--glass-side); }
 </style>
 </helmet>
 
 <section class="v3" data-theme="{{theme}}" style="padding:48px; display:flex; flex-direction:column; gap:32px; width:max-content; color:var(--ink);">
+
+<div style="display:flex; flex-direction:column; gap:8px; width:1200px;">
+  <div style="font-size:12px; font-weight:500; color:var(--muted);">Матеріал · скло і градієнт · специфікація в glass-gradient-spec.md</div>
+  <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Скло — матеріал усього продукту. Градієнт — ознака тільки розмови.</div>
+</div>
+
+<div style="display:flex; gap:24px; align-items:flex-start;">
+  <div style="display:flex; flex-direction:column; gap:8px;">
+    <div style="font-size:12px; font-weight:500; color:var(--muted);">М1 · дві скляні поверхні на градієнті розмови</div>
+    <div style="width:640px; height:300px; background:var(--chat-grad); display:flex; overflow:hidden; box-shadow:var(--sh);">
+      <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:14px 0; gap:4px;">
+        <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:12px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
+        <span style="width:38px; height:38px; border-radius:10px; background:var(--ink); color:var(--bg); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
+        <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
+        <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="list-checks" style="width:18px; height:18px;"></i></span>
+      </nav>
+      <main style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end; gap:10px; padding:16px;">
+        <div style="align-self:flex-end; background:var(--ink); color:var(--bg); border-radius:16px 16px 6px 16px; padding:9px 13px; font-size:14px;">що на вечерю?</div>
+        <div style="font-size:14px; line-height:1.5; color:var(--ink); max-width:280px;">Помідори лежать третій день — з них і почнемо.</div>
+        <div style="background:var(--card); border-radius:12px; box-shadow:var(--sh); padding:12px 14px; display:flex; align-items:center; gap:10px; max-width:320px;"><span style="width:32px; height:32px; border-radius:50%; border:1px solid var(--line2); display:grid; place-items:center; flex:none;"><i data-lucide="chef-hat" style="width:15px; height:15px;"></i></span><span style="display:flex; flex-direction:column; line-height:1.2;"><span style="font-size:14px; font-weight:600;">Паста з помідорами</span><span style="font-size:12px; color:var(--sage);">8 з 8 удома</span></span></div>
+      </main>
+      <aside class="glass-panel" style="width:200px; flex:none; margin:12px 12px 12px 0; background:var(--glass-bg); border-radius:16px; display:flex; flex-direction:column; box-shadow:var(--glass-sh); overflow:hidden;">
+        <div style="display:flex; align-items:center; gap:8px; padding:12px 14px 10px; border-bottom:1px solid var(--line); font-size:13px; font-weight:600;"><i data-lucide="book-open" style="width:15px; height:15px;"></i>Рецепт</div>
+        <div style="padding:6px 14px;"><div style="display:flex; align-items:center; height:36px; border-bottom:1px solid var(--line); font-size:13px;"><span style="flex:1;">Помідори</span><span style="color:var(--muted);">600 г</span></div><div style="display:flex; align-items:center; height:36px; border-bottom:1px solid var(--line); font-size:13px;"><span style="flex:1;">Спагеті</span><span style="color:var(--muted);">200 г</span></div><div style="display:flex; align-items:center; height:36px; font-size:13px;"><span style="flex:1;">Часник</span><span style="color:var(--muted);">4 зубці</span></div></div>
+      </aside>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:8px;">
+    <div style="font-size:12px; font-weight:500; color:var(--muted);">М2 · те саме скло без градієнта — решта екранів</div>
+    <div style="width:420px; height:300px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh);">
+      <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:14px 0; gap:4px;">
+        <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:12px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
+        <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
+        <span style="width:38px; height:38px; border-radius:10px; background:var(--ink); color:var(--bg); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
+      </nav>
+      <main style="flex:1; min-width:0; padding:16px; display:flex; flex-direction:column; gap:10px;">
+        <span style="font-weight:700; font-size:20px; letter-spacing:-.02em;">Комора</span>
+        <div style="background:var(--card); border-radius:12px; box-shadow:var(--sh); overflow:hidden;"><div style="display:flex; align-items:center; gap:8px; height:36px; padding:0 14px; background:var(--ink); color:var(--bg); font-size:12px; font-weight:600;"><i data-lucide="refrigerator" style="width:13px; height:13px;"></i>Холодильник<span style="opacity:.6; font-weight:500;">9</span></div><div style="padding:2px 14px;"><div style="display:flex; align-items:center; height:38px; border-bottom:1px solid var(--line); font-size:13px;"><span style="flex:1;">Фует</span><span style="color:var(--amber);">2 дн</span></div><div style="display:flex; align-items:center; height:38px; font-size:13px;"><span style="flex:1;">Пармезан</span><span style="color:var(--muted);">90 г</span></div></div></div>
+      </main>
+    </div>
+  </div>
+  <div style="width:320px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--muted); padding-top:26px;">
+    <div><b style="color:var(--ink); font-weight:600;">Зі скла:</b> рейка 60 / сайдбар 240, артефакти правої панелі, шторки й нижній бар на 390. Максимум дві скляні поверхні в кадрі.</div>
+    <div><b style="color:var(--ink); font-weight:600;">Щільні:</b> картки контенту, бабли, тости, модалки, картка кроку Cook Mode — інакше сторінка «плаває».</div>
+    <div><b style="color:var(--ink); font-weight:600;">Градієнт</b> — тільки чат, публічний рецепт, вхід, лендінг; висить на рамці екрана, не на колонці. Світла — бурштин 32 % / 240 px, темна — шавлія 65 % / 260 px.</div>
+    <div><b style="color:var(--ink); font-weight:600;">Класи:</b> <code>.glass-rail</code> (одношаровий, межа праворуч) і <code>.glass-panel</code> (з <code>::after</code> для заломлення країв). Токени <code>--glass-bg / -edge / -top / -side / -sh</code> і <code>--chat-grad</code> — в обох темах.</div>
+  </div>
+</div>
 
 <div style="display:flex; flex-direction:column; gap:8px; width:1200px;">
   <div style="font-size:12px; font-weight:500; color:var(--muted);">Пакет A · те, що є на проді, а в редизайні не було · PeriodArtifact (серія + подія) · диктування · таймер поза Cook Mode</div>
