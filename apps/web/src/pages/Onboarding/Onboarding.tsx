@@ -8,10 +8,18 @@
 // ≥1024 — ілюстрація ліворуч, текст праворуч, прогрес рисками в шапці;
 // нижче — колонка: текст → бабл → ілюстрація → кнопки внизу на всю ширину,
 // прогрес — смуга під шапкою. Крок памʼятається в kos-onb-step (як у бандлі).
+//
+// №37: знайомство — кроки 12–18 того самого потоку (Prototype «Картки
+// знайомства»): та сама шапка з рисками, сцена як у Семена, замість бабла —
+// поле «Мене звати …» з лічильником і підказка Семена шавлією; низ «← ·
+// Пропустити · Далі →». Що і куди пишеться — як у картці в стрічці:
+// PATCH /v1/profile/:key текстом, «Нічого такого» на алергіях — status none,
+// «Пропустити» лишає поле порожнім і нічого не пише.
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../api';
+import { api, type ProfileFieldV2 } from '../../api';
+import { PROFILE_ROWS } from '../../lib/profile-copy';
 import { useAuth } from '../../store/auth';
 import { track } from '../../lib/track';
 import styles from './Onboarding.module.css';
@@ -75,10 +83,14 @@ const CARDS: Card[] = [
 ];
 
 const pad = (n: number) => String(n).padStart(2, '0');
+/** Потік один: 11 карток Семена + 7 карток знайомства = 18 кроків (0–17). */
+const SEMEN = CARDS.length;
+const TOTAL = SEMEN + PROFILE_ROWS.length;
+const len = (t: string) => Array.from(t).length;
 const DESKTOP = '(min-width: 1024px)';
 /** Крок памʼятається між заходами, як у бандлі (kos-onb-step). */
 const STEP_KEY = 'kos-onb-step';
-const readStep = (): number => { try { const v = parseInt(localStorage.getItem(STEP_KEY) || '0', 10); return isNaN(v) ? 0 : Math.min(CARDS.length - 1, Math.max(0, v)); } catch { return 0; } };
+const readStep = (): number => { try { const v = parseInt(localStorage.getItem(STEP_KEY) || '0', 10); return isNaN(v) ? 0 : Math.min(TOTAL - 1, Math.max(0, v)); } catch { return 0; } };
 
 function useMedia(q: string): boolean {
   const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
@@ -111,12 +123,25 @@ export function OnboardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(readStep);
   const [dir, setDir] = useState<'f' | 'b'>('f');
-  const last = step === CARDS.length - 1;
-  const card = CARDS[step]!;
   const desktop = useMedia(DESKTOP);
+  const intake = step >= SEMEN;
+  const last = step === TOTAL - 1;
+  const card = CARDS[Math.min(step, SEMEN - 1)]!;
+  const row = intake ? PROFILE_ROWS[step - SEMEN]! : null;
+
+  // Знайомство: те, що вже є в профілі, показуємо в полі; чернетки — локально.
+  const [fields, setFields] = useState<Record<string, ProfileFieldV2> | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    api.profileV2.get().then((r) => setFields(r.fields)).catch(() => setFields(null));
+  }, []);
+  const draftOf = (k: string) => drafts[k] ?? (fields?.[k]?.status === 'filled' ? fields[k]!.text : '');
+  useEffect(() => { if (intake) inputRef.current?.focus({ preventScroll: true }); }, [step, intake]);
 
   const go = (n: number, d: 'f' | 'b') => {
-    if (n < 0 || n >= CARDS.length) return;
+    if (n < 0 || n >= TOTAL) return;
     try { localStorage.setItem(STEP_KEY, String(n)); } catch { /* приватний режим */ }
     setDir(d); setStep(n);
   };
@@ -130,28 +155,62 @@ export function OnboardingPage() {
    * подіях не буває. Тут їх і нема чому взятися, але правило те саме.
    */
   useEffect(() => { track('welcome_started'); }, []);
-  useEffect(() => { track('welcome_card_reached', { card: step + 1 }); }, [step]);
+  useEffect(() => {
+    if (!intake) track('welcome_card_reached', { card: step + 1 });
+    else track('onboarding_panel_reached', { panel: step - SEMEN + 1 });
+  }, [step, intake]);
+  // Перша картка знайомства — «почав»; раз за потік.
+  const intakeStarted = useRef(false);
+  useEffect(() => { if (intake && !intakeStarted.current) { intakeStarted.current = true; track('onboarding_started'); } }, [intake]);
 
   const finish = (how: 'finished' | 'skipped') => {
-    // «Пропустити» і «Почати з того, що є» ведуть в одне місце, але значать
+    // «Пропустити» в шапці і «Готово» ведуть в одне місце, але значать
     // протилежне: одна людина дочитала, друга — ні. Розрізняємо.
-    if (how === 'finished') track('welcome_finished');
+    if (how === 'finished') { track('onboarding_finished'); track('welcome_finished'); }
     else track('welcome_skipped', { card: step + 1 });
     markSeen(useAuth.getState().me?.user.id ?? '');
     navigate('/app', { replace: true });
   };
 
-  // Свайп: поріг 50px, як у канвасі.
+  /** «Далі» на картці знайомства: є текст — записати; порожньо на алергіях — «нічого такого»; порожньо деінде — пропуск. */
+  async function intakeNext() {
+    if (!row || busy) return;
+    const text = draftOf(row.k).trim();
+    setBusy(true);
+    try {
+      if (text) {
+        const r = await api.profileV2.patchField(row.k, { text });
+        setFields((f) => ({ ...(f ?? {}), [row.k]: r.field }));
+      } else if (row.k === 'ban') {
+        const r = await api.profileV2.patchField(row.k, { status: 'none' });
+        setFields((f) => ({ ...(f ?? {}), [row.k]: r.field }));
+      } else {
+        track('onboarding_skipped', { panel: step - SEMEN + 1 });
+      }
+    } catch { /* лишаємось на картці — людина повторить */ setBusy(false); return; }
+    setBusy(false);
+    if (last) finish('finished'); else go(step + 1, 'f');
+  }
+  /** «Пропустити» на картці знайомства — лишає поле порожнім, нічого не пише. */
+  function intakeSkip() {
+    if (!row) return;
+    track('onboarding_skipped', { panel: step - SEMEN + 1 });
+    if (last) finish('finished'); else go(step + 1, 'f');
+  }
+
+  // Свайп: поріг 50px, як у канвасі. На картці знайомства — лише поза полем.
   const tx = useRef(0);
   const onTS = (e: React.TouchEvent) => { tx.current = e.touches[0]!.clientX; };
   const onTE = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('input')) return;
     const d = e.changedTouches[0]!.clientX - tx.current;
-    if (d < -50) go(step + 1, 'f');
+    if (d < -50 && !intake) go(step + 1, 'f');
     if (d > 50) go(step - 1, 'b');
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') go(step + 1, 'f');
+      if ((e.target as HTMLElement | null)?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowRight' && !intake) go(step + 1, 'f');
       if (e.key === 'ArrowLeft') go(step - 1, 'b');
     };
     window.addEventListener('keydown', onKey);
@@ -161,23 +220,39 @@ export function OnboardingPage() {
   useEffect(() => {
     if (last) return;
     const img = new Image();
-    img.src = `/onboarding/semen-${pad(step + 2)}.png`;
+    img.src = step + 1 < SEMEN ? `/onboarding/semen-${pad(step + 2)}.png` : `/onboarding/profile-${PROFILE_ROWS[step + 1 - SEMEN]!.k}.png`;
   }, [step, last]);
 
+  const illSrc = intake ? `/onboarding/profile-${row!.k}.png` : `/onboarding/semen-${pad(step + 1)}.png`;
   const progress = (
     <div className={styles.progress} aria-hidden="true">
-      {CARDS.map((_, i) => <button key={i} type="button" tabIndex={-1} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} onClick={() => go(i, i > step ? 'f' : 'b')} />)}
+      {Array.from({ length: TOTAL }, (_, i) => <button key={i} type="button" tabIndex={-1} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} onClick={() => go(i, i > step ? 'f' : 'b')} />)}
     </div>
   );
-  const meta = (
-    <div className={styles.meta}><span className={styles.num}>{pad(step + 1)}</span><span className={styles.of}>/ 11</span><span className={styles.sep} /><span className={styles.tag}>{card.tag}</span></div>
+  const meta = intake
+    ? <div className={styles.meta}><span className={styles.num}>{pad(step - SEMEN + 1)}</span><span className={styles.of}>/ {PROFILE_ROWS.length}</span><span className={styles.sep} /><span className={styles.tag}>Знайомство</span></div>
+    : <div className={styles.meta}><span className={styles.num}>{pad(step + 1)}</span><span className={styles.of}>/ {SEMEN}</span><span className={styles.sep} /><span className={styles.tag}>{card.tag}</span></div>;
+  const n = row ? len(draftOf(row.k)) : 0;
+  const atLimit = !!row && n >= row.max;
+  const field = row && (
+    <div className={styles.fieldBlock}>
+      <span className={row.danger ? styles.startDanger : styles.start}>{row.danger && <Icon name="cook.ban" size={12} inherit decorative />}{row.start}</span>
+      <input
+        ref={inputRef} className={styles.input} type="text" value={draftOf(row.k)} placeholder={row.ph} maxLength={row.max} spellCheck={false}
+        aria-label={row.start} data-intake-input
+        onChange={(e) => setDrafts((d) => ({ ...d, [row.k]: e.target.value }))}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void intakeNext(); } }}
+      />
+      <div className={styles.fieldRow}><span className={styles.hint}>{row.hint}</span><span className={`${styles.counter} ${atLimit ? styles.counterLimit : ''}`} data-counter>{atLimit ? row.lim : `${n}/${row.max}`}</span></div>
+    </div>
   );
   const controls = (
     <div className={styles.controls}>
       <button type="button" className={styles.prev} onClick={() => go(step - 1, 'b')} disabled={step === 0} aria-label="Назад"><Icon name="sys.back" size={18} inherit decorative /></button>
-      <button type="button" className={styles.next} onClick={() => (last ? finish('finished') : go(step + 1, 'f'))}>
-        {last ? 'Почати з того, що є' : 'Далі'}<Icon name="sys.next" size={16} inherit decorative />
-      </button>
+      {intake && <button type="button" className={styles.skipStep} onClick={intakeSkip} disabled={busy} data-intake-skip>Пропустити</button>}
+      {intake
+        ? <button type="button" className={styles.next} onClick={() => void intakeNext()} disabled={busy} data-intake-next>{last ? 'Готово' : 'Далі'}<Icon name="sys.next" size={16} inherit decorative /></button>
+        : <button type="button" className={styles.next} onClick={() => go(step + 1, 'f')}>Далі<Icon name="sys.next" size={16} inherit decorative /></button>}
     </div>
   );
   const anim = dir === 'b' ? styles.back : styles.in;
@@ -190,20 +265,20 @@ export function OnboardingPage() {
       </div>
     </header>
   );
+  const text = intake
+    ? <><h1 className={styles.title}>{row!.card}</h1><p className={styles.sub}>{row!.body}</p>{field}</>
+    : <><h1 className={styles.title}>{card.title}</h1><Bubble lines={card.lines} /></>;
 
   if (desktop) {
     return (
-      <div className={`${styles.page} ${styles.desk}`}>
+      <div className={`${styles.page} ${styles.desk}`} data-onb-step={step + 1}>
         {head}
         <main className={styles.main}>
           <div className={styles.grid}>
-            <div key={`ill-${step}`} className={`${styles.ill} ${anim}`}><img src={`/onboarding/semen-${pad(step + 1)}.png`} alt="" /></div>
+            <div key={`ill-${step}`} className={`${styles.ill} ${anim}`}><img src={illSrc} alt="" /></div>
             <div className={styles.text}>
               {meta}
-              <div key={step} className={`${styles.textBlock} ${anim}`}>
-                <h1 className={styles.title}>{card.title}</h1>
-                <Bubble lines={card.lines} />
-              </div>
+              <div key={step} className={`${styles.textBlock} ${anim}`}>{text}</div>
               {controls}
             </div>
           </div>
@@ -213,16 +288,13 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className={`${styles.page} ${styles.mob}`} onTouchStart={onTS} onTouchEnd={onTE}>
+    <div className={`${styles.page} ${styles.mob}`} onTouchStart={onTS} onTouchEnd={onTE} data-onb-step={step + 1}>
       {head}
       {progress}
       <div className={styles.col}>
         {meta}
-        <div key={step} className={`${styles.colBlock} ${anim}`}>
-          <h1 className={styles.title}>{card.title}</h1>
-          <Bubble lines={card.lines} />
-        </div>
-        <div key={`ill-${step}`} className={`${styles.ill} ${anim}`}><img src={`/onboarding/semen-${pad(step + 1)}.png`} alt="" /></div>
+        <div key={step} className={`${styles.colBlock} ${anim}`}>{text}</div>
+        <div key={`ill-${step}`} className={`${styles.ill} ${anim}`}><img src={illSrc} alt="" /></div>
       </div>
       {controls}
     </div>

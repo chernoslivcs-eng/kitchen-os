@@ -43,7 +43,19 @@ export function firstOpenPanel(fields: Record<string, ProfileFieldV2> | null | u
 
 const META: Record<Exclude<PanelState, 'empty'>, string> = { filled: 'ЗАПИСАНО', none: 'НІЧОГО ТАКОГО', skipped: 'ПРОПУЩЕНО' };
 
-export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, onSummary }: OnboardingCardProps) {
+/**
+ * №37: знайомство переїхало на /welcome — кроки 12–18 одного потоку з Семеном
+ * (pages/Onboarding). Картка в стрічці більше не показується; її код піде після
+ * мерджу пакета 2 (Feed.tsx там не чіпається). Прапорець — щоб зняти одним рядком.
+ */
+export const INTAKE_ON_WELCOME = true;
+
+export function OnboardingCard(props: OnboardingCardProps) {
+  if (INTAKE_ON_WELCOME) return null;
+  return <OnboardingCardLegacy {...props} />;
+}
+
+export function OnboardingCardLegacy({ card, cardId, profileFields, onProfilePatched, onSummary }: OnboardingCardProps) {
   const [skipped, setSkipped] = useState<string[]>(card.skipped ?? []);
   const [index, setIndex] = useState(() => firstOpenPanel(profileFields, card.skipped ?? []));
   const [busy, setBusy] = useState(false);
