@@ -129,3 +129,48 @@ describe('вкладеного скролу немає', () => {
     expect(main).toMatch(/scrollbar-width:\s*thin/);
   });
 });
+
+// Етап 6a (11.09): одна навігація в чотирьох контейнерах — рейка 60 ⇄
+// сайдбар 256 однією кнопкою (стан у localStorage), нижній бар <768 (⚠6),
+// класи на <body>, які зсувають контент і ховають бар.
+import { useNavStore } from '../../store/nav';
+
+describe('оболонка 6a', () => {
+  beforeEach(() => { localStorage.clear(); useNavStore.setState({ expanded: false, open: false }); });
+
+  it('кнопка «панель» на ≥1024 перемикає сайдбар: клас на body і памʼять у localStorage', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    await mount();
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-panel-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(true);
+    expect(localStorage.getItem('kos-nav-expanded')).toBe('1');
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-panel-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+    expect(localStorage.getItem('kos-nav-expanded')).toBe('0');
+  });
+
+  it('та сама кнопка нижче 1024 відкриває шухляду, а не сайдбар', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    await mount();
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-panel-btn]')!.click(); });
+    expect(useNavStore.getState().open).toBe(true);
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+  });
+
+  it('нижній бар — пʼять цілей, активна позначена; бейдж списку на місці', async () => {
+    await mount();
+    const bar = host!.querySelector('[data-tab-bar]')!;
+    const tabs = [...bar.querySelectorAll('button')];
+    expect(tabs.map((b) => b.textContent?.replace(/\d+/g, '').trim())).toEqual(['Чат', 'Комора', 'Рецепти', 'Список', 'Календар']);
+    expect(tabs.filter((b) => b.getAttribute('aria-current') === 'page').length).toBeLessThanOrEqual(1);
+    expect(bar.textContent).toContain('3');
+  });
+
+  it('CSS: бар ховається за body.composer-focused і body.sheet-open; сайдбар 256 за nav-expanded', () => {
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'TabBar.module.css'), 'utf8');
+    expect(css).toMatch(/body\.composer-focused\)\s*\.bar,?\s*\n?\s*:global\(body\.sheet-open\)\s*\.bar\s*\{\s*transform: translateY/);
+    expect(css).toMatch(/:global\(body\.nav-expanded\) \.wrap \{\s*width: 256px/);
+    expect(css).toMatch(/\.wrap \{[^}]*width: 60px/);
+  });
+});

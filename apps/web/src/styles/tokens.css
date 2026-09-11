@@ -130,7 +130,9 @@
  * Sheet-модалки — position:fixed inset:0, тому вони натурально накривають
  * і сайдбар — це очікувано. */
 @media (min-width: 1024px) {
-  body.with-sidebar { padding-left: 232px; }  /* Д01: сайдбар 232, не 200 */
+  /* Етап 6a: рейка 60 типово, сайдбар 256 за body.nav-expanded (Responsive R1). */
+  body.with-sidebar { padding-left: 60px; transition: padding-left var(--dur-slow) var(--ease-standard); }
+  body.with-sidebar.nav-expanded { padding-left: 256px; }
 }
 /* Пул-6 №1: планшет 768–1023 — смужка 64px (самі гліфи, без підписів),
    нижній таб-бар зникає вже тут. */

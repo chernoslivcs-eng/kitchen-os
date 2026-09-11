@@ -34,6 +34,11 @@ const EXIT_MS = 250;
 
 export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Етап 6a: поки шторка відкрита, нижній бар (<768) ховається (HANDOFF).
+  useEffect(() => {
+    document.body.classList.add('sheet-open');
+    return () => document.body.classList.remove('sheet-open');
+  }, []);
   const [closing, setClosing] = useState(false);
   const [dragY, setDragY] = useState(0);
   const dragging = useRef(false);

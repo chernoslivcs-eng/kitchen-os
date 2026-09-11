@@ -1798,6 +1798,9 @@ export function Feed() {
             ref={composerInputRef}
             rows={1}
             className={styles['composer-input']}
+            /* Етап 6a: поки поле у фокусі, нижній бар (<768) ховається (HANDOFF, ⚠6). */
+            onFocus={() => document.body.classList.add('composer-focused')}
+            onBlur={() => document.body.classList.remove('composer-focused')}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1836,9 +1839,7 @@ export function Feed() {
             disabled={uploading}
             aria-label="Додати вкладення"
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-            </svg>
+            <Icon name="sys.attach" size={18} inherit decorative />
           </button>
           {/* Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп» — те саме
               місце, той самий розмір. Обірвати думання було неможливо взагалі. */}
@@ -1877,11 +1878,7 @@ export function Feed() {
                   onClick={toggleVoice}
                   aria-label="Додиктувати"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="9" y="2" width="6" height="12" rx="3" />
-                    <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
-                    <line x1="12" y1="18" x2="12" y2="22" />
-                  </svg>
+                  <Icon name="sys.voice" size={18} inherit decorative />
                 </button>
               )}
               {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
@@ -1892,7 +1889,7 @@ export function Feed() {
                 disabled={sending && queue.length >= QUEUE_MAX}
                 title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
                 aria-label="Надіслати"
-              >↑</button>
+              ><Icon name="sys.send" size={18} inherit decorative /></button>
             </>
           ) : speechSupported() && !sending ? (
             <button
@@ -1901,14 +1898,10 @@ export function Feed() {
               onClick={toggleVoice}
               aria-label="Продиктувати"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="9" y="2" width="6" height="12" rx="3" />
-                <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
-                <line x1="12" y1="18" x2="12" y2="22" />
-              </svg>
+              <Icon name="sys.voice" size={18} inherit decorative />
             </button>
           ) : (
-            <button type="submit" className={styles['frame-btn-solid']} disabled aria-label="Надіслати">↑</button>
+            <button type="submit" className={styles['frame-btn-solid']} disabled aria-label="Надіслати"><Icon name="sys.send" size={18} inherit decorative /></button>
           )}
         </form>
       </div>

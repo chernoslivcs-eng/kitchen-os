@@ -15,7 +15,7 @@
 import {
   MessageCircle, BookOpen, BookMarked, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
-  Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
+  Undo2, ChevronRight, ExternalLink, PanelLeftClose, PanelLeftOpen, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
   Refrigerator, Snowflake, Archive, FlaskConical, Wine,
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
@@ -64,6 +64,8 @@ export const ICONS = {
   'sys.next':      { glyph: ChevronRight,      label: 'Далі',          family: 'system' },
   'sys.out':       { glyph: ExternalLink,      label: 'Назовні',       family: 'system' },
   'sys.collapse':  { glyph: PanelLeftClose,    label: 'Згорнути',      family: 'system' },
+  // Етап 6a: одна кнопка «панель» на всі контейнери (Responsive R1) — open ⇄ close.
+  'sys.expand':    { glyph: PanelLeftOpen,     label: 'Розгорнути',    family: 'system' },
   'sys.theme':     { glyph: SunMoon,           label: 'Тема',          family: 'system' },
   // Смуга «вхід · час оновитись» (Errors E2) — log-in, як у бандлі.
   'sys.login':     { glyph: LogIn,             label: 'Увійти',        family: 'system' },

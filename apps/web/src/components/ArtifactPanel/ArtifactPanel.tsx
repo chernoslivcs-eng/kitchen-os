@@ -34,6 +34,11 @@ export function PanelIcon() {
 
 export function ArtifactPanel() {
   const s = usePanelStore();
+  // Етап 6a: шторка артефакта (<1200) теж ховає нижній бар.
+  useEffect(() => {
+    document.body.classList.toggle('sheet-open', s.open);
+    return () => document.body.classList.remove('sheet-open');
+  }, [s.open]);
   const { artifacts, render, extra, pendingDot, ghostTab, open, hidden, width, dragging, fresh, freshKeys } = s;
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
   const hasPanel = artifacts.length > 0 || !!extra;

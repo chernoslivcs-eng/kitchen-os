@@ -30,10 +30,11 @@ export function AppHeader({ title, action, onMenu }: Props) {
       <button
         type="button"
         className={styles.burger}
-        aria-label="Меню"
+        aria-label="Розгорнути панель"
         onClick={onMenu}
-      ><Icon name="sys.menu" size={20} inherit /></button>
-      <h1 className={styles.title}>{title}</h1>
+      ><Icon name="sys.expand" size={18} inherit /></button>
+      {/* Етап 6a: заголовок екрана — роль h1 (28, на 390 — 26; рішення 11.09). */}
+      <h1 className={`${styles.title} t-h1`}>{title}</h1>
       <div className={styles.action}>{action}</div>
     </header>
   );

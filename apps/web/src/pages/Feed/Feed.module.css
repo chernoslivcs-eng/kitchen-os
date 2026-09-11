@@ -398,14 +398,16 @@ a.att-chip:hover { border-color: var(--sage); }
   margin: 12px 22px 20px;
   /* Правка №8: пілюля росте разом із textarea (1→8 рядків), кнопки
      тримаються низу. */
+  /* Етап 6a, канон композитора (tokens-v3): min-height 52, радіус 26,
+     кнопки 42 колом, знаки 18; поверхня card (Errors E2, Responsive). */
   min-height: 52px;
-  border-radius: var(--r-lg);
-  background: var(--line);
+  border-radius: 26px;
+  background: var(--card);
   border: 1px solid var(--line2);
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: flex-end;
-  padding: 7px 8px 7px 16px;
+  padding: 5px 5px 5px 18px;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 /* Крок Д1 (макет v7): композитор «озброюється», поки файл над вікном. Він і є
@@ -443,7 +445,7 @@ a.att-chip:hover { border-color: var(--sage); }
   line-height: 22px;
   max-height: 176px;              /* 8 × 22px */
   overflow-y: auto;
-  padding: 8px 0;                 /* однорядкова = 38px, як кнопки поруч */
+  padding: 10px 0;                /* однорядкова = 42px, як кнопки поруч */
 }
 .composer-input::placeholder { color: var(--dim); }
 /* Моушн-кіт §04: морф 🎙⇄↑⇄■ — кнопка дії з'являється scale .6→1 + fade
@@ -460,10 +462,10 @@ a.att-chip:hover { border-color: var(--sage); }
 .frame-btn,
 .frame-btn-ghost,
 .frame-btn-solid {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   flex: none;
-  border-radius: 10px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -635,10 +637,10 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Мікрофон — канон Бриф-2 5б: під час запису кнопка стає цегляним квадратом
    38px зі стоп-іконкою і пульсом 1.2s; цегляний тут НЕ помилка, а «REC». */
 .mic-live {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 50%;
   /* Пул-7 №3: запис — шавлія, не цегла («червоний — небезпека»). */
   background: var(--sage);
   display: grid;

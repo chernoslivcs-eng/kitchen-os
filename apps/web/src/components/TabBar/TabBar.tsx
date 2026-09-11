@@ -62,6 +62,14 @@ export function TabBar({ shoppingCount }: Props) {
   // Після вибору цілі шухляда йде геть, а «де я» лишається в заголовку шапки:
   // без нижнього бара він єдиний індикатор екрана.
   useEffect(() => { setOpen(false); }, [pathname, setOpen]);
+  // Етап 6a: рейка 60 ⇄ сайдбар 256 (≥1024). Клас на <body> зсуває контент
+  // (tokens.css); сам стан — у сторі й localStorage.
+  const expanded = useNavStore((s) => s.expanded);
+  const toggleExpanded = useNavStore((s) => s.toggleExpanded);
+  useEffect(() => {
+    document.body.classList.toggle('nav-expanded', expanded);
+    return () => document.body.classList.remove('nav-expanded');
+  }, [expanded]);
 
   useEffect(() => {
     if (!open) return;
@@ -229,6 +237,15 @@ export function TabBar({ shoppingCount }: Props) {
       <div className={styles.brand}>
         <Logo size={26} />
         <span className={styles['brand-name']}>Kitchen OS</span>
+        {/* Одна кнопка «панель» на всі контейнери (Responsive R1): у рейці
+            ≥1024 розгортає сайдбар, у сайдбарі — згортає; у рейці 768–1023
+            розсуває шухляду; у шухляді — закриває її. */}
+        <button type="button" className={styles['panel-btn']}
+          onClick={() => { if (window.innerWidth >= 1024) toggleExpanded(); else setOpen(!open); }}
+          aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
+          title={expanded || open ? 'Згорнути' : 'Розгорнути'} data-panel-btn>
+          <Icon name={expanded || open ? 'sys.collapse' : 'sys.expand'} size={18} inherit decorative />
+        </button>
       </div>
 
       {/* Крок С1: усе між брендом і профілем — одна скрольована стрічка.
@@ -247,33 +264,17 @@ export function TabBar({ shoppingCount }: Props) {
             key={t.path}
             className={`${styles.tab} ${active ? styles.active : ''}`}
             onClick={() => navigate(t.path)}
+            title={t.label}
+            aria-current={active ? 'page' : undefined}
           >
             <Icon name={t.icon} size={18} decorative className={styles.glyph} />
             <span>{t.label}</span>
             {t.badge != null && t.badge > 0 && <span className={styles.badge}><RollingNumber value={t.badge} /></span>}
+            {/* Responsive R1: на «Коморі» в рейці — крапка danger, коли щось горить. */}
+            {t.path === '/pantry' && (pantryFacts?.soon ?? 0) > 0 && <span className={styles['tab-dot']} aria-hidden />}
           </button>
         );
       })}
-
-      {/* Смужка 768-1023: крапка стану — єдиний вхід до сесій і «ЗАРАЗ».
-          Бурштин — щось чекає попереду, шавлія — триває готування, сірий —
-          тихо. Числа тут немає навмисно: воно живе на рядку цілі всередині. */}
-      <button
-        className={styles['rail-more']}
-        onClick={() => setOpen(true)}
-        aria-label="Показати сесії та події"
-        title={[
-          cookLive ? 'Готування триває' : null,
-          nowEvents[0]?.title ?? null,
-        ].filter(Boolean).join(' · ') || 'Розмови та події'}
-      >
-        {cookLive || nowEvents.length ? (
-          <span className={styles.dots}>
-            {nowEvents.length > 0 && <span className={styles['dot-amber']} aria-hidden />}
-            {cookLive && <span className={styles['dot-sage']} aria-hidden />}
-          </span>
-        ) : <Icon name="sys.home" size={16} inherit decorative />}
-      </button>
 
       {/* «ЗАРАЗ» — одразу під цілями, над «Готування триває» (рішення 03.09).
           Подія, що триває, називається кінцем: «ще 4 тижні», не «триває». */}
@@ -368,6 +369,24 @@ export function TabBar({ shoppingCount }: Props) {
         <span>{meName ?? 'Профіль'}</span>
       </button>
     </div>
+      {/* Етап 6a, Screens D5 · 390: нижній бар із пʼяти цілей (закриває ⚠6).
+          Ховається, поки композитор у фокусі й поки відкрита шторка —
+          обидві умови з HANDOFF, класами на <body>. */}
+      <nav className={styles.bar} aria-label="Розділи" data-tab-bar>
+        {tabs.map((t) => {
+          const active = pathname === t.path;
+          return (
+            <button key={t.path} type="button" className={`${styles['bar-tab']} ${active ? styles.active : ''}`}
+              onClick={() => navigate(t.path)} aria-current={active ? 'page' : undefined}>
+              <span className={styles['bar-glyph']}>
+                <Icon name={t.icon} size={20} inherit decorative />
+                {t.badge != null && t.badge > 0 && <span className={styles['bar-badge']}>{t.badge}</span>}
+              </span>
+              <span className={styles['bar-label']}>{t.label === 'Стрічка' ? 'Чат' : t.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </>
   );
 }
