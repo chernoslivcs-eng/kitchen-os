@@ -5,6 +5,7 @@
 
 import { Toast } from '../../components/ErrorState/Toast';
 import { Icon } from '../../components/Icon/Icon';
+import type { IconName } from '../../components/Icon/icons';
 import { ActionState } from '../../components/ActionState/ActionState';
 import { useIncidentStore } from '../../store/incident';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
@@ -108,6 +109,15 @@ function formatBytes(b: number): string {
 }
 
 
+
+// №12: картки, що чекають рішення, — словами й знаком того, куди вони пишуть.
+const PENDING_KIND: Record<string, { icon: IconName; label: string }> = {
+  intake_diff: { icon: 'sys.pantry', label: 'Комора' },
+  shopping: { icon: 'sys.list', label: 'Список' },
+  recipe: { icon: 'sys.recipes', label: 'Рецепт' },
+  cook_photo: { icon: 'cook.done', label: 'Журнал' },
+  period: { icon: 'sys.calendar', label: 'Календар' },
+};
 
 export function Feed() {
   const openNav = useNavStore((st) => st.setOpen);
@@ -1145,20 +1155,26 @@ export function Feed() {
           </LivePositions.Provider>
         );
       },
+      // №12: блок «Чекають на тебе · N» під підвалом панелі — у токенах: кікер
+      // 12/500 muted без капсу, рядок 14/500, знак 16 зі словника (куди пише
+      // картка), бурштин — «чекає». Де йому жити остаточно — QUESTIONS §12.
       extra: housePending.length > 0 ? (
-        <div className={panelStyles['rail-block']}>
-          <div className={panelStyles['rail-title']}>ЧЕКАЮТЬ НА ТЕБЕ · {housePending.length}</div>
-          {housePending.slice(0, 4).map((pc) => (
-            <button key={pc.id} className={panelStyles['rail-row']}
-              onClick={() => {
-                const turn = turns.find((t) => t.cardId === pc.id);
-                if (turn) document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
-                else if (pc.session_id) void loadHistorySession(pc.session_id);
-              }}>
-              <span className={panelStyles['rail-label']}>{labelFor(pc.type as never).text.replace(' · ОЧІКУЄ', '')}</span>
-              <span className={panelStyles['rail-meta']} style={{ color: 'var(--amber)' }} aria-hidden><Icon name="live.thinking" size={12} inherit decorative /></span>
-            </button>
-          ))}
+        <div className={panelStyles['rail-block']} data-pending-block>
+          <div className={panelStyles['rail-title']}>Чекають на тебе · {housePending.length}</div>
+          {housePending.slice(0, 4).map((pc) => {
+            const kind = PENDING_KIND[pc.type] ?? { icon: 'sys.chat' as const, label: 'Картка' };
+            return (
+              <button key={pc.id} className={panelStyles['rail-row']}
+                onClick={() => {
+                  const turn = turns.find((t) => t.cardId === pc.id);
+                  if (turn) document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
+                  else if (pc.session_id) void loadHistorySession(pc.session_id);
+                }}>
+                <span className={panelStyles['rail-meta']}><Icon name={kind.icon} size={16} inherit decorative /></span>
+                <span className={panelStyles['rail-label']}>{kind.label}</span>
+              </button>
+            );
+          })}
         </div>
       ) : undefined,
     });

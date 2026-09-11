@@ -181,9 +181,11 @@ export function ArtifactPanel() {
               </div>
             </div>
             <div className={`${styles['rail-foot']} ${bodyScrolled ? styles['rail-foot-shadow'] : ''}`} ref={setFootSlot} data-panel-foot />
+            {/* №12: «Чекають на тебе · N» — у тій самій картці, під підвалом. */}
+            {extra}
           </div>
         )}
-        {extra}
+        {!shown && extra && <div className={styles['rail-artifact']}>{extra}</div>}
       </aside>
       {open && <div className={styles['rail-scrim']} onClick={() => s.setOpen(false)} />}
       <div className={`${styles['rail-mini']} ${hidden ? styles['rail-mini-show'] : ''}`}>
