@@ -16,6 +16,7 @@ import { saveCookSession, loadCookSession, clearCookSession, stashUnsavedRun } f
 import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
+import { useSheetDrag } from '../../lib/useSheetDrag';
 
 // Крок Т1: довгий крок (ферментація, тісто на ніч) відлічувався як «150:00» —
 // хвилини понад дві години перестають читатись.
@@ -62,6 +63,8 @@ export function CookOverlay() {
   const mutedRef = useRef(false); mutedRef.current = muted;
   const [sheetOpen, setSheetOpen] = useState(false);
   useEffect(() => { setSheetOpen(false); }, [stepIdx]);
+  // №35: змах униз закриває шторку кроків — той самий механізм, що в Sheet.
+  const stepsDrag = useSheetDrag(() => setSheetOpen(false), sheetOpen);
 
   // Крок О1а: почали готувати. Кроки й фініш нижче — разом вони дають
   // єдину криву, де видно, на чому люди зупиняються.
@@ -600,7 +603,7 @@ export function CookOverlay() {
             <span className={styles['route-label']}>Усе для страви</span>
             <div className={styles['route-ings']}>
               {recipe.ing.map((ing, i) => (
-                <span key={i} className={styles['ing-chip']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+                <span key={i} className={styles['ing-chip']} title={resolveIngName(ing, batchLabels)}><span className={styles['chip-name']}>{resolveIngName(ing, batchLabels)}</span>{ing.v != null && ing.u ? <span className={styles['chip-qty']}>{formatQty(ing.v, ing.u)}</span> : null}</span>
               ))}
             </div>
             <span className={styles['route-offline']}><Icon name="live.offline" size={12} inherit decorative />Працює без інтернету · екран не гасне</span>
@@ -621,7 +624,7 @@ export function CookOverlay() {
             {stepIngs.length > 0 && (
               <div className={styles['step-chips']}>
                 {stepIngs.map((ing, i) => (
-                  <span key={i} className={styles['step-ing']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` · ${formatQty(ing.v, ing.u)}` : ''}</span>
+                  <span key={i} className={styles['step-ing']} title={resolveIngName(ing, batchLabels)}><span className={styles['chip-name']}>{resolveIngName(ing, batchLabels)}</span>{ing.v != null && ing.u ? <span className={styles['chip-qty']}>· {formatQty(ing.v, ing.u)}</span> : null}</span>
                 ))}
               </div>
             )}
@@ -643,9 +646,10 @@ export function CookOverlay() {
       {sheetOpen && (
         <>
           <div className={styles.scrim} onClick={() => setSheetOpen(false)} />
-          <div className={styles.sheet} role="dialog" aria-label="Кроки" data-steps-sheet>
-            <span className={styles.handle} aria-hidden />
-            <div className={styles['sheet-head']}>
+          <div className={styles.sheet} role="dialog" aria-label="Кроки" data-steps-sheet style={stepsDrag.panelStyle}>
+            {/* №35: змах униз по граберу/шапці закриває (lib/useSheetDrag). */}
+            <div className={styles.grab} {...stepsDrag.handleProps} data-sheet-grab><span className={styles.handle} aria-hidden /></div>
+            <div className={styles['sheet-head']} {...stepsDrag.handleProps} data-sheet-head>
               <span className={styles['sheet-title']}>Кроки · {total}</span>
               <span className={styles['focus-gap']} />
               {themeToggle}
@@ -655,7 +659,7 @@ export function CookOverlay() {
             <span className={styles['route-label']}>Усе для страви</span>
             <div className={styles['route-ings']}>
               {recipe.ing.map((ing, i) => (
-                <span key={i} className={styles['ing-chip']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+                <span key={i} className={styles['ing-chip']} title={resolveIngName(ing, batchLabels)}><span className={styles['chip-name']}>{resolveIngName(ing, batchLabels)}</span>{ing.v != null && ing.u ? <span className={styles['chip-qty']}>{formatQty(ing.v, ing.u)}</span> : null}</span>
               ))}
             </div>
           </div>

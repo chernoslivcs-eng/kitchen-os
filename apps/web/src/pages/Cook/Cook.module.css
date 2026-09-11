@@ -122,7 +122,11 @@
   display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
   border-radius: var(--r-pill); background: var(--sage-bg); color: var(--sage);
   font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  max-width: 100%; min-width: 0; gap: 4px; white-space: nowrap;
 }
+/* №33: назва в чіпі з трьома крапками, кількість не ріжеться; повна — у title. */
+.chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chip-qty { flex: none; }
 .route-offline { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 13px; color: var(--dim); padding-top: 6px; }
 
 .focus { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
@@ -153,6 +157,7 @@
   display: inline-flex; align-items: center; height: 34px; padding: 0 14px;
   border-radius: var(--r-pill); background: var(--sage-bg); color: var(--sage);
   font-family: var(--font-body); font-size: 14px; font-weight: 500;
+  max-width: 100%; min-width: 0; gap: 4px; white-space: nowrap;
 }
 .focus-spacer { flex: 1; }
 /* Таймер: bg r14 20 24 — коло 48 зі знаком (живий, поки біжить; бурштин ≤ 60 с),
@@ -232,6 +237,7 @@
   animation: sheet-in var(--dur-base) var(--ease-enter);
 }
 @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.grab { display: grid; place-items: center; padding: 0 0 4px; }
 .handle { width: 36px; height: 4px; border-radius: 2px; background: var(--line2); margin: 0 auto; }
 .sheet-head { display: flex; align-items: center; gap: 10px; }
 .sheet-title { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--ink); }

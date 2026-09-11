@@ -15,7 +15,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ARTIFACT_ICON } from '../../pages/Feed/artifacts';
 import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
-import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, RAIL_DEFAULT } from '../../store/panel';
+import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, RAIL_DEFAULT, ARTIFACT_SHEET } from '../../store/panel';
+import { useSheetDrag } from '../../lib/useSheetDrag';
 import styles from './ArtifactPanel.module.css';
 import { holdBodyFlag } from '../../lib/body-flags';
 
@@ -39,6 +40,17 @@ export function ArtifactPanel() {
   // клас лише поки відкрита, через лічильник (Sheet поруч його не зніме).
   useEffect(() => { if (s.open) return holdBodyFlag('sheet-open'); }, [s.open]);
   const { artifacts, render, extra, pendingDot, open, hidden, width, dragging, fresh, freshKeys } = s;
+  // №35: у режимі шторки (< 600) змах униз по граберу/шапці закриває — той
+  // самий механізм, що в Sheet (lib/useSheetDrag).
+  const [sheetMode, setSheetMode] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(ARTIFACT_SHEET).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(ARTIFACT_SHEET);
+    const on = () => setSheetMode(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  const sheetDrag = useSheetDrag(() => s.setOpen(false), sheetMode && open);
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
   const hasPanel = artifacts.length > 0 || !!extra;
 
@@ -142,7 +154,9 @@ export function ArtifactPanel() {
 
   return (
     <>
-      <aside className={`${styles.rail} ${open ? styles['rail-open'] : ''} ${hidden ? styles['rail-hidden'] : ''}`}>
+      <aside className={`${styles.rail} ${open ? styles['rail-open'] : ''} ${hidden ? styles['rail-hidden'] : ''}`}
+        style={sheetMode && open ? sheetDrag.panelStyle : undefined} data-artifact-sheet={sheetMode && open ? true : undefined}>
+        {sheetMode && open && <div className={styles['rail-grab']} {...sheetDrag.handleProps} data-sheet-grab><span className={styles['rail-grab-bar']} /></div>}
         {/* HANDOFF «Артефакти»: ліва кромка тягнеться 300–720. Дабл-клік —
             назад до типової за екраном. */}
         <div className={styles['rail-handle']} onPointerDown={onHandleDown} role="separator" aria-orientation="vertical" aria-label="Ширина панелі">
@@ -151,7 +165,7 @@ export function ArtifactPanel() {
         </div>
         {shown && (
           <div id={`rail-${shown.key}`} className={styles['rail-artifact']}>
-            <div className={styles['rail-tabs']}>
+            <div className={styles['rail-tabs']} {...(sheetMode && open ? sheetDrag.handleProps : {})} data-sheet-head={sheetMode && open ? true : undefined}>
               {/* 6b-3 — кікер за Prototype: знак типу + назва типу + закриття
                   30 r8 (panel-right-close). Вкладок немає: у панелі живе один
                   артефакт — відкритий; інші — з карток і слідів у стрічці та

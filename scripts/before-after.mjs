@@ -8,16 +8,20 @@
 //
 // --before  URL сервера «було» (типово http://localhost:5191 — vite із .worktrees/stand-main)
 // --after   URL сервера «стало» (типово http://localhost:5190 — vite із гілки)
-// --name    імʼя пари → docs/superpowers/plans/side-by-side/pack-1/<name>-<theme>.png
+// --name    імʼя пари → docs/superpowers/plans/side-by-side/pack-2/<name>-<theme>.png (--out-dir)
 // --theme   light | dark | both (типово both — окремий файл на тему)
 // --path · --width · --height · --email · --log · --click · --init-storage ·
 // --stub-json · --stub-messages · --stub-rest · --app-sel · --full · --reduce ·
 // --stub-any prefix=STATUS  будь-який метод за префіксом шляху (POST теж) — «не записалось»
+// --slow prefix=MS  затримати відповідь за префіксом (стан «думаю»)
+// --patch-json path=json  злити поля у справжню відповідь GET
 // --scale — те саме, що в side-by-side.mjs (див. там)
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
+// --click-after / --actions-after  те саме, але лише на половині «стало»
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
 //           move:X,Y · wait:MS · press:KEY · type:TEXT · focus:SEL · swipe:SEL:up ·
-//           down:SEL · drag:X,Y · up:  (перетягування без відпускання — стан ручки) · blur:
+//           down:SEL · drag:X,Y · up:  (перетягування без відпускання — стан ручки) · blur: ·
+//           dragfile:NAME:MIME · dropfile:NAME:MIME (файл над вікном / кинуто)
 // --video N  замість знімка — запис N секунд (webm на кожну половину, поруч
 //           не клеїться); кроки з --actions виконуються під час запису
 // --label-before / --label-after  підписи половин (типово main · гілка)
@@ -36,7 +40,7 @@ const has = (k) => process.argv.includes(`--${k}`);
 const BEFORE = (arg('before', 'http://localhost:5191')).replace(/\/$/, '');
 const AFTER = (arg('after', 'http://localhost:5190')).replace(/\/$/, '');
 const NAME = arg('name', 'pair');
-const OUT_DIR = arg('out-dir', 'docs/superpowers/plans/side-by-side/pack-1');
+const OUT_DIR = arg('out-dir', 'docs/superpowers/plans/side-by-side/pack-2');
 const WIDTH = Number(arg('width', 1440));
 const HEIGHT = Number(arg('height', WIDTH <= 480 ? 844 : 900));
 const THEMES = arg('theme', 'both') === 'both' ? ['light', 'dark'] : [arg('theme')];
@@ -45,7 +49,7 @@ const LOG = arg('log', '.qa-magic-links.log');
 const SCALE = Number(arg('scale', 2));
 const REDUCE = has('reduce');
 const VIDEO = Number(arg('video', 0));
-const LABELS = { before: arg('label-before', 'Було · main'), after: arg('label-after', 'Стало · fix/v3-pack-1') };
+const LABELS = { before: arg('label-before', 'Було · main'), after: arg('label-after', 'Стало · fix/v3-pack-2') };
 
 for (const u of [BEFORE, AFTER]) {
   const host = new URL(u).hostname;
@@ -71,10 +75,23 @@ async function runActions(page, spec) {
     else if (op === 'press') await page.keyboard.press(v);
     else if (op === 'type') await page.keyboard.type(v, { delay: 40 });
     else if (op === 'focus') await page.focus(v);
+    else if (op === 'downat') { const [x, y] = v.split(',').map(Number); await page.mouse.move(x, y); await page.mouse.down(); }
     else if (op === 'down') { const bb = await (await page.waitForSelector(v)).boundingBox(); await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); }
     else if (op === 'drag') { const [dx, dy] = v.split(',').map(Number); await page.mouse.move(dx, dy, { steps: 8 }); }
     else if (op === 'up') await page.mouse.up();
     else if (op === 'blur') await page.evaluate(() => document.activeElement?.blur());
+    // dragfile:NAME:MIME · dropfile:NAME:MIME — файл над вікном / кинуто (D1–D3): справжній
+    // DataTransfer із File, події на window, як робить браузер.
+    else if (op === 'dragfile' || op === 'dropfile') {
+      const [name, mime] = v.split(':');
+      await page.evaluate(([n, m, drop]) => {
+        const dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array(214 * 1024)], n, { type: m }));
+        const ev = (type) => new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, clientX: 600, clientY: 500 });
+        if (drop) { document.body.dispatchEvent(ev('drop')); }
+        else { document.body.dispatchEvent(ev('dragenter')); document.body.dispatchEvent(ev('dragover')); }
+      }, [name, mime, op === 'dropfile']);
+    }
     else if (op === 'swipe') {
       const [sel, dir] = v.split(':'); const bb = await (await page.waitForSelector(sel)).boundingBox();
       const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2; const dy = dir === 'up' ? -80 : 80;
@@ -127,6 +144,24 @@ async function shoot(base, theme, side) {
       await page.route((u) => u.pathname.startsWith(prefix), (route) => val === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(val), contentType: 'application/json', body: '{"error":"stub"}' }));
     }
   }
+  // --patch-json path=json — злити поля у СПРАВЖНЮ відповідь GET (замість підміни всієї).
+  const patchJson = arg('patch-json', null);
+  if (patchJson) {
+    const i = patchJson.indexOf('='); const path = patchJson.slice(0, i).trim(); const patch = JSON.parse(patchJson.slice(i + 1));
+    await page.route((u) => u.pathname === path, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const res = await route.fetch(); const body = await res.json();
+      await route.fulfill({ response: res, json: { ...body, ...patch } });
+    });
+  }
+  // --slow prefix=MS — затримати відповідь (стан «думаю» у кадрі/записі).
+  const slow = arg('slow', null);
+  if (slow) {
+    for (const pair of slow.split(';')) {
+      const i = pair.indexOf('='); const prefix = pair.slice(0, i).trim(); const ms = Number(pair.slice(i + 1));
+      await page.route((u) => u.pathname.startsWith(prefix), async (route) => { await new Promise((r) => setTimeout(r, ms)); await route.continue().catch(() => {}); });
+    }
+  }
   const stubFile = arg('stub-messages', null);
   if (stubFile) {
     const extra = JSON.parse(readFileSync(stubFile, 'utf8'));
@@ -158,7 +193,8 @@ async function shoot(base, theme, side) {
   const path = arg('path', '/');
   await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  const click = arg('click', null);
+  // --click-after / --actions-after — лише на половині «стало» (елемента в «було» ще нема).
+  const click = [arg('click', null), side === 'after' ? arg('click-after', null) : null].filter(Boolean).join(' ;; ');
   if (click) { for (const sel of click.split(';;').map((x) => x.trim()).filter(Boolean)) { await page.click(sel); await page.waitForTimeout(800); } }
   const hover = arg('hover', null);
   if (hover) { await page.hover(hover); await page.waitForTimeout(400); }
@@ -183,6 +219,8 @@ async function shoot(base, theme, side) {
     return { video: out };
   }
   await runActions(page, arg('actions', null));
+  if (side === 'after') await runActions(page, arg('actions-after', null));
+  if (side === 'before') await runActions(page, arg('actions-before', null));
   const appSel = arg('app-sel', null);
   if (appSel) { const el = await page.waitForSelector(appSel, { timeout: 15000 }); png = await el.screenshot({ type: 'png' }); const bb = await el.boundingBox(); if (bb) imgW = Math.round(bb.width); }
   else png = await page.screenshot({ type: 'png', fullPage: has('full') });

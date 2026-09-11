@@ -14,8 +14,9 @@
 // праворуч. Шторка бере той самий рядок і ту саму геометрію (.rail-open:
 // 560, радіус 16, відступи 16), а `kind` каже, який знак у вкладці.
 
-import { useCallback, useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './Sheet.module.css';
+import { useSheetDrag } from '../../lib/useSheetDrag';
 import { holdBodyFlag } from '../../lib/body-flags';
 import panel from '../ArtifactPanel/ArtifactPanel.module.css';
 import { PanelIcon } from '../ArtifactPanel/ArtifactPanel';
@@ -39,9 +40,6 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
   // №21: через лічильник — інша шторка поруч клас не зніме.
   useEffect(() => holdBodyFlag('sheet-open'), []);
   const [closing, setClosing] = useState(false);
-  const [dragY, setDragY] = useState(0);
-  const dragging = useRef(false);
-  const startY = useRef(0);
 
   const close = useCallback(() => {
     setClosing((was) => {
@@ -84,26 +82,10 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
     };
   }, [close]);
 
-  // Драг-закриття: тягнути можна тільки коли вміст панелі не проскролений —
-  // інакше жест конфліктує зі скролом усередині.
-  function onTouchStart(e: TouchEvent<HTMLDivElement>) {
-    const el = panelRef.current;
-    if (!el || el.scrollTop > 0 || closing) return;
-    dragging.current = true;
-    startY.current = e.touches[0]!.clientY;
-  }
-  function onTouchMove(e: TouchEvent<HTMLDivElement>) {
-    if (!dragging.current) return;
-    const dy = e.touches[0]!.clientY - startY.current;
-    setDragY(Math.max(0, dy));
-  }
-  function onTouchEnd() {
-    if (!dragging.current) return;
-    dragging.current = false;
-    const h = panelRef.current?.offsetHeight ?? 400;
-    if (dragY > h * 0.25) close();
-    else setDragY(0);   // пружинимо назад transition-ом
-  }
+  // №35: змах униз по граберу/шапці закриває (один механізм на всі шторки —
+  // lib/useSheetDrag); скрол усередині не перехоплюється, бо обробники
+  // стоять лише на граберi й шапці.
+  const drag = useSheetDrag(close, !closing);
 
   return (
     <div
@@ -114,19 +96,17 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
       <div
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
         className={`${styles.panel} ${closing ? styles['panel-out'] : ''}`}
-        style={dragY > 0 && !closing
-          ? { transform: `translateY(${dragY}px)`, transition: dragging.current ? 'none' : undefined }
-          : undefined}
+        style={closing ? undefined : drag.panelStyle}
+        data-sheet
       >
-        <div className={styles.handle} aria-hidden />
-        <div className={`${panel['rail-tabs']} ${styles.head}`}>
+        <div className={styles.grab} {...drag.handleProps} data-sheet-grab>
+          <div className={styles.handle} aria-hidden />
+        </div>
+        <div className={`${panel['rail-tabs']} ${styles.head}`} {...drag.handleProps} data-sheet-head>
           <button type="button" className={styles.close} onClick={close} title="Закрити" aria-label="Закрити"><PanelIcon /></button>
           {kind && (
             <span className={`${panel['rail-tab']} ${panel['rail-tab-on']} ${styles.tab}`} aria-hidden>

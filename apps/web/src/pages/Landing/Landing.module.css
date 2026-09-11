@@ -175,7 +175,7 @@
 .sessionPill { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 8px; border-radius: 999px; background: var(--card); font-size: 14px; font-weight: 500; box-shadow: var(--sh); color: var(--ink); }
 .sessionPill > :first-child { color: var(--dim-t); }
 .sessionWhen { color: var(--dim-t); font-weight: 400; }
-.chip { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.chip { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 500; white-space: nowrap; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .chipAmber { background: var(--amber-bg); color: var(--amber); }
 .chipSage { background: var(--sage-bg); color: var(--sage); }
 .chipCard { background: var(--card); box-shadow: var(--sh); color: var(--ink); }

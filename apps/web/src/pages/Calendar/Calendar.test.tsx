@@ -77,6 +77,16 @@ describe('CalendarPage · дві осі в двох розкладках', () =>
     expect(host!.textContent).toContain('Що на вечерю?');
   });
 
+  // FIXES-V3-2 №26: вхід до підписок — у шапці календаря, не лише внизу стрічки.
+  it('№26: «Підписки» у шапці є й відкриває картку підписок (шторкою нижче 1200)', async () => {
+    await mount(false);
+    const btn = host!.querySelector<HTMLButtonElement>('[data-subscriptions]');
+    expect(btn).not.toBeNull();
+    await act(async () => { btn!.click(); });
+    await act(async () => {});
+    expect(host!.textContent).toContain('Що впливає на кухню');
+  });
+
   it('<1024: рядки днів з риской у жолобі, чіп лише в день початку, без заголовків тижнів', async () => {
     await mount(false);
     expect(host!.querySelector('[class*="_cell_"]')).toBeNull();

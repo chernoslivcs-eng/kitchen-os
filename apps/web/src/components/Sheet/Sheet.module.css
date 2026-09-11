@@ -40,10 +40,11 @@
 @keyframes sheet-out { from { transform: translateY(0); } to { transform: translateY(105%); } }
 
 /* Ручка (Screens D3c: 36×4, line2) — знак, що шторку можна стягнути. */
+/* №35: зона грабера — на всю ширину, 44 у висоту (хіт), риска 36×4 по центру. */
+.grab { flex: none; display: grid; place-items: center; min-height: 20px; padding: 6px 0 4px; }
 .handle {
   flex: none;
   width: 36px; height: 4px;
-  margin: 0 auto 6px;
   border-radius: 2px;
   background: var(--line2);
 }

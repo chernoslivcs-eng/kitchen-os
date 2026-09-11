@@ -112,6 +112,7 @@
 .rail-mini-item:hover { background: var(--line); }
 .rail-mini-count { font-size: 11px; }
 .rail-scrim { display: none; }
+.rail-grab { display: none; }
 
 @media (min-width: 1200px) {
   /* position:fixed з базового правила лишається — він і є контекстом для
@@ -215,43 +216,57 @@
   .rail-pill-meta,
   .rail-pill-more { color: var(--dim); flex: none; }
 
-  /* Шторка — той самий <aside>, що й панель. Розмітку вкладок, ✕ і саму
-     картку не дублюємо: змінюється лише геометрія. */
+  /* Відкритий артефакт < 1200 — той самий <aside>, що й панель. Розмітку
+     вкладок, ✕ і саму картку не дублюємо: змінюється лише геометрія. */
   .rail-open {
     display: flex !important;
     flex-direction: column;
     position: fixed;
-    left: 0; right: 0; bottom: 0;
-    /* Шторку малювали під 390. Після перенесення порогу (1.1) вона накриває
-       і 1024-1199, де на всю ширину виглядає як розтягнутий рядок: степер
-       відлітає на 1100px від назви. Обмежуємо тією ж стелею, що й панель
-       (560 з V1), і центруємо — на телефоні це й далі повна ширина. */
-    max-width: 560px;
-    margin: 0 auto;
-    max-height: 82vh;
     background: var(--card);
-    border-top: 1px solid var(--line);
-    border-radius: 16px 16px 0 0;
-    box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
-    padding: 8px 0 calc(0px + env(safe-area-inset-bottom));
     overflow: hidden;
     z-index: 30;
   }
-  /* Кнопка згортання у шторці. Її правило зникло в кроці 1.1 разом із
-     блоком шухляди, а ✕ прибрано сьогодні — і шторку не стало чим
-     закрити, крім тапу по затемненню. Тап по затемненню лишається, але
-     він неочевидний, і покладатись на нього одного не можна. */
+  /* Кнопка згортання у шторці/картці — без неї закрити нема чим, крім
+     тапу по затемненню (а в плавучої картки затемнення нема). */
   .rail-open .rail-collapse { display: grid; }
   .rail-open .rail-artifact {
     display: flex;
     border-bottom: 0;
     padding-bottom: 0;
   }
-  /* Ручка шторки 36×4 (Screens D3c) — той самий обʼєкт, що картка в панелі. */
-  .rail-open::before { content: ''; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--line2); margin: 0 auto 6px; flex: none; }
-  /* Рецепт у шторці — знову в одну колонку: ширина екрана тут вузька
-     так само, як була вузькою панель. */
+  /* Рецепт — знову в одну колонку: ширина тут вузька так само, як була
+     вузькою панель. */
   .rail-open .recipe-msg-cols { flex-direction: column; gap: 14px; }
+}
+/* №34 (рішення власника, відхилення від R2 «768 — шторка»): від планшета
+   артефакт — праворуч, плавучою карткою 380 (G6: card r18 --sh2), контент
+   не зсувається й не затемнюється; закриває ⊟. */
+@media (min-width: 600px) and (max-width: 1199px) {
+  .rail-open {
+    top: 12px; right: 12px; bottom: 12px; left: auto;
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    border-radius: 18px;
+    box-shadow: var(--sh2);
+    padding: 0;
+  }
+  .rail-scrim { display: none; }
+}
+/* < 600 — шторка знизу (Screens D3c / R2 390): ручка 36×4, скрім. */
+@media (max-width: 599px) {
+  .rail-open {
+    left: 0; right: 0; bottom: 0;
+    max-width: 560px;
+    margin: 0 auto;
+    max-height: 82vh;
+    border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
+    padding: 8px 0 calc(0px + env(safe-area-inset-bottom));
+  }
+  /* Ручка шторки 36×4 (Screens D3c); зона грабера — на всю ширину (№35). */
+  .rail-grab { display: grid; place-items: center; padding: 0 0 6px; flex: none; }
+  .rail-grab-bar { width: 36px; height: 4px; border-radius: 2px; background: var(--line2); }
   .rail-scrim {
     display: block;
     position: fixed;

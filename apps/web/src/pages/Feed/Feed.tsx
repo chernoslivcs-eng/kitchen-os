@@ -5,6 +5,7 @@
 
 import { Toast } from '../../components/ErrorState/Toast';
 import { Icon } from '../../components/Icon/Icon';
+import { Sheet } from '../../components/Sheet/Sheet';
 import { holdBodyFlag } from '../../lib/body-flags';
 import type { IconName } from '../../components/Icon/icons';
 import { ActionState } from '../../components/ActionState/ActionState';
@@ -43,7 +44,7 @@ import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
 import panelStyles from '../../components/ArtifactPanel/ArtifactPanel.module.css';
-import { usePanelStore } from '../../store/panel';
+import { usePanelStore, ARTIFACT_SHEET_MAX } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
 
 // Фрази для стрімінг-подачі: розріз по кінцях речень, коротке лишається цілим.
@@ -211,9 +212,12 @@ export function Feed() {
   // список текстом. Скріпку замінює; ті самі pickFiles за ним.
   const [attachOpen, setAttachOpen] = useState(false);
   const [fileAccept, setFileAccept] = useState('image/*,application/pdf,text/plain');
-  function pickVia(accept: string) {
+  // №24 (D3 · 390): «Сфотографувати чек» — камера (capture), решта — без.
+  const [fileCapture, setFileCapture] = useState<'environment' | undefined>(undefined);
+  function pickVia(accept: string, capture?: 'environment') {
     setAttachOpen(false);
     setFileAccept(accept);
+    setFileCapture(capture);
     // accept має оновитись у DOM до кліку.
     window.setTimeout(() => fileInputRef.current?.click(), 0);
   }
@@ -689,7 +693,7 @@ export function Feed() {
     const el = timelineRef.current;
     if (!el) return;
     requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
-  }, [turns]);
+  }, [turns, sending]);
 
   // Keyboard shortcuts на десктопі:
   //   Ctrl+K / Cmd+K — фокус у композитор (як у Slack/Linear/Notion — універсальний
@@ -1213,6 +1217,14 @@ export function Feed() {
     return () => ro.disconnect();
   }, []);
   const narrow = headForm === 'narrow';
+  // №34: «Дім зараз» шторкою лише на контейнері < 600 (один поріг з панеллю); інакше — накладка праворуч.
+  const [homeSheet, setHomeSheet] = useState(false);
+  useEffect(() => {
+    const el = screenRef.current; if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([en]) => setHomeSheet((en?.contentRect.width ?? 1440) <= ARTIFACT_SHEET_MAX));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // Вказівник: ≥1024 або (hover: hover). На дотику фокус — тільки від людини.
   const pointerDevice = typeof window !== 'undefined' && (window.innerWidth >= 1024 || (window.matchMedia?.('(hover: hover)')?.matches ?? false));
   // «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14):
@@ -1245,7 +1257,7 @@ export function Feed() {
       />
       {homeOpen && (
         <HomeNowPanel
-          home={home} cookLive={cookLive} sheet={narrow} dateLabel={homeDate}
+          home={home} cookLive={cookLive} sheet={homeSheet} dateLabel={homeDate}
           onClose={() => setHomeOpen(false)}
           onCook={() => { setHomeOpen(false); if (cookLive) cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId }); }}
           onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
@@ -1639,8 +1651,11 @@ export function Feed() {
                  радіусом — велика підложка під нею була б рамкою в рамці.
                  Той самий виняток, що вже зроблено для `event`, тільки
                  подія не малює нічого, а ця картка малює себе сама. */
+              /* №32: пропозиції (і рецепт-слід) малюють свою картку самі
+                 (.prop-card / .rcard: card r16 + тінь) — обгортка .doccard
+                 давала сіру рамку довкола білої картки й різала її тінь. */
               <CardShell
-                plain={t.card.type === 'onboarding'}
+                plain={t.card.type === 'onboarding' || t.card.type === 'proposal' || t.card.type === 'recipe_link'}
                 className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.dismissed ? styles['doccard-off'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}
               >
               <Card
@@ -1676,6 +1691,23 @@ export function Feed() {
           </div>
         ))}
 
+        {/* №28 (рішення власника, відхилення від Responsive D3 «словом, не
+            крапками»): «думаю» — у стрічці, на місці майбутньої відповіді:
+            дієслово того, що реально йде під капотом («Думаю» / «Розбираю» —
+            вкладення), три живі крапки, справжній час; після 45 с — «Довгий
+            чек, ще тримаю» / «Ще тримаю». «Стоп» — лише в слоті композитора. */}
+        {!historyOpen && sending && (
+          <div className={`${styles.turn} ${styles['wait-turn']}`} data-wait-turn aria-live="polite">
+            <div className={styles['wait-row']} data-wait>
+              <span className={styles['wait-verb']}>{thinkingVerb === 'РОЗБИРАЮ' ? 'Розбираю' : 'Думаю'}</span>
+              <span className={styles.thinking} aria-hidden><span /><span /><span /></span>
+              <span className={styles['wait-clock']}>{clock(waited)}</span>
+            </div>
+            {waited >= LONG_WAIT_S && (
+              <div className={styles['wait-long']} data-wait-long>{thinkingVerb === 'РОЗБИРАЮ' ? 'Довгий чек, ще тримаю' : 'Ще тримаю'}</div>
+            )}
+          </div>
+        )}
         {!historyOpen && drag && (
           /* Кухня відповідає ходом, як на будь-що інше: картка стоїть у кінці
              стрічки, над композитором, і зникає, щойно файл відпустили. */
@@ -1683,6 +1715,9 @@ export function Feed() {
         )}
 
       </div>
+      {/* №24 · D1: пунктирна шавлієва рамка 1.5 по стрічці, поки файл над
+          вікном — куди б не кинув, ціль одна. */}
+      {drag && <div className={styles['drop-frame']} aria-hidden data-drop-frame />}
 
       <div className={styles['composer-wrap']}>
         {/* Етап 3 (Components · «Стани дії»): рядок стану НАД композитором —
@@ -1693,17 +1728,17 @@ export function Feed() {
             довгого очікування, але одним рядком, у якому живуть і ліміт, і
             мережа, і «нічого не змінилось». Ліміт ≠ мережа ≠ нічого: три
             знаки, три слова, три різні дії від людини. */}
+        {/* №28: «думаю» тут більше нема — він у стрічці; рядок лишається для
+            ліміту · мережі · «нічого не змінилось» · конфлікту. */}
         {!historyOpen && (
           <ActionState
-            sending={sending}
+            sending={false}
             waited={waited}
-            parsing={thinkingVerb === 'РОЗБИРАЮ'}
+            parsing={false}
             nothingChanged={nothingChanged}
             cardConflict={cardConflict}
-            onStop={stopSending}
             onRetry={() => { useIncidentStore.getState().setOffline(false); void refreshCounts(); }}
             onRefresh={() => { setCardConflict(false); void refreshCounts(); }}
-            longWaitNote={waited >= LONG_WAIT_S ? (thinkingVerb === 'РОЗБИРАЮ' ? 'Довгий чек, ще тримаю' : 'Ще тримаю') : null}
           />
         )}
         {/* Крок 5б: мобільна пігулка. На вузькому екрані панелі немає взагалі,
@@ -1735,16 +1770,22 @@ export function Feed() {
             {pending.map((a) => (
               <span
                 key={a.id}
-                className={`${styles['att-chip']} ${leavingAtt.has(a.id) ? styles['att-leave'] : ''}`}
-                title={a.content_type}
+                className={`${styles['att-chip']} ${a.kind === 'image' ? styles['att-chip-image'] : ''} ${leavingAtt.has(a.id) ? styles['att-leave'] : ''}`}
+                title={a.name ?? a.content_type}
+                data-att-chip={a.kind}
               >
+                {/* №24 · D3: тип · назва · розмір; картинка — квадрат-превʼю без назви. */}
                 {a.kind === 'image' ? (
                   <img src={`/v1/attachments/${a.id}/bytes`} alt="" className={styles['att-thumb']} />
                 ) : (
-                  <span className={styles['att-ext']}>{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                  <>
+                    <span className={`${styles['att-ext']} ${a.kind === 'pdf' ? styles['att-ext-pdf'] : ''}`}>{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                    <span className={styles['att-text']}>
+                      <span className={styles['att-name']}>{a.name ?? (a.kind === 'pdf' ? 'чек.pdf' : 'список.txt')}</span>
+                      <span className={styles['att-meta']}>{a.kind} · {formatBytes(a.bytes)}</span>
+                    </span>
+                  </>
                 )}
-                {/* Пул-6 №4: назва файла, ellipsis — «чек-сільпо.jpg». */}
-                {a.name && <span className={styles['att-name']}>{a.name}</span>}
                 <button
                   type="button"
                   className={styles['att-remove']}
@@ -1764,13 +1805,15 @@ export function Feed() {
             всередині фрейму справа; при наборі 🎙 морфить у ↑, 📎 лишається.
             «Обери інструмент» стало «запиши» — ввід виглядає як рядок журналу. */}
         <form
-          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''} ${drag ? styles['composer-armed'] : ''}`}
+          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''} ${drag ? styles['composer-armed'] : ''} ${drag?.long ? styles['composer-armed-long'] : ''}`}
           onSubmit={send}
+          data-drag={drag ? (drag.long ? 'long' : 'over') : undefined}
         >
           <input
             ref={fileInputRef}
             type="file"
             accept={fileAccept}
+            capture={fileCapture}
             multiple
             style={{ display: 'none' }}
             onChange={(e) => pickFiles(e.target.files)}
@@ -1780,7 +1823,7 @@ export function Feed() {
               onClick={() => setAttachOpen((v) => !v)} disabled={uploading} aria-label="Додати вкладення" aria-expanded={attachOpen} data-attach-plus>
               <Icon name="sys.add" size={20} inherit decorative />
             </button>
-            {attachOpen && (
+            {attachOpen && headForm !== 'narrow' && (
               <div className={styles['attach-menu']} role="menu" data-attach-menu>
                 <button type="button" role="menuitem" className={styles['attach-item']} onClick={() => pickVia('application/pdf,image/*')}>
                   <Icon name="sys.receipt" size={16} inherit decorative /><span>Чек · PDF або фото</span>
@@ -1793,6 +1836,26 @@ export function Feed() {
                 </button>
                 <span className={styles['attach-hint']}>Або просто перетягни файл у розмову</span>
               </div>
+            )}
+            {/* №24 · D3 на 390 (Responsive «На 390 drag-n-drop немає»): «+» відкриває
+                аркуш джерел — камера (чек або стіл) · галерея · файл. Один приймач. */}
+            {attachOpen && headForm === 'narrow' && (
+              <Sheet onClose={() => setAttachOpen(false)} ariaLabel="Джерела">
+                <div className={styles['source-sheet']} data-source-sheet>
+                  <button type="button" className={styles['source-row']} onClick={() => pickVia('image/*', 'environment')}>
+                    <span className={styles['source-icon']}><Icon name="sys.photo" size={18} inherit decorative /></span>
+                    <span className={styles['source-text']}><span className={styles['source-title']}>Сфотографувати чек</span><span className={styles['source-sub']}>або продукти на столі</span></span>
+                  </button>
+                  <button type="button" className={styles['source-row']} onClick={() => pickVia('image/*')}>
+                    <span className={styles['source-icon']}><Icon name="sys.gallery" size={18} inherit decorative /></span>
+                    <span className={styles['source-text']}><span className={styles['source-title']}>Фото з галереї</span></span>
+                  </button>
+                  <button type="button" className={styles['source-row']} onClick={() => pickVia('application/pdf,text/plain')}>
+                    <span className={styles['source-icon']}><Icon name="sys.text" size={18} inherit decorative /></span>
+                    <span className={styles['source-text']}><span className={styles['source-title']}>Файл</span><span className={styles['source-sub']}>PDF чека з e-mail, скрин замовлення</span></span>
+                  </button>
+                </div>
+              </Sheet>
             )}
           </span>
           {/* Пул-7 №3: під час запису — таймер + жива хвиля на ЛІВОМУ краю
@@ -1843,38 +1906,56 @@ export function Feed() {
                вискакувала сама, ховала бар і половину стрічки. */
             autoFocus={pointerDevice}
           />
-          {/* Screens «Чат · збірка»: підказка «⌘K» dim перед мікрофоном — композитор
-              ловить ⌘K з будь-де (Components «Композитор (⌘K з будь-де)»). */}
-          <span className={styles['composer-kbd']} aria-hidden>⌘K</span>
-          {/* 6b-5c, Screens/Prototype: мікрофон 42 простий muted — завжди на
-              місці, кольори стану лише поки слухає; «надіслати» 42 чорнилом
-              arrow-up — завжди, з порожнім драфтом світле коло й muted стрілка.
-              Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп». */}
-          {sending && !listening ? (
-            <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop>
-              <span className={styles['mic-stop']} />
-            </button>
-          ) : listening ? (
-            /* 1.5b: рух — на знаку (mic пульсує 1.2 с), не на контейнері:
-               кільце micpulse знято. Кольори стану — лише поки слухає. */
-            <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true">
-              <Icon name="sys.voice" size={18} inherit decorative live="mic" />
-            </button>
-          ) : speechSupported() ? (
-            <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic>
-              <Icon name="sys.voice" size={18} inherit decorative />
-            </button>
-          ) : null}
-          {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
-              в стрічку і стає в чергу. Гасне лише коли черга повна. */}
-          <button
-            type="submit"
-            className={`${styles['frame-btn-solid']} ${!(input.trim() || pending.length > 0) ? styles['frame-btn-idle'] : ''}`}
-            disabled={(sending && queue.length >= QUEUE_MAX) || !(input.trim() || pending.length > 0)}
-            title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
-            aria-label="Надіслати"
-            data-send
-          ><Icon name="sys.send" size={18} inherit decorative /></button>
+          {/* №29 (рішення власника, відхилення від Screens/Prototype «mic + send
+              поруч»): одне головне гніздо праворуч — поле порожнє → мікрофон;
+              є текст чи вкладення → стрілка надсилання на тому ж місці;
+              диктовка — гніздо «слухаю»; поки модель думає й поле порожнє —
+              «Стоп» (Пул-9 №4). №30: підпис «⌘K» з поля знято — сама клавіша
+              (фокус у композитор з будь-якого екрана) лишається. */}
+          {(() => {
+            const hasDraft = !!(input.trim() || pending.length > 0);
+            if (listening) {
+              /* 1.5b: рух — на знаку (mic пульсує 1.2 с), не на контейнері. */
+              return (
+                <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true" data-slot="listening">
+                  <Icon name="sys.voice" size={18} inherit decorative live="mic" />
+                </button>
+              );
+            }
+            if (hasDraft) {
+              /* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
+                 в стрічку і стає в чергу. Гасне лише коли черга повна. */
+              return (
+                <button
+                  type="submit"
+                  className={styles['frame-btn-solid']}
+                  disabled={sending && queue.length >= QUEUE_MAX}
+                  title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
+                  aria-label="Надіслати"
+                  data-send data-slot="send"
+                ><Icon name="sys.send" size={18} inherit decorative /></button>
+              );
+            }
+            if (sending) {
+              return (
+                <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop data-slot="stop">
+                  <span className={styles['mic-stop']} />
+                </button>
+              );
+            }
+            if (speechSupported()) {
+              return (
+                <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic data-slot="mic">
+                  <Icon name="sys.voice" size={18} inherit decorative />
+                </button>
+              );
+            }
+            return (
+              <button type="submit" className={`${styles['frame-btn-solid']} ${styles['frame-btn-idle']}`} disabled aria-label="Надіслати" data-send data-slot="send-idle">
+                <Icon name="sys.send" size={18} inherit decorative />
+              </button>
+            );
+          })()}
         </form>
       </div>
 
