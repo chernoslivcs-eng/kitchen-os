@@ -74,7 +74,7 @@ describe('скрольований стовпчик сайдбара', () => {
     expect(box).toBeTruthy();
 
     // Верхня межа стрічки — перша ціль.
-    expect(box!.contains(byText('Стрічка')!)).toBe(true);
+    expect(box!.contains(byText('Чат')!)).toBe(true);
     expect(box!.contains(byText('Календар')!)).toBe(true);
     // 6b-5: «ЗАРАЗ» із сайдбара пішов у шапку чату й панель «Дім зараз»;
     // між цілями і сесіями — рядок «Розмови · + Нова», і він теж у скролі.
