@@ -2,7 +2,9 @@
    секції з dim-підписом 12/500, чіпи традицій 36 px (увімкнена — чорнильна
    зі знаком), рядки 48 px з перемикачем 40×24, сезони з крапкою-контуром. */
 
-.section { margin-top: 18px; }
+.head { margin: 0; font-family: var(--font-body); font-size: 16px; font-weight: 600; color: var(--ink); }
+.head-text { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.section { margin-top: 14px; }
 .section-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   margin-bottom: 8px;

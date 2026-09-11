@@ -15,6 +15,15 @@
 //
 // Замінює EventArtifact: подія дому, «завіз» і рамка дня — теж ця форма,
 // просто без перемикача роду. Третьої картки нема.
+//
+// v3 (крок 2, 11.09): форма за Components A1 (серія: галочки 22 r6 чорнилом,
+// рядки 52, «готую · нагадую · обмежую» словом, «N з M · Ні · Записати в
+// календар»), A2 (своє: рід сегментом угорі, дати чіпами 36 r8 на bg,
+// правило в рамці bg, мʼяко/суворо пігулкою — суворе фарбує в сливу лише
+// перемикач) і A3 (системне: кікер зі знаком роду, «ще N днів» кольором
+// роду, «що з цим приготувати» рядками 44 в чат, «варто докупити» чіпами,
+// «Не показувати · Додати в список»). Aside дня з Prototype дає «Що прийде»
+// рядками 40 зі знаком і «Прибрати» текстом danger. Каркас панелі — не тут.
 
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -27,6 +36,7 @@ import {
 } from '../../lib/period';
 import styles from './PeriodArtifact.module.css';
 import { Icon } from '../Icon/Icon';
+import type { IconName } from '../Icon/icons';
 
 export type PeriodChange = 'add' | 'edit' | 'remove' | 'mute' | 'subscribe';
 
@@ -166,11 +176,13 @@ export function PeriodSeries({ card, cardId, set: setProp, applied, applying, di
 
   return (
     <div className={styles.body} data-testid="period-series">
-      <div className={`${styles.kicker} ${styles[k.tone]}`}>{k.text}</div>
+      <div className={`${styles.kicker} ${styles[k.tone]}`}>
+        <Icon name={set === 'seasons' ? 'live.season' : 'live.tradition'} size={12} inherit decorative />{k.text}
+      </div>
       <h2 className={styles.title}>{title}</h2>
       {range && <div className={styles.sub}>{range}</div>}
       <p className={styles.text}>{text}</p>
-      {!items && !err && <div className={styles.loading}>ЧИТАЮ ДОВІДНИК…</div>}
+      {!items && !err && <div className={styles.loading}>Читаю довідник…</div>}
       {items && (
         <div className={styles.list} role="list">
           {items.map((i) => {
@@ -179,7 +191,7 @@ export function PeriodSeries({ card, cardId, set: setProp, applied, applying, di
               <button key={i.occasion_id} type="button" role="listitem" aria-pressed={on}
                 className={`${styles.item} ${on ? '' : styles['item-off']} ${closed ? styles['item-static'] : ''}`}
                 onClick={() => toggle(i.occasion_id)} data-occasion={i.occasion_id}>
-                <span className={styles.mark}>{on ? <Icon name="sys.done" size={12} inherit decorative /> : <span className={styles['mark-off']} aria-hidden />}</span>
+                <span className={`${styles.mark} ${on ? styles['mark-on'] : ''}`}>{on && <Icon name="sys.done" size={12} inherit decorative />}</span>
                 <span className={styles['item-body']}>
                   <span className={styles['item-name']}>{i.title}</span>
                   <span className={styles['item-when']}>
@@ -239,15 +251,17 @@ function windowOf(e?: EventOccurrence, card?: ChatCard, initial?: EventProps['in
   return { from: t, to: t };
 }
 
-function kickerOf(e: EventOccurrence): { text: string; tone: 'amber' | 'plum' | 'sage' | 'muted' } {
-  if (e.kind === 'season') return { text: 'сезон · з довідника', tone: 'amber' };
-  if (e.kind === 'editorial' || e.source) return { text: `від ${e.source ?? 'редакції'}`, tone: 'amber' };
-  if (e.kind === 'tradition') return { text: 'свято · з традиції', tone: 'plum' };
-  // Етап 1.5: повноширинний ＋ знято — канон забороняє гліфи-символи в тексті.
-  if (e.kind === 'supply') return { text: 'завіз', tone: 'sage' };
-  if (e.kind === 'meal') return { text: 'страва на день', tone: 'sage' };
-  if (e.kind === 'constraint') return { text: 'рамка дня', tone: 'muted' };
-  return { text: 'подія', tone: 'sage' };
+// Кікер (A3, Prototype): знак роду + слово тоном роду — сезон sun/amber,
+// традиція church/plum, завіз truck/sage, подія дому users/sage, рамка дня
+// без знака muted.
+function kickerOf(e: EventOccurrence): { text: string; tone: 'amber' | 'plum' | 'sage' | 'muted'; icon: IconName | null } {
+  if (e.kind === 'season') return { text: 'сезон · з довідника', tone: 'amber', icon: 'live.season' };
+  if (e.kind === 'editorial' || e.source) return { text: `від ${e.source ?? 'редакції'}`, tone: 'amber', icon: 'live.season' };
+  if (e.kind === 'tradition' || (e.scope === 'catalog' && e.force === 'restrict')) return { text: 'свято · з традиції', tone: 'plum', icon: 'live.tradition' };
+  if (e.kind === 'supply') return { text: 'завіз', tone: 'sage', icon: 'live.supply' };
+  if (e.kind === 'meal') return { text: 'страва на день', tone: 'sage', icon: 'cook.type' };
+  if (e.kind === 'constraint') return { text: 'рамка дня', tone: 'muted', icon: null };
+  return { text: 'подія дому · своє', tone: 'sage', icon: 'live.household' };
 }
 
 export function PeriodEvent({ event, card, cardId, initial, applied, applying, dismissed, undone, onApply, onDismiss, onChanged, onClose }: EventProps) {
@@ -275,11 +289,14 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
 
   const closed = (applied && !undone) || dismissed;
   const readOnly = system || closed;
-  const oneDay = ownKind === 'custom' && switchable;
+  // A2: «свято · своє» лишає один чіп («коли»); дієта й подія дому — два.
+  const oneDay = ownKind === 'holiday' && switchable;
   const effFrom = from;
   const effTo = oneDay ? from : (to < from ? from : to);
-  const left = leftLabel(effFrom, effTo);
+  // A2/Prototype: своє показує тривалість («15 днів», «4 дні»); A3: системне —
+  // «ще N днів» від кінця, кольором роду.
   const span = daysBetween(effFrom, effTo) + 1;
+  const left = system ? leftLabel(effFrom, effTo) : `${span} ${plural(span, ['день', 'дні', 'днів'])}`;
 
   const kicker = event && !switchable ? kickerOf(event) : null;
   const shown = dedupeTitle(title, system ? (event?.restricts ?? null) : rule);
@@ -362,6 +379,15 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
     } finally { setBusy(false); }
   }
 
+  // Дата чіпом (A2): текст «11 вер» + шеврон, а сам <input type="date"> лежить
+  // поверх прозорим — клік відкриває нативний вибір, форма лишається бандла.
+  const dateChip = (value: string, label: string, min: string | undefined, onChange: (v: string) => void) => (
+    <span className={styles['date-chip']}>
+      {shortDate(value)}<Icon name="sys.open" size={12} inherit decorative />
+      <input type="date" className={styles['date-input']} value={value} min={min} onChange={(ev) => onChange(ev.target.value)} aria-label={label} />
+    </span>
+  );
+
   const actions = (
     <div className={styles.actions}>
       {closed ? (
@@ -402,6 +428,7 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
   return (
     <div className={styles.body} data-testid="period-event">
       {switchable && !readOnly ? (
+        // A2: рід — сегмент угорі, не кікер.
         <div className={styles.kinds} role="tablist" aria-label="Рід">
           {(Object.keys(OWN_KIND_LABEL) as OwnKind[]).map((k) => (
             <button key={k} type="button" role="tab" aria-selected={ownKind === k}
@@ -412,7 +439,11 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
         </div>
       ) : (
         <div className={`${styles.kicker} ${styles[kicker?.tone ?? 'sage']}`}>
-          {kicker?.text ?? OWN_KIND_LABEL[ownKind]}
+          {kicker ? (
+            <>{kicker.icon && <Icon name={kicker.icon} size={12} inherit decorative />}{kicker.text}</>
+          ) : (
+            <><Icon name="live.household" size={12} inherit decorative />{OWN_KIND_LABEL[ownKind]}</>
+          )}
         </div>
       )}
 
@@ -423,70 +454,77 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
           placeholder={ownKind === 'diet' ? 'білкова' : ownKind === 'holiday' ? 'день народження мами' : 'гості'} aria-label="Назва" />
       )}
 
+      {/* Дати (A2/A3): «з 10 вер до 24 вер · 15 днів»; системне — «ще N днів» тоном роду. */}
       <div className={styles.range}>
         {readOnly ? (
           weekly ? (
-            <span><b>{DOW_EVERY[(event!.rule as { dow: number }).dow] ?? 'щотижня'}</b></span>
+            <b>{DOW_EVERY[(event!.rule as { dow: number }).dow] ?? 'щотижня'}</b>
           ) : effFrom === effTo ? (
-            <><span>коли</span><b>{shortDate(effFrom)}</b><span>{dowOf(effFrom)}</span>{left && <span className={styles.left}>· {left}</span>}</>
+            <><span>коли</span><b>{shortDate(effFrom)}</b><span>{dowOf(effFrom)}</span>{left && <span className={`${styles.left} ${system ? styles[kicker?.tone ?? 'muted'] : ''}`}>{left}</span>}</>
           ) : (
             <>
               <span>з</span><b>{shortDate(effFrom)}</b><span>до</span><b>{event?.approx ? '≈ ' : ''}{shortDate(effTo)}</b>
-              <span className={styles.left}>{left ?? `${span} ${plural(span, ['день', 'дні', 'днів'])}`}</span>
+              {left && <span className={`${styles.left} ${system ? styles[kicker?.tone ?? 'muted'] : ''}`}>{left}</span>}
             </>
           )
         ) : weekly ? (
-          <span><b>{DOW_EVERY[(event!.rule as { dow: number }).dow] ?? 'щотижня'}</b></span>
+          <b>{DOW_EVERY[(event!.rule as { dow: number }).dow] ?? 'щотижня'}</b>
         ) : oneDay ? (
           <>
             <span>коли</span>
-            <input type="date" className={styles['date-input']} value={from} onChange={(ev) => setFrom(ev.target.value)} aria-label="Коли" />
+            {dateChip(from, 'Коли', undefined, (v) => setFrom(v))}
             <span>{dowOf(from)}</span>
-            {left && <span className={styles.left}>· {left}</span>}
+            {left && <span className={styles.left}>{left}</span>}
           </>
         ) : (
           <>
             <span>з</span>
-            <input type="date" className={styles['date-input']} value={from} onChange={(ev) => { setFrom(ev.target.value); if (to < ev.target.value) setTo(ev.target.value); }} aria-label="Від" />
+            {dateChip(from, 'Від', undefined, (v) => { setFrom(v); if (to < v) setTo(v); })}
             <span>до</span>
-            <input type="date" className={styles['date-input']} value={effTo} min={from} onChange={(ev) => setTo(ev.target.value)} aria-label="До" />
-            {left && <span className={styles.left}>{left}</span>}
+            {dateChip(effTo, 'До', from, (v) => setTo(v))}
+            <span className={styles.left}>{left}</span>
           </>
         )}
       </div>
 
-      {(!readOnly || shown.rule || system) && (
-        <>
-          <span className={styles.label}>правило</span>
+      {system && event?.meaning && <p className={styles.meaning}>{event.meaning}</p>}
+
+      {(!readOnly || shown.rule || (system && event?.restricts)) && (
+        <div className={styles.block}>
+          <span className={styles.label}>Правило</span>
           {readOnly ? (
             shown.rule ? <p className={styles.rule}>{shown.rule}</p> : null
           ) : (
             <input className={styles['rule-input']} value={rule} onChange={(ev) => setRule(ev.target.value)}
               placeholder="правило одним рядком" aria-label="Правило" />
           )}
+          {/* Мʼяко / суворо — пігулка-перемикач (A2): активне суворе — слива,
+              активне мʼяке — card з тінню; підказка поруч 12 muted. */}
           <div className={styles['strict-row']}>
-            <button type="button" className={`${styles.strict} ${strict ? styles['strict-on'] : ''} ${readOnly ? styles['strict-static'] : ''}`}
-              onClick={() => { if (!readOnly) setStrict((v) => !v); }} aria-pressed={strict} disabled={readOnly}>
-              {strict ? 'суворо' : 'мʼяко'}
-            </button>
-            <span className={styles.hint}>— {strict ? STRICT_HINT : SOFT_HINT}</span>
+            <div className={`${styles.strict} ${readOnly ? styles['strict-static'] : ''}`} role="group" aria-label="Суворість">
+              <button type="button" className={`${styles['strict-opt']} ${!strict ? styles['strict-soft-on'] : ''}`}
+                onClick={() => { if (!readOnly) setStrict(false); }} aria-pressed={!strict} disabled={readOnly}>мʼяко</button>
+              <button type="button" className={`${styles['strict-opt']} ${strict ? styles['strict-hard-on'] : ''}`}
+                onClick={() => { if (!readOnly) setStrict(true); }} aria-pressed={strict} disabled={readOnly}>суворо</button>
+            </div>
+            <span className={styles.hint}>{strict ? STRICT_HINT : SOFT_HINT}</span>
           </div>
-        </>
+        </div>
       )}
 
-      {system && event?.meaning && <p className={styles.meaning}>{event.meaning}</p>}
       {!system && servings != null && ownKind === 'custom' && (
         <p className={styles.meaning}>на {servings}</p>
       )}
 
+      {/* A3: «що з цим приготувати» — рядки 44, кожен веде в чат із префіксом. */}
       {system && (event?.seeds?.length ?? 0) > 0 && (
         <div className={styles.block}>
-          <span className={styles.label}>що з цим приготувати</span>
+          <span className={styles.label}>Що з цим приготувати</span>
           <div className={styles.rows}>
             {event!.seeds!.map((s) => (
               <button key={s} type="button" className={styles.row} onClick={() => navigate('/app', { state: { composePrefix: `${s} — ` } })}>
                 <span className={styles['row-name']}>{s}</span>
-                <span className={styles['row-go']}>›</span>
+                <Icon name="sys.next" size={12} inherit decorative />
               </button>
             ))}
           </div>
@@ -494,15 +532,21 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
       )}
       {system && (event?.buy?.length ?? 0) > 0 && (
         <div className={styles.block}>
-          <span className={styles.label}>варто докупити</span>
+          <span className={styles.label}>Варто докупити</span>
           <div className={styles.chips}>{event!.buy!.map((b) => <span key={b} className={styles.chip}>{b}</span>)}</div>
         </div>
       )}
+      {/* Prototype aside: «Що прийде» — рядки 40 зі знаком роду. */}
       {!system && (event?.supply?.length ?? 0) > 0 && (
         <div className={styles.block}>
-          <span className={styles.label}>що прийде</span>
-          <div className={styles.chips}>
-            {event!.supply!.map((s) => <span key={s.label} className={styles.chip}>{s.label}{s.v ? ` · ${s.v}${s.u ?? ''}` : ''}</span>)}
+          <span className={styles.label}>Що прийде</span>
+          <div className={styles.rows}>
+            {event!.supply!.map((s) => (
+              <span key={s.label} className={`${styles.row} ${styles['row-static']}`}>
+                <Icon name="live.supply" size={12} inherit decorative className={styles['row-icon']} />
+                <span className={styles['row-name']}>{s.label}{s.v ? ` · ${s.v}${s.u ?? ''}` : ''}</span>
+              </span>
+            ))}
           </div>
         </div>
       )}
