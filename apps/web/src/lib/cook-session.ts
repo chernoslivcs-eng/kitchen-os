@@ -50,3 +50,35 @@ export function loadCookSession(): CookSession | null {
 export function clearCookSession(): void {
   try { localStorage.removeItem(KEY); } catch { /* ок */ }
 }
+
+// ── Незаписане готування (етап 5, п.6) ────────────────────────────────────
+// «Приготували» → POST /v1/cook-runs не пройшов (офлайн, 5xx). Людину в
+// пастці не тримаємо — Cook Mode закривається, — але й не мовчимо: те саме
+// тіло запиту лягає сюди, смуга каже «не записалось», «Повторити» шле його
+// ще раз. Готування — єдиний автоматичний писач знаменника метрики; загубити
+// його мовчки означає загубити метрику рівно тоді, коли моргнула мережа.
+
+export interface UnsavedRun {
+  recipe: Recipe;
+  opts: { skip_pantry?: boolean; recipe_id?: string; session_id?: string; ask_writeoff?: boolean; servings?: number };
+  at: number;
+}
+
+const UNSAVED_KEY = 'kos-cook-unsaved';
+
+export function stashUnsavedRun(run: UnsavedRun): void {
+  try { localStorage.setItem(UNSAVED_KEY, JSON.stringify(run)); } catch { /* приватний режим — смуга живе лише до перезавантаження */ }
+}
+
+export function loadUnsavedRun(): UnsavedRun | null {
+  try {
+    const raw = localStorage.getItem(UNSAVED_KEY);
+    if (!raw) return null;
+    const run = JSON.parse(raw) as UnsavedRun;
+    return run && run.recipe && typeof run.at === 'number' ? run : null;
+  } catch { return null; }
+}
+
+export function clearUnsavedRun(): void {
+  try { localStorage.removeItem(UNSAVED_KEY); } catch { /* ок */ }
+}

@@ -8,13 +8,14 @@
 // полагодив). Смуга стоїть НАД колонкою й не зсуває стрічку стрибком: у неї
 // власна обгортка, а поява — 220 мс.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { registerIncidentSink } from '../../api';
+import { api, registerIncidentSink } from '../../api';
+import { clearUnsavedRun } from '../../lib/cook-session';
 import { useIncidentStore } from '../../store/incident';
 import { useAuth } from '../../store/auth';
 import { Strip } from './Strip';
-import { AUTH_STRIP, THROTTLED_STRIP, THROTTLED_BY_KIND, OFFLINE_STRIP } from './copy';
+import { COOK_UNSAVED_STRIP, AUTH_STRIP, THROTTLED_STRIP, THROTTLED_BY_KIND, OFFLINE_STRIP } from './copy';
 import styles from './IncidentStrips.module.css';
 
 /** Реєструє стор як приймач подій із api.req. Кличеться раз, у каркасі. */
@@ -51,9 +52,22 @@ export function IncidentStrips() {
   const offline = useIncidentStore((s) => s.offline) && !rowMounted;
   const clearThrottled = useIncidentStore((s) => s.clearThrottled);
   const setAuthExpired = useIncidentStore((s) => s.setAuthExpired);
+  const unsavedCook = useIncidentStore((s) => s.unsavedCook);
+  const setUnsavedCook = useIncidentStore((s) => s.setUnsavedCook);
+  const [retrying, setRetrying] = useState(false);
+  // Той самий запит, що не пройшов, — не новий: тіло взято зі сховку.
+  const retryCook = async () => {
+    if (!unsavedCook || retrying) return;
+    setRetrying(true);
+    try {
+      await api.cookRuns.save(unsavedCook.recipe, unsavedCook.opts);
+      clearUnsavedRun();
+      setUnsavedCook(null);
+    } catch { /* смуга лишається — стан не минув */ } finally { setRetrying(false); }
+  };
 
   const throttled = !rowMounted && throttledUntil !== null && throttledUntil > Date.now();
-  if (!authExpired && !throttled && !offline) return null;
+  if (!authExpired && !throttled && !offline && !unsavedCook) return null;
 
   return (
     <div className={styles.host} data-incident-strips>
@@ -90,6 +104,17 @@ export function IncidentStrips() {
             />
           );
         })()}
+        {unsavedCook && (
+          <Strip
+            kind="cook_unsaved"
+            kicker={COOK_UNSAVED_STRIP.kicker}
+            h1a={COOK_UNSAVED_STRIP.h1a}
+            h1b={COOK_UNSAVED_STRIP.h1b}
+            body={COOK_UNSAVED_STRIP.body}
+            cta={retrying ? 'Записую…' : COOK_UNSAVED_STRIP.cta}
+            onCta={() => void retryCook()}
+          />
+        )}
         {offline && (
           <Strip
             kicker={OFFLINE_STRIP.kicker}

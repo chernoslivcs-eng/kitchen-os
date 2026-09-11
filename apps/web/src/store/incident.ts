@@ -7,6 +7,7 @@
 //   офлайн — поки не повернулась мережа.
 
 import { create } from 'zustand';
+import { loadUnsavedRun, type UnsavedRun } from '../lib/cook-session';
 
 interface IncidentStore {
   /** Сесія протухла в живому запиті. Написане в полі НЕ чіпаємо — це обіцянка стану. */
@@ -27,12 +28,15 @@ interface IncidentStore {
    * Сесія лишається смугою скрізь: це не стан дії, а стан входу.
    */
   actionRowMounted: boolean;
+  /** Етап 5 (п.6): готування, яке не записалось, — смуга з «Повторити». */
+  unsavedCook: UnsavedRun | null;
 
   setAuthExpired: (v: boolean) => void;
   setThrottled: (seconds: number, kind?: string | null) => void;
   clearThrottled: () => void;
   setOffline: (v: boolean) => void;
   setActionRowMounted: (v: boolean) => void;
+  setUnsavedCook: (run: UnsavedRun | null) => void;
 }
 
 export const useIncidentStore = create<IncidentStore>((set, get) => ({
@@ -42,6 +46,7 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
   throttledKind: null,
   offline: false,
   actionRowMounted: false,
+  unsavedCook: loadUnsavedRun(),
 
   setAuthExpired: (authExpired) => set({ authExpired }),
   setThrottled: (seconds, kind = null) => {
@@ -54,4 +59,5 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
   clearThrottled: () => set({ throttledUntil: null, throttledFor: 0, throttledKind: null }),
   setOffline: (offline) => set({ offline }),
   setActionRowMounted: (actionRowMounted) => set({ actionRowMounted }),
+  setUnsavedCook: (unsavedCook) => set({ unsavedCook }),
 }));
