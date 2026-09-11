@@ -53,7 +53,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 12px;
+  /* 6b-2: рядок 48 (Screens «Комора · збірка»; tokens-v3 «Рядок списку 48 /
+     56 тач»). Був 67 — два яруси назви з відступами 11. */
+  min-height: 48px;
+  padding: 4px 12px;
   margin: 0 -12px;
   background: transparent;
   border-bottom: 1px solid var(--line);
@@ -77,8 +80,8 @@
   /* Клікабельний увесь рядок, не лише текст: кнопка тягнеться на висоту
      рядка, відступи рядка — її, а не контейнера (власник, 11.09). */
   align-self: stretch;
-  padding: 11px 0 11px 12px;
-  margin: -11px 0 -11px -12px;
+  padding: 4px 0 4px 12px;
+  margin: -4px 0 -4px -12px;
   background: transparent;
   border: 0;
   text-align: left;
@@ -615,3 +618,84 @@
   color: var(--ink); font: inherit; font-size: 13px; cursor: pointer;
 }
 .undo-told { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+
+/* ── 6b-2: шапка, чіпи зон, банер, сітка зон (Screens «Комора · збірка») ── */
+.search {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; width: 240px; padding: 0 12px;
+  border-radius: 10px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  color: var(--dim);
+}
+.search-input { flex: 1; min-width: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 14px; color: var(--ink); outline: 0; }
+.search-input::placeholder { color: var(--dim); }
+.head-icon {
+  position: relative; flex: none;
+  width: 36px; height: 36px; border: 0; border-radius: 50%;
+  background: var(--card); color: var(--muted); box-shadow: var(--sh-a), var(--sh-b);
+  display: grid; place-items: center; cursor: pointer;
+}
+.head-icon-on { color: var(--ink); }
+.head-badge { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--sage); }
+.head-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 12px;
+  border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); color: var(--ink);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  cursor: pointer;
+}
+.chip svg { color: var(--muted); }
+.chip-on { background: var(--ink); color: var(--bg); }
+.chip-on svg { color: inherit; }
+.chip-n { color: var(--dim); }
+.chip-on .chip-n { color: inherit; opacity: .6; }
+.chips-sort { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px 12px 12px;
+  border-radius: 14px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+}
+.banner-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--amber-bg); color: var(--amber); display: grid; place-items: center; }
+.banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.banner-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+.banner-sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.banner-main {
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px; border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg); font-family: var(--font-body); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.banner-ghost {
+  flex: none; height: 36px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 10px;
+  background: transparent; color: var(--ink); font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+/* Зони — дві колонки з 1024, три з 1920 (R0: макс. 1400). */
+.zone-grid { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 1024px) {
+  .zone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .zone-card { margin-bottom: 0; }
+}
+@media (min-width: 1920px) {
+  .zone-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .body { max-width: 1400px; }
+}
+@media (max-width: 767px) {
+  .search { width: 36px; padding: 0; justify-content: center; border-radius: 50%; }
+  .search-input { display: none; }
+  .head-add { width: 36px; padding: 0; justify-content: center; border-radius: 50%; }
+  .head-add-text { display: none; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -22px; padding: 0 22px; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chips-sort { display: none; }
+  .banner { flex-wrap: wrap; }
+  .banner-text { flex-basis: calc(100% - 48px); }
+  .row { min-height: 56px; }
+}

@@ -109,7 +109,8 @@
 .day {
   display: flex;
   gap: 12px;
-  min-height: 70px;
+  /* 6b-2, Screens D3b: порожній день 44, з подіями росте до ~64. */
+  min-height: 44px;
   cursor: cell;
 }
 /* Вибір днів під нову подію: тон акценту, без рамки — риски в жолобі
@@ -123,7 +124,7 @@
   min-width: 0;
   display: flex;
   gap: 12px;
-  padding: 12px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
 @media (min-width: 768px) { .day-inner { gap: 18px; } }

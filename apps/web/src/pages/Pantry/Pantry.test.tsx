@@ -49,6 +49,13 @@ async function mount() {
   await act(async () => { root!.render(<MemoryRouter><PantryPage /></MemoryRouter>); });
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 }
+// 6b-2: рейки порядку/тільки/стану — за кнопкою «Фільтр» (Prototype); тест
+// спершу її відкриває, якщо рейок ще нема.
+const openFilter = async () => {
+  if (!host!.querySelector('[data-testid="filter-rails"]')) {
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-filter-toggle]')!.click(); });
+  }
+};
 const word = (label: string) => [...host!.querySelectorAll<HTMLButtonElement>('[data-testid="filter-rails"] button')].find((x) => x.textContent === label)!;
 const click = async (el: HTMLElement) => { await act(async () => { el.click(); }); };
 const names = () => [...host!.querySelectorAll<HTMLElement>('[data-batch]')].map((x) => x.dataset.batch);
@@ -62,6 +69,7 @@ describe('PantryPage · фільтр', () => {
     await mount();
     expect(host!.querySelectorAll('[data-zone]').length).toBe(3);
     expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 позиції');
+    await openFilter();
     await click(word('за жирністю'));
     expect(host!.querySelectorAll('[data-zone]').length).toBe(0);
     expect(host!.querySelector('[data-testid="flat-list"]')).not.toBeNull();
@@ -138,6 +146,7 @@ describe('PantryPage · фільтр', () => {
 
   it('«стан»: третій приглушений і не вмикається; «тільки» — один; «скинути» повертає групи', async () => {
     await mount();
+    await openFilter();
     await click(word('скоро зіпсується'));
     await click(word('з останнього чека'));
     const third = word('не їм / не можна');

@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
-import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
+import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, applyFilter, toggleKind, toggleState, stateFull, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +35,9 @@ export function PantryPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
+  // 6b-2: рейки фільтра — за кнопкою «Фільтр»; чіп зони звужує до однієї зони.
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [zoneFocus, setZoneFocus] = useState<PantryBatch['zone'] | null>(null);
   const [filter, setFilter] = useState<FilterState>(INITIAL);
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
   const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
@@ -194,6 +197,9 @@ export function PantryPage() {
   const productsById = new Map(products.map((p) => [p.id, p]));
   const view = applyFilter(batches, filter, { productsById, receiptAt: lastReceiptAt });
   const q = filter.q.trim().toLowerCase();
+  // Банер: партії, чий розрахунок за каталогом скінчився — у рядку це «−N дн»
+  // тоном danger (домен: timeWord); банер називає їх словом бандла.
+  const ended = (view.grouped ? view.groups.flatMap((g) => g.items) : view.list).filter((r) => r.timeTone === 'danger');
 
   const renderRow = (r: RowView, flat: boolean) => {
     const b = r.it;
@@ -248,48 +254,54 @@ export function PantryPage() {
           action={{ label: PANTRY_FAILED.cta, run: () => void refresh() }}
         />
       )}
+      {/* 6b-2, Screens «Комора · збірка» / «мобайл»: шапка — h1, лічильник,
+          пошук 240 на card (на 390 — знаком, розкриває поле), фільтр знаком
+          у колі, «Додати» чорнилом. Рейки порядку/тільки/стану — у картці за
+          «Фільтр» (Prototype), не завжди на екрані. */}
       <AppHeader title="Комора" onMenu={() => openNav(true)} action={<>
-          <button
-            onClick={() => setAdding(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--line2)',
-              borderRadius: 'var(--r-pill)',
-              padding: '5px 12px',
-              color: 'var(--muted)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            + Додати
-          </button>
           {/* QA6-12: під час пошуку лічильник показував загальну кількість —
               «9 ПОЗИЦІЙ» при одній видимій. Крок Ф1: те саме для фільтра — «12 З 61». */}
           <div className={styles.meta} data-testid="pantry-meta">{view.meta}</div>
+          {batches.length > 0 && (
+            <label className={styles.search}>
+              <Icon name="sys.search" size={16} inherit decorative />
+              <input
+                value={filter.q}
+                onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+                placeholder="Продукт або категорія"
+                aria-label="Знайти в коморі"
+                className={styles['search-input']}
+              />
+            </label>
+          )}
+          {batches.length > 0 && (
+            <button type="button" className={`${styles['head-icon']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`}
+              onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-toggle>
+              <Icon name="sys.filter" size={16} inherit decorative />
+              {view.dirty && <span className={styles['head-badge']} aria-hidden />}
+            </button>
+          )}
+          <button type="button" className={styles['head-add']} onClick={() => setAdding(true)} data-add>
+            <Icon name="sys.add" size={16} inherit decorative /><span className={styles['head-add-text']}>Додати</span>
+          </button>
       </>} />
 
       <div className={styles.body}>
-        {batches.length > 0 && (
-          <input
-            value={filter.q}
-            onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
-            placeholder="Знайти в коморі — продукт або категорію: «сир», «овочі»"
-            aria-label="Знайти в коморі"
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              background: 'var(--bg)',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--r)',
-              color: 'var(--ink)',
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              marginBottom: 4,
-            }}
-          />
+        {batches.length > 0 && view.grouped && (
+          /* Чіпи зон (Screens): «Усе» чорнилом, решта на card зі знаком і
+             лічильником; праворуч — слово порядку. Чіп звужує до однієї зони. */
+          <div className={styles.chips} data-zone-chips>
+            <button type="button" className={`${styles.chip} ${zoneFocus === null ? styles['chip-on'] : ''}`} onClick={() => setZoneFocus(null)}>Усе</button>
+            {view.groups.map((g) => (
+              <button key={g.zone} type="button" className={`${styles.chip} ${zoneFocus === g.zone ? styles['chip-on'] : ''}`}
+                onClick={() => setZoneFocus((z) => (z === g.zone ? null : g.zone))} data-zone-chip={g.zone}>
+                <Icon name={ZONE_ICON[g.zone] as 'zone.fresh'} size={16} inherit decorative />{g.label}<span className={styles['chip-n']}>{g.count}</span>
+              </button>
+            ))}
+            <span className={styles['chips-sort']}><Icon name="sys.sort" size={16} inherit decorative />{SORTS.find((o) => o.key === filter.sort)?.label ?? 'за місцем'}</span>
+          </div>
         )}
-        {batches.length > 0 && (
+        {batches.length > 0 && filterOpen && (
           <FilterRails
             view={view}
             state={filter}
@@ -298,6 +310,24 @@ export function PantryPage() {
             onState={(k) => { trackFilter({ state: k }); setFilter((f) => toggleState(f, k)); }}
             onReset={() => setFilter((f) => resetFilter(f))}
           />
+        )}
+        {!loading && ended.length > 0 && (
+          /* Банер (Screens «Комора · збірка»): «N розрахунків скінчились» —
+             партії, чий строк за каталогом минув. Дві дії: приготувати з
+             цього (чат) і перевірити (зріз «скоро зіпсується»). */
+          <div className={styles.banner} data-ended-banner>
+            <span className={styles['banner-icon']}><Icon name="live.burning" size={16} inherit decorative /></span>
+            <span className={styles['banner-text']}>
+              <span className={styles['banner-title']}>{ended.length} {plural(ended.length, ['розрахунок скінчився', 'розрахунки скінчились', 'розрахунків скінчились'])}</span>
+              <span className={styles['banner-sub']}>{ended.slice(0, 3).map((r) => r.name).join(' · ')}{ended.length > 3 ? ' · …' : ''}</span>
+            </span>
+            <button type="button" className={styles['banner-main']} onClick={() => navigate('/app', { state: { composePrefix: 'Приготуй щось із того, що горить: ' } })}>
+              <Icon name="cook.go" size={16} inherit decorative />Приготувати з цього
+            </button>
+            <button type="button" className={styles['banner-ghost']} onClick={() => { setFilter((f) => (stateFull(f, 'soon') ? f : toggleState(f, 'soon'))); setFilterOpen(true); }}>
+              Перевірити {ended.length}
+            </button>
+          </div>
         )}
         {loading && <SkeletonRows rows={5} />}
         {!loading && batches.length === 0 && (
@@ -323,7 +353,8 @@ export function PantryPage() {
           </div>
         )}
 
-        {view.grouped && view.groups.map((g) => (
+        <div className={styles['zone-grid']}>
+        {view.grouped && view.groups.filter((g) => !zoneFocus || g.zone === zoneFocus).map((g) => (
           <div key={g.zone} data-zone={g.zone} className={styles['zone-card']}>
             {/* Хедер зони як у бандлі: заливка чорнилом, текст bg, 44 px, знак 16,
                 назва 14/600, лічильник 12 на opacity .7 (бандл .6 — у темній це
@@ -336,6 +367,7 @@ export function PantryPage() {
             {g.items.map((r) => renderRow(r, false))}
           </div>
         ))}
+        </div>
 
         {!view.grouped && !view.empty && view.list.length > 0 && (
           <div className={styles.flat} data-testid="flat-list">
