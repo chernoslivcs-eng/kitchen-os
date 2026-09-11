@@ -7,8 +7,10 @@
  *             зсувається, не перекривається (R1); вміст сайдбара — Prototype nav
  *   >=1920    сайдбар за замовчуванням (store/nav.ts)
  *
- * Кнопка «панель» одна на всі контейнери: вгорі рейки під логотипом (1440, 768),
- * праворуч від вордмарка в сайдбарі й шухляді; на 390 — у шапці чату (ChatHead).
+ * Кнопка «панель» одна на всі контейнери — №13 (рішення власника): унизу,
+ * праворуч у рядку профілю (сайдбар, шухляда), у рейці — над аватаром; на
+ * 390 — ще й у шапці чату (ChatHead). №14: наведення на рейку ≥1024 —
+ * сайдбар оверлеєм (.peek), клік по кнопці — закріплено (body.nav-expanded).
  */
 .backdrop {
   position: fixed;
@@ -44,7 +46,7 @@
   transition: transform var(--dur-base) var(--ease-enter), width var(--dur-base) var(--ease-enter);
 }
 
-/* Шапка: логотип 32 · «Kitchen OS» 17/700 (OS шавлією) · «панель» 36 card+sh r10. */
+/* Шапка: логотип 32 · «Kitchen OS» 17/700 (OS шавлією). */
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 14px; }
 .brand-name {
   font-family: var(--font-body);
@@ -59,7 +61,6 @@
   flex: none;
   width: 36px;
   height: 36px;
-  margin-left: auto;
   display: grid;
   place-items: center;
   border: 0;
@@ -178,15 +179,18 @@
 /* Групи по днях: 11 dim (Prototype), перша 6 12 2, далі 10 12 2. */
 .session-day { font-family: var(--font-body); font-size: 11px; color: var(--dim); padding: 10px 12px 2px; }
 .session-row:first-of-type .session-day { padding-top: 6px; }
-.session-row { position: relative; }
-.session-row .session { width: 100%; }
-/* Рядок розмови всюди один (G1): назва 14 + стан/час 12; 8 12, r10;
-   активна — card+sh (Prototype), назва чорнилом; решта — назва muted. */
+/* №18: рядок = кнопка розмови + постійний слот хрестика 28 по центру
+   (opacity, не display) — висота рядка від нього не залежить, нічого не скаче. */
+.session-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px; }
+.session-row .session-day { flex-basis: 100%; }
+.session-row .session { flex: 1 1 0; min-width: 0; }
+/* Рядок розмови всюди один (G1): назва 14; другий рядок лише зі станом (№19 —
+   час знято); 8 12, r10; активна — card+sh (Prototype), назва чорнилом. */
 .session {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  width: 100%;
+  min-height: 36px;
   padding: 8px 12px;
   border: 0;
   border-radius: 10px;
@@ -207,19 +211,18 @@
   text-overflow: ellipsis;
 }
 .session.active .session-title { color: var(--ink); font-weight: 500; }
-.session-when { font-family: var(--font-body); font-size: 12px; color: var(--dim); }
 .session-x {
-  position: absolute;
-  top: 50%; right: 4px;
-  transform: translateY(-50%);
-  width: 26px; height: 26px;
+  flex: none;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
   border: 0; border-radius: 8px;
   background: transparent;
   color: var(--dim);
   cursor: pointer;
   opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-standard);
 }
-.session-row:hover .session-x { opacity: 1; }
+.session-row:hover .session-x, .session-x:focus-visible { opacity: 1; }
 .session-x:hover { background: var(--line); color: var(--ink); }
 /* «Історія →» — вхід до архіву розмов; у кадрах його нема (DEVIATIONS Р8x). */
 .session-archive {
@@ -237,7 +240,10 @@
 }
 .session-archive:hover { background: var(--line); color: var(--ink); }
 
-/* Рядок профілю (R2/R3): 48, 0 8, аватар 32, імʼя 14/500, «дім · N» 12 dim, шеврон. */
+/* Низ (№13): рядок профілю · кнопка «панель». У рейці — стовпчиком, кнопка над аватаром. */
+.foot { display: flex; align-items: center; gap: 6px; }
+.foot .user { flex: 1 1 0; min-width: 0; }
+/* Рядок профілю (R2/R3): 48, 0 8, аватар 32, імʼя 14/500, «дім · N» 12 dim; увесь рядок — у профіль. */
 .user {
   display: flex;
   align-items: center;
@@ -270,7 +276,6 @@
 .user-name { font-size: 14px; font-weight: 500; line-height: 1.2; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-home { font-size: 12px; line-height: 1.2; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-home-tail { display: none; }
-.user-chev { color: var(--dim); flex: none; }
 
 /* ── 390 (R3): у шухляді лише розмови, нова, профіль; цілі — в барі ── */
 @media (max-width: 767px) {
@@ -309,7 +314,8 @@
   .brand { flex-direction: column; align-items: center; gap: 0; padding: 0 0 0; }
   .brand-btn { width: 30px; height: 30px; margin-bottom: 6px; }
   .brand-name { display: none; }
-  .panel-btn { width: 38px; height: 38px; margin: 0 0 4px; }
+  .foot { flex-direction: column-reverse; gap: 8px; }
+  .panel-btn { width: 38px; height: 38px; }
   .sessions { display: none; }
   .scroll { scrollbar-gutter: auto; }
   .tab {
@@ -333,8 +339,8 @@
     line-height: 16px;
     font-size: 10px;
   }
-  .user { width: 38px; min-height: 38px; padding: 0; justify-content: center; border-radius: 10px; }
-  .user-text, .user-chev { display: none; }
+  .user { width: 38px; min-height: 38px; padding: 0; justify-content: center; border-radius: 10px; flex: none; }
+  .user-text { display: none; }
   .user-avatar { width: 30px; height: 30px; }
 }
 
@@ -343,46 +349,49 @@
    цілі 40 r10, 0 10, gap 12, знак 18, 14/500; «Розмови · + Нова» 18 10 6;
    групи 11 dim; рядки 8 10 r10; профіль над волосиною: аватар 30, 13/500 + 11 dim. */
 @media (min-width: 1024px) {
-  :global(body.nav-expanded) .wrap {
+  .wrap.wide {
     width: 256px;
     padding: 16px 12px;
     align-items: stretch;
     gap: 2px;
   }
-  :global(body.nav-expanded) .brand { flex-direction: row; gap: 10px; padding: 0 8px 14px; }
-  :global(body.nav-expanded) .brand-btn { margin-bottom: 0; }
-  :global(body.nav-expanded) .brand-name { display: inline; }
-  :global(body.nav-expanded) .panel-btn { width: 36px; height: 36px; margin: 0 0 0 auto; }
-  :global(body.nav-expanded) .sessions { display: flex; }
-  :global(body.nav-expanded) .scroll { scrollbar-gutter: stable; }
-  :global(body.nav-expanded) .tab {
+  /* №14: оверлей із наведення — поверх контенту, з тінню шухляди; закріплений
+     (body.nav-expanded) — у потоці, контент зсувається (tokens.css). */
+  .wrap.peek { z-index: 30; box-shadow: var(--sh2); border-right: 0; }
+  .wide .brand { flex-direction: row; gap: 10px; padding: 0 8px 14px; }
+  .wide .brand-btn { margin-bottom: 0; }
+  .wide .brand-name { display: inline; }
+  .wide .foot { flex-direction: row; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line2); }
+  .wide .panel-btn { width: 36px; height: 36px; }
+  .wide .sessions { display: flex; }
+  .wide .scroll { scrollbar-gutter: stable; }
+  .wide .tab {
     width: auto;
     height: 40px;
     padding: 0 10px;
     justify-content: flex-start;
     gap: 12px;
   }
-  :global(body.nav-expanded) .tab > span:nth-child(2) { display: inline; }
-  :global(body.nav-expanded) .tab-dot { display: none; }
-  :global(body.nav-expanded) .tab-count { display: inline; }
-  :global(body.nav-expanded) .badge { position: static; margin-left: auto; height: 18px; min-width: 18px; line-height: 18px; padding: 0 5px; font-size: 11px; }
-  :global(body.nav-expanded) .sessions-head { padding: 18px 10px 6px; }
-  :global(body.nav-expanded) .session-day { padding-left: 10px; padding-right: 10px; }
-  :global(body.nav-expanded) .session { padding: 8px 10px; }
-  :global(body.nav-expanded) .session-archive { padding: 8px 10px; }
-  :global(body.nav-expanded) .user {
+  .wide .tab > span:nth-child(2) { display: inline; }
+  .wide .tab-dot { display: none; }
+  .wide .tab-count { display: inline; }
+  .wide .badge { position: static; margin-left: auto; height: 18px; min-width: 18px; line-height: 18px; padding: 0 5px; font-size: 11px; }
+  .wide .sessions-head { padding: 18px 10px 6px; }
+  .wide .session-day { padding-left: 10px; padding-right: 10px; }
+  .wide .session { padding: 8px 10px; }
+  .wide .session-archive { padding: 8px 10px; }
+  .wide .user {
     width: auto;
-    min-height: 0;
-    padding: 12px 8px 0;
+    min-height: 44px;
+    padding: 0 8px;
     justify-content: flex-start;
-    border-radius: 0;
-    border-top: 1px solid var(--line2);
+    border-radius: 10px;
+    flex: 1 1 0;
   }
-  :global(body.nav-expanded) .user:hover { background: transparent; }
-  :global(body.nav-expanded) .user-text, :global(body.nav-expanded) .user-chev { display: flex; }
-  :global(body.nav-expanded) .user-avatar { width: 30px; height: 30px; }
-  :global(body.nav-expanded) .user-name { font-size: 13px; }
-  :global(body.nav-expanded) .user-home { font-size: 11px; }
+  .wide .user-text { display: flex; }
+  .wide .user-avatar { width: 30px; height: 30px; }
+  .wide .user-name { font-size: 13px; }
+  .wide .user-home { font-size: 11px; }
 }
 
 /* ── 768–1023 (R2): рейка 64 стоїть; кнопка «панель» розсуває шухляду 300 поверх ── */
@@ -403,7 +412,8 @@
   .wrap.open .brand { flex-direction: row; gap: 10px; padding: 0 8px 14px; }
   .wrap.open .brand-btn { margin-bottom: 0; }
   .wrap.open .brand-name { display: inline; }
-  .wrap.open .panel-btn { width: 36px; height: 36px; margin: 0 0 0 auto; }
+  .wrap.open .foot { flex-direction: row; gap: 6px; }
+  .wrap.open .panel-btn { width: 36px; height: 36px; }
   .wrap.open .sessions { display: flex; }
   .wrap.open .scroll { scrollbar-gutter: stable; }
   .wrap.open .tab {
@@ -417,8 +427,8 @@
   .wrap.open .tab-dot { display: none; }
   .wrap.open .tab-count { display: inline; }
   .wrap.open .badge { position: static; margin-left: auto; height: 20px; min-width: 20px; line-height: 20px; padding: 0 6px; font-size: 11px; }
-  .wrap.open .user { width: auto; min-height: 48px; padding: 0 8px; justify-content: flex-start; border-radius: 12px; }
-  .wrap.open .user-text, .wrap.open .user-chev { display: flex; }
+  .wrap.open .user { width: auto; min-height: 48px; padding: 0 8px; justify-content: flex-start; border-radius: 12px; flex: 1 1 0; }
+  .wrap.open .user-text { display: flex; }
   .wrap.open .user-avatar { width: 32px; height: 32px; }
 }
 

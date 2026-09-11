@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo } from '../../api';
@@ -13,13 +13,11 @@ import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icons';
 import { useNavStore } from '../../store/nav';
 
-// Правка №1: підпис сесії в сайдбарі — «дата · час · запит». Дата/час із
-// created_at, запит — назва сесії (перша репліка або назва рецепта).
-/* Рядок розмови всюди один (G1): назва + стан другим рядком; день — у групі. */
-function sessionLabel(s: SessionInfo): { when: string; title: string } {
-  const d = new Date(s.created_at);
-  const when = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return { when, title: s.title ?? 'без назви' };
+/* Рядок розмови всюди один (G1): назва; другий рядок — лише стан («чекає
+   рішення»), якого TabBar не знає (Р81). №19: час під назвою знято — день
+   уже каже група; «HH:MM» нічого не додавав. */
+function sessionLabel(s: SessionInfo): { title: string } {
+  return { title: s.title ?? 'без назви' };
 }
 
 interface TabDef {
@@ -32,6 +30,9 @@ interface TabDef {
 interface Props {
   shoppingCount?: number;
 }
+
+/** №14: затримка згортання оверлея після відходу курсора — проти мигання. */
+export const PEEK_LEAVE_MS = 150;
 
 // Пул-7 №6: TabBar живе в каркасі й сам знає лічильник списку.
 let shoppingCountCache: { value: number; at: number } | null = null;
@@ -52,6 +53,27 @@ export function TabBar({ shoppingCount }: Props) {
     document.body.classList.toggle('nav-expanded', expanded);
     return () => document.body.classList.remove('nav-expanded');
   }, [expanded]);
+  // №14 (рішення власника, зразок — сайдбар чату Claude): наведення на рейку
+  // ≥1024 розгортає сайдбар ОВЕРЛЕЄМ — нічого не зсуває, зникає з відходом
+  // курсора з затримкою 150 мс (проти мигання). Лише для вказівника: на
+  // дотику — тап по кнопці. Клік по кнопці (№13) закріплює: сайдбар стає в
+  // потік і зсуває контент (R1), стан памʼятається (store/nav.ts).
+  const [peek, setPeek] = useState(false);
+  const peekTimer = useRef<number | null>(null);
+  const clearPeekTimer = () => { if (peekTimer.current != null) { window.clearTimeout(peekTimer.current); peekTimer.current = null; } };
+  const finePointer = () => typeof window.matchMedia === 'function' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const onRailEnter = () => {
+    if (expanded || window.innerWidth < 1024 || !finePointer()) return;
+    clearPeekTimer();
+    setPeek(true);
+  };
+  const onRailLeave = () => {
+    clearPeekTimer();
+    peekTimer.current = window.setTimeout(() => setPeek(false), PEEK_LEAVE_MS);
+  };
+  useEffect(() => { clearPeekTimer(); setPeek(false); }, [pathname, expanded]);
+  useEffect(() => clearPeekTimer, []);
+  const wide = expanded || peek;
 
   useEffect(() => {
     if (!open) return;
@@ -170,12 +192,12 @@ export function TabBar({ shoppingCount }: Props) {
         onClick={() => setOpen(false)}
         aria-hidden="true"
       />
-    <div className={`${styles.wrap} ${open ? styles.open : ''}`} data-nav>
+    <div className={`${styles.wrap} ${open ? styles.open : ''} ${wide ? styles.wide : ''} ${peek ? styles.peek : ''}`} data-nav
+      data-peek={peek || undefined} onPointerEnter={onRailEnter} onPointerLeave={onRailLeave}>
       {/* Д01: знак + вордмарк угорі сайдбара. На мобільному приховано. */}
       <div className={styles.brand}>
         {/* Prototype nav: логотип у рейці теж розгортає (30, коло). Кнопка
-            «панель» (R1: одна на всі три контейнери) стоїть під логотипом у
-            рейці й праворуч від вордмарка в сайдбарі/шухляді. */}
+            «панель» — унизу, в рядку профілю (№13). */}
         <button type="button" className={styles['brand-btn']}
           onClick={() => { if (window.innerWidth >= 1024) toggleExpanded(); else setOpen(!open); }}
           aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
@@ -183,15 +205,6 @@ export function TabBar({ shoppingCount }: Props) {
           <Logo size={26} />
         </button>
         <span className={styles['brand-name']}>Kitchen<span className={styles['brand-os']}> OS</span></span>
-        {/* Одна кнопка «панель» на всі контейнери (Responsive R1): у рейці
-            ≥1024 розгортає сайдбар, у сайдбарі — згортає; у рейці 768–1023
-            розсуває шухляду; у шухляді — закриває її. */}
-        <button type="button" className={styles['panel-btn']}
-          onClick={() => { if (window.innerWidth >= 1024) toggleExpanded(); else setOpen(!open); }}
-          aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
-          title={expanded || open ? 'Згорнути' : 'Розгорнути'} data-panel-btn>
-          <Icon name={expanded || open ? 'sys.collapse' : 'sys.expand'} size={18} inherit decorative />
-        </button>
       </div>
 
       {/* Крок С1: усе між брендом і профілем — одна скрольована стрічка.
@@ -238,7 +251,7 @@ export function TabBar({ shoppingCount }: Props) {
           <Icon name="sys.add" size={16} inherit decorative /> Нова розмова
         </button>
         {sessions.map((s, i) => {
-          const { when, title } = sessionLabel(s);
+          const { title } = sessionLabel(s);
           const day = dayLabel(s.day);
           const first = i === 0 || sessions[i - 1]!.day !== s.day;
           return (
@@ -247,15 +260,17 @@ export function TabBar({ shoppingCount }: Props) {
               <button
                 className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`}
                 onClick={() => openSession(s.id)}
-                title={`${when} · ${title}`}
+                title={title}
               >
                 <span className={styles['session-title']}>{title}</span>
-                <span className={styles['session-when']}>{when}</span>
               </button>
+              {/* №18: слот 28 існує завжди (opacity, не display) — рядок не
+                  скаче, хрестик по центру рядка. */}
               <button
                 className={styles['session-x']}
                 aria-label={`Видалити розмову «${title}»`}
                 onClick={(e) => void removeSession(e, s.id, s.title)}
+                tabIndex={-1}
               ><Icon name="sys.close" size={16} inherit /></button>
             </div>
           );
@@ -269,20 +284,30 @@ export function TabBar({ shoppingCount }: Props) {
       {/* Д01: блок користувача внизу; активний, коли відкрито профіль.
           Спейсера тут більше немає: висоту забирає скрольований блок вище
           (flex: 1), і другий flex-жадібний сусід ділив би вільне місце з ним
-          навпіл — половина колонки лишалась би порожньою. */}
-      <button
-        className={`${styles.user} ${pathname === '/profile' ? styles.active : ''}`}
-        onClick={() => navigate('/profile')}
-      >
-        <span className={styles['user-avatar']}>{initial}</span>
-        <span className={styles['user-text']}>
-          <span className={styles['user-name']}>{meName ?? 'Профіль'}</span>
-          {homeLine && <span className={styles['user-home']}>{homeLine}<span className={styles['user-home-tail']}> · профіль</span></span>}
-        </span>
-        {/* Prototype малює settings-2; у словнику такого знака нема, а
-            system-знак тягне запис у спільний motion.ts — тож шеврон, як у R3. */}
-        <Icon name="sys.next" size={16} inherit decorative className={styles['user-chev']} />
-      </button>
+          навпіл — половина колонки лишалась би порожньою.
+          №13 (рішення власника, відхилення від Prototype nav / R1): рядок
+          профілю = аватар · імʼя · дім, увесь рядок веде в профіль, шеврона
+          нема; кнопка «панель» 36 r10 — праворуч у цьому рядку; у рейці — та
+          сама кнопка внизу над аватаром. */}
+      <div className={styles.foot}>
+        <button
+          className={`${styles.user} ${pathname === '/profile' ? styles.active : ''}`}
+          onClick={() => navigate('/profile')}
+          aria-label="Профіль"
+        >
+          <span className={styles['user-avatar']}>{initial}</span>
+          <span className={styles['user-text']}>
+            <span className={styles['user-name']}>{meName ?? 'Профіль'}</span>
+            {homeLine && <span className={styles['user-home']}>{homeLine}<span className={styles['user-home-tail']}> · профіль</span></span>}
+          </span>
+        </button>
+        <button type="button" className={styles['panel-btn']}
+          onClick={() => { if (window.innerWidth >= 1024) { clearPeekTimer(); setPeek(false); toggleExpanded(); } else setOpen(!open); }}
+          aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
+          title={expanded || open ? 'Згорнути' : 'Закріпити'} data-panel-btn>
+          <Icon name={expanded || open ? 'sys.collapse' : 'sys.expand'} size={18} inherit decorative />
+        </button>
+      </div>
     </div>
       {/* Етап 6a, Screens D5 · 390: нижній бар із пʼяти цілей (закриває ⚠6).
           Ховається, поки композитор у фокусі й поки відкрита шторка —

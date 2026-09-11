@@ -181,10 +181,74 @@ describe('оболонка 6a', () => {
     expect(bar.textContent).toContain('3');
   });
 
-  it('CSS: бар ховається за body.composer-focused і body.sheet-open; сайдбар 256 за nav-expanded', () => {
+  it('CSS: бар ховається за body.composer-focused і body.sheet-open; сайдбар 256 за .wide (закріплено чи оверлей)', () => {
     const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'TabBar.module.css'), 'utf8');
     expect(css).toMatch(/body\.composer-focused\)\s*\.bar,?\s*\n?\s*:global\(body\.sheet-open\)\s*\.bar\s*\{\s*transform: translateY/);
-    expect(css).toMatch(/:global\(body\.nav-expanded\) \.wrap \{\s*width: 256px/);
+    // №14: розкладку 256 несе клас .wide (закріплено АБО оверлей з наведення);
+    // зсув контенту — body.nav-expanded у tokens.css.
+    expect(css).toMatch(/\.wrap\.wide \{\s*width: 256px/);
+    expect(css).toMatch(/\.wrap\.peek \{[^}]*z-index: 30/);
     expect(css).toMatch(/\.wrap \{[^}]*width: 60px/);
+  });
+});
+
+// FIXES-V3 №13 · №14 · №18 · №19 (рішення власника).
+describe('пакет правок 1 · сайдбар', () => {
+  const fine = (on: boolean) => vi.stubGlobal('matchMedia', vi.fn((q: string) => ({ matches: on && q.includes('pointer: fine'), addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+
+  it('№13: кнопка «панель» стоїть у низу поруч із рядком профілю, шеврона в рядку нема, весь рядок веде в профіль', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    await mount();
+    const btn = host!.querySelector('[data-panel-btn]')!;
+    const user = host!.querySelector('[aria-label="Профіль"]')!;
+    expect(btn.parentElement).toBe(user.parentElement);
+    expect(user.querySelector('[data-icon="sys.next"]')).toBeNull();
+    expect(host!.querySelector('[data-nav] > div:first-child [data-panel-btn]'), 'у шапці кнопки нема').toBeNull();
+  });
+
+  it('№14: наведення на рейку (вказівник) — оверлей data-peek без body.nav-expanded; відхід — зникає за 150 мс; клік по кнопці — закріплює', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    fine(true);
+    vi.useFakeTimers();
+    await mount();
+    const nav = host!.querySelector<HTMLElement>('[data-nav]')!;
+    // React синтезує enter/leave з pointerover/pointerout.
+    const enter = () => nav.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, relatedTarget: document.body }));
+    const leave = () => nav.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, relatedTarget: document.body }));
+    await act(async () => { enter(); });
+    expect(nav.dataset.peek).toBe('true');
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+    await act(async () => { leave(); });
+    await act(async () => { vi.advanceTimersByTime(100); });
+    expect(nav.dataset.peek, 'ще не зник — затримка проти мигання').toBe('true');
+    await act(async () => { vi.advanceTimersByTime(80); });
+    expect(nav.dataset.peek).toBeUndefined();
+    await act(async () => { enter(); });
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-panel-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded'), 'закріплено').toBe(true);
+    expect(nav.dataset.peek).toBeUndefined();
+    vi.useRealTimers();
+  });
+
+  it('№14: на дотику наведення нічого не розгортає', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    fine(false);
+    await mount();
+    const nav = host!.querySelector<HTMLElement>('[data-nav]')!;
+    await act(async () => { nav.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, relatedTarget: document.body })); });
+    expect(nav.dataset.peek).toBeUndefined();
+  });
+
+  it('№18 · №19: рядок розмови — назва без часу; хрестик — постійний слот у рядку', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    await mount();
+    const x = host!.querySelector<HTMLElement>('[data-nav] button[aria-label^="Видалити"]')!;
+    const row = x.previousElementSibling!;
+    expect(row.textContent).not.toMatch(/\d{2}:\d{2}/);
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'TabBar.module.css'), 'utf8');
+    const xRule = css.slice(css.indexOf('.session-x {'), css.indexOf('}', css.indexOf('.session-x {')));
+    expect(xRule).not.toMatch(/position: absolute/);
+    expect(xRule).toMatch(/width: 28px; height: 28px/);
+    expect(css).not.toMatch(/session-when/);
   });
 });
