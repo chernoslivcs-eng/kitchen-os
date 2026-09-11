@@ -641,6 +641,13 @@ a.att-chip:hover { border-color: var(--sage); }
   animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite;
 }
 
+/* №28: хід очікування у стрічці — дієслово 14 muted · три живі крапки ·
+   час 13 dim tabular; другий рядок після 45 с — 13 dim. */
+.wait-turn { gap: 4px; }
+.wait-row { display: flex; align-items: center; gap: 10px; min-height: 24px; }
+.wait-verb { font-family: var(--font-body); font-size: 14px; color: var(--muted); }
+.wait-clock { font-family: var(--font-body); font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.wait-long { font-family: var(--font-body); font-size: 13px; color: var(--dim); }
 /* DA-02: «система думає» — 3 крапки, 1.2s, stagger 150ms (Моушн-кіт §02).
    При reduced motion --dur-breathe = 0 і крапки просто стоять. */
 .thinking {

@@ -13,6 +13,7 @@
 // --path · --width · --height · --email · --log · --click · --init-storage ·
 // --stub-json · --stub-messages · --stub-rest · --app-sel · --full · --reduce ·
 // --stub-any prefix=STATUS  будь-який метод за префіксом шляху (POST теж) — «не записалось»
+// --slow prefix=MS  затримати відповідь за префіксом (стан «думаю»)
 // --scale — те саме, що в side-by-side.mjs (див. там)
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --click-after / --actions-after  те саме, але лише на половині «стало»
@@ -139,6 +140,14 @@ async function shoot(base, theme, side) {
     for (const pair of stubAny.split(';')) {
       const i = pair.indexOf('='); const prefix = pair.slice(0, i).trim(); const val = pair.slice(i + 1).trim();
       await page.route((u) => u.pathname.startsWith(prefix), (route) => val === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(val), contentType: 'application/json', body: '{"error":"stub"}' }));
+    }
+  }
+  // --slow prefix=MS — затримати відповідь (стан «думаю» у кадрі/записі).
+  const slow = arg('slow', null);
+  if (slow) {
+    for (const pair of slow.split(';')) {
+      const i = pair.indexOf('='); const prefix = pair.slice(0, i).trim(); const ms = Number(pair.slice(i + 1));
+      await page.route((u) => u.pathname.startsWith(prefix), async (route) => { await new Promise((r) => setTimeout(r, ms)); await route.continue().catch(() => {}); });
     }
   }
   const stubFile = arg('stub-messages', null);

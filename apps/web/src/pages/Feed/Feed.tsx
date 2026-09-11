@@ -693,7 +693,7 @@ export function Feed() {
     const el = timelineRef.current;
     if (!el) return;
     requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
-  }, [turns]);
+  }, [turns, sending]);
 
   // Keyboard shortcuts на десктопі:
   //   Ctrl+K / Cmd+K — фокус у композитор (як у Slack/Linear/Notion — універсальний
@@ -1680,6 +1680,23 @@ export function Feed() {
           </div>
         ))}
 
+        {/* №28 (рішення власника, відхилення від Responsive D3 «словом, не
+            крапками»): «думаю» — у стрічці, на місці майбутньої відповіді:
+            дієслово того, що реально йде під капотом («Думаю» / «Розбираю» —
+            вкладення), три живі крапки, справжній час; після 45 с — «Довгий
+            чек, ще тримаю» / «Ще тримаю». «Стоп» — лише в слоті композитора. */}
+        {!historyOpen && sending && (
+          <div className={`${styles.turn} ${styles['wait-turn']}`} data-wait-turn aria-live="polite">
+            <div className={styles['wait-row']} data-wait>
+              <span className={styles['wait-verb']}>{thinkingVerb === 'РОЗБИРАЮ' ? 'Розбираю' : 'Думаю'}</span>
+              <span className={styles.thinking} aria-hidden><span /><span /><span /></span>
+              <span className={styles['wait-clock']}>{clock(waited)}</span>
+            </div>
+            {waited >= LONG_WAIT_S && (
+              <div className={styles['wait-long']} data-wait-long>{thinkingVerb === 'РОЗБИРАЮ' ? 'Довгий чек, ще тримаю' : 'Ще тримаю'}</div>
+            )}
+          </div>
+        )}
         {!historyOpen && drag && (
           /* Кухня відповідає ходом, як на будь-що інше: картка стоїть у кінці
              стрічки, над композитором, і зникає, щойно файл відпустили. */
@@ -1700,17 +1717,17 @@ export function Feed() {
             довгого очікування, але одним рядком, у якому живуть і ліміт, і
             мережа, і «нічого не змінилось». Ліміт ≠ мережа ≠ нічого: три
             знаки, три слова, три різні дії від людини. */}
+        {/* №28: «думаю» тут більше нема — він у стрічці; рядок лишається для
+            ліміту · мережі · «нічого не змінилось» · конфлікту. */}
         {!historyOpen && (
           <ActionState
-            sending={sending}
+            sending={false}
             waited={waited}
-            parsing={thinkingVerb === 'РОЗБИРАЮ'}
+            parsing={false}
             nothingChanged={nothingChanged}
             cardConflict={cardConflict}
-            onStop={stopSending}
             onRetry={() => { useIncidentStore.getState().setOffline(false); void refreshCounts(); }}
             onRefresh={() => { setCardConflict(false); void refreshCounts(); }}
-            longWaitNote={waited >= LONG_WAIT_S ? (thinkingVerb === 'РОЗБИРАЮ' ? 'Довгий чек, ще тримаю' : 'Ще тримаю') : null}
           />
         )}
         {/* Крок 5б: мобільна пігулка. На вузькому екрані панелі немає взагалі,
