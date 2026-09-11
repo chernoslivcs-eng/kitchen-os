@@ -120,6 +120,16 @@ describe('смуги', () => {
     expect(host!.textContent).toContain(AUTH_STRIP.cta);
     // Хрестика немає ніде — і в смузі з дією теж.
     expect(host!.textContent).not.toContain('×');
+    // Етап 5 (п.7), Errors E2: рід кольором — «треба дія» = plum.
+    expect(q('[data-strip]')!.getAttribute('data-strip-tone')).toBe('plum');
+  });
+
+  it('E2: тон роду — 429 amber, офлайн card', async () => {
+    await mount(<IncidentStrips />);
+    await act(async () => { useIncidentStore.getState().setThrottled(30); });
+    expect(q('[data-strip]')!.getAttribute('data-strip-tone')).toBe('amber');
+    await act(async () => { useIncidentStore.getState().clearThrottled(); useIncidentStore.getState().setOffline(true); });
+    expect(q('[data-strip]')!.getAttribute('data-strip-tone')).toBe('card');
   });
 
   it('429 показує смугу БЕЗ кнопки, з «мине саме» і смужкою', async () => {

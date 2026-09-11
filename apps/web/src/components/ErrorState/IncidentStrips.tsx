@@ -74,6 +74,7 @@ export function IncidentStrips() {
       <div className={styles.column}>
         {authExpired && (
           <Strip
+            tone="plum" icon="sys.login"
             kicker={AUTH_STRIP.kicker}
             h1a={AUTH_STRIP.h1a}
             h1b={AUTH_STRIP.h1b}
@@ -94,6 +95,7 @@ export function IncidentStrips() {
           const copy = (throttledKind && THROTTLED_BY_KIND[throttledKind]) || THROTTLED_STRIP;
           return (
             <Strip
+              tone="amber" icon="live.limit"
               kicker={copy.kicker}
               h1a={copy.h1a}
               h1b={copy.h1b}
@@ -106,6 +108,7 @@ export function IncidentStrips() {
         })()}
         {unsavedCook && (
           <Strip
+            tone="plum" icon="sys.retry"
             kind="cook_unsaved"
             kicker={COOK_UNSAVED_STRIP.kicker}
             h1a={COOK_UNSAVED_STRIP.h1a}
@@ -117,6 +120,7 @@ export function IncidentStrips() {
         )}
         {offline && (
           <Strip
+            tone="card" icon="live.offline"
             kicker={OFFLINE_STRIP.kicker}
             h1a={OFFLINE_STRIP.h1a}
             h1b={OFFLINE_STRIP.h1b}

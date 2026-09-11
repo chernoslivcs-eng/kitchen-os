@@ -12,11 +12,22 @@
 import { useEffect, useState } from 'react';
 import { track } from '../../lib/track';
 import { Button } from '../Button/Button';
+import { Icon } from '../Icon/Icon';
+import type { IconName } from '../Icon/icons';
 import styles from './Strip.module.css';
+
+export type StripTone = 'plum' | 'amber' | 'card';
 
 interface Props {
   /** Етап 3: вид ліміту для смуги 429 — лише як позначка в розмітці. */
   kind?: string;
+  /**
+   * Етап 5 (п.7), Errors E2 — рід кольором: plum — треба дія людини (увійти,
+   * повторити); amber — почекати (429, денний ліміт); card — офлайн, нічого не
+   * робити. Знак зліва — з бандла: log-in · hourglass · wifi-off.
+   */
+  tone?: StripTone;
+  icon?: IconName;
   kicker: string;
   h1a: string;
   h1b: string;
@@ -32,7 +43,7 @@ interface Props {
   onDone?: () => void;
 }
 
-export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kind }: Props) {
+export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kind, tone = 'card', icon }: Props) {
   const timed = !cta && typeof seconds === 'number' && seconds > 0;
   // Смуга — теж показана помилка, і без неї стрічка дня була б неповною.
   //
@@ -66,7 +77,8 @@ export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kin
   }, [timed, seconds]);
 
   return (
-    <div className={styles.strip} data-strip role="status" data-strip-kind={kind}>
+    <div className={`${styles.strip} ${styles[`tone-${tone}`]}`} data-strip role="status" data-strip-kind={kind} data-strip-tone={tone}>
+      {icon && <span className={styles.icon}><Icon name={icon} size={16} inherit decorative /></span>}
       <div className={styles.text}>
         <div className={styles.mono}>
           <span>{kicker}</span>
@@ -77,7 +89,7 @@ export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kin
         <span className={styles.body}>{body}</span>
       </div>
       {cta
-        ? <div className={styles.action}><Button variant="positive" onClick={onCta}>{cta}</Button></div>
+        ? <div className={styles.action}><Button variant="secondary" onClick={onCta}>{cta}</Button></div>
         : <span className={styles.passes} data-strip-passes>мине саме</span>}
       {timed && (
         <span
