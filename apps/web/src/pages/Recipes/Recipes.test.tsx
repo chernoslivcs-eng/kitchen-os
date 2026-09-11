@@ -54,6 +54,19 @@ describe('RecipesPage', () => {
     await act(async () => { (chip('cooked') as HTMLElement).click(); });
     expect(cards().length).toBe(2);
   });
+
+  // Кадр «Рецепти · 1440»: «Знайти рецепт» — пошук по назві в принесеному
+  // списку, поверх активного чипа; лічильники в чипах не міняються.
+  it('«Знайти рецепт» звужує список по назві, лічильники чипів — ні', async () => {
+    await mount();
+    const input = host!.querySelector('[data-search] input') as HTMLInputElement;
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => { set.call(input, 'страва C'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+    expect(cards().map((c) => c.getAttribute('data-status'))).toEqual(['near']);
+    expect(chip('all').querySelector('[data-count]')!.textContent).toBe('4');
+    await act(async () => { set.call(input, ''); input.dispatchEvent(new Event('input', { bubbles: true })); });
+    expect(cards().length).toBe(4);
+  });
 });
 
 describe('RecipesPage · збій завантаження', () => {

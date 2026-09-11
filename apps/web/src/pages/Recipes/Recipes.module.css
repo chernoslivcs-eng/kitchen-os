@@ -1,3 +1,8 @@
+/* Рецепти — за кадрами Screens «Рецепти · 1440» і «Рецепти · 390» (11.09).
+   Полотно bg; шапка, чипи й картки — на card із тінню sh-a+sh-b, без рамок.
+   Числа з кадру: 1440 — картка r14, 16 18, знак 44, назва 17/600, рядки 13,
+   сітка 2× gap 12; 390 — картка 14 16, знак 40, назва 15/600, рядки 12,
+   колона gap 10. */
 .screen {
   min-height: 100dvh;
   background: var(--bg);
@@ -7,11 +12,12 @@
 .body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 22px 20px;
+  padding: 0 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
+@media (min-width: 768px) { .body { padding: 0 32px 24px; } }
 .empty {
   text-align: center;
   padding: 60px 20px;
@@ -24,82 +30,129 @@
   color: var(--ink);
   margin-bottom: 8px;
 }
-/* Шапка (Screens D5): сегмент «Збережені · N / Журнал» і «Записати свій». */
+
+/* ── Шапка: сегмент 36 r10 · пошук 260×40 · «Записати свій» 40 r10 ─────── */
 .segment {
   display: inline-flex; align-items: center; gap: 2px;
   height: 36px; padding: 3px;
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
 }
 .seg {
   display: inline-flex; align-items: center; gap: 4px;
-  height: 30px; padding: 0 12px;
+  height: 30px; padding: 0 14px;
   border: 0; border-radius: 8px;
   background: transparent;
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted);
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; color: var(--muted);
   white-space: nowrap; cursor: pointer;
 }
-.seg-on { background: var(--ink); color: var(--bg); cursor: default; }
+.seg-on { background: var(--ink); color: var(--bg); font-weight: 500; cursor: default; }
 .seg-n { opacity: 0.6; }
+.head-gap { flex: 1; }
+.search {
+  display: none;
+  align-items: center; gap: 8px;
+  width: 260px; height: 40px; padding: 0 12px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+  color: var(--dim);
+}
+.search input {
+  flex: 1; min-width: 0;
+  border: 0; outline: 0; background: transparent;
+  font-family: var(--font-body); font-size: 14px; color: var(--ink);
+}
+.search input::placeholder { color: var(--dim); }
+.search input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .write {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 36px; padding: 0 12px;
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 14px;
   border: 0; border-radius: 10px;
-  background: var(--bg);
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
   font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--ink);
   white-space: nowrap; cursor: pointer;
 }
-/* На 390 сегмент і «Записати свій» не вміщаються поруч із заголовком:
-   кнопка — лише знаком (підпис лишається в aria-label), сегмент щільніший. */
-.journal-icon { display: none; }
-@media (max-width: 719px) {
+/* 390: у шапці лише круглі знаки 40 на card+тінь (кадр «Рецепти · 390»). */
+.head-icon {
+  display: grid; place-items: center;
+  width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+  color: var(--muted); cursor: pointer;
+}
+.head-icon[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.search-row { display: flex; width: auto; margin: 0 0 12px; }
+@media (max-width: 767px) {
   .segment { display: none; }
-  .journal-icon, .write { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--bg); color: var(--muted); cursor: pointer; }
+  .write { width: 40px; padding: 0; border-radius: 50%; justify-content: center; color: var(--muted); }
   .write-text { display: none; }
 }
+@media (min-width: 768px) {
+  .search { display: inline-flex; }
+  .head-icon { display: none; }
+  .search-row { display: none; }
+}
 
-/* Фільтри пігулками з лічильником у кожній: активна — чорнильна. */
-.filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+/* ── Чипи стану: 36 на 1440 (34 на 390), card+тінь, активний — чорнило ──── */
+.filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 0 0 12px; }
+@media (max-width: 767px) {
+  /* Кадр 390: один ряд, що виїжджає за край; «Усі» без лічильника. */
+  .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 12px; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filter { flex: none; }
+  .filter[data-filter="all"] .filter-n { display: none; }
+}
+@media (min-width: 768px) { .filters { padding: 0 0 20px; } }
 .filter {
   display: inline-flex; align-items: center; gap: 6px;
   height: 34px; padding: 0 12px;
-  border: 1px solid var(--line2); border-radius: var(--r-pill);
-  background: transparent;
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; color: var(--ink);
   cursor: pointer;
 }
-.filter-on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+@media (min-width: 768px) { .filter { height: 36px; padding: 0 14px; } }
+.filter-on { background: var(--ink); color: var(--bg); font-weight: 500; }
 .filter-n { color: var(--dim); }
 .filter-on .filter-n { color: inherit; opacity: 0.6; }
-.filter-dot { width: 7px; height: 7px; border-radius: 50%; }
+.filter-dot { width: 6px; height: 6px; border-radius: 50%; }
+@media (min-width: 768px) { .filter-dot { width: 7px; height: 7px; } }
 .filter-dot.sage { background: var(--sage); }
 .filter-dot.amber { background: var(--amber); }
 .filters-hint { display: none; margin-left: auto; font-size: 13px; color: var(--muted); }
 @media (min-width: 1024px) { .filters-hint { display: inline; } }
 
-/* Картка: знак страви · назва + слово стану · час · ккал · готував · рядки. */
+/* ── Сітка: колона gap 10 на 390; 2× gap 12 з 768 ──────────────────────── */
+.grid { display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 768px) {
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+}
+
+/* ── Картка: знак · назва + стан · час · ккал · готував · рядки · ✕ ────── */
 .slot { position: relative; }
 .card {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   align-items: flex-start;
-  padding: 14px 44px 14px 12px;
-  margin: 0 -12px;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-  border-left: 0; border-right: 0; border-top: 0;
-  width: calc(100% + 24px);
+  width: 100%;
+  padding: 14px 44px 14px 16px;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
   text-align: left;
   cursor: pointer;
   color: inherit;
-  border-radius: var(--r);
-  transition: background var(--dur-fast) var(--ease-standard);
+  transition: filter var(--dur-fast) var(--ease-standard);
 }
-.card:last-child { border-bottom: 0; }
-@media (hover: hover) {
-  .card:hover { background: var(--line); }
-}
-/* «Далеко» — приглушена картка цілком (D5, opacity .6). */
+@media (min-width: 768px) { .card { gap: 14px; padding: 16px 48px 16px 18px; } }
+@media (hover: hover) { .card:hover { filter: brightness(0.98); } }
+/* «Далеко» — приглушена картка цілком (кадр: opacity .6). */
 .card-far { opacity: 0.6; }
 .icon {
   width: 40px; height: 40px;
@@ -109,66 +162,61 @@
   flex-shrink: 0;
   color: var(--ink);
 }
+@media (min-width: 768px) { .icon { width: 44px; height: 44px; } }
 .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-.dish-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+@media (min-width: 768px) { .info { gap: 6px; } }
 .dish {
+  display: block; min-width: 0;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 17px;
+  font-size: 15px; line-height: 1.2;
   color: var(--ink);
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: -0.01em;
 }
+@media (min-width: 768px) { .dish { font-size: 17px; letter-spacing: -0.015em; } }
+/* Стан: на 1440 — пігулка 26 у правому кінці рядка назви (кадр: 100×26 при
+   назві 410 із 520); на 390 — крапка й слово перед «25 хв» у рядку часу.
+   Один елемент у .sub: на широкому він абсолютний у куті картки. */
 .status {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 24px; padding: 0 9px;
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 16px; padding: 0;
   border-radius: var(--r-pill);
   font-family: var(--font-body); font-size: 12px; font-weight: 500;
+  flex: none;
 }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.status-sage  { background: var(--sage-bg);  color: var(--sage); }
-.status-amber { background: var(--amber-bg); color: var(--amber); }
-.status-far   { background: var(--bg);       color: var(--dim); }
-.sub { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.status-sage  { color: var(--sage); }
+.status-amber { color: var(--amber); }
+.status-far   { color: var(--dim); }
+@media (min-width: 768px) {
+  .status { position: absolute; top: 16px; right: 56px; height: 26px; padding: 0 10px; gap: 6px; }
+  .status-sage  { background: var(--sage-bg); }
+  .status-amber { background: var(--amber-bg); }
+  .status-far   { background: var(--bg); }
+  .dish { padding-right: 112px; }
+}
+.sub { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--font-body); font-size: 12px; color: var(--muted); }
+@media (min-width: 768px) { .sub { gap: 12px; font-size: 13px; } }
 .stat { display: inline-flex; align-items: center; gap: 4px; }
-.line { display: flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 13px; }
+@media (max-width: 767px) {
+  /* Кадр 390: у рядку часу лише стан і час; знаки біля «бракує/використає» — ні. */
+  .stat + .stat { display: none; }
+  .stat > [data-icon], .line > [data-icon] { display: none; }
+}
+.line { display: flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 12px; }
+@media (min-width: 768px) { .line { font-size: 13px; } }
 .line-missing { color: var(--amber); }
 .line-rescues { color: var(--sage); }
+/* ✕ 30 r8 у правому верхньому куті картки (кадр: margin -4 -6 від поля 16 18). */
 .remove {
-  position: absolute; top: 8px; right: 0;
-  width: 44px; height: 44px;
-  background: transparent; border: 0; border-radius: var(--r);
+  position: absolute; top: 10px; right: 10px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  background: transparent; border: 0; border-radius: 8px;
   color: var(--dim); cursor: pointer;
 }
-
-/* Єдиний екран без обмеження ширини: шапка розтягувалась на 1528px, аватар
-   опинявся посеред екрана (design-audit-desktop, «шапка Рецептів
-   розсипається»). Той самий шаблон, що в решти екранів. */
-@media (min-width: 720px) {
-  .body {
-    max-width: 720px;
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-  }
-}
-@media (min-width: 1024px) {
-  :global(body.with-sidebar) .body {
-    margin-left: 36px;
-    margin-right: auto;
-  }
-}
-
-/* Пул-6 №5: сітка рецептів — 2 колонки з 768, заповнення по рядках. */
-.grid { display: flex; flex-direction: column; gap: 8px; }
-@media (min-width: 768px) {
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 32px;
-    row-gap: 0;
-    align-items: start;
-  }
-}
+@media (min-width: 768px) { .remove { top: 12px; right: 12px; } }
+@media (hover: hover) { .remove:hover { background: var(--line); color: var(--muted); } }
 
 /* Моушн-кіт §03: прибраний рецепт згортається, а не щезає. */
 .card-leave {
