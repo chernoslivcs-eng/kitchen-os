@@ -60,7 +60,10 @@ if (has('list')) {
   await browser.close();
   process.exit(0);
 }
-if (THEME === 'dark') await dcPage.$$eval('.v3', (els) => els.forEach((e) => e.setAttribute('data-theme', 'dark')));
+if (THEME === 'dark') {
+  await dcPage.$$eval('.v3', (els) => els.forEach((e) => e.setAttribute('data-theme', 'dark')));
+  await dcPage.waitForTimeout(300);
+}
 const frameSel = SEL ?? `[data-screen-label*="${FRAME}"]`;
 const frames = await dcPage.$$(frameSel);
 if (!frames[NTH]) { console.error(`side-by-side: кадр не знайдено — ${frameSel} [${NTH}] у ${DC}`); await browser.close(); process.exit(1); }
@@ -69,6 +72,29 @@ await frame.scrollIntoViewIfNeeded();
 const frameLabel = (await frame.getAttribute('data-screen-label')) ?? SEL;
 const frameBox = await frame.boundingBox();
 const framePng = await frame.screenshot({ type: 'png' });
+
+// ── запобіжник теми ────────────────────────────────────────────────────────
+// Того самого роду, що гейти на гліфи й токени: інструмент не має права
+// мовчки віддати не той стан. Полотно кадра й полотно застосунку читаються
+// після рендеру; просили dark — обидва мають бути темними, інакше падіння,
+// а не збережена «темна» пара, яка насправді світла.
+const lumOf = (rgb) => {
+  const m = rgb.match(/\d+(\.\d+)?/g)?.map(Number) ?? [255, 255, 255];
+  const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]);
+};
+const assertTheme = (who, rgb) => {
+  const lum = lumOf(rgb);
+  const dark = lum < 0.2, light = lum > 0.5;
+  if ((THEME === 'dark' && !dark) || (THEME === 'light' && !light)) {
+    console.error(`side-by-side: відмова — просили ${THEME}, а полотно ${who} = ${rgb} (яскравість ${lum.toFixed(3)}). Пару не збережено.`);
+    process.exit(3);
+  }
+};
+assertTheme('кадра', await frame.evaluate((el) => {
+  // Перший предок із непрозорим тлом — саме полотно кадра.
+  let e = el; while (e) { const b = getComputedStyle(e).backgroundColor; if (b && b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent') return b; e = e.parentElement; } return 'rgb(255,255,255)';
+}));
 
 // ── рендер застосунку ──────────────────────────────────────────────────────
 let appPng = null; let appNote = 'застосунок не знімався (--url не задано)';
@@ -101,6 +127,7 @@ if (URL_BASE) {
   const path = arg('path', null);
   if (path) await page.goto(`${URL_BASE}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
+  assertTheme('застосунку', await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   appPng = await page.screenshot({ type: 'png', fullPage: false });
   appNote = `${URL_BASE}${path ?? ''} · ${WIDTH}×${HEIGHT} · ${THEME}`;
 }
