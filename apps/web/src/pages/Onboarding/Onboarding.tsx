@@ -9,12 +9,15 @@
 // нижче — колонка: текст → бабл → ілюстрація → кнопки внизу на всю ширину,
 // прогрес — смуга під шапкою. Крок памʼятається в kos-onb-step (як у бандлі).
 //
-// №37: знайомство — кроки 12–18 того самого потоку (Prototype «Картки
-// знайомства»): та сама шапка з рисками, сцена як у Семена, замість бабла —
-// поле «Мене звати …» з лічильником і підказка Семена шавлією; низ «← ·
-// Пропустити · Далі →». Що і куди пишеться — як у картці в стрічці:
-// PATCH /v1/profile/:key текстом, «Нічого такого» на алергіях — status none,
-// «Пропустити» лишає поле порожнім і нічого не пише.
+// №37 / №40: знайомство — кроки 12–18 того самого потоку, але СВОЯ розкладка
+// за Prototype v3.1 «Картки знайомства» (не сцена Семена): шапка 60 з
+// «Заповню потім» (вихід з усього знайомства — те, що в коді є пропуском
+// етапу), 7 рисок знайомства смугою по центру (риски Семена тут не
+// показуються), сітка «текст ліворуч · ілюстрація 300 праворуч без рамки»,
+// низ по центру «← · Пропустити · Далі →» (Далі — широка). 390 — колонка
+// текст → поле → ілюстрація → кнопки на всю ширину. Що і куди пишеться — як
+// у картці в стрічці: PATCH /v1/profile/:key текстом, «Нічого такого» на
+// алергіях — status none, «Пропустити» лишає поле порожнім і нічого не пише.
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -224,50 +227,74 @@ export function OnboardingPage() {
   }, [step, last]);
 
   const illSrc = intake ? `/onboarding/profile-${row!.k}.png` : `/onboarding/semen-${pad(step + 1)}.png`;
+  const anim = dir === 'b' ? styles.back : styles.in;
+  const logo = <span className={styles.logo}><Mark /><span className={styles.logoText}>Kitchen OS</span></span>;
+
+  // ── Знайомство (№40): своя розкладка за Prototype «Картки знайомства» ──
+  if (row) {
+    const n = len(draftOf(row.k));
+    const atLimit = n >= row.max;
+    return (
+      <div className={`${styles.page} ${styles.intake} ${desktop ? styles.desk : styles.mob}`} onTouchStart={onTS} onTouchEnd={onTE} data-onb-step={step + 1}>
+        <header className={styles.head}>
+          {logo}
+          <button type="button" className={styles.skip} onClick={() => finish('skipped')} data-intake-later>Заповню потім</button>
+        </header>
+        <div className={styles.inProgress} aria-hidden="true">
+          {PROFILE_ROWS.map((r, i) => <span key={r.k} className={`${styles.inBar} ${i <= step - SEMEN ? styles.inBarOn : ''}`} />)}
+        </div>
+        <div className={styles.inGrid}>
+          <div className={styles.inText}>
+            <div className={styles.meta}><span className={styles.num}>{pad(step - SEMEN + 1)}</span><span className={styles.of}>/ {PROFILE_ROWS.length}</span><span className={styles.sep} /><span className={styles.tag}>Знайомство</span></div>
+            <div key={step} className={`${styles.inBlock} ${anim}`}>
+              <h1 className={styles.inTitle}>{row.card}</h1>
+              <p className={styles.sub}>{row.body}</p>
+              <div className={styles.fieldBlock}>
+                <span className={row.danger ? styles.startDanger : styles.start}>{row.danger && <Icon name="cook.ban" size={12} inherit decorative />}{row.start}</span>
+                <input
+                  ref={inputRef} className={styles.input} type="text" value={draftOf(row.k)} placeholder={row.ph} maxLength={row.max} spellCheck={false}
+                  aria-label={row.start} data-intake-input
+                  onChange={(e) => setDrafts((d) => ({ ...d, [row.k]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void intakeNext(); } }}
+                />
+                <div className={styles.fieldRow}><span className={styles.hint}>{row.hint}</span><span className={`${styles.counter} ${atLimit ? styles.counterLimit : ''}`} data-counter>{atLimit ? row.lim : `${n}/${row.max}`}</span></div>
+              </div>
+            </div>
+          </div>
+          <div key={`ill-${step}`} className={`${styles.inIll} ${anim}`}><img src={illSrc} alt="" /></div>
+        </div>
+        <div className={styles.inControls}>
+          <button type="button" className={styles.inPrev} onClick={() => go(step - 1, 'b')} aria-label="Назад"><Icon name="sys.back" size={16} inherit decorative /></button>
+          <button type="button" className={styles.skipStep} onClick={intakeSkip} disabled={busy} data-intake-skip>Пропустити</button>
+          <button type="button" className={styles.inNext} onClick={() => void intakeNext()} disabled={busy} data-intake-next>{last ? 'Готово' : 'Далі'}<Icon name="sys.next" size={16} inherit decorative /></button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Семен · кроки 1–11 (етап 11, «Онбординг · Семен» / «Онбординг · 390») ──
   const progress = (
     <div className={styles.progress} aria-hidden="true">
-      {Array.from({ length: TOTAL }, (_, i) => <button key={i} type="button" tabIndex={-1} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} onClick={() => go(i, i > step ? 'f' : 'b')} />)}
+      {Array.from({ length: SEMEN }, (_, i) => <button key={i} type="button" tabIndex={-1} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} onClick={() => go(i, i > step ? 'f' : 'b')} />)}
     </div>
   );
-  const meta = intake
-    ? <div className={styles.meta}><span className={styles.num}>{pad(step - SEMEN + 1)}</span><span className={styles.of}>/ {PROFILE_ROWS.length}</span><span className={styles.sep} /><span className={styles.tag}>Знайомство</span></div>
-    : <div className={styles.meta}><span className={styles.num}>{pad(step + 1)}</span><span className={styles.of}>/ {SEMEN}</span><span className={styles.sep} /><span className={styles.tag}>{card.tag}</span></div>;
-  const n = row ? len(draftOf(row.k)) : 0;
-  const atLimit = !!row && n >= row.max;
-  const field = row && (
-    <div className={styles.fieldBlock}>
-      <span className={row.danger ? styles.startDanger : styles.start}>{row.danger && <Icon name="cook.ban" size={12} inherit decorative />}{row.start}</span>
-      <input
-        ref={inputRef} className={styles.input} type="text" value={draftOf(row.k)} placeholder={row.ph} maxLength={row.max} spellCheck={false}
-        aria-label={row.start} data-intake-input
-        onChange={(e) => setDrafts((d) => ({ ...d, [row.k]: e.target.value }))}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void intakeNext(); } }}
-      />
-      <div className={styles.fieldRow}><span className={styles.hint}>{row.hint}</span><span className={`${styles.counter} ${atLimit ? styles.counterLimit : ''}`} data-counter>{atLimit ? row.lim : `${n}/${row.max}`}</span></div>
-    </div>
-  );
+  const meta = <div className={styles.meta}><span className={styles.num}>{pad(step + 1)}</span><span className={styles.of}>/ {SEMEN}</span><span className={styles.sep} /><span className={styles.tag}>{card.tag}</span></div>;
   const controls = (
     <div className={styles.controls}>
       <button type="button" className={styles.prev} onClick={() => go(step - 1, 'b')} disabled={step === 0} aria-label="Назад"><Icon name="sys.back" size={18} inherit decorative /></button>
-      {intake && <button type="button" className={styles.skipStep} onClick={intakeSkip} disabled={busy} data-intake-skip>Пропустити</button>}
-      {intake
-        ? <button type="button" className={styles.next} onClick={() => void intakeNext()} disabled={busy} data-intake-next>{last ? 'Готово' : 'Далі'}<Icon name="sys.next" size={16} inherit decorative /></button>
-        : <button type="button" className={styles.next} onClick={() => go(step + 1, 'f')}>Далі<Icon name="sys.next" size={16} inherit decorative /></button>}
+      <button type="button" className={styles.next} onClick={() => go(step + 1, 'f')}>Далі<Icon name="sys.next" size={16} inherit decorative /></button>
     </div>
   );
-  const anim = dir === 'b' ? styles.back : styles.in;
   const head = (
     <header className={styles.head}>
-      <span className={styles.logo}><Mark /><span className={styles.logoText}>Kitchen OS</span></span>
+      {logo}
       <div className={styles.headRight}>
         {desktop && progress}
         <button type="button" className={styles.skip} onClick={() => finish('skipped')}>Пропустити</button>
       </div>
     </header>
   );
-  const text = intake
-    ? <><h1 className={styles.title}>{row!.card}</h1><p className={styles.sub}>{row!.body}</p>{field}</>
-    : <><h1 className={styles.title}>{card.title}</h1><Bubble lines={card.lines} /></>;
+  const text = <><h1 className={styles.title}>{card.title}</h1><Bubble lines={card.lines} /></>;
 
   if (desktop) {
     return (

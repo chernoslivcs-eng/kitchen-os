@@ -107,6 +107,17 @@ describe('події знайомства', () => {
     expect(events.map((e) => e.name)).not.toContain('welcome_skipped');
   });
 
+  it('№40: «Заповню потім» у шапці знайомства — вихід з усього знайомства як пропуск етапу, без записів', async () => {
+    for (let i = 0; i < 11; i++) await act(async () => { btn('Далі').click(); });
+    const before = calls.filter((c) => c.url.startsWith('/v1/profile/')).length;
+    await act(async () => { btn('Заповню потім').click(); });
+    expect(calls.filter((c) => c.url.startsWith('/v1/profile/')).length).toBe(before);
+    const events = await sent();
+    expect(events.find((e) => e.name === 'welcome_skipped')?.props).toEqual({ card: 12 });
+    expect(events.map((e) => e.name)).not.toContain('welcome_finished');
+    expect(events.map((e) => e.name)).not.toContain('onboarding_finished');
+  });
+
   it('№37: «Далі» з текстом пише поле в профіль — PATCH /v1/profile/:key', async () => {
     for (let i = 0; i < 11; i++) await act(async () => { btn('Далі').click(); });
     const input = host!.querySelector<HTMLInputElement>('[data-intake-input]')!;

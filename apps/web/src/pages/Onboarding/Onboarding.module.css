@@ -36,7 +36,7 @@
 .skip { font-size: 14px; font-weight: 500; color: var(--muted); }
 .mob .skip { font-size: 13px; }
 
-/* прогрес · 18 рисок 4 (28 активна / 12) у шапці; 390 — смуга під шапкою */
+/* прогрес Семена · 11 рисок 4 (28 активна / 12) у шапці; 390 — смуга під шапкою */
 .progress { display: flex; gap: 4px; }
 .dot { width: 12px; height: 4px; border-radius: 2px; background: var(--line2); transition: width 240ms var(--e), background 240ms var(--e); }
 .dotOn { background: var(--ink); }
@@ -67,25 +67,58 @@
 .next { height: 48px; padding: 0 22px; border-radius: 12px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; font-weight: 600; }
 .next:hover { filter: brightness(.96); }
 
-/* знайомство · поле «Мене звати …» (Prototype «Картки знайомства»): підзаголовок 16 muted,
-   початок речення 13 (ban — danger зі знаком), поле 56 r28 card sh 16, підказка 13 шавлією,
-   лічильник 13 dim; «Пропустити» між ← і «Далі» — 14/500 muted */
+/* ── знайомство (№40) · своя розкладка за Prototype v3.1 «Картки знайомства» ──
+   шапка 60 «Kitchen OS · Заповню потім»; 7 рисок 4 смугою ≤620 по центру; сітка
+   ≤900 «текст 1fr · ілюстрація 300» gap 32, по центру; текст: мета 13, h1
+   30/1.12 −.035em (min-h 74), підзаголовок 16/1.55 muted (min-h 52), поле —
+   початок речення 13 (ban — danger зі знаком) → інпут 56 r28 card sh 16 →
+   підказка 13 шавлією + лічильник 13 dim; ілюстрація без рамки (multiply, у
+   темній — інверсія + screen); низ у смузі ≤620: ← 56 r14 контур line2 ·
+   Пропустити 56 14/500 muted · Далі flex 56 r14 ink 16/600.
+   390: та сама шапка 60, колонка gap 14 (h1 26, ілюстрація ≤200), кнопки на
+   всю ширину внизу. */
+.intake { background: var(--bg); }
+.intake .head { height: 60px; padding: 0 clamp(20px, 4vw, 40px); }
+.inProgress { flex: none; display: flex; gap: 4px; padding: 0 clamp(20px, 4vw, 40px) 14px; max-width: 620px; width: 100%; align-self: center; box-sizing: border-box; }
+.inBar { flex: 1; height: 4px; border-radius: 2px; background: var(--line2); transition: background 240ms var(--e); }
+.inBarOn { background: var(--ink); }
+.inGrid { flex: 1; min-height: 0; overflow-y: auto; padding: 0 clamp(20px, 4vw, 40px) 16px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: center; max-width: 900px; width: 100%; align-self: center; box-sizing: border-box; }
+.inText { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 320px; }
+.intake .skip { font-size: 14px; }
+.intake .meta { color: var(--dim); gap: 8px; font-size: 13px; }
+.intake .tag { color: var(--muted); }
+.inBlock { display: flex; flex-direction: column; gap: 16px; }
+.inTitle { margin: 0; min-height: 74px; font-weight: 700; font-size: 30px; letter-spacing: -.035em; line-height: 1.12; text-wrap: balance; }
 .sub { margin: 0; font-size: 16px; line-height: 1.55; color: var(--muted); min-height: 52px; }
-.fieldBlock { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; max-width: 500px; }
+.fieldBlock { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 .start { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .startDanger { font-size: 13px; color: var(--danger); display: inline-flex; align-items: center; gap: 6px; }
-.input { height: 56px; padding: 0 18px; border-radius: 28px; border: 0; background: var(--card); box-shadow: var(--sh); font: inherit; font-size: 16px; color: var(--ink); width: 100%; outline: 0; }
+.input { height: 56px; padding: 0 18px; border-radius: 28px; border: 0; background: var(--card); box-shadow: var(--sh); font: inherit; font-size: 16px; color: var(--ink); width: 100%; outline: 0; box-sizing: border-box; }
 .input::placeholder { color: var(--dim); }
 .fieldRow { display: flex; align-items: flex-start; gap: 12px; }
 .hint { flex: 1; font-size: 13px; line-height: 1.5; color: var(--sage); }
 .counter { flex: none; font-size: 13px; line-height: 1.5; color: var(--dim); white-space: nowrap; }
 .counterLimit { color: var(--amber); }
-.skipStep { height: 48px; padding: 0 16px; border-radius: 12px; font-size: 14px; font-weight: 500; color: var(--muted); flex: none; }
+/* Ілюстрація без рамки (№38): PNG з білим тлом лягає на bg через multiply; у
+   темній темі лінії інвертуються, а тло гаситься screen. Blend — на контейнері,
+   не на img: контейнер анімується (kos-in) і тому сам є контекстом накладання —
+   img усередині змішувався б лише з порожнечею, і біле тло лишалось би. */
+.inIll { display: flex; align-items: center; justify-content: center; min-width: 0; mix-blend-mode: multiply; }
+.inIll img { width: 100%; max-width: 300px; height: auto; display: block; }
+:root[data-theme='dark'] .inIll { mix-blend-mode: screen; }
+:root[data-theme='dark'] .inIll img { filter: invert(1) hue-rotate(180deg); }
+.inControls { flex: none; display: flex; align-items: center; gap: 10px; padding: 0 clamp(20px, 4vw, 40px) 20px; max-width: 620px; width: 100%; align-self: center; box-sizing: border-box; }
+.inPrev { width: 56px; height: 56px; border-radius: 14px; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--muted); flex: none; }
+.skipStep { height: 56px; padding: 0 16px; border-radius: 14px; font-size: 14px; font-weight: 500; color: var(--muted); flex: none; }
 .skipStep:disabled { opacity: .5; }
-.mob .sub { font-size: 15px; line-height: 1.5; min-height: 0; }
-.mob .input { height: 52px; border-radius: 26px; font-size: 15px; }
-.mob .skipStep { height: 52px; padding: 0 14px; }
-.mob .fieldBlock { max-width: none; }
+.inNext { flex: 1; height: 56px; border-radius: 14px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; font-weight: 600; }
+.inNext:hover { filter: brightness(.96); }
+.inNext:disabled { opacity: .6; cursor: default; }
+/* 390 */
+.mob .inGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.mob .inText { min-height: 0; }
+.mob .inTitle { min-height: 64px; font-size: 26px; }
+.mob .inIll img { max-width: 200px; }
 
 /* 390 · колонка */
 .col { flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 0 20px; overflow: hidden; min-height: 0; }
