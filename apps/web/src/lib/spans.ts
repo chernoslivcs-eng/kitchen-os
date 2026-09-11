@@ -177,12 +177,13 @@ export function edgeDays(lasting: EventOccurrence[]): Set<number> {
 /** Ліміт «три» — і в рейці, і в дні: більше трьох це вже список, а не погляд. */
 export const VISIBLE_LIMIT = 3;
 
-/** «ЩЕ N» завжди називає першу приховану, щоб рядок не був порожнім числом. */
+/** «ще N» завжди називає першу приховану, щоб рядок не був порожнім числом.
+ *  Звичайним регістром: капсу в v3 немає (Р20). */
 export function moreLabel(hidden: EventOccurrence[], withName = true): string | null {
   if (!hidden.length) return null;
   const n = hidden.length;
-  if (!withName) return `ЩЕ ${n}`;
-  return `ЩЕ ${n} · ${hidden[0]!.title.toUpperCase()}`;
+  if (!withName) return `ще ${n}`;
+  return `ще ${n} · ${hidden[0]!.title}`;
 }
 
 

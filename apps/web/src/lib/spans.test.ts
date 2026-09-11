@@ -94,8 +94,8 @@ describe('що підіймається в ЗАРАЗ', () => {
 
 describe('ліміт три', () => {
   it('«ЩЕ N» називає першу приховану', () => {
-    expect(moreLabel([ev(0, 0, { title: 'Галина іменини' })])).toBe('ЩЕ 1 · ГАЛИНА ІМЕНИНИ');
-    expect(moreLabel([ev(0, 0, { title: 'а' }), ev(1, 1, { title: 'б' })], false)).toBe('ЩЕ 2');
+    expect(moreLabel([ev(0, 0, { title: 'Галина іменини' })])).toBe('ще 1 · Галина іменини');
+    expect(moreLabel([ev(0, 0, { title: 'а' }), ev(1, 1, { title: 'б' })], false)).toBe('ще 2');
     expect(moreLabel([])).toBeNull();
   });
 });
