@@ -15,8 +15,11 @@
 body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
 a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 * { box-sizing:border-box; }
-.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); }
-.v3[data-theme="dark"] { --bg:#16181b; --card:#1f2226; --line:#2a2e33; --line2:#33383e; --ink:#ecebe7; --muted:#a3a7ac; --dim:#6f7379; --sage:#93b48b; --sage-bg:#26312a; --amber:#d2ad6b; --amber-bg:#332a1c; --plum:#c99ab4; --plum-bg:#2f2329; --danger:#d47f74; --danger-bg:#3a2320; --sh:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4); --sh2:0 12px 40px rgba(0,0,0,.5); }
+.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18);  --glass-bg:color-mix(in srgb, var(--card) 72%, transparent); --glass-edge:rgba(255,255,255,.7); --glass-top:rgba(255,255,255,.9); --glass-side:rgba(255,255,255,.5); --glass-sh:0 12px 40px rgba(26,28,30,.16), 0 0 0 1px rgba(255,255,255,.6); --chat-grad:linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 32%, var(--bg)) 0, var(--bg) 240px); }
+.v3[data-theme="dark"] { --bg:#16181b; --card:#1f2226; --line:#2a2e33; --line2:#33383e; --ink:#ecebe7; --muted:#a3a7ac; --dim:#6f7379; --sage:#93b48b; --sage-bg:#26312a; --amber:#d2ad6b; --amber-bg:#332a1c; --plum:#c99ab4; --plum-bg:#2f2329; --danger:#d47f74; --danger-bg:#3a2320; --sh:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4); --sh2:0 12px 40px rgba(0,0,0,.5);  --glass-bg:color-mix(in srgb, var(--card) 78%, transparent); --glass-edge:rgba(255,255,255,.10); --glass-top:rgba(255,255,255,.16); --glass-side:rgba(255,255,255,.07); --glass-sh:0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06); --chat-grad:linear-gradient(to bottom, color-mix(in srgb, var(--sage-bg) 65%, var(--bg)) 0, var(--bg) 260px); }
+.glass-rail { background:var(--glass-bg); backdrop-filter:blur(18px) saturate(1.25); -webkit-backdrop-filter:blur(18px) saturate(1.25); border-right:1px solid var(--glass-edge); box-shadow:inset -1px 0 0 var(--glass-side); }
+.glass-panel { background:var(--glass-bg) !important; backdrop-filter:blur(18px) saturate(1.25); -webkit-backdrop-filter:blur(18px) saturate(1.25); position:relative; isolation:isolate; }
+.glass-panel::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; border:1px solid var(--glass-edge); box-shadow:inset 0 1px 0 var(--glass-top), inset 1px 0 0 var(--glass-side); }
 </style>
 </helmet>
 
@@ -28,7 +31,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 
 <div style="display:flex; gap:24px; align-items:flex-start;">
   <div data-screen-label="Рецепти · 1440" style="width:1440px; height:900px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh); flex:none;">
-    <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+    <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
       <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
       <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
       <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -74,7 +77,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 
 <div style="display:flex; gap:24px; align-items:flex-start;">
   <div data-screen-label="Рецепт · 1440" style="width:1440px; height:900px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh); flex:none;">
-    <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+    <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
       <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
       <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
       <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -178,7 +181,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 
 <div style="display:flex; gap:24px; align-items:flex-start;">
   <div data-screen-label="Профіль · 1440" style="width:1440px; height:900px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh); flex:none;">
-    <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+    <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
       <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
       <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
       <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -328,7 +331,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <div style="display:flex; flex-direction:column; gap:10px;">
     <div style="font-size:12px; font-weight:500; color:var(--muted);">D3a · Календар · 1440 · «що триває зараз» чіпами · тижні картками, 7 колонок · сьогодні підсвічено · подія в панелі</div>
     <div data-screen-label="Календар · 1440" style="flex:none; width:1040px; height:820px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh);">
-      <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+      <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
         <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -374,7 +377,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
           </sc-for>
         </div>
       </main>
-      <aside style="width:340px; flex:none; margin:16px 16px 16px 0; background:var(--card); border-radius:16px; display:flex; flex-direction:column; box-shadow:var(--sh2); overflow:hidden;">
+      <aside class="glass-panel" style="width:340px; flex:none; margin:16px 16px 16px 0; background:var(--glass-bg); border-radius:16px; display:flex; flex-direction:column; box-shadow:var(--glass-sh); overflow:hidden;">
         <div style="display:flex; align-items:center; gap:10px; padding:14px 14px 0 18px;"><span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500; color:var(--sage);"><i data-lucide="users" style="width:13px; height:13px;"></i>подія дому · своє</span><span style="flex:1;"></span><i data-lucide="x" style="width:15px; height:15px; color:var(--muted);"></i></div>
         <div style="padding:10px 18px 0; display:flex; flex-direction:column; gap:12px;">
           <div style="font-weight:700; font-size:22px; letter-spacing:-.025em;">Мама приїжджає</div>
@@ -471,7 +474,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <div style="display:flex; flex-direction:column; gap:10px;">
     <div style="font-size:12px; font-weight:500; color:var(--muted);">D2a · Профіль · 1440 · речення ліворуч, підказка під ними · Дім / Мережі / Акаунт — картки з хедером зони, як у коморі</div>
     <div data-screen-label="Профіль · 1440" style="flex:none; width:1040px; height:820px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh);">
-      <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+      <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
         <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -549,7 +552,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <div style="display:flex; flex-direction:column; gap:10px;">
     <div style="font-size:12px; font-weight:500; color:var(--muted);">D1a · Рецепти · 1440 · сегмент Збережені / Журнал · фільтри · картка зі станом проти комори</div>
     <div data-screen-label="Рецепти · 1440" style="flex:none; width:1040px; height:720px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh);">
-      <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+      <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
         <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -598,7 +601,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <div style="display:flex; flex-direction:column; gap:10px;">
     <div style="font-size:12px; font-weight:500; color:var(--muted);">D1b · Рецепт /recipe/:id · 1440 · порційник · склад зі звіркою і мітками · кроки з таймерами · «Колись» / «Готуємо»</div>
     <div data-screen-label="Рецепт · 1440" style="flex:none; width:1040px; height:720px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh);">
-      <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+      <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
         <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -658,7 +661,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <div style="display:flex; flex-direction:column; gap:10px;">
     <div style="font-size:12px; font-weight:500; color:var(--muted);">B1 · Рецепти → Журнал · 1440 · групи по днях · «Знову» дією в рядку · скасоване лишається, приглушене</div>
     <div data-screen-label="Журнал · 1440" style="flex:none; width:1040px; height:720px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh);">
-      <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+      <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
         <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
         <span style="width:38px; height:38px; border-radius:10px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
@@ -717,7 +720,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <!-- B2 shared recipe desktop -->
   <div style="display:flex; flex-direction:column; gap:10px;">
     <div style="font-size:12px; font-weight:500; color:var(--muted);">B2 · Публічний рецепт /r/:id · гість · 1440 · без рейки, без комори, без Cook Mode</div>
-    <div data-screen-label="Публічний рецепт · 1440" style="flex:none; width:1040px; height:720px; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--sh);">
+    <div data-screen-label="Публічний рецепт · 1440" style="flex:none; width:1040px; height:720px; background:var(--chat-grad); display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--sh);">
       <header style="height:60px; display:flex; align-items:center; gap:12px; padding:0 32px;"><span style="width:28px; height:28px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center;"><span style="width:9px; height:9px; border-radius:50%; background:var(--sage);"></span></span><span style="font-weight:700; font-size:15px; letter-spacing:-.02em;">Кухня</span><span style="font-size:13px; color:var(--dim);">· спільний рецепт</span><span style="flex:1;"></span><span style="height:36px; padding:0 14px; border-radius:10px; border:1px solid var(--line2); display:inline-flex; align-items:center; font-size:13px; font-weight:500;">Увійти</span></header>
       <div style="flex:1; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:32px; padding:16px 32px 0; max-width:1040px;">
         <div style="display:flex; flex-direction:column; gap:20px; min-width:0;">
@@ -758,8 +761,8 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Чат · 1440 · чек → комора → пропозиція → кошик · щільність десктоп</div>
 </div>
 
-<div data-screen-label="Чат · збірка" style="flex:none; width:1440px; height:1080px; background:var(--bg); display:flex; overflow:hidden; box-shadow:var(--sh);">
-  <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+<div data-screen-label="Чат · збірка" style="flex:none; width:1440px; height:1080px; background:var(--chat-grad); display:flex; overflow:hidden; box-shadow:var(--sh);">
+  <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
     <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
     <span style="width:38px; height:38px; border-radius:10px; corner-shape:squircle; background:var(--ink); color:var(--bg); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
     <span style="position:relative; width:38px; height:38px; border-radius:10px; corner-shape:squircle; color:var(--muted); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i><span style="position:absolute; top:9px; right:9px; width:7px; height:7px; border-radius:50%; background:var(--danger);"></span></span>
@@ -834,7 +837,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
     </div>
   </main>
   <!-- artifact: receipt -->
-  <aside style="width:380px; flex:none; margin:16px 16px 16px 0; background:var(--card); border-radius:18px; corner-shape:squircle; display:flex; flex-direction:column; box-shadow:var(--sh); overflow:hidden;">
+  <aside class="glass-panel" style="width:380px; flex:none; margin:16px 16px 16px 0; background:var(--glass-bg); border-radius:18px; corner-shape:squircle; display:flex; flex-direction:column; box-shadow:var(--glass-sh); overflow:hidden;">
     <div style="display:flex; align-items:center; gap:10px; padding:14px 14px 10px 18px; border-bottom:1px solid var(--line);"><i data-lucide="receipt" style="width:17px; height:17px;"></i><span style="font-weight:600; font-size:15px;">Чек Сільпо · 07.09</span><span style="font-size:13px; color:var(--dim);">19 рядків</span><span style="flex:1;"></span><span style="width:32px; height:32px; border-radius:8px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="panel-right-close" style="width:16px; height:16px;"></i></span></div>
     <div style="flex:1; overflow:hidden; padding:6px 18px 0;">
       <div style="display:flex; align-items:center; gap:10px; height:40px; margin-top:0;"><span style="font-size:12px; font-weight:500; color:var(--sage); flex:1;">У комору · 15</span><span style="font-size:12px; color:var(--muted);">зняти всі</span></div>
@@ -852,7 +855,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 <div style="display:flex; gap:24px; align-items:flex-start; padding-bottom:24px;">
   <div style="width:380px; flex:none; display:flex; flex-direction:column; gap:10px;">
     <div style="font-size:12px; font-weight:500; color:var(--muted);">Панель · артефакт «Рецепт» · відкривається каструлею з пропозиції · «Готувати →» веде в Cook Mode</div>
-    <aside style="background:var(--card); border-radius:18px; corner-shape:squircle; display:flex; flex-direction:column; box-shadow:var(--sh); overflow:hidden; height:760px;">
+    <aside class="glass-panel" style="background:var(--glass-bg); border-radius:18px; corner-shape:squircle; display:flex; flex-direction:column; box-shadow:var(--glass-sh); overflow:hidden; height:760px;">
       <div style="display:flex; align-items:center; gap:6px; padding:12px 14px 10px 14px; border-bottom:1px solid var(--line);"><span style="width:32px; height:32px; border-radius:8px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="panel-right-close" style="width:16px; height:16px;"></i></span><span style="flex:1;"></span><span title="У рецепти" style="width:32px; height:32px; border-radius:8px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="bookmark" style="width:15px; height:15px;"></i></span><span title="Поділитись" style="width:32px; height:32px; border-radius:8px; color:var(--muted); display:grid; place-items:center;"><i data-lucide="share-2" style="width:15px; height:15px;"></i></span><span style="width:1px; height:20px; background:var(--line2); margin:0 4px;"></span><span style="width:34px; height:34px; border-radius:10px; background:var(--sage-bg); color:var(--sage); display:grid; place-items:center; border:1px solid var(--sage);"><i data-lucide="chef-hat" style="width:16px; height:16px;"></i></span><span style="position:relative; width:34px; height:34px; border-radius:10px; border:1px solid var(--line2); color:var(--muted); display:grid; place-items:center;"><i data-lucide="receipt" style="width:16px; height:16px;"></i><span style="position:absolute; top:-5px; right:-5px; min-width:15px; padding:1px 4px; border-radius:999px; background:var(--ink); color:var(--bg); font-size:9px; text-align:center;">19</span></span><span style="position:relative; width:34px; height:34px; border-radius:10px; border:1px dashed var(--line2); color:var(--dim); display:grid; place-items:center;"><i data-lucide="list-checks" style="width:16px; height:16px;"></i><span style="position:absolute; top:-5px; right:-5px; min-width:15px; padding:1px 4px; border-radius:999px; background:var(--ink); color:var(--bg); font-size:9px; text-align:center;">4</span></span></div>
       <div style="flex:1; overflow:hidden; padding:14px 18px 0; display:flex; flex-direction:column; gap:14px;">
         <div style="display:flex; flex-direction:column; gap:6px;"><div style="font-weight:700; font-size:20px; letter-spacing:-.02em; line-height:1.2;">Паста з печеними помідорами й часником</div><div style="display:flex; align-items:baseline; gap:12px; font-size:13px; color:var(--muted);"><span>25 хв</span><span>≈ 480 ккал</span><span style="color:var(--ink); border-bottom:1px dashed var(--line2);">3 порції ▾</span><span style="color:var(--plum);">пісне</span></div></div>
@@ -882,7 +885,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 </div>
 
 <div data-screen-label="Комора · збірка" style="flex:none; width:1440px; min-height:900px; background:var(--bg); display:flex; box-shadow:var(--sh);">
-  <nav style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
+  <nav class="glass-rail" style="width:60px; flex:none; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px;">
     <span style="width:30px; height:30px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center; margin-bottom:14px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--sage);"></span></span>
     <span style="width:38px; height:38px; border-radius:10px; corner-shape:squircle; color:var(--muted); display:grid; place-items:center;"><i data-lucide="message-circle" style="width:18px; height:18px;"></i></span>
     <span style="width:38px; height:38px; border-radius:10px; corner-shape:squircle; background:var(--ink); color:var(--bg); display:grid; place-items:center;"><i data-lucide="refrigerator" style="width:18px; height:18px;"></i></span>
