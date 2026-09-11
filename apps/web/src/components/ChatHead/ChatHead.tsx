@@ -98,7 +98,8 @@ export function ChatHead(p: ChatHeadProps) {
 
       {p.home.overdue > 0 && (
         <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} onClick={mid ? p.onHome : p.onOverdue} data-chip-overdue>
-          <Icon name="live.burning" size={16} inherit decorative />
+          {/* Живий стан: flame дихає, поки є позиції ≤ 3 дні (1.5b). */}
+          <Icon name="live.burning" size={16} inherit decorative live="flame" />
           <span className={styles.long}>Прострочено </span>{p.home.overdue}
         </button>
       )}
@@ -111,7 +112,8 @@ export function ChatHead(p: ChatHeadProps) {
       )}
       {p.cookLive && (
         <button type="button" className={`${styles.chip} ${styles['chip-sage']}`} onClick={mid ? p.onHome : p.onCook} data-chip-cooking>
-          <Icon name="cook.timer" size={16} inherit decorative />
+          {/* Живий стан: timer тікає, поки таймер біжить (1.5b). */}
+          <Icon name="cook.timer" size={16} inherit decorative live={p.cookLive.deadline ? 'timer' : undefined} />
           <span className={styles.long}>Готуємо · </span><CookCountdown deadline={p.cookLive.deadline} />
         </button>
       )}

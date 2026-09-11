@@ -724,16 +724,15 @@ a.att-chip:hover { border-color: var(--sage); }
   height: 42px;
   border: 0;
   border-radius: 50%;
-  /* Пул-7 №3: запис — шавлія, не цегла («червоний — небезпека»). */
-  background: var(--sage);
+  /* Пул-7 №3: запис — шавлія, не цегла («червоний — небезпека»).
+     1.5b: тло sage-bg, знак sage (Prototype micBg/micFg); пульс — на знаку. */
+  background: var(--sage-bg);
+  color: var(--sage);
   display: grid;
   place-items: center;
   cursor: pointer;
   flex: none;
-  /* Морф появи + пульс REC — паралельно, не замість одне одного. */
-  animation:
-    btn-morph var(--dur-fast, 150ms) var(--ease-enter, ease),
-    micpulse var(--dur-breathe, 1.2s) ease-out infinite;
+  animation: btn-morph var(--dur-fast, 150ms) var(--ease-enter, ease);
 }
 .mic-stop {
   width: 12px;
@@ -741,10 +740,6 @@ a.att-chip:hover { border-color: var(--sage); }
   border-radius: 3px;
   background: var(--bg);
   display: block;
-}
-@keyframes micpulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sage) 45%, transparent); }
-  60% { box-shadow: 0 0 0 9px transparent; }
 }
 .input-recording {
   border-color: var(--sage) !important;

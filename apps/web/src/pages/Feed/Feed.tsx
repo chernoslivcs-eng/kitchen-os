@@ -1916,8 +1916,10 @@ export function Feed() {
               <span className={styles['mic-stop']} />
             </button>
           ) : listening ? (
+            /* 1.5b: рух — на знаку (mic пульсує 1.2 с), не на контейнері:
+               кільце micpulse знято. Кольори стану — лише поки слухає. */
             <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true">
-              <span className={styles['mic-stop']} />
+              <Icon name="sys.voice" size={18} inherit decorative live="mic" />
             </button>
           ) : speechSupported() ? (
             <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic>

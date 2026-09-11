@@ -849,6 +849,67 @@ Components «home now». Композитор «+»/⌘K і репліка бо�
 одразу «за свіжістю» з розкритими рейками. Пари: `6b-pantry-head-1440(-dark)`,
 `6b-pantry-head-390(-dark)`.
 
+### Р40 · 1.5b: моушн знаків за Icons.dc.html — 24 системні рухи, 4 живі стани, натиск, reduced-motion
+
+Гілка `feat/icon-motion` від `main` (d1a8839), окремий PR після #49. Чіпає
+`components/Icon/` (Icon.tsx, Icon.module.css, icons.ts + новий `motion.ts`)
+і чотири місця вжитку живих станів (чіпи шапки чату, `.mic-live`, «Думаю»).
+
+**Правило:** рухається не знак, а його частина, 1–2 px, 600–900 мс, одна
+крива `ease-in-out`, без відскоку. Бандл пише кожному руху своє число
+(600…1200 мс) і дві криві — у коді три сходинки **токенами** в межах
+канону (`--dur-icon-short` 700 · `--dur-icon` 800 · `--dur-icon-long` 900) і
+одна крива (`--ease-icon`); живі стани — цикл із підписів бандла
+(`--dur-live-*`). Рухів не вигадано: є ключ у масиві `system` — робиться він,
+нема — статично (`null` у `motion.ts`). Продукти статичні; зони й cooking —
+QUESTIONS §15. Натиск — scale .96 на всіх знаках-кнопках, `--dur-fast`
+(150 проти 160 у бандлі — токен, не власне число). Reduced motion — токени
+0 і страхувальне правило в `Icon.module.css`.
+
+**Ховер** спрацьовує і на самому знаку, і на кнопці/посиланні, де він лежить
+(у бандлі — тайл). Порядок частин — DOM lucide 0.460, як у бандлі; book і
+fridge — власні шляхи (`CUSTOM_PATHS`, Icons.dc.html:218-229).
+
+| # | знак | рух у бандлі | рух у коді | тривалість бандл → код | крива бандл → код |
+|---|---|---|---|---|---|
+| 1 | message-circle · Чат | bubble — бабл ледь дихає | path scale 1.06 / −.5px, origin bottom left | 1100 → 900 | ease-in-out |
+| 2 | refrigerator · Комора | door — нижні дверцята прочиняються | власні шляхи 3–4: scaleX .6 skewY −6°, origin 5px 16px (view-box) | 1000 → 900 | ease-in-out |
+| 3 | book-open · Рецепти | book — сторінка через корінець | власний 4-й шлях (листок): scaleX 1→0→−1, opacity | 1100 → 900 | ease-in-out |
+| 4 | list-checks · Список | checks — дописує галочки | path 1–2 drawShort (dasharray 12), 1-й із затримкою 180 | 700 → 700 | ease-in-out |
+| 5 | calendar · Календар | flip — гортає сторінку | rect + path 4 scaleY .55 (origin top); path 1–2 pins | 840 → 800 | cubic(.4,0,.2,1) → ease-in-out |
+| 6 | house · Дім зараз | home — відкриває двері | path 1 door, origin left | 900 → 900 | cubic → ease-in-out |
+| 7 | shopping-cart · Кошик | roll — колеса крутяться | circle spin 200°; path nudge 1.2px | 900 → 900 | cubic → ease-in-out |
+| 8 | receipt · Чек | unroll — розгортається | path 1 scaleY .85→1 (origin top); path 2+ fadein | 840 → 800 | cubic → ease-in-out |
+| 9 | plus · Додати | turn — поворот 90° | svg rotate 90° (transition) | 700 → 700 | cubic(.45,0,.2,1) → ease-in-out |
+| 10 | mic · Голос | listen — капсула набирає, дуга домальовується | path 1 scaleY 1.08; path 2 fadeSoft | 1200/900 → 900 | ease-in-out |
+| 11 | arrow-up · Надіслати | lift — зсув угору | path/line −2px | 720 → 700 | cubic → ease-in-out |
+| 12 | paperclip · Вкласти | draw — домальовується | path draw (dasharray 64) | 1100 → 900 | ease-in-out |
+| 13 | search · Пошук | orbit — лупа робить коло | circle orbit ±1.5/−2px | 1050 → 900 | cubic → ease-in-out |
+| 14 | sliders-horizontal · Фільтр | sliders — бігунки в різні боки | line 7, 9 +3px; line 8 −3px | 1100 → 900 | ease-in-out |
+| 15 | arrow-up-down · Порядок | swap — стрілки міняються місцями | path 1–2 down; path 3–4 up (±2px) | 780 → 800 | cubic → ease-in-out |
+| 16 | check · Готово | draw — галочка ставиться | path draw | 1100 → 900 | ease-in-out |
+| 17 | x · Закрити | close — хрестик стискається | path scale .82 | 800 → 800 | ease-in-out |
+| 18 | undo-2 · Скасувати | back — стрілка їде назад | path 1 −2px | 780 → 800 | cubic → ease-in-out |
+| 19 | chevron-right · Далі | draw — шеврон домальовується | path draw | 1100 → 900 | ease-in-out |
+| 20 | external-link · У Сільпо | lift — стрілка вилітає з рамки | path/line −2px | 720 → 700 | cubic → ease-in-out |
+| 21 | panel-left-close · Згорнути | fold — роздільник зʼїжджає | path 2 −2px | 750 → 800 | cubic → ease-in-out |
+| 22 | sun-moon · Тема | dial — прокручується | path rotate 180° | 900 → 900 | cubic → ease-in-out |
+| 23 | volume-2 · Звук | waves — хвилі по черзі | path 2 fadein; path 3 fadein +240 | 600 → 700 | ease |
+| 24 | user · Профіль | nod — голова киває | circle +1.5px | 780 → 800 | cubic → ease-in-out |
+| L1 | flame · «Горить» | дихає, поки є позиції ≤ 3 дні | path scale 1.04/1.09, origin bottom; на чіпі «Прострочено N» | 1.6 с (бандл CSS 2.4, підпис 1.6) → 1.6 с | ease-in-out |
+| L2 | timer · таймер | тікає, поки таймер біжить | line 2 (стрілка 12,14→15,11) rotate 24°, вісь 12px 14px; селектор бандла `:nth-child(3)` у lucide 0.460 нічого не ловить | 1.2 с (CSS 2.4, підпис 1.2) → 1.2 с | ease-in-out |
+| L3 | mic · «Слухаю» | пульс під час диктовки | path 1 scaleY 1.18; `.mic-live` тепер малює знак (sage на sage-bg), кільце micpulse на контейнері знято | 1.2 с (CSS 1.8, підпис 1.2) → 1.2 с | ease-in-out |
+| L4 | sparkles · «Думаю» | погойдування, поки чекаємо | path scale .75 / opacity .55, затримки 300/600; на рядку стану дії | 1.4 с (CSS 2.2, підпис 1.4) → 1.4 с | ease-in-out |
+
+Приймання: `icons.test.ts` — кожен system-знак має запис у `motion.ts`
+(24 з бандла — свій ключ, решта `null`), кожен ключ — правило і `@keyframes`,
+жоден products-знак не рухається, тривалості лише токенами в межах
+600–900 / 1.2–1.6 с, reduced-motion вимикає все. Запис екрана 10–15 с в обох
+темах — `icon-motion-light.webm`, `icon-motion-dark.webm` (ховер по рейці
+зверху вниз, натиск, flame у шапці при прострочених — мережевий стаб
+`/v1/pantry`, timer під час готування, композитор); знімає
+`scripts/icon-motion-record.mjs`.
+
 ## Відкриті ⚠ — до власника, етап 1 ними не блокується
 
 | ⚠ | Питання | Пропозиція PLAN | Де впирається |

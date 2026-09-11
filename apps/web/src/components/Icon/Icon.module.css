@@ -20,8 +20,144 @@
 .inherit { color: inherit; }
 .ink { color: var(--ink); }
 
-/* Рух — тільки на частинах знака, 1–2 px, 600–900 мс, одна крива.
- * reduced-motion вимикає все, крім кольору (tokens-v3 · Рух). */
+/* ── Етап 1.5b · рух частин знака (Icons.dc.html) ────────────────────────
+ * Рухається не знак, а його частина: 1–2 px, 600–900 мс, одна крива
+ * ease-in-out, без відскоку. Ключ руху — `data-motion` з motion.ts; правило
+ * наведення спрацьовує і на самому знаку, і на кнопці/посиланні, у якому він
+ * лежить (у бандлі — тайл). Порядок частин — DOM lucide 0.460, як у бандлі;
+ * book і fridge — власні шляхи (CUSTOM_PATHS). Тривалості — лише токени
+ * (--dur-icon-*), крива — --ease-icon. */
+.icon > svg, .icon > svg * { transform-box: fill-box; transform-origin: center; }
+
+/* Натиск — scale .96, 160 мс, на всіх знаках-кнопках (Icons: «Натиск»). */
+:global(:is(button, a, [role="button"]):active) > .icon > svg,
+:global(:is(button, a, [role="button"]):active) .icon > svg { transform: scale(0.96); transition: transform var(--dur-fast) var(--ease-icon); }
+
+/* Список: галочки дописуються по черзі */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="checks"] > svg :is(path:nth-child(1), path:nth-child(2)),
+.icon[data-motion="checks"]:hover > svg :is(path:nth-child(1), path:nth-child(2)) { stroke-dasharray: 12; animation: drawShort var(--dur-icon-short) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="checks"] > svg path:nth-child(1),
+.icon[data-motion="checks"]:hover > svg path:nth-child(1) { animation-delay: 180ms; }
+/* Кошик: котиться — колеса обертаються, корпус зсувається */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="roll"] > svg circle,
+.icon[data-motion="roll"]:hover > svg circle { animation: spin var(--dur-icon-long) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="roll"] > svg path,
+.icon[data-motion="roll"]:hover > svg path { animation: nudge var(--dur-icon-long) var(--ease-icon) both; }
+/* Календар: сторінка перегортається */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="flip"] > svg :is(rect, path:nth-child(4)),
+.icon[data-motion="flip"]:hover > svg :is(rect, path:nth-child(4)) { transform-origin: top; animation: flip var(--dur-icon) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="flip"] > svg :is(path:nth-child(1), path:nth-child(2)),
+.icon[data-motion="flip"]:hover > svg :is(path:nth-child(1), path:nth-child(2)) { animation: pins var(--dur-icon) var(--ease-icon) both; }
+/* Комора: нижні дверцята прочиняються (власні шляхи 3 і 4) */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="door"] > svg :is(path:nth-child(3), path:nth-child(4)),
+.icon[data-motion="door"]:hover > svg :is(path:nth-child(3), path:nth-child(4)) { transform-box: view-box; transform-origin: 5px 16px; animation: door var(--dur-icon-long) var(--ease-icon) both; }
+/* Скріпка / галочка / шеврон: контур домальовується */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="draw"] > svg :is(path, line, polyline),
+.icon[data-motion="draw"]:hover > svg :is(path, line, polyline) { stroke-dasharray: 64; animation: draw var(--dur-icon-long) var(--ease-icon) both; }
+/* Чат: бабл ледь дихає */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="bubble"] > svg path,
+.icon[data-motion="bubble"]:hover > svg path { transform-origin: bottom left; animation: bubbleSoft var(--dur-icon-long) var(--ease-icon) both; }
+/* Рецепти: сторінка перегортається через корінець (власний 4-й шлях) */
+.icon[data-motion="book"] > svg path:nth-child(4) { opacity: 0; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="book"] > svg path:nth-child(4),
+.icon[data-motion="book"]:hover > svg path:nth-child(4) { transform-origin: left center; animation: leaf var(--dur-icon-long) var(--ease-icon) both; }
+/* Дім: двері відкриваються */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="home"] > svg path:nth-child(1),
+.icon[data-motion="home"]:hover > svg path:nth-child(1) { transform-origin: left; animation: door var(--dur-icon-long) var(--ease-icon) both; }
+/* Пошук: лупа робить коло */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="orbit"] > svg circle,
+.icon[data-motion="orbit"]:hover > svg circle { animation: orbit var(--dur-icon-long) var(--ease-icon) both; }
+/* Мікрофон: капсула набирає, дуга домальовується */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="listen"] > svg path:nth-child(1),
+.icon[data-motion="listen"]:hover > svg path:nth-child(1) { animation: breatheSoft var(--dur-icon-long) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="listen"] > svg path:nth-child(2),
+.icon[data-motion="listen"]:hover > svg path:nth-child(2) { animation: fadeSoft var(--dur-icon-long) var(--ease-icon) both; }
+/* Плюс: повертається на 90° */
+.icon[data-motion="turn"] > svg { transition: transform var(--dur-icon-short) var(--ease-icon); }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="turn"] > svg,
+.icon[data-motion="turn"]:hover > svg { transform: rotate(90deg); }
+/* Фільтр: бігунки їдуть у різні боки */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="sliders"] > svg :is(line:nth-child(7), line:nth-child(9)),
+.icon[data-motion="sliders"]:hover > svg :is(line:nth-child(7), line:nth-child(9)) { animation: knobR var(--dur-icon-long) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="sliders"] > svg line:nth-child(8),
+.icon[data-motion="sliders"]:hover > svg line:nth-child(8) { animation: knobL var(--dur-icon-long) var(--ease-icon) both; }
+/* Порядок: стрілки міняються місцями */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="swap"] > svg path:nth-child(-n+2),
+.icon[data-motion="swap"]:hover > svg path:nth-child(-n+2) { animation: down var(--dur-icon) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="swap"] > svg path:nth-child(n+3),
+.icon[data-motion="swap"]:hover > svg path:nth-child(n+3) { animation: up var(--dur-icon) var(--ease-icon) both; }
+/* Надіслати / назовні: зсув усередині коробки */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="lift"] > svg :is(path, line, polyline),
+.icon[data-motion="lift"]:hover > svg :is(path, line, polyline) { animation: lift var(--dur-icon-short) var(--ease-icon) both; }
+/* Скасувати: стрілка їде назад */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="back"] > svg path:nth-child(1),
+.icon[data-motion="back"]:hover > svg path:nth-child(1) { animation: back var(--dur-icon) var(--ease-icon) both; }
+/* Чек: розкривається знизу, рядки проявляються */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="unroll"] > svg path:nth-child(1),
+.icon[data-motion="unroll"]:hover > svg path:nth-child(1) { transform-origin: top; animation: unroll var(--dur-icon) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="unroll"] > svg path:nth-child(n+2),
+.icon[data-motion="unroll"]:hover > svg path:nth-child(n+2) { animation: fadein var(--dur-icon) var(--ease-icon) both; }
+/* Згорнути: роздільник зʼїжджає */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="fold"] > svg path:nth-child(2),
+.icon[data-motion="fold"]:hover > svg path:nth-child(2) { animation: nudgeL var(--dur-icon) var(--ease-icon) both; }
+/* Тема: сонце прокручується в місяць */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="dial"] > svg path,
+.icon[data-motion="dial"]:hover > svg path { animation: dial var(--dur-icon-long) var(--ease-icon) both; }
+/* Звук: хвилі виходять по черзі */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="waves"] > svg path:nth-child(2),
+.icon[data-motion="waves"]:hover > svg path:nth-child(2) { animation: fadein var(--dur-icon-short) var(--ease-icon) both; }
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="waves"] > svg path:nth-child(3),
+.icon[data-motion="waves"]:hover > svg path:nth-child(3) { animation: fadein var(--dur-icon-short) var(--ease-icon) 240ms both; }
+/* Профіль: голова киває */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="nod"] > svg circle,
+.icon[data-motion="nod"]:hover > svg circle { animation: nod var(--dur-icon) var(--ease-icon) both; }
+/* Закрити: хрестик стягується */
+:global(:is(button, a, [role="button"]):hover) .icon[data-motion="close"] > svg path,
+.icon[data-motion="close"]:hover > svg path { animation: pinch var(--dur-icon) var(--ease-icon) both; }
+
+/* Живі стани (Icons «Живі стани»): йдуть, поки триває процес, без наведення. */
+.icon[data-live="flame"] > svg path { animation: flame var(--dur-live-flame) var(--ease-icon) infinite; transform-origin: bottom; }
+/* Стрілка таймера в lucide 0.460 — друга line (12,14 → 15,11); селектор
+   бандла (:nth-child(3)) у цій версії нічого не ловить. Вісь — центр
+   циферблата. */
+.icon[data-live="timer"] > svg line:nth-child(2) { animation: hand var(--dur-live-timer) var(--ease-icon) infinite; transform-box: view-box; transform-origin: 12px 14px; }
+.icon[data-live="mic"] > svg path:nth-child(1) { animation: breathe var(--dur-live-mic) var(--ease-icon) infinite; }
+.icon[data-live="think"] > svg path { animation: twinkle var(--dur-live-think) var(--ease-icon) infinite; }
+.icon[data-live="think"] > svg path:nth-child(2) { animation-delay: 300ms; }
+.icon[data-live="think"] > svg path:nth-child(3) { animation-delay: 600ms; }
+
+@keyframes drawShort { from { stroke-dashoffset: 12; opacity: .35; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes draw { from { stroke-dashoffset: 64; opacity: .35; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes pinch { 0%, 100% { transform: scale(1); } 50% { transform: scale(.82); } }
+@keyframes bubbleSoft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06) translateY(-.5px); } }
+@keyframes spin { from { transform: rotate(0); } to { transform: rotate(200deg); } }
+@keyframes nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(1.2px); } }
+@keyframes nudgeL { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-2px); } }
+@keyframes flip { 0%, 100% { transform: scaleY(1); opacity: 1; } 50% { transform: scaleY(.55); opacity: .7; } }
+@keyframes pins { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(1px); } }
+@keyframes door { 0%, 100% { transform: scaleX(1) skewY(0); } 50% { transform: scaleX(.6) skewY(-6deg); } }
+@keyframes leaf { 0% { transform: scaleX(1); opacity: 0; } 20% { opacity: 1; } 50% { transform: scaleX(0); opacity: 1; } 80% { opacity: 1; } 100% { transform: scaleX(-1); opacity: 0; } }
+@keyframes orbit { 0% { transform: translate(0, 0); } 25% { transform: translate(1.5px, -1px); } 50% { transform: translate(0, -2px); } 75% { transform: translate(-1.5px, -1px); } 100% { transform: translate(0, 0); } }
+@keyframes breatheSoft { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
+@keyframes fadeSoft { 0% { opacity: .45; transform: translateY(1px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.18); } }
+@keyframes knobR { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+@keyframes knobL { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-3px); } }
+@keyframes down { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+@keyframes up { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes lift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes back { 0% { transform: translateX(0); } 50% { transform: translateX(-2px); } 100% { transform: translateX(0); } }
+@keyframes unroll { 0% { transform: scaleY(.85); } 100% { transform: scaleY(1); } }
+@keyframes fadein { 0% { opacity: 0; transform: translateY(2px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes dial { 0% { transform: rotate(0); } 100% { transform: rotate(180deg); } }
+@keyframes nod { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(1.5px); } }
+@keyframes flame { 0%, 100% { transform: scale(1, 1); } 45% { transform: scale(1.04, 1.09); } 70% { transform: scale(.98, 1.02); } }
+@keyframes hand { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(24deg); } }
+@keyframes twinkle { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.75); opacity: .55; } }
+
+/* reduced-motion вимикає все, крім кольору (tokens-v3 · Рух; Icons
+ * «Reduced motion»). Токени --dur-icon-* і --dur-live-* під reduce уже 0;
+ * це правило страхує transition і будь-який рух повз токени. */
 @media (prefers-reduced-motion: reduce) {
-  .icon > svg, .icon > svg * { animation: none !important; transition: none !important; }
+  .icon > svg, .icon > svg * { animation: none !important; transition: none !important; transform: none !important; }
 }
