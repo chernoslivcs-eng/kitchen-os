@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
+* { box-sizing:border-box; }
+.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --sage-deep:#3f5837; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); }
+</style>
+</helmet>
+
+<section class="v3" style="padding:48px; display:flex; flex-direction:column; gap:40px; width:max-content; color:var(--ink);">
+<div style="display:flex; flex-direction:column; gap:8px; width:1440px;">
+  <div style="font-size:12px; font-weight:500; color:var(--muted);">Пакет C3–C4 · Перевір пошту · Запрошення в дім · «як у лендінгу»: та ж шапка, той самий hero-градієнт, центрована колонка, картка з лендінгу · вхід = лендінг</div>
+  <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05; max-width:1100px;">Два екрани, що живуть між листом і продуктом. Вони — сторінки лендінгу, не окремий застосунок.</div>
+</div>
+
+<div style="display:flex; gap:24px; align-items:flex-start;">
+  <sc-for list="{{ screens }}" as="sc" hint-placeholder-count="2">
+    <div data-screen-label="{{ sc.label }}" style="width:1024px; height:720px; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--sh); flex:none;">
+      <div style="flex:1; background:linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 45%, var(--bg)) 0, var(--bg) 560px); display:flex; flex-direction:column;">
+        <header style="height:68px; display:flex; align-items:center; justify-content:space-between; padding:0 48px;">
+          <span style="display:flex; align-items:center; gap:10px;"><span style="width:26px; height:26px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center;"><span style="width:8px; height:8px; border-radius:50%; background:var(--sage);"></span></span><span style="font-weight:700; font-size:15px; letter-spacing:-.02em;">Kitchen OS</span></span>
+          <span style="font-size:14px; color:var(--muted); display:inline-flex; align-items:center; gap:6px;"><i data-lucide="arrow-left" style="width:14px; height:14px;"></i>На головну</span>
+        </header>
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:28px; padding:0 48px 80px;">
+          <span style="display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 14px; border-radius:999px; background:{{ sc.kickBg }}; color:{{ sc.kickColor }}; font-size:13px; font-weight:500;"><i data-lucide="{{ sc.kickIcon }}" style="width:15px; height:15px;"></i>{{ sc.kick }}</span>
+          <h1 style="margin:0; font-size:56px; letter-spacing:-.045em; line-height:1.02; display:flex; flex-direction:column; text-wrap:balance; max-width:820px;"><span style="font-weight:400; color:var(--muted);">{{ sc.h1a }}</span><span style="font-weight:700;">{{ sc.h1b }}</span></h1>
+          <p style="margin:0; font-size:17px; line-height:1.55; color:var(--muted); max-width:560px; text-wrap:pretty;">{{ sc.sub }}</p>
+          <!-- card -->
+          <div style="width:480px; display:flex; flex-direction:column; gap:12px; padding-top:8px;">
+            <sc-if value="{{ sc.isSent }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; align-items:center; gap:14px; height:64px; padding:0 8px 0 20px; border-radius:32px; background:var(--card); box-shadow:var(--sh2);"><i data-lucide="mail-check" style="width:20px; height:20px; color:var(--sage); flex:none;"></i><span style="flex:1; text-align:left; display:flex; flex-direction:column; line-height:1.2;"><span style="font-size:16px; font-weight:600;">p***@gmail.com</span><span style="font-size:12px; color:var(--dim);">лист летить · відкрий на цьому пристрої</span></span><span style="height:48px; padding:0 16px; border-radius:24px; border:1px solid var(--line2); display:inline-flex; align-items:center; font-size:14px; font-weight:600; white-space:nowrap;">Змінити</span></div>
+              <span style="font-size:13px; color:var(--dim);">Лист не прийшов? <span style="color:var(--muted); font-weight:500;">Надіслати ще раз · 0:47</span></span>
+            </sc-if>
+            <sc-if value="{{ sc.isInvite }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-radius:20px; background:var(--card); box-shadow:var(--sh2); text-align:left;"><span style="display:flex;"><span style="width:32px; height:32px; border-radius:50%; background:var(--plum); border:2px solid var(--card); display:grid; place-items:center; font-size:12px; font-weight:600; color:#fff;">О</span><span style="width:32px; height:32px; border-radius:50%; background:var(--amber); border:2px solid var(--card); display:grid; place-items:center; font-size:12px; font-weight:600; color:#fff; margin-left:-10px;">Т</span><span style="width:32px; height:32px; border-radius:50%; background:var(--sage); border:2px solid var(--card); display:grid; place-items:center; font-size:12px; font-weight:600; color:#fff; margin-left:-10px;">М</span></span><span style="flex:1; display:flex; flex-direction:column; line-height:1.25;"><span style="font-size:16px; font-weight:600;">Дім «Сімейна»</span><span style="font-size:13px; color:var(--muted);">3 людини · 61 позиція в коморі · для olya@gmail.com</span></span></div>
+              <span style="height:56px; width:100%; border-radius:28px; background:var(--ink); color:var(--bg); display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:600; box-shadow:var(--sh2);">Прийняти запрошення</span>
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px; background:var(--amber-bg); color:var(--amber); font-size:13px; line-height:1.45; text-align:left;"><i data-lucide="user-round-x" style="width:15px; height:15px; flex:none;"></i><span>Ти вже увійшов як <b style="font-weight:600;">pylyp@…</b> — після прийняття акаунт зміниться на <b style="font-weight:600;">olya@…</b>.</span></div>
+            </sc-if>
+            <span style="font-size:13px; color:var(--dim); padding-top:4px;">{{ sc.foot }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+</div>
+
+<div style="display:flex; gap:32px; align-items:flex-start;">
+  <div style="display:flex; gap:24px;">
+    <sc-for list="{{ screens }}" as="sc" hint-placeholder-count="2">
+      <div data-screen-label="{{ sc.labelM }}" style="width:390px; height:760px; background:var(--bg); display:flex; flex-direction:column; overflow:hidden; border-radius:12px; box-shadow:0 20px 60px rgba(26,28,30,.16); flex:none;">
+        <div style="flex:1; background:linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 45%, var(--bg)) 0, var(--bg) 480px); display:flex; flex-direction:column;">
+          <header style="height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 20px;"><span style="display:flex; align-items:center; gap:8px;"><span style="width:24px; height:24px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center;"><span style="width:8px; height:8px; border-radius:50%; background:var(--sage);"></span></span><span style="font-weight:700; font-size:15px; letter-spacing:-.02em;">Kitchen OS</span></span><span style="font-size:13px; color:var(--muted); display:inline-flex; align-items:center; gap:6px;"><i data-lucide="arrow-left" style="width:14px; height:14px;"></i>На головну</span></header>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:20px; padding:0 20px 60px;">
+            <span style="display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 12px; border-radius:999px; background:{{ sc.kickBg }}; color:{{ sc.kickColor }}; font-size:13px; font-weight:500;"><i data-lucide="{{ sc.kickIcon }}" style="width:14px; height:14px;"></i>{{ sc.kick }}</span>
+            <h1 style="margin:0; font-size:34px; letter-spacing:-.04em; line-height:1.05; display:flex; flex-direction:column; text-wrap:balance;"><span style="font-weight:400; color:var(--muted);">{{ sc.h1a }}</span><span style="font-weight:700;">{{ sc.h1b }}</span></h1>
+            <p style="margin:0; font-size:15px; line-height:1.5; color:var(--muted); text-wrap:pretty;">{{ sc.sub }}</p>
+            <div style="width:100%; display:flex; flex-direction:column; gap:12px; padding-top:4px;">
+              <sc-if value="{{ sc.isSent }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex; align-items:center; gap:12px; height:60px; padding:0 6px 0 16px; border-radius:30px; background:var(--card); box-shadow:var(--sh2);"><i data-lucide="mail-check" style="width:18px; height:18px; color:var(--sage); flex:none;"></i><span style="flex:1; text-align:left; display:flex; flex-direction:column; line-height:1.2; min-width:0;"><span style="font-size:15px; font-weight:600;">p***@gmail.com</span><span style="font-size:12px; color:var(--dim);">лист летить</span></span><span style="height:48px; padding:0 14px; border-radius:24px; border:1px solid var(--line2); display:inline-flex; align-items:center; font-size:13px; font-weight:600;">Змінити</span></div>
+                <span style="font-size:13px; color:var(--dim);">Лист не прийшов? <span style="color:var(--muted); font-weight:500;">Надіслати ще раз · 0:47</span></span>
+              </sc-if>
+              <sc-if value="{{ sc.isInvite }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:18px; background:var(--card); box-shadow:var(--sh2); text-align:left;"><span style="display:flex;"><span style="width:30px; height:30px; border-radius:50%; background:var(--plum); border:2px solid var(--card); display:grid; place-items:center; font-size:11px; font-weight:600; color:#fff;">О</span><span style="width:30px; height:30px; border-radius:50%; background:var(--amber); border:2px solid var(--card); display:grid; place-items:center; font-size:11px; font-weight:600; color:#fff; margin-left:-10px;">Т</span><span style="width:30px; height:30px; border-radius:50%; background:var(--sage); border:2px solid var(--card); display:grid; place-items:center; font-size:11px; font-weight:600; color:#fff; margin-left:-10px;">М</span></span><span style="flex:1; display:flex; flex-direction:column; line-height:1.25; min-width:0;"><span style="font-size:15px; font-weight:600;">Дім «Сімейна»</span><span style="font-size:12px; color:var(--muted);">3 людини · 61 позиція</span></span></div>
+                <span style="height:52px; width:100%; border-radius:26px; background:var(--ink); color:var(--bg); display:inline-flex; align-items:center; justify-content:center; font-size:15px; font-weight:600; box-shadow:var(--sh2);">Прийняти запрошення</span>
+                <div style="display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:12px; background:var(--amber-bg); color:var(--amber); font-size:12px; line-height:1.45; text-align:left;"><i data-lucide="user-round-x" style="width:14px; height:14px; flex:none; margin-top:1px;"></i><span>Ти вже увійшов як <b style="font-weight:600;">pylyp@…</b> — після прийняття акаунт зміниться.</span></div>
+              </sc-if>
+              <span style="font-size:12px; color:var(--dim); padding-top:4px;">{{ sc.foot }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="width:360px; flex:none; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--muted); padding-top:8px;">
+    <div><b style="color:var(--ink); font-weight:600;">Вхід — це лендінг.</b> Окремого /signin нема: «Увійти» скролить до картки в hero. Тому Sent і Invite — сторінки тієї ж родини: шапка лендінгу, hero-градієнт, центрована колонка, заголовок у два тони.</div>
+    <div><b style="color:var(--ink); font-weight:600;">Sent:</b> замість форми — той самий email-піл, але вже «відправлений»: іконка mail-check шавлією, маска адреси, «Змінити» на місці кнопки. Таймер повтору — в реченні під ним.</div>
+    <div><b style="color:var(--ink); font-weight:600;">Invite:</b> дім показаний карткою (аватари, «3 людини · 61 позиція», для кого), кнопка — той самий чорний піл, що «Продовжити з Google». Конфлікт сесії — бурштинова смуга під кнопкою, а не абзац.</div>
+    <div><b style="color:var(--ink); font-weight:600;">Копі</b> з MagicLinkSent.tsx і Invite.tsx; кікер — піл із іконкою в роді: send (шавлія) / house (слива).</div>
+    <div><b style="color:var(--ink); font-weight:600;">Недійсне запрошення</b> — Errors E1 із кікером danger і «На головну».</div>
+  </div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  icons() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  renderVals() {
+    const screens = [
+      { label:'Перевір пошту · 1024', labelM:'Перевір пошту · 390', kick:'Лінк летить', kickIcon:'send', kickColor:'var(--sage)', kickBg:'var(--sage-bg)', h1a:'Перевір пошту.', h1b:'Один клік — і ти всередині.', sub:'Посилання діє 15 хвилин і працює один раз.', isSent:true, isInvite:false, foot:'Пароля немає. Лінк одноразовий.' },
+      { label:'Запрошення · 1024', labelM:'Запрошення · 390', kick:'Запрошення в дім · без пароля', kickIcon:'house', kickColor:'var(--plum)', kickBg:'var(--plum-bg)', h1a:'Одна комора на весь дім.', h1b:'Тебе запрошують у «Сімейну».', sub:'Після прийняття все, що є вдома, стане спільним, і саме цей акаунт буде твоїм тут.', isSent:false, isInvite:true, foot:'Не просив запрошення — просто закрий сторінку, нічого не станеться. Лінк одноразовий · діє 72 год.' },
+    ];
+    return { screens };
+  }
+}
+</script>
+</body>
+</html>

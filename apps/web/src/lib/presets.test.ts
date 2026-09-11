@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EQUIP_EXTRA, DIET_PRESETS, cycleEquip, equipGlyph } from './presets';
+import { EQUIP_EXTRA, DIET_PRESETS, cycleEquip, equipIcon } from './presets';
 
 // Пікер техніки й пресети дієт — з прототипу (EQUIP_EXTRA, DIET_PRESETS).
 // DIET_PRESETS у прототипі так і лишились заготовкою — визначені й ніде не
@@ -14,9 +14,9 @@ describe('пікер техніки', () => {
   });
 
   it('гліф відповідає стану', () => {
-    expect(equipGlyph(undefined)).toBe('○');
-    expect(equipGlyph('has')).toBe('●');
-    expect(equipGlyph('lacks')).toBe('✕');
+    expect(equipIcon(undefined)).toBeNull();
+    expect(equipIcon('has')).toBe('sys.done');
+    expect(equipIcon('lacks')).toBe('cook.ban');
   });
 
   it('список із прототипу цілий і без дублів', () => {

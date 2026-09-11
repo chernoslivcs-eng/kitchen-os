@@ -97,9 +97,9 @@ export function SharePage() {
   if (!r) {
     return (
       <div className={styles.screen}>
-        <div style={{ padding: 22, color: 'var(--fg-muted)' }}>
+        <div style={{ padding: 22, color: 'var(--muted)' }}>
           <p>Спершу приготуй страву — тоді тут зʼявиться, чим поділитися.</p>
-          <button className={styles.exit} style={{ marginTop: 12 }} onClick={() => navigate('/app')}>← У стрічку</button>
+          <button className={styles.exit} style={{ marginTop: 12 }} onClick={() => navigate('/app')}>У стрічку</button>
         </div>
       </div>
     );
@@ -179,7 +179,7 @@ export function SharePage() {
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
-        <button className={styles.exit} onClick={() => navigate(-1)}>← Назад</button>
+        <button className={styles.exit} onClick={() => navigate(-1)}>Назад</button>
         <MonoLabel className={styles.title}>ПУБЛІКАЦІЯ</MonoLabel>
         <div style={{ width: 42 }} />
       </div>
@@ -244,7 +244,7 @@ export function SharePage() {
               Завантажити PNG
             </Button>
           )}
-          <Button variant="secondary" onClick={copyCaption}>{copied ? 'Скопійовано ✓' : 'Скопіювати підпис'}</Button>
+          <Button variant="secondary" onClick={copyCaption}>{copied ? 'Скопійовано' : 'Скопіювати підпис'}</Button>
         </div>
         {shareUrl && (
           <div className={styles.hint} style={{ marginTop: -6 }}>

@@ -1,6 +1,6 @@
 // Моушн-кіт §04: жива хвиля диктування — бари від РЕАЛЬНОЇ гучності
 // (AnalyserNode), не фейк-луп: людина бачить, що її чутно. Поруч — таймер
-// запису в моно. Reduced motion або мік без дозволу → статичний ● REC.
+// запису в моно. Reduced motion або мік без дозволу — статичний індикатор REC.
 
 import { useEffect, useRef, useState } from 'react';
 import styles from './VoiceWave.module.css';
@@ -77,7 +77,7 @@ export function VoiceWave() {
   return (
     <span className={styles.wrap} aria-hidden="true">
       {fallback
-        ? <span className={styles.rec}>● REC</span>
+        ? <span className={styles.rec}><span className={styles['rec-dot']} aria-hidden />REC</span>
         : <canvas ref={canvasRef} width={56} height={22} className={styles.wave} />}
       <span className={styles.timer}>{mm}:{ss}</span>
     </span>

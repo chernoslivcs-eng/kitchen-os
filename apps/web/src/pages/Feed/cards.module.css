@@ -1,0 +1,16 @@
+
+/* Позначка «бракує» — контурне коло 6 px. Був гліф ○ у тексті: він пережив
+ * етапи 1.5 і 1.6, бо живе в стані картки, у який прогін аудиту не входить
+ * (DEBT §26). */
+.miss-mark {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  vertical-align: middle;
+}
+
+/* Позначки груп у картках. Були гліфами ● / ◌ у тексті. */
+.gmark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.gmark-ring { display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; vertical-align: middle; }

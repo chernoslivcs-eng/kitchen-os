@@ -10,7 +10,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type K
 import { useNavigate } from 'react-router-dom';
 import { api, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated } from '../../api';
 import { PROFILE_ROWS, HINT_IDLE, SECTION, PLAN_LABEL, type ProfileRowCopy } from '../../lib/profile-copy';
-import type { ProfileFieldKey } from '@kitchen/domain/profile-fields';
+import { KIT_DEFAULTS, type ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { useAuth } from '../../store/auth';
 import { currentTheme, setThemeOverride, type ThemeChoice } from '../../theme';
 import { Button } from '../../components/Button/Button';
@@ -311,6 +311,19 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                     data-counter={row.k}
                   >{c.text}</span>
                 </div>
+                {/* Р8: «база кухні» — єдиний текст у профілі, якого людина не
+                    писала. Досі він жив тільки в промті («Плита, духовка… — є
+                    за замовчуванням»), а на екрані поля не було нічого — тобто
+                    `status: filled` на цьому рядку означав «людина сказала», і
+                    це була неправда. Тепер база названа окремим тихим рядком,
+                    під полем і не в ньому: профіль — місце, де людина бачить,
+                    що про неї записали, і чужий текст під її імʼям там
+                    найдорожчий. */}
+                {row.k === 'kit' && (
+                  <div className={styles.baseline} data-baseline="kit">
+                    {KIT_DEFAULTS.join(' · ')} — є за замовчуванням, це не твої слова
+                  </div>
+                )}
                 {active && (
                   <div className={styles.hintMobile} key={hintKey}>
                     <p className={styles.hintText}>{row.hint}</p>
@@ -409,7 +422,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
               <span className={styles.listNameMuted}>
                 {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам:` : `Лист не дійшов. Передай ${lastInvite.email} лінк сам, месенджером:`}
               </span>
-              <button type="button" className={styles.listAction} onClick={() => void copyInviteLink()}>{linkCopied ? '✓ Скопійовано' : 'Скопіювати лінк'}</button>
+              <button type="button" className={styles.listAction} onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати лінк'}</button>
             </div>
           )}
         </div>
@@ -429,7 +442,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
             {retail === 'disconnected' && <span className={styles.listMeta}>ВІДКЛЮЧЕНО</span>}
             {retail === 'none' && <a className={styles.listAction} href="/v1/retail/silpo/connect">Підключити</a>}
             {retail === 'expired' && <a className={styles.listAction} href="/v1/retail/silpo/connect">Увійти знову</a>}
-            {retail === 'disconnected' && <button type="button" className={styles.listAction} onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути ↩</button>}
+            {retail === 'disconnected' && <button type="button" className={styles.listAction} onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
             {retail === 'active' && <button type="button" className={styles.listActionDim} onClick={() => void retailDisconnect()} disabled={retailBusy}>Відключити</button>}
           </div>
           {karpaty && (

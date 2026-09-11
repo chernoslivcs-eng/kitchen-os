@@ -1,0 +1,38 @@
+/* Ролі типографіки v3 (ai/project/tokens-v3.md · «Типографіка»).
+ *
+ * Правило: компонент не має власного кегля — тільки роль. Кожна роль несе всі
+ * параметри разом, щоб «одне значення — одне написання» трималось саме.
+ * Тест — styles/tokens.test.ts.
+ *
+ * Гарнітура одна. Поки що через --font-display: у проєкті ще живуть
+ * --font-body (Golos Text) і --font-mono (IBM Plex Mono) — три гарнітури
+ * замість однієї. Це Р19, рішення прийнято, робота окремим етапом 1.6:
+ * Golos сидить під body, і Onest ширший — довжини рядків поїдуть усюди.
+ *
+ * Капсу тут немає навмисно (Р20): «капс не використовується». Метадані
+ * розрізняються роллю caption і кольором muted/dim, а не гарнітурою.
+ */
+.t-display, .t-h1, .t-h2, .t-h3, .t-body,
+.t-row, .t-small, .t-caption, .t-label, .t-timer {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.t-display { font-size: 40px;  line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
+.t-h1      { font-size: 32px;  line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
+.t-h2      { font-size: 22px;  line-height: 1.2;  font-weight: 600; letter-spacing: -0.02em; }
+.t-h3      { font-size: 17px;  line-height: 1.3;  font-weight: 600; letter-spacing: -0.01em; }
+.t-body    { font-size: 16px;  line-height: 1.55; font-weight: 400; letter-spacing: 0; }
+.t-row     { font-size: 15px;  line-height: 1.4;  font-weight: 500; letter-spacing: 0; }
+.t-small   { font-size: 14px;  line-height: 1.5;  font-weight: 400; letter-spacing: 0; }
+.t-caption { font-size: 13px;  line-height: 1.4;  font-weight: 400; letter-spacing: 0; }
+.t-label   { font-size: 12px;  line-height: 1.3;  font-weight: 500; letter-spacing: 0.01em; }
+.t-timer   { font-size: 112px; line-height: 1;    font-weight: 700; letter-spacing: -0.04em; }
+
+/* Емфаза: 600 + чорнило, і не більше 3 виділених рядків та 1 картки-акценту на
+ * екран. Число поки не має рішення (⚠1) — правило тут, метрика в аудиті
+ * зʼявиться після нього. */
+.t-em { font-weight: 600; color: var(--ink); }
+
+/* Курсив — виключно status: empty у профілі, більше ніде (tokens-v3). */
+.t-empty { font-style: italic; color: var(--dim); }

@@ -102,8 +102,9 @@ describe('текст картки за родом', () => {
   const st = (kind: DragState['kind'], count = 1): DragState => ({ kind, count, long: false, x: 0, y: 0 });
 
   it('чек обіцяє позиції, фото — те, що видно', () => {
-    expect(copyFor(st('pdf'), 5).effect).toBe('→ у комору · позиції з чека');
-    expect(copyFor(st('image'), 5).effect).toBe('→ у комору · що видно на фото');
+    // Етап 1.5: стрілка знята з копі — канон забороняє гліфи-символи в тексті.
+    expect(copyFor(st('pdf'), 5).effect).toBe('у комору · позиції з чека');
+    expect(copyFor(st('image'), 5).effect).toBe('у комору · що видно на фото');
   });
 
   it('кілька файлів рахуються, а не називаються «три»', () => {

@@ -18,7 +18,7 @@
 .panel {
   width: 100%;
   max-width: 720px;
-  background: var(--bg-surface);
+  background: var(--card);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
   display: flex;

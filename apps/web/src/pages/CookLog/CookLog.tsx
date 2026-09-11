@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Icon } from '../../components/Icon/Icon';
 import { api, type CookRunWithRecipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
@@ -30,6 +31,23 @@ function dayLabel(iso: string): string {
 function timeLabel(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * Оцінка — це ДАНІ, а не рядок символів. Було `'★'.repeat(rating)`: число
+ * малювалося текстом, тобто screen reader читав пʼять зірочок замість «4 з 5»,
+ * а канон забороняє гліфи в ролі знаків. Тепер знаки — Lucide, а число живе в
+ * aria-label.
+ */
+function Rating({ value }: { value: number }) {
+  return (
+    <span className={styles.stat} role="img" aria-label={`${value} з 5`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Icon key={n} name="cook.rating" size={12} inherit decorative
+          className={n <= value ? undefined : styles['star-off']} />
+      ))}
+    </span>
+  );
 }
 
 export function CookLogPage() {
@@ -92,7 +110,7 @@ export function CookLogPage() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate(-1)} aria-label="Назад" style={{ width: 38, height: 38, border: '1px solid var(--border-strong)', borderRadius: 10, background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 16 }}>←</button>
+          <button onClick={() => navigate(-1)} aria-label="Назад" style={{ width: 38, height: 38, border: '1px solid var(--line2)', borderRadius: 10, background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 16 }}><Icon name="sys.back" size={18} inherit /></button>
           <div className={styles.title}>Журнал</div>
         </div>
         <div className={styles.meta}>{activeCount} {plural(activeCount, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</div>
@@ -107,10 +125,10 @@ export function CookLogPage() {
             style={{
               width: '100%',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              border: '1px solid var(--line)',
               borderRadius: 'var(--r)',
-              color: 'var(--fg)',
+              color: 'var(--ink)',
               fontFamily: 'var(--font-body)',
               fontSize: 14,
               marginBottom: 4,
@@ -132,21 +150,19 @@ export function CookLogPage() {
         {weekRuns.length > 0 && (
           <div style={{
             padding: '14px 16px',
-            background: 'var(--bg-hover)',
-            border: '1px solid var(--border)',
+            background: 'var(--line)',
+            border: '1px solid var(--line)',
             borderRadius: 'var(--r)',
             marginTop: 4,
             fontFamily: 'var(--font-mono)',
             fontSize: 12,
-            letterSpacing: '0.06em',
-            color: 'var(--fg-muted)',
-            textTransform: 'uppercase',
+            color: 'var(--muted)',
             lineHeight: 1.5,
           }}>
-            <span style={{ color: 'var(--fg-dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
-            <span style={{ color: 'var(--fg)' }}>{weekRuns.length} {plural(weekRuns.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</span>
-            {avgRating != null && <> · <span style={{ color: 'var(--accent)' }}>★{avgRating.toFixed(1)}</span></>}
-            {pantryUsed > 0 && <> · <span style={{ color: 'var(--fg)' }}>{pantryUsed} З ТОГО, ЩО БУЛО ВДОМА</span></>}
+            <span style={{ color: 'var(--dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
+            <span style={{ color: 'var(--ink)' }}>{weekRuns.length} {plural(weekRuns.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</span>
+            {avgRating != null && <> · <span style={{ color: 'var(--sage)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="cook.rating" size={12} inherit decorative />{avgRating.toFixed(1)}</span></>}
+            {pantryUsed > 0 && <> · <span style={{ color: 'var(--ink)' }}>{pantryUsed} З ТОГО, ЩО БУЛО ВДОМА</span></>}
           </div>
         )}
 
@@ -188,7 +204,7 @@ export function CookLogPage() {
                         />
                       ) : (
                         <div className={`${styles.icon} ${undone ? styles.undone : ''}`}>
-                          {undone ? '↩' : '✓'}
+                          <Icon name={undone ? 'sys.undo' : 'sys.done'} size={16} inherit decorative />
                         </div>
                       )}
                       <div className={styles.info}>
@@ -199,7 +215,7 @@ export function CookLogPage() {
                           {timeLabel(r.finished_at ?? r.started_at)}
                           {r.recipe.time_total && <> · {formatDuration(r.recipe.time_total)}</>}
                           {r.rating != null && !undone && (
-                            <> · <span className={styles.stat}>{'★'.repeat(r.rating)}<span style={{ opacity: 0.3 }}>{'★'.repeat(5 - r.rating)}</span></span></>
+                            <> · <Rating value={r.rating} /></>
                           )}
                           {!undone && (deplete + partial > 0) && (
                             <> · <span className={styles.stat}>{deplete + partial} з того, що було вдома</span></>
@@ -211,7 +227,7 @@ export function CookLogPage() {
                             marginTop: 4,
                             fontFamily: 'var(--font-body)',
                             fontSize: 13,
-                            color: 'var(--fg-muted)',
+                            color: 'var(--muted)',
                             fontStyle: 'italic',
                           }}>
                             «{r.verdict}»
@@ -230,14 +246,12 @@ export function CookLogPage() {
                           position: 'absolute',
                           top: 20, right: 0,
                           background: 'transparent',
-                          border: '1px solid var(--border-strong)',
+                          border: '1px solid var(--line2)',
                           padding: '6px 12px',
                           borderRadius: 'var(--r-pill)',
                           fontFamily: 'var(--font-mono)',
                           fontSize: 10,
-                          letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
-                          color: 'var(--fg-muted)',
+                          color: 'var(--muted)',
                           cursor: 'pointer',
                         }}
                         aria-label="Повторити"

@@ -6,7 +6,7 @@
   align-items: center;
   gap: 12px;
   padding: 18px 20px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   /* Без власного тла — як .hdr у макеті (падінги 18/20/12 і лінія, і все).
      --bg-body тут стояв від мене, не з канвасу: у світлій темі він темніший за
      --bg-surface сторінок, і шапка читалась окремою сірою смугою над
@@ -24,13 +24,13 @@
   border: 0;
   border-radius: var(--r);
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-size: 17px;
   line-height: 1;
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast);
 }
-.burger:hover { background: var(--bg-hover); color: var(--fg); }
+.burger:hover { background: var(--line); color: var(--ink); }
 
 .title {
   flex: 1;
@@ -40,7 +40,7 @@
   font-weight: 700;
   font-size: 20px;
   letter-spacing: var(--tracking-tight);
-  color: var(--fg);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -13,6 +13,7 @@
 // календаря два рядки: «Приховані: … · повернути» і «Свята: … · змінити» —
 // обидва відкривають картку серії (PeriodSeries) відповідного набору.
 
+import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
@@ -264,7 +265,7 @@ export function CalendarPage() {
         title="Календар"
         onMenu={() => openNav(true)}
         action={(
-          <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">＋</button>
+          <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія"><Icon name="sys.add" size={20} inherit /></button>
         )}
       />
 
@@ -354,7 +355,7 @@ export function CalendarPage() {
                           <button key={`${e.scope}:${e.id}`} type="button"
                             className={`${styles.ev} ${e.kind === 'constraint' ? styles['ev-constraint'] : ''} ${e.kind === 'editorial' || e.source ? styles['ev-editorial'] : ''} ${evMotion(e.id)}`}
                             onClick={() => setOpenEvent(e)}>
-                            {e.kind === 'supply' ? '＋ ' : ''}{e.title}
+                            {e.title}
                           </button>
                         ))}
                         {more && (
@@ -362,7 +363,7 @@ export function CalendarPage() {
                         )}
                         {isToday && (
                           <button type="button" className={styles.ask} onClick={() => navigate('/app')}>
-                            {empty ? 'Що на вечерю? →' : '＋ Що на вечерю?'}
+                            {empty ? 'Що на вечерю?' : 'Що на вечерю?'}
                           </button>
                         )}
                         {!isToday && empty && <span className={styles.empty}>Поки нічого. Рідкісний спокій.</span>}

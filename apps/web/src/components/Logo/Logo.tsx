@@ -18,13 +18,13 @@ export function Logo({ size = 44, variant = 'default', className, style, coreRef
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <circle
         cx="24" cy="24" r="19"
-        stroke="var(--fg)"
+        stroke="var(--ink)"
         strokeWidth="3"
         strokeLinecap="round"
         strokeDasharray="104 15"
         transform="rotate(-58 24 24)"
       />
-      <circle ref={coreRef} cx="24" cy="24" r="6" fill="var(--accent)" style={{ transformOrigin: '24px 24px' }} />
+      <circle ref={coreRef} cx="24" cy="24" r="6" fill="var(--sage)" style={{ transformOrigin: '24px 24px' }} />
     </svg>
   );
   if (variant === 'default') return <span className={className} style={style}>{mark}</span>;
@@ -45,12 +45,12 @@ export function Logo({ size = 44, variant = 'default', className, style, coreRef
           fontWeight: 700,
           fontSize: size * 0.55,
           letterSpacing: 'var(--tracking-tight)',
-          color: 'var(--fg)',
+          color: 'var(--ink)',
           whiteSpace: 'nowrap',
         }}
       >
         Kitchen
-        <span style={{ color: 'var(--accent)' }}> OS</span>
+        <span style={{ color: 'var(--sage)' }}> OS</span>
       </span>
     </span>
   );

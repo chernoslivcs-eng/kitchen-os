@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+body { margin:0; background:#f4f3ef; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
+* { box-sizing:border-box; }
+.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b5473c; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); --e:cubic-bezier(.2,.7,.2,1); }
+@keyframes kos-in { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:none; } }
+@keyframes kos-back { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:none; } }
+</style>
+</helmet>
+
+<section class="v3" data-screen-label="Онбординг · Семен" style="min-height:100vh; background:linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) {{ warm }}%, var(--bg)) 0, var(--bg) 60%); color:var(--ink); display:flex; flex-direction:column;">
+  <header style="height:72px; display:flex; align-items:center; justify-content:space-between; padding:0 clamp(20px, 4vw, 64px); gap:24px;">
+    <span style="display:flex; align-items:center; gap:10px;"><span style="width:28px; height:28px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center;"><span style="width:9px; height:9px; border-radius:50%; background:var(--sage);"></span></span><span style="font-weight:700; font-size:16px; letter-spacing:-.02em;">Kitchen OS</span></span>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div style="display:flex; gap:4px;"><sc-for list="{{ dots }}" as="d" hint-placeholder-count="11"><span onClick="{{ d.go }}" style="width:{{ d.w }}px; height:4px; border-radius:2px; background:{{ d.bg }}; cursor:pointer; transition:width 240ms var(--e), background 240ms var(--e);"></span></sc-for></div>
+      <a href="#" onClick="{{ skip }}" style="font-size:14px; font-weight:500; color:var(--muted);">Пропустити</a>
+    </div>
+  </header>
+
+  <main style="flex:1; display:flex; align-items:center; justify-content:center; padding:24px clamp(20px, 4vw, 64px) 40px;">
+    <div style="width:100%; max-width:1200px; display:grid; grid-template-columns:1fr 1fr; gap:clamp(24px, 4vw, 48px); align-items:center;">
+      <div key="ill-{{ step }}" style="display:flex; align-items:center; justify-content:center; animation:{{ anim }} {{ durIll }}ms var(--e) both;">
+        {{ img }}
+      </div>
+      <div style="display:flex; flex-direction:column; gap:24px; max-width:520px; justify-self:start;">
+        <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted);"><span style="font-weight:600; color:var(--ink);">{{ num }}</span><span style="color:var(--dim);">/ 11</span><span style="width:3px; height:3px; border-radius:50%; background:var(--line2);"></span><span style="font-weight:500;">{{ card.tag }}</span></div>
+        <div key="{{ step }}" style="display:flex; flex-direction:column; gap:20px; min-height:340px; animation:{{ anim }} {{ dur }}ms var(--e) both;">
+          <h1 style="margin:0; font-weight:700; font-size:clamp(28px, 3vw, 40px); letter-spacing:-.035em; line-height:1.05; text-wrap:balance;">{{ card.title }}</h1>
+          <div style="position:relative; background:{{ vBg }}; border-radius:22px 22px 22px 6px; padding:{{ vPad }}; box-shadow:{{ vSh }}; max-width:500px; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; flex-direction:column; gap:8px; font-size:{{ vSize }}px; line-height:1.55;">
+              <sc-for list="{{ card.body }}" as="l" hint-placeholder-count="3"><p style="margin:0;">{{ l }}</p></sc-for>
+            </div>
+            <sc-for list="{{ card.punch }}" as="l" hint-placeholder-count="1"><p style="margin:0; font-size:16px; line-height:1.5; color:var(--sage); font-weight:500;">{{ l }}</p></sc-for>
+          </div>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:10px; padding-top:0;">
+          <span onClick="{{ prev }}" style="width:48px; height:48px; border-radius:12px; border:1px solid var(--line2); display:grid; place-items:center; color:var(--muted); cursor:pointer; opacity:{{ prevO }};"><i data-lucide="arrow-left" style="width:18px; height:18px;"></i></span>
+          <span onClick="{{ next }}" style="height:48px; padding:0 22px; border-radius:12px; background:var(--ink); color:var(--bg); display:inline-flex; align-items:center; gap:10px; font-size:15px; font-weight:600; cursor:pointer;">{{ nextLabel }}<i data-lucide="arrow-right" style="width:16px; height:16px;"></i></span>
+          <span style="flex:1;"></span>
+          <span style="font-size:12px; color:var(--dim); display:none;">← →</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<section class="v3" data-screen-label="Онбординг · 390" style="padding:48px; background:#c9ccd0; display:flex; gap:24px; align-items:flex-start;">
+  <div style="width:390px; height:844px; background:linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) {{ warm }}%, var(--bg)) 0, var(--bg) 50%); border-radius:12px; overflow:hidden; box-shadow:var(--sh2); display:flex; flex-direction:column; color:var(--ink);">
+    <header style="height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 20px;"><span style="display:flex; align-items:center; gap:8px;"><span style="width:26px; height:26px; border-radius:50%; border:2.5px solid var(--ink); display:grid; place-items:center;"><span style="width:8px; height:8px; border-radius:50%; background:var(--sage);"></span></span><span style="font-weight:700; font-size:15px;">Kitchen OS</span></span><a href="#" onClick="{{ skip }}" style="font-size:13px; font-weight:500; color:var(--muted);">Пропустити</a></header>
+    <div style="display:flex; gap:3px; padding:0 20px 16px;"><sc-for list="{{ dots }}" as="d" hint-placeholder-count="11"><span onClick="{{ d.go }}" style="flex:1; height:3px; border-radius:2px; background:{{ d.bg }};"></span></sc-for></div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px; padding:0 20px; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);"><span style="font-weight:600; color:var(--ink);">{{ num }}</span><span style="color:var(--dim);">/ 11</span><span style="width:3px; height:3px; border-radius:50%; background:var(--line2);"></span><span style="font-weight:500;">{{ card.tag }}</span></div>
+      <h1 style="margin:0; font-weight:700; font-size:26px; letter-spacing:-.03em; line-height:1.1;">{{ card.title }}</h1>
+      <div style="background:{{ vBg }}; border-radius:18px 18px 18px 6px; padding:{{ vPadM }}; box-shadow:{{ vSh }}; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; flex-direction:column; gap:6px; font-size:15px; line-height:1.5;"><sc-for list="{{ card.body }}" as="l" hint-placeholder-count="3"><p style="margin:0;">{{ l }}</p></sc-for></div>
+        <sc-for list="{{ card.punch }}" as="l" hint-placeholder-count="1"><p style="margin:0; font-size:14px; line-height:1.45; color:var(--sage); font-weight:500;">{{ l }}</p></sc-for>
+      </div>
+      <div style="flex:1; display:flex; align-items:center; justify-content:center; min-height:0;">{{ imgM }}</div>
+    </div>
+    <div style="display:flex; gap:10px; padding:12px 20px 24px;">
+      <span onClick="{{ prev }}" style="width:52px; height:52px; border-radius:12px; border:1px solid var(--line2); display:grid; place-items:center; color:var(--muted); opacity:{{ prevO }};"><i data-lucide="arrow-left" style="width:18px; height:18px;"></i></span>
+      <span onClick="{{ next }}" style="flex:1; height:52px; border-radius:12px; background:var(--ink); color:var(--bg); display:inline-flex; align-items:center; justify-content:center; gap:10px; font-size:15px; font-weight:600;">{{ nextLabel }}<i data-lucide="arrow-right" style="width:16px; height:16px;"></i></span>
+    </div>
+  </div>
+  <div style="width:320px; font-size:14px; line-height:1.55; color:#6b6f74; padding-top:8px;"><b style="color:#1a1c1e; font-weight:600;">390:</b> текст → бабл → ілюстрація → кнопки внизу на всю ширину. Прогрес — смуга під шапкою. Той самий крок, що й десктоп угорі (спільний стан).</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;voice&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;bubble&quot;,&quot;options&quot;:[&quot;bubble&quot;,&quot;plain&quot;],&quot;tsType&quot;:&quot;'bubble'|'plain'&quot;,&quot;section&quot;:&quot;Семен&quot;},&quot;pace&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;calm&quot;,&quot;options&quot;:[&quot;snappy&quot;,&quot;calm&quot;,&quot;slow&quot;],&quot;tsType&quot;:&quot;'snappy'|'calm'|'slow'&quot;,&quot;section&quot;:&quot;Рух&quot;},&quot;warmth&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:45,&quot;min&quot;:0,&quot;max&quot;:100,&quot;step&quot;:5,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Фон&quot;}}">
+class Component extends DCLogic {
+  state = { w: typeof window !== 'undefined' ? window.innerWidth : 1440, step: (() => { try { const v = parseInt(localStorage.getItem('kos-onb-step') || '0', 10); return isNaN(v) ? 0 : Math.min(10, Math.max(0, v)); } catch { return 0; } })(), dir: 'f' };
+  icons() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
+  componentDidMount() { this.setState({ ready: true }); this.icons(); this._k = (e) => { if (e.key === 'ArrowRight') this.go(this.state.step + 1, 'f'); if (e.key === 'ArrowLeft') this.go(this.state.step - 1, 'b'); }; window.addEventListener('keydown', this._k); this._r = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this._r); }
+  componentWillUnmount() { window.removeEventListener('keydown', this._k); window.removeEventListener('resize', this._r); }
+  componentDidUpdate() { this.icons(); }
+  go(n, d) { if (n < 0 || n > 10) return; try { localStorage.setItem('kos-onb-step', String(n)); } catch {} this.setState({ step: n, dir: d }); }
+  renderVals() {
+    const CARDS = [
+      { tag:'Знайомство', title:'Привіт, я Семен', lines:['Я користуюсь Kitchen OS. Покажу, як.','Я не дуже організований, тому мені подобається, що тут не треба вести кухню як бухгалтерію.','*Зараз би ще згадати, навіщо я відкрив холодильник.'] },
+      { tag:'Додати продукти', title:'Я просто кажу, що зʼявилось удома', lines:['Можна сфотографувати полицю, кинути чек, написати списком або надиктувати.','Я зазвичай пишу.','*Голосом швидше, але тоді треба розмовляти.'] },
+      { tag:'Комора', title:'Далі воно саме складається в комору', lines:['Написав: «помідори, яйця, пармезан і якась ковбаса».','Kitchen OS розібрав, що я мав на увазі, і показав перед тим, як записати.','Ковбаса, до речі, була фуетом.','*Я знав.','*Майже.'] },
+      { tag:'Що готувати', title:'Потім я питаю, що з цього зробити', lines:['Раніше було навпаки: знаходжу рецепт — і виявляється, що вдома немає половини продуктів.','Тепер спочатку моя кухня, потім рецепт.','*Так значно менше шансів о 20:40 урочисто йти по вершки.'] },
+      { tag:'Що варто використати', title:'Іноді відповідь уже лежить у холодильнику', lines:['Якщо помідори лежать давно або щось уже відкрите, Kitchen OS врахує це першим.','Тому «що сьогодні?» іноді означає:','«Семене, в тебе знову є справа до цих помідорів».','*Ми обоє знаємо, про які.'] },
+      { tag:'Алергія, смаки, обмеження', title:'Він ще памʼятає, що зі мною краще не робити', lines:['У мене алергія на фундук.','А кінзу я просто не люблю.','Це різні речі.','*Одне — не пропонувати взагалі. Друге — можна запропонувати, якщо дуже хочеться посваритися.'] },
+      { tag:'Мама', title:'Потім приїжджає мама', lines:['І привозить «трохи домашньої цибулі».','«Трохи» в маминій системі вимірювання — це пакет, який треба нести двома руками.','*Я просто додаю її в комору, і якийсь час Kitchen OS дуже добре розуміє, що нам усім тепер треба більше цибулі.'] },
+      { tag:'Дім', title:'Кухня в нас спільна', lines:['Якщо хтось купив молоко — я це бачу.','Якщо я використав останнє — бачать усі.','Так ми перестали купувати третю гірчицю.','*Другу, на жаль, ніхто не зміг пояснити.'] },
+      { tag:'Особистий контекст', title:'Але всі в цьому домі їдять по-різному', lines:['Мама любить цибулю.','Я не їм фундук.','Хтось інший не любить гостре.','Продукти в нас спільні. Смаки — ні.','*Це дуже корисно, коли троє людей дивляться на одну каструлю з трьома різними очікуваннями.'] },
+      { tag:'Після готування', title:'Після вечері я нічого не переписую', lines:['Підтверджую, що приготував — залишки оновлюються.','А якщо щось вийшло не так, просто пишу:','«наступного разу менше перцю».','*Деякі мої кулінарні помилки тепер мають довготривалу практичну цінність.'] },
+      { tag:'Фінал', title:'От і весь мій метод', lines:['Я повідомляю, що зʼявилось.','Kitchen OS памʼятає, що залишилось.','А коли я не знаю, що готувати, він уже знає достатньо, щоб допомогти.','*Значно більше, ніж я.'] },
+    ];
+    const s = this.state.step, c = CARDS[s], last = s === 10;
+    const pad = (n) => String(n).padStart(2, '0');
+    const card = { tag:c.tag, title:c.title, body:c.lines.filter(l => !l.startsWith('*')), punch:c.lines.filter(l => l.startsWith('*')).map(l => l.slice(1)), img:`apps/web/public/onboarding/semen-${pad(s+1)}.png` };
+    const dots = CARDS.map((_, i) => ({ w: i === s ? 28 : 12, bg: i <= s ? 'var(--ink)' : 'var(--line2)', go: () => this.go(i, i > s ? 'f' : 'b') }));
+        const voice = this.props.voice ?? 'bubble'; const pace = this.props.pace ?? 'calm'; const warm = this.props.warmth ?? 45;
+    const paceMs = { snappy: 180, calm: 320, slow: 560 }[pace] || 320;
+    return { step:s, num:pad(s+1), card, dots, img: this.state.ready ? React.createElement('img', { src: card.img, alt:'', style:{ width:'100%', maxWidth:560, maxHeight:'min(60vh, 560px)', objectFit:'contain', borderRadius:24 } }) : null, imgM: this.state.ready ? React.createElement('img', { src: card.img, alt:'', style:{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain' } }) : null, vPadM: voice === 'bubble' ? '14px 16px' : '0', vBg: voice === 'bubble' ? 'var(--card)' : 'transparent', vPad: voice === 'bubble' ? '20px 24px' : '0', vSh: voice === 'bubble' ? 'var(--sh)' : 'none', vSize: voice === 'bubble' ? 17 : 20, dur: paceMs, durIll: Math.round(paceMs * 1.25), warm, anim: this.state.dir === 'b' ? 'kos-back' : 'kos-in',
+      prev: () => this.go(s - 1, 'b'), prevO: s === 0 ? .35 : 1,
+      next: () => last ? alert('→ у стрічку (welcome_finished)') : this.go(s + 1, 'f'),
+      nextLabel: last ? 'Почати з того, що є' : 'Далі', nextIcon: last ? 'arrow-right' : 'arrow-right',
+      skip: (e) => { e && e.preventDefault(); alert('→ у стрічку (welcome_skipped, card ' + (s+1) + ')'); } };
+  }
+}
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@
 
 .screen {
   min-height: 100dvh;
-  background: var(--bg-surface);
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -21,32 +21,30 @@
   height: 26px;
   padding: 0 9px;
   border-radius: var(--r-pill);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sage) 35%, transparent);
   background: transparent;
-  color: var(--accent);
+  color: var(--sage);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   cursor: pointer;
 }
-.today-pill:hover { background: var(--accent-bg); }
+.today-pill:hover { background: var(--sage-bg); }
 .add {
   width: 36px; height: 36px;
   border: 0; border-radius: 10px;
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-size: 16px;
   cursor: pointer;
 }
-.add:hover { background: var(--bg-hover); color: var(--fg); }
+.add:hover { background: var(--line); color: var(--ink); }
 
 /* Липкий блок: місяць · тиждень · «Сьогодні» + легенда тривалих. */
 .sticky {
   position: sticky;
   top: 0;
   z-index: 3;
-  background: var(--bg-surface);
+  background: var(--card);
 }
 .monthbar {
   display: flex;
@@ -55,8 +53,8 @@
   padding: 12px 0 8px;
 }
 .monthbar-right { display: flex; align-items: center; gap: 10px; }
-.month { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--fg-muted); }
-.weekno { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; color: var(--fg-dim); text-transform: uppercase; }
+.month { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--muted); }
+.weekno { font-family: var(--font-mono); font-size: 10px;color: var(--dim);}
 
 /* Легенда тривалих: що триває зараз. */
 .legend {
@@ -64,7 +62,7 @@
   flex-wrap: wrap;
   gap: 6px;
   padding: 0 0 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 .chip {
   padding: 3px 8px;
@@ -74,21 +72,19 @@
   color: var(--t);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
 }
 .chip:hover { background: color-mix(in srgb, var(--t) 10%, transparent); }
 
 /* Роди → тон. Ті самі пари, що в сайдбарі й на рисках. */
-.t-own      { --t: var(--accent); }
+.t-own      { --t: var(--sage); }
 .t-season   { --t: var(--amber); }
 .t-restrict { --t: var(--plum); }
 .t-tradition { --t: var(--plum); }
 /* П2 (2e): системне — тлом, 45%; своє — яскраво у своєму тоні. */
 .sys { opacity: 0.45; }
-.t-grey     { --t: var(--fg-dim); }
+.t-grey     { --t: var(--dim); }
 
 /* Заголовок тижня. */
 .week {
@@ -97,8 +93,8 @@
   justify-content: space-between;
   padding: 14px 0 4px;
 }
-.week-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--fg-muted); }
-.week-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-dim); }
+.week-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--muted); }
+.week-tag { font-family: var(--font-mono); font-size: 10px;color: var(--dim); }
 .week-tag.t-restrict { color: var(--plum); }
 
 /* Рядок дня: жолоб · дата · вміст. Межа — лише під вмістом і датою, жолоб
@@ -113,15 +109,15 @@
    лишаються читабельними. Поки тягнуть — текст не виділяється. */
 .day.selecting { user-select: none; }
 .day-inner { transition: background var(--dur-fast, 150ms) var(--ease-standard, ease); }
-.day.sel .day-inner { background: var(--accent-bg); }
-.day.sel .dn .num { color: var(--accent); }
+.day.sel .day-inner { background: var(--sage-bg); }
+.day.sel .dn .num { color: var(--sage); }
 .day-inner {
   flex: 1;
   min-width: 0;
   display: flex;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 @media (min-width: 768px) { .day-inner { gap: 18px; } }
 
@@ -156,8 +152,8 @@
 
 .dn { width: 44px; flex: none; display: flex; flex-direction: column; }
 @media (min-width: 768px) { .dn { width: 56px; } }
-.dow { font-family: var(--font-mono); font-size: 10px; color: var(--fg-dim); text-transform: uppercase; }
-.num { font-family: var(--font-display); font-weight: 600; font-size: 18px; color: var(--fg-dim); line-height: 1.2; }
+.dow { font-family: var(--font-mono); font-size: 10px; color: var(--dim);}
+.num { font-family: var(--font-display); font-weight: 600; font-size: 18px; color: var(--dim); line-height: 1.2; }
 
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .ev {
@@ -171,12 +167,12 @@
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.35;
-  color: var(--fg-muted);
+  color: var(--muted);
   transition: color var(--dur-fast);
 }
-.ev:hover { color: var(--fg); }
-.ev-own { color: var(--fg-muted); }
-.ev-constraint { color: var(--fg-dim); }
+.ev:hover { color: var(--ink); }
+.ev-own { color: var(--muted); }
+.ev-constraint { color: var(--dim); }
 .ev-editorial { color: var(--amber); }
 .tag {
   display: block;
@@ -188,21 +184,19 @@
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--t, var(--fg-dim));
+  color: var(--t, var(--dim));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.more { color: var(--fg-dim); }
-.empty { font-family: var(--font-body); font-size: 15px; color: var(--fg-dim); display: none; }
+.more { color: var(--dim); }
+.empty { font-family: var(--font-body); font-size: 15px; color: var(--dim); display: none; }
 @media (min-width: 768px) { .empty { display: block; } }
 
 /* Сьогодні — єдиний підсвічений рядок, на всю ширину (перекриває жолоб і
    бічні відступи). Дата тону дії, число темне. */
 .today .day-inner {
-  background: var(--bg-surface-2);
+  background: var(--line);
   margin: 0 -20px 0 -34px;
   padding-left: 34px;
   padding-right: 20px;
@@ -210,8 +204,8 @@
 @media (min-width: 1024px) {
   .today .day-inner { margin: 0 0 0 -26px; padding-left: 26px; padding-right: 12px; border-radius: 0 10px 10px 0; }
 }
-.today .dow { color: var(--accent); }
-.today .num { color: var(--fg); }
+.today .dow { color: var(--sage); }
+.today .num { color: var(--ink); }
 /* Головна дія календаря — не «＋», а вхід у розмову. */
 .ask {
   display: block;
@@ -222,12 +216,12 @@
   cursor: pointer;
   font-family: var(--font-body);
   font-size: 15px;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
-.ask:hover { color: var(--accent); }
-@media (min-width: 1024px) { .ask { color: var(--accent); } }
+.ask:hover { color: var(--sage); }
+@media (min-width: 1024px) { .ask { color: var(--sage); } }
 
-.loading { padding: 40px 0; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+.loading { padding: 40px 0; font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
 
 /* Моушн-чекліст (правило кіта: все, що пише в стан, має видимий перехід).
    Подія, що зʼявилась у дні після «Додати»/правки, і чіп у легенді входять
@@ -244,23 +238,22 @@
 .ev-leave { animation: ev-out var(--dur-base, 250ms) var(--ease-exit, ease) both !important; pointer-events: none; }
 @keyframes ev-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(4px); } }
 .ev-flash { animation: ev-flash 700ms var(--ease-standard, ease) both !important; border-radius: 6px; }
-@keyframes ev-flash { from { background: color-mix(in srgb, var(--accent) 18%, transparent); } to { background: transparent; } }
+@keyframes ev-flash { from { background: color-mix(in srgb, var(--sage) 18%, transparent); } to { background: transparent; } }
 
 /* П2 (2e): підвал календаря — приховані сезони і свята традицій. */
 .foot {
   margin: 18px 0 30px;
   padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   display: flex; flex-direction: column; gap: 8px;
   font-size: 13.5px;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 .foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .foot-label {
   width: 72px; flex: none;
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--fg-dim);
+  font-family: var(--font-mono); font-size: 10px;color: var(--dim);
 }
-.foot-value { color: var(--fg-muted); }
-.foot-link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
+.foot-value { color: var(--muted); }
+.foot-link { border: 0; background: none; padding: 0; font: inherit; color: var(--sage); cursor: pointer; }
 .foot-link:hover { text-decoration: underline; }

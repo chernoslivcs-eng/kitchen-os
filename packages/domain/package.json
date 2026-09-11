@@ -10,7 +10,8 @@
     "./contract": "./contract.ts",
     "./card-modes": "./card-modes.ts",
     "./duration": "./duration.ts",
-    "./profile-fields": "./profile-fields.ts"
+    "./profile-fields": "./profile-fields.ts",
+    "./shelf-thresholds": "./shelf-thresholds.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

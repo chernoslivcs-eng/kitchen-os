@@ -43,11 +43,26 @@ export async function lastReceiptBatches(repo: Repo, household_id: string): Prom
 
 // Крок Ф2: «звідки» для картки — останній чек (з магазином і датою), інший чек
 // (за provenance рядка чека), додано рукою (+ Додати), інакше з розмови.
-export interface BatchOrigin { kind: 'receipt' | 'manual' | 'chat'; shop: string | null; at: string }
+//
+// Р6 (рішення 10.09): четверте — домислене. Домен знає пʼять provenance, а
+// сюди доходило три: `inference` падав у «з розмови», тобто те, що модель
+// домислила з розбору, показувалось як слово людини. «Домислено 60 %» —
+// обіцянка лендінгу, і саме з `inference` робиться мітка «?домисл.N%» у
+// промті (context.ts). `package_label` і `visual_guess` лишаються в «розмові»
+// навмисно: вони не змінюють дії людини. «Зі списку» не заводиться — покупка
+// зі списку все одно приходить чеком або рукою.
+export interface BatchOrigin {
+  kind: 'receipt' | 'manual' | 'chat' | 'inference';
+  shop: string | null;
+  at: string;
+  /** Лише для `inference`: та сама впевненість, що в «?домисл.N%». */
+  confidence?: number;
+}
 export function batchOrigin(b: PantryBatch, receipt: { ids: Set<string>; at: string | null; shop: string | null }): BatchOrigin {
   if (receipt.ids.has(b.id)) return { kind: 'receipt', shop: receipt.shop, at: receipt.at ?? b.added_at };
   if (b.provenance === 'receipt_line') return { kind: 'receipt', shop: null, at: b.added_at };
   if (b.last_action === 'user_add') return { kind: 'manual', shop: null, at: b.added_at };
+  if (b.provenance === 'inference') return { kind: 'inference', shop: null, at: b.added_at, confidence: b.confidence };
   return { kind: 'chat', shop: null, at: b.added_at };
 }
 
@@ -166,7 +181,8 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       state?: BatchState;
       /** Крок Ф2: «свіже до» з картки — дата або null («без терміну»). */
       expires_at?: string | null;
-      /** А1: чому партія зникла. Має сенс лише разом зі `state: 'depleted'`. */
+      /** А1: чому партія зникла. Разом зі `state: 'depleted'` — з картки;
+       *  окремо, на вже списану партію — з плашки після ✕ (2c). */
       reason?: DepletedReason;
     };
   }>('/v1/pantry/:id', { preHandler: authenticated(repo) }, async (req, reply) => {
@@ -203,6 +219,10 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       const e = req.body.expires_at;
       if (e != null && (typeof e !== 'string' || Number.isNaN(new Date(e).getTime()))) return reply.code(400).send({ error: 'expires_invalid' });
       patch.expires_at = e == null ? null : new Date(e).toISOString();
+      // Р4: писач названий. Дату з картки ставить ЛЮДИНА, і це єдине місце в
+      // продукті, де так. Знято дату — знято й писача: інакше порожня колонка
+      // лишалась би підписаною «поставила людина».
+      patch.expires_source = e == null ? null : 'manual';
     }
     // А1: перелік причин закритий — вільний текст у метрику не потрапляє.
     const reason = req.body.reason;
@@ -219,6 +239,8 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
         // слів у чаті. Менше з двох: відкриття скорочує строк, не подовжує.
         // Б1: другим числом — РОЗРАХОВАНИЙ строк (колонка в запечатаної
         // партії порожня), інакше відкриття знову подовжувало б життя.
+        // Р4: тут писач — правило каталогу (`shelf_open_days`), не людина.
+        patch.expires_source = 'category';
         patch.expires_at = expiryOnOpen(
           'expires_at' in patch
             ? patch.expires_at ?? null
@@ -239,6 +261,15 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
         // вона порахується вдруге при наступному списанні.
         patch.depleted_reason = null;
       }
+    }
+
+    // 2c, шлях ✕: партію списали одним тапом без причини, а трійка
+    // «зʼїли · зіпсувалось · віддали» приходить у плашці «Списано · Повернути»
+    // — тобто ОКРЕМИМ запитом на партію, яка вже depleted. Доти причина
+    // писалась лише разом зі state, і цей запит губився мовчки. На живу партію
+    // причина сенсу не має — і не пишеться.
+    if (!('state' in req.body) && reason !== undefined && batch.state === 'depleted') {
+      patch.depleted_reason = reason;
     }
 
     await repo.updateBatch(batch.id, patch);

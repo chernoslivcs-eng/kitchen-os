@@ -30,6 +30,17 @@ export interface PantryBatch {
   state: BatchState;
   opened_at: string | null;
   expires_at: string | null;
+  /**
+   * Звідки взявся `expires_at`. Р4: колонку пишуть ДВОЄ — картка (людина) і
+   * відкриття партії (розрахунок від `shelf_open_days`), — і доти розрізнити
+   * їх було нічим. Без цього «строк поставила людина» на екрані було
+   * обіцянкою без даних.
+   *
+   * Необовʼязкове з тієї самої причини, що `depleted_reason` і `product_id`:
+   * наявні партії його не мають, і бекфілу не буде — ми не знаємо, хто ставив
+   * їм дату.
+   */
+  expires_source?: import('./shelf-life.js').ShelfSource | null;
   best_before_opened_days: number | null;
   added_at: string;
   depleted_at: string | null;

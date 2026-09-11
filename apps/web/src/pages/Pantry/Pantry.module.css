@@ -1,6 +1,6 @@
 .screen {
   min-height: 100dvh;
-  background: var(--bg-surface);
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -15,14 +15,13 @@
   font-weight: 700;
   font-size: 22px;
   letter-spacing: var(--tracking-tight);
-  color: var(--fg);
+  color: var(--ink);
 }
 .meta {
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 .body {
@@ -33,14 +32,17 @@
   flex-direction: column;
   gap: 20px;
 }
+/* Хедер зони — канон v3: чорнило, 44 px, padding 0 16, знак 15–16,
+ * назва 14/600, лічильник 13/400 opacity .6. Був моно + dim. */
 .section-label {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
-  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  color: var(--ink);
 }
+.section-name { font-size: 14px; font-weight: 600; }
 .row {
   display: flex;
   align-items: center;
@@ -48,16 +50,16 @@
   padding: 11px 12px;
   margin: 0 -12px;
   background: transparent;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   border-radius: var(--r);
   transition: background var(--dur-fast) var(--ease-standard);
 }
 .row:last-child { border-bottom: 0; }
 /* Hover — тільки на pointer-девайсах, щоб на touch-сенсорі стан не «застрягав» */
 @media (hover: hover) {
-  .row:hover { background: var(--bg-hover); }
+  .row:hover { background: var(--line); }
 }
-.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.row:focus-visible { outline: 2px solid var(--sage); outline-offset: -2px; }
 
 /* QA9-09: тіло рядка — окрема кнопка (редагування), ✕ — списати одним тапом. */
 .row-main {
@@ -82,7 +84,7 @@
   border: 0;
   border-radius: var(--r);
   background: transparent;
-  color: var(--fg-dim);
+  color: var(--dim);
   font-size: 14px;
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast);
@@ -91,36 +93,43 @@
   .row-x:hover { background: var(--danger-bg); color: var(--danger); }
 }
 
-/* Плашка «Списано · ↩ Повернути» — над таб-баром, зникає за 6 с. */
+/* Плашка «Списано · Повернути» — над таб-баром, зникає за 6 с. */
 .undo-bar {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
   z-index: 40;
-  display: flex;
+  /* 2c: плашка тепер несе три речі — підпис, трійку причин, «Повернути».
+   * Одним рядком вони не вміщаються на 390: підпис стискався до «Списан…».
+   * Тому сітка: підпис + «Повернути» зверху, трійка окремим рядком знизу. */
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px 12px;
   min-width: 280px;
-  max-width: 420px;
+  max-width: 460px;
   padding: 12px 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-strong);
+  background: var(--card);
+  border: 1px solid var(--line2);
   border-radius: 14px;
   box-shadow: var(--shadow-toast);
   font-family: var(--font-body);
   font-size: 14px;
-  color: var(--fg);
+  color: var(--ink);
 }
-.undo-bar button {
+.undo-bar > button {
+  /* «Повернути» — у першому рядку праворуч від підпису; трійка під ними. */
+  grid-row: 1;
+  grid-column: 2;
   border: 0;
   background: none;
   padding: 0;
-  color: var(--accent);
-  font-family: var(--font-body);
+  color: var(--sage);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 @media (min-width: 1024px) {
   .undo-bar { bottom: 26px; }
@@ -136,31 +145,30 @@
   flex: 1;
   font-family: var(--font-body);
   font-size: 16px;
-  color: var(--fg);
+  color: var(--ink);
 }
 .row .qty {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .row .hint {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--amber);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
   display: block;
 }
 
 .empty {
-  border: 1px dashed var(--border-strong);
+  border: 1px dashed var(--line2);
   border-radius: var(--r-xl);
   padding: 20px;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-size: 14px;
   line-height: 1.55;
 }
-.empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--fg); margin-bottom: 6px; }
+.empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 6px; }
 
 @media (min-width: 720px) {
   .head, .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
@@ -210,7 +218,7 @@
   animation: row-flash 700ms var(--ease-standard, ease) both;
 }
 @keyframes row-flash {
-  from { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  from { background: color-mix(in srgb, var(--sage) 16%, transparent); }
   to   { background: transparent; }
 }
 
@@ -265,9 +273,7 @@
   box-sizing: border-box;
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .rail-words {
   display: flex;
@@ -289,7 +295,7 @@
   padding: 2px 9px;
   border-radius: 8px;
   font: inherit;
-  color: var(--fg-muted);
+  color: var(--muted);
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast);
 }
@@ -297,16 +303,16 @@
   padding: 2px 2px 1px;
   border-radius: 0;
   border-bottom: 2px solid transparent;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .word-sort.word-on {
-  color: var(--fg);
+  color: var(--ink);
   font-weight: 600;
-  border-bottom-color: var(--fg);
+  border-bottom-color: var(--ink);
 }
 .chip-on {
-  background: var(--bg-hover);
-  color: var(--fg);
+  background: var(--line);
+  color: var(--ink);
   font-weight: 600;
 }
 .chip-full {
@@ -314,8 +320,8 @@
   cursor: default;
 }
 @media (hover: hover) {
-  .word:hover:not(:disabled) { color: var(--fg); }
-  .chip:hover:not(:disabled) { background: var(--bg-hover); }
+  .word:hover:not(:disabled) { color: var(--ink); }
+  .chip:hover:not(:disabled) { background: var(--line); }
 }
 .reset {
   flex: none;
@@ -325,7 +331,7 @@
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--sage);
   cursor: pointer;
 }
 .link-btn {
@@ -334,35 +340,45 @@
   padding: 0;
   font: inherit;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--sage);
   cursor: pointer;
 }
-.section-count { color: var(--border-strong); }
+/* Було `color: var(--line2)` — токен РАМКИ у ролі тексту, 1.32:1.
+ * Канон: у кожного токена своя дозволена форма, і `line2` — рамка контролів,
+ * ніколи не текст. Лічильник тепер чорнило на opacity .6, як велить канон
+ * хедера, і це ≥ 4.5:1 в обох темах. */
+.section-count { font-size: 13px; font-weight: 400; opacity: .6; font-variant-numeric: tabular-nums; }
 
 /* Тони позначок і підрядків — токенами, тема сама перемикає. */
-.tone-fg { color: var(--fg); }
-.tone-dim { color: var(--fg-dim); }
+.tone-fg { color: var(--ink); }
+.tone-dim { color: var(--dim); }
 .tone-amber { color: var(--amber); }
 .tone-plum { color: var(--plum); }
-.tone-sage { color: var(--accent); }
+.tone-sage { color: var(--sage); }
 .tone-danger { color: var(--danger); }
 /* Крок Ф2: іконка ліворуч — лише свіжість, через токени. */
 .mark { display: inline-grid; place-items: center; }
-.fresh-fresh { color: var(--accent); }
+/* Етап 2a: чотири стани замість трьох. `fresh-fresh` перейменовано на
+ * `fresh-good` — слово «свіже» позначає ЗОНУ і більше нічого (Р22). */
+.fresh-good { color: var(--sage); }
 .fresh-soon { color: var(--amber); }
 .fresh-check { color: var(--danger); }
+.fresh-overdue { color: var(--danger); }
 
-.name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* Назва — головний елемент рядка, тому вона РОСТЕ, а слоти ні. Плюс підлога:
+ * без неї метадані з'їдали ідентичність до «Кр…» і «М…» — рівно те, що
+ * вилізло очима на двох колонках. Пріоритет рядка не має перевертатись. */
+.name { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 7em; }
 .meta-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .reset-mobile { align-self: flex-end; margin: 4px 22px 0; padding: 0; }
-.name-text { font-family: var(--font-body); font-size: 16px; color: var(--fg); }
-.sub, .zone-tag {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.zone-tag { color: var(--border-strong); }
+/* Роль `row` за tokens-v3: 15/1.4/500. Було 16 без ваги. */
+.name-text { font-size: 15px; line-height: 1.4; font-weight: 500; color: var(--ink); }
+/* Роль `caption` 13/1.4. Було 10.5 моно — і 10.5 порушувало власне правило
+ * канону «dim тільки ≥ 13px». */
+.sub, .zone-tag { font-size: 13px; line-height: 1.4; }
+/* Другий випадок того самого дефекту, що `.section-count`: токен РАМКИ у ролі
+ * тексту. `line2` — рамка контролів, ніколи не текст. */
+.zone-tag { color: var(--dim); }
 .val {
   flex: none;
   min-width: 72px;
@@ -382,8 +398,7 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .flat-title { flex: 1; min-width: 0; }
 /* Крок Ф2: заголовок шкали одним рядком над колонкою значення; ваги — без заголовка. */
@@ -413,7 +428,8 @@
 @media (max-width: 767px) {
   .reset-desktop { display: none; }
   .flat-unit { margin-left: auto; }
-  .meta-line .zone-tag + .sub::before { content: '· '; color: var(--border-strong); }
+  /* Роздільник — токеном тексту, не рамки (третій випадок того самого патерну). */
+  .meta-line .zone-tag + .sub::before { content: '· '; color: var(--dim); }
   .qty-flat { display: none; }          /* плаский список на 390: назва · місце · значення (дизайн 1b) */
   .val { min-width: 0; }
   .flat-unit { margin-right: 44px; }    /* над колонкою значення, ✕ праворуч */
@@ -426,59 +442,53 @@
 .card-title {
   width: 100%;
   border: 0;
-  border-bottom: 1px dashed var(--border-strong);
+  border-bottom: 1px dashed var(--line2);
   background: transparent;
   padding: 2px 0 4px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 20px;
   letter-spacing: var(--tracking-tight);
-  color: var(--fg);
+  color: var(--ink);
 }
-.card-title:focus { outline: none; border-bottom-color: var(--accent); }
+.card-title:focus { outline: none; border-bottom-color: var(--sage); }
 .card-sub {
   margin-top: -8px;
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
-.card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--fg-dim); }
+.card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--dim); }
 .card-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .card-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 80px; }
 .card-label {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .card-input {
   width: 100%;
   box-sizing: border-box;
   padding: 9px 11px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: var(--r);
-  color: var(--fg);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 14px;
 }
-.card-input:focus { outline: none; border-color: var(--accent); }
-.card-block { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
-.card-line { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; line-height: 1.45; color: var(--fg); }
+.card-input:focus { outline: none; border-color: var(--sage); }
+.card-block { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.card-line { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; line-height: 1.45; color: var(--ink); }
 .card-action {
   align-self: flex-start;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line2);
   border-radius: var(--r-pill);
   background: transparent;
   padding: 6px 12px;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--fg-muted);
+  color: var(--muted);
   cursor: pointer;
 }
 .card-action:disabled { opacity: 0.5; cursor: default; }
@@ -489,9 +499,109 @@
   padding: 10px 0;
   font-family: var(--font-mono);
   font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--danger);
   cursor: pointer;
 }
 .card-error { font-family: var(--font-body); font-size: 13px; color: var(--danger); }
+
+/* --- Етап 2a: три канали рядка --------------------------------------------
+ * Досі всі три осі ділили один підрядок `sub`, і що перше збіглось — те й
+ * показувалось: «не їм» ховало строк, строк ховав чек. Тепер у кожної свій
+ * слот, і вони не змагаються.
+ */
+
+/* Другий ярус назви: паспортна назва постачальника. Тихо і з обрізкою —
+ * назва не може бути найгучнішим елементом рядка, якщо половина її код
+ * калібру (PLAN §2). */
+.passport {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Безпека — слива. «Не їм» контуром, «не можна» заливкою зі знаком: друге
+ * жорсткіше за перше, і рід має це показувати, а не лише слово. */
+.safety {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--plum-line);
+  color: var(--plum);
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.safety-hard {
+  background: var(--plum-bg);
+  border-color: transparent;
+}
+
+/* Походження — знак 12 без тексту. Підпис несе title/aria, бо три іконки
+ * поруч із назвою читалися б як шум. */
+.origin {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--dim);
+}
+
+/* Час — свій слот праворуч. Сюди приходить четверте слово («−9 дн»). */
+.time {
+  flex: none;
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tone-danger { color: var(--danger); }
+
+/* Перший ярус назви — один рядок із обрізкою. 113 рядків сканують очима, і
+ * рядок, що виріс утричі через код калібру, ламає саме те сканування. Повна
+ * назва лишається в `title` і в картці. */
+.name-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Місце шкали для позиції без каталогу — порожнє, але не нульове: інакше
+ * назви таких рядків стрибали б на 12 px ліворуч. */
+.mark-none { width: 12px; height: 12px; flex: none; }
+
+/* Кількість не переноситься: «300 г» на двох рядках — дефект за будь-якої
+ * ширини, окремо від питання про кількість колонок (DEBT §30). */
+.qty { white-space: nowrap; }
+
+/* 2c: трійка причин списання в підвалі картки. Замість confirm() і «Прибрати»
+ * без причини. «Зіпсувалось» — danger, бо саме воно й є метрикою, заради якої
+ * причина існує. */
+.card-reasons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.card-reason {
+  height: 40px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--line2); background: transparent;
+  color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.card-reason-danger { color: var(--danger); border-color: var(--danger); }
+.card-reason-cancel {
+  height: 40px; padding: 0 10px; border: 0; background: transparent;
+  color: var(--dim); font: inherit; font-size: 14px; cursor: pointer; margin-left: auto;
+}
+
+/* 2c: трійка причин у плашці «Списано · Повернути». Необовʼязкова —
+ * тому пілюлі тихі, контурні, і жодна не виділена. */
+.undo-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.undo-reasons { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.undo-reason {
+  height: 32px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--line2); background: transparent;
+  color: var(--ink); font: inherit; font-size: 13px; cursor: pointer;
+}
+.undo-told { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }

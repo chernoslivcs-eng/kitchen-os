@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { KIT_DEFAULTS } from '@kitchen/domain/profile-fields';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -242,5 +243,23 @@ describe('9а: підказка без прикладів, зелена; сек�
       expect(home.textContent).toContain('Поки готуєш сам.');
       expect([...home.querySelectorAll('button')].some((b) => b.textContent === 'Запросити')).toBe(true);
     } finally { useAuth.setState({ status: 'idle', me: null }); }
+  });
+});
+
+describe('Р8: база кухні названа окремо', () => {
+  it('чотири прилади підписані як не-слова людини, під полем «У мене на кухні є»', async () => {
+    // Досі база жила лише в промті, а на екрані її не було — тобто
+    // `status: filled` на цьому рядку означав «людина сказала», і це неправда.
+    // `mount` нічого не вертає — пише в модульний `host`.
+    await mount();
+    const line = host.querySelector('[data-baseline="kit"]');
+    expect(line, 'рядок бази кухні є').not.toBeNull();
+    for (const k of KIT_DEFAULTS) expect(line!.textContent).toContain(k);
+    expect(line!.textContent).toContain('не твої слова');
+  });
+
+  it('і він один — решта полів справді слова людини', async () => {
+    await mount();
+    expect(host.querySelectorAll('[data-baseline]').length).toBe(1);
   });
 });

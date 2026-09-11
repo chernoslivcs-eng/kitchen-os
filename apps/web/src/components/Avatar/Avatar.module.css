@@ -3,8 +3,8 @@
   height: 34px;
   border-radius: 50%;
   border: 0;
-  background: var(--bg-hover);
-  color: var(--fg-mono);
+  background: var(--line);
+  color: var(--muted);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
@@ -14,7 +14,7 @@
   flex: none;
 }
 .avatar:hover {
-  background: var(--border-strong);
+  background: var(--line2);
 }
 
 /* QA9-05: на десктопі профіль — юзер-блок унизу сайдбара (Д01). Аватар у

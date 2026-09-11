@@ -4,15 +4,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
-import { ZONE_OPTIONS, UNIT_OPTIONS, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
+import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
-import { api, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
+import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { BatchCard } from './BatchCard';
+import { Icon } from '../../components/Icon/Icon';
 import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
@@ -38,7 +39,7 @@ export function PantryPage() {
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
   const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
   const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
-  // QA9-09: швидке «✕» на рядку — списати одним тапом, з ↩ Повернути.
+  // QA9-09: швидкий хрестик на рядку — списати одним тапом, із «Повернути».
   const [removed, setRemoved] = useState<PantryBatch | null>(null);
   const removedTimer = useRef<number | null>(null);
 
@@ -56,6 +57,7 @@ export function PantryPage() {
     try {
       await Promise.all([api.batches.update(b.id, { state: 'depleted' }), wait(250)]);
       setRemoved(b);
+      setRemovedReason(null);
       if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
       removedTimer.current = window.setTimeout(() => setRemoved(null), 8000);
       await refresh();
@@ -63,10 +65,20 @@ export function PantryPage() {
     finally { unmarkLeaving(b.id); }
   }
 
+  // 2c: причина, яку людина назвала в плашці після ✕. Скидається разом із
+  // плашкою; «Повернути» знімає її і на сервері (роут: state → sealed ⇒
+  // depleted_reason → null).
+  const [removedReason, setRemovedReason] = useState<DepletedReason | null>(null);
+  async function tellReason(b: PantryBatch, reason: DepletedReason) {
+    setRemovedReason(reason);
+    try { await api.batches.update(b.id, { reason }); } catch { setRemovedReason(null); }
+  }
+
   async function undoRemove() {
     if (!removed) return;
     const prev = removed;
     setRemoved(null);
+    setRemovedReason(null);
     if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
     try {
       // Повертаємо той стан, що був: sealed чи opened.
@@ -165,7 +177,7 @@ export function PantryPage() {
           batch={editingLive}
           product={products.find((pr) => pr.id === (editingLive.product_id ?? '')) ?? null}
           onChanged={refresh}
-          onRemove={async () => { markLeaving(editingLive.id); await wait(250); await api.batches.remove(editingLive.id); setEditing(null); await refresh(); }}
+          onRemove={async (reason) => { markLeaving(editingLive.id); await wait(250); await api.batches.remove(editingLive.id, reason); setEditing(null); await refresh(); }}
         />
       ),
     });
@@ -187,20 +199,35 @@ export function PantryPage() {
     const b = r.it;
     return (
       /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
-         ✕ праворуч списує одним дотиком (з ↩ Повернути внизу). */
-      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+         Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--line)' }}>
         <button className={styles['row-main']} onClick={() => setEditing(b)}>
-          <FreshIcon fresh={r.fresh} />
+          {/* Без каталожного ключа шкали немає (PLAN §2) — місце тримаємо,
+              щоб назви не стрибали по рядках. */}
+          {r.scale ? <FreshIcon fresh={r.fresh} /> : <span className={styles['mark-none']} aria-hidden />}
+          {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
           <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
-            <span className={styles['name-text']}>{r.name}</span>
-            {flat ? (
-              <span className={styles['meta-line']}>
-                <span className={styles['zone-tag']}>{r.zone}</span>
-                {r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>}
-              </span>
-            ) : (r.sub && <span className={`${styles.sub} ${styles[`tone-${r.subTone}`]}`}>{r.sub}</span>)}
+            <span className={styles['name-text']} title={r.name}>{r.name}</span>
+            {r.passport && <span className={styles.passport}>{r.passport}</span>}
+            {flat && <span className={styles['meta-line']}><span className={styles['zone-tag']}>{r.zone}</span></span>}
           </span>
+          {/* Слот безпеки. Обмеження людини — слива: контур на «не їм»,
+              заливка зі знаком на «не можна» (tokens-v3 · Слоти рядка). */}
+          {r.safety && (
+            <span className={`${styles.safety} ${r.safety === 'не можна' ? styles['safety-hard'] : ''}`} data-safety={r.safety}>
+              {r.safety === 'не можна' && <Icon name="cook.ban" size={12} inherit decorative />}
+              {r.safety}
+            </span>
+          )}
+          {/* Слот походження. Іконка 12 без тексту — підпис несе aria. */}
+          {r.origin && (
+            <span className={styles.origin} data-origin={r.origin} title={r.originTitle} aria-label={r.originTitle}>
+              <Icon name={ORIGIN_ICON[r.origin]} size={12} inherit />
+            </span>
+          )}
           {flat && <span className={`${styles.val} ${styles[`tone-${r.valTone}`]}`} data-val>{r.val}</span>}
+          {/* Слот часу — четверте слово («−9 дн») сюди й приходить. */}
+          <span className={`${styles.time} ${styles[`tone-${r.timeTone}`]}`} data-time>{r.time}</span>
           {r.qty && <span className={`${styles.qty} ${flat ? styles['qty-flat'] : ''}`}>{r.qty}</span>}
         </button>
         <button
@@ -208,7 +235,7 @@ export function PantryPage() {
           aria-label={`Списати «${b.label}»`}
           title="Закінчилось? Прибрати"
           onClick={() => void quickRemove(b)}
-        >✕</button>
+        ><Icon name="sys.close" size={16} inherit /></button>
       </div>
     );
   };
@@ -226,14 +253,12 @@ export function PantryPage() {
             onClick={() => setAdding(true)}
             style={{
               background: 'transparent',
-              border: '1px solid var(--border-strong)',
+              border: '1px solid var(--line2)',
               borderRadius: 'var(--r-pill)',
               padding: '5px 12px',
-              color: 'var(--fg-muted)',
+              color: 'var(--muted)',
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
+              fontSize: 13,
               cursor: 'pointer',
             }}
           >
@@ -254,10 +279,10 @@ export function PantryPage() {
             style={{
               width: '100%',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              border: '1px solid var(--line)',
               borderRadius: 'var(--r)',
-              color: 'var(--fg)',
+              color: 'var(--ink)',
               fontFamily: 'var(--font-body)',
               fontSize: 14,
               marginBottom: 4,
@@ -300,7 +325,15 @@ export function PantryPage() {
 
         {view.grouped && view.groups.map((g) => (
           <div key={g.zone} data-zone={g.zone}>
-            <div className={styles['section-label']}>{g.label} <span className={styles['section-count']}>{g.count}</span></div>
+            {/* Хедер зони за каноном v3: чорнило, 44 px, знак 15, назва 14/600,
+                лічильник 13/400 на opacity .6. Раніше лічильник фарбувався
+                токеном РАМКИ (--border-strong) — 1.32:1, найгучніший провал
+                контрасту в усій базі аудиту. */}
+            <div className={styles['section-label']}>
+              <Icon name={ZONE_ICON[g.zone] as 'zone.fresh'} size={16} inherit decorative />
+              <span className={styles['section-name']}>{g.label}</span>
+              <span className={styles['section-count']}>{g.count}</span>
+            </div>
             {g.items.map((r) => renderRow(r, false))}
           </div>
         ))}
@@ -323,8 +356,21 @@ export function PantryPage() {
 
       {removed && (
         <div className={styles['undo-bar']} role="status">
-          <span style={{ flex: 1 }}>Списано «{removed.label}»</span>
-          <button type="button" onClick={() => void undoRemove()}>↩ Повернути</button>
+          <span className={styles['undo-label']}>Списано «{removed.label}»</span>
+          {/* 2c, ⚠3: з хрестика причина НЕобовʼязкова — партія вже списана,
+              трійка приходить сюди й іде ОКРЕМИМ запитом на вже depleted
+              партію (роут це приймає з 2c, шар 1). Не натиснули — нічого не
+              сталось, метрика лишається порожньою, а не вигаданою. */}
+          {!removedReason && (
+            <span className={styles['undo-reasons']} role="group" aria-label="Чому списали">
+              {(Object.keys(DEPLETED_REASON_LABEL) as DepletedReason[]).map((r) => (
+                <button key={r} type="button" data-reason={r} className={styles['undo-reason']}
+                  onClick={() => void tellReason(removed, r)}>{DEPLETED_REASON_LABEL[r]}</button>
+              ))}
+            </span>
+          )}
+          {removedReason && <span className={styles['undo-told']}>{DEPLETED_REASON_LABEL[removedReason]}</span>}
+          <button type="button" onClick={() => void undoRemove()}><Icon name="sys.undo" size={16} inherit decorative /> Повернути</button>
         </div>
       )}
 
@@ -428,16 +474,16 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
   return (
     <Sheet onClose={onClose} ariaLabel="Додати позицію в комору">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MonoLabel>ДОДАТИ ПРОДУКТ</MonoLabel>
+          <MonoLabel>Додати продукт</MonoLabel>
           <button
             onClick={onClose}
-            style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
+            style={{ background: 'transparent', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 20 }}
             aria-label="Закрити"
-          >✕</button>
+          ><Icon name="sys.close" size={16} inherit /></button>
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Назва</span>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Назва</span>
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -449,18 +495,18 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
 
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Кількість</span>
+            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Кількість</span>
             <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Одиниця</span>
+            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Одиниця</span>
             <select
               value={unit ?? ''}
               onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
               style={{
-                padding: '11px 12px', background: 'var(--bg-input)',
-                border: '1px solid var(--border)', borderRadius: 'var(--r)',
-                color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+                padding: '11px 12px', background: 'var(--bg)',
+                border: '1px solid var(--line)', borderRadius: 'var(--r)',
+                color: 'var(--ink)', fontFamily: 'var(--font-body)', fontSize: 14,
               }}
             >
               {UNIT_OPTIONS.map((o) => <option key={o.value ?? ''} value={o.value ?? ''}>{o.label}</option>)}
@@ -469,14 +515,14 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase' }}>Зона</span>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Зона</span>
           <select
             value={zone}
             onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}
             style={{
-              padding: '11px 12px', background: 'var(--bg-input)',
-              border: '1px solid var(--border)', borderRadius: 'var(--r)',
-              color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+              padding: '11px 12px', background: 'var(--bg)',
+              border: '1px solid var(--line)', borderRadius: 'var(--r)',
+              color: 'var(--ink)', fontFamily: 'var(--font-body)', fontSize: 14,
             }}
           >
             {ZONE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

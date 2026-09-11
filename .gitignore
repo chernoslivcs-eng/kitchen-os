@@ -29,3 +29,6 @@ audit-materials/*
 # Раунд 5: дампи USDA (~30 МБ, скачуються scripts/nutrition/verify-usda.ts) і локальні звіти
 data/usda/
 data/nutrition/*-report.json
+
+# Редизайн v3: артефакти дизайн-розмови (63 МБ), прототипи на них не посилаються
+ai/project/uploads/*.png

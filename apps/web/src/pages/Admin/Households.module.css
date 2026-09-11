@@ -1,7 +1,7 @@
 /* Крок А2: список домів. Форма таблиці — з макета: рядок клікабельний
    цілком, «УВІЙТИ →» праворуч, дім без ходів приглушений, але присутній. */
 
-.page { color: var(--fg); }
+.page { color: var(--ink); }
 
 .head {
   display: flex;
@@ -15,14 +15,14 @@
   font-size: 26px;
   font-weight: 700;
   letter-spacing: -.03em;
-  color: var(--fg-strong);
+  color: var(--ink);
 }
 
 .kicker {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: .06em;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 /* Перемикач технічних домів. Виглядає як частина підпису, а не як кнопка:
@@ -30,16 +30,16 @@
 .toggle {
   font: inherit;
   letter-spacing: inherit;
-  color: var(--accent);
+  color: var(--sage);
   background: none;
   border: 0;
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: var(--accent-border);
+  text-decoration-color: var(--sage);
 }
-.toggle:hover { color: var(--accent-strong); text-decoration-color: currentColor; }
+.toggle:hover { color: var(--sage-strong); text-decoration-color: currentColor; }
 
 .block { display: flex; flex-direction: column; gap: 10px; }
 
@@ -49,21 +49,21 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: .14em;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 
 .blockNote {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: .1em;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 .table {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
-  background: var(--bg-body);
+  background: var(--bg);
 }
 
 .rowHead,
@@ -76,21 +76,21 @@
 }
 
 .rowHead {
-  background: var(--bg-surface-2);
+  background: var(--line);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: .12em;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 .row {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   cursor: pointer;
 }
-.row:hover { background: var(--bg-hover); }
+.row:hover { background: var(--line); }
 
 /* Дім без жодного ходу лишається в списку — приглушений, але не прихований. */
-.silent .name { color: var(--fg-muted); }
+.silent .name { color: var(--muted); }
 
 .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
@@ -101,8 +101,8 @@
   border-radius: 7px;
   display: grid;
   place-items: center;
-  background: var(--bg-surface-2);
-  color: var(--fg-muted);
+  background: var(--line);
+  color: var(--muted);
   font-family: var(--font-mono);
   font-size: 12px;
 }
@@ -114,7 +114,7 @@
   align-items: center;
   gap: 7px;
   font-size: 13.5px;
-  color: var(--fg-strong);
+  color: var(--ink);
 }
 
 .mineTag {
@@ -122,9 +122,9 @@
   font-size: 9.5px;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
+  color: var(--sage);
+  background: var(--sage-bg);
+  border: 1px solid var(--sage);
   border-radius: 999px;
   padding: 1px 6px;
 }
@@ -135,9 +135,9 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: .1em;
-  color: var(--fg-dim);
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border);
+  color: var(--dim);
+  background: var(--line);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 1px 6px;
 }
@@ -145,7 +145,7 @@
 .owner {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: var(--fg-dim);
+  color: var(--dim);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -154,28 +154,28 @@
 .mono {
   font-family: var(--font-mono);
   font-size: 11.5px;
-  color: var(--fg-muted);
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dim { color: var(--fg-dim); }
+.dim { color: var(--dim); }
 
 .enter {
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: .1em;
-  color: var(--accent);
+  color: var(--sage);
   text-align: right;
 }
 
 .empty {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg-body);
+  background: var(--bg);
   padding: 26px 22px;
   max-width: 560px;
 }
-.empty b { display: block; font-size: 15px; color: var(--fg-strong); margin-bottom: 6px; }
-.empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--fg-muted); }
+.empty b { display: block; font-size: 15px; color: var(--ink); margin-bottom: 6px; }
+.empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--muted); }

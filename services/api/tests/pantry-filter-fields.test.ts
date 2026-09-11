@@ -93,6 +93,24 @@ describe('GET /v1/pantry — поля фільтра', () => {
     expect(by('Сіль').origin.kind).toBe('manual');
     expect(by('Йогурт').origin).toEqual({ kind: 'receipt', shop: 'Сільпо', at: '2026-09-04T09:00:00.000Z' });
   });
+
+  it('Р6: домислене — четверте походження, з відсотком; доти воно падало в «з розмови»', async () => {
+    // Домен знає пʼять provenance, API віддавав три. `inference` — рівно те,
+    // з чого робиться мітка «?домисл.N%» у промті (context.ts), і «домислено
+    // 60 %» — обіцянка лендінгу, яка на екран не виходила взагалі: партія,
+    // яку модель домислила з розбору, показувалась як «з розмови», тобто як
+    // слово людини. Тест на GET — на тому шарі, де походження стає видимим.
+    const { repo, app, me } = await stand();
+    await repo.insertBatch(batch(me.household_id, 'Кетчуп', { provenance: 'inference', confidence: 0.6 }));
+    await repo.insertBatch(batch(me.household_id, 'Хліб', { provenance: 'user_statement', confidence: 1 }));
+    const body = (await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json() as { batches: (Row & { origin: { confidence?: number } })[] };
+    const by = (l: string) => body.batches.find((b) => b.label === l)!;
+    expect(by('Кетчуп').origin.kind).toBe('inference');
+    expect(by('Кетчуп').origin.confidence).toBe(0.6);
+    // Сказане людиною — як і було.
+    expect(by('Хліб').origin.kind).toBe('chat');
+    expect(by('Хліб').origin.confidence).toBeUndefined();
+  });
 });
 
 describe('PATCH /v1/pantry/:id — картка (крок Ф2)', () => {
@@ -113,6 +131,77 @@ describe('PATCH /v1/pantry/:id — картка (крок Ф2)', () => {
     await set({ value: 300 });
     expect((await repo.getBatch(b.id))!.opened_at).toBe(opened);
     expect((await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json().batches[0].opened_at).toBe(opened);
+  });
+
+  it('Р4: дата з картки підписана ЛЮДИНОЮ, дата з відкриття — правилом каталогу; тест іде через роут', async () => {
+    // Контрактний тест у домені пише 'manual' напряму в репозиторій — і тому
+    // проходив, коли роут писача ще не ставив. Він міряв, що колонка вміє
+    // зберігати слово, а не що картка його ставить. Цей тест іде через
+    // PATCH, тобто саме той шар, де «людина» і вирішується.
+    const { repo, app, me } = await stand();
+    const b = batch(me.household_id, 'Сметана', { catalog_key: 'sour_cream', best_before_opened_days: 5 });
+    await repo.insertBatch(b);
+    const set = (payload: Record<string, unknown>) => app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: { cookie: me.cookie }, payload });
+
+    // Рука людини — з картки.
+    expect((await set({ expires_at: '2026-09-20' })).statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.expires_source).toBe('manual');
+    // І на веб воно виходить тим самим словом — рядок на нього й дивиться.
+    const listed = (await app.inject({ method: 'GET', url: '/v1/pantry', headers: { cookie: me.cookie } })).json().batches[0];
+    expect(listed.expires_source).toBe('manual');
+
+    // Знято дату — знято й писача: порожня колонка не має лишатись
+    // підписаною «поставила людина».
+    expect((await set({ expires_at: null })).statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.expires_source ?? null).toBeNull();
+
+    // Відкриття — писач інший, і той самий expires_at більше не «до 20 вер».
+    expect((await set({ state: 'opened' })).statusCode).toBe(200);
+    const opened = (await repo.getBatch(b.id))!;
+    expect(opened.expires_at).toBeTruthy();
+    expect(opened.expires_source).toBe('category');
+  });
+
+  it('2c: причина списання доходить обома шляхами — з картки разом зі списанням, з ✕ окремо пізніше', async () => {
+    // Контрактний тест на depleted_reason перевіряє репозиторій і не побачить,
+    // якщо кнопка не передасть причину (Р4 щойно показав, як це виглядає).
+    // Тому тут обидва шляхи екрана, на рівні роуту.
+    const { repo, app, me } = await stand();
+    const H = { cookie: me.cookie };
+
+    // Шлях 1 — картка: «Списати» → трійка → одним запитом зі списанням.
+    // ⚠3: з картки причина ОБОВʼЯЗКОВА.
+    const a = batch(me.household_id, 'Йогурт');
+    await repo.insertBatch(a);
+    const del = await app.inject({ method: 'DELETE', url: `/v1/pantry/${a.id}`, headers: H, payload: { reason: 'spoiled' } });
+    expect(del.statusCode).toBe(200);
+    const afterCard = (await repo.getBatch(a.id))!;
+    expect(afterCard.state).toBe('depleted');
+    expect(afterCard.depleted_reason).toBe('spoiled');
+
+    // Шлях 2 — хрестик у рядку: списано одразу БЕЗ причини, а трійка
+    // приходить у плашці «Списано · Повернути» — тобто ОКРЕМИМ запитом,
+    // на партію, яка вже depleted. ⚠3: з ✕ причина необовʼязкова.
+    const b = batch(me.household_id, 'Кефір');
+    await repo.insertBatch(b);
+    const quick = await app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: H, payload: { state: 'depleted' } });
+    expect(quick.statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.depleted_reason ?? null).toBeNull();
+    // Людина натиснула «зʼїли» в плашці.
+    const later = await app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: H, payload: { reason: 'eaten' } });
+    expect(later.statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.depleted_reason).toBe('eaten');
+
+    // «Повернути» знімає й причину — інакше вона порахується вдруге.
+    await app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: H, payload: { state: 'sealed' } });
+    expect((await repo.getBatch(b.id))!.depleted_reason ?? null).toBeNull();
+
+    // Причина на ЖИВУ партію — не має сенсу, і роут її не пише.
+    const c = batch(me.household_id, 'Сир');
+    await repo.insertBatch(c);
+    await app.inject({ method: 'PATCH', url: `/v1/pantry/${c.id}`, headers: H, payload: { reason: 'eaten' } });
+    expect((await repo.getBatch(c.id))!.depleted_reason ?? null).toBeNull();
+    expect((await repo.getBatch(c.id))!.state).toBe('sealed');
   });
 
   it('«Позначити відкритою» запускає годинник — і не подовжує коротший власний строк', async () => {

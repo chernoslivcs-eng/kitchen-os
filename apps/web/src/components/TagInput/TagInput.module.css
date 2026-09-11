@@ -10,17 +10,17 @@
 .input {
   height: 46px;
   padding: 0 14px;
-  border-radius: var(--r-md, 12px);
-  border: 1px solid var(--border);
-  background: var(--bg-surface-2);
-  color: var(--fg);
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--line);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 14px;
 }
-.input::placeholder { color: var(--fg-dim); }
+.input::placeholder { color: var(--dim); }
 .input:focus {
   outline: none;
-  border-color: var(--border-strong);
+  border-color: var(--line2);
 }
 .input:disabled { opacity: 0.5; }
 
@@ -60,30 +60,30 @@
 
 .allergy {
   background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
+  border: 1px solid var(--danger-line);
   color: var(--danger);
 }
 .wish {
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
-  color: var(--accent);
+  background: var(--sage-bg);
+  border: 1px solid var(--sage);
+  color: var(--sage);
 }
 /* «не їм …» — принцип: слива. */
 .anti {
   background: var(--plum-bg);
-  border: 1px solid var(--plum-border);
+  border: 1px solid var(--plum-line);
   color: var(--plum);
 }
 /* «не люблю …» — смак: рівний сірий, без сливової ваги. */
 .anti-taste {
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
-  color: var(--fg-muted);
+  background: var(--line);
+  border: 1px solid var(--line2);
+  color: var(--muted);
 }
 .neutral {
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
-  color: var(--fg);
+  background: var(--line);
+  border: 1px solid var(--line2);
+  color: var(--ink);
 }
 
 /* Хрестик приглушений і проявляється на hover: список читають частіше,

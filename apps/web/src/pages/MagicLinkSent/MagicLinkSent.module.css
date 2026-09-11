@@ -3,7 +3,7 @@
 .mail {
   font-family: var(--font-mono);
   font-size: 15px;
-  color: var(--fg-strong);
+  color: var(--ink);
   letter-spacing: 0;
   word-break: break-all;
   margin: 0;

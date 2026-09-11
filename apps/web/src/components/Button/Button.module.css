@@ -15,7 +15,7 @@
   min-width: 0;
 }
 .btn:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--sage);
   outline-offset: 2px;
 }
 .btn:disabled {
@@ -36,30 +36,30 @@
 
 /* Positive — шавлія. Головна дія на «наступний крок»/apply. */
 .positive {
-  background: var(--accent);
-  color: var(--accent-fg-on);
+  background: var(--sage);
+  color: var(--sage-on);
 }
-.positive:hover:not(:disabled) { background: var(--accent-strong); }
+.positive:hover:not(:disabled) { background: var(--sage-strong); }
 
 /* Secondary — прозорий фон, тонкий бордер. */
 .secondary {
   background: transparent;
-  color: var(--fg-muted);
-  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  border: 1px solid var(--line2);
 }
 .secondary:hover:not(:disabled) {
-  background: var(--bg-surface-2);
-  color: var(--fg);
+  background: var(--line);
+  color: var(--ink);
 }
 
 /* Soft — шавлієва тонована. Важлива дія, але не єдина на екрані:
    «Зібрати кошик у Сільпо →» поруч із чекаутом. */
 .soft {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border: 1px solid var(--accent-border);
+  background: var(--sage-bg);
+  color: var(--sage);
+  border: 1px solid var(--sage);
 }
-.soft:hover:not(:disabled) { background: var(--accent-bg-strong, var(--accent-bg)); }
+.soft:hover:not(:disabled) { background: var(--sage-bg-strong); }
 
 /* Text — відкат і другорядне. Без рамки і без фону: рамка в системі
    означає «тонована», і давати її текстовій дії означало б підняти її
@@ -67,10 +67,10 @@
 .text {
   background: none;
   border: 0;
-  color: var(--fg-muted);
+  color: var(--muted);
   padding: 0 12px;
 }
-.text:hover:not(:disabled) { color: var(--fg); }
+.text:hover:not(:disabled) { color: var(--ink); }
 
 /* Block — на всю ширину контейнера. */
 .block { width: 100%; }
@@ -89,7 +89,7 @@
   width: 14px;
   height: 14px;
   border-radius: 999px;
-  border: 2px solid var(--fg-dim);
+  border: 2px solid var(--dim);
   border-top-color: var(--btn-primary-fg);
   animation: spin var(--dur-breathe) linear infinite;
 }

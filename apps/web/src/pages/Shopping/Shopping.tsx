@@ -7,6 +7,7 @@ import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { api, type ShoppingItem } from '../../api';
 import { plural } from '../../lib/plural';
+import { Icon } from '../../components/Icon/Icon';
 import { formatQty } from '../../lib/units';
 import { Toast } from '../../components/ErrorState/Toast';
 import { LIST_FAILED } from '../../components/ErrorState/copy';
@@ -153,15 +154,13 @@ export function ShoppingPage() {
               onClick={unpackChecked}
               disabled={unpacking}
               style={{
-                background: 'var(--accent-bg)',
-                border: '1px solid var(--accent)',
+                background: 'var(--sage-bg)',
+                border: '1px solid var(--sage)',
                 borderRadius: 'var(--r-pill)',
                 padding: '5px 12px',
-                color: 'var(--accent)',
+                color: 'var(--sage)',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 11,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                fontSize: 13,
                 cursor: unpacking ? 'wait' : 'pointer',
               }}
             >
@@ -179,8 +178,8 @@ export function ShoppingPage() {
             placeholder="+ Додати в список…"
             style={{
               flex: 1, padding: '10px 14px',
-              background: 'var(--bg-input)', border: '1px solid var(--border)',
-              borderRadius: 'var(--r)', color: 'var(--fg)',
+              background: 'var(--bg)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r)', color: 'var(--ink)',
               fontFamily: 'var(--font-body)', fontSize: 14,
             }}
           />
@@ -190,7 +189,7 @@ export function ShoppingPage() {
               disabled={adding}
               style={{
                 padding: '0 16px', border: 0, borderRadius: 'var(--r)',
-                background: 'var(--accent)', color: 'var(--accent-fg-on)',
+                background: 'var(--sage)', color: 'var(--sage-on)',
                 fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
                 cursor: adding ? 'wait' : 'pointer',
               }}
@@ -215,7 +214,7 @@ export function ShoppingPage() {
               onClick={() => toggle(it)}
               aria-label={it.checked ? 'Зняти галочку' : 'Позначити куплене'}
             >
-              <span className={styles['check-box']}>{it.checked ? '✓' : ''}</span>
+              <span className={styles['check-box']}>{it.checked ? <Icon name="sys.done" size={16} inherit decorative /> : null}</span>
             </button>
             {/* Папіркат UX-9: у магазині тапають по НАЗВІ, не по кружечку 24px.
                 Весь рядок-тіло — тогл; ✕ лишається окремою мішенню праворуч. */}
@@ -240,8 +239,8 @@ export function ShoppingPage() {
             disabled={building}
             style={{
               width: '100%', height: 48, marginTop: 14,
-              border: '1px solid var(--accent-border)', borderRadius: 12,
-              background: 'var(--accent-bg)', color: 'var(--accent)',
+              border: '1px solid var(--sage)', borderRadius: 12,
+              background: 'var(--sage-bg)', color: 'var(--sage)',
               fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
               cursor: building ? 'wait' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -249,7 +248,7 @@ export function ShoppingPage() {
             }}
           >
             <span>{building ? 'Шукаю все це в Сільпо…' : 'Зібрати кошик у Сільпо'}</span>
-            <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} →</span>
+            <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} <Icon name="sys.next" size={12} inherit decorative /></span>
           </button>
         )}
 
@@ -261,13 +260,13 @@ export function ShoppingPage() {
             href={`/v1/retail/silpo/connect?next=${encodeURIComponent('/list')}`}
             style={{
               width: '100%', height: 44, marginTop: 14, boxSizing: 'border-box',
-              border: '1px solid var(--border-strong)', borderRadius: 12,
-              background: 'transparent', color: 'var(--fg-muted)', textDecoration: 'none',
+              border: '1px solid var(--line2)', borderRadius: 12,
+              background: 'transparent', color: 'var(--muted)', textDecoration: 'none',
               fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
           >
-            {retailStatus === 'none' ? 'Підключити Сільпо й не шукати все вручну' : 'Увійти в Сільпо, щоб зібрати кошик'} →
+            {retailStatus === 'none' ? 'Підключити Сільпо й не шукати все вручну' : 'Увійти в Сільпо, щоб зібрати кошик'} <Icon name="sys.next" size={12} inherit decorative />
           </a>
         )}
       </div>

@@ -1,8 +1,10 @@
 // Стрічка — робочий цикл продукту з тризмісткою карток: intake_diff, proposal,
 // shopping, profile. Дизайн ближче до брифу 04 Стрічка: заголовок «Кухня»,
 // мета-рядок про стан комори/списку, mono-мітки перед секціями, спокійні
-// переходи між станами картки (◌ ОЧІКУЄ → ✓ ЗАСТОСОВАНО → ↩ СКАСОВАНО).
+// переходи між станами картки (ОЧІКУЄ → ЗАСТОСОВАНО → СКАСОВАНО).
 
+import { isSoon } from '@kitchen/domain/shelf-thresholds';
+import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -504,7 +506,9 @@ export function Feed() {
       const stale = p.batches
         .filter((b) => b.state !== 'depleted' && b.days != null)
         .map((b) => ({ id: b.id, label: b.label, days: b.days! }))
-        .filter((b) => b.days <= 3)
+        // Етап 2a (Р2): було власною копією літерала 3 — тепер поріг один
+        // і живе в домені разом із рештою драбини.
+        .filter((b) => isSoon(b.days))
         .sort((a, b) => a.days - b.days)
         .slice(0, 3);
       {
@@ -820,7 +824,7 @@ export function Feed() {
           kind: 'ok',
           text: res.card ? appliedToast(res.card) : 'Готово',
           action: res.undo_token && res.card_id
-            ? { label: '↩ Скасувати', run: () => undo(turn.id, res.undo_token!) }
+            ? { label: 'Скасувати', run: () => undo(turn.id, res.undo_token!) }
             : undefined,
         });
       }
@@ -939,7 +943,7 @@ export function Feed() {
         // Скасовувати нічого — не пропонувати. Кнопка без роботи гірша за
         // її відсутність: вона стверджує, що робота була.
         ...(landed && r.undo_token
-          ? { action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token!) } }
+          ? { action: { label: 'Скасувати', run: () => undo(turnId, r.undo_token!) } }
           : {}),
       });
       return r;
@@ -962,7 +966,7 @@ export function Feed() {
         ? { ...t, applied: true, applying: false, undoToken: r.undo_token ?? undefined, justApplied: true }
         : t,
       ));
-      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', ...(r.undo_token ? { action: { label: '↩ Скасувати', run: () => undo(turnId, r.undo_token!) } } : {}) });
+      setToast({ id: Date.now(), kind: 'ok', text: 'Записав: нічого такого', ...(r.undo_token ? { action: { label: 'Скасувати', run: () => undo(turnId, r.undo_token!) } } : {}) });
     } catch (err) {
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -1085,7 +1089,7 @@ export function Feed() {
                     batch={b}
                     product={liveProducts.find((pr) => pr.id === (b.product_id ?? '')) ?? null}
                     onChanged={async () => { usePantryStore.getState().bump(); }}
-                    onRemove={async () => { await api.batches.remove(b.id); usePantryStore.getState().bump(); }}
+                    onRemove={async (reason) => { await api.batches.remove(b.id, reason); usePantryStore.getState().bump(); }}
                   />
                 );
               })()
@@ -1137,8 +1141,8 @@ export function Feed() {
                 if (turn) document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
                 else if (pc.session_id) void loadHistorySession(pc.session_id);
               }}>
-              <span className={panelStyles['rail-label']}>{labelFor(pc.type as never).text.replace(' · ◌ ОЧІКУЄ', '')}</span>
-              <span className={panelStyles['rail-meta']} style={{ color: 'var(--amber)' }}>◌</span>
+              <span className={panelStyles['rail-label']}>{labelFor(pc.type as never).text.replace(' · ОЧІКУЄ', '')}</span>
+              <span className={panelStyles['rail-meta']} style={{ color: 'var(--amber)' }} aria-hidden><Icon name="live.thinking" size={12} inherit decorative /></span>
             </button>
           ))}
         </div>
@@ -1168,7 +1172,7 @@ export function Feed() {
         title={historyOpen ? 'Історія' : 'Кухня'}
         onMenu={() => openNav(true)}
         action={
-          <button onClick={startFreshSession} className={styles['head-new']}>＋ Нова розмова</button>
+          <button onClick={startFreshSession} className={styles['head-new']}><Icon name="sys.add" size={16} inherit decorative /> Нова розмова</button>
         }
       />
 
@@ -1189,17 +1193,17 @@ export function Feed() {
             onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              border: '1px solid var(--accent-border)', borderRadius: 14,
-              padding: '13px 16px', margin: '0 0 8px', background: 'var(--bg-surface)',
+              border: '1px solid var(--sage)', borderRadius: 14,
+              padding: '13px 16px', margin: '0 0 8px', background: 'var(--card)',
               cursor: 'pointer', textAlign: 'left', width: '100%',
             }}
           >
-            <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
-            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
+            <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sage)', flex: 'none' }} />
+            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--sage)' }}>
               Готуємо · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
               <CookCountdown deadline={cookLive.deadline} />
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--accent)', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 13, color: 'var(--sage)' }}>
               Продовжити ›
             </span>
           </button>
@@ -1214,15 +1218,15 @@ export function Feed() {
               onClick={startFreshSession}
               style={{
                 display: 'flex', width: '100%', padding: '13px 16px', marginBottom: 8,
-                border: '1px dashed var(--border-strong)', borderRadius: 14,
-                background: 'transparent', color: 'var(--accent)',
+                border: '1px dashed var(--line2)', borderRadius: 14,
+                background: 'transparent', color: 'var(--sage)',
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
                 cursor: 'pointer',
               }}
             >+ Нова розмова</button>
             {historyLoading && <SkeletonRows rows={4} />}
             {!historyLoading && historySessions.length === 0 && (
-              <div style={{ color: 'var(--fg-muted)', padding: '20px 0', fontSize: 14 }}>
+              <div style={{ color: 'var(--muted)', padding: '20px 0', fontSize: 14 }}>
                 Тут поки немає минулих розмов. Сьогоднішня зʼявиться тут завтра.
               </div>
             )}
@@ -1236,19 +1240,19 @@ export function Feed() {
                   style={{
                     display: 'flex', alignItems: 'baseline', gap: 12, width: '100%',
                     padding: '12px 0',
-                    border: 0, borderBottom: '1px solid var(--border)',
+                    border: 0, borderBottom: '1px solid var(--line)',
                     background: 'transparent', color: 'inherit',
                     cursor: 'pointer', textAlign: 'left',
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)',
+                      fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--ink)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {s.title ?? dayLabel}
                     </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', color: 'var(--fg-dim)', textTransform: 'uppercase', marginTop: 3 }}>
+                    <div style={{ fontSize: 13, color: 'var(--dim)', marginTop: 3 }}>
                       {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
                     </div>
                   </div>
@@ -1265,9 +1269,9 @@ export function Feed() {
                         if (s.id === sessionId) void startFreshSession();
                       }).catch(() => {/* тихо */});
                     }}
-                    style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
-                  >✕</span>
-                  <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>→</span>
+                    style={{ color: 'var(--dim)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
+                  ><Icon name="sys.close" size={12} inherit /></span>
+                  <span style={{ color: 'var(--dim)' }}><Icon name="sys.next" size={12} inherit decorative /></span>
                 </button>
               );
             })}
@@ -1302,10 +1306,10 @@ export function Feed() {
                     style={{
                       padding: '12px 20px',
                       minWidth: 260,
-                      background: i === 0 ? 'var(--accent-bg)' : 'transparent',
-                      border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border-strong)',
+                      background: i === 0 ? 'var(--sage-bg)' : 'transparent',
+                      border: i === 0 ? '1px solid var(--sage)' : '1px solid var(--line2)',
                       borderRadius: 'var(--r)',
-                      color: i === 0 ? 'var(--accent)' : 'var(--fg-muted)',
+                      color: i === 0 ? 'var(--sage)' : 'var(--muted)',
                       fontFamily: 'var(--font-body)',
                       fontSize: 14,
                       fontWeight: 600,
@@ -1400,8 +1404,8 @@ export function Feed() {
                 disabled={sending}
                 style={{
                   border: 0, background: 'none', padding: 0,
-                  color: 'var(--danger)', fontFamily: 'var(--font-mono)',
-                  fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer',
+                  color: 'var(--danger)',
+                  fontSize: 12, cursor: 'pointer',
                   textAlign: 'inherit',
                 }}
               >
@@ -1431,14 +1435,14 @@ export function Feed() {
                 className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-dot']} aria-hidden />
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
                     КОШИК · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
                   </span>
                   <span className={styles['trace-value']}>{Math.round(t.card.total ?? 0)} ₴</span>
                 </span>
-                <span className={styles['trace-go']}>→</span>
+                <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
               </button>
             )}
             {t.card?.type === 'recipe_link' && (
@@ -1451,17 +1455,17 @@ export function Feed() {
                 className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']}>●</span>
+                <span className={styles['trace-dot']} aria-hidden />
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>РЕЦЕПТ</span>
                   <span className={styles['trace-value']}>{t.card.title ?? 'Рецепт'}</span>
                 </span>
-                <span className={styles['trace-go']}>→</span>
+                <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
               </button>
             )}
             {t.card?.type === 'event' && t.applied && (
               /* Слід події — як у списку: дельта в сліді, стан у панелі.
-                 Канвас: «Кухня повертає слід ＋ ПОДІЯ · ГОСТІ В СБ · СКАСУВАТИ,
+                 Канвас: «Кухня повертає слід ПОДІЯ · ГОСТІ В СБ · СКАСУВАТИ,
                  як із будь-яким артефактом. Форма — для тих, хто хоче натиснути». */
               <div className={styles['trace-wrap']}>
                 <button
@@ -1470,7 +1474,7 @@ export function Feed() {
                   onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
                   disabled={t.undone}
                 >
-                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
                       {(() => {
@@ -1478,7 +1482,7 @@ export function Feed() {
                         const ops = (t.card.ops as { op?: string }[] | undefined) ?? [];
                         const kinds = new Set(ops.map((o) => o.op ?? 'add'));
                         const word = kinds.size === 1
-                          ? ({ add: '＋ ПОДІЯ', edit: 'ПОДІЮ ОНОВЛЕНО', done: 'ПОДІЯ ЗАВЕРШИЛАСЬ', remove: 'ПОДІЮ ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
+                          ? ({ add: 'ПОДІЯ', edit: 'ПОДІЮ ОНОВЛЕНО', done: 'ПОДІЯ ЗАВЕРШИЛАСЬ', remove: 'ПОДІЮ ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
                           : `ПОДІЯ · ${ops.length} ЗМІНИ`;
                         return word;
                       })()}{t.undone ? ' · СКАСОВАНО' : ''}
@@ -1487,7 +1491,7 @@ export function Feed() {
                       {((t.card.ops as { title?: string }[] | undefined) ?? []).map((o) => o.title).filter(Boolean).join(', ') || 'подія'}
                     </span>
                   </span>
-                  {!t.undone && <span className={styles['trace-go']}>→</span>}
+                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
                 </button>
                 {!t.undone && t.undoToken && (
                   <button type="button" className={styles['trace-undo']} onClick={() => undo(t.id, t.undoToken!)}>СКАСУВАТИ</button>
@@ -1508,14 +1512,14 @@ export function Feed() {
                   onClick={() => openArtifact('list')}
                   disabled={t.undone}
                 >
-                  <span className={styles['trace-dot']}>{t.undone ? '○' : '●'}</span>
+                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
                       СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
                     </span>
                     <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
                   </span>
-                  {!t.undone && <span className={styles['trace-go']}>→</span>}
+                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
                 </button>
                 {!t.undone && t.undoToken && (
                   <button
@@ -1548,7 +1552,7 @@ export function Feed() {
                         className={`${styles.trace} ${shownArtifact?.key === `batch:${alive[0]!.id}` ? styles['trace-on'] : ''}`}
                         onClick={() => openArtifact(`batch:${alive[0]!.id}`)}
                       >
-                        <span className={styles['trace-dot']}>●</span>
+                        <span className={styles['trace-dot']} aria-hidden />
                         <span className={styles['trace-body']}>
                           <span className={styles['trace-kind']}>
                             СПИСАНО{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}` : ''}
@@ -1557,7 +1561,7 @@ export function Feed() {
                             {alive.map((b) => [b.label, formatQty(b.value, b.unit)].filter(Boolean).join(' ')).join(', ')}
                           </span>
                         </span>
-                        <span className={styles['trace-go']}>→</span>
+                        <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
                       </button>
                     </div>
                   )}
@@ -1576,7 +1580,7 @@ export function Feed() {
                 className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']}>{!t.applied && !t.undone ? '◌' : '●'}</span>
+                <span className={`${styles['trace-dot']} ${!t.applied && !t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
                     {/* Чек називається чеком, решта — тим, чим є: «це додав
@@ -1591,7 +1595,7 @@ export function Feed() {
                       : 'Потрібне твоє підтвердження'}
                   </span>
                 </span>
-                {!t.undone && <span className={styles['trace-go']}>→</span>}
+                {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
               </button>
             )}
             {/* Подія в стрічці — це слід (нижче), не картка: інакше під слідом стояла б порожня рамка (EventCard поза панеллю рендерить null). */}
@@ -1687,7 +1691,7 @@ export function Feed() {
             className={panelStyles['rail-pill']}
             onClick={() => openArtifact(shownArtifact.key)}
           >
-            <span className={panelStyles['rail-pill-dot']}>●</span>
+            <span className={panelStyles['rail-pill-dot']} aria-hidden />
             <span className={panelStyles['rail-pill-label']}>{shownArtifact.label}</span>
             {shownArtifact.meta && <span className={panelStyles['rail-pill-meta']}>{shownArtifact.meta}</span>}
             {openArtifacts.length > 1 && (
@@ -1720,7 +1724,7 @@ export function Feed() {
                 : `${b.label.toUpperCase()} (${b.days}дн)`
               )).join(' · ')}
             </span>
-            <span>→</span>
+            <span><Icon name="sys.next" size={12} inherit decorative /></span>
           </button>
         )}
         {pending.length > 0 && (

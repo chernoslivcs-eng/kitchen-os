@@ -14,19 +14,21 @@ export type StateKey = 'soon' | 'receipt' | 'no';
 export type CutKey = KindKey | StateKey;
 export type Tone = 'fg' | 'dim' | 'amber' | 'plum' | 'sage' | 'danger';
 
-// Крок Ф2: одна вісь іконок — свіжість. Пороги в одному місці:
-// зріз «скоро зіпсується» — ≤ SOON_CUT_DAYS; іконка — своя шкала:
-// «добігає» від FRESH_SOON_DAYS до FRESH_CHECK_DAYS днів, «перевірити» —
-// сьогодні або термін вийшов, інакше «свіже» (без терміну — теж свіже).
-export const SOON_CUT_DAYS = 3;
-export const FRESH_SOON_DAYS = 5;
-export const FRESH_CHECK_DAYS = 1;
-export type Freshness = 'fresh' | 'soon' | 'check';
-export function freshness(days: number | null | undefined): Freshness {
-  if (days == null || days > FRESH_SOON_DAYS) return 'fresh';
-  if (days >= FRESH_CHECK_DAYS) return 'soon';
-  return 'check';
-}
+// Етап 2a (рішення Р2): пороги більше не живуть тут. Вони переїхали в
+// `@kitchen/domain/shelf-thresholds` — файл СТОРІНКИ не місце для контракту,
+// і саме тому число 3 встигло розмножитись: Feed тримав власну копію
+// літералом, а промт — сьому добу третім числом.
+//
+// Реекспорт лишається, щоб не переписувати місця вжитку заради шляху імпорту.
+import {
+  SOON_CUT_DAYS, freshness, isSoon, timeWord, hasScale, type Freshness,
+} from '@kitchen/domain/shelf-thresholds';
+export {
+  SOON_CUT_DAYS, FRESH_SOON_DAYS, FRESH_CHECK_DAYS,
+  freshness, isSoon, noTermReason, timeWord, hasScale,
+  FRESHNESS_LABEL, NO_TERM_LABEL,
+  type Freshness, type NoTermReason,
+} from '@kitchen/domain/shelf-thresholds';
 
 export interface FilterState { sort: SortKey; cuts: CutKey[]; q: string }
 export const INITIAL: FilterState = { sort: 'zone', cuts: [], q: '' };
@@ -49,6 +51,16 @@ export const UNIT_OPTIONS: { value: PantryBatch['unit']; label: string }[] = [
 
 
 export const ZONE_ORDER: PantryBatch['zone'][] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
+/**
+ * Знак зони — з четвертої сімʼї словника (етап 1.5). Зони мають власні знаки,
+ * а не позичені: раніше «Свіже» брало `leaf` у «Зелень», а «Спеції» — `flame`
+ * у «Горить», і чотири з шести конфліктували.
+ */
+export const ZONE_ICON: Record<PantryBatch['zone'], `zone.${string}`> = {
+  fresh: 'zone.fresh', fridge: 'zone.fridge', freezer: 'zone.freezer',
+  dry: 'zone.dry', spices: 'zone.spices', drinks: 'zone.drinks',
+};
+
 export const ZONE_LABEL: Record<PantryBatch['zone'], string> = {
   fresh: 'Свіже', fridge: 'Холодильник', freezer: 'Морозилка', dry: 'Суха шафа', spices: 'Спеції', drinks: 'Напої',
 };
@@ -82,7 +94,12 @@ export const SORTS: SortDef[] = [
 
 interface CutDef { key: CutKey; label: string; tone: Tone; group?: boolean; test: (it: PantryBatch) => boolean }
 export const CUTS: CutDef[] = [
-  { key: 'soon', label: 'скоро зіпсується', tone: 'amber', test: (it) => it.days != null && it.days <= SOON_CUT_DAYS },
+  // Зріз кличе ту саму `isSoon`, що й решта, — і додає `hasScale`. Без
+  // каталожного ключа партія у зріз НЕ потрапляє: її число — здогадка таблиці
+  // зон, і рядок його не показує. Фільтр, який довіряє числу, що рядок
+  // відмовляється показати, обіцяє знання, якого немає.
+  // Прострочене у зріз потрапляє: `isSoon(-9)` це `true` навмисно.
+  { key: 'soon', label: 'скоро зіпсується', tone: 'amber', test: (it) => isSoon(it.days) && hasScale(it.catalog_key) },
   { key: 'receipt', label: 'з останнього чека', tone: 'sage', test: (it) => !!it.receipt },
   { key: 'no', label: 'не їм / не можна', tone: 'plum', test: (it) => !!it.no },
   { key: 'meat', label: 'мʼясне', tone: 'fg', group: true, test: (it) => ['мʼясо', 'ковбаси'].includes(it.cat ?? '') },
@@ -143,13 +160,63 @@ export function sortItems(items: PantryBatch[], sort: SortDef): PantryBatch[] {
   });
 }
 
+/**
+ * Рядок комори — ТРИ осі в трьох окремих каналах (етап 2a, рішення Р10).
+ *
+ * Досі всі три ділили один канал `sub`: одна стрічка показувала або безпеку,
+ * або час, або походження — що перше збіглось. Тобто «не їм» ховало строк, а
+ * строк ховав чек. Слоти за tokens-v3 · «Слоти рядка комори»:
+ *
+ *   [шкала] [назва · паспортна] [безпека] [походження] [час] [кількість]
+ *
+ * Крок Ф2 зводив рядок до однієї осі не тому, що осей мало, а тому що мітки
+ * стояли НА СПІЛЬНІЙ осі й змагалися. Окремі канали цього не створюють.
+ */
 export interface RowView {
   it: PantryBatch;
-  name: string; qty: string; zone: string;
-  sub: string; subTone: Tone;
-  /** Іконка ліворуч — лише свіжість (крок Ф2); «не їм / не можна» — тільки підрядок. */
+  /** «Наше імʼя» — те, як цю річ називає людина. */
+  name: string;
+  /** Другий ярус: паспортна назва постачальника. Порожня, коли трійка без брендa. */
+  passport: string;
+  qty: string; zone: string;
   fresh: Freshness;
+  /** Без каталожного ключа шкали немає — вона обіцяла б точність, якої нема. */
+  scale: boolean;
+  /** Слово часу — чотири написання з домену. */
+  time: string; timeTone: Tone;
+  /** Свій слот: обмеження людини. Не змагається з часом. */
+  safety: 'не їм' | 'не можна' | null;
+  /** Свій слот: звідки партія. Іконка 12, без тексту. */
+  origin: OriginKind | null;
+  /** Підпис слота походження — з відсотком для домисленого. */
+  originTitle: string;
   val: string; valTone: Tone;
+}
+
+/**
+ * Походження партії. Чотири (Р6): чек · рука · розмова · домислене. Не ті
+ * чотири, що в макеті — «зі списку» знято (покупка зі списку все одно
+ * приходить чеком або рукою), а домислене піднято: доти партія, яку модель
+ * домислила з розбору, показувалась як «з розмови», тобто як слово людини.
+ *
+ * Знак домисленого — ЗАГЛУШКА: бандл для цього походження знака не має
+ * (у ньому було «зі списку»). `live.thinking` тут тому, що це знак моделі, і
+ * саме так підписано. Вибір — дизайн-чату (QUESTIONS-FOR-DESIGN-CHAT §1).
+ */
+export type OriginKind = 'receipt' | 'manual' | 'chat' | 'inference';
+
+export const ORIGIN_ICON: Record<OriginKind, 'sys.receipt' | 'live.byHand' | 'sys.chat' | 'live.thinking'> = {
+  receipt: 'sys.receipt', manual: 'live.byHand', chat: 'sys.chat', inference: 'live.thinking', // inference — ЗАГЛУШКА
+};
+export const ORIGIN_LABEL: Record<OriginKind, string> = {
+  receipt: 'з чека', manual: 'рукою', chat: 'з розмови', inference: 'домислено',
+};
+
+/** Підпис походження з відсотком, коли він є: «домислено · 60 %». */
+export function originTitle(o: { kind: OriginKind; confidence?: number } | null | undefined): string {
+  if (!o) return '';
+  const base = ORIGIN_LABEL[o.kind];
+  return o.kind === 'inference' && o.confidence != null ? `${base} · ${Math.round(o.confidence * 100)} %` : base;
 }
 
 export interface FilterView {
@@ -166,6 +233,23 @@ export interface FilterView {
   states: { key: StateKey; label: string; tone: Tone; on: boolean; full: boolean }[];
 }
 
+/**
+ * Чому зріз нічого не лишив. Окремим випадком — позиції без каталожного ключа:
+ * вони невидимі для фільтрів роду, бо роду в них немає.
+ */
+function emptyReason(active: CutDef[], all: PantryBatch[]): string {
+  const noKey = all.filter((it) => !it.catalog_key).length;
+  const byKind = active.some((c) => c.group);
+  if (byKind && noKey > 0) {
+    const tail = noKey === all.length
+      ? 'У жодної позиції в коморі немає категорії, тому роди їх не бачать.'
+      : `${noKey} ${plural(noKey, ['позиція', 'позиції', 'позицій'])} без категорії — роди їх не бачать.`;
+    return active.length > 1 ? `Разом ці умови нічого не лишають. ${tail}` : tail;
+  }
+  if (active.length > 1) return 'Разом ці умови нічого не лишають.';
+  return byKind ? 'Можна докупити.' : 'Добре.';
+}
+
 export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { productsById: Map<string, HouseholdProduct>; receiptAt?: string | null }): FilterView {
   const sort = SORTS.find((s) => s.key === st.sort) ?? SORTS[0]!;
   const active = CUTS.filter((c) => st.cuts.includes(c.key));
@@ -175,14 +259,34 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   const receiptOn = active.some((c) => c.key === 'receipt');
   const receiptSub = ctx.receiptAt ? `чек · ${shortDate(ctx.receiptAt)}` : 'з чека';
   const row = (it: PantryBatch): RowView => {
-    const soon = it.days != null && it.days <= SOON_CUT_DAYS;
-    const sub = it.no ? it.no
-      : soon && sort.key !== 'fresh' ? (it.days! <= 0 ? 'сьогодні' : `ще ${it.days} дн`)
-        : receiptOn && sort.key !== 'added' ? receiptSub : '';
+    const st = freshness(it.days);
+    // Другий ярус — бренд і різновид із трійки продукту. Назва не може бути
+    // найгучнішим елементом рядка, якщо половина її — код калібру (PLAN §2).
+    const prod = it.product_id ? ctx.productsById.get(it.product_id) : undefined;
+    const passport = [prod?.brand, prod?.variant].filter(Boolean).join(' · ');
     return {
-      it, name: it.label, qty: it.value != null && it.unit ? formatQty(it.value, it.unit) : '', zone: ZONE_LABEL[it.zone],
-      sub, subTone: it.no ? 'plum' : soon ? 'amber' : 'sage',
-      fresh: freshness(it.days),
+      it, name: it.label, passport,
+      qty: it.value != null && it.unit ? formatQty(it.value, it.unit) : '',
+      zone: ZONE_LABEL[it.zone],
+      fresh: st,
+      scale: hasScale(it.catalog_key),
+      // Р4: «до 14 вер» — тільки коли дату поставила ЛЮДИНА. Розрахунок на
+      // відкритті теж пише `expires_at`, але він не точна дата, а оцінка, і
+      // подавати його як «до …» означало б видавати здогадку за слово людини.
+      time: timeWord(it.days, it.catalog_key, it.expires_source === 'manual' ? shortDate(it.expires_at) : null),
+      // Прострочене — danger; «добігає» і «перевірити» — бурштин; решта тихо.
+      // Без шкали тон завжди тихий: якщо ми не довіряємо числу настільки, щоб
+      // показати строк, то й фарбувати його тривогою не маємо права. Інакше
+      // «без категорії» світилося б червоним на позиції, про яку ми нічого не
+      // знаємо — саме це й вилізло на живому засіві.
+      timeTone: !hasScale(it.catalog_key) ? 'dim'
+        : st === 'overdue' ? 'danger' : st === 'good' ? 'dim' : 'amber',
+      safety: it.no ?? null,
+      // На партії два поля про походження: новіше `origin.kind` і старіше
+      // `receipt` булевим. Беремо перше, друге лишаємо запасним — інакше
+      // партії до бекфілу втратили б слот, який щойно отримали.
+      origin: it.origin?.kind ?? (it.receipt ? 'receipt' : null),
+      originTitle: originTitle(it.origin ?? (it.receipt ? { kind: 'receipt' } : null)),
       val: sort.val ? sort.val(it) : '', valTone: sort.color ? sort.color(it) : 'fg',
     };
   };
@@ -195,7 +299,8 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   const last = active[active.length - 1];
   return {
     sort, shown, dirty,
-    meta: narrowed ? `${shown.length} З ${items.length}` : `${items.length} ${plural(items.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}`,
+    // Етап 1.6: капс знято й тут — він був вписаний у самі рядки, не лише в CSS.
+    meta: narrowed ? `${shown.length} з ${items.length}` : `${items.length} ${plural(items.length, ['позиція', 'позиції', 'позицій'])}`,
     grouped: grouped && !empty,
     // Ф2а: усередині групи порядок стабільний — новіші за added_at зверху,
     // однакова дата — за назвою; не за порядком з сервера (терміновість/updated_at),
@@ -208,7 +313,12 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
     flatLabel: sort.head ?? '', unitLabel: sort.unit ?? '', unitShort: sort.unitShort ?? sort.unit ?? '',
     empty,
     emptyTitle: empty ? (last ? EMPTY_TITLE[last.key] ?? 'Нічого' : 'Порожньо') : '',
-    emptyText: empty ? (active.length > 1 ? 'Разом ці умови нічого не лишають.' : active.some((c) => c.group) ? 'Можна докупити.' : 'Добре.') : '',
+    // PLAN §2, останній пункт: фільтри РОДІВ не бачать позицій без каталогу —
+    // рід беруть із `it.cat`, а без ключа він null. Досі це було мовчазне
+    // зникнення: людина ставила «мʼясне», отримувала «Порожньо» і не мала
+    // звідки знати, що частина комори просто не має роду. Тепер порожній стан
+    // це називає, і числом.
+    emptyText: empty ? emptyReason(active, items) : '',
     kinds: CUTS.filter((c) => c.group).map((c) => ({ key: c.key as KindKey, label: c.label, on: st.cuts.includes(c.key) })),
     states: CUTS.filter((c) => !c.group).map((c) => ({ key: c.key as StateKey, label: c.label, tone: c.tone, on: st.cuts.includes(c.key), full: stateFull(st, c.key as StateKey) })),
   };

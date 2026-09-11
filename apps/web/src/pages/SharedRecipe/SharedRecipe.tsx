@@ -44,7 +44,7 @@ export function SharedRecipePage() {
   }, [id]);
 
   if (loading) {
-    return <div className={styles.screen}><div style={{ padding: 22, color: 'var(--fg-muted)' }}>Завантажую…</div></div>;
+    return <div className={styles.screen}><div style={{ padding: 22, color: 'var(--muted)' }}>Завантажую…</div></div>;
   }
   if (error || !data) {
     return (
@@ -52,7 +52,7 @@ export function SharedRecipePage() {
         <div className={styles.info}>
           <p>{error ?? 'Рецепт не знайдено.'}</p>
           <p style={{ marginTop: 12 }}>
-            <Button onClick={() => navigate('/')}>← На головну</Button>
+            <Button onClick={() => navigate('/')}>На головну</Button>
           </p>
         </div>
       </div>

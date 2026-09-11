@@ -4,7 +4,7 @@
 
 import { useContext, useEffect, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { api, type HouseholdProduct, type PantryBatch } from '../../api';
+import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch } from '../../api';
 import { PanelFootSlot } from '../Feed/panel-slots';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
@@ -60,9 +60,15 @@ const toDateInput = (iso: string | null) => (iso ? new Date(iso).toISOString().s
 
 export function BatchCard({ batch, product, onChanged, onRemove }: {
   batch: PantryBatch; product: HouseholdProduct | null;
-  onChanged: () => Promise<void>; onRemove: () => Promise<void>;
+  onChanged: () => Promise<void>;
+  /** 2c, ⚠3: з картки причина ОБОВʼЯЗКОВА — без неї списати не можна. */
+  onRemove: (reason: DepletedReason) => Promise<void>;
 }) {
   const footSlot = useContext(PanelFootSlot);
+  // 2c: «Списати» розкриває трійку причин; ні «Прибрати» без причини, ні
+  // confirm() більше немає. Це головна діра продукту за PLAN §3: метрика
+  // «зіпсувалось» не мала чисельника, бо жодна кнопка причину не передавала.
+  const [askReason, setAskReason] = useState(false);
   const [label, setLabel] = useState(batch.label);
   const [value, setValue] = useState(batch.value != null ? String(batch.value) : '');
   const [expires, setExpires] = useState(toDateInput(batch.expires_at));
@@ -92,10 +98,19 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
 
   const nutri = nutritionLines(batch);
   const fresh = freshness(batch.days);
-  const foot = (
-    <button type="button" className={styles['card-remove']} disabled={busy}
-      onClick={() => { if (confirm('Прибрати з комори? Вважатимемо, що закінчилось. В історії лишиться.')) void onRemove(); }}>
-      Прибрати з комори
+  const foot = askReason ? (
+    <div className={styles['card-reasons']} role="group" aria-label="Чому списуємо">
+      {(Object.keys(DEPLETED_REASON_LABEL) as DepletedReason[]).map((r) => (
+        <button key={r} type="button" className={`${styles['card-reason']} ${r === 'spoiled' ? styles['card-reason-danger'] : ''}`}
+          disabled={busy} data-reason={r} onClick={() => void onRemove(r)}>
+          {DEPLETED_REASON_LABEL[r]}
+        </button>
+      ))}
+      <button type="button" className={styles['card-reason-cancel']} onClick={() => setAskReason(false)}>Не списувати</button>
+    </div>
+  ) : (
+    <button type="button" className={styles['card-remove']} disabled={busy} onClick={() => setAskReason(true)}>
+      Списати
     </button>
   );
 

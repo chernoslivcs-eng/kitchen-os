@@ -262,6 +262,12 @@ export interface AdminMoney {
   technical_included: boolean;
 }
 
+/** 2c: закритий перелік причин списання — той самий, що в домені. */
+export type DepletedReason = 'eaten' | 'spoiled' | 'removed';
+export const DEPLETED_REASON_LABEL: Record<DepletedReason, string> = {
+  eaten: 'зʼїли', spoiled: 'зіпсувалось', removed: 'віддали / інше',
+};
+
 export interface PantryBatch {
   id: string;
   household_id: string;
@@ -273,6 +279,8 @@ export interface PantryBatch {
   state: 'sealed' | 'opened' | 'depleted';
   opened_at: string | null;
   expires_at: string | null;
+  /** Р4: звідки `expires_at` — 'manual' (людина) чи 'category' (розрахунок). */
+  expires_source?: 'manual' | 'category' | null;
   best_before_opened_days: number | null;
   added_at: string;
   depleted_at: string | null;
@@ -299,7 +307,8 @@ export interface PantryBatch {
   /** Крок Ф2: вага штуки з каталогу (г) — для «на позицію» при одиниці шт. */
   unit_weight?: number | null;
   /** Крок Ф2: звідки позиція — останній/інший чек, «+ Додати», розмова. */
-  origin?: { kind: 'receipt' | 'manual' | 'chat'; shop: string | null; at: string };
+  /** Р6: четверте походження — домислене, з тією ж впевненістю, що в «?домисл.N%». */
+  origin?: { kind: 'receipt' | 'manual' | 'chat' | 'inference'; shop: string | null; at: string; confidence?: number };
 }
 
 // Черга Д (№2): продукт дому — трійка + невидимі теги.
@@ -606,12 +615,17 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(input),
       }),
-    update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state' | 'expires_at'>>) =>
+    // 2c: `reason` — причина списання. З картки — разом зі `state: 'depleted'`
+    // (обовʼязкова, ⚠3); з плашки після ✕ — окремим запитом на вже списану
+    // партію (необовʼязкова). Доти тип цього поля не пропускав, і роут, який
+    // причину приймає з першого дня, не отримував її ніколи.
+    update: (id: string, patch: Partial<Pick<PantryBatch, 'label' | 'value' | 'unit' | 'zone' | 'state' | 'expires_at'>> & { reason?: DepletedReason }) =>
       req<{ updated: boolean; batch: PantryBatch }>(`/v1/pantry/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(patch),
       }),
-    remove: (id: string) => req<{ deleted: true }>(`/v1/pantry/${id}`, { method: 'DELETE' }),
+    remove: (id: string, reason: DepletedReason) =>
+      req<{ deleted: true }>(`/v1/pantry/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
   },
 
   // Крок 7: «бачив Семена» — на сервері; localStorage лише кеш.

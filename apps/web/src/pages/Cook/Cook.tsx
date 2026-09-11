@@ -3,6 +3,7 @@
 // теж локальний. Якщо колись зʼявиться CookRun у БД — «Готово» пуш-ошне
 // подія списання, тут ми зберігаємо тільки локальний стан.
 
+import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
@@ -381,10 +382,10 @@ export function CookOverlay() {
         /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
         <button
           className={styles.main}
-          style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)' }}
+          style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line2)' }}
           aria-label="Крок назад"
           onClick={() => goToStep(stepIdx - 1)}
-        >↩</button>
+        ><Icon name="sys.undo" size={18} inherit /></button>
       )}
       <button
         className={styles.main}
@@ -394,13 +395,13 @@ export function CookOverlay() {
       >
         {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
             дії, а не навігація «Далі →». */}
-        {stepIdx === total - 1 ? (finishing ? 'Зберігаю…' : 'Приготували') : 'Готово ✓'}
+        {stepIdx === total - 1 ? (finishing ? 'Зберігаю…' : 'Приготували') : 'Готово'}
       </button>
       {stepIdx < total - 1 && (
         /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
         <button
           className={styles.main}
-          style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
+          style={{ background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line2)', width: 132 }}
           disabled={stepLocked || finishing}
           onClick={() => void finish()}
         >
@@ -451,7 +452,7 @@ export function CookOverlay() {
         onClick={advanceStep}
       />
       <div className={styles.head}>
-        <button className={styles.exit} onClick={exitToOrigin}>✕ Вийти</button>
+        <button className={styles.exit} onClick={exitToOrigin}><Icon name="sys.close" size={16} inherit decorative /> Вийти</button>
         <MonoLabel className={styles['head-meta']}>
           {recipe.t.toUpperCase()} · КРОК {stepIdx + 1}/{total}
         </MonoLabel>

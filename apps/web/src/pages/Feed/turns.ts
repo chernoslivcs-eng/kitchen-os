@@ -71,7 +71,7 @@ export function messageToTurn(m: MessageInfo): Turn {
     applied,
     // Аудит раунд 3, крок 1: undone_at/dismissed_at тепер їдуть з історії
     // (card_pending, приєднано на сервері) — досі скасовані/відхилені
-    // auto-картки після F5 показувались як «◌ ОЧІКУЄ», бо цих полів
+    // auto-картки після F5 показувались як «ОЧІКУЄ», бо цих полів
     // просто не було в MessageInfo.
     undone: !!m.undone_at,
     dismissed: !!m.dismissed_at,

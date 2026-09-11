@@ -34,8 +34,11 @@ export function cycleEquip(cur: EquipState): { op: 'add'; has: boolean } | { op:
   return { op: 'remove' };
 }
 
-export function equipGlyph(cur: EquipState): string {
-  if (cur === 'has') return '●';
-  if (cur === 'lacks') return '✕';
-  return '○';
+/** Знак стану приладу. Етап 1.5: віддає імʼя знака зі словника, а не гліф —
+ *  канон забороняє текстові символи в ролі знаків, і аудит їх лічить.
+ *  «Невідомо» знака не має навмисно: відсутність запису нічим не малюється. */
+export function equipIcon(cur: EquipState): 'sys.done' | 'cook.ban' | null {
+  if (cur === 'has') return 'sys.done';
+  if (cur === 'lacks') return 'cook.ban';
+  return null;
 }

@@ -8,9 +8,9 @@
   height: 52px;
   padding: 0 16px;
   border-radius: var(--r-lg);
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
-  color: var(--fg);
+  background: var(--line);
+  border: 1px solid var(--line2);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   transition: border-color var(--dur-fast) var(--ease-standard),
@@ -18,9 +18,9 @@
   width: 100%;
   outline: 0;
 }
-.input::placeholder { color: var(--fg-dim); }
+.input::placeholder { color: var(--dim); }
 .input:focus {
-  border-color: var(--accent);
+  border-color: var(--sage);
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .input:disabled {
@@ -36,5 +36,4 @@
   font-size: 11px;
   letter-spacing: var(--tracking-mono);
   color: var(--danger);
-  text-transform: uppercase;
 }

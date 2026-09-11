@@ -14,6 +14,7 @@ import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
+import { Icon } from '../../components/Icon/Icon';
 import { useCookStore } from '../../store/cook';
 
 interface RecipeLocationState {
@@ -119,7 +120,7 @@ export function RecipePage() {
         <div className={styles.info}>
           <p>Рецепт не знайдено.</p>
           <p style={{ marginTop: 12 }}>
-            <Button onClick={() => navigate('/app')}>← Назад у стрічку</Button>
+            <Button onClick={() => navigate('/app')}>Назад у стрічку</Button>
           </p>
         </div>
       </div>
@@ -139,14 +140,14 @@ export function RecipePage() {
   ].filter(Boolean).join(' · ');
   const sv = recipe.sv ?? 1;
   const stepBtn: React.CSSProperties = {
-    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--border-strong)',
-    background: 'transparent', color: 'var(--fg)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
+    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--line2)',
+    background: 'transparent', color: 'var(--ink)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
   };
 
   return (
     <div className={styles.screen}>
       <div className={styles.head}>
-        <button className={styles.iconbtn} onClick={() => navigate(-1)} aria-label="Назад">←</button>
+        <button className={styles.iconbtn} onClick={() => navigate(-1)} aria-label="Назад"><Icon name="sys.back" size={18} inherit /></button>
         <MonoLabel className={styles['head-meta']}>РЕЦЕПТ · КРОК {Math.min(currentStep + 1, recipe.st.length)}/{recipe.st.length}</MonoLabel>
         <div style={{ display: 'flex', gap: 8 }}>
           {/* Правка №10: екран — тонка адресна сторінка (F5/закладки); робота
@@ -178,9 +179,9 @@ export function RecipePage() {
         {summary && <div className={styles.summary}>{summary}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
           <button type="button" style={stepBtn} aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}>−</button>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--fg-strong)' }}>{sv}</span>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--ink)' }}>{sv}</span>
           <button type="button" style={stepBtn} aria-label="Більше порцій" disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}>+</button>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-dim)' }}>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>
             {plural(sv, ['порція', 'порції', 'порцій'])}{baseRecipe && sv !== (baseRecipe.sv ?? 1) ? ` · база ${baseRecipe.sv}` : ''}
           </span>
         </div>
@@ -196,27 +197,26 @@ export function RecipePage() {
             return (
               <div key={i} className={styles.ing}>
                 <span className={`${styles['ing-mark']} ${ing.p ? '' : styles.missing}`}>
-                  {ing.p ? '●' : '○'}
                 </span>
                 <span className={`${styles['ing-name']} ${ing.p ? '' : styles.missing}`}>
                   {name}
                   {allergy && (
                     <span className={styles['ing-chip']} style={{
-                      background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)',
+                      background: 'var(--danger-bg)', border: '1px solid var(--danger-line)', color: 'var(--danger)',
                     }}>
                       ⚠ {allergy.who ? `АЛЕРГІЯ ${allergy.who}` : allergy.label}
                     </span>
                   )}
                   {!allergy && anti && (
                     <span className={styles['ing-chip']} style={{
-                      background: 'var(--plum-bg)', border: '1px solid var(--plum-border)', color: 'var(--plum)',
+                      background: 'var(--plum-bg)', border: '1px solid var(--plum-line)', color: 'var(--plum)',
                     }}>
                       АНТИ
                     </span>
                   )}
                   {opened && (
                     <span className={styles['ing-chip']} style={{
-                      background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', color: 'var(--amber)',
+                      background: 'var(--amber-bg)', border: '1px solid var(--amber-line)', color: 'var(--amber)',
                     }}>
                       ◔ відкрито
                     </span>
@@ -249,7 +249,7 @@ export function RecipePage() {
                       onClick={() => toggleDone(i)}
                       aria-label={done ? 'Скасувати виконання' : 'Позначити готовим'}
                     >
-                      {done ? '✓' : i + 1}
+                      {done ? <Icon name="sys.done" size={12} inherit decorative /> : i + 1}
                     </button>
                     <div className={styles['step-thread']} />
                   </div>
@@ -280,7 +280,10 @@ export function RecipePage() {
           onClick={saveForLater}
           disabled={savedId !== null || saving}
         >
-          <span key={savedId ? 'on' : 'off'} className={styles['save-tick']}>{savedId ? '✓ Збережено' : saving ? '…' : '☆ Колись'}</span>
+          <span key={savedId ? 'on' : 'off'} className={styles['save-tick']}>{savedId
+            ? <><Icon name="sys.done" size={16} inherit decorative /> Збережено</>
+            : saving ? '…'
+              : <><Icon name="sys.later" size={16} inherit decorative /> Колись</>}</span>
         </Button>
         <Button
           variant="primary"

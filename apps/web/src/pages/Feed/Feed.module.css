@@ -7,7 +7,7 @@
      з таб-баром їдуть за екран. Хендоф тримає їх знизу завжди; скрол живе
      всередині .timeline (flex:1 + overflow-y). */
   height: 100dvh;
-  background: var(--bg-surface);
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -32,16 +32,16 @@
 .new-session-btn {
   width: 40px;
   height: 40px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line2);
   border-radius: 50%;
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
   flex: none;
 }
-.new-session-btn:hover { background: var(--bg-hover); color: var(--fg); }
+.new-session-btn:hover { background: var(--line); color: var(--ink); }
 
 .segments {
   display: flex;
@@ -73,7 +73,7 @@
 }
 .turn { display: flex; flex-direction: column; gap: 6px; }
 
-.seg-new { color: var(--accent); font-weight: 600; }
+.seg-new { color: var(--sage); font-weight: 600; }
 
 /* Пул-4 №2а: ряд кнопок рецепта — на вузьких екранах головна на всю
    ширину, другорядні рядком під нею; текст у пілюлях не переноситься. */
@@ -91,7 +91,7 @@
   font-family: var(--font-body);
   font-size: 16px;
   line-height: var(--lh-body);
-  color: var(--fg-mono);
+  color: var(--muted);
   /* Пул-2 №1: вставлений багаторядковий текст (інвентар) зберігає переноси —
      без цього список зливався в одну простиню. */
   white-space: pre-wrap;
@@ -113,12 +113,12 @@
 .turn-user .turn-text {
   /* QA9-add: саме --bg-surface-2 (#f8f9fa) — біла підложка канону, --bg-surface
      зливалась із тлом стрічки. */
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border);
+  background: var(--line);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 10px 14px;
   max-width: 80%;
-  color: var(--fg);
+  color: var(--ink);
 }
 
 /* Моушн-кіт §02: «стрімінг» відповіді — фрази з'являються по черзі (fade
@@ -149,7 +149,7 @@
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.card.applied .op-label { color: var(--fg-muted); }
+.card.applied .op-label { color: var(--muted); }
 .card.undone { opacity: 0.55; }
 /* DA-10: закреслення undo — лінія проходить зліва направо 250ms, потім
    приглушення (Моушн-кіт). text-decoration не анімується — малюємо ::after. */
@@ -178,23 +178,22 @@
   align-items: center;
   gap: 12px;
   padding: 11px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 .op:last-child { border-bottom: 0; }
 .op-sign {
-  color: var(--accent);
+  color: var(--sage);
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 15px;
   width: 16px;
   text-align: center;
 }
-.op-label { flex: 1; font-size: 16px; color: var(--fg); }
+.op-label { flex: 1; font-size: 16px; color: var(--ink); }
 .op-qty {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--fg-dim);
-  letter-spacing: 0.04em;
+  color: var(--dim);
 }
 
 .card-actions { display: flex; gap: 10px; margin-top: 4px; }
@@ -208,7 +207,7 @@
   padding-bottom: 14px;
 }
 .proposal-item + .proposal-item {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   padding-top: 14px;
 }
 .proposal-title {
@@ -217,22 +216,22 @@
   font-size: 24px;
   line-height: 1.2;
   letter-spacing: var(--tracking-tight);
-  color: var(--fg);
+  color: var(--ink);
 }
 .proposal-desc {
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.55;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 .proposal-meta {
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .section {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   padding-top: 12px;
 }
 .chips {
@@ -241,9 +240,9 @@
   gap: 6px;
 }
 .chip {
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
-  color: var(--accent);
+  background: var(--sage-bg);
+  border: 1px solid var(--sage);
+  color: var(--sage);
   border-radius: var(--r-pill);
   padding: 6px 12px;
   font-family: var(--font-body);
@@ -251,15 +250,15 @@
   font-weight: 500;
 }
 .chip-need {
-  background: var(--bg-surface-2);
-  border-color: var(--border-strong);
-  color: var(--fg-muted);
+  background: var(--line);
+  border-color: var(--line2);
+  color: var(--muted);
 }
 
 /* ----- Composer ------------------------------------------------------- */
 .composer-wrap {
-  border-top: 1px solid var(--border);
-  background: var(--bg-surface);
+  border-top: 1px solid var(--line);
+  background: var(--card);
   /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
      а не від низу вікна. Композер росте разом із текстом, і фіксований
      відступ від краю рано чи пізно на нього наліз би. */
@@ -275,7 +274,7 @@
 .wait-text {
   font-family: var(--font-body);
   font-size: 14px;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -284,8 +283,7 @@
 .turn-note {
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--fg-dim);
+  color: var(--dim);
   padding-top: 2px;
 }
 
@@ -301,12 +299,11 @@
   margin: 0 22px 8px;
   padding: 10px 14px;
   background: var(--amber-bg);
-  border: 1px solid var(--amber-border);
+  border: 1px solid var(--amber-line);
   border-radius: var(--r);
   color: var(--amber);
   font-family: var(--font-mono);
   font-size: 12px;
-  letter-spacing: 0.06em;
   cursor: pointer;
   text-align: left;
 }
@@ -327,13 +324,13 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
+  background: var(--line);
+  border: 1px solid var(--line2);
   border-radius: var(--r);
   overflow: visible;
   font-family: var(--font-body);
   font-size: 12px;
-  color: var(--fg-mono);
+  color: var(--muted);
 }
 /* Пул-9 №2: у стрічці чіп — посилання на файл. Підкреслення й колір
    посилання тут зайві: клікабельний сам квадратик. */
@@ -341,7 +338,7 @@ a.att-chip {
   text-decoration: none;
   color: inherit;
 }
-a.att-chip:hover { border-color: var(--accent); }
+a.att-chip:hover { border-color: var(--sage); }
 
 .att-thumb {
   width: 46px;
@@ -357,8 +354,7 @@ a.att-chip:hover { border-color: var(--accent); }
   place-items: center;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 .att-remove {
   position: absolute;
@@ -366,10 +362,10 @@ a.att-chip:hover { border-color: var(--accent); }
   right: -7px;
   width: 18px;
   height: 18px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line2);
   border-radius: 50%;
-  background: var(--bg-surface);
-  color: var(--fg-dim);
+  background: var(--card);
+  color: var(--dim);
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
@@ -384,16 +380,16 @@ a.att-chip:hover { border-color: var(--accent); }
   width: 48px;
   flex: none;
   border-radius: var(--r);
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
-  color: var(--fg-muted);
+  background: var(--line);
+  border: 1px solid var(--line2);
+  color: var(--muted);
   cursor: pointer;
   display: grid;
   place-items: center;
   font-size: 18px;
   transition: background var(--dur-fast), color var(--dur-fast);
 }
-.attach-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg); }
+.attach-btn:hover:not(:disabled) { background: var(--line); color: var(--ink); }
 .attach-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Бриф-3 п.6 — канон: композитор = одна пілюля-фрейм 52px; кнопки живуть
@@ -404,8 +400,8 @@ a.att-chip:hover { border-color: var(--accent); }
      тримаються низу. */
   min-height: 52px;
   border-radius: var(--r-lg);
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
+  background: var(--line);
+  border: 1px solid var(--line2);
   display: flex;
   gap: 6px;
   align-items: flex-end;
@@ -415,20 +411,20 @@ a.att-chip:hover { border-color: var(--accent); }
 /* Крок Д1 (макет v7): композитор «озброюється», поки файл над вікном. Він і є
    ціль — накладки в цьому дизайні немає, тож стан має показати сам приймач. */
 .composer-armed {
-  border-color: var(--accent) !important;
+  border-color: var(--sage) !important;
   border-width: 1.5px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sage) 12%, transparent) !important;
   transition: border-color 160ms, box-shadow 160ms;
 }
-.composer-armed .composer-input::placeholder { color: var(--accent); }
+.composer-armed .composer-input::placeholder { color: var(--sage); }
 
 .composer:focus-within {
-  border-color: var(--accent);
+  border-color: var(--sage);
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .composer-recording {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent) !important;
+  border-color: var(--sage) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 10%, transparent) !important;
   /* Моушн-2 №3: цегляний бордер в'їжджає, а не вмикається (150ms enter). */
   transition: border-color var(--dur-fast, 150ms) var(--ease-enter, ease),
               box-shadow var(--dur-fast, 150ms) var(--ease-enter, ease);
@@ -438,7 +434,7 @@ a.att-chip:hover { border-color: var(--accent); }
   min-width: 0;
   border: 0;
   background: transparent;
-  color: var(--fg);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   outline: 0;
@@ -449,7 +445,7 @@ a.att-chip:hover { border-color: var(--accent); }
   overflow-y: auto;
   padding: 8px 0;                 /* однорядкова = 38px, як кнопки поруч */
 }
-.composer-input::placeholder { color: var(--fg-dim); }
+.composer-input::placeholder { color: var(--dim); }
 /* Моушн-кіт §04: морф 🎙⇄↑⇄■ — кнопка дії з'являється scale .6→1 + fade
    150ms при зміні стану поля (ternary перемонтовує елемент — цього досить). */
 .frame-btn,
@@ -474,16 +470,16 @@ a.att-chip:hover { border-color: var(--accent); }
   transition: background var(--dur-fast);
 }
 .frame-btn {
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line2);
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 .frame-btn-ghost {
   border: 0;
   background: transparent;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
-.frame-btn-ghost:hover:not(:disabled) { color: var(--fg-muted); }
+.frame-btn-ghost:hover:not(:disabled) { color: var(--muted); }
 .frame-btn-solid {
   border: 0;
   background: var(--btn-primary-bg);
@@ -504,15 +500,15 @@ a.att-chip:hover { border-color: var(--accent); }
   /* Папіркат UX-9: тост лягав на поле вводу. Композитор-стек виріс (банер
      готування, підказка «горить») — тримаємо тост вище за нього. */
   bottom: 218px;
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-strong);
+  background: var(--line);
+  border: 1px solid var(--line2);
   border-radius: var(--r-lg);
   padding: 12px 16px;
   display: flex;
   gap: 12px;
   align-items: center;
   box-shadow: var(--shadow-toast);
-  color: var(--fg);
+  color: var(--ink);
   font-size: 15px;
   animation: toast-in var(--dur-base) var(--ease-enter);
 }
@@ -525,7 +521,7 @@ a.att-chip:hover { border-color: var(--accent); }
   min-width: 0;
 }
 .toast .undo {
-  color: var(--accent);
+  color: var(--sage);
   font-weight: 600;
   cursor: pointer;
   padding: 0;
@@ -533,7 +529,7 @@ a.att-chip:hover { border-color: var(--accent); }
   border: 0;
   white-space: nowrap;
 }
-.toast .ok { color: var(--accent); font-weight: 700; }
+.toast .ok { color: var(--sage); font-weight: 700; }
 .toast .err { color: var(--danger); font-weight: 700; }
 
 /* Десктоп — центрована колонка 640-720px, як у брифі. */
@@ -562,10 +558,10 @@ a.att-chip:hover { border-color: var(--accent); }
 
 /* ----- Empty state --------------------------------------------------- */
 .empty {
-  border: 1px dashed var(--border-strong);
+  border: 1px dashed var(--line2);
   border-radius: var(--r-xl);
   padding: 20px;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-size: 14px;
   line-height: 1.55;
   display: flex;
@@ -576,7 +572,7 @@ a.att-chip:hover { border-color: var(--accent); }
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 17px;
-  color: var(--fg);
+  color: var(--ink);
 }
 
 /* Пульс диктування — той самий breathe 1.2s із моушн-токенів */
@@ -602,7 +598,7 @@ a.att-chip:hover { border-color: var(--accent); }
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--fg-dim);
+  background: var(--dim);
   /* Пул-7 №4: кітовий підскок (км-dot), не плаский pulse. */
   animation: dot-bounce var(--dur-breathe, 1.2s) ease-in-out infinite;
 }
@@ -627,8 +623,8 @@ a.att-chip:hover { border-color: var(--accent); }
 }
 .seg {
   background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--fg-muted);
+  border: 1px solid var(--line2);
+  color: var(--muted);
 }
 .seg-active {
   background: var(--btn-primary-bg);
@@ -644,7 +640,7 @@ a.att-chip:hover { border-color: var(--accent); }
   border: 0;
   border-radius: 10px;
   /* Пул-7 №3: запис — шавлія, не цегла («червоний — небезпека»). */
-  background: var(--accent);
+  background: var(--sage);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -658,16 +654,16 @@ a.att-chip:hover { border-color: var(--accent); }
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  background: var(--bg-body);
+  background: var(--bg);
   display: block;
 }
 @keyframes micpulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sage) 45%, transparent); }
   60% { box-shadow: 0 0 0 9px transparent; }
 }
 .input-recording {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: var(--sage) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 10%, transparent);
 }
 
 /* Правка №7: колишнє притискання вліво (margin-left:36 + композитор зі своїм
@@ -764,7 +760,7 @@ a.att-chip:hover { border-color: var(--accent); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes row-flash-rail {
-  from { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  from { background: color-mix(in srgb, var(--sage) 14%, transparent); }
   to   { background: transparent; }
 }
 
@@ -790,8 +786,8 @@ a.att-chip:hover { border-color: var(--accent); }
    Внутрішні лінії — на тон світліші (тло вже світле), тому --border
    локально перевизначений. Службове (час/статус) живе НАД карткою. */
 .doccard {
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border);
+  background: var(--line);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 18px 20px;
   --border: #e3e6e8;
@@ -805,7 +801,7 @@ a.att-chip:hover { border-color: var(--accent); }
   white-space: nowrap;
   font-family: var(--font-body);
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--muted);
   padding: 0 6px;
 }
 .att-remove::before {
@@ -823,7 +819,7 @@ a.att-chip:hover { border-color: var(--accent); }
   display: inline-block;
   width: 2px;
   height: 14px;
-  background: var(--accent);
+  background: var(--sage);
   vertical-align: -2px;
   margin-left: 3px;
   animation:
@@ -839,15 +835,15 @@ a.att-chip:hover { border-color: var(--accent); }
 .doccard { transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease), transform var(--dur-base, 250ms) var(--ease-standard, ease); }
 .doccard-off { opacity: .55; transform: scale(.985); }
 @keyframes doccard-flash {
-  from { background: color-mix(in srgb, var(--accent) 18%, var(--bg-surface-2)); }
-  to   { background: var(--bg-surface-2); }
+  from { background: color-mix(in srgb, var(--sage) 18%, var(--line)); }
+  to   { background: var(--line); }
 }
 
 /* M13: рядок чека/кошика щойно змінив стан руками людини (додала «зі свого»,
    прийняла заміну) — той самий принцип, менший масштаб: рядок, не картка. */
 .row-changed { animation: row-changed-flash var(--dur-base, 250ms) var(--ease-standard, ease); }
 @keyframes row-changed-flash {
-  from { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  from { background: color-mix(in srgb, var(--sage) 16%, transparent); }
   to   { background: transparent; }
 }
 .row-text-in { animation: row-text-in var(--dur-base, 250ms) var(--ease-enter, ease); }
@@ -864,8 +860,8 @@ a.att-chip:hover { border-color: var(--accent); }
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent);
+  border: 2px solid var(--line2);
+  border-top-color: var(--sage);
   animation: spin 0.9s linear infinite;
   flex: none;
 }
@@ -901,34 +897,43 @@ a.att-chip:hover { border-color: var(--accent); }
   align-self: flex-start;
   max-width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--accent-border);
+  border: 1px solid var(--sage);
   border-radius: 12px;
-  background: var(--accent-bg);
+  background: var(--sage-bg);
   cursor: pointer;
   text-align: left;
   transition: background 150ms ease, border-color 150ms ease;
 }
-.trace:hover { background: var(--accent-bg-strong, var(--accent-bg)); border-color: var(--accent); }
+.trace:hover { background: var(--sage-bg-strong); border-color: var(--sage); }
 /* Відкрито — той артефакт, що зараз у панелі. Рамка в акценті: слід і
    панель говорять про одне, і це має бути видно, не здогадуватись. */
-.trace-on { border-color: var(--accent); }
+.trace-on { border-color: var(--sage); }
 /* Бурштиновий слід — рішення, якого чекають, а не стан. Той самий блок,
    лише інша температура: так «чекає рішення» видно прямо в потоці, без
    окремої стрічки в панелі (V6). */
-.trace-pending { background: var(--amber-bg); border-color: var(--amber-border); }
+.trace-pending { background: var(--amber-bg); border-color: var(--amber-line); }
 .trace-pending:hover { border-color: var(--amber); }
 .trace-pending .trace-dot,
 .trace-pending .trace-kind,
 .trace-pending .trace-go { color: var(--amber); }
-.trace-pending .trace-value { color: var(--fg); }
-.trace-dot { color: var(--accent-strong); font-size: 13px; line-height: 1; flex: none; }
+.trace-pending .trace-value { color: var(--ink); }
+/* Крапка слідa — коло 6 px, яке несе колір стану. Була гліфом ● / ○ / ◌ на
+ * font-size 13px: три різні символи в тексті замість одного кола з двома
+ * формами. Пережило етапи 1.5 і 1.6, бо сліди зʼявляються лише коли в чаті є
+ * що показати (DEBT §26). */
+.trace-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sage-strong);
+  flex: none; margin-top: 5px;
+}
+/* Скасоване й те, що чекає — контурне коло: форма несе стан, не символ. */
+.trace-dot-off { background: transparent; border: 1.5px solid currentColor; }
 .trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 /* Метадані — моно 10, і саме вони мутед. */
 .trace-kind {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--accent-dim, var(--fg-muted));
+  color: var(--muted);
 }
 /* Суть — те, по що клікають. */
 .trace-value {
@@ -936,7 +941,7 @@ a.att-chip:hover { border-color: var(--accent); }
   font-size: 15px;
   font-weight: 500;
   line-height: 1.25;
-  color: var(--accent-strong);
+  color: var(--sage-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -946,7 +951,7 @@ a.att-chip:hover { border-color: var(--accent); }
 .trace-go {
   flex: none;
   padding-left: 4px;
-  color: var(--accent-strong);
+  color: var(--sage-strong);
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 600;
@@ -972,7 +977,7 @@ a.att-chip:hover { border-color: var(--accent); }
   flex-direction: column;
   gap: 6px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 .cart-item:last-child { border-bottom: 0; }
 .cart-item-top { display: flex; align-items: center; gap: 10px; }
@@ -992,9 +997,9 @@ a.att-chip:hover { border-color: var(--accent); }
   flex: none;
   height: 30px;
   padding: 0 4px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 9px;
-  background: var(--bg-surface);
+  background: var(--card);
 }
 .cart-stp button {
   width: 22px;
@@ -1002,7 +1007,7 @@ a.att-chip:hover { border-color: var(--accent); }
   padding: 0;
   border: 0;
   background: none;
-  color: var(--fg);
+  color: var(--ink);
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 15px;
@@ -1011,7 +1016,7 @@ a.att-chip:hover { border-color: var(--accent); }
 .cart-stp button:disabled { cursor: default; }
 /* 26px, а не 16 як у макеті: вагові показують «0,64» — на 16 воно б різалось. */
 .cart-qty { font-family: var(--font-mono); font-size: 13px; min-width: 26px; text-align: center; }
-.cart-unit { flex: none; width: 20px; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+.cart-unit { flex: none; width: 20px; font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
 .cart-price {
   flex: none;
   min-width: 46px;
@@ -1026,7 +1031,7 @@ a.att-chip:hover { border-color: var(--accent); }
   min-width: 0;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--fg-dim);
+  color: var(--dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1039,8 +1044,7 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--accent);
+  color: var(--sage);
 }
 /* Обсягова математика. У макеті V3 її немає, але вона там і не малювалась:
    правило «математика завжди видима» старше за цей документ (01.09), і
@@ -1056,7 +1060,7 @@ a.att-chip:hover { border-color: var(--accent); }
   margin: 0 -10px;
   border-radius: 8px;
 }
-.cart-alt:hover { background: var(--bg-hover); }
+.cart-alt:hover { background: var(--line); }
 /* Тут назва НЕ ріжеться, на відміну від рівня 2. Обрізана вона робила з
    десяти альтернатив десять однакових «Молоко пастеризоване …» — а список
    існує рівно для того, щоб їх порівняти. Ellipsis доречний там, де назва
@@ -1088,13 +1092,12 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--accent);
+  color: var(--sage);
 }
 .cart-alt-warn {
   font-family: var(--font-body);
   font-size: 11px;
-  color: var(--fg-dim);
+  color: var(--dim);
   padding-top: 2px;
 }
 
@@ -1117,9 +1120,9 @@ a.att-chip:hover { border-color: var(--accent); }
   flex: none;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
-.recipe-ing-added { font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+.recipe-ing-added { font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
 .recipe-step {
   display: flex;
   align-items: baseline;
@@ -1128,15 +1131,18 @@ a.att-chip:hover { border-color: var(--accent); }
   font-size: 15px;
   line-height: 1.35;
 }
+/* Номер кроку рецепта — це ЗМІСТ, не оздоба. Був 12 px у токені РАМКИ:
+ * четвертий випадок того самого патерну, і кегль нижчий за 13, на якому канон
+ * узагалі дозволяє `dim`. */
 .recipe-step-n {
   flex: none;
-  width: 12px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--border-strong);
+  width: 14px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
 }
 .recipe-step-t { flex: 1; min-width: 0; }
-.recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim); }
+.recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
 .recipe-miss {
   flex: 1;
   font-family: var(--font-mono);
@@ -1148,7 +1154,7 @@ a.att-chip:hover { border-color: var(--accent); }
   border: 0;
   background: none;
   cursor: pointer;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 600;
@@ -1165,7 +1171,7 @@ a.att-chip:hover { border-color: var(--accent); }
   display: flex;
   align-items: center;
   gap: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   padding-top: 12px;
   margin-top: 6px;
 }
@@ -1177,10 +1183,10 @@ a.att-chip:hover { border-color: var(--accent); }
   font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 500;
-  color: var(--fg);
+  color: var(--ink);
   white-space: nowrap;
 }
-.strip-state-dim { color: var(--fg-dim); font-size: 12px; font-weight: 400; }
+.strip-state-dim { color: var(--dim); font-size: 12px; font-weight: 400; }
 .strip-state-warn { color: var(--amber); font-size: 12px; font-weight: 400; }
 
 /* Чорнильна кнопка-посилання: та сама геометрія, що .btn.strip, але це
@@ -1190,8 +1196,8 @@ a.att-chip:hover { border-color: var(--accent); }
   height: 44px;
   padding: 0 18px;
   border-radius: 12px;
-  background: var(--fg);
-  color: var(--bg-body);
+  background: var(--ink);
+  color: var(--bg);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -1206,13 +1212,13 @@ a.att-chip:hover { border-color: var(--accent); }
   border: 0;
   border-radius: 8px;
   background: none;
-  color: var(--fg-dim);
+  color: var(--dim);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
 }
-.head-act:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg); }
-.head-act:disabled { cursor: default; color: var(--accent); }
+.head-act:hover:not(:disabled) { background: var(--line); color: var(--ink); }
+.head-act:disabled { cursor: default; color: var(--sage); }
 /* Немає слота шапки (стрічка) — навігаційні дії лишаються у смузі. */
 .strip-head-fallback { display: flex; align-items: center; gap: 2px; flex: none; }
 @container (max-width: 379px) {
@@ -1238,14 +1244,13 @@ a.att-chip:hover { border-color: var(--accent); }
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 .rgroup-title {
   flex: 1;
   min-width: 0;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.1em;
 }
 /* Групова дія в шапці секції — саме та функціональність, якої бракувало:
    не 19 окремих тапів, а один по групі. */
@@ -1257,10 +1262,9 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--accent);
+  color: var(--sage);
 }
-.rgroup-act:disabled { color: var(--fg-dim); cursor: default; }
+.rgroup-act:disabled { color: var(--dim); cursor: default; }
 .rgroup-more {
   align-self: flex-start;
   padding: 9px 0;
@@ -1269,15 +1273,14 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--accent);
+  color: var(--sage);
 }
 .rrow {
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.3;
@@ -1288,7 +1291,7 @@ a.att-chip:hover { border-color: var(--accent); }
   flex: none;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--fg-dim);
+  color: var(--dim);
   text-align: right;
 }
 /* Чекбокс замість «+» без функції: стан ВИДНО до застосування, а не після.
@@ -1301,35 +1304,34 @@ a.att-chip:hover { border-color: var(--accent); }
   border-radius: 6px;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--border-strong);
+  border: 1.5px solid var(--line2);
   background: transparent;
-  color: var(--accent-fg-on);
+  color: var(--sage-on);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   padding: 0;
 }
-.rbox-on { background: var(--accent); border-color: var(--accent); }
+.rbox-on { background: var(--sage); border-color: var(--sage); }
 .rbox-unknown { border-style: dashed; border-color: var(--amber); cursor: default; }
-.tone-accent { color: var(--accent); }
+.tone-accent { color: var(--sage); }
 .tone-amber { color: var(--amber); }
-.tone-muted { color: var(--fg-dim); }
+.tone-muted { color: var(--dim); }
 
 /* ── Крок 4.5: список покупок у панелі (V5) ──────────────────────────
    Чекбокс тут означає «куплено», а не «взяти в роботу», як у чеку. Тому
    позначене не зникає, а падає в нижню групу — і його можна прибрати
    одним тапом по групі, а не по кожному рядку. */
-.rbox-bought { background: var(--fg-dim); border-color: var(--fg-dim); }
+.rbox-bought { background: var(--dim); border-color: var(--dim); }
 /* Шавлієва підсвітка «щойно додано» — відповідь на питання, яке виникає
    одразу після репліки Кухні: що саме зараз змінилось. */
-.srow-fresh { background: var(--accent-bg); margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
-.srow-done { color: var(--fg-dim); text-decoration: line-through; }
+.srow-fresh { background: var(--sage-bg); margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
+.srow-done { color: var(--dim); text-decoration: line-through; }
 .srow-src {
   flex: none;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 /* Низ у два поверхи: поле «додати» і рядок стану з виходом у кошик. */
 .slist-foot { display: flex; flex-direction: column; gap: 10px; }
@@ -1337,15 +1339,15 @@ a.att-chip:hover { border-color: var(--accent); }
   width: 100%;
   height: 40px;
   padding: 0 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg-surface-2);
-  color: var(--fg);
+  background: var(--line);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 14px;
 }
-.slist-add input::placeholder { font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim); }
-.slist-add input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.slist-add input::placeholder { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
+.slist-add input:focus-visible { outline: 2px solid var(--sage); outline-offset: 1px; }
 
 /* Слід зі скасуванням: посилання окремим рядком ПІД блоком, а не другою
    дією всередині — у блока одна ціль натискання (V6). */
@@ -1358,21 +1360,20 @@ a.att-chip:hover { border-color: var(--accent); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
-.trace-undo:hover { color: var(--fg); }
+.trace-undo:hover { color: var(--ink); }
 /* Відкочено: блок гасне, значення закреслене, стрілки немає — вести вже
    нікуди. */
 .trace-undone {
   opacity: 0.6;
-  background: var(--bg-surface);
-  border-color: var(--border);
+  background: var(--card);
+  border-color: var(--line);
   cursor: default;
 }
 .trace-undone .trace-dot,
-.trace-undone .trace-kind { color: var(--fg-dim); }
-.trace-undone .trace-value { color: var(--fg-dim); text-decoration: line-through; }
+.trace-undone .trace-kind { color: var(--dim); }
+.trace-undone .trace-value { color: var(--dim); text-decoration: line-through; }
 
 /* Шапки стрічки на десктопі немає: у ній лишався тільки аватар, а він там
    і так display:none — аватар живе внизу бічного меню. Порожня смуга на
@@ -1401,8 +1402,7 @@ a.att-chip:hover { border-color: var(--accent); }
   padding: 6px 12px 2px;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 /* Списання після готування — подія, а не артефакт: рядок тексту замість
@@ -1413,7 +1413,7 @@ a.att-chip:hover { border-color: var(--accent); }
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.5;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 /* Дія шапки Стрічки (блок А1): моно-caps, без рамки — одна дія на екран. */
@@ -1421,12 +1421,10 @@ a.att-chip:hover { border-color: var(--accent); }
   background: transparent;
   border: 0;
   padding: 5px 4px;
-  color: var(--accent);
+  color: var(--sage);
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
 }
-.head-new:hover { color: var(--accent-strong); }
+.head-new:hover { color: var(--sage-strong); }

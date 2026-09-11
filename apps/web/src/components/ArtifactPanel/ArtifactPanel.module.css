@@ -15,9 +15,7 @@
 .rail-title {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--fg-dim);
-  text-transform: uppercase;
+  color: var(--dim);
   padding-bottom: 4px;
 }
 .rail-row {
@@ -27,7 +25,7 @@
   gap: 8px;
   padding: 7px 0;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -36,7 +34,7 @@
 .rail-label {
   font-family: var(--font-body);
   font-size: 13px;
-  color: var(--fg);
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -44,7 +42,6 @@
 .rail-meta {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.04em;
   flex: none;
 }
 /* Правка №7: зона чату закінчується перед панеллю — відступ на РІВНІ ЕКРАНА,
@@ -83,13 +80,13 @@
   border: 1px solid transparent;
   border-radius: 10px;
   background: none;
-  color: var(--fg-muted);
+  color: var(--muted);
   cursor: pointer;
 }
 .rail-collapse:hover {
-  background: var(--bg-hover);
-  border-color: var(--border);
-  color: var(--fg);
+  background: var(--line);
+  border-color: var(--line);
+  color: var(--ink);
 }
 /* Вкладки притискаються праворуч — див. margin у самому .rail-tabs-scroll
    нижче. Окремим правилом тут це не працює: там стоїть margin: -7px
@@ -108,10 +105,10 @@
   gap: 2px;
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--fg-dim);
+  color: var(--dim);
   border-radius: 10px;
 }
-.rail-mini-item:hover { background: var(--bg-hover); }
+.rail-mini-item:hover { background: var(--line); }
 .rail-mini-count { font-size: 11px; }
 .rail-scrim { display: none; }
 
@@ -126,8 +123,8 @@
     position: fixed;
     top: 0; right: 0; bottom: 0;
     width: 52px;   /* V8: смуга завжди 52 і сталої ширини */
-    border-left: 1px solid var(--border);
-    background: var(--bg-surface-2);
+    border-left: 1px solid var(--line);
+    background: var(--line);
     flex-direction: column;
     align-items: center;
     padding: 16px 0;
@@ -164,7 +161,7 @@
   flex-wrap: nowrap;
   padding-bottom: 12px;
   margin-bottom: 4px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 /* Стара текстова пілюля прибрана разом із переходом на іконки (02.09).
    Її overflow: hidden різав лічильник на вкладці — а сам ellipsis уже не
@@ -198,24 +195,23 @@
     z-index: 12;
     max-width: calc(100% - 32px);
     padding: 9px 16px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--line);
     border-radius: 999px;
-    background: var(--bg-surface);
+    background: var(--card);
     box-shadow: 0 6px 20px rgba(29, 33, 38, 0.16);
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: 0.06em;
-    color: var(--fg);
+    color: var(--ink);
     cursor: pointer;
   }
-  .rail-pill-dot { color: var(--accent); flex: none; }
+  .rail-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
   .rail-pill-label {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .rail-pill-meta,
-  .rail-pill-more { color: var(--fg-dim); flex: none; }
+  .rail-pill-more { color: var(--dim); flex: none; }
 
   /* Шторка — той самий <aside>, що й панель. Розмітку вкладок, ✕ і саму
      картку не дублюємо: змінюється лише геометрія. */
@@ -231,8 +227,8 @@
     max-width: 560px;
     margin: 0 auto;
     max-height: 82vh;
-    background: var(--bg-surface);
-    border-top: 1px solid var(--border);
+    background: var(--card);
+    border-top: 1px solid var(--line);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
@@ -290,12 +286,12 @@
   width: 4px;
   height: 44px;
   border-radius: 999px;
-  background: var(--border);
+  background: var(--line);
   transition: background 150ms ease;
 }
-.rail-handle:hover .rail-handle-bar { background: var(--fg-dim); }
+.rail-handle:hover .rail-handle-bar { background: var(--dim); }
 .rail-dragging .rail-handle-bar {
-  background: var(--accent);
+  background: var(--sage);
   height: 100%;
   border-radius: 0;
 }
@@ -305,8 +301,8 @@
   top: 20px;
   padding: 5px 10px;
   border-radius: 8px;
-  background: var(--fg);
-  color: var(--bg-surface);
+  background: var(--ink);
+  color: var(--card);
   font-family: var(--font-mono);
   font-size: 11px;
   white-space: nowrap;
@@ -341,7 +337,7 @@
    без дій висіла б самотня риска. :empty знімає це без окремого прапорця. */
 .rail-foot:not(:empty) {
   padding-top: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 /* Тінь — не декор: вона є, лише поки під згином лишився вміст, і зникає
    на верхівці. Так смуга сама каже, чи дочитано до кінця. */
@@ -359,7 +355,7 @@
   gap: 14px;
   flex-wrap: wrap;
   row-gap: 10px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   padding-top: 12px;
   margin-top: 6px;
 }
@@ -393,10 +389,10 @@
   /* Геометрія й колір — як у кнопки згортання в шапці: це та сама дія,
      тільки з іншого боку. Шрифтових правил тут більше немає — усередині
      іконка, а не гліф. */
-  color: var(--fg-muted);
+  color: var(--muted);
   cursor: pointer;
 }
-.rail-mini-expand:hover { background: var(--bg-hover); color: var(--fg); }
+.rail-mini-expand:hover { background: var(--line); color: var(--ink); }
 .rail-mini-dot {
   position: absolute;
   /* Кнопка стала 34×34, і крапка на 3/5 налазила на кут рамки іконки. */
@@ -412,17 +408,17 @@
   height: 36px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg-surface);
-  color: var(--fg-muted);
+  background: var(--card);
+  color: var(--muted);
   cursor: pointer;
 }
-.mini-marker:hover { border-color: var(--border-strong); }
+.mini-marker:hover { border-color: var(--line2); }
 .mini-marker-on {
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
-  color: var(--accent-strong);
+  background: var(--sage-bg);
+  border-color: var(--sage);
+  color: var(--sage-strong);
 }
 .mini-glyph { font-family: var(--font-mono); font-size: 14px; line-height: 1; }
 .mini-plus { font-family: var(--font-mono); font-size: 12px; line-height: 1; }
@@ -432,8 +428,8 @@
   min-width: 16px;
   padding: 1px 4px;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-fg-on);
+  background: var(--sage);
+  color: var(--sage-on);
   font-family: var(--font-mono);
   font-size: 9px;
   line-height: 1.4;
@@ -448,8 +444,8 @@
   transform: translateY(-50%) translateX(4px);
   padding: 5px 10px;
   border-radius: 8px;
-  background: var(--fg);
-  color: var(--bg-surface);
+  background: var(--ink);
+  color: var(--card);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;
@@ -466,9 +462,9 @@
   top: 96px;
   width: 200px;
   padding: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg-surface);
+  background: var(--card);
   box-shadow: 0 10px 28px rgba(29, 33, 38, 0.16);
   display: flex;
   flex-direction: column;
@@ -485,18 +481,18 @@
   cursor: pointer;
   text-align: left;
 }
-.mini-list-row:hover { background: var(--bg-hover); }
+.mini-list-row:hover { background: var(--line); }
 .mini-list-name {
   flex: 1;
   min-width: 0;
   font-family: var(--font-body);
   font-size: 14px;
-  color: var(--fg);
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.mini-list-meta { flex: none; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); }
+.mini-list-meta { flex: none; font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
 /* У слоті панелі власну рамку низу малює .rail-foot — тут її знімаємо,
    інакше під полем «додати» з'явилась би друга риска. */
 .rail-foot .slist-foot .card-foot { border-top: 0; padding-top: 0; margin-top: 0; }
@@ -535,17 +531,17 @@
   height: 34px;
   flex: none;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg-surface);
-  color: var(--fg-muted);
+  background: var(--card);
+  color: var(--muted);
   cursor: pointer;
 }
-.rail-tab:hover { border-color: var(--border-strong); color: var(--fg); }
+.rail-tab:hover { border-color: var(--line2); color: var(--ink); }
 .rail-tab-on {
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
-  color: var(--accent-strong);
+  background: var(--sage-bg);
+  border-color: var(--sage);
+  color: var(--sage-strong);
 }
 /* Приглушений — це вхід, а не вкладка: список «сам не з'являється». */
 .rail-tab-ghost { border-style: dashed; opacity: 0.7; }
@@ -558,14 +554,14 @@
   min-width: 15px;
   padding: 1px 4px;
   border-radius: 999px;
-  background: var(--fg);
-  color: var(--bg-surface);
+  background: var(--ink);
+  color: var(--card);
   font-family: var(--font-mono);
   font-size: 9px;
   line-height: 1.4;
   text-align: center;
 }
-.rail-tab-on .rail-tab-badge { background: var(--accent); color: var(--accent-fg-on); }
+.rail-tab-on .rail-tab-badge { background: var(--sage); color: var(--sage-on); }
 
 /* ── Крок 5: моушн панелі (V9) ───────────────────────────────────────
    Три тривалості з токенів, не голі мілісекунди: 150 — зміна стану,
@@ -600,8 +596,8 @@
        а шторка має власну геометрію. */
     width: var(--rail-w, 320px);
     transition: width 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
-    border-left: 1px solid var(--border);
-    background: var(--bg-surface-2);
+    border-left: 1px solid var(--line);
+    background: var(--line);
     padding: 22px 18px;
     /* Крок 1.2: скролить ТІЛО, не панель. Поки скролилась панель цілком,
        разом із вмістом їхали й вкладки, і «Оформити» — на довгому кошику
@@ -623,12 +619,12 @@
     top: -3px; right: -3px;
     width: 8px; height: 8px;
     border-radius: 999px;
-    background: var(--accent);
+    background: var(--sage);
   }
 }
 
 @keyframes mini-flash {
-  0%   { background: var(--accent-bg); border-color: var(--accent-border); }
-  40%  { background: var(--accent); border-color: var(--accent); }
-  100% { background: var(--accent-bg); border-color: var(--accent-border); }
+  0%   { background: var(--sage-bg); border-color: var(--sage); }
+  40%  { background: var(--sage); border-color: var(--sage); }
+  100% { background: var(--sage-bg); border-color: var(--sage); }
 }

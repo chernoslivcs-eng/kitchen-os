@@ -96,7 +96,7 @@ export function AdminOccasionsPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h1 style={{ fontFamily: 'var(--font-body)', fontSize: 20, fontWeight: 600, color: 'var(--fg)' }}>
+      <h1 style={{ fontFamily: 'var(--font-body)', fontSize: 20, fontWeight: 600, color: 'var(--ink)' }}>
         Адмінка · редакційні події
       </h1>
 
@@ -129,18 +129,18 @@ export function AdminOccasionsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {occasions.length === 0 && (
-          <div style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>Порожньо.</div>
+          <div style={{ color: 'var(--dim)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>Порожньо.</div>
         )}
         {occasions.map((o) => (
           <div key={o.id} style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
-            borderBottom: '1px solid var(--border)',
+            borderBottom: '1px solid var(--line)',
           }}>
             <span style={{ flex: 'none', width: 8, height: 8, borderRadius: '50%',
-              background: o.published_at ? 'var(--accent)' : 'var(--fg-dim)' }} />
+              background: o.published_at ? 'var(--sage)' : 'var(--dim)' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)' }}>{o.title}</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-dim)' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--ink)' }}>{o.title}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--dim)' }}>
                 {o.id} · {o.rule.from}…{o.rule.to} · {o.published_at ? 'опубліковано' : 'чернетка'}
               </div>
             </div>

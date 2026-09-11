@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
+* { box-sizing:border-box; }
+.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); }
+.v3[data-theme="dark"] { --bg:#16181b; --card:#1f2226; --line:#2a2e33; --line2:#33383e; --ink:#ecebe7; --muted:#a3a7ac; --dim:#6f7379; --sage:#93b48b; --sage-bg:#26312a; --amber:#d2ad6b; --amber-bg:#332a1c; --plum:#c99ab4; --plum-bg:#2f2329; --danger:#d47f74; --danger-bg:#3a2320; --sh:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4); --sh2:0 12px 40px rgba(0,0,0,.5); }
+</style>
+</helmet>
+
+<section class="v3" data-theme="{{theme}}" style="padding:48px; display:flex; flex-direction:column; gap:40px; width:max-content; color:var(--ink);">
+<div style="display:flex; flex-direction:column; gap:8px; width:1440px;">
+  <div style="font-size:12px; font-weight:500; color:var(--muted);">Стани помилок · копі дослівно з components/ErrorState/copy.ts · три форми: сторінка · смуга · тост</div>
+  <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05; max-width:1000px;">Перше речення заспокоює, друге називає проблему. Пауза між ними — це верстка, не крапка.</div>
+  <div style="font-size:15px; color:var(--muted); line-height:1.55; max-width:860px;">Один знак — розірване кільце з логотипа, розімкнуте більше звичного. Ніяких ілюстрацій «сумного холодильника». Кікер — маленький, muted, без капсу. Код інциденту — лише на CRASH, лише dim, лише внизу.</div>
+</div>
+
+<!-- E1: full pages -->
+<div style="display:flex; flex-direction:column; gap:10px;">
+  <div style="display:flex; gap:10px; align-items:center;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; background:var(--ink); color:var(--bg); padding:3px 8px; border-radius:6px;">E1</span><span style="font-size:12px; font-weight:500; color:var(--muted);">Сторінки на весь екран · застосунок не піднявся або впав · 720 × 520, центр</span></div>
+  <div style="display:grid; grid-template-columns:repeat(2, 720px); gap:24px;">
+    <sc-for list="{{ pages }}" as="p" hint-placeholder-count="5">
+      <div data-screen-label="{{ p.label }}" style="width:720px; height:520px; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:48px; box-shadow:var(--sh); position:relative;">
+        <span style="width:64px; height:64px; border-radius:50%; border:4px solid var(--ink); display:grid; place-items:center; position:relative;"><span style="position:absolute; inset:-4px; border-radius:50%; border:4px solid var(--bg); clip-path:polygon(50% 50%, 50% -20%, 120% -20%, 120% 50%);"></span><span style="width:16px; height:16px; border-radius:50%; background:{{ p.dot }};"></span></span>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; max-width:520px;">
+          <span style="font-size:12px; font-weight:500; color:var(--muted);">{{ p.kicker }}</span>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-weight:700; font-size:30px; letter-spacing:-.03em; line-height:1.1;">{{ p.h1a }}</span><span style="font-weight:700; font-size:30px; letter-spacing:-.03em; line-height:1.1; color:var(--muted);">{{ p.h1b }}</span></div>
+          <p style="margin:6px 0 0; font-size:15px; line-height:1.55; color:var(--muted); max-width:460px;">{{ p.body }}</p>
+        </div>
+        <span style="height:44px; padding:0 20px; border-radius:10px; background:var(--ink); color:var(--bg); display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600;">{{ p.cta }}</span>
+        <sc-if value="{{ p.code }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; bottom:20px; font-size:11px; color:var(--dim);">{{ p.code }}</span></sc-if>
+      </div>
+    </sc-for>
+    <div style="width:720px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--muted); padding:8px 0;">
+      <div><b style="color:var(--ink); font-weight:600;">Два рядки заголовка — два кольори.</b> h1a чорнилом, h1b muted: пауза з коду стає паузою на екрані. На 404 h1b порожній — заголовок один.</div>
+      <div><b style="color:var(--ink); font-weight:600;">Крапка в кільці несе рід:</b> danger — впав екран; amber — сервер/лінк, почекати; sage — «все добре» (лінк уже спрацював — не помилка, і колір це знає); dim — 404.</div>
+      <div><b style="color:var(--ink); font-weight:600;">Одна кнопка.</b> Друга дія («написати нам», «на головну») — не потрібна: тіло вже каже, що робити. Код інциденту — тільки на CRASH, внизу, dim, щоб було що переслати.</div>
+      <div><b style="color:var(--ink); font-weight:600;">На 390</b> — те саме, кегль 26/15, кнопка на всю ширину внизу екрана.</div>
+    </div>
+  </div>
+</div>
+
+<!-- E2: strips -->
+<div style="display:flex; flex-direction:column; gap:10px;">
+  <div style="display:flex; gap:10px; align-items:center;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; background:var(--ink); color:var(--bg); padding:3px 8px; border-radius:6px;">E2</span><span style="font-size:12px; font-weight:500; color:var(--muted);">Смуги · застосунок працює, але щось заважає · над композитором, колонка 720 · той самий компонент, що «стани дії» з кроку 3</span></div>
+  <div style="display:flex; gap:24px; align-items:flex-start;">
+    <div style="width:720px; display:flex; flex-direction:column; gap:12px;">
+      <sc-for list="{{ strips }}" as="s" hint-placeholder-count="3">
+        <div style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border-radius:10px; background:{{ s.bg }}; color:{{ s.color }};">
+          <i data-lucide="{{ s.icon }}" style="width:16px; height:16px; flex:none; margin-top:2px;"></i>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px;"><span style="font-size:12px; opacity:.75;">{{ s.kicker }}</span><span style="font-size:14px; font-weight:600;">{{ s.h1 }}</span><span style="font-size:13px; line-height:1.45; opacity:.9;">{{ s.body }}</span></div>
+          <sc-if value="{{ s.cta }}" hint-placeholder-val="{{ false }}"><span style="height:32px; padding:0 12px; border-radius:8px; background:var(--card); color:var(--ink); display:inline-flex; align-items:center; font-size:13px; font-weight:500; flex:none; align-self:center;">{{ s.cta }}</span></sc-if>
+        </div>
+      </sc-for>
+      <div style="min-height:52px; border-radius:26px; background:var(--card); display:flex; align-items:center; gap:4px; padding:5px 5px 5px 8px; box-shadow:var(--sh); opacity:.6;"><span style="width:42px; height:42px; border-radius:50%; color:var(--muted); display:grid; place-items:center;"><i data-lucide="plus" style="width:18px; height:18px;"></i></span><span style="flex:1; font-size:14px; color:var(--dim); padding:0 6px;">Що з'явилось удома або що готуємо?</span><span style="width:42px; height:42px; border-radius:50%; background:var(--line2); color:var(--dim); display:grid; place-items:center;"><i data-lucide="arrow-up" style="width:18px; height:18px;"></i></span></div>
+    </div>
+    <div style="width:420px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--muted); padding-top:4px;">
+      <div><b style="color:var(--ink); font-weight:600;">Смуга — не тост.</b> Вона стоїть, поки стан триває (сесія протухла, 429, офлайн), і зникає сама, коли стан минув. Тост — про подію, смуга — про стан.</div>
+      <div><b style="color:var(--ink); font-weight:600;">Рід кольором:</b> plum — треба дія людини (увійти); amber — почекати (429, денний ліміт); нейтральна card — офлайн, нічого не робити.</div>
+      <div><b style="color:var(--ink); font-weight:600;">Композитор під смугою</b> — 60% і без надсилання, поки стан заважає; текст набирати можна, «Написане нікуди не дінеться».</div>
+    </div>
+  </div>
+</div>
+
+<!-- E3: toasts -->
+<div style="display:flex; flex-direction:column; gap:10px;">
+  <div style="display:flex; gap:10px; align-items:center;"><span style="font-size:11px; font-weight:600; letter-spacing:.06em; background:var(--ink); color:var(--bg); padding:3px 8px; border-radius:6px;">E3</span><span style="font-size:12px; font-weight:500; color:var(--muted);">Тости · подія не вдалась · знизу по центру над композитором · 4 с без дії, 8 с з дією</span></div>
+  <div style="display:flex; gap:24px; align-items:flex-start;">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="4">
+        <div style="width:480px; display:flex; align-items:center; gap:12px; padding:12px 14px 12px 16px; border-radius:14px; background:var(--card); box-shadow:var(--sh2);">
+          <span style="width:8px; height:8px; border-radius:50%; background:{{ t.dot }}; flex:none;"></span>
+          <span style="flex:1; font-size:14px; line-height:1.4;">{{ t.text }}</span>
+          <sc-if value="{{ t.cta }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px; font-weight:600; color:var(--sage); white-space:nowrap;">{{ t.cta }}</span></sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="width:420px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--muted); padding-top:4px;">
+      <div><b style="color:var(--ink); font-weight:600;">Тост без іконки.</b> Крапка роду ліворуч, текст, дія словом праворуч (шавлія, 600). Це та ж форма, що успішні тости («Скасовано», «Збережу в рецептах…») — помилка не кричить, вона говорить тим самим голосом.</div>
+      <div><b style="color:var(--ink); font-weight:600;">Кандидати на «відповідь не прийшла»</b> з коду лишаються на вибір: «Думка була. По дорозі до відповіді щось сталось.» · «На мить у мене була дуже хороша відповідь. Доведеться спробувати ще раз.»</div>
+      <div><b style="color:var(--ink); font-weight:600;">Комора не завантажилась — тост, не порожній стан.</b> Порожній екран каже «у тебе нічого нема», і в коморі це брехня.</div>
+    </div>
+  </div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;light&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;tsType&quot;:&quot;'light'|'dark'&quot;}}">
+class Component extends DCLogic {
+  icons() { const run = () => { if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); else setTimeout(run, 200); }; run(); }
+  componentDidMount() { this.icons(); }
+  componentDidUpdate() { this.icons(); }
+  renderVals() {
+    const D='var(--danger)', A='var(--amber)', S='var(--sage)', Dm='var(--dim)';
+    const pages = [
+      { label:'CRASH', kicker:'екран здався', h1a:'Комора на місці.', h1b:'Цей екран — ні.', body:'Розмови й усе збережене теж нікуди не поділись. Перезавантаж сторінку — зазвичай після цього вона згадує, ким працює.', cta:'Перезавантажити', dot:D, code:'інцидент · KOS-2f7a9c' },
+      { label:'SERVER_DOWN', kicker:'зараз повернусь', h1a:'Комора нікуди не поділась.', h1b:'Я трохи подівся.', body:'Таке інколи буває під час оновлень. Хвилина — і я знову спробую поводитись як нормальний застосунок.', cta:'Перевірити ще раз', dot:A, code:'' },
+      { label:'NOT_FOUND', kicker:'тут нічого не готують', h1a:'Такої сторінки нема', h1b:'', body:'Можливо, лінк застарів або в адресі описка. Стрічка чекає на тебе.', cta:'← У стрічку', dot:Dm, code:'' },
+      { label:'LINK_EXPIRED', kicker:'вхід · запізнились', h1a:'Пошта пережила', h1b:'цей лінк.', body:'З акаунтом усе гаразд. Просто він діяв 15 хвилин, а життя склалось інакше.', cta:'Надіслати новий', dot:A, code:'' },
+      { label:'LINK_CONSUMED', kicker:'вхід · вже був', h1a:'Все добре.', h1b:'Просто другий раз він не вміє.', body:'Лінк уже спрацював — так і задумано. Якщо треба зайти ще раз, дам нового.', cta:'Надіслати нового', dot:S, code:'' },
+    ];
+    const strips = [
+      { icon:'log-in', kicker:'вхід · час оновитись', h1:'Текст на місці. Вхід — уже ні.', body:'Зайди ще раз і продовжимо звідси. Переписувати нічого не треба.', cta:'Повернутись', bg:'var(--plum-bg)', color:'var(--plum)' },
+      { icon:'hourglass', kicker:'я трохи відстав', h1:'Дай мені хвилину наздогнати.', body:'Усе вже зроблене на місці. Я просто не встигаю за тобою. Зафіксуй цей рідкісний момент.', cta:'', bg:'var(--amber-bg)', color:'var(--amber)' },
+      { icon:'moon', kicker:'на сьогодні', h1:'На сьогодні я майже все.', body:'Дві відповіді — і до півночі відпочиваю.', cta:'', bg:'var(--amber-bg)', color:'var(--amber)' },
+      { icon:'wifi-off', kicker:'звʼязку нема', h1:'Написане нікуди не дінеться. Чекаю на мережу.', body:'Щойно інтернет повернеться, спробую ще раз. Нічого переписувати не треба.', cta:'', bg:'var(--card)', color:'var(--muted)' },
+    ];
+    const toasts = [
+      { text:'Я подумав. Відповідь — ні. Повторити?', cta:'Повторити', dot:D },
+      { text:'Продукти не зникли. Я просто зараз їх не бачу. Трохи незручно для моєї роботи.', cta:'Спробувати ще раз', dot:D },
+      { text:'Список на місці. Я просто не зміг його принести. Буває, навіть коли він цифровий.', cta:'Спробувати ще раз', dot:D },
+      { text:'Тека не піде — перетягни файли', cta:'', dot:A },
+      { text:'Список великий, тому прикріплю його окремо. Так нічого не загубиться.', cta:'', dot:S },
+      { text:'Не збереглось. Спробую ще', cta:'', dot:A },
+    ];
+    return { pages, strips, toasts, theme: this.props.theme ?? 'light' };
+  }
+}
+</script>
+</body>
+</html>

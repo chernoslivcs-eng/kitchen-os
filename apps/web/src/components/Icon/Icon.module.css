@@ -1,0 +1,27 @@
+/* Знак: спокій — muted, ховер і активний — чорнило (tokens-v3 · Знаки).
+ * Колір через currentColor, тому будь-який батько може перебити його
+ * власним `color` — саме так знак бере рід (шавлія / бурштин / слива / danger). */
+.icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--muted);
+  transition: color 160ms cubic-bezier(.4, 0, .2, 1);
+}
+.icon > svg { display: block; }
+
+/* Живу зону 44 × 44 дає мішень, а не сам знак: інакше 16-піксельна іконка
+ * в тексті розсовувала б рядок. */
+.tap {
+  width: 44px;
+  height: 44px;
+}
+
+.inherit { color: inherit; }
+.ink { color: var(--ink); }
+
+/* Рух — тільки на частинах знака, 1–2 px, 600–900 мс, одна крива.
+ * reduced-motion вимикає все, крім кольору (tokens-v3 · Рух). */
+@media (prefers-reduced-motion: reduce) {
+  .icon > svg, .icon > svg * { animation: none !important; transition: none !important; }
+}

@@ -1,6 +1,6 @@
 .screen {
   min-height: 100dvh;
-  background: var(--bg-surface);
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -19,14 +19,13 @@
   font-weight: 700;
   font-size: 22px;
   letter-spacing: var(--tracking-tight);
-  color: var(--fg);
+  color: var(--ink);
 }
 .meta {
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .body {
   flex: 1;
@@ -39,21 +38,20 @@
 .empty {
   text-align: center;
   padding: 60px 20px;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 .empty h3 {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 20px;
-  color: var(--fg);
+  color: var(--ink);
   margin-bottom: 8px;
 }
 .day {
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
   margin: 18px 0 6px;
 }
 .day:first-child { margin-top: 4px; }
@@ -63,7 +61,7 @@
   align-items: flex-start;
   padding: 14px 12px;
   margin: 0 -12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   background: transparent;
   border-left: 0; border-right: 0; border-top: 0;
   width: calc(100% + 24px);
@@ -75,13 +73,13 @@
 }
 .card:last-child { border-bottom: 0; }
 @media (hover: hover) {
-  .card:hover { background: var(--bg-hover); }
+  .card:hover { background: var(--line); }
 }
 .icon {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--bg-hover);
+  background: var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,8 +88,8 @@
 }
 .icon.undone {
   background: transparent;
-  border: 1px dashed var(--border-strong);
-  color: var(--fg-muted);
+  border: 1px dashed var(--line2);
+  color: var(--muted);
 }
 .info {
   flex: 1;
@@ -101,12 +99,12 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 17px;
-  color: var(--fg);
+  color: var(--ink);
   margin-bottom: 3px;
   letter-spacing: var(--tracking-tight);
 }
 .dish.undone {
-  color: var(--fg-muted);
+  color: var(--muted);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
@@ -114,11 +112,10 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .stat {
-  color: var(--accent);
+  color: var(--sage);
 }
 .stat.warn {
   color: var(--amber);
@@ -137,3 +134,7 @@
     margin-right: auto;
   }
 }
+
+/* Незаповнена зірка оцінки — той самий знак, тихіший. Було `opacity: .3` на
+ * рядку з гліфів; тепер стан несе клас, а не другий рядок символів. */
+.star-off { opacity: .28; }
