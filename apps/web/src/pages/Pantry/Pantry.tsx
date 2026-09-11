@@ -184,7 +184,9 @@ export function PantryPage() {
     if (!editingLive) { panel.clear(); return; }
     const key = `batch:${editingLive.id}`;
     panel.publish({
-      artifacts: [{ key, kind: 'batch', label: editingLive.label, meta: '' }],
+      // Крок 2 things-v3: кікер шапки панелі — зона (Components / G6 «🍃 Свіже»
+      // + ✕); назва позиції — заголовком у самій картці.
+      artifacts: [{ key, kind: 'batch', label: ZONE_LABEL[editingLive.zone], meta: '' }],
       render: () => (
         <BatchCard
           key={editingLive.id}

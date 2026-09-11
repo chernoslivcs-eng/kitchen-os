@@ -3,7 +3,7 @@ import type { DepletedReason } from '../../api';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { BatchCard, freshLine, originLine, nutritionLines } from './BatchCard';
+import { BatchCard, freshLine, originLine, nutritionLines, termBlock } from './BatchCard';
 import type { PantryBatch } from '../../api';
 
 // Крок Ф2: картка позиції — автозбереження по blur/enter, «Позначити
@@ -68,9 +68,11 @@ describe('BatchCard', () => {
 
   it('рендерить рядки; blur на назві й кількості → PATCH без кнопки «Зберегти»', async () => {
     const onChanged = await mount(b());
-    expect(host!.textContent).toContain('мʼясо · Холодильник');
-    expect(host!.querySelector('[data-testid="fresh-line"]')!.textContent).toContain('свіже до 8 вер · ще 2 дні');
-    expect(host!.querySelector('[data-testid="fresh-line"] [data-fresh]')!.getAttribute('data-fresh')).toBe('soon');
+    // Крок 2 things-v3: блок «Строк» замість рядка свіжості — заголовок і як
+    // пораховано; бурштин на ≤ 3 днях.
+    expect(host!.querySelector('[data-testid="fresh-line"]')!.textContent).toContain('Ще 2 дн — краще не відкладати');
+    expect(host!.querySelector('[data-testid="fresh-line"]')!.getAttribute('data-fresh')).toBe('soon');
+    expect(host!.querySelector('[data-testid="fresh-line"]')!.getAttribute('data-tone')).toBe('amber');
     expect(host!.querySelector('[data-testid="origin-line"]')!.textContent).toBe('чек Сільпо · 3 вер');
     expect(host!.querySelector('[data-testid="per-100"]')!.textContent).toBe('114 ккал · Б 23 · Ж 3 · В 0');
     expect(host!.querySelector('[data-testid="per-item"]')!.textContent).toBe('570 ккал · Б 113 · Ж 13 · В 0');
@@ -86,23 +88,74 @@ describe('BatchCard', () => {
     expect(onChanged).toHaveBeenCalled();
   });
 
-  it('дата «свіже до» → PATCH expires_at; «без терміну» → null', async () => {
+  it('дата з пачки → PATCH expires_at; «прибрати» (лише на даті від людини) → null', async () => {
     await mount(b());
+    // Розрахована дата — «прибрати» нема: прибирати нічого, це не слово людини.
+    expect([...host!.querySelectorAll('button')].some((x) => x.textContent === 'прибрати')).toBe(false);
     await setValue(input('Свіже до'), '2026-09-12');
     expect(calls.at(-1)).toMatchObject({ method: 'PATCH', body: { expires_at: '2026-09-12T00:00:00.000Z' } });
-    await act(async () => { [...host!.querySelectorAll('button')].find((x) => x.textContent === 'без терміну')!.click(); });
+    await act(async () => { root!.unmount(); }); host!.remove();
+    await mount(b({ expires_source: 'manual' }));
+    expect(host!.querySelector('[data-testid="fresh-line"]')!.textContent).toContain('з пачки, поставив ти');
+    await act(async () => { [...host!.querySelectorAll('button')].find((x) => x.textContent === 'прибрати')!.click(); });
     expect(calls.at(-1)).toMatchObject({ method: 'PATCH', body: { expires_at: null } });
   });
 
-  it('«Позначити відкритою» → PATCH state opened; з opened_at показує «відкрито 6 вер»', async () => {
+  it('сегмент «ціле / відкрито» → PATCH state; з opened_at показує «відкрито 6 вер»', async () => {
     await mount(b());
     expect(host!.querySelector('[data-testid="opened-line"]')).toBeNull();
-    await act(async () => { [...host!.querySelectorAll('button')].find((x) => x.textContent === 'Позначити відкритою')!.click(); });
+    const seg = (t: string) => [...host!.querySelectorAll<HTMLButtonElement>('[role="radiogroup"][aria-label="Стан"] [role="radio"]')].find((x) => x.textContent === t)!;
+    expect(seg('ціле').getAttribute('aria-checked')).toBe('true');
+    await act(async () => { seg('відкрито').click(); });
     expect(calls.at(-1)).toMatchObject({ method: 'PATCH', body: { state: 'opened' } });
+    // повторний тап по вже обраному нічого не шле
+    const n = calls.length;
+    await act(async () => { seg('ціле').click(); });
+    expect(calls.length).toBe(n);
     await act(async () => { root!.unmount(); }); host!.remove();
     await mount(b({ state: 'opened', opened_at: '2026-09-06T09:00:00.000Z' }));
     expect(host!.querySelector('[data-testid="opened-line"]')!.textContent).toBe('відкрито 6 вер');
-    expect([...host!.querySelectorAll('button')].some((x) => x.textContent === 'Позначити запакованою')).toBe(true);
+    expect(seg('відкрито').getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('± міняє кількість кроком (г/мл по 50, шт по 1) і шле PATCH; нижче нуля не йде', async () => {
+    await mount(b({ value: 30 }));
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-nudge="+"]')!.click(); });
+    expect(calls.at(-1)).toMatchObject({ method: 'PATCH', body: { value: 80 } });
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-nudge="-"]')!.click(); });
+    expect(calls.at(-1)).toMatchObject({ method: 'PATCH', body: { value: 0 } });
+    await act(async () => { root!.unmount(); }); host!.remove();
+    await mount(b({ value: 6, unit: 'pcs' }));
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-nudge="+"]')!.click(); });
+    expect(calls.at(-1)).toMatchObject({ method: 'PATCH', body: { value: 7 } });
+  });
+
+  it('прострочене: плашка danger, «Ще годиться» гасить її без запиту, «Зіпсувалось» списує з причиною spoiled', async () => {
+    const got: string[] = [];
+    await mount(b({ days: -9 }), { onRemove: async (reason) => { got.push(reason); } });
+    const line = () => host!.querySelector('[data-testid="fresh-line"]')!;
+    expect(line().getAttribute('data-tone')).toBe('danger');
+    expect(line().textContent).toContain('Розрахунок скінчився 9 днів тому');
+    expect(host!.textContent).toContain('Необовʼязково — не відповів, нічого не сталось.');
+    const n = calls.length;
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-still-ok]')!.click(); });
+    expect(calls.length).toBe(n);
+    expect(line().getAttribute('data-tone')).toBe('quiet');
+    expect(host!.querySelector('[data-spoiled]')).toBeNull();
+    await act(async () => { root!.unmount(); }); host!.remove();
+    await mount(b({ days: -9 }), { onRemove: async (reason) => { got.push(reason); } });
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-spoiled]')!.click(); });
+    expect(got).toEqual(['spoiled']);
+  });
+
+  it('termBlock: чотири стани і два писачі', () => {
+    const base = { expires_at: null, expires_source: null, catalog_key: 'k', added_at: '2026-09-01T00:00:00.000Z' };
+    expect(termBlock({ ...base, days: null })).toMatchObject({ title: 'Не псується', tone: 'quiet' });
+    expect(termBlock({ ...base, catalog_key: null, days: null })).toMatchObject({ title: 'Без категорії', sub: 'без категорії · строк не рахую' });
+    expect(termBlock({ ...base, days: 0 })).toMatchObject({ title: 'Розрахунок скінчився — сьогодні', tone: 'danger' });
+    expect(termBlock({ ...base, days: 12 })).toMatchObject({ title: 'Ще ≈ 12 дн', sub: '≈ рахую від додавання 1 вер · дати на пачці не знаю' });
+    expect(termBlock({ ...base, days: 12, expires_at: '2026-09-23T00:00:00.000Z', expires_source: 'manual' })).toMatchObject({ title: 'Ще 12 дн', sub: 'з пачки, поставив ти · до 23 вер' });
+    expect(termBlock({ ...base, days: -1, expires_at: '2026-09-10T00:00:00.000Z', expires_source: 'manual' })).toMatchObject({ title: 'Строк скінчився 1 день тому' });
   });
 
   describe('2c: списання з картки — причина обовʼязкова (⚠3)', () => {

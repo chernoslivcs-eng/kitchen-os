@@ -491,72 +491,93 @@
   .unit-short { display: inline; }
 }
 
-/* ===== Крок Ф2: картка позиції в правій панелі ===== */
-.card { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px; }
+/* ===== Картка позиції в правій панелі — крок 2 things-v3 (Components «ITEM
+   CARD», Responsive G6, Prototype aside). Контейнер — панель (Р32): тут лише
+   вміст. Проміжки 12, поля 40 r10 на bg, підписи 12 muted. ===== */
+.card { display: flex; flex-direction: column; gap: 12px; padding: 0 0 4px; }
+.card-head { display: flex; flex-direction: column; gap: 4px; }
 .card-title {
   width: 100%;
   border: 0;
   border-bottom: 1px dashed var(--line2);
   background: transparent;
-  padding: 2px 0 4px;
+  padding: 0 0 4px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 20px;
-  letter-spacing: var(--tracking-tight);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -.025em;
   color: var(--ink);
 }
-.card-title:focus { outline: none; border-bottom-color: var(--sage); }
-.card-sub {
-  margin-top: -8px;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--dim);
-}
+.card-title:focus { outline: none; border-bottom-color: var(--ink); }
+.card-passport { font-size: 13px; color: var(--muted); }
+/* Третій рядок паспорта — походження (G6 «з чека: … · Сільпо 7 вер»). */
+.card-origin { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
 .card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--dim); }
-.card-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-.card-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 80px; }
-.card-label {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--dim);
-}
-.card-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 9px 11px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 14px;
-}
-.card-input:focus { outline: none; border-color: var(--sage); }
-.card-block { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
-.card-line { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; line-height: 1.45; color: var(--ink); }
-.card-action {
-  align-self: flex-start;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-pill);
-  background: transparent;
-  padding: 6px 12px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted);
-  cursor: pointer;
-}
-.card-action:disabled { opacity: 0.5; cursor: default; }
+.card-row { display: flex; gap: 10px; align-items: flex-start; }
+.card-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.card-field-state { flex: none; width: 150px; }
+.card-label { font-family: var(--font-body); font-size: 12px; color: var(--muted); }
+/* Кількість: поле 40 r10 на bg — число 15/500, одиниця 13 muted із шевроном
+   (select під ним), ± 32 r8 на card (Prototype). */
+.card-qty { height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 0 4px 0 12px; gap: 6px; }
+.card-qty-input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; font-family: var(--font-body); font-size: 15px; font-weight: 500; color: var(--ink); outline: 0; padding: 0; font-variant-numeric: tabular-nums; }
+.card-unit { position: relative; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); cursor: pointer; flex: none; }
+.card-unit-select { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.card-nudge { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: var(--card); color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.card-nudge:hover { color: var(--ink); }
+/* Стан — сегмент ціле / відкрито: 40 r10 на bg, вкладки 34 r8; обране — card
+   + тінь sh-a (Components / G6), не шавлія (рішення 11.09). */
+.card-seg { height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 3px; gap: 2px; }
+.card-seg-btn { flex: 1; height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-family: var(--font-body); font-size: 13px; cursor: pointer; transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard); }
+.card-seg-on { background: var(--card); color: var(--ink); font-weight: 500; box-shadow: var(--sh-a); }
+/* Строк — плашка 10/12 r10: danger-bg / amber-bg / bg; заголовок 14/600
+   тоном, підрядок 12 muted. */
+.card-term { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.card-term-danger { background: var(--danger-bg); }
+.card-term-amber { background: var(--amber-bg); }
+.card-term-icon { flex: none; margin-top: 1px; color: var(--muted); }
+.card-term-danger .card-term-icon, .card-term-danger .card-term-title { color: var(--danger); }
+.card-term-amber .card-term-icon, .card-term-amber .card-term-title { color: var(--amber); }
+.card-term-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.card-term-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.card-term-sub { font-size: 12px; line-height: 1.4; color: var(--muted); }
+/* Відповіді однією висотою 40 r10 контуром line2 (Components / G6). */
+.card-answers { display: flex; gap: 6px; }
+.card-answer { flex: 1; height: 40px; border-radius: 10px; border: 1px solid var(--line2); background: transparent; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; cursor: pointer; }
+.card-answer-danger { color: var(--danger); }
+/* Дата з пачки — рядок 40 r10 на bg: знак calendar · пояснення 13 dim · «дд.мм»;
+   саме поле дати лежить поверх рядка прозорим. */
+.card-date { position: relative; height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 0 12px; gap: 10px; color: var(--muted); cursor: pointer; }
+.card-date-text { flex: 1; min-width: 0; font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-date-hint { font-size: 12px; color: var(--dim); }
+.card-date-input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.card-date .link-btn { position: relative; z-index: 1; font-size: 13px; }
+/* Безпека — чіп 32/999 plum-bg + ban (Components / G6). */
+.card-safety { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; background: var(--plum-bg); color: var(--plum); font-size: 13px; font-weight: 500; }
+.card-select { height: 40px; border-radius: 10px; border: 0; background: var(--bg); padding: 0 12px; font-family: var(--font-body); font-size: 14px; color: var(--ink); }
+/* «На 100 г» — рядок 10/12 r10 на bg: ключ 13 ink, значення 13 muted. */
+.card-rows { display: flex; flex-direction: column; gap: 6px; }
+.card-line { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg); font-family: var(--font-body); font-size: 13px; line-height: 1.45; color: var(--ink); }
+.card-line-k { flex: 1; min-width: 0; }
+.card-line-v { color: var(--muted); white-space: nowrap; }
+/* Підвал: «Зміни зберігаються самі» 13 muted · «Списати» контур danger 38 r10. */
+.card-foot { display: flex; align-items: center; gap: 12px; }
+.card-foot-note { flex: 1; font-size: 13px; color: var(--muted); }
 .card-remove {
-  width: 100%;
-  border: 0;
+  flex: none; height: 38px; padding: 0 14px;
+  border: 1px solid var(--line2); border-radius: 10px;
   background: transparent;
-  padding: 10px 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
   color: var(--danger);
   cursor: pointer;
 }
 .card-error { font-family: var(--font-body); font-size: 13px; color: var(--danger); }
+@media (max-width: 767px) {
+  /* G6: на 390 та сама картка шторкою, без паспортного рядка походження. */
+  .card-origin { display: none; }
+  .card-field-state { width: 140px; }
+}
 
 /* --- Етап 2a: три канали рядка --------------------------------------------
  * Досі всі три осі ділили один підрядок `sub`, і що перше збіглось — те й
