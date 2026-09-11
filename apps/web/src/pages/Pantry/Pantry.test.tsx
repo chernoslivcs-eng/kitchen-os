@@ -290,3 +290,33 @@ describe('PantryPage · крок 1 v3: чіпи зон · банер · слот
     expect(row.querySelector('[data-time]')!.textContent).toBe('≈ ще 2 дн');
   });
 });
+
+// FIXES-V3-2 №36: списання через ✕ — відгук на тап одразу, оптимістично:
+// рядок згортається й плашка «Списано · Повернути» стоїть ДО відповіді
+// сервера; відмова — рядок повертається, тост danger із «Повторити».
+describe('№36 · ✕ — оптимістично', () => {
+  it('рух і плашка — до відповіді сервера; відмова — рядок назад і тост', async () => {
+    let resolvePatch: ((r: Response) => void) | null = null;
+    const base = fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PATCH') return new Promise<Response>((res) => { resolvePatch = res; });
+      return base(url, init);
+    }));
+    await mount();
+    const row = host!.querySelector<HTMLElement>('[data-batch="Огірки"]')!;
+    await click(row.querySelector<HTMLButtonElement>('[aria-label^="Списати"]')!);
+    // Сервер ще не відповів — а рядок уже йде і плашка вже є.
+    expect(row.className, 'exit одразу').toContain('row-leave');
+    expect(host!.querySelector('[role="status"]')?.textContent).toContain('Списано');
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(host!.querySelector('[data-batch="Огірки"]'), 'після виходу — сховано локально').toBeNull();
+    // Відмова сервера — рядок повертається, плашки нема, тост danger із «Повторити».
+    await act(async () => { resolvePatch!(new Response('{"error":"boom"}', { status: 500, headers: { 'content-type': 'application/json' } })); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(host!.querySelector('[data-batch="Огірки"]')).not.toBeNull();
+    expect(host!.querySelector('[role="status"]')?.textContent ?? '').not.toContain('Списано');
+    const toast = host!.querySelector('[data-toast][data-toast-tone="danger"]');
+    expect(toast?.textContent).toContain('Не вдалось списати');
+    expect(toast?.querySelector('[data-toast-action]')?.textContent).toBe('Повторити');
+  });
+});

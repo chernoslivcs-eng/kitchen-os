@@ -66,17 +66,36 @@ export function PantryPage() {
   const markLeaving = (id: string) => setLeavingIds((prev) => new Set(prev).add(id));
   const unmarkLeaving = (id: string) => setLeavingIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
 
+  // №36: списання через ✕ — оптимістично. Відгук на тап одразу: рядок
+  // згортається (exit 250 токеном, лише висота й opacity), плашка
+  // «Списано · Повернути» стає ще до відповіді сервера; після виходу рядок
+  // ховається локально, поки refresh не підтвердить. Відмова сервера —
+  // рядок повертається, тост danger із «Повторити». Раніше рух і плашка
+  // чекали на PATCH — тап «не реагував».
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [removeFailed, setRemoveFailed] = useState<PantryBatch | null>(null);
   async function quickRemove(b: PantryBatch) {
+    setRemoveFailed(null);
     markLeaving(b.id);
+    setRemoved(b);
+    setRemovedReason(null);
+    if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
+    removedTimer.current = window.setTimeout(() => setRemoved(null), 8000);
+    const hide = window.setTimeout(() => {
+      setHiddenIds((prev) => new Set(prev).add(b.id));
+      unmarkLeaving(b.id);
+    }, 250);
     try {
-      await Promise.all([api.batches.update(b.id, { state: 'depleted' }), wait(250)]);
-      setRemoved(b);
-      setRemovedReason(null);
-      if (removedTimer.current != null) window.clearTimeout(removedTimer.current);
-      removedTimer.current = window.setTimeout(() => setRemoved(null), 8000);
+      await api.batches.update(b.id, { state: 'depleted' });
       await refresh();
-    } catch { /* рядок лишиться — видно, що не вийшло */ }
-    finally { unmarkLeaving(b.id); }
+    } catch {
+      window.clearTimeout(hide);
+      unmarkLeaving(b.id);
+      setRemoved((r) => (r?.id === b.id ? null : r));
+      setRemoveFailed(b);
+    } finally {
+      setHiddenIds((prev) => { if (!prev.has(b.id)) return prev; const n = new Set(prev); n.delete(b.id); return n; });
+    }
   }
 
   // 2c: причина, яку людина назвала в плашці після ✕. Скидається разом із
@@ -208,7 +227,7 @@ export function PantryPage() {
   // Раунд 5, крок Ф1: порядок / тільки / стан — логіка в filter.ts (спека
   // дизайну один в один), тут лише стан і рендер.
   const productsById = new Map(products.map((p) => [p.id, p]));
-  const view = applyFilter(batches, filter, { productsById, receiptAt: lastReceiptAt });
+  const view = applyFilter(hiddenIds.size ? batches.filter((b) => !hiddenIds.has(b.id)) : batches, filter, { productsById, receiptAt: lastReceiptAt });
   const q = filter.q.trim().toLowerCase();
   // Крок 1 (Screens «Комора · збірка»): чіпи зон рахують усю комору, не зріз —
   // «Холодильник 31» лишається 31 і під фільтром; звужує лише чіп.
@@ -293,6 +312,14 @@ export function PantryPage() {
           tone="danger"
           text={PANTRY_FAILED.text}
           action={{ label: PANTRY_FAILED.cta, run: () => void refresh() }}
+        />
+      )}
+      {removeFailed && !loadFailed && (
+        <Toast
+          tone="danger"
+          text={`Не вдалось списати «${removeFailed.label}»`}
+          action={{ label: 'Повторити', run: () => { const b = removeFailed; setRemoveFailed(null); void quickRemove(b); } }}
+          onDismiss={() => setRemoveFailed(null)}
         />
       )}
       {/* Шапка за Screens «Комора · збірка» / «мобайл» (з wip/6b-2, окремим
