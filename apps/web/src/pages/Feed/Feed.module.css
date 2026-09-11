@@ -1094,10 +1094,12 @@ a.att-chip:hover { border-color: var(--sage); }
    інгредієнті, «+» у кожному рядку, підписи секцій, лічильник «● 3 з
    комори», вертикальна риска підказки. Лишилось два: текст і кількість.
    Секції розділяє відстань — 20px між блоками проти 9px між рядками. */
-/* Етап 6b — рецепт як обʼєкт (Screens «Рецепт · 1440»). Секції «Склад · N»
-   і «Кроки · N»: заголовок caption muted 44 px, рядки з роздільником line;
-   склад — крапка роду 8 px (шавлія є вдома · line2 бракує), кроки —
-   кола 28 (чорнило з номером). */
+/* 6b-3 — рецепт у панелі за артефактом «Рецепт» у Prototype: пілюля 24,
+   назва 22/700, рядок 13 muted, підписи секцій 12/500, рядки складу 40 із
+   крапкою роду 7 і волосиною зверху, кроки — кола 24 контурні 1.5 line2 з
+   номером 11/600 muted, текст 14/1.45; блоки на відстані 16. */
+.recipe-msg { gap: 16px; }
+.recipe-head { display: flex; flex-direction: column; gap: 8px; }
 .recipe-pills { display: flex; gap: 8px; flex-wrap: wrap; }
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1106,6 +1108,7 @@ a.att-chip:hover { border-color: var(--sage); }
   font-family: var(--font-body); font-size: 12px; font-weight: 500;
   cursor: default;
 }
+.pill-status { height: 24px; padding: 0 9px; align-self: flex-start; }
 .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .pill-sage { background: var(--sage-bg); color: var(--sage); }
 .pill-amber { background: var(--amber-bg); color: var(--amber); }
@@ -1114,27 +1117,17 @@ a.att-chip:hover { border-color: var(--sage); }
 .pill-card:hover:not(:disabled) { background: var(--line); }
 .pill-saved { color: var(--sage); cursor: default; }
 .pill-mini { height: 22px; padding: 0 8px; font-size: 11px; margin-left: 8px; }
-.recipe-title { margin: 8px 0 0; color: var(--ink); }
-.recipe-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); }
-.recipe-meta-item { display: inline-flex; align-items: center; gap: 5px; }
-.recipe-note { margin: 8px 0 0; color: var(--muted); }
-.recipe-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.stepper {
-  display: inline-flex; align-items: center; gap: 2px;
-  height: 30px; padding: 0 4px;
-  border-radius: var(--r-pill); background: var(--bg); color: var(--ink);
-}
-.stepper-btn { width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer; }
-.stepper-btn:hover:not(:disabled) { background: var(--line); }
-.stepper-btn:disabled { opacity: .35; cursor: default; }
-.stepper-n { font-size: 13px; font-weight: 500; padding: 0 4px; white-space: nowrap; }
-.recipe-section { margin-top: 14px; }
-.recipe-section-head { display: flex; align-items: center; gap: 8px; height: 44px; color: var(--muted); font-weight: 500; }
+/* Назва — 22/700 (Prototype; роль h2 дає 600 — панель важча, рішення власника 11.09). */
+.recipe-title { margin: 0; color: var(--ink); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
+.recipe-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.recipe-note { margin: 0; font-family: var(--font-body); font-size: 13px; line-height: 1.45; color: var(--muted); }
+.recipe-section { display: flex; flex-direction: column; }
+.recipe-section-head { font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--muted); padding-bottom: 6px; }
 .recipe-ing {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
+  min-height: 40px;
   border-top: 1px solid var(--line);
   font-family: var(--font-body);
   font-size: 14px;
@@ -1142,44 +1135,49 @@ a.att-chip:hover { border-color: var(--sage); }
   color: var(--ink);
 }
 .recipe-ing[data-missing] { color: var(--muted); }
-.ing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sage); flex: none; }
-.ing-dot-missing { background: var(--line2); }
+.ing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); flex: none; }
+.ing-dot-missing { background: var(--amber); }
 .recipe-ing-name { flex: 1; min-width: 0; display: flex; align-items: center; }
-.recipe-ing-qty { flex: none; font-family: var(--font-body); font-size: 14px; color: var(--muted); }
-.recipe-legend { display: flex; align-items: center; gap: 8px; height: 40px; border-top: 1px solid var(--line); color: var(--dim); }
-.recipe-legend .ing-dot + .ing-dot, .recipe-legend .ing-dot:not(:first-child) { margin-left: 8px; }
+.recipe-ing-qty { flex: none; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
 .recipe-step {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 14px 0;
+  gap: 12px;
+  padding: 10px 0;
   border-top: 1px solid var(--line);
   font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.45;
   color: var(--ink);
 }
 .recipe-step-n {
   flex: none;
-  width: 28px; height: 28px;
+  width: 24px; height: 24px;
   border-radius: 50%;
-  background: var(--ink); color: var(--bg);
+  border: 1.5px solid var(--line2);
+  box-sizing: border-box;
+  color: var(--muted);
   display: grid; place-items: center;
-  font-size: 12px; font-weight: 600;
+  font-size: 11px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.recipe-step-t { flex: 1; min-width: 0; padding-top: 3px; }
+.recipe-step-t { flex: 1; min-width: 0; }
 .recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
-/* «Готуємо» — темна 52 r12 з cooking-pot, на всю ширину низу картки. */
+/* «Готуємо» — чорнило 48 r12 з cooking-pot, на всю ширину низу картки. */
 .cook-go {
   flex: 1;
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  height: 52px; padding: 0 18px;
+  height: 48px; padding: 0 18px;
   border: 0; border-radius: 12px;
   background: var(--ink); color: var(--bg);
   font-family: var(--font-body); font-size: 15px; font-weight: 600;
   cursor: pointer;
 }
+.cook-go:hover { filter: brightness(0.96); }
+/* Підвал рецепта: «У список · N» текстом над «Готуємо», кнопка на всю ширину. */
+.recipe-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+.recipe-foot .recipe-tolist { text-align: center; }
+.recipe-foot .cook-go { width: 100%; }
 .recipe-miss {
   flex: 1;
   font-family: var(--font-mono);
@@ -1193,10 +1191,11 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
   color: var(--muted);
   font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
 }
+.recipe-tolist:disabled { cursor: default; color: var(--dim); }
 
 /* ── Крок 2.1: один закон низу панелі (V7) ───────────────────────────
    Смуга однакова для всіх артефактів: стан ліворуч моно, дії праворуч у
@@ -1212,6 +1211,10 @@ a.att-chip:hover { border-color: var(--sage); }
   padding-top: 12px;
   margin-top: 6px;
 }
+/* У слоті панелі геометрію низу малює сама панель (.rail-foot: 12 18 18 і
+   волосина); власна рамка підвалу тут була б другою лінією. Класи двох
+   модулів не бачать одне одного — тому гачок атрибутом. */
+[data-panel-foot] .card-foot { border-top: 0; padding-top: 0; margin-top: 0; }
 /* Стан — моно, і саме він розтягується: кнопки тримають свій розмір,
    порожнеча дістається тексту. */
 .strip-state {
@@ -1268,6 +1271,9 @@ a.att-chip:hover { border-color: var(--sage); }
   .card-foot > button:last-of-type,
   .card-foot > .strip-main { order: -1; justify-content: center; }
   .card-foot > .strip-main { justify-content: center; }
+  /* Рецепт (6b-3): «Готуємо» притиснута до низу — «У список · N» текстом над нею. */
+  .card-foot > .recipe-tolist { order: -2; text-align: center; }
+  .card-foot > .cook-go { order: 0; }
 }
 
 /* ── Крок 4.1b: чек — групи замість суцільного списку (V4) ───────────

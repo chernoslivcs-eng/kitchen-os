@@ -3,6 +3,12 @@
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  /* Колонки зон рахуються від ширини САМОГО екрана комори, не вікна: із
+     сайдбаром 256 і панеллю 424 на 1440 контенту лишається ~700, і дві
+     колонки по 330 ламали рядок — кількість наїжджала на ✕ (власник, 11.09).
+     Кадри бандла цього стану не малюють (рейка 60, без панелі). */
+  container-type: inline-size;
+  container-name: pantry;
 }
 .head {
   padding: 22px 22px 8px;
@@ -79,6 +85,7 @@
   align-self: stretch;
   padding: 11px 0 11px 12px;
   margin: -11px 0 -11px -12px;
+  overflow: hidden;   /* тісно — стискається назва, а не наїжджає на ✕ */
   background: transparent;
   border: 0;
   text-align: left;
@@ -153,6 +160,7 @@
 }
 .row .name {
   flex: 1;
+  min-width: 0;
   font-family: var(--font-body);
   font-size: 16px;
   color: var(--ink);
@@ -192,13 +200,18 @@
   .head, .body { max-width: 1080px; }
   .body {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     column-gap: 32px;
     row-gap: 20px;
     align-items: start;
     /* Крок Ф1: короткий відфільтрований список — рядки сітки не розтягуються
        на всю висоту екрана (align-content за замовчуванням stretch). */
     align-content: start;
+  }
+  /* Дві колонки — лише коли на кожну лишається ≥ 360 (рядок: знак · назва ·
+     категорія · час · кількість · ✕ ≈ 340 при найкоротшій назві). */
+  @container pantry (min-width: 800px) {
+    .body { grid-template-columns: 1fr 1fr; }
   }
   .body > input,           /* поле пошуку — на дві колонки */
   .body > .empty {

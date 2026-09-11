@@ -70,25 +70,19 @@
 .rail-collapse {
   display: none;
   flex: none;
-  width: 32px;
-  height: 32px;
+  /* Prototype: закриття 30 r8, muted, без рамки; хром — на ховері. */
+  width: 30px;
+  height: 30px;
   place-items: center;
   margin-left: auto;
   order: 9;
-  /* Своєї рамки не носить: її носила порожня «‹», якій бракувало
-     значення. Іконка панелі читається сама, а зайвий контур поруч із
-     квадратними вкладками тільки додавав шуму. Хром — на ховері. */
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 8px;
   background: none;
   color: var(--muted);
   cursor: pointer;
 }
-.rail-collapse:hover {
-  background: var(--line);
-  border-color: var(--line);
-  color: var(--ink);
-}
+.rail-collapse:hover { background: var(--line); color: var(--ink); }
 /* Вкладки притискаються праворуч — див. margin у самому .rail-tabs-scroll
    нижче. Окремим правилом тут це не працює: там стоїть margin: -7px
    скороченою формою, і вона перебиває margin-left. */
@@ -166,7 +160,6 @@
 .rail-kicker { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
 .rail-kicker-icon { flex: none; display: grid; place-items: center; color: var(--ink); }
 .rail-kicker-title { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rail-kicker-meta { font-size: 13px; color: var(--dim); white-space: nowrap; }
 /* Стара текстова пілюля прибрана разом із переходом на іконки (02.09).
    Її overflow: hidden різав лічильник на вкладці — а сам ellipsis уже не
    мав чого обрізати: тексту у вкладці немає. */
@@ -279,9 +272,9 @@
     display: grid;
     place-items: center;
     position: absolute;
-    top: 16px; bottom: 16px;
-    left: 10px;
-    width: 12px;          /* зона захоплення ширша за саму риску, на кромці картки */
+    top: 12px; bottom: 12px;
+    left: 6px;
+    width: 12px;          /* Prototype: 12 завширшки на лівій кромці картки (left -6) */
     cursor: col-resize;
     z-index: 2;
     touch-action: none;   /* інакше pointermove зʼїдає скрол сторінки */
@@ -290,14 +283,16 @@
 
 .rail-handle-bar {
   width: 4px;
-  height: 44px;
-  border-radius: 999px;
-  background: var(--line);
-  transition: background 150ms ease;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--line2);
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease, background var(--dur-fast) ease;
 }
-.rail-handle:hover .rail-handle-bar { background: var(--dim); }
+.rail-handle:hover .rail-handle-bar { opacity: 1; }
 .rail-dragging .rail-handle-bar {
-  background: var(--sage);
+  opacity: 1;
+  background: var(--ink);
   height: 100%;
   border-radius: 0;
 }
@@ -333,7 +328,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 6px 18px 12px;
+  padding: 16px 18px;  /* Prototype: тіло артефакта 16 18 */
 }
 .rail-foot {
   flex: none;
@@ -602,10 +597,11 @@
        (Screens «Чат · збірка»: aside 380, card, r18, тінь, відступ 16 від
        країв). Ширина 340 на 1440 → 420 на 1920 (Responsive R0), рахується
        від ширини вікна в ArtifactPanel.tsx; тут лише полотно. */
-    width: var(--rail-w, 372px);
+    width: var(--rail-w, 364px);
     transition: width 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
     background: transparent;
-    padding: 16px;
+    /* 6b-3, Prototype: aside margin 12 12 12 0 — полотно 12 з усіх боків. */
+    padding: 12px;
     /* Крок 1.2: скролить ТІЛО, не панель. Поки скролилась панель цілком,
        разом із вмістом їхали й вкладки, і «Оформити» — на довгому кошику
        зникав і спосіб перемкнутись, і сама дія. */
@@ -618,9 +614,10 @@
 @media (min-width: 1200px) {
   :global(body.with-sidebar) .rail-artifact { display: flex; }
   .rail-artifact {
+    /* Prototype aside: card, r16, --sh2. */
     background: var(--card);
-    border-radius: 18px;
-    box-shadow: var(--sh-a), var(--sh-b);
+    border-radius: 16px;
+    box-shadow: var(--sh2);
     overflow: hidden;
   }
 }

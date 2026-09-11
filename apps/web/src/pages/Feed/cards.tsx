@@ -890,16 +890,12 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 // «+ у список» інлайн), кроки з номерами, довгі згорнуті до трьох із
 // «Показати всі N». «Готуємо» веде тільки в Cook Mode; /recipe/:id
 // лишається адресою для «У рецепти» і шерингу.
-export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecipeIds, onNeedToList, batchLabels, stepLabels }: CardProps) {
+export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels, stepLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
   const [listed, setListed] = useState<Set<number>>(new Set());
   const pressTimer = useRef<number | null>(null);
-  // Порційник: детерміноване множення кількостей, 0 токенів. Складне
-  // («на чотирьох, але соусу більше») — як і раніше, через чат.
-  const [servings, setServings] = useState<number | null>(null);
   if (!rid) return null;
-  const saved = savedRecipeIds?.has(rid) ?? false;
 
   // Старі повідомлення (до рецепта-в-розмові) мають тільки посилання.
   if (!r) {
@@ -922,7 +918,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
     );
   }
 
-  const sv = servings ?? r.sv ?? 1;
+  const sv = r.sv ?? 1;
   const scaled = scaleRecipe(r, sv);
 
   // Наявність — тоном, а не гліфом (V2). Те, що вже вдома, іде вниз мутед-
@@ -956,11 +952,13 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
   const headSlot = useContext(PanelHeadSlot);
   void headSlot;
 
-  // Етап 6b — за кадром «Рецепт · 1440» (Screens): пілюля стану, назва h3,
-  // рядок «час · ≈ ккал · порції», «Склад · N» списком із крапкою роду й
-  // роздільниками, «Кроки · N» нумерованими колами, «Готуємо» темна з
-  // cooking-pot. Дві колонки знесено (ламались на 320); «БРАКУЄ N»,
-  // «Готувати →», «У список» зникли разом із перебудовою. Типографіка — ролі.
+  // 6b-3 — за артефактом «Рецепт» у Prototype (той, що «можу зараз · 8 з 8»):
+  // пілюля 24, назва h2 22/700, рядок 13 «20 хв · ≈ 540 ккал · оцінка моделі ·
+  // 2 порції» без степера, «Склад · N» і «Кроки · N» підписами 12/500, рядки
+  // 40 із крапкою роду й волосиною, кола кроків 24 контурні, «Готуємо» 48
+  // притиснута до низу картки. «У рецепти» / «Поділитись» тут не живуть —
+  // це сторінка рецепта й картка в стрічці. Порційник знято разом зі
+  // степером: кількості — на sv рецепта (рішення власника 11.09).
   const total = scaled.ing.length;
   const have = total - missIdx.length;
   const status = missIdx.length === 0
@@ -969,17 +967,17 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
       ? { text: `майже · ${have} з ${total}`, tone: styles['pill-amber'] }
       : { text: `далеко · ${have} з ${total}`, tone: styles['pill-far'] };
 
-  // Низ картки: «Готуємо» головна; «У список» — лише коли є що докупити.
+  // Низ картки: «Готуємо» головна; «У список · N» текстом — лише коли є що докупити.
   const footRaw = (
-    <div className={styles['card-foot']}>
+    <div className={`${styles['card-foot']} ${styles['recipe-foot']}`}>
       {missIdx.length > 0 && onNeedToList && (
-        <Button size="strip" variant="text" disabled={!leftToList.length} onClick={addAllMissing}>
+        <button type="button" className={styles['recipe-tolist']} disabled={!leftToList.length} onClick={addAllMissing} data-recipe-tolist>
           {leftToList.length ? `У список · ${leftToList.length}` : 'Уже в списку'}
-        </Button>
+        </button>
       )}
       {onCook && (
         <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)}>
-          <Icon name="cook.go" size={18} inherit decorative />Готуємо
+          <Icon name="cook.go" size={16} inherit decorative />Готуємо
         </button>
       )}
     </div>
@@ -988,40 +986,23 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 
   return (
     <div className={styles['recipe-msg']} data-recipe-artifact>
-      <div className={styles['recipe-pills']}>
-        <span className={`${styles.pill} ${status.tone}`} data-recipe-status><span className={styles['pill-dot']} aria-hidden />{status.text}</span>
-      </div>
-      <h3 className={`t-h3 ${styles['recipe-title']}`}>{r.t}</h3>
-      <div className={`t-small ${styles['recipe-meta']}`}>
-        {r.tm ? <span className={styles['recipe-meta-item']}><Icon name="cook.time" size={16} inherit decorative />{formatDuration(r.tm)}</span> : null}
-        {/* Р12: у чаті — оцінка моделі, і сказано, що оцінка. */}
-        {r.nu?.kcal ? <span>{formatModelEstimate(r.nu, 'short')}</span> : null}
-        <span className={styles.stepper} data-servings>
-          <button type="button" className={styles['stepper-btn']} aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}><Icon name="live.nothing" size={12} inherit decorative /></button>
-          <span className={styles['stepper-n']}>{sv} {plural(sv, ['порція', 'порції', 'порцій'])}</span>
-          <button type="button" className={styles['stepper-btn']} aria-label="Більше порцій" onClick={() => setServings(sv + 1)}><Icon name="sys.add" size={12} inherit decorative /></button>
-        </span>
-      </div>
-      {r.rk && <p className={`t-small ${styles['recipe-note']}`}>{r.rk}</p>}
-      {(onSaveRecipe || onShare) && (
-        <div className={styles['recipe-acts']}>
-          {onSaveRecipe && (
-            <button type="button" className={`${styles.pill} ${styles['pill-card']} ${saved ? styles['pill-saved'] : ''}`} disabled={saved} onClick={() => onSaveRecipe(rid)}>
-              <Icon name={saved ? 'sys.saved' : 'sys.later'} size={16} inherit decorative />{saved ? 'Збережено' : 'У рецепти'}
-            </button>
-          )}
-          {onShare && (
-            <button type="button" className={`${styles.pill} ${styles['pill-card']}`} onClick={() => onShare(scaled, rid)}>
-              <Icon name="sys.share" size={16} inherit decorative />Поділитись
-            </button>
-          )}
+      <div className={styles['recipe-head']}>
+        <span className={`${styles.pill} ${styles['pill-status']} ${status.tone}`} data-recipe-status><span className={styles['pill-dot']} aria-hidden />{status.text}</span>
+        <h2 className={`t-h2 ${styles['recipe-title']}`}>{r.t}</h2>
+        <div className={styles['recipe-meta']}>
+          {r.tm ? <span>{formatDuration(r.tm)}</span> : null}
+          {/* Р12: у чаті — оцінка моделі, і сказано, що оцінка. */}
+          {r.nu?.kcal ? <span>{formatModelEstimate(r.nu, 'short')}</span> : null}
+          <span data-servings>{sv} {plural(sv, ['порція', 'порції', 'порцій'])}</span>
         </div>
-      )}
+        {/* Примітка моделі до рецепта: у Prototype її в панелі немає (там
+            підказки живуть у кроках Cook Mode) — лишаємо рядком 13 muted,
+            бо дані є, а Cook Mode ще попереду. */}
+        {r.rk && <p className={styles['recipe-note']}>{r.rk}</p>}
+      </div>
 
       <section className={styles['recipe-section']} data-recipe-ings>
-        <div className={`t-caption ${styles['recipe-section-head']}`}>
-          <Icon name="cook.missing" size={16} inherit decorative />Склад · {total}
-        </div>
+        <div className={styles['recipe-section-head']}>Склад · {total}</div>
         {ordered.map(({ ing, i }) => {
           const missing = !ing.p;
           const added = listed.has(i);
@@ -1042,16 +1023,10 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
             </div>
           );
         })}
-        <div className={`t-label ${styles['recipe-legend']}`}>
-          <span className={styles['ing-dot']} aria-hidden />є вдома
-          <span className={`${styles['ing-dot']} ${styles['ing-dot-missing']}`} aria-hidden />бракує
-        </div>
       </section>
 
       <section className={styles['recipe-section']} data-recipe-steps>
-        <div className={`t-caption ${styles['recipe-section-head']}`}>
-          <Icon name="cook.steps" size={16} inherit decorative />Кроки · {scaled.st.length}
-        </div>
+        <div className={styles['recipe-section-head']}>Кроки · {scaled.st.length}</div>
         {scaled.st.map((step: typeof scaled.st[number], i: number) => (
           <div key={i} className={styles['recipe-step']}>
             <span className={styles['recipe-step-n']}>{i + 1}</span>
@@ -1079,7 +1054,11 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 // cooking-pot (відкрити рецепт), reply (уточнити), мінус (згорнути).
 // Зелена рамка з капсом «РЕЦЕПТ» зникла разом із формою; слово сліду
 // (етап 3) лишилось у службовому рядку над ходом.
-export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCard; active?: boolean; onOpen: () => void; onAsk?: (title: string) => void }) {
+export function RecipeStreamCard({ card, active, onOpen, onAsk, onSave, saved, onShare }: {
+  card: ChatCard; active?: boolean; onOpen: () => void; onAsk?: (title: string) => void;
+  /** 6b-3: «У рецепти» й «Поділитись» живуть на картці, не в панелі. */
+  onSave?: () => void; saved?: boolean; onShare?: () => void;
+}) {
   const r = card.recipe;
   const [collapsed, setCollapsed] = useState(false);
   const title = card.title ?? r?.t ?? 'Рецепт';
@@ -1127,6 +1106,17 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCa
             {onAsk && (
               <button type="button" className={styles['rcard-act']} onClick={() => onAsk(title)} aria-label="Уточнити" title="Уточнити">
                 <Icon name="sys.reply" size={16} inherit decorative />
+              </button>
+            )}
+            {onSave && (
+              <button type="button" className={`${styles['rcard-act']} ${saved ? styles['rcard-act-saved'] : ''}`} onClick={onSave} disabled={saved}
+                aria-label={saved ? 'Збережено в рецептах' : 'У рецепти'} title={saved ? 'Збережено' : 'У рецепти'} data-recipe-save>
+                <Icon name={saved ? 'sys.saved' : 'sys.later'} size={16} inherit decorative />
+              </button>
+            )}
+            {onShare && (
+              <button type="button" className={styles['rcard-act']} onClick={onShare} aria-label="Поділитись" title="Поділитись" data-recipe-share>
+                <Icon name="sys.share" size={16} inherit decorative />
               </button>
             )}
           </>
