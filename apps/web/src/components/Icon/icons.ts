@@ -24,6 +24,8 @@ import {
   Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw, Camera, FileText, Moon, ChevronUp,
   type LucideIcon,
 } from 'lucide-react';
+// Лендінг (блок «landing» у кінці мапи) — окремим рядком, щоб не чіпати імпорт вище.
+import { PackageOpen, History, List, Shuffle, ChevronLeft } from 'lucide-react';
 
 export type Family = 'system' | 'zones' | 'products' | 'cooking' | 'live';
 
@@ -188,6 +190,19 @@ export const ICONS = {
   'sys.retry':     { glyph: RotateCw,      label: 'Повторити',     family: 'system' },
   // Джерело події «з каталогу» в «Дім зараз» — book-marked, як у бандлі (Components).
   'sys.tradition': { glyph: BookMarked,    label: 'З каталогу',    family: 'system' },
+  // ---- лендінг (Landing Live) ----
+  // Знаки, яких застосунок не мав: три рядки «Kitchen OS вже знає», журнал у
+  // фрагменті «Що вміє» і чіп кошика в живій сесії. Блок окремий і в кінці
+  // мапи, з префіксом `landing.` — щоб зливатись із feat/icon-motion без
+  // конфлікту (motion.ts вичерпно мапить лише `sys.*`).
+  // Знаки лендінгу, що ВЖЕ є в словнику з іншим значенням, сюди не потрапили
+  // (bookmark = «Колись», alert-triangle = «Прострочено», minus = «Нічого не
+  // змінилось») — див. QUESTIONS-FOR-DESIGN-CHAT.md §16 і DEVIATIONS Р41.
+  'landing.opened':   { glyph: PackageOpen, label: 'Відкрите',          family: 'system' },
+  'landing.leftover': { glyph: History,     label: 'Після вчорашнього', family: 'system' },
+  'landing.recent':   { glyph: List,        label: 'Готував нещодавно', family: 'system' },
+  'landing.variety':  { glyph: Shuffle,     label: 'Різноманіття',      family: 'system' },
+  'landing.toPanel':  { glyph: ChevronLeft, label: 'У панель',          family: 'system' },
 } as const satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;

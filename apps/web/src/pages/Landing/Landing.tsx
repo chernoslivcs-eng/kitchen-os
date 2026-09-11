@@ -1,297 +1,229 @@
-// Лендинг v5 = перша сторінка входу. Тексти — з канвасу «Лендинг v5 - ланцюг»
-// (єдине джерело), розкладки порогів — з «Лендинг v5 - адаптив»:
-// ≥1280 як канвас; 768–1279 фрагменти щільніше, без ниток; <768 без сесії,
-// стрічки зі снапом замість сіток, таблиця «як зазвичай / тут» — парами.
-// Ілюстрації секцій — слоти /landing/ill-*.png (кладуться у public/landing).
-
-import { useState } from 'react';
-import { Hero, Mark } from './Hero';
-import { useMagicLink } from './useMagicLink';
+// Лендінг v3 = вхід («Вхід = лендінг, окремого /signin нема» — HANDOFF §7a).
+// Джерело — «ai/project/Kitchen OS - Landing Live.dc.html», три кадри:
+//   · «Лендінг · live»  ≥1280 — кадр 1920, fluid через zoom (useFrameZoom);
+//     sticky-hero, лептоп із живою сесією, «Що вміє» sticky-сценою зі скло-
+//     фрагментами й нахилом за курсором, телефон у фіналі;
+//   · «Лендінг · 1024» 768–1279 — без sticky-сцен, «Що вміє» рядками
+//     текст / фрагмент із чергуванням боків, без нахилу й скла;
+//   · «Лендінг · 390»  <768 — стрічки зі снапом для болів і тарифів,
+//     телефон у hero з тим самим циклом «клік → таймер».
+// Копі — copy.ts (дослівно з бандла). Токени — tokens.css, тому темна тема
+// приходить сама; те, де бандл про темну мовчить, — Landing.module.css
+// (блок «темна») і QUESTIONS §16.
+import { useRef, useState, type MouseEvent } from 'react';
+import { Icon } from '../../components/Icon/Icon';
+import { SignInForm } from './SignInForm';
+import { LiveSession } from './LiveSession';
+import { PhoneMock } from './PhoneMock';
+import { FRAGS, FRAGS_M } from './Fragments';
+import {
+  NAV, HERO, SIGNIN, PAINS, PAINS_H2, HOME_IMG, ROWS, TURN, KNOWS_HEAD, KNOWS, LEDGER_HEAD, LEDGER, GUESS_CHIP,
+  HOME, RULES_H2, RULES, RULE_2, RULE_3_CHIP, PRICE, PLANS, FINAL, FOOTER,
+} from './copy';
+import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, reducedMotion } from './useLandingMotion';
 import styles from './Landing.module.css';
 
-function Ill({ name, h }: { name: string; h: number }) {
-  const [gone, setGone] = useState(false);
-  return (
-    <div className={styles.ill} style={{ height: h }}>
-      {!gone && <img src={`/landing/${name}.png`} alt="" style={{ maxHeight: h }} onError={() => setGone(true)} />}
-    </div>
-  );
+const s = styles;
+
+function Mark({ className }: { className?: string }) {
+  return <span className={`${s.mark} ${className ?? ''}`} aria-hidden="true"><span /></span>;
 }
 
-const Kick = ({ children, tone }: { children: React.ReactNode; tone?: 'amber' | 'dim' }) => (
-  <span className={`${styles.kick} ${tone === 'amber' ? styles['kick-amber'] : tone === 'dim' ? styles['kick-dim'] : ''}`}>{children}</span>
-);
-
-function Icon({ d }: { d: React.ReactNode }) {
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#58754e" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">{d}</svg>;
-}
-
-function FinalForm() {
-  const { email, setEmail, error, loading, submit } = useMagicLink();
-  return (
-    <>
-      <form className={`${styles.pill} ${styles['pill-final']}`} onSubmit={submit} noValidate>
-        <input type="email" inputMode="email" autoComplete="email" placeholder="Твій email" required value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" />
-        <button type="submit" disabled={loading}>{loading ? 'Надсилаю…' : 'Почати з того, що є'}</button>
-      </form>
-      {error && <div className={`${styles['form-error']} ${styles['form-error-light']}`}>{error}</div>}
-    </>
-  );
+function GuessChip({ className }: { className?: string }) {
+  return <span className={`${s.chipGuess} ${className ?? ''}`}>{GUESS_CHIP.a}<span className={s.chipGuessB}>{GUESS_CHIP.b}</span></span>;
 }
 
 export function Landing() {
-  const still = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const toSignIn = () => document.getElementById('signin')?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
+  const bp = useBreakpoint();
+  const desk = bp === 'desk', tab = bp === 'tab', mob = bp === 'mob';
+  const root = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState(false);
+  useFrameZoom(root, desk);
+  useReveal(root, bp);
+  useGloss(root, bp);
+  useLiveStart(root, bp);
+  const { active, heroRef, headerRef, illRef } = useScrollScene(root, desk);
+
+  const go = (e: MouseEvent<HTMLAnchorElement>) => {
+    const href = e.currentTarget.getAttribute('href');
+    if (!href?.startsWith('#')) return;
+    const t = document.getElementById(href.slice(1));
+    if (!t) return;
+    e.preventDefault();
+    setMenu(false);
+    t.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  };
+
+  const img = (name: string, w: number, h: number, cls?: string) => (
+    <img className={`${s.ill} ${cls}`} src={`/landing/${name}.webp`} width={w} height={h} alt="" loading="lazy" decoding="async" />
+  );
 
   return (
-    <div className={styles.page} id="top">
-      <Hero still={still} />
+    <div ref={root} id="top" className={`${s.page} ${s[bp]}`}>
+      <div className={s.top}>
+        <header ref={headerRef} className={s.header}>
+          <a href="#top" className={s.logo} onClick={go}><Mark /><span className={s.logoText}>{FOOTER.brand}</span></a>
+          <nav className={s.nav}>{NAV.map(([h, t]) => <a key={h} href={h} onClick={go}>{t}</a>)}</nav>
+          <div className={s.headerRight}>
+            <a href="#l3-signin" className={s.enter} onClick={go}>{SIGNIN.enter}</a>
+            {mob && (
+              <button type="button" className={s.menuBtn} aria-label="Меню" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
+                <Icon name="sys.menu" size={18} inherit decorative />
+              </button>
+            )}
+          </div>
+          {mob && menu && <nav className={s.menu}>{NAV.map(([h, t]) => <a key={h} href={h} onClick={go}>{t}</a>)}</nav>}
+        </header>
 
-      <div className={styles.container}>
-        <div id="how" className={styles.sheet}>
-          <div className={styles.grip}><span /></div>
-
-          {/* БОЛІ */}
-          <section className={styles.sec}>
-            <div className={styles['sec-head']}><Kick>ПРОБЛЕМА</Kick><h2 className={styles.h2}>Продукти є. Вечері немає.</h2></div>
-            <div className={`${styles.grid3} ${styles.snap}`}>
-              <div className={`${styles.tile} ${styles['tile-tall']}`}>
-                <Ill name="ill-pain-1" h={240} />
-                <div className={styles['tile-text']}><div className={styles.h3}>Не знаєш, що приготувати</div><p>Після робочого дня дивишся в холодильник і намагаєшся скласти вечерю з того, що бачиш. Часто перемагає знайоме — або доставка.</p></div>
-              </div>
-              <div className={`${styles.tile} ${styles['tile-tall']}`}>
-                <Ill name="ill-pain-2" h={240} />
-                <div className={styles['tile-text']}><div className={styles.h3}>Купуєш те, що вже є</div><p>Щось стоїть за банкою, щось лежить у морозилці, щось давно відкрите. У магазині про це згадати складно.</p></div>
-              </div>
-              <div className={`${styles.tile} ${styles['tile-tall']}`}>
-                <Ill name="ill-pain-3" h={240} />
-                <div className={styles['tile-text']}><div className={styles.h3}>Рецепт знову веде в магазин</div><p>Знайшов страву — бракує трьох інгредієнтів. Замість відповіді на «що приготувати зараз?» отримуєш новий список покупок.</p></div>
-              </div>
-            </div>
-          </section>
-
-          {/* РОЗВОРОТ */}
-          <section className={`${styles.sec} ${styles['sec-alt']} ${styles.center}`}>
-            <div className={styles.turn}><span className={styles['turn-light']}>Інші додатки починаються з рецепта і ведуть у магазин.</span><span className={styles['turn-bold']}>Kitchen OS починається з твоєї кухні й веде до столу.</span></div>
-            <div className={`${styles.grid3} ${styles.left}`}>
-              <div className={`${styles.tile} ${styles['tile-paper']}`}>
-                <div className={styles['tile-text']}><Kick>01 · ПАМʼЯТАЄ</Kick><div className={styles.h3}>Знає, що вже є</div><p>Що є, що вже відкрили, чого лишилось «десь пів пачки» і що краще не відкладати ще на тиждень.</p></div>
-                <div className={styles.pers}><div className={styles.fragl}>
-                  <div className={styles['fl-head']}><span className={styles.mono}>ХОЛОДИЛЬНИК</span><span className={styles.mono}>26</span></div>
-                  <div className={styles['fl-row']}><span className={`${styles.mono} ${styles.amberInk}`}>d</span><div><span>Помідори</span><span className={styles.mono}>400 г · лежать 3 дні</span></div><span className={`${styles.mono} ${styles.amberInk}`}>3 ДНІ</span></div>
-                  <div className={styles['fl-row']}><span className={styles.mono}>f</span><div><span>Фует</span><span className={styles.mono}>160 г · відкрито</span></div></div>
-                  <div className={styles['fl-row']}><span className={styles.mono}>f</span><div><span>Пармезан</span><span className={styles.mono}>90 г · відкрито</span></div></div>
-                  <div className={styles['fl-row']}><span className={styles.mono}>s</span><div><span>Спагеті</span><span className={styles.mono}>500 г · ціле</span></div></div>
-                </div></div>
-              </div>
-              <div className={`${styles.tile} ${styles['tile-paper']}`}>
-                <div className={styles['tile-text']}><Kick>02 · ПРОПОНУЄ</Kick><div className={styles.h3}>Відповідає на «що приготувати зараз?»</div><p>Не сорок рецептів пасти. Кілька нормальних варіантів під те, що вже є вдома і скільки в тебе сьогодні сил.</p></div>
-                <div className={`${styles.pers} ${styles['pers-col']}`}>
-                  <div className={styles['ask-bubble']}>що на вечерю?</div>
-                  <div className={`${styles.fragl} ${styles['fragl-pad']} ${styles.swR}`}>
-                    <div className={styles['fl-head']}><span className={styles.mono}>ПРОПОЗИЦІЯ</span><span className={styles.mono}>20 ХВ</span></div>
-                    <span className={styles['fl-title']}>Паста з помідорами й фуетом</span>
-                    <span className={styles['fl-sub']}>8 з 8 інгредієнтів удома · ≈ 540 ккал</span>
-                    <span className={styles['fl-amber']}>Помідори знову натякають, що сьогодні їхній день.</span>
-                    <div className={styles['fl-actions']}><span className={styles['btn-dark']}>Взяти в роботу</span><span className={styles['btn-line']}>Уточнити</span></div>
-                  </div>
-                </div>
-              </div>
-              <div className={`${styles.tile} ${styles['tile-paper']}`}>
-                <div className={styles['tile-text']}><Kick>03 · НЕ ЗАБУВАЄ</Kick><div className={styles.h3}>Після вечері знає, що залишилось</div><p>Ти підтверджуєш приготування — Kitchen OS оновлює кухню. Наступна рекомендація починається вже не з нуля.</p></div>
-                <div className={styles.pers}><div className={`${styles.fragl} ${styles['fragl-pad']} ${styles.swB}`}>
-                  <div className={styles['fl-head']}><span className={styles.mono}>ПРИГОТОВАНО · ЧТ 19:40</span><span className={styles.stars}>★★★★☆</span></div>
-                  <div className={styles['fl-big']}><span>8 з 8</span><span className={styles['fl-sub']}>з того, що було вдома</span></div>
-                  <div className={styles['fl-list']}>
-                    <div><span>Помідори</span><span className={styles.mono}>400 → 0 г</span></div>
-                    <div><span>Фует</span><span className={styles.mono}>160 → 60 г</span></div>
-                    <div><span>Пармезан</span><span className={styles.mono}>90 → 60 г</span></div>
-                    <div><span>Спагеті</span><span className={styles.mono}>500 → 300 г</span></div>
-                  </div>
-                  <span className={styles['fl-quote']}>«Фует не пересушувати»</span>
-                </div></div>
-              </div>
-            </div>
-          </section>
-
-          {/* ЩО ВМІЄ */}
-          <section id="features" className={styles.sec}>
-            <div className={styles['sec-head']}><Kick>ЩО ВМІЄ</Kick><h2 className={styles.h2}>Уся кухня — в одному контексті.</h2></div>
-            <div className={`${styles.grid4} ${styles.snap}`}>
-              <div className={styles.feat}>
-                <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-zones']}`}><span className={styles['zone-on']}>d</span><span>f</span><span>z</span><span>s</span><span>p</span><span>n</span></div></div>
-                <Kick>КОМОРА</Kick><div className={styles.h4}>Памʼятає, що в тебе є</div><p>Холодильник, морозилка, суха шафа — включно з тим, що ти точно памʼятав купити, але вже не памʼятаєш куди поклав.</p>
-              </div>
-              <div className={styles.feat}>
-                <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-checks']} ${styles.swR}`}><div><i />Фарш яловичий 500 г</div><div><i />Моцарела 125 г</div></div></div>
-                <Kick>НАПОВНЕННЯ</Kick><div className={styles.h4}>Додає без ручного обліку</div><p>Фото полиці, чек, PDF або «купив фарш, моцарелу і ще щось, зараз згадаю».</p>
-              </div>
-              <div className={styles.feat}>
-                <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-timer']} ${styles.swB}`}><span className={styles.mono}>07:42</span><span className={styles.bar}><span /></span></div></div>
-                <Kick>ГОТУВАННЯ</Kick><div className={styles.h4}>Веде під час готування</div><p>Кроки й таймери — там само, де ти вибрав страву.</p>
-              </div>
-              <div className={styles.feat}>
-                <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-nutr']}`}><span>Шакшука на двох</span><span className={styles.mono}>≈ 420 ккал · Б 24 · Ж 14 · В 48</span></div></div>
-                <Kick>ПОЖИВНІСТЬ</Kick><div className={styles.h4}>Рахує під твоє завдання</div><p>«Швидкий сніданок на двох, десь на 400 ккал і без героїзму» — можна сказати саме так.</p>
-              </div>
-              <div className={styles.feat}>
-                <div className={styles.pers}><div className={`${styles.fragl} ${styles['fl-list-sm']} ${styles.swR}`}><div><span>Фета 200 г</span><span className={styles.mono}>89 ₴</span></div><div><s>Оливкова олія</s><span className={`${styles.mono} ${styles.sageInk}`}>ВЖЕ Є</span></div></div></div>
-                <Kick>СПИСОК</Kick><div className={styles.h4}>Купуєш тільки те, чого бракує</div><p>Відсутні інгредієнти йдуть у список. Те, що вже є вдома, — ні.</p>
-              </div>
-              <div className={styles.feat}>
-                <div className={styles['memory-row']}><span className={styles['fl-quote']}>«Фует не пересушувати»</span><span className={styles.stars}>★★★★☆</span></div>
-                <Kick>ПАМʼЯТЬ</Kick><div className={styles.h4}>Памʼятає, що тобі сподобалось</div><p>Страви й твої примітки лишаються на наступний раз. Навіть «перець — це було зайве».</p>
-              </div>
-              <div className={styles.feat}>
-                <div className={styles['variety-row']}><s>Паста з помідорами</s><span className={styles.mono}>ГОТУВАВ У ВТ</span></div>
-                <Kick>РІЗНОМАНІТТЯ</Kick><div className={styles.h4}>Не пропонує одне й те саме</div><p>Якщо ти їв це вчора, Kitchen OS теж памʼятає. І, на відміну від тебе, не запропонує те саме втретє.</p>
-              </div>
-              <div className={styles.feat}>
-                <div className={styles['fast-tag']}><span className={styles.mono}>◷ ПІСТ · ДЕНЬ 12 З 40</span></div>
-                <Kick>КАЛЕНДАР</Kick><div className={styles.h4}>Враховує календар</div><p>Піст, гості, свято або мама на вихідні — усе це трохи змінює відповідь на «що готуємо?».</p>
-              </div>
-            </div>
-          </section>
-
-          {/* ЗАПЕРЕЧЕННЯ 1 · ОБЛІК */}
-          <section id="account" className={`${styles.sec} ${styles['sec-alt']}`}>
-            <div className={styles['sec-head2']}>
-              <div className={styles['sec-head']}><Kick>ОБЛІК</Kick><h2 className={styles.h2}>Облік, який не треба вести.</h2></div>
-              <p className={styles.lead}>Цифрова комора перестає працювати, щойно її доводиться постійно обслуговувати вручну.</p>
-            </div>
-            <div className={styles.table}>
-              <div className={`${styles['t-cell']} ${styles['t-head']}`}><span className={styles.mono}>ЯК ЗАЗВИЧАЙ</span></div>
-              <div className={`${styles['t-cell']} ${styles['t-head']} ${styles['t-right']}`}><span className={`${styles.mono} ${styles.sageInk}`}>ТУТ</span></div>
-              <div className={`${styles['t-cell']} ${styles['t-old']}`}>Додаєш кожен продукт руками</div>
-              <div className={`${styles['t-cell']} ${styles['t-right']}`}>Фото, чек, PDF або звичайна фраза</div>
-              <div className={`${styles['t-cell']} ${styles['t-old']}`}>Після кожного готування виправляєш залишки</div>
-              <div className={`${styles['t-cell']} ${styles['t-right']}`}>Підтвердив страву — Kitchen OS оновив їх за тобою</div>
-              <div className={`${styles['t-cell']} ${styles['t-old']}`}>Одна помилка поступово псує всю базу</div>
-              <div className={`${styles['t-cell']} ${styles['t-right']} ${styles['t-split']}`}><span>Якщо система не впевнена — вона показує це, а не вигадує точність</span><span className={styles.conf}><span>томат</span><span className={styles.mono}>60%</span></span></div>
-              <div className={`${styles['t-cell']} ${styles['t-old']} ${styles['t-last']}`}>Треба знати все до грама</div>
-              <div className={`${styles['t-cell']} ${styles['t-right']} ${styles['t-last']}`}>Не треба знати, що там 137 грамів. «Десь пів пачки» часто цілком достатньо.</div>
-            </div>
-          </section>
-
-          {/* ЗАПЕРЕЧЕННЯ 2 · ЧАТ */}
-          <section className={`${styles.sec} ${styles.split}`}>
-            <div className={styles['sec-head']}>
-              <Kick>ЧОМУ НЕ ПРОСТО ЧАТ</Kick>
-              <h2 className={styles.h2}>Чат може придумати рецепт. Kitchen OS памʼятає кухню.</h2>
-              <p className={styles.lead}>Чат починає з того, що ти написав зараз. Kitchen OS вже знає:</p>
-            </div>
-            <div className={styles['split-right']}>
-              <div className={styles.knows}>
-                <div><Icon d={<><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M5 10h14" /></>} />що є вдома</div>
-                <div><Icon d={<><path d="M7 9h10v11H7z" /><path d="M9 9V6h6v3" /></>} />що відкрите</div>
-                <div><Icon d={<><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></>} />що залишилось після вчорашнього</div>
-                <div><Icon d={<path d="M4 6h16M4 12h16M4 18h10" />} />що ти готував останнім часом</div>
-                <div><Icon d={<path d="M12 4l2.4 5 5.6.7-4 3.9 1 5.4-5-2.7-5 2.7 1-5.4-4-3.9 5.6-.7z" />} />що тобі сподобалось</div>
-                <div><Icon d={<><circle cx="12" cy="12" r="8" /><path d="M6.5 6.5l11 11" /></>} />що тобі не можна або не хочеться їсти</div>
-              </div>
-              <div className={styles.quoteCard}><div className={styles['quote-text']}>Рецепт закінчується після вечері. Кухня — ні.</div><Ill name="ill-phone" h={170} /></div>
-            </div>
-          </section>
-
-          {/* ТРИ ПРАВИЛА */}
-          <section id="rules" className={`${styles.sec} ${styles['sec-alt']}`}>
-            <div className={styles['sec-head']}><Kick>ДОВІРА</Kick><h2 className={styles.h2}>Три правила.</h2></div>
-            <div className={styles.grid3}>
-              <div className={`${styles.tile} ${styles['tile-paper']} ${styles.rule}`}>
-                <Kick tone="dim">01</Kick><div className={styles.h3}>Не вгадує мовчки</div><p>Якщо Kitchen OS не впевнений — так і скаже. Упевнено вигадувати ми й самі вміємо.</p>
-                <div className={styles['rule-foot']}><span className={styles.conf}><span>томат</span><span className={styles.mono}>ДОМИСЛЕНО 60%</span></span></div>
-              </div>
-              <div className={`${styles.tile} ${styles['tile-paper']} ${styles.rule}`}>
-                <Kick tone="dim">02</Kick><div className={styles.h3}>Не списує за припущенням</div><p>Ти кажеш, що вечеря відбулась. Далі кухня сама перераховує, що пережило цей вечір.</p>
-                <div className={`${styles['rule-foot']} ${styles['fl-actions']}`}><span className={styles['btn-dark']}>Приготував</span><span className={styles['btn-line']}>Ще ні</span></div>
-              </div>
-              <div className={`${styles.tile} ${styles['tile-paper']} ${styles.rule}`}>
-                <Kick tone="dim">03</Kick><div className={styles.h3}>Алергії — жорсткі. Побажання — гнучкі.</div><p>Те, що небезпечно, не потрапляє в рекомендації. Те, що просто не любиш, можна враховувати мʼякше.</p>
-                <div className={`${styles['rule-foot']} ${styles.allergen}`}><span>Креветки, 500 г</span><span className={styles.mono}>АЛЕРГЕН · ОЛЯ</span></div>
-              </div>
-            </div>
-          </section>
-
-          {/* ДІМ */}
-          <section id="home" className={`${styles.sec} ${styles.split}`}>
-            <div className={styles['sec-head']}>
-              <Kick>ДІМ</Kick><h2 className={styles.h2}>Одна кухня. Кілька людей.</h2>
-              <p className={styles.lead}>Kitchen OS знає, хто сьогодні за столом. І кому знову не класти кінзу.</p>
-              <Ill name="ill-assistant-person" h={260} />
-            </div>
-            <div className={styles.grid2}>
-              <div className={styles.tile}>
-                <Kick>СПІЛЬНЕ</Kick><div className={styles['tile-lead']}>Продукти, покупки й календар.</div>
-                <div className={styles.feed}>
-                  <div><span className={styles.avatar} style={{ background: '#8f5c78', color: '#fff' }}>О</span><span className={styles.dimText}>Оля додала</span><span className={styles.arrow}>→</span><span>Фета 200 г</span></div>
-                  <div><span className={styles.avatar} style={{ background: '#c9a86a' }}>Т</span><span className={styles.dimText}>Тарас приготував</span><span className={styles.arrow}>→</span><span>Шакшука · списано 5</span></div>
-                  <div><span className={styles.avatar} style={{ background: '#58754e', color: '#f8f9fa' }}>М</span><span className={styles.dimText}>Марта в календар</span><span className={styles.arrow}>→</span><span>Гості в пʼятницю</span></div>
-                </div>
-              </div>
-              <div className={styles.tile}>
-                <Kick tone="amber">ОСОБИСТЕ</Kick><div className={styles['tile-lead']}>Смаки, алергії, обране та історія.</div>
-                <div className={styles.feed}>
-                  <div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a8483d" strokeWidth="1.4" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M6.5 6.5l11 11" /></svg><span className={styles.dimText}>Не їм</span><span className={styles.arrow}>→</span><span>свинину</span></div>
-                  <div><span className={styles['glyph-plum']}>◷</span><span className={styles.dimText}>Піст</span><span className={styles.arrow}>→</span><span>до 19 квітня · тільки пісне</span></div>
-                  <div><span className={styles['glyph-amber']}>★</span><span className={styles.dimText}>Люблю</span><span className={styles.arrow}>→</span><span>оливки · частіше в пропозиціях</span></div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ЦІНА */}
-          <section id="price" className={`${styles.sec} ${styles['sec-alt']}`}>
-            <div className={styles['sec-head2']}>
-              <div className={styles['sec-head']}><Kick>ЦІНА</Kick><h2 className={styles.h2}>Платиш за продукт, а не за рекламу всередині.</h2></div>
-              <p className={styles.lead}>У рекомендацію потрапляє те, що має сенс для твоєї кухні. Не те, кому дуже хотілось продати тобі ще один соус.</p>
-            </div>
-            <div className={`${styles.plans} ${styles.snap}`}>
-              <div className={`${styles.plan} ${styles['plan-solo']}`}>
-                <div className={styles['plan-head']}><Kick tone="dim">ОДНОМУ</Kick></div>
-                <Ill name="ill-plan-solo" h={150} />
-                <div className={styles.price}><span>$5</span><span>на місяць</span></div>
-                <div className={styles['plan-list']}><div><i />Комора, рекомендації, готування</div><div><i />Календар і журнал</div><div><i />Без реклами всередині</div></div>
-                <button type="button" className={styles['plan-btn']} onClick={toSignIn}>Почати з того, що є</button>
-              </div>
-              <div className={`${styles.plan} ${styles['plan-home']}`}>
-                <div className={styles['plan-ring']} />
-                <div className={styles['plan-head']}>
-                  <span className={styles.kick} style={{ color: '#cfd9c4' }}>ДІМ · ДВОЄ І БІЛЬШЕ</span>
-                  <div className={styles.avatars}><span style={{ background: '#c99ab4' }}>О</span><span style={{ background: '#c9a86a' }}>Т</span><span style={{ background: '#f6efe0' }}>+</span></div>
-                </div>
-                <div className={styles['plan-ill-cream']}><Ill name="ill-plan-home" h={150} /></div>
-                <div className={styles.price}><span>$7</span><span>на місяць · на всіх</span></div>
-                <div className={styles['plan-list']}><div><i />Усе з «Одному» · спільна кухня</div><div><i />Спільний список</div><div><i />Окремі смаки й обмеження для кожного</div></div>
-                <button type="button" className={`${styles['plan-btn']} ${styles['plan-btn-cream']}`} onClick={toSignIn}>Почати з того, що є</button>
-              </div>
-              <div className={`${styles.plan} ${styles['plan-year']}`}>
-                <div className={styles['plan-head']}><Kick tone="dim">РІК · ДІМ</Kick><span className={styles.gift}>2 МІСЯЦІ В ПОДАРУНОК</span></div>
-                <Ill name="ill-plan-year" h={150} />
-                <div className={styles.price}><span>$70</span><span><s>$84</s> · на рік</span></div>
-                <div className={styles['plan-list']}><div><i />Усе з тарифу «Дім»</div><div><i />Один платіж на рік</div><div><i />Без реклами всередині</div></div>
-                <button type="button" className={styles['plan-btn']} onClick={toSignIn}>Почати з того, що є</button>
-              </div>
-            </div>
-          </section>
+        <div ref={heroRef} className={s.hero}>
+          <h1 data-reveal="0" className={s.h1}><span className={s.h1a}>{HERO.a}</span><span>{HERO.b}</span></h1>
+          <p data-reveal="120" className={s.lead}>{HERO.lead}</p>
+          <div data-reveal="240" className={s.signinWrap}><SignInForm id="l3-signin" /></div>
         </div>
 
-        {/* ФІНАЛ — поза білою підложкою, на шавлії сторінки */}
-        <section className={styles.final}>
-          <h2 className={styles['final-h2']}>Що на вечерю — з того, що вже є.</h2>
-          <p>Покажи кілька продуктів фото, чеком або словами. Не треба згадувати весь холодильник одразу. Kitchen OS почне з того, що вже є.</p>
-          <FinalForm />
-          <footer className={styles.footer}>
-            <div className={styles['footer-brand']}>
-              <div className={styles.logo}><Mark size={26} /><span>Kitchen<em> OS</em></span></div>
-              <span>Кухня, яка памʼятає. Без реклами й проплачених пропозицій усередині.</span>
-            </div>
-            <div className={styles['footer-col']}><span className={styles.kick} style={{ color: '#cfd9c4' }}>ПРОДУКТ</span><a href="#how">Як це працює</a><a href="#features">Що вміє</a><a href="#price">Ціна</a><a href="#home">Дім</a></div>
-            <div className={styles['footer-col']}><span className={styles.kick} style={{ color: '#cfd9c4' }}>ДОВІРА</span><a href="#rules">Три правила</a><a href="#account">Облік</a><span>Приватність</span><span>Умови</span></div>
-            <div className={styles['footer-col']}><span className={styles.kick} style={{ color: '#cfd9c4' }}>ЗВʼЯЗОК</span><span>hello@kitchen.os</span><span>Telegram</span><span>Instagram</span></div>
-          </footer>
-          <div className={styles['footer-bar']}><span className={styles.mono}>© 2026 KITCHEN OS · V1.0</span><span className={styles.mono}>БЕЗ РЕКЛАМИ ВСЕРЕДИНІ</span></div>
-        </section>
+        {mob
+          ? <div className={s.phoneWrap}><PhoneMock variant="hero" /></div>
+          : <div className={s.laptopWrap}><LiveSession tab={tab} /></div>}
       </div>
+
+      <section id="l3-how" data-reveal="0" className={s.pains}>
+        <h2 className={s.h2}>{PAINS_H2}</h2>
+        <div className={s.painGrid}>
+          {PAINS.map((p) => (
+            <div key={p.img} className={s.pain}>
+              <div className={s.painImg}>{img(p.img, p.w, p.h, s.painIll)}</div>
+              <p className={s.painText}><b>{p.b}</b> {p.t}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {desk ? (
+        <section className={s.feats}>
+          <div className={s.featText}>
+            {ROWS.map((r, i) => (
+              <div key={r.kick} data-feat={i} className={`${s.featRow} ${i === active ? s.featOn : ''}`}>
+                <span className={s.kick}><Icon name={r.icon} size={16} inherit decorative />{r.kick}</span>
+                <h3 className={s.h3}>{r.h}</h3>
+                <p className={s.featP}>{r.p}</p>
+              </div>
+            ))}
+          </div>
+          <div className={s.featStick}>
+            <div data-stage data-live className={s.stage}>
+              <span aria-hidden="true" className={s.blobA} /><span aria-hidden="true" className={s.blobB} />
+              {FRAGS.map((F, i) => (
+                <div key={i} className={`${s.fragSlot} ${i === active ? s.fragOn : i < active ? s.fragBefore : s.fragAfter}`}>
+                  <div className={s.fragTilt}><F /></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className={s.featsM}>
+          {ROWS.map((r, i) => {
+            const M = FRAGS_M[i]!;
+            return (
+              <div key={r.kick} className={`${s.featRowM} ${tab && i % 2 ? s.featRtl : ''}`}>
+                <div className={s.featTextM}>
+                  <span className={s.kick}><Icon name={r.icon} size={16} inherit decorative />{r.kick}</span>
+                  <h3 className={s.h3}>{r.h}</h3>
+                  <p className={s.featP}>{r.p}</p>
+                </div>
+                <div className={s.fragMWrap}><div className={s.fragM}><M /></div></div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      <div data-reveal="0" className={s.turn}><span className={s.turnA}>{TURN.a}</span><span className={s.turnB}>{TURN.b}</span></div>
+
+      <section data-reveal="0" className={s.split}>
+        <div className={s.splitHead}><span className={s.kick}>{KNOWS_HEAD.kick}</span><h2 className={s.h2b}>{KNOWS_HEAD.h2}</h2><p className={s.p17}>{KNOWS_HEAD.p}</p></div>
+        <div className={s.knows}>
+          {KNOWS.map((k) => <div key={k.t} className={s.know}><span className={s.sage}><Icon name={k.icon} size={20} inherit decorative /></span>{k.t}</div>)}
+        </div>
+      </section>
+
+      <section data-reveal="0" className={`${s.split} ${s.ledgerSec}`}>
+        <div className={s.splitHead}><span className={s.kick}>{LEDGER_HEAD.kick}</span><h2 className={s.h2b}>{LEDGER_HEAD.h2}</h2><p className={s.p17}>{LEDGER_HEAD.p}</p></div>
+        <div className={s.ledger}>
+          {LEDGER.map((l) => (
+            <div key={l.a} className={s.ledgerRow}>
+              <span className={s.ledgerA}>{l.a}</span>
+              <span className={s.ledgerB}><span>{l.b}</span>{l.chip && <GuessChip className={s.chipGuessSm} />}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section data-reveal="0" className={s.home}>
+        <div className={s.homeImg}>{img(HOME_IMG.img, HOME_IMG.w, HOME_IMG.h, s.homeIll)}</div>
+        <div className={s.homeText}>
+          <span className={s.kick}>{HOME.kick}</span><h2 className={s.h2b}>{HOME.h2}</h2><p className={s.p17}>{HOME.p}</p>
+          <div className={s.homeGrid}>
+            <div className={s.homeCard}><span className={`${s.label} ${s.sage}`}>{HOME.shared.label}</span><span className={s.homeCardT}>{HOME.shared.t}</span><span className={s.homeCardS}>{HOME.shared.s}</span></div>
+            <div className={s.homeCard}><span className={`${s.label} ${s.amber}`}>{HOME.personal.label}</span><span className={s.homeCardT}>{HOME.personal.t}</span><span className={s.homeCardS}>{HOME.personal.s}</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="l3-rules" data-reveal="0" className={s.rules}>
+        <h2 className={s.h2}>{RULES_H2}</h2>
+        <div className={s.ruleGrid}>
+          {RULES.map((r, i) => (
+            <div key={r.n} data-reveal={String(i * 120)} className={s.rule}>
+              <span className={s.ruleN}>{r.n}</span><span className={s.ruleT}>{r.t}</span><p className={s.ruleP}>{r.p}</p>
+              <span className={s.ruleFoot}>
+                {i === 0 && <GuessChip />}
+                {i === 1 && <span className={s.ruleBtns}><span className={s.btnInkSm}>{RULE_2.yes}</span><span className={s.btnLineSm2}>{RULE_2.no}</span></span>}
+                {/* Бандл: alert-triangle. У словнику він — «Прострочено»; алерген = «не можна» → cook.ban (tokens-v3: «не можна» — plum + ban; Р41). */}
+                {i === 2 && <span className={`${s.chipGuess} ${s.chipPlum}`}><Icon name="cook.ban" size={12} inherit decorative />{RULE_3_CHIP}</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="l3-price" data-reveal="0" className={s.price}>
+        <h2 className={`${s.h2} ${s.priceH2}`}>{PRICE.h2}</h2>
+        <p className={s.priceP}>{PRICE.p}</p>
+        <div className={s.planGrid}>
+          {PLANS.map((p, i) => (
+            <div key={p.key} data-reveal={i === 0 ? '0' : '120'} className={`${s.plan} ${p.key === 'home' ? s.planHome : ''}`}>
+              <span className={s.planLabel}>
+                {p.label}
+                {p.key === 'home' && desk && (
+                  <span className={s.avatars}>
+                    <span className={`${s.avatar} ${s.avatarPlum}`}>О</span><span className={`${s.avatar} ${s.avatarAmber}`}>Т</span>
+                    <span className={`${s.avatar} ${s.avatarAdd}`}><Icon name="sys.add" size={12} inherit decorative /></span>
+                  </span>
+                )}
+                {'gift' in p && <span className={s.gift}>{p.gift}</span>}
+              </span>
+              <span className={s.planPrice}><span className={s.planSum}>{p.price}</span><span className={s.planPer}>{'was' in p ? <><s>{p.was}</s> {p.per}</> : p.per}</span></span>
+              <span className={s.planList}>{p.lines.map((l) => <span key={l}>{l}</span>)}</span>
+              <a href="#l3-signin" className={`${s.planBtn} ${p.key === 'home' ? s.planBtnHome : ''}`} onClick={go}>{PRICE.cta}</a>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section data-reveal="0" className={s.final}>
+        {desk && <div ref={illRef} className={s.illPhone}><PhoneMock variant="final" /></div>}
+        <h2 className={s.finalH2}>{FINAL.h2}</h2>
+        <p className={s.finalP}>{FINAL.p}</p>
+        <SignInForm or={desk} className={s.signinFinal} />
+        <footer className={s.footer}>
+          <span className={s.footerBrand}>
+            <Mark className={s.markSm} /><span className={s.footerName}>{FOOTER.brand}</span>
+            <span className={s.footerTag}>{mob ? FOOTER.taglineLong : `· ${tab ? FOOTER.tagline : FOOTER.taglineLong}`}</span>
+          </span>
+          <span className={s.footerLinks}>{FOOTER.links.map((l) => <span key={l}>{l}</span>)}</span>
+        </footer>
+      </section>
     </div>
   );
 }
