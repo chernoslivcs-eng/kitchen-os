@@ -49,11 +49,15 @@ const SCREENS = [
 // ролей» — історія, того ж роду, що тека design/).
 const MAX_COMBOS = 8;        // стилів (кегль × вага × гарнітура) на екран
 const MAX_ROLES = 6;         // Р14, додаток: ролей .t-* на ОДНОМУ екрані
-const RATIO_LO = 1.9;        // display ÷ body = 2.0 ± 0.1 (32/16)
-const RATIO_HI = 2.1;
-const COMMON_LO = 14;        // найчастіший кегль — контент, не мікро-мітка
+// Р33 (11.09): «display ÷ body = 2.0» писалось проти h1 = 32, якого на
+// екранах немає — h1 ролі 20 (26 на ≥1024), display лише в Cook Mode.
+// Відношення знято; тримається стеля h1.
+// Р25 (рішення 11.09, варіант а): «часто» міряється по ЧИТОМОМУ тексту
+// (bodySize), не по всьому: у щільному списку мети більше за назви за
+// задумом, і роль caption 13 — не мікро-мітка. Смуга лишається 14–16.
+const COMMON_LO = 14;
 const COMMON_HI = 16;
-const MAX_SIZE = 32;         // h1; display (112) лише в Cook Mode, його тут нема
+const MAX_SIZE = 26;         // роль h1: 20, на ≥1024 — 26; display (112) лише в Cook Mode
 const DISPLAY_MAX = 2;       // заголовок + одне число
 const MAX_FAMILIES = 1;      // Onest. Червоне до етапу 1.6 (Р19)
 const MAX_WEIGHTS = 3;       // 400/500/600; 700 лише на дисплейному кеглі
@@ -61,13 +65,17 @@ const MAX_EM_ROWS = 3;       // ⚠1 (10.09): виділених рядків н
 const MAX_EM_CARDS = 1;      // ⚠1: плюс одна картка-акцент
 const DISPLAY_MIN = 32;      // що вважаємо дисплейним поверхом
 const AA = 4.5;              // контраст звичайного тексту
+// Р26: скільки провалів контрасту — один токен dim (#9a9ea3 світла /
+// #6f7379 темна). Аудит показує «з них dim: N», щоб рішення палітри
+// (дизайн-чат, QUESTIONS §3) було видно окремо від решти.
+const DIM_RGB = ['rgb(154,158,163)', 'rgb(111,115,121)'];
 
 // Р24 (10.09): міряємо не «скільки написань трекінгу всього», а скільки їх
 // ПОЗА таблицею ролей — і цього має бути нуль. Метрика стоїть проти
 // розсипання значень по компонентах, а не проти того, що ролей десять.
 const ROLE_TRACKS = ['-0.03em', '-0.02em', '-0.01em', '0.01em', '-0.04em', '0px', 'normal'];
 
-const PROBE = ({ DISPLAY_MIN, AA, ROLE_TRACKS }) => {
+const PROBE = ({ DISPLAY_MIN, AA, ROLE_TRACKS, DIM_RGB }) => {
   const px = (c) => (c.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
   const lum = (rgb) => { const s = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2]; };
   const cr = (a, b) => { const l1 = lum(px(a)), l2 = lum(px(b)); const [h, lo] = l1 > l2 ? [l1, l2] : [l2, l1]; return +(((h + 0.05) / (lo + 0.05)).toFixed(2)); };
@@ -101,15 +109,17 @@ const PROBE = ({ DISPLAY_MIN, AA, ROLE_TRACKS }) => {
     if (size >= DISPLAY_MIN) display.push(text.slice(0, 30));
     const bg = bgOf(el);
     const ratio = cr(cs.color, bg);
-    if (ratio < AA && text.length > 0) lowContrast.push({ ratio, size, color: cs.color, bg, sample: text.slice(0, 28) });
+    if (ratio < AA && text.length > 0) lowContrast.push({ ratio, size, color: cs.color, bg, sample: text.slice(0, 28), dim: DIM_RGB.includes(cs.color.replace(/\s/g, '')) });
     if (GLYPH.test(text) && text.replace(/\s/g, '').length > 0 && text.replace(/\s/g, '').length <= 3) glyphNodes.push(text.trim());
 
     // Ролі .t-* — скільки їх живе на цьому екрані (Р14, додаток).
     for (const c of el.classList) if (/^t-/.test(c)) roleClasses.add(c);
     families.add(fam);
-    weights.add(cs.fontWeight);
-    // 700 дозволена лише на дисплейному кеглі (h1 / display).
-    if (Number(cs.fontWeight) >= 700 && size < DISPLAY_MIN) heavySmall.push(`${size}px «${text.slice(0, 20)}»`);
+    // Р33: h1 екрана і бренд у рейці — не «вага 700 на недисплейному кеглі»:
+    // канон дає 700 саме h1, а h1 ролі — 20/26, не 32. Рахуються ваги решти.
+    const isH1 = el.tagName === 'H1' || !!el.closest('h1, [class*=brand], [class*=ogo]');
+    if (!isH1) weights.add(cs.fontWeight);
+    if (Number(cs.fontWeight) >= 700 && size < DISPLAY_MIN && !isH1) heavySmall.push(`${size}px «${text.slice(0, 20)}»`);
     // Трекінг поза таблицею ролей (Р24).
     // px → em із двома знаками. (Було ×1000/100 — усі значення виходили в
     // десять разів більшими, і роль -0.02em показувалась як -0.2em, тобто
@@ -122,7 +132,10 @@ const PROBE = ({ DISPLAY_MIN, AA, ROLE_TRACKS }) => {
     // Емфаза (⚠1): рядок у кеглі рядка-списку з вагою ≥ 600.
     // Логотип і назва бренду — знак, не виділений рядок (TabBar `brand-name`):
     // інакше метрика ловить сама себе на кожному екрані.
-    if (Number(cs.fontWeight) >= 600 && size >= 15 && size <= 17 && !el.closest('[class*=ogo], [class*=brand]')) emRows.push(text.slice(0, 24));
+    // Р33: «виділений» = вага ≥ 600 І колір тону (не ink/muted): назва картки
+    // D5 стоїть 17/600 чорнилом і емфазою не є.
+    const inkish = (c) => { const m = c.match(/\d+/g)?.map(Number) ?? []; return m.length >= 3 && Math.max(m[0], m[1], m[2]) - Math.min(m[0], m[1], m[2]) < 24; };
+    if (Number(cs.fontWeight) >= 600 && size >= 15 && size <= 17 && !inkish(cs.color) && !el.closest('[class*=ogo], [class*=brand]')) emRows.push(text.slice(0, 24));
   }
 
   // роздільники-волосини
@@ -169,6 +182,11 @@ const PROBE = ({ DISPLAY_MIN, AA, ROLE_TRACKS }) => {
     dividersInvisible: dividers.filter((r) => r < 1.5).length,
     dividerMin: dividers.length ? Math.min(...dividers) : null,
     contrastFails: lowContrast.length,
+    contrastDim: lowContrast.filter((x) => x.dim).length,
+    // Решта провалів — за кольором тексту, щоб було видно, це другий токен чи
+    // тон на власному тлі (пігулки).
+    contrastRest: [...lowContrast.filter((x) => !x.dim).reduce((m, x) => m.set(x.color, (m.get(x.color) ?? 0) + 1), new Map())]
+      .sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c, n]) => `${c.replace(/\s/g, '')}×${n}`),
     worstContrast: lowContrast.sort((a, b) => a.ratio - b.ratio).slice(0, 3),
     navSize: nav,
     glyphs: [...new Set(glyphNodes)],
@@ -233,7 +251,7 @@ for (const [name, path] of SCREENS) {
   const early = await page.evaluate(DIGITS).catch(() => ({ skeleton: false, digits: [] }));
   await page.waitForLoadState('networkidle').catch(() => {});
   await page.waitForTimeout(1200);
-  const r = await page.evaluate(PROBE, { DISPLAY_MIN, AA, ROLE_TRACKS });
+  const r = await page.evaluate(PROBE, { DISPLAY_MIN, AA, ROLE_TRACKS, DIM_RGB });
   r.early = early;
   all.push([name, r]);
   console.log(
@@ -249,9 +267,8 @@ for (const [name, r] of all) {
   if (r.combos > MAX_COMBOS) fail.push(`${name}: ${r.combos} стилів, треба ≤ ${MAX_COMBOS}`);
   if (r.roles > MAX_ROLES) fail.push(`${name}: ролей .t-* на екрані ${r.roles}, треба ≤ ${MAX_ROLES} — ${r.roleList.join(' ')}`);
   if (r.displayCount > DISPLAY_MAX) fail.push(`${name}: дисплейних елементів ${r.displayCount}, треба ≤ ${DISPLAY_MAX}`);
-  if (r.ratio != null && (r.ratio < RATIO_LO || r.ratio > RATIO_HI)) fail.push(`${name}: display ÷ body = ${r.ratio}, треба ${RATIO_LO}–${RATIO_HI}`);
   if (r.maxSize > MAX_SIZE) fail.push(`${name}: макс. кегль ${r.maxSize}, треба ≤ ${MAX_SIZE} (112 лише в Cook Mode)`);
-  if (r.commonest != null && (r.commonest < COMMON_LO || r.commonest > COMMON_HI)) fail.push(`${name}: найчастіший кегль ${r.commonest}, треба ${COMMON_LO}–${COMMON_HI}`);
+  if (r.bodySize != null && (r.bodySize < COMMON_LO || r.bodySize > COMMON_HI)) fail.push(`${name}: найчастіший кегль тексту ${r.bodySize}, треба ${COMMON_LO}–${COMMON_HI} (усього з мітками — ${r.commonest})`);
   if (r.families > MAX_FAMILIES) fail.push(`${name}: гарнітур ${r.families} (${r.familyList.join(', ')}), треба ${MAX_FAMILIES} — етап 1.6, Р19`);
   if (r.weights.length > MAX_WEIGHTS) fail.push(`${name}: ваг ${r.weights.length} (${r.weights.join('/')}), треба ≤ ${MAX_WEIGHTS}`);
   if (r.heavySmall.length) fail.push(`${name}: вага 700 на недисплейному кеглі — ${r.heavySmall.join(', ')}`);
@@ -260,9 +277,9 @@ for (const [name, r] of all) {
   if (r.emRows > MAX_EM_ROWS) fail.push(`${name}: виділених рядків ${r.emRows}, треба ≤ ${MAX_EM_ROWS} + ${MAX_EM_CARDS} картка (⚠1) — ${r.emSamples.join(' · ')}`);
   if (r.early?.skeleton && r.early.digits.length) fail.push(`${name}: числа на екрані до приходу даних — ${r.early.digits.slice(0, 4).join(' · ')}`);
   if (r.dividersInvisible > 0) fail.push(`${name}: ${r.dividersInvisible} роздільників контрастом < 1.5`);
-  if (r.contrastFails > 0) fail.push(`${name}: ${r.contrastFails} текстів нижче AA (гірший ${r.worstContrast[0]?.ratio} — «${r.worstContrast[0]?.sample}»)`);
+  if (r.contrastFails > 0) fail.push(`${name}: ${r.contrastFails} текстів нижче AA, з них dim ${r.contrastDim}${r.contrastRest.length ? `, решта ${r.contrastRest.join(' ')}` : ''} (гірший ${r.worstContrast[0]?.ratio} — «${r.worstContrast[0]?.sample}»)`);
   if (r.glyphs.length) fail.push(`${name}: текстові гліфи в ролі іконок — ${r.glyphs.join(' ')}`);
-  if (r.navSize && r.bodySize && r.navSize < r.bodySize) fail.push(`${name}: навігація ${r.navSize}px дрібніша за контент ${r.bodySize}px`);
+  // Р33: «навігація дрібніша за контент» знято — канон сам ставить рейку 14/500 під контент 15–16.
 }
 if (!fail.length) console.log('  усе чисто');
 else fail.forEach((f) => console.log(`  ✗ ${f}`));
