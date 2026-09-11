@@ -85,11 +85,36 @@ describe('події знайомства', () => {
   });
 
   it('фінальна кнопка на останній картці — «дочитав», без «пропустив»', async () => {
-    for (let i = 0; i < 10; i++) await act(async () => { btn('Далі').click(); });
-    await act(async () => { btn('Почати з того, що є').click(); });
+    // №37: потік один — 11 карток Семена і 7 карток знайомства; «Готово» на 18-й.
+    for (let i = 0; i < 11; i++) await act(async () => { btn('Далі').click(); });
+    expect(host!.textContent).toContain('Як тебе звати');
+    for (let i = 0; i < 6; i++) await act(async () => { btn('Далі').click(); });
+    await act(async () => { btn('Готово').click(); });
     const events = await sent();
     expect(events.map((e) => e.name)).toContain('welcome_finished');
+    expect(events.map((e) => e.name)).toContain('onboarding_finished');
     expect(events.map((e) => e.name)).not.toContain('welcome_skipped');
+  });
+
+  it('№37: знайомство — «Пропустити» на картці лишає поле порожнім і нічого не пише', async () => {
+    for (let i = 0; i < 11; i++) await act(async () => { btn('Далі').click(); });
+    const before = calls.filter((c) => c.url.startsWith('/v1/profile/')).length;
+    await act(async () => { [...host!.querySelectorAll('[data-intake-skip]')][0]!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(calls.filter((c) => c.url.startsWith('/v1/profile/')).length).toBe(before);
+    expect(host!.textContent).toContain('Це просто не їмо');
+    const events = await sent();
+    expect(events.find((e) => e.name === 'onboarding_skipped')?.props).toEqual({ panel: 1 });
+    expect(events.map((e) => e.name)).not.toContain('welcome_skipped');
+  });
+
+  it('№37: «Далі» з текстом пише поле в профіль — PATCH /v1/profile/:key', async () => {
+    for (let i = 0; i < 11; i++) await act(async () => { btn('Далі').click(); });
+    const input = host!.querySelector<HTMLInputElement>('[data-intake-input]')!;
+    // Контрольований input у React: значення — через нативний сеттер, інакше трекер не бачить зміни.
+    await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'Пилип'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => { btn('Далі').click(); });
+    const patch = calls.find((c) => c.url === '/v1/profile/name');
+    expect(patch?.body).toEqual({ text: 'Пилип' });
   });
 
   it('у props — тільки номер картки, нічого про людину', async () => {

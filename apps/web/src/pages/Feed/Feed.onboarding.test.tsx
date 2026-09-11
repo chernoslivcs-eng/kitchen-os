@@ -67,17 +67,13 @@ afterEach(async () => {
 describe('О2 (1.1): підложка під карткою у стрічці', () => {
   beforeEach(() => { localStorage.clear(); });
 
-  it('онбординг — без підложки, але сама картка на місці', async () => {
+  it('№37: картка знайомства в стрічці більше не показується — знайомство на /welcome', async () => {
+    // Прапорець INTAKE_ON_WELCOME у OnboardingCard: хід із карткою лишається в
+    // стрічці порожнім і без підложки; код картки піде після мерджу пакета 2.
     installFetch(withCard('onboarding'));
     await mount();
-    const card = host!.querySelector('[data-onboarding-card]');
-    expect(card).not.toBeNull();
-    // Жодного doccard-предка над карткою.
-    let el: Element | null = card;
-    while (el && el !== host) {
-      expect(el.className.toString()).not.toContain('doccard');
-      el = el.parentElement;
-    }
+    expect(host!.querySelector('[data-onboarding-card]')).toBeNull();
+    expect([...host!.querySelectorAll('[class*="doccard"]')].some((el) => el.textContent?.includes('Як тебе звати'))).toBe(false);
   });
 
   it('решта структурованих карток підложку зберігає', async () => {

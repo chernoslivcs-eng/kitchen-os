@@ -104,8 +104,14 @@ if (dcClick) {
   // Крок може бути `text:Підпис` (клік по тексту, коли в бандлі нема класів) або
   // `rclick:<css>` (contextmenu — меню станів Prototype відкривається правою кнопкою).
   for (const sel of dcClick.split(';;').map((x) => x.trim()).filter(Boolean)) {
-    if (sel.startsWith('text:')) await frame.$$eval('button, a, span, div', (els, t) => { const el = els.find((e) => e.textContent.trim() === t); if (!el) throw new Error(`text не знайдено: ${t}`); el.click(); }, sel.slice(5));
-    else if (sel.startsWith('rclick:')) { const css = sel.slice(7); await frame.waitForSelector(css, { timeout: 15000 }); await frame.$eval(css, (el) => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))); }
+    if (sel.startsWith('text:')) {
+      // Спершу в кадрі, потім на всій сторінці бандла (перемикач 1440 / 390 у Prototype стоїть над кадром).
+      const t = sel.slice(5);
+      const clickText = (els, tt) => { const el = els.find((e) => e.textContent.trim() === tt); if (el) { el.click(); return true; } return false; };
+      const hit = await frame.$$eval('button, a, span, div', clickText, t);
+      if (!hit) { const hit2 = await dcPage.$$eval('button, a, span, div', clickText, t); if (!hit2) throw new Error(`text не знайдено: ${t}`); }
+    }
+    else if (sel.startsWith('rclick:')) { const css = sel.slice(7); await frame.waitForSelector(css, { timeout: 15000, state: 'attached' }); await frame.$$eval(css, (els) => { const el = els.find((e) => e.offsetParent !== null) || els[0]; el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); }); }
     else { await frame.waitForSelector(sel, { timeout: 15000 }); await frame.$eval(sel, (el) => el.click()); }
     await dcPage.waitForTimeout(Number(arg('dc-wait', 600)));
   }

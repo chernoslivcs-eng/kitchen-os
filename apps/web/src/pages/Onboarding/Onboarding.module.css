@@ -36,7 +36,7 @@
 .skip { font-size: 14px; font-weight: 500; color: var(--muted); }
 .mob .skip { font-size: 13px; }
 
-/* прогрес · риски 4 (28 активна / 12) у шапці; 390 — смуга під шапкою */
+/* прогрес · 18 рисок 4 (28 активна / 12) у шапці; 390 — смуга під шапкою */
 .progress { display: flex; gap: 4px; }
 .dot { width: 12px; height: 4px; border-radius: 2px; background: var(--line2); transition: width 240ms var(--e), background 240ms var(--e); }
 .dotOn { background: var(--ink); }
@@ -66,6 +66,26 @@
 .prev:disabled { opacity: .35; cursor: default; }
 .next { height: 48px; padding: 0 22px; border-radius: 12px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; font-weight: 600; }
 .next:hover { filter: brightness(.96); }
+
+/* знайомство · поле «Мене звати …» (Prototype «Картки знайомства»): підзаголовок 16 muted,
+   початок речення 13 (ban — danger зі знаком), поле 56 r28 card sh 16, підказка 13 шавлією,
+   лічильник 13 dim; «Пропустити» між ← і «Далі» — 14/500 muted */
+.sub { margin: 0; font-size: 16px; line-height: 1.55; color: var(--muted); min-height: 52px; }
+.fieldBlock { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; max-width: 500px; }
+.start { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.startDanger { font-size: 13px; color: var(--danger); display: inline-flex; align-items: center; gap: 6px; }
+.input { height: 56px; padding: 0 18px; border-radius: 28px; border: 0; background: var(--card); box-shadow: var(--sh); font: inherit; font-size: 16px; color: var(--ink); width: 100%; outline: 0; }
+.input::placeholder { color: var(--dim); }
+.fieldRow { display: flex; align-items: flex-start; gap: 12px; }
+.hint { flex: 1; font-size: 13px; line-height: 1.5; color: var(--sage); }
+.counter { flex: none; font-size: 13px; line-height: 1.5; color: var(--dim); white-space: nowrap; }
+.counterLimit { color: var(--amber); }
+.skipStep { height: 48px; padding: 0 16px; border-radius: 12px; font-size: 14px; font-weight: 500; color: var(--muted); flex: none; }
+.skipStep:disabled { opacity: .5; }
+.mob .sub { font-size: 15px; line-height: 1.5; min-height: 0; }
+.mob .input { height: 52px; border-radius: 26px; font-size: 15px; }
+.mob .skipStep { height: 52px; padding: 0 14px; }
+.mob .fieldBlock { max-width: none; }
 
 /* 390 · колонка */
 .col { flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 0 20px; overflow: hidden; min-height: 0; }

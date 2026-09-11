@@ -2,7 +2,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { OnboardingCard, panelState, firstOpenPanel } from './OnboardingCard';
+// №37: у стрічці картка вимкнена прапорцем (знайомство — на /welcome); тут тестується сама картка.
+import { OnboardingCardLegacy as OnboardingCard, panelState, firstOpenPanel } from './OnboardingCard';
 import type { ChatCard, ProfileFieldV2 } from '../../api';
 
 // Крок 7 (7): карусель «Про тебе» — стани панелей із profile_text і пропусків,
