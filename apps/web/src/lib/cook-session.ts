@@ -26,6 +26,11 @@ export interface CookSession {
   recipeId?: string;
   // Правка №5: сесія, з якої запустили готування — вихід повертає туди.
   returnSessionId?: string | null;
+  // №10: зроблені кроки — явна множина (маршрут відкритий на будь-який крок);
+  // відсутня у старих сесіях — «усе до поточного».
+  done?: number[];
+  // №10: таймери кроків, з яких пішли: біг — дедлайн, пауза — залишок.
+  timers?: Record<number, { deadline: number | null; left: number }>;
 }
 
 export function saveCookSession(s: Omit<CookSession, 'savedAt'>): void {
