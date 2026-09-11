@@ -7,7 +7,7 @@ import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
@@ -35,7 +35,16 @@ export function PantryPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState<FilterState>(INITIAL);
+  // 6b-5: «Ще N прострочених — у коморі, за свіжістю» з панелі «Дім зараз»
+  // приходить із `state.sort` — комора відкривається вже в тому порядку.
+  const location = useLocation();
+  const [filter, setFilter] = useState<FilterState>(() => {
+    const sort = (location.state as { sort?: FilterState['sort'] } | null)?.sort;
+    return sort ? { ...INITIAL, sort } : INITIAL;
+  });
+  // Рейки фільтра — за кнопкою «Фільтр» (Screens); брудний фільтр — крапка на кнопці.
+  const [filterOpen, setFilterOpen] = useState(() => !!(location.state as { sort?: string } | null)?.sort);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
   const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
   const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
@@ -248,48 +257,57 @@ export function PantryPage() {
           action={{ label: PANTRY_FAILED.cta, run: () => void refresh() }}
         />
       )}
-      <AppHeader title="Комора" onMenu={() => openNav(true)} action={<>
-          <button
-            onClick={() => setAdding(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--line2)',
-              borderRadius: 'var(--r-pill)',
-              padding: '5px 12px',
-              color: 'var(--muted)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            + Додати
-          </button>
+      {/* Шапка за Screens «Комора · збірка» / «мобайл» (з wip/6b-2, окремим
+          комітом): h1 · лічильник 13 dim · розпірка · пошук 260×36 на card
+          (на 390 — знаком 40, розкриває поле над рейками) · «Фільтр» 38 на
+          card (ховає рейки порядок/тільки/стан) · «Додати» 36 чорнилом (на
+          390 — коло 42). Розкладка зон, банер, ритм календаря — лишаються на
+          гілці за чергою. */}
+      <AppHeader title="Комора" onMenu={() => openNav(true)} fill action={<>
           {/* QA6-12: під час пошуку лічильник показував загальну кількість —
               «9 ПОЗИЦІЙ» при одній видимій. Крок Ф1: те саме для фільтра — «12 З 61». */}
           <div className={styles.meta} data-testid="pantry-meta">{view.meta}</div>
+          <span className={styles['head-gap']} />
+          {batches.length > 0 && (
+            <label className={styles.search} data-search>
+              <Icon name="sys.search" size={16} inherit decorative />
+              <input
+                type="search"
+                value={filter.q}
+                onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+                placeholder="Продукт або категорія"
+                aria-label="Знайти в коморі"
+                className={styles['search-input']}
+              />
+            </label>
+          )}
+          {batches.length > 0 && (
+            <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} onClick={() => setSearchOpen((v) => !v)}
+              aria-label="Знайти в коморі" aria-pressed={searchOpen} data-search-toggle>
+              <Icon name="sys.search" size={16} inherit decorative />
+            </button>
+          )}
+          {batches.length > 0 && (
+            <button type="button" className={`${styles['head-icon']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`}
+              onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-toggle>
+              <Icon name="sys.filter" size={16} inherit decorative />
+              {view.dirty && <span className={styles['head-badge']} aria-hidden />}
+            </button>
+          )}
+          <button type="button" className={styles['head-add']} onClick={() => setAdding(true)} data-add>
+            <Icon name="sys.add" size={16} inherit decorative /><span className={styles['head-add-text']}>Додати</span>
+          </button>
       </>} />
 
       <div className={styles.body}>
-        {batches.length > 0 && (
-          <input
-            value={filter.q}
-            onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
-            placeholder="Знайти в коморі — продукт або категорію: «сир», «овочі»"
-            aria-label="Знайти в коморі"
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              background: 'var(--bg)',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--r)',
-              color: 'var(--ink)',
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              marginBottom: 4,
-            }}
-          />
+        {batches.length > 0 && searchOpen && (
+          <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
+            <Icon name="sys.search" size={16} inherit decorative />
+            <input type="search" value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+              placeholder="Продукт або категорія" aria-label="Знайти в коморі" className={styles['search-input']} autoFocus />
+          </label>
         )}
-        {batches.length > 0 && (
+        {batches.length > 0 && filterOpen && (
           <FilterRails
             view={view}
             state={filter}
@@ -324,11 +342,10 @@ export function PantryPage() {
         )}
 
         {view.grouped && view.groups.map((g) => (
-          <div key={g.zone} data-zone={g.zone}>
-            {/* Хедер зони за каноном v3: чорнило, 44 px, знак 15, назва 14/600,
-                лічильник 13/400 на opacity .6. Раніше лічильник фарбувався
-                токеном РАМКИ (--border-strong) — 1.32:1, найгучніший провал
-                контрасту в усій базі аудиту. */}
+          <div key={g.zone} data-zone={g.zone} className={styles['zone-card']}>
+            {/* Хедер зони як у бандлі: заливка чорнилом, текст bg, 44 px, знак 16,
+                назва 14/600, лічильник 12 на opacity .7 (бандл .6 — у темній це
+                4.4:1, тому .7: 8.1 / 6.1). Зона — картка на полотні bg. */}
             <div className={styles['section-label']}>
               <Icon name={ZONE_ICON[g.zone] as 'zone.fresh'} size={16} inherit decorative />
               <span className={styles['section-name']}>{g.label}</span>

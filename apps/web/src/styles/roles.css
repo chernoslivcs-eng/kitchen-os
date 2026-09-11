@@ -18,8 +18,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.t-display { font-size: 40px;  line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
-.t-h1      { font-size: 32px;  line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
+.t-display { font-size: 36px;  line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
+.t-h1      { font-size: 28px;  line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
 .t-h2      { font-size: 22px;  line-height: 1.2;  font-weight: 600; letter-spacing: -0.02em; }
 .t-h3      { font-size: 17px;  line-height: 1.3;  font-weight: 600; letter-spacing: -0.01em; }
 .t-body    { font-size: 16px;  line-height: 1.55; font-weight: 400; letter-spacing: 0; }
@@ -28,6 +28,11 @@
 .t-caption { font-size: 13px;  line-height: 1.4;  font-weight: 400; letter-spacing: 0; }
 .t-label   { font-size: 12px;  line-height: 1.3;  font-weight: 500; letter-spacing: 0.01em; }
 .t-timer   { font-size: 112px; line-height: 1;    font-weight: 700; letter-spacing: -0.04em; }
+/* Рішення 11.09: розміри — як на кадрах Screens. h1 там 28 на 1440 і 26 на
+   390 (tokens-v3, таблиця з посиланнями на кадри); display 36. */
+@media (max-width: 767px) {
+  .t-h1 { font-size: 26px; }
+}
 
 /* Емфаза: 600 + чорнило, і не більше 3 виділених рядків та 1 картки-акценту на
  * екран. Число поки не має рішення (⚠1) — правило тут, метрика в аудиті

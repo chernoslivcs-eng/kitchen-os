@@ -7,9 +7,21 @@
      з таб-баром їдуть за екран. Хендоф тримає їх знизу завжди; скрол живе
      всередині .timeline (flex:1 + overflow-y). */
   height: 100dvh;
-  background: var(--card);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
+  /* 6b-5: шапка лежить поверх стрічки (absolute), а її розкладка рахується
+     від ширини цього контейнера, не вʼюпорту (Р38). */
+  position: relative;
+  container-type: inline-size;
+  container-name: chat;
+}
+/* <768: нижній бар 64 стоїть під стрічкою (body.padding-bottom його не
+   зачіпає — екран рахує свою висоту сам); поки композитор у фокусі, бар
+   зʼїжджає — екран знову на всю висоту. */
+@media (max-width: 767px) {
+  .screen { height: calc(100dvh - 64px - env(safe-area-inset-bottom)); }
+  :global(body.composer-focused) .screen, :global(body.sheet-open) .screen { height: 100dvh; }
 }
 
 /* ----- Header --------------------------------------------------------- */
@@ -61,7 +73,9 @@
 .timeline {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 22px 20px;
+  /* Шапка 56 + фейд 40 лежать поверх: верхній відступ дає першому ходу місце
+     під градієнтом, коли стрічка прокручена до початку. */
+  padding: 64px 22px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -90,8 +104,10 @@
 .turn-text {
   font-family: var(--font-body);
   font-size: 16px;
-  line-height: var(--lh-body);
-  color: var(--muted);
+  /* Prototype: репліка бота — 16/1.55 чорнилом, до 600; людини — бабл. */
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 600px;
   /* Пул-2 №1: вставлений багаторядковий текст (інвентар) зберігає переноси —
      без цього список зливався в одну простиню. */
   white-space: pre-wrap;
@@ -111,14 +127,16 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .turn-user .turn-text {
-  /* QA9-add: саме --bg-surface-2 (#f8f9fa) — біла підложка канону, --bg-surface
-     зливалась із тлом стрічки. */
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px 14px;
-  max-width: 80%;
-  color: var(--ink);
+  /* Prototype: репліка людини — чорнило на bg, радіус 20 20 6 20, 12 16,
+     ≤ 75 %, 16/1.5. Старе — --bg-surface-2 через мапу токенів за іменем:
+     інверсія тону, успадкована з QA9. */
+  background: var(--ink);
+  border: 0;
+  border-radius: 20px 20px 6px 20px;
+  padding: 12px 16px;
+  max-width: 75%;
+  color: var(--bg);
+  line-height: 1.5;
 }
 
 /* Моушн-кіт §02: «стрімінг» відповіді — фрази з'являються по черзі (fade
@@ -199,66 +217,97 @@
 .card-actions { display: flex; gap: 10px; margin-top: 4px; }
 .card-actions > :first-child { flex: 1; }
 
-/* ----- Proposal ------------------------------------------------------- */
-.proposal-item {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-bottom: 14px;
+/* ----- Proposal (6b-4, Prototype propDesk) ------------------------------
+   Одна картка r16 на тіні, 0 18; пропозиції рядками через волосину.
+   Розгорнута: 16 0, знак 44 (line2), назва 18/600 −.015em, рядок 13 muted,
+   чіпи 26 r999 12 (бурштин зі знаком — те, що горить; решта на bg), дії
+   колом 36 стовпчиком (cooking-pot шавлією, reply контуром). Згорнута:
+   12 0, знак muted, назва 15/600, підрядок 12 (бурштин «бракує …»), «+» 36. */
+.prop-card {
+  display: flex; flex-direction: column;
+  padding: 0 18px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+  animation: card-enter var(--dur-base) var(--ease-enter);
 }
-.proposal-item + .proposal-item {
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
-}
-.proposal-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 24px;
-  line-height: 1.2;
-  letter-spacing: var(--tracking-tight);
-  color: var(--ink);
-}
-.proposal-desc {
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--muted);
-}
-.proposal-meta {
-  color: var(--dim);
-}
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.chip {
-  background: var(--sage-bg);
-  border: 1px solid var(--sage);
-  color: var(--sage);
+.prop-row { display: flex; align-items: flex-start; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.prop-row:last-child { border-bottom: 0; }
+.prop-row-closed { align-items: center; padding: 12px 0; }
+.prop-ico { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--ink); }
+.prop-ico-muted { color: var(--muted); }
+.prop-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.prop-row-closed .prop-body { gap: 2px; }
+.prop-title { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: -0.015em; line-height: 1.2; color: var(--ink); }
+.prop-title-sm { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); }
+.prop-meta { display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.prop-desc { font-family: var(--font-body); font-size: 13px; line-height: 1.45; color: var(--muted); }
+.prop-sub { font-family: var(--font-body); font-size: 12px; color: var(--muted); }
+.prop-sub-amber { font-family: var(--font-body); font-size: 12px; color: var(--amber); }
+.prop-chips { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 4px; }
+.prop-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 9px;
   border-radius: var(--r-pill);
-  padding: 6px 12px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 12px; white-space: nowrap;
 }
-.chip-need {
-  background: var(--line);
-  border-color: var(--line2);
-  color: var(--muted);
+.prop-chip-amber { background: var(--amber-bg); color: var(--amber); font-weight: 500; }
+.prop-chip-dim { color: var(--dim); }
+.prop-actions { flex: none; display: flex; flex-direction: column; gap: 6px; }
+.prop-act {
+  width: 36px; height: 36px; flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--line2); background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
+}
+.prop-act:hover { color: var(--ink); }
+/* Кадр: «Готуємо» на пропозиції — шавлієва заливка (Prototype propDesk);
+   це дія «є все — можна», не стан контролу. */
+.prop-act-sage { background: var(--sage); border-color: var(--sage); color: #fff; }
+.prop-act-sage:hover { color: #fff; filter: brightness(0.96); }
+
+/* ----- Шапка чату (6b-5, Prototype) ------------------------------------
+   56, 0 24, gap 8: пілюля сесії 36 на card+тінь (chevron 15 dim · назва
+   14/500 · «· сьогодні» dim), розпірка, чіпи 36 r999 13/500 зі знаком 15:
+   «Горить N» amber-bg/amber, «Готуємо · таймер» sage-bg/sage, «Дім зараз»
+   card+тінь. */
+.chat-head { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 24px; flex: none; }
+.chat-head-gap { flex: 1; }
+.session-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px 0 8px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; min-width: 0; cursor: pointer;
+}
+.session-pill > [data-icon] { color: var(--dim); }
+.session-pill-title { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.session-pill-when { color: var(--dim); font-weight: 400; }
+.head-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; flex: none; cursor: pointer;
+}
+.head-chip:hover { filter: brightness(0.96); }
+.head-chip-amber { background: var(--amber-bg); color: var(--amber); box-shadow: none; }
+.head-chip-sage { background: var(--sage-bg); color: var(--sage); box-shadow: none; }
+@media (max-width: 767px) {
+  .chat-head { padding: 0 16px; height: 56px; }
+  .session-pill-title { max-width: 150px; }
+  .session-pill-when { display: none; }
+  /* Кадр 390 (Prototype only-m): «Дім» зі станом; повний підпис — від 768. */
+  .head-chip-home-text { display: none; }
 }
 
 /* ----- Composer ------------------------------------------------------- */
 .composer-wrap {
-  border-top: 1px solid var(--line);
-  background: var(--card);
+  /* Лінії над композитором немає (Prototype; власник 11.09). */
+  background: var(--bg);
   /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
      а не від низу вікна. Композер росте разом із текстом, і фіксований
      відступ від краю рано чи пізно на нього наліз би. */
@@ -398,37 +447,66 @@ a.att-chip:hover { border-color: var(--sage); }
   margin: 12px 22px 20px;
   /* Правка №8: пілюля росте разом із textarea (1→8 рядків), кнопки
      тримаються низу. */
+  /* Етап 6a, канон композитора (tokens-v3): min-height 52, радіус 26,
+     кнопки 42 колом, знаки 18; поверхня card (Errors E2, Responsive). */
   min-height: 52px;
-  border-radius: var(--r-lg);
-  background: var(--line);
-  border: 1px solid var(--line2);
+  border-radius: 26px;
+  background: var(--card);
+  /* 6b-5 (Prototype, композитор): картка на тіні `--sh` = sh-a + sh-b, без
+     рамки; фокус нічим не обводиться — каретка й тінь і є стан. Шавлієвий
+     контур знято за правилом канону: шавлія — рід факту, не стан контролу. */
+  border: 0;
+  box-shadow: var(--sh-a), var(--sh-b);
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: flex-end;
-  padding: 7px 8px 7px 16px;
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+  /* Prototype: 5 5 5 8 — зліва «+» 42 колом. */
+  padding: 5px 5px 5px 8px;
+  transition: box-shadow var(--dur-fast);
 }
-/* Крок Д1 (макет v7): композитор «озброюється», поки файл над вікном. Він і є
-   ціль — накладки в цьому дизайні немає, тож стан має показати сам приймач. */
-.composer-armed {
-  border-color: var(--sage) !important;
-  border-width: 1.5px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sage) 12%, transparent) !important;
-  transition: border-color 160ms, box-shadow 160ms;
+/* «+» 42 коло: у спокої прозоре muted, відкрите меню — чорнило. Меню 260 на
+   card r14 --sh2, пункти 44 r10 зі знаком 16 muted, підказка 11 dim. */
+.attach-wrap { position: relative; flex: none; align-self: flex-end; }
+.attach-plus {
+  width: 42px; height: 42px; border-radius: 50%; border: 0;
+  background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
 }
-.composer-armed .composer-input::placeholder { color: var(--sage); }
+.attach-plus:hover:not(:disabled) { color: var(--ink); }
+.attach-plus-on, .attach-plus-on:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+.attach-plus:disabled { opacity: 0.45; cursor: not-allowed; }
+.attach-menu {
+  position: absolute; left: 0; bottom: 52px; width: 260px; z-index: 5;
+  display: flex; flex-direction: column;
+  padding: 6px; border-radius: 14px;
+  background: var(--card); box-shadow: var(--sh2);
+  animation: card-enter var(--dur-fast) var(--ease-enter);
+}
+.attach-item {
+  display: flex; align-items: center; gap: 12px;
+  height: 44px; padding: 0 12px;
+  border: 0; border-radius: 10px; background: transparent;
+  font-family: var(--font-body); font-size: 14px; color: var(--ink); text-align: left; cursor: pointer;
+}
+.attach-item > [data-icon] { color: var(--muted); }
+.attach-item:hover { background: var(--line); }
+.attach-hint { font-size: 11px; color: var(--dim); padding: 6px 12px 4px; }
+/* «⌘K» dim 12 перед мікрофоном (Screens «Чат · збірка»); на дотиках — ні. */
+.composer-kbd { flex: none; align-self: center; padding-right: 6px; font-family: var(--font-body); font-size: 12px; color: var(--dim); }
+@media (hover: none), (max-width: 767px) { .composer-kbd { display: none; } }
 
-.composer:focus-within {
-  border-color: var(--sage);
-  box-shadow: 0 0 0 3px var(--focus-ring);
+/* Крок Д1 (макет v7): композитор «озброюється», поки файл над вікном. Він і є
+   ціль — накладки в цьому дизайні немає, тож стан має показати сам приймач.
+   Стан контролу — чорнило (inset 1.5), не шавлія. */
+.composer-armed {
+  box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b) !important;
 }
-.composer-recording {
-  border-color: var(--sage) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 10%, transparent) !important;
-  /* Моушн-2 №3: цегляний бордер в'їжджає, а не вмикається (150ms enter). */
-  transition: border-color var(--dur-fast, 150ms) var(--ease-enter, ease),
-              box-shadow var(--dur-fast, 150ms) var(--ease-enter, ease);
-}
+.composer-armed .composer-input::placeholder { color: var(--ink); }
+
+/* Запис: сам композитор не міняється (Prototype) — стан несе кнопка .mic-live;
+   клас лишається як гачок для тестів і стану. */
+.composer-recording { }
 .composer-input {
   flex: 1;
   min-width: 0;
@@ -443,7 +521,7 @@ a.att-chip:hover { border-color: var(--sage); }
   line-height: 22px;
   max-height: 176px;              /* 8 × 22px */
   overflow-y: auto;
-  padding: 8px 0;                 /* однорядкова = 38px, як кнопки поруч */
+  padding: 10px 0;                /* однорядкова = 42px, як кнопки поруч */
 }
 .composer-input::placeholder { color: var(--dim); }
 /* Моушн-кіт §04: морф 🎙⇄↑⇄■ — кнопка дії з'являється scale .6→1 + fade
@@ -460,20 +538,25 @@ a.att-chip:hover { border-color: var(--sage); }
 .frame-btn,
 .frame-btn-ghost,
 .frame-btn-solid {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   flex: none;
-  border-radius: 10px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   cursor: pointer;
   transition: background var(--dur-fast);
 }
+/* Головне гніздо композитора (мікрофон на порожньому полі · стоп під час
+   думання) — чорнило, як «надіслати»: те саме місце, той самий вигляд.
+   Prototype тримає мікрофон прозорим поруч із «надіслати»; тут кнопки
+   міняються місцями, тож гніздо одне і воно чорнильне (рішення власника 11.09). */
 .frame-btn {
-  border: 1px solid var(--line2);
-  background: transparent;
-  color: var(--muted);
+  border: 0;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
 }
+.frame-btn:hover:not(:disabled) { filter: brightness(0.96); }
 .frame-btn-ghost {
   border: 0;
   background: transparent;
@@ -487,10 +570,12 @@ a.att-chip:hover { border-color: var(--sage); }
   font-size: 17px;
   font-weight: 600;
 }
-.frame-btn-solid:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.frame-btn-solid:hover:not(:disabled) { filter: brightness(0.96); }
+/* Порожній драфт: світле коло, muted стрілка — кнопка є, дія ще ні. */
 .frame-btn:disabled,
 .frame-btn-ghost:disabled,
 .frame-btn-solid:disabled { opacity: 0.45; cursor: not-allowed; }
+.frame-btn-idle, .frame-btn-idle:disabled { background: var(--bg); color: var(--muted); opacity: 1; cursor: default; }
 
 /* ----- Toast --------------------------------------------------------- */
 .toast {
@@ -635,10 +720,10 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Мікрофон — канон Бриф-2 5б: під час запису кнопка стає цегляним квадратом
    38px зі стоп-іконкою і пульсом 1.2s; цегляний тут НЕ помилка, а «REC». */
 .mic-live {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 50%;
   /* Пул-7 №3: запис — шавлія, не цегла («червоний — небезпека»). */
   background: var(--sage);
   display: grid;
@@ -684,19 +769,6 @@ a.att-chip:hover { border-color: var(--sage); }
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-.recipe-msg-cols {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-@media (min-width: 1024px) {
-  .recipe-msg-cols {
-    flex-direction: row;
-    gap: 36px;
-  }
-  .recipe-msg-cols > div:first-child { flex: 1; }
-  .recipe-msg-cols > div:last-child { flex: 1.2; }
 }
 /* Поріг 1200 (v3, крок 1.1). Виведений із заміряних чисел, не з брифу.
    Бриф рахує накладні як 232 (бічне меню) — насправді їх 276: меню 232
@@ -892,58 +964,54 @@ a.att-chip:hover { border-color: var(--sage); }
    навігація, а не головна дія. Чорнильна заливка в системі означає
    «остаточна дія» (Оформити, Застосувати); віддати її слідам — і кнопки
    в панелі перестануть бути найважчим елементом на екрані. */
+/* Етап 6b — слід як пігулка бандла («Чат · збірка»): 44 px, r10, знак
+   типу 18 зліва, назва 13/500 і підрядок 12, шеврон 16 праворуч. Слова —
+   з етапу 3, форма — з кадру. Тон: card + line2 у спокої; бурштин — поки
+   чекає рішення; шавлія — відкрито в панелі. */
 .trace {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   align-self: flex-start;
   max-width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--sage);
+  height: 48px;
+  padding: 0 14px 0 12px;
+  border: 0;
   border-radius: 12px;
-  background: var(--sage-bg);
+  background: var(--card);
+  color: var(--muted);
   cursor: pointer;
   text-align: left;
-  transition: background 150ms ease, border-color 150ms ease;
+  /* Prototype (`recipeChip` / `cartChip`): кільце чорнилом усередину 1.5 —
+     не рамка; чек, що чекає, — те саме кільце бурштином; список — тінь. */
+  box-shadow: 0 0 0 1.5px var(--ink) inset;
+  transition: background 150ms ease, box-shadow 150ms ease;
 }
-.trace:hover { background: var(--sage-bg-strong); border-color: var(--sage); }
-/* Відкрито — той артефакт, що зараз у панелі. Рамка в акценті: слід і
-   панель говорять про одне, і це має бути видно, не здогадуватись. */
-.trace-on { border-color: var(--sage); }
-/* Бурштиновий слід — рішення, якого чекають, а не стан. Той самий блок,
-   лише інша температура: так «чекає рішення» видно прямо в потоці, без
-   окремої стрічки в панелі (V6). */
-.trace-pending { background: var(--amber-bg); border-color: var(--amber-line); }
-.trace-pending:hover { border-color: var(--amber); }
-.trace-pending .trace-dot,
-.trace-pending .trace-kind,
+.trace:hover { background: var(--bg); }
+.trace-on { box-shadow: 0 0 0 1.5px var(--ink) inset; }
+.trace-pending { box-shadow: 0 0 0 1.5px var(--amber) inset; }
+.trace-soft { box-shadow: var(--sh-a), var(--sh-b); }
+.trace-pending .trace-icon,
+.trace-pending .trace-value,
 .trace-pending .trace-go { color: var(--amber); }
-.trace-pending .trace-value { color: var(--ink); }
-/* Крапка слідa — коло 6 px, яке несе колір стану. Була гліфом ● / ○ / ◌ на
- * font-size 13px: три різні символи в тексті замість одного кола з двома
- * формами. Пережило етапи 1.5 і 1.6, бо сліди зʼявляються лише коли в чаті є
- * що показати (DEBT §26). */
-.trace-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--sage-strong);
-  flex: none; margin-top: 5px;
-}
-/* Скасоване й те, що чекає — контурне коло: форма несе стан, не символ. */
-.trace-dot-off { background: transparent; border: 1.5px solid currentColor; }
+.trace-icon { flex: none; display: grid; place-items: center; color: var(--muted); }
+.trace-dot { display: none; }
+.trace-dot-off { display: none; }
 .trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-/* Метадані — моно 10, і саме вони мутед. */
 .trace-kind {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-/* Суть — те, по що клікають. */
 .trace-value {
   font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 12px;
   line-height: 1.25;
-  color: var(--sage-strong);
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -953,7 +1021,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .trace-go {
   flex: none;
   padding-left: 4px;
-  color: var(--sage-strong);
+  color: var(--dim);
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 600;
@@ -1108,43 +1176,90 @@ a.att-chip:hover { border-color: var(--sage); }
    інгредієнті, «+» у кожному рядку, підписи секцій, лічильник «● 3 з
    комори», вертикальна риска підказки. Лишилось два: текст і кількість.
    Секції розділяє відстань — 20px між блоками проти 9px між рядками. */
-.recipe-list { display: flex; flex-direction: column; gap: 9px; }
+/* 6b-3 — рецепт у панелі за артефактом «Рецепт» у Prototype: пілюля 24,
+   назва 22/700, рядок 13 muted, підписи секцій 12/500, рядки складу 40 із
+   крапкою роду 7 і волосиною зверху, кроки — кола 24 контурні 1.5 line2 з
+   номером 11/600 muted, текст 14/1.45; блоки на відстані 16. */
+.recipe-msg { gap: 16px; }
+.recipe-head { display: flex; flex-direction: column; gap: 8px; }
+.recipe-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px;
+  border: 0; border-radius: var(--r-pill);
+  font-family: var(--font-body); font-size: 12px; font-weight: 500;
+  cursor: default;
+}
+.pill-status { height: 24px; padding: 0 9px; align-self: flex-start; }
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill-sage { background: var(--sage-bg); color: var(--sage); }
+.pill-amber { background: var(--amber-bg); color: var(--amber); }
+.pill-far { background: var(--bg); color: var(--dim); }
+.pill-card { height: 32px; padding: 0 12px; background: var(--bg); color: var(--ink); font-size: 13px; cursor: pointer; }
+.pill-card:hover:not(:disabled) { background: var(--line); }
+.pill-saved { color: var(--sage); cursor: default; }
+.pill-mini { height: 22px; padding: 0 8px; font-size: 11px; margin-left: 8px; }
+/* Назва — 22/700 (Prototype; роль h2 дає 600 — панель важча, рішення власника 11.09). */
+.recipe-title { margin: 0; color: var(--ink); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
+.recipe-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.recipe-note { margin: 0; font-family: var(--font-body); font-size: 13px; line-height: 1.45; color: var(--muted); }
+.recipe-section { display: flex; flex-direction: column; }
+.recipe-section-head { font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--muted); padding-bottom: 6px; }
 .recipe-ing {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  border-top: 1px solid var(--line);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.3;
+  color: var(--ink);
 }
-.recipe-ing-name { flex: 1; min-width: 0; }
-.recipe-ing-qty {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--dim);
-}
-.recipe-ing-added { font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
+.recipe-ing[data-missing] { color: var(--muted); }
+.ing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); flex: none; }
+.ing-dot-missing { background: var(--amber); }
+.recipe-ing-name { flex: 1; min-width: 0; display: flex; align-items: center; }
+.recipe-ing-qty { flex: none; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
 .recipe-step {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
   font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
 }
-/* Номер кроку рецепта — це ЗМІСТ, не оздоба. Був 12 px у токені РАМКИ:
- * четвертий випадок того самого патерну, і кегль нижчий за 13, на якому канон
- * узагалі дозволяє `dim`. */
 .recipe-step-n {
   flex: none;
-  width: 14px;
-  font-size: 13px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line2);
+  box-sizing: border-box;
+  color: var(--muted);
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--dim);
 }
 .recipe-step-t { flex: 1; min-width: 0; }
 .recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
+/* «Готуємо» — чорнило 48 r12 з cooking-pot, на всю ширину низу картки. */
+.cook-go {
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  height: 48px; padding: 0 18px;
+  border: 0; border-radius: 12px;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-body); font-size: 15px; font-weight: 600;
+  cursor: pointer;
+}
+.cook-go:hover { filter: brightness(0.96); }
+/* Підвал рецепта: «У список · N» текстом над «Готуємо», кнопка на всю ширину. */
+.recipe-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+.recipe-foot .recipe-tolist { text-align: center; }
+.recipe-foot .cook-go { width: 100%; }
 .recipe-miss {
   flex: 1;
   font-family: var(--font-mono);
@@ -1158,10 +1273,11 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
   color: var(--muted);
   font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
 }
+.recipe-tolist:disabled { cursor: default; color: var(--dim); }
 
 /* ── Крок 2.1: один закон низу панелі (V7) ───────────────────────────
    Смуга однакова для всіх артефактів: стан ліворуч моно, дії праворуч у
@@ -1177,6 +1293,10 @@ a.att-chip:hover { border-color: var(--sage); }
   padding-top: 12px;
   margin-top: 6px;
 }
+/* У слоті панелі геометрію низу малює сама панель (.rail-foot: 12 18 18 і
+   волосина); власна рамка підвалу тут була б другою лінією. Класи двох
+   модулів не бачать одне одного — тому гачок атрибутом. */
+[data-panel-foot] .card-foot { border-top: 0; padding-top: 0; margin-top: 0; }
 /* Стан — моно, і саме він розтягується: кнопки тримають свій розмір,
    порожнеча дістається тексту. */
 .strip-state {
@@ -1233,6 +1353,9 @@ a.att-chip:hover { border-color: var(--sage); }
   .card-foot > button:last-of-type,
   .card-foot > .strip-main { order: -1; justify-content: center; }
   .card-foot > .strip-main { justify-content: center; }
+  /* Рецепт (6b-3): «Готуємо» притиснута до низу — «У список · N» текстом над нею. */
+  .card-foot > .recipe-tolist { order: -2; text-align: center; }
+  .card-foot > .cook-go { order: 0; }
 }
 
 /* ── Крок 4.1b: чек — групи замість суцільного списку (V4) ───────────
@@ -1373,7 +1496,7 @@ a.att-chip:hover { border-color: var(--sage); }
   border-color: var(--line);
   cursor: default;
 }
-.trace-undone .trace-dot,
+.trace-undone .trace-icon,
 .trace-undone .trace-kind { color: var(--dim); }
 .trace-undone .trace-value { color: var(--dim); text-decoration: line-through; }
 
@@ -1430,3 +1553,36 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
 }
 .head-new:hover { color: var(--sage-strong); }
+
+/* ── Картка рецепта в стрічці — за Prototype propDesk (6b-4) ─────────────
+   Біла картка r16 з тінню; знак страви колом 44; дії колом 36 праворуч:
+   cooking-pot шавлією, reply контуром; згорнута — лише «+». */
+.rcard {
+  display: flex; align-items: flex-start; gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+}
+/* «Відкрито в панелі» — без кільця: у Prototype відкрита картка має лише тінь,
+   що відкрито — видно по панелі. Клас лишається для логіки, не для вигляду. */
+.rcard-on { }
+.rcard-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--ink); }
+.rcard-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.rcard-title { border: 0; background: none; padding: 0; text-align: left; color: var(--ink); cursor: pointer; font-size: 18px; }
+.rcard-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); }
+.rcard-meta-item { display: inline-flex; align-items: center; gap: 4px; }
+.rcard-ok { color: var(--sage); }
+.rcard-desc { color: var(--muted); }
+.rcard-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.rcard-acts { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+/* Дії колом 36 (Prototype propDesk): cooking-pot шавлією, reply і «+» контуром. */
+.rcard-act {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--line2); background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
+}
+.rcard-act:hover { color: var(--ink); }
+.rcard-act-sage { background: var(--sage); color: #fff; border-color: var(--sage); }
+.rcard-act-sage:hover { color: #fff; filter: brightness(0.96); }

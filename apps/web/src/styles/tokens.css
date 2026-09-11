@@ -23,7 +23,9 @@
   /* Головна кнопка: чорнило на полотні, інверсія — на темній світла. */
   --btn-primary-bg:      var(--ink);
   --btn-primary-fg:      var(--bg);
-  --btn-primary-hover:   var(--sage-strong);
+  /* Наведення на чорнильну кнопку не міняє кольору — Prototype `.hit:hover`
+     = brightness(.96); шавлія тут — стан контролу, а вона рід факту. */
+  --btn-primary-hover:   var(--ink);
   --btn-primary-pressed: var(--muted);
 
   /* Фокус-кільце — шавлія тонально. */
@@ -32,6 +34,7 @@
   /* Тіні — за tokens-v3 · Поверхні: sh-a 0 1px 2px · sh-b 0 8px 24px · панель 0 16px 48px. */
   --sh-a:          0 1px 2px rgba(0, 0, 0, 0.35);
   --sh-b:          0 8px 24px rgba(0, 0, 0, 0.45);
+  --sh2:           0 12px 40px rgba(0, 0, 0, 0.5);
   --shadow-panel:  0 16px 48px rgba(0, 0, 0, 0.5);
   --shadow-toast:  var(--sh-b);
 
@@ -46,13 +49,17 @@
 
   --btn-primary-bg:      var(--ink);
   --btn-primary-fg:      var(--bg);
-  --btn-primary-hover:   var(--sage-strong);
+  /* Наведення на чорнильну кнопку не міняє кольору — Prototype `.hit:hover`
+     = brightness(.96); шавлія тут — стан контролу, а вона рід факту. */
+  --btn-primary-hover:   var(--ink);
   --btn-primary-pressed: var(--muted);
 
   --focus-ring: rgba(88, 117, 78, 0.14);
 
   --sh-a:          0 1px 2px rgba(26, 28, 30, 0.05);
-  --sh-b:          0 8px 24px rgba(26, 28, 30, 0.06);
+  --sh-b:          0 8px 24px rgba(26, 28, 30, 0.07);
+  /* Prototype `--sh2`: панель артефакта й шторки. */
+  --sh2:           0 12px 40px rgba(26, 28, 30, 0.18);
   --shadow-panel:  0 16px 48px rgba(26, 28, 30, 0.10);
   --shadow-toast:  var(--sh-b);
 
@@ -130,7 +137,9 @@
  * Sheet-модалки — position:fixed inset:0, тому вони натурально накривають
  * і сайдбар — це очікувано. */
 @media (min-width: 1024px) {
-  body.with-sidebar { padding-left: 232px; }  /* Д01: сайдбар 232, не 200 */
+  /* Етап 6a: рейка 60 типово, сайдбар 256 за body.nav-expanded (Responsive R1). */
+  body.with-sidebar { padding-left: 60px; transition: padding-left var(--dur-slow) var(--ease-standard); }
+  body.with-sidebar.nav-expanded { padding-left: 256px; }
 }
 /* Пул-6 №1: планшет 768–1023 — смужка 64px (самі гліфи, без підписів),
    нижній таб-бар зникає вже тут. */

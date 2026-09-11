@@ -93,10 +93,12 @@ describe('слід у стрічці — єдине видиме предста�
     });
 
     expect(traces()).toHaveLength(1);
-    // «ЧЕК», бо source.kind — чековий; без нього було б «У КОМОРУ».
-    expect(traceText()).toContain('ЧЕК');
+    // «Чек», бо source.kind — чековий; без нього було б «У комору». Етап 6b:
+    // слова етапу 3 звичайним регістром, форма — пігулка бандла зі знаком.
+    expect(traceText()).toContain('Чек');
     expect(traceText()).toContain('3');
-    expect(traceText()).toContain('ПОЗИЦІЇ');
+    expect(traceText()).toContain('позиції');
+    expect(host!.querySelector(`.${styles['trace-icon']} svg`)).toBeTruthy();
     // Стрілка — обіцянка, що слід кудись веде (вкладка «Чек» у панелі).
     expect(host!.querySelector(`.${styles['trace-go']}`)).toBeTruthy();
   });
@@ -117,12 +119,12 @@ describe('слід у стрічці — єдине видиме предста�
     expect(traces()).toHaveLength(0);
   });
 
-  it('застосований список покупок: слід із «СПИСОК» і кнопкою СКАСУВАТИ', async () => {
+  it('застосований список покупок: слід із «Список» і кнопкою СКАСУВАТИ', async () => {
     installFetch({ count: 2, items: [{ id: 'i1', label: 'олія' }, { id: 'i2', label: 'рис' }] });
     await feedWith({ type: 'shopping', items: [{ op: 'add', label: 'олія' }, { op: 'add', label: 'рис' }] });
 
     expect(traces()).toHaveLength(1);
-    expect(traceText()).toContain('СПИСОК');
+    expect(traceText()).toContain('Список');
     // Скасування живе на самому сліді, не лише в тості, який уже згас.
     const undo = host!.querySelector(`.${styles['trace-undo']}`);
     expect(undo).toBeTruthy();

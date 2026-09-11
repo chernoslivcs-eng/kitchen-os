@@ -1,8 +1,14 @@
 .screen {
   min-height: 100dvh;
-  background: var(--card);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
+  /* Колонки зон рахуються від ширини САМОГО екрана комори, не вікна: із
+     сайдбаром 256 і панеллю 424 на 1440 контенту лишається ~700, і дві
+     колонки по 330 ламали рядок — кількість наїжджала на ✕ (власник, 11.09).
+     Кадри бандла цього стану не малюють (рейка 60, без панелі). */
+  container-type: inline-size;
+  container-name: pantry;
 }
 .head {
   padding: 22px 22px 8px;
@@ -18,10 +24,54 @@
   color: var(--ink);
 }
 .meta {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
+  /* Screens «Комора · збірка»: лічильник 13 dim біля назви. */
+  font-family: var(--font-body);
+  font-size: 13px;
   color: var(--dim);
+  white-space: nowrap;
+}
+.head-gap { flex: 1; }
+
+/* ── Шапка (Screens): пошук 260×36 на card · «Фільтр» 38 r10 на card ·
+   «Додати» 36 r10 чорнилом; на 390 — знаки 40 колом, «Додати» коло 42. ── */
+.search {
+  display: none; align-items: center; gap: 8px;
+  height: 36px; width: 260px; padding: 0 12px;
+  border-radius: 10px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  color: var(--dim);
+}
+.search-input { flex: 1; min-width: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 14px; color: var(--ink); outline: 0; }
+.search-input::placeholder { color: var(--dim); }
+.search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.search-row { display: flex; width: auto; }
+.head-icon {
+  position: relative; flex: none;
+  width: 38px; height: 38px; border: 0; border-radius: 10px;
+  background: var(--card); color: var(--muted); box-shadow: var(--sh-a), var(--sh-b);
+  display: grid; place-items: center; cursor: pointer;
+}
+.head-icon-on { color: var(--ink); }
+.head-icon[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.head-badge { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--sage); }
+.head-search { display: none; }
+.head-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px;
+  border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.head-add:hover { filter: brightness(0.96); }
+@media (min-width: 768px) {
+  .search { display: inline-flex; }
+  .search-row { display: none; }
+}
+@media (max-width: 767px) {
+  .head-icon { width: 40px; height: 40px; border-radius: 50%; }
+  .head-search { display: grid; }
+  .head-add { width: 42px; height: 42px; padding: 0; justify-content: center; border-radius: 50%; }
+  .head-add-text { display: none; }
 }
 
 .body {
@@ -32,15 +82,21 @@
   flex-direction: column;
   gap: 20px;
 }
-/* Хедер зони — канон v3: чорнило, 44 px, padding 0 16, знак 15–16,
- * назва 14/600, лічильник 13/400 opacity .6. Був моно + dim. */
+/* Хедер зони — як у бандлі («Комора · збірка», «Комора · мобайл»): тло
+ * чорнило, текст bg, 44 px, padding 0 16, знак 16, назва 14/600, лічильник
+ * 12/400. Етап 6a читав «чорнило» як колір тексту — пара «кадр · рендер»
+ * показала заливку. Лічильник на чорнилі: бандл дає opacity .6 — у темній це
+ * 4.4:1; .7 дає 8.1 світла / 6.1 темна, тому .7. */
+/* Зона — картка (card, r14) на полотні bg, як у бандлі; хедер усередині. */
+.zone-card { background: var(--card); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
 .section-label {
   display: flex;
   align-items: center;
   gap: 8px;
   height: 44px;
   padding: 0 16px;
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
 }
 .section-name { font-size: 14px; font-weight: 600; }
 .row {
@@ -68,7 +124,12 @@
   gap: 12px;
   flex: 1;
   min-width: 0;
-  padding: 0;
+  /* Клікабельний увесь рядок, не лише текст: кнопка тягнеться на висоту
+     рядка, відступи рядка — її, а не контейнера (власник, 11.09). */
+  align-self: stretch;
+  padding: 11px 0 11px 12px;
+  margin: -11px 0 -11px -12px;
+  overflow: hidden;   /* тісно — стискається назва, а не наїжджає на ✕ */
   background: transparent;
   border: 0;
   text-align: left;
@@ -143,6 +204,7 @@
 }
 .row .name {
   flex: 1;
+  min-width: 0;
   font-family: var(--font-body);
   font-size: 16px;
   color: var(--ink);
@@ -182,13 +244,18 @@
   .head, .body { max-width: 1080px; }
   .body {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     column-gap: 32px;
     row-gap: 20px;
     align-items: start;
     /* Крок Ф1: короткий відфільтрований список — рядки сітки не розтягуються
        на всю висоту екрана (align-content за замовчуванням stretch). */
     align-content: start;
+  }
+  /* Дві колонки — лише коли на кожну лишається ≥ 360 (рядок: знак · назва ·
+     категорія · час · кількість · ✕ ≈ 340 при найкоротшій назві). */
+  @container pantry (min-width: 800px) {
+    .body { grid-template-columns: 1fr 1fr; }
   }
   .body > input,           /* поле пошуку — на дві колонки */
   .body > .empty {
@@ -347,7 +414,7 @@
  * Канон: у кожного токена своя дозволена форма, і `line2` — рамка контролів,
  * ніколи не текст. Лічильник тепер чорнило на opacity .6, як велить канон
  * хедера, і це ≥ 4.5:1 в обох темах. */
-.section-count { font-size: 13px; font-weight: 400; opacity: .6; font-variant-numeric: tabular-nums; }
+.section-count { font-size: 12px; font-weight: 400; opacity: .7; font-variant-numeric: tabular-nums; }
 
 /* Тони позначок і підрядків — токенами, тема сама перемикає. */
 .tone-fg { color: var(--ink); }

@@ -34,7 +34,12 @@ export function PanelIcon() {
 
 export function ArtifactPanel() {
   const s = usePanelStore();
-  const { artifacts, render, extra, pendingDot, ghostTab, open, hidden, width, dragging, fresh, freshKeys } = s;
+  // Етап 6a: шторка артефакта (<1200) теж ховає нижній бар.
+  useEffect(() => {
+    document.body.classList.toggle('sheet-open', s.open);
+    return () => document.body.classList.remove('sheet-open');
+  }, [s.open]);
+  const { artifacts, render, extra, pendingDot, open, hidden, width, dragging, fresh, freshKeys } = s;
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
   const hasPanel = artifacts.length > 0 || !!extra;
 
@@ -68,8 +73,17 @@ export function ArtifactPanel() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+  // Етап 6b: ширина — за шириною екрана, не ручкою: 340 на 1440 → 420 на
+  // 1920 (Responsive R0), між ними лінійно; менше 1440 — 340, стеля 420.
+  // Ширина картки: типова — 400 на 1440 (Prototype asideW) → 420 на 1920
+  // (Responsive R0), між ними лінійно; потягнута рукою (HANDOFF: кромка
+  // 300–720) — має перевагу, поки людина її не скинула дабл-кліком.
   const railCeiling = Math.max(RAIL_MIN, Math.min(RAIL_MAX, vw - RAIL_OVERHEAD));
-  const railEffective = Math.min(width, railCeiling);
+  const byViewport = Math.round(Math.max(400, Math.min(420, 400 + ((vw - 1440) * 20) / 480)));
+  const railEffective = Math.min(width ?? byViewport, railCeiling);
+  // Полотно панелі = картка + 12 з кожного боку (Prototype: margin 12 12 12 0):
+  // тінь --sh2 має куди лягти.
+  const RAIL_GUTTER = 12;
 
   // Резерв ширини для контенту сторінки — класами на body, як у сайдбара.
   useEffect(() => {
@@ -77,7 +91,7 @@ export function ArtifactPanel() {
     b.classList.toggle('with-panel', hasPanel && !hidden);
     b.classList.toggle('panel-hidden', hasPanel && hidden);
     b.classList.toggle(styles['rail-dragging']!, dragging);
-    b.style.setProperty('--rail-w', `${railEffective}px`);
+    b.style.setProperty('--rail-w', `${railEffective + RAIL_GUTTER * 2}px`);
     return () => { b.classList.remove('with-panel', 'panel-hidden', styles['rail-dragging']!); b.style.removeProperty('--rail-w'); };
   }, [hasPanel, hidden, dragging, railEffective]);
 
@@ -107,7 +121,7 @@ export function ArtifactPanel() {
     const now = Date.now();
     const isDouble = now - lastDown.current < 400;
     lastDown.current = now;
-    if (isDouble) { s.setWidth(RAIL_DEFAULT); return; }
+    if (isDouble) { s.setWidth(byViewport); try { localStorage.removeItem('kos-rail-width'); } catch { /* ок */ } return; }
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const startX = e.clientX; const startW = railEffective;
     s.setDragging(true);
@@ -130,6 +144,8 @@ export function ArtifactPanel() {
   return (
     <>
       <aside className={`${styles.rail} ${open ? styles['rail-open'] : ''} ${hidden ? styles['rail-hidden'] : ''}`}>
+        {/* HANDOFF «Артефакти»: ліва кромка тягнеться 300–720. Дабл-клік —
+            назад до типової за екраном. */}
         <div className={styles['rail-handle']} onPointerDown={onHandleDown} role="separator" aria-orientation="vertical" aria-label="Ширина панелі">
           <span className={styles['rail-handle-bar']} />
           {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
@@ -137,27 +153,19 @@ export function ArtifactPanel() {
         {shown && (
           <div id={`rail-${shown.key}`} className={styles['rail-artifact']}>
             <div className={styles['rail-tabs']}>
-              <button type="button" className={styles['rail-collapse']} onClick={s.collapse} title="Згорнути панель" aria-label="Згорнути панель">
-                <PanelIcon />
-              </button>
-              <div className={styles['rail-head-actions']} ref={setHeadSlot} />
-              <div className={styles['rail-tabs-scroll']}>
-                {artifacts.map((a) => (
-                  <button key={a.key} type="button"
-                    className={`${styles['rail-tab']} ${a.key === shown.key ? styles['rail-tab-on'] : ''}`}
-                    onClick={() => s.setActive(a.key)} title={a.label} aria-label={a.label} aria-current={a.key === shown.key}>
-                    <span className={styles['rail-tab-glyph']}><Icon name={ARTIFACT_ICON[a.kind]} size={16} inherit decorative /></span>
-                    {a.meta && <span className={styles['rail-tab-badge']}>{a.meta}</span>}
-                  </button>
-                ))}
-                {ghostTab && (
-                  <button type="button" className={`${styles['rail-tab']} ${styles['rail-tab-ghost']}`} onClick={ghostTab.onClick}
-                    title="Відкрити список покупок" aria-label="Відкрити список покупок">
-                    <span className={styles['rail-tab-glyph']}><Icon name={ARTIFACT_ICON[ghostTab.glyphKind]} size={16} inherit decorative /></span>
-                    <span className={styles['rail-tab-badge']}>{ghostTab.count}</span>
-                  </button>
-                )}
+              {/* 6b-3 — кікер за Prototype: знак типу + назва типу + закриття
+                  30 r8 (panel-right-close). Вкладок немає: у панелі живе один
+                  артефакт — відкритий; інші — з карток і слідів у стрічці та
+                  зі згорнутої смуги. */}
+              <div className={styles['rail-kicker']}>
+                <span className={styles['rail-kicker-icon']}><Icon name={ARTIFACT_ICON[shown.kind]} size={16} inherit decorative /></span>
+                {/* Назва ТИПУ, не назва страви: «Рецепт», «Чек», «Кошик»; страва — у вмісті h2. */}
+                <span className={styles['rail-kicker-title']}>{shown.kind === 'recipe' ? 'Рецепт' : shown.label}</span>
               </div>
+              <div className={styles['rail-head-actions']} ref={setHeadSlot} hidden />
+              <button type="button" className={styles['rail-collapse']} onClick={s.collapse} title="Згорнути панель" aria-label="Згорнути панель">
+                <Icon name="sys.panelClose" size={16} inherit decorative />
+              </button>
             </div>
             <div className={styles['rail-body']} ref={setBodyEl}>
               <div key={shown.key} className={styles['rail-swap']} ref={setBodyContentEl}>
@@ -172,7 +180,7 @@ export function ArtifactPanel() {
                 )}
               </div>
             </div>
-            <div className={`${styles['rail-foot']} ${bodyScrolled ? styles['rail-foot-shadow'] : ''}`} ref={setFootSlot} />
+            <div className={`${styles['rail-foot']} ${bodyScrolled ? styles['rail-foot-shadow'] : ''}`} ref={setFootSlot} data-panel-foot />
           </div>
         )}
         {extra}

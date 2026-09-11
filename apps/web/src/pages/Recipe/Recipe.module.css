@@ -3,7 +3,7 @@
  */
 .screen {
   min-height: 100dvh;
-  background: var(--card);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
 }
@@ -181,7 +181,7 @@
 .foot {
   padding: 12px 22px 20px;
   border-top: 1px solid var(--line);
-  background: var(--card);
+  background: var(--bg);
   display: flex;
   gap: 10px;
 }

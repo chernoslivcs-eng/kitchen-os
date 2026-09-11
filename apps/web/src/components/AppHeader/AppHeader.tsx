@@ -22,19 +22,23 @@ interface Props {
   action?: ReactNode;
   /** Відкрити шухляду. На ≥1024 кнопка схована — там сайдбар стоїть постійно. */
   onMenu?: () => void;
+  /** Дії займають решту шапки від заголовка (кадр «Рецепти · 1440»: сегмент
+      біля назви, пошук і «Записати свій» — праворуч через розпірку). */
+  fill?: boolean;
 }
 
-export function AppHeader({ title, action, onMenu }: Props) {
+export function AppHeader({ title, action, onMenu, fill }: Props) {
   return (
     <header className={styles.head}>
       <button
         type="button"
         className={styles.burger}
-        aria-label="Меню"
+        aria-label="Розгорнути панель"
         onClick={onMenu}
-      ><Icon name="sys.menu" size={20} inherit /></button>
-      <h1 className={styles.title}>{title}</h1>
-      <div className={styles.action}>{action}</div>
+      ><Icon name="sys.expand" size={18} inherit /></button>
+      {/* Етап 6a: заголовок екрана — роль h1 (28, на 390 — 26; рішення 11.09). */}
+      <h1 className={`${styles.title} ${fill ? styles['title-fit'] : ''} t-h1`}>{title}</h1>
+      <div className={`${styles.action} ${fill ? styles['action-fill'] : ''}`}>{action}</div>
     </header>
   );
 }

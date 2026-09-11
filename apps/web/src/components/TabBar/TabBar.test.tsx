@@ -76,9 +76,10 @@ describe('скрольований стовпчик сайдбара', () => {
     // Верхня межа стрічки — перша ціль.
     expect(box!.contains(byText('Стрічка')!)).toBe(true);
     expect(box!.contains(byText('Календар')!)).toBe(true);
-    // «ЗАРАЗ» їде разом з усіма, а не тисне на список знизу.
-    expect(box!.textContent).toContain('ЗАРАЗ');
-    expect(box!.contains(byText('Великий піст')!)).toBe(true);
+    // 6b-5: «ЗАРАЗ» із сайдбара пішов у шапку чату й панель «Дім зараз»;
+    // між цілями і сесіями — рядок «Розмови · + Нова», і він теж у скролі.
+    expect(box!.textContent).toContain('Розмови');
+    expect(box!.textContent).not.toContain('ЗАРАЗ');
     // Нижня межа — саме «Історія →»: заради неї крок і робився.
     const archive = byText('Історія →');
     expect(archive).toBeTruthy();
@@ -127,5 +128,63 @@ describe('вкладеного скролу немає', () => {
     // min-height: 0 — без нього flex-нащадок не стискається і скрол не з'явиться.
     expect(main).toMatch(/min-height:\s*0/);
     expect(main).toMatch(/scrollbar-width:\s*thin/);
+  });
+});
+
+// Етап 6a (11.09): одна навігація в чотирьох контейнерах — рейка 60 ⇄
+// сайдбар 256 однією кнопкою (стан у localStorage), нижній бар <768 (⚠6),
+// класи на <body>, які зсувають контент і ховають бар.
+import { useNavStore } from '../../store/nav';
+
+describe('оболонка 6a', () => {
+  beforeEach(() => { localStorage.clear(); useNavStore.setState({ expanded: false, open: false }); });
+
+  it('кнопка «панель» на ≥1024 перемикає сайдбар: клас на body і памʼять у localStorage', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    await mount();
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-panel-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(true);
+    expect(localStorage.getItem('kos-nav-expanded')).toBe('1');
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-panel-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+    expect(localStorage.getItem('kos-nav-expanded')).toBe('0');
+  });
+
+  it('та сама кнопка нижче 1024 відкриває шухляду, а не сайдбар', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    await mount();
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-panel-btn]')!.click(); });
+    expect(useNavStore.getState().open).toBe(true);
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+  });
+
+  // Prototype nav: у рейці кнопки «панель» немає — розгортає сам логотип.
+  it('логотип у рейці — той самий тогл: ≥1024 сайдбар, нижче — шухляда', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    await mount();
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-brand-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(true);
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-brand-btn]')!.click(); });
+    expect(document.body.classList.contains('nav-expanded')).toBe(false);
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-brand-btn]')!.click(); });
+    expect(useNavStore.getState().open).toBe(true);
+  });
+
+  it('нижній бар — пʼять цілей, активна позначена; бейдж списку на місці', async () => {
+    await mount();
+    const bar = host!.querySelector('[data-tab-bar]')!;
+    const tabs = [...bar.querySelectorAll('button')];
+    expect(tabs.map((b) => b.textContent?.replace(/\d+/g, '').trim())).toEqual(['Чат', 'Комора', 'Рецепти', 'Список', 'Календар']);
+    expect(tabs.filter((b) => b.getAttribute('aria-current') === 'page').length).toBeLessThanOrEqual(1);
+    expect(bar.textContent).toContain('3');
+  });
+
+  it('CSS: бар ховається за body.composer-focused і body.sheet-open; сайдбар 256 за nav-expanded', () => {
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'TabBar.module.css'), 'utf8');
+    expect(css).toMatch(/body\.composer-focused\)\s*\.bar,?\s*\n?\s*:global\(body\.sheet-open\)\s*\.bar\s*\{\s*transform: translateY/);
+    expect(css).toMatch(/:global\(body\.nav-expanded\) \.wrap \{\s*width: 256px/);
+    expect(css).toMatch(/\.wrap \{[^}]*width: 60px/);
   });
 });

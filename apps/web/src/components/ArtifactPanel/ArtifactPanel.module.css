@@ -70,24 +70,19 @@
 .rail-collapse {
   display: none;
   flex: none;
-  width: 34px;
-  height: 34px;
+  /* Prototype: закриття 30 r8, muted, без рамки; хром — на ховері. */
+  width: 30px;
+  height: 30px;
   place-items: center;
-  margin-right: 8px;
-  /* Своєї рамки не носить: її носила порожня «‹», якій бракувало
-     значення. Іконка панелі читається сама, а зайвий контур поруч із
-     квадратними вкладками тільки додавав шуму. Хром — на ховері. */
-  border: 1px solid transparent;
-  border-radius: 10px;
+  margin-left: auto;
+  order: 9;
+  border: 0;
+  border-radius: 8px;
   background: none;
   color: var(--muted);
   cursor: pointer;
 }
-.rail-collapse:hover {
-  background: var(--line);
-  border-color: var(--line);
-  color: var(--ink);
-}
+.rail-collapse:hover { background: var(--line); color: var(--ink); }
 /* Вкладки притискаються праворуч — див. margin у самому .rail-tabs-scroll
    нижче. Окремим правилом тут це не працює: там стоїть margin: -7px
    скороченою формою, і вона перебиває margin-left. */
@@ -154,15 +149,17 @@
 .rail-tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
-  /* Крок 2.1: НЕ переносити. З появою іконок навігації в шапці рядок
-     почав ламатись надвоє, і ✕ їхав під вкладки. Вкладки стискаються
-     самі — у них уже є ellipsis; іконки й ✕ тримають свій розмір. */
+  gap: 10px;
   flex-wrap: nowrap;
-  padding-bottom: 12px;
-  margin-bottom: 4px;
+  /* Етап 6b — кікер усередині картки (Screens «Чат · збірка»): знак типу
+     17, назва типу 15/600, лічильник 13 dim, праворуч — згортання 32 r8.
+     Кілька артефактів — вкладки-знаки перед згортанням, не окремий рядок. */
+  padding: 14px 14px 10px 18px;
   border-bottom: 1px solid var(--line);
 }
+.rail-kicker { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.rail-kicker-icon { flex: none; display: grid; place-items: center; color: var(--ink); }
+.rail-kicker-title { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Стара текстова пілюля прибрана разом із переходом на іконки (02.09).
    Її overflow: hidden різав лічильник на вкладці — а сам ellipsis уже не
    мав чого обрізати: тексту у вкладці немає. */
@@ -195,10 +192,10 @@
     z-index: 12;
     max-width: calc(100% - 32px);
     padding: 9px 16px;
-    border: 1px solid var(--line);
+    border: 0;
     border-radius: 999px;
     background: var(--card);
-    box-shadow: 0 6px 20px rgba(29, 33, 38, 0.16);
+    box-shadow: var(--sh-a), var(--sh-b);
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--ink);
@@ -231,7 +228,7 @@
     border-top: 1px solid var(--line);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    padding: 8px 0 calc(0px + env(safe-area-inset-bottom));
     overflow: hidden;
     z-index: 30;
   }
@@ -245,6 +242,8 @@
     border-bottom: 0;
     padding-bottom: 0;
   }
+  /* Ручка шторки 36×4 (Screens D3c) — той самий обʼєкт, що картка в панелі. */
+  .rail-open::before { content: ''; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--line2); margin: 0 auto 6px; flex: none; }
   /* Рецепт у шторці — знову в одну колонку: ширина екрана тут вузька
      так само, як була вузькою панель. */
   .rail-open .recipe-msg-cols { flex-direction: column; gap: 14px; }
@@ -273,9 +272,9 @@
     display: grid;
     place-items: center;
     position: absolute;
-    top: 0; bottom: 0;
-    left: -6px;
-    width: 12px;          /* зона захоплення ширша за саму риску */
+    top: 12px; bottom: 12px;
+    left: 6px;
+    width: 12px;          /* Prototype: 12 завширшки на лівій кромці картки (left -6) */
     cursor: col-resize;
     z-index: 2;
     touch-action: none;   /* інакше pointermove зʼїдає скрол сторінки */
@@ -284,14 +283,16 @@
 
 .rail-handle-bar {
   width: 4px;
-  height: 44px;
-  border-radius: 999px;
-  background: var(--line);
-  transition: background 150ms ease;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--line2);
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease, background var(--dur-fast) ease;
 }
-.rail-handle:hover .rail-handle-bar { background: var(--dim); }
+.rail-handle:hover .rail-handle-bar { opacity: 1; }
 .rail-dragging .rail-handle-bar {
-  background: var(--sage);
+  opacity: 1;
+  background: var(--ink);
   height: 100%;
   border-radius: 0;
 }
@@ -327,16 +328,17 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: 16px 18px;  /* Prototype: тіло артефакта 16 18 */
 }
 .rail-foot {
   flex: none;
-  background: inherit;
+  background: var(--card);
   transition: box-shadow 150ms ease;
 }
 /* Порожній низ не має малювати ні рамки, ні відступу — інакше під карткою
    без дій висіла б самотня риска. :empty знімає це без окремого прапорця. */
 .rail-foot:not(:empty) {
-  padding-top: 12px;
+  padding: 12px 18px 18px;
   border-top: 1px solid var(--line);
 }
 /* Тінь — не декор: вона є, лише поки під згином лишився вміст, і зникає
@@ -591,18 +593,19 @@
     gap: 18px;
     position: fixed;
     top: 0; right: 0; bottom: 0;
-    /* Крок 1.3: ширину задає --rail-w зі стану (дефолт 320 — Д01, не 250,
-       QA8-17). Фолбек у var() потрібен: нижче 1200 змінної немає сенсу,
-       а шторка має власну геометрію. */
-    width: var(--rail-w, 320px);
+    /* Етап 6b: панель — не колонка з інструментами, а КАРТКА на полотні
+       (Screens «Чат · збірка»: aside 380, card, r18, тінь, відступ 16 від
+       країв). Ширина 340 на 1440 → 420 на 1920 (Responsive R0), рахується
+       від ширини вікна в ArtifactPanel.tsx; тут лише полотно. */
+    width: var(--rail-w, 364px);
     transition: width 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
-    border-left: 1px solid var(--line);
-    background: var(--line);
-    padding: 22px 18px;
+    background: transparent;
+    /* 6b-3, Prototype: aside margin 12 12 12 0 — полотно 12 з усіх боків. */
+    padding: 12px;
     /* Крок 1.2: скролить ТІЛО, не панель. Поки скролилась панель цілком,
        разом із вмістом їхали й вкладки, і «Оформити» — на довгому кошику
        зникав і спосіб перемкнутись, і сама дія. */
-    overflow: hidden;
+    overflow: visible;  /* тінь картки лягає й на полотно зліва; відсікає сама картка */
   }
 }
 @media (min-width: 1200px) {
@@ -610,6 +613,13 @@
 }
 @media (min-width: 1200px) {
   :global(body.with-sidebar) .rail-artifact { display: flex; }
+  .rail-artifact {
+    /* Prototype aside: card, r16, --sh2. */
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: var(--sh2);
+    overflow: hidden;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .mini-fresh { animation: none; position: relative; }

@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { api, type ShoppingItem } from '../../api';
-import { plural } from '../../lib/plural';
 import { Icon } from '../../components/Icon/Icon';
 import { formatQty } from '../../lib/units';
 import { Toast } from '../../components/ErrorState/Toast';
@@ -148,54 +147,40 @@ export function ShoppingPage() {
           action={{ label: LIST_FAILED.cta, run: () => void load() }}
         />
       )}
-      <AppHeader title="Список" onMenu={() => openNav(true)} action={<>
+      {/* Prototype (Список): «N купити · M вже є» біля заголовка, розпірка,
+          дії — кнопки 40 на card+тінь праворуч. Бандл не малює ні «Додати
+          додому», ні непідключеного Сільпо — обидва тим самим родом кнопки. */}
+      <AppHeader title="Список" onMenu={() => openNav(true)} fill action={<>
+          {items.length > 0 && (
+            <span className={styles.meta} data-meta>{unchecked} купити · {checkedCount} вже є</span>
+          )}
+          <span className={styles['head-gap']} />
           {checkedCount > 0 && (
-            <button
-              onClick={unpackChecked}
-              disabled={unpacking}
-              style={{
-                background: 'var(--sage-bg)',
-                border: '1px solid var(--sage)',
-                borderRadius: 'var(--r-pill)',
-                padding: '5px 12px',
-                color: 'var(--sage)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 13,
-                cursor: unpacking ? 'wait' : 'pointer',
-              }}
-            >
-              → ДОДАТИ ДОДОМУ ({checkedCount})
+            <button type="button" className={styles['head-btn']} onClick={unpackChecked} disabled={unpacking} data-unpack>
+              <Icon name="sys.pantry" size={16} inherit decorative />
+              <span className={styles.long}>Додати додому · {checkedCount}</span>
+              <span className={styles.short}>Додому · {checkedCount}</span>
             </button>
           )}
-          <div className={styles.meta}>{unchecked} / {items.length}</div>
+          {retailReady && unchecked > 0 && (
+            <button type="button" className={styles['head-btn']} onClick={() => void buildCart()} disabled={building} data-cart>
+              <Icon name="sys.cart" size={16} inherit decorative />
+              <span className={styles.long}>{building ? 'Шукаю все це в Сільпо…' : 'Зібрати кошик у Сільпо'}</span>
+              <span className={styles.short}>{building ? 'Шукаю…' : 'Кошик'}</span>
+            </button>
+          )}
+          {/* M13: авторизація — не на вході в застосунок, а в момент наміру
+              оформити кошик. ?next повертає сюди ж після OAuth-круга. */}
+          {!retailReady && unchecked > 0 && (retailStatus === 'none' || retailStatus === 'expired' || retailStatus === 'disconnected') && (
+            <a className={`${styles['head-btn']} ${styles['head-btn-soft']}`} href={`/v1/retail/silpo/connect?next=${encodeURIComponent('/list')}`} data-connect>
+              <Icon name="sys.cart" size={16} inherit decorative />
+              <span className={styles.long}>{retailStatus === 'none' ? 'Підключити Сільпо' : 'Увійти в Сільпо'}</span>
+              <span className={styles.short}>Сільпо</span>
+            </a>
+          )}
       </>} />
 
       <div className={styles.body}>
-        <form onSubmit={addManual} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-          <input
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-            placeholder="+ Додати в список…"
-            style={{
-              flex: 1, padding: '10px 14px',
-              background: 'var(--bg)', border: '1px solid var(--line)',
-              borderRadius: 'var(--r)', color: 'var(--ink)',
-              fontFamily: 'var(--font-body)', fontSize: 14,
-            }}
-          />
-          {newLabel.trim() && (
-            <button
-              type="submit"
-              disabled={adding}
-              style={{
-                padding: '0 16px', border: 0, borderRadius: 'var(--r)',
-                background: 'var(--sage)', color: 'var(--sage-on)',
-                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-                cursor: adding ? 'wait' : 'pointer',
-              }}
-            >Додати</button>
-          )}
-        </form>
         {loading && <SkeletonRows rows={4} />}
         {!loading && items.length === 0 && (
           <div className={styles.empty}>
@@ -204,70 +189,60 @@ export function ShoppingPage() {
           </div>
         )}
 
-        {items.map((it) => (
-          <div
-            key={it.id}
-            className={`${styles.row} ${freshIds.has(it.id) ? styles['row-fresh'] : ''} ${leavingIds.has(it.id) ? styles['row-leave'] : ''}`}
-          >
-            <button
-              className={`${styles.check} ${it.checked ? styles.checked : ''}`}
-              onClick={() => toggle(it)}
-              aria-label={it.checked ? 'Зняти галочку' : 'Позначити куплене'}
-            >
-              <span className={styles['check-box']}>{it.checked ? <Icon name="sys.done" size={16} inherit decorative /> : null}</span>
-            </button>
-            {/* Папіркат UX-9: у магазині тапають по НАЗВІ, не по кружечку 24px.
-                Весь рядок-тіло — тогл; ✕ лишається окремою мішенню праворуч. */}
-            <span
-              className={`${styles.label} ${it.checked ? styles.done : ''}`}
-              onClick={() => toggle(it)}
-              style={{ cursor: 'pointer' }}
-            >
-              {it.label}
-              {it.reason && <span className={styles.reason}>{it.reason}</span>}
-            </span>
-            {it.value != null && it.unit && (
-              <span className={styles.qty}>{formatQty(it.value, it.unit)}</span>
+        {/* Картка списку (Prototype): r14, 4 20, рядки 56 з волосиною,
+            чекбокс 22 r6, назва 15/500, під нею 12 dim «кількість · причина»
+            або «вже є вдома · кількість». Весь рядок — тогл (UX-9: у магазині
+            тапають по назві); ✕ — окрема мішень, бандл його не малює. */}
+        {(items.length > 0 || !loading) && (
+        <div className={styles.card}>
+          {items.map((it) => {
+            const qty = it.value != null && it.unit ? formatQty(it.value, it.unit) : null;
+            const sub = it.checked
+              ? ['вже є вдома', qty].filter(Boolean).join(' · ')
+              : [qty, it.reason].filter(Boolean).join(' · ');
+            return (
+              <div
+                key={it.id}
+                className={`${styles.row} ${it.checked ? styles['row-done'] : ''} ${freshIds.has(it.id) ? styles['row-fresh'] : ''} ${leavingIds.has(it.id) ? styles['row-leave'] : ''}`}
+              >
+                <button
+                  type="button"
+                  className={styles.toggle}
+                  onClick={() => toggle(it)}
+                  aria-pressed={it.checked}
+                  aria-label={it.checked ? `${it.label} — зняти галочку` : `${it.label} — позначити куплене`}
+                >
+                  <span className={`${styles.check} ${it.checked ? styles.checked : ''}`} aria-hidden>
+                    {it.checked ? <Icon name="sys.done" size={12} inherit decorative /> : null}
+                  </span>
+                  <span className={styles.text}>
+                    <span className={styles.label}>{it.label}</span>
+                    {sub && <span className={styles.sub}>{sub}</span>}
+                  </span>
+                </button>
+                <button type="button" className={styles.delete} onClick={() => remove(it)} aria-label={`Прибрати «${it.label}» зі списку`} title="Прибрати зі списку">
+                  <Icon name="sys.close" size={12} inherit />
+                </button>
+              </div>
+            );
+          })}
+
+          {/* UX9-12: «стою біля полиці, згадав про молоко» — дописати руками,
+              без чотирьох екранів і моделі. Рядок «+ Додати…» з Prototype і є
+              поле: Enter або кнопка, що зʼявляється з текстом. */}
+          <form onSubmit={addManual} className={styles.add}>
+            <Icon name="sys.add" size={16} inherit decorative />
+            <input
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              placeholder="Додати…"
+              aria-label="Додати в список"
+            />
+            {newLabel.trim() && (
+              <button type="submit" className={styles['add-go']} disabled={adding}>Додати</button>
             )}
-            <button className={styles.delete} onClick={() => remove(it)} aria-label="Видалити">×</button>
-          </div>
-        ))}
-
-        {retailReady && unchecked > 0 && (
-          <button
-            onClick={() => void buildCart()}
-            disabled={building}
-            style={{
-              width: '100%', height: 48, marginTop: 14,
-              border: '1px solid var(--sage)', borderRadius: 12,
-              background: 'var(--sage-bg)', color: 'var(--sage)',
-              fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
-              cursor: building ? 'wait' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0 16px', opacity: building ? 0.6 : 1,
-            }}
-          >
-            <span>{building ? 'Шукаю все це в Сільпо…' : 'Зібрати кошик у Сільпо'}</span>
-            <span style={{ fontWeight: 400 }}>{unchecked} {plural(unchecked, ['позиція', 'позиції', 'позицій'])} <Icon name="sys.next" size={12} inherit decorative /></span>
-          </button>
-        )}
-
-        {/* M13: авторизація — не на вході в застосунок, а в момент наміру
-            оформити кошик (питання користувача про доцільність). ?next
-            повертає сюди ж після OAuth-круга, а не на /profile. */}
-        {!retailReady && unchecked > 0 && (retailStatus === 'none' || retailStatus === 'expired' || retailStatus === 'disconnected') && (
-          <a
-            href={`/v1/retail/silpo/connect?next=${encodeURIComponent('/list')}`}
-            style={{
-              width: '100%', height: 44, marginTop: 14, boxSizing: 'border-box',
-              border: '1px solid var(--line2)', borderRadius: 12,
-              background: 'transparent', color: 'var(--muted)', textDecoration: 'none',
-              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}
-          >
-            {retailStatus === 'none' ? 'Підключити Сільпо й не шукати все вручну' : 'Увійти в Сільпо, щоб зібрати кошик'} <Icon name="sys.next" size={12} inherit decorative />
-          </a>
+          </form>
+        </div>
         )}
       </div>
 

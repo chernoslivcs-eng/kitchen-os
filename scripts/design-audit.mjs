@@ -57,7 +57,7 @@ const MAX_ROLES = 6;         // Р14, додаток: ролей .t-* на ОД�
 // задумом, і роль caption 13 — не мікро-мітка. Смуга лишається 14–16.
 const COMMON_LO = 14;
 const COMMON_HI = 16;
-const MAX_SIZE = 26;         // роль h1: 20, на ≥1024 — 26; display (112) лише в Cook Mode
+const MAX_SIZE = 28;         // роль h1 = 28 (рішення 11.09, кадри Screens); display лише на сторінці рецепта й у Cook Mode
 const DISPLAY_MAX = 2;       // заголовок + одне число
 const MAX_FAMILIES = 1;      // Onest. Червоне до етапу 1.6 (Р19)
 const MAX_WEIGHTS = 3;       // 400/500/600; 700 лише на дисплейному кеглі

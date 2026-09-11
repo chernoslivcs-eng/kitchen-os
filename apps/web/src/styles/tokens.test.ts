@@ -75,8 +75,9 @@ const roles = readFileSync(fileURLToPath(new URL('./roles.css', import.meta.url)
 // Роль несе ВСІ параметри: кегль, інтерліньяж, вагу, трекінг. Компонент не має
 // власного значення — тільки роль. Числа з tokens-v3.md, таблиця «Типографіка».
 const ROLES: Record<string, { size: string; line: string; weight: string; track: string }> = {
-  display: { size: '40px', line: '1.05', weight: '700', track: '-0.03em' },
-  h1:      { size: '32px', line: '1.05', weight: '700', track: '-0.03em' },
+  // Рішення 11.09: як на кадрах Screens — display 36, h1 28 (26 на 390, окремий тест нижче).
+  display: { size: '36px', line: '1.05', weight: '700', track: '-0.03em' },
+  h1:      { size: '28px', line: '1.05', weight: '700', track: '-0.03em' },
   h2:      { size: '22px', line: '1.2',  weight: '600', track: '-0.02em' },
   h3:      { size: '17px', line: '1.3',  weight: '600', track: '-0.01em' },
   body:    { size: '16px', line: '1.55', weight: '400', track: '0' },
@@ -88,6 +89,11 @@ const ROLES: Record<string, { size: string; line: string; weight: string; track:
 };
 
 describe('ролі типографіки v3', () => {
+  it('h1 на 390 — 26, як на кадрах Screens (рішення 11.09)', () => {
+    const m = roles.match(/@media \(max-width: 767px\)\s*\{[^}]*\.t-h1\s*\{\s*font-size: 26px;/);
+    expect(m, 'медіазапит .t-h1 26px до 767').not.toBeNull();
+  });
+
   it('десять ролей, кожна з повним набором параметрів', () => {
     for (const [name, p] of Object.entries(ROLES)) {
       // Якір на початок рядка обовʼязковий: `.t-timer` стоїть останнім у

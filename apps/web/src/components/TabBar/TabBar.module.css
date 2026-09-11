@@ -1,12 +1,12 @@
-/* Навігація — одна поверхня в трьох контейнерах:
- *   <768      шухляда 300, висувається поверх, бекдроп
- *   768-1023  смужка 44, самі гліфи (нижче в цьому файлі)
- *   >=1024    сайдбар 232, стоїть постійно
+/* Навігація — одна поверхня в чотирьох контейнерах (етап 6a, 11.09,
+ * Responsive R0–R1 · Screens D5 390):
+ *   <768      нижній бар (.bar) із пʼяти цілей + шухляда 300 (.wrap) поверх
+ *   768-1023  рейка 64, кнопка «панель» угорі розсуває шухляду 300 поверх
+ *   >=1024    рейка 60 ⇄ сайдбар 256 однією кнопкою (body.nav-expanded)
+ *   >=1920    сайдбар за замовчуванням (store/nav.ts)
  *
- * Нижнього бара більше немає (рішення 03.09). Головне робоче вікно — чат
- * сесії; Комора, Рецепти, Список і Календар відвідуються рідко, і двотапний
- * перехід дешевший за постійні 60px знизу й задачу «пʼять табів на 320».
- * Ціна названа свідомо: бейдж «Список 3» видно після тапу по ☰, не одразу.
+ * Нижній бар повернуто (⚠6): бандл робився й для 390, і бар там — оболонка,
+ * не опція. Ховається, поки композитор у фокусі й поки відкрита шторка.
  */
 .backdrop {
   position: fixed;
@@ -26,7 +26,7 @@
   width: 300px;
   max-width: 86vw;
   box-sizing: border-box;
-  background: var(--card);
+  background: var(--bg);
   border-right: 1px solid var(--line);
   padding: 20px 14px calc(20px + env(safe-area-inset-bottom));
   display: flex;
@@ -40,37 +40,28 @@
   transition: transform var(--dur-base) var(--ease-enter), width var(--dur-base) var(--ease-enter);
 }
 
-/* Кнопка стану: живе лише в смужці 768-1023 і відкриває повну шухляду.
-   Крапка без числа — бурштин, коли щось чекає в «ЗАРАЗ»; шавлія, коли триває
-   готування. Число сюди не йде: воно живе на рядку цілі всередині. */
-.rail-more {
-  display: none;
+/* Одна кнопка «панель» (Responsive R1): 38 × 38, r10, на card із тінню в
+   рейці; у розгорнутому сайдбарі — 36 у шапці праворуч від логотипа. */
+.panel-btn {
   flex: none;
   width: 36px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
+  height: 36px;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
   border: 0;
-  border-radius: var(--r);
-  background: transparent;
-  color: var(--dim);
-  font-size: 15px;
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--muted);
+  box-shadow: var(--sh-a, 0 1px 2px rgba(26, 28, 30, .05)), var(--sh-b, 0 8px 24px rgba(26, 28, 30, .07));
   cursor: pointer;
-  margin-top: 4px;
 }
-.rail-more:hover { background: var(--line); color: var(--ink); }
-.rail-more-amber { color: var(--amber); }
-.rail-more-sage { color: var(--sage); }
+.panel-btn:hover { color: var(--ink); }
+/* Логотип — кнопка без власного хрому; у рейці він і є «Розгорнути». */
+.brand-btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 50%; }
+/* Крапка danger на «Коморі» в рейці — щось горить (R1). */
+.tab-dot { display: none; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
 
-/* Дві крапки, а не одна: бурштин — щось чекає попереду, шавлія — триває
-   готування. Вони кажуть різне й можуть світитись одночасно, тож зливати їх
-   в одну означало б втратити половину сигналу. */
-.dots { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; }
-.dot-amber { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--amber); flex: none; }
-/* Крапка стану — коло 6 px, яке несе колір (tokens-v3 · Канон компонентів).
- * Було текстовим гліфом ● на font-size 9px; етап 1.5 зняв гліфи, тому коло
- * тепер малює CSS, а не шрифт. */
-.dot-sage { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); flex: none; }
 
 .tab {
   display: flex;
@@ -95,6 +86,11 @@
  * Кегля тут більше немає: етап 1.5 замінив гліф на svg, і font-size 17px
  * заодно був тим, що робив «навігацію дрібнішою за контент» в аудиті. */
 .tab .glyph { width: 18px; height: 18px; flex: none; }
+/* Знак бере колір кнопки: у спокої muted, активна — bg на чорнилі (Prototype
+   nav: `color: var(--bg)`), як у нижньому барі на 390. Знак сам ставить
+   muted через .icon — тут перебиваємо. */
+.tab .glyph { color: var(--muted); }
+.tab.active .glyph { color: inherit; }
 .tab.active {
   background: var(--line);
   color: var(--ink);
@@ -311,21 +307,25 @@
 .session-row:hover .session-x { opacity: 1; }
 .session-x:hover { background: var(--line); color: var(--ink); }
 
+/* 6b-5: рядок «Розмови · + Нова» над сесіями (Responsive: «Розмови» 12 dim,
+   «+ Нова» шавлією); групи по днях 11 dim (Сьогодні / Вчора / Пн · 7 вер). */
+.sessions-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 4px; }
+.sessions-label { font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--dim); }
 .session-new {
-  display: flex;
-  width: 100%;
-  padding: 9px 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: var(--r);
+  border-radius: 8px;
   background: transparent;
   color: var(--sage);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  text-align: left;
 }
 .session-new:hover { background: var(--line); }
+.session-day { font-family: var(--font-body); font-size: 11px; color: var(--dim); padding: 8px 12px 2px; }
+.session-row:first-of-type .session-day { padding-top: 2px; }
 .session {
   display: flex;
   flex-direction: column;
@@ -342,14 +342,14 @@
 .session:hover { background: var(--line); }
 .session.active { background: var(--line); }
 .session-when {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
   color: var(--dim);
 }
 .session-title {
   font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 14px;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -407,48 +407,92 @@
 }
 
 @media (min-width: 1024px) {
-  /* Правка №1: сесії видимі. Крок С1: скролить їх не цей блок, а .scroll. */
-  .sessions {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
+  /* Рейка 60 — типово (Responsive R1): логотип 30, кнопка «панель» 38 на
+     card, цілі 38 × 38 r10 зі знаком 18, активна — чорнило, аватар 30 внизу.
+     Сесії, «ЗАРАЗ» і підписи — лише в сайдбарі. */
   .wrap {
     position: fixed;
     top: 0; left: 0; bottom: 0;
-    width: 232px;                     /* Д01: 232, не 200 */
-    padding: 20px 14px;               /* Д01 */
+    width: 60px;
+    padding: 16px 11px;
     flex-direction: column;
+    align-items: center;
     gap: 4px;
     border-top: 0;
-    border-right: 1px solid var(--line);
+    border-right: 1px solid var(--line2);
     border-radius: 0;
     justify-content: flex-start;
-    align-items: stretch;
     z-index: 5;
+    transition: width var(--dur-slow) var(--ease-standard), padding var(--dur-slow) var(--ease-standard);
   }
+  /* Prototype nav 60: логотип 30 з відступом 14 під ним — і він же тогл;
+     кнопки «панель» у рейці немає. */
+  .brand { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0 0 14px; }
+  .brand-name { display: none; }
+  .panel-btn { display: none; }
+  .sessions, .now, .count { display: none; }
   .tab {
     flex: 0 0 auto;
-    flex-direction: row;
-    justify-content: flex-start;
-    padding: 11px 14px;               /* Д01: висота пункту 42px */
-    gap: 11px;
-    font-size: 14px;
-    color: var(--muted);           /* Д01: #5c646d, не --fg-dim */
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 10px;
+    justify-content: center;
+    gap: 0;
+    color: var(--muted);
   }
+  .tab > span:nth-child(2) { display: none; }
+  .tab.active { background: var(--ink); color: var(--bg); }
+  .tab-dot { display: block; }
   .badge {
-    position: static;
-    margin-left: auto;
-    font-size: 11px;                  /* Д01: 11px, не мобільні 9px */
-    padding: 1px 7px;
+    position: absolute;
+    top: 4px; right: 4px;
+    margin: 0;
+    height: 16px;
+    min-width: 16px;
+    padding: 0 4px;
+    line-height: 16px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--ink);
+    color: var(--bg);
   }
-  /* Д01: логотип угорі, приглушений mono-лічильник, блок користувача внизу. */
-  .brand { display: flex; }
-  .count { display: inline; }
-  .user { display: flex; }
+  .tab.active .badge { background: var(--bg); color: var(--ink); }
+  .user { width: 38px; height: 38px; padding: 0; justify-content: center; }
+  .user > span:nth-child(2) { display: none; }
+  .user-avatar { width: 30px; height: 30px; background: var(--line2); }
+
+  /* Сайдбар 256 (R1, розгорнуто): шапка з логотипом 36 і вордмарком 17/700,
+     кнопка «панель» 36 праворуч; цілі 44 рядком 14/500 зі знаком 19; «Розмови»
+     12 dim; сесії; профіль внизу. */
+  :global(body.nav-expanded) .wrap {
+    width: 256px;
+    padding: 16px 12px;
+    align-items: stretch;
+    gap: 2px;
+  }
+  :global(body.nav-expanded) .brand { flex-direction: row; gap: 10px; padding: 0 8px 14px; }
+  :global(body.nav-expanded) .brand-name { display: inline; }
+  :global(body.nav-expanded) .panel-btn { display: grid; width: 36px; height: 36px; margin-left: auto; }
+  :global(body.nav-expanded) .sessions { display: flex; flex-direction: column; gap: 2px; }
+  :global(body.nav-expanded) .now { display: flex; }
+  :global(body.nav-expanded) .count { display: inline; }
+  :global(body.nav-expanded) .tab {
+    width: auto;
+    height: 44px;
+    padding: 0 12px;
+    justify-content: flex-start;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  :global(body.nav-expanded) .tab > span:nth-child(2) { display: inline; }
+  :global(body.nav-expanded) .tab-dot { display: none; }
+  :global(body.nav-expanded) .badge { position: static; margin-left: auto; height: 20px; line-height: 20px; padding: 0 6px; font-size: 11px; }
+  :global(body.nav-expanded) .user { width: auto; height: auto; padding: 10px 12px; justify-content: flex-start; }
+  :global(body.nav-expanded) .user > span:nth-child(2) { display: inline; }
+  :global(body.nav-expanded) .user-avatar { width: 26px; height: 26px; }
 }
-
-
 
 /* Пул-6 №1: планшет 768–1023 — вузький сайдбар: іконки 44×44 без підписів,
    бейдж цифрою в куті, аватар знизу. Сесії/лічильники — тільки ≥1024. */
@@ -460,7 +504,6 @@
   .sessions { display: none; }
   .now { display: none; }
   .backdrop { display: block; }
-  .rail-more { display: flex; }
   /* Крок С1: у смужці 64px жолоб не резервуємо — на Windows він зсунув би
      44px-іконки з центру, а скролу тут не буває: пʼять цілей влазять завжди.
      У розгорнутій шухляді (.wrap.open, 300px) поводимось як усюди. */
@@ -476,7 +519,6 @@
   .wrap.open .sessions { display: flex; }
   .wrap.open .now { display: flex; }
   .wrap.open .brand-name { display: inline; }
-  .wrap.open .rail-more { display: none; }
   .wrap.open .tab {
     width: auto;
     height: 44px;
@@ -498,35 +540,55 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    gap: 6px;
+    gap: 4px;
     border-top: 0;
-    border-right: 1px solid var(--line);
+    border-right: 1px solid var(--line2);
     border-radius: 0;
     z-index: 5;
   }
-  .brand { display: flex; padding: 0 0 12px; }
+  /* Рейка 768–1023 — та сама, що на ≥1024 (Prototype nav): логотип-тогл 30,
+     цілі 38 r10, активна чорнилом, лічильник чорнилом 16 у куті; кнопки
+     «панель» у рейці немає — вона в розсунутій шухляді. */
+  .brand { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0 0 14px; }
   .brand-name { display: none; }
+  .panel-btn { display: none; }
+  .wrap.open .brand { flex-direction: row; gap: 10px; }
+  .wrap.open .panel-btn { display: grid; margin-left: auto; width: 36px; height: 36px; }
+  .tab-dot { display: block; }
+  .wrap.open .tab-dot { display: none; }
   .tab {
     flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     padding: 0;
+    border-radius: 10px;
     flex-direction: row;
     justify-content: center;
+    gap: 0;
+    color: var(--muted);
     position: relative;
   }
   .tab .glyph { width: 18px; height: 18px; }
   .tab > span:nth-child(2) { display: none; }
+  .tab.active { background: var(--ink); color: var(--bg); }
   .count { display: none; }
   .badge {
     position: absolute;
-    top: 3px; right: 3px;
+    top: 4px; right: 4px;
     margin: 0;
-    font-size: 9px;
-    padding: 1px 5px;
+    height: 16px;
+    min-width: 16px;
+    padding: 0 4px;
+    line-height: 16px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--ink);
+    color: var(--bg);
   }
-  .user { display: flex; width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .tab.active .badge { background: var(--bg); color: var(--ink); }
+  .user { display: flex; width: 38px; height: 38px; padding: 0; justify-content: center; }
   .user > span:nth-child(2) { display: none; }
+  .user-avatar { width: 30px; height: 30px; background: var(--line2); }
 }
 
 /* Фокус-кільце в щільному списку сесій — всередину рядка (offset -2), інакше
@@ -558,3 +620,51 @@
   display: inline-block; height: 18px; padding: 0 7px; border-radius: 999px;
   background: var(--plum); color: var(--bg); font-size: 11px; font-weight: 600; line-height: 18px;
 }
+
+/* ── Нижній бар (<768), Screens D5 · 390 ────────────────────────────────
+   Пʼять цілей: знак 20 над підписом 11/500; активна — знак у чорнильному
+   квадраті 36 r10. Ховається, поки композитор у фокусі й поки відкрита
+   шторка (класи на <body>) — обидві умови з HANDOFF. */
+.bar {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 25;
+  height: calc(64px + env(safe-area-inset-bottom));
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+@media (max-width: 767px) {
+  .bar { display: flex; align-items: flex-start; justify-content: space-around; }
+  :global(body.composer-focused) .bar,
+  :global(body.sheet-open) .bar { transform: translateY(110%); }
+  /* Контент не ховається під бар. */
+  :global(body.with-sidebar) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+}
+.bar-tab {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bar-glyph { position: relative; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; }
+.bar-tab.active { color: var(--ink); }
+.bar-tab.active .bar-glyph { background: var(--ink); color: var(--bg); }
+.bar-badge {
+  position: absolute; top: -2px; right: -4px;
+  height: 16px; min-width: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--ink); color: var(--bg);
+  font-size: 10px; font-weight: 600; line-height: 16px; text-align: center;
+}
+.bar-tab.active .bar-badge { background: var(--sage); color: var(--sage-on); }

@@ -8,8 +8,12 @@
 // в роді, рядок часу · калорій · «готував», під ним «бракує: …» і
 // «використає: …». Стан рахує сервер проти поточної комори, тому список
 // змінюється сам, коли щось купуєш: рецепт переїжджає з «далеко» в «можу
-// зараз» без жодної дії. «Знайти рецепт» із D5 не зроблено — у прототипі це
-// напис без поведінки, а поле без пошуку за ним було б обіцянкою без даних.
+// зараз» без жодної дії. «Знайти рецепт» (кадр «Рецепти · 1440») — пошук
+// по назві в уже принесеному списку: даних за ним рівно стільки, скільки на
+// екрані, тож обіцянка чесна.
+//
+// 11.09: форма переведена на кадри Screens «Рецепти · 1440 / 390» (v3 бандл):
+// картки на card+тінь у сітці 2×, шапка на картках, чипи без рамки.
 
 import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon/Icon';
@@ -31,6 +35,9 @@ export function RecipesPage() {
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState('');
+  // На 390 поле пошуку ховається за круглим знаком у шапці (кадр «Рецепти · 390»).
+  const [searchOpen, setSearchOpen] = useState(false);
   // Етап 5 (п.1): не принести ≠ порожньо. Раніше catch підставляв [] і екран
   // казав «Тут поки жодного рецепта» — Errors: «порожній екран каже „у тебе
   // нічого нема", і це брехня». Тепер — тост із повтором, список як був.
@@ -50,7 +57,8 @@ export function RecipesPage() {
 
   useEffect(() => { void refresh(); }, []);
 
-  const shown = recipes.filter((r) => matches(r, filter));
+  const needle = query.trim().toLocaleLowerCase('uk');
+  const shown = recipes.filter((r) => matches(r, filter) && (!needle || r.title.toLocaleLowerCase('uk').includes(needle)));
   const sorted = [...shown].sort((a, b) => rank(a) - rank(b));
   const counts = filterCounts(recipes);
 
@@ -78,23 +86,33 @@ export function RecipesPage() {
       {loadFailed && (
         <Toast text={RECIPES_FAILED.text} action={{ label: RECIPES_FAILED.cta, run: () => void refresh() }} />
       )}
-      <AppHeader title="Рецепти" onMenu={() => openNav(true)} action={<>
-          {/* Сегмент, не кнопка (D5, B1): «Збережені · N» — це весь список;
-              «Журнал» — окремий екран готувань. */}
+      <AppHeader title="Рецепти" onMenu={() => openNav(true)} fill action={<>
+          {/* Сегмент, не кнопка (кадр «Рецепти · 1440»): «Збережені · N» — це
+              весь список; «Журнал» — окремий екран готувань. */}
           <div className={styles.segment} role="tablist">
             <span role="tab" aria-selected="true" className={`${styles.seg} ${styles['seg-on']}`}>
               Збережені{recipes.length > 0 && <span className={styles['seg-n']}>· {recipes.length}</span>}
             </span>
             <button type="button" role="tab" aria-selected="false" className={styles.seg} onClick={() => navigate('/cooklog')}>Журнал</button>
           </div>
+          <span className={styles['head-gap']} />
+          <label className={styles.search} data-search>
+            <Icon name="sys.search" size={16} inherit decorative />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти рецепт" aria-label="Знайти рецепт" />
+          </label>
+          {/* На 390 бандл ставить у шапку лише круглі знаки: пошук і «записати
+              свій»; сегмент ховається. «Журнал» на 390 кадр не показує —
+              лишаємо знаком, бо екран існує (DEVIATIONS). */}
+          <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} aria-label="Знайти рецепт" aria-pressed={searchOpen}
+            onClick={() => setSearchOpen((v) => !v)}>
+            <Icon name="sys.search" size={16} inherit decorative />
+          </button>
+          <button type="button" className={styles['head-icon']} aria-label="Журнал" title="Журнал" onClick={() => navigate('/cooklog')}>
+            <Icon name="cook.done" size={16} inherit decorative />
+          </button>
           {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
               лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
               моделі явний сигнал на recipe-картку (DA2-23). */}
-          {/* На 390 бандл (Screens D5 · 390) ставить у шапку лише круглі
-              знаки: сегмент ховається, «Журнал» — знаком «готував». */}
-          <button type="button" className={styles['journal-icon']} aria-label="Журнал" title="Журнал" onClick={() => navigate('/cooklog')}>
-            <Icon name="cook.done" size={16} inherit decorative />
-          </button>
           <button type="button" className={styles.write} aria-label="Записати свій"
             onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}>
             <Icon name="sys.import" size={16} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
@@ -115,6 +133,12 @@ export function RecipesPage() {
           </div>
         )}
 
+        {searchOpen && (
+          <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
+            <Icon name="sys.search" size={16} inherit decorative />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти рецепт" aria-label="Знайти рецепт" autoFocus />
+          </label>
+        )}
         {recipes.length > 0 && (
           <div className={styles.filters}>
             {FILTERS.map((f) => {
@@ -140,7 +164,7 @@ export function RecipesPage() {
           </div>
         )}
 
-        {/* Пул-6 №5: ≥768 — 2 колонки тими самими рядками, row-wise. */}
+        {/* Сітка 2× з 768 (кадр 1440: 652+12+652), одна колона на 390. */}
         <div className={styles.grid}>
         {sorted.map((r) => {
           const st = statusWord(r);
@@ -162,14 +186,12 @@ export function RecipesPage() {
               >
                 <span className={styles.icon}><Icon name="cook.type" size={20} inherit decorative /></span>
                 <div className={styles.info}>
-                  <div className={styles['dish-row']}>
-                    <span className={styles.dish}>{r.title}</span>
+                  <span className={styles.dish}>{r.title}</span>
+
+                  <div className={styles.sub}>
                     <span className={`${styles.status} ${styles[`status-${st.tone}`]}`}>
                       <span className={styles['status-dot']} aria-hidden />{st.text}
                     </span>
-                  </div>
-
-                  <div className={styles.sub}>
                     {r.time_total && <span className={styles.stat}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.time_total)}</span>}
                     {r.payload.nu?.kcal && <span className={styles.stat}>≈ {r.payload.nu.kcal} ккал</span>}
                     {r.cooked_count > 0 && (
@@ -198,7 +220,7 @@ export function RecipesPage() {
                 onClick={(e) => { e.stopPropagation(); void unsave(r); }}
                 aria-label={`Прибрати «${r.title}» з рецептів`}
                 title="Прибрати з рецептів"
-              ><Icon name="sys.close" size={16} inherit /></button>
+              ><Icon name="sys.close" size={12} inherit /></button>
             </div>
           );
         })}

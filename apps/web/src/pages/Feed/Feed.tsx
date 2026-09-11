@@ -12,18 +12,16 @@ import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { applyMode } from '@kitchen/domain/card-modes';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
-import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
+import { Card, ShoppingListCard, RecipeStreamCard, traceState, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
 import { BatchCard } from '../Pantry/BatchCard';
 import { formatQty } from '../../lib/units';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
-import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useDropZone } from '../../components/DropZone/useDropZone';
 import { DropCard } from '../../components/DropZone/DropCard';
 import { useNavStore } from '../../store/nav';
@@ -33,6 +31,11 @@ import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
+import { useHomeNow } from '../../store/homeNow';
+import { ChatHead } from '../../components/ChatHead/ChatHead';
+import type { SessionRow } from '../../components/ChatHead/SessionsMenu';
+import { HomeNowPanel } from '../../components/HomeNow/HomeNow';
+import { toneOfNow } from '../../lib/period';
 import { stepLabelsFrom } from '../../lib/recipe';
 import { type Turn, type TurnAttachment, attachmentKind, hhmm, newId, messageToTurn } from './turns';
 import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
@@ -107,6 +110,7 @@ function formatBytes(b: number): string {
 
 export function Feed() {
   const openNav = useNavStore((st) => st.setOpen);
+  const setNavExpanded = useNavStore((st) => st.setExpanded);
   const navigate = useNavigate();
   const [turns, setTurns] = useState<Turn[]>([]);
   // Крок 7: стан панелей картки «Про тебе» — з profile_text; перечитується
@@ -193,15 +197,27 @@ export function Feed() {
   });
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // 6b-5: «+» у композиторі — меню вкладень (Prototype): чек · фото полиці ·
+  // список текстом. Скріпку замінює; ті самі pickFiles за ним.
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [fileAccept, setFileAccept] = useState('image/*,application/pdf,text/plain');
+  function pickVia(accept: string) {
+    setAttachOpen(false);
+    setFileAccept(accept);
+    // accept має оновитись у DOM до кліку.
+    window.setTimeout(() => fileInputRef.current?.click(), 0);
+  }
   const composerInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Правка №8: авторіст textarea від вмісту (і від диктовки, яка пише в
   // input повз onChange) — 1→8 рядків, далі внутрішній скрол.
+  // Порожнє поле — рівно один рядок (42): scrollHeight плейсхолдера, що
+  // переноситься на вузькому, не має ростити композитор.
   useEffect(() => {
     const el = composerInputRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 8 * 22 + 16)}px`;
+    el.style.height = input ? `${Math.min(el.scrollHeight, 8 * 22 + 16)}px` : '42px';
   }, [input]);
 
   // #9: голосовий ввід. Кнопка є лише там, де браузер уміє SpeechRecognition;
@@ -570,9 +586,12 @@ export function Feed() {
   // щось міняється.
   const sessionStore = useSessionStore();
   const cookOpen = useCookStore((s) => s.open);
-  function activate(id: string | null, startedAt?: string) {
+  // 6b-5: пілюля сесії в шапці (Prototype) — назва розмови й «· сьогодні».
+  const [sessionTitle, setSessionTitle] = useState<string | null>(null);
+  function activate(id: string | null, startedAt?: string, title?: string | null) {
     setSessionId(id);
     setSessionStartedAt(startedAt ?? null);
+    setSessionTitle(title ?? null);
     sessionStore.setActive(id);
   }
 
@@ -584,7 +603,7 @@ export function Feed() {
     (async () => {
       try {
         const { session, messages } = await api.session.today();
-        activate(session.id, session.created_at);
+        activate(session.id, session.created_at, session.title);
         setTurns(messages.map((m) => messageToTurn(m)));
         if (messages.some((m) => m.card?.type === 'onboarding')) void loadProfileFields();
       } catch {/* offline: залишаємо порожню стрічку */}
@@ -617,7 +636,7 @@ export function Feed() {
   async function startFreshSession() {
     try {
       const { session } = await api.session.fresh();
-      activate(session.id, session.created_at);
+      activate(session.id, session.created_at, session.title);
       setTurns([]);
       setHistoryOpen(false);
       sessionStore.bump();
@@ -646,7 +665,7 @@ export function Feed() {
   async function loadHistorySession(id: string) {
     try {
       const { session, messages } = await api.session.get(id);
-      activate(session.id, session.created_at);
+      activate(session.id, session.created_at, session.title);
       setTurns(messages.map((m) => messageToTurn(m)));
       setHistoryOpen(false);
     } catch {/* тихо */}
@@ -656,13 +675,26 @@ export function Feed() {
   // через location.state. `at` — щоб повторний клік по тому ж пункту
   // спрацьовував знову.
   useEffect(() => {
-    const st = location.state as { sessionId?: string; freshSession?: boolean; openHistory?: boolean; at?: number } | null;
+    const st = location.state as { sessionId?: string; freshSession?: boolean; openHistory?: boolean; focusComposer?: boolean; at?: number } | null;
     if (!st) return;
     if (st.sessionId) void loadHistorySession(st.sessionId);
     else if (st.freshSession) void startFreshSession();
     else if (st.openHistory) void openHistory();
+    // ⌘K з іншого екрана: оболонка привела сюди — фокус у композитор.
+    if (st.focusComposer) window.setTimeout(() => composerInputRef.current?.focus(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
+
+  // ⌘K / Ctrl+K на стрічці — фокус у композитор (Components: «Композитор (⌘K з будь-де)»).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault(); composerInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // QA8-04: smooth-скрол у цьому контейнері мовчки не працював (виміряно:
   // scrollTop лишався 0), і вимір scrollHeight ішов до розкладки високого
@@ -1170,30 +1202,97 @@ export function Feed() {
   }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, liveBatches, liveProducts, buildingCart, sessionStartedAt, sessionId]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 6b-5: стан дому для шапки й панелі «Дім зараз» (Screens «Чат · збірка»,
+  // Responsive G1/G3, Components «home now»).
+  const home = useHomeNow(sessionId);
+  const [homeOpen, setHomeOpen] = useState(false);
+  const sessionWhen = (() => {
+    if (!sessionStartedAt) return 'сьогодні';
+    const d = new Date(sessionStartedAt); const now = new Date();
+    const same = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    return same ? 'сьогодні' : d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }).replace('.', '');
+  })();
+  const homeDate = new Date().toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+  // «Усі розмови» / panel-left-open — розмови живуть у сайдбарі (≥1024) або шухляді.
+  function openAllSessions() { if (window.innerWidth >= 1024) setNavExpanded(true); else openNav(true); }
+  // Меню пілюлі: 5 останніх розмов по днях зі станом другим рядком — «чекає
+  // рішення» (картки дому, що чекають, з session_id) або час dim.
+  const [sessionRows, setSessionRows] = useState<SessionRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    api.session.list().then(({ sessions }) => {
+      if (!alive) return;
+      const pendingIn = new Set(housePending.map((pc) => pc.session_id).filter(Boolean));
+      setSessionRows(sessions.slice(0, 5).map((sn) => {
+        const d = new Date(sn.created_at);
+        return {
+          id: sn.id, title: sn.title ?? 'без назви', day: sn.day, created_at: sn.created_at,
+          state: pendingIn.has(sn.id)
+            ? { text: 'чекає рішення', tone: 'amber' as const }
+            : { text: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, tone: 'dim' as const },
+        };
+      }));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [sessionId, housePending]);
+  // Ширина КОНТЕЙНЕРА стрічки (Р38): нижче 768 «Дім зараз» — шторка, не накладка.
+  // Форма шапки за шириною контейнера (Р38): ≥964 wide · 704–963 mid (R2) · <704 narrow (G3).
+  const screenRef = useRef<HTMLDivElement>(null);
+  const [headForm, setHeadForm] = useState<'wide' | 'mid' | 'narrow'>('wide');
+  useEffect(() => {
+    const el = screenRef.current; if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([en]) => {
+      const w = en?.contentRect.width ?? 1440;
+      setHeadForm(w >= 964 ? 'wide' : w >= 704 ? 'mid' : 'narrow');
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const narrow = headForm === 'narrow';
+  // Вказівник: ≥1024 або (hover: hover). На дотику фокус — тільки від людини.
+  const pointerDevice = typeof window !== 'undefined' && (window.innerWidth >= 1024 || (window.matchMedia?.('(hover: hover)')?.matches ?? false));
+  // «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14):
+  // «горить», але не прострочено, і рядки «Зараз», що не суворі.
+  const quietCount = home.burning.filter((b) => b.days >= 0).length + home.now.slice(0, 3).filter((e) => toneOfNow(e) !== 'restrict').length;
+  function askInComposer(text: string) {
+    setHomeOpen(false);
+    setInput(text);
+    window.setTimeout(() => composerInputRef.current?.focus(), 0);
+  }
+
   return (
     <div
       className={styles.screen}
+      ref={screenRef}
     >
-      {/* Шапка лишилась тільки заради аватара на мобайлі. Заголовок «Кухня»
-          і лічильники «КОМОРА N · СПИСОК N» прибрані: обидва числа стоять у
-          бічному меню (на мобайлі — в нижній смузі), а назва екрана й так
-          відома тому, хто на ньому. На десктопі шапки немає взагалі — там
-          аватар живе внизу меню, і смуга лишалась би порожньою на 67px.
-          Ручний вхід у список переїхав у шапку панелі іконкою. */}
-      {/* Шапка одна на всі екрани (блок А1). У Стрічці заголовок — «Кухня»,
-          а не аватар: без нижнього бара він єдиний індикатор того, де ти.
-          Сегменти «Сьогодні / Історія» зняті — їхню роботу робить блок сесій
-          у шухляді, а існували вони лише тому, що сесії жили в десктопному
-          сайдбарі й мобайлу не лишалось нічого. Повернення з історії — тап по
-          сесії або «＋ нова сесія» тут-таки. */}
-      <AppHeader
-        title={historyOpen ? 'Історія' : 'Кухня'}
-        onMenu={() => openNav(true)}
-        action={
-          <button onClick={startFreshSession} className={styles['head-new']}><Icon name="sys.add" size={16} inherit decorative /> Нова розмова</button>
-        }
+      <ChatHead
+        title={historyOpen ? 'Історія' : sessionTitle}
+        when={sessionWhen}
+        home={home}
+        cookLive={cookLive}
+        sessions={sessionRows}
+        activeSessionId={sessionId}
+        onPickSession={(id) => void loadHistorySession(id)}
+        onNewSession={() => void startFreshSession()}
+        onAllSessions={openAllSessions}
+        onCook={() => cookLive && cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
+        onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
+        onHome={() => setHomeOpen((v) => !v)}
+        homeOpen={homeOpen}
+        quietCount={quietCount}
+        form={headForm}
       />
-
+      {homeOpen && (
+        <HomeNowPanel
+          home={home} cookLive={cookLive} sheet={narrow} dateLabel={homeDate}
+          onClose={() => setHomeOpen(false)}
+          onCook={() => { setHomeOpen(false); if (cookLive) cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId }); }}
+          onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
+          onCalendar={() => navigate('/calendar')}
+          onList={() => navigate('/list')}
+          onAsk={askInComposer}
+        />
+      )}
 
       {/* Моушн-2 №6: перемикання Сьогодні⇄Історія — crossfade + X±10 (key
           перемонтовує контейнер), скрол-позиція кожної вкладки пам'ятається. */}
@@ -1203,29 +1302,8 @@ export function Feed() {
         ref={timelineRef}
         onScroll={(e) => { segScroll.current[historyOpen ? 'h' : 't'] = e.currentTarget.scrollTop; }}
       >
-        {/* Пул-2 №2: на десктопі фрейм живе в сайдбарі (TabBar) — цей банер
-            лишається тільки для мобільної верстки (клас ховає його ≥1024). */}
-        {cookLive && !historyOpen && (
-          <button
-            className={`${styles['cook-banner-mobile']} ${styles['banner-in']}`}
-            onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              border: '1px solid var(--sage)', borderRadius: 14,
-              padding: '13px 16px', margin: '0 0 8px', background: 'var(--card)',
-              cursor: 'pointer', textAlign: 'left', width: '100%',
-            }}
-          >
-            <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sage)', flex: 'none' }} />
-            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--sage)' }}>
-              Готуємо · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
-              <CookCountdown deadline={cookLive.deadline} />
-            </span>
-            <span style={{ fontSize: 13, color: 'var(--sage)' }}>
-              Продовжити ›
-            </span>
-          </button>
-        )}
+        {/* 6b-5: банера «Готуємо · крок» у стрічці більше нема — той самий факт
+            несе чіп у шапці («Готуємо · таймер») і «Дім ●●● N» на 390. */}
 
         {/* DA2-37: сегмент «Історія» показує сесії ПРЯМО ТУТ — контент під
             шапкою, як у макеті 1б, а не bottom sheet поверх стрічки. */}
@@ -1344,31 +1422,9 @@ export function Feed() {
 
         {!historyOpen && turns.map((t) => (
           <div key={t.id} id={`turn-${t.id}`} className={`${styles.turn} ${t.role === 'user' ? styles['turn-user'] : ''}`}>
-            {/* Аудит раунд 3, крок 3: персони немає — підпису «КУХНЯ» на
-                репліках без картки (репіт-гард, інші детерміновані, звичайний
-                текст моделі) теж немає, лише час. Картка є — тип картки й
-                статус лишаються (labelFor нижче). */}
-            <MonoLabel tone="muted">
-              {t.time}
-              {t.role === 'user' && ' ТИ'}
-              {t.role === 'assistant' && t.card && (
-                <>
-                  {' '}
-                  {(() => {
-                    // Кількість, що чекає: рядки картки комори або списку.
-                    const pendingCount = 'ops' in t.card ? (t.card as { ops?: unknown[] }).ops?.length
-                      : 'items' in t.card ? (t.card as { items?: unknown[] }).items?.length : undefined;
-                    const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed, t.outcome, pendingCount);
-                    // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
-                    // data-trace-tone — той самий елемент до і після: тест на
-                    // перехід перевіряє, що слід один, а не два, які розійдуться.
-                    return l.tone === 'pending'
-                      ? <span className={styles['pending-pulse']} data-trace-tone="pending">{l.text}</span>
-                      : <span data-trace-tone={l.tone}>{l.text}</span>;
-                  })()}
-                </>
-              )}
-            </MonoLabel>
+            {/* 6b-5, Prototype: над репліками службового рядка немає — ані часу,
+                ані «КУХНЯ · ОЧІКУЄ». Стан картки каже слід (чіп) під нею:
+                «чекає рішення · 14» → «9 із 14 · 5 пропущено». */}
             {t.text && (
               t.role === 'assistant' && t.fresh ? (
                 <div className={`${styles['turn-text']} ${styles['reply-phrases']}`}>
@@ -1458,33 +1514,23 @@ export function Feed() {
                 className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']} aria-hidden />
+                <span className={styles['trace-icon']}><Icon name="sys.cart" size={18} inherit decorative /></span>
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
-                    КОШИК · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                    Кошик · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['позиція', 'позиції', 'позицій'])}
                   </span>
                   <span className={styles['trace-value']}>{Math.round(t.card.total ?? 0)} ₴</span>
                 </span>
-                <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
+                <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>
               </button>
             )}
             {t.card?.type === 'recipe_link' && (
-              /* Слід рецепта — той самий принцип, що кошик. Різниця в тому,
-                 що рецептів МОЖЕ бути багато й вони не суперечать один
-                 одному — тому слід лишається назавжди, а в панелі живе
-                 тільки останній. */
-              <button
-                type="button"
-                className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
-                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
-              >
-                <span className={styles['trace-dot']} aria-hidden />
-                <span className={styles['trace-body']}>
-                  <span className={styles['trace-kind']}>РЕЦЕПТ</span>
-                  <span className={styles['trace-value']}>{t.card.title ?? 'Рецепт'}</span>
-                </span>
-                <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
-              </button>
+              /* Етап 6b (4a): рецепт у стрічці — картка, не слід-пігулка.
+                 Рецептів може бути багато й вони не суперечать один одному —
+                 картка лишається назавжди, а в панелі живе відкритий. */
+              <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id}
+                onOpen={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+                onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }} />
             )}
             {t.card?.type === 'event' && t.applied && (
               /* Слід події — як у списку: дельта в сліді, стан у панелі.
@@ -1497,7 +1543,7 @@ export function Feed() {
                   onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
                   disabled={t.undone}
                 >
-                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
+                  <span className={styles['trace-icon']}><Icon name="sys.calendar" size={18} inherit decorative /></span>
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
                       {(() => {
@@ -1505,8 +1551,8 @@ export function Feed() {
                         const ops = (t.card.ops as { op?: string }[] | undefined) ?? [];
                         const kinds = new Set(ops.map((o) => o.op ?? 'add'));
                         const word = kinds.size === 1
-                          ? ({ add: 'ПОДІЯ', edit: 'ПОДІЮ ОНОВЛЕНО', done: 'ПОДІЯ ЗАВЕРШИЛАСЬ', remove: 'ПОДІЮ ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
-                          : `ПОДІЯ · ${ops.length} ЗМІНИ`;
+                          ? ({ add: 'Подія', edit: 'Подію оновлено', done: 'Подія завершилась', remove: 'Подію прибрано' } as Record<string, string>)[[...kinds][0]!] ?? 'Подія'
+                          : `Подія · ${ops.length} зміни`;
                         return word;
                       })()}{t.undone ? ' · СКАСОВАНО' : ''}
                     </span>
@@ -1514,7 +1560,7 @@ export function Feed() {
                       {((t.card.ops as { title?: string }[] | undefined) ?? []).map((o) => o.title).filter(Boolean).join(', ') || 'подія'}
                     </span>
                   </span>
-                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
+                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>}
                 </button>
                 {!t.undone && t.undoToken && (
                   <button type="button" className={styles['trace-undo']} onClick={() => undo(t.id, t.undoToken!)}>СКАСУВАТИ</button>
@@ -1531,18 +1577,18 @@ export function Feed() {
               <div className={styles['trace-wrap']}>
                 <button
                   type="button"
-                  className={`${styles.trace} ${t.undone ? styles['trace-undone'] : ''} ${shownArtifact?.kind === 'list' ? styles['trace-on'] : ''}`}
+                  className={`${styles.trace} ${styles['trace-soft']} ${t.undone ? styles['trace-undone'] : ''}`}
                   onClick={() => openArtifact('list')}
                   disabled={t.undone}
                 >
-                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
+                  <span className={styles['trace-icon']}><Icon name="sys.list" size={18} inherit decorative /></span>
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
-                      СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
+                      Список{t.undone ? ' · скасовано' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
                     </span>
                     <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
                   </span>
-                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
+                  {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>}
                 </button>
                 {!t.undone && t.undoToken && (
                   <button
@@ -1575,16 +1621,16 @@ export function Feed() {
                         className={`${styles.trace} ${shownArtifact?.key === `batch:${alive[0]!.id}` ? styles['trace-on'] : ''}`}
                         onClick={() => openArtifact(`batch:${alive[0]!.id}`)}
                       >
-                        <span className={styles['trace-dot']} aria-hidden />
+                        <span className={styles['trace-icon']}><Icon name="sys.pantry" size={18} inherit decorative /></span>
                         <span className={styles['trace-body']}>
                           <span className={styles['trace-kind']}>
-                            СПИСАНО{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}` : ''}
+                            Списано{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['позиція', 'позиції', 'позицій'])}` : ''}
                           </span>
                           <span className={styles['trace-value']}>
                             {alive.map((b) => [b.label, formatQty(b.value, b.unit)].filter(Boolean).join(' ')).join(', ')}
                           </span>
                         </span>
-                        <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
+                        <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>
                       </button>
                     </div>
                   )}
@@ -1602,23 +1648,26 @@ export function Feed() {
                 type="button"
                 className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+                data-trace="intake"
               >
-                <span className={`${styles['trace-dot']} ${!t.applied && !t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
+                <span className={styles['trace-icon']}><Icon name={isReceiptSourced(t) ? 'sys.receipt' : 'sys.pantry'} size={18} inherit decorative /></span>
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
                     {/* Чек називається чеком, решта — тим, чим є: «це додав
                         в комору» не чек, і вигадувати за людину, що вона
-                        робила, ми не будемо. */}
-                    {isReceiptSourced(t) ? 'ЧЕК' : 'У КОМОРУ'} · {receiptLines(t)}{' '}
-                    {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                        робила, ми не будемо. Етап 6b: слова етапу 3, форма —
+                        пігулка бандла (знак · назва · підрядок · шеврон). */}
+                    {isReceiptSourced(t) ? 'Чек' : 'У комору'} · {receiptLines(t)}{' '}
+                    {plural(receiptLines(t), ['позиція', 'позиції', 'позицій'])}
                   </span>
-                  <span className={styles['trace-value']}>
-                    {t.undone ? 'Скасовано'
-                      : t.applied ? `${t.card?.ops?.length ?? 0} у комору`
-                      : 'Потрібне твоє підтвердження'}
-                  </span>
+                  {(() => {
+                    const st = traceState(t.applied, t.undone, t.outcome, t.card?.ops?.length);
+                    return (
+                      <span className={`${styles['trace-value']} ${st.tone === 'pending' ? styles['pending-pulse'] : ''}`} data-trace-tone={st.tone}>{st.text}</span>
+                    );
+                  })()}
                 </span>
-                {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}
+                {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>}
               </button>
             )}
             {/* Подія в стрічці — це слід (нижче), не картка: інакше під слідом стояла б порожня рамка (EventCard поза панеллю рендерить null). */}
@@ -1784,11 +1833,31 @@ export function Feed() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf,text/plain"
+            accept={fileAccept}
             multiple
             style={{ display: 'none' }}
             onChange={(e) => pickFiles(e.target.files)}
           />
+          <span className={styles['attach-wrap']}>
+            <button type="button" className={`${styles['attach-plus']} ${attachOpen ? styles['attach-plus-on'] : ''}`}
+              onClick={() => setAttachOpen((v) => !v)} disabled={uploading} aria-label="Додати вкладення" aria-expanded={attachOpen} data-attach-plus>
+              <Icon name="sys.add" size={20} inherit decorative />
+            </button>
+            {attachOpen && (
+              <div className={styles['attach-menu']} role="menu" data-attach-menu>
+                <button type="button" role="menuitem" className={styles['attach-item']} onClick={() => pickVia('application/pdf,image/*')}>
+                  <Icon name="sys.receipt" size={16} inherit decorative /><span>Чек · PDF або фото</span>
+                </button>
+                <button type="button" role="menuitem" className={styles['attach-item']} onClick={() => pickVia('image/*')}>
+                  <Icon name="sys.photo" size={16} inherit decorative /><span>Фото полиці</span>
+                </button>
+                <button type="button" role="menuitem" className={styles['attach-item']} onClick={() => pickVia('text/plain')}>
+                  <Icon name="sys.text" size={16} inherit decorative /><span>Список текстом</span>
+                </button>
+                <span className={styles['attach-hint']}>Або просто перетягни файл у розмову</span>
+              </div>
+            )}
+          </span>
           {/* Пул-7 №3: під час запису — таймер + жива хвиля на ЛІВОМУ краю
               (канон моушн-кіта §04-2), стоп ■ лишається справа. */}
           {listening && <VoiceWave />}
@@ -1798,6 +1867,9 @@ export function Feed() {
             ref={composerInputRef}
             rows={1}
             className={styles['composer-input']}
+            /* Етап 6a: поки поле у фокусі, нижній бар (<768) ховається (HANDOFF, ⚠6). */
+            onFocus={() => document.body.classList.add('composer-focused')}
+            onBlur={() => document.body.classList.remove('composer-focused')}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1825,91 +1897,43 @@ export function Feed() {
               drag ? 'Відпусти — файл піде в розмову'
                 : listening ? 'Слухаю…'
                 : pending.length > 0 ? 'Що з цим?'
-                : 'Записати в журнал…'
+                : headForm === 'narrow' ? 'Що зʼявилось удома?'
+                : 'Що зʼявилось удома або що готуємо?'
             }
-            autoFocus
+            /* 6b-5c: автофокус — лише для вказівника; на дотиках клавіатура
+               вискакувала сама, ховала бар і половину стрічки. */
+            autoFocus={pointerDevice}
           />
-          <button
-            type="button"
-            className={styles['frame-btn-ghost']}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            aria-label="Додати вкладення"
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-            </svg>
-          </button>
-          {/* Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп» — те саме
-              місце, той самий розмір. Обірвати думання було неможливо взагалі. */}
-          {sending && !listening && (
-            <button
-              type="button"
-              className={styles['frame-btn']}
-              onClick={stopSending}
-              aria-label="Зупинити"
-              data-stop
-            >
+          {/* Screens «Чат · збірка»: підказка «⌘K» dim перед мікрофоном — композитор
+              ловить ⌘K з будь-де (Components «Композитор (⌘K з будь-де)»). */}
+          <span className={styles['composer-kbd']} aria-hidden>⌘K</span>
+          {/* 6b-5c, Screens/Prototype: мікрофон 42 простий muted — завжди на
+              місці, кольори стану лише поки слухає; «надіслати» 42 чорнилом
+              arrow-up — завжди, з порожнім драфтом світле коло й muted стрілка.
+              Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп». */}
+          {sending && !listening ? (
+            <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop>
               <span className={styles['mic-stop']} />
             </button>
-          )}
-          {listening ? (
-            <>
-              <button
-                type="button"
-                className={styles['mic-live']}
-                onClick={toggleVoice}
-                aria-label="Зупинити диктування"
-                aria-pressed="true"
-              >
-                <span className={styles['mic-stop']} />
-              </button>
-            </>
-          ) : (input.trim() || pending.length > 0) ? (
-            <>
-              {/* UX9-05: мікрофон НЕ зникає при тексті — інакше додиктувати
-                  неможливо в принципі (єдиний шлях був — стерти поле).
-                  Свідоме відхилення від «🎙 морфить у ↑»: тепер поруч. */}
-              {speechSupported() && !sending && (
-                <button
-                  type="button"
-                  className={styles['frame-btn-ghost']}
-                  onClick={toggleVoice}
-                  aria-label="Додиктувати"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="9" y="2" width="6" height="12" rx="3" />
-                    <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
-                    <line x1="12" y1="18" x2="12" y2="22" />
-                  </svg>
-                </button>
-              )}
-              {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
-                  в стрічку і стає в чергу. Гасне лише коли черга повна. */}
-              <button
-                type="submit"
-                className={styles['frame-btn-solid']}
-                disabled={sending && queue.length >= QUEUE_MAX}
-                title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
-                aria-label="Надіслати"
-              >↑</button>
-            </>
-          ) : speechSupported() && !sending ? (
-            <button
-              type="button"
-              className={styles['frame-btn']}
-              onClick={toggleVoice}
-              aria-label="Продиктувати"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="9" y="2" width="6" height="12" rx="3" />
-                <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
-                <line x1="12" y1="18" x2="12" y2="22" />
-              </svg>
+          ) : listening ? (
+            <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true">
+              <span className={styles['mic-stop']} />
             </button>
-          ) : (
-            <button type="submit" className={styles['frame-btn-solid']} disabled aria-label="Надіслати">↑</button>
-          )}
+          ) : speechSupported() ? (
+            <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic>
+              <Icon name="sys.voice" size={18} inherit decorative />
+            </button>
+          ) : null}
+          {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
+              в стрічку і стає в чергу. Гасне лише коли черга повна. */}
+          <button
+            type="submit"
+            className={`${styles['frame-btn-solid']} ${!(input.trim() || pending.length > 0) ? styles['frame-btn-idle'] : ''}`}
+            disabled={(sending && queue.length >= QUEUE_MAX) || !(input.trim() || pending.length > 0)}
+            title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
+            aria-label="Надіслати"
+            data-send
+          ><Icon name="sys.send" size={18} inherit decorative /></button>
         </form>
       </div>
 

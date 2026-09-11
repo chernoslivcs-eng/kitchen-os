@@ -15,13 +15,13 @@
 import {
   MessageCircle, BookOpen, BookMarked, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
-  Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
+  Undo2, ChevronRight, ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, PanelRightClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
   Refrigerator, Snowflake, Archive, FlaskConical, Wine,
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
-  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import,
-  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw,
+  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import, ListOrdered, BookmarkCheck, Share2, Reply,
+  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw, Camera, FileText, Moon, ChevronUp,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -52,6 +52,9 @@ export const ICONS = {
   'sys.cart':      { glyph: ShoppingCart,      label: 'Кошик',         family: 'system' },
   'sys.receipt':   { glyph: Receipt,           label: 'Чек',           family: 'system' },
   'sys.add':       { glyph: Plus,              label: 'Додати',        family: 'system' },
+  // 6b-5: меню вкладень за «+» у композиторі (Prototype): чек · фото полиці · список текстом.
+  'sys.photo':     { glyph: Camera,            label: 'Фото полиці',   family: 'system' },
+  'sys.text':      { glyph: FileText,          label: 'Список текстом', family: 'system' },
   'sys.voice':     { glyph: Mic,               label: 'Голос',         family: 'system' },
   'sys.send':      { glyph: ArrowUp,           label: 'Надіслати',     family: 'system' },
   'sys.attach':    { glyph: Paperclip,         label: 'Вкласти',       family: 'system' },
@@ -62,8 +65,16 @@ export const ICONS = {
   'sys.close':     { glyph: X,                 label: 'Закрити',       family: 'system' },
   'sys.undo':      { glyph: Undo2,             label: 'Скасувати',     family: 'system' },
   'sys.next':      { glyph: ChevronRight,      label: 'Далі',          family: 'system' },
+  // 6b-5: пілюля сесії в шапці чату (Prototype: chevron-down «розкрити розмови»).
+  'sys.open':      { glyph: ChevronDown,       label: 'Розкрити',      family: 'system' },
+  'sys.opened':    { glyph: ChevronUp,         label: 'Розкрито',      family: 'system' },
   'sys.out':       { glyph: ExternalLink,      label: 'Назовні',       family: 'system' },
   'sys.collapse':  { glyph: PanelLeftClose,    label: 'Згорнути',      family: 'system' },
+  // Етап 6a: одна кнопка «панель» на всі контейнери (Responsive R1) — open ⇄ close.
+  'sys.expand':    { glyph: PanelLeftOpen,     label: 'Розгорнути',    family: 'system' },
+  // 6b-3: закриття правої панелі артефакта — panel-right-close (Prototype),
+  // дзеркало до «Згорнути» сайдбара: рамка з поділом з того боку, якого стосується.
+  'sys.panelClose': { glyph: PanelRightClose,  label: 'Закрити панель', family: 'system' },
   'sys.theme':     { glyph: SunMoon,           label: 'Тема',          family: 'system' },
   // Смуга «вхід · час оновитись» (Errors E2) — log-in, як у бандлі.
   'sys.login':     { glyph: LogIn,             label: 'Увійти',        family: 'system' },
@@ -145,6 +156,12 @@ export const ICONS = {
   'cook.done':     { glyph: RotateCcw,     label: 'Готував, знову',family: 'cooking' },
   'cook.missing':  { glyph: ShoppingBasket,label: 'Бракує',        family: 'cooking' },
   'sys.import':    { glyph: Import,        label: 'Записати свій', family: 'system' },
+  // Рецепт (Screens «Рецепт · 1440», «Чат · збірка»): кроки — list-ordered,
+  // збережено — bookmark-check, поділитись — share-2, уточнити — reply.
+  'cook.steps':    { glyph: ListOrdered,   label: 'Кроки',         family: 'cooking' },
+  'sys.saved':     { glyph: BookmarkCheck, label: 'Збережено',     family: 'system' },
+  'sys.share':     { glyph: Share2,        label: 'Поділитись',    family: 'system' },
+  'sys.reply':     { glyph: Reply,         label: 'Уточнити',      family: 'system' },
   'cook.rating':   { glyph: Star,          label: 'Оцінка',        family: 'cooking' },
 
   // ---- живі стани й тривога ----
@@ -159,6 +176,8 @@ export const ICONS = {
   'live.supply':   { glyph: Truck,         label: 'Завіз',         family: 'live' },
   'live.household':{ glyph: Users,         label: 'Подія дому',    family: 'live' },
   'live.byHand':   { glyph: Pencil,        label: 'Рукою',         family: 'live' },
+  // 6b-5: суворий період у шапці чату (Screens «Чат · збірка»: moon «Піст · до 27 вер»).
+  'live.fast':     { glyph: Moon,          label: 'Піст',          family: 'live' },
   // Стани дії — рядок над композитором (Components · «Стани дії»). Знаки з
   // бандла, як намальовано: ліміт — пісочний годинник, мережа — wifi-off,
   // «нічого не змінилось» — мінус. «Стоп» — квадрат, знак зупинки.
