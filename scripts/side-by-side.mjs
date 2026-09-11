@@ -19,7 +19,7 @@
 // або засів (той самий запобіжник, що в design-audit).
 
 import { chromium } from '@playwright/test';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -73,15 +73,19 @@ const framePng = await frame.screenshot({ type: 'png' });
 // ── рендер застосунку ──────────────────────────────────────────────────────
 let appPng = null; let appNote = 'застосунок не знімався (--url не задано)';
 if (URL_BASE) {
+  // Сесія кешується у файлі стану (--state, типово out/.sbs-state.json):
+  // magic-link має ліміт 5 на 15 хв, а пар на здачу — десять.
+  const STATE_FILE = STATE ?? 'out/.sbs-state.json';
+  const haveState = existsSync(STATE_FILE);
   const appCtx = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 2,
-    ...(STATE ? { storageState: STATE } : {}),
+    ...(haveState ? { storageState: STATE_FILE } : {}),
     ...(WIDTH < 768 ? { isMobile: true, hasTouch: true } : {}),
   });
   const page = await appCtx.newPage();
   await page.emulateMedia({ colorScheme: THEME });
   await page.goto(`${URL_BASE}/`, { waitUntil: 'domcontentloaded' });
-  if (EMAIL && !STATE) {
+  if (EMAIL && !haveState) {
     // Той самий вхід, що в design-audit: magic link із локального логу.
     await page.request.post(`${URL_BASE}/v1/auth/request`, { data: { email: EMAIL } });
     await page.waitForTimeout(600);
@@ -89,6 +93,9 @@ if (URL_BASE) {
     const link = line.match(/https?:\S*token=\S+/)?.[0];
     if (!link) { console.error('side-by-side: magic link не знайдено в логу'); await browser.close(); process.exit(1); }
     await page.goto(link.replace(/^https?:\/\/[^/]+/, URL_BASE), { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(800);
+    mkdirSync(dirname(resolve(STATE_FILE)), { recursive: true });
+    await appCtx.storageState({ path: STATE_FILE });
   }
   await page.goto(`${URL_BASE}${arg('path', new URL(URL_BASE).pathname === '/' ? '' : '')}`, { waitUntil: 'domcontentloaded' });
   const path = arg('path', null);

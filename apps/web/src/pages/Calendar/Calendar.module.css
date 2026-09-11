@@ -6,7 +6,7 @@
 
 .screen {
   min-height: 100dvh;
-  background: var(--card);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
 }
@@ -44,7 +44,7 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  background: var(--card);
+  background: var(--bg);
 }
 .monthbar {
   display: flex;

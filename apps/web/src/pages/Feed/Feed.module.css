@@ -7,7 +7,7 @@
      з таб-баром їдуть за екран. Хендоф тримає їх знизу завжди; скрол живе
      всередині .timeline (flex:1 + overflow-y). */
   height: 100dvh;
-  background: var(--card);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
 }
@@ -258,7 +258,7 @@
 /* ----- Composer ------------------------------------------------------- */
 .composer-wrap {
   border-top: 1px solid var(--line);
-  background: var(--card);
+  background: var(--bg);
   /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
      а не від низу вікна. Композер росте разом із текстом, і фіксований
      відступ від краю рано чи пізно на нього наліз би. */

@@ -324,11 +324,10 @@ export function PantryPage() {
         )}
 
         {view.grouped && view.groups.map((g) => (
-          <div key={g.zone} data-zone={g.zone}>
-            {/* Хедер зони за каноном v3: чорнило, 44 px, знак 15, назва 14/600,
-                лічильник 13/400 на opacity .6. Раніше лічильник фарбувався
-                токеном РАМКИ (--border-strong) — 1.32:1, найгучніший провал
-                контрасту в усій базі аудиту. */}
+          <div key={g.zone} data-zone={g.zone} className={styles['zone-card']}>
+            {/* Хедер зони як у бандлі: заливка чорнилом, текст bg, 44 px, знак 16,
+                назва 14/600, лічильник 12 на opacity .7 (бандл .6 — у темній це
+                4.4:1, тому .7: 8.1 / 6.1). Зона — картка на полотні bg. */}
             <div className={styles['section-label']}>
               <Icon name={ZONE_ICON[g.zone] as 'zone.fresh'} size={16} inherit decorative />
               <span className={styles['section-name']}>{g.label}</span>

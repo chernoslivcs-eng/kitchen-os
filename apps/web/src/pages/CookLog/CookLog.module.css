@@ -1,6 +1,6 @@
 .screen {
   min-height: 100dvh;
-  background: var(--card);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
 }
