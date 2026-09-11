@@ -140,8 +140,8 @@ export function RecipePage() {
   ].filter(Boolean).join(' · ');
   const sv = recipe.sv ?? 1;
   const stepBtn: React.CSSProperties = {
-    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--border-strong)',
-    background: 'transparent', color: 'var(--fg)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
+    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--line2)',
+    background: 'transparent', color: 'var(--ink)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
   };
 
   return (
@@ -179,9 +179,9 @@ export function RecipePage() {
         {summary && <div className={styles.summary}>{summary}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
           <button type="button" style={stepBtn} aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}>−</button>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--fg-strong)' }}>{sv}</span>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--ink)' }}>{sv}</span>
           <button type="button" style={stepBtn} aria-label="Більше порцій" disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}>+</button>
-          <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>
             {plural(sv, ['порція', 'порції', 'порцій'])}{baseRecipe && sv !== (baseRecipe.sv ?? 1) ? ` · база ${baseRecipe.sv}` : ''}
           </span>
         </div>
@@ -202,21 +202,21 @@ export function RecipePage() {
                   {name}
                   {allergy && (
                     <span className={styles['ing-chip']} style={{
-                      background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)',
+                      background: 'var(--danger-bg)', border: '1px solid var(--danger-line)', color: 'var(--danger)',
                     }}>
                       ⚠ {allergy.who ? `АЛЕРГІЯ ${allergy.who}` : allergy.label}
                     </span>
                   )}
                   {!allergy && anti && (
                     <span className={styles['ing-chip']} style={{
-                      background: 'var(--plum-bg)', border: '1px solid var(--plum-border)', color: 'var(--plum)',
+                      background: 'var(--plum-bg)', border: '1px solid var(--plum-line)', color: 'var(--plum)',
                     }}>
                       АНТИ
                     </span>
                   )}
                   {opened && (
                     <span className={styles['ing-chip']} style={{
-                      background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', color: 'var(--amber)',
+                      background: 'var(--amber-bg)', border: '1px solid var(--amber-line)', color: 'var(--amber)',
                     }}>
                       ◔ відкрито
                     </span>

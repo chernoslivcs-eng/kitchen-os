@@ -1193,17 +1193,17 @@ export function Feed() {
             onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              border: '1px solid var(--accent-border)', borderRadius: 14,
-              padding: '13px 16px', margin: '0 0 8px', background: 'var(--bg-surface)',
+              border: '1px solid var(--sage)', borderRadius: 14,
+              padding: '13px 16px', margin: '0 0 8px', background: 'var(--card)',
               cursor: 'pointer', textAlign: 'left', width: '100%',
             }}
           >
-            <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flex: 'none' }} />
-            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--accent)' }}>
+            <span className={styles['banner-dot']} style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sage)', flex: 'none' }} />
+            <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--sage)' }}>
               Готуємо · {cookLive.recipe.t} · крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
               <CookCountdown deadline={cookLive.deadline} />
             </span>
-            <span style={{ fontSize: 13, color: 'var(--accent)' }}>
+            <span style={{ fontSize: 13, color: 'var(--sage)' }}>
               Продовжити ›
             </span>
           </button>
@@ -1218,15 +1218,15 @@ export function Feed() {
               onClick={startFreshSession}
               style={{
                 display: 'flex', width: '100%', padding: '13px 16px', marginBottom: 8,
-                border: '1px dashed var(--border-strong)', borderRadius: 14,
-                background: 'transparent', color: 'var(--accent)',
+                border: '1px dashed var(--line2)', borderRadius: 14,
+                background: 'transparent', color: 'var(--sage)',
                 fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
                 cursor: 'pointer',
               }}
             >+ Нова розмова</button>
             {historyLoading && <SkeletonRows rows={4} />}
             {!historyLoading && historySessions.length === 0 && (
-              <div style={{ color: 'var(--fg-muted)', padding: '20px 0', fontSize: 14 }}>
+              <div style={{ color: 'var(--muted)', padding: '20px 0', fontSize: 14 }}>
                 Тут поки немає минулих розмов. Сьогоднішня зʼявиться тут завтра.
               </div>
             )}
@@ -1240,19 +1240,19 @@ export function Feed() {
                   style={{
                     display: 'flex', alignItems: 'baseline', gap: 12, width: '100%',
                     padding: '12px 0',
-                    border: 0, borderBottom: '1px solid var(--border)',
+                    border: 0, borderBottom: '1px solid var(--line)',
                     background: 'transparent', color: 'inherit',
                     cursor: 'pointer', textAlign: 'left',
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)',
+                      fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--ink)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {s.title ?? dayLabel}
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--fg-dim)', marginTop: 3 }}>
+                    <div style={{ fontSize: 13, color: 'var(--dim)', marginTop: 3 }}>
                       {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
                     </div>
                   </div>
@@ -1269,9 +1269,9 @@ export function Feed() {
                         if (s.id === sessionId) void startFreshSession();
                       }).catch(() => {/* тихо */});
                     }}
-                    style={{ color: 'var(--fg-dim)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
+                    style={{ color: 'var(--dim)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
                   ><Icon name="sys.close" size={12} inherit /></span>
-                  <span style={{ color: 'var(--fg-dim)' }}><Icon name="sys.next" size={12} inherit decorative /></span>
+                  <span style={{ color: 'var(--dim)' }}><Icon name="sys.next" size={12} inherit decorative /></span>
                 </button>
               );
             })}
@@ -1306,10 +1306,10 @@ export function Feed() {
                     style={{
                       padding: '12px 20px',
                       minWidth: 260,
-                      background: i === 0 ? 'var(--accent-bg)' : 'transparent',
-                      border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border-strong)',
+                      background: i === 0 ? 'var(--sage-bg)' : 'transparent',
+                      border: i === 0 ? '1px solid var(--sage)' : '1px solid var(--line2)',
                       borderRadius: 'var(--r)',
-                      color: i === 0 ? 'var(--accent)' : 'var(--fg-muted)',
+                      color: i === 0 ? 'var(--sage)' : 'var(--muted)',
                       fontFamily: 'var(--font-body)',
                       fontSize: 14,
                       fontWeight: 600,

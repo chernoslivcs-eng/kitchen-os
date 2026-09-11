@@ -2,8 +2,8 @@
  * «Не глянцевий фудпорн, а „зібрав із того, що було"». */
 .screen {
   min-height: 100dvh;
-  background: var(--bg-body);
-  color: var(--fg);
+  background: var(--bg);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
 }
@@ -17,9 +17,9 @@
   height: 42px;
   padding: 0 14px;
   border-radius: var(--r);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line2);
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 14px;
@@ -29,7 +29,7 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 .body {
@@ -133,7 +133,7 @@
 .hint {
   font-family: var(--font-body);
   font-size: 13px;
-  color: var(--fg-muted);
+  color: var(--muted);
   line-height: 1.5;
   text-align: center;
 }
@@ -161,9 +161,9 @@
   justify-content: center;
 }
 .seg-btn {
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  color: var(--fg-muted);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
   border-radius: var(--r-pill);
   padding: 8px 14px;
   font-family: var(--font-body);
@@ -173,8 +173,8 @@
   transition: background var(--dur-fast, 150ms) var(--ease-standard, ease), color var(--dur-fast, 150ms), border-color var(--dur-fast, 150ms);
 }
 .seg-on {
-  background: var(--fg);
-  color: var(--bg-surface);
-  border-color: var(--fg);
+  background: var(--ink);
+  color: var(--card);
+  border-color: var(--ink);
 }
 .actions { display: flex; gap: 10px; justify-content: center; }

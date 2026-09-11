@@ -30,12 +30,12 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 function statusChip(r: SavedRecipe): { text: string; color: string; bg: string; border: string } {
   if (r.status === 'ready') {
-    return { text: 'МОЖУ ЗАРАЗ', color: 'var(--accent)', bg: 'var(--accent-bg)', border: 'var(--accent)' };
+    return { text: 'МОЖУ ЗАРАЗ', color: 'var(--sage)', bg: 'var(--sage-bg)', border: 'var(--sage)' };
   }
   if (r.status === 'near') {
-    return { text: `−${r.missing.length}`, color: 'var(--amber)', bg: 'var(--amber-bg)', border: 'var(--amber-border)' };
+    return { text: `−${r.missing.length}`, color: 'var(--amber)', bg: 'var(--amber-bg)', border: 'var(--amber-line)' };
   }
-  return { text: `${r.have} З ${r.total}`, color: 'var(--fg-dim)', bg: 'transparent', border: 'var(--border-strong)' };
+  return { text: `${r.have} З ${r.total}`, color: 'var(--dim)', bg: 'transparent', border: 'var(--line2)' };
 }
 
 export function RecipesPage() {
@@ -103,7 +103,7 @@ export function RecipesPage() {
             onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}
             style={{
               background: 'transparent', border: 0, padding: '5px 4px',
-              color: 'var(--accent)', fontSize: 13, cursor: 'pointer',
+              color: 'var(--sage)', fontSize: 13, cursor: 'pointer',
             }}
           >
             <Icon name="sys.add" size={16} inherit decorative /> Імпорт
@@ -111,8 +111,8 @@ export function RecipesPage() {
           <button
             onClick={() => navigate('/cooklog')}
             style={{
-              background: 'transparent', border: '1px solid var(--border-strong)',
-              borderRadius: 'var(--r-pill)', padding: '5px 10px', color: 'var(--fg-muted)',
+              background: 'transparent', border: '1px solid var(--line2)',
+              borderRadius: 'var(--r-pill)', padding: '5px 10px', color: 'var(--muted)',
               fontSize: 10, cursor: 'pointer',
             }}
           >
@@ -153,9 +153,9 @@ export function RecipesPage() {
                     height: 32,
                     padding: '0 13px',
                     borderRadius: 'var(--r-pill)',
-                    border: `1px solid ${active ? 'var(--btn-primary-bg)' : 'var(--border-strong)'}`,
+                    border: `1px solid ${active ? 'var(--btn-primary-bg)' : 'var(--line2)'}`,
                     background: active ? 'var(--btn-primary-bg)' : 'transparent',
-                    color: active ? 'var(--btn-primary-fg)' : 'var(--fg-muted)',
+                    color: active ? 'var(--btn-primary-fg)' : 'var(--muted)',
                     fontFamily: 'var(--font-body)',
                     fontSize: 13,
                     fontWeight: 600,
@@ -219,7 +219,7 @@ export function RecipesPage() {
                       marginTop: 5,
                       fontFamily: 'var(--font-body)',
                       fontSize: 13,
-                      color: 'var(--fg-muted)',
+                      color: 'var(--muted)',
                       lineHeight: 1.45,
                     }}>
                       {r.descr}
@@ -244,7 +244,7 @@ export function RecipesPage() {
                       marginTop: 3,
                       fontFamily: 'var(--font-mono)',
                       fontSize: 13,
-                      color: 'var(--accent)',
+                      color: 'var(--sage)',
                     }}>
                       ВИКОРИСТАЄ: {r.rescues.join(', ')}
                     </div>
@@ -263,7 +263,7 @@ export function RecipesPage() {
                   background: 'transparent',
                   border: 0,
                   borderRadius: 'var(--r)',
-                  color: 'var(--fg-dim)',
+                  color: 'var(--dim)',
                   fontSize: 14,
                   cursor: 'pointer',
                 }}

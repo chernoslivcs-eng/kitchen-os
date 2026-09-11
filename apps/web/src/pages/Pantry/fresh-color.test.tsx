@@ -24,7 +24,7 @@ function mount(fresh: string) {
 describe('колір іконки свіжості (обчислений)', () => {
   it('стан перебиває базове правило .row .mark', () => {
     // Етап 2a: клас `fresh-fresh` став `fresh-good` (Р22 — «свіже» це зона).
-    expect(getComputedStyle(mount('good')).color).toBe('var(--accent)');
+    expect(getComputedStyle(mount('good')).color).toBe('var(--sage)');
     expect(getComputedStyle(mount('soon')).color).toBe('var(--amber)');
     expect(getComputedStyle(mount('check')).color).toBe('var(--danger)');
   });

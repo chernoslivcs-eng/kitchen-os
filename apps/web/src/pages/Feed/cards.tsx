@@ -183,14 +183,14 @@ function ClarifyRow({
   if (!editing) {
     return (
       <div className={styles.op}>
-        <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>?</span>
-        <span className={styles['op-label']} style={{ color: 'var(--fg-dim)' }}>«{line.name}»</span>
+        <span className={styles['op-sign']} style={{ color: 'var(--dim)' }}>?</span>
+        <span className={styles['op-label']} style={{ color: 'var(--dim)' }}>«{line.name}»</span>
         <button
           type="button"
           onClick={() => setEditing(true)}
           style={{
-            border: '1px solid var(--border)', background: 'none', borderRadius: 999,
-            padding: '4px 10px', color: 'var(--fg-dim)', fontFamily: 'var(--font-body)',
+            border: '1px solid var(--line)', background: 'none', borderRadius: 999,
+            padding: '4px 10px', color: 'var(--dim)', fontFamily: 'var(--font-body)',
             fontSize: 12, fontWeight: 500, cursor: 'pointer', flex: 'none',
           }}
         >уточнити</button>
@@ -198,25 +198,25 @@ function ClarifyRow({
     );
   }
   return (
-    <div className={styles.op} style={{ background: 'var(--accent-bg)', margin: '0 -20px', padding: '11px 20px' }}>
-      <span className={styles['op-sign']} style={{ color: 'var(--fg-dim)' }}>?</span>
+    <div className={styles.op} style={{ background: 'var(--sage-bg)', margin: '0 -20px', padding: '11px 20px' }}>
+      <span className={styles['op-sign']} style={{ color: 'var(--dim)' }}>?</span>
       <span className={styles['op-label']}>«{line.name}»</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)',
-          border: '1px solid var(--accent-border)', borderRadius: 8, padding: '3px 8px',
+          display: 'flex', alignItems: 'center', gap: 6, background: 'var(--card)',
+          border: '1px solid var(--sage)', borderRadius: 8, padding: '3px 8px',
         }}>
           <button
             type="button" disabled={busy} onClick={() => setValue((v) => Math.max(1, v - 1))}
-            style={{ border: 0, background: 'none', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
+            style={{ border: 0, background: 'none', color: 'var(--sage)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
           >−</button>
           <span style={{ fontSize: 12, minWidth: 14, textAlign: 'center' }}>{value}</span>
           <button
             type="button" disabled={busy} onClick={() => setValue((v) => v + 1)}
-            style={{ border: 0, background: 'none', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
+            style={{ border: 0, background: 'none', color: 'var(--sage)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
           >+</button>
         </div>
-        <span style={{ fontSize: 13, color: 'var(--accent)' }}>{formatUnit(line.unit)}</span>
+        <span style={{ fontSize: 13, color: 'var(--sage)' }}>{formatUnit(line.unit)}</span>
         <button
           type="button"
           disabled={busy || !cardId}
@@ -229,7 +229,7 @@ function ClarifyRow({
             } catch { setBusy(false); }
           }}
           style={{
-            border: 0, background: 'var(--accent)', color: 'var(--accent-fg-on)', borderRadius: 999,
+            border: 0, background: 'var(--sage)', color: 'var(--sage-on)', borderRadius: 999,
             padding: '5px 10px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
             cursor: 'pointer', opacity: busy ? 0.6 : 1,
           }}
@@ -313,7 +313,7 @@ function NonfoodGroup({
       actionLabel={sent ? 'У СПИСКУ' : 'У СПИСОК'}
       actionDisabled={sent}
       rows={rows.map((r, i) => (
-        <div key={i} className={styles.rrow} style={{ color: 'var(--fg-muted)' }}>
+        <div key={i} className={styles.rrow} style={{ color: 'var(--muted)' }}>
           <span className={styles.rbox} />
           <span className={styles['rrow-name']}>{r.name}</span>
           {r.qty && <span className={styles['rrow-qty']}>{r.qty}</span>}
@@ -508,7 +508,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
               actionLabel={showInList ? 'СХОВАТИ' : 'ПОКАЗАТИ'}
             >
               {showInList && (
-                <div className={styles.rrow} style={{ color: 'var(--fg-dim)' }}>
+                <div className={styles.rrow} style={{ color: 'var(--dim)' }}>
                   <span className={styles['rrow-name']}>
                     {[...inList].map((i) => ops[i]?.label).filter(Boolean).join(', ')}
                   </span>
@@ -567,7 +567,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                   ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
                   : op.label ?? '—'}
                 {op.op === 'correct' && (op as { zone?: string }).zone && (
-                  <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--fg-dim)' }}>
+                  <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--dim)' }}>
                     <Icon name="sys.next" size={12} inherit decorative /> {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
                   </span>
                 )}
@@ -783,7 +783,7 @@ export function ShoppingListCard({
         />
       )}
       {items.length === 0 && (
-        <div style={{ padding: '10px 0', color: 'var(--fg-muted)', fontFamily: 'var(--font-body)', fontSize: 15 }}>
+        <div style={{ padding: '10px 0', color: 'var(--muted)', fontFamily: 'var(--font-body)', fontSize: 15 }}>
           Поки нічого не треба купувати. Додай сам або скажи в чаті.
         </div>
       )}
@@ -818,7 +818,7 @@ export function RecipeCard({ card, applied, applying, dismissed, undone, undoAva
       </div>
       {meta && <MonoLabel>{meta}</MonoLabel>}
       {r.d && (
-        <div style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.45 }}>
+        <div style={{ marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
           {r.d}
         </div>
       )}
@@ -845,7 +845,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
       {/* Канон Бриф-2 5б: мініатюра 56px + здогад назви, без емодзі. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
-          width: 56, height: 56, borderRadius: 12, background: 'var(--bg-hover)',
+          width: 56, height: 56, borderRadius: 12, background: 'var(--line)',
           overflow: 'hidden', flex: 'none', display: 'grid', placeItems: 'center',
         }}>
           {attId ? (
@@ -855,14 +855,14 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            <span style={{ fontSize: 10, color: 'var(--fg-dim)' }}>IMG</span>
+            <span style={{ fontSize: 10, color: 'var(--dim)' }}>IMG</span>
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: 'var(--fg)' }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>
             {card.recipe_title ?? 'Готування'}
           </div>
-          <div style={{ marginTop: 2, fontSize: 13, color: 'var(--fg-dim)' }}>
+          <div style={{ marginTop: 2, fontSize: 13, color: 'var(--dim)' }}>
             Фото до цієї вечері
           </div>
         </div>
@@ -912,11 +912,11 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
           color: 'inherit', textDecoration: 'none',
         }}
       >
-        <span style={{ color: 'var(--fg-dim)' }}><Icon name="sys.recipes" size={16} inherit decorative /></span>
-        <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--fg)' }}>
+        <span style={{ color: 'var(--dim)' }}><Icon name="sys.recipes" size={16} inherit decorative /></span>
+        <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--ink)' }}>
           {card.title ?? 'Рецепт'}
         </span>
-        <span style={{ fontSize: 13, color: 'var(--accent)' }}>
+        <span style={{ fontSize: 13, color: 'var(--sage)' }}>
           Рецепт →
         </span>
       </Link>
@@ -1016,10 +1016,10 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
     <div className={styles['recipe-msg']}>
       <div>
         {/* Канон B: назва 22/Onest, мета людською мовою, порції — «N порцій ▾». */}
-        <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 22, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--fg-strong)', lineHeight: 1.2 }}>
+        <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 22, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--ink)', lineHeight: 1.2 }}>
           {r.t}
         </div>
-        <div style={{ marginTop: 5, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)' }}>
+        <div style={{ marginTop: 5, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)' }}>
           {r.tm ? <span>{formatDuration(r.tm)}</span> : null}
           {r.nu?.kcal ? <span>{r.nu.kcal} ккал</span> : null}
           <button
@@ -1027,8 +1027,8 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
             onClick={() => setPickServings((v) => !v)}
             style={{
               border: 0, background: 'none', padding: '0 0 1px', cursor: 'pointer',
-              fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg)',
-              borderBottom: '1px dashed var(--border-strong)',
+              fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--ink)',
+              borderBottom: '1px dashed var(--line2)',
             }}
           >
             {sv} {plural(sv, ['порція', 'порції', 'порцій'])} ▾
@@ -1043,15 +1043,15 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
                 onClick={() => { setServings(n); setPickServings(false); }}
                 style={{
                   height: 32, padding: '0 13px', borderRadius: 999, cursor: 'pointer',
-                  border: n === sv ? '1px solid var(--fg)' : '1px solid var(--border-strong)',
-                  background: n === sv ? 'var(--fg)' : 'transparent',
-                  color: n === sv ? 'var(--bg-surface)' : 'var(--fg-muted)',
+                  border: n === sv ? '1px solid var(--ink)' : '1px solid var(--line2)',
+                  background: n === sv ? 'var(--ink)' : 'transparent',
+                  color: n === sv ? 'var(--card)' : 'var(--muted)',
                   fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
                 }}
               >{n}</button>
             ))}
             {sv !== (r.sv ?? 1) && (
-              <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--fg-dim)' }}>база {r.sv}</span>
+              <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--dim)' }}>база {r.sv}</span>
             )}
           </div>
         )}
@@ -1061,7 +1061,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
         {r.rk && (
           <div style={{
             marginTop: 8,
-            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.5,
+            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5,
           }}>{r.rk}</div>
         )}
       </div>
@@ -1084,7 +1084,7 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
                 onPointerDown={missing && !added && onNeedToList ? () => pressStart(i) : undefined}
                 onPointerUp={pressEnd}
                 onPointerLeave={pressEnd}
-                style={missing ? undefined : { color: 'var(--fg-dim)' }}
+                style={missing ? undefined : { color: 'var(--dim)' }}
               >
                 <span className={styles['recipe-ing-name']}>
                   {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
@@ -1239,7 +1239,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
               <div className={styles['cart-item-top']}>
                 <span
                   className={`${styles['cart-name']} ${justSwapped === i ? styles['row-text-in'] : ''}`}
-                  style={p ? undefined : { color: 'var(--fg-dim)' }}
+                  style={p ? undefined : { color: 'var(--dim)' }}
                 >
                   {r.label}
                 </span>
@@ -1324,8 +1324,8 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                         title="замінити цією"
                         aria-label={`замінити на ${a.name}`}
                         style={{
-                          border: '1px solid var(--accent-border)', background: 'var(--accent-bg)',
-                          color: 'var(--accent)', opacity: swapping === i ? 0.5 : 1,
+                          border: '1px solid var(--sage)', background: 'var(--sage-bg)',
+                          color: 'var(--sage)', opacity: swapping === i ? 0.5 : 1,
                         }}
                       >⇄</button>
                       <button
@@ -1336,8 +1336,8 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                         title="додати окремим рядком"
                         aria-label={`додати ${a.name} окремо`}
                         style={{
-                          border: '1px solid var(--border)', background: 'none',
-                          color: 'var(--fg-dim)', opacity: adding === i ? 0.5 : 1,
+                          border: '1px solid var(--line)', background: 'none',
+                          color: 'var(--dim)', opacity: adding === i ? 0.5 : 1,
                         }}
                       >+</button>
                     </div>
@@ -1401,7 +1401,7 @@ export function PeriodChatCard(props: CardProps) {
   const kicker = form === 'series'
     ? (card.unsubscribe || card.set === 'seasons' || !card.tradition ? 'СЕЗОНИ' : 'СВЯТА · З ТРАДИЦІЇ')
     : card.kind === 'diet' ? 'ДІЄТА' : 'ПОДІЯ ДОМУ';
-  const kickerTone = form === 'series' ? (card.tradition ? 'var(--plum)' : 'var(--amber)') : 'var(--accent)';
+  const kickerTone = form === 'series' ? (card.tradition ? 'var(--plum)' : 'var(--amber)') : 'var(--sage)';
   const title = form === 'series'
     ? (card.unsubscribe && items.length === 1 ? `${items[0]!.title} · не показувати`
       : card.set === 'seasons' ? `Сезони · ${items.length}`
@@ -1422,9 +1422,9 @@ export function PeriodChatCard(props: CardProps) {
   return (
     <div className={stateClass(applied, undone)} data-testid="period-chat-card">
       <div style={{ fontSize: 10, letterSpacing: 'var(--tracking-caps)', color: kickerTone }}>{kicker}</div>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17, lineHeight: 1.25, letterSpacing: '-0.01em', color: 'var(--fg)', marginTop: 6 }}>{title}</div>
-      {line && <div style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--fg-muted)', marginTop: 4 }}>{line}</div>}
-      <div style={{ fontSize: 12, color: applied && !undone ? 'var(--accent)' : 'var(--fg-dim)', marginTop: 6 }}>{meta}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17, lineHeight: 1.25, letterSpacing: '-0.01em', color: 'var(--ink)', marginTop: 6 }}>{title}</div>
+      {line && <div style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--muted)', marginTop: 4 }}>{line}</div>}
+      <div style={{ fontSize: 12, color: applied && !undone ? 'var(--sage)' : 'var(--dim)', marginTop: 6 }}>{meta}</div>
       {!closed && !undone && (
         <div className={styles['card-actions']}>
           <Button variant="primary" onClick={onOpenArtifact} disabled={applying}>Відкрити</Button>

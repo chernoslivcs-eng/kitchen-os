@@ -9,71 +9,71 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: .14em;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 
-.dim { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: var(--fg-dim); }
+.dim { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: var(--dim); }
 
 .period { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
 .arrow {
   width: 28px; height: 30px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: none;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-family: var(--font-mono);
   font-size: 12px;
   cursor: pointer;
 }
-.arrow:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg); }
-.arrow:disabled { color: var(--border-strong); cursor: default; }
+.arrow:hover:not(:disabled) { background: var(--line); color: var(--ink); }
+.arrow:disabled { color: var(--line2); cursor: default; }
 
-.tabs { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tabs { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 
 .tab {
   padding: 7px 14px;
   background: none;
   border: 0;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: .06em;
-  color: var(--fg-muted);
+  color: var(--muted);
   cursor: pointer;
 }
 .tab:last-child { border-right: 0; }
-.tab:hover { background: var(--bg-hover); }
-.tabOn { background: var(--fg); color: var(--bg-body); }
-.tabOn:hover { background: var(--fg); }
+.tab:hover { background: var(--line); }
+.tabOn { background: var(--ink); color: var(--bg); }
+.tabOn:hover { background: var(--ink); }
 
 /* --- Картки підсумку ----------------------------------------------------- */
 
 .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 
 .card {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg-body);
+  background: var(--bg);
   padding: 14px 16px;
 }
-.cardTitle { font-size: 12px; color: var(--fg-dim); margin-bottom: 6px; }
-.big { font-size: 24px; font-weight: 600; color: var(--fg-strong); letter-spacing: -.02em; }
-.sub { margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-dim); min-height: 14px; }
+.cardTitle { font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+.big { font-size: 24px; font-weight: 600; color: var(--ink); letter-spacing: -.02em; }
+.sub { margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--dim); min-height: 14px; }
 
 /* Зміна проти попереднього періоду. Зростання витрат — не «добре» і не
    «погано», тому не зелене й не червоне: бурштин привертає увагу, не оцінює. */
 .deltaUp { color: var(--amber); }
-.deltaDown { color: var(--fg-muted); }
-.deltaFlat { color: var(--fg-dim); }
-.deltaNew { color: var(--fg-dim); }
+.deltaDown { color: var(--muted); }
+.deltaFlat { color: var(--dim); }
+.deltaNew { color: var(--dim); }
 
 /* --- Розрізи -------------------------------------------------------------- */
 
 .slice { display: flex; flex-direction: column; gap: 8px; }
 .sliceHead { display: flex; align-items: baseline; gap: 12px; }
 
-.table { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg-body); }
+.table { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); }
 
 .rowHead, .tableRow {
   display: grid;
@@ -84,22 +84,22 @@
 }
 
 .rowHead {
-  background: var(--bg-surface-2);
+  background: var(--line);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: .12em;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
-.tableRow { border-top: 1px solid var(--border); }
+.tableRow { border-top: 1px solid var(--line); }
 
-.name { font-size: 13px; color: var(--fg-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mono { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-muted); }
+.name { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mono { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
 
 /* Рядок про моделі, ціни яких прайс не знає. Не помилка й не попередження — 
    але й не дрібний шрифт унизу: це діра в підрахунку, і її має бути видно. */
 .unpriced {
-  border: 1px solid var(--amber-border);
+  border: 1px solid var(--amber-line);
   background: var(--amber-bg);
   border-radius: 10px;
   padding: 11px 14px;
@@ -113,9 +113,9 @@
 .avgWrap { display: flex; align-items: baseline; gap: 12px; margin-top: 6px; }
 
 .rows {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg-body);
+  background: var(--bg);
   overflow: hidden;
 }
 
@@ -125,7 +125,7 @@
   gap: 14px;
   align-items: baseline;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 .row:last-child { border-bottom: 0; }
 
@@ -136,18 +136,18 @@
 .rowsWide .row { grid-template-columns: 210px minmax(0, 1fr); }
 .rowsWide .rowNote { grid-column: 2; margin-top: 4px; }
 
-.rowLabel { font-size: 13px; color: var(--fg-muted); }
-.rowValue { font-family: var(--font-mono); font-size: 13px; color: var(--fg-strong); }
-.rowNote { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-dim); line-height: 1.5; }
+.rowLabel { font-size: 13px; color: var(--muted); }
+.rowValue { font-family: var(--font-mono); font-size: 13px; color: var(--ink); }
+.rowNote { font-family: var(--font-mono); font-size: 10.5px; color: var(--dim); line-height: 1.5; }
 
 /* --- Порожньо ------------------------------------------------------------- */
 
 .empty {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--bg-body);
+  background: var(--bg);
   padding: 22px;
   max-width: 620px;
 }
-.empty b { display: block; font-size: 15px; color: var(--fg-strong); margin-bottom: 6px; }
-.empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--fg-muted); }
+.empty b { display: block; font-size: 15px; color: var(--ink); margin-bottom: 6px; }
+.empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--muted); }

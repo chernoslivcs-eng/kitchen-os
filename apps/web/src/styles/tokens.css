@@ -11,111 +11,52 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg-body:        #101317;
-  --bg-surface:     #181c21;
-  --bg-surface-2:   #1f242b;
-  --bg-hover:       #1f242b;
-  --border:         #262c33;
-  --border-strong:  #2c333b;
+  /* Етап «переїзд токенів» (11.09): старі кольорові імена (--bg-body, --fg,
+   * --accent, --border і решта — 27 імен, 1034 вживання у 52 файлах)
+   * ВИДАЛЕНІ, не перейменовані в псевдоніми. Пропущене вживання тепер падає
+   * на невизначений var() — і його ловить тест, а не око. Кольори живуть у
+   * блоках v3 нижче (маркери v3-light / v3-dark).
+   *
+   * Тут лишилась семантика, яку v3 не називає, але компоненти потребують.
+   * Кожна виражена через v3-токени, а не власним hex. */
 
-  --fg:             #e7eaec;
-  --fg-strong:      #ffffff;
-  --fg-muted:       #9aa3ac;
-  --fg-dim:         #79828c;
-  --fg-mono:        #c3c9ce;
+  /* Головна кнопка: чорнило на полотні, інверсія — на темній світла. */
+  --btn-primary-bg:      var(--ink);
+  --btn-primary-fg:      var(--bg);
+  --btn-primary-hover:   var(--sage-strong);
+  --btn-primary-pressed: var(--muted);
 
-  /* шавлія — дія і applied */
-  --accent:         #93b48b;
-  --accent-strong:  #a9c6a1;
-  --accent-bg:      #20291f;
-  --accent-bg-strong: #2a352a;   /* ховер шавлієвої заливки (слід у стрічці) */
-  --accent-border:  #3a4a3a;
-  --accent-dim:     #7e9877;     /* моно-метадані на шавлієвій заливці */
-  --accent-fg-on:   #141a12;
+  /* Фокус-кільце — шавлія тонально. */
+  --focus-ring: rgba(147, 180, 139, 0.18);
 
-  /* бурштин — pending, opened */
-  --amber:          #c9a86a;
-  --amber-bg:       #2b2419;
-  --amber-border:   #4a3d26;
-
-  /* слива — АНТИ */
-  --plum:           #c99ab4;
-  --plum-bg:        #2f2129;
-  --plum-border:    #4a3040;
-
-  /* теракота — помилка */
-  --danger:         #cc7a70;
-  --danger-bg:      #2e1e1b;
-  --danger-border:  #4d2f29;
-
-  /* тонові фокус-кільце */
-  --focus-ring:     rgba(147, 180, 139, 0.18);
-
-  /* нейтральний акцент — коли фон інвертований (світла кнопка на темному) */
-  --btn-primary-bg:      #e7eaec;
-  --btn-primary-fg:      #181c21;
-  --btn-primary-hover:   #ffffff;
-  --btn-primary-pressed: #c3c9ce;
-
-  --shadow-panel:   0 12px 40px rgba(0, 0, 0, 0.4);
-  --shadow-toast:   0 12px 32px rgba(0, 0, 0, 0.5);
+  /* Тіні — за tokens-v3 · Поверхні: sh-a 0 1px 2px · sh-b 0 8px 24px · панель 0 16px 48px. */
+  --sh-a:          0 1px 2px rgba(0, 0, 0, 0.35);
+  --sh-b:          0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-panel:  0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-toast:  var(--sh-b);
 
   /* Затемнення під шторкою й шухлядою. Значення різні за темами не для
      симетрії: на світлому те саме чорнило виглядає брудним, а не глибоким —
-     тому 35%, а не 55%. До цього кожна поверхня писала своє число руками
-     (шухляда 0.55, Sheet 0.5), і жодне не знало про світлу тему. */
-  --backdrop:       rgba(0, 0, 0, 0.55);
-
+     тому 35%, а не 55%. */
+  --backdrop: rgba(0, 0, 0, 0.55);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg-body:        #d9dcdf;
-  --bg-surface:     #eef0f1;
-  --bg-surface-2:   #f8f9fa;
-  --bg-hover:       #e3e6e8;
-  --border:         #dde0e2;
-  --border-strong:  #ced3d6;
+  --btn-primary-bg:      var(--ink);
+  --btn-primary-fg:      var(--bg);
+  --btn-primary-hover:   var(--sage-strong);
+  --btn-primary-pressed: var(--muted);
 
-  --fg:             #1d2126;
-  --fg-strong:      #000000;
-  --fg-muted:       #5c646d;
-  --fg-dim:         #7b838b;
-  --fg-mono:        #3c4249;
+  --focus-ring: rgba(88, 117, 78, 0.14);
 
-  --backdrop:       rgba(0, 0, 0, 0.35);
+  --sh-a:          0 1px 2px rgba(26, 28, 30, 0.05);
+  --sh-b:          0 8px 24px rgba(26, 28, 30, 0.06);
+  --shadow-panel:  0 16px 48px rgba(26, 28, 30, 0.10);
+  --shadow-toast:  var(--sh-b);
 
-
-  --accent:         #58754e;
-  --accent-strong:  #3f5837;
-  --accent-bg:      #e4ecdf;
-  --accent-bg-strong: #d9e6d2;   /* ховер шавлієвої заливки (слід у стрічці) */
-  --accent-border:  #c2d3b8;
-  --accent-dim:     #5c7355;     /* моно-метадані на шавлієвій заливці */
-  --accent-fg-on:   #f2f4f0;
-
-  --amber:          #96712c;
-  --amber-bg:       #f2e9d5;
-  --amber-border:   #ddc99a;
-
-  --plum:           #8f5c78;
-  --plum-bg:        #f0e3ea;
-  --plum-border:    #d8bccb;
-
-  --danger:         #a8483d;
-  --danger-bg:      #f5dcd7;
-  --danger-border:  #e0b4ab;
-
-  --focus-ring:     rgba(88, 117, 78, 0.14);
-
-  --btn-primary-bg:      #1d2126;
-  --btn-primary-fg:      #eef0f1;
-  --btn-primary-hover:   #3c4249;
-  --btn-primary-pressed: #0f1114;
-
-  --shadow-panel:   0 12px 40px rgba(29, 33, 38, 0.2);
-  --shadow-toast:   0 12px 32px rgba(29, 33, 38, 0.25);
+  --backdrop: rgba(0, 0, 0, 0.35);
 }
 
 /* --- Типографіка ---------------------------------------------------------- */
@@ -219,7 +160,7 @@
  * вводу — нічого. :where() має нульову специфічність, тож локальні правила
  * (наприклад, -2px offset у рядка комори) лишаються чинними. */
 :where(button, a[href], input, textarea, select, [tabindex]:not([tabindex='-1'])):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--sage);
   outline-offset: 2px;
 }
 
@@ -281,6 +222,7 @@ body.dz-drag #root {
   /* похідні (Р16) — форма та сама, що в шістнадцятці */
   --sage-strong: #4a6640; --sage-bg-strong: #dae6d2; --sage-on: #f4f3ef;
   --amber-line: #e4d3ab; --plum-line: #dfc7d6; --line2-strong: #d5d2ca;
+  --danger-bg: #f7e6e3; --danger-line: #e5b9b2;
 }
 
 /* v3-dark */
@@ -297,4 +239,5 @@ body.dz-drag #root {
   /* похідні (Р16) */
   --sage-strong: #a9c6a1; --sage-bg-strong: #2f3d33; --sage-on: #141a12;
   --amber-line: #4a3d26; --plum-line: #4a3040; --line2-strong: #3d434a;
+  --danger-bg: #3a2320; --danger-line: #5a3530;
 }

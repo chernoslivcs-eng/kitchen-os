@@ -9,16 +9,16 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 .line {
   height: 14px;
   border-radius: 7px;
   background: linear-gradient(
     90deg,
-    var(--bg-surface-2) 25%,
-    var(--bg-hover) 42%,
-    var(--bg-surface-2) 60%
+    var(--line) 25%,
+    var(--line) 42%,
+    var(--line) 60%
   );
   background-size: 240% 100%;
   animation: shimmer 1.4s linear infinite;

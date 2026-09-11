@@ -154,11 +154,11 @@ export function ShoppingPage() {
               onClick={unpackChecked}
               disabled={unpacking}
               style={{
-                background: 'var(--accent-bg)',
-                border: '1px solid var(--accent)',
+                background: 'var(--sage-bg)',
+                border: '1px solid var(--sage)',
                 borderRadius: 'var(--r-pill)',
                 padding: '5px 12px',
-                color: 'var(--accent)',
+                color: 'var(--sage)',
                 fontFamily: 'var(--font-mono)',
                 fontSize: 13,
                 cursor: unpacking ? 'wait' : 'pointer',
@@ -178,8 +178,8 @@ export function ShoppingPage() {
             placeholder="+ Додати в список…"
             style={{
               flex: 1, padding: '10px 14px',
-              background: 'var(--bg-input)', border: '1px solid var(--border)',
-              borderRadius: 'var(--r)', color: 'var(--fg)',
+              background: 'var(--bg)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r)', color: 'var(--ink)',
               fontFamily: 'var(--font-body)', fontSize: 14,
             }}
           />
@@ -189,7 +189,7 @@ export function ShoppingPage() {
               disabled={adding}
               style={{
                 padding: '0 16px', border: 0, borderRadius: 'var(--r)',
-                background: 'var(--accent)', color: 'var(--accent-fg-on)',
+                background: 'var(--sage)', color: 'var(--sage-on)',
                 fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
                 cursor: adding ? 'wait' : 'pointer',
               }}
@@ -239,8 +239,8 @@ export function ShoppingPage() {
             disabled={building}
             style={{
               width: '100%', height: 48, marginTop: 14,
-              border: '1px solid var(--accent-border)', borderRadius: 12,
-              background: 'var(--accent-bg)', color: 'var(--accent)',
+              border: '1px solid var(--sage)', borderRadius: 12,
+              background: 'var(--sage-bg)', color: 'var(--sage)',
               fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
               cursor: building ? 'wait' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -260,8 +260,8 @@ export function ShoppingPage() {
             href={`/v1/retail/silpo/connect?next=${encodeURIComponent('/list')}`}
             style={{
               width: '100%', height: 44, marginTop: 14, boxSizing: 'border-box',
-              border: '1px solid var(--border-strong)', borderRadius: 12,
-              background: 'transparent', color: 'var(--fg-muted)', textDecoration: 'none',
+              border: '1px solid var(--line2)', borderRadius: 12,
+              background: 'transparent', color: 'var(--muted)', textDecoration: 'none',
               fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}

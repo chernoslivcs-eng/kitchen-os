@@ -48,20 +48,20 @@
   height: 42px;
   padding: 0 14px;
   border-radius: var(--r);
-  border: 1px solid var(--border-strong);
-  color: var(--fg-muted);
+  border: 1px solid var(--line2);
+  color: var(--muted);
   background: transparent;
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
 }
-.exit:hover { background: var(--bg-surface-2); color: var(--fg); }
+.exit:hover { background: var(--line); color: var(--ink); }
 .head-meta {
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 /* Прогрес — тонкі рисочки поверх, шавлієві = зроблені, світло-сіра = поточна.
@@ -94,20 +94,20 @@
 .progress-top .progress-hit > div {
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--line);
 }
-.progress-top .progress-hit > div.done { background: var(--accent); }
+.progress-top .progress-hit > div.done { background: var(--sage); }
 .progress-top .progress-hit > div.current { background: #f2f4f5; }
 
 .progress > div {
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--line);
   transition: background var(--dur-base) var(--ease-standard);
 }
-.progress > .done { background: var(--accent); }
-.progress > .current { background: var(--fg); }
+.progress > .done { background: var(--sage); }
+.progress > .current { background: var(--ink); }
 
 .body {
   flex: 1;
@@ -152,8 +152,8 @@
 .main.share-result {
   width: 100%;
   background: transparent;
-  color: var(--fg-muted);
-  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  border: 1px solid var(--line2);
 }
 @media (max-width: 1023px) {
   .step-title { font-size: 21px; line-height: 1.35; }
@@ -175,7 +175,7 @@
   font-size: 27px;
   line-height: 1.3;
   letter-spacing: -0.01em;
-  color: var(--fg);
+  color: var(--ink);
 }
 
 /* Таймер: 74px, tabular-nums, кнопки Пауза/+1хв */
@@ -185,8 +185,8 @@
   align-items: center;
   gap: 12px;
   padding: 20px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 .timer-value {
   font-family: var(--font-display);
@@ -194,9 +194,9 @@
   font-size: 74px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--fg);
+  color: var(--ink);
 }
-.timer-value.done { color: var(--accent); }
+.timer-value.done { color: var(--sage); }
 .timer-actions { display: flex; gap: 10px; }
 .timer-actions button {
   height: 52px;
@@ -209,17 +209,17 @@
   transition: background var(--dur-fast);
 }
 .timer-actions button.primary {
-  background: var(--accent);
-  color: var(--accent-fg-on);
+  background: var(--sage);
+  color: var(--sage-on);
   border: 0;
 }
-.timer-actions button.primary:hover { background: var(--accent-strong); }
+.timer-actions button.primary:hover { background: var(--sage-strong); }
 .timer-actions button.secondary {
   background: transparent;
-  color: var(--fg-muted);
-  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  border: 1px solid var(--line2);
 }
-.timer-actions button.secondary:hover { background: var(--bg-surface-2); color: var(--fg); }
+.timer-actions button.secondary:hover { background: var(--line); color: var(--ink); }
 
 .section {
   display: flex;
@@ -230,16 +230,16 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .section-body {
   font-family: var(--font-body);
   font-size: 17px;
   line-height: 1.5;
-  color: var(--fg-mono);
+  color: var(--muted);
 }
 .next {
-  color: var(--fg-dim);
+  color: var(--dim);
   font-size: 16px;
 }
 
@@ -271,7 +271,7 @@ button.main {
   font-family: var(--font-body);
   font-size: 12px;
   line-height: 1.4;
-  color: var(--fg-dim);
+  color: var(--dim);
   text-align: center;
 }
 
@@ -291,9 +291,9 @@ button.main {
   justify-content: center;
 }
 .progress-hit:disabled { cursor: default; }
-.progress-hit > div { height: 4px; border-radius: 2px; background: var(--border-strong); }
-.progress-hit > .done { background: var(--accent); }
-.progress-hit > .current { background: var(--fg); }
+.progress-hit > div { height: 4px; border-radius: 2px; background: var(--line2); }
+.progress-hit > .done { background: var(--sage); }
+.progress-hit > .current { background: var(--ink); }
 
 
 /* QA9-03 / Д05 (прототип-десктоп, скрін-еталон Пилипа): шапка на всю ширину —
@@ -329,7 +329,7 @@ button.main {
     align-items: center;
     justify-content: center;
     gap: 20px;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--line);
     padding-left: 56px;
     align-self: stretch;
   }
@@ -349,7 +349,7 @@ button.main {
     display: block;
     font-family: var(--font-body);
     font-size: 13px;
-    color: var(--fg-dim);
+    color: var(--dim);
   }
   .foot-steps { display: none; }
 }
@@ -368,7 +368,7 @@ button.main {
 /* Моушн-2 №7: фініш таймера видно з другого кінця кухні — шавлія + подвійний
    пульс; цикл 30s синхронний зі звуковим повтором (пульс у перших 2%). */
 .timer-value.done {
-  color: var(--accent);
+  color: var(--sage);
   animation: timer-done 30s ease-in-out infinite;
 }
 @keyframes timer-done {
@@ -396,7 +396,7 @@ button.main {
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--line);
     padding-left: 28px;
   }
   .step-title { font-size: 21px; line-height: 1.35; order: 0; }

@@ -12,14 +12,14 @@
   font-size: 13px;
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
-  color: var(--fg-dim);
+  color: var(--dim);
   font-weight: 500;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
 }
 .pending  { color: var(--amber); }
-.applied  { color: var(--accent); }
+.applied  { color: var(--sage); }
 .anti     { color: var(--plum); }
 .danger   { color: var(--danger); }
-.muted    { color: var(--fg-dim); }
+.muted    { color: var(--dim); }

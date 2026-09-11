@@ -3,7 +3,7 @@
  */
 .screen {
   min-height: 100dvh;
-  background: var(--bg-surface);
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -19,8 +19,8 @@
   height: 42px;
   width: 42px;
   border-radius: var(--r);
-  border: 1px solid var(--border-strong);
-  color: var(--fg-muted);
+  border: 1px solid var(--line2);
+  color: var(--muted);
   display: grid;
   place-items: center;
   font-size: 18px;
@@ -28,12 +28,12 @@
   background: transparent;
   transition: background var(--dur-fast), color var(--dur-fast);
 }
-.iconbtn:hover { background: var(--bg-surface-2); color: var(--fg); }
+.iconbtn:hover { background: var(--line); color: var(--ink); }
 .head-meta {
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 .body {
@@ -51,25 +51,25 @@
   font-size: 26px;
   line-height: 1.15;
   letter-spacing: var(--tracking-tight);
-  color: var(--fg);
+  color: var(--ink);
 }
 .summary {
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: var(--tracking-mono);
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .desc {
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.55;
-  color: var(--fg-muted);
+  color: var(--muted);
 }
 .rk {
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.55;
-  color: var(--fg-mono);
+  color: var(--muted);
   border-left: 2px solid var(--amber);
   padding-left: 12px;
 }
@@ -78,14 +78,14 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   padding-top: 16px;
 }
 .section-label {
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 /* Інгредієнти — той самий рядковий стиль, що в стрічці */
@@ -94,7 +94,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 .ing:last-child { border-bottom: 0; }
 /* Крапка стану складника — коло 6 px, яке несе колір (tokens-v3).
@@ -105,17 +105,17 @@
   height: 6px;
   margin: 0 3px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--sage);
   flex: none;
   align-self: center;
 }
-.ing-mark.missing { background: transparent; border: 1.5px solid var(--fg-dim); }
-.ing-name { flex: 1; font-family: var(--font-body); font-size: 15px; color: var(--fg); }
-.ing-name.missing { color: var(--fg-mono); }
+.ing-mark.missing { background: transparent; border: 1.5px solid var(--dim); }
+.ing-name { flex: 1; font-family: var(--font-body); font-size: 15px; color: var(--ink); }
+.ing-name.missing { color: var(--muted); }
 .ing-qty {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 
 /* Кроки — вертикальний таймлайн з нумерованими кружечками */
@@ -139,13 +139,13 @@
   font-size: 13px;
   flex: none;
 }
-.step-num.done { background: var(--accent); color: var(--accent-fg-on); }
+.step-num.done { background: var(--sage); color: var(--sage-on); }
 .step-num.current { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
-.step-num.pending { border: 1px solid var(--border-strong); color: var(--fg-dim); }
+.step-num.pending { border: 1px solid var(--line2); color: var(--dim); }
 .step-thread {
   flex: 1;
   width: 1px;
-  background: var(--border);
+  background: var(--line);
   margin-top: 2px;
 }
 .step:last-child .step-thread { display: none; }
@@ -160,18 +160,18 @@
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.45;
-  color: var(--fg);
+  color: var(--ink);
 }
-.step-title.done { color: var(--fg-muted); text-decoration: line-through; }
-.step-title.pending { color: var(--fg-muted); }
+.step-title.done { color: var(--muted); text-decoration: line-through; }
+.step-title.pending { color: var(--muted); }
 .step-timer {
   align-self: flex-start;
   height: 36px;
   padding: 0 14px;
   border-radius: var(--r-pill);
-  border: 1px solid var(--accent-border);
+  border: 1px solid var(--sage);
   background: transparent;
-  color: var(--accent);
+  color: var(--sage);
   font-family: var(--font-mono);
   font-size: 13px;
   cursor: pointer;
@@ -180,8 +180,8 @@
 /* Футер — головна дія «Крок готово», плюс secondary «Приготували» */
 .foot {
   padding: 12px 22px 20px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-surface);
+  border-top: 1px solid var(--line);
+  background: var(--card);
   display: flex;
   gap: 10px;
 }
@@ -190,7 +190,7 @@
 /* Стан помилки/завантаження */
 .info {
   padding: 20px;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-size: 14px;
   line-height: 1.55;
 }

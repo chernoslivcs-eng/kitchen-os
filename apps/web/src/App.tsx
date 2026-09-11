@@ -95,7 +95,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (status === 'idle' || status === 'loading') {
     // Тихий стан завантаження: без спінера-на-весь-екран, просто чорне поле.
     // Робимо швидко — /me на локальному стеку відповідає за 20-30 мс.
-    return <div style={{ minHeight: '100dvh', background: 'var(--bg-body)' }} />;
+    return <div style={{ minHeight: '100dvh', background: 'var(--bg)' }} />;
   }
   // Крок Е1: сервер не відповів на старті — це НЕ «ти гість». До цього такий
   // випадок мовчки вів на лендинг, і людина бачила рекламу продукту, у який

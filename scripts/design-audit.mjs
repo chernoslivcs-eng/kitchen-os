@@ -18,6 +18,9 @@ const EMAIL = arg('email', null);
 const LOG = arg('log', '.qa-magic-links.log');
 const WIDTH = Number(arg('width', 1440));
 const HEIGHT = Number(arg('height', 900));
+// Тема: light | dark | auto. Пороги обох тем однакові (audit-thresholds), а
+// провал контрасту в одній темі не видно з іншої — тому прогін на кожну.
+const THEME = arg('theme', 'auto');
 
 const SCREENS = [
   ['Кухня', '/app'], ['Комора', '/pantry'], ['Рецепти', '/recipes'],
@@ -197,10 +200,13 @@ const ctx = await browser.newContext({
   ...(STATE ? { storageState: STATE } : {}),
 });
 const page = await ctx.newPage();
+// Застосунок іде за prefers-color-scheme, поки людина не обрала тему руками
+// (theme.ts). Емуляція медіа — той самий шлях, що в людини, не підміна атрибута.
+if (THEME !== 'auto') await page.emulateMedia({ colorScheme: THEME });
 await page.goto(`${URL_BASE}/`);
 await login(ctx, page);
 
-console.log(`\nДизайн-аудит · ${URL_BASE} · ${WIDTH}×${HEIGHT}\n`);
+console.log(`\nДизайн-аудит · ${URL_BASE} · ${WIDTH}×${HEIGHT} · тема ${THEME}\n`);
 console.log(pad('екран', 10) + num('стилів', 7) + num('макс', 6) + num('тіло', 6) + num('÷', 6) + num('часто', 7) + num('display', 9) + num('ліній', 7) + num('невид.', 8) + num('контраст<4.5', 14));
 console.log('─'.repeat(80));
 

@@ -110,7 +110,7 @@ export function CookLogPage() {
     <div className={styles.screen}>
       <div className={styles.head}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate(-1)} aria-label="Назад" style={{ width: 38, height: 38, border: '1px solid var(--border-strong)', borderRadius: 10, background: 'transparent', color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 16 }}><Icon name="sys.back" size={18} inherit /></button>
+          <button onClick={() => navigate(-1)} aria-label="Назад" style={{ width: 38, height: 38, border: '1px solid var(--line2)', borderRadius: 10, background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 16 }}><Icon name="sys.back" size={18} inherit /></button>
           <div className={styles.title}>Журнал</div>
         </div>
         <div className={styles.meta}>{activeCount} {plural(activeCount, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</div>
@@ -125,10 +125,10 @@ export function CookLogPage() {
             style={{
               width: '100%',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              border: '1px solid var(--line)',
               borderRadius: 'var(--r)',
-              color: 'var(--fg)',
+              color: 'var(--ink)',
               fontFamily: 'var(--font-body)',
               fontSize: 14,
               marginBottom: 4,
@@ -150,19 +150,19 @@ export function CookLogPage() {
         {weekRuns.length > 0 && (
           <div style={{
             padding: '14px 16px',
-            background: 'var(--bg-hover)',
-            border: '1px solid var(--border)',
+            background: 'var(--line)',
+            border: '1px solid var(--line)',
             borderRadius: 'var(--r)',
             marginTop: 4,
             fontFamily: 'var(--font-mono)',
             fontSize: 12,
-            color: 'var(--fg-muted)',
+            color: 'var(--muted)',
             lineHeight: 1.5,
           }}>
-            <span style={{ color: 'var(--fg-dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
-            <span style={{ color: 'var(--fg)' }}>{weekRuns.length} {plural(weekRuns.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</span>
-            {avgRating != null && <> · <span style={{ color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="cook.rating" size={12} inherit decorative />{avgRating.toFixed(1)}</span></>}
-            {pantryUsed > 0 && <> · <span style={{ color: 'var(--fg)' }}>{pantryUsed} З ТОГО, ЩО БУЛО ВДОМА</span></>}
+            <span style={{ color: 'var(--dim)' }}>ЗА ТИЖДЕНЬ ·</span>{' '}
+            <span style={{ color: 'var(--ink)' }}>{weekRuns.length} {plural(weekRuns.length, ['ГОТУВАННЯ', 'ГОТУВАННЯ', 'ГОТУВАНЬ'])}</span>
+            {avgRating != null && <> · <span style={{ color: 'var(--sage)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="cook.rating" size={12} inherit decorative />{avgRating.toFixed(1)}</span></>}
+            {pantryUsed > 0 && <> · <span style={{ color: 'var(--ink)' }}>{pantryUsed} З ТОГО, ЩО БУЛО ВДОМА</span></>}
           </div>
         )}
 
@@ -227,7 +227,7 @@ export function CookLogPage() {
                             marginTop: 4,
                             fontFamily: 'var(--font-body)',
                             fontSize: 13,
-                            color: 'var(--fg-muted)',
+                            color: 'var(--muted)',
                             fontStyle: 'italic',
                           }}>
                             «{r.verdict}»
@@ -246,12 +246,12 @@ export function CookLogPage() {
                           position: 'absolute',
                           top: 20, right: 0,
                           background: 'transparent',
-                          border: '1px solid var(--border-strong)',
+                          border: '1px solid var(--line2)',
                           padding: '6px 12px',
                           borderRadius: 'var(--r-pill)',
                           fontFamily: 'var(--font-mono)',
                           fontSize: 10,
-                          color: 'var(--fg-muted)',
+                          color: 'var(--muted)',
                           cursor: 'pointer',
                         }}
                         aria-label="Повторити"

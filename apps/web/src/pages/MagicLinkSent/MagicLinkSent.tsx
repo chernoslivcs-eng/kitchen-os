@@ -99,7 +99,7 @@ export function MagicLinkSent() {
                 onClick={() => void resend()}
                 style={{
                   background: 'none', border: 0, padding: 0, cursor: 'pointer',
-                  color: 'var(--accent)', font: 'inherit', textDecoration: 'underline',
+                  color: 'var(--sage)', font: 'inherit', textDecoration: 'underline',
                 }}
               >
                 Надіслати ще раз

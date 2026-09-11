@@ -97,7 +97,7 @@ export function SharePage() {
   if (!r) {
     return (
       <div className={styles.screen}>
-        <div style={{ padding: 22, color: 'var(--fg-muted)' }}>
+        <div style={{ padding: 22, color: 'var(--muted)' }}>
           <p>Спершу приготуй страву — тоді тут зʼявиться, чим поділитися.</p>
           <button className={styles.exit} style={{ marginTop: 12 }} onClick={() => navigate('/app')}>У стрічку</button>
         </div>

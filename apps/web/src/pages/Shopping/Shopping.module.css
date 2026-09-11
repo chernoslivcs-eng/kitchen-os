@@ -1,6 +1,6 @@
 .screen {
   min-height: 100dvh;
-  background: var(--bg-surface);
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -15,13 +15,13 @@
   font-weight: 700;
   font-size: 22px;
   letter-spacing: var(--tracking-tight);
-  color: var(--fg);
+  color: var(--ink);
 }
 .meta {
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .body {
   flex: 1;
@@ -37,12 +37,12 @@
   gap: 12px;
   padding: 10px 12px;
   margin: 0 -12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   border-radius: var(--r);
   transition: background var(--dur-fast) var(--ease-standard);
 }
 @media (hover: hover) {
-  .row:hover { background: var(--bg-hover); }
+  .row:hover { background: var(--line); }
 }
 .check {
   /* Папіркат UX-9: 24px — замала мішень для «однією рукою в магазині».
@@ -61,9 +61,9 @@
   width: 24px;
   height: 24px;
   border-radius: var(--r-sm);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line2);
   background: transparent;
-  color: var(--accent-fg-on);
+  color: var(--sage-on);
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -71,32 +71,32 @@
   transition: background var(--dur-fast), border-color var(--dur-fast);
 }
 .check.checked .check-box {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--sage);
+  border-color: var(--sage);
 }
 .label {
   flex: 1;
   font-family: var(--font-body);
   font-size: 16px;
-  color: var(--fg);
+  color: var(--ink);
 }
-.label.done { color: var(--fg-muted); text-decoration: line-through; }
+.label.done { color: var(--muted); text-decoration: line-through; }
 .qty {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .reason {
   display: block;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--fg-dim);
+  color: var(--dim);
   letter-spacing: var(--tracking-mono);
 }
 .delete {
   border: 0;
   background: transparent;
-  color: var(--fg-dim);
+  color: var(--dim);
   padding: 6px 8px;
   cursor: pointer;
   font-size: 18px;
@@ -106,14 +106,14 @@
 .delete:hover { color: var(--danger); background: var(--danger-bg); }
 
 .empty {
-  border: 1px dashed var(--border-strong);
+  border: 1px dashed var(--line2);
   border-radius: var(--r-xl);
   padding: 20px;
-  color: var(--fg-muted);
+  color: var(--muted);
   font-size: 14px;
   line-height: 1.55;
 }
-.empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--fg); margin-bottom: 6px; }
+.empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 6px; }
 
 @media (min-width: 720px) {
   .head, .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }

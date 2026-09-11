@@ -3,7 +3,7 @@
 @media (max-width: 767px) { .card { max-width: none; } }
 
 .panel {
-  background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+  background: var(--line); border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
   display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px;
   animation: panel-in var(--dur-base) var(--ease-enter);
   /* Висота вільного місця під рядок вводу — три рядки тексту плюс рядок
@@ -14,20 +14,20 @@
 }
 @keyframes panel-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
 
-.illustration { aspect-ratio: 3 / 2; width: 100%; flex: none; background: var(--bg-surface); display: block; }
+.illustration { aspect-ratio: 3 / 2; width: 100%; flex: none; background: var(--card); display: block; }
 .illustration img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .body { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; }
-.step { font: 400 10px var(--font-mono);color: var(--fg-dim); flex: none; }
+.step { font: 400 10px var(--font-mono);color: var(--dim); flex: none; }
 /* 9а(4): заголовок + підказка — мінімальна висота на 2 рядки заголовка і 3 рядки
    підказки з токенів типографіки, а не під конкретний текст. */
 .copy {
   display: flex; flex-direction: column; gap: 6px; flex: none;
   min-height: calc(var(--fs-3) * var(--lh-tight) * 2 + var(--fs-small) * var(--lh-body) * 3);
 }
-.title, .titleDanger { font: 700 var(--fs-3)/var(--lh-tight) var(--font-display); letter-spacing: -.02em; color: var(--fg); }
+.title, .titleDanger { font: 700 var(--fs-3)/var(--lh-tight) var(--font-display); letter-spacing: -.02em; color: var(--ink); }
 .titleDanger { color: var(--danger); }
-.text { font: 400 var(--fs-small)/var(--lh-body) var(--font-body); color: var(--fg-muted); text-wrap: pretty; }
+.text { font: 400 var(--fs-small)/var(--lh-body) var(--font-body); color: var(--muted); text-wrap: pretty; }
 
 /* О2 (1.5–1.6): рядок вводу стоїть УНИЗУ вільного місця й росте вгору.
    Висота вільного місця фіксована — щоб кнопки не їздили між панелями, — і
@@ -48,30 +48,30 @@
    Раніше border-bottom стояв на .edit (інлайновому спані) і при переносі
    перекреслював текст посередині. */
 .fieldText {
-  font: 400 var(--fs-body)/var(--row-lh) var(--font-body); color: var(--fg);
-  border-bottom: 1px solid var(--border-strong); padding-bottom: 7px;
+  font: 400 var(--fs-body)/var(--row-lh) var(--font-body); color: var(--ink);
+  border-bottom: 1px solid var(--line2); padding-bottom: 7px;
   overflow: auto; max-height: 100%; overscroll-behavior: contain; scrollbar-width: thin;
   transition: border-color var(--dur-fast, .15s);
 }
-.field:hover .fieldText { border-bottom-color: var(--fg-dim); }
-.field:focus-within .fieldText { border-bottom-color: var(--accent); }
+.field:hover .fieldText { border-bottom-color: var(--dim); }
+.field:focus-within .fieldText { border-bottom-color: var(--sage); }
 
-.start { color: var(--fg-muted); }
+.start { color: var(--muted); }
 .startDanger { color: var(--danger); }
-.edit { color: var(--fg); outline: none; caret-color: var(--accent); min-width: 1ch; white-space: pre-wrap; cursor: text; }
+.edit { color: var(--ink); outline: none; caret-color: var(--sage); min-width: 1ch; white-space: pre-wrap; cursor: text; }
 /* О2 (1.2): приклад — найсвітліше в рядку, світліший за початок речення.
    Окремого кроку «ще тьмяніше за --fg-dim» у токенах немає, і заводити його
    заради одного місця забагато; прозорість дає те саме в обох темах, бо
    розчиняє текст саме в тому тлі, яке зараз під ним. */
-.edit:empty::before { content: attr(data-ph); color: var(--fg-dim); opacity: .55; }
+.edit:empty::before { content: attr(data-ph); color: var(--dim); opacity: .55; }
 
 /* Лічильник — під лінією праворуч, у потоці (не absolute): інакше він накриває
    текст, коли той доріс до низу. */
 .fieldMeta { display: flex; justify-content: flex-end; padding-top: 5px; flex: none; }
-.counter { font: 400 var(--fs-mono)/1.4 var(--font-mono);color: var(--fg-dim); }
+.counter { font: 400 var(--fs-mono)/1.4 var(--font-mono);color: var(--dim); }
 .counterLimit { color: var(--amber); }
 
-.meta { font: 500 10.5px var(--font-mono);color: var(--accent); min-height: 1.4em; flex: none; }
+.meta { font: 500 10.5px var(--font-mono);color: var(--sage); min-height: 1.4em; flex: none; }
 
 /* О2 (1.3): Назад · Далі · Записати. «Записати» праворуч і головна — тому
    розтягується саме останній, а не перший. */
@@ -81,4 +81,4 @@
 /* О2 (1.4): стрілок нема — «Назад» забрав їхню роботу. Лічильник лишився там,
    де й був, унизу під панеллю. */
 .nav { display: flex; align-items: center; justify-content: center; padding: 0 4px; }
-.progress { font: 400 11px var(--font-mono);color: var(--fg-dim); }
+.progress { font: 400 11px var(--font-mono);color: var(--dim); }

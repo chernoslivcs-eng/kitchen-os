@@ -189,7 +189,7 @@ export function PantryPage() {
     return (
       /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
          Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
-      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''}`} style={{ borderBottom: '1px solid var(--line)' }}>
         <button className={styles['row-main']} onClick={() => setEditing(b)}>
           {/* Без каталожного ключа шкали немає (PLAN §2) — місце тримаємо,
               щоб назви не стрибали по рядках. */}
@@ -242,10 +242,10 @@ export function PantryPage() {
             onClick={() => setAdding(true)}
             style={{
               background: 'transparent',
-              border: '1px solid var(--border-strong)',
+              border: '1px solid var(--line2)',
               borderRadius: 'var(--r-pill)',
               padding: '5px 12px',
-              color: 'var(--fg-muted)',
+              color: 'var(--muted)',
               fontFamily: 'var(--font-mono)',
               fontSize: 13,
               cursor: 'pointer',
@@ -268,10 +268,10 @@ export function PantryPage() {
             style={{
               width: '100%',
               padding: '10px 14px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              border: '1px solid var(--line)',
               borderRadius: 'var(--r)',
-              color: 'var(--fg)',
+              color: 'var(--ink)',
               fontFamily: 'var(--font-body)',
               fontSize: 14,
               marginBottom: 4,
@@ -453,13 +453,13 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
           <MonoLabel>Додати продукт</MonoLabel>
           <button
             onClick={onClose}
-            style={{ background: 'transparent', border: 0, color: 'var(--fg-muted)', cursor: 'pointer', fontSize: 20 }}
+            style={{ background: 'transparent', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 20 }}
             aria-label="Закрити"
           ><Icon name="sys.close" size={16} inherit /></button>
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Назва</span>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Назва</span>
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -471,18 +471,18 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
 
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
-            <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Кількість</span>
+            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Кількість</span>
             <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-            <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Одиниця</span>
+            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Одиниця</span>
             <select
               value={unit ?? ''}
               onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
               style={{
-                padding: '11px 12px', background: 'var(--bg-input)',
-                border: '1px solid var(--border)', borderRadius: 'var(--r)',
-                color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+                padding: '11px 12px', background: 'var(--bg)',
+                border: '1px solid var(--line)', borderRadius: 'var(--r)',
+                color: 'var(--ink)', fontFamily: 'var(--font-body)', fontSize: 14,
               }}
             >
               {UNIT_OPTIONS.map((o) => <option key={o.value ?? ''} value={o.value ?? ''}>{o.label}</option>)}
@@ -491,14 +491,14 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--fg-dim)' }}>Зона</span>
+          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Зона</span>
           <select
             value={zone}
             onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}
             style={{
-              padding: '11px 12px', background: 'var(--bg-input)',
-              border: '1px solid var(--border)', borderRadius: 'var(--r)',
-              color: 'var(--fg)', fontFamily: 'var(--font-body)', fontSize: 14,
+              padding: '11px 12px', background: 'var(--bg)',
+              border: '1px solid var(--line)', borderRadius: 'var(--r)',
+              color: 'var(--ink)', fontFamily: 'var(--font-body)', fontSize: 14,
             }}
           >
             {ZONE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

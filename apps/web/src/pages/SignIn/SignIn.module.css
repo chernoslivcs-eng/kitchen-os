@@ -2,7 +2,7 @@
  * 220px, форма під нею; ≥1024 — дві панелі (поле 1.25fr | форма 460px). */
 .screen {
   min-height: 100dvh;
-  background: var(--bg-body);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
 }
@@ -86,21 +86,21 @@
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .form-title {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 24px;
   letter-spacing: -0.02em;
-  color: var(--fg);
+  color: var(--ink);
   margin: 0;
 }
 .form-sub {
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.5;
-  color: var(--fg-muted);
+  color: var(--muted);
   margin: 0;
 }
 .form { display: flex; flex-direction: column; gap: 10px; }
@@ -109,7 +109,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--fg-dim);
+  color: var(--dim);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -119,7 +119,7 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--line);
 }
 .google-btn {
   display: inline-flex;
@@ -135,13 +135,13 @@
   font-family: var(--font-body);
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--fg-dim);
+  color: var(--dim);
 }
 .foot-mono {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: var(--fg-dim);
+  color: var(--dim);
   opacity: 0.7;
 }
 
@@ -161,6 +161,6 @@
     max-width: none;
     margin: 0;
     padding: 0 56px;
-    background: var(--bg-body);
+    background: var(--bg);
   }
 }

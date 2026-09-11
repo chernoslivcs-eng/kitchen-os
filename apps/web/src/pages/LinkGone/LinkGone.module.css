@@ -7,19 +7,19 @@
   height: 46px;
   padding: 0 14px;
   border-radius: 12px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-surface-2);
-  color: var(--fg);
+  border: 1px solid var(--line2);
+  background: var(--line);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   outline: 0;
   text-align: center;
 }
-.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+.input:focus { border-color: var(--sage); box-shadow: 0 0 0 3px var(--focus-ring); }
 .error {
   display: block;
   margin-top: 8px;
   font-family: var(--font-body);
   font-size: 13px;
-  color: var(--fg-muted);
+  color: var(--muted);
 }

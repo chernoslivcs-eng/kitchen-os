@@ -3,8 +3,8 @@
 html, body, #root { height: 100%; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  background: var(--bg-body);
-  color: var(--fg);
+  background: var(--bg);
+  color: var(--ink);
   /* Моушн-кіт: зміна теми за ОС — base-перехід фону й тексту, не стрибок. */
   transition: background-color var(--dur-base, 250ms) var(--ease-standard, ease), color var(--dur-base, 250ms) var(--ease-standard, ease);
   font-family: var(--font-body);
@@ -17,5 +17,5 @@ body {
 img, svg, video { display: block; max-width: 100%; }
 input, button, textarea, select { font: inherit; color: inherit; }
 button { background: none; border: 0; padding: 0; cursor: pointer; }
-a { color: var(--accent); text-decoration: none; }
-a:hover { color: var(--accent-strong); text-decoration: underline; }
+a { color: var(--sage); text-decoration: none; }
+a:hover { color: var(--sage-strong); text-decoration: underline; }

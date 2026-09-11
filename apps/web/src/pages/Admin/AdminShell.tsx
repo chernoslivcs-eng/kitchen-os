@@ -43,7 +43,7 @@ function Mark() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <circle cx="24" cy="24" r="19" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="104 15" transform="rotate(-58 24 24)" />
-      <circle cx="24" cy="24" r="6" fill="var(--accent)" />
+      <circle cx="24" cy="24" r="6" fill="var(--sage)" />
     </svg>
   );
 }

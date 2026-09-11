@@ -382,7 +382,7 @@ export function CookOverlay() {
         /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
         <button
           className={styles.main}
-          style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)' }}
+          style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line2)' }}
           aria-label="Крок назад"
           onClick={() => goToStep(stepIdx - 1)}
         ><Icon name="sys.undo" size={18} inherit /></button>
@@ -401,7 +401,7 @@ export function CookOverlay() {
         /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
         <button
           className={styles.main}
-          style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border-strong)', width: 132 }}
+          style={{ background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line2)', width: 132 }}
           disabled={stepLocked || finishing}
           onClick={() => void finish()}
         >
