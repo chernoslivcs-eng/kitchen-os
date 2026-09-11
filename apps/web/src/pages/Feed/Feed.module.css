@@ -90,8 +90,10 @@
 .turn-text {
   font-family: var(--font-body);
   font-size: 16px;
-  line-height: var(--lh-body);
-  color: var(--muted);
+  /* Prototype: репліка бота — 16/1.55 чорнилом, до 600; людини — бабл. */
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 600px;
   /* Пул-2 №1: вставлений багаторядковий текст (інвентар) зберігає переноси —
      без цього список зливався в одну простиню. */
   white-space: pre-wrap;
@@ -251,9 +253,46 @@
 .prop-act-sage { background: var(--sage); border-color: var(--sage); color: #fff; }
 .prop-act-sage:hover { color: #fff; filter: brightness(0.96); }
 
+/* ----- Шапка чату (6b-5, Prototype) ------------------------------------
+   56, 0 24, gap 8: пілюля сесії 36 на card+тінь (chevron 15 dim · назва
+   14/500 · «· сьогодні» dim), розпірка, чіпи 36 r999 13/500 зі знаком 15:
+   «Горить N» amber-bg/amber, «Готуємо · таймер» sage-bg/sage, «Дім зараз»
+   card+тінь. */
+.chat-head { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 24px; flex: none; }
+.chat-head-gap { flex: 1; }
+.session-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px 0 8px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; min-width: 0; cursor: pointer;
+}
+.session-pill > [data-icon] { color: var(--dim); }
+.session-pill-title { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.session-pill-when { color: var(--dim); font-weight: 400; }
+.head-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; flex: none; cursor: pointer;
+}
+.head-chip:hover { filter: brightness(0.96); }
+.head-chip-amber { background: var(--amber-bg); color: var(--amber); box-shadow: none; }
+.head-chip-sage { background: var(--sage-bg); color: var(--sage); box-shadow: none; }
+@media (max-width: 767px) {
+  .chat-head { padding: 0 16px; height: 56px; }
+  .session-pill-title { max-width: 150px; }
+  .session-pill-when { display: none; }
+  /* Кадр 390 (Prototype only-m): «Дім» зі станом; повний підпис — від 768. */
+  .head-chip-home-text { display: none; }
+}
+
 /* ----- Composer ------------------------------------------------------- */
 .composer-wrap {
-  border-top: 1px solid var(--line);
+  /* Лінії над композитором немає (Prototype; власник 11.09). */
   background: var(--bg);
   /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
      а не від низу вікна. Композер росте разом із текстом, і фіксований
@@ -407,9 +446,42 @@ a.att-chip:hover { border-color: var(--sage); }
   display: flex;
   gap: 4px;
   align-items: flex-end;
-  padding: 5px 5px 5px 18px;
+  /* Prototype: 5 5 5 8 — зліва «+» 42 колом. */
+  padding: 5px 5px 5px 8px;
   transition: box-shadow var(--dur-fast);
 }
+/* «+» 42 коло: у спокої прозоре muted, відкрите меню — чорнило. Меню 260 на
+   card r14 --sh2, пункти 44 r10 зі знаком 16 muted, підказка 11 dim. */
+.attach-wrap { position: relative; flex: none; align-self: flex-end; }
+.attach-plus {
+  width: 42px; height: 42px; border-radius: 50%; border: 0;
+  background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.attach-plus:hover:not(:disabled) { color: var(--ink); }
+.attach-plus-on, .attach-plus-on:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+.attach-plus:disabled { opacity: 0.45; cursor: not-allowed; }
+.attach-menu {
+  position: absolute; left: 0; bottom: 52px; width: 260px; z-index: 5;
+  display: flex; flex-direction: column;
+  padding: 6px; border-radius: 14px;
+  background: var(--card); box-shadow: var(--sh2);
+  animation: card-enter var(--dur-fast) var(--ease-enter);
+}
+.attach-item {
+  display: flex; align-items: center; gap: 12px;
+  height: 44px; padding: 0 12px;
+  border: 0; border-radius: 10px; background: transparent;
+  font-family: var(--font-body); font-size: 14px; color: var(--ink); text-align: left; cursor: pointer;
+}
+.attach-item > [data-icon] { color: var(--muted); }
+.attach-item:hover { background: var(--line); }
+.attach-hint { font-size: 11px; color: var(--dim); padding: 6px 12px 4px; }
+/* «⌘K» dim 12 перед мікрофоном (Screens «Чат · збірка»); на дотиках — ні. */
+.composer-kbd { flex: none; align-self: center; padding-right: 6px; font-family: var(--font-body); font-size: 12px; color: var(--dim); }
+@media (hover: none), (max-width: 767px) { .composer-kbd { display: none; } }
+
 /* Крок Д1 (макет v7): композитор «озброюється», поки файл над вікном. Він і є
    ціль — накладки в цьому дизайні немає, тож стан має показати сам приймач.
    Стан контролу — чорнило (inset 1.5), не шавлія. */

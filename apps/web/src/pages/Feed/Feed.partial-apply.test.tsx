@@ -90,7 +90,7 @@ describe('частковий успіх — у сліді, не лише в то
     // Один слід, два моменти. ДО — бурштин і те саме число, що потім буде «із 14».
     const before = host!.querySelector('[data-trace-tone]');
     expect(before?.getAttribute('data-trace-tone')).toBe('pending');
-    expect(host!.textContent).toContain('ОЧІКУЄ · 14');
+    expect(host!.textContent).toContain('чекає рішення · 14');
     await expand();
     const apply = applyButton();
     expect(apply, 'кнопка застосування на картці').toBeTruthy();

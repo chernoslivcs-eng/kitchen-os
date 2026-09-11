@@ -1536,6 +1536,17 @@ function outcomeTail(o?: ApplyOutcome): string {
   return ' · ' + parts.join(' · ');
 }
 
+/** 6b-5: стан сліду комори реченням, без капсу — «чекає рішення · 14»,
+ *  «9 із 14 · 5 пропущено», «3 у комору», «скасовано». Той самий M до і після. */
+export function traceState(applied?: boolean, undone?: boolean, outcome?: ApplyOutcome, count?: number): { text: string; tone: 'pending' | 'applied' | 'muted' } {
+  if (undone) return { text: 'скасовано', tone: 'muted' };
+  if (applied) {
+    const tail = outcomeTail(outcome);
+    return { text: tail ? tail.slice(3) : `${count ?? 0} у комору`, tone: 'applied' };
+  }
+  return { text: `чекає рішення${count ? ` · ${count}` : ''}`, tone: 'pending' };
+}
+
 export function labelFor(
   type: ChatCard['type'],
   applied?: boolean,

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo, type NowItem } from '../../api';
 import { toneOfNow, nowWhen, nowEmptyKind, nowEmptyText } from '../../lib/period';
-import { isSoon, hasScale } from '@kitchen/domain/shelf-thresholds';
+import { usePantryFacts } from '../../store/pantryFacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -36,7 +36,6 @@ interface Props {
 }
 
 // Пул-7 №6: TabBar живе в каркасі й сам знає лічильник списку.
-let pantryFactsCache: { value: { count: number; soon: number }; at: number } | null = null;
 let shoppingCountCache: { value: number; at: number } | null = null;
 // «ЗАРАЗ» — той самий патерн кешу: блок живе в каркасі й не мусить смикати
 // календар на кожну навігацію.
@@ -125,17 +124,7 @@ export function TabBar({ shoppingCount }: Props) {
   //   «Зараз нічого не триває. …»                — подій немає.
   // Доти блок просто не малювався, коли подій нуль, — і всі три звучали як
   // мовчання. Для першого й другого блок має знати комору.
-  const [pantryFacts, setPantryFacts] = useState<{ count: number; soon: number } | null>(pantryFactsCache?.value ?? null);
-  useEffect(() => {
-    if (pantryVersion === 0 && pantryFactsCache && Date.now() - pantryFactsCache.at < 60_000) return;
-    api.pantry()
-      .then(({ count, batches }) => {
-        const soon = batches.filter((b) => isSoon(b.days) && hasScale(b.catalog_key)).length;
-        pantryFactsCache = { value: { count, soon }, at: Date.now() };
-        setPantryFacts({ count, soon });
-      })
-      .catch(() => {/* тихо */});
-  }, [pathname, pantryVersion]);
+  const pantryFacts = usePantryFacts(pathname);
 
   // На десктопі таб-бар стає sidebar-ом ліворуч. Ставимо клас на <body> щоб
   // головні screens зсунулись праворуч (див. tokens.css). Знімаємо при

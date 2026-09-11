@@ -67,6 +67,17 @@ function Shell() {
   useIncidentSink();
   // Крок О1а: черга подій поведінки. Живе стільки, скільки відкритий застосунок.
   useEffect(() => startTracking(), []);
+  // 6b-5: ⌘K з будь-де (Components «Композитор (⌘K з будь-де)») — з інших
+  // екранів веде в стрічку й фокусує композитор; у самій стрічці ловить Feed.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k' && pathname !== '/app') {
+        e.preventDefault(); navigate('/app', { state: { focusComposer: true, at: Date.now() } });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pathname, navigate]);
   return (
     <>
       <IncidentStrips />

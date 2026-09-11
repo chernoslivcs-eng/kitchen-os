@@ -15,13 +15,13 @@
 import {
   MessageCircle, BookOpen, BookMarked, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
-  Undo2, ChevronRight, ExternalLink, PanelLeftClose, PanelLeftOpen, PanelRightClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
+  Undo2, ChevronRight, ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, PanelRightClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
   Refrigerator, Snowflake, Archive, FlaskConical, Wine,
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
   ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import, ListOrdered, BookmarkCheck, Share2, Reply,
-  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw,
+  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw, Camera, FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -52,6 +52,9 @@ export const ICONS = {
   'sys.cart':      { glyph: ShoppingCart,      label: 'Кошик',         family: 'system' },
   'sys.receipt':   { glyph: Receipt,           label: 'Чек',           family: 'system' },
   'sys.add':       { glyph: Plus,              label: 'Додати',        family: 'system' },
+  // 6b-5: меню вкладень за «+» у композиторі (Prototype): чек · фото полиці · список текстом.
+  'sys.photo':     { glyph: Camera,            label: 'Фото полиці',   family: 'system' },
+  'sys.text':      { glyph: FileText,          label: 'Список текстом', family: 'system' },
   'sys.voice':     { glyph: Mic,               label: 'Голос',         family: 'system' },
   'sys.send':      { glyph: ArrowUp,           label: 'Надіслати',     family: 'system' },
   'sys.attach':    { glyph: Paperclip,         label: 'Вкласти',       family: 'system' },
@@ -62,6 +65,8 @@ export const ICONS = {
   'sys.close':     { glyph: X,                 label: 'Закрити',       family: 'system' },
   'sys.undo':      { glyph: Undo2,             label: 'Скасувати',     family: 'system' },
   'sys.next':      { glyph: ChevronRight,      label: 'Далі',          family: 'system' },
+  // 6b-5: пілюля сесії в шапці чату (Prototype: chevron-down «розкрити розмови»).
+  'sys.open':      { glyph: ChevronDown,       label: 'Розкрити',      family: 'system' },
   'sys.out':       { glyph: ExternalLink,      label: 'Назовні',       family: 'system' },
   'sys.collapse':  { glyph: PanelLeftClose,    label: 'Згорнути',      family: 'system' },
   // Етап 6a: одна кнопка «панель» на всі контейнери (Responsive R1) — open ⇄ close.
