@@ -237,6 +237,7 @@
   animation: sheet-in var(--dur-base) var(--ease-enter);
 }
 @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.grab { display: grid; place-items: center; padding: 0 0 4px; }
 .handle { width: 36px; height: 4px; border-radius: 2px; background: var(--line2); margin: 0 auto; }
 .sheet-head { display: flex; align-items: center; gap: 10px; }
 .sheet-title { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--ink); }

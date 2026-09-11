@@ -95,3 +95,5 @@ button.g3 { cursor: pointer; }
   display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--sage); cursor: pointer;
 }
+/* №35: зона грабера на всю ширину; риска — як була. */
+.grab { display: grid; place-items: center; padding: 2px 0 6px; }

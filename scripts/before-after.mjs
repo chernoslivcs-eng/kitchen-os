@@ -75,6 +75,7 @@ async function runActions(page, spec) {
     else if (op === 'press') await page.keyboard.press(v);
     else if (op === 'type') await page.keyboard.type(v, { delay: 40 });
     else if (op === 'focus') await page.focus(v);
+    else if (op === 'downat') { const [x, y] = v.split(',').map(Number); await page.mouse.move(x, y); await page.mouse.down(); }
     else if (op === 'down') { const bb = await (await page.waitForSelector(v)).boundingBox(); await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); }
     else if (op === 'drag') { const [dx, dy] = v.split(',').map(Number); await page.mouse.move(dx, dy, { steps: 8 }); }
     else if (op === 'up') await page.mouse.up();
@@ -219,6 +220,7 @@ async function shoot(base, theme, side) {
   }
   await runActions(page, arg('actions', null));
   if (side === 'after') await runActions(page, arg('actions-after', null));
+  if (side === 'before') await runActions(page, arg('actions-before', null));
   const appSel = arg('app-sel', null);
   if (appSel) { const el = await page.waitForSelector(appSel, { timeout: 15000 }); png = await el.screenshot({ type: 'png' }); const bb = await el.boundingBox(); if (bb) imgW = Math.round(bb.width); }
   else png = await page.screenshot({ type: 'png', fullPage: has('full') });

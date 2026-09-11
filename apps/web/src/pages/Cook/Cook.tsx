@@ -16,6 +16,7 @@ import { saveCookSession, loadCookSession, clearCookSession, stashUnsavedRun } f
 import { useCookStore } from '../../store/cook';
 import { renderStepContent, stepIngredients, resolveIngName, stepLabelsFrom, type BatchLabels } from '../../lib/recipe';
 import styles from './Cook.module.css';
+import { useSheetDrag } from '../../lib/useSheetDrag';
 
 // Крок Т1: довгий крок (ферментація, тісто на ніч) відлічувався як «150:00» —
 // хвилини понад дві години перестають читатись.
@@ -62,6 +63,8 @@ export function CookOverlay() {
   const mutedRef = useRef(false); mutedRef.current = muted;
   const [sheetOpen, setSheetOpen] = useState(false);
   useEffect(() => { setSheetOpen(false); }, [stepIdx]);
+  // №35: змах униз закриває шторку кроків — той самий механізм, що в Sheet.
+  const stepsDrag = useSheetDrag(() => setSheetOpen(false), sheetOpen);
 
   // Крок О1а: почали готувати. Кроки й фініш нижче — разом вони дають
   // єдину криву, де видно, на чому люди зупиняються.
@@ -643,9 +646,10 @@ export function CookOverlay() {
       {sheetOpen && (
         <>
           <div className={styles.scrim} onClick={() => setSheetOpen(false)} />
-          <div className={styles.sheet} role="dialog" aria-label="Кроки" data-steps-sheet>
-            <span className={styles.handle} aria-hidden />
-            <div className={styles['sheet-head']}>
+          <div className={styles.sheet} role="dialog" aria-label="Кроки" data-steps-sheet style={stepsDrag.panelStyle}>
+            {/* №35: змах униз по граберу/шапці закриває (lib/useSheetDrag). */}
+            <div className={styles.grab} {...stepsDrag.handleProps} data-sheet-grab><span className={styles.handle} aria-hidden /></div>
+            <div className={styles['sheet-head']} {...stepsDrag.handleProps} data-sheet-head>
               <span className={styles['sheet-title']}>Кроки · {total}</span>
               <span className={styles['focus-gap']} />
               {themeToggle}

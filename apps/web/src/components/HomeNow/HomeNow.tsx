@@ -28,6 +28,7 @@ import type { CookSession } from '../../lib/cook-session';
 import type { HomeNow as HomeState } from '../../store/homeNow';
 import type { NowItem } from '../../api';
 import styles from './HomeNow.module.css';
+import { useSheetDrag } from '../../lib/useSheetDrag';
 
 function daysText(days: number): string {
   if (days < 0) return `−${Math.abs(days)} дн`;
@@ -70,6 +71,8 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
   onAsk: (text: string) => void;
   dateLabel: string;
 }) {
+  // №35: змах униз закриває шторку — один механізм на всі шторки.
+  const drag = useSheetDrag(onClose, sheet);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -95,14 +98,16 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
 
   if (sheet) {
     // G3 — список станів рядками; тихі рядки внизу.
+    // (хук викликано вище, до гілки — Rules of Hooks)
     const strict = home.strict;
     const quiet = home.now.filter((e) => e !== strict).slice(0, 3);
     return (
       <>
         <div className={`${styles.scrim} ${styles['scrim-dark']}`} onClick={onClose} />
-        <div className={`${styles.panel} ${styles.sheet}`} role="dialog" aria-label="Дім зараз" data-home-now data-home-form="sheet">
-          <span className={styles.handle} aria-hidden />
-          {head}
+        <div className={`${styles.panel} ${styles.sheet}`} role="dialog" aria-label="Дім зараз" data-home-now data-home-form="sheet" style={drag.panelStyle}>
+          {/* №35: змах униз по граберу/шапці закриває (lib/useSheetDrag). */}
+          <div className={styles.grab} {...drag.handleProps} data-sheet-grab><span className={styles.handle} aria-hidden /></div>
+          <div {...drag.handleProps} data-sheet-head>{head}</div>
           <div className={styles.rows}>
             {pantryEmpty ? (
               <div className={`${styles.g3} ${styles['g3-quiet']}`} data-home-empty="pantry-empty">

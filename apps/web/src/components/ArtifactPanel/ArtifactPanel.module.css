@@ -112,6 +112,7 @@
 .rail-mini-item:hover { background: var(--line); }
 .rail-mini-count { font-size: 11px; }
 .rail-scrim { display: none; }
+.rail-grab { display: none; }
 
 @media (min-width: 1200px) {
   /* position:fixed з базового правила лишається — він і є контекстом для
@@ -263,8 +264,9 @@
     box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);
     padding: 8px 0 calc(0px + env(safe-area-inset-bottom));
   }
-  /* Ручка шторки 36×4 (Screens D3c) — той самий обʼєкт, що картка в панелі. */
-  .rail-open::before { content: ''; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--line2); margin: 0 auto 6px; flex: none; }
+  /* Ручка шторки 36×4 (Screens D3c); зона грабера — на всю ширину (№35). */
+  .rail-grab { display: grid; place-items: center; padding: 0 0 6px; flex: none; }
+  .rail-grab-bar { width: 36px; height: 4px; border-radius: 2px; background: var(--line2); }
   .rail-scrim {
     display: block;
     position: fixed;
