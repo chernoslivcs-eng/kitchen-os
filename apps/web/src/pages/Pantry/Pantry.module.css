@@ -572,3 +572,18 @@
 /* Кількість не переноситься: «300 г» на двох рядках — дефект за будь-якої
  * ширини, окремо від питання про кількість колонок (DEBT §30). */
 .qty { white-space: nowrap; }
+
+/* 2c: трійка причин списання в підвалі картки. Замість confirm() і «Прибрати»
+ * без причини. «Зіпсувалось» — danger, бо саме воно й є метрикою, заради якої
+ * причина існує. */
+.card-reasons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.card-reason {
+  height: 40px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: transparent;
+  color: var(--fg); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.card-reason-danger { color: var(--danger); border-color: var(--danger); }
+.card-reason-cancel {
+  height: 40px; padding: 0 10px; border: 0; background: transparent;
+  color: var(--fg-dim); font: inherit; font-size: 14px; cursor: pointer; margin-left: auto;
+}

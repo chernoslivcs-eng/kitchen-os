@@ -1089,7 +1089,7 @@ export function Feed() {
                     batch={b}
                     product={liveProducts.find((pr) => pr.id === (b.product_id ?? '')) ?? null}
                     onChanged={async () => { usePantryStore.getState().bump(); }}
-                    onRemove={async () => { await api.batches.remove(b.id); usePantryStore.getState().bump(); }}
+                    onRemove={async (reason) => { await api.batches.remove(b.id, reason); usePantryStore.getState().bump(); }}
                   />
                 );
               })()

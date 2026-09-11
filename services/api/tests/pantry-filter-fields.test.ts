@@ -144,6 +144,48 @@ describe('PATCH /v1/pantry/:id — картка (крок Ф2)', () => {
     expect(opened.expires_source).toBe('category');
   });
 
+  it('2c: причина списання доходить обома шляхами — з картки разом зі списанням, з ✕ окремо пізніше', async () => {
+    // Контрактний тест на depleted_reason перевіряє репозиторій і не побачить,
+    // якщо кнопка не передасть причину (Р4 щойно показав, як це виглядає).
+    // Тому тут обидва шляхи екрана, на рівні роуту.
+    const { repo, app, me } = await stand();
+    const H = { cookie: me.cookie };
+
+    // Шлях 1 — картка: «Списати» → трійка → одним запитом зі списанням.
+    // ⚠3: з картки причина ОБОВʼЯЗКОВА.
+    const a = batch(me.household_id, 'Йогурт');
+    await repo.insertBatch(a);
+    const del = await app.inject({ method: 'DELETE', url: `/v1/pantry/${a.id}`, headers: H, payload: { reason: 'spoiled' } });
+    expect(del.statusCode).toBe(200);
+    const afterCard = (await repo.getBatch(a.id))!;
+    expect(afterCard.state).toBe('depleted');
+    expect(afterCard.depleted_reason).toBe('spoiled');
+
+    // Шлях 2 — хрестик у рядку: списано одразу БЕЗ причини, а трійка
+    // приходить у плашці «Списано · Повернути» — тобто ОКРЕМИМ запитом,
+    // на партію, яка вже depleted. ⚠3: з ✕ причина необовʼязкова.
+    const b = batch(me.household_id, 'Кефір');
+    await repo.insertBatch(b);
+    const quick = await app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: H, payload: { state: 'depleted' } });
+    expect(quick.statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.depleted_reason ?? null).toBeNull();
+    // Людина натиснула «зʼїли» в плашці.
+    const later = await app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: H, payload: { reason: 'eaten' } });
+    expect(later.statusCode).toBe(200);
+    expect((await repo.getBatch(b.id))!.depleted_reason).toBe('eaten');
+
+    // «Повернути» знімає й причину — інакше вона порахується вдруге.
+    await app.inject({ method: 'PATCH', url: `/v1/pantry/${b.id}`, headers: H, payload: { state: 'sealed' } });
+    expect((await repo.getBatch(b.id))!.depleted_reason ?? null).toBeNull();
+
+    // Причина на ЖИВУ партію — не має сенсу, і роут її не пише.
+    const c = batch(me.household_id, 'Сир');
+    await repo.insertBatch(c);
+    await app.inject({ method: 'PATCH', url: `/v1/pantry/${c.id}`, headers: H, payload: { reason: 'eaten' } });
+    expect((await repo.getBatch(c.id))!.depleted_reason ?? null).toBeNull();
+    expect((await repo.getBatch(c.id))!.state).toBe('sealed');
+  });
+
   it('«Позначити відкритою» запускає годинник — і не подовжує коротший власний строк', async () => {
     // А2, третє місце. Ручна правка стану взагалі не рахувала `expires_at`:
     // «Позначити відкритою» ставило opened_at і мовчки лишало партію без

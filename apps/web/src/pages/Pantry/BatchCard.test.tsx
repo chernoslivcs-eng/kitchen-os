@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { DepletedReason } from '../../api';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -53,10 +54,10 @@ describe('BatchCard', () => {
     }));
   });
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); });
-  async function mount(batch: PantryBatch) {
+  async function mount(batch: PantryBatch, over: { onRemove?: (reason: DepletedReason) => Promise<void> } = {}) {
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
     const onChanged = vi.fn(async () => {});
-    await act(async () => { root!.render(<BatchCard batch={batch} product={null} onChanged={onChanged} onRemove={async () => {}} />); });
+    await act(async () => { root!.render(<BatchCard batch={batch} product={null} onChanged={onChanged} onRemove={over.onRemove ?? (async () => {})} />); });
     return onChanged;
   }
   const input = (label: string) => host!.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
@@ -102,5 +103,29 @@ describe('BatchCard', () => {
     await mount(b({ state: 'opened', opened_at: '2026-09-06T09:00:00.000Z' }));
     expect(host!.querySelector('[data-testid="opened-line"]')!.textContent).toBe('відкрито 6 вер');
     expect([...host!.querySelectorAll('button')].some((x) => x.textContent === 'Позначити запакованою')).toBe(true);
+  });
+
+  describe('2c: списання з картки — причина обовʼязкова (⚠3)', () => {
+  it('«Списати» не списує, а розкриває трійку; кожна кнопка передає СВОЮ причину', async () => {
+    // Контрактний тест на depleted_reason перевіряє репозиторій і не побачить,
+    // якщо кнопка не передасть причину. Цей — що передає, і яку саме.
+    const got: string[] = [];
+    await mount(b({}), { onRemove: async (reason) => { got.push(reason); } });
+    expect(got).toEqual([]);
+    const open = [...host!.querySelectorAll('button')].find((x) => x.textContent?.trim() === 'Списати')!;
+    expect(open, 'кнопка «Списати» є').toBeTruthy();
+    await act(async () => { open.click(); });
+    // Розкрилась трійка, і списання ще не сталось.
+    expect(got).toEqual([]);
+    const reasons = [...host!.querySelectorAll<HTMLButtonElement>('[data-reason]')].map((x) => x.dataset.reason);
+    expect(reasons).toEqual(['eaten', 'spoiled', 'removed']);
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-reason="spoiled"]')!.click(); });
+    expect(got).toEqual(['spoiled']);
+  });
+
+  it('без причини списати не можна — confirm() більше немає', async () => {
+    await mount(b({}));
+    expect(host!.textContent).not.toContain('Прибрати з комори');
+  });
   });
 });

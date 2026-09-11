@@ -166,7 +166,7 @@ export function PantryPage() {
           batch={editingLive}
           product={products.find((pr) => pr.id === (editingLive.product_id ?? '')) ?? null}
           onChanged={refresh}
-          onRemove={async () => { markLeaving(editingLive.id); await wait(250); await api.batches.remove(editingLive.id); setEditing(null); await refresh(); }}
+          onRemove={async (reason) => { markLeaving(editingLive.id); await wait(250); await api.batches.remove(editingLive.id, reason); setEditing(null); await refresh(); }}
         />
       ),
     });

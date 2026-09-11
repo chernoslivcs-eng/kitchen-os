@@ -166,7 +166,8 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       state?: BatchState;
       /** Крок Ф2: «свіже до» з картки — дата або null («без терміну»). */
       expires_at?: string | null;
-      /** А1: чому партія зникла. Має сенс лише разом зі `state: 'depleted'`. */
+      /** А1: чому партія зникла. Разом зі `state: 'depleted'` — з картки;
+       *  окремо, на вже списану партію — з плашки після ✕ (2c). */
       reason?: DepletedReason;
     };
   }>('/v1/pantry/:id', { preHandler: authenticated(repo) }, async (req, reply) => {
@@ -245,6 +246,15 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
         // вона порахується вдруге при наступному списанні.
         patch.depleted_reason = null;
       }
+    }
+
+    // 2c, шлях ✕: партію списали одним тапом без причини, а трійка
+    // «зʼїли · зіпсувалось · віддали» приходить у плашці «Списано · Повернути»
+    // — тобто ОКРЕМИМ запитом на партію, яка вже depleted. Доти причина
+    // писалась лише разом зі state, і цей запит губився мовчки. На живу партію
+    // причина сенсу не має — і не пишеться.
+    if (!('state' in req.body) && reason !== undefined && batch.state === 'depleted') {
+      patch.depleted_reason = reason;
     }
 
     await repo.updateBatch(batch.id, patch);
