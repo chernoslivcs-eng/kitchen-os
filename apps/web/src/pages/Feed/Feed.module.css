@@ -476,7 +476,7 @@ a.att-chip:hover { border-color: var(--sage); }
   background: var(--btn-primary-bg);
   color: var(--btn-primary-fg);
 }
-.frame-btn:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.frame-btn:hover:not(:disabled) { filter: brightness(0.96); }
 .frame-btn-ghost {
   border: 0;
   background: transparent;
@@ -490,7 +490,7 @@ a.att-chip:hover { border-color: var(--sage); }
   font-size: 17px;
   font-weight: 600;
 }
-.frame-btn-solid:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.frame-btn-solid:hover:not(:disabled) { filter: brightness(0.96); }
 .frame-btn:disabled,
 .frame-btn-ghost:disabled,
 .frame-btn-solid:disabled { opacity: 0.45; cursor: not-allowed; }

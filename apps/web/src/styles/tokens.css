@@ -23,7 +23,9 @@
   /* Головна кнопка: чорнило на полотні, інверсія — на темній світла. */
   --btn-primary-bg:      var(--ink);
   --btn-primary-fg:      var(--bg);
-  --btn-primary-hover:   var(--sage-strong);
+  /* Наведення на чорнильну кнопку не міняє кольору — Prototype `.hit:hover`
+     = brightness(.96); шавлія тут — стан контролу, а вона рід факту. */
+  --btn-primary-hover:   var(--ink);
   --btn-primary-pressed: var(--muted);
 
   /* Фокус-кільце — шавлія тонально. */
@@ -47,7 +49,9 @@
 
   --btn-primary-bg:      var(--ink);
   --btn-primary-fg:      var(--bg);
-  --btn-primary-hover:   var(--sage-strong);
+  /* Наведення на чорнильну кнопку не міняє кольору — Prototype `.hit:hover`
+     = brightness(.96); шавлія тут — стан контролу, а вона рід факту. */
+  --btn-primary-hover:   var(--ink);
   --btn-primary-pressed: var(--muted);
 
   --focus-ring: rgba(88, 117, 78, 0.14);
