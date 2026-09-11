@@ -16,12 +16,19 @@
   container-type: inline-size;
   container-name: chat;
 }
-/* <768: нижній бар 64 стоїть під стрічкою (body.padding-bottom його не
-   зачіпає — екран рахує свою висоту сам); поки композитор у фокусі, бар
-   зʼїжджає — екран знову на всю висоту. */
+/* <768 (№23): екран — на всю висоту; місце під бар (64 + safe-area) тримає
+   ОДИН відступ — низ .composer-wrap, і він їде тим самим переходом, що й
+   бар (TabBar: transform --dur-base --ease-standard), коли бар ховається за
+   body.composer-focused / body.sheet-open. Раніше висота екрана
+   перемикалась стрибком, а стрічка й композитор мали ще й свої відступи. */
 @media (max-width: 767px) {
-  .screen { height: calc(100dvh - 64px - env(safe-area-inset-bottom)); }
-  :global(body.composer-focused) .screen, :global(body.sheet-open) .screen { height: 100dvh; }
+  .screen { height: 100dvh; }
+  .composer-wrap {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    transition: padding-bottom var(--dur-base) var(--ease-standard);
+  }
+  :global(body.composer-focused) .composer-wrap,
+  :global(body.sheet-open) .composer-wrap { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
 
 /* ----- Header --------------------------------------------------------- */
@@ -86,6 +93,13 @@
   max-width: 720px;
 }
 .turn { display: flex; flex-direction: column; gap: 6px; }
+/* №3 (Prototype): розмова росте знизу, від композитора — коли ходів мало,
+   вони стоять над ним, а не під шапкою. Саме margin-top: auto на першому
+   ході, не justify-content: flex-end на контейнері: у flex-end довга стрічка
+   не прокручується до початку (верх вилітає за overflow), а auto-відступ
+   стискається до 0, щойно вміст вищий за контейнер, і скрол лишається
+   звичайним. */
+.seg-view-today > .turn:first-child { margin-top: auto; }
 
 .seg-new { color: var(--sage); font-weight: 600; }
 
@@ -308,9 +322,7 @@
 .composer-wrap {
   /* Лінії над композитором немає (Prototype; власник 11.09). */
   background: var(--bg);
-  /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
-     а не від низу вікна. Композер росте разом із текстом, і фіксований
-     відступ від краю рано чи пізно на нього наліз би. */
+  /* Мобільна пілюля артефактів стоїть тут у потоці (№23), не absolute. */
   position: relative;
 }
 /* Пул-9 №3: рядок очікування — спінер/крапки і час поруч. */
@@ -1179,10 +1191,13 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
 }
 .cook-go:hover { filter: brightness(0.96); }
-/* Підвал рецепта: «У список · N» текстом над «Готуємо», кнопка на всю ширину. */
-.recipe-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+/* Підвал рецепта (№8, Prototype recipe aside): підвал малює слот панелі —
+   12 18 18 + волосина (.rail-foot); тут — жодного власного відступу.
+   «Готуємо» — 48 r12 на всю ширину. `flex: 1` у стовпчику давав
+   flex-basis 0 → кнопка стискалась до рядка тексту (23 px), тому flex: none. */
+.recipe-foot { flex-direction: column; align-items: stretch; gap: 10px; padding: 0; margin: 0; }
 .recipe-foot .recipe-tolist { text-align: center; }
-.recipe-foot .cook-go { width: 100%; }
+.recipe-foot .cook-go { flex: none; width: 100%; height: 48px; border-radius: 12px; }
 .recipe-miss {
   flex: 1;
   font-family: var(--font-mono);
@@ -1547,3 +1562,10 @@ a.att-chip:hover { border-color: var(--sage); }
 .rcard-act:hover { color: var(--ink); }
 .rcard-act-sage { background: var(--sage); color: #fff; border-color: var(--sage); }
 .rcard-act-sage:hover { color: #fff; filter: brightness(0.96); }
+
+/* №23 (<768): власний відступ композитора — лише 8 16 12; місце під бар
+   тримає .composer-wrap (вище). Стоїть у кінці файлу, бо базове правило
+   .composer (12 22 20) нижче за медіа-блок угорі. */
+@media (max-width: 767px) {
+  .composer { margin: 8px 16px 12px; }
+}

@@ -11,39 +11,45 @@
    кошик у Сільпо це ОДНА жива річ, і дві його картки у стрічці з різними
    сумами завжди суперечать одна одній. Зріз розселяється (крок 4). */
 .rail { display: none; }
-.rail-block { display: flex; flex-direction: column; gap: 2px; }
+/* №12: блок «Чекають на тебе · N» під підвалом панелі — у токенах, без
+   капсу й моно: кікер 12/500 muted, рядки 40 зі знаком 16 (куди пише
+   картка) і словом 14/500; бурштин — «чекає». Волосина зверху — межа з
+   підвалом. Де блоку жити остаточно — QUESTIONS §12. */
+.rail-block { display: flex; flex-direction: column; gap: 0; padding: 12px 18px 14px; border-top: 1px solid var(--line); }
 .rail-title {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--dim);
-  padding-bottom: 4px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--muted);
+  padding-bottom: 6px;
 }
 .rail-row {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  padding: 7px 0;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 8px;
+  margin: 0 -8px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-radius: 10px;
   background: transparent;
+  color: var(--amber);
   cursor: pointer;
   text-align: left;
+  font: inherit;
 }
-.rail-row:last-child { border-bottom: 0; }
+.rail-row:hover { background: var(--bg); }
 .rail-label {
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rail-meta {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  flex: none;
-}
+.rail-meta { display: inline-grid; place-items: center; flex: none; color: var(--amber); }
 /* Правка №7: зона чату закінчується перед панеллю — відступ на РІВНІ ЕКРАНА,
    щоб колонка центрувалась у зоні, а скрол-зона лишалась суцільною.
    Крок 1.1 (02.09): поріг 1200. Нижче панелі немає взагалі — там пігулка
@@ -181,15 +187,14 @@
 .rail-pill { display: none; }
 
 @media (max-width: 1199px) {
+  /* №23: пілюля — у потоці над композитором, не absolute: раніше вона
+     лягала на останню репліку, щойно стрічка виростала до низу. */
   .rail-pill {
     display: flex;
     align-items: center;
     gap: 8px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(100% + 10px);
-    z-index: 12;
+    width: max-content;
+    margin: 10px auto 0;
     max-width: calc(100% - 32px);
     padding: 9px 16px;
     border: 0;
@@ -281,21 +286,19 @@
   }
 }
 
+/* №17 (Prototype aside): зона захоплення 12 на всю висоту, видима риска 4×40
+   r2 line2 по центру, opacity 0 → 1 за 160 мс на наведенні й під час
+   перетягування. Смуги на всю висоту не буває. */
 .rail-handle-bar {
   width: 4px;
   height: 40px;
   border-radius: 2px;
   background: var(--line2);
   opacity: 0;
-  transition: opacity var(--dur-fast) ease, background var(--dur-fast) ease;
+  transition: opacity var(--dur-fast) var(--ease-standard);
 }
-.rail-handle:hover .rail-handle-bar { opacity: 1; }
-.rail-dragging .rail-handle-bar {
-  opacity: 1;
-  background: var(--ink);
-  height: 100%;
-  border-radius: 0;
-}
+.rail-handle:hover .rail-handle-bar,
+.rail-dragging .rail-handle-bar { opacity: 1; }
 .rail-handle-tip {
   position: absolute;
   left: 18px;

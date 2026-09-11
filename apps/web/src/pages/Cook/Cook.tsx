@@ -41,9 +41,20 @@ export function CookOverlay() {
   const closeOverlay = useCookStore((s) => s.close);
   const recipe = state.recipe ?? null;
   const [stepIdx, setStepIdx] = useState(state.startAt ?? 0);
+  // №10 (рішення власника): зроблені кроки — явна множина, а не «усе до
+  // поточного»: маршрут відкритий на будь-який крок, і «Крок готово»
+  // відмічає той, на якому стоїш.
+  const [done, setDone] = useState<Set<number>>(() => new Set());
   // DA2-03: подвійний тап мокрим пальцем перескакував крок (1 → 3). 400ms
-  // локу після переходу — рівно --dur-slow, тривалість зміни кроку.
+  // локу — рівно --dur-slow, тривалість зміни кроку. №10: лок стоїть лише на
+  // «Крок готово» (там подвійний тап відмітив би ще й наступний); навігація
+  // маршрутом, сегментами й «Назад» — без лока.
   const [stepLocked, setStepLocked] = useState(false);
+  // №10: таймери кроків, з яких пішли. Таймер, що біг, несе дедлайн і йде
+  // далі; на паузі — залишок. Поточний крок живе в secondsLeft/running.
+  type StepTimer = { deadline: number | null; left: number };
+  const timersRef = useRef<Record<number, StepTimer>>({});
+  const [, setTick] = useState(0);
   // Вигляд (cook-share-v3): тема застосунку (sun/moon), звук beep, шторка кроків на 390.
   const [theme, setThemeState] = useState<ThemeChoice>(() => currentTheme());
   const setTheme = (t: ThemeChoice) => { setThemeOverride(t); setThemeState(t); };
@@ -69,18 +80,29 @@ export function CookOverlay() {
     closeOverlay();
   }
 
+  // №10: перехід на будь-який крок — зроблений, наступний, будь-який. Таймер
+  // кроку, з якого йдемо, лишається в timersRef: біг — іде далі за дедлайном.
   function goToStep(n: number) {
-    if (n >= stepIdx) return;
+    if (n === stepIdx || n < 0 || n >= (recipe?.st.length ?? 0)) return;
     stopAlarm();
+    if (step?.s) timersRef.current[stepIdx] = { deadline: running ? deadlineRef.current : null, left: secondsLeft };
     setStepIdx(n);
   }
 
-  function advanceStep() {
+  // «Крок готово»: відмічає поточний крок і веде на перший невідмічений після
+  // нього (або перший невідмічений узагалі; усі відмічені — на останній, де
+  // стоїть «Приготував»).
+  function markDone() {
     if (stepLocked) return;
-    stopAlarm();
     setStepLocked(true);
-    setStepIdx((i) => i + 1);
     window.setTimeout(() => setStepLocked(false), 400);
+    const total = recipe?.st.length ?? 0;
+    const next = new Set(done); next.add(stepIdx); setDone(next);
+    let target = -1;
+    for (let i = stepIdx + 1; i < total; i++) if (!next.has(i)) { target = i; break; }
+    if (target < 0) for (let i = 0; i < total; i++) if (!next.has(i)) { target = i; break; }
+    if (target < 0) target = total - 1;
+    goToStep(target);
   }
   const [batchLabels, setBatchLabels] = useState<BatchLabels>(new Map());
   // №4а: кроки показують тільки product — без бренду й варіанта.
@@ -104,11 +126,42 @@ export function CookOverlay() {
   const [running, setRunning] = useState(false);
   const tickRef = useRef<number | null>(null);
 
-  // Скидаємо таймер при зміні кроку
+  // Зміна кроку: таймер кроку, на який прийшли, — з timersRef (біг → залишок
+  // від дедлайну і біжить далі; пауза → збережений залишок), інакше повний.
   useEffect(() => {
+    const saved = timersRef.current[stepIdx];
+    if (saved) {
+      delete timersRef.current[stepIdx];
+      if (saved.deadline) {
+        const left = Math.max(0, Math.ceil((saved.deadline - Date.now()) / 1000));
+        setSecondsLeft(left);
+        setRunning(left > 0);
+      } else {
+        setSecondsLeft(saved.left);
+        setRunning(false);
+      }
+      return;
+    }
     setSecondsLeft(step?.s ?? 0);
     setRunning(false);
   }, [stepIdx, step?.s]);
+
+  // №10: таймери кроків, з яких пішли, тікають у маршруті раз на секунду; нуль
+  // — один сигнал (повторний вартовий — лише в поточного кроку).
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      let any = false;
+      for (const [k, t] of Object.entries(timersRef.current)) {
+        if (t.deadline == null) continue;
+        any = true;
+        if (t.deadline <= now) { timersRef.current[Number(k)] = { deadline: null, left: 0 }; beep(); }
+      }
+      if (any) setTick((v) => v + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // QA8-03: таймер рахує від дедлайну, не тіками. Лічильник тіків втрачав
   // час на будь-якому дроселі (виміряно: 2000мс/тік, паста на 8:00 варилась
@@ -153,6 +206,10 @@ export function CookOverlay() {
     resumeRef.current = true;
     const saved = loadCookSession();
     if (saved && recipe && saved.recipe.t === recipe.t && saved.stepIdx < recipe.st.length) {
+      // №10: зроблені кроки — зі збереженої множини; стара сесія без неї —
+      // «усе до поточного», як було. Таймери інших кроків — теж.
+      setDone(new Set(saved.done ?? Array.from({ length: saved.stepIdx }, (_, i) => i)));
+      if (saved.timers) timersRef.current = { ...saved.timers };
       setStepIdx(saved.stepIdx);
       // Пул-7 №1: дедлайн живий → рахунок ішов увесь цей час і продовжує йти;
       // дедлайн минув → 0:00, алярм наздожене ефектом нуля. Пауза (без
@@ -296,14 +353,14 @@ export function CookOverlay() {
   const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
 
   // Актуальний знімок для збереження — оминаємо замикання ефектів.
-  const sessionSnapRef = useRef({ stepIdx, secondsLeft });
-  sessionSnapRef.current = { stepIdx, secondsLeft };
+  const sessionSnapRef = useRef({ stepIdx, secondsLeft, done });
+  sessionSnapRef.current = { stepIdx, secondsLeft, done };
   useEffect(() => {
     if (!recipe || finishedRef.current) return;
     // Пул-7 №1: running → пишемо дедлайн, рахунок живе поза попапом.
-    saveCookSession({ recipe, stepIdx, secondsLeft, deadline: running ? deadlineRef.current : null, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+    saveCookSession({ recipe, stepIdx, secondsLeft, deadline: running ? deadlineRef.current : null, recipeId: state.recipeId, returnSessionId: state.returnSessionId, done: [...done], timers: timersRef.current });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIdx, running]);
+  }, [stepIdx, running, done]);
   // QA8-06: «Вийти» за 20 секунд до кінця повертало повний таймер — запис
   // ішов тільки на дію. Тепер вихід (unmount) пише точний залишок.
   useEffect(() => {
@@ -314,7 +371,7 @@ export function CookOverlay() {
       // відстає на один ефект — вихід одразу після «Пуск» губив би рахунок).
       const dl = runningRef.current ? deadlineRef.current : null;
       const left = dl != null ? Math.max(0, Math.ceil((dl - Date.now()) / 1000)) : snap.secondsLeft;
-      if (!finishedRef.current) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: left, deadline: dl, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+      if (!finishedRef.current) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: left, deadline: dl, recipeId: state.recipeId, returnSessionId: state.returnSessionId, done: [...snap.done], timers: timersRef.current });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.t]);
@@ -410,7 +467,7 @@ export function CookOverlay() {
     if (deadlineRef.current != null) {
       deadlineRef.current += 60_000;
       // Пул-7 №1: сесія несе дедлайн — банери/вартовий мусять побачити +хвилину одразу.
-      saveCookSession({ recipe, stepIdx, secondsLeft: secondsLeft + 60, deadline: deadlineRef.current, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+      saveCookSession({ recipe, stepIdx, secondsLeft: secondsLeft + 60, deadline: deadlineRef.current, recipeId: state.recipeId, returnSessionId: state.returnSessionId, done: [...done], timers: timersRef.current });
     }
     setSecondsLeft((v) => v + 60);
   };
@@ -419,19 +476,25 @@ export function CookOverlay() {
   // Маршрут (список кроків) — один на колонку 1440, чіпи 768 і шторку 390.
   const routeRow = (i: number, mode: 'list' | 'chips') => {
     const st = recipe.st[i]!;
-    const done = i < stepIdx, cur = i === stepIdx;
-    const tone = done ? 'done' : cur ? 'cur' : 'next';
+    const isDone = done.has(i), cur = i === stepIdx;
+    const tone = isDone ? 'done' : cur ? 'cur' : 'next';
+    // №10: таймер кроку, з якого пішли, видно в маршруті, поки він біжить.
+    const bg = !cur && st.s ? timersRef.current[i] : undefined;
+    const bgLeft = bg?.deadline ? Math.max(0, Math.ceil((bg.deadline - Date.now()) / 1000)) : null;
     return (
       <button key={i} type="button"
         className={`${styles['route-row']} ${styles[`row-${mode}`]} ${styles[`route-${tone}`]}`}
-        onClick={() => { if (i < stepIdx) goToStep(i); }}
-        disabled={i > stepIdx}
+        onClick={() => goToStep(i)}
         aria-current={cur ? 'step' : undefined}
-        data-route-step={i + 1}>
-        <span className={styles['route-n']}>{done ? <Icon name="sys.done" size={16} inherit decorative /> : i + 1}</span>
+        aria-pressed={isDone || undefined}
+        data-route-step={i + 1}
+        data-route-done={isDone || undefined}>
+        <span className={styles['route-n']}>{isDone ? <Icon name="sys.done" size={16} inherit decorative /> : i + 1}</span>
         <span className={styles['route-t']}>{shortOf(st)}</span>
         <span className={styles['route-r']}>
-          {cur && st.s ? <><Icon name="cook.timer" size={12} inherit decorative />{formatMS(secondsLeft, st.s)}</> : stepMeta(st)}
+          {cur && st.s ? <><Icon name="cook.timer" size={12} inherit decorative />{formatMS(secondsLeft, st.s)}</>
+            : bgLeft != null ? <><Icon name="cook.timer" size={12} inherit decorative live="timer" />{formatMS(bgLeft, st.s!)}</>
+            : stepMeta(st)}
         </span>
       </button>
     );
@@ -470,7 +533,7 @@ export function CookOverlay() {
   );
 
   // Низ: «← Назад» · «N · Далі: …» · «✓ Крок готово» / «✓ Приготував».
-  // Дія — та сама, що була: advanceStep() / finish().
+  // Дія: markDone() (№10 — відмічає крок, на якому стоїш) / finish().
   const bottomRow = (
     <div className={styles.bottom}>
       <button type="button" className={styles.back} onClick={() => goToStep(stepIdx - 1)} disabled={stepIdx === 0} aria-label="Назад" data-step-back>
@@ -481,7 +544,7 @@ export function CookOverlay() {
         <span className={styles['next-t']}>{nextLabel}</span>
       </div>
       <button type="button" className={styles.go} disabled={stepLocked || finishing}
-        onClick={isLast ? () => void finish() : advanceStep} data-step-done={isLast ? undefined : true} data-finish={isLast ? true : undefined}>
+        onClick={isLast ? () => void finish() : markDone} data-step-done={isLast ? undefined : true} data-finish={isLast ? true : undefined}>
         <Icon name="sys.done" size={20} inherit decorative />{isLast ? (finishing ? 'Зберігаю…' : 'Приготував') : 'Крок готово'}
       </button>
     </div>
@@ -489,18 +552,19 @@ export function CookOverlay() {
   // Крок О2 (3): другий вихід «Поділитись результатом» — та сама робота, що
   // «Приготував», і лише потім /share. Лише на останньому кроці, текстом.
   const shareRow = isLast && (
-    <button type="button" className={styles['share-result']} disabled={stepLocked || finishing} onClick={() => void finish('share')} data-share-result>
+    <button type="button" className={styles['share-result']} disabled={finishing} onClick={() => void finish('share')} data-share-result>
       Поділитись результатом
     </button>
   );
 
   return (
-    <div className={styles.screen} data-cook-mode>
-      {/* 390: сегменти прогресу вгорі; тап по пройденому — назад (Бриф-3 п.1). */}
+    <div className={styles.shell} data-cook-mode>
+    <div className={styles.screen}>
+      {/* 390: сегменти прогресу вгорі; тап по будь-якому сегменту — перехід (№10). */}
       <div className={styles.segments} aria-hidden>
         {recipe.st.map((_, i) => (
-          <button key={i} type="button" className={`${styles.seg} ${i < stepIdx ? styles['seg-done'] : i === stepIdx ? styles['seg-cur'] : ''}`}
-            disabled={i >= stepIdx} tabIndex={-1} onClick={() => goToStep(i)} />
+          <button key={i} type="button" className={`${styles.seg} ${done.has(i) ? styles['seg-done'] : i === stepIdx ? styles['seg-cur'] : ''}`}
+            tabIndex={-1} onClick={() => goToStep(i)} />
         ))}
       </div>
 
@@ -529,7 +593,7 @@ export function CookOverlay() {
             <span className={styles['route-meta-gap']} />
             <span className={styles['route-step']}>крок {stepIdx + 1} з {total}</span>
           </div>
-          <span className={`${styles.bar} ${styles['route-bar']}`}><span className={styles['bar-fill']} style={{ width: `${Math.round((stepIdx / total) * 100)}%` }} /></span>
+          <span className={`${styles.bar} ${styles['route-bar']}`}><span className={styles['bar-fill']} style={{ width: `${Math.round((done.size / total) * 100)}%` }} /></span>
           <div className={styles['route-list']}>{recipe.st.map((_, i) => routeRow(i, 'list'))}</div>
           <div className={styles['route-chips']} data-route-chips>{recipe.st.map((_, i) => routeRow(i, 'chips'))}</div>
           <div className={styles['route-foot']}>
@@ -550,7 +614,7 @@ export function CookOverlay() {
               <span className={styles['step-chip']}>Крок {stepIdx + 1}<span className={styles['step-chip-t']}>· {step ? shortOf(step) : ''}</span></span>
               <span className={styles['focus-gap']} />
               <span className={styles.dots} aria-hidden>
-                {recipe.st.map((_, i) => <span key={i} className={`${styles.dot} ${i < stepIdx ? styles['dot-done'] : i === stepIdx ? styles['dot-cur'] : ''}`} />)}
+                {recipe.st.map((_, i) => <span key={i} className={`${styles.dot} ${done.has(i) ? styles['dot-done'] : i === stepIdx ? styles['dot-cur'] : ''}`} />)}
               </span>
             </div>
             <div className={styles['step-text']} data-step-text>{stepText}</div>
@@ -597,6 +661,7 @@ export function CookOverlay() {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }

@@ -655,13 +655,8 @@
 .mob .footerTag { line-height: 1.5; }
 .mob .footerLinks { gap: 16px; flex-wrap: wrap; justify-content: center; }
 
-/* ── темна тема · бандл малює лише світлу; тут — те, без чого темна нечитабельна (QUESTIONS §16) ── */
-:root[data-theme='dark'] .page { --dim-t: var(--muted); --glass-a: rgba(255, 255, 255, .09); --glass-b: rgba(255, 255, 255, .04); --glass-hi: rgba(255, 255, 255, .18); --glass-ring: rgba(255, 255, 255, .08); }
-:root[data-theme='dark'] .page .ill { mix-blend-mode: normal; filter: invert(1) hue-rotate(180deg); }
-:root[data-theme='dark'] .page .pressBtn, :root[data-theme='dark'] .page .phPress, :root[data-theme='dark'] .page .strictPill, :root[data-theme='dark'] .page .avatar { color: var(--bg); }
-:root[data-theme='dark'] .page .check { color: var(--bg); }
-/* блік: біле світло .34–.42 на темному полотні читається смугою, не відблиском — приглушено */
-:root[data-theme='dark'] .page .gloss { opacity: .4; }
+/* Темної теми лендінг не має (№2, рішення власника 11.09): сторінка тримає
+   data-theme='light' через useLightOnly, провізорні правила темної знято. */
 
 /* ── жива сесія: кейфрейми з бандла, 9 с по колу, запуск за [data-play] ───── */
 @keyframes kos-cursor { 0%,18% { opacity:0; transform:translate(40px,60px); } 26% { opacity:1; transform:translate(0,0); } 30% { transform:translate(0,0) scale(.86); } 34% { transform:translate(0,0) scale(1); } 46% { opacity:1; transform:translate(0,0); } 54% { opacity:0; transform:translate(40px,60px); } 100% { opacity:0; } }

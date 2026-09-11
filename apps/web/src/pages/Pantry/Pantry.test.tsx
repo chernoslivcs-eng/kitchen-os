@@ -80,6 +80,10 @@ describe('PantryPage · фільтр', () => {
     expect(vals).toEqual(['26 г', '3 г', '≈0 г', '']);      // крок Ф2: цілі
     expect(host!.textContent).toContain('від жирного до нежирного');
     expect(host!.querySelector('[data-testid="unit-label"]')!.textContent).toContain('жиру / 100 г');
+    // №5: число порядку — останній стовпчик у тілі рядка (після часу й кількості), назва — перша.
+    const first = host!.querySelector<HTMLElement>('[data-batch] button:first-child')!;
+    expect(first.firstElementChild!.textContent).toContain('Пармезан');
+    expect(first.lastElementChild!.hasAttribute('data-val')).toBe(true);
     // саме сортування не звужує список — лічильник як без фільтра
     expect(host!.querySelector('[data-testid="pantry-meta"]')!.textContent).toBe('4 · чек 3 вер');
   });

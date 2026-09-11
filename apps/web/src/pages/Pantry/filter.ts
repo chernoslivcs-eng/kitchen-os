@@ -264,8 +264,14 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
     // найгучнішим елементом рядка, якщо половина її — код калібру (PLAN §2).
     const prod = it.product_id ? ctx.productsById.get(it.product_id) : undefined;
     const passport = [prod?.brand, prod?.variant].filter(Boolean).join(' · ');
+    // №7 (правило власника): заголовок = продукт із трійки, підрядок = бренд ·
+    // різновид. Було `label` — а на проді label чека несе всю трійку разом
+    // («квас Тарас білий 1.5л» / «Тарас · білий 1.5л» — бренд і різновид
+    // двічі, 94 зі 113 позицій дому власника). Без трійки (сирий рядок чека,
+    // старі партії без product_id) — усе в заголовок, підрядок порожній.
+    const name = prod?.product?.trim() || it.label;
     return {
-      it, name: it.label, passport,
+      it, name, passport,
       qty: it.value != null && it.unit ? formatQty(it.value, it.unit) : '',
       zone: ZONE_LABEL[it.zone],
       fresh: st,

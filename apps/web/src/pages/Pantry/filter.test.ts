@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { applyFilter, toggleKind, toggleState, resetFilter, stateFull, freshness, INITIAL, shortDate, type FilterState } from './filter';
-import type { PantryBatch } from '../../api';
+import type { PantryBatch, HouseholdProduct } from '../../api';
 
 // Раунд 5, крок Ф1: логіка фільтра зі спеки дизайну.
 
@@ -286,5 +286,41 @@ describe('Р6: домислене — четверте походження', ()
       st({ sort: 'fat' }), ctx,
     );
     expect(v.list[0]!.originTitle).toBe('з розмови');
+  });
+});
+
+// №7 (правило власника, звірено на домі власника 11.09): заголовок рядка —
+// продукт із трійки, підрядок — бренд · різновид; без трійки — весь label у
+// заголовку. На проді label чека несе всю трійку, тож раніше бренд і
+// різновид стояли двічі.
+describe('№7 · назва рядка з трійки', () => {
+  const prod = (id: string, product: string, brand: string | null, variant: string | null) =>
+    [id, { id, household_id: 'h', product, brand, variant, unit: 'g', pack_size: null, tags: {}, catalog_key: null, created_at: '' }] as const;
+  const products = new Map<string, HouseholdProduct>([
+    prod('p1', 'квас', 'Тарас', 'білий 1.5л'),
+    prod('p2', 'томат', null, 'жовтий'),
+    prod('p3', 'Вершки Галичина 33% т/п', null, null),
+  ]);
+  const rows = applyFilter([
+    b('квас Тарас білий 1.5л', { product_id: 'p1' }),
+    b('томат жовтий', { product_id: 'p2' }),
+    b('Вершки Галичина 33% т/п', { product_id: 'p3' }),
+    b('салямі італійські нарізка'),
+  ], st({ sort: 'kcal' }), { productsById: products, receiptAt: null }).list;
+  const byLabel = (l: string) => rows.find((r) => r.it.label === l)!;
+
+  it('повна трійка: заголовок — продукт, підрядок — бренд · різновид', () => {
+    expect(byLabel('квас Тарас білий 1.5л').name).toBe('квас');
+    expect(byLabel('квас Тарас білий 1.5л').passport).toBe('Тарас · білий 1.5л');
+  });
+  it('без бренду: підрядок — лише різновид', () => {
+    expect(byLabel('томат жовтий').name).toBe('томат');
+    expect(byLabel('томат жовтий').passport).toBe('жовтий');
+  });
+  it('нерозпізнане (сирий рядок як продукт) і без трійки — усе в заголовок, підрядок порожній', () => {
+    expect(byLabel('Вершки Галичина 33% т/п').name).toBe('Вершки Галичина 33% т/п');
+    expect(byLabel('Вершки Галичина 33% т/п').passport).toBe('');
+    expect(byLabel('салямі італійські нарізка').name).toBe('салямі італійські нарізка');
+    expect(byLabel('салямі італійські нарізка').passport).toBe('');
   });
 });

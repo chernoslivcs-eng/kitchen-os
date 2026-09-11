@@ -5,6 +5,8 @@
 
 import { Toast } from '../../components/ErrorState/Toast';
 import { Icon } from '../../components/Icon/Icon';
+import { holdBodyFlag } from '../../lib/body-flags';
+import type { IconName } from '../../components/Icon/icons';
 import { ActionState } from '../../components/ActionState/ActionState';
 import { useIncidentStore } from '../../store/incident';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
@@ -33,7 +35,6 @@ import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
 import { useHomeNow } from '../../store/homeNow';
 import { ChatHead } from '../../components/ChatHead/ChatHead';
-import type { SessionRow } from '../../components/ChatHead/SessionsMenu';
 import { HomeNowPanel } from '../../components/HomeNow/HomeNow';
 import { toneOfNow } from '../../lib/period';
 import { stepLabelsFrom } from '../../lib/recipe';
@@ -109,6 +110,15 @@ function formatBytes(b: number): string {
 
 
 
+// №12: картки, що чекають рішення, — словами й знаком того, куди вони пишуть.
+const PENDING_KIND: Record<string, { icon: IconName; label: string }> = {
+  intake_diff: { icon: 'sys.pantry', label: 'Комора' },
+  shopping: { icon: 'sys.list', label: 'Список' },
+  recipe: { icon: 'sys.recipes', label: 'Рецепт' },
+  cook_photo: { icon: 'cook.done', label: 'Журнал' },
+  period: { icon: 'sys.calendar', label: 'Календар' },
+};
+
 export function Feed() {
   const openNav = useNavStore((st) => st.setOpen);
   const setNavExpanded = useNavStore((st) => st.setExpanded);
@@ -181,6 +191,9 @@ export function Feed() {
   // №4а: кроки рецептів у стрічці — тільки product.
   const [stepLabels, setStepLabels] = useState<Map<string, string>>(new Map());
   const [toast, setToast] = useState<ToastState | null>(null);
+  // №21: тримач класу composer-focused — знімається на blur і на демонтажі.
+  const composerHold = useRef<(() => void) | null>(null);
+  useEffect(() => () => { composerHold.current?.(); composerHold.current = null; }, []);
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -710,16 +723,8 @@ export function Feed() {
     return () => document.removeEventListener('keydown', onKey);
   }, [turns]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!toast || toast.persist) return;
-    // Undo toast — довше вікно (людина може прочитати й натиснути).
-    // Успіх без undo — 5с, помилка — 8с. «Готую рецепт…» — persist до кінця.
-    // Моушн-кіт: тост auto 4с, з undo — 8с. 18с висіло як бажання «дати
-    // більше часу», але дизайн свідомо тримає ритм — undo є і в журналі.
-    const ttl = toast.action ? 8_000 : (toast.kind === 'err' ? 8_000 : 4_000);
-    const t = setTimeout(() => setToast(null), ttl);
-    return () => clearTimeout(t);
-  }, [toast]);
+  // №11: час тоста тримає сам компонент (4 с / 8 с з дією) — тут лише
+  // «persist» для «Готую рецепт…» (без onDismiss тост стоїть до кінця).
 
   // Пул-2 №4: простиня з буфера (інвентар, довгий список) не мусить іти
   // чат-конвеєром — він обрізається стелею відповіді. Вставка >1500 символів
@@ -1153,20 +1158,26 @@ export function Feed() {
           </LivePositions.Provider>
         );
       },
+      // №12: блок «Чекають на тебе · N» під підвалом панелі — у токенах: кікер
+      // 12/500 muted без капсу, рядок 14/500, знак 16 зі словника (куди пише
+      // картка), бурштин — «чекає». Де йому жити остаточно — QUESTIONS §12.
       extra: housePending.length > 0 ? (
-        <div className={panelStyles['rail-block']}>
-          <div className={panelStyles['rail-title']}>ЧЕКАЮТЬ НА ТЕБЕ · {housePending.length}</div>
-          {housePending.slice(0, 4).map((pc) => (
-            <button key={pc.id} className={panelStyles['rail-row']}
-              onClick={() => {
-                const turn = turns.find((t) => t.cardId === pc.id);
-                if (turn) document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
-                else if (pc.session_id) void loadHistorySession(pc.session_id);
-              }}>
-              <span className={panelStyles['rail-label']}>{labelFor(pc.type as never).text.replace(' · ОЧІКУЄ', '')}</span>
-              <span className={panelStyles['rail-meta']} style={{ color: 'var(--amber)' }} aria-hidden><Icon name="live.thinking" size={12} inherit decorative /></span>
-            </button>
-          ))}
+        <div className={panelStyles['rail-block']} data-pending-block>
+          <div className={panelStyles['rail-title']}>Чекають на тебе · {housePending.length}</div>
+          {housePending.slice(0, 4).map((pc) => {
+            const kind = PENDING_KIND[pc.type] ?? { icon: 'sys.chat' as const, label: 'Картка' };
+            return (
+              <button key={pc.id} className={panelStyles['rail-row']}
+                onClick={() => {
+                  const turn = turns.find((t) => t.cardId === pc.id);
+                  if (turn) document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
+                  else if (pc.session_id) void loadHistorySession(pc.session_id);
+                }}>
+                <span className={panelStyles['rail-meta']}><Icon name={kind.icon} size={16} inherit decorative /></span>
+                <span className={panelStyles['rail-label']}>{kind.label}</span>
+              </button>
+            );
+          })}
         </div>
       ) : undefined,
     });
@@ -1187,26 +1198,7 @@ export function Feed() {
   const homeDate = new Date().toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
   // «Усі розмови» / panel-left-open — розмови живуть у сайдбарі (≥1024) або шухляді.
   function openAllSessions() { if (window.innerWidth >= 1024) setNavExpanded(true); else openNav(true); }
-  // Меню пілюлі: 5 останніх розмов по днях зі станом другим рядком — «чекає
-  // рішення» (картки дому, що чекають, з session_id) або час dim.
-  const [sessionRows, setSessionRows] = useState<SessionRow[]>([]);
-  useEffect(() => {
-    let alive = true;
-    api.session.list().then(({ sessions }) => {
-      if (!alive) return;
-      const pendingIn = new Set(housePending.map((pc) => pc.session_id).filter(Boolean));
-      setSessionRows(sessions.slice(0, 5).map((sn) => {
-        const d = new Date(sn.created_at);
-        return {
-          id: sn.id, title: sn.title ?? 'без назви', day: sn.day, created_at: sn.created_at,
-          state: pendingIn.has(sn.id)
-            ? { text: 'чекає рішення', tone: 'amber' as const }
-            : { text: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, tone: 'dim' as const },
-        };
-      }));
-    }).catch(() => {});
-    return () => { alive = false; };
-  }, [sessionId, housePending]);
+  // №22: меню пілюлі знято — список розмов живе лише в сайдбарі/шухляді (TabBar).
   // Ширина КОНТЕЙНЕРА стрічки (Р38): нижче 768 «Дім зараз» — шторка, не накладка.
   // Форма шапки за шириною контейнера (Р38): ≥964 wide · 704–963 mid (R2) · <704 narrow (G3).
   const screenRef = useRef<HTMLDivElement>(null);
@@ -1242,9 +1234,6 @@ export function Feed() {
         when={sessionWhen}
         home={home}
         cookLive={cookLive}
-        sessions={sessionRows}
-        activeSessionId={sessionId}
-        onPickSession={(id) => void loadHistorySession(id)}
         onNewSession={() => void startFreshSession()}
         onAllSessions={openAllSessions}
         onCook={() => cookLive && cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
@@ -1815,9 +1804,11 @@ export function Feed() {
             ref={composerInputRef}
             rows={1}
             className={styles['composer-input']}
-            /* Етап 6a: поки поле у фокусі, нижній бар (<768) ховається (HANDOFF, ⚠6). */
-            onFocus={() => document.body.classList.add('composer-focused')}
-            onBlur={() => document.body.classList.remove('composer-focused')}
+            /* Етап 6a: поки поле у фокусі, нижній бар (<768) ховається (HANDOFF, ⚠6).
+               №21: той, хто ставить, і знімає — і на blur, і на демонтажі
+               (перехід з екрана у фокусі blur не дає). */
+            onFocus={() => { composerHold.current?.(); composerHold.current = holdBodyFlag('composer-focused'); }}
+            onBlur={() => { composerHold.current?.(); composerHold.current = null; }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1906,6 +1897,7 @@ export function Feed() {
           tone={toast.kind === 'ok' ? 'sage' : toast.kind === 'warn' ? 'amber' : 'danger'}
           text={toast.text}
           action={toast.action ? { label: toast.action.label, run: () => { toast.action!.run(); setToast(null); } } : undefined}
+          onDismiss={toast.persist ? undefined : () => setToast(null)}
         />
       )}
     </div>

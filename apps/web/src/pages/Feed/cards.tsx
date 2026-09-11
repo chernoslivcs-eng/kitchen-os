@@ -981,7 +981,7 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels, stepLa
         </button>
       )}
       {onCook && (
-        <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)}>
+        <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)} data-cook-go>
           <Icon name="cook.go" size={16} inherit decorative />Готуємо
         </button>
       )}

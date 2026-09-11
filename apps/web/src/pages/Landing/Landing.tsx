@@ -22,6 +22,7 @@ import {
 } from './copy';
 import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, reducedMotion } from './useLandingMotion';
 import styles from './Landing.module.css';
+import { useLightOnly } from '../../lib/useLightOnly';
 
 const s = styles;
 
@@ -34,6 +35,8 @@ function GuessChip({ className }: { className?: string }) {
 }
 
 export function Landing() {
+  // №2: лендінг завжди світлий, на всіх ширинах — темна лише в застосунку.
+  useLightOnly();
   const bp = useBreakpoint();
   const desk = bp === 'desk', tab = bp === 'tab', mob = bp === 'mob';
   const root = useRef<HTMLDivElement>(null);

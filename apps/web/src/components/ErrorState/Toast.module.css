@@ -1,6 +1,7 @@
 /* Етап 10 · Errors E3: тост 480, r14, card + sh2, pad 12 14 12 16, gap 12,
-   крапка 8 роду, текст 14/1.4, дія 14/600 шавлією. Знизу по центру над
-   композитором (пул-9: композитор-стек ≈ 100 на десктопі, вище на 390). */
+   крапка 8 роду, текст 14/1.4, дія 14/600 шавлією. На десктопі — знизу по
+   центру над композитором (композитор-стек ≈ 100); на ≤768 — вгорі під
+   шапкою (№11, нижче). */
 .toast {
   position: fixed;
   left: 50%;
@@ -49,10 +50,30 @@
   cursor: pointer;
   white-space: nowrap;
 }
-@media (max-width: 719px) {
-  /* Папіркат UX-9: композитор-стек на 390 вищий — тост над ним. */
-  .toast { bottom: 218px; }
+/* Вихід (№11): назад тим самим шляхом, 160 мс. */
+.leaving { animation: toast-out var(--dur-fast, 160ms) var(--ease-exit, ease) forwards; }
+@keyframes toast-out {
+  to { opacity: 0; transform: translate(-50%, 16px); }
+}
+/* №11 (рішення власника, відхилення від E3 на мобайлі): на ≤768 тост стоїть
+   ВГОРІ під шапкою (≈64 + safe-area), по центру, та сама форма; знизу він
+   перекривав останні репліки. Змах угору закриває — вихід угору. */
+@media (max-width: 768px) {
+  .toast {
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    touch-action: pan-x;
+    animation-name: toast-in-top;
+  }
+  @keyframes toast-in-top {
+    from { opacity: 0; transform: translate(-50%, -16px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .leaving { animation-name: toast-out-top; }
+  @keyframes toast-out-top {
+    to { opacity: 0; transform: translate(-50%, -24px); }
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .toast { animation: none; }
+  .toast, .leaving { animation: none; }
 }

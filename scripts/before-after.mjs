@@ -12,10 +12,12 @@
 // --theme   light | dark | both (типово both — окремий файл на тему)
 // --path · --width · --height · --email · --log · --click · --init-storage ·
 // --stub-json · --stub-messages · --stub-rest · --app-sel · --full · --reduce ·
+// --stub-any prefix=STATUS  будь-який метод за префіксом шляху (POST теж) — «не записалось»
 // --scale — те саме, що в side-by-side.mjs (див. там)
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
-//           move:X,Y · wait:MS · press:KEY · type:TEXT · focus:SEL · swipe:SEL:up
+//           move:X,Y · wait:MS · press:KEY · type:TEXT · focus:SEL · swipe:SEL:up ·
+//           down:SEL · drag:X,Y · up:  (перетягування без відпускання — стан ручки) · blur:
 // --video N  замість знімка — запис N секунд (webm на кожну половину, поруч
 //           не клеїться); кроки з --actions виконуються під час запису
 // --label-before / --label-after  підписи половин (типово main · гілка)
@@ -69,6 +71,10 @@ async function runActions(page, spec) {
     else if (op === 'press') await page.keyboard.press(v);
     else if (op === 'type') await page.keyboard.type(v, { delay: 40 });
     else if (op === 'focus') await page.focus(v);
+    else if (op === 'down') { const bb = await (await page.waitForSelector(v)).boundingBox(); await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); }
+    else if (op === 'drag') { const [dx, dy] = v.split(',').map(Number); await page.mouse.move(dx, dy, { steps: 8 }); }
+    else if (op === 'up') await page.mouse.up();
+    else if (op === 'blur') await page.evaluate(() => document.activeElement?.blur());
     else if (op === 'swipe') {
       const [sel, dir] = v.split(':'); const bb = await (await page.waitForSelector(sel)).boundingBox();
       const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2; const dy = dir === 'up' ? -80 : 80;
@@ -110,6 +116,15 @@ async function shoot(base, theme, side) {
         if (/^\d{3}$/.test(val)) return route.fulfill({ status: Number(val), contentType: 'application/json', body: '{}' });
         return route.fulfill({ status: 200, contentType: 'application/json', body: val });
       });
+    }
+  }
+  // --stub-any prefix=STATUS[;prefix=STATUS] — будь-який метод, шлях за префіксом
+  // (POST/PATCH теж): «запис не пройшов» → тост помилки, без бази.
+  const stubAny = arg('stub-any', null);
+  if (stubAny) {
+    for (const pair of stubAny.split(';')) {
+      const i = pair.indexOf('='); const prefix = pair.slice(0, i).trim(); const val = pair.slice(i + 1).trim();
+      await page.route((u) => u.pathname.startsWith(prefix), (route) => val === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(val), contentType: 'application/json', body: '{"error":"stub"}' }));
     }
   }
   const stubFile = arg('stub-messages', null);

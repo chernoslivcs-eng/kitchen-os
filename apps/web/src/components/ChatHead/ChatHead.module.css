@@ -12,19 +12,17 @@
 .head > * { pointer-events: auto; }
 .gap { flex: 1; pointer-events: none; }
 
-/* Пілюля сесії 32, 0 12 0 8, card + --sh, 13/500; chevron 16 dim; «· сьогодні» dim 400.
-   Розкрита — контур чорнилом inset 1.5 і шеврон догори (G1). */
+/* Пілюля сесії 32, 0 12, card + --sh, 13/500; «· сьогодні» dim 400. Без
+   шеврона й без меню (№22): тап — те саме, що кнопка «панель» ліворуч. */
 .pill-wrap { position: relative; min-width: 0; }
 .pill {
   display: inline-flex; align-items: center; gap: 8px;
-  height: 32px; padding: 0 12px 0 8px; max-width: 100%;
+  height: 32px; padding: 0 12px; max-width: 100%;
   border: 0; border-radius: var(--r-pill);
   background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
   font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
   white-space: nowrap; cursor: pointer;
 }
-.pill > [data-icon] { color: var(--dim); order: -1; }
-.pill-on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b); }
 .pill-title { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 .pill-when { color: var(--dim); font-weight: 400; }
 
@@ -90,8 +88,7 @@
     width: 40px; height: 40px; border: 0; border-radius: 50%;
     background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted); cursor: pointer;
   }
-  .pill { height: 36px; padding: 0 12px 0 10px; font-size: 14px; gap: 6px; }
-  .pill > [data-icon] { order: 1; }
+  .pill { height: 36px; padding: 0 12px; font-size: 14px; gap: 6px; }
   .pill-title { max-width: 120px; }
   .pill-when { display: none; }
   .chip-danger, .chip-plum, .chip-sage { display: none; }
@@ -101,37 +98,4 @@
   .chip-on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b); }
 }
 
-/* Меню розмов (G1): 340, card r14 --sh2, 6; top 52 від шапки. */
-.menu {
-  position: absolute; top: calc(100% + 6px); left: 0; width: 340px; z-index: 5;
-  display: flex; flex-direction: column; gap: 1px;
-  padding: 6px; border-radius: 14px;
-  background: var(--card); box-shadow: var(--sh2);
-  animation: menu-in var(--dur-fast) var(--ease-enter);
-}
-@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-.menu-new, .menu-all {
-  display: flex; align-items: center; gap: 10px;
-  height: 40px; padding: 0 10px;
-  border: 0; border-radius: 10px; background: transparent;
-  font-family: var(--font-body); font-size: 14px; text-align: left; cursor: pointer;
-}
-.menu-new { color: var(--sage); font-weight: 500; }
-.menu-all { color: var(--muted); }
-.menu-new:hover, .menu-all:hover, .menu-row:hover { background: var(--line); }
-.menu-kbd { margin-left: auto; font-size: 12px; color: var(--dim); font-weight: 400; }
-.menu-line { height: 1px; background: var(--line); margin: 4px 10px; }
-.menu-group { display: flex; flex-direction: column; gap: 1px; }
-.menu-day { font-size: 11px; color: var(--dim); padding: 6px 10px 4px; }
-.menu-row {
-  display: flex; align-items: center; gap: 10px;
-  height: 44px; padding: 0 10px;
-  border: 0; border-radius: 10px; background: transparent;
-  font-family: var(--font-body); text-align: left; color: var(--ink); cursor: pointer;
-}
-.menu-row-on { background: var(--bg); }
-.menu-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
-.menu-row-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.menu-row-on .menu-row-title { font-weight: 500; }
-.menu-row-state { font-size: 12px; color: var(--dim); }
-.menu-row-amber { color: var(--amber); }
+/* Меню розмов із пілюлі знято (№22): перемикач розмов один — сайдбар/шухляда. */

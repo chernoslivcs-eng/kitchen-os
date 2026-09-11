@@ -17,6 +17,7 @@ import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
 import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, RAIL_DEFAULT } from '../../store/panel';
 import styles from './ArtifactPanel.module.css';
+import { holdBodyFlag } from '../../lib/body-flags';
 
 const RAIL_OVERHEAD = 916;  // 276 накладних + 640 мінімум журналу
 
@@ -34,11 +35,9 @@ export function PanelIcon() {
 
 export function ArtifactPanel() {
   const s = usePanelStore();
-  // Етап 6a: шторка артефакта (<1200) теж ховає нижній бар.
-  useEffect(() => {
-    document.body.classList.toggle('sheet-open', s.open);
-    return () => document.body.classList.remove('sheet-open');
-  }, [s.open]);
+  // Етап 6a: шторка артефакта (<1200) теж ховає нижній бар. №21: тримає
+  // клас лише поки відкрита, через лічильник (Sheet поруч його не зніме).
+  useEffect(() => { if (s.open) return holdBodyFlag('sheet-open'); }, [s.open]);
   const { artifacts, render, extra, pendingDot, open, hidden, width, dragging, fresh, freshKeys } = s;
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
   const hasPanel = artifacts.length > 0 || !!extra;
@@ -148,7 +147,7 @@ export function ArtifactPanel() {
             назад до типової за екраном. */}
         <div className={styles['rail-handle']} onPointerDown={onHandleDown} role="separator" aria-orientation="vertical" aria-label="Ширина панелі">
           <span className={styles['rail-handle-bar']} />
-          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
+          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} px</span>}
         </div>
         {shown && (
           <div id={`rail-${shown.key}`} className={styles['rail-artifact']}>
@@ -181,9 +180,11 @@ export function ArtifactPanel() {
               </div>
             </div>
             <div className={`${styles['rail-foot']} ${bodyScrolled ? styles['rail-foot-shadow'] : ''}`} ref={setFootSlot} data-panel-foot />
+            {/* №12: «Чекають на тебе · N» — у тій самій картці, під підвалом. */}
+            {extra}
           </div>
         )}
-        {extra}
+        {!shown && extra && <div className={styles['rail-artifact']}>{extra}</div>}
       </aside>
       {open && <div className={styles['rail-scrim']} onClick={() => s.setOpen(false)} />}
       <div className={`${styles['rail-mini']} ${hidden ? styles['rail-mini-show'] : ''}`}>
