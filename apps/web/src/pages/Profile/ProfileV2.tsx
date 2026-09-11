@@ -12,8 +12,10 @@ import { api, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, t
 import { PROFILE_ROWS, HINT_IDLE, SECTION, PLAN_LABEL, type ProfileRowCopy } from '../../lib/profile-copy';
 import { KIT_DEFAULTS, type ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { useAuth } from '../../store/auth';
-import { currentTheme, setThemeOverride, type ThemeChoice } from '../../theme';
-import { Button } from '../../components/Button/Button';
+import { themeSetting, setThemeSetting, type ThemeSetting } from '../../theme';
+import { AppHeader } from '../../components/AppHeader/AppHeader';
+import { Icon } from '../../components/Icon/Icon';
+import { useNavStore } from '../../store/nav';
 import { Input } from '../../components/Input/Input';
 import { Sheet } from '../../components/Sheet/Sheet';
 import styles from './ProfileV2.module.css';
@@ -32,9 +34,10 @@ const fmtDate = (iso: string) => {
 };
 const fmtDay = (iso: string) => {
   const d = new Date(iso);
-  const M = ['СІЧ', 'ЛЮТ', 'БЕР', 'КВІ', 'ТРА', 'ЧЕР', 'ЛИП', 'СЕР', 'ВЕР', 'ЖОВ', 'ЛИС', 'ГРУ'];
+  const M = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'];
   return `${d.getDate()} ${M[d.getMonth()]}`;
 };
+const initialOf = (name: string) => (name.trim().charAt(0) || "·").toUpperCase();
 
 const EXIT_REASONS: Array<{ code: string; label: string }> = [
   { code: 'unused', label: 'Не користуюсь' },
@@ -49,6 +52,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const navigate = useNavigate();
   const me = useAuth((s) => s.me);
   const logout = useAuth((s) => s.logout);
+  const openNav = useNavStore((s) => s.setOpen);
 
   // ----- Про тебе ---------------------------------------------------------
   const [fields, setFields] = useState<Fields>(initial.fields);
@@ -136,10 +140,14 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     const atLimit = n >= row.max;
     const near = row.max - n <= COUNTER_AHEAD;
     const active = focus === row.k;
+    // Components «profile states»: «176 / 200 · далі вже мемуари» — число і
+    // текст ліміту разом, під рядком, зі смужкою.
     return {
-      text: atLimit ? row.lim : `${n}/${row.max}`,
+      text: atLimit ? `${n} / ${row.max} · ${row.lim}` : `${n} / ${row.max}`,
       visible: active && (typing === row.k || atLimit || near),
       atLimit,
+      near,
+      pct: Math.min(100, Math.round((n / row.max) * 100)),
     };
   };
 
@@ -185,10 +193,10 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   }, [householdId]);
   const activeInvites = invites.filter((i) => !i.consumed_at && !i.revoked_at);
   const inviteStatus = (inv: InviteInfo): { text: string; cls: string } => {
-    if (inv.consumed_at) return { text: 'ПРИЙНЯТО', cls: styles.metaOk ?? '' };
-    if (inv.revoked_at) return { text: 'СКАСОВАНО', cls: '' };
-    if (new Date(inv.expires_at).getTime() < Date.now()) return { text: 'ТЕРМІН СПЛИВ', cls: '' };
-    return { text: 'ЧЕКАЄ', cls: styles.metaAmber ?? '' };
+    if (inv.consumed_at) return { text: 'прийнято', cls: styles.metaOk ?? '' };
+    if (inv.revoked_at) return { text: 'скасовано', cls: '' };
+    if (new Date(inv.expires_at).getTime() < Date.now()) return { text: 'термін сплив', cls: '' };
+    return { text: 'чекає', cls: styles.metaAmber ?? '' };
   };
   async function inviteSend(e: FormEvent) {
     e.preventDefault();
@@ -254,12 +262,13 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   }
 
   // ----- Акаунт -----------------------------------------------------------
-  const [theme, setTheme] = useState<ThemeChoice>(() => (typeof document === 'undefined' ? 'dark' : currentTheme()));
-  function toggleTheme() {
-    const next: ThemeChoice = theme === 'light' ? 'dark' : 'light';
-    setThemeOverride(next);
-    setTheme(next);
-  }
+  // Тема · Світла / Темна / Авто (Screens D2a, Prototype; «Авто» — підтверджене
+  // відхилення від проду): сегмент, не кнопка «Темна».
+  const [theme, setTheme] = useState<ThemeSetting>(() => (typeof document === 'undefined' ? 'auto' : themeSetting()));
+  function pickTheme(next: ThemeSetting) { setThemeSetting(next); setTheme(next); }
+  const THEMES: { v: ThemeSetting; label: string }[] = [
+    { v: 'light', label: SECTION.themeLight }, { v: 'dark', label: SECTION.themeDark }, { v: 'auto', label: SECTION.themeAuto },
+  ];
   const [exitOpen, setExitOpen] = useState(false);
   const [exitReason, setExitReason] = useState<string | null>(null);
   const [exitComment, setExitComment] = useState('');
@@ -269,252 +278,284 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const email = me?.user.email ?? '';
   const plan = PLAN_LABEL[me?.user.plan ?? 'beta'] ?? me?.user.plan ?? '';
 
+  const me1 = me;
+  const svcCards = (
+    <>
+          {me1 && (
+            <div className={styles.svc} data-section="home">
+              <div className={styles.svcHead}>
+                <Icon name="sys.home" size={16} inherit decorative />
+                <span className={styles.svcName}>{SECTION.home}</span>
+                <span className={styles.svcSub}>{SECTION.homeDesktop}</span>
+                <span className={styles.svcGap} />
+                {!inviteOpen && <button type="button" className={styles.svcAction} onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>}
+              </div>
+              {me1.household.members.length <= 1 && (
+                <div className={styles.svcRow}><span className={styles.svcMuted}>{SECTION.homeEmpty}</span></div>
+              )}
+              {me1.household.members.length > 1 && me1.household.members.map((mem) => {
+                const isMe = mem.user_id === me1.user.id;
+                const iAmOwner = me1.household.role === 'owner';
+                const canRemove = (iAmOwner && !isMe) || (isMe && me1.household.role !== 'owner');
+                return (
+                  <div key={mem.user_id} className={styles.svcRow} data-member={mem.user_id}>
+                    <span className={`${styles.avatar} ${isMe ? '' : styles.avatarGuest}`}>{initialOf(mem.name)}</span>
+                    <span className={styles.svcText}>{mem.name}{isMe && <span className={styles.dim}> (ти)</span>}</span>
+                    <span className={styles.svcMeta}>{mem.role === 'owner' ? 'власник' : 'учасник'}</span>
+                    {iAmOwner && !isMe && mem.role === 'member' && (
+                      <button type="button" className={styles.svcLink} onClick={() => void memberPromote(mem.user_id, mem.name)}>Передати роль</button>
+                    )}
+                    {canRemove && (
+                      <button type="button" className={styles.svcLink} onClick={() => void memberRemove(mem.user_id, isMe, mem.name)}>{isMe ? 'Вийти з дому' : 'Виключити'}</button>
+                    )}
+                  </div>
+                );
+              })}
+              {activeInvites.map((inv) => {
+                const st = inviteStatus(inv);
+                return (
+                  <div key={inv.id} className={styles.svcRow} data-invite={inv.id}>
+                    <span className={`${styles.avatar} ${styles.avatarPending}`} aria-hidden />
+                    <span className={`${styles.svcText} ${styles.svcMuted} ${styles.ellipsis}`}>{inv.email}</span>
+                    <span className={`${styles.svcMeta} ${st.cls}`}>{st.text}</span>
+                    {st.text === 'чекає' && <button type="button" className={styles.svcLink} onClick={() => void inviteRevoke(inv.id)}>Скасувати</button>}
+                  </div>
+                );
+              })}
+              {lastInvite && (
+                <div className={`${styles.banner} ${lastInvite.mail_sent ? styles.bannerOk : ''}`} data-invite-link>
+                  <span className={styles.bannerText}>
+                    {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам.` : `Лист до ${lastInvite.email} не дійшов. Передай лінк сам, месенджером.`}
+                  </span>
+                  <button type="button" className={styles.bannerAction} onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати'}</button>
+                </div>
+              )}
+              {inviteOpen && (
+                <form onSubmit={inviteSend} className={styles.inviteForm} data-invite-form>
+                  <input type="email" inputMode="email" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={styles.inviteInput} aria-label="email" />
+                  <button type="submit" className={styles.inviteSend} disabled={inviting}>{SECTION.inviteSend}</button>
+                </form>
+              )}
+              {inviteError && <div className={styles.inviteError}>{inviteError}</div>}
+            </div>
+          )}
+
+          {retail !== 'loading' && retail !== 'unavailable' && (
+            <div className={styles.svc} data-section="networks">
+              <div className={styles.svcHead}>
+                <Icon name="sys.receipt" size={16} inherit decorative />
+                <span className={styles.svcName}>{SECTION.networks}</span>
+                <span className={styles.svcSub}>{SECTION.networksDesktop}</span>
+              </div>
+              <div className={styles.svcRow}>
+                <span className={styles.svcText}>Сільпо</span>
+                {retail === 'active' && <span className={`${styles.svcMeta} ${styles.metaOk}`}><span className={styles.dot} />{receiptAt ? `чек ${fmtDay(receiptAt)}` : 'підключено'}</span>}
+                {retail === 'expired' && <span className={`${styles.svcMeta} ${styles.metaAmber}`}>сесія закінчилась</span>}
+                {retail === 'disconnected' && <span className={styles.svcMeta}>відключено</span>}
+                {retail === 'none' && <a className={styles.svcAction} href="/v1/retail/silpo/connect">Підключити</a>}
+                {retail === 'expired' && <a className={`${styles.svcAction} ${styles.metaAmber}`} href="/v1/retail/silpo/connect">Увійти знову</a>}
+                {retail === 'disconnected' && <button type="button" className={styles.svcAction} onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
+                {retail === 'active' && <button type="button" className={styles.svcLink} onClick={() => void retailDisconnect()} disabled={retailBusy}>Відключити</button>}
+              </div>
+              {karpaty && (
+                <div className={styles.svcRow}>
+                  <span className={styles.svcText}>Стейки Карпат</span>
+                  <span className={styles.svcMeta}>без підключення</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className={styles.svc} data-section="account">
+            <div className={styles.svcHead}>
+              <Icon name="sys.profile" size={16} inherit decorative />
+              <span className={styles.svcName}>{SECTION.account}</span>
+            </div>
+            <div className={styles.svcRow}>
+              <span className={`${styles.svcText} ${styles.svcMuted}`}>{SECTION.email}</span>
+              <span className={styles.svcValue}>{email}</span>
+            </div>
+            <div className={styles.svcRow}>
+              <span className={`${styles.svcText} ${styles.svcMuted}`}>{SECTION.plan}</span>
+              <span className={styles.svcValue}>{plan}</span>
+            </div>
+            <div className={styles.svcRow}>
+              <span className={`${styles.svcText} ${styles.svcMuted}`}>{SECTION.theme}</span>
+              <span className={styles.segment} role="radiogroup" aria-label={SECTION.theme}>
+                {THEMES.map((t) => (
+                  <button key={t.v} type="button" role="radio" aria-checked={theme === t.v}
+                    className={`${styles.seg} ${theme === t.v ? styles.segOn : ''}`} onClick={() => pickTheme(t.v)}>{t.label}</button>
+                ))}
+              </span>
+            </div>
+            {/* tokens-v3 (11.09): «Вийти» — контурна кнопка; «Видалити акаунт» — текст danger без рамки. */}
+            <div className={styles.actions}>
+              <button type="button" className={styles.logout} onClick={() => void logout()}>{SECTION.logout}</button>
+              <button
+                type="button"
+                className={styles.deleteAccount}
+                onClick={() => { setExitOpen(true); setExitReason(null); setExitComment(''); setExitError(null); }}
+              >{SECTION.deleteAccount}</button>
+            </div>
+          </div>
+    </>
+  );
   return (
     <div className={`${styles.screen} screen-view`}>
-      <div className={styles.head}><h1 className={styles.title}>{SECTION.title}</h1></div>
+      <AppHeader title={SECTION.title} onMenu={() => openNav(true)} />
 
-      {/* ----- Про тебе ----- */}
-      <div className={styles.sectionLabel}>
-        <span>{SECTION.about}</span>
-        <span className={styles.sectionSubDesktop}>{SECTION.aboutDesktop}</span>
-      </div>
-      <p className={styles.sectionSubMobile}>{firstDay ? SECTION.aboutFirstDay : SECTION.aboutMobile}</p>
-      <div className={styles.card}>
-        <div className={styles.rows}>
-          {PROFILE_ROWS.map((row) => {
-            const active = focus === row.k;
-            const c = counter(row);
-            return (
-              <div key={row.k} className={styles.rowWrap}>
-                {/* Етап 4 (PLAN §6, Б2): status — три різні ФОРМИ, не тон.
-                    filled — чорний текст; empty — плейсхолдер сірим курсивом
-                    (єдине місце курсиву в продукті, tokens-v3); none — слово
-                    «нічого такого» сірим без курсиву. Доти none і empty
-                    виглядали однаково, і «свідомо ні» читалось як «ще не
-                    відповідав». */}
-                <div
-                  data-row={row.k}
-                  data-status={fields[row.k].status}
-                  className={[styles.row, active ? styles.rowActive : '', hover === row.k && !active ? styles.rowHover : '', fields[row.k].status === 'none' ? styles.rowNone : ''].filter(Boolean).join(' ')}
-                  onMouseEnter={() => setHover(row.k)}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={(e) => { if (e.target === e.currentTarget) edits.current[row.k]?.focus(); }}
-                >
-                  <span className={row.danger ? styles.startDanger : styles.start}>{row.start}</span>{' '}
-                  {fields[row.k].status === 'none' && !fields[row.k].text && (
-                    <span className={styles.none} data-none onClick={() => edits.current[row.k]?.focus()}>нічого такого</span>
-                  )}
-                  <span
-                    ref={(el) => { edits.current[row.k] = el; }}
-                    className={styles.edit}
-                    contentEditable
-                    suppressContentEditableWarning
-                    role="textbox"
-                    aria-label={row.start}
-                    data-ph={row.ph}
-                    spellCheck={false}
-                    onInput={() => onInput(row.k)}
-                    onFocus={() => onFocus(row.k)}
-                    onBlur={() => onBlur(row.k)}
-                    onKeyDown={(e) => onKeyDown(row.k, row, e)}
-                    onPaste={(e) => onPaste(row.k, row, e)}
-                  />
-                  <span
-                    className={[styles.counter, c.atLimit ? styles.counterLimit : ''].filter(Boolean).join(' ')}
-                    style={{ opacity: c.visible ? 1 : 0 }}
-                    aria-hidden={!c.visible}
-                    data-counter={row.k}
-                  >{c.text}</span>
+      <div className={styles.main}>
+        {/* ── Ліва колонка: речення · підказка · нотатки · джерела ── */}
+        <div className={styles.left}>
+          {/* Вступ: 1440 — «Про тебе · закінчи…» під h1; 390 — перший день /
+              заповнений двома різними абзацами (D4). */}
+          <p className={styles.introDesktop}>{SECTION.about} {SECTION.aboutDesktop}</p>
+          <p className={styles.introMobile}>{firstDay ? SECTION.aboutFirstDay : SECTION.aboutMobile}</p>
+
+          <div className={styles.about}>
+            <div className={styles.card}>
+              {PROFILE_ROWS.map((row) => {
+                const active = focus === row.k;
+                const c = counter(row);
+                const st = fields[row.k].status;
+                return (
+                  <div key={row.k} className={styles.rowWrap}>
+                    {/* Етап 4 (PLAN §6, Б2): status — три різні ФОРМИ, не тон.
+                        filled — чорнило; empty — плейсхолдер dim курсивом з
+                        пунктиром (єдине місце курсиву в продукті, tokens-v3);
+                        none — «нічого такого» muted без курсиву + галочка в
+                        шавлієвому колі (Components «profile states»). */}
+                    <div
+                      data-row={row.k}
+                      data-status={st}
+                      className={[styles.row, active ? styles.rowActive : '', hover === row.k && !active ? styles.rowHover : '', st === 'none' ? styles.rowNone : '', st === 'empty' ? styles.rowEmpty : ''].filter(Boolean).join(' ')}
+                      onMouseEnter={() => setHover(row.k)}
+                      onMouseLeave={() => setHover(null)}
+                      onClick={(e) => { if (e.target === e.currentTarget) edits.current[row.k]?.focus(); }}
+                    >
+                      <span className={row.danger ? styles.startDanger : styles.start}>
+                        {row.danger && <Icon name="cook.ban" size={12} inherit decorative />}
+                        {row.start}
+                      </span>
+                      <span className={styles.line}>
+                        {st === 'none' && !fields[row.k].text && (
+                          <span className={styles.none} data-none onClick={() => edits.current[row.k]?.focus()}>нічого такого</span>
+                        )}
+                        <span
+                          ref={(el) => { edits.current[row.k] = el; }}
+                          className={styles.edit}
+                          contentEditable
+                          suppressContentEditableWarning
+                          role="textbox"
+                          aria-label={row.start}
+                          data-ph={row.ph}
+                          spellCheck={false}
+                          onInput={() => onInput(row.k)}
+                          onFocus={() => onFocus(row.k)}
+                          onBlur={() => onBlur(row.k)}
+                          onKeyDown={(e) => onKeyDown(row.k, row, e)}
+                          onPaste={(e) => onPaste(row.k, row, e)}
+                        />
+                        {st === 'none' && !fields[row.k].text && (
+                          <span className={styles.noneMark} aria-hidden><Icon name="sys.done" size={12} inherit decorative /></span>
+                        )}
+                      </span>
+                      <span
+                        className={[styles.counter, c.atLimit ? styles.counterLimit : '', c.near ? styles.counterNear : ''].filter(Boolean).join(' ')}
+                        style={{ opacity: c.visible ? 1 : 0 }}
+                        aria-hidden={!c.visible}
+                        data-counter={row.k}
+                      >{c.text}</span>
+                      {c.visible && c.near && (
+                        <span className={styles.bar} aria-hidden><span className={styles.barFill} style={{ width: `${c.pct}%` }} /></span>
+                      )}
+                    </div>
+                    {/* Р8: «база кухні» — єдиний текст у профілі, якого людина не
+                        писала: під полем і не в ньому, роллю caption. */}
+                    {row.k === 'kit' && (
+                      <div className={styles.baseline} data-baseline="kit">
+                        {KIT_DEFAULTS.join(' · ')} — є за замовчуванням, це не твої слова
+                      </div>
+                    )}
+                    {/* 390 (D4): підказка розкривається під активним рядком, шавлією. */}
+                    {active && (
+                      <div className={styles.hintMobile} key={hintKey}>{row.hint}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* 1440 (D4): підказка — sticky-картка шавлією праворуч від речень. */}
+            <aside className={styles.hintAside} key={hintKey}>
+              <span className={styles.hintLabel}>{hintRow ? hintRow.start : HINT_IDLE.label}</span>
+              {/* 9а(5): приклади (`ex`) з копі не рендеряться — лишається текст підказки. */}
+              <p className={styles.hintText}>{hintRow ? hintRow.hint : HINT_IDLE.text}</p>
+            </aside>
+          </div>
+
+        </div>
+
+        {/* ── Права колонка (D4): Дім · Мережі · Акаунт — службове, менше; на 390 — одразу після речень ── */}
+        <div className={styles.right}>
+          {svcCards}
+        </div>
+
+        <div className={styles.bottom}>
+          {/* ── Нотатки (D4): підпис + картка рядків 48 ── */}
+          <div className={styles.section} data-section="notes">
+            <div className={styles.sectionLabel}>
+              <span className={styles.sectionName}>{SECTION.notes}</span>
+              <span className={styles.sectionSub}>{SECTION.notesDesktop}</span>
+            </div>
+            <div className={styles.notesCard}>
+              {notes.length === 0 && !noteToast && <span className={styles.empty}>{SECTION.notesEmpty}</span>}
+              {notes.map((n) => (
+                <div key={n.id} className={styles.note} data-note={n.id}>
+                  <span className={styles.noteDate}>{fmtDate(n.created_at)}</span>
+                  <span className={styles.noteText}>{n.text}</span>
+                  <button type="button" className={styles.noteRemove} onClick={() => void removeNote(n)}>{SECTION.noteRemove}</button>
                 </div>
-                {/* Р8: «база кухні» — єдиний текст у профілі, якого людина не
-                    писала. Досі він жив тільки в промті («Плита, духовка… — є
-                    за замовчуванням»), а на екрані поля не було нічого — тобто
-                    `status: filled` на цьому рядку означав «людина сказала», і
-                    це була неправда. Тепер база названа окремим тихим рядком,
-                    під полем і не в ньому: профіль — місце, де людина бачить,
-                    що про неї записали, і чужий текст під її імʼям там
-                    найдорожчий. */}
-                {row.k === 'kit' && (
-                  <div className={styles.baseline} data-baseline="kit">
-                    {KIT_DEFAULTS.join(' · ')} — є за замовчуванням, це не твої слова
-                  </div>
-                )}
-                {active && (
-                  <div className={styles.hintMobile} key={hintKey}>
-                    <p className={styles.hintText}>{row.hint}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              ))}
+              {noteToast && (
+                <div className={`${styles.note} ${styles.noteRemoved}`} role="status" data-note-removed>
+                  <span className={styles.noteDate}>{fmtDate(noteToast.note.created_at)}</span>
+                  <span className={`${styles.noteText} ${styles.noteStruck}`}>{noteToast.note.text}</span>
+                  <span className={styles.noteRestore}>{SECTION.removed} <button type="button" className={styles.noteRestoreBtn} onClick={() => void restoreNote()}>{SECTION.restore}</button></span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Джерела даних (раунд 5, Н1): абзац, у D4 — під нотатками ── */}
+          <div className={styles.section} data-section="data">
+            <div className={styles.sectionLabel}><span className={styles.sectionName}>{SECTION.data}</span></div>
+            <p className={styles.dataText}>{SECTION.dataText}</p>
+          </div>
         </div>
-        <aside className={styles.hintAside} key={hintKey}>
-          <span className={styles.hintLabel}>{hintRow ? hintRow.start : HINT_IDLE.label}</span>
-          {/* 9а(5): приклади (`ex`) з копі не рендеряться — лишається текст підказки. */}
-          <p className={styles.hintText}>{hintRow ? hintRow.hint : HINT_IDLE.text}</p>
-        </aside>
+
       </div>
 
-      {/* ----- Нотатки ----- */}
-      <div className={styles.section}>
-        <div className={styles.sectionLabel}>
-          <span>{SECTION.notes}</span>
-          <span className={styles.sectionSubDesktop}>{SECTION.notesDesktop}</span>
-        </div>
-        {notes.length === 0 && <span className={styles.empty}>{SECTION.notesEmpty}</span>}
-        {notes.map((n) => (
-          <div key={n.id} className={styles.note} data-note={n.id}>
-            <span className={styles.noteDate}>{fmtDate(n.created_at)}</span>
-            <span className={styles.noteText}>{n.text}</span>
-            <button type="button" className={styles.noteRemove} onClick={() => void removeNote(n)}>{SECTION.noteRemove}</button>
-            <button type="button" className={styles.noteX} aria-label={SECTION.noteRemove} onClick={() => void removeNote(n)}>×</button>
-          </div>
-        ))}
-        {noteToast && (
-          <div className={styles.toast} role="status">
-            {SECTION.removed}
-            <button type="button" className={styles.toastAction} onClick={() => void restoreNote()}>{SECTION.restore}</button>
-          </div>
-        )}
-      </div>
+      {saveToast && <div className={styles.toast} role="status">{saveToast}</div>}
 
-      {/* ----- Дім: список людей, запрошення, ролі — ендпоінти v1 без змін ----- */}
-      {me && (
-        <div className={styles.section} data-section="home">
-          <div className={styles.sectionLabel}>
-            <span>{SECTION.home}</span>
-            <span className={styles.sectionSubDesktop}>{SECTION.homeDesktop}</span>
-          </div>
-          {me.household.members.length <= 1 && !inviteOpen && (
-            <div className={styles.listRow}>
-              <span className={styles.listNameMuted}>{SECTION.homeEmpty}</span>
-              <button type="button" className={styles.listAction} onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>
-            </div>
-          )}
-          {me.household.members.length > 1 && me.household.members.map((mem) => {
-            const isMe = mem.user_id === me.user.id;
-            const iAmOwner = me.household.role === 'owner';
-            const canRemove = (iAmOwner && !isMe) || (isMe && me.household.role !== 'owner');
-            return (
-              <div key={mem.user_id} className={styles.listRow} data-member={mem.user_id}>
-                <span className={styles.listName}>{mem.name}{isMe ? ' (ти)' : ''}</span>
-                <span className={styles.listMeta}>{mem.role === 'owner' ? 'ВЛАСНИК' : 'УЧАСНИК'}</span>
-                {iAmOwner && !isMe && mem.role === 'member' && (
-                  <button type="button" className={styles.listActionDim} onClick={() => void memberPromote(mem.user_id, mem.name)}>Передати роль</button>
-                )}
-                {canRemove && (
-                  <button type="button" className={styles.listActionDim} onClick={() => void memberRemove(mem.user_id, isMe, mem.name)}>{isMe ? 'Вийти з дому' : 'Виключити'}</button>
-                )}
-              </div>
-            );
-          })}
-          {activeInvites.map((inv) => {
-            const st = inviteStatus(inv);
-            return (
-              <div key={inv.id} className={styles.listRow} data-invite={inv.id}>
-                <span className={styles.listName}>{inv.email}</span>
-                <span className={`${styles.listMeta} ${st.cls}`}>{st.text}</span>
-                {st.text === 'ЧЕКАЄ' && <button type="button" className={styles.listActionDim} onClick={() => void inviteRevoke(inv.id)}>Скасувати</button>}
-              </div>
-            );
-          })}
-          {(me.household.members.length > 1 || activeInvites.length > 0) && !inviteOpen && (
-            <div className={styles.listRow}>
-              <span className={styles.listNameMuted}>{SECTION.homeInviteHint.replace('{home}', me.household.name)}</span>
-              <button type="button" className={styles.listAction} onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>
-            </div>
-          )}
-          {inviteOpen && (
-            <form onSubmit={inviteSend} className={styles.inviteForm} data-invite-form>
-              <div style={{ flex: 1 }}>
-                <Input type="email" inputMode="email" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} error={inviteError} />
-              </div>
-              <Button type="submit" loading={inviting}>{SECTION.inviteSend}</Button>
-            </form>
-          )}
-          {lastInvite && (
-            <div className={`${styles.listRow} ${lastInvite.mail_sent ? styles.inviteOk : ''}`} data-invite-link>
-              <span className={styles.listNameMuted}>
-                {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам:` : `Лист не дійшов. Передай ${lastInvite.email} лінк сам, месенджером:`}
-              </span>
-              <button type="button" className={styles.listAction} onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати лінк'}</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ----- Мережі: підключення/статуси — ті самі ендпоінти, що на старій сторінці ----- */}
-      {retail !== 'loading' && retail !== 'unavailable' && (
-        <div className={styles.section}>
-          <div className={styles.sectionLabel}>
-            <span>{SECTION.networks}</span>
-            <span className={styles.sectionSubDesktop}>{SECTION.networksDesktop}</span>
-          </div>
-          <div className={styles.listRow}>
-            <span className={styles.listName}>Сільпо</span>
-            {retail === 'active' && <span className={`${styles.listMeta} ${styles.metaOk}`}>{receiptAt ? `ПІДКЛЮЧЕНО · ЧЕК ${fmtDay(receiptAt)}` : 'ПІДКЛЮЧЕНО'}</span>}
-            {retail === 'expired' && <span className={`${styles.listMeta} ${styles.metaAmber}`}>СЕСІЯ ЗАКІНЧИЛАСЬ</span>}
-            {retail === 'disconnected' && <span className={styles.listMeta}>ВІДКЛЮЧЕНО</span>}
-            {retail === 'none' && <a className={styles.listAction} href="/v1/retail/silpo/connect">Підключити</a>}
-            {retail === 'expired' && <a className={styles.listAction} href="/v1/retail/silpo/connect">Увійти знову</a>}
-            {retail === 'disconnected' && <button type="button" className={styles.listAction} onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
-            {retail === 'active' && <button type="button" className={styles.listActionDim} onClick={() => void retailDisconnect()} disabled={retailBusy}>Відключити</button>}
-          </div>
-          {karpaty && (
-            <div className={styles.listRow}>
-              <span className={styles.listName}>Стейки Карпат</span>
-              <span className={styles.listMeta}>ДОСТУПНО БЕЗ ПІДКЛЮЧЕННЯ</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ----- Акаунт ----- */}
-      <div className={styles.section}>
-        <div className={styles.sectionLabel}><span>{SECTION.account}</span></div>
-        <div className={styles.listRow}>
-          <span className={styles.listName}>{SECTION.email}</span>
-          <span className={styles.listMeta}>{email.toUpperCase()}</span>
-        </div>
-        <div className={styles.listRow}>
-          <span className={styles.listName}>{SECTION.plan}</span>
-          <span className={styles.listMeta}>{plan.toUpperCase()}</span>
-        </div>
-        <div className={styles.listRow}>
-          <span className={styles.listName}>{SECTION.theme}</span>
-          <span className={styles.listMeta}>{theme === 'light' ? SECTION.themeLight.toUpperCase() : SECTION.themeDark.toUpperCase()}</span>
-          <button type="button" className={styles.listAction} onClick={toggleTheme}>{theme === 'light' ? SECTION.themeDark : SECTION.themeLight}</button>
-        </div>
-        <div className={styles.actions}>
-          <Button variant="secondary" onClick={() => void logout()}>{SECTION.logout}</Button>
-          <button
-            type="button"
-            className={styles.deleteAccount}
-            onClick={() => { setExitOpen(true); setExitReason(null); setExitComment(''); setExitError(null); }}
-          >{SECTION.deleteAccount}</button>
-        </div>
-      </div>
-
-      {/* ----- Джерела даних (раунд 5, крок Н1): один абзац, без лінків на кожен продукт ----- */}
-      <div className={styles.section} data-section="data">
-        <div className={styles.sectionLabel}><span>{SECTION.data}</span></div>
-        <p className={styles.dataText}>{SECTION.dataText}</p>
-      </div>
-
-      {saveToast && <div className={`${styles.toast} ${styles.toastFixed}`} role="status">{saveToast}</div>}
-
+      {/* Видалення (D4 «Профіль · 390 · видалення», Prototype): шторка з
+          кікером «Назавжди», чотирма причинами; «Лишаюсь» головна, «Видалити
+          назавжди» контурна danger і неактивна, поки не вибрано причину. */}
       {exitOpen && (
         <Sheet onClose={() => !exitBusy && setExitOpen(false)} ariaLabel="Видалення акаунта">
           <div className={styles.exitSheet}>
-            <h2 className={styles.exitTitle}>Видалити акаунт назавжди?</h2>
-            <p className={styles.exitSub}>
-              Зникне все: комора, рецепти, журнал готувань, профіль смаків. Це не «вийти» —
-              відновити буде неможливо. Розкажи чому — одна відповідь дуже допоможе.
-            </p>
-            <div className={styles.exitReasons}>
+            <div className={styles.exitHead}>
+              <span className={styles.exitKicker}>Назавжди</span>
+              <h2 className={styles.exitTitle}>Видалити акаунт назавжди?</h2>
+              <p className={styles.exitSub}>
+                Зникне все: комора, рецепти, журнал готувань, профіль смаків. Це не «вийти» —
+                відновити буде неможливо. Розкажи чому — одна відповідь дуже допоможе.
+              </p>
+            </div>
+            <div className={styles.exitReasons} role="radiogroup" aria-label="Причина">
               {EXIT_REASONS.map((r) => (
-                <label key={r.code} className={styles.exitReason}>
-                  <input type="radio" name="exit-reason" checked={exitReason === r.code} onChange={() => setExitReason(r.code)} />
+                <label key={r.code} className={`${styles.exitReason} ${exitReason === r.code ? styles.exitReasonOn : ''}`}>
+                  <input type="radio" name="exit-reason" className={styles.exitRadio} checked={exitReason === r.code} onChange={() => setExitReason(r.code)} />
+                  <span className={styles.radioMark} aria-hidden />
                   <span>{r.label}</span>
                 </label>
               ))}
@@ -524,7 +565,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
             )}
             {exitError && <p className={styles.exitError}>{exitError}</p>}
             <div className={styles.exitActions}>
-              <Button variant="secondary" block onClick={() => setExitOpen(false)} disabled={exitBusy}>Лишаюсь</Button>
+              <button type="button" className={styles.exitStay} onClick={() => setExitOpen(false)} disabled={exitBusy}>Лишаюсь</button>
               <button
                 type="button"
                 className={styles.exitConfirm}

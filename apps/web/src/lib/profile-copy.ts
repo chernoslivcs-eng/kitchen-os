@@ -65,6 +65,7 @@ export const SECTION = {
   theme: 'Тема',
   themeLight: 'Світла',
   themeDark: 'Темна',
+  themeAuto: 'Авто',
   logout: 'Вийти',
   deleteAccount: 'Видалити акаунт',
   saveFailed: 'Не збереглось. Спробую ще',

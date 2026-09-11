@@ -27,6 +27,12 @@ export function currentTheme(): ThemeChoice {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 }
 
+/** «Тема · Світла / Темна / Авто» (профіль, Screens D2a — підтверджене
+ *  відхилення від проду): auto = без власного вибору, за ОС. */
+export type ThemeSetting = ThemeChoice | 'auto';
+export function themeSetting(): ThemeSetting { return themeOverride() ?? 'auto'; }
+export function setThemeSetting(v: ThemeSetting): void { setThemeOverride(v === 'auto' ? null : v); }
+
 export function initTheme(): void {
   const m = media();
   const o = themeOverride();
