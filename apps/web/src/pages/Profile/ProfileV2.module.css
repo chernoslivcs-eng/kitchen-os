@@ -51,7 +51,13 @@
 }
 .rowHover .edit { border-bottom-color: var(--dim); }
 .rowActive .edit { border-bottom-color: var(--sage); }
-.edit:empty::before { content: attr(data-ph); color: var(--dim); }
+/* empty — плейсхолдер сірим КУРСИВОМ: єдине місце курсиву в продукті (tokens-v3:
+ * «Курсив — лише для status: empty у профілі»). */
+.edit:empty::before { content: attr(data-ph); color: var(--dim); font-style: italic; }
+/* none — «нічого такого» сірим БЕЗ курсиву: це відповідь, а не її відсутність.
+ * Плейсхолдер у none-рядку не показуємо — слово вже стоїть. */
+.rowNone .edit:empty::before { content: none; }
+.none { color: var(--dim); cursor: text; }
 
 .counter {
   position: absolute; right: 10px; bottom: -6px; padding: 0 4px; background: inherit;
