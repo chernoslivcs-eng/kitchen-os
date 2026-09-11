@@ -16,6 +16,13 @@
   container-type: inline-size;
   container-name: chat;
 }
+/* <768: нижній бар 64 стоїть під стрічкою (body.padding-bottom його не
+   зачіпає — екран рахує свою висоту сам); поки композитор у фокусі, бар
+   зʼїжджає — екран знову на всю висоту. */
+@media (max-width: 767px) {
+  .screen { height: calc(100dvh - 64px - env(safe-area-inset-bottom)); }
+  :global(body.composer-focused) .screen, :global(body.sheet-open) .screen { height: 100dvh; }
+}
 
 /* ----- Header --------------------------------------------------------- */
 .head {
@@ -564,9 +571,11 @@ a.att-chip:hover { border-color: var(--sage); }
   font-weight: 600;
 }
 .frame-btn-solid:hover:not(:disabled) { filter: brightness(0.96); }
+/* Порожній драфт: світле коло, muted стрілка — кнопка є, дія ще ні. */
 .frame-btn:disabled,
 .frame-btn-ghost:disabled,
 .frame-btn-solid:disabled { opacity: 0.45; cursor: not-allowed; }
+.frame-btn-idle, .frame-btn-idle:disabled { background: var(--bg); color: var(--muted); opacity: 1; cursor: default; }
 
 /* ----- Toast --------------------------------------------------------- */
 .toast {

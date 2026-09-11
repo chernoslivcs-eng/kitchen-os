@@ -60,11 +60,36 @@
   height: 34px; padding: 0 12px; border: 0; border-radius: 10px;
   font-family: var(--font-body); font-size: 13px; font-weight: 600; cursor: pointer; flex: none;
 }
-.act-ink { background: var(--ink); color: var(--bg); align-self: flex-start; margin-top: 8px; }
+.act-ink { background: var(--ink); color: var(--bg); }
+.block .act-ink { align-self: flex-start; margin-top: 8px; }
 .act-sage { background: var(--sage); color: #fff; }
 .act:hover { filter: brightness(0.96); }
 .empty { display: flex; align-items: center; gap: 10px; font-family: var(--font-body); font-size: 14px; color: var(--muted); }
-.empty > [data-icon] { color: var(--sage); }
+.empty > [data-icon] { color: var(--muted); }
+.empty[data-home-empty="calm"] > [data-icon] { color: var(--sage); }
+
+/* Шторка G3: рядки 14 0 з волосиною зверху; квадрат 40 r10 роду. */
+.rows { display: flex; flex-direction: column; }
+.g3 {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  padding: 14px 0; border: 0; border-top: 1px solid var(--line);
+  background: transparent; text-align: left; font: inherit; color: inherit; cursor: default;
+}
+button.g3 { cursor: pointer; }
+.sq { flex: none; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; }
+.sq-danger { background: var(--danger-bg); color: var(--danger); }
+.sq-amber { background: var(--amber-bg); color: var(--amber); }
+.sq-plum { background: var(--plum-bg); color: var(--plum); }
+.sq-sage { background: var(--sage-bg); color: var(--sage); }
+.sq-grey { background: var(--bg); color: var(--muted); }
+.g3-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.g3-title { font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--ink); }
+.g3-title-quiet { font-family: var(--font-body); font-size: 15px; font-weight: 500; color: var(--ink); }
+.g3-sub { font-family: var(--font-body); font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g3-quiet { color: var(--muted); }
+.g3 > [data-icon] { color: var(--dim); }
+.sheet .head { padding: 12px 0 0; }
+.sheet .ask { margin-top: 6px; }
 .ask {
   align-self: flex-start; border: 0; background: transparent; padding: 0;
   display: inline-flex; align-items: center; gap: 4px;

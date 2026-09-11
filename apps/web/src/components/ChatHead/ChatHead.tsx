@@ -5,9 +5,12 @@
 // Три розкладки за шириною КОНТЕЙНЕРА стрічки, не вʼюпорту (Р38): панель
 // артефакта 720 на 1440 лишає стрічці ~440, і там діє правило 390. Пороги —
 // ті самі, що у вʼюпортів, мінус рейка: 1024 − 60 = 964, 768 − 64 = 704.
-//   ≥1024  пілюля · «+ Нова» · розпірка · чіпи родів · «Дім зараз · ще N»
-//   768    пілюля · розпірка · чіпи · «Дім зараз · ще N»
-//   <768   panel-left-open · пілюля · розпірка · «Дім ●●● N»
+//   ≥964   пілюля · «+ Нова» · розпірка · чіпи родів · «Дім зараз · ще N»
+//   704…   (R2) пілюля 36 без «· сьогодні» · розпірка · компактні чіпи 36/13:
+//          flame «10» · moon «піст» · timer «6:32» (знак + найкоротший факт);
+//          «Нова» і «Дім зараз» нема — панель відкриває тап по будь-якому чіпу
+//          (тимчасово, QUESTIONS §14)
+//   <704   (G3) panel-left-open · пілюля · розпірка · «Дім ●●● N»
 // Чіпи — по одному на рід і лише коли стан є: danger flame «Прострочено N»,
 // plum moon «Піст · до 27 вер», sage timer «Готуємо · таймер». Сезони й свої
 // події чіпів не мають — вони тихі рядки панелі «Дім зараз».
@@ -39,6 +42,8 @@ export interface ChatHeadProps {
   homeOpen: boolean;
   /** «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14). */
   quietCount: number;
+  /** Форма за шириною контейнера стрічки (Р38): 'wide' ≥964 · 'mid' 704–963 (R2) · 'narrow' <704 (G3). */
+  form: 'wide' | 'mid' | 'narrow';
 }
 
 export function ChatHead(p: ChatHeadProps) {
@@ -54,13 +59,14 @@ export function ChatHead(p: ChatHeadProps) {
     return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey); };
   }, [menuOpen]);
 
+  const mid = p.form === 'mid';
   const kinds: ('danger' | 'plum' | 'sage')[] = [];
   if (p.home.overdue > 0) kinds.push('danger');
   if (p.home.strict) kinds.push('plum');
   if (p.cookLive) kinds.push('sage');
 
   return (
-    <header className={styles.head} data-chat-head>
+    <header className={styles.head} data-chat-head data-form={p.form}>
       {/* 390: кнопка «панель» 40 на card — шухляда або сайдбар. */}
       <button type="button" className={styles.burger} onClick={p.onAllSessions} aria-label="Розгорнути панель">
         <Icon name="sys.expand" size={18} inherit decorative />
@@ -91,18 +97,22 @@ export function ChatHead(p: ChatHeadProps) {
       <span className={styles.gap} />
 
       {p.home.overdue > 0 && (
-        <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} onClick={p.onOverdue} data-chip-overdue>
-          <Icon name="live.burning" size={16} inherit decorative />Прострочено {p.home.overdue}
+        <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} onClick={mid ? p.onHome : p.onOverdue} data-chip-overdue>
+          <Icon name="live.burning" size={16} inherit decorative />
+          <span className={styles.long}>Прострочено </span>{p.home.overdue}
         </button>
       )}
       {p.home.strict && (
         <button type="button" className={`${styles.chip} ${styles['chip-plum']}`} onClick={p.onHome} data-chip-strict>
-          <Icon name="live.fast" size={16} inherit decorative />{p.home.strict.title} · до {shortDate(p.home.strict.to)}
+          <Icon name="live.fast" size={16} inherit decorative />
+          <span className={styles.long}>{p.home.strict.title} · до {shortDate(p.home.strict.to)}</span>
+          <span className={styles.short}>{p.home.strict.title.toLocaleLowerCase('uk')}</span>
         </button>
       )}
       {p.cookLive && (
-        <button type="button" className={`${styles.chip} ${styles['chip-sage']}`} onClick={p.onCook} data-chip-cooking>
-          <Icon name="cook.timer" size={16} inherit decorative />Готуємо · <CookCountdown deadline={p.cookLive.deadline} />
+        <button type="button" className={`${styles.chip} ${styles['chip-sage']}`} onClick={mid ? p.onHome : p.onCook} data-chip-cooking>
+          <Icon name="cook.timer" size={16} inherit decorative />
+          <span className={styles.long}>Готуємо · </span><CookCountdown deadline={p.cookLive.deadline} />
         </button>
       )}
 

@@ -25,10 +25,13 @@ export interface HomeNow {
   now: NowItem[];
   /** Суворий період для чіпа «Піст · до …» — перший зі strict. */
   strict: NowItem | null;
+  /** Список покупок для тихого рядка «Список · N» (G3): скільки і перші назви. */
+  shopping: { count: number; labels: string[] } | null;
 }
 
 let pantryCache: { rows: BurningRow[]; overdue: number; at: number; version: number } | null = null;
 let nowCache: { value: NowItem[]; at: number } | null = null;
+let shopCache: { value: { count: number; labels: string[] }; at: number; version: number } | null = null;
 
 function burningOf(batches: PantryBatch[]): { rows: BurningRow[]; overdue: number } {
   const scaled = batches.filter((b) => hasScale(b.catalog_key) && b.days != null && isSoon(b.days));
@@ -49,8 +52,19 @@ export function useHomeNow(dep?: unknown): HomeNow {
   const [facts, setFacts] = useState<PantryFacts | null>(null);
   const [pantry, setPantry] = useState<{ rows: BurningRow[]; overdue: number }>(pantryCache ?? { rows: [], overdue: 0 });
   const [now, setNow] = useState<NowItem[]>(nowCache?.value ?? []);
+  const [shopping, setShopping] = useState<{ count: number; labels: string[] } | null>(shopCache?.value ?? null);
   useEffect(() => {
     let alive = true;
+    if (shopCache && shopCache.version === version && Date.now() - shopCache.at < 60_000) {
+      setShopping(shopCache.value);
+    } else {
+      api.shopping.list().then(({ items }) => {
+        const open = items.filter((it) => !it.checked);
+        const v = { count: open.length, labels: open.slice(0, 2).map((it) => it.label) };
+        shopCache = { value: v, at: Date.now(), version };
+        if (alive) setShopping(v);
+      }).catch(() => {});
+    }
     loadPantryFacts(version).then((f) => { if (alive) setFacts(f); }).catch(() => {});
     if (pantryCache && pantryCache.version === version && Date.now() - pantryCache.at < 60_000) {
       setPantry(pantryCache);
@@ -72,5 +86,5 @@ export function useHomeNow(dep?: unknown): HomeNow {
     }
     return () => { alive = false; };
   }, [version, dep]);
-  return { facts, overdue: pantry.overdue, burning: pantry.rows, now, strict: now.find((e) => toneOfNow(e) === 'restrict') ?? null };
+  return { facts, overdue: pantry.overdue, burning: pantry.rows, now, strict: now.find((e) => toneOfNow(e) === 'restrict') ?? null, shopping };
 }

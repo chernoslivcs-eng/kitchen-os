@@ -16,10 +16,12 @@ export function CookCountdown({ deadline }: { deadline?: number | null }) {
     const iv = window.setInterval(() => force((n) => n + 1), 500);
     return () => window.clearInterval(iv);
   }, [deadline]);
+  // 6b-5c: без власного роздільника — префікс («Готуємо · », «таймер ») ставить
+  // той, хто вставляє; порожньо, коли таймер не йде.
   if (!deadline) return null;
   const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-  if (left <= 0) return <> · час вийшов</>;
-  return <> · {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</>;
+  if (left <= 0) return <>час вийшов</>;
+  return <>{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</>;
 }
 
 function ringOutside(recipeTitle: string) {

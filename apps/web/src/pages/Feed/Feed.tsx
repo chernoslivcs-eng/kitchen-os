@@ -211,11 +211,13 @@ export function Feed() {
 
   // Правка №8: авторіст textarea від вмісту (і від диктовки, яка пише в
   // input повз onChange) — 1→8 рядків, далі внутрішній скрол.
+  // Порожнє поле — рівно один рядок (42): scrollHeight плейсхолдера, що
+  // переноситься на вузькому, не має ростити композитор.
   useEffect(() => {
     const el = composerInputRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 8 * 22 + 16)}px`;
+    el.style.height = input ? `${Math.min(el.scrollHeight, 8 * 22 + 16)}px` : '42px';
   }, [input]);
 
   // #9: голосовий ввід. Кнопка є лише там, де браузер уміє SpeechRecognition;
@@ -1234,14 +1236,21 @@ export function Feed() {
     return () => { alive = false; };
   }, [sessionId, housePending]);
   // Ширина КОНТЕЙНЕРА стрічки (Р38): нижче 768 «Дім зараз» — шторка, не накладка.
+  // Форма шапки за шириною контейнера (Р38): ≥964 wide · 704–963 mid (R2) · <704 narrow (G3).
   const screenRef = useRef<HTMLDivElement>(null);
-  const [narrow, setNarrow] = useState(false);
+  const [headForm, setHeadForm] = useState<'wide' | 'mid' | 'narrow'>('wide');
   useEffect(() => {
     const el = screenRef.current; if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(([en]) => setNarrow((en?.contentRect.width ?? 1440) < 704));
+    const ro = new ResizeObserver(([en]) => {
+      const w = en?.contentRect.width ?? 1440;
+      setHeadForm(w >= 964 ? 'wide' : w >= 704 ? 'mid' : 'narrow');
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  const narrow = headForm === 'narrow';
+  // Вказівник: ≥1024 або (hover: hover). На дотику фокус — тільки від людини.
+  const pointerDevice = typeof window !== 'undefined' && (window.innerWidth >= 1024 || (window.matchMedia?.('(hover: hover)')?.matches ?? false));
   // «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14):
   // «горить», але не прострочено, і рядки «Зараз», що не суворі.
   const quietCount = home.burning.filter((b) => b.days >= 0).length + home.now.slice(0, 3).filter((e) => toneOfNow(e) !== 'restrict').length;
@@ -1271,6 +1280,7 @@ export function Feed() {
         onHome={() => setHomeOpen((v) => !v)}
         homeOpen={homeOpen}
         quietCount={quietCount}
+        form={headForm}
       />
       {homeOpen && (
         <HomeNowPanel
@@ -1279,6 +1289,7 @@ export function Feed() {
           onCook={() => { setHomeOpen(false); if (cookLive) cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId }); }}
           onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
           onCalendar={() => navigate('/calendar')}
+          onList={() => navigate('/list')}
           onAsk={askInComposer}
         />
       )}
@@ -1886,65 +1897,43 @@ export function Feed() {
               drag ? 'Відпусти — файл піде в розмову'
                 : listening ? 'Слухаю…'
                 : pending.length > 0 ? 'Що з цим?'
-                : 'Записати в журнал…'
+                : headForm === 'narrow' ? 'Що зʼявилось удома?'
+                : 'Що зʼявилось удома або що готуємо?'
             }
-            autoFocus
+            /* 6b-5c: автофокус — лише для вказівника; на дотиках клавіатура
+               вискакувала сама, ховала бар і половину стрічки. */
+            autoFocus={pointerDevice}
           />
           {/* Screens «Чат · збірка»: підказка «⌘K» dim перед мікрофоном — композитор
               ловить ⌘K з будь-де (Components «Композитор (⌘K з будь-де)»). */}
           <span className={styles['composer-kbd']} aria-hidden>⌘K</span>
-          {/* Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп» — те саме
-              місце, той самий розмір. Обірвати думання було неможливо взагалі. */}
-          {sending && !listening && (
-            <button
-              type="button"
-              className={styles['frame-btn']}
-              onClick={stopSending}
-              aria-label="Зупинити"
-              data-stop
-            >
+          {/* 6b-5c, Screens/Prototype: мікрофон 42 простий muted — завжди на
+              місці, кольори стану лише поки слухає; «надіслати» 42 чорнилом
+              arrow-up — завжди, з порожнім драфтом світле коло й muted стрілка.
+              Пул-9 №4: поки модель думає, місце мікрофона займає «Стоп». */}
+          {sending && !listening ? (
+            <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop>
               <span className={styles['mic-stop']} />
             </button>
-          )}
-          {listening ? (
-            <>
-              <button
-                type="button"
-                className={styles['mic-live']}
-                onClick={toggleVoice}
-                aria-label="Зупинити диктування"
-                aria-pressed="true"
-              >
-                <span className={styles['mic-stop']} />
-              </button>
-            </>
-          ) : (input.trim() || pending.length > 0) ? (
-            <>
-              {/* 11.09, рішення власника: мікрофон є лише поки поле порожнє —
-                  з текстом гніздо займає «надіслати» (UX9-05 «додиктувати»
-                  поруч знято; додиктувати — стерти або надіслати). */}
-              {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
-                  в стрічку і стає в чергу. Гасне лише коли черга повна. */}
-              <button
-                type="submit"
-                className={styles['frame-btn-solid']}
-                disabled={sending && queue.length >= QUEUE_MAX}
-                title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
-                aria-label="Надіслати"
-              ><Icon name="sys.send" size={18} inherit decorative /></button>
-            </>
-          ) : speechSupported() && !sending ? (
-            <button
-              type="button"
-              className={styles['frame-btn']}
-              onClick={toggleVoice}
-              aria-label="Продиктувати"
-            >
+          ) : listening ? (
+            <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true">
+              <span className={styles['mic-stop']} />
+            </button>
+          ) : speechSupported() ? (
+            <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic>
               <Icon name="sys.voice" size={18} inherit decorative />
             </button>
-          ) : (
-            <button type="submit" className={styles['frame-btn-solid']} disabled aria-label="Надіслати"><Icon name="sys.send" size={18} inherit decorative /></button>
-          )}
+          ) : null}
+          {/* Пул-9 №5: під час sending кнопка НЕ блокована — репліка лягає
+              в стрічку і стає в чергу. Гасне лише коли черга повна. */}
+          <button
+            type="submit"
+            className={`${styles['frame-btn-solid']} ${!(input.trim() || pending.length > 0) ? styles['frame-btn-idle'] : ''}`}
+            disabled={(sending && queue.length >= QUEUE_MAX) || !(input.trim() || pending.length > 0)}
+            title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
+            aria-label="Надіслати"
+            data-send
+          ><Icon name="sys.send" size={18} inherit decorative /></button>
         </form>
       </div>
 
