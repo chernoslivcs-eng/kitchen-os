@@ -97,7 +97,7 @@ export function RecipesPage() {
           </div>
           <span className={styles['head-gap']} />
           <label className={styles.search} data-search>
-            <Icon name="sys.search" size={15} inherit decorative />
+            <Icon name="sys.search" size={16} inherit decorative />
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти рецепт" aria-label="Знайти рецепт" />
           </label>
           {/* На 390 бандл ставить у шапку лише круглі знаки: пошук і «записати
@@ -105,17 +105,17 @@ export function RecipesPage() {
               лишаємо знаком, бо екран існує (DEVIATIONS). */}
           <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} aria-label="Знайти рецепт" aria-pressed={searchOpen}
             onClick={() => setSearchOpen((v) => !v)}>
-            <Icon name="sys.search" size={17} inherit decorative />
+            <Icon name="sys.search" size={16} inherit decorative />
           </button>
           <button type="button" className={styles['head-icon']} aria-label="Журнал" title="Журнал" onClick={() => navigate('/cooklog')}>
-            <Icon name="cook.done" size={17} inherit decorative />
+            <Icon name="cook.done" size={16} inherit decorative />
           </button>
           {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
               лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
               моделі явний сигнал на recipe-картку (DA2-23). */}
           <button type="button" className={styles.write} aria-label="Записати свій"
             onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}>
-            <Icon name="sys.import" size={15} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
+            <Icon name="sys.import" size={16} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
           </button>
       </>} />
 
@@ -135,7 +135,7 @@ export function RecipesPage() {
 
         {searchOpen && (
           <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
-            <Icon name="sys.search" size={15} inherit decorative />
+            <Icon name="sys.search" size={16} inherit decorative />
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти рецепт" aria-label="Знайти рецепт" autoFocus />
           </label>
         )}
@@ -148,7 +148,7 @@ export function RecipesPage() {
                   className={`${styles.filter} ${active ? styles['filter-on'] : ''}`} data-filter={f.id}>
                   {f.id === 'ready' && <span className={`${styles['filter-dot']} ${styles.sage}`} aria-hidden />}
                   {f.id === 'near' && <span className={`${styles['filter-dot']} ${styles.amber}`} aria-hidden />}
-                  {f.id === 'cooked' && <Icon name="sys.done" size={13} inherit decorative />}
+                  {f.id === 'cooked' && <Icon name="sys.done" size={12} inherit decorative />}
                   {f.label}
                   <span className={styles['filter-n']} data-count>{counts[f.id]}</span>
                 </button>
@@ -184,7 +184,7 @@ export function RecipesPage() {
                   }
                 }}
               >
-                <span className={styles.icon}><Icon name="cook.type" size={19} inherit decorative /></span>
+                <span className={styles.icon}><Icon name="cook.type" size={20} inherit decorative /></span>
                 <div className={styles.info}>
                   <span className={styles.dish}>{r.title}</span>
 
@@ -192,7 +192,7 @@ export function RecipesPage() {
                     <span className={`${styles.status} ${styles[`status-${st.tone}`]}`}>
                       <span className={styles['status-dot']} aria-hidden />{st.text}
                     </span>
-                    {r.time_total && <span className={styles.stat}><Icon name="cook.time" size={13} inherit decorative />{formatDuration(r.time_total)}</span>}
+                    {r.time_total && <span className={styles.stat}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.time_total)}</span>}
                     {r.payload.nu?.kcal && <span className={styles.stat}>≈ {r.payload.nu.kcal} ккал</span>}
                     {r.cooked_count > 0 && (
                       <span className={styles.stat}><Icon name="cook.done" size={12} inherit decorative />{r.cooked_count} {plural(r.cooked_count, ['раз', 'рази', 'разів'])}</span>
@@ -202,13 +202,13 @@ export function RecipesPage() {
                   {/* Найкорисніший рядок екрана: що саме докупити. */}
                   {r.missing.length > 0 && (
                     <div className={`${styles.line} ${styles['line-missing']}`}>
-                      <Icon name="cook.missing" size={13} inherit decorative />бракує: {r.missing.join(', ')}
+                      <Icon name="cook.missing" size={12} inherit decorative />бракує: {r.missing.join(', ')}
                     </div>
                   )}
                   {/* Чому саме зараз — те, що рецепт рятує з комори. */}
                   {r.rescues.length > 0 && (
                     <div className={`${styles.line} ${styles['line-rescues']}`}>
-                      <Icon name="live.burning" size={13} inherit decorative />використає: {r.rescues.join(', ')}
+                      <Icon name="live.burning" size={12} inherit decorative />використає: {r.rescues.join(', ')}
                     </div>
                   )}
                 </div>
@@ -220,7 +220,7 @@ export function RecipesPage() {
                 onClick={(e) => { e.stopPropagation(); void unsave(r); }}
                 aria-label={`Прибрати «${r.title}» з рецептів`}
                 title="Прибрати з рецептів"
-              ><Icon name="sys.close" size={14} inherit /></button>
+              ><Icon name="sys.close" size={12} inherit /></button>
             </div>
           );
         })}

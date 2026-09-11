@@ -13,6 +13,7 @@
 // --sel     замість --frame: довільний селектор у бандлі
 // --theme   light | dark (типово light) — і бандл (data-theme), і застосунок (emulateMedia)
 // --click   селектор у застосунку, по якому клікнути перед знімком (відкрити артефакт тощо)
+// --dc-click селектор у бандлі, по якому клікнути перед знімком кадра (Prototype: вкладка nav)
 // --list    лише перелічити data-screen-label у файлі й вийти
 //
 // Бандл читається з file:// і потребує мережі для шрифту Onest і lucide з
@@ -70,6 +71,8 @@ const frames = await dcPage.$$(frameSel);
 if (!frames[NTH]) { console.error(`side-by-side: кадр не знайдено — ${frameSel} [${NTH}] у ${DC}`); await browser.close(); process.exit(1); }
 const frame = frames[NTH];
 await frame.scrollIntoViewIfNeeded();
+const dcClick = arg('dc-click', null);
+if (dcClick) { await frame.$eval(dcClick, (el) => el.click()); await dcPage.waitForTimeout(600); }
 const frameLabel = (await frame.getAttribute('data-screen-label')) ?? SEL;
 const frameBox = await frame.boundingBox();
 const framePng = await frame.screenshot({ type: 'png' });
