@@ -630,7 +630,7 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
               {rescues.length > 0 && (
                 <span className={styles['prop-chips']}>
                   {rescues.map((r, j) => (
-                    <span key={j} className={`${styles['prop-chip']} ${styles['prop-chip-amber']}`}><Icon name="live.burning" size={12} inherit decorative />{r}</span>
+                    <span key={j} className={`${styles['prop-chip']} ${styles['prop-chip-amber']}`} title={r}><Icon name="live.burning" size={12} inherit decorative /><span className={styles['chip-name']}>{r}</span></span>
                   ))}
                 </span>
               )}
@@ -1018,8 +1018,8 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels, stepLa
               onPointerUp={pressEnd} onPointerLeave={pressEnd}
               data-missing={missing ? '' : undefined}>
               <span className={`${styles['ing-dot']} ${missing ? styles['ing-dot-missing'] : ''}`} aria-hidden />
-              <span className={styles['recipe-ing-name']}>
-                {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
+              <span className={styles['recipe-ing-name']} title={ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? undefined}>
+                <span className={styles['chip-name']}>{ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}</span>
                 {added && <span className={`${styles.pill} ${styles['pill-sage']} ${styles['pill-mini']}`}>у списку</span>}
               </span>
               {ing.v != null && ing.u
@@ -1082,9 +1082,11 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCa
           <div className={styles['rcard-chips']}>
             {/* Чіпи на bg (Prototype); чого бракує — бурштином зі знаком «бракує». */}
             {r.ing.slice(0, 6).map((ing, i) => (
-              <span key={i} className={`${styles['prop-chip']} ${!ing.p ? styles['prop-chip-amber'] : ''}`}>
+              /* №33: назва з трьома крапками, кількість окремим span і не ріжеться; повна назва в title. */
+              <span key={i} className={`${styles['prop-chip']} ${!ing.p ? styles['prop-chip-amber'] : ''}`} title={ing.n ?? 'з комори'}>
                 {!ing.p && <Icon name="cook.missing" size={12} inherit decorative />}
-                {ing.n ?? 'з комори'}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}
+                <span className={styles['chip-name']}>{ing.n ?? 'з комори'}</span>
+                {ing.v != null && ing.u ? <span className={styles['chip-qty']}>{formatQty(ing.v, ing.u)}</span> : null}
               </span>
             ))}
             {r.ing.length > 6 && <span className={`${styles['prop-chip']} ${styles['prop-chip-dim']}`}>ще {r.ing.length - 6}</span>}

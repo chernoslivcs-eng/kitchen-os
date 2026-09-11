@@ -600,7 +600,7 @@ export function CookOverlay() {
             <span className={styles['route-label']}>Усе для страви</span>
             <div className={styles['route-ings']}>
               {recipe.ing.map((ing, i) => (
-                <span key={i} className={styles['ing-chip']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+                <span key={i} className={styles['ing-chip']} title={resolveIngName(ing, batchLabels)}><span className={styles['chip-name']}>{resolveIngName(ing, batchLabels)}</span>{ing.v != null && ing.u ? <span className={styles['chip-qty']}>{formatQty(ing.v, ing.u)}</span> : null}</span>
               ))}
             </div>
             <span className={styles['route-offline']}><Icon name="live.offline" size={12} inherit decorative />Працює без інтернету · екран не гасне</span>
@@ -621,7 +621,7 @@ export function CookOverlay() {
             {stepIngs.length > 0 && (
               <div className={styles['step-chips']}>
                 {stepIngs.map((ing, i) => (
-                  <span key={i} className={styles['step-ing']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` · ${formatQty(ing.v, ing.u)}` : ''}</span>
+                  <span key={i} className={styles['step-ing']} title={resolveIngName(ing, batchLabels)}><span className={styles['chip-name']}>{resolveIngName(ing, batchLabels)}</span>{ing.v != null && ing.u ? <span className={styles['chip-qty']}>· {formatQty(ing.v, ing.u)}</span> : null}</span>
                 ))}
               </div>
             )}
@@ -655,7 +655,7 @@ export function CookOverlay() {
             <span className={styles['route-label']}>Усе для страви</span>
             <div className={styles['route-ings']}>
               {recipe.ing.map((ing, i) => (
-                <span key={i} className={styles['ing-chip']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+                <span key={i} className={styles['ing-chip']} title={resolveIngName(ing, batchLabels)}><span className={styles['chip-name']}>{resolveIngName(ing, batchLabels)}</span>{ing.v != null && ing.u ? <span className={styles['chip-qty']}>{formatQty(ing.v, ing.u)}</span> : null}</span>
               ))}
             </div>
           </div>

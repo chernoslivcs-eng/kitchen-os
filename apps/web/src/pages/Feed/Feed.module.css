@@ -265,7 +265,12 @@
   border-radius: var(--r-pill);
   background: var(--bg); color: var(--ink);
   font-family: var(--font-body); font-size: 12px; white-space: nowrap;
+  /* №33: чіп не ширший за картку — назва з трьома крапками, кількість не ріжеться. */
+  max-width: 100%; min-width: 0;
 }
+.prop-chip > [data-icon] { flex: none; }
+.chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chip-qty { flex: none; }
 .prop-chip-amber { background: var(--amber-bg); color: var(--amber); font-weight: 500; }
 .prop-chip-dim { color: var(--dim); }
 .prop-actions { flex: none; display: flex; flex-direction: column; gap: 6px; }
@@ -1192,7 +1197,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .recipe-ing[data-missing] { color: var(--muted); }
 .ing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); flex: none; }
 .ing-dot-missing { background: var(--amber); }
-.recipe-ing-name { flex: 1; min-width: 0; display: flex; align-items: center; }
+.recipe-ing-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .recipe-ing-qty { flex: none; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
 .recipe-step {
   display: flex;
