@@ -13,7 +13,7 @@
 //     осях — не конфлікт: «Напої» як категорія продукту й як зона комори це
 //     одне й те саме, тому там знак спільний навмисно.
 import {
-  MessageCircle, BookOpen, ListChecks, Calendar, House, ShoppingCart, Receipt,
+  MessageCircle, BookOpen, BookMarked, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
   Undo2, ChevronRight, ExternalLink, PanelLeftClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark,
   Refrigerator, Snowflake, Archive, FlaskConical, Wine,
@@ -154,6 +154,8 @@ export const ICONS = {
   'live.nothing':  { glyph: Minus,         label: 'Нічого не змінилось', family: 'live' },
   'sys.stop':      { glyph: Square,        label: 'Стоп',          family: 'system' },
   'sys.retry':     { glyph: RotateCw,      label: 'Повторити',     family: 'system' },
+  // Джерело події «з каталогу» в «Дім зараз» — book-marked, як у бандлі (Components).
+  'sys.tradition': { glyph: BookMarked,    label: 'З каталогу',    family: 'system' },
 } as const satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;

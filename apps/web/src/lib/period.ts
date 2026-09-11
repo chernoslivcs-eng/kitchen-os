@@ -45,6 +45,37 @@ export function leftLabel(from: string, to: string, today = todayIso()): string 
   return `ще ${left} ${plural(left, ['день', 'дні', 'днів'])}`;
 }
 
+const WEEKDAY = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+
+/**
+ * Слово часу для «Дім зараз» (етап 4, Components · «Дім зараз»). Від кінця,
+ * і в одиницях, які людина рахує:
+ *   · ≥ 14 днів — тижнями, округлено: «ще 5 тиж», не «ще 34 дні»;
+ *   · своя подія в межах тижня — днем тижня: «до нд». Своє читається як
+ *     зустріч, а зустріч мають на день, не на «ще 3 дн». Сезон із каталогу —
+ *     не зустріч, лишається днями;
+ *   · орієнтовне — «≈» перед словом. Ознака `approx` доти показувалась словом
+ *     « · орієнтовно», і рядок не вміщався.
+ * Форми «дн» і «тиж» — з бандла.
+ */
+export function nowWhen(
+  it: { from: string; to: string; source: 'catalog' | 'user' | 'chat'; approx?: boolean },
+  today = todayIso(),
+): string | null {
+  if (it.to < today) return null;
+  const pre = it.approx ? '≈ ' : '';
+  if (it.from > today) {
+    const d = daysBetween(today, it.from);
+    return d === 1 ? 'завтра' : `за ${d} дн`;
+  }
+  const left = daysBetween(today, it.to);
+  if (left === 0) return 'останній день';
+  if (left === 1) return 'до завтра';
+  if (it.source !== 'catalog' && left <= 7) return `${pre}до ${WEEKDAY[new Date(it.to + 'T00:00:00').getDay()]}`;
+  if (left >= 14) return `${pre}ще ${Math.round(left / 7)} тиж`;
+  return `${pre}ще ${left} дн`;
+}
+
 /** «1 квіт», «23 лют» — без крапки, як у макеті. */
 export function shortDate(iso: string): string {
   const d = parse(iso);
@@ -117,4 +148,28 @@ export function toneOfNow(it: Pick<NowItem, 'kind' | 'strict' | 'source'>): Tone
   if (it.source !== 'catalog') return 'own';
   if (it.kind === 'tradition') return 'tradition';
   return 'season';
+}
+
+/**
+ * Порожній стан «Дім зараз» (Components · «Порожні стани · різні слова»).
+ * Три порожнечі — три різні речі, і всі три реальні просто зараз:
+ *   'pantry-empty' — позицій нуль: нема з чим працювати;
+ *   'calm'         — комора є і нічого не горить: рідкісний спокій;
+ *   'no-events'    — подій немає, а комора не спокійна або невідома.
+ * Доти всі три звучали як мовчання — блок просто не малювався.
+ */
+export type NowEmpty = 'pantry-empty' | 'calm' | 'no-events';
+
+export function nowEmptyKind(facts: { count: number; soon: number } | null): NowEmpty {
+  if (facts?.count === 0) return 'pantry-empty';
+  if (facts && facts.soon === 0) return 'calm';
+  return 'no-events';
+}
+
+export function nowEmptyText(facts: { count: number; soon: number } | null): string {
+  switch (nowEmptyKind(facts)) {
+    case 'pantry-empty': return 'Комора порожня — розкажи, що є вдома.';
+    case 'calm': return `Нічого не горить. ${facts!.count} ${plural(facts!.count, ['позиція', 'позиції', 'позицій'])} у порядку.`;
+    default: return 'Зараз нічого не триває. Свята можна підключити в календарі.';
+  }
 }

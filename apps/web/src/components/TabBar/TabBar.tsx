@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
 import { api, type SessionInfo, type NowItem } from '../../api';
-import { toneOfNow, leftLabel } from '../../lib/period';
+import { toneOfNow, nowWhen, nowEmptyKind, nowEmptyText } from '../../lib/period';
+import { isSoon, hasScale } from '@kitchen/domain/shelf-thresholds';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
@@ -35,6 +36,7 @@ interface Props {
 }
 
 // Пул-7 №6: TabBar живе в каркасі й сам знає лічильник списку.
+let pantryFactsCache: { value: { count: number; soon: number }; at: number } | null = null;
 let shoppingCountCache: { value: number; at: number } | null = null;
 // «ЗАРАЗ» — той самий патерн кешу: блок живе в каркасі й не мусить смикати
 // календар на кожну навігацію.
@@ -104,6 +106,25 @@ export function TabBar({ shoppingCount }: Props) {
       .then(({ count }) => {
         shoppingCountCache = { value: count, at: Date.now() };
         setShopCount(count);
+      })
+      .catch(() => {/* тихо */});
+  }, [pathname, pantryVersion]);
+
+  // Етап 4 (Components · «Дім зараз» · «Порожні стани · різні слова»): три
+  // порожнечі — три різні речі, і всі три реальні просто зараз:
+  //   «Нічого не горить. N позицій у порядку.»  — комора є, горіти нема чому;
+  //   «Комора порожня — розкажи, що є вдома.»    — позицій нуль;
+  //   «Зараз нічого не триває. …»                — подій немає.
+  // Доти блок просто не малювався, коли подій нуль, — і всі три звучали як
+  // мовчання. Для першого й другого блок має знати комору.
+  const [pantryFacts, setPantryFacts] = useState<{ count: number; soon: number } | null>(pantryFactsCache?.value ?? null);
+  useEffect(() => {
+    if (pantryVersion === 0 && pantryFactsCache && Date.now() - pantryFactsCache.at < 60_000) return;
+    api.pantry()
+      .then(({ count, batches }) => {
+        const soon = batches.filter((b) => isSoon(b.days) && hasScale(b.catalog_key)).length;
+        pantryFactsCache = { value: { count, soon }, at: Date.now() };
+        setPantryFacts({ count, soon });
       })
       .catch(() => {/* тихо */});
   }, [pathname, pantryVersion]);
@@ -251,32 +272,39 @@ export function TabBar({ shoppingCount }: Props) {
             {nowEvents.length > 0 && <span className={styles['dot-amber']} aria-hidden />}
             {cookLive && <span className={styles['dot-sage']} aria-hidden />}
           </span>
-        ) : '⋯'}
+        ) : <Icon name="sys.home" size={16} inherit decorative />}
       </button>
 
       {/* «ЗАРАЗ» — одразу під цілями, над «Готування триває» (рішення 03.09).
           Подія, що триває, називається кінцем: «ще 4 тижні», не «триває». */}
-      {nowEvents.length > 0 && (
-        <div className={styles.now}>
-          <div className={styles['now-label']}>ЗАРАЗ</div>
-          {nowEvents.map((e) => (
-            <button
-              key={nowKey(e)}
-              className={`${styles['now-row']} ${styles[`t-${toneOfNow(e)}`]} ${leavingNow.has(nowKey(e)) ? styles['now-leave'] : ''}`}
-              onClick={() => navigate('/calendar')}
-              title={e.rule_text ?? e.meaning ?? e.title}
-            >
-              <span className={styles['now-dot']} aria-hidden />
-              <span className={styles['now-text']}>
-                <span className={styles['now-title']}>{e.title}</span>
-                <span className={styles['now-when']}>
-                  {leftLabel(e.from, e.to) ?? 'триває'}{e.approx ? ' · орієнтовно' : ''}{e.strict ? ' · суворо' : ''}
-                </span>
+      {/* Етап 4: «Дім зараз» — блок є ЗАВЖДИ. Порожнеча тут не наслідок, а
+          головний стан на сьогодні, і в неї три різні слова (див. вище). */}
+      <div className={styles.now} data-now-state={nowEvents.length ? 'events' : nowEmptyKind(pantryFacts)}>
+        <div className={styles['now-label']}>ЗАРАЗ</div>
+        {nowEvents.length === 0 && <div className={styles['now-empty']}>{nowEmptyText(pantryFacts)}</div>}
+        {nowEvents.map((e) => (
+          <button
+            key={nowKey(e)}
+            type="button"
+            className={`${styles['now-row']} ${styles[`t-${toneOfNow(e)}`]} ${leavingNow.has(nowKey(e)) ? styles['now-leave'] : ''}`}
+            onClick={() => navigate('/calendar')}
+            title={e.rule_text ?? e.meaning ?? e.title}
+          >
+            <span className={styles['now-dot']} aria-hidden />
+            <span className={styles['now-text']}>
+              <span className={styles['now-title']}>{e.title}</span>
+              {/* Три позначки за PLAN §5: джерело — знак 11 px; орієнтовно — «≈»
+                  перед часом (у nowWhen); суворо — сливова заливка, не слово в
+                  рядку. Час — кінцем і тижнями, як у бандлі. */}
+              <span className={styles['now-when']}>
+                <Icon name={e.source === 'catalog' ? 'sys.tradition' : e.source === 'chat' ? 'sys.chat' : 'live.byHand'} size={12} inherit decorative />
+                {nowWhen(e) ?? 'триває'}
+                {e.strict && <span className={styles['now-strict']}>суворо</span>}
               </span>
-            </button>
-          ))}
-        </div>
-      )}
+            </span>
+          </button>
+        ))}
+      </div>
 
       {/* Правка №1: сесії — частина навігації. Нова сесія → останні → архів. */}
       <div className={styles.sessions}>
