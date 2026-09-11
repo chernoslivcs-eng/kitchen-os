@@ -13,6 +13,8 @@ export interface Turn {
   card?: ChatCard | null;
   cardId?: string | null;
   applied?: boolean;
+  /** Етап 3: результат застосування — «9 із 14 · 5 пропущено» живе на ході, не в тості. */
+  outcome?: import('./cards').ApplyOutcome;
   applying?: boolean;
   dismissed?: boolean;
   undoToken?: string;

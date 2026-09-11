@@ -1505,11 +1505,37 @@ export function appliedToast(card: ChatCard, appliedCount?: number): string {
 }
 
 // Мета-мітка перед карткою, залежно від типу й стану — на кшталт «КОМОРА · ОЧІКУЄ».
+/**
+ * Результат застосування — те, що сервер віддає з першого дня
+ * (applied / missed / already_there / truncated), а слід доти викидав.
+ * PLAN §4: «частковий успіх — слід „застосовано 9 із 14 · 5 пропущено"».
+ */
+export interface ApplyOutcome {
+  applied: number;
+  total: number;
+  missed?: string[];
+  alreadyThere?: number;
+  truncated?: boolean;
+}
+
+/** Хвіст мітки для часткового успіху; порожній, коли все влучило. */
+function outcomeTail(o?: ApplyOutcome): string {
+  if (!o || o.applied >= o.total) return '';
+  const parts = [`${o.applied} із ${o.total}`];
+  // Три різні причини недобору — три різні слова. «Пропущено» ≠ «уже було»
+  // ≠ «не вмістило»: перше — сервер не впізнав, друге — дубль, третє — стеля.
+  if (o.missed?.length) parts.push(`${o.missed.length} пропущено`);
+  if (o.alreadyThere) parts.push(`${o.alreadyThere} уже було`);
+  if (o.truncated) parts.push('решту не вмістило');
+  return ' · ' + parts.join(' · ');
+}
+
 export function labelFor(
   type: ChatCard['type'],
   applied?: boolean,
   undone?: boolean,
   dismissed?: boolean,
+  outcome?: ApplyOutcome,
 ): { text: string; tone: 'pending' | 'applied' | 'muted' } {
   // Слід рецепта — не дія: жодного «ОЧІКУЄ», просто мітка.
   if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
@@ -1518,7 +1544,7 @@ export function labelFor(
   // Крок 7: «Про тебе» — не дія, статусу немає.
   if (type === 'onboarding') return { text: 'ПРО ТЕБЕ', tone: 'muted' };
   if (undone) return { text: 'СКАСОВАНО', tone: 'muted' };
-  if (applied) return { text: 'ЗАСТОСОВАНО', tone: 'applied' };
+  if (applied) return { text: `ЗАСТОСОВАНО${outcomeTail(outcome)}`, tone: 'applied' };
   // QA5-11: після «Ні» кнопки ховались, але заголовок лишався «ОЧІКУЄ» назавжди.
   if (dismissed) return { text: 'ВІДХИЛЕНО', tone: 'muted' };
   const base = type === 'intake_diff' ? 'КОМОРА'

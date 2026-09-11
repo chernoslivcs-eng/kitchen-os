@@ -920,9 +920,13 @@ export function Feed() {
       // немає», а картка все одно закривалась і пропонувала скасувати ніщо.
       // Нуль лишає картку відкритою: тапнути ще раз можна, «Ні» працює.
       const landed = r.applied > 0;
+      // Етап 3 (PLAN §4): результат лишається на ході, а не лише в тості.
+      // Скільки послали — стільки й «із»: людина могла зняти частину галочок.
+      const total = selected?.length ?? (turn.card && 'ops' in turn.card ? (turn.card as { ops: unknown[] }).ops.length : r.applied);
+      const outcome = { applied: r.applied, total, missed: r.missed, alreadyThere: r.already_there, truncated: r.truncated };
       setTurns((prev) => prev.map((t) => t.id === turnId
         ? landed
-          ? { ...t, applied: true, applying: false, undoToken: r.undo_token ?? undefined, justApplied: true }
+          ? { ...t, applied: true, applying: false, undoToken: r.undo_token ?? undefined, justApplied: true, outcome }
           : { ...t, applying: false }
         : t,
       ));
@@ -1337,7 +1341,7 @@ export function Feed() {
                 <>
                   {' '}
                   {(() => {
-                    const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed);
+                    const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed, t.outcome);
                     // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
                     return l.tone === 'pending'
                       ? <span className={styles['pending-pulse']}>{l.text}</span>

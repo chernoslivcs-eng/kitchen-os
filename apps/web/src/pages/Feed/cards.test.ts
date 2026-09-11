@@ -78,3 +78,32 @@ describe('тост після застосування', () => {
     expect(appliedToast({ type: 'period', items: [{}] }, 0)).toBe('У календарі нічого не змінилось');
   });
 });
+
+describe('етап 3 · частковий успіх у сліді (PLAN §4)', () => {
+  // Сервер віддає applied / missed / already_there / truncated з першого дня,
+  // а слід казав «ЗАСТОСОВАНО» булевим: числа жили лише в тості й зникали
+  // за секунди. Слід — тривале, і саме він має нести «9 із 14».
+  it('усе застосовано — без чисел, як і було', () => {
+    expect(labelFor('intake_diff', true, false, false, { applied: 14, total: 14 }).text).toBe('ЗАСТОСОВАНО');
+  });
+
+  it('частина — «9 із 14 · 5 пропущено», і тон лишається applied', () => {
+    const l = labelFor('intake_diff', true, false, false, { applied: 9, total: 14, missed: ['a', 'b', 'c', 'd', 'e'] });
+    expect(l.text).toBe('ЗАСТОСОВАНО · 9 із 14 · 5 пропущено');
+    expect(l.tone).toBe('applied');
+  });
+
+  it('«вже було» — окремим словом, бо це не пропуск і не помилка', () => {
+    expect(labelFor('intake_diff', true, false, false, { applied: 9, total: 14, alreadyThere: 5 }).text)
+      .toBe('ЗАСТОСОВАНО · 9 із 14 · 5 уже було');
+  });
+
+  it('обрізано стелею — окремим словом', () => {
+    expect(labelFor('shopping', true, false, false, { applied: 10, total: 23, truncated: true }).text)
+      .toBe('ЗАСТОСОВАНО · 10 із 23 · решту не вмістило');
+  });
+
+  it('без результату (старі ходи з історії) — як і було', () => {
+    expect(labelFor('intake_diff', true).text).toBe('ЗАСТОСОВАНО');
+  });
+});
