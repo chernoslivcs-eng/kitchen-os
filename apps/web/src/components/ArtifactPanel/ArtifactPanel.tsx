@@ -17,6 +17,7 @@ import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
 import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, RAIL_DEFAULT } from '../../store/panel';
 import styles from './ArtifactPanel.module.css';
+import { holdBodyFlag } from '../../lib/body-flags';
 
 const RAIL_OVERHEAD = 916;  // 276 накладних + 640 мінімум журналу
 
@@ -34,11 +35,9 @@ export function PanelIcon() {
 
 export function ArtifactPanel() {
   const s = usePanelStore();
-  // Етап 6a: шторка артефакта (<1200) теж ховає нижній бар.
-  useEffect(() => {
-    document.body.classList.toggle('sheet-open', s.open);
-    return () => document.body.classList.remove('sheet-open');
-  }, [s.open]);
+  // Етап 6a: шторка артефакта (<1200) теж ховає нижній бар. №21: тримає
+  // клас лише поки відкрита, через лічильник (Sheet поруч його не зніме).
+  useEffect(() => { if (s.open) return holdBodyFlag('sheet-open'); }, [s.open]);
   const { artifacts, render, extra, pendingDot, open, hidden, width, dragging, fresh, freshKeys } = s;
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
   const hasPanel = artifacts.length > 0 || !!extra;

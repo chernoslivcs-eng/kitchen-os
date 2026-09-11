@@ -14,13 +14,11 @@
 // Чіпи — по одному на рід і лише коли стан є: danger flame «Прострочено N»,
 // plum moon «Піст · до 27 вер», sage timer «Готуємо · таймер». Сезони й свої
 // події чіпів не мають — вони тихі рядки панелі «Дім зараз».
-import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../Icon/Icon';
 import { CookCountdown } from '../../lib/cook-watch';
 import { shortDate } from '../../lib/period';
 import type { CookSession } from '../../lib/cook-session';
 import type { HomeNow } from '../../store/homeNow';
-import { SessionsMenu, type SessionRow } from './SessionsMenu';
 import styles from './ChatHead.module.css';
 
 export interface ChatHeadProps {
@@ -29,11 +27,8 @@ export interface ChatHeadProps {
   when: string;
   home: HomeNow;
   cookLive: CookSession | null;
-  sessions: SessionRow[];
-  activeSessionId: string | null;
-  onPickSession: (id: string) => void;
   onNewSession: () => void;
-  /** «Усі розмови» / panel-left-open — розгорнути сайдбар або шухляду. */
+  /** panel-left-open і пілюля (№22) — розгорнути сайдбар або шухляду. */
   onAllSessions: () => void;
   onCook: () => void;
   onOverdue: () => void;
@@ -47,18 +42,6 @@ export interface ChatHeadProps {
 }
 
 export function ChatHead(p: ChatHeadProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  // Закриває клік поза, Esc, вибір (G1).
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDown = (e: PointerEvent) => { if (!wrapRef.current?.contains(e.target as Node)) setMenuOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
-    window.addEventListener('pointerdown', onDown);
-    window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey); };
-  }, [menuOpen]);
-
   const mid = p.form === 'mid';
   const kinds: ('danger' | 'plum' | 'sage')[] = [];
   if (p.home.overdue > 0) kinds.push('danger');
@@ -72,22 +55,14 @@ export function ChatHead(p: ChatHeadProps) {
         <Icon name="sys.expand" size={18} inherit decorative />
       </button>
 
-      <div className={styles['pill-wrap']} ref={wrapRef}>
-        <button type="button" className={`${styles.pill} ${menuOpen ? styles['pill-on'] : ''}`}
-          onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen} aria-haspopup="menu" data-session-pill>
+      {/* №22 (рішення власника): пілюля — назва розмови, «де я»; меню в ній
+          знято, тап відкриває те саме, що кнопка ліворуч (сайдбар / шухляда).
+          Без шеврона стану «розкрито». */}
+      <div className={styles['pill-wrap']}>
+        <button type="button" className={styles.pill} onClick={p.onAllSessions} aria-label="Розмови" data-session-pill>
           <span className={styles['pill-title']}>{p.title ?? 'Нова розмова'}</span>
           <span className={styles['pill-when']}>· {p.when}</span>
-          <Icon name={menuOpen ? 'sys.opened' : 'sys.open'} size={16} inherit decorative />
         </button>
-        {menuOpen && (
-          <SessionsMenu
-            sessions={p.sessions}
-            activeId={p.activeSessionId}
-            onPick={(id) => { setMenuOpen(false); p.onPickSession(id); }}
-            onNew={() => { setMenuOpen(false); p.onNewSession(); }}
-            onAll={() => { setMenuOpen(false); p.onAllSessions(); }}
-          />
-        )}
       </div>
 
       <button type="button" className={styles.newBtn} onClick={p.onNewSession} data-new-session>

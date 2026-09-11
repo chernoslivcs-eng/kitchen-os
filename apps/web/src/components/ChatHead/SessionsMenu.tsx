@@ -1,9 +1,7 @@
-// Меню розмов із пілюлі (Responsive G1): 340 на card r14 --sh2, 6 всередині;
-// «Нова розмова ⌘N» шавлією, волосина, групи по днях (11 dim), рядки 44 r10 —
-// назва 14 + стан 12 другим рядком, активна — на bg із check; волосина,
-// «Усі розмови» 40 muted → розгортає сайдбар. Один компонент на всіх ширинах.
-import { Icon } from '../Icon/Icon';
-import styles from './ChatHead.module.css';
+// Рядок розмови й підпис дня — спільні для сайдбара/шухляди (G1). Меню
+// розмов із пілюлі знято (FIXES-V3 №22, рішення власника): перемикач
+// розмов один — сайдбар/шухляда; пілюля — лише назва розмови, тап відкриває
+// те саме, що кнопка «панель» ліворуч. Це знімає й №20 (меню обрізалось).
 
 export interface SessionRow {
   id: string;
@@ -26,44 +24,4 @@ export function dayLabel(day: string, today = new Date()): string {
   const d = new Date(day + 'T00:00:00');
   const mon = d.toLocaleDateString('uk-UA', { month: 'short' }).replace('.', '');
   return `${WEEKDAY[d.getDay()]} · ${d.getDate()} ${mon}`;
-}
-
-export function SessionsMenu({ sessions, activeId, onPick, onNew, onAll }: {
-  sessions: SessionRow[]; activeId: string | null;
-  onPick: (id: string) => void; onNew: () => void; onAll: () => void;
-}) {
-  const groups: { day: string; rows: SessionRow[] }[] = [];
-  for (const s of sessions.slice(0, 5)) {
-    const g = groups.find((x) => x.day === s.day);
-    if (g) g.rows.push(s); else groups.push({ day: s.day, rows: [s] });
-  }
-  return (
-    <div className={styles.menu} role="menu" data-sessions-menu>
-      <button type="button" role="menuitem" className={styles['menu-new']} onClick={onNew}>
-        <Icon name="sys.add" size={16} inherit decorative />Нова розмова<span className={styles['menu-kbd']}>⌘N</span>
-      </button>
-      <span className={styles['menu-line']} />
-      {groups.map((g) => (
-        <div key={g.day} className={styles['menu-group']}>
-          <span className={styles['menu-day']}>{dayLabel(g.day)}</span>
-          {g.rows.map((s) => {
-            const active = s.id === activeId;
-            return (
-              <button key={s.id} type="button" role="menuitem" className={`${styles['menu-row']} ${active ? styles['menu-row-on'] : ''}`} onClick={() => onPick(s.id)} aria-current={active || undefined}>
-                <span className={styles['menu-row-text']}>
-                  <span className={styles['menu-row-title']}>{s.title}</span>
-                  {s.state && <span className={`${styles['menu-row-state']} ${s.state.tone === 'amber' ? styles['menu-row-amber'] : ''}`}>{s.state.text}</span>}
-                </span>
-                {active && <Icon name="sys.done" size={16} inherit decorative />}
-              </button>
-            );
-          })}
-        </div>
-      ))}
-      <span className={styles['menu-line']} />
-      <button type="button" role="menuitem" className={styles['menu-all']} onClick={onAll}>
-        <Icon name="sys.expand" size={16} inherit decorative />Усі розмови<span className={styles['menu-kbd']}>розгорнути меню</span>
-      </button>
-    </div>
-  );
 }

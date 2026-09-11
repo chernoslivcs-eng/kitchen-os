@@ -187,15 +187,14 @@
 .rail-pill { display: none; }
 
 @media (max-width: 1199px) {
+  /* №23: пілюля — у потоці над композитором, не absolute: раніше вона
+     лягала на останню репліку, щойно стрічка виростала до низу. */
   .rail-pill {
     display: flex;
     align-items: center;
     gap: 8px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(100% + 10px);
-    z-index: 12;
+    width: max-content;
+    margin: 10px auto 0;
     max-width: calc(100% - 32px);
     padding: 9px 16px;
     border: 0;

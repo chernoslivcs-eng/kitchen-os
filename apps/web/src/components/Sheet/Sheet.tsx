@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react';
 import styles from './Sheet.module.css';
+import { holdBodyFlag } from '../../lib/body-flags';
 import panel from '../ArtifactPanel/ArtifactPanel.module.css';
 import { PanelIcon } from '../ArtifactPanel/ArtifactPanel';
 import { ARTIFACT_ICON, type ArtifactKey } from '../../pages/Feed/artifacts';
@@ -35,10 +36,8 @@ const EXIT_MS = 250;
 export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Етап 6a: поки шторка відкрита, нижній бар (<768) ховається (HANDOFF).
-  useEffect(() => {
-    document.body.classList.add('sheet-open');
-    return () => document.body.classList.remove('sheet-open');
-  }, []);
+  // №21: через лічильник — інша шторка поруч клас не зніме.
+  useEffect(() => holdBodyFlag('sheet-open'), []);
   const [closing, setClosing] = useState(false);
   const [dragY, setDragY] = useState(0);
   const dragging = useRef(false);

@@ -16,12 +16,19 @@
   container-type: inline-size;
   container-name: chat;
 }
-/* <768: нижній бар 64 стоїть під стрічкою (body.padding-bottom його не
-   зачіпає — екран рахує свою висоту сам); поки композитор у фокусі, бар
-   зʼїжджає — екран знову на всю висоту. */
+/* <768 (№23): екран — на всю висоту; місце під бар (64 + safe-area) тримає
+   ОДИН відступ — низ .composer-wrap, і він їде тим самим переходом, що й
+   бар (TabBar: transform --dur-base --ease-standard), коли бар ховається за
+   body.composer-focused / body.sheet-open. Раніше висота екрана
+   перемикалась стрибком, а стрічка й композитор мали ще й свої відступи. */
 @media (max-width: 767px) {
-  .screen { height: calc(100dvh - 64px - env(safe-area-inset-bottom)); }
-  :global(body.composer-focused) .screen, :global(body.sheet-open) .screen { height: 100dvh; }
+  .screen { height: 100dvh; }
+  .composer-wrap {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    transition: padding-bottom var(--dur-base) var(--ease-standard);
+  }
+  :global(body.composer-focused) .composer-wrap,
+  :global(body.sheet-open) .composer-wrap { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
 
 /* ----- Header --------------------------------------------------------- */
@@ -315,9 +322,7 @@
 .composer-wrap {
   /* Лінії над композитором немає (Prototype; власник 11.09). */
   background: var(--bg);
-  /* Контекст для мобільної пігулки: вона absolute від ВЕРХУ композера,
-     а не від низу вікна. Композер росте разом із текстом, і фіксований
-     відступ від краю рано чи пізно на нього наліз би. */
+  /* Мобільна пілюля артефактів стоїть тут у потоці (№23), не absolute. */
   position: relative;
 }
 /* Пул-9 №3: рядок очікування — спінер/крапки і час поруч. */
@@ -1557,3 +1562,10 @@ a.att-chip:hover { border-color: var(--sage); }
 .rcard-act:hover { color: var(--ink); }
 .rcard-act-sage { background: var(--sage); color: #fff; border-color: var(--sage); }
 .rcard-act-sage:hover { color: #fff; filter: brightness(0.96); }
+
+/* №23 (<768): власний відступ композитора — лише 8 16 12; місце під бар
+   тримає .composer-wrap (вище). Стоїть у кінці файлу, бо базове правило
+   .composer (12 22 20) нижче за медіа-блок угорі. */
+@media (max-width: 767px) {
+  .composer { margin: 8px 16px 12px; }
+}
