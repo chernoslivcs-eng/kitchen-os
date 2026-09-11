@@ -47,7 +47,7 @@ export const MOTION: Record<Extract<IconName, `sys.${string}` | `landing.${strin
   'sys.photo': null, 'sys.text': null, 'sys.open': null, 'sys.opened': null, 'sys.expand': null,
   'sys.panelClose': null, 'sys.login': null, 'sys.menu': null, 'sys.back': null, 'sys.later': null,
   'sys.import': null, 'sys.saved': null, 'sys.share': null, 'sys.reply': null, 'sys.stop': null,
-  'sys.retry': null, 'sys.tradition': null,
+  'sys.retry': null, 'sys.tradition': null, 'sys.gallery': null,
   // Лендінг (етап 9): знаки системної сімʼї з блоку «landing» в icons.ts —
   // у масиві бандла їх немає, тому статичні.
   'landing.opened': null, 'landing.leftover': null, 'landing.recent': null, 'landing.variety': null, 'landing.toPanel': null,

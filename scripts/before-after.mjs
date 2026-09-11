@@ -8,7 +8,7 @@
 //
 // --before  URL сервера «було» (типово http://localhost:5191 — vite із .worktrees/stand-main)
 // --after   URL сервера «стало» (типово http://localhost:5190 — vite із гілки)
-// --name    імʼя пари → docs/superpowers/plans/side-by-side/pack-1/<name>-<theme>.png
+// --name    імʼя пари → docs/superpowers/plans/side-by-side/pack-2/<name>-<theme>.png (--out-dir)
 // --theme   light | dark | both (типово both — окремий файл на тему)
 // --path · --width · --height · --email · --log · --click · --init-storage ·
 // --stub-json · --stub-messages · --stub-rest · --app-sel · --full · --reduce ·
@@ -17,7 +17,8 @@
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
 //           move:X,Y · wait:MS · press:KEY · type:TEXT · focus:SEL · swipe:SEL:up ·
-//           down:SEL · drag:X,Y · up:  (перетягування без відпускання — стан ручки) · blur:
+//           down:SEL · drag:X,Y · up:  (перетягування без відпускання — стан ручки) · blur: ·
+//           dragfile:NAME:MIME · dropfile:NAME:MIME (файл над вікном / кинуто)
 // --video N  замість знімка — запис N секунд (webm на кожну половину, поруч
 //           не клеїться); кроки з --actions виконуються під час запису
 // --label-before / --label-after  підписи половин (типово main · гілка)
@@ -36,7 +37,7 @@ const has = (k) => process.argv.includes(`--${k}`);
 const BEFORE = (arg('before', 'http://localhost:5191')).replace(/\/$/, '');
 const AFTER = (arg('after', 'http://localhost:5190')).replace(/\/$/, '');
 const NAME = arg('name', 'pair');
-const OUT_DIR = arg('out-dir', 'docs/superpowers/plans/side-by-side/pack-1');
+const OUT_DIR = arg('out-dir', 'docs/superpowers/plans/side-by-side/pack-2');
 const WIDTH = Number(arg('width', 1440));
 const HEIGHT = Number(arg('height', WIDTH <= 480 ? 844 : 900));
 const THEMES = arg('theme', 'both') === 'both' ? ['light', 'dark'] : [arg('theme')];
@@ -45,7 +46,7 @@ const LOG = arg('log', '.qa-magic-links.log');
 const SCALE = Number(arg('scale', 2));
 const REDUCE = has('reduce');
 const VIDEO = Number(arg('video', 0));
-const LABELS = { before: arg('label-before', 'Було · main'), after: arg('label-after', 'Стало · fix/v3-pack-1') };
+const LABELS = { before: arg('label-before', 'Було · main'), after: arg('label-after', 'Стало · fix/v3-pack-2') };
 
 for (const u of [BEFORE, AFTER]) {
   const host = new URL(u).hostname;
@@ -75,6 +76,18 @@ async function runActions(page, spec) {
     else if (op === 'drag') { const [dx, dy] = v.split(',').map(Number); await page.mouse.move(dx, dy, { steps: 8 }); }
     else if (op === 'up') await page.mouse.up();
     else if (op === 'blur') await page.evaluate(() => document.activeElement?.blur());
+    // dragfile:NAME:MIME · dropfile:NAME:MIME — файл над вікном / кинуто (D1–D3): справжній
+    // DataTransfer із File, події на window, як робить браузер.
+    else if (op === 'dragfile' || op === 'dropfile') {
+      const [name, mime] = v.split(':');
+      await page.evaluate(([n, m, drop]) => {
+        const dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array(214 * 1024)], n, { type: m }));
+        const ev = (type) => new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, clientX: 600, clientY: 500 });
+        if (drop) { document.body.dispatchEvent(ev('drop')); }
+        else { document.body.dispatchEvent(ev('dragenter')); document.body.dispatchEvent(ev('dragover')); }
+      }, [name, mime, op === 'dropfile']);
+    }
     else if (op === 'swipe') {
       const [sel, dir] = v.split(':'); const bb = await (await page.waitForSelector(sel)).boundingBox();
       const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2; const dy = dir === 'up' ? -80 : 80;

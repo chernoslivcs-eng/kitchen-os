@@ -1,5 +1,7 @@
-/* Крок Д1 (макет v7): картка перетягування. Геометрія й тайминги — з макета
-   «Зона перетягування v7 — картка»; кольори токенами, щоб жили обидві теми. */
+/* FIXES-V3-2 №24 — картка перетягування за Responsive D1: хід «Кухні» карткою
+   card r14 · 14 16 · --sh · рамка 1px dashed sage; кікер 11 dim · заголовок
+   16/600 · чіп роду 30 r8 danger-bg (PDF) + текст 13 muted · наслідок 12 sage.
+   Кольори токенами — живуть обидві теми. */
 
 .wrap {
   display: flex;
@@ -12,37 +14,30 @@
   100% { opacity: 1; transform: none; }
 }
 
-/* Підпис ходу — той самий, що над рештою реплік Кухні. */
-.who {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 10px;
-  color: var(--dim);
-}
-
 .card {
   max-width: 460px;
-  border-radius: 16px;
-  background: var(--line);
-  /* Рамка шавлієва, а не сіра: картка каже «я готова взяти», і це стан
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+  /* Рамка шавлієва пунктиром: картка каже «я готова взяти» — стан
      очікування дії, не звичайний хід. */
-  border: 1px solid var(--sage);
+  border: 1px dashed var(--sage);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 8px;
 }
 
 .kicker {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--sage);
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--dim);
 }
 
 .title {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.25;
   letter-spacing: -0.01em;
   color: var(--ink);
@@ -50,50 +45,42 @@
 
 .row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  min-height: 48px;
 }
 
-/* Прев'ю — той самий квадрат 48×48, що в чіпів вкладень: людина побачить його
-   на тому ж місці за секунду, коли файл справді ляже. */
+/* Чіп роду — 30 r8 danger-bg/danger (PDF у кадрі); тягнеться до курсора. */
 .slot {
-  width: 48px;
-  height: 48px;
+  height: 30px;
+  padding: 0 10px;
   flex: none;
-  border-radius: 10px;
-  border: 1.5px dashed var(--sage);
-  background: var(--sage-bg);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
   display: grid;
   place-items: center;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 10px;
-  color: var(--sage);
-  animation: slot-pulse var(--dur-pulse) ease-in-out infinite;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 11px;
   /* Слот тягнеться до курсора — зсув пише JS, перехід згладжує. */
   transition: transform 160ms var(--ease-enter, cubic-bezier(0, 0, 0.2, 1));
-}
-@keyframes slot-pulse {
-  0%, 100% { border-color: var(--sage); }
-  50%      { border-color: var(--sage); }
 }
 
 .body {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
   color: var(--muted);
 }
 
 .effect {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: 12px;
-  color: var(--dim);
+  color: var(--sage);
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* Картка лишається — вона несе зміст. Йде тільки рух. */
   .wrap { animation: none; }
-  .slot { animation: none; transition: none; }
+  .slot { transition: none; }
 }

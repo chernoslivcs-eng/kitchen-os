@@ -109,7 +109,7 @@ describe('текст картки за родом', () => {
 
   it('кілька файлів рахуються, а не називаються «три»', () => {
     expect(copyFor(st('many', 4), 5).slot).toBe('×4');
-    expect(copyFor(st('many', 4), 5).kicker).toBe('файли · 4 шт');
+    expect(copyFor(st('many', 4), 5).kicker).toBe('файли · 4');
   });
 
   it('на стелі обіцянки дії немає — лише межа', () => {

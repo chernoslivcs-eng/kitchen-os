@@ -5,6 +5,7 @@
 
 import { Toast } from '../../components/ErrorState/Toast';
 import { Icon } from '../../components/Icon/Icon';
+import { Sheet } from '../../components/Sheet/Sheet';
 import { holdBodyFlag } from '../../lib/body-flags';
 import type { IconName } from '../../components/Icon/icons';
 import { ActionState } from '../../components/ActionState/ActionState';
@@ -211,9 +212,12 @@ export function Feed() {
   // список текстом. Скріпку замінює; ті самі pickFiles за ним.
   const [attachOpen, setAttachOpen] = useState(false);
   const [fileAccept, setFileAccept] = useState('image/*,application/pdf,text/plain');
-  function pickVia(accept: string) {
+  // №24 (D3 · 390): «Сфотографувати чек» — камера (capture), решта — без.
+  const [fileCapture, setFileCapture] = useState<'environment' | undefined>(undefined);
+  function pickVia(accept: string, capture?: 'environment') {
     setAttachOpen(false);
     setFileAccept(accept);
+    setFileCapture(capture);
     // accept має оновитись у DOM до кліку.
     window.setTimeout(() => fileInputRef.current?.click(), 0);
   }
@@ -1683,6 +1687,9 @@ export function Feed() {
         )}
 
       </div>
+      {/* №24 · D1: пунктирна шавлієва рамка 1.5 по стрічці, поки файл над
+          вікном — куди б не кинув, ціль одна. */}
+      {drag && <div className={styles['drop-frame']} aria-hidden data-drop-frame />}
 
       <div className={styles['composer-wrap']}>
         {/* Етап 3 (Components · «Стани дії»): рядок стану НАД композитором —
@@ -1735,16 +1742,22 @@ export function Feed() {
             {pending.map((a) => (
               <span
                 key={a.id}
-                className={`${styles['att-chip']} ${leavingAtt.has(a.id) ? styles['att-leave'] : ''}`}
-                title={a.content_type}
+                className={`${styles['att-chip']} ${a.kind === 'image' ? styles['att-chip-image'] : ''} ${leavingAtt.has(a.id) ? styles['att-leave'] : ''}`}
+                title={a.name ?? a.content_type}
+                data-att-chip={a.kind}
               >
+                {/* №24 · D3: тип · назва · розмір; картинка — квадрат-превʼю без назви. */}
                 {a.kind === 'image' ? (
                   <img src={`/v1/attachments/${a.id}/bytes`} alt="" className={styles['att-thumb']} />
                 ) : (
-                  <span className={styles['att-ext']}>{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                  <>
+                    <span className={`${styles['att-ext']} ${a.kind === 'pdf' ? styles['att-ext-pdf'] : ''}`}>{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                    <span className={styles['att-text']}>
+                      <span className={styles['att-name']}>{a.name ?? (a.kind === 'pdf' ? 'чек.pdf' : 'список.txt')}</span>
+                      <span className={styles['att-meta']}>{a.kind} · {formatBytes(a.bytes)}</span>
+                    </span>
+                  </>
                 )}
-                {/* Пул-6 №4: назва файла, ellipsis — «чек-сільпо.jpg». */}
-                {a.name && <span className={styles['att-name']}>{a.name}</span>}
                 <button
                   type="button"
                   className={styles['att-remove']}
@@ -1764,13 +1777,15 @@ export function Feed() {
             всередині фрейму справа; при наборі 🎙 морфить у ↑, 📎 лишається.
             «Обери інструмент» стало «запиши» — ввід виглядає як рядок журналу. */}
         <form
-          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''} ${drag ? styles['composer-armed'] : ''}`}
+          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''} ${drag ? styles['composer-armed'] : ''} ${drag?.long ? styles['composer-armed-long'] : ''}`}
           onSubmit={send}
+          data-drag={drag ? (drag.long ? 'long' : 'over') : undefined}
         >
           <input
             ref={fileInputRef}
             type="file"
             accept={fileAccept}
+            capture={fileCapture}
             multiple
             style={{ display: 'none' }}
             onChange={(e) => pickFiles(e.target.files)}
@@ -1780,7 +1795,7 @@ export function Feed() {
               onClick={() => setAttachOpen((v) => !v)} disabled={uploading} aria-label="Додати вкладення" aria-expanded={attachOpen} data-attach-plus>
               <Icon name="sys.add" size={20} inherit decorative />
             </button>
-            {attachOpen && (
+            {attachOpen && headForm !== 'narrow' && (
               <div className={styles['attach-menu']} role="menu" data-attach-menu>
                 <button type="button" role="menuitem" className={styles['attach-item']} onClick={() => pickVia('application/pdf,image/*')}>
                   <Icon name="sys.receipt" size={16} inherit decorative /><span>Чек · PDF або фото</span>
@@ -1793,6 +1808,26 @@ export function Feed() {
                 </button>
                 <span className={styles['attach-hint']}>Або просто перетягни файл у розмову</span>
               </div>
+            )}
+            {/* №24 · D3 на 390 (Responsive «На 390 drag-n-drop немає»): «+» відкриває
+                аркуш джерел — камера (чек або стіл) · галерея · файл. Один приймач. */}
+            {attachOpen && headForm === 'narrow' && (
+              <Sheet onClose={() => setAttachOpen(false)} ariaLabel="Джерела">
+                <div className={styles['source-sheet']} data-source-sheet>
+                  <button type="button" className={styles['source-row']} onClick={() => pickVia('image/*', 'environment')}>
+                    <span className={styles['source-icon']}><Icon name="sys.photo" size={18} inherit decorative /></span>
+                    <span className={styles['source-text']}><span className={styles['source-title']}>Сфотографувати чек</span><span className={styles['source-sub']}>або продукти на столі</span></span>
+                  </button>
+                  <button type="button" className={styles['source-row']} onClick={() => pickVia('image/*')}>
+                    <span className={styles['source-icon']}><Icon name="sys.gallery" size={18} inherit decorative /></span>
+                    <span className={styles['source-text']}><span className={styles['source-title']}>Фото з галереї</span></span>
+                  </button>
+                  <button type="button" className={styles['source-row']} onClick={() => pickVia('application/pdf,text/plain')}>
+                    <span className={styles['source-icon']}><Icon name="sys.text" size={18} inherit decorative /></span>
+                    <span className={styles['source-text']}><span className={styles['source-title']}>Файл</span><span className={styles['source-sub']}>PDF чека з e-mail, скрин замовлення</span></span>
+                  </button>
+                </div>
+              </Sheet>
             )}
           </span>
           {/* Пул-7 №3: під час запису — таймер + жива хвиля на ЛІВОМУ краю

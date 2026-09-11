@@ -21,6 +21,12 @@ interface Copy {
 }
 
 export function copyFor(d: DragState, max: number): Copy {
+  // Копі за родом файла — Responsive D2 (текст кадру: «pdf → «Зараз прийму»,
+  // фото → «Зараз подивлюсь · розберу, що видно», кілька → «Зараз розберу ·
+  // візьму всі за раз», на стелі → «Більше 5 за раз не візьму · надішли ці —
+  // і принось наступні»»); «у комору · …» — наслідок (D1). Стрілки «→» кадру
+  // нема: канон 1.5 забороняє гліфи-символи в тексті, а знака arrow-right у
+  // словнику нема — наслідок читається кольором (sage) і місцем.
   switch (d.kind) {
     case 'pdf':
       return {
@@ -35,12 +41,12 @@ export function copyFor(d: DragState, max: number): Copy {
         kicker: 'фото',
         title: 'Зараз подивлюсь',
         slot: 'JPG',
-        body: 'Розберу, що видно на фото, і додам у комору.',
+        body: 'Розберу, що видно.',
         effect: 'у комору · що видно на фото',
       };
     case 'many':
       return {
-        kicker: `файли · ${d.count} шт`,
+        kicker: `файли · ${d.count}`,
         title: 'Зараз розберу',
         slot: `×${d.count}`,
         body: 'Візьму всі за раз.',
@@ -75,9 +81,10 @@ export function DropCard({ drag, max }: { drag: DragState; max: number }) {
     el.style.transform = `translate(${dx}px, ${dy}px)`;
   }, [drag.x, drag.y]);
 
+  // Хід «Кухні» — без службового рядка над ним (6b-5, Prototype: над
+  // репліками підпису немає; капс знято, Р20) — кадр D1 ще малює «КУХНЯ».
   return (
-    <div className={styles.wrap} data-drop-card>
-      <div className={styles.who}>КУХНЯ</div>
+    <div className={styles.wrap} data-drop-card data-drop-long={drag.long || undefined}>
       <div className={styles.card}>
         <span className={styles.kicker}>{c.kicker}</span>
         {/* Після чотирьох секунд утримання заголовок міняється — це про

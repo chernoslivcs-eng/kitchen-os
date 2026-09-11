@@ -28,7 +28,7 @@ import {
 // Лендінг (блок «landing» у кінці мапи) — окремим рядком, щоб не чіпати імпорт вище.
 import { PackageOpen, History, List, Shuffle, ChevronLeft } from 'lucide-react';
 // Sent · Invite (Auth.dc.html) — теж окремим рядком.
-import { Send, MailCheck, UserRoundX } from 'lucide-react';
+import { Send, MailCheck, UserRoundX, Image } from 'lucide-react';
 
 export type Family = 'system' | 'zones' | 'products' | 'cooking' | 'live';
 
@@ -60,6 +60,8 @@ export const ICONS = {
   // 6b-5: меню вкладень за «+» у композиторі (Prototype): чек · фото полиці · список текстом.
   'sys.photo':     { glyph: Camera,            label: 'Фото полиці',   family: 'system' },
   'sys.text':      { glyph: FileText,          label: 'Список текстом', family: 'system' },
+  // Пакет 2, №24 (Responsive «390 · аркуш джерел»): галерея — `image`.
+  'sys.gallery':   { glyph: Image,             label: 'Фото з галереї', family: 'system' },
   'sys.voice':     { glyph: Mic,               label: 'Голос',         family: 'system' },
   'sys.send':      { glyph: ArrowUp,           label: 'Надіслати',     family: 'system' },
   'sys.attach':    { glyph: Paperclip,         label: 'Вкласти',       family: 'system' },
