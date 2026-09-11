@@ -1,140 +1,82 @@
+/* Журнал — крок 4 things-v3, Screens «Журнал · 1440»: шапка Рецептів,
+   картка «За тиждень» 12/16 r12, групи днів (підпис 13/500 muted + картка
+   r14 padding 0 16), рядок 64 з волосиною: коло 40 · назва 15/600 · мета 12
+   muted · вердикт курсивом · «Знову» контурною пігулкою 34. */
 .screen {
   min-height: 100dvh;
   background: var(--bg);
   display: flex;
   flex-direction: column;
 }
-.head {
-  padding: 22px 22px 8px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  /* Папіркат: «Журнал11 ГОТУВАНЬ» злипався — гарантований зазор незалежно
-     від ширини обгортки. */
-  gap: 16px;
-}
-.head .meta { margin-left: auto; white-space: nowrap; }
-.title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 22px;
-  letter-spacing: var(--tracking-tight);
-  color: var(--ink);
-}
-.meta {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
-}
 .body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 22px 20px;
+  padding: 0 16px 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 20px;
 }
-.empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--muted);
+@media (min-width: 768px) { .body { padding: 0 32px 24px; } }
+
+.week {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px; border-radius: 12px;
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
 }
-.empty h3 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 20px;
-  color: var(--ink);
-  margin-bottom: 8px;
-}
-.day {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
-  margin: 18px 0 6px;
-}
-.day:first-child { margin-top: 4px; }
-.card {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 14px 12px;
-  margin: 0 -12px;
+.week-icon { flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--sage-bg); color: var(--sage); display: grid; place-items: center; }
+.week-text { font-size: 14px; line-height: 1.45; color: var(--ink); }
+.week-text b { font-weight: 600; }
+.week-tail { color: var(--muted); }
+
+.group { display: flex; flex-direction: column; gap: 6px; }
+.day { font-size: 13px; font-weight: 500; color: var(--muted); padding-left: 2px; }
+.card { background: var(--card); border-radius: 14px; box-shadow: var(--sh-a), var(--sh-b); padding: 0 16px; }
+
+.row {
+  display: flex; align-items: center; gap: 14px;
+  min-height: 64px;
   border-bottom: 1px solid var(--line);
-  background: transparent;
-  border-left: 0; border-right: 0; border-top: 0;
-  width: calc(100% + 24px);
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  border-radius: var(--r);
-  transition: background var(--dur-fast) var(--ease-standard);
 }
-.card:last-child { border-bottom: 0; }
-@media (hover: hover) {
-  .card:hover { background: var(--line); }
+.row:last-child { border-bottom: 0; }
+.row-undone { opacity: .5; }
+.row-main {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 0; border: 0; background: transparent; text-align: left;
+  font: inherit; color: inherit; cursor: pointer;
 }
-.icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 18px;
+.mark { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+.mark-done { background: var(--sage-bg); color: var(--sage); }
+.mark-undone { border: 1px solid var(--line2); color: var(--muted); }
+.photo { flex: none; width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
+.info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dish { font-size: 15px; font-weight: 600; color: var(--ink); }
+.dish-undone { text-decoration: line-through; }
+.sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.stars { display: inline-flex; gap: 1px; color: var(--amber); vertical-align: -1px; }
+.star-on svg { fill: currentColor; }
+.star-off { opacity: .3; }
+.verdict { font-size: 13px; color: var(--muted); font-style: italic; }
+.again {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 12px;
+  border: 1px solid var(--line2); border-radius: var(--r-pill); background: transparent;
+  color: var(--muted); font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-standard);
 }
-.icon.undone {
-  background: transparent;
+.again:hover { color: var(--ink); }
+
+.empty {
   border: 1px dashed var(--line2);
+  border-radius: 14px;
+  padding: 20px;
   color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
 }
-.info {
-  flex: 1;
-  min-width: 0;
-}
-.dish {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
-  color: var(--ink);
-  margin-bottom: 3px;
-  letter-spacing: var(--tracking-tight);
-}
-.dish.undone {
-  color: var(--muted);
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
-}
-.sub {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
-}
-.stat {
-  color: var(--sage);
-}
-.stat.warn {
-  color: var(--amber);
-}
+.empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 6px; }
 
-
-/* Десктоп-хендоф: контент читається як продовження навігації — починається
-   на 232+36px від краю, а не плаває по центру з провалом ~400px (крок 1
-   черги design-audit-desktop). Діє тільки коли сайдбар змонтований. */
-@media (min-width: 1024px) {
-  :global(body.with-sidebar) .head,
-  :global(body.with-sidebar) .body,
-  :global(body.with-sidebar) .timeline,
-  :global(body.with-sidebar) .composer-wrap {
-    margin-left: 36px;
-    margin-right: auto;
-  }
+@media (max-width: 767px) {
+  .again { width: 34px; padding: 0; justify-content: center; }
+  .again-text { display: none; }
 }
-
-/* Незаповнена зірка оцінки — той самий знак, тихіший. Було `opacity: .3` на
- * рядку з гліфів; тепер стан несе клас, а не другий рядок символів. */
-.star-off { opacity: .28; }

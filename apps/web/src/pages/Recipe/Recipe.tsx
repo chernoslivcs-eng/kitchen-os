@@ -1,14 +1,20 @@
-// Екран рецепта — 09 з брифу. Отримує рецепт через react-router state
-// (з попереднього «Рецепт →» на пропозиції). Якщо стан порожній (F5),
-// показуємо повідомлення й пропонуємо повернутись у стрічку.
+// Екран рецепта — адресна сторінка (F5, закладки). Робота з рецептом живе в
+// розмові (правка №10), тут — «Обговорити в чаті», «Поділитись», закладка,
+// звірка складу з коморою і «Готуємо».
+//
+// Крок 4 things-v3 — форма за Screens «Рецепт · 1440» / «Рецепт · 390»:
+// шапка пігулками (← Рецепти · Збережено/Колись · Поділитись · Обговорити в
+// чаті), чіп стану в роді + h1 display + рядок «час · ≈ ккал · пісне ·
+// готував N», картка «Кроки · N» (галочка шавлією зробленому, активний —
+// підкладка bg з таймером), праворуч «Склад · N» із порційником і крапками
+// роду (є / відкрите / бракує) та «Готуємо» 52 чорнилом. На 390 — те саме
+// однією колонкою, «Готуємо» липка знизу.
 
 import { useEffect, useState } from 'react';
 import { track } from '../../lib/track';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import { api, type Recipe, type RecipeNutritionInfo } from '../../api';
-import { formatNutritionLine, formatModelEstimate } from '../../lib/nutrition';
+import { api, type Recipe, type RecipeNutritionInfo, type SavedRecipe } from '../../api';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
@@ -16,9 +22,26 @@ import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type Ba
 import styles from './Recipe.module.css';
 import { Icon } from '../../components/Icon/Icon';
 import { useCookStore } from '../../store/cook';
+import { statusWord } from '../Recipes/library';
 
 interface RecipeLocationState {
   recipe?: Recipe;
+}
+
+/** «≈ 540 ккал · Б 22 · Ж 18 · В 68 · на порцію» — з каталогу, коли є; інакше оцінка моделі. */
+export function kcalLine(calc: RecipeNutritionInfo | null, nu: Recipe['nu'] | undefined): string | null {
+  if (calc) {
+    const n = calc.per_serving;
+    return `${calc.approx ? '≈ ' : ''}${n.kcal} ккал · Б ${Math.round(n.protein)} · Ж ${Math.round(n.fat)} · В ${Math.round(n.carbs)} · на порцію`;
+  }
+  if (nu?.kcal) return `≈ ${nu.kcal} ккал · Б ${Math.round(nu.p)} · Ж ${Math.round(nu.f)} · В ${Math.round(nu.c)} · на порцію`;
+  return null;
+}
+
+export function formatSeconds(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
 export function RecipePage() {
@@ -33,12 +56,19 @@ export function RecipePage() {
   const [fetchedSaved, setFetchedSaved] = useState<string | null>(null);
   // Раунд 5, крок Н1: БЖВ з каталогу — лише для збереженого рецепта (є адреса).
   const [calc, setCalc] = useState<RecipeNutritionInfo | null>(null);
+  // Стан проти комори, «готував N», «використає» — рахує сервер для списку
+  // бібліотеки; беремо той самий рядок, щоб чіп на сторінці не розходився з
+  // карткою в бібліотеці.
+  const [lib, setLib] = useState<SavedRecipe | null>(null);
   const [notFound, setNotFound] = useState(false);
   useEffect(() => {
     if (!id) return;
     api.savedRecipes.get(id)
       .then((r) => { setFetched(r.recipe); setFetchedSaved(r.saved_at); setCalc(r.nutrition_calc ?? null); })
       .catch(() => setNotFound(true));
+    api.savedRecipes.list()
+      .then((r) => setLib(r.recipes.find((x) => x.id === id) ?? null))
+      .catch(() => {/* тихо: без рядка бібліотеки чіп рахується зі складу */});
   }, [id]);
   const baseRecipe = (location.state as RecipeLocationState | null)?.recipe ?? fetched ?? null;
   // Порційник: детерміноване множення кількостей (0 токенів); складне — чатом.
@@ -56,9 +86,6 @@ export function RecipePage() {
   useEffect(() => {
     // Підтягнемо алергії з профілю, щоб позначити відповідні інгредієнти.
     // «Позначка, а не заборона» — рецепт лишається доступним, ми тільки попереджаємо.
-    // Крок 11: межа власника — індекс із полів no/ban (label — слово людини,
-    // allergy — з «Мені не можна»). П5-В5: їдців дому більше немає, отже це
-    // єдине джерело міток; другий рубіж поверх промахів моделі лишається.
     api.profileV2.get()
       .then(({ veto }) => {
         const rows = veto ?? [];
@@ -67,13 +94,11 @@ export function RecipePage() {
       })
       .catch(() => {/* silent */});
     // Мапа id партії → людський label: модель показує на комору через `ing.p`,
-    // а рендер має показати назву, не uuid. Без цього алергічна мітка теж
-    // мертва: flagsFor читає рядок «[uuid…]» і нічому не збігається.
+    // а рендер має показати назву, не uuid.
     api.pantry()
       .then(({ batches, products }) => {
         setBatchLabels(new Map(batches.map((b) => [b.id, b.label])));
         setStepLabels(stepLabelsFrom(batches, products));
-        // ◔ відкрито — чип із кіта: видно, що інгредієнт уже почато.
         setOpenedIds(new Set(batches.filter((b) => b.state === 'opened').map((b) => b.id)));
       })
       .catch(() => {/* silent */});
@@ -87,14 +112,13 @@ export function RecipePage() {
     setSaving(true);
     try {
       if (id) {
-        // Чернетка вже має адресу — «на потім» це позначка, не другий рядок.
         await api.savedRecipes.setSaved(id, true);
         setSavedId(id);
       } else {
         const r = await api.savedRecipes.save(recipe);
         setSavedId(r.id);
       }
-    } catch (err) {
+    } catch {
       alert('Не вдалося зберегти рецепт. Спробуй ще раз.');
     } finally { setSaving(false); }
   }
@@ -102,7 +126,6 @@ export function RecipePage() {
   function flagsFor(ingName: string): { allergy: { label: string; who: string | null } | null; anti: string | null } {
     const n = ingName.toLowerCase();
     const allergy = allergies.find((a) => a.label && n.includes(a.label.toLowerCase())) ?? null;
-    // АНТИ — грубий збіг по слову: «не люблю кінзу» помітить «кінза» через корінь «кінз».
     const anti = antis.find((a) => {
       const words = a.toLowerCase().split(/[\s,]+/).filter((w) => w.length > 3);
       return words.some((w) => n.includes(w.slice(0, Math.max(4, w.length - 2))));
@@ -111,10 +134,7 @@ export function RecipePage() {
   }
 
   if (!recipe) {
-    if (id && !notFound) {
-      // Адреса є, дані летять — не лякаємо «не знайдено» на півсекунди.
-      return <div className={styles.screen} />;
-    }
+    if (id && !notFound) return <div className={styles.screen} />;
     return (
       <div className={styles.screen}>
         <div className={styles.info}>
@@ -133,174 +153,150 @@ export function RecipePage() {
     setDoneSteps(next);
   };
 
-  // Р12: у шапці — час і ОЦІНКА моделі, підписана як оцінка. Розрахунок з
-  // каталогу стоїть під інгредієнтами і підписаний як з каталогу. Два числа
-  // на одній сторінці — два різні джерела, і тепер обидва так і кажуть.
-  const summary = [
-    recipe.tm ? formatDuration(recipe.tm, 'caps') : null,
-    recipe.nu?.kcal ? formatModelEstimate(recipe.nu) : null,
-  ].filter(Boolean).join(' · ');
   const sv = recipe.sv ?? 1;
-  const stepBtn: React.CSSProperties = {
-    width: 32, height: 32, borderRadius: 10, border: '1px solid var(--line2)',
-    background: 'transparent', color: 'var(--ink)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
+  const total = recipe.ing.length;
+  const have = recipe.ing.filter((ing) => !!ing.p).length;
+  // Чіп стану в роді: слово з бібліотеки (сервер), «N з M» — зі складу.
+  const status = lib ? statusWord(lib) : statusWord({ status: have === total ? 'ready' : total - have <= 2 ? 'near' : 'far' });
+  const kcal = kcalLine(calc, recipe.nu);
+  const cooked = lib?.cooked_count ?? 0;
+  const discuss = async () => {
+    if (!id) return;
+    try {
+      const { session } = await api.session.fresh(id);
+      navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
+    } catch {/* тихо */}
   };
+  const share = () => navigate('/share', { state: { recipe, recipeId: id ?? savedId } });
 
-  return (
-    <div className={styles.screen}>
-      <div className={styles.head}>
-        <button className={styles.iconbtn} onClick={() => navigate(-1)} aria-label="Назад"><Icon name="sys.back" size={18} inherit /></button>
-        <MonoLabel className={styles['head-meta']}>РЕЦЕПТ · КРОК {Math.min(currentStep + 1, recipe.st.length)}/{recipe.st.length}</MonoLabel>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {/* Правка №10: екран — тонка адресна сторінка (F5/закладки); робота
-              з рецептом живе в розмові. */}
-          {id && (
-            <Button
-              variant="secondary"
-              onClick={async () => {
-                try {
-                  const { session } = await api.session.fresh(id);
-                  navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
-                } catch {/* тихо */}
-              }}
+  const stepsCard = (
+    <div className={`${styles.card} ${styles['card-steps']}`} data-testid="steps">
+      <div className={styles['card-head']}><Icon name="cook.steps" size={16} inherit decorative />Кроки · {recipe.st.length}</div>
+      {recipe.st.map((step, i) => {
+        const done = doneSteps.has(i);
+        const current = i === currentStep && !done;
+        return (
+          <div key={i} className={`${styles.step} ${current ? styles['step-current'] : ''}`} data-step-state={done ? 'done' : current ? 'current' : 'pending'}>
+            <button
+              type="button"
+              className={`${styles['step-num']} ${done ? styles['step-done'] : current ? styles['step-now'] : ''}`}
+              onClick={() => toggleDone(i)}
+              aria-label={done ? 'Скасувати виконання' : 'Позначити готовим'}
             >
-              Обговорити в чаті
-            </Button>
-          )}
-          <Button
-            variant="secondary"
-            onClick={() => cookOpen({ recipe: recipe!, recipeId: id })}
-          >
-            Готувати →
-          </Button>
-        </div>
-      </div>
-
-      <div className={styles.body}>
-        <h1 className={styles.title}>{recipe.t}</h1>
-        {summary && <div className={styles.summary}>{summary}</div>}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-          <button type="button" style={stepBtn} aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}>−</button>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, minWidth: 18, textAlign: 'center', color: 'var(--ink)' }}>{sv}</span>
-          <button type="button" style={stepBtn} aria-label="Більше порцій" disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}>+</button>
-          <span style={{ fontSize: 13, color: 'var(--dim)' }}>
-            {plural(sv, ['порція', 'порції', 'порцій'])}{baseRecipe && sv !== (baseRecipe.sv ?? 1) ? ` · база ${baseRecipe.sv}` : ''}
-          </span>
-        </div>
-        {recipe.d && <div className={styles.desc}>{recipe.d}</div>}
-        {recipe.rk && <div className={styles.rk}>{recipe.rk}</div>}
-
-        <div className={styles.section}>
-          <MonoLabel>ІНГРЕДІЄНТИ</MonoLabel>
-          {recipe.ing.map((ing, i) => {
-            const name = resolveIngName(ing, batchLabels);
-            const { allergy, anti } = flagsFor(name);
-            const opened = !!ing.p && openedIds.has(ing.p);
-            return (
-              <div key={i} className={styles.ing}>
-                <span className={`${styles['ing-mark']} ${ing.p ? '' : styles.missing}`}>
-                </span>
-                <span className={`${styles['ing-name']} ${ing.p ? '' : styles.missing}`}>
-                  {name}
-                  {allergy && (
-                    <span className={styles['ing-chip']} style={{
-                      background: 'var(--danger-bg)', border: '1px solid var(--danger-line)', color: 'var(--danger)',
-                    }}>
-                      ⚠ {allergy.who ? `АЛЕРГІЯ ${allergy.who}` : allergy.label}
-                    </span>
-                  )}
-                  {!allergy && anti && (
-                    <span className={styles['ing-chip']} style={{
-                      background: 'var(--plum-bg)', border: '1px solid var(--plum-line)', color: 'var(--plum)',
-                    }}>
-                      АНТИ
-                    </span>
-                  )}
-                  {opened && (
-                    <span className={styles['ing-chip']} style={{
-                      background: 'var(--amber-bg)', border: '1px solid var(--amber-line)', color: 'var(--amber)',
-                    }}>
-                      ◔ відкрито
-                    </span>
-                  )}
-                </span>
-                {ing.v != null && ing.u && (
-                  <span className={styles['ing-qty']}>{formatQty(ing.v, ing.u)}</span>
-                )}
-              </div>
-            );
-          })}
-          {calc && (
-            <div className={styles.summary} data-testid="nutrition-calc" style={{ marginTop: 6 }}>
-              {formatNutritionLine(calc)}
-            </div>
-          )}
-        </div>
-
-        <div className={styles.section}>
-          <MonoLabel>КРОКИ</MonoLabel>
-          <div className={styles.steps}>
-            {recipe.st.map((step, i) => {
-              const done = doneSteps.has(i);
-              const current = i === currentStep && !done;
-              return (
-                <div key={i} className={styles.step}>
-                  <div className={styles['step-rail']}>
-                    <button
-                      className={`${styles['step-num']} ${done ? styles.done : current ? styles.current : styles.pending}`}
-                      onClick={() => toggleDone(i)}
-                      aria-label={done ? 'Скасувати виконання' : 'Позначити готовим'}
-                    >
-                      {done ? <Icon name="sys.done" size={12} inherit decorative /> : i + 1}
-                    </button>
-                    <div className={styles['step-thread']} />
-                  </div>
-                  <div className={styles['step-body']}>
-                    <div className={`${styles['step-title']} ${done ? styles.done : current ? '' : styles.pending}`}>
-                      {step.t}. {renderStepContent(step.c, recipe.ing, stepLabels)}
-                    </div>
-                    {!!step.s && (
-                      <button className={styles['step-timer']} onClick={() => cookOpen({ recipe: recipe!, startAt: i, recipeId: id })}>
-                        ▷ {formatSeconds(step.s)}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+              {done ? <Icon name="sys.done" size={16} inherit decorative /> : i + 1}
+            </button>
+            <span className={`${styles['step-text']} ${done ? styles['step-text-done'] : ''}`}>
+              <b>{step.t}.</b> {renderStepContent(step.c, recipe.ing, stepLabels)}
+            </span>
+            {!!step.s && (
+              <button type="button" className={styles['step-timer']} onClick={() => cookOpen({ recipe: recipe!, startAt: i, recipeId: id })}>
+                <Icon name="cook.timer" size={12} inherit decorative />{formatSeconds(step.s)}
+              </button>
+            )}
           </div>
-        </div>
-      </div>
+        );
+      })}
+    </div>
+  );
 
-      <div className={styles.foot} style={{ display: 'flex', gap: 10 }}>
-        {/* QA-6: рецепт існував тільки як побічний ефект cook-run — не приготував,
-            зник назавжди. Тепер його можна лишити в бібліотеці, і він сам
-            підсвітиться, коли в коморі зʼявиться все потрібне. */}
-        <Button
-          variant="secondary"
-          size="lg"
-          onClick={saveForLater}
-          disabled={savedId !== null || saving}
-        >
-          <span key={savedId ? 'on' : 'off'} className={styles['save-tick']}>{savedId
-            ? <><Icon name="sys.done" size={16} inherit decorative /> Збережено</>
-            : saving ? '…'
-              : <><Icon name="sys.later" size={16} inherit decorative /> Колись</>}</span>
-        </Button>
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={() => cookOpen({ recipe: recipe!, startAt: currentStep, recipeId: id })}
-        >
-          Готуємо
-        </Button>
+  const ingCard = (
+    <div className={`${styles.card} ${styles['card-ing']}`} data-testid="ingredients">
+      <div className={styles['card-head']}>
+        <Icon name="cook.missing" size={16} inherit decorative />Склад · {total}
+        <span className={styles['head-gap']} />
+        {/* Порційник (Screens): пілюля на bg «− 2 порції +». */}
+        <span className={styles.portions} role="group" aria-label="Порції">
+          <button type="button" aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}><Icon name="live.nothing" size={12} inherit decorative /></button>
+          <span className={styles['portions-n']}>{sv} {plural(sv, ['порція', 'порції', 'порцій'])}</span>
+          <button type="button" aria-label="Більше порцій" disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}><Icon name="sys.add" size={12} inherit decorative /></button>
+        </span>
+      </div>
+      {recipe.ing.map((ing, i) => {
+        const name = resolveIngName(ing, batchLabels);
+        const { allergy, anti } = flagsFor(name);
+        const opened = !!ing.p && openedIds.has(ing.p);
+        const dot = !ing.p ? 'missing' : opened ? 'opened' : 'have';
+        return (
+          <div key={i} className={styles.ing} data-ing-state={dot}>
+            <span className={`${styles.dot} ${styles[`dot-${dot}`]}`} aria-hidden />
+            <span className={styles['ing-name']}>
+              <span className={styles['ing-text']}>{name}</span>
+              {allergy && <span className={`${styles.tag} ${styles['tag-danger']}`}>алергія{allergy.who ? ` · ${allergy.who}` : ''}</span>}
+              {!allergy && anti && <span className={`${styles.tag} ${styles['tag-plum']}`}>не люблю</span>}
+              {opened && <span className={`${styles.tag} ${styles['tag-amber']}`}>відкрито</span>}
+            </span>
+            {ing.v != null && ing.u && <span className={styles['ing-qty']}>{formatQty(ing.v, ing.u)}</span>}
+          </div>
+        );
+      })}
+      <div className={styles.legend}>
+        <span className={`${styles.dot} ${styles['dot-have']}`} aria-hidden />є вдома
+        <span className={`${styles.dot} ${styles['dot-opened']}`} aria-hidden />відкрите
+        <span className={`${styles.dot} ${styles['dot-missing']}`} aria-hidden />бракує
       </div>
     </div>
   );
-}
 
-function formatSeconds(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${String(sec).padStart(2, '0')}`;
+  const cookBtn = (
+    <button type="button" className={styles.cook} onClick={() => cookOpen({ recipe: recipe!, startAt: currentStep, recipeId: id })} data-cook>
+      <Icon name="cook.go" size={18} inherit decorative />Готуємо
+    </button>
+  );
+
+  return (
+    <div className={styles.screen}>
+      <header className={styles.head}>
+        <button type="button" className={`${styles.pill} ${styles['pill-back']}`} onClick={() => navigate(-1)} aria-label="Назад до рецептів">
+          <Icon name="sys.back" size={16} inherit decorative /><span className={styles['pill-text']}>Рецепти</span>
+        </button>
+        <span className={styles['head-gap']} />
+        {/* «Збережено» шавлією (bookmark-check) або «Колись» (підтверджене
+            відхилення: закладка на потім). */}
+        <button type="button" className={`${styles.pill} ${savedId ? styles['pill-saved'] : ''}`} onClick={saveForLater} disabled={savedId !== null || saving} aria-label={savedId ? 'Збережено' : 'Колись'} data-save>
+          <Icon name={savedId ? 'sys.saved' : 'sys.later'} size={16} inherit decorative /><span className={styles['pill-text']}>{savedId ? 'Збережено' : saving ? '…' : 'Колись'}</span>
+        </button>
+        <button type="button" className={styles.pill} onClick={share} aria-label="Поділитись" data-share>
+          <Icon name="sys.share" size={16} inherit decorative /><span className={styles['pill-text']}>Поділитись</span>
+        </button>
+        {id && (
+          <button type="button" className={styles.pill} onClick={() => void discuss()} aria-label="Обговорити в чаті" data-discuss>
+            <Icon name="sys.reply" size={16} inherit decorative /><span className={styles['pill-text']}>Обговорити в чаті</span>
+          </button>
+        )}
+      </header>
+
+      <div className={styles.body}>
+        <div className={styles.main}>
+          <div className={styles.lead}>
+            <div className={styles.chips}>
+              <span className={`${styles.chip} ${styles[`chip-${status.tone}`]}`} data-status={status.tone}>
+                <span className={styles['chip-dot']} aria-hidden />{status.text} · {have} з {total}
+              </span>
+              {lib?.rescues?.length ? (
+                <span className={`${styles.chip} ${styles['chip-amber']}`}><Icon name="live.burning" size={12} inherit decorative />{lib.rescues.join(' · ')}</span>
+              ) : null}
+            </div>
+            <h1 className={`${styles.title} t-display`}>{recipe.t}</h1>
+            <div className={styles.meta}>
+              {recipe.tm ? <span className={styles['meta-item']}><Icon name="cook.time" size={16} inherit decorative />{formatDuration(recipe.tm)}</span> : null}
+              {kcal && <span data-testid="nutrition-calc">{kcal}</span>}
+              {cooked > 0 && <span className={styles['meta-item']}><Icon name="cook.done" size={12} inherit decorative />готував {cooked} {plural(cooked, ['раз', 'рази', 'разів'])}</span>}
+            </div>
+            {recipe.d && <p className={styles.desc}>{recipe.d}</p>}
+            {recipe.rk && <p className={styles.rk}>{recipe.rk}</p>}
+          </div>
+          {stepsCard}
+        </div>
+        {/* На 390 колонки розпадаються (display: contents), порядок — лід ·
+            склад · кроки · «Готуємо» липка знизу (кадр «Рецепт · 390»). */}
+        <aside className={styles.aside}>
+          {ingCard}
+          <div className={styles['cook-wrap']}>
+            {cookBtn}
+            <span className={styles['cook-hint']}>Cook Mode веде по кроках з таймерами; після — списує з комори те, що пішло в страву.</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
 }

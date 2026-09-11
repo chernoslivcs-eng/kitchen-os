@@ -77,37 +77,51 @@
 .body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 22px 20px;
+  /* Screens «Комора · збірка»: між рядами 14; поля 24/28 на 1440, 16 на 390. */
+  padding: 0 22px 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
+}
+.meta-tail { white-space: nowrap; }
+@media (max-width: 767px) {
+  .body { padding: 0 16px 20px; gap: 12px; }
+  /* Кадр «мобайл» дає лише число — хвіст «прострочено · чек» ховається. */
+  .meta-tail { display: none; }
 }
 /* Хедер зони — як у бандлі («Комора · збірка», «Комора · мобайл»): тло
  * чорнило, текст bg, 44 px, padding 0 16, знак 16, назва 14/600, лічильник
  * 12/400. Етап 6a читав «чорнило» як колір тексту — пара «кадр · рендер»
  * показала заливку. Лічильник на чорнилі: бандл дає opacity .6 — у темній це
  * 4.4:1; .7 дає 8.1 світла / 6.1 темна, тому .7. */
-/* Зона — картка (card, r14) на полотні bg, як у бандлі; хедер усередині. */
-.zone-card { background: var(--card); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+/* Зона — картка (card, r14, тінь) на полотні bg, як у бандлі: відступи
+   0 18 4 (390 — 0 16 4), хедер усередині на всю ширину. */
+.zone-card { background: var(--card); border-radius: 14px; overflow: hidden; padding: 0 18px 4px; box-shadow: var(--sh-a), var(--sh-b); }
 .section-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   height: 44px;
-  padding: 0 16px;
+  margin: 0 -18px 8px;
+  padding: 0 18px;
   background: var(--ink);
   color: var(--bg);
 }
 .section-name { font-size: 14px; font-weight: 600; }
+/* Колонки зон з чергуванням (Screens): проміжок 14; на 390 — підряд, 12. */
+.zone-cols { display: flex; gap: 14px; align-items: flex-start; }
+.zone-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+/* Рядок 48 (Components «ROW ANATOMY»; Screens 390 — теж 48): відступ 4/0,
+   волосина line знизу, крім останнього. */
 .row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 12px;
-  margin: 0 -12px;
+  min-height: 48px;
+  padding: 4px 0;
+  margin: 0;
   background: transparent;
   border-bottom: 1px solid var(--line);
-  border-radius: var(--r);
   transition: background var(--dur-fast) var(--ease-standard);
 }
 .row:last-child { border-bottom: 0; }
@@ -127,8 +141,8 @@
   /* Клікабельний увесь рядок, не лише текст: кнопка тягнеться на висоту
      рядка, відступи рядка — її, а не контейнера (власник, 11.09). */
   align-self: stretch;
-  padding: 11px 0 11px 12px;
-  margin: -11px 0 -11px -12px;
+  padding: 0;
+  margin: 0;
   overflow: hidden;   /* тісно — стискається назва, а не наїжджає на ✕ */
   background: transparent;
   border: 0;
@@ -196,12 +210,8 @@
   .undo-bar { bottom: 26px; }
 }
 /* Ф2а: без кольору в базовому правилі — колір дають лише стани свіжості
-   (.fresh-*), інакше .row .mark перебивав їх специфічністю. */
-.row .mark {
-  width: 16px;
-  text-align: center;
-  font-family: var(--font-mono);
-}
+   (.fresh-*), інакше .row .mark перебивав їх специфічністю. Геометрія
+   крапки — у .mark нижче. */
 .row .name {
   flex: 1;
   min-width: 0;
@@ -210,9 +220,9 @@
   color: var(--ink);
 }
 .row .qty {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: 13px;
-  color: var(--dim);
+  color: var(--muted);
 }
 .row .hint {
   font-family: var(--font-mono);
@@ -232,35 +242,10 @@
 }
 .empty h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 6px; }
 
-@media (min-width: 720px) {
-  .head, .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
-}
-
-/* Wide-mode: на десктопі й планшетах ≥1024 показуємо дві колонки зон.
- * Кожна зона (свіже, холодильник, ...) стає окремою карткою в grid.
- * Пошук лишається на всю ширину зверху, empty state теж. */
-/* Пул-6 №1: дві колонки вже з планшета 768 (було 1024). */
-@media (min-width: 768px) {
-  .head, .body { max-width: 1080px; }
-  .body {
-    display: grid;
-    grid-template-columns: 1fr;
-    column-gap: 32px;
-    row-gap: 20px;
-    align-items: start;
-    /* Крок Ф1: короткий відфільтрований список — рядки сітки не розтягуються
-       на всю висоту екрана (align-content за замовчуванням stretch). */
-    align-content: start;
-  }
-  /* Дві колонки — лише коли на кожну лишається ≥ 360 (рядок: знак · назва ·
-     категорія · час · кількість · ✕ ≈ 340 при найкоротшій назві). */
-  @container pantry (min-width: 800px) {
-    .body { grid-template-columns: 1fr 1fr; }
-  }
-  .body > input,           /* поле пошуку — на дві колонки */
-  .body > .empty {
-    grid-column: 1 / -1;
-  }
+/* R0 (1920): контент обмежений 1400 і центрований. На 1440 (Screens) —
+   на всю ширину екрана комори, без стелі. */
+@container pantry (min-width: 1500px) {
+  .head, .body { max-width: 1400px; width: 100%; margin-left: auto; margin-right: auto; }
 }
 
 
@@ -423,8 +408,11 @@
 .tone-plum { color: var(--plum); }
 .tone-sage { color: var(--sage); }
 .tone-danger { color: var(--danger); }
-/* Крок Ф2: іконка ліворуч — лише свіжість, через токени. */
-.mark { display: inline-grid; place-items: center; }
+/* Крок 1 things-v3: позначка часу — крапка 6 у слоті часу (Components «ROW
+   ANATOMY»: «крапка + слово»), колір — стан; знак прострочення лишається. */
+.mark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+/* Емфаза за правилом ⚠1: до трьох найтерміновіших рядків — 600 і чорнило. */
+.row-hot .name-text { font-weight: 600; }
 /* Етап 2a: чотири стани замість трьох. `fresh-fresh` перейменовано на
  * `fresh-good` — слово «свіже» позначає ЗОНУ і більше нічого (Р22). */
 .fresh-good { color: var(--sage); }
@@ -475,8 +463,7 @@
 
 @media (min-width: 768px) {
   .reset-mobile { display: none; }
-  .body > .rails { grid-column: 1 / -1; margin: 0; }
-  .body > .flat { grid-column: 1 / -1; }
+  .body > .rails { margin: 0; }
   .rails { gap: 6px; }
   .rail { display: grid; grid-template-columns: 72px 1fr auto; column-gap: 8px; }
   .rail-label { width: auto; padding-left: 0; }
@@ -504,72 +491,93 @@
   .unit-short { display: inline; }
 }
 
-/* ===== Крок Ф2: картка позиції в правій панелі ===== */
-.card { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px; }
+/* ===== Картка позиції в правій панелі — крок 2 things-v3 (Components «ITEM
+   CARD», Responsive G6, Prototype aside). Контейнер — панель (Р32): тут лише
+   вміст. Проміжки 12, поля 40 r10 на bg, підписи 12 muted. ===== */
+.card { display: flex; flex-direction: column; gap: 12px; padding: 0 0 4px; }
+.card-head { display: flex; flex-direction: column; gap: 4px; }
 .card-title {
   width: 100%;
   border: 0;
   border-bottom: 1px dashed var(--line2);
   background: transparent;
-  padding: 2px 0 4px;
+  padding: 0 0 4px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 20px;
-  letter-spacing: var(--tracking-tight);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -.025em;
   color: var(--ink);
 }
-.card-title:focus { outline: none; border-bottom-color: var(--sage); }
-.card-sub {
-  margin-top: -8px;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--dim);
-}
+.card-title:focus { outline: none; border-bottom-color: var(--ink); }
+.card-passport { font-size: 13px; color: var(--muted); }
+/* Третій рядок паспорта — походження (G6 «з чека: … · Сільпо 7 вер»). */
+.card-origin { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
 .card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--dim); }
-.card-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-.card-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 80px; }
-.card-label {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--dim);
-}
-.card-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 9px 11px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 14px;
-}
-.card-input:focus { outline: none; border-color: var(--sage); }
-.card-block { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
-.card-line { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; line-height: 1.45; color: var(--ink); }
-.card-action {
-  align-self: flex-start;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-pill);
-  background: transparent;
-  padding: 6px 12px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted);
-  cursor: pointer;
-}
-.card-action:disabled { opacity: 0.5; cursor: default; }
+.card-row { display: flex; gap: 10px; align-items: flex-start; }
+.card-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.card-field-state { flex: none; width: 150px; }
+.card-label { font-family: var(--font-body); font-size: 12px; color: var(--muted); }
+/* Кількість: поле 40 r10 на bg — число 15/500, одиниця 13 muted із шевроном
+   (select під ним), ± 32 r8 на card (Prototype). */
+.card-qty { height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 0 4px 0 12px; gap: 6px; }
+.card-qty-input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; font-family: var(--font-body); font-size: 15px; font-weight: 500; color: var(--ink); outline: 0; padding: 0; font-variant-numeric: tabular-nums; }
+.card-unit { position: relative; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); cursor: pointer; flex: none; }
+.card-unit-select { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.card-nudge { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: var(--card); color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.card-nudge:hover { color: var(--ink); }
+/* Стан — сегмент ціле / відкрито: 40 r10 на bg, вкладки 34 r8; обране — card
+   + тінь sh-a (Components / G6), не шавлія (рішення 11.09). */
+.card-seg { height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 3px; gap: 2px; }
+.card-seg-btn { flex: 1; height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-family: var(--font-body); font-size: 13px; cursor: pointer; transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard); }
+.card-seg-on { background: var(--card); color: var(--ink); font-weight: 500; box-shadow: var(--sh-a); }
+/* Строк — плашка 10/12 r10: danger-bg / amber-bg / bg; заголовок 14/600
+   тоном, підрядок 12 muted. */
+.card-term { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.card-term-danger { background: var(--danger-bg); }
+.card-term-amber { background: var(--amber-bg); }
+.card-term-icon { flex: none; margin-top: 1px; color: var(--muted); }
+.card-term-danger .card-term-icon, .card-term-danger .card-term-title { color: var(--danger); }
+.card-term-amber .card-term-icon, .card-term-amber .card-term-title { color: var(--amber); }
+.card-term-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.card-term-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.card-term-sub { font-size: 12px; line-height: 1.4; color: var(--muted); }
+/* Відповіді однією висотою 40 r10 контуром line2 (Components / G6). */
+.card-answers { display: flex; gap: 6px; }
+.card-answer { flex: 1; height: 40px; border-radius: 10px; border: 1px solid var(--line2); background: transparent; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; cursor: pointer; }
+.card-answer-danger { color: var(--danger); }
+/* Дата з пачки — рядок 40 r10 на bg: знак calendar · пояснення 13 dim · «дд.мм»;
+   саме поле дати лежить поверх рядка прозорим. */
+.card-date { position: relative; height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 0 12px; gap: 10px; color: var(--muted); cursor: pointer; }
+.card-date-text { flex: 1; min-width: 0; font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-date-hint { font-size: 12px; color: var(--dim); }
+.card-date-input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.card-date .link-btn { position: relative; z-index: 1; font-size: 13px; }
+/* Безпека — чіп 32/999 plum-bg + ban (Components / G6). */
+.card-safety { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; background: var(--plum-bg); color: var(--plum); font-size: 13px; font-weight: 500; }
+.card-select { height: 40px; border-radius: 10px; border: 0; background: var(--bg); padding: 0 12px; font-family: var(--font-body); font-size: 14px; color: var(--ink); }
+/* «На 100 г» — рядок 10/12 r10 на bg: ключ 13 ink, значення 13 muted. */
+.card-rows { display: flex; flex-direction: column; gap: 6px; }
+.card-line { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg); font-family: var(--font-body); font-size: 13px; line-height: 1.45; color: var(--ink); }
+.card-line-k { flex: 1; min-width: 0; }
+.card-line-v { color: var(--muted); white-space: nowrap; }
+/* Підвал: «Зміни зберігаються самі» 13 muted · «Списати» контур danger 38 r10. */
+.card-foot { display: flex; align-items: center; gap: 12px; }
+.card-foot-note { flex: 1; font-size: 13px; color: var(--muted); }
 .card-remove {
-  width: 100%;
-  border: 0;
+  flex: none; height: 38px; padding: 0 14px;
+  border: 1px solid var(--line2); border-radius: 10px;
   background: transparent;
-  padding: 10px 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
   color: var(--danger);
   cursor: pointer;
 }
 .card-error { font-family: var(--font-body); font-size: 13px; color: var(--danger); }
+@media (max-width: 767px) {
+  /* G6: на 390 та сама картка шторкою, без паспортного рядка походження. */
+  .card-origin { display: none; }
+  .card-field-state { width: 140px; }
+}
 
 /* --- Етап 2a: три канали рядка --------------------------------------------
  * Досі всі три осі ділили один підрядок `sub`, і що перше збіглось — те й
@@ -597,11 +605,13 @@
   align-items: center;
   gap: 4px;
   flex: none;
-  padding: 2px 8px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid var(--plum-line);
+  border: 1px solid var(--plum);
   color: var(--plum);
   font-size: 12px;
+  font-weight: 500;
   line-height: 1.3;
   white-space: nowrap;
 }
@@ -619,9 +629,15 @@
   color: var(--dim);
 }
 
-/* Час — свій слот праворуч. Сюди приходить четверте слово («−9 дн»). */
+/* Час — свій слот праворуч, 92 (Components), крапка 6 + слово 13, до правого
+   краю. Сюди приходить четверте слово («−9 дн»). */
 .time {
   flex: none;
+  width: 92px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   font-size: 13px;
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
@@ -639,13 +655,14 @@
   white-space: nowrap;
 }
 
-/* Місце шкали для позиції без каталогу — порожнє, але не нульове: інакше
- * назви таких рядків стрибали б на 12 px ліворуч. */
-.mark-none { width: 12px; height: 12px; flex: none; }
+/* Місце крапки для позиції без каталогу — порожнє, але не нульове: інакше
+ * слова часу стрибали б на 12 px. */
+.mark-none { width: 6px; height: 6px; flex: none; }
 
 /* Кількість не переноситься: «300 г» на двох рядках — дефект за будь-якої
- * ширини, окремо від питання про кількість колонок (DEBT §30). */
-.qty { white-space: nowrap; }
+ * ширини, окремо від питання про кількість колонок (DEBT §30). Слот 64,
+ * 13 muted, праворуч (Components). */
+.qty { white-space: nowrap; width: 64px; text-align: right; font-size: 13px; color: var(--muted); font-family: var(--font-body); }
 
 /* 2c: трійка причин списання в підвалі картки. Замість confirm() і «Прибрати»
  * без причини. «Зіпсувалось» — danger, бо саме воно й є метрикою, заради якої
@@ -672,3 +689,100 @@
   color: var(--ink); font: inherit; font-size: 13px; cursor: pointer;
 }
 .undo-told { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+
+/* ── Крок 1 things-v3: чіпи зон · банер · мобільний рядок (Screens «Комора ·
+   збірка» 1440 / «мобайл» 390, Responsive R2) ── */
+.chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.zone-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 30px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); color: var(--ink); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: 1;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+.zone-chip [data-icon] { color: var(--muted); }
+.zone-chip-n { color: var(--dim); font-variant-numeric: tabular-nums; }
+/* «Обрано» — чорнилом, не шавлією (рішення 11.09). */
+.zone-chip-on { background: var(--ink); color: var(--bg); font-weight: 500; box-shadow: none; }
+.zone-chip-on [data-icon], .zone-chip-on .zone-chip-n { color: inherit; }
+.zone-chip-on .zone-chip-n { opacity: .7; }
+.chip-filter { display: none; width: 34px; padding: 0; justify-content: center; color: var(--muted); }
+.chips-sort {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 8px; flex: none;
+  height: 30px; padding: 0 10px; border: 0; border-radius: var(--r-pill);
+  background: transparent; color: var(--muted);
+  font-family: var(--font-body); font-size: 13px; cursor: pointer;
+}
+@media (hover: hover) {
+  .zone-chip:not(.zone-chip-on):hover { color: var(--ink); }
+  .chips-sort:hover { color: var(--ink); }
+}
+.banner {
+  display: flex; align-items: center; gap: 20px;
+  padding: 16px 20px;
+  border-radius: 14px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+}
+.banner-icon { flex: none; width: 38px; height: 38px; border-radius: 10px; background: var(--amber-bg); color: var(--amber); display: grid; place-items: center; }
+.banner-text {
+  flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  border: 0; background: transparent; padding: 0; text-align: left; font: inherit; color: inherit; cursor: default;
+}
+.banner-title { font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+.banner-sub { font-size: 12px; color: var(--muted); }
+.banner-main {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg); font-family: var(--font-body); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.banner-main:hover { filter: brightness(0.96); }
+.banner-ghost {
+  flex: none; height: 36px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 10px;
+  background: transparent; color: var(--muted); font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.banner-ghost:hover { color: var(--ink); }
+
+/* 768 (R2): іконка походження ховається (лишається в картці), час 74. */
+@media (max-width: 1023px) {
+  .row-grouped .origin { display: none; }
+  .row-grouped .time { width: 74px; }
+}
+
+@media (max-width: 767px) {
+  .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .chips::-webkit-scrollbar { display: none; }
+  .zone-chip { height: 34px; }
+  .chip-filter { display: inline-flex; }
+  .chips-sort { display: none; }
+  .head-filter { display: none; }
+  .zone-cols { flex-direction: column; gap: 12px; }
+  .zone-col { gap: 12px; }
+  .zone-card { padding: 0 16px 4px; }
+  .section-label { margin: 0 -16px 6px; padding: 0 16px; }
+  /* Банер компактний (кадр «мобайл»): знак 36 r10 · текст · одна дія-знак 36. */
+  .banner { gap: 12px; padding: 14px 16px; }
+  .banner-icon { width: 36px; height: 36px; }
+  .banner-text { min-width: 0; cursor: pointer; }
+  .banner-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .banner-main { width: 36px; padding: 0; justify-content: center; }
+  .banner-main-text { display: none; }
+  .banner-ghost { display: none; }
+  /* Рядок 390 — два стовпці (Screens «мобайл»): ліворуч назва з тегом
+     безпеки поруч і паспорт під ними; праворуч час над кількістю. Іконка
+     походження — в картці позиції. */
+  .row-grouped .row-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "n s t" "p p q";
+    column-gap: 6px; row-gap: 1px;
+    align-items: center;
+  }
+  .row-grouped .name { display: contents; }
+  .row-grouped .name-text { grid-area: n; }
+  .row-grouped .safety { grid-area: s; height: 20px; padding: 0 6px; font-size: 11px; }
+  .row-grouped .passport { grid-area: p; font-size: 12px; }
+  .row-grouped .time { grid-area: t; width: auto; margin-left: 10px; gap: 5px; }
+  .row-grouped .qty { grid-area: q; width: auto; font-size: 12px; color: var(--dim); }
+}

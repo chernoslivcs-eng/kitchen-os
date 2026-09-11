@@ -1,0 +1,227 @@
+[
+ {
+  "role": "user",
+  "text": "чек із Сільпо",
+  "card": null
+ },
+ {
+  "role": "assistant",
+  "text": "Розібрав чек: 15 позицій у комору, три з них закриють список, дві — не їжа. Два рядки не впізнав — уточни, якщо треба.",
+  "card": {
+   "type": "intake_diff",
+   "ops": [
+    {
+     "op": "add",
+     "label": "Фует",
+     "value": 160,
+     "unit": "g",
+     "zone": "fridge",
+     "product": "Фует",
+     "brand": "Сільпо",
+     "variant": "ковбаса с/в",
+     "catalog_key": "fuet_sausage",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Креветки",
+     "value": 500,
+     "unit": "g",
+     "zone": "freezer",
+     "product": "Креветки",
+     "brand": "Metro Chef",
+     "variant": "58/66",
+     "catalog_key": "shrimp_vannamei",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Стейк Портерхаус",
+     "value": 450,
+     "unit": "g",
+     "zone": "fresh",
+     "product": "Стейк Портерхаус",
+     "brand": "яловичина",
+     "variant": "Dry Aged",
+     "catalog_key": "beef_ribeye",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Апельсини",
+     "value": 1200,
+     "unit": "g",
+     "zone": "fresh",
+     "product": "Апельсини",
+     "variant": "калібр 56–64",
+     "catalog_key": "orange",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Молоко",
+     "value": 900,
+     "unit": "ml",
+     "zone": "fridge",
+     "product": "Молоко",
+     "brand": "Галичина",
+     "variant": "2,5%",
+     "catalog_key": "milk_cow_25",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Яйця",
+     "value": 10,
+     "unit": "pcs",
+     "zone": "fridge",
+     "product": "Яйця",
+     "variant": "С1",
+     "catalog_key": "eggs_chicken",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Масло",
+     "value": 200,
+     "unit": "g",
+     "zone": "fridge",
+     "product": "Масло",
+     "brand": "Яготинське",
+     "variant": "73%",
+     "catalog_key": "butter_72",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Моцарела",
+     "value": 125,
+     "unit": "g",
+     "zone": "fridge",
+     "product": "Моцарела",
+     "brand": "Galbani",
+     "variant": "у розсолі",
+     "catalog_key": "cheese_mozzarella_brine",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Йогурт грецький",
+     "value": 400,
+     "unit": "g",
+     "zone": "fridge",
+     "product": "Йогурт грецький",
+     "brand": "Молокія",
+     "variant": "10%",
+     "catalog_key": "yog_greek",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Гірчиця",
+     "value": 2,
+     "unit": "pcs",
+     "zone": "dry",
+     "product": "Гірчиця",
+     "brand": "Торчин",
+     "variant": "дижонська",
+     "catalog_key": "mustard",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Помідори",
+     "value": 600,
+     "unit": "g",
+     "zone": "fresh",
+     "product": "Помідори",
+     "catalog_key": "veg_tomato_plum",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Спагеті",
+     "value": 500,
+     "unit": "g",
+     "zone": "dry",
+     "product": "Спагеті",
+     "brand": "Barilla",
+     "variant": "n.5",
+     "catalog_key": "spaghetti_no5",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Часник",
+     "value": 1,
+     "unit": "pcs",
+     "zone": "fresh",
+     "product": "Часник",
+     "catalog_key": "garlic",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Фета",
+     "value": 200,
+     "unit": "g",
+     "zone": "fridge",
+     "product": "Фета",
+     "brand": "Dodoni",
+     "catalog_key": "cheese_feta",
+     "confidence": 1
+    },
+    {
+     "op": "add",
+     "label": "Вершки",
+     "value": 200,
+     "unit": "ml",
+     "zone": "fridge",
+     "product": "Вершки",
+     "variant": "20%",
+     "catalog_key": "cream_20",
+     "confidence": 1
+    }
+   ],
+   "source": {
+    "kind": "retail_receipt",
+    "provider": "silpo",
+    "shop": "Сільпо",
+    "at": "2026-09-07T18:40:00.000Z",
+    "total": 1284,
+    "nonfood": [
+     {
+      "name": "Засіб для посуду",
+      "quantity": 1,
+      "unit": "шт",
+      "price": 89,
+      "image": null
+     },
+     {
+      "name": "Пакет",
+      "quantity": 1,
+      "unit": "шт",
+      "price": 3,
+      "image": null
+     }
+    ],
+    "unmatched": [
+     {
+      "name": "ЛТ KORISNI КЕР П-Ч 90г",
+      "quantity": 1,
+      "unit": "шт",
+      "price": 89,
+      "image": null
+     },
+     {
+      "name": "ФРУКТ ЕКЗОТ 1КГ",
+      "quantity": 0.4,
+      "unit": "кг",
+      "price": 112,
+      "image": null
+     }
+    ]
+   }
+  }
+ }
+]
