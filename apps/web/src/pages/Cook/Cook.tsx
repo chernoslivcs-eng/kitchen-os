@@ -7,8 +7,7 @@ import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
-import { Button } from '../../components/Button/Button';
+import { currentTheme, setThemeOverride, type ThemeChoice } from '../../theme';
 import { api, type Recipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
@@ -45,6 +44,13 @@ export function CookOverlay() {
   // DA2-03: подвійний тап мокрим пальцем перескакував крок (1 → 3). 400ms
   // локу після переходу — рівно --dur-slow, тривалість зміни кроку.
   const [stepLocked, setStepLocked] = useState(false);
+  // Вигляд (cook-share-v3): тема застосунку (sun/moon), звук beep, шторка кроків на 390.
+  const [theme, setThemeState] = useState<ThemeChoice>(() => currentTheme());
+  const setTheme = (t: ThemeChoice) => { setThemeOverride(t); setThemeState(t); };
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false); mutedRef.current = muted;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  useEffect(() => { setSheetOpen(false); }, [stepIdx]);
 
   // Крок О1а: почали готувати. Кроки й фініш нижче — разом вони дають
   // єдину криву, де видно, на чому люди зупиняються.
@@ -201,6 +207,7 @@ export function CookOverlay() {
   // легкі»): тік щосекунди ледь чутний, 5-кратні трохи помітніші, межа
   // хвилини — м'який подвійний. Тільки поки таймер біжить і попап відкритий.
   const softTick = (kind: 'sec' | 'five' | 'minute') => {
+    if (mutedRef.current) return;
     try {
       type AC = typeof AudioContext;
       const Ctx: AC | undefined = window.AudioContext
@@ -239,7 +246,8 @@ export function CookOverlay() {
   // повторюється кожні 30с, поки людина не підтвердить (будь-яка дія кроку).
   const alarmRef = useRef<number | null>(null);
   const beep = () => {
-    try {
+    // volume-2 у шапці: вимкнено — без звуку, вібро й нотифікація лишаються.
+    if (!mutedRef.current) try {
       type AC = typeof AudioContext;
       const Ctx: AC | undefined = window.AudioContext
         ?? (window as { webkitAudioContext?: AC }).webkitAudioContext;
@@ -370,220 +378,225 @@ export function CookOverlay() {
     navigate('/app', sid ? { state: { sessionId: sid, at: Date.now() } } : undefined);
   }
 
-  // Кнопки кроку — одні на два лейаути: мобільний футер і десктопна права
-  // колонка (Д05: ↩ і «Крок готово ✓» живуть під таймером).
-  // Крок О2 (3): «Поділитись результатом» — окремим рядом ПІД рядком із
-  // поверненням і «Приготували», і тільки на останньому кроці. Головною
-  // лишається «Приготували»: ця — другорядна, тому тонована рамкою, як ↩.
-  const shareButton = (
-    <button
-      className={`${styles.main} ${styles['share-result']}`}
-      disabled={stepLocked || finishing}
-      onClick={() => void finish('share')}
-      data-share-result
-    >
+  // ── Вигляд (feat/cook-share-v3) — за Prototype «COOK MODE» (1440) і Cook and
+  // Share «Cook · 768» / «Cook · 390». Логіка вище не мінялась: кроки, таймер,
+  // дедлайн, beep, wake lock, finish() — як були. Три розкладки за вʼюпортом
+  // (Cook — повноекранний попап, контейнер = вʼюпорт): ≥1024 маршрут колонкою
+  // зліва; 768–1023 маршрут чіпами над фокусом; <768 фокус на весь екран,
+  // сегменти вгорі, пілюля «N з M · крок» → шторка кроків. Тема — наявна тема
+  // застосунку (sun/moon); «Cook Mode памʼятає свою тему окремо» — Р72.
+  // Звук — volume-2 вмикає/вимикає наявний beep (нових звуків нема).
+  const shortOf = (st: { t: string }) => st.t.replace(/\.$/, '');
+  const stepText = renderStepContent(step?.c ?? '', recipe.ing, stepLabels);
+  const stepIngs = step ? stepIngredients(step.c ?? '', recipe.ing) : [];
+  const stepMeta = (st: { s?: number }) => (st.s ? `${Math.max(1, Math.round(st.s / 60))} хв` : '');
+  const timerTone = running && secondsLeft > 0 && secondsLeft <= 60 ? 'amber' : 'ink';
+  const timerBase = step?.s ? formatMS(step.s, step.s) : '';
+  const timerPct = step?.s ? Math.round(100 - (secondsLeft / step.s) * 100) : 0;
+  const nextLabel = nextStep ? `Далі: ${shortOf(nextStep).toLocaleLowerCase('uk')}` : 'Це останній крок';
+  const isLast = stepIdx === total - 1;
+
+  const timerToggle = () => {
+    stopAlarm();
+    // Моушн-2 №7: дозвіл на нотифікації питаємо в момент юзер-жесту старту
+    // таймера; відмова = просто без них.
+    try {
+      if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission();
+    } catch { /* ок */ }
+    if (secondsLeft === 0) { setSecondsLeft(step?.s ?? 0); setRunning(true); return; }
+    setRunning((r) => !r);
+  };
+  const plusMinute = () => {
+    if (deadlineRef.current != null) {
+      deadlineRef.current += 60_000;
+      // Пул-7 №1: сесія несе дедлайн — банери/вартовий мусять побачити +хвилину одразу.
+      saveCookSession({ recipe, stepIdx, secondsLeft: secondsLeft + 60, deadline: deadlineRef.current, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
+    }
+    setSecondsLeft((v) => v + 60);
+  };
+  const timerLabel = secondsLeft === 0 ? 'Спочатку' : running ? 'Пауза' : secondsLeft === (step?.s ?? 0) ? 'Старт' : 'Далі';
+
+  // Маршрут (список кроків) — один на колонку 1440, чіпи 768 і шторку 390.
+  const routeRow = (i: number, mode: 'list' | 'chips') => {
+    const st = recipe.st[i]!;
+    const done = i < stepIdx, cur = i === stepIdx;
+    const tone = done ? 'done' : cur ? 'cur' : 'next';
+    return (
+      <button key={i} type="button"
+        className={`${styles['route-row']} ${styles[`row-${mode}`]} ${styles[`route-${tone}`]}`}
+        onClick={() => { if (i < stepIdx) goToStep(i); }}
+        disabled={i > stepIdx}
+        aria-current={cur ? 'step' : undefined}
+        data-route-step={i + 1}>
+        <span className={styles['route-n']}>{done ? <Icon name="sys.done" size={16} inherit decorative /> : i + 1}</span>
+        <span className={styles['route-t']}>{shortOf(st)}</span>
+        <span className={styles['route-r']}>
+          {cur && st.s ? <><Icon name="cook.timer" size={12} inherit decorative />{formatMS(secondsLeft, st.s)}</> : stepMeta(st)}
+        </span>
+      </button>
+    );
+  };
+
+  const themeToggle = (
+    <span className={styles.theme} role="group" aria-label="Тема">
+      <button type="button" className={`${styles['theme-btn']} ${theme === 'light' ? styles['theme-on'] : ''}`} onClick={() => setTheme('light')} aria-pressed={theme === 'light'} aria-label="Світла тема">
+        <Icon name="cook.themeLight" size={16} inherit decorative />
+      </button>
+      <button type="button" className={`${styles['theme-btn']} ${theme === 'dark' ? styles['theme-on'] : ''}`} onClick={() => setTheme('dark')} aria-pressed={theme === 'dark'} aria-label="Темна тема">
+        <Icon name="cook.themeDark" size={16} inherit decorative />
+      </button>
+    </span>
+  );
+  const soundBtn = (
+    <button type="button" className={`${styles.round} ${muted ? styles['round-off'] : ''}`} onClick={() => setMuted((m) => !m)} aria-pressed={!muted} aria-label={muted ? 'Увімкнути звук' : 'Вимкнути звук'} title={muted ? 'Звук вимкнено' : 'Звук'}>
+      <Icon name="sys.sound" size={16} inherit decorative />
+    </button>
+  );
+
+  const timerBox = !!step?.s && (
+    <div className={`${styles.timer} ${styles[`timer-${timerTone}`]} ${secondsLeft === 0 ? styles['timer-zero'] : ''}`} data-timer>
+      <span className={styles['timer-icon']}><Icon name="cook.timer" size={20} inherit decorative live={running && secondsLeft > 0 ? 'timer' : undefined} /></span>
+      <span className={`${styles['timer-value']} t-timer`} data-timer-value>{formatMS(secondsLeft, step.s)}</span>
+      <span className={styles['timer-base']}>
+        <span>з {timerBase}</span>
+        <span className={styles.bar}><span className={styles['bar-fill']} style={{ width: `${Math.max(0, Math.min(100, timerPct))}%` }} /></span>
+      </span>
+      <span className={styles['timer-gap']} />
+      <button type="button" className={styles['timer-main']} onClick={timerToggle} data-timer-toggle>
+        <Icon name={running ? 'cook.pause' : 'cook.play'} size={16} inherit decorative />{timerLabel}
+      </button>
+      <button type="button" className={styles['timer-plus']} onClick={plusMinute} data-timer-plus>+1 хв</button>
+    </div>
+  );
+
+  // Низ: «← Назад» · «N · Далі: …» · «✓ Крок готово» / «✓ Приготував».
+  // Дія — та сама, що була: advanceStep() / finish().
+  const bottomRow = (
+    <div className={styles.bottom}>
+      <button type="button" className={styles.back} onClick={() => goToStep(stepIdx - 1)} disabled={stepIdx === 0} aria-label="Назад" data-step-back>
+        <Icon name="sys.back" size={18} inherit decorative /><span className={styles['back-text']}>Назад</span>
+      </button>
+      <div className={styles['next-hint']} data-next-hint>
+        <span className={styles['next-n']}>{Math.min(total, stepIdx + 2)}</span>
+        <span className={styles['next-t']}>{nextLabel}</span>
+      </div>
+      <button type="button" className={styles.go} disabled={stepLocked || finishing}
+        onClick={isLast ? () => void finish() : advanceStep} data-step-done={isLast ? undefined : true} data-finish={isLast ? true : undefined}>
+        <Icon name="sys.done" size={20} inherit decorative />{isLast ? (finishing ? 'Зберігаю…' : 'Приготував') : 'Крок готово'}
+      </button>
+    </div>
+  );
+  // Крок О2 (3): другий вихід «Поділитись результатом» — та сама робота, що
+  // «Приготував», і лише потім /share. Лише на останньому кроці, текстом.
+  const shareRow = isLast && (
+    <button type="button" className={styles['share-result']} disabled={stepLocked || finishing} onClick={() => void finish('share')} data-share-result>
       Поділитись результатом
     </button>
   );
 
-  const stepButtons = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-    <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-      {stepIdx > 0 && (
-        /* Бриф-3 п.1: ↩ — місклік по «Крок готово» більше не безповоротний. */
-        <button
-          className={styles.main}
-          style={{ width: 64, flex: 'none', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line2)' }}
-          aria-label="Крок назад"
-          onClick={() => goToStep(stepIdx - 1)}
-        ><Icon name="sys.undo" size={18} inherit /></button>
-      )}
-      <button
-        className={styles.main}
-        style={{ flex: 1 }}
-        disabled={stepLocked || finishing}
-        onClick={stepIdx === total - 1 ? () => void finish() : advanceStep}
-      >
-        {/* DA2-04: чотири еталони кажуть «Крок готово ✓» — це підтвердження
-            дії, а не навігація «Далі →». */}
-        {stepIdx === total - 1 ? (finishing ? 'Зберігаю…' : 'Приготували') : 'Готово'}
-      </button>
-      {stepIdx < total - 1 && (
-        /* DA2-06: вихід «я закінчив раніше, ніж ваш список кроків». */
-        <button
-          className={styles.main}
-          style={{ background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line2)', width: 132 }}
-          disabled={stepLocked || finishing}
-          onClick={() => void finish()}
-        >
-          {finishing ? 'Зберігаю…' : 'Приготували'}
-        </button>
-      )}
-    </div>
-    {stepIdx === total - 1 && shareButton}
-    </div>
-  );
-
   return (
-    <div className={styles.screen}>
-      {/* QA9-03 / Д05: шапка одна на обидва лейаути — ✕ Вийти з САМОГО краю
-          зліва, мета в центрі, прогрес-смуга справа (220px). На мобільному
-          прогрес переносом падає на другий рядок на всю ширину. */}
-      {/* Пул-3: прогрес — тонкі сегменти по верхньому краю поп-апа.
-          Тап по пройденому сегменту вертає на крок (Бриф-3 п.1). */}
-      <div className={styles['progress-top']}>
+    <div className={styles.screen} data-cook-mode>
+      {/* 390: сегменти прогресу вгорі; тап по пройденому — назад (Бриф-3 п.1). */}
+      <div className={styles.segments} aria-hidden>
         {recipe.st.map((_, i) => (
-          <button
-            key={i}
-            type="button"
-            className={styles['progress-hit']}
-            disabled={i >= stepIdx}
-            aria-label={`Назад до кроку ${i + 1}`}
-            onClick={() => goToStep(i)}
-          >
-            <div className={i < stepIdx ? styles.done : i === stepIdx ? styles.current : ''} />
-          </button>
+          <button key={i} type="button" className={`${styles.seg} ${i < stepIdx ? styles['seg-done'] : i === stepIdx ? styles['seg-cur'] : ''}`}
+            disabled={i >= stepIdx} tabIndex={-1} onClick={() => goToStep(i)} />
         ))}
       </div>
-      {/* Пул-4 №3: сторіз-навігація на мобілці — тапи по краях екрана.
-          Зони вузькі (18%), кнопки таймера в центрі поза ними; лок 400мс
-          прощає подвійний тап. На десктопі сховані CSS-ом. */}
-      <button
-        type="button"
-        className={`${styles['tap-zone']} ${styles['tap-left']}`}
-        aria-label="Попередній крок"
-        disabled={stepIdx === 0}
-        onClick={() => goToStep(stepIdx - 1)}
-      />
-      <button
-        type="button"
-        className={`${styles['tap-zone']} ${styles['tap-right']}`}
-        aria-label="Наступний крок"
-        disabled={stepIdx >= total - 1}
-        onClick={advanceStep}
-      />
-      <div className={styles.head}>
-        <button className={styles.exit} onClick={exitToOrigin}><Icon name="sys.close" size={16} inherit decorative /> Вийти</button>
-        <MonoLabel className={styles['head-meta']}>
-          {recipe.t.toUpperCase()} · КРОК {stepIdx + 1}/{total}
-        </MonoLabel>
-      </div>
 
-      <div className={`${styles.body} ${styles['body-steps']}`}>
-            {/* QA9-03: обгортки колонок. Мобільний їх не бачить
-                (display:contents + order), десктоп кладе крок зліва,
-                таймер+кнопки справа за бордюром — Д05. */}
-            {/* Моушн-кіт §02: зміна кроку — вертикальний слайд 400ms; key
-                перемонтовує колонку, анімація їде від CSS. Інших анімацій у
-                Cook Mode свідомо нема (правила кита). */}
-            <div key={stepIdx} className={`${styles['col-main']} ${styles['step-slide']}`}>
-              <div className={styles['step-title']}>
-                {step?.t}. {renderStepContent(step?.c ?? '', recipe.ing, stepLabels)}
+      <header className={styles.head}>
+        <button type="button" className={styles.exit} onClick={exitToOrigin} data-exit>
+          <Icon name="sys.close" size={16} inherit decorative /><span className={styles['exit-text']}>Вийти</span>
+        </button>
+        {/* 390: пілюля «N з M · крок» зі знаком списку → шторка кроків. */}
+        <button type="button" className={styles['step-pill']} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" data-step-pill>
+          <span className={styles['step-pill-n']}>{stepIdx + 1} з {total}</span>
+          <span className={styles['step-pill-t']}>· {step ? shortOf(step) : ''}</span>
+          <span className={styles['step-pill-gap']} />
+          <Icon name="cook.steps" size={16} inherit decorative />
+        </button>
+        <span className={styles['head-title']}><Icon name="cook.type" size={16} inherit decorative />{recipe.t}</span>
+        <span className={styles['head-theme']}>{themeToggle}</span>
+        {soundBtn}
+      </header>
+
+      <div className={styles.body}>
+        {/* 1440: маршрут колонкою; 768: чіпами; 390: у шторці. */}
+        <aside className={styles.route} data-route>
+          <div className={styles['route-meta']}>
+            {recipe.tm ? <span><Icon name="cook.time" size={12} inherit decorative />{recipe.tm} хв</span> : null}
+            {recipe.sv ? <span><Icon name="cook.portions" size={12} inherit decorative />{recipe.sv} {plural(recipe.sv, ['порція', 'порції', 'порцій'])}</span> : null}
+            <span className={styles['route-meta-gap']} />
+            <span className={styles['route-step']}>крок {stepIdx + 1} з {total}</span>
+          </div>
+          <span className={`${styles.bar} ${styles['route-bar']}`}><span className={styles['bar-fill']} style={{ width: `${Math.round((stepIdx / total) * 100)}%` }} /></span>
+          <div className={styles['route-list']}>{recipe.st.map((_, i) => routeRow(i, 'list'))}</div>
+          <div className={styles['route-chips']} data-route-chips>{recipe.st.map((_, i) => routeRow(i, 'chips'))}</div>
+          <div className={styles['route-foot']}>
+            <span className={styles['route-label']}>Усе для страви</span>
+            <div className={styles['route-ings']}>
+              {recipe.ing.map((ing, i) => (
+                <span key={i} className={styles['ing-chip']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+              ))}
+            </div>
+            <span className={styles['route-offline']}><Icon name="live.offline" size={12} inherit decorative />Працює без інтернету · екран не гасне</span>
+          </div>
+        </aside>
+
+        <section className={styles.focus}>
+          {/* Моушн-кіт §02: зміна кроку — вертикальний слайд --dur-slow; key перемонтовує. */}
+          <div key={stepIdx} className={`${styles['focus-card']} ${styles['step-slide']}`}>
+            <div className={styles['focus-head']}>
+              <span className={styles['step-chip']}>Крок {stepIdx + 1}<span className={styles['step-chip-t']}>· {step ? shortOf(step) : ''}</span></span>
+              <span className={styles['focus-gap']} />
+              <span className={styles.dots} aria-hidden>
+                {recipe.st.map((_, i) => <span key={i} className={`${styles.dot} ${i < stepIdx ? styles['dot-done'] : i === stepIdx ? styles['dot-cur'] : ''}`} />)}
+              </span>
+            </div>
+            <div className={styles['step-text']} data-step-text>{stepText}</div>
+            {stepIngs.length > 0 && (
+              <div className={styles['step-chips']}>
+                {stepIngs.map((ing, i) => (
+                  <span key={i} className={styles['step-ing']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` · ${formatQty(ing.v, ing.u)}` : ''}</span>
+                ))}
               </div>
-
-              {/* DA2-05: «НА ЦЬОМУ КРОЦІ» — прив'язка кроку до партій з комори,
-                  «скільки саме з мого». Стоїть у 4 еталонах. */}
-              {step && stepIngredients(step.c ?? '', recipe.ing).length > 0 && (
-                <div className={styles.section}>
-                  <MonoLabel>НА ЦЬОМУ КРОЦІ</MonoLabel>
-                  <div className={styles.next}>
-                    {stepIngredients(step.c ?? '', recipe.ing).map((ing, i) => (
-                      <span key={i}>
-                        {i > 0 && ' · '}
-                        {resolveIngName(ing, batchLabels)}
-                        {ing.v != null && ing.u ? ` — ${formatQty(ing.v, ing.u)}` : ''}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {nextStep && (
-                <div className={styles.section}>
-                  <MonoLabel>ДАЛІ</MonoLabel>
-                  <div className={styles.next}>
-                    {stepIdx + 2} · {nextStep.t}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className={styles['col-side']}>
-              {!!step?.s && (
-                <div className={styles.timer}>
-                  <div className={`${styles['timer-value']} ${secondsLeft === 0 ? styles.done : ''}`}>
-                    {formatMS(secondsLeft, step.s)}
-                  </div>
-                  <div className={styles['timer-actions']}>
-                    <button
-                      className={styles.primary}
-                      onClick={() => {
-                        stopAlarm();
-                        // Моушн-2 №7: дозвіл на нотифікації питаємо в момент
-                        // юзер-жесту старту таймера; відмова = просто без них.
-                        try {
-                          if ('Notification' in window && Notification.permission === 'default') {
-                            void Notification.requestPermission();
-                          }
-                        } catch { /* ок */ }
-                        if (secondsLeft === 0) { setSecondsLeft(step.s ?? 0); setRunning(true); return; }
-                        setRunning((r) => !r);
-                      }}
-                    >
-                      {secondsLeft === 0 ? 'Спочатку' : running ? 'Пауза' : 'Пуск'}
-                    </button>
-                    <button
-                      className={styles.secondary}
-                      onClick={() => {
-                        if (deadlineRef.current != null) {
-                          deadlineRef.current += 60_000;
-                          // Пул-7 №1: сесія несе дедлайн — банери/вартовий
-                          // мусять побачити +хвилину одразу, не на паузі.
-                          saveCookSession({ recipe, stepIdx, secondsLeft: secondsLeft + 60, deadline: deadlineRef.current, recipeId: state.recipeId, returnSessionId: state.returnSessionId });
-                        }
-                        setSecondsLeft((s) => s + 60);
-                      }}
-                    >
-                      +1 хв
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className={styles['side-actions']}>{stepButtons}</div>
-              <div className={styles['side-hint']}>Без інтернету теж працює. Хоч одна річ на кухні не залежить від Wi-Fi.</div>
-            </div>
+            )}
+            {/* Порада (lightbulb) — лише коли в даних рецепта є що показати;
+                RecipeStep несе t · c · s, поради нема → не малюємо (Р73). */}
+            <span className={styles['focus-spacer']} />
+            {timerBox}
+          </div>
+          <div className={styles['next-line']} data-next-line>
+            <span className={styles['next-n']}>{Math.min(total, stepIdx + 2)}</span>
+            <span className={styles['next-t']}>{nextLabel}</span>
+          </div>
+          {bottomRow}
+          {shareRow}
+        </section>
       </div>
 
-      {/* Правка №6: done-екрана немає — футер завжди степовий. */}
-      <div className={`${styles.foot} ${styles['foot-steps']}`}>
-        <div className={styles['foot-buttons']}>{stepButtons}</div>
-        {/* Пул-4 №3: на мобілці кроки ходять тапами по краях — кнопки кроків
-            зайві; «Приготували» зʼявляється лише на останньому слайді. */}
-        {stepIdx === total - 1 && (
-          <button
-            className={`${styles.main} ${styles['finish-mobile']}`}
-            disabled={finishing}
-            onClick={() => void finish()}
-          >
-            {finishing ? 'Зберігаю…' : 'Приготували'}
-          </button>
-        )}
-        {/* Крок О2 (3): на мобілці ряд кроків схований, тож другий вихід стоїть
-            тут — окремим рядом під «Приготували», тими самими правилами
-            видимості (.finish-mobile). */}
-        {stepIdx === total - 1 && (
-          <button
-            className={`${styles.main} ${styles['finish-mobile']} ${styles['share-result']}`}
-            disabled={finishing}
-            onClick={() => void finish('share')}
-            data-share-result
-          >
-            Поділитись результатом
-          </button>
-        )}
-        <div className={styles.offline}>Тапни по краях, щоб гортати кроки. Інтернет для цього не потрібен.</div>
-      </div>
+      {/* 390: шторка кроків — маршрут, «Усе для страви», sun/moon. */}
+      {sheetOpen && (
+        <>
+          <div className={styles.scrim} onClick={() => setSheetOpen(false)} />
+          <div className={styles.sheet} role="dialog" aria-label="Кроки" data-steps-sheet>
+            <span className={styles.handle} aria-hidden />
+            <div className={styles['sheet-head']}>
+              <span className={styles['sheet-title']}>Кроки · {total}</span>
+              <span className={styles['focus-gap']} />
+              {themeToggle}
+              <button type="button" className={styles.round} onClick={() => setSheetOpen(false)} aria-label="Закрити"><Icon name="sys.close" size={16} inherit decorative /></button>
+            </div>
+            <div className={styles['route-list']}>{recipe.st.map((_, i) => routeRow(i, 'list'))}</div>
+            <span className={styles['route-label']}>Усе для страви</span>
+            <div className={styles['route-ings']}>
+              {recipe.ing.map((ing, i) => (
+                <span key={i} className={styles['ing-chip']}>{resolveIngName(ing, batchLabels)}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
-

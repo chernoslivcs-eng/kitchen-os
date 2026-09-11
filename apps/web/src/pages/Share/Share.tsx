@@ -13,8 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '../../components/Button/Button';
-import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
+import { Icon } from '../../components/Icon/Icon';
 import type { Recipe } from '../../api';
 import { plural } from '../../lib/plural';
 import styles from './Share.module.css';
@@ -23,6 +22,14 @@ interface State { recipe?: Recipe; photoUrl?: string | null; recipeId?: string |
 
 type Format = 'story' | 'post';
 type Template = 'A' | 'B' | 'C' | 'D';
+
+/* Палітра експорту — з токенів --export-* (Share.module.css .screen), не hex у коді. */
+function exportPalette(el: Element) {
+  const cs = getComputedStyle(el);
+  const v = (n: string) => cs.getPropertyValue(n).trim();
+  return { ink: v('--export-ink'), bg: v('--export-bg'), sage: v('--export-sage'), shadow: v('--export-shadow') };
+}
+let PAL = { ink: '', bg: '', sage: '', shadow: '' };
 
 const FORMATS: Record<Format, { w: number; h: number; label: string }> = {
   story: { w: 1080, h: 1920, label: 'Сторіз 9:16' },
@@ -67,19 +74,22 @@ export function SharePage() {
     // Шрифти мають бути готові до першого замальовування, інакше canvas
     // тихо малює системним і прев'ю бреше про фінальний PNG.
     await document.fonts.ready;
+    PAL = exportPalette(canvas);
     const img = photoRef.current;
     if (img && img.complete && img.naturalWidth) {
       const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
       const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
       ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
     } else {
-      ctx.fillStyle = '#101317';
+      ctx.fillStyle = PAL.ink;
       ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.font = '400 34px "Golos Text", system-ui, sans-serif';
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = PAL.bg;
+      ctx.font = '400 34px Onest, system-ui, sans-serif';
       ctx.textAlign = 'center';
       // Нижня третина: жоден із чотирьох шаблонів туди не пише.
       ctx.fillText('Тапни, щоб додати фото страви', w / 2, h * 0.8);
+      ctx.globalAlpha = 1;
       ctx.textAlign = 'left';
     }
     const d: OverlayData = {
@@ -97,9 +107,9 @@ export function SharePage() {
   if (!r) {
     return (
       <div className={styles.screen}>
-        <div style={{ padding: 22, color: 'var(--muted)' }}>
-          <p>Спершу приготуй страву — тоді тут зʼявиться, чим поділитися.</p>
-          <button className={styles.exit} style={{ marginTop: 12 }} onClick={() => navigate('/app')}>У стрічку</button>
+        <div className={styles.column}>
+          <p className={styles.hint}>Спершу приготуй страву — тоді тут зʼявиться, чим поділитися.</p>
+          <button type="button" className={styles.share} onClick={() => navigate('/app')}>У стрічку</button>
         </div>
       </div>
     );
@@ -176,35 +186,30 @@ export function SharePage() {
     } catch {/* deny — не проблема */}
   }
 
+  // ── Вигляд (feat/cook-share-v3) — оболонка за Cook and Share
+  // «Поділитись · 390» поверх наявної механіки: шапка (share-2 · «Поділитись
+  // стравою» · сегмент формату), превʼю на всю ширину, стрічка мініатюр
+  // (оверлеї A–D), «Поділитись» чорнилом + download. На 1440 — та сама
+  // колонка. Картка без фото, 1:1/4:5/16:9, дві палітри й шість стилів
+  // (C3/C4) — не робились (Р75).
+  const primaryShare = canSystemShare;
   return (
-    <div className={styles.screen}>
-      <div className={styles.head}>
-        <button className={styles.exit} onClick={() => navigate(-1)}>Назад</button>
-        <MonoLabel className={styles.title}>ПУБЛІКАЦІЯ</MonoLabel>
-        <div style={{ width: 42 }} />
-      </div>
-
-      <div className={styles.body}>
-        <div className={styles.controls}>
-          <div className={styles.seg}>
+    <div className={styles.screen} data-share-page>
+      <div className={styles.column}>
+        <div className={styles.top}>
+          <button type="button" className={styles.back} onClick={() => navigate(-1)} aria-label="Назад" data-share-back>
+            <Icon name="sys.back" size={16} inherit decorative />
+          </button>
+        </div>
+        <div className={styles.head}>
+          <Icon name="sys.share" size={16} inherit decorative />
+          <span className={styles.title}>Поділитись стравою</span>
+          <span className={styles.gap} />
+          <div className={styles.seg} role="tablist" aria-label="Формат">
             {(Object.keys(FORMATS) as Format[]).map((f) => (
-              <button
-                key={f}
-                className={`${styles['seg-btn']} ${format === f ? styles['seg-on'] : ''}`}
-                onClick={() => setFormat(f)}
-              >
+              <button key={f} type="button" role="tab" aria-selected={format === f}
+                className={`${styles['seg-btn']} ${format === f ? styles['seg-on'] : ''}`} onClick={() => setFormat(f)} data-format={f}>
                 {FORMATS[f].label}
-              </button>
-            ))}
-          </div>
-          <div className={styles.seg}>
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                className={`${styles['seg-btn']} ${template === t.id ? styles['seg-on'] : ''}`}
-                onClick={() => setTemplate(t.id)}
-              >
-                {t.label}
               </button>
             ))}
           </div>
@@ -215,45 +220,44 @@ export function SharePage() {
           className={styles.preview}
           style={{ aspectRatio: `${FORMATS[format].w} / ${FORMATS[format].h}` }}
           onClick={() => fileInputRef.current?.click()}
+          aria-label={photoUrl ? 'Превʼю. Тапни, щоб змінити фото' : 'Тапни, щоб додати фото страви'}
+          role="button"
         />
+        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onPickPhoto(e.target.files)} />
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={(e) => onPickPhoto(e.target.files)}
-        />
+        {/* Стрічка мініатюр — чотири оверлеї брифу (A стек · B кут · C твердження · D рейка). */}
+        <div className={styles.thumbs} role="tablist" aria-label="Оверлей">
+          {TEMPLATES.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={template === t.id}
+              className={`${styles.thumb} ${styles[`thumb-${t.id}`]} ${template === t.id ? styles['thumb-on'] : ''}`}
+              onClick={() => setTemplate(t.id)} title={t.label} aria-label={t.label} data-template={t.id}>
+              <span className={styles['thumb-mark']} aria-hidden />
+            </button>
+          ))}
+          <button type="button" className={`${styles.thumb} ${styles['thumb-photo']}`} onClick={() => fileInputRef.current?.click()} title={photoUrl ? 'Інше фото' : 'Додати фото'} aria-label={photoUrl ? 'Інше фото' : 'Додати фото'} data-pick-photo>
+            <Icon name="sys.photo" size={16} inherit decorative />
+          </button>
+        </div>
+
         <div className={styles.actions}>
-          <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-            {photoUrl ? 'Інше фото' : 'Додати фото'}
-          </Button>
-          {canSystemShare ? (
-            <Button variant="primary" onClick={share} loading={busy === 'share'}>
-              Поділитись
-            </Button>
+          {primaryShare ? (
+            <button type="button" className={styles.share} onClick={share} disabled={busy !== null} data-share>
+              <Icon name="sys.share" size={16} inherit decorative />{busy === 'share' ? 'Готую…' : 'Поділитись'}
+            </button>
           ) : (
-            <Button variant="primary" onClick={download} loading={busy === 'download'}>
-              Завантажити PNG
-            </Button>
+            <button type="button" className={styles.share} onClick={download} disabled={busy !== null} data-share>
+              <Icon name="sys.import" size={16} inherit decorative />{busy === 'download' ? 'Готую…' : 'Завантажити PNG'}
+            </button>
+          )}
+          {primaryShare && (
+            <button type="button" className={styles.download} onClick={download} disabled={busy !== null} aria-label="Завантажити PNG" title="Завантажити PNG" data-download>
+              <Icon name="sys.import" size={16} inherit decorative />
+            </button>
           )}
         </div>
-        <div className={styles.actions}>
-          {canSystemShare && (
-            <Button variant="secondary" onClick={download} loading={busy === 'download'}>
-              Завантажити PNG
-            </Button>
-          )}
-          <Button variant="secondary" onClick={copyCaption}>{copied ? 'Скопійовано' : 'Скопіювати підпис'}</Button>
-        </div>
-        {shareUrl && (
-          <div className={styles.hint} style={{ marginTop: -6 }}>
-            Хто відкриє лінк — побачить той самий рецепт і зможе готувати в себе.
-          </div>
-        )}
-        <div className={styles.hint}>
-          Це радше памʼять про вечерю, ніж звіт про неї. Що приготував і скільки вже було вдома — цього достатньо.
-        </div>
+        <button type="button" className={styles.caption} onClick={copyCaption}>{copied ? 'Скопійовано' : 'Скопіювати підпис'}</button>
+        {shareUrl && <div className={styles.hint}>Хто відкриє лінк — побачить той самий рецепт і зможе готувати в себе.</div>}
+        <div className={styles.hint}>Це радше памʼять про вечерю, ніж звіт про неї. Що приготував і скільки вже було вдома — цього достатньо.</div>
       </div>
     </div>
   );
@@ -272,7 +276,7 @@ interface OverlayData {
 }
 
 function shadow(ctx: CanvasRenderingContext2D, blur: number) {
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowColor = PAL.shadow;
   ctx.shadowBlur = blur;
   ctx.shadowOffsetY = 2;
 }
@@ -288,7 +292,7 @@ function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   const rr = size / 2;
   ctx.save();
   shadow(ctx, 8);
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = PAL.bg;
   ctx.lineWidth = Math.max(3, size * 0.11);
   ctx.lineCap = 'round';
   const gap = 0.75; // радіан розриву
@@ -296,7 +300,7 @@ function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   ctx.beginPath();
   ctx.arc(x + rr, y + rr, rr * 0.82, start, start + (Math.PI * 2 - gap));
   ctx.stroke();
-  ctx.fillStyle = '#a9c98f';
+  ctx.fillStyle = PAL.sage;
   ctx.beginPath();
   ctx.arc(x + rr, y + rr, rr * 0.3, 0, Math.PI * 2);
   ctx.fill();
@@ -311,7 +315,7 @@ function drawLogoRow(ctx: CanvasRenderingContext2D, cx: number, y: number, size:
   const startX = align === 'center' ? cx - total / 2 : (rightX ?? cx) - total;
   drawMark(ctx, startX, y, size);
   shadow(ctx, 6);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = PAL.bg;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   ctx.fillText(label, startX + size + size * 0.4, y + size / 2 + 1);
@@ -338,7 +342,7 @@ function drawA(ctx: CanvasRenderingContext2D, w: number, h: number, d: OverlayDa
     ctx.fillText(label, cx, y);
     y += 44;
     shadow(ctx, 10);
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = PAL.bg;
     ctx.font = `800 ${valueSize}px Onest, sans-serif`;
     y += wrapCentered(ctx, value, cx, y, w * 0.84, valueSize * 1.12);
     y += 30;
@@ -364,7 +368,7 @@ function drawB(ctx: CanvasRenderingContext2D, w: number, h: number, d: OverlayDa
     ctx.fillText(label, rx, y);
     y += 38;
     shadow(ctx, 9);
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = PAL.bg;
     ctx.font = '800 40px Onest, sans-serif';
     ctx.fillText(value, rx, y);
     y += 66;
@@ -391,7 +395,7 @@ function drawC(ctx: CanvasRenderingContext2D, w: number, h: number, d: OverlayDa
     ctx.fillText(label, rx, y);
     y += 34;
     shadow(ctx, 8);
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = PAL.bg;
     ctx.font = '800 34px Onest, sans-serif';
     ctx.fillText(value, rx, y);
     y += 56;
@@ -404,7 +408,7 @@ function drawC(ctx: CanvasRenderingContext2D, w: number, h: number, d: OverlayDa
 
   const size = Math.round(w * 0.17);
   shadow(ctx, 18);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = PAL.bg;
   ctx.font = `800 ${size}px Onest, sans-serif`;
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('ВЕЧЕРЯ', w * 0.06, h * 0.47);

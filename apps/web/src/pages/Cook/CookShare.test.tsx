@@ -83,7 +83,8 @@ async function mountAtLastStep() {
   await act(async () => { root!.render(<MemoryRouter initialEntries={['/x']}><Host /><Probe /></MemoryRouter>); });
   // Доходимо до останнього кроку тими самими кнопками, що й людина.
   for (let i = 0; i < RECIPE.st.length - 1; i++) {
-    const go = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('Готово') && !b.disabled);
+    // cook-share-v3: «Крок готово» — атрибутом, не текстом (текст — як у кадрі).
+    const go = host!.querySelector<HTMLButtonElement>('[data-step-done]:not(:disabled)');
     await act(async () => { go!.click(); });
     await unlock();
   }
@@ -111,11 +112,11 @@ describe('О2 (3): «Поділитись результатом»', () => {
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
     await act(async () => { root!.render(<MemoryRouter initialEntries={['/x']}><Host /><Probe /></MemoryRouter>); });
     expect(shareBtns()).toHaveLength(0);
-    const go = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('Готово') && !b.disabled);
+    const go = host!.querySelector<HTMLButtonElement>('[data-step-done]:not(:disabled)');
     await act(async () => { go!.click(); });
     await unlock();
     expect(shareBtns()).toHaveLength(0);        // ще другий крок із трьох
-    const go2 = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('Готово') && !b.disabled);
+    const go2 = host!.querySelector<HTMLButtonElement>('[data-step-done]:not(:disabled)');
     await act(async () => { go2!.click(); });
     await unlock();
     expect(shareBtns().length).toBeGreaterThan(0);
@@ -145,9 +146,10 @@ describe('О2 (3): «Поділитись результатом»', () => {
     expect(useIncidentStore.getState().unsavedCook?.recipe.t).toBe(RECIPE.t);
   });
 
-  it('«Приготували» лишається головною і веде в стрічку', async () => {
+  it('«Приготував» лишається головною і веде в стрічку', async () => {
     await mountAtLastStep();
-    const finish = [...host!.querySelectorAll('button')].find((b) => b.textContent === 'Приготували');
+    // Текст кнопки — як у кадрі («✓ Приготував»); дія — та сама finish().
+    const finish = host!.querySelector<HTMLButtonElement>('[data-finish]');
     await act(async () => { finish!.click(); });
     expect(saved).toBe(1);
     expect(where()).toBe('/app');
