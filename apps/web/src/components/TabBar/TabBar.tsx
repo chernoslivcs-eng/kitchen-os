@@ -1,26 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
-import { api, type SessionInfo, type NowItem } from '../../api';
-import { toneOfNow, nowWhen, nowEmptyKind, nowEmptyText } from '../../lib/period';
+import { api, type SessionInfo } from '../../api';
+import { dayLabel } from '../ChatHead/SessionsMenu';
 import { usePantryFacts } from '../../store/pantryFacts';
 import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { RollingNumber } from '../RollingNumber/RollingNumber';
-import { loadCookSession, type CookSession } from '../../lib/cook-session';
-import { CookCountdown } from '../../lib/cook-watch';
 import styles from './TabBar.module.css';
 import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icons';
-import { useCookStore } from '../../store/cook';
 import { useNavStore } from '../../store/nav';
 
 // Правка №1: підпис сесії в сайдбарі — «дата · час · запит». Дата/час із
 // created_at, запит — назва сесії (перша репліка або назва рецепта).
+/* Рядок розмови всюди один (G1): назва + стан другим рядком; день — у групі. */
 function sessionLabel(s: SessionInfo): { when: string; title: string } {
   const d = new Date(s.created_at);
-  const when = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const when = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   return { when, title: s.title ?? 'без назви' };
 }
 
@@ -37,21 +35,6 @@ interface Props {
 
 // Пул-7 №6: TabBar живе в каркасі й сам знає лічильник списку.
 let shoppingCountCache: { value: number; at: number } | null = null;
-// «ЗАРАЗ» — той самий патерн кешу: блок живе в каркасі й не мусить смикати
-// календар на кожну навігацію.
-let nowCache: { value: NowItem[]; at: number } | null = null;
-
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-/**
- * П2: «Зараз» — з GET /v1/now (приводи крізь підписку і записи дому одним
- * контрактом), до трьох активних; суворе — першим, далі за кінцем. Дієта в
- * тому ж ряду, що сезон.
- */
-export function pickNow(items: NowItem[]): NowItem[] {
-  return [...items].sort((a, b) => Number(b.strict) - Number(a.strict) || a.to.localeCompare(b.to)).slice(0, 3);
-}
-
 export function TabBar({ shoppingCount }: Props) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -80,29 +63,6 @@ export function TabBar({ shoppingCount }: Props) {
   // Пул-5 №5: bump від Feed (apply/undo картки) скидає кеш — бейдж списку
   // оновлюється одразу, а не за 60с чи по зміні маршруту.
   const pantryVersion = usePantryStore((s) => s.version);
-
-  // Блок «ЗАРАЗ»: горизонт 21 день — той самий, що в контексті промпта.
-  const [nowEvents, setNowEvents] = useState<NowItem[]>(nowCache?.value ?? []);
-  // Моушн-кіт §03: картка, що пішла з «ЗАРАЗ», згортається 250ms exit, а не
-  // зникає між двома фетчами; нова входить base/enter (див. .now-row).
-  const [leavingNow, setLeavingNow] = useState<Set<string>>(new Set());
-  const nowRef = useRef<NowItem[]>(nowEvents);
-  nowRef.current = nowEvents;
-  const nowKey = (e: NowItem) => `${e.occasion_id ?? e.id}:${e.from}`;
-  useEffect(() => {
-    if (nowCache && Date.now() - nowCache.at < 60_000) return;
-    api.events.now()
-      .then(({ now }) => {
-        const picked = pickNow(now);
-        nowCache = { value: picked, at: Date.now() };
-        const next = new Set(picked.map(nowKey));
-        const gone = nowRef.current.map(nowKey).filter((k) => !next.has(k));
-        if (!gone.length) { setNowEvents(picked); return; }
-        setLeavingNow(new Set(gone));
-        window.setTimeout(() => { setNowEvents(picked); setLeavingNow(new Set()); }, 250);
-      })
-      .catch(() => {/* навігація без подій — не трагедія */});
-  }, [pathname]);
 
   // Пул-7 №6: лічильник списку — свій фетч (сторінки більше не передають);
   // bump від pantryStore слугує загальним сигналом «лічильники змінились».
@@ -162,8 +122,6 @@ export function TabBar({ shoppingCount }: Props) {
   // верстці CSS-ом, як brand/user). Список оновлюється, коли Feed сіпає
   // version (нове повідомлення дало назву, нова сесія, тощо).
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const cookOpen = useCookStore((s) => s.open);
-  const cookArgs = useCookStore((s) => s.args);
   const version = useSessionStore((s) => s.version);
   const [sessions, setSessions] = useState<(SessionInfo & { message_count: number })[]>([]);
   useEffect(() => {
@@ -171,22 +129,6 @@ export function TabBar({ shoppingCount }: Props) {
       .then(({ sessions: all }) => setSessions(all.filter((s) => s.message_count > 0).slice(0, 6)))
       .catch(() => {/* сайдбар без сесій — не трагедія */});
   }, [version, pathname]);
-
-  // Пул-2 №2: «Готування триває» живе в сайдбарі над сесіями (десктоп).
-  // Перечитуємо на зміні маршруту й поверненні фокуса — готування могло
-  // завершитись в іншій вкладці.
-  const [cookLive, setCookLive] = useState<CookSession | null>(() => loadCookSession());
-  useEffect(() => {
-    setCookLive(loadCookSession());
-    const onVis = () => setCookLive(loadCookSession());
-    window.addEventListener('focus', onVis);
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      window.removeEventListener('focus', onVis);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-    // cookArgs: поп-ап відкрили/закрили без навігації — фрейм мусить ожити одразу.
-  }, [pathname, cookArgs]);
 
   function openSession(id: string) {
     navigate('/app', { state: { sessionId: id, at: Date.now() } });
@@ -272,72 +214,28 @@ export function TabBar({ shoppingCount }: Props) {
         );
       })}
 
-      {/* «ЗАРАЗ» — одразу під цілями, над «Готування триває» (рішення 03.09).
-          Подія, що триває, називається кінцем: «ще 4 тижні», не «триває». */}
-      {/* Етап 4: «Дім зараз» — блок є ЗАВЖДИ. Порожнеча тут не наслідок, а
-          головний стан на сьогодні, і в неї три різні слова (див. вище). */}
-      <div className={styles.now} data-now-state={nowEvents.length ? 'events' : nowEmptyKind(pantryFacts)}>
-        <div className={styles['now-label']}>ЗАРАЗ</div>
-        {nowEvents.length === 0 && <div className={styles['now-empty']}>{nowEmptyText(pantryFacts)}</div>}
-        {nowEvents.map((e) => (
-          <button
-            key={nowKey(e)}
-            type="button"
-            className={`${styles['now-row']} ${styles[`t-${toneOfNow(e)}`]} ${leavingNow.has(nowKey(e)) ? styles['now-leave'] : ''}`}
-            onClick={() => navigate('/calendar')}
-            title={e.rule_text ?? e.meaning ?? e.title}
-          >
-            <span className={styles['now-dot']} aria-hidden />
-            <span className={styles['now-text']}>
-              <span className={styles['now-title']}>{e.title}</span>
-              {/* Три позначки за PLAN §5: джерело — знак 11 px; орієнтовно — «≈»
-                  перед часом (у nowWhen); суворо — сливова заливка, не слово в
-                  рядку. Час — кінцем і тижнями, як у бандлі. */}
-              <span className={styles['now-when']}>
-                <Icon name={e.source === 'catalog' ? 'sys.tradition' : e.source === 'chat' ? 'sys.chat' : 'live.byHand'} size={12} inherit decorative />
-                {nowWhen(e) ?? 'триває'}
-                {e.strict && <span className={styles['now-strict']}>суворо</span>}
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Правка №1: сесії — частина навігації. Нова сесія → останні → архів. */}
+      {/* 6b-5: «ЗАРАЗ» і картка «Готування триває» з сайдбара зняті — один
+          факт двічі не показуємо: стан дому тепер у шапці чату (чіпи) і в
+          панелі «Дім зараз». Сайдбар = Kitchen OS · цілі · «Розмови · + Нова» ·
+          сесії по днях · рядок профілю (Prototype nav). Решта — 6b-6. */}
       <div className={styles.sessions}>
         <div className={styles['sessions-divider']} />
-        {/* Пул-2 №2: фрейм «Готування триває» — над сесіями. */}
-        {cookLive && (
-          <button
-            className={styles['cook-live']}
-            onClick={() => cookOpen({
-              recipe: cookLive.recipe,
-              recipeId: cookLive.recipeId,
-              returnSessionId: cookLive.returnSessionId ?? activeSessionId,
-            })}
-          >
-            <span className={styles['cook-live-dot']} aria-hidden />
-            <span className={styles['cook-live-text']}>
-              <span className={styles['cook-live-title']}>{cookLive.recipe.t}</span>
-              <span className={styles['cook-live-meta']}>
-                крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)}/{cookLive.recipe.st.length}
-                <CookCountdown deadline={cookLive.deadline} /> · продовжити ›
-              </span>
-            </span>
-          </button>
-        )}
-        <button className={styles['session-new']} onClick={newSession}>+ Нова розмова</button>
-        {sessions.map((s) => {
+        <div className={styles['sessions-head']}><span className={styles['sessions-label']}>Розмови</span>
+        <button className={styles['session-new']} onClick={newSession}><Icon name="sys.add" size={12} inherit decorative /> Нова</button></div>
+        {sessions.map((s, i) => {
           const { when, title } = sessionLabel(s);
+          const day = dayLabel(s.day);
+          const first = i === 0 || sessions[i - 1]!.day !== s.day;
           return (
             <div key={s.id} className={`${styles['session-row']} ${leavingSessions.has(s.id) ? styles['session-leave'] : ''}`}>
+              {first && <div className={styles['session-day']}>{day}</div>}
               <button
                 className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`}
                 onClick={() => openSession(s.id)}
                 title={`${when} · ${title}`}
               >
-                <span className={styles['session-when']}>{when}</span>
                 <span className={styles['session-title']}>{title}</span>
+                <span className={styles['session-when']}>{when}</span>
               </button>
               <button
                 className={styles['session-x']}

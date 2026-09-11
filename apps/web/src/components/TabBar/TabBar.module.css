@@ -307,21 +307,25 @@
 .session-row:hover .session-x { opacity: 1; }
 .session-x:hover { background: var(--line); color: var(--ink); }
 
+/* 6b-5: рядок «Розмови · + Нова» над сесіями (Responsive: «Розмови» 12 dim,
+   «+ Нова» шавлією); групи по днях 11 dim (Сьогодні / Вчора / Пн · 7 вер). */
+.sessions-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 4px; }
+.sessions-label { font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--dim); }
 .session-new {
-  display: flex;
-  width: 100%;
-  padding: 9px 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: var(--r);
+  border-radius: 8px;
   background: transparent;
   color: var(--sage);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  text-align: left;
 }
 .session-new:hover { background: var(--line); }
+.session-day { font-family: var(--font-body); font-size: 11px; color: var(--dim); padding: 8px 12px 2px; }
+.session-row:first-of-type .session-day { padding-top: 2px; }
 .session {
   display: flex;
   flex-direction: column;
@@ -338,14 +342,14 @@
 .session:hover { background: var(--line); }
 .session.active { background: var(--line); }
 .session-when {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
   color: var(--dim);
 }
 .session-title {
   font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 14px;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

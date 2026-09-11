@@ -16,6 +16,8 @@
 // --dc-click селектор у бандлі, по якому клікнути перед знімком кадра (Prototype: вкладка nav)
 // --dc-wait мс після кліку в бандлі (типово 600; прототип відповідає з затримкою — дати 3000)
 // --list    лише перелічити data-screen-label у файлі й вийти
+// --init-storage key=json[,key=json] — покласти в localStorage застосунку ДО завантаження
+//           (стан готування kos-cook-live, ширина панелі kos-rail-width тощо)
 // --stub-messages файл JSON із масивом повідомлень (MessageInfo без id/session_id/created_at),
 //           які ДОПИСУЮТЬСЯ в кінець відповіді GET /v1/session/today і /v1/sessions/:id — лише в цьому
 //           знімку, у мережі; база не чіпається. Для карток, яких стаб не віддає
@@ -117,6 +119,11 @@ if (URL_BASE) {
     ...(haveState ? { storageState: STATE_FILE } : {}),
     ...(WIDTH < 768 ? { isMobile: true, hasTouch: true } : {}),
   });
+  const initStorage = arg('init-storage', null);
+  if (initStorage) {
+    const pairs = initStorage.split(/,(?=[a-zA-Z_-]+=)/).map((kv) => { const i = kv.indexOf('='); return [kv.slice(0, i), kv.slice(i + 1)]; });
+    await appCtx.addInitScript((entries) => { for (const [k, v] of entries) localStorage.setItem(k, v); }, pairs);
+  }
   const page = await appCtx.newPage();
   await page.emulateMedia({ colorScheme: THEME });
   const stubFile = arg('stub-messages', null);

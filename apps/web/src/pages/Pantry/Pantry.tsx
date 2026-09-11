@@ -7,7 +7,7 @@ import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, applyFilter, toggleKind, toggleState, resetFilter, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
@@ -35,7 +35,13 @@ export function PantryPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState<FilterState>(INITIAL);
+  // 6b-5: «Ще N прострочених — у коморі, за свіжістю» з панелі «Дім зараз»
+  // приходить із `state.sort` — комора відкривається вже в тому порядку.
+  const location = useLocation();
+  const [filter, setFilter] = useState<FilterState>(() => {
+    const sort = (location.state as { sort?: FilterState['sort'] } | null)?.sort;
+    return sort ? { ...INITIAL, sort } : INITIAL;
+  });
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
   const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
   const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);

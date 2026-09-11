@@ -31,7 +31,11 @@ import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { CookCountdown } from '../../lib/cook-watch';
-import { usePantryFacts } from '../../store/pantryFacts';
+import { useHomeNow } from '../../store/homeNow';
+import { ChatHead } from '../../components/ChatHead/ChatHead';
+import type { SessionRow } from '../../components/ChatHead/SessionsMenu';
+import { HomeNowPanel } from '../../components/HomeNow/HomeNow';
+import { toneOfNow } from '../../lib/period';
 import { stepLabelsFrom } from '../../lib/recipe';
 import { type Turn, type TurnAttachment, attachmentKind, hhmm, newId, messageToTurn } from './turns';
 import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
@@ -1196,66 +1200,88 @@ export function Feed() {
   }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, liveBatches, liveProducts, buildingCart, sessionStartedAt, sessionId]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 6b-5: дані для шапки.
-  const pantryFacts = usePantryFacts(sessionId);
+  // 6b-5: стан дому для шапки й панелі «Дім зараз» (Screens «Чат · збірка»,
+  // Responsive G1/G3, Components «home now»).
+  const home = useHomeNow(sessionId);
+  const [homeOpen, setHomeOpen] = useState(false);
   const sessionWhen = (() => {
     if (!sessionStartedAt) return 'сьогодні';
     const d = new Date(sessionStartedAt); const now = new Date();
     const same = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
     return same ? 'сьогодні' : d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }).replace('.', '');
   })();
-  // Пілюля сесії й «Дім зараз» ведуть туди, де живуть розмови і «ЗАРАЗ»:
-  // шухляда (<1024) або розгорнутий сайдбар.
-  function openSessions() { if (window.innerWidth >= 1024) setNavExpanded(true); else openNav(true); }
-  function openHomeNow() { openSessions(); }
+  const homeDate = new Date().toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+  // «Усі розмови» / panel-left-open — розмови живуть у сайдбарі (≥1024) або шухляді.
+  function openAllSessions() { if (window.innerWidth >= 1024) setNavExpanded(true); else openNav(true); }
+  // Меню пілюлі: 5 останніх розмов по днях зі станом другим рядком — «чекає
+  // рішення» (картки дому, що чекають, з session_id) або час dim.
+  const [sessionRows, setSessionRows] = useState<SessionRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    api.session.list().then(({ sessions }) => {
+      if (!alive) return;
+      const pendingIn = new Set(housePending.map((pc) => pc.session_id).filter(Boolean));
+      setSessionRows(sessions.slice(0, 5).map((sn) => {
+        const d = new Date(sn.created_at);
+        return {
+          id: sn.id, title: sn.title ?? 'без назви', day: sn.day, created_at: sn.created_at,
+          state: pendingIn.has(sn.id)
+            ? { text: 'чекає рішення', tone: 'amber' as const }
+            : { text: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, tone: 'dim' as const },
+        };
+      }));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [sessionId, housePending]);
+  // Ширина КОНТЕЙНЕРА стрічки (Р38): нижче 768 «Дім зараз» — шторка, не накладка.
+  const screenRef = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const el = screenRef.current; if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([en]) => setNarrow((en?.contentRect.width ?? 1440) < 704));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14):
+  // «горить», але не прострочено, і рядки «Зараз», що не суворі.
+  const quietCount = home.burning.filter((b) => b.days >= 0).length + home.now.slice(0, 3).filter((e) => toneOfNow(e) !== 'restrict').length;
+  function askInComposer(text: string) {
+    setHomeOpen(false);
+    setInput(text);
+    window.setTimeout(() => composerInputRef.current?.focus(), 0);
+  }
 
   return (
     <div
       className={styles.screen}
+      ref={screenRef}
     >
-      {/* Шапка лишилась тільки заради аватара на мобайлі. Заголовок «Кухня»
-          і лічильники «КОМОРА N · СПИСОК N» прибрані: обидва числа стоять у
-          бічному меню (на мобайлі — в нижній смузі), а назва екрана й так
-          відома тому, хто на ньому. На десктопі шапки немає взагалі — там
-          аватар живе внизу меню, і смуга лишалась би порожньою на 67px.
-          Ручний вхід у список переїхав у шапку панелі іконкою. */}
-      {/* Шапка одна на всі екрани (блок А1). У Стрічці заголовок — «Кухня»,
-          а не аватар: без нижнього бара він єдиний індикатор того, де ти.
-          Сегменти «Сьогодні / Історія» зняті — їхню роботу робить блок сесій
-          у шухляді, а існували вони лише тому, що сесії жили в десктопному
-          сайдбарі й мобайлу не лишалось нічого. Повернення з історії — тап по
-          сесії або «＋ нова сесія» тут-таки. */}
-      {/* 6b-5 — шапка чату за Prototype: пілюля сесії (chevron-down · назва ·
-          «· сьогодні») ліворуч, праворуч — чіпи стану дому: «Горить N»
-          бурштином, «Готуємо · таймер» шавлією (поки триває), «Дім зараз» на
-          card. Заголовка «Кухня» і «Нова розмова» в шапці немає — нова
-          розмова живе в сайдбарі/шухляді (Responsive: «Нова розмова ⌘N»).
-          «Дім зараз» у Prototype відкриває аркуш дому; у нас «ЗАРАЗ» живе в
-          сайдбарі — чіп його розгортає (Р38). */}
-      <header className={styles['chat-head']} data-chat-head>
-        <button type="button" className={styles['session-pill']} onClick={openSessions} data-session-pill
-          aria-label="Розмови" title="Розмови">
-          <Icon name="sys.open" size={16} inherit decorative />
-          <span className={styles['session-pill-title']}>{historyOpen ? 'Історія' : (sessionTitle ?? 'Нова розмова')}</span>
-          <span className={styles['session-pill-when']}>· {sessionWhen}</span>
-        </button>
-        <span className={styles['chat-head-gap']} />
-        {(pantryFacts?.soon ?? 0) > 0 && (
-          <button type="button" className={`${styles['head-chip']} ${styles['head-chip-amber']}`} onClick={() => navigate('/pantry')} data-chip-burning>
-            <Icon name="live.burning" size={16} inherit decorative />Горить {pantryFacts!.soon}
-          </button>
-        )}
-        {cookLive && (
-          <button type="button" className={`${styles['head-chip']} ${styles['head-chip-sage']}`} data-chip-cooking
-            onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}>
-            <Icon name="cook.timer" size={16} inherit decorative />Готуємо · <CookCountdown deadline={cookLive.deadline} />
-          </button>
-        )}
-        <button type="button" className={styles['head-chip']} onClick={openHomeNow} data-chip-home>
-          <Icon name="sys.home" size={16} inherit decorative /><span>Дім<span className={styles['head-chip-home-text']}> зараз</span></span>
-        </button>
-      </header>
-
+      <ChatHead
+        title={historyOpen ? 'Історія' : sessionTitle}
+        when={sessionWhen}
+        home={home}
+        cookLive={cookLive}
+        sessions={sessionRows}
+        activeSessionId={sessionId}
+        onPickSession={(id) => void loadHistorySession(id)}
+        onNewSession={() => void startFreshSession()}
+        onAllSessions={openAllSessions}
+        onCook={() => cookLive && cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
+        onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
+        onHome={() => setHomeOpen((v) => !v)}
+        homeOpen={homeOpen}
+        quietCount={quietCount}
+      />
+      {homeOpen && (
+        <HomeNowPanel
+          home={home} cookLive={cookLive} sheet={narrow} dateLabel={homeDate}
+          onClose={() => setHomeOpen(false)}
+          onCook={() => { setHomeOpen(false); if (cookLive) cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId }); }}
+          onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
+          onCalendar={() => navigate('/calendar')}
+          onAsk={askInComposer}
+        />
+      )}
 
       {/* Моушн-2 №6: перемикання Сьогодні⇄Історія — crossfade + X±10 (key
           перемонтовує контейнер), скрол-позиція кожної вкладки пам'ятається. */}
@@ -1265,27 +1291,8 @@ export function Feed() {
         ref={timelineRef}
         onScroll={(e) => { segScroll.current[historyOpen ? 'h' : 't'] = e.currentTarget.scrollTop; }}
       >
-        {/* Пул-2 №2: на десктопі фрейм живе в сайдбарі (TabBar) — цей банер
-            лишається тільки для мобільної верстки (клас ховає його ≥1024). */}
-        {cookLive && !historyOpen && (
-          /* Prototype: чіп родини «card + тінь» (як чіпи рецепта/кошика), без
-             бордера: знак, назва, підрядок, шеврон. Що триває — каже слово. */
-          <button
-            type="button"
-            className={`${styles['cook-banner-mobile']} ${styles['banner-in']} ${styles.trace}`}
-            onClick={() => cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
-          >
-            <span className={styles['trace-icon']}><Icon name="cook.go" size={18} inherit decorative /></span>
-            <span className={styles['trace-body']}>
-              <span className={styles['trace-kind']}>Готуємо · {cookLive.recipe.t}</span>
-              <span className={styles['trace-value']}>
-                крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)} з {cookLive.recipe.st.length}
-                <CookCountdown deadline={cookLive.deadline} /> · продовжити
-              </span>
-            </span>
-            <span className={styles['trace-go']}><Icon name="sys.next" size={16} inherit decorative /></span>
-          </button>
-        )}
+        {/* 6b-5: банера «Готуємо · крок» у стрічці більше нема — той самий факт
+            несе чіп у шапці («Готуємо · таймер») і «Дім ●●● N» на 390. */}
 
         {/* DA2-37: сегмент «Історія» показує сесії ПРЯМО ТУТ — контент під
             шапкою, як у макеті 1б, а не bottom sheet поверх стрічки. */}

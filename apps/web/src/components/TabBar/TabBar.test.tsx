@@ -76,9 +76,10 @@ describe('скрольований стовпчик сайдбара', () => {
     // Верхня межа стрічки — перша ціль.
     expect(box!.contains(byText('Стрічка')!)).toBe(true);
     expect(box!.contains(byText('Календар')!)).toBe(true);
-    // «ЗАРАЗ» їде разом з усіма, а не тисне на список знизу.
-    expect(box!.textContent).toContain('ЗАРАЗ');
-    expect(box!.contains(byText('Великий піст')!)).toBe(true);
+    // 6b-5: «ЗАРАЗ» із сайдбара пішов у шапку чату й панель «Дім зараз»;
+    // між цілями і сесіями — рядок «Розмови · + Нова», і він теж у скролі.
+    expect(box!.textContent).toContain('Розмови');
+    expect(box!.textContent).not.toContain('ЗАРАЗ');
     // Нижня межа — саме «Історія →»: заради неї крок і робився.
     const archive = byText('Історія →');
     expect(archive).toBeTruthy();

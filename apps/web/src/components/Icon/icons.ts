@@ -21,7 +21,7 @@ import {
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
   ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import, ListOrdered, BookmarkCheck, Share2, Reply,
-  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw, Camera, FileText,
+  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw, Camera, FileText, Moon, ChevronUp,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -67,6 +67,7 @@ export const ICONS = {
   'sys.next':      { glyph: ChevronRight,      label: 'Далі',          family: 'system' },
   // 6b-5: пілюля сесії в шапці чату (Prototype: chevron-down «розкрити розмови»).
   'sys.open':      { glyph: ChevronDown,       label: 'Розкрити',      family: 'system' },
+  'sys.opened':    { glyph: ChevronUp,         label: 'Розкрито',      family: 'system' },
   'sys.out':       { glyph: ExternalLink,      label: 'Назовні',       family: 'system' },
   'sys.collapse':  { glyph: PanelLeftClose,    label: 'Згорнути',      family: 'system' },
   // Етап 6a: одна кнопка «панель» на всі контейнери (Responsive R1) — open ⇄ close.
@@ -175,6 +176,8 @@ export const ICONS = {
   'live.supply':   { glyph: Truck,         label: 'Завіз',         family: 'live' },
   'live.household':{ glyph: Users,         label: 'Подія дому',    family: 'live' },
   'live.byHand':   { glyph: Pencil,        label: 'Рукою',         family: 'live' },
+  // 6b-5: суворий період у шапці чату (Screens «Чат · збірка»: moon «Піст · до 27 вер»).
+  'live.fast':     { glyph: Moon,          label: 'Піст',          family: 'live' },
   // Стани дії — рядок над композитором (Components · «Стани дії»). Знаки з
   // бандла, як намальовано: ліміт — пісочний годинник, мережа — wifi-off,
   // «нічого не змінилось» — мінус. «Стоп» — квадрат, знак зупинки.

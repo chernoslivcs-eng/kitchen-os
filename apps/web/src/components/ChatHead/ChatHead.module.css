@@ -1,0 +1,128 @@
+/* Шапка чату — Screens «Чат · збірка» (1440) · Responsive G1/G3.
+   56, 0 24, gap 8, без фону; під чіпами градієнт bg → прозорий ≈ 40 (стрічка
+   йде під шапку у фейд). Три розкладки за шириною контейнера `chat`
+   (Feed .screen): пороги 1024 і 768, як у вʼюпортів. */
+.head {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 4;
+  display: flex; align-items: center; gap: 8px;
+  height: 56px; padding: 0 24px 40px; box-sizing: content-box;
+  background: linear-gradient(to bottom, var(--bg) 0 56px, transparent 100%);
+  pointer-events: none;
+}
+.head > * { pointer-events: auto; }
+.gap { flex: 1; pointer-events: none; }
+
+/* Пілюля сесії 32, 0 12 0 8, card + --sh, 13/500; chevron 16 dim; «· сьогодні» dim 400.
+   Розкрита — контур чорнилом inset 1.5 і шеврон догори (G1). */
+.pill-wrap { position: relative; min-width: 0; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 12px 0 8px; max-width: 100%;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; cursor: pointer;
+}
+.pill > [data-icon] { color: var(--dim); order: -1; }
+.pill-on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b); }
+.pill-title { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.pill-when { color: var(--dim); font-weight: 400; }
+
+/* «+ Нова» 32, muted, без фону, plus 15, 13. */
+.newBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 10px;
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  font-family: var(--font-body); font-size: 13px; color: var(--muted);
+  white-space: nowrap; cursor: pointer;
+}
+.newBtn:hover { color: var(--ink); }
+
+/* Чіпи стану 32, 0 10, r999, 12/500, знак 15, gap 8. */
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 10px;
+  border: 0; border-radius: var(--r-pill);
+  font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--ink);
+  background: transparent; white-space: nowrap; flex: none; cursor: pointer;
+}
+.chip:hover { filter: brightness(0.96); }
+.chip-danger { background: var(--danger-bg); color: var(--danger); }
+.chip-plum { background: var(--plum-bg); color: var(--plum); }
+.chip-sage { background: var(--sage-bg); color: var(--sage); }
+.chip-home { background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
+.chip-on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b); }
+.home-more { color: var(--dim); font-weight: 400; }
+.home-narrow { display: none; align-items: center; gap: 8px; }
+.dots { display: flex; gap: 3px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-danger { background: var(--danger); }
+.dot-plum { background: var(--plum); }
+.dot-sage { background: var(--sage); }
+.count {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--ink); color: var(--bg);
+  display: grid; place-items: center; font-size: 12px; font-weight: 600;
+}
+.burger { display: none; }
+
+/* Пороги контейнера = пороги вʼюпортів мінус рейка: 1024 − 60 = 964,
+   768 − 64 = 704 — щоб вʼюпорт 768 отримував правило 768, а не 390. */
+/* 768: без «+ Нова». */
+@container chat (max-width: 963px) {
+  .newBtn { display: none; }
+  .head { padding: 0 16px 40px; }   /* R2: 0 16 */
+}
+/* 390 (G3): panel-left-open 40 на card · пілюля 36 · «Дім ●●● N» 36; 14 16 8. */
+@container chat (max-width: 703px) {
+  .head { padding: 14px 16px 40px; height: 40px; }
+  .burger {
+    display: grid; place-items: center; flex: none;
+    width: 40px; height: 40px; border: 0; border-radius: 50%;
+    background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted); cursor: pointer;
+  }
+  .pill { height: 36px; padding: 0 12px 0 10px; font-size: 14px; gap: 6px; }
+  .pill > [data-icon] { order: 1; }
+  .pill-title { max-width: 120px; }
+  .pill-when { display: none; }
+  .chip-danger, .chip-plum, .chip-sage { display: none; }
+  .chip-home { height: 36px; padding: 0 4px 0 12px; font-size: 13px; }
+  .home-wide { display: none; }
+  .home-narrow { display: inline-flex; }
+  .chip-on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b); }
+}
+
+/* Меню розмов (G1): 340, card r14 --sh2, 6; top 52 від шапки. */
+.menu {
+  position: absolute; top: calc(100% + 6px); left: 0; width: 340px; z-index: 5;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px; border-radius: 14px;
+  background: var(--card); box-shadow: var(--sh2);
+  animation: menu-in var(--dur-fast) var(--ease-enter);
+}
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.menu-new, .menu-all {
+  display: flex; align-items: center; gap: 10px;
+  height: 40px; padding: 0 10px;
+  border: 0; border-radius: 10px; background: transparent;
+  font-family: var(--font-body); font-size: 14px; text-align: left; cursor: pointer;
+}
+.menu-new { color: var(--sage); font-weight: 500; }
+.menu-all { color: var(--muted); }
+.menu-new:hover, .menu-all:hover, .menu-row:hover { background: var(--line); }
+.menu-kbd { margin-left: auto; font-size: 12px; color: var(--dim); font-weight: 400; }
+.menu-line { height: 1px; background: var(--line); margin: 4px 10px; }
+.menu-group { display: flex; flex-direction: column; gap: 1px; }
+.menu-day { font-size: 11px; color: var(--dim); padding: 6px 10px 4px; }
+.menu-row {
+  display: flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 10px;
+  border: 0; border-radius: 10px; background: transparent;
+  font-family: var(--font-body); text-align: left; color: var(--ink); cursor: pointer;
+}
+.menu-row-on { background: var(--bg); }
+.menu-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.menu-row-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-row-on .menu-row-title { font-weight: 500; }
+.menu-row-state { font-size: 12px; color: var(--dim); }
+.menu-row-amber { color: var(--amber); }
