@@ -35,7 +35,8 @@ export function ActionState({ sending, waited, parsing, nothingChanged, cardConf
   return (
     <div data-action-state={st.kind} aria-live="polite">
       <div className={`${styles.row} ${styles[`tone-${st.tone}`]}`}>
-        <span className={styles.icon}><Icon name={st.icon} size={16} inherit decorative /></span>
+        {/* 1.5b: «Думаю» — sparkles погойдується, поки чекаємо. */}
+        <span className={styles.icon}><Icon name={st.icon} size={16} inherit decorative live={st.kind === 'thinking' ? 'think' : undefined} /></span>
         {/* data-wait — контракт Пул-9 №3: годинник справжній, тест його читає. */}
         <span className={styles.text} {...(st.kind === 'thinking' ? { 'data-wait': true } : {})}>{st.text}</span>
         {act && act.run && (

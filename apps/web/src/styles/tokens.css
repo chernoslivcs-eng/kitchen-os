@@ -168,6 +168,18 @@
   --dur-flash:   700ms;    /* спалах «це щойно змінилось» (рядок, подія, картка) */
   --dur-pulse:   1400ms;   /* шимер скелетона, пульс слоту дропзони */
   --dur-alarm:   30s;      /* пульс «таймер вийшов» у Cook Mode */
+  /* Етап 1.5b — рух частин знака (Icons «Специфікація»: 600–900 мс, одна
+     крива ease-in-out). Бандл пише кожному руху своє число (600…1200) і дві
+     криві; тут — три сходинки в межах канону й одна крива. Живі стани —
+     цикл, поки триває процес: числа з підписів бандла. */
+  --dur-icon-short: 700ms;  /* checks · turn · lift · waves */
+  --dur-icon:       800ms;  /* flip · swap · back · unroll · fold · nod · close */
+  --dur-icon-long:  900ms;  /* bubble · door · book · home · roll · draw · orbit · listen · sliders · dial */
+  --dur-live-flame: 1600ms; /* «Горить» дихає */
+  --dur-live-timer: 1200ms; /* таймер тікає */
+  --dur-live-mic:   1200ms; /* диктовка пульсує */
+  --dur-live-think: 1400ms; /* «Думаю» погойдується */
+  --ease-icon:      ease-in-out;
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter:    cubic-bezier(0, 0, 0.2, 1);
@@ -183,6 +195,13 @@
     --dur-flash: 0ms;
     --dur-pulse: 0ms;
     --dur-alarm: 0ms;
+    --dur-icon-short: 0ms;
+    --dur-icon: 0ms;
+    --dur-icon-long: 0ms;
+    --dur-live-flame: 0ms;
+    --dur-live-timer: 0ms;
+    --dur-live-mic: 0ms;
+    --dur-live-think: 0ms;
   }
 }
 
