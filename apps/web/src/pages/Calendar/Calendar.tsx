@@ -22,6 +22,7 @@
 // обидва відкривають підписки (PeriodSubscriptions).
 
 import { Icon } from '../../components/Icon/Icon';
+import type { IconName } from '../../components/Icon/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
@@ -42,7 +43,19 @@ import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
 import { TRADITION_LABEL } from '../../lib/period';
 import { usePanelStore, ARTIFACT_SIDE } from '../../store/panel';
+import { MonthView } from './MonthView';
+import { loadCookSession } from '../../lib/cook-session';
+import { useCookStore } from '../../store/cook';
 import styles from './Calendar.module.css';
+
+/** №25: вид на 1440 — місяць сіткою (6c) · тиждень (картка D3a) · список (стрічка днів D3b). */
+type CalView = 'month' | 'week' | 'list';
+const VIEW_KEY = 'kos-cal-view';
+const readView = (): CalView => { try { const v = localStorage.getItem(VIEW_KEY); return v === 'week' || v === 'list' ? v : 'month'; } catch { return 'month'; } };
+const monthStart = (at: number) => { const d = new Date(at); d.setDate(1); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const addMonths = (at: number, n: number) => { const d = new Date(at); d.setMonth(d.getMonth() + n); return d.getTime(); };
+const DOW_SHORT = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+const ddmm = (at: number) => new Date(at).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
 
 const PAST_WEEKS = 4;
 const WEEKS = PAST_WEEKS + 53;
@@ -157,6 +170,17 @@ export function CalendarPage() {
 
   const today = useMemo(() => dayStart(Date.now()), []);
   const from = useMemo(() => mondayOf(today - PAST_WEEKS * 7 * DAY), [today]);
+  // №25: вид і курсор місяця/тижня (1440). Курсор ходить у межах завантаженого діапазону.
+  const [view, setViewState] = useState<CalView>(readView);
+  const setView = (v: CalView) => { setViewState(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* ок */ } };
+  const [month, setMonth] = useState(() => monthStart(today));
+  const [weekStart, setWeekStart] = useState(() => mondayOf(today));
+  const rangeEnd = from + WEEKS * 7 * DAY;
+  const shift = (dir: 1 | -1) => {
+    if (view === 'week') setWeekStart((w) => Math.min(Math.max(w + dir * 7 * DAY, from), rangeEnd - 7 * DAY));
+    else setMonth((m) => Math.min(Math.max(addMonths(m, dir), monthStart(from)), monthStart(rangeEnd)));
+  };
+  const cook = useMemo(() => loadCookSession(), [version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // П2: підписки дому — для рядків «Приховані» і «Свята» внизу.
   const [subs, setSubs] = useState<SubscriptionRow[]>([]);
@@ -188,6 +212,32 @@ export function CalendarPage() {
 
   // Дві осі: тривалі — смуги/риски й легенда, точкові — рядки днів.
   const { lasting, point } = useMemo(() => splitAxes(events), [events]);
+  // №25: права колонка 6c — сьогодні · цього тижня · триває; легенда — за родами в діапазоні.
+  const todayLabel = (() => { const d = new Date(today); const w = d.toLocaleDateString('uk-UA', { weekday: 'long' }); return `${w.charAt(0).toUpperCase()}${w.slice(1)}, ${d.getDate()}`; })();
+  const todayHousehold = useMemo(() => events.filter((e) => e.scope === 'household' && coversDay(e, today)), [events, today]);
+  const thisWeek = useMemo(() => {
+    const end = mondayOf(today) + 7 * DAY;
+    return point.filter((e) => dayStart(e.start) >= today && dayStart(e.start) < end && !todayHousehold.includes(e)).sort((a, b) => a.start - b.start).slice(0, 6);
+  }, [point, today, todayHousehold]);
+  const legend = useMemo(() => {
+    const out: { icon: IconName; label: string }[] = [];
+    const add = (icon: IconName, label: string) => { if (!out.some((l) => l.label === label)) out.push({ icon, label }); };
+    for (const e of events) {
+      if (e.done_at) add('sys.done', 'готували');
+      else if (e.kind === 'meal') add('cook.type', 'готуємо');
+      else if (e.kind === 'season' || e.kind === 'editorial') add('live.season', 'сезон');
+      else if (e.kind === 'tradition' || (e.force === 'restrict' && e.scope === 'catalog')) add('live.tradition', 'піст');
+      else if (e.kind === 'supply') add('live.supply', 'завіз');
+      else if (e.scope === 'household') add('live.household', 'подія');
+    }
+    return out;
+  }, [events]);
+  const runningNote = (e: EventOccurrence) => {
+    const days = Math.round((dayStart(e.end) - dayStart(e.start)) / DAY) + 1;
+    const dayN = Math.round((today - dayStart(e.start)) / DAY) + 1;
+    const until = `до ${e.approx ? '≈ ' : ''}${ddmm(e.end)}`;
+    return e.force === 'restrict' ? `${dayN} з ${days} · ${until}` : until;
+  };
   const lanes = useMemo(() => assignLanes(lasting), [lasting]);
   const running = useMemo(
     () => lasting.filter((e) => coversDay(e, today)).sort((a, b) => a.start - b.start),
@@ -252,7 +302,11 @@ export function CalendarPage() {
     scrollToToday('auto');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
-  const goToday = () => scrollToToday('smooth');
+  const goToday = () => {
+    setMonth(monthStart(today));
+    setWeekStart(mondayOf(today));
+    if (!grid || view === 'list') scrollToToday('smooth');
+  };
 
   // «Місяць · тиждень N» — за верхнім видимим тижнем: у шапці на 1440, у
   // липкому підрядку на 390.
@@ -429,20 +483,136 @@ export function CalendarPage() {
       {loadFailed && (
         <Toast tone="danger" text={CALENDAR_FAILED.text} action={{ label: CALENDAR_FAILED.cta, run: () => setVersion((v) => v + 1) }} />
       )}
-      {/* Шапка (D3a/D3b): h1 · «Вересень · тиждень 37» · розпірка · «Сьогодні»
-          пігулкою на card · «Подія» чорнилом (на 390 — коло зі знаком). */}
+      {/* №25 (рішення власника): 1440 — за Redesign «v3 · Календар · сітка» (6c);
+          нижче 1024 — шапка й стрічка днів D3b без змін. */}
+      {grid ? (
+        <>
+          <div className={styles['c6-head']} data-cal-head>
+            <h1 className={styles['c6-h1']}>{monthName(view === 'week' ? weekStart + 3 * DAY : month)} <span className={styles['c6-year']}>{new Date(view === 'week' ? weekStart : month).getFullYear()}</span></h1>
+            <span className={styles['c6-nav']}>
+              <button type="button" onClick={() => shift(-1)} aria-label={view === 'week' ? 'Попередній тиждень' : 'Попередній місяць'}><Icon name="sys.prev" size={16} inherit decorative /></button>
+              <button type="button" onClick={() => shift(1)} aria-label={view === 'week' ? 'Наступний тиждень' : 'Наступний місяць'}><Icon name="sys.next" size={16} inherit decorative /></button>
+            </span>
+            <button type="button" className={styles['today-pill']} onClick={goToday}>Сьогодні</button>
+            <span className={styles['head-gap']} />
+            <span className={styles['c6-seg']} role="radiogroup" aria-label="Вид" data-cal-views>
+              {([['month', 'Місяць'], ['week', 'Тиждень'], ['list', 'Список']] as const).map(([v, label]) => (
+                <button key={v} type="button" role="radio" aria-checked={view === v} aria-pressed={view === v} onClick={() => setView(v)} data-view={v}>{label}</button>
+              ))}
+            </span>
+            <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">
+              <Icon name="sys.add" size={16} inherit decorative /><span className={styles['add-text']}>Подія</span>
+            </button>
+          </div>
+          <div className={styles['c6-chips']}>
+            {running.map((e) => (
+              <button key={`${e.scope}:${e.id}`} type="button"
+                className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
+                {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
+                {legendLabel(e, today)}
+              </button>
+            ))}
+            {/* Легенда — лише ті роди, що є в завантаженому діапазоні (без «чек»: даних чеків у календарі нема). */}
+            {legend.length > 0 && (
+              <span className={styles['c6-legend']} aria-hidden>
+                {legend.map((l) => <span key={l.label}><Icon name={l.icon} size={12} inherit decorative />{l.label}</span>)}
+              </span>
+            )}
+          </div>
+          <div className={styles['c6-body']}>
+            <div className={`${styles['c6-main']} ${view === 'month' ? '' : styles['c6-scroll']}`} ref={view === 'month' ? undefined : listRef}>
+              {loading && !events.length && <SkeletonRows rows={3} />}
+              {view === 'month' && (
+                <MonthView month={month} today={today} lasting={lasting} point={point} onOpen={setOpenEvent}
+                  beginSelect={beginSelect} inSel={inSel} selecting={!!sel} evMotion={evMotion} todayRef={todayRef} />
+              )}
+              {view === 'week' && (weeks.find((w) => w.start === weekStart) ? weekCard(weeks.find((w) => w.start === weekStart)!, 0) : null)}
+              {view === 'list' && (
+                <div className={styles['list-ribbon']}>
+                  {weeks.map((w) => (
+                    <div key={w.start} ref={setWeekRef(w.start)}>{w.days.map(dayRow)}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <aside className={styles['c6-aside']} data-cal-aside>
+              <div className={styles['c6-card']} data-cal-today>
+                <div className={styles['c6-today']}>
+                  <span className={styles['c6-today-day']}>{todayLabel}</span>
+                  <span className={styles['c6-today-tag']}>сьогодні</span>
+                </div>
+                {todayHousehold.map((e) => (
+                  <button key={e.id} type="button" className={`${styles['c6-row']} ${styles['c6-row-sage']}`} onClick={() => setOpenEvent(e)}>
+                    <Icon name={legendIcon(e) ?? 'live.household'} size={16} inherit decorative />
+                    <span className={styles['c6-row-text']}>
+                      <span className={styles['c6-row-title']}>{e.title}</span>
+                      <span className={styles['c6-row-sub']}>{e.end > today ? `до ${DOW_SHORT[new Date(e.end).getDay()]} ${num(e.end)}` : 'сьогодні'}{e.note ? ` · ${e.note}` : ''}</span>
+                    </span>
+                  </button>
+                ))}
+                {cook && (
+                  <button type="button" className={styles['c6-row']} onClick={() => useCookStore.getState().open({ recipe: cook.recipe, recipeId: cook.recipeId, returnSessionId: cook.returnSessionId })} data-cal-cooking>
+                    <Icon name="cook.type" size={16} inherit decorative />
+                    <span className={styles['c6-row-text']}>
+                      <span className={styles['c6-row-title']}>{cook.recipe.t}</span>
+                      <span className={styles['c6-row-sub']}>готуємо · крок {cook.stepIdx + 1} з {cook.recipe.st.length}</span>
+                    </span>
+                    <Icon name="sys.next" size={12} inherit decorative />
+                  </button>
+                )}
+                <button type="button" className={styles['c6-ask']} onClick={() => navigate('/app', { state: { composePrefix: 'Що на вечерю завтра?' } })} data-cal-ask>
+                  <Icon name="sys.chat" size={16} inherit decorative />Що на вечерю завтра?
+                </button>
+              </div>
+              <div className={styles['c6-card']} data-cal-week>
+                <div className={styles['c6-kicker']}>Цього тижня</div>
+                <div className={styles['c6-week']}>
+                  {thisWeek.length === 0 && <span className={styles['c6-empty']}>Нічого не заплановано.</span>}
+                  {thisWeek.map((e) => {
+                    const pi = pointIcon(e);
+                    return (
+                      <button key={`${e.scope}:${e.id}`} type="button" className={styles['c6-wrow']} onClick={() => setOpenEvent(e)}>
+                        <span className={styles['c6-wdow']}>{DOW_SHORT[new Date(e.start).getDay()]}</span>
+                        {pi.icon && <Icon name={pi.icon} size={16} inherit decorative />}
+                        <span className={styles['c6-wtitle']}>{e.title}</span>
+                        {e.restricts && <span className={`${styles['c6-wnote']} ${styles['c6-wnote-plum']}`}>{e.restricts}</span>}
+                        {!e.restricts && e.note && <span className={styles['c6-wnote']}>{e.note}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className={`${styles['c6-card']} ${styles['c6-card-tight']}`} data-cal-running>
+                <div className={styles['c6-kicker']}>Триває</div>
+                {running.length === 0 && <span className={styles['c6-empty']}>Зараз нічого не триває.</span>}
+                {running.map((e) => (
+                  <button key={`${e.scope}:${e.id}`} type="button" className={`${styles['c6-lrow']} ${toneClass(e)}`} onClick={() => setOpenEvent(e)}>
+                    <span className={styles['c6-ldot']} aria-hidden />
+                    <span className={styles['c6-ltitle']}>{e.title}</span>
+                    <span className={styles['c6-lnote']}>{runningNote(e)}</span>
+                  </button>
+                ))}
+                <button type="button" className={styles['c6-subs']} onClick={() => { setOpenEvent(null); setOpenSeries(hidden.length ? 'seasons' : (traditions[0] ?? 'orthodox')); }} data-subscriptions>
+                  {hidden.length ? `Приховані сезони · ${hidden.length}` : 'Приховані сезони · нема'} · Свята: {traditions.length ? traditions.map((t) => TRADITION_LABEL[t].toLocaleLowerCase('uk')).join(', ') : 'не обрано'}
+                </button>
+              </div>
+            </aside>
+          </div>
+        </>
+      ) : (
+        <>
+      {/* Шапка (D3b): h1 · розпірка · «Сьогодні» пігулкою на card · «Подія» чорнилом (390 — коло зі знаком). */}
       <AppHeader
         title="Календар"
         onMenu={() => openNav(true)}
         fill
         action={(
           <>
-            {top && <span className={styles.sub}>{monthName(top.days[3]!.at)} · тиждень {top.num}</span>}
             <span className={styles['head-gap']} />
             <button type="button" className={styles['today-pill']} onClick={goToday}>Сьогодні</button>
             {/* №26: вхід до підписок у шапці — власник не знаходив рядки внизу
                 стрічки. ≥768 — пілюля зі знаком і словом, 390 — коло 36 зі
-                знаком → шторка; на ≥1200 — панель. */}
+                знаком → шторка. */}
             <button type="button" className={styles['subs-btn']} onClick={() => { setOpenEvent(null); setOpenSeries(traditions[0] ?? 'orthodox'); }}
               aria-label="Підписки" title="Що впливає на кухню протягом року" data-subscriptions>
               <Icon name="sys.tradition" size={16} inherit decorative /><span className={styles['subs-text']}>Підписки</span>
@@ -468,25 +638,22 @@ export function CalendarPage() {
         </div>
       )}
 
-      <div className={`${styles.list} ${grid ? styles['list-grid'] : styles['list-ribbon']}`} ref={listRef}>
+      <div className={`${styles.list} ${styles['list-ribbon']}`} ref={listRef}>
         {/* Етап 5 (п.4): скелетон тієї ж форми, без чисел. */}
         {loading && !events.length && <SkeletonRows rows={3} />}
-
-        {grid ? weeks.map(weekCard) : (
-          <>
-            {top && (
-              <div className={styles.monthbar} ref={stickyRef}>
-                <span className={styles.month}>{monthName(top.days[3]!.at)}</span>
-                <span>· тиждень {top.num} · {num(top.start)} – {num(top.days[6]!.at)}</span>
-              </div>
-            )}
-            {weeks.map((w) => (
-              <div key={w.start} ref={setWeekRef(w.start)}>{w.days.map(dayRow)}</div>
-            ))}
-          </>
+        {top && (
+          <div className={styles.monthbar} ref={stickyRef}>
+            <span className={styles.month}>{monthName(top.days[3]!.at)}</span>
+            <span>· тиждень {top.num} · {num(top.start)} – {num(top.days[6]!.at)}</span>
+          </div>
         )}
+        {weeks.map((w) => (
+          <div key={w.start} ref={setWeekRef(w.start)}>{w.days.map(dayRow)}</div>
+        ))}
         {foot}
       </div>
+        </>
+      )}
 
       {creating && (
         <Sheet onClose={() => setCreating(null)} ariaLabel="Нова подія" kind="event">

@@ -62,19 +62,35 @@ describe('CalendarPage · дві осі в двох розкладках', () =>
     await act(async () => {});
   }
 
-  it('≥1024: картки тижнів, смуга посту в рядку смуг (не в клітинці), підпис «день N з M» лише раз', async () => {
+  // №25 (6c): ≥1024 — місяць сіткою; тижні D3a — вид «Тиждень»; стрічка — «Список».
+  it('≥1024: місяць сіткою — смуга посту над датами (не в клітинці), точкова в клітинці, сьогодні колом; права колонка: сьогодні · цього тижня · триває', async () => {
+    localStorage.removeItem('kos-cal-view');
     await mount(true);
-    const weeks = host!.querySelectorAll('[class*="week-cap"]');
-    expect(weeks.length).toBeGreaterThan(50);
-    const bars = [...host!.querySelectorAll('[class*="_bar_"]')].map((b) => b.textContent);
-    expect(bars.filter((t) => t?.startsWith('Великий піст · день')).length).toBe(1);
-    expect(bars.filter((t) => t === 'Великий піст').length).toBeGreaterThan(1);
-    // Точкова — в клітинці дня, тривала — ні.
-    const cells = [...host!.querySelectorAll('[class*="_cell_"]')].map((c) => c.textContent ?? '');
+    expect(host!.querySelector('[data-month-grid]')).not.toBeNull();
+    const bars = [...host!.querySelectorAll('[class*="_mbar_"]')];
+    expect(bars.some((b) => b.getAttribute('aria-label') === 'Великий піст')).toBe(true);
+    const cells = [...host!.querySelectorAll('[class*="_mcell_"]')].map((c) => c.textContent ?? '');
     expect(cells.some((t) => t.includes('Мама приїжджає'))).toBe(true);
     expect(cells.some((t) => t.includes('Великий піст'))).toBe(false);
-    expect(host!.querySelector('[class*="_rail_"]')).toBeNull();
-    expect(host!.textContent).toContain('Що на вечерю?');
+    expect(host!.querySelector('[class*="mcell-today"]')).not.toBeNull();
+    expect(host!.querySelector('[data-cal-today]')!.textContent).toContain('сьогодні');
+    expect(host!.querySelector('[data-cal-week]')!.textContent).toContain('Мама приїжджає');
+    expect(host!.querySelector('[data-cal-running]')!.textContent).toContain('Великий піст');
+    expect(host!.querySelector('[data-cal-ask]')!.textContent).toContain('Що на вечерю завтра?');
+    expect(host!.querySelector('[data-subscriptions]')).not.toBeNull();
+  });
+
+  it('≥1024: «Тиждень» — картка тижня D3a з підписом «день N з M»; «Список» — стрічка днів; вид памʼятається', async () => {
+    localStorage.removeItem('kos-cal-view');
+    await mount(true);
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-view="week"]')!.click(); });
+    expect(host!.querySelectorAll('[class*="week-cap"]').length).toBe(1);
+    const bars = [...host!.querySelectorAll('[class*="_bar_"]')].map((b) => b.textContent);
+    expect(bars.filter((t) => t?.startsWith('Великий піст · день')).length).toBe(1);
+    expect(localStorage.getItem('kos-cal-view')).toBe('week');
+    await act(async () => { host!.querySelector<HTMLButtonElement>('[data-view="list"]')!.click(); });
+    expect(host!.querySelectorAll('[class*="_rail_"]').length).toBeGreaterThan(0);
+    expect(host!.querySelector('[data-month-grid]')).toBeNull();
   });
 
   // FIXES-V3-2 №26: вхід до підписок — у шапці календаря, не лише внизу стрічки.
