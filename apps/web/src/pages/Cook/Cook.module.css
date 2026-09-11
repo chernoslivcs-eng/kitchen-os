@@ -369,7 +369,7 @@ button.main {
    пульс; цикл 30s синхронний зі звуковим повтором (пульс у перших 2%). */
 .timer-value.done {
   color: var(--sage);
-  animation: timer-done 30s ease-in-out infinite;
+  animation: timer-done var(--dur-alarm) ease-in-out infinite;
 }
 @keyframes timer-done {
   0%   { transform: scale(1); }

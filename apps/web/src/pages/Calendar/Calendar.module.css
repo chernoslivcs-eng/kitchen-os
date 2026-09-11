@@ -241,8 +241,6 @@
 .ask:hover { color: var(--sage); }
 @media (min-width: 1024px) { .ask { color: var(--sage); } }
 
-.loading { padding: 40px 0; font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
-
 /* Моушн-чекліст (правило кіта: все, що пише в стан, має видимий перехід).
    Подія, що зʼявилась у дні після «Додати»/правки, і чіп у легенді входять
    через base/enter — той самий вхід, що у картки в стрічці. Вибір днів під
@@ -257,7 +255,7 @@
 /* Моушн-кіт §03: прибрана подія гасне й осідає (exit), правлена — флеш тінтом. */
 .ev-leave { animation: ev-out var(--dur-base, 250ms) var(--ease-exit, ease) both !important; pointer-events: none; }
 @keyframes ev-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(4px); } }
-.ev-flash { animation: ev-flash 700ms var(--ease-standard, ease) both !important; border-radius: 6px; }
+.ev-flash { animation: ev-flash var(--dur-flash) var(--ease-standard, ease) both !important; border-radius: 6px; }
 @keyframes ev-flash { from { background: color-mix(in srgb, var(--sage) 18%, transparent); } to { background: transparent; } }
 
 /* П2 (2e): підвал календаря — приховані сезони і свята традицій. */

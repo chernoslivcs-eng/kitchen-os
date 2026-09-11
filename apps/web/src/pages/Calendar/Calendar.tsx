@@ -36,6 +36,9 @@ import {
 import { Sheet } from '../../components/Sheet/Sheet';
 import { PeriodEvent, type PeriodChange } from '../../components/PeriodArtifact/PeriodArtifact';
 import { PeriodSubscriptions } from '../../components/PeriodArtifact/PeriodSubscriptions';
+import { Toast } from '../../components/ErrorState/Toast';
+import { SkeletonRows } from '../../components/Skeleton/Skeleton';
+import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
 import { TRADITION_LABEL } from '../../lib/period';
 import { usePanelStore, RAIL_IN_FLOW } from '../../store/panel';
 import styles from './Calendar.module.css';
@@ -145,6 +148,7 @@ export function CalendarPage() {
   const traditions = [...new Set(subs.filter((r) => r.enabled && r.tradition).map((r) => r.tradition!))] as Tradition[];
   const [openSeries, setOpenSeries] = useState<OccasionSet | null>(null);
 
+  const [loadFailed, setLoadFailed] = useState(false);
   useEffect(() => {
     const to = new Date(from + WEEKS * 7 * DAY);
     api.events.list(iso(new Date(from)), iso(to))
@@ -156,7 +160,10 @@ export function CalendarPage() {
           if (made) setOpenEvent(made);
         }
       })
-      .catch(() => {/* порожній календар — теж відповідь */})
+      // Етап 5 (п.2): не принести ≠ «нічого не триває». Дні є завжди, тому
+      // без тосту збій читався б як спокійний тиждень.
+      .then(() => setLoadFailed(false))
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, [from, version]);
 
@@ -251,6 +258,9 @@ export function CalendarPage() {
 
   return (
     <div className={styles.screen}>
+      {loadFailed && (
+        <Toast text={CALENDAR_FAILED.text} action={{ label: CALENDAR_FAILED.cta, run: () => setVersion((v) => v + 1) }} />
+      )}
       <AppHeader
         title="Календар"
         onMenu={() => openNav(true)}
@@ -287,7 +297,9 @@ export function CalendarPage() {
           )}
         </div>
 
-        {loading && !events.length && <div className={styles.loading}>ЗАВАНТАЖУЮ…</div>}
+        {/* Етап 5 (п.4): скелетон тієї ж форми, без чисел — на місці того, що
+            вантажиться (чіпи легенди й підписи в днях), а не слово капсом. */}
+        {loading && !events.length && <SkeletonRows rows={3} />}
 
         {weeks.map((w, wi) => {
           const prev = weeks[wi - 1];

@@ -21,7 +21,7 @@
     var(--line) 60%
   );
   background-size: 240% 100%;
-  animation: shimmer 1.4s linear infinite;
+  animation: shimmer var(--dur-pulse) linear infinite;
 }
 .short {
   width: 48px;

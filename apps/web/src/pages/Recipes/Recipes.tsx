@@ -22,6 +22,8 @@ import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { FILTERS, filterCounts, matches, rank, statusWord, type Filter } from './library';
+import { Toast } from '../../components/ErrorState/Toast';
+import { RECIPES_FAILED } from '../../components/ErrorState/copy';
 
 export function RecipesPage() {
   const openNav = useNavStore((st) => st.setOpen);
@@ -29,11 +31,18 @@ export function RecipesPage() {
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  // Етап 5 (п.1): не принести ≠ порожньо. Раніше catch підставляв [] і екран
+  // казав «Тут поки жодного рецепта» — Errors: «порожній екран каже „у тебе
+  // нічого нема", і це брехня». Тепер — тост із повтором, список як був.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   async function refresh() {
     try {
-      const r = await api.savedRecipes.list().catch(() => ({ recipes: [] as SavedRecipe[] }));
+      const r = await api.savedRecipes.list();
       setRecipes(r.recipes);
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -66,6 +75,9 @@ export function RecipesPage() {
 
   return (
     <div className={styles.screen}>
+      {loadFailed && (
+        <Toast text={RECIPES_FAILED.text} action={{ label: RECIPES_FAILED.cta, run: () => void refresh() }} />
+      )}
       <AppHeader title="Рецепти" onMenu={() => openNav(true)} action={<>
           {/* Сегмент, не кнопка (D5, B1): «Збережені · N» — це весь список;
               «Журнал» — окремий екран готувань. */}
@@ -91,7 +103,7 @@ export function RecipesPage() {
 
       <div className={styles.body}>
         {loading && <SkeletonRows rows={4} />}
-        {!loading && recipes.length === 0 && (
+        {!loading && !loadFailed && recipes.length === 0 && (
           <div className={styles.empty}>
             <h3>Тут поки жодного рецепта</h3>
             {/* UX9-20: кнопка в стрічці зветься «У рецепти» — підказка вчила

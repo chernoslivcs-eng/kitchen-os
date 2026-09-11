@@ -215,7 +215,7 @@
 
 /* Моушн-кіт §03: флеш зміненого рядка — тінт шавлії 16%, гасне 700ms. */
 .row-flash {
-  animation: row-flash 700ms var(--ease-standard, ease) both;
+  animation: row-flash var(--dur-flash) var(--ease-standard, ease) both;
 }
 @keyframes row-flash {
   from { background: color-mix(in srgb, var(--sage) 16%, transparent); }
@@ -389,7 +389,7 @@
 }
 
 /* Плаский список: заголовок шкали + одиниця, рядки без груп. */
-.flat { display: flex; flex-direction: column; padding-top: 6px; animation: rowin 0.2s; }
+.flat { display: flex; flex-direction: column; padding-top: 6px; animation: rowin var(--dur-base); }
 .flat-head {
   display: flex;
   align-items: baseline;

@@ -44,7 +44,7 @@
 /* Пул-7 №4: тег падає на полицю (tag-in) і стискається на виході (tag-out). */
 .chip-in { animation: tag-in var(--dur-base, 250ms) var(--ease-enter, ease-out); }
 .chip-out {
-  animation: tag-out 200ms var(--ease-exit, ease-in) forwards;
+  animation: tag-out var(--dur-base) var(--ease-exit, ease-in) forwards;
   pointer-events: none;
 }
 @keyframes tag-in {

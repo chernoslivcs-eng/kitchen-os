@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  animation: card-in 240ms var(--ease-enter, cubic-bezier(0, 0, 0.2, 1));
+  animation: card-in var(--dur-base) var(--ease-enter, cubic-bezier(0, 0, 0.2, 1));
 }
 @keyframes card-in {
   0%   { opacity: 0; transform: translateY(12px) scale(0.99); }
@@ -70,7 +70,7 @@
   font-weight: 500;
   font-size: 10px;
   color: var(--sage);
-  animation: slot-pulse 1400ms ease-in-out infinite;
+  animation: slot-pulse var(--dur-pulse) ease-in-out infinite;
   /* Слот тягнеться до курсора — зсув пише JS, перехід згладжує. */
   transition: transform 160ms var(--ease-enter, cubic-bezier(0, 0, 0.2, 1));
 }

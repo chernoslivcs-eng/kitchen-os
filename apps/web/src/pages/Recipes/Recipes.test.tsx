@@ -55,3 +55,26 @@ describe('RecipesPage', () => {
     expect(cards().length).toBe(2);
   });
 });
+
+describe('RecipesPage · збій завантаження', () => {
+  let host: HTMLDivElement | undefined; let root: Root | undefined;
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); });
+
+  // Етап 5 (п.1): не принести ≠ порожньо. Errors: «порожній екран каже „у тебе
+  // нічого нема", і це брехня».
+  it('500 → тост із повтором, не «Тут поки жодного рецепта»; повтор приносить список', async () => {
+    let status = 500;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(status === 200 ? JSON.stringify({ recipes }) : '{"error":"boom"}', { status, headers: { 'content-type': 'application/json' } })));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><RecipesPage /></MemoryRouter>); });
+    await act(async () => {});
+    expect(host!.textContent).not.toContain('Тут поки жодного рецепта');
+    expect(host!.textContent).toContain('Рецепти нікуди не поділись');
+    status = 200;
+    const retry = [...host!.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Спробувати ще раз')!;
+    await act(async () => { retry.click(); });
+    await act(async () => {});
+    expect(host!.textContent).not.toContain('Рецепти нікуди не поділись');
+    expect(host!.querySelectorAll('[data-status]').length).toBe(4);
+  });
+});
