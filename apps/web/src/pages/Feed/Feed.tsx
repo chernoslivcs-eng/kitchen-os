@@ -44,7 +44,7 @@ import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
 import panelStyles from '../../components/ArtifactPanel/ArtifactPanel.module.css';
-import { usePanelStore } from '../../store/panel';
+import { usePanelStore, ARTIFACT_SHEET_MAX } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
 
 // Фрази для стрімінг-подачі: розріз по кінцях речень, коротке лишається цілим.
@@ -1217,6 +1217,14 @@ export function Feed() {
     return () => ro.disconnect();
   }, []);
   const narrow = headForm === 'narrow';
+  // №34: «Дім зараз» шторкою лише на контейнері < 600 (один поріг з панеллю); інакше — накладка праворуч.
+  const [homeSheet, setHomeSheet] = useState(false);
+  useEffect(() => {
+    const el = screenRef.current; if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([en]) => setHomeSheet((en?.contentRect.width ?? 1440) <= ARTIFACT_SHEET_MAX));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // Вказівник: ≥1024 або (hover: hover). На дотику фокус — тільки від людини.
   const pointerDevice = typeof window !== 'undefined' && (window.innerWidth >= 1024 || (window.matchMedia?.('(hover: hover)')?.matches ?? false));
   // «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14):
@@ -1249,7 +1257,7 @@ export function Feed() {
       />
       {homeOpen && (
         <HomeNowPanel
-          home={home} cookLive={cookLive} sheet={narrow} dateLabel={homeDate}
+          home={home} cookLive={cookLive} sheet={homeSheet} dateLabel={homeDate}
           onClose={() => setHomeOpen(false)}
           onCook={() => { setHomeOpen(false); if (cookLive) cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId }); }}
           onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}

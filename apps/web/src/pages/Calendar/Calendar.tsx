@@ -41,7 +41,7 @@ import { Toast } from '../../components/ErrorState/Toast';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
 import { TRADITION_LABEL } from '../../lib/period';
-import { usePanelStore, RAIL_IN_FLOW } from '../../store/panel';
+import { usePanelStore, ARTIFACT_SIDE } from '../../store/panel';
 import styles from './Calendar.module.css';
 
 const PAST_WEEKS = 4;
@@ -196,9 +196,9 @@ export function CalendarPage() {
   const weeks = useMemo(() => buildTimeline(point, from, WEEKS), [point, from]);
   const grid = useMedia(GRID);
 
-  // Панель на ≥1200, шторка нижче.
+  // №34: праворуч (панель ≥1200, плавуча картка 600–1199), шторка лише < 600.
   const panel = usePanelStore();
-  const panelInFlow = useMedia(RAIL_IN_FLOW);
+  const panelInFlow = useMedia(ARTIFACT_SIDE);
   useEffect(() => {
     if (!panelInFlow || (!openEvent && !openSeries)) { panel.clear(); return; }
     if (openSeries) {

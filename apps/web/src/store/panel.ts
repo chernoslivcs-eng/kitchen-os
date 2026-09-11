@@ -41,6 +41,12 @@ export interface PanelPublication {
 }
 
 export const RAIL_IN_FLOW = '(min-width: 1200px)';
+/** №34 (рішення власника): шторка знизу — лише на телефоні (< 600); від
+ *  планшета артефакт — праворуч: плавуча картка 380 (G6) до 1200, далі панель.
+ *  Один поріг на всі артефакти: картка позиції, чек, рецепт, подія, «Дім зараз». */
+export const ARTIFACT_SHEET_MAX = 599;
+export const ARTIFACT_SHEET = `(max-width: ${ARTIFACT_SHEET_MAX}px)`;
+export const ARTIFACT_SIDE = `(min-width: ${ARTIFACT_SHEET_MAX + 1}px)`;
 // HANDOFF «Артефакти»: ліва кромка тягнеться 300–720.
 export const RAIL_MIN = 300;
 export const RAIL_MAX = 720;
