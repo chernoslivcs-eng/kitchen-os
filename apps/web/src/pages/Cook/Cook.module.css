@@ -1,413 +1,334 @@
-/* Cook Mode — 10 з брифу. Темніший фон (--bg-body), великий таймер, мінімум UI.
- * Ключове правило з брифу: працює без мережі, таймер живе локально.
- */
-/* DA-17: Cook Mode темний В ОБОХ темах — «окремий повноекранний темний режим»
- * (хендоф №10, Д05). Планшет на підставці біля плити: контраст і нічна кухня
- * не мають залежати від системної теми. Тому не токени, а темні значення прямо. */
+/* Cook Mode — вигляд за Prototype «COOK MODE» (1440) і Cook and Share
+ * «Cook · 768» / «Cook · 390». Повноекранний попап (Пул-3), тема — тема
+ * застосунку (sun/moon у шапці); власної темної палітри більше немає —
+ * усе на токенах. Три розкладки за вʼюпортом:
+ *   ≥1024  шапка 40 · сітка: маршрут колонкою 280–360 (card r16) + фокус
+ *          (card r16, 28 32) · низ 64: Назад · «N · Далі: …» · Крок готово
+ *   768    шапка 64 0 20 · рядок мети 13 · маршрут чіпами 40 (скрол) ·
+ *          фокус card r18 32 36 · низ 60: Назад · Далі · Крок готово 240
+ *   <768   сегменти 4 · шапка: ✕ 38 · пілюля «N з M · крок» → шторка ·
+ *          volume 38 · фокус на весь екран · таймер карткою 72 · «Далі: …»
+ *          рядком · низ 56: Назад + Крок готово */
 .screen {
-  /* Пул-3: поп-ап поверх будь-якого екрана — нуль навігації. */
   position: fixed;
   inset: 0;
   z-index: 90;
   overflow-y: auto;
   min-height: 100dvh;
-  background: #101317;
-  color: #e7eaec;
+  background: var(--bg);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
-  /* Перевизначаємо токени локально: все всередині Cook Mode бачить темну тему,
-     незалежно від data-theme на html. */
-  --bg-body: #101317;
-  --bg-surface: #181c21;
-  --bg-surface-2: #1f242b;
-  --border: #262c33;
-  --border-strong: #2c333b;
-  --fg: #e7eaec;
-  --fg-strong: #ffffff;
-  --fg-muted: #9aa3ac;
-  --fg-dim: #79828c;
-  --accent: #93b48b;
-  --accent-bg: #20291f;
-  --accent-border: #3a4a3a;
-  --amber: #c9a86a;
-  --danger: #cc7a70;
-  --btn-primary-bg: #e7eaec;
-  --btn-primary-fg: #181c21;
-  --btn-primary-hover: #ffffff;
-  --btn-primary-pressed: #c3c9ce;
+  padding: 16px 24px 20px;
+  gap: 16px;
 }
 
-.head {
-  display: flex;
-  flex-wrap: wrap;                 /* мобільний: прогрес падає на другий рядок */
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 22px 0;
+/* ≥1024 (Prototype): рейка лишається видимою зліва — попап займає main. */
+@media (min-width: 1024px) {
+  :global(body.with-sidebar) .screen { left: 60px; }
+  :global(body.with-sidebar.nav-expanded) .screen { left: 256px; }
 }
+
+/* ── Шапка ─────────────────────────────────────────────────────────────── */
+.head { display: flex; align-items: center; gap: 12px; flex: none; }
 .exit {
-  height: 42px;
-  padding: 0 14px;
-  border-radius: var(--r);
-  border: 1px solid var(--line2);
-  color: var(--muted);
-  background: transparent;
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 14px 0 12px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink);
+  cursor: pointer; flex: none;
 }
-.exit:hover { background: var(--line); color: var(--ink); }
-.head-meta {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
+.head-title {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-/* Прогрес — тонкі рисочки поверх, шавлієві = зроблені, світло-сіра = поточна.
-   QA9-03: живе всередині .head — на мобільному займає весь другий рядок,
-   на десктопі стискається до 220px справа (Д05). */
-.progress {
-  flex-basis: 100%;
-  padding: 4px 0 0;
-  display: flex;
-  gap: 6px;
-}
-/* Пул-3: прогрес по верхньому краю поп-апа — на всю ширину, впритул. */
-.progress-top {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  gap: 6px;
-  padding: 10px 14px 6px;
-  background: #101317;
-}
-.progress-top .progress-hit {
-  flex: 1;
-  padding: 6px 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.progress-top .progress-hit:disabled { cursor: default; }
-.progress-top .progress-hit > div {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
-}
-.progress-top .progress-hit > div.done { background: var(--sage); }
-.progress-top .progress-hit > div.current { background: #f2f4f5; }
-
-.progress > div {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
-  transition: background var(--dur-base) var(--ease-standard);
-}
-.progress > .done { background: var(--sage); }
-.progress > .current { background: var(--ink); }
-
-.body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 26px 22px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* QA9-03: обгортки колонок. На мобільному прозорі (display:contents), а
-   порядок дітей відновлюється order-ом: заголовок кроку → таймер → секції.
-   Кнопки і хінт правої колонки на мобільному не існують — їх дає футер. */
-.col-main, .col-side { display: contents; }
-/* Пул-4 №3: сторіз-зони тапів (мобілка). Прозорі, поверх контенту країв,
-   нижче за progress-top і футер. */
-.tap-zone {
-  position: fixed;
-  top: 56px;
-  bottom: 96px;
-  width: 18%;
-  z-index: 3;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-}
-.tap-zone:disabled { cursor: default; }
-.tap-left { left: 0; }
-.tap-right { right: 0; }
-
-/* Мобілка: менший крок, більший таймер; кнопки кроків ховаються —
-   навігація тапами; «Приготували» — окремою кнопкою на останньому слайді. */
-.foot-buttons { display: block; }
-.finish-mobile { display: none; }
-/* Крок О2 (3): другий вихід — окремим рядом під «Приготували», тонований, бо
-   головною лишається вона. Один вигляд на обидві розкладки: у правій колонці
-   десктопа і у футері мобілки.
-   Два класи в селекторі не для краси: `button.main` нижче має ту саму вагу
-   (клас + тег) і стоїть пізніше, тому з одним класом його заливка перемагала —
-   рівно так обидві кнопки й вийшли однаковими з першого разу. */
-.main.share-result {
-  width: 100%;
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--line2);
-}
-@media (max-width: 1023px) {
-  .step-title { font-size: 21px; line-height: 1.35; }
-  .timer-value { font-size: 92px; }
-  .foot-buttons { display: none; }
-  .finish-mobile { display: block; width: 100%; }
-}
-@media (min-width: 1024px) {
-  .tap-zone { display: none; }
-  .finish-mobile { display: none; }
-}
-
-.step-title { order: -2; }
-.timer { order: -1; }
-.side-actions, .side-hint { display: none; }
-.step-title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 27px;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-
-/* Таймер: 74px, tabular-nums, кнопки Пауза/+1хв */
-.timer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-.timer-value {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 74px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-.timer-value.done { color: var(--sage); }
-.timer-actions { display: flex; gap: 10px; }
-.timer-actions button {
-  height: 52px;
-  padding: 0 24px;
+.theme {
+  display: inline-flex; gap: 2px;
+  height: 40px; padding: 4px;
   border-radius: var(--r-pill);
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  transition: background var(--dur-fast);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
 }
-.timer-actions button.primary {
-  background: var(--sage);
-  color: var(--sage-on);
-  border: 0;
+.theme-btn {
+  width: 32px; height: 32px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
 }
-.timer-actions button.primary:hover { background: var(--sage-strong); }
-.timer-actions button.secondary {
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--line2);
+.theme-on { background: var(--ink); color: var(--bg); }
+.round {
+  width: 40px; height: 40px; flex: none;
+  border: 0; border-radius: 50%;
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
 }
-.timer-actions button.secondary:hover { background: var(--line); color: var(--ink); }
+.round-off { color: var(--dim); }
+.round-off > [data-icon] { opacity: .5; }
+.step-pill { display: none; }
+.segments { display: none; }
 
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* ── Тіло: маршрут + фокус ──────────────────────────────────────────────── */
+.body {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: clamp(280px, 30%, 360px) minmax(0, 1fr);
+  gap: 20px;
 }
-.section-label {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
+.route {
+  background: var(--card); border-radius: 16px; box-shadow: var(--sh-a), var(--sh-b);
+  display: flex; flex-direction: column; overflow: hidden;
+  padding: 20px 18px 16px;
 }
-.section-body {
-  font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.5;
-  color: var(--muted);
+.route-meta { display: flex; align-items: center; gap: 12px; font-family: var(--font-body); font-size: 13px; color: var(--muted); padding-bottom: 10px; }
+.route-meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.route-meta-gap { flex: 1; }
+.route-step { color: var(--sage); font-weight: 500; }
+.bar { display: block; height: 4px; border-radius: 2px; background: var(--line2); position: relative; overflow: hidden; }
+.bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--sage); transition: width var(--dur-slow) var(--ease-standard); }
+.route-bar { margin-bottom: 12px; }
+.route-list { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+.route-chips { display: none; }
+/* Рядок маршруту: 60, коло 36 (зроблено — шавлія + check; поточний — чорнило
+   з номером; наступні — контур line2), назва 16 (600 поточний, закреслено
+   зроблене), праворуч 13 muted: у поточного — таймер, у решти — хвилини. */
+.route-row { padding: 8px 12px; min-height: 60px; gap: 14px; border-radius: 12px; box-shadow: none; background: transparent; border: 0; width: 100%; text-align: left; display: flex; flex-direction: row; align-items: center; cursor: pointer; font: inherit; color: inherit; }
+.route-row:disabled { cursor: default; opacity: .6; }
+.route-row.route-cur { background: var(--bg); }
+.route-n {
+  width: 36px; height: 36px; flex: none; border-radius: 50%;
+  border: 1.5px solid var(--line2); box-sizing: border-box; color: var(--muted);
+  display: grid; place-items: center; font-family: var(--font-body); font-size: 13px; font-weight: 600;
 }
-.next {
-  color: var(--dim);
-  font-size: 16px;
+.route-done .route-n { background: var(--sage); border-color: var(--sage); color: var(--sage-on); }
+.route-cur .route-n { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.route-t { flex: 1; min-width: 0; font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--ink); }
+.route-cur .route-t { font-weight: 600; }
+.route-done .route-t { text-decoration: line-through; color: var(--muted); }
+.route-r { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-body); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.route-foot { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; }
+.route-label { font-family: var(--font-body); font-size: 13px; color: var(--dim); }
+.route-ings { display: flex; flex-wrap: wrap; gap: 6px; }
+.ing-chip {
+  display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+  border-radius: var(--r-pill); background: var(--sage-bg); color: var(--sage);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
 }
+.route-offline { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 13px; color: var(--dim); padding-top: 6px; }
 
-.foot {
-  padding: 16px 22px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.focus { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
+.focus-card {
+  flex: 1; min-height: 0;
+  background: var(--card); border-radius: 16px; box-shadow: var(--sh-a), var(--sh-b);
+  padding: 28px 32px; display: flex; flex-direction: column; gap: 24px;
 }
-button.main {
-  /* DA2-13: еталон мобільний 64px/19px, десктоп 72px/21px — головна кнопка
-     режиму, розрахованого на тап наосліп. QA9-03: без прив'язки до .foot —
-     на десктопі ці ж кнопки живуть у правій колонці. */
-  height: 64px;
-  border: 0;
-  border-radius: var(--r-xl);
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-fg);
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 19px;
-  cursor: pointer;
+.focus-head { display: flex; align-items: center; gap: 10px; }
+.focus-gap { flex: 1; }
+.step-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px; border-radius: var(--r-pill); background: var(--bg);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink);
 }
-.main:disabled { opacity: 0.45; cursor: default; }
-@media (min-width: 1024px) {
-  .main { height: 72px; font-size: 21px; border-radius: 18px; }
+.step-chip-t { color: var(--dim); font-weight: 400; }
+.dots { display: flex; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line2); }
+.dot-done { background: var(--sage); }
+.dot-cur { background: var(--ink); }
+.step-text {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(26px, 3vw, 40px); letter-spacing: -0.03em; line-height: 1.15;
+  max-width: 860px; color: var(--ink);
 }
-.foot .offline {
-  font-family: var(--font-body);
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--dim);
-  text-align: center;
+.step-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.step-ing {
+  display: inline-flex; align-items: center; height: 34px; padding: 0 14px;
+  border-radius: var(--r-pill); background: var(--sage-bg); color: var(--sage);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500;
 }
+.focus-spacer { flex: 1; }
+/* Таймер: bg r14 20 24 — коло 48 зі знаком (живий, поки біжить; бурштин ≤ 60 с),
+   число роллю timer (clamp у медіа), «з 7:00» + смужка 4, Пауза/Старт ink 52
+   r12, «+1 хв» card 52 r12 з контуром. */
+.timer {
+  display: flex; align-items: center; gap: 20px;
+  padding: 20px 24px; border-radius: 14px; background: var(--bg);
+}
+.timer-icon { width: 48px; height: 48px; flex: none; border-radius: 50%; background: var(--card); display: grid; place-items: center; color: var(--ink); }
+.timer-amber .timer-icon, .timer-amber .timer-value { color: var(--amber); }
+.timer-amber .bar-fill { background: var(--amber); }
+.timer-zero .timer-value { color: var(--danger); }
+.timer-value { font-size: clamp(44px, 5vw, 72px); font-variant-numeric: tabular-nums; color: var(--ink); }
+.timer-base { display: flex; flex-direction: column; gap: 6px; min-width: 140px; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.timer-base .bar-fill { transition: width 1s linear; }
+.timer-gap { flex: 1; }
+.timer-main {
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 52px; padding: 0 22px; border: 0; border-radius: 12px;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-body); font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.timer-main:hover { filter: brightness(0.96); }
+.timer-plus {
+  height: 52px; padding: 0 18px; border: 1px solid var(--line2); border-radius: 12px;
+  background: var(--card); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.next-line { display: none; }
 
-@media (min-width: 720px) {
-  .body, .head, .progress, .foot { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
+/* Низ 64: Назад (card sh, muted, .4 на першому) · «N · Далі: …» (card sh,
+   коло 32 контур) · ✓ Крок готово / Приготував (sage, 18/600). */
+.bottom { display: flex; gap: 12px; align-items: stretch; flex: none; }
+.back {
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 64px; padding: 0 20px; border: 0; border-radius: 14px;
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted);
+  font-family: var(--font-body); font-size: 16px; font-weight: 500; cursor: pointer; flex: none;
 }
-
-/* Бриф-3 п.1: сегмент смуги — 4px, тап-зона — кнопка з padding по вертикалі. */
-.progress-hit {
-  flex: 1;
-  padding: 14px 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.back:disabled { opacity: .4; cursor: default; }
+.next-hint {
+  flex: 1; min-width: 0; height: 64px; padding: 0 20px; border-radius: 14px;
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  display: flex; align-items: center; gap: 14px;
 }
-.progress-hit:disabled { cursor: default; }
-.progress-hit > div { height: 4px; border-radius: 2px; background: var(--line2); }
-.progress-hit > .done { background: var(--sage); }
-.progress-hit > .current { background: var(--ink); }
+.next-n {
+  width: 32px; height: 32px; flex: none; border-radius: 50%;
+  border: 1.5px solid var(--line2); box-sizing: border-box; color: var(--muted);
+  display: grid; place-items: center; font-family: var(--font-body); font-size: 13px; font-weight: 600;
+}
+.next-t { font-family: var(--font-body); font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.go {
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px;
+  height: 64px; padding: 0 28px; border: 0; border-radius: 14px;
+  background: var(--sage); color: var(--sage-on);
+  font-family: var(--font-body); font-size: 18px; font-weight: 600; cursor: pointer; flex: none;
+}
+.go:hover:not(:disabled) { filter: brightness(0.96); }
+.go:disabled { opacity: .6; cursor: default; }
+.share-result {
+  align-self: flex-end; border: 0; background: transparent; padding: 4px 0;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer;
+}
+.share-result:hover { color: var(--ink); }
 
+/* ── Шторка кроків (390) ────────────────────────────────────────────────── */
+.scrim { position: fixed; inset: 0; z-index: 95; background: rgba(26, 28, 30, 0.28); }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 96; max-width: 560px; margin: 0 auto;
+  max-height: 82vh; overflow: auto;
+  background: var(--card); border-radius: 18px 18px 0 0; box-shadow: var(--sh2);
+  padding: 8px 20px calc(20px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 12px;
+  animation: sheet-in var(--dur-base) var(--ease-enter);
+}
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.handle { width: 36px; height: 4px; border-radius: 2px; background: var(--line2); margin: 0 auto; }
+.sheet-head { display: flex; align-items: center; gap: 10px; }
+.sheet-title { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--ink); }
+.sheet .route-row { min-height: 52px; }
 
-/* QA9-03 / Д05 (прототип-десктоп, скрін-еталон Пилипа): шапка на всю ширину —
-   ✕ Вийти з краю зліва (padding 40), мета в центрі, прогрес 220px справа.
-   Тіло — двоколонник 1.2fr/1fr: крок 40px зліва з ДАЛІ під ним; справа за
-   бордюром таймер 108px без рамок, під ним ↩ + «Крок готово ✓», під ними
-   хінт. Футер у step-режимі ховається — його роботу робить права колонка. */
-@media (min-width: 1024px) {
-  .head {
-    max-width: none;
-    flex-wrap: nowrap;
-    padding: 24px 40px 0;
-    gap: 24px;
+/* Моушн-кіт §02: зміна кроку — вертикальний слайд --dur-slow; key перемонтовує. */
+.step-slide { animation: step-in var(--dur-slow, 400ms) var(--ease-enter, ease); }
+@keyframes step-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* ── 768–1023 («Cook · 768») ───────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  .screen { padding: 0; gap: 0; }
+  .head { height: 64px; padding: 0 20px; gap: 10px; }
+  .exit { height: 38px; padding: 0 14px 0 10px; }
+  .theme { height: 38px; padding: 4px; }
+  .theme-btn { width: 30px; height: 30px; }
+  .round { width: 38px; height: 38px; }
+  .body { display: flex; flex-direction: column; gap: 0; padding: 0; }
+  /* Маршрут — не картка, а рядок мети 13 + чіпи 40 зі скролом. */
+  .route { background: transparent; box-shadow: none; border-radius: 0; padding: 4px 20px 0; overflow: visible; flex: none; }
+  .route-meta { padding-bottom: 10px; }
+  .route .route-bar, .route .route-list, .route .route-foot { display: none; }
+  .route-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
+  .route-chips::-webkit-scrollbar { display: none; }
+  .route-chips .route-row {
+    flex: none; width: auto; min-height: 0; display: inline-flex; flex-direction: row; align-items: center; gap: 8px;
+    height: 40px; padding: 0 12px 0 6px; border: 0; border-radius: var(--r-pill);
+    background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--dim);
+    font: inherit; cursor: pointer; overflow: visible;
   }
-  .progress { flex: 0 0 220px; padding: 0; }
-
-  .body-steps {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    gap: 56px;
-    align-items: center;
-    max-width: 1280px;
-    padding: 36px 40px 0;
-  }
-  .body-steps .col-main {
-    display: flex;
-    flex-direction: column;
-    gap: 26px;
-  }
-  .body-steps .col-side {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-    border-left: 1px solid var(--line);
-    padding-left: 56px;
-    align-self: stretch;
-  }
-  .step-title {
-    font-size: 40px;
-    line-height: 1.3;
-    letter-spacing: -0.015em;
-  }
-  /* Таймер без рамок-смуг — просто великі цифри (Д05). */
-  .timer { border-top: 0; border-bottom: 0; padding: 0; }
-  .timer-value {
-    font-size: 108px;
-    line-height: 1;
-  }
-  .side-actions { display: flex; width: 100%; max-width: 420px; margin-top: 8px; }
-  .side-hint {
-    display: block;
-    font-family: var(--font-body);
-    font-size: 13px;
-    color: var(--dim);
-  }
-  .foot-steps { display: none; }
+  .route-chips .route-row:disabled { cursor: default; }
+  .route-chips .route-n { width: 28px; height: 28px; font-size: 12px; }
+  .route-chips .route-done .route-n { background: var(--sage-bg); border-color: var(--sage-bg); color: var(--sage); }
+  .route-chips .route-t { font-size: 13px; font-weight: 400; color: var(--dim); text-decoration: none; }
+  .route-chips .route-next .route-t { color: var(--muted); }
+  .route-chips .route-row.route-cur { background: var(--ink); color: var(--bg); box-shadow: none; padding-right: 14px; }
+  .route-chips .route-cur .route-n { background: var(--card); border-color: var(--card); color: var(--ink); }
+  .route-chips .route-cur .route-t { color: var(--bg); font-weight: 600; }
+  .route-chips .route-cur .route-r { color: var(--bg); opacity: .8; font-weight: 500; }
+  .route-chips .route-r { font-size: 13px; color: var(--dim); }
+  .focus { padding: 16px 20px 0; gap: 0; flex: 1; }
+  .focus-card { border-radius: 18px; padding: 32px 36px; gap: 24px; }
+  .focus-head { gap: 12px; }
+  .step-chip { height: 30px; font-size: 13px; }
+  .step-chip-t { color: var(--dim); }
+  .dots { display: none; }
+  .step-text { font-size: 32px; font-weight: 600; line-height: 40px; letter-spacing: -0.025em; }
+  .step-ing { height: 32px; padding: 7px 13px; }
+  .timer { padding: 18px 20px; }
+  .timer-icon { width: 44px; height: 44px; box-shadow: var(--sh-a), var(--sh-b); }
+  .timer-value { font-size: 56px; }
+  .timer-base { min-width: 100px; }
+  .timer-main { height: 44px; padding: 0 18px; border-radius: var(--r-pill); font-size: 14px; gap: 8px; }
+  .timer-plus { height: 44px; padding: 0 16px; border: 0; border-radius: var(--r-pill); box-shadow: var(--sh-a), var(--sh-b); font-size: 14px; font-weight: 500; }
+  .bottom { gap: 10px; padding: 14px 0 20px; }
+  .back { width: 60px; height: 60px; padding: 0; justify-content: center; border-radius: 18px; }
+  .back-text { display: none; }
+  .next-hint { height: 60px; padding: 0 18px; border-radius: 18px; gap: 12px; }
+  .next-n { width: 26px; height: 26px; font-size: 12px; border-width: 1px; }
+  .next-t { font-size: 14px; }
+  .go { width: 240px; height: 60px; padding: 0; border-radius: 18px; font-size: 17px; gap: 10px; }
+  .share-result { padding: 0 0 12px; }
 }
 
-/* Моушн-кіт §02: зміна кроку — вертикальний слайд 400ms slow.
-   Обгортка на мобілці display:contents (без бокса) — анімуємо ДІТЕЙ:
-   вони справжні бокси в обох розкладках і їдуть разом. */
-.step-slide > * {
-  animation: step-slide var(--dur-slow, 400ms) var(--ease-standard, ease);
-}
-@keyframes step-slide {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Моушн-2 №7: фініш таймера видно з другого кінця кухні — шавлія + подвійний
-   пульс; цикл 30s синхронний зі звуковим повтором (пульс у перших 2%). */
-.timer-value.done {
-  color: var(--sage);
-  animation: timer-done var(--dur-alarm) ease-in-out infinite;
-}
-@keyframes timer-done {
-  0%   { transform: scale(1); }
-  0.7% { transform: scale(1.06); }
-  1.2% { transform: scale(1); }
-  1.7% { transform: scale(1.04); }
-  2.2% { transform: scale(1); }
-  100% { transform: scale(1); }
-}
-
-/* Пул-6 №3: ландшафт телефона (844×390 і подібні) — два стовпці, як десктоп:
-   крок зліва, таймер+кнопки справа за бордюром. Умова по ВИСОТІ, не ширині. */
-@media (orientation: landscape) and (max-height: 500px) {
-  .body-steps {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    column-gap: 28px;
-    align-items: center;
-    padding-top: 12px;
+/* ── <768 («Cook · 390») ──────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .segments { display: flex; gap: 5px; padding: 14px 16px 0; flex: none; }
+  .seg { flex: 1; height: 4px; border: 0; border-radius: 2px; background: var(--line2); padding: 0; cursor: default; }
+  .seg-done { background: var(--sage); cursor: pointer; }
+  .seg-cur { background: var(--ink); }
+  .head { height: auto; padding: 12px 16px 0; gap: 8px; }
+  .exit { width: 38px; height: 38px; padding: 0; justify-content: center; border-radius: 50%; }
+  .exit-text { display: none; }
+  .head-title, .head-theme { display: none; }
+  .step-pill {
+    flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px;
+    height: 38px; padding: 0 12px; border: 0; border-radius: var(--r-pill);
+    background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+    font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer;
   }
-  .body-steps .col-main { display: flex; flex-direction: column; gap: 12px; }
-  .body-steps .col-side {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    border-left: 1px solid var(--line);
-    padding-left: 28px;
-  }
-  .step-title { font-size: 21px; line-height: 1.35; order: 0; }
-  .timer { order: 0; border: 0; padding: 0; }
-  .timer-value { font-size: 52px; }
-  .timer-actions button { height: 40px; padding: 0 18px; font-size: 13px; }
-  /* Смуга вже в шапці (.progress-top) — компактніша. */
-  .progress-top { padding: 6px 14px 4px; }
-  /* Футеру нема місця — навігація тапами по краях лишається. */
-  .foot-buttons { display: none; }
-  .finish-mobile { display: block; width: 100%; }
-  .section { display: none; }             /* «НА ЦЬОМУ КРОЦІ» — тільки портрет */
-  .tap-zone { top: 30px; bottom: 20px; }
+  .step-pill-n { color: var(--dim); }
+  .step-pill-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step-pill-gap { flex: 1; }
+  .step-pill > [data-icon] { color: var(--muted); }
+  .route { display: none; }
+  .focus { padding: 20px 20px 0; gap: 20px; }
+  .focus-card { background: transparent; box-shadow: none; border-radius: 0; padding: 0; gap: 20px; }
+  .focus-head { display: none; }
+  .step-text { font-size: 26px; font-weight: 600; line-height: 1.3; letter-spacing: -0.02em; }
+  .step-chips { gap: 6px; }
+  .step-ing { height: 29px; padding: 6px 11px; font-size: 13px; }
+  /* Таймер — окрема картка r18 з великим числом 72 по центру. */
+  .timer { flex-flow: row wrap; justify-content: center; gap: 14px 8px; padding: 22px 20px; border-radius: 18px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
+  .timer-icon, .timer-gap { display: none; }
+  .timer-value { flex-basis: 100%; text-align: center; font-size: 72px; }
+  .timer-base { flex-basis: 100%; min-width: 0; align-items: center; }
+  .timer-base > span:first-child { display: none; }
+  .timer-base .bar { width: 160px; }
+  .timer-main { height: 44px; padding: 0 18px; border-radius: var(--r-pill); font-size: 14px; }
+  .timer-plus { height: 44px; padding: 0 16px; border: 0; border-radius: var(--r-pill); background: var(--bg); box-shadow: none; font-size: 14px; font-weight: 500; }
+  .timer-main, .timer-plus { flex: none; }
+  .next-line { display: flex; align-items: center; gap: 10px; padding: 0 4px; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+  .next-line .next-n { width: 24px; height: 24px; font-size: 11px; border-width: 1px; }
+  .next-line .next-t { font-size: 13px; }
+  .bottom { gap: 8px; padding: 12px 16px calc(30px + env(safe-area-inset-bottom)); margin: 0 -20px; }
+  .bottom .next-hint { display: none; }
+  .back { width: 56px; height: 56px; padding: 0; justify-content: center; border-radius: 16px; }
+  .back-text { display: none; }
+  .go { flex: 1; width: auto; height: 56px; border-radius: 16px; font-size: 17px; gap: 10px; }
+  .share-result { align-self: center; padding: 0 0 16px; }
 }

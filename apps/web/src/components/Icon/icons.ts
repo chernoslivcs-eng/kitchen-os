@@ -22,6 +22,7 @@ import {
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
   ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import, ListOrdered, BookmarkCheck, Share2, Reply,
   Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw, Camera, FileText, Moon, ChevronUp,
+  Pause, Play,
   type LucideIcon,
 } from 'lucide-react';
 // Лендінг (блок «landing» у кінці мапи) — окремим рядком, щоб не чіпати імпорт вище.
@@ -213,6 +214,14 @@ export const ICONS = {
   'auth.delivered': { glyph: MailCheck,  label: 'Лист надіслано', family: 'system' },
   'auth.household': { glyph: House,      label: 'Дім',            family: 'system' },
   'auth.otherUser': { glyph: UserRoundX, label: 'Інший акаунт',   family: 'system' },
+  // ── Cook Mode + /share (feat/cook-share-v3, окремий блок у кінці) ──────────
+  // Prototype «COOK MODE», Cook and Share «Cook · 768/390»: пауза/старт таймера
+  // і перемикач теми sun/moon у шапці. Sun і Moon у словнику вже несуть
+  // «Сезон» і «Піст» — колізія з бандла, до дизайн-чату (PENDING_DESIGN_CHAT).
+  'cook.pause':    { glyph: Pause,         label: 'Пауза',         family: 'cooking' },
+  'cook.play':     { glyph: Play,          label: 'Старт',         family: 'cooking' },
+  'cook.themeLight':{ glyph: Sun,           label: 'Світла тема',   family: 'cooking' },
+  'cook.themeDark': { glyph: Moon,          label: 'Темна тема',    family: 'cooking' },
 } as const satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;
@@ -240,4 +249,8 @@ export const PENDING_DESIGN_CHAT: { glyph: LucideIcon; meanings: string[]; quest
   { glyph: Users, meanings: ['Порції', 'Подія дому'], question: 'порції й подія дому — один знак?' },
   // Auth.dc.html: house і на «Дім зараз» (шапка чату), і на кікері «Запрошення в дім».
   { glyph: House, meanings: ['Дім зараз', 'Дім'], question: 'стан «Дім зараз» і дім як спільнота — один знак?' },
+  // Cook Mode ставить sun/moon перемикачем теми (Cook and Share, Prototype), а
+  // словник Icons дає їм «Сезон» і «Піст» і має окремий sun-moon «Тема».
+  { glyph: Sun, meanings: ['Сезон', 'Світла тема'], question: 'sun — сезон чи світла тема? Icons має окремий sun-moon «Тема»' },
+  { glyph: Moon, meanings: ['Піст', 'Темна тема'], question: 'moon — піст чи темна тема?' },
 ];

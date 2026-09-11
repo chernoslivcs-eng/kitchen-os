@@ -16,6 +16,7 @@
 // --dc-click селектор у бандлі, по якому клікнути перед знімком кадра (Prototype: вкладка nav)
 // --dc-wait мс після кліку в бандлі (типово 600; прототип відповідає з затримкою — дати 3000)
 // --list    лише перелічити data-screen-label у файлі й вийти
+// --nav-state json — після завантаження перейти на --path зі станом роутера (екрани зі стану: /share)
 // --init-storage key=json[,key=json] — покласти в localStorage застосунку ДО завантаження
 //           (стан готування kos-cook-live, ширина панелі kos-rail-width тощо)
 // --stub-messages файл JSON із масивом повідомлень (MessageInfo без id/session_id/created_at),
@@ -92,8 +93,16 @@ const frames = await dcPage.$$(frameSel);
 if (!frames[NTH]) { console.error(`side-by-side: кадр не знайдено — ${frameSel} [${NTH}] у ${DC}`); await browser.close(); process.exit(1); }
 const frame = frames[NTH];
 await frame.scrollIntoViewIfNeeded();
+// --dc-click приймає кілька селекторів через « ;; » — клік по черзі, з --dc-wait між ними
+// (Prototype: «Готуємо» на пропозиції → «Готуємо» в панелі рецепта = Cook Mode).
 const dcClick = arg('dc-click', null);
-if (dcClick) { await frame.waitForSelector(dcClick, { timeout: 15000 }); await frame.$eval(dcClick, (el) => el.click()); await dcPage.waitForTimeout(Number(arg('dc-wait', 600))); }
+if (dcClick) {
+  for (const sel of dcClick.split(';;').map((x) => x.trim()).filter(Boolean)) {
+    await frame.waitForSelector(sel, { timeout: 15000 });
+    await frame.$eval(sel, (el) => el.click());
+    await dcPage.waitForTimeout(Number(arg('dc-wait', 600)));
+  }
+}
 const frameLabel = (await frame.getAttribute('data-screen-label')) ?? SEL;
 const frameBox = await frame.boundingBox();
 const framePng = await frame.screenshot({ type: 'png' });
@@ -180,12 +189,24 @@ if (URL_BASE) {
     mkdirSync(dirname(resolve(STATE_FILE)), { recursive: true });
     await appCtx.storageState({ path: STATE_FILE });
   }
-  await page.goto(`${URL_BASE}${arg('path', new URL(URL_BASE).pathname === '/' ? '' : '')}`, { waitUntil: 'domcontentloaded' });
   const path = arg('path', null);
-  if (path) await page.goto(`${URL_BASE}${path}`, { waitUntil: 'domcontentloaded' });
+  const navStateArg = arg('nav-state', null);
+  // Зі станом роутера — спершу /app (роутер змонтований), потім pushState на --path.
+  await page.goto(`${URL_BASE}${navStateArg ? '/app' : (path ?? '')}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
+  // --nav-state '<json>' — перейти на --path зі станом роутера (як navigate(path, { state }));
+  // для екранів, що живуть лише зі стану (/share), без записів у базу.
+  if (navStateArg && path) {
+    await page.evaluate(([p, st]) => {
+      const idx = (history.state && typeof history.state.idx === 'number') ? history.state.idx + 1 : 1;
+      history.pushState({ usr: JSON.parse(st), key: 'sbs', idx }, '', p);
+      dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+    }, [path, navStateArg]);
+    await page.waitForTimeout(1200);
+  }
+  // --click теж приймає кілька селекторів через « ;; » (чіп → «До плити» в панелі).
   const click = arg('click', null);
-  if (click) { await page.click(click); await page.waitForTimeout(800); }
+  if (click) { for (const sel of click.split(';;').map((x) => x.trim()).filter(Boolean)) { await page.click(sel); await page.waitForTimeout(800); } }
   assertTheme('застосунку', await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   appPng = await page.screenshot({ type: 'png', fullPage: has('full') });
   appNote = `${URL_BASE}${path ?? ''} · ${WIDTH}×${HEIGHT} · ${THEME}`;

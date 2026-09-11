@@ -1,180 +1,91 @@
-/* Публікація страви (M15 з брифу): Strava-style overlay поверх фото.
- * «Не глянцевий фудпорн, а „зібрав із того, що було"». */
+/* /share — оболонка за Cook and Share «Поділитись · 390» поверх наявної
+ * механіки (canvas · navigator.share · download · фото + оверлеї A–D). На
+ * 1440 — та сама колонка до 480 по центру. Усе на токенах. */
 .screen {
   min-height: 100dvh;
   background: var(--bg);
   color: var(--ink);
   display: flex;
   flex-direction: column;
-}
-.head {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 20px 22px 0;
+  /* Палітра експорту — не йде за темою глядача: чорнило · bg · шавлія
+     світлого канону й тінь тексту на фото однакові в обох темах (кадр
+     «Поділитись · 390»: картка завжди чорнильна). Share.tsx читає їх через
+     getComputedStyle — hex у коді немає. Живуть тут, не в tokens.css: потік
+     cook-share спільних файлів не чіпає. */
+  --export-ink:    #1a1c1e;
+  --export-bg:     #f4f3ef;
+  --export-sage:   #5b7a4f;
+  --export-shadow: rgba(0, 0, 0, 0.5);
 }
-.exit {
-  height: 42px;
-  padding: 0 14px;
-  border-radius: var(--r);
-  border: 1px solid var(--line2);
-  background: transparent;
-  color: var(--muted);
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-.title {
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--tracking-mono);
-  color: var(--dim);
-}
-
-.body {
-  flex: 1;
-  padding: 22px;
+.column {
+  width: 100%;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
+  padding: 14px 16px 28px;
 }
-
-/* Preview: 9:16, або кому як зайшло. */
-.canvas {
-  width: 100%;
-  max-width: 380px;
-  aspect-ratio: 3 / 4;
-  margin: 0 auto;
-  background: #101317;
-  border-radius: var(--r-2xl);
-  overflow: hidden;
-  position: relative;
-  box-shadow: var(--shadow-panel);
-  display: grid;
-  place-items: center;
+.top { display: flex; align-items: center; }
+.back {
+  width: 40px; height: 40px; border: 0; border-radius: 50%;
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
 }
-.canvas img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.canvas.empty {
-  border: 2px dashed rgba(255,255,255,0.15);
-}
-.canvas .placeholder {
-  color: rgba(255,255,255,0.6);
-  font-family: var(--font-body);
-  font-size: 14px;
-  text-align: center;
-  padding: 20px;
-  z-index: 1;
-}
-
-/* Overlay-текст поверх фото. Без плашки, лише мʼяка тінь для читабельності —
- * так, як у брифі §03 Патерни: «текст із м'якою тінню прямо на фото». */
-.overlay {
-  position: absolute;
-  inset: 0;
-  padding: 24px;
-  color: #ffffff;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  pointer-events: none;
-}
-.overlay .top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(255,255,255,0.85);
-  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
-}
-.overlay .bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.overlay .dish {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 26px;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.55);
-}
-.overlay .stats {
-  display: flex;
-  gap: 16px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(255,255,255,0.9);
-  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
-}
-.overlay .logo {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.overlay .logo span {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 12px;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
-}
-
-.actions { display: flex; gap: 10px; }
-.actions > * { flex: 1; }
-.hint {
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.5;
-  text-align: center;
-}
-
-@media (min-width: 720px) {
-  .body { max-width: 720px; width: 100%; margin-left: auto; margin-right: auto; }
-}
-
-/* Пул-5 №7: canvas-прев'ю (той самий код, що експорт) + перемикачі. */
-.preview {
-  width: 100%;
-  max-width: 360px;
-  margin: 0 auto;
-  background: #101317;
-  border-radius: var(--r-2xl);
-  box-shadow: var(--shadow-panel);
-  cursor: pointer;
-  display: block;
-}
-.controls { display: flex; flex-direction: column; gap: 10px; }
-.seg {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
+/* Шапка: share-2 16 muted · «Поділитись стравою» 15/600 · сегмент формату 30
+   на bg (активний — card + тінь, 12/500). */
+.head { display: flex; align-items: center; gap: 10px; }
+.head > [data-icon] { color: var(--muted); }
+.title { font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--ink); }
+.gap { flex: 1; }
+.seg { display: flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: var(--bg); }
 .seg-btn {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--muted);
-  border-radius: var(--r-pill);
-  padding: 8px 14px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
+  height: 24px; padding: 0 9px; border: 0; border-radius: var(--r-pill);
+  background: transparent; color: var(--muted);
+  font-family: var(--font-body); font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.seg-on { background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--ink); font-weight: 500; }
+/* Превʼю на всю ширину колонки, r14; що бачиш — те й шериш (canvas). */
+.preview {
+  display: block; width: auto; height: auto; max-width: 100%; max-height: 56vh; margin: 0 auto;
+  border-radius: 14px; background: var(--export-ink);
   cursor: pointer;
-  transition: background var(--dur-fast, 150ms) var(--ease-standard, ease), color var(--dur-fast, 150ms), border-color var(--dur-fast, 150ms);
 }
-.seg-on {
-  background: var(--ink);
-  color: var(--card);
-  border-color: var(--ink);
+/* Стрічка мініатюр 54 r10: A стек · B кут · C твердження · D рейка (знаки
+   з кадру: коло, рамка, риска), обрана — контур чорнилом 2. */
+.thumbs { display: flex; gap: 6px; }
+.thumb {
+  width: 54px; height: 54px; flex: none; padding: 0;
+  border: 1px solid var(--line2); border-radius: 10px; background: var(--card);
+  display: grid; place-items: center; cursor: pointer; color: var(--muted);
+  position: relative; overflow: hidden;
 }
-.actions { display: flex; gap: 10px; justify-content: center; }
+.thumb-on { box-shadow: 0 0 0 2px var(--ink); border-color: var(--ink); }
+.thumb-mark { display: block; }
+.thumb-A .thumb-mark { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); }
+.thumb-B { background: var(--bg); }
+.thumb-B .thumb-mark { position: absolute; top: 7px; left: 7px; width: 22px; height: 22px; border-radius: 3px; border: 1px solid var(--sage); }
+.thumb-C { background: var(--ink); color: var(--sage); }
+.thumb-C .thumb-mark { width: 26px; height: 8px; border-radius: 2px; background: var(--sage); }
+.thumb-D .thumb-mark { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--sage); }
+.thumb-photo { background: var(--bg); }
+/* Низ: «Поділитись» чорнилом 50 r12 + download 50 r12 з контуром. */
+.actions { display: flex; gap: 8px; }
+.share {
+  flex: 1; height: 50px; border: 0; border-radius: 12px;
+  background: var(--ink); color: var(--bg);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-body); font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.share:hover:not(:disabled) { filter: brightness(0.96); }
+.share:disabled { opacity: .6; cursor: wait; }
+.download {
+  width: 50px; height: 50px; flex: none; border: 1px solid var(--line2); border-radius: 12px;
+  background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer;
+}
+.download:disabled { opacity: .6; }
+.caption {
+  align-self: flex-start; border: 0; background: transparent; padding: 0;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--sage); cursor: pointer;
+}
+.hint { font-family: var(--font-body); font-size: 13px; line-height: 1.5; color: var(--muted); }
