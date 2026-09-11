@@ -6,20 +6,33 @@
 // 400ms enter, бекдроп fade 250ms; вихід дзеркальний 250ms exit (onClose
 // летить ПІСЛЯ анімації); драг вниз більш ніж на чверть висоти — закрити,
 // менше — панель пружинить назад.
+//
+// v3 (11.09, зауваження власника): шторка і права панель — одна колода.
+// Бандл малює їх однією карткою з тим самим рядком шапки (Screens D3a
+// aside · D3c шторка: кікер + ✕, у шторці ще ручка). У коді рядок шапки
+// панелі — це .rail-tabs: знак панелі ліворуч, вкладка-знак артефакта
+// праворуч. Шторка бере той самий рядок і ту саму геометрію (.rail-open:
+// 560, радіус 16, відступи 16), а `kind` каже, який знак у вкладці.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode, type TouchEvent } from 'react';
 import styles from './Sheet.module.css';
+import panel from '../ArtifactPanel/ArtifactPanel.module.css';
+import { PanelIcon } from '../ArtifactPanel/ArtifactPanel';
+import { ARTIFACT_ICON, type ArtifactKey } from '../../pages/Feed/artifacts';
+import { Icon } from '../Icon/Icon';
 
 interface Props {
   onClose: () => void;
   ariaLabel: string;
+  /** Рід артефакта — знак у вкладці шапки, як у панелі. Без нього — лише «закрити». */
+  kind?: ArtifactKey;
   children: ReactNode;
 }
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 const EXIT_MS = 250;
 
-export function Sheet({ onClose, ariaLabel, children }: Props) {
+export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
   const [dragY, setDragY] = useState(0);
@@ -108,7 +121,16 @@ export function Sheet({ onClose, ariaLabel, children }: Props) {
           ? { transform: `translateY(${dragY}px)`, transition: dragging.current ? 'none' : undefined }
           : undefined}
       >
-        {children}
+        <div className={styles.handle} aria-hidden />
+        <div className={`${panel['rail-tabs']} ${styles.head}`}>
+          <button type="button" className={styles.close} onClick={close} title="Закрити" aria-label="Закрити"><PanelIcon /></button>
+          {kind && (
+            <span className={`${panel['rail-tab']} ${panel['rail-tab-on']} ${styles.tab}`} aria-hidden>
+              <span className={panel['rail-tab-glyph']}><Icon name={ARTIFACT_ICON[kind]} size={16} inherit decorative /></span>
+            </span>
+          )}
+        </div>
+        <div className={styles.content}>{children}</div>
       </div>
     </div>
   );

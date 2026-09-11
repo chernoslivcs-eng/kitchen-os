@@ -391,19 +391,19 @@ export function CalendarPage() {
       </div>
 
       {creating && (
-        <Sheet onClose={() => setCreating(null)} ariaLabel="Нова подія">
+        <Sheet onClose={() => setCreating(null)} ariaLabel="Нова подія" kind="event">
           <PeriodEvent initial={creating} onClose={() => setCreating(null)}
             onChanged={(id) => { if (id) openAfterCreate.current = id; setVersion((v) => v + 1); }} />
         </Sheet>
       )}
       {openEvent && !panelInFlow && (
-        <Sheet onClose={() => setOpenEvent(null)} ariaLabel={openEvent.title}>
+        <Sheet onClose={() => setOpenEvent(null)} ariaLabel={openEvent.title} kind="event">
           <PeriodEvent key={openEvent.id} event={openEvent}
             onClose={() => setOpenEvent(null)} onChanged={onEventChanged} />
         </Sheet>
       )}
       {openSeries && !panelInFlow && (
-        <Sheet onClose={() => setOpenSeries(null)} ariaLabel="Підписки">
+        <Sheet onClose={() => setOpenSeries(null)} ariaLabel="Підписки" kind="event">
           <PeriodSubscriptions key={openSeries} initialSet={openSeries}
             onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)}
             onAddOwn={() => setCreating({ date: isoOf(today), dateTo: '' })} />

@@ -20,8 +20,8 @@ import {
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
-  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, History, Star,
-  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Recycle, Hourglass, WifiOff, Minus, Square, RotateCw,
+  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import,
+  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -136,8 +136,13 @@ export const ICONS = {
   'cook.time':     { glyph: Clock,         label: 'Час',           family: 'cooking' },
   'cook.ban':      { glyph: Ban,           label: 'Не можна',      family: 'cooking' },
   'cook.love':     { glyph: Heart,         label: 'Люблю',         family: 'cooking' },
-  'cook.done':     { glyph: History,       label: 'Готував',       family: 'cooking' },
-  'cook.rescue':   { glyph: Recycle,       label: 'Використає',    family: 'cooking' },
+  // Бібліотека рецептів (Screens D5): «готував 2 рази» і «Знову» в журналі —
+  // rotate-ccw, один зміст «повторно»; «бракує: …» — кошик-basket (не cart:
+  // cart — кошик мережі). «використає: …» іде під flame: рядок називає те,
+  // що горить, — той самий зміст, не другий.
+  'cook.done':     { glyph: RotateCcw,     label: 'Готував, знову',family: 'cooking' },
+  'cook.missing':  { glyph: ShoppingBasket,label: 'Бракує',        family: 'cooking' },
+  'sys.import':    { glyph: Import,        label: 'Записати свій', family: 'system' },
   'cook.rating':   { glyph: Star,          label: 'Оцінка',        family: 'cooking' },
 
   // ---- живі стани й тривога ----
