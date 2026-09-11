@@ -424,7 +424,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
           onClick={() => onApply!(off.size ? ops.map((_, i) => i).filter((i) => !off.has(i)) : undefined)}
           loading={applying}
           disabled={off.size === ops.length}
-        >{writeOff ? 'Списати' : 'Застосувати'} {goingIn}</Button>
+        >{writeOff ? 'Списати' : 'Застосувати'} {off.size ? `${goingIn} із ${ops.length}` : goingIn}</Button>
       )}
     </div>
   ) : null;
@@ -1536,6 +1536,8 @@ export function labelFor(
   undone?: boolean,
   dismissed?: boolean,
   outcome?: ApplyOutcome,
+  /** Скільки рядків чекає рішення — «ОЧІКУЄ · 14». Той самий M, що потім у «9 із 14». */
+  pendingCount?: number,
 ): { text: string; tone: 'pending' | 'applied' | 'muted' } {
   // Слід рецепта — не дія: жодного «ОЧІКУЄ», просто мітка.
   if (type === 'recipe_link') return { text: 'КУХНЯ · РЕЦЕПТ', tone: 'muted' };
@@ -1558,7 +1560,9 @@ export function labelFor(
   // Аудит раунд 3, крок 3: статус — з режиму застосування (card-modes.ts),
   // не захардкожений тут другою правдою. mode === 'none' (proposal тощо) —
   // нічого чекати, лише тип, без «· ОЧІКУЄ».
+  // Етап 3: слід ДО застосування несе кількість — бурштином. Після — та сама
+  // функція дасть «9 із 14» чорнилом. Один слід, два моменти, одна функція.
   return applyMode(type) === 'none'
     ? { text: base, tone: 'muted' }
-    : { text: `${base} · ОЧІКУЄ`, tone: 'pending' };
+    : { text: `${base} · ОЧІКУЄ${pendingCount ? ` · ${pendingCount}` : ''}`, tone: 'pending' };
 }

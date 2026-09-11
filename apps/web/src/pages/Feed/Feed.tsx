@@ -1355,11 +1355,16 @@ export function Feed() {
                 <>
                   {' '}
                   {(() => {
-                    const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed, t.outcome);
+                    // Кількість, що чекає: рядки картки комори або списку.
+                    const pendingCount = 'ops' in t.card ? (t.card as { ops?: unknown[] }).ops?.length
+                      : 'items' in t.card ? (t.card as { items?: unknown[] }).items?.length : undefined;
+                    const l = labelFor(t.card.type, t.applied, t.undone, t.dismissed, t.outcome, pendingCount);
                     // Моушн-кіт: pending-пульс — лише поки картка чекає рішення.
+                    // data-trace-tone — той самий елемент до і після: тест на
+                    // перехід перевіряє, що слід один, а не два, які розійдуться.
                     return l.tone === 'pending'
-                      ? <span className={styles['pending-pulse']}>{l.text}</span>
-                      : l.text;
+                      ? <span className={styles['pending-pulse']} data-trace-tone="pending">{l.text}</span>
+                      : <span data-trace-tone={l.tone}>{l.text}</span>;
                   })()}
                 </>
               )}

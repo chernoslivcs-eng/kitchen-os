@@ -87,6 +87,10 @@ describe('частковий успіх — у сліді, не лише в то
   it('9 із 14, 5 пропущено — слід це каже після застосування', async () => {
     installFetch({ applied: 9, undo_token: 'u1', already: false, missed: ['a', 'b', 'c', 'd', 'e'] });
     await mountAndGetCard();
+    // Один слід, два моменти. ДО — бурштин і те саме число, що потім буде «із 14».
+    const before = host!.querySelector('[data-trace-tone]');
+    expect(before?.getAttribute('data-trace-tone')).toBe('pending');
+    expect(host!.textContent).toContain('ОЧІКУЄ · 14');
     await expand();
     const apply = applyButton();
     expect(apply, 'кнопка застосування на картці').toBeTruthy();
@@ -96,6 +100,10 @@ describe('частковий успіх — у сліді, не лише в то
     const text = host!.textContent ?? '';
     expect(text).toContain('9 із 14');
     expect(text).toContain('5 пропущено');
+    // ПІСЛЯ — той самий елемент сліду, інший тон. Не два компоненти.
+    const after = host!.querySelector('[data-trace-tone]');
+    expect(after?.getAttribute('data-trace-tone')).toBe('applied');
+    expect(host!.querySelectorAll('[data-trace-tone]').length).toBe(1);
   });
 
   it('усе влучило — чисел у сліді немає', async () => {
