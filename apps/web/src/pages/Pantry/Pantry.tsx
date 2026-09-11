@@ -42,6 +42,9 @@ export function PantryPage() {
     const sort = (location.state as { sort?: FilterState['sort'] } | null)?.sort;
     return sort ? { ...INITIAL, sort } : INITIAL;
   });
+  // Рейки фільтра — за кнопкою «Фільтр» (Screens); брудний фільтр — крапка на кнопці.
+  const [filterOpen, setFilterOpen] = useState(() => !!(location.state as { sort?: string } | null)?.sort);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Крок О1а: який зріз людина справді вмикає. Тільки назва зрізу — вмісту комори тут не буває.
   const trackFilter = (patch: Record<string, unknown>) => track('pantry_filter_changed', patch);
   const [lastReceiptAt, setLastReceiptAt] = useState<string | null>(null);
@@ -254,48 +257,57 @@ export function PantryPage() {
           action={{ label: PANTRY_FAILED.cta, run: () => void refresh() }}
         />
       )}
-      <AppHeader title="Комора" onMenu={() => openNav(true)} action={<>
-          <button
-            onClick={() => setAdding(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--line2)',
-              borderRadius: 'var(--r-pill)',
-              padding: '5px 12px',
-              color: 'var(--muted)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            + Додати
-          </button>
+      {/* Шапка за Screens «Комора · збірка» / «мобайл» (з wip/6b-2, окремим
+          комітом): h1 · лічильник 13 dim · розпірка · пошук 260×36 на card
+          (на 390 — знаком 40, розкриває поле над рейками) · «Фільтр» 38 на
+          card (ховає рейки порядок/тільки/стан) · «Додати» 36 чорнилом (на
+          390 — коло 42). Розкладка зон, банер, ритм календаря — лишаються на
+          гілці за чергою. */}
+      <AppHeader title="Комора" onMenu={() => openNav(true)} fill action={<>
           {/* QA6-12: під час пошуку лічильник показував загальну кількість —
               «9 ПОЗИЦІЙ» при одній видимій. Крок Ф1: те саме для фільтра — «12 З 61». */}
           <div className={styles.meta} data-testid="pantry-meta">{view.meta}</div>
+          <span className={styles['head-gap']} />
+          {batches.length > 0 && (
+            <label className={styles.search} data-search>
+              <Icon name="sys.search" size={16} inherit decorative />
+              <input
+                type="search"
+                value={filter.q}
+                onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+                placeholder="Продукт або категорія"
+                aria-label="Знайти в коморі"
+                className={styles['search-input']}
+              />
+            </label>
+          )}
+          {batches.length > 0 && (
+            <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} onClick={() => setSearchOpen((v) => !v)}
+              aria-label="Знайти в коморі" aria-pressed={searchOpen} data-search-toggle>
+              <Icon name="sys.search" size={16} inherit decorative />
+            </button>
+          )}
+          {batches.length > 0 && (
+            <button type="button" className={`${styles['head-icon']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`}
+              onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-toggle>
+              <Icon name="sys.filter" size={16} inherit decorative />
+              {view.dirty && <span className={styles['head-badge']} aria-hidden />}
+            </button>
+          )}
+          <button type="button" className={styles['head-add']} onClick={() => setAdding(true)} data-add>
+            <Icon name="sys.add" size={16} inherit decorative /><span className={styles['head-add-text']}>Додати</span>
+          </button>
       </>} />
 
       <div className={styles.body}>
-        {batches.length > 0 && (
-          <input
-            value={filter.q}
-            onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
-            placeholder="Знайти в коморі — продукт або категорію: «сир», «овочі»"
-            aria-label="Знайти в коморі"
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              background: 'var(--bg)',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--r)',
-              color: 'var(--ink)',
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              marginBottom: 4,
-            }}
-          />
+        {batches.length > 0 && searchOpen && (
+          <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
+            <Icon name="sys.search" size={16} inherit decorative />
+            <input type="search" value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+              placeholder="Продукт або категорія" aria-label="Знайти в коморі" className={styles['search-input']} autoFocus />
+          </label>
         )}
-        {batches.length > 0 && (
+        {batches.length > 0 && filterOpen && (
           <FilterRails
             view={view}
             state={filter}
