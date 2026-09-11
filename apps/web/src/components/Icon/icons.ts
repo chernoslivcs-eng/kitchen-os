@@ -21,7 +21,7 @@ import {
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
   ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, History, Star,
-  Flame, Sparkles, Pencil, TriangleAlert, CalendarDays, Recycle, Hourglass, WifiOff, Minus, Square, RotateCw,
+  Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Recycle, Hourglass, WifiOff, Minus, Square, RotateCw,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -144,7 +144,13 @@ export const ICONS = {
   'live.burning':  { glyph: Flame,         label: 'Горить',        family: 'live' },
   'live.thinking': { glyph: Sparkles,      label: 'Думаю',         family: 'live' },
   'live.overdue':  { glyph: TriangleAlert, label: 'Прострочено',   family: 'live' },
-  'live.season':   { glyph: CalendarDays,  label: 'Сезон',         family: 'live' },
+  // Роди періодів — як у бандлі (Components A2 кікер, Screens D3 чіпи):
+  // сезон — sun / бурштин, традиція — church / слива, завіз — truck / шавлія,
+  // подія дому — users / шавлія. Рамка дня — без знака (muted).
+  'live.season':   { glyph: Sun,           label: 'Сезон',         family: 'live' },
+  'live.tradition':{ glyph: Church,        label: 'Свято, піст',   family: 'live' },
+  'live.supply':   { glyph: Truck,         label: 'Завіз',         family: 'live' },
+  'live.household':{ glyph: Users,         label: 'Подія дому',    family: 'live' },
   'live.byHand':   { glyph: Pencil,        label: 'Рукою',         family: 'live' },
   // Стани дії — рядок над композитором (Components · «Стани дії»). Знаки з
   // бандла, як намальовано: ліміт — пісочний годинник, мережа — wifi-off,
@@ -178,4 +184,7 @@ export const SHARED_ON_PURPOSE = ['Напої', 'Морозилка'];
 export const PENDING_DESIGN_CHAT: { glyph: LucideIcon; meanings: string[]; question: string }[] = [
   { glyph: Leaf, meanings: ['Свіже', 'Зелень'], question: 'зонам потрібна окрема вісь знаків?' },
   { glyph: Refrigerator, meanings: ['Комора', 'Холодильник'], question: 'навігаційна «Комора» і зона — один знак?' },
+  // Бандл ставить users і на «2 порції» (Redesign, Prototype, Screens D1), і на
+  // «Мама · чт – нд» / «подія дому» (Screens D3, Redesign). Один знак — два змісти.
+  { glyph: Users, meanings: ['Порції', 'Подія дому'], question: 'порції й подія дому — один знак?' },
 ];

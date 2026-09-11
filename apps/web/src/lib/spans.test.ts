@@ -70,8 +70,8 @@ describe('риска й підписи', () => {
   it('підпис лише на краях, у середині мовчить', () => {
     const e = ev(1, 4, { title: 'черемша', kind: 'season' });
     // Формат макета: старт несе «ДО дд.мм», кінець — «КІНЕЦЬ».
-    expect(edgeCaption(e, at(1))).toMatch(/^▮ ЧЕРЕМША · СЕЗОН ПОЧАВСЯ · ДО \d{2}\.\d{2}$/);
-    expect(edgeCaption(e, at(4))).toBe('▮ ЧЕРЕМША · КІНЕЦЬ');
+    expect(edgeCaption(e, at(1))).toMatch(/^черемша · сезон · до \d{2}\.\d{2}$/);
+    expect(edgeCaption(e, at(4))).toBe('черемша · кінець');
     expect(edgeCaption(e, at(2))).toBeNull();
   });
 });

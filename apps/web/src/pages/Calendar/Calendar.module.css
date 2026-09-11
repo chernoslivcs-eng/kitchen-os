@@ -64,27 +64,34 @@
   padding: 0 0 10px;
   border-bottom: 1px solid var(--line);
 }
+/* Чіп «що триває зараз» (Screens D3): пігулка тоном роду на його тлі, знак
+   роду 12 px, підпис 12/500 звичайним регістром. */
 .chip {
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
   border-radius: var(--r-pill);
-  border: 1px solid color-mix(in srgb, var(--t) 35%, transparent);
-  background: transparent;
+  border: 0;
+  background: var(--t-bg);
   color: var(--t);
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
 }
-.chip:hover { background: color-mix(in srgb, var(--t) 10%, transparent); }
+.chip:hover { background: color-mix(in srgb, var(--t) 18%, var(--t-bg)); }
 
 /* Роди → тон. Ті самі пари, що в сайдбарі й на рисках. */
-.t-own      { --t: var(--sage); }
-.t-season   { --t: var(--amber); }
-.t-restrict { --t: var(--plum); }
-.t-tradition { --t: var(--plum); }
+.t-own      { --t: var(--sage);  --t-bg: var(--sage-bg); }
+.t-season   { --t: var(--amber); --t-bg: var(--amber-bg); }
+.t-restrict { --t: var(--plum);  --t-bg: var(--plum-bg); }
+.t-tradition { --t: var(--plum); --t-bg: var(--plum-bg); }
 /* П2 (2e): системне — тлом, 45%; своє — яскраво у своєму тоні. */
 .sys { opacity: 0.45; }
-.t-grey     { --t: var(--dim); }
+.t-grey     { --t: var(--dim); --t-bg: var(--bg); }
 
 /* Заголовок тижня. */
 .week {
@@ -140,6 +147,11 @@
 .rail-start { top: 6px; border-radius: 2px 2px 0 0; }
 .rail-end   { bottom: 6px; border-radius: 0 0 2px 2px; }
 .rail-start.rail-end { top: 6px; bottom: 6px; border-radius: 2px; }
+/* «≈» — дати рахуються (PLAN §7): риска пунктиром, штрих 6 / пробіл 4, щоб
+   на рядку 70 px їх було видно кілька. Суцільна — дати з довідника чи свої. */
+.rail-approx {
+  background: repeating-linear-gradient(to bottom, var(--t) 0 6px, transparent 6px 10px);
+}
 .dot {
   position: absolute;
   width: 5px; height: 5px;
@@ -147,6 +159,8 @@
   background: var(--t);
   margin-left: -1px;
 }
+/* Суворо — заливка крапки; мʼяко — контур (Components · легенда календаря). */
+.dot-soft { background: var(--bg); box-shadow: inset 0 0 0 1.5px var(--t); }
 .dot-start { top: 3px; }
 .dot-end   { bottom: 3px; }
 
@@ -174,24 +188,30 @@
 .ev-own { color: var(--muted); }
 .ev-constraint { color: var(--dim); }
 .ev-editorial { color: var(--amber); }
+/* Підпис краю тривалої (Screens D3b): пігулка 22 px тоном роду на його тлі,
+   знак роду, 11/500 звичайним регістром. «Ще N» — той самий рядок без тла. */
 .tag {
-  display: block;
-  width: 100%;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 8px;
   border: 0;
-  background: transparent;
+  border-radius: var(--r-pill);
+  background: var(--t-bg, transparent);
   text-align: left;
   cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
   color: var(--t, var(--dim));
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  align-self: flex-start;
 }
-.more { color: var(--dim); }
-.empty { font-family: var(--font-body); font-size: 15px; color: var(--dim); display: none; }
-@media (min-width: 768px) { .empty { display: block; } }
+.tag-text { overflow: hidden; text-overflow: ellipsis; }
+.more { color: var(--dim); background: transparent; padding: 0; font-family: var(--font-mono); font-size: 10px; height: auto; }
 
 /* Сьогодні — єдиний підсвічений рядок, на всю ширину (перекриває жолоб і
    бічні відступи). Дата тону дії, число темне. */

@@ -10,8 +10,9 @@
 //
 // Подія — PeriodEvent (П2): на ≥1200 у правій панелі каркаса, нижче — шторка.
 // Системна — читання з «Не показувати», своя — правка на місці. Внизу
-// календаря два рядки: «Приховані: … · повернути» і «Свята: … · змінити» —
-// обидва відкривають картку серії (PeriodSeries) відповідного набору.
+// календаря два рядки: «приховані … · повернути» і «свята … · змінити» —
+// обидва відкривають підписки (PeriodSubscriptions): традиції чіпами, рядки
+// з перемикачами, сезони, вхід у свою подію (PLAN §7).
 
 import { Icon } from '../../components/Icon/Icon';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -22,6 +23,7 @@ import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { toneKey } from '../../lib/tone';
 import { buildTimeline, dayStart, mondayOf, DAY, type TimelineWeek } from './days';
+import { legendLabel, legendIcon } from './legend';
 
 // Локальна дата в ISO — форма події живе в 'YYYY-MM-DD'.
 function isoOf(at: number): string {
@@ -32,8 +34,9 @@ import {
   splitAxes, coversDay, edgeCaption, moreLabel, VISIBLE_LIMIT, MOBILE_RAILS, assignLanes,
 } from '../../lib/spans';
 import { Sheet } from '../../components/Sheet/Sheet';
-import { PeriodEvent, PeriodSeries, type PeriodChange } from '../../components/PeriodArtifact/PeriodArtifact';
-import { TRADITION_LABEL, TRADITION_SETS } from '../../lib/period';
+import { PeriodEvent, type PeriodChange } from '../../components/PeriodArtifact/PeriodArtifact';
+import { PeriodSubscriptions } from '../../components/PeriodArtifact/PeriodSubscriptions';
+import { TRADITION_LABEL } from '../../lib/period';
 import { usePanelStore, RAIL_IN_FLOW } from '../../store/panel';
 import styles from './Calendar.module.css';
 
@@ -57,20 +60,6 @@ const shortRange = (a: number, b: number) => {
 };
 
 function toneClass(e: EventOccurrence): string { return styles[`t-${toneKey(e)}`]!; }
-
-// Підпис чіпа легенди (канвас): «ПІСТ · 12 З 48», «ЧЕРЕМША · З ВТ 3 · ДО ≈ 20.03»,
-// «ОЛЕНА · ЧТ 5 – НД 8». День тижня має сенс лише поки старт близько — сезон,
-// що почався півтора місяця тому, називає лише кінець: «ДО 20.09».
-function legendLabel(e: EventOccurrence, today: number): string {
-  const days = Math.round((dayStart(e.end) - dayStart(e.start)) / DAY) + 1;
-  const dayN = Math.round((today - dayStart(e.start)) / DAY) + 1;
-  const t = e.title.toUpperCase();
-  if (e.force === 'restrict') return `${t} · ${dayN} З ${days}`;
-  const d = (at: number) => `${dow(at).toUpperCase()} ${num(at)}`;
-  const until = `ДО ${e.approx ? '≈ ' : ''}${new Date(e.end).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}`;
-  if (days <= 14) return `${t} · ${d(e.start)} – ${d(e.end)}`;
-  return dayN <= 7 ? `${t} · З ${d(e.start)} · ${until}` : `${t} · ${until}`;
-}
 
 export function CalendarPage() {
   const navigate = useNavigate();
@@ -192,12 +181,13 @@ export function CalendarPage() {
   useEffect(() => {
     if (!panelInFlow || (!openEvent && !openSeries)) { panel.clear(); return; }
     if (openSeries) {
-      const key = `series:${openSeries}`;
+      const key = 'subscriptions';
       panel.publish({
-        artifacts: [{ key, kind: 'event', label: openSeries === 'seasons' ? 'Сезони' : `${TRADITION_LABEL[openSeries]} свята`, meta: '' }],
+        artifacts: [{ key, kind: 'event', label: 'Підписки', meta: '' }],
         render: () => (
-          <PeriodSeries key={openSeries} set={openSeries}
-            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)} />
+          <PeriodSubscriptions key={openSeries} initialSet={openSeries}
+            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)}
+            onAddOwn={() => setCreating({ date: isoOf(today), dateTo: '' })} />
         ),
       });
       panel.openArtifact(key);
@@ -289,6 +279,7 @@ export function CalendarPage() {
               {running.map((e) => (
                 <button key={`${e.scope}:${e.id}`} type="button"
                   className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
+                  {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
                   {legendLabel(e, today)}
                 </button>
               ))}
@@ -327,7 +318,6 @@ export function CalendarPage() {
                   .filter((x): x is { e: EventOccurrence; text: string } => x.text !== null);
                 const shown = d.events.slice(0, VISIBLE_LIMIT);
                 const more = moreLabel(d.events.slice(VISIBLE_LIMIT));
-                const empty = !captions.length && !d.events.length;
                 return (
                   <div key={d.at} ref={isToday ? todayRef : undefined} data-at={d.at}
                     onPointerDown={beginSelect(d.at)}
@@ -335,10 +325,12 @@ export function CalendarPage() {
                     <div className={styles.gutter}>
                       {bars.map((e, lane) => e && (
                         <span key={e.id} className={`${toneClass(e)} ${e.scope === 'catalog' ? styles.sys : ''}`}>
-                          <span className={`${styles.rail} ${dayStart(e.start) === d.at ? styles['rail-start'] : ''} ${dayStart(e.end) === d.at ? styles['rail-end'] : ''}`}
-                            style={{ left: lane * 8 }} />
-                          {dayStart(e.start) === d.at && <span className={`${styles.dot} ${styles['dot-start']}`} style={{ left: lane * 8 }} />}
-                          {dayStart(e.end) === d.at && <span className={`${styles.dot} ${styles['dot-end']}`} style={{ left: lane * 8 }} />}
+                          {/* Дві осі знака (Components · легенда календаря): «≈» дати —
+                              пунктирна риска; суворо — заливка крапки, мʼяко — контур. */}
+                          <span className={`${styles.rail} ${e.approx ? styles['rail-approx'] : ''} ${dayStart(e.start) === d.at ? styles['rail-start'] : ''} ${dayStart(e.end) === d.at ? styles['rail-end'] : ''}`}
+                            style={{ left: lane * 8 }} data-approx={e.approx ? '' : undefined} />
+                          {dayStart(e.start) === d.at && <span className={`${styles.dot} ${styles['dot-start']} ${e.force === 'restrict' ? '' : styles['dot-soft']}`} style={{ left: lane * 8 }} />}
+                          {dayStart(e.end) === d.at && <span className={`${styles.dot} ${styles['dot-end']} ${e.force === 'restrict' ? '' : styles['dot-soft']}`} style={{ left: lane * 8 }} />}
                         </span>
                       ))}
                     </div>
@@ -349,7 +341,10 @@ export function CalendarPage() {
                       </div>
                       <div className={styles.content}>
                         {captions.map(({ e, text }) => (
-                          <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>{text}</button>
+                          <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
+                            {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
+                            <span className={styles['tag-text']}>{text}</span>
+                          </button>
                         ))}
                         {shown.map((e) => (
                           <button key={`${e.scope}:${e.id}`} type="button"
@@ -363,10 +358,9 @@ export function CalendarPage() {
                         )}
                         {isToday && (
                           <button type="button" className={styles.ask} onClick={() => navigate('/app')}>
-                            {empty ? 'Що на вечерю?' : 'Що на вечерю?'}
+                            Що на вечерю?
                           </button>
                         )}
-                        {!isToday && empty && <span className={styles.empty}>Поки нічого. Рідкісний спокій.</span>}
                       </div>
                     </div>
                   </div>
@@ -389,25 +383,10 @@ export function CalendarPage() {
         </div>
         <div className={styles['foot-row']}>
           <span className={styles['foot-label']}>свята</span>
-          {traditions.length ? (
-            <>
-              <span className={styles['foot-value']}>{traditions.map((t) => TRADITION_LABEL[t]).join(', ')}</span>
-              {traditions.map((t) => (
-                <button key={t} type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries(t); }}>
-                  {traditions.length > 1 ? `змінити ${TRADITION_LABEL[t]}` : 'змінити'}
-                </button>
-              ))}
-            </>
-          ) : (
-            <>
-              <span className={styles['foot-value']}>не обрано</span>
-              {TRADITION_SETS.map((t) => (
-                <button key={t} type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries(t); }}>
-                  {TRADITION_LABEL[t]}
-                </button>
-              ))}
-            </>
-          )}
+          <span className={styles['foot-value']}>{traditions.length ? traditions.map((t) => TRADITION_LABEL[t]).join(', ') : 'не обрано'}</span>
+          <button type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries(traditions[0] ?? 'orthodox'); }}>
+            {traditions.length ? 'змінити' : 'підключити'}
+          </button>
         </div>
       </div>
 
@@ -424,9 +403,10 @@ export function CalendarPage() {
         </Sheet>
       )}
       {openSeries && !panelInFlow && (
-        <Sheet onClose={() => setOpenSeries(null)} ariaLabel={openSeries === 'seasons' ? 'Сезони' : `${TRADITION_LABEL[openSeries]} свята`}>
-          <PeriodSeries key={openSeries} set={openSeries}
-            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)} />
+        <Sheet onClose={() => setOpenSeries(null)} ariaLabel="Підписки">
+          <PeriodSubscriptions key={openSeries} initialSet={openSeries}
+            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)}
+            onAddOwn={() => setCreating({ date: isoOf(today), dateTo: '' })} />
         </Sheet>
       )}
     </div>
