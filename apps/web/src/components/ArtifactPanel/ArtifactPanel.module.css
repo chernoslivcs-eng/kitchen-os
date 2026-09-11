@@ -287,21 +287,19 @@
   }
 }
 
+/* №17 (Prototype aside): зона захоплення 12 на всю висоту, видима риска 4×40
+   r2 line2 по центру, opacity 0 → 1 за 160 мс на наведенні й під час
+   перетягування. Смуги на всю висоту не буває. */
 .rail-handle-bar {
   width: 4px;
   height: 40px;
   border-radius: 2px;
   background: var(--line2);
   opacity: 0;
-  transition: opacity var(--dur-fast) ease, background var(--dur-fast) ease;
+  transition: opacity var(--dur-fast) var(--ease-standard);
 }
-.rail-handle:hover .rail-handle-bar { opacity: 1; }
-.rail-dragging .rail-handle-bar {
-  opacity: 1;
-  background: var(--ink);
-  height: 100%;
-  border-radius: 0;
-}
+.rail-handle:hover .rail-handle-bar,
+.rail-dragging .rail-handle-bar { opacity: 1; }
 .rail-handle-tip {
   position: absolute;
   left: 18px;

@@ -148,7 +148,7 @@ export function ArtifactPanel() {
             назад до типової за екраном. */}
         <div className={styles['rail-handle']} onPointerDown={onHandleDown} role="separator" aria-orientation="vertical" aria-label="Ширина панелі">
           <span className={styles['rail-handle-bar']} />
-          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
+          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} px</span>}
         </div>
         {shown && (
           <div id={`rail-${shown.key}`} className={styles['rail-artifact']}>
