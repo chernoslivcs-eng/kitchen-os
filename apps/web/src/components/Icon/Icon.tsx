@@ -28,7 +28,11 @@ interface Props {
 /**
  * Єдиний спосіб намалювати знак. Штрих 1.75 і заокруглені кінці стоять тут, а
  * не в кожному місці вжитку: канон обіцяє одну базу, і тримати її має одне
- * місце. Підпис знака бере словник — тобто `aria-label` не можна розійтися зі
+ * місце. Штрих — у координатах viewBox, як у бандлі (`createIcons({ attrs:
+ * { 'stroke-width': 1.75 } })`, Icons.dc.html:217): контур масштабується з
+ * розміром (16 px → 1.17 px, 12 px → 0.9 px). `absoluteStrokeWidth` давав
+ * 1.75 px на екрані при будь-якому кеглі — у 12 px це stroke-width 3.5, і
+ * знаки виглядали «як брудні плями» (FIXES-V3 №6). Підпис знака бере словник — тобто `aria-label` не можна розійтися зі
  * значенням, за яким знак закріплений (див. icons.test.ts).
  */
 export function Icon({ name, size = 20, tap, inherit, ink, decorative, className, live }: Props) {
@@ -56,11 +60,11 @@ export function Icon({ name, size = 20, tap, inherit, ink, decorative, className
         /* Власні шляхи (Icons.dc.html:218-229): частини знака розділені під
            рух; штрих і кінці — ті самі, що дає lucide-react. */
         <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth={1.75 * (24 / size)} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           {custom.map((d, i) => <path key={i} d={d} />)}
         </svg>
       ) : (
-        <Glyph size={size} strokeWidth={1.75} absoluteStrokeWidth strokeLinecap="round" strokeLinejoin="round" />
+        <Glyph size={size} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
       )}
     </span>
   );
