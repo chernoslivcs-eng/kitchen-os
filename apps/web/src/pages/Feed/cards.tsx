@@ -602,51 +602,71 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
 
 export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
   const items = (card.items as ProposalItem[] | undefined ?? []);
+  // 6b-4 — картка пропозицій за Prototype (propDesk): одна картка r16 на
+  // тіні, 0 18, пропозиції рядками через волосину; розгорнута — знак 44,
+  // назва 18/600, рядок 13 muted, чіпи 26 (бурштин — те, що горить; решта на
+  // bg), дії колом 36 (cooking-pot шавлією, reply контуром); згорнута —
+  // знак 44 muted, назва 15/600, «бракує …» 12 бурштином, «+» 36. Одна
+  // розгорнута за раз — як на кадрі. «8 з 8 удома», час і ккал у пропозиції
+  // ще немає (Р37): їх приносить лише згенерований рецепт.
+  const [openIdx, setOpenIdx] = useState(0);
+  if (items.length === 0) return null;
   return (
-    <div className={styles.card}>
-      {items.map((it, i) => (
-        <div key={i} className={styles['proposal-item']}>
-          <div className={styles['proposal-title']}>{it.title ?? '—'}</div>
-          {it.desc && <div className={styles['proposal-desc']}>{it.desc}</div>}
-          {it.character && (
-            <MonoLabel className={styles['proposal-meta']}>{it.character}</MonoLabel>
-          )}
-          {(it.rescues?.length ?? 0) > 0 && (
-            <div className={styles.section}>
-              <MonoLabel>ВИКОРИСТАЄ</MonoLabel>
-              <div className={styles.chips}>
-                {it.rescues!.map((r, j) => (
-                  <span key={j} className={styles.chip}><span className={styles.gmark} aria-hidden /> {r}</span>
-                ))}
-              </div>
+    <div className={styles['prop-card']} data-proposals>
+      {items.map((it, i) => {
+        const title = it.title ?? '—';
+        const needs = it.needs ?? [];
+        const rescues = it.rescues ?? [];
+        if (i !== openIdx) {
+          return (
+            <div key={i} className={`${styles['prop-row']} ${styles['prop-row-closed']}`} data-proposal="closed">
+              <span className={`${styles['prop-ico']} ${styles['prop-ico-muted']}`}><Icon name="cook.type" size={18} inherit decorative /></span>
+              <span className={styles['prop-body']}>
+                <span className={styles['prop-title-sm']}>{title}</span>
+                {needs.length > 0
+                  ? <span className={styles['prop-sub-amber']}>бракує: {needs.join(', ')}</span>
+                  : it.character ? <span className={styles['prop-sub']}>{it.character}</span> : null}
+              </span>
+              <button type="button" className={styles['prop-act']} onClick={() => setOpenIdx(i)} aria-label={`Розгорнути «${title}»`} title="Розгорнути">
+                <Icon name="sys.add" size={16} inherit decorative />
+              </button>
             </div>
-          )}
-          {(it.needs?.length ?? 0) > 0 && (
-            <div className={styles.section}>
-              <MonoLabel>БРАКУЄ</MonoLabel>
-              <div className={styles.chips}>
-                {it.needs!.map((n, j) => (
-                  <span key={j} className={`${styles.chip} ${styles['chip-need']}`}>{n}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {it.why && (
-            <div className={styles.section}>
-              <MonoLabel>ЧОМУ СЬОГОДНІ</MonoLabel>
-              <div className={styles['proposal-desc']}>{it.why}</div>
-            </div>
-          )}
-          {(onOpen || onRefine) && (
-            <div className={styles['card-actions']}>
-              {onOpen && <Button variant="positive" onClick={() => onOpen(i)}>Рецепт →</Button>}
-              {onRefine && it.title && (
-                <Button variant="secondary" onClick={() => onRefine(it.title!)}>Уточнити</Button>
+          );
+        }
+        return (
+          <div key={i} className={styles['prop-row']} data-proposal="open">
+            <span className={styles['prop-ico']}><Icon name="cook.type" size={20} inherit decorative /></span>
+            <span className={styles['prop-body']}>
+              <span className={styles['prop-title']}>{title}</span>
+              {it.character && <span className={styles['prop-meta']}><span>{it.character}</span></span>}
+              {it.desc && <span className={styles['prop-desc']}>{it.desc}</span>}
+              {it.why && <span className={styles['prop-desc']}>{it.why}</span>}
+              {needs.length > 0 && <span className={styles['prop-sub-amber']}>бракує: {needs.join(', ')}</span>}
+              {rescues.length > 0 && (
+                <span className={styles['prop-chips']}>
+                  {rescues.map((r, j) => (
+                    <span key={j} className={`${styles['prop-chip']} ${styles['prop-chip-amber']}`}><Icon name="live.burning" size={12} inherit decorative />{r}</span>
+                  ))}
+                </span>
               )}
-            </div>
-          )}
-        </div>
-      ))}
+            </span>
+            {(onOpen || onRefine) && (
+              <span className={styles['prop-actions']}>
+                {onOpen && (
+                  <button type="button" className={`${styles['prop-act']} ${styles['prop-act-sage']}`} onClick={() => onOpen(i)} aria-label={`Готуємо «${title}»`} title="Готуємо" data-proposal-open>
+                    <Icon name="cook.go" size={16} inherit decorative />
+                  </button>
+                )}
+                {onRefine && it.title && (
+                  <button type="button" className={styles['prop-act']} onClick={() => onRefine(it.title!)} aria-label={`Уточнити «${title}»`} title="Уточнити" data-proposal-refine>
+                    <Icon name="sys.reply" size={16} inherit decorative />
+                  </button>
+                )}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1054,11 +1074,7 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels, stepLa
 // cooking-pot (відкрити рецепт), reply (уточнити), мінус (згорнути).
 // Зелена рамка з капсом «РЕЦЕПТ» зникла разом із формою; слово сліду
 // (етап 3) лишилось у службовому рядку над ходом.
-export function RecipeStreamCard({ card, active, onOpen, onAsk, onSave, saved, onShare }: {
-  card: ChatCard; active?: boolean; onOpen: () => void; onAsk?: (title: string) => void;
-  /** 6b-3: «У рецепти» й «Поділитись» живуть на картці, не в панелі. */
-  onSave?: () => void; saved?: boolean; onShare?: () => void;
-}) {
+export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCard; active?: boolean; onOpen: () => void; onAsk?: (title: string) => void }) {
   const r = card.recipe;
   const [collapsed, setCollapsed] = useState(false);
   const title = card.title ?? r?.t ?? 'Рецепт';
@@ -1067,7 +1083,7 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk, onSave, saved, o
     <div className={`${styles['rcard']} ${active ? styles['rcard-on'] : ''}`} data-recipe-stream>
       <span className={styles['rcard-icon']}><Icon name="cook.type" size={20} inherit decorative /></span>
       <div className={styles['rcard-body']}>
-        <button type="button" className={`t-h3 ${styles['rcard-title']}`} onClick={onOpen}>{title}</button>
+        <button type="button" className={`t-h3 ${styles['rcard-title']}`} onClick={() => setCollapsed((v) => !v)} aria-expanded={!collapsed}>{title}</button>
         {r && (
           <div className={`t-caption ${styles['rcard-meta']}`}>
             {r.tm ? <span className={styles['rcard-meta-item']}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.tm)}</span> : null}
@@ -1079,16 +1095,20 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk, onSave, saved, o
         {!collapsed && r?.d && <div className={`t-small ${styles['rcard-desc']}`}>{r.d}</div>}
         {!collapsed && !!r?.ing?.length && (
           <div className={styles['rcard-chips']}>
+            {/* Чіпи на bg (Prototype); чого бракує — бурштином зі знаком «бракує». */}
             {r.ing.slice(0, 6).map((ing, i) => (
-              <span key={i} className={`${styles.pill} ${styles['pill-sage']}`}>{ing.n ?? 'з комори'}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+              <span key={i} className={`${styles['prop-chip']} ${!ing.p ? styles['prop-chip-amber'] : ''}`}>
+                {!ing.p && <Icon name="cook.missing" size={12} inherit decorative />}
+                {ing.n ?? 'з комори'}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}
+              </span>
             ))}
-            {r.ing.length > 6 && <span className={`${styles.pill} ${styles['pill-far']}`}>ще {r.ing.length - 6}</span>}
+            {r.ing.length > 6 && <span className={`${styles['prop-chip']} ${styles['prop-chip-dim']}`}>ще {r.ing.length - 6}</span>}
           </div>
         )}
       </div>
-      {/* Дії належать рецепту й видимі лише розгорнутому (Prototype
-          `propDesk`: згорнутий рядок має тільки «+»; розгорнутий —
-          cooking-pot і reply; «−» згортає — Screens 4a). */}
+      {/* Дії належать рецепту (Prototype propDesk): розгорнута — cooking-pot і
+          reply; згорнута — лише «+». Згортає тап по назві. «У рецепти» /
+          «Поділитись» у стрічці не малюються — QUESTIONS §13. */}
       <div className={styles['rcard-acts']} data-recipe-actions={collapsed ? 'collapsed' : 'open'}>
         {collapsed ? (
           <button type="button" className={styles['rcard-act']} onClick={() => setCollapsed(false)} aria-label="Розгорнути" title="Розгорнути">
@@ -1096,27 +1116,12 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk, onSave, saved, o
           </button>
         ) : (
           <>
-            <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-ink']}`} onClick={() => setCollapsed(true)} aria-label="Згорнути" title="Згорнути">
-              <Icon name="live.nothing" size={16} inherit decorative />
-            </button>
-            <span className={styles['rcard-acts-sep']} aria-hidden />
             <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-sage']}`} onClick={onOpen} aria-label="Готуємо" title="Готуємо">
-              <Icon name="cook.go" size={18} inherit decorative />
+              <Icon name="cook.go" size={16} inherit decorative />
             </button>
             {onAsk && (
               <button type="button" className={styles['rcard-act']} onClick={() => onAsk(title)} aria-label="Уточнити" title="Уточнити">
                 <Icon name="sys.reply" size={16} inherit decorative />
-              </button>
-            )}
-            {onSave && (
-              <button type="button" className={`${styles['rcard-act']} ${saved ? styles['rcard-act-saved'] : ''}`} onClick={onSave} disabled={saved}
-                aria-label={saved ? 'Збережено в рецептах' : 'У рецепти'} title={saved ? 'Збережено' : 'У рецепти'} data-recipe-save>
-                <Icon name={saved ? 'sys.saved' : 'sys.later'} size={16} inherit decorative />
-              </button>
-            )}
-            {onShare && (
-              <button type="button" className={styles['rcard-act']} onClick={onShare} aria-label="Поділитись" title="Поділитись" data-recipe-share>
-                <Icon name="sys.share" size={16} inherit decorative />
               </button>
             )}
           </>

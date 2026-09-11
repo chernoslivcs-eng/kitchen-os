@@ -1473,10 +1473,7 @@ export function Feed() {
                  картка лишається назавжди, а в панелі живе відкритий. */
               <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id}
                 onOpen={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
-                onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }}
-                onSave={t.card.recipe_id ? () => saveRecipeForLater(t.card!.recipe_id!) : undefined}
-                saved={t.card.recipe_id ? savedRecipeIds.has(t.card.recipe_id) : false}
-                onShare={t.card.recipe ? () => navigate('/share', { state: { recipe: t.card!.recipe, recipeId: t.card!.recipe_id } }) : undefined} />
+                onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }} />
             )}
             {t.card?.type === 'event' && t.applied && (
               /* Слід події — як у списку: дельта в сліді, стан у панелі.

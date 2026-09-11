@@ -16,6 +16,10 @@
 // --dc-click селектор у бандлі, по якому клікнути перед знімком кадра (Prototype: вкладка nav)
 // --dc-wait мс після кліку в бандлі (типово 600; прототип відповідає з затримкою — дати 3000)
 // --list    лише перелічити data-screen-label у файлі й вийти
+// --stub-messages файл JSON із масивом повідомлень (MessageInfo без id/session_id/created_at),
+//           які ДОПИСУЮТЬСЯ в кінець відповіді GET /v1/session/today і /v1/sessions/:id — лише в цьому
+//           знімку, у мережі; база не чіпається. Для карток, яких стаб не віддає
+//           (пропозиції), і для пар без прогонів моделі. Дані — з файлу, не з бази.
 //
 // Бандл читається з file:// і потребує мережі для шрифту Onest і lucide з
 // unpkg — так само, як його дивиться дизайн-чат. Застосунок — лише локальний
@@ -115,6 +119,22 @@ if (URL_BASE) {
   });
   const page = await appCtx.newPage();
   await page.emulateMedia({ colorScheme: THEME });
+  const stubFile = arg('stub-messages', null);
+  if (stubFile) {
+    const extra = JSON.parse(readFileSync(stubFile, 'utf8'));
+    await page.route(/\/v1\/(session\/today|sessions\/[^/?]+)(\?.*)?$/, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const res = await route.fetch();
+      const body = await res.json();
+      const last = body.messages?.at(-1);
+      const base = last ? new Date(last.created_at).getTime() : Date.now();
+      body.messages = [...(body.messages ?? []), ...extra.map((m, i) => ({
+        id: `stub-${i}`, session_id: body.session?.id ?? '', role: 'assistant', text: null, card: null, applied: 0,
+        created_at: new Date(base + 60_000 * (i + 1)).toISOString(), ...m,
+      }))];
+      await route.fulfill({ response: res, json: body });
+    });
+  }
   await page.goto(`${URL_BASE}/`, { waitUntil: 'domcontentloaded' });
   if (EMAIL && !haveState) {
     // Той самий вхід, що в design-audit: magic link із локального логу.

@@ -201,61 +201,55 @@
 .card-actions { display: flex; gap: 10px; margin-top: 4px; }
 .card-actions > :first-child { flex: 1; }
 
-/* ----- Proposal ------------------------------------------------------- */
-.proposal-item {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-bottom: 14px;
+/* ----- Proposal (6b-4, Prototype propDesk) ------------------------------
+   Одна картка r16 на тіні, 0 18; пропозиції рядками через волосину.
+   Розгорнута: 16 0, знак 44 (line2), назва 18/600 −.015em, рядок 13 muted,
+   чіпи 26 r999 12 (бурштин зі знаком — те, що горить; решта на bg), дії
+   колом 36 стовпчиком (cooking-pot шавлією, reply контуром). Згорнута:
+   12 0, знак muted, назва 15/600, підрядок 12 (бурштин «бракує …»), «+» 36. */
+.prop-card {
+  display: flex; flex-direction: column;
+  padding: 0 18px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+  animation: card-enter var(--dur-base) var(--ease-enter);
 }
-.proposal-item + .proposal-item {
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
-}
-.proposal-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 24px;
-  line-height: 1.2;
-  letter-spacing: var(--tracking-tight);
-  color: var(--ink);
-}
-.proposal-desc {
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--muted);
-}
-.proposal-meta {
-  color: var(--dim);
-}
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.chip {
-  background: var(--sage-bg);
-  border: 1px solid var(--sage);
-  color: var(--sage);
+.prop-row { display: flex; align-items: flex-start; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.prop-row:last-child { border-bottom: 0; }
+.prop-row-closed { align-items: center; padding: 12px 0; }
+.prop-ico { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--ink); }
+.prop-ico-muted { color: var(--muted); }
+.prop-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.prop-row-closed .prop-body { gap: 2px; }
+.prop-title { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: -0.015em; line-height: 1.2; color: var(--ink); }
+.prop-title-sm { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); }
+.prop-meta { display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.prop-desc { font-family: var(--font-body); font-size: 13px; line-height: 1.45; color: var(--muted); }
+.prop-sub { font-family: var(--font-body); font-size: 12px; color: var(--muted); }
+.prop-sub-amber { font-family: var(--font-body); font-size: 12px; color: var(--amber); }
+.prop-chips { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 4px; }
+.prop-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 9px;
   border-radius: var(--r-pill);
-  padding: 6px 12px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 12px; white-space: nowrap;
 }
-.chip-need {
-  background: var(--line);
-  border-color: var(--line2);
-  color: var(--muted);
+.prop-chip-amber { background: var(--amber-bg); color: var(--amber); font-weight: 500; }
+.prop-chip-dim { color: var(--dim); }
+.prop-actions { flex: none; display: flex; flex-direction: column; gap: 6px; }
+.prop-act {
+  width: 36px; height: 36px; flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--line2); background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
 }
+.prop-act:hover { color: var(--ink); }
+/* Кадр: «Готуємо» на пропозиції — шавлієва заливка (Prototype propDesk);
+   це дія «є все — можна», не стан контролу. */
+.prop-act-sage { background: var(--sage); border-color: var(--sage); color: #fff; }
+.prop-act-sage:hover { color: #fff; filter: brightness(0.96); }
 
 /* ----- Composer ------------------------------------------------------- */
 .composer-wrap {
@@ -1472,21 +1466,21 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 .head-new:hover { color: var(--sage-strong); }
 
-/* ── Етап 6b (4a): картка рецепта в стрічці ─────────────────────────────
-   Біла картка r14 з тінню; знак страви колом 48; дії колом 38 праворуч:
-   мінус чорнилом, cooking-pot шавлією, reply контуром. */
+/* ── Картка рецепта в стрічці — за Prototype propDesk (6b-4) ─────────────
+   Біла картка r16 з тінню; знак страви колом 44; дії колом 36 праворуч:
+   cooking-pot шавлією, reply контуром; згорнута — лише «+». */
 .rcard {
-  display: flex; align-items: flex-start; gap: 16px;
+  display: flex; align-items: flex-start; gap: 14px;
   width: 100%;
   padding: 16px 18px;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--card);
   box-shadow: var(--sh-a), var(--sh-b);
 }
 /* «Відкрито в панелі» — без кільця: у Prototype відкрита картка має лише тінь,
    що відкрито — видно по панелі. Клас лишається для логіки, не для вигляду. */
 .rcard-on { }
-.rcard-icon { flex: none; width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--ink); }
+.rcard-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--ink); }
 .rcard-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .rcard-title { border: 0; background: none; padding: 0; text-align: left; color: var(--ink); cursor: pointer; font-size: 18px; }
 .rcard-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); }
@@ -1494,15 +1488,13 @@ a.att-chip:hover { border-color: var(--sage); }
 .rcard-ok { color: var(--sage); }
 .rcard-desc { color: var(--muted); }
 .rcard-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-.rcard-acts { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.rcard-acts-sep { width: 22px; height: 1px; background: var(--line2); margin: 4px 0; }
+.rcard-acts { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+/* Дії колом 36 (Prototype propDesk): cooking-pot шавлією, reply і «+» контуром. */
 .rcard-act {
-  width: 38px; height: 38px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   border: 1px solid var(--line2); background: transparent; color: var(--muted);
   display: grid; place-items: center; cursor: pointer;
 }
 .rcard-act:hover { color: var(--ink); }
-.rcard-act-ink { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.rcard-act-ink:hover { color: var(--bg); }
-.rcard-act-sage { background: var(--sage); color: var(--sage-on); border-color: var(--sage); }
-.rcard-act-sage:hover { color: var(--sage-on); background: var(--sage-strong); }
+.rcard-act-sage { background: var(--sage); color: #fff; border-color: var(--sage); }
+.rcard-act-sage:hover { color: #fff; filter: brightness(0.96); }
