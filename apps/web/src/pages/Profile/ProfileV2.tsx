@@ -485,29 +485,32 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                 );
               })}
             </div>
-            {/* 1440 (D4): підказка — sticky-картка шавлією праворуч від речень. */}
-            <aside className={styles.hintAside} key={hintKey}>
-              <span className={styles.hintLabel}>{hintRow ? hintRow.start : HINT_IDLE.label}</span>
-              {/* 9а(5): приклади (`ex`) з копі не рендеряться — лишається текст підказки. */}
-              <p className={styles.hintText}>{hintRow ? hintRow.hint : HINT_IDLE.text}</p>
-            </aside>
           </div>
 
         </div>
 
-        {/* ── Права колонка (D4): Дім · Мережі · Акаунт — службове, менше; на 390 — одразу після речень ── */}
+        {/* ── Права колонка (№16, порядок aside Prototype): Підказка → Дім →
+            Мережі → Акаунт; нижче ~1100 — та сама колонка одразу після речень,
+            підказка не sticky. Третьої колонки не буває. ── */}
         <div className={styles.right}>
+          <aside className={styles.hintAside} key={hintKey} data-hint-aside>
+            <span className={styles.hintLabel}>{hintRow ? hintRow.start : HINT_IDLE.label}</span>
+            {/* 9а(5): приклади (`ex`) з копі не рендеряться — лишається текст підказки. */}
+            <p className={styles.hintText}>{hintRow ? hintRow.hint : HINT_IDLE.text}</p>
+          </aside>
           {svcCards}
         </div>
 
         <div className={styles.bottom}>
           {/* ── Нотатки (D4): підпис + картка рядків 48 ── */}
           <div className={styles.section} data-section="notes">
-            <div className={styles.sectionLabel}>
-              <span className={styles.sectionName}>{SECTION.notes}</span>
-              <span className={styles.sectionSub}>{SECTION.notesDesktop}</span>
-            </div>
+            {/* №15: хедер картки — чорнильний, як зони комори; знака для нотаток у
+                словнику нема (питання дизайн-чату), тож лише назва. */}
             <div className={styles.notesCard}>
+              <div className={styles.svcHead}>
+                <span className={styles.svcName}>{SECTION.notes}</span>
+                <span className={styles.svcSub}>{SECTION.notesDesktop}</span>
+              </div>
               {notes.length === 0 && !noteToast && <span className={styles.empty}>{SECTION.notesEmpty}</span>}
               {notes.map((n) => (
                 <div key={n.id} className={styles.note} data-note={n.id}>

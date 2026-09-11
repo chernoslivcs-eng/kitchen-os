@@ -23,14 +23,17 @@
   gap: 16px;
   padding: 0 16px 40px;
 }
-@media (min-width: 1024px) {
+/* №16: дві колонки від ~1100 (як D4 і aside Prototype): ліворуч речення й
+   нотатки, праворуч один стовпчик Підказка → Дім → Мережі → Акаунт; нижче —
+   одна колонка в природному порядку: речення · підказка · Дім · Акаунт ·
+   нотатки. Третьої колонки не буває. */
+@media (min-width: 1100px) {
   .main { grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; padding: 0 32px 40px; }
 }
 .left, .bottom { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-/* 1440: речення й нотатки — ліва колонка, службове — права на обидва ряди;
-   390 — природний порядок: речення · Дім/Мережі/Акаунт · нотатки (D4). */
-@media (min-width: 1024px) {
+@media (min-width: 1024px) { .main { padding: 0 32px 40px; } }
+@media (min-width: 1100px) {
   .left, .bottom { gap: 24px; }
   .left { grid-column: 1; grid-row: 1; }
   .bottom { grid-column: 1; grid-row: 2; }
@@ -48,7 +51,7 @@
 
 /* ── Речення ───────────────────────────────────────────────────────────── */
 .about { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (min-width: 1024px) { .about { grid-template-columns: minmax(0, 1fr) 280px; } }
+/* №16: підказка більше не третій стовпчик — вона в правій колонці. */
 .card {
   background: var(--card);
   border-radius: 14px;
@@ -132,17 +135,18 @@
 .rowActive .counter { bottom: 8px; }
 @media (min-width: 1024px) { .rowActive .counter { bottom: auto; } }
 
-/* Підказка: 1440 — sticky-картка шавлією праворуч; 390 — під активним рядком. */
+/* Підказка: картка шавлією першою в правій колонці (№16); sticky лише у двох
+   колонках; <768 — під активним рядком (D4 390). */
 .hintAside {
   display: none;
-  position: sticky; top: 0;
   flex-direction: column; gap: 8px;
   padding: 16px 18px;
   border-radius: 14px;
   background: var(--sage-bg); color: var(--ink);
   animation: hint-in var(--dur-base) var(--ease-enter);
 }
-@media (min-width: 1024px) { .hintAside { display: flex; } }
+@media (min-width: 768px) { .hintAside { display: flex; } }
+@media (min-width: 1100px) { .hintAside { position: sticky; top: 16px; } }
 .hintLabel { font-size: 12px; font-weight: 500; color: var(--sage); }
 .hintText { margin: 0; font-size: 14px; line-height: 1.5; }
 .hintMobile {
@@ -151,7 +155,7 @@
   font-size: 13px; line-height: 1.5; color: var(--sage);
   animation: hint-in var(--dur-base) var(--ease-enter);
 }
-@media (min-width: 1024px) { .hintMobile { display: none; } }
+@media (min-width: 768px) { .hintMobile { display: none; } }
 @keyframes hint-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* Р8: база кухні — те, чого людина не писала. Тихо, під полем. */
@@ -167,9 +171,12 @@
   background: var(--card);
   border-radius: 14px;
   box-shadow: var(--sh-a), var(--sh-b);
-  padding: 2px 16px;
+  padding: 0 16px 2px;
+  overflow: hidden;
 }
-@media (min-width: 1024px) { .notesCard { padding: 2px 20px; } }
+@media (min-width: 1024px) { .notesCard { padding: 0 20px 2px; } }
+.notesCard .svcHead { margin: 0 -16px 4px; padding: 0 16px; }
+@media (min-width: 1024px) { .notesCard .svcHead { margin: 0 -20px 4px; padding: 0 20px; } }
 .empty { display: block; padding: 12px 0; font-size: 14px; color: var(--dim); }
 .note {
   display: flex; align-items: center; gap: 14px;
@@ -199,20 +206,30 @@
   background: var(--card);
   border-radius: 14px;
   box-shadow: var(--sh-a), var(--sh-b);
-  padding: 12px 16px;
+  padding: 0 16px 12px;
   display: flex; flex-direction: column;
+  overflow: hidden;
 }
-@media (min-width: 1024px) { .svc { padding: 16px 18px; } }
-.svcHead { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; color: var(--ink); }
-@media (min-width: 1024px) { .svcHead { padding-bottom: 8px; } }
+@media (min-width: 1024px) { .svc { padding: 0 18px 16px; } }
+/* №15 (рішення власника, відхилення від Screens «Профіль»): хедер картки
+   сторінки — чорнильний з білим текстом, як зони комори: 44, ink, знак 16 +
+   назва 14/600, скруглення від картки (overflow: hidden). Межа: картки
+   сторінок — так; артефакти й панелі — ні. */
+.svcHead {
+  display: flex; align-items: center; gap: 10px;
+  height: 44px;
+  margin: 0 -16px 6px;
+  padding: 0 16px;
+  background: var(--ink); color: var(--bg);
+}
+@media (min-width: 1024px) { .svcHead { margin: 0 -18px 8px; padding: 0 18px; } }
 .svcName { font-size: 14px; font-weight: 600; }
-@media (min-width: 1024px) { .svcName { font-size: 15px; } }
-.svcSub { font-size: 12px; color: var(--muted); }
+.svcSub { font-size: 12px; color: var(--bg); opacity: .7; }
 @media (max-width: 1023px) { .svcSub { display: none; } }
 .svcGap { flex: 1; }
 .svcAction {
   border: 0; background: transparent; padding: 0; cursor: pointer;
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--sage);
+  font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--bg);
   text-decoration: none; white-space: nowrap;
 }
 .svcRow {
@@ -221,6 +238,7 @@
   border-top: 1px solid var(--line);
   font-size: 14px; color: var(--ink);
 }
+.svcHead + .svcRow { border-top: 0; }
 @media (min-width: 1024px) { .svcRow { min-height: 44px; } }
 .svcText { flex: 1; min-width: 0; }
 .svcMuted { color: var(--muted); }
