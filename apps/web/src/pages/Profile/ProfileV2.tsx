@@ -509,7 +509,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
             <div className={styles.notesCard}>
               <div className={styles.svcHead}>
                 <span className={styles.svcName}>{SECTION.notes}</span>
-                <span className={styles.svcSub}>{SECTION.notesDesktop}</span>
+                <span className={styles.svcSub} title={SECTION.notesDesktop}>{SECTION.notesDesktop}</span>
               </div>
               {notes.length === 0 && !noteToast && <span className={styles.empty}>{SECTION.notesEmpty}</span>}
               {notes.map((n) => (

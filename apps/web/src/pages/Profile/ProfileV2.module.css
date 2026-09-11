@@ -178,15 +178,19 @@
 .notesCard .svcHead { margin: 0 -16px 4px; padding: 0 16px; }
 @media (min-width: 1024px) { .notesCard .svcHead { margin: 0 -20px 4px; padding: 0 20px; } }
 .empty { display: block; padding: 12px 0; font-size: 14px; color: var(--dim); }
+/* №31: рядок нотатки — сітка auto 1fr auto: дата 12 dim зліва зверху, текст
+   15 з переносом у межах колонки, «прибрати» праворуч по верхньому краю.
+   Довга нотатка більше не вилазить за край картки. */
 .note {
-  display: flex; align-items: center; gap: 14px;
-  height: 48px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; column-gap: 14px;
+  min-height: 48px; padding: 12px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 15px; color: var(--ink);
+  font-size: 15px; line-height: 1.5; color: var(--ink);
 }
 .note:last-child { border-bottom: 0; }
-.noteDate { width: 40px; flex: none; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
-.noteText { flex: 1; min-width: 0; }
+.noteDate { width: 40px; font-size: 12px; line-height: 1.5; padding-top: 3px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.noteText { min-width: 0; overflow-wrap: anywhere; }
+.note .noteRemove, .note .noteRestore { padding-top: 3px; }
 .noteRemove, .noteRestore {
   border: 0; background: transparent; padding: 0; cursor: pointer;
   font-family: var(--font-body); font-size: 13px; white-space: nowrap;
@@ -224,7 +228,7 @@
 }
 @media (min-width: 1024px) { .svcHead { margin: 0 -18px 8px; padding: 0 18px; } }
 .svcName { font-size: 14px; font-weight: 600; }
-.svcSub { font-size: 12px; color: var(--bg); opacity: .7; }
+.svcSub { font-size: 12px; color: var(--bg); opacity: .7; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 1023px) { .svcSub { display: none; } }
 .svcGap { flex: 1; }
 .svcAction {

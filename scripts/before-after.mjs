@@ -14,6 +14,7 @@
 // --stub-json · --stub-messages · --stub-rest · --app-sel · --full · --reduce ·
 // --stub-any prefix=STATUS  будь-який метод за префіксом шляху (POST теж) — «не записалось»
 // --slow prefix=MS  затримати відповідь за префіксом (стан «думаю»)
+// --patch-json path=json  злити поля у справжню відповідь GET
 // --scale — те саме, що в side-by-side.mjs (див. там)
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --click-after / --actions-after  те саме, але лише на половині «стало»
@@ -141,6 +142,16 @@ async function shoot(base, theme, side) {
       const i = pair.indexOf('='); const prefix = pair.slice(0, i).trim(); const val = pair.slice(i + 1).trim();
       await page.route((u) => u.pathname.startsWith(prefix), (route) => val === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(val), contentType: 'application/json', body: '{"error":"stub"}' }));
     }
+  }
+  // --patch-json path=json — злити поля у СПРАВЖНЮ відповідь GET (замість підміни всієї).
+  const patchJson = arg('patch-json', null);
+  if (patchJson) {
+    const i = patchJson.indexOf('='); const path = patchJson.slice(0, i).trim(); const patch = JSON.parse(patchJson.slice(i + 1));
+    await page.route((u) => u.pathname === path, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const res = await route.fetch(); const body = await res.json();
+      await route.fulfill({ response: res, json: { ...body, ...patch } });
+    });
   }
   // --slow prefix=MS — затримати відповідь (стан «думаю» у кадрі/записі).
   const slow = arg('slow', null);
