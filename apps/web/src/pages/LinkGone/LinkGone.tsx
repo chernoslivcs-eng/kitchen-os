@@ -12,12 +12,12 @@ import { LINK_EXPIRED, LINK_CONSUMED, type ErrorCopy } from '../../components/Er
 import { useAuth } from '../../store/auth';
 import styles from './LinkGone.module.css';
 
-/** Пошта з попереднього кроку: SignIn кладе її сюди, щоб не питати вдруге. */
+/** Пошта з попереднього кроку: useMagicLink (лендінг) кладе її сюди, щоб не питати вдруге; /sent читає її ж після перезавантаження. */
 const LAST_EMAIL_KEY = 'kos-last-email';
 export const rememberEmail = (email: string) => {
   try { localStorage.setItem(LAST_EMAIL_KEY, email); } catch { /* приватний режим */ }
 };
-const lastEmail = (): string => {
+export const lastEmail = (): string => {
   try { return localStorage.getItem(LAST_EMAIL_KEY) ?? ''; } catch { return ''; }
 };
 

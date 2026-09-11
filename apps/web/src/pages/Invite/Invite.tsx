@@ -1,29 +1,29 @@
-// Пул-5 №2: сторінка запрошення. Раніше лінк з листа бив у API і показував
-// сирий JSON, а сесія мовчки перемикалась. Тепер людина бачить, КУДИ її
-// запрошують і ЯКИМ акаунтом зайде, і приймає явним кліком.
+// Пул-5 №2: сторінка запрошення — людина бачить, КУДИ її запрошують і ЯКИМ
+// акаунтом зайде, і приймає явним кліком. Прийняти інвайт == увійти юзером
+// мейла, на який він висланий (find-or-create в домені); інша сесія в браузері
+// зміниться — про це бурштинова смуга під кнопкою.
 //
-// Пул-8: верстка — той самий канон, що вхід «кільце замикається» (пул-6 №8):
-// зліва шавлієве поле з кільцями, справа панель дії. Після редизайну входу
-// ця сторінка лишалась на старих класах і розсипалась.
-//
-// Важлива семантика: прийняти інвайт == увійти юзером мейла, на який він
-// висланий (find-or-create в домені). Якщо в браузері зараз інша сесія —
-// чесно попереджаємо, що вона зміниться.
-
+// Етап 9а (Auth.dc.html, пакет C4): сторінка лендінгу — AuthShell, дім карткою,
+// кнопка — той самий чорний піл, що «Продовжити з Google». Аватарів і
+// «3 людини · 61 позиція» з кадру немає: /v1/invites/info віддає лише пошту,
+// назву дому й роль (DEVIATIONS-V3-landing Р49). Недійсне запрошення — ErrorScreen (E1).
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '../../components/Button/Button';
 import { api } from '../../api';
 import { useAuth } from '../../store/auth';
-import { RingField } from '../SignIn/RingField';
-import { Mark } from '../SignIn/SignIn';
-import styles from '../SignIn/SignIn.module.css';
+import { Icon } from '../../components/Icon/Icon';
+import { ErrorScreen } from '../../components/ErrorState/ErrorScreen';
+import { AuthShell } from '../Auth/AuthShell';
+import styles from '../Auth/Auth.module.css';
 
 type State =
   | { kind: 'loading' }
   | { kind: 'dead' }
   | { kind: 'ready'; household: string; email: string }
   | { kind: 'accepting'; household: string; email: string };
+
+const KICK = { tone: 'plum' as const, kickIcon: 'auth.household' as const, kick: 'Запрошення в дім · без пароля', h1a: 'Одна комора на весь дім.' };
+const FOOT = 'Не просив запрошення — просто закрий сторінку, нічого не станеться. Лінк одноразовий · діє 72 год.';
 
 export function InvitePage() {
   const [params] = useSearchParams();
@@ -41,11 +41,6 @@ export function InvitePage() {
       .catch(() => setState({ kind: 'dead' }));
   }, [token]);
 
-  const [animateField] = useState(() =>
-    typeof window !== 'undefined'
-    && window.matchMedia('(min-width: 1024px)').matches
-    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-
   async function accept() {
     if (state.kind !== 'ready') return;
     setState({ ...state, kind: 'accepting' });
@@ -60,77 +55,37 @@ export function InvitePage() {
     }
   }
 
+  if (state.kind === 'dead') {
+    return (
+      <ErrorScreen kicker="запрошення · недійсне" h1a="Запрошення недійсне." h1b="Цей лінк уже не працює."
+        body="Попроси надіслати новий." cta="На головну" onCta={() => navigate('/')} />
+    );
+  }
+
+  if (state.kind === 'loading') {
+    return <AuthShell {...KICK} h1b="Перевіряю запрошення…" sub="" foot={FOOT} />;
+  }
+
   const currentEmail = me?.user?.email ?? null;
-
   return (
-    <div className={styles.screen}>
-      <div className={styles['field-panel']}>
-        <RingField animate={animateField} />
-        <div className={styles['field-shade']} />
-        <div className={styles['field-content']}>
-          <div className={styles['field-logo']}>
-            <Mark />
-            <span>Kitchen OS</span>
-          </div>
-          <div className={styles['field-hero']}>
-            <h1 className={styles['field-title']}>Одна комора<br />на весь дім.</h1>
-            <p className={styles['field-sub']}>
-              Що є вдома — бачать усі. А коли готуємо, враховуємо кожного за столом.
-            </p>
-          </div>
-          <div className={styles['field-foot']}>ОЧІКУЄ · КУРСОР З'ЄДНУЄ ТРИ — КІЛЬЦЯ ЗАМИКАЮТЬСЯ В СТРАВУ</div>
-        </div>
+    <AuthShell {...KICK} h1b={`Тебе запрошують у «${state.household}».`}
+      sub="Після прийняття все, що є вдома, стане спільним, і саме цей акаунт буде твоїм тут." foot={FOOT}>
+      <div className={styles.house}>
+        <span className={styles.houseText}>
+          <span className={styles.houseName}>Дім «{state.household}»</span>
+          <span className={styles.houseMeta}>для {state.email}</span>
+        </span>
       </div>
-
-      <div className={styles['form-panel']}>
-        {state.kind === 'loading' && (
-          <div className={styles['form-head']}>
-            <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ</span>
-            <p className={styles['form-sub']}>Перевіряю запрошення…</p>
-          </div>
-        )}
-
-        {state.kind === 'dead' && (
-          <>
-            <div className={styles['form-head']}>
-              <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ</span>
-              <h2 className={styles['form-title']}>Запрошення недійсне</h2>
-              <p className={styles['form-sub']}>
-                Цей лінк уже не працює. Попроси надіслати новий.
-              </p>
-            </div>
-            <div className={styles.form}>
-              <Button size="lg" block onClick={() => navigate('/')}>На головну</Button>
-            </div>
-          </>
-        )}
-
-        {(state.kind === 'ready' || state.kind === 'accepting') && (
-          <>
-            <div className={styles['form-head']}>
-              <span className={styles.mono}>ЗАПРОШЕННЯ В ДІМ · БЕЗ ПАРОЛЯ</span>
-              <h2 className={styles['form-title']}>Тебе запрошують у дім «{state.household}»</h2>
-              <p className={styles['form-sub']}>
-                Запрошення для <strong>{state.email}</strong> — після прийняття все, що є вдома, стане спільним, і саме цей акаунт буде твоїм тут.
-                {currentEmail && currentEmail !== state.email && (
-                  <> Ти вже увійшов як <strong>{currentEmail}</strong>. Після прийняття запрошення акаунт зміниться.</>
-                )}
-              </p>
-            </div>
-            <div className={styles.form}>
-              <Button size="lg" block loading={state.kind === 'accepting'} onClick={accept}>
-                Прийняти запрошення
-              </Button>
-              {error && <p className={styles['form-sub']} style={{ color: 'var(--danger, #b3453a)' }}>{error}</p>}
-            </div>
-          </>
-        )}
-
-        <div className={styles['form-foot']}>
-          <span>Не просив запрошення — просто закрий сторінку, нічого не станеться.</span>
-          <span className={styles['foot-mono']}>ЛІНК ОДНОРАЗОВИЙ · ДІЄ 72 ГОД</span>
+      <button type="button" className={styles.accept} disabled={state.kind === 'accepting'} onClick={accept}>
+        {state.kind === 'accepting' ? 'Приймаю…' : 'Прийняти запрошення'}
+      </button>
+      {currentEmail && currentEmail !== state.email && (
+        <div className={styles.strip}>
+          <Icon name="auth.otherUser" size={16} inherit decorative />
+          <span>Ти вже увійшов як <b>{currentEmail}</b> — після прийняття акаунт зміниться<span className={styles.deskOnly}> на <b>{state.email}</b></span>.</span>
         </div>
-      </div>
-    </div>
+      )}
+      {error && <span className={styles.error}>{error}</span>}
+    </AuthShell>
   );
 }

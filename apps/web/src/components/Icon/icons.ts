@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 // Лендінг (блок «landing» у кінці мапи) — окремим рядком, щоб не чіпати імпорт вище.
 import { PackageOpen, History, List, Shuffle, ChevronLeft } from 'lucide-react';
+// Sent · Invite (Auth.dc.html) — теж окремим рядком.
+import { Send, MailCheck, UserRoundX } from 'lucide-react';
 
 export type Family = 'system' | 'zones' | 'products' | 'cooking' | 'live';
 
@@ -203,6 +205,14 @@ export const ICONS = {
   'landing.recent':   { glyph: List,        label: 'Готував нещодавно', family: 'system' },
   'landing.variety':  { glyph: Shuffle,     label: 'Різноманіття',      family: 'system' },
   'landing.toPanel':  { glyph: ChevronLeft, label: 'У панель',          family: 'system' },
+
+  // ---- вхід між листом і продуктом (Auth.dc.html: Перевір пошту · Запрошення) ----
+  // house на кікері «Запрошення в дім» — бандл ставить той самий знак, що на
+  // «Дім зараз»: колізія з бандла, у PENDING_DESIGN_CHAT (QUESTIONS-landing.md §16 (додаток)).
+  'auth.sent':      { glyph: Send,       label: 'Лінк летить',    family: 'system' },
+  'auth.delivered': { glyph: MailCheck,  label: 'Лист надіслано', family: 'system' },
+  'auth.household': { glyph: House,      label: 'Дім',            family: 'system' },
+  'auth.otherUser': { glyph: UserRoundX, label: 'Інший акаунт',   family: 'system' },
 } as const satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;
@@ -228,4 +238,6 @@ export const PENDING_DESIGN_CHAT: { glyph: LucideIcon; meanings: string[]; quest
   // Бандл ставить users і на «2 порції» (Redesign, Prototype, Screens D1), і на
   // «Мама · чт – нд» / «подія дому» (Screens D3, Redesign). Один знак — два змісти.
   { glyph: Users, meanings: ['Порції', 'Подія дому'], question: 'порції й подія дому — один знак?' },
+  // Auth.dc.html: house і на «Дім зараз» (шапка чату), і на кікері «Запрошення в дім».
+  { glyph: House, meanings: ['Дім зараз', 'Дім'], question: 'стан «Дім зараз» і дім як спільнота — один знак?' },
 ];

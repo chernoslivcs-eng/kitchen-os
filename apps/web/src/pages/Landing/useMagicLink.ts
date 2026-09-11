@@ -1,10 +1,11 @@
 // Одна логіка входу на дві форми лендингу (картка в hero і фінальний CTA).
-// Перенесено з SignIn.tsx без змін у поведінці: валідація, 429, /sent.
+// Валідація, 429, /sent; пошта запамʼятовується для /sent і LinkGone (kos-last-email).
 
 import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../store/auth';
 import { ApiError } from '../../api';
+import { rememberEmail } from '../LinkGone/LinkGone';
 
 export function useMagicLink() {
   const [email, setEmail] = useState('');
@@ -26,6 +27,7 @@ export function useMagicLink() {
     setLoading(true);
     try {
       await requestMagicLink(trimmed, next);
+      rememberEmail(trimmed);
       navigate('/sent', { state: { email: trimmed } });
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
