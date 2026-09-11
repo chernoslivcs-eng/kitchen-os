@@ -687,19 +687,6 @@ a.att-chip:hover { border-color: var(--sage); }
   flex-direction: column;
   gap: 12px;
 }
-.recipe-msg-cols {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-@media (min-width: 1024px) {
-  .recipe-msg-cols {
-    flex-direction: row;
-    gap: 36px;
-  }
-  .recipe-msg-cols > div:first-child { flex: 1; }
-  .recipe-msg-cols > div:last-child { flex: 1.2; }
-}
 /* Поріг 1200 (v3, крок 1.1). Виведений із заміряних чисел, не з брифу.
    Бриф рахує накладні як 232 (бічне меню) — насправді їх 276: меню 232
    ПЛЮС падінги журналу 22+22, які бриф не бачив. Заміряно живцем на 1220:
@@ -894,44 +881,55 @@ a.att-chip:hover { border-color: var(--sage); }
    навігація, а не головна дія. Чорнильна заливка в системі означає
    «остаточна дія» (Оформити, Застосувати); віддати її слідам — і кнопки
    в панелі перестануть бути найважчим елементом на екрані. */
+/* Етап 6b — слід як пігулка бандла («Чат · збірка»): 44 px, r10, знак
+   типу 18 зліва, назва 13/500 і підрядок 12, шеврон 16 праворуч. Слова —
+   з етапу 3, форма — з кадру. Тон: card + line2 у спокої; бурштин — поки
+   чекає рішення; шавлія — відкрито в панелі. */
 .trace {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   align-self: flex-start;
   max-width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--sage);
-  border-radius: 12px;
-  background: var(--sage-bg);
+  min-height: 44px;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--muted);
   cursor: pointer;
   text-align: left;
   transition: background 150ms ease, border-color 150ms ease;
 }
-.trace:hover { background: var(--sage-bg-strong); border-color: var(--sage); }
-/* Відкрито — той артефакт, що зараз у панелі. Рамка в акценті: слід і
-   панель говорять про одне, і це має бути видно, не здогадуватись. */
+.trace:hover { border-color: var(--line2-strong, var(--line2)); }
 .trace-on { border-color: var(--sage); }
-/* Бурштиновий слід — рішення, якого чекають, а не стан. Той самий блок,
-   лише інша температура: так «чекає рішення» видно прямо в потоці, без
-   окремої стрічки в панелі (V6). */
-.trace-pending { background: var(--amber-bg); border-color: var(--amber-line); }
+.trace-pending { background: var(--amber-bg); border-color: var(--amber); }
 .trace-pending:hover { border-color: var(--amber); }
-.trace-pending .trace-dot,
-.trace-pending .trace-kind,
+.trace-pending .trace-icon,
+.trace-pending .trace-value,
 .trace-pending .trace-go { color: var(--amber); }
-.trace-pending .trace-value { color: var(--ink); }
-/* Крапка слідa — коло 6 px, яке несе колір стану. Була гліфом ● / ○ / ◌ на
- * font-size 13px: три різні символи в тексті замість одного кола з двома
- * формами. Пережило етапи 1.5 і 1.6, бо сліди зʼявляються лише коли в чаті є
- * що показати (DEBT §26). */
-.trace-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--sage-strong);
-  flex: none; margin-top: 5px;
+.trace-icon { flex: none; display: grid; place-items: center; color: var(--muted); }
+.trace-dot { display: none; }
+.trace-dot-off { display: none; }
+.trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.trace-kind {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-/* Скасоване й те, що чекає — контурне коло: форма несе стан, не символ. */
-.trace-dot-off { background: transparent; border: 1.5px solid currentColor; }
+.trace-value {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 /* Метадані — моно 10, і саме вони мутед. */
 .trace-kind {
@@ -1110,43 +1108,92 @@ a.att-chip:hover { border-color: var(--sage); }
    інгредієнті, «+» у кожному рядку, підписи секцій, лічильник «● 3 з
    комори», вертикальна риска підказки. Лишилось два: текст і кількість.
    Секції розділяє відстань — 20px між блоками проти 9px між рядками. */
-.recipe-list { display: flex; flex-direction: column; gap: 9px; }
+/* Етап 6b — рецепт як обʼєкт (Screens «Рецепт · 1440»). Секції «Склад · N»
+   і «Кроки · N»: заголовок caption muted 44 px, рядки з роздільником line;
+   склад — крапка роду 8 px (шавлія є вдома · line2 бракує), кроки —
+   кола 28 (чорнило з номером). */
+.recipe-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px;
+  border: 0; border-radius: var(--r-pill);
+  font-family: var(--font-body); font-size: 12px; font-weight: 500;
+  cursor: default;
+}
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill-sage { background: var(--sage-bg); color: var(--sage); }
+.pill-amber { background: var(--amber-bg); color: var(--amber); }
+.pill-far { background: var(--bg); color: var(--dim); }
+.pill-card { height: 32px; padding: 0 12px; background: var(--bg); color: var(--ink); font-size: 13px; cursor: pointer; }
+.pill-card:hover:not(:disabled) { background: var(--line); }
+.pill-saved { color: var(--sage); cursor: default; }
+.pill-mini { height: 22px; padding: 0 8px; font-size: 11px; margin-left: 8px; }
+.recipe-title { margin: 8px 0 0; color: var(--ink); }
+.recipe-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); }
+.recipe-meta-item { display: inline-flex; align-items: center; gap: 5px; }
+.recipe-note { margin: 8px 0 0; color: var(--muted); }
+.recipe-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.stepper {
+  display: inline-flex; align-items: center; gap: 2px;
+  height: 30px; padding: 0 4px;
+  border-radius: var(--r-pill); background: var(--bg); color: var(--ink);
+}
+.stepper-btn { width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.stepper-btn:hover:not(:disabled) { background: var(--line); }
+.stepper-btn:disabled { opacity: .35; cursor: default; }
+.stepper-n { font-size: 13px; font-weight: 500; padding: 0 4px; white-space: nowrap; }
+.recipe-section { margin-top: 14px; }
+.recipe-section-head { display: flex; align-items: center; gap: 8px; height: 44px; color: var(--muted); font-weight: 500; }
 .recipe-ing {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  border-top: 1px solid var(--line);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.3;
+  color: var(--ink);
 }
-.recipe-ing-name { flex: 1; min-width: 0; }
-.recipe-ing-qty {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--dim);
-}
-.recipe-ing-added { font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
+.recipe-ing[data-missing] { color: var(--muted); }
+.ing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sage); flex: none; }
+.ing-dot-missing { background: var(--line2); }
+.recipe-ing-name { flex: 1; min-width: 0; display: flex; align-items: center; }
+.recipe-ing-qty { flex: none; font-family: var(--font-body); font-size: 14px; color: var(--muted); }
+.recipe-legend { display: flex; align-items: center; gap: 8px; height: 40px; border-top: 1px solid var(--line); color: var(--dim); }
+.recipe-legend .ing-dot + .ing-dot, .recipe-legend .ing-dot:not(:first-child) { margin-left: 8px; }
 .recipe-step {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
   font-family: var(--font-body);
   font-size: 15px;
-  line-height: 1.35;
+  line-height: 1.4;
+  color: var(--ink);
 }
-/* Номер кроку рецепта — це ЗМІСТ, не оздоба. Був 12 px у токені РАМКИ:
- * четвертий випадок того самого патерну, і кегль нижчий за 13, на якому канон
- * узагалі дозволяє `dim`. */
 .recipe-step-n {
   flex: none;
-  width: 14px;
-  font-size: 13px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--ink); color: var(--bg);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--dim);
 }
-.recipe-step-t { flex: 1; min-width: 0; }
+.recipe-step-t { flex: 1; min-width: 0; padding-top: 3px; }
 .recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
+/* «Готуємо» — темна 52 r12 з cooking-pot, на всю ширину низу картки. */
+.cook-go {
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  height: 52px; padding: 0 18px;
+  border: 0; border-radius: 12px;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-body); font-size: 15px; font-weight: 600;
+  cursor: pointer;
+}
 .recipe-miss {
   flex: 1;
   font-family: var(--font-mono);
@@ -1375,7 +1422,7 @@ a.att-chip:hover { border-color: var(--sage); }
   border-color: var(--line);
   cursor: default;
 }
-.trace-undone .trace-dot,
+.trace-undone .trace-icon,
 .trace-undone .trace-kind { color: var(--dim); }
 .trace-undone .trace-value { color: var(--dim); text-decoration: line-through; }
 
@@ -1432,3 +1479,36 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
 }
 .head-new:hover { color: var(--sage-strong); }
+
+/* ── Етап 6b (4a): картка рецепта в стрічці ─────────────────────────────
+   Біла картка r14 з тінню; знак страви колом 48; дії колом 38 праворуч:
+   мінус чорнилом, cooking-pot шавлією, reply контуром. */
+.rcard {
+  display: flex; align-items: flex-start; gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--sh-a), var(--sh-b);
+}
+.rcard-on { box-shadow: 0 0 0 1px var(--sage), var(--sh-a), var(--sh-b); }
+.rcard-icon { flex: none; width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--ink); }
+.rcard-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.rcard-title { border: 0; background: none; padding: 0; text-align: left; color: var(--ink); cursor: pointer; font-size: 18px; }
+.rcard-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); }
+.rcard-meta-item { display: inline-flex; align-items: center; gap: 4px; }
+.rcard-ok { color: var(--sage); }
+.rcard-desc { color: var(--muted); }
+.rcard-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.rcard-acts { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.rcard-acts-sep { width: 22px; height: 1px; background: var(--line2); margin: 4px 0; }
+.rcard-act {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid var(--line2); background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer;
+}
+.rcard-act:hover { color: var(--ink); }
+.rcard-act-ink { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.rcard-act-ink:hover { color: var(--bg); }
+.rcard-act-sage { background: var(--sage); color: var(--sage-on); border-color: var(--sage); }
+.rcard-act-sage:hover { color: var(--sage-on); background: var(--sage-strong); }

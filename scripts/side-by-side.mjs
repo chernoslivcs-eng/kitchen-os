@@ -12,6 +12,7 @@
 // --frame   підрядок data-screen-label; --nth N — який зі збігів (0)
 // --sel     замість --frame: довільний селектор у бандлі
 // --theme   light | dark (типово light) — і бандл (data-theme), і застосунок (emulateMedia)
+// --click   селектор у застосунку, по якому клікнути перед знімком (відкрити артефакт тощо)
 // --list    лише перелічити data-screen-label у файлі й вийти
 //
 // Бандл читається з file:// і потребує мережі для шрифту Onest і lucide з
@@ -127,6 +128,8 @@ if (URL_BASE) {
   const path = arg('path', null);
   if (path) await page.goto(`${URL_BASE}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
+  const click = arg('click', null);
+  if (click) { await page.click(click); await page.waitForTimeout(800); }
   assertTheme('застосунку', await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   appPng = await page.screenshot({ type: 'png', fullPage: false });
   appNote = `${URL_BASE}${path ?? ''} · ${WIDTH}×${HEIGHT} · ${THEME}`;

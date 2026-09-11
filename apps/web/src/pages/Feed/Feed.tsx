@@ -16,7 +16,7 @@ import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { applyMode } from '@kitchen/domain/card-modes';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
-import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
+import { Card, ShoppingListCard, RecipeStreamCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
 import { BatchCard } from '../Pantry/BatchCard';
 import { formatQty } from '../../lib/units';
@@ -1458,10 +1458,10 @@ export function Feed() {
                 className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
               >
-                <span className={styles['trace-dot']} aria-hidden />
+                <span className={styles['trace-icon']}><Icon name="sys.cart" size={18} inherit decorative /></span>
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
-                    КОШИК · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                    Кошик · {t.card.rows?.length ?? 0} {plural(t.card.rows?.length ?? 0, ['позиція', 'позиції', 'позицій'])}
                   </span>
                   <span className={styles['trace-value']}>{Math.round(t.card.total ?? 0)} ₴</span>
                 </span>
@@ -1469,22 +1469,12 @@ export function Feed() {
               </button>
             )}
             {t.card?.type === 'recipe_link' && (
-              /* Слід рецепта — той самий принцип, що кошик. Різниця в тому,
-                 що рецептів МОЖЕ бути багато й вони не суперечать один
-                 одному — тому слід лишається назавжди, а в панелі живе
-                 тільки останній. */
-              <button
-                type="button"
-                className={`${styles.trace} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
-                onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
-              >
-                <span className={styles['trace-dot']} aria-hidden />
-                <span className={styles['trace-body']}>
-                  <span className={styles['trace-kind']}>РЕЦЕПТ</span>
-                  <span className={styles['trace-value']}>{t.card.title ?? 'Рецепт'}</span>
-                </span>
-                <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>
-              </button>
+              /* Етап 6b (4a): рецепт у стрічці — картка, не слід-пігулка.
+                 Рецептів може бути багато й вони не суперечать один одному —
+                 картка лишається назавжди, а в панелі живе відкритий. */
+              <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id}
+                onOpen={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+                onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }} />
             )}
             {t.card?.type === 'event' && t.applied && (
               /* Слід події — як у списку: дельта в сліді, стан у панелі.
@@ -1497,7 +1487,7 @@ export function Feed() {
                   onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
                   disabled={t.undone}
                 >
-                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
+                  <span className={styles['trace-icon']}><Icon name="sys.calendar" size={18} inherit decorative /></span>
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
                       {(() => {
@@ -1505,8 +1495,8 @@ export function Feed() {
                         const ops = (t.card.ops as { op?: string }[] | undefined) ?? [];
                         const kinds = new Set(ops.map((o) => o.op ?? 'add'));
                         const word = kinds.size === 1
-                          ? ({ add: 'ПОДІЯ', edit: 'ПОДІЮ ОНОВЛЕНО', done: 'ПОДІЯ ЗАВЕРШИЛАСЬ', remove: 'ПОДІЮ ПРИБРАНО' } as Record<string, string>)[[...kinds][0]!] ?? 'ПОДІЯ'
-                          : `ПОДІЯ · ${ops.length} ЗМІНИ`;
+                          ? ({ add: 'Подія', edit: 'Подію оновлено', done: 'Подія завершилась', remove: 'Подію прибрано' } as Record<string, string>)[[...kinds][0]!] ?? 'Подія'
+                          : `Подія · ${ops.length} зміни`;
                         return word;
                       })()}{t.undone ? ' · СКАСОВАНО' : ''}
                     </span>
@@ -1535,10 +1525,10 @@ export function Feed() {
                   onClick={() => openArtifact('list')}
                   disabled={t.undone}
                 >
-                  <span className={`${styles['trace-dot']} ${t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
+                  <span className={styles['trace-icon']}><Icon name="sys.list" size={18} inherit decorative /></span>
                   <span className={styles['trace-body']}>
                     <span className={styles['trace-kind']}>
-                      СПИСОК{t.undone ? ' · СКАСОВАНО' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
+                      Список{t.undone ? ' · скасовано' : ` · +${(t.card.items as unknown[] | undefined)?.length ?? 0}`}
                     </span>
                     <span className={styles['trace-value']}>разом {shoppingItems.length}</span>
                   </span>
@@ -1575,10 +1565,10 @@ export function Feed() {
                         className={`${styles.trace} ${shownArtifact?.key === `batch:${alive[0]!.id}` ? styles['trace-on'] : ''}`}
                         onClick={() => openArtifact(`batch:${alive[0]!.id}`)}
                       >
-                        <span className={styles['trace-dot']} aria-hidden />
+                        <span className={styles['trace-icon']}><Icon name="sys.pantry" size={18} inherit decorative /></span>
                         <span className={styles['trace-body']}>
                           <span className={styles['trace-kind']}>
-                            СПИСАНО{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}` : ''}
+                            Списано{alive.length > 1 ? ` · ${alive.length} ${plural(alive.length, ['позиція', 'позиції', 'позицій'])}` : ''}
                           </span>
                           <span className={styles['trace-value']}>
                             {alive.map((b) => [b.label, formatQty(b.value, b.unit)].filter(Boolean).join(' ')).join(', ')}
@@ -1602,20 +1592,22 @@ export function Feed() {
                 type="button"
                 className={`${styles.trace} ${!t.applied && !t.undone ? styles['trace-pending'] : ''} ${shownArtifact?.turn?.id === t.id ? styles['trace-on'] : ''}`}
                 onClick={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
+                data-trace="intake"
               >
-                <span className={`${styles['trace-dot']} ${!t.applied && !t.undone ? styles['trace-dot-off'] : ''}`} aria-hidden />
+                <span className={styles['trace-icon']}><Icon name={isReceiptSourced(t) ? 'sys.receipt' : 'sys.pantry'} size={18} inherit decorative /></span>
                 <span className={styles['trace-body']}>
                   <span className={styles['trace-kind']}>
                     {/* Чек називається чеком, решта — тим, чим є: «це додав
                         в комору» не чек, і вигадувати за людину, що вона
-                        робила, ми не будемо. */}
-                    {isReceiptSourced(t) ? 'ЧЕК' : 'У КОМОРУ'} · {receiptLines(t)}{' '}
-                    {plural(receiptLines(t), ['ПОЗИЦІЯ', 'ПОЗИЦІЇ', 'ПОЗИЦІЙ'])}
+                        робила, ми не будемо. Етап 6b: слова етапу 3, форма —
+                        пігулка бандла (знак · назва · підрядок · шеврон). */}
+                    {isReceiptSourced(t) ? 'Чек' : 'У комору'} · {receiptLines(t)}{' '}
+                    {plural(receiptLines(t), ['позиція', 'позиції', 'позицій'])}
                   </span>
                   <span className={styles['trace-value']}>
-                    {t.undone ? 'Скасовано'
+                    {t.undone ? 'скасовано'
                       : t.applied ? `${t.card?.ops?.length ?? 0} у комору`
-                      : 'Потрібне твоє підтвердження'}
+                      : 'чекає рішення'}
                   </span>
                 </span>
                 {!t.undone && <span className={styles['trace-go']}><Icon name="sys.next" size={12} inherit decorative /></span>}

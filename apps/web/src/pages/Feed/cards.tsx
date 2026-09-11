@@ -898,8 +898,6 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
   // Порційник: детерміноване множення кількостей, 0 токенів. Складне
   // («на чотирьох, але соусу більше») — як і раніше, через чат.
   const [servings, setServings] = useState<number | null>(null);
-  // Канон B: «2 порції ▾» у мета-рядку відкриває ряд чіпів 1/2/3/4/6/8.
-  const [pickServings, setPickServings] = useState(false);
   if (!rid) return null;
   const saved = savedRecipeIds?.has(rid) ?? false;
 
@@ -956,176 +954,176 @@ export function RecipeLinkCard({ card, onCook, onShare, onSaveRecipe, savedRecip
 
   const footSlot = useContext(PanelFootSlot);
   const headSlot = useContext(PanelHeadSlot);
+  void headSlot;
 
-  // V7: у смузі максимум ДВІ кнопки. «У рецепти» і «Поділитись» — про
-  // навігацію, а не про роботу з рецептом, тож вони їдуть у шапку
-  // артефакта іконками. Слота немає (стрічка) — лишаються в смузі, бо
-  // інакше зникли б зовсім.
-  const headRaw = (
-    <>
-      {onSaveRecipe && (
-        <button
-          type="button"
-          disabled={saved}
-          onClick={() => onSaveRecipe(rid)}
-          className={styles['head-act']}
-          title={saved ? 'Уже в рецептах' : 'У рецепти'}
-          aria-label={saved ? 'Уже в рецептах' : 'У рецепти'}
-        ><Icon name={saved ? 'sys.done' : 'live.byHand'} size={16} inherit decorative /></button>
-      )}
-      {onShare && (
-        <button
-          type="button"
-          onClick={() => onShare(scaled, rid)}
-          className={styles['head-act']}
-          title="Поділитись"
-          aria-label="Поділитись"
-        ><Icon name="sys.out" size={16} inherit /></button>
-      )}
-    </>
-  );
+  // Етап 6b — за кадром «Рецепт · 1440» (Screens): пілюля стану, назва h3,
+  // рядок «час · ≈ ккал · порції», «Склад · N» списком із крапкою роду й
+  // роздільниками, «Кроки · N» нумерованими колами, «Готуємо» темна з
+  // cooking-pot. Дві колонки знесено (ламались на 320); «БРАКУЄ N»,
+  // «Готувати →», «У список» зникли разом із перебудовою. Типографіка — ролі.
+  const total = scaled.ing.length;
+  const have = total - missIdx.length;
+  const status = missIdx.length === 0
+    ? { text: `можу зараз · ${have} з ${total}`, tone: styles['pill-sage'] }
+    : missIdx.length <= 2
+      ? { text: `майже · ${have} з ${total}`, tone: styles['pill-amber'] }
+      : { text: `далеко · ${have} з ${total}`, tone: styles['pill-far'] };
 
-  // Смуга: стан ліворуч, дії праворуч у порядку «другорядна → головна».
-  // Головна завжди крайня права — місце під великий палець і під очікування.
+  // Низ картки: «Готуємо» головна; «У список» — лише коли є що докупити.
   const footRaw = (
     <div className={styles['card-foot']}>
       {missIdx.length > 0 && onNeedToList && (
-        <span className={`${styles['strip-state']} ${styles['strip-state-warn']}`}>
-          <span className={styles['miss-mark']} aria-hidden /> БРАКУЄ {missIdx.length}
-        </span>
-      )}
-      {missIdx.length > 0 && onNeedToList && (
-        <Button
-          size="strip"
-          variant="text"
-          disabled={!leftToList.length}
-          onClick={addAllMissing}
-        >{leftToList.length ? 'У список' : 'Уже в списку'}</Button>
-      )}
-      {onCook && (
-        <Button size="strip" variant="positive" onClick={() => onCook(scaled, rid)}>
-          Готувати →
+        <Button size="strip" variant="text" disabled={!leftToList.length} onClick={addAllMissing}>
+          {leftToList.length ? `У список · ${leftToList.length}` : 'Уже в списку'}
         </Button>
       )}
-      {!headSlot && <span className={styles['strip-head-fallback']}>{headRaw}</span>}
+      {onCook && (
+        <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)}>
+          <Icon name="cook.go" size={18} inherit decorative />Готуємо
+        </button>
+      )}
     </div>
   );
   const recipeFoot = footSlot ? createPortal(footRaw, footSlot) : footRaw;
-  const recipeHead = headSlot ? createPortal(headRaw, headSlot) : null;
 
   return (
-    <div className={styles['recipe-msg']}>
-      <div>
-        {/* Канон B: назва 22/Onest, мета людською мовою, порції — «N порцій ▾». */}
-        <div style={{ fontFamily: 'var(--font-display, var(--font-body))', fontSize: 22, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--ink)', lineHeight: 1.2 }}>
-          {r.t}
-        </div>
-        <div style={{ marginTop: 5, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)' }}>
-          {r.tm ? <span>{formatDuration(r.tm)}</span> : null}
-          {/* Р12: у чаті — оцінка моделі, і сказано, що оцінка. */}
-          {r.nu?.kcal ? <span>{formatModelEstimate(r.nu, 'short')}</span> : null}
-          <button
-            type="button"
-            onClick={() => setPickServings((v) => !v)}
-            style={{
-              border: 0, background: 'none', padding: '0 0 1px', cursor: 'pointer',
-              fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--ink)',
-              borderBottom: '1px dashed var(--line2)',
-            }}
-          >
-            {sv} {plural(sv, ['порція', 'порції', 'порцій'])} ▾
-          </button>
-        </div>
-        {pickServings && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-            {[1, 2, 3, 4, 6, 8].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => { setServings(n); setPickServings(false); }}
-                style={{
-                  height: 32, padding: '0 13px', borderRadius: 999, cursor: 'pointer',
-                  border: n === sv ? '1px solid var(--ink)' : '1px solid var(--line2)',
-                  background: n === sv ? 'var(--ink)' : 'transparent',
-                  color: n === sv ? 'var(--card)' : 'var(--muted)',
-                  fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                }}
-              >{n}</button>
-            ))}
-            {sv !== (r.sv ?? 1) && (
-              <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--dim)' }}>база {r.sv}</span>
-            )}
-          </div>
-        )}
-        {/* Підказка — просто абзац мутед-кольору під метаданими. Бурштинова
-            риска робила з поради попередження; тон і місце вже кажуть, що
-            це репліка Кухні. */}
-        {r.rk && (
-          <div style={{
-            marginTop: 8,
-            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5,
-          }}>{r.rk}</div>
-        )}
+    <div className={styles['recipe-msg']} data-recipe-artifact>
+      <div className={styles['recipe-pills']}>
+        <span className={`${styles.pill} ${status.tone}`} data-recipe-status><span className={styles['pill-dot']} aria-hidden />{status.text}</span>
       </div>
-
-      {/* Секції розділяє відстань, а не заголовок: 20px між блоками проти
-          9px між рядками. Нумерація 1-4 і так каже, що це план, а список без
-          цифр — що це інгредієнти. Підписи ІНГРЕДІЄНТИ / ПЛАН прибрані. */}
-      <div className={styles['recipe-msg-cols']}>
-        <div className={styles['recipe-list']}>
-          {ordered.map(({ ing, i }) => {
-            const missing = !ing.p;
-            const added = listed.has(i);
-            return (
-              <div
-                key={i}
-                className={styles['recipe-ing']}
-                /* Точкове додавання — довгий тап по рядку. Рідкісний випадок
-                   не заслуговує на постійну колонку «+» у кожному рядку. */
-                title={missing && !added ? 'Затисни, щоб додати тільки це' : undefined}
-                onPointerDown={missing && !added && onNeedToList ? () => pressStart(i) : undefined}
-                onPointerUp={pressEnd}
-                onPointerLeave={pressEnd}
-                style={missing ? undefined : { color: 'var(--dim)' }}
-              >
-                <span className={styles['recipe-ing-name']}>
-                  {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
-                  {added && <span className={styles['recipe-ing-added']}> уже в списку</span>}
-                </span>
-                {ing.v != null && ing.u
-                  ? <span className={styles['recipe-ing-qty']}>{formatQty(ing.v, ing.u)}</span>
-                  : !missing ? <span className={styles['recipe-ing-qty']}>є вдома</span> : null}
-              </div>
-            );
-          })}
+      <h3 className={`t-h3 ${styles['recipe-title']}`}>{r.t}</h3>
+      <div className={`t-small ${styles['recipe-meta']}`}>
+        {r.tm ? <span className={styles['recipe-meta-item']}><Icon name="cook.time" size={16} inherit decorative />{formatDuration(r.tm)}</span> : null}
+        {/* Р12: у чаті — оцінка моделі, і сказано, що оцінка. */}
+        {r.nu?.kcal ? <span>{formatModelEstimate(r.nu, 'short')}</span> : null}
+        <span className={styles.stepper} data-servings>
+          <button type="button" className={styles['stepper-btn']} aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}><Icon name="live.nothing" size={12} inherit decorative /></button>
+          <span className={styles['stepper-n']}>{sv} {plural(sv, ['порція', 'порції', 'порцій'])}</span>
+          <button type="button" className={styles['stepper-btn']} aria-label="Більше порцій" onClick={() => setServings(sv + 1)}><Icon name="sys.add" size={12} inherit decorative /></button>
+        </span>
+      </div>
+      {r.rk && <p className={`t-small ${styles['recipe-note']}`}>{r.rk}</p>}
+      {(onSaveRecipe || onShare) && (
+        <div className={styles['recipe-acts']}>
+          {onSaveRecipe && (
+            <button type="button" className={`${styles.pill} ${styles['pill-card']} ${saved ? styles['pill-saved'] : ''}`} disabled={saved} onClick={() => onSaveRecipe(rid)}>
+              <Icon name={saved ? 'sys.saved' : 'sys.later'} size={16} inherit decorative />{saved ? 'Збережено' : 'У рецепти'}
+            </button>
+          )}
+          {onShare && (
+            <button type="button" className={`${styles.pill} ${styles['pill-card']}`} onClick={() => onShare(scaled, rid)}>
+              <Icon name="sys.share" size={16} inherit decorative />Поділитись
+            </button>
+          )}
         </div>
+      )}
 
-        <div className={styles['recipe-list']}>
-          {/* Усі кроки одразу. «Показати всі N» прибрано: тіло панелі
-              скролиться саме́, і ховати від людини половину плану заради
-              економії висоти в скрольованій колонці немає сенсу. */}
-          {scaled.st.map((step: typeof scaled.st[number], i: number) => (
-            <div key={i} className={styles['recipe-step']}>
-              <span className={styles['recipe-step-n']}>{i + 1}</span>
-              <span className={styles['recipe-step-t']}>
-                {step.t}
-                {!!step.s && (
-                  <span className={styles['recipe-step-s']}>
-                    {' '}▷ {Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
-                  </span>
-                )}
+      <section className={styles['recipe-section']} data-recipe-ings>
+        <div className={`t-caption ${styles['recipe-section-head']}`}>
+          <Icon name="cook.missing" size={16} inherit decorative />Склад · {total}
+        </div>
+        {ordered.map(({ ing, i }) => {
+          const missing = !ing.p;
+          const added = listed.has(i);
+          return (
+            <div key={i} className={styles['recipe-ing']}
+              title={missing && !added ? 'Затисни, щоб додати тільки це' : undefined}
+              onPointerDown={missing && !added && onNeedToList ? () => pressStart(i) : undefined}
+              onPointerUp={pressEnd} onPointerLeave={pressEnd}
+              data-missing={missing ? '' : undefined}>
+              <span className={`${styles['ing-dot']} ${missing ? styles['ing-dot-missing'] : ''}`} aria-hidden />
+              <span className={styles['recipe-ing-name']}>
+                {ing.n ?? (ing.p && batchLabels?.get(ing.p)) ?? 'з комори'}
+                {added && <span className={`${styles.pill} ${styles['pill-sage']} ${styles['pill-mini']}`}>у списку</span>}
               </span>
+              {ing.v != null && ing.u
+                ? <span className={styles['recipe-ing-qty']}>{formatQty(ing.v, ing.u)}</span>
+                : !missing ? <span className={styles['recipe-ing-qty']}>є вдома</span> : null}
             </div>
-          ))}
+          );
+        })}
+        <div className={`t-label ${styles['recipe-legend']}`}>
+          <span className={styles['ing-dot']} aria-hidden />є вдома
+          <span className={`${styles['ing-dot']} ${styles['ing-dot-missing']}`} aria-hidden />бракує
         </div>
-      </div>
+      </section>
 
-      {recipeHead}
+      <section className={styles['recipe-section']} data-recipe-steps>
+        <div className={`t-caption ${styles['recipe-section-head']}`}>
+          <Icon name="cook.steps" size={16} inherit decorative />Кроки · {scaled.st.length}
+        </div>
+        {scaled.st.map((step: typeof scaled.st[number], i: number) => (
+          <div key={i} className={styles['recipe-step']}>
+            <span className={styles['recipe-step-n']}>{i + 1}</span>
+            <span className={styles['recipe-step-t']}>
+              {step.t}
+              {!!step.s && (
+                <span className={`${styles.pill} ${styles['pill-sage']} ${styles['pill-mini']}`}>
+                  <Icon name="cook.timer" size={12} inherit decorative />{Math.floor(step.s / 60)}:{String(step.s % 60).padStart(2, '0')}
+                </span>
+              )}
+            </span>
+          </div>
+        ))}
+      </section>
+
       {recipeFoot}
     </div>
   );
 }
 
+
+// ----- Картка рецепта в стрічці (етап 6b, Screens «Чат · збірка» / 4a) ------
+// Біла картка: знак страви колом 48, назва h3, рядок «25 хв · 3 порції ·
+// ≈ 480 ккал · усе є», опис, чіпи інгредієнтів, дії колом праворуч —
+// cooking-pot (відкрити рецепт), reply (уточнити), мінус (згорнути).
+// Зелена рамка з капсом «РЕЦЕПТ» зникла разом із формою; слово сліду
+// (етап 3) лишилось у службовому рядку над ходом.
+export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCard; active?: boolean; onOpen: () => void; onAsk?: (title: string) => void }) {
+  const r = card.recipe;
+  const [collapsed, setCollapsed] = useState(false);
+  const title = card.title ?? r?.t ?? 'Рецепт';
+  const allHome = !!r?.ing?.length && r.ing.every((i) => !!i.p);
+  return (
+    <div className={`${styles['rcard']} ${active ? styles['rcard-on'] : ''}`} data-recipe-stream>
+      <span className={styles['rcard-icon']}><Icon name="cook.type" size={20} inherit decorative /></span>
+      <div className={styles['rcard-body']}>
+        <button type="button" className={`t-h3 ${styles['rcard-title']}`} onClick={onOpen}>{title}</button>
+        {r && (
+          <div className={`t-caption ${styles['rcard-meta']}`}>
+            {r.tm ? <span className={styles['rcard-meta-item']}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.tm)}</span> : null}
+            {r.sv ? <span>{r.sv} {plural(r.sv, ['порція', 'порції', 'порцій'])}</span> : null}
+            {r.nu?.kcal ? <span>≈ {r.nu.kcal} ккал</span> : null}
+            {allHome && <span className={`${styles['rcard-meta-item']} ${styles['rcard-ok']}`}><Icon name="sys.done" size={12} inherit decorative />усе є</span>}
+          </div>
+        )}
+        {!collapsed && r?.d && <div className={`t-small ${styles['rcard-desc']}`}>{r.d}</div>}
+        {!collapsed && !!r?.ing?.length && (
+          <div className={styles['rcard-chips']}>
+            {r.ing.slice(0, 6).map((ing, i) => (
+              <span key={i} className={`${styles.pill} ${styles['pill-sage']}`}>{ing.n ?? 'з комори'}{ing.v != null && ing.u ? ` ${formatQty(ing.v, ing.u)}` : ''}</span>
+            ))}
+            {r.ing.length > 6 && <span className={`${styles.pill} ${styles['pill-far']}`}>ще {r.ing.length - 6}</span>}
+          </div>
+        )}
+      </div>
+      <div className={styles['rcard-acts']}>
+        <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-ink']}`} onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? 'Розгорнути' : 'Згорнути'} title={collapsed ? 'Розгорнути' : 'Згорнути'}>
+          <Icon name={collapsed ? 'sys.add' : 'live.nothing'} size={16} inherit decorative />
+        </button>
+        <span className={styles['rcard-acts-sep']} aria-hidden />
+        <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-sage']}`} onClick={onOpen} aria-label="Рецепт" title="Рецепт →">
+          <Icon name="cook.go" size={18} inherit decorative />
+        </button>
+        {onAsk && (
+          <button type="button" className={styles['rcard-act']} onClick={() => onAsk(title)} aria-label="Уточнити" title="Уточнити">
+            <Icon name="sys.reply" size={16} inherit decorative />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ----- Cart (M13, канвас М3) -----------------------------------------------
 // Два імені однієї речі: наше — головне (те, що людина писала в список),

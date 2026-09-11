@@ -20,7 +20,7 @@ import {
   Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
-  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import,
+  ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import, ListOrdered, BookmarkCheck, Share2, Reply,
   Flame, Sparkles, Pencil, TriangleAlert, Sun, Church, Truck, Hourglass, WifiOff, Minus, Square, RotateCw,
   type LucideIcon,
 } from 'lucide-react';
@@ -147,6 +147,12 @@ export const ICONS = {
   'cook.done':     { glyph: RotateCcw,     label: 'Готував, знову',family: 'cooking' },
   'cook.missing':  { glyph: ShoppingBasket,label: 'Бракує',        family: 'cooking' },
   'sys.import':    { glyph: Import,        label: 'Записати свій', family: 'system' },
+  // Рецепт (Screens «Рецепт · 1440», «Чат · збірка»): кроки — list-ordered,
+  // збережено — bookmark-check, поділитись — share-2, уточнити — reply.
+  'cook.steps':    { glyph: ListOrdered,   label: 'Кроки',         family: 'cooking' },
+  'sys.saved':     { glyph: BookmarkCheck, label: 'Збережено',     family: 'system' },
+  'sys.share':     { glyph: Share2,        label: 'Поділитись',    family: 'system' },
+  'sys.reply':     { glyph: Reply,         label: 'Уточнити',      family: 'system' },
   'cook.rating':   { glyph: Star,          label: 'Оцінка',        family: 'cooking' },
 
   // ---- живі стани й тривога ----

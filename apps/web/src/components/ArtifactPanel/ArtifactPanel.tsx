@@ -73,8 +73,12 @@ export function ArtifactPanel() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+  // Етап 6b: ширина — за шириною екрана, не ручкою: 340 на 1440 → 420 на
+  // 1920 (Responsive R0), між ними лінійно; менше 1440 — 340, стеля 420.
   const railCeiling = Math.max(RAIL_MIN, Math.min(RAIL_MAX, vw - RAIL_OVERHEAD));
-  const railEffective = Math.min(width, railCeiling);
+  const byViewport = Math.round(Math.max(340, Math.min(420, 340 + ((vw - 1440) * 80) / 480)));
+  const railEffective = Math.min(byViewport, railCeiling);
+  void width;
 
   // Резерв ширини для контенту сторінки — класами на body, як у сайдбара.
   useEffect(() => {
@@ -107,26 +111,6 @@ export function ArtifactPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys, hidden]);
 
-  const lastDown = useRef(0);
-  function onHandleDown(e: React.PointerEvent<HTMLDivElement>) {
-    const now = Date.now();
-    const isDouble = now - lastDown.current < 400;
-    lastDown.current = now;
-    if (isDouble) { s.setWidth(RAIL_DEFAULT); return; }
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    const startX = e.clientX; const startW = railEffective;
-    s.setDragging(true);
-    let last = startW;
-    const move = (ev: PointerEvent) => {
-      last = Math.round(Math.max(RAIL_MIN, Math.min(railCeiling, startW - (ev.clientX - startX))));
-      s.setWidth(last, false);
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-      s.setDragging(false); s.setWidth(last);
-    };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-  }
   function miniClick() { if (window.matchMedia(RAIL_IN_FLOW).matches) s.expand(); else s.setOpen(true); }
 
   if (!hasPanel) return null;
@@ -135,18 +119,23 @@ export function ArtifactPanel() {
   return (
     <>
       <aside className={`${styles.rail} ${open ? styles['rail-open'] : ''} ${hidden ? styles['rail-hidden'] : ''}`}>
-        <div className={styles['rail-handle']} onPointerDown={onHandleDown} role="separator" aria-orientation="vertical" aria-label="Ширина панелі">
-          <span className={styles['rail-handle-bar']} />
-          {dragging && <span className={styles['rail-handle-tip']}>{railEffective} PX</span>}
-        </div>
         {shown && (
           <div id={`rail-${shown.key}`} className={styles['rail-artifact']}>
             <div className={styles['rail-tabs']}>
+              {/* Етап 6b — кікер усередині картки: знак типу + назва + лічильник;
+                  згортання праворуч (panel-right-close). Рядок із трьох знаків
+                  над панеллю знято — дії живуть у вмісті. */}
+              <div className={styles['rail-kicker']}>
+                <span className={styles['rail-kicker-icon']}><Icon name={ARTIFACT_ICON[shown.kind]} size={18} inherit decorative /></span>
+                {/* Назва ТИПУ, не назва страви: «Рецепт», «Чек», «Кошик»; страва — у вмісті h3. */}
+                <span className={styles['rail-kicker-title']}>{shown.kind === 'recipe' ? 'Рецепт' : shown.label}</span>
+                {shown.meta && <span className={styles['rail-kicker-meta']}>{shown.meta}</span>}
+              </div>
+              <div className={styles['rail-head-actions']} ref={setHeadSlot} hidden />
               <button type="button" className={styles['rail-collapse']} onClick={s.collapse} title="Згорнути панель" aria-label="Згорнути панель">
                 <PanelIcon />
               </button>
-              <div className={styles['rail-head-actions']} ref={setHeadSlot} />
-              <div className={styles['rail-tabs-scroll']}>
+              <div className={styles['rail-tabs-scroll']} hidden={artifacts.length < 2 && !ghostTab}>
                 {artifacts.map((a) => (
                   <button key={a.key} type="button"
                     className={`${styles['rail-tab']} ${a.key === shown.key ? styles['rail-tab-on'] : ''}`}
