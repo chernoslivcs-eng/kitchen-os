@@ -824,15 +824,18 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 .chev-open { transform: rotate(180deg); }
 
-/* Пул-6 №6 · канон B: «документ»-картка для структурованих повідомлень.
-   Внутрішні лінії — на тон світліші (тло вже світле), тому --border
-   локально перевизначений. Службове (час/статус) живе НАД карткою. */
+/* «Документ»-картка для структурованих повідомлень, що не малюють поверхню
+   самі (список · рецепт · подія · фото готування). №32: до-v3 заливка --line
+   з рамкою знята — та сама поверхня, що в решти карток v3: card r14,
+   --sh-a + --sh-b, overflow visible (тінь не ріжеться). Пропозиції й
+   рецепт-слід ідуть без обгортки (Feed.tsx, CardShell plain). */
 .doccard {
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  background: var(--card);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: var(--sh-a), var(--sh-b);
   padding: 18px 20px;
-  --border: #e3e6e8;
+  overflow: visible;
 }
 
 /* Пул-6 №4: чіп вкладення — з назвою файла (ellipsis), × з розширеним хітом. */
@@ -879,8 +882,8 @@ a.att-chip:hover { border-color: var(--sage); }
 .doccard { transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease), transform var(--dur-base, 250ms) var(--ease-standard, ease); }
 .doccard-off { opacity: .55; transform: scale(.985); }
 @keyframes doccard-flash {
-  from { background: color-mix(in srgb, var(--sage) 18%, var(--line)); }
-  to   { background: var(--line); }
+  from { background: color-mix(in srgb, var(--sage) 18%, var(--card)); }
+  to   { background: var(--card); }
 }
 
 /* M13: рядок чека/кошика щойно змінив стан руками людини (додала «зі свого»,

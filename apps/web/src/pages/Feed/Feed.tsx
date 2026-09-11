@@ -1643,8 +1643,11 @@ export function Feed() {
                  радіусом — велика підложка під нею була б рамкою в рамці.
                  Той самий виняток, що вже зроблено для `event`, тільки
                  подія не малює нічого, а ця картка малює себе сама. */
+              /* №32: пропозиції (і рецепт-слід) малюють свою картку самі
+                 (.prop-card / .rcard: card r16 + тінь) — обгортка .doccard
+                 давала сіру рамку довкола білої картки й різала її тінь. */
               <CardShell
-                plain={t.card.type === 'onboarding'}
+                plain={t.card.type === 'onboarding' || t.card.type === 'proposal' || t.card.type === 'recipe_link'}
                 className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.dismissed ? styles['doccard-off'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}
               >
               <Card
