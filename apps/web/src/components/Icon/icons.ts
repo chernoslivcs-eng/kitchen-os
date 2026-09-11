@@ -72,6 +72,8 @@ export const ICONS = {
   'sys.close':     { glyph: X,                 label: 'Закрити',       family: 'system' },
   'sys.undo':      { glyph: Undo2,             label: 'Скасувати',     family: 'system' },
   'sys.next':      { glyph: ChevronRight,      label: 'Далі',          family: 'system' },
+  // Пакет 2, №25 (Redesign 6c: ‹ › місяця в календарі) — пара до sys.next.
+  'sys.prev':      { glyph: ChevronLeft,       label: 'Попередній',    family: 'system' },
   // 6b-5: пілюля сесії в шапці чату (Prototype: chevron-down «розкрити розмови»).
   'sys.open':      { glyph: ChevronDown,       label: 'Розкрити',      family: 'system' },
   'sys.opened':    { glyph: ChevronUp,         label: 'Розкрито',      family: 'system' },
@@ -245,6 +247,8 @@ export const SHARED_ON_PURPOSE = ['Напої', 'Морозилка'];
  */
 export const PENDING_DESIGN_CHAT: { glyph: LucideIcon; meanings: string[]; question: string }[] = [
   { glyph: Leaf, meanings: ['Свіже', 'Зелень'], question: 'зонам потрібна окрема вісь знаків?' },
+  // Пакет 2, №25: Redesign 6c ставить chevron-left на ‹ місяця; лендінг уже має його як «У панель».
+  { glyph: ChevronLeft, meanings: ['У панель', 'Попередній'], question: 'шеврон ліворуч — один знак «назад / попередній» для лендінгу й календаря?' },
   { glyph: Refrigerator, meanings: ['Комора', 'Холодильник'], question: 'навігаційна «Комора» і зона — один знак?' },
   // Бандл ставить users і на «2 порції» (Redesign, Prototype, Screens D1), і на
   // «Мама · чт – нд» / «подія дому» (Screens D3, Redesign). Один знак — два змісти.
