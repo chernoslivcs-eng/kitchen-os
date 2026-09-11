@@ -21,11 +21,18 @@ interface IncidentStore {
    */
   throttledKind: string | null;
   offline: boolean;
+  /**
+   * Етап 3: рядок стану дії змонтований (стрічка). Поки він є, смуги ліміту
+   * й мережі не дублюють його — на стрічці за ці два стани відповідає рядок.
+   * Сесія лишається смугою скрізь: це не стан дії, а стан входу.
+   */
+  actionRowMounted: boolean;
 
   setAuthExpired: (v: boolean) => void;
   setThrottled: (seconds: number, kind?: string | null) => void;
   clearThrottled: () => void;
   setOffline: (v: boolean) => void;
+  setActionRowMounted: (v: boolean) => void;
 }
 
 export const useIncidentStore = create<IncidentStore>((set, get) => ({
@@ -34,6 +41,7 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
   throttledFor: 0,
   throttledKind: null,
   offline: false,
+  actionRowMounted: false,
 
   setAuthExpired: (authExpired) => set({ authExpired }),
   setThrottled: (seconds, kind = null) => {
@@ -45,4 +53,5 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
   },
   clearThrottled: () => set({ throttledUntil: null, throttledFor: 0, throttledKind: null }),
   setOffline: (offline) => set({ offline }),
+  setActionRowMounted: (actionRowMounted) => set({ actionRowMounted }),
 }));

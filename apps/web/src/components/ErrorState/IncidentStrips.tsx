@@ -45,11 +45,14 @@ export function IncidentStrips() {
   const throttledUntil = useIncidentStore((s) => s.throttledUntil);
   const throttledFor = useIncidentStore((s) => s.throttledFor);
   const throttledKind = useIncidentStore((s) => s.throttledKind);
-  const offline = useIncidentStore((s) => s.offline);
+  // Етап 3: на стрічці ліміт і мережу показує рядок стану дії — смуги за них
+  // мовчать, щоб не казати одне двічі. Сесія — смугою завжди.
+  const rowMounted = useIncidentStore((s) => s.actionRowMounted);
+  const offline = useIncidentStore((s) => s.offline) && !rowMounted;
   const clearThrottled = useIncidentStore((s) => s.clearThrottled);
   const setAuthExpired = useIncidentStore((s) => s.setAuthExpired);
 
-  const throttled = throttledUntil !== null && throttledUntil > Date.now();
+  const throttled = !rowMounted && throttledUntil !== null && throttledUntil > Date.now();
   if (!authExpired && !throttled && !offline) return null;
 
   return (

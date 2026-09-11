@@ -21,7 +21,7 @@ import {
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
   ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, History, Star,
-  Flame, Sparkles, Pencil, TriangleAlert, CalendarDays, Recycle,
+  Flame, Sparkles, Pencil, TriangleAlert, CalendarDays, Recycle, Hourglass, WifiOff, Minus, Square, RotateCw,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -146,6 +146,14 @@ export const ICONS = {
   'live.overdue':  { glyph: TriangleAlert, label: 'Прострочено',   family: 'live' },
   'live.season':   { glyph: CalendarDays,  label: 'Сезон',         family: 'live' },
   'live.byHand':   { glyph: Pencil,        label: 'Рукою',         family: 'live' },
+  // Стани дії — рядок над композитором (Components · «Стани дії»). Знаки з
+  // бандла, як намальовано: ліміт — пісочний годинник, мережа — wifi-off,
+  // «нічого не змінилось» — мінус. «Стоп» — квадрат, знак зупинки.
+  'live.limit':    { glyph: Hourglass,     label: 'Ліміт',         family: 'live' },
+  'live.offline':  { glyph: WifiOff,       label: 'Немає звʼязку', family: 'live' },
+  'live.nothing':  { glyph: Minus,         label: 'Нічого не змінилось', family: 'live' },
+  'sys.stop':      { glyph: Square,        label: 'Стоп',          family: 'system' },
+  'sys.retry':     { glyph: RotateCw,      label: 'Повторити',     family: 'system' },
 } as const satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;

@@ -5,6 +5,8 @@
 
 import { isSoon } from '@kitchen/domain/shelf-thresholds';
 import { Icon } from '../../components/Icon/Icon';
+import { ActionState } from '../../components/ActionState/ActionState';
+import { useIncidentStore } from '../../store/incident';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -13,7 +15,7 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { plural } from '../../lib/plural';
 import { applyMode } from '@kitchen/domain/card-modes';
-import { api, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
+import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
 import { Card, ShoppingListCard, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
 import { BatchCard } from '../Pantry/BatchCard';
@@ -149,6 +151,11 @@ export function Feed() {
   // справді знаємо, і час, який теж справжній.
   const [waitStartedAt, setWaitStartedAt] = useState<number | null>(null);
   const [waited, setWaited] = useState(0);
+  // Етап 3: два стани рядка над композитором. «Нічого не змінилось» — після
+  // застосування з нулем; конфлікт — 409 на картці (лише для карток, DEBT §34).
+  // Обидва гаснуть на наступній дії людини.
+  const [nothingChanged, setNothingChanged] = useState(false);
+  const [cardConflict, setCardConflict] = useState(false);
   useEffect(() => {
     if (waitStartedAt === null) { setWaited(0); return; }
     setWaited(0);
@@ -792,6 +799,8 @@ export function Feed() {
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+    setNothingChanged(false);
+    setCardConflict(false);
     try {
       const res: ChatResponse = await api.chat(
         {
@@ -920,6 +929,8 @@ export function Feed() {
       // немає», а картка все одно закривалась і пропонувала скасувати ніщо.
       // Нуль лишає картку відкритою: тапнути ще раз можна, «Ні» працює.
       const landed = r.applied > 0;
+      setNothingChanged(!landed);
+      setCardConflict(false);
       // Етап 3 (PLAN §4): результат лишається на ході, а не лише в тості.
       // Скільки послали — стільки й «із»: людина могла зняти частину галочок.
       const total = selected?.length ?? (turn.card && 'ops' in turn.card ? (turn.card as { ops: unknown[] }).ops.length : r.applied);
@@ -953,7 +964,10 @@ export function Feed() {
       return r;
     } catch (err) {
       setTurns((prev) => prev.map((t) => t.id === turnId ? { ...t, applying: false } : t));
-      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+      // Етап 3: 409 на картці — «хтось у домі вже закрив». Єдине місце, де
+      // конфлікт має контракт (DEBT §34); решта помилок — тостом, як і було.
+      if (err instanceof ApiError && err.status === 409) setCardConflict(true);
+      else setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
       throw err;
     }
   }
@@ -1653,38 +1667,30 @@ export function Feed() {
           <DropCard drag={drag} max={MAX_ATTACHMENTS} />
         )}
 
-        {!historyOpen && sending && (
-          <div className={styles.turn} aria-live="polite">
-            <MonoLabel tone="muted">КУХНЯ · {thinkingVerb}</MonoLabel>
-            {thinkingVerb === 'РОЗБИРАЮ' ? (
-              /* Пул-7 №4, кіт: розбір — спінер з текстом дії, не «думаю»-крапки.
-                 Пул-9 №3: плюс час — єдине, що тут справді змінюється. */
-              <div className={styles['wait-line']}>
-                <span className={styles['parse-spinner']} />
-                <span className={styles['wait-text']} data-wait>
-                  Дивлюся, що тут… {clock(waited)}
-                </span>
-              </div>
-            ) : (
-              <div className={styles['wait-line']}>
-                <div className={styles.thinking}>
-                  <span /><span /><span />
-                </div>
-                <span className={styles['wait-text']} data-wait>{clock(waited)}</span>
-              </div>
-            )}
-            {waited >= LONG_WAIT_S && (
-              /* Пул-9 №3: друга — і остання — фраза. Під нею є справжня подія:
-                 виклик триває довше, ніж триває майже будь-який виклик. */
-              <div className={styles['turn-note']} data-wait-long>
-                {thinkingVerb === 'РОЗБИРАЮ' ? 'Довгий чек, ще тримаю' : 'Ще тримаю'}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <div className={styles['composer-wrap']}>
+        {/* Етап 3 (Components · «Стани дії»): рядок стану НАД композитором —
+            тут, а не в кінці стрічки, бо стрічка прокручується, а стан дії
+            має бути видний рівно тоді, коли він є.
+            Замість ходу «КУХНЯ · ДУМАЮ» з крапками — той самий годинник
+            (Пул-9 №3), той самий «Стоп» (Пул-9 №4) і та сама остання фраза за
+            довгого очікування, але одним рядком, у якому живуть і ліміт, і
+            мережа, і «нічого не змінилось». Ліміт ≠ мережа ≠ нічого: три
+            знаки, три слова, три різні дії від людини. */}
+        {!historyOpen && (
+          <ActionState
+            sending={sending}
+            waited={waited}
+            parsing={thinkingVerb === 'РОЗБИРАЮ'}
+            nothingChanged={nothingChanged}
+            cardConflict={cardConflict}
+            onStop={stopSending}
+            onRetry={() => { useIncidentStore.getState().setOffline(false); void refreshCounts(); }}
+            onRefresh={() => { setCardConflict(false); void refreshCounts(); }}
+            longWaitNote={waited >= LONG_WAIT_S ? (thinkingVerb === 'РОЗБИРАЮ' ? 'Довгий чек, ще тримаю' : 'Ще тримаю') : null}
+          />
+        )}
         {/* Крок 5б: мобільна пігулка. На вузькому екрані панелі немає взагалі,
             і кошик — єдина річ, що живе довше за одну прокрутку, — зникав
             угору стрічки без дороги назад. Пігулка і є та дорога: вона
