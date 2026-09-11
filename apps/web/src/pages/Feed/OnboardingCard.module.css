@@ -1,84 +1,79 @@
-/* Картка «Про тебе» у стрічці — вертикальна, 400px у стрічці, на мобільному на всю ширину. */
-.card { display: flex; flex-direction: column; gap: 10px; max-width: 400px; width: 100%; }
+/* Картка «Про тебе» у стрічці — за Prototype «Картки знайомства, які пишуть у
+   Профіль» (етап 11): поверхня card r16 з тінню, риски прогресу 4 (ink/line2),
+   мета «N / 7 · Знайомство» 13, заголовок 22/700, підпис 15 muted, поле —
+   рядок на тінті bg з початком речення (danger — з знаком «не можна»),
+   лічильник 13 dim, дії Назад · Далі · Записати. Вертикальна, 400 у стрічці,
+   на мобільному на всю ширину. Поля й поведінка — ті самі. */
+.card { display: flex; flex-direction: column; gap: 10px; max-width: 400px; width: 100%; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 @media (max-width: 767px) { .card { max-width: none; } }
 
 .panel {
-  background: var(--line); border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+  background: var(--card); border-radius: 16px; overflow: hidden;
+  box-shadow: var(--sh-a), var(--sh-b);
   display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px;
   animation: panel-in var(--dur-base) var(--ease-enter);
   /* Висота вільного місця під рядок вводу — три рядки тексту плюс рядок
      лічильника. Одне місце на всі панелі, включно з «Готово»: саме через це
      кнопки й не їздять. */
   --row-lh: 1.5;
-  --field-h: calc(var(--fs-body) * var(--row-lh) * 3 + 7px + var(--fs-mono) * 1.4 + 5px);
+  --field-h: calc(var(--fs-body) * var(--row-lh) * 3 + 7px + 13px * 1.4 + 5px);
 }
 @keyframes panel-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
 
-.illustration { aspect-ratio: 3 / 2; width: 100%; flex: none; background: var(--card); display: block; }
+.illustration { aspect-ratio: 3 / 2; width: 100%; flex: none; background: var(--bg); display: block; }
 .illustration img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-.body { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; }
-.step { font: 400 10px var(--font-mono);color: var(--dim); flex: none; }
+.body { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; }
+.dots { display: flex; gap: 4px; }
+.dots > span { flex: 1; height: 4px; border-radius: 2px; background: var(--line2); }
+.dots > .dotOn { background: var(--ink); }
+.step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); flex: none; }
+.stepNum { font-weight: 600; color: var(--ink); }
+.stepSep { width: 3px; height: 3px; border-radius: 50%; background: var(--line2); }
+.step > :last-child:not(.stepNum) { color: var(--muted); font-weight: 500; }
 /* 9а(4): заголовок + підказка — мінімальна висота на 2 рядки заголовка і 3 рядки
-   підказки з токенів типографіки, а не під конкретний текст. */
-.copy {
-  display: flex; flex-direction: column; gap: 6px; flex: none;
-  min-height: calc(var(--fs-3) * var(--lh-tight) * 2 + var(--fs-small) * var(--lh-body) * 3);
-}
-.title, .titleDanger { font: 700 var(--fs-3)/var(--lh-tight) var(--font-display); letter-spacing: -.02em; color: var(--ink); }
+   підказки, а не під конкретний текст. */
+.copy { display: flex; flex-direction: column; gap: 6px; flex: none; min-height: calc(22px * 1.2 * 2 + 15px * 1.5 * 3); }
+.title, .titleDanger { font-weight: 700; font-size: 22px; line-height: 1.2; letter-spacing: -.02em; color: var(--ink); text-wrap: balance; }
 .titleDanger { color: var(--danger); }
-.text { font: 400 var(--fs-small)/var(--lh-body) var(--font-body); color: var(--muted); text-wrap: pretty; }
+.text { font-size: 15px; line-height: 1.5; color: var(--muted); text-wrap: pretty; }
 
-/* О2 (1.5–1.6): рядок вводу стоїть УНИЗУ вільного місця й росте вгору.
-   Висота вільного місця фіксована — щоб кнопки не їздили між панелями, — і
-   рахується з типографіки: три рядки тексту плюс рядок лічильника. Константи
-   в пікселях тут не буде: зміниться кегль — поїде і це.
-   justify-content: flex-end і тримає порожній рядок унизу; текст, ростучи,
-   піднімається вгору, а не опускає лінію. */
+/* Рядок вводу стоїть УНИЗУ вільного місця й росте вгору (О2 1.5–1.6) — на
+   тінті bg усередині картки, r14, як поле в Prototype. */
 .field {
   height: var(--field-h);
   margin-top: 8px;
   display: flex; flex-direction: column; justify-content: flex-end;
   cursor: text;
 }
-/* «Готово» тримає рівно те саме вільне місце — інакше остання панель була б
-   нижчою за решту і кнопка «Показати, що вийшло» стрибнула б угору. */
 .spacer { height: var(--field-h); margin-top: 8px; flex: none; }
-/* Лінія — це НИЗ САМОГО РЯДКА, а не окрема риска на фіксованій висоті.
-   Раніше border-bottom стояв на .edit (інлайновому спані) і при переносі
-   перекреслював текст посередині. */
 .fieldText {
-  font: 400 var(--fs-body)/var(--row-lh) var(--font-body); color: var(--ink);
-  border-bottom: 1px solid var(--line2); padding-bottom: 7px;
+  font-size: var(--fs-body); line-height: var(--row-lh); color: var(--ink);
+  background: var(--bg); border-radius: 14px; padding: 12px 14px;
   overflow: auto; max-height: 100%; overscroll-behavior: contain; scrollbar-width: thin;
-  transition: border-color var(--dur-fast, .15s);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: box-shadow var(--dur-fast, .15s);
 }
-.field:hover .fieldText { border-bottom-color: var(--dim); }
-.field:focus-within .fieldText { border-bottom-color: var(--sage); }
+.field:hover .fieldText { box-shadow: inset 0 0 0 1px var(--line2); }
+.field:focus-within .fieldText { box-shadow: inset 0 0 0 1.5px var(--ink); }
 
 .start { color: var(--muted); }
-.startDanger { color: var(--danger); }
+.startDanger { color: var(--danger); display: inline-flex; align-items: center; gap: 6px; }
 .edit { color: var(--ink); outline: none; caret-color: var(--sage); min-width: 1ch; white-space: pre-wrap; cursor: text; }
-/* О2 (1.2): приклад — найсвітліше в рядку, світліший за початок речення.
-   Окремого кроку «ще тьмяніше за --fg-dim» у токенах немає, і заводити його
-   заради одного місця забагато; прозорість дає те саме в обох темах, бо
-   розчиняє текст саме в тому тлі, яке зараз під ним. */
-.edit:empty::before { content: attr(data-ph); color: var(--dim); opacity: .55; }
+/* Приклад — найсвітліше в рядку; прозорість розчиняє його в тлі обох тем. */
+.edit:empty::before { content: attr(data-ph); color: var(--dim); opacity: .7; }
 
-/* Лічильник — під лінією праворуч, у потоці (не absolute): інакше він накриває
-   текст, коли той доріс до низу. */
 .fieldMeta { display: flex; justify-content: flex-end; padding-top: 5px; flex: none; }
-.counter { font: 400 var(--fs-mono)/1.4 var(--font-mono);color: var(--dim); }
+.counter { font-size: 13px; line-height: 1.4; color: var(--dim); }
 .counterLimit { color: var(--amber); }
 
-.meta { font: 500 10.5px var(--font-mono);color: var(--sage); min-height: 1.4em; flex: none; }
+.hint { font-size: 13px; line-height: 1.5; color: var(--sage); min-height: calc(13px * 1.5 * 2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 6px; flex: none; }
+.meta { font-size: 12px; font-weight: 500; color: var(--sage); min-height: 1.4em; flex: none; }
 
-/* О2 (1.3): Назад · Далі · Записати. «Записати» праворуч і головна — тому
-   розтягується саме останній, а не перший. */
+/* Назад · Далі · Записати. «Записати» праворуч і головна — тому розтягується саме останній. */
 .actions { display: flex; gap: 8px; margin-top: 6px; align-items: center; flex: none; }
 .actions > :last-child { flex: 1; }
 
-/* О2 (1.4): стрілок нема — «Назад» забрав їхню роботу. Лічильник лишився там,
-   де й був, унизу під панеллю. */
+/* Лічильник унизу під панеллю (О2 1.4) — 13 dim. */
 .nav { display: flex; align-items: center; justify-content: center; padding: 0 4px; }
-.progress { font: 400 11px var(--font-mono);color: var(--dim); }
+.progress { font-size: 13px; color: var(--dim); }

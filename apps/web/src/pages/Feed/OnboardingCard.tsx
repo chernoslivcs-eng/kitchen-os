@@ -13,6 +13,7 @@ import { PROFILE_ROWS, type ProfileRowCopy } from '../../lib/profile-copy';
 import type { ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { Button } from '../../components/Button/Button';
 import { track } from '../../lib/track';
+import { Icon } from '../../components/Icon/Icon';
 import styles from './OnboardingCard.module.css';
 
 export interface OnboardingCardProps {
@@ -209,7 +210,9 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
             )}
           </div>
           <div className={styles.body}>
-            <span className={styles.step}>{index + 1} / {PROFILE_ROWS.length}</span>
+            {/* Prototype «Картки знайомства»: «N / 7 · Знайомство» і риски прогресу. */}
+            <div className={styles.dots} aria-hidden="true">{PROFILE_ROWS.map((r, i) => <span key={r.k} className={i <= index ? styles.dotOn : ''} />)}</div>
+            <span className={styles.step}><span className={styles.stepNum}>{index + 1}</span> / {PROFILE_ROWS.length}<span className={styles.stepSep} />Знайомство</span>
             {/* 9а(4): текстовий блок фіксованої мінімальної висоти — панелі однакові. */}
             <div className={styles.copy}>
               <span className={row.danger ? styles.titleDanger : styles.title}>{row.card}</span>
@@ -219,7 +222,7 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
                 рядка, тому вона завжди під текстом, а не крізь нього. */}
             <div className={styles.field} data-row-click onClick={(e) => { if (e.target !== editRef.current) focusEdit(); }}>
               <div className={styles.fieldText} ref={boxRef} data-field-text>
-                <span className={row.danger ? styles.startDanger : styles.start}>{row.start}</span>{' '}
+                <span className={row.danger ? styles.startDanger : styles.start}>{row.danger && <Icon name="cook.ban" size={12} inherit decorative />}{row.start}</span>{' '}
                 <span
                   ref={editRef}
                   className={styles.edit}
@@ -237,6 +240,8 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
                 <span className={`${styles.counter} ${atLimit ? styles.counterLimit : ''}`} data-counter>{atLimit ? row.lim : `${n}/${row.max}`}</span>
               </div>
             </div>
+            {/* Prototype «Картки знайомства»: підказка Семена шавлією під полем — два рядки, щоб кнопки не їздили. */}
+            <span className={styles.hint}>{row.hint}</span>
             {/* 9а(4): рядок мети завжди в потоці — кнопки не стрибають між панелями. */}
             <span className={styles.meta} data-meta={state !== 'empty' ? '' : undefined}>{state !== 'empty' ? META[state] : ' '}</span>
             <div className={styles.actions}>
@@ -256,12 +261,14 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
             )}
           </div>
           <div className={styles.body}>
-            <span className={styles.step}>Готово</span>
+            <div className={styles.dots} aria-hidden="true">{PROFILE_ROWS.map((r) => <span key={r.k} className={styles.dotOn} />)}</div>
+            <span className={styles.step}><span className={styles.stepNum}>Готово</span></span>
             <div className={styles.copy}>
             <span className={styles.title}>{filledCount === 7 ? 'Усі сім записав.' : filledCount === 0 ? 'Нічого не записав — теж варіант, зʼясуємо по ходу.' : `Записав ${filledCount} із семи. Решта зʼясується по ходу.`}</span>
             </div>
             {/* Те саме вільне місце, що на решті панелей — кнопки не їздять. */}
             <div className={styles.spacer} />
+            <span className={styles.hint}>{' '}</span>
             <span className={styles.meta}>{' '}</span>
             <div className={styles.actions}>
               <Button variant="text" onClick={() => goTo(PROFILE_ROWS.length - 1)} data-back>Назад</Button>
@@ -270,7 +277,7 @@ export function OnboardingCard({ card, cardId, profileFields, onProfilePatched, 
           </div>
         </div>
       )}
-      {/* О2 (1.4): лічильник лишився там, де й був, — тільки без стрілок обабіч. */}
+      {/* О2 (1.4): лічильник унизу лишається — стрілок нема, «Назад» забрав їхню роботу. */}
       <div className={styles.nav}>
         <span className={styles.progress}>{done ? `${PROFILE_ROWS.length} / ${PROFILE_ROWS.length}` : `${index + 1} / ${PROFILE_ROWS.length}`}</span>
       </div>
