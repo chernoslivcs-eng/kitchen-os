@@ -9,6 +9,7 @@ import type { ProfileV2Response } from '../../api';
 import { useAuth } from '../../store/auth';
 import { PROFILE_FIELDS } from '@kitchen/domain/profile-fields';
 
+// v3 (крок 3, 11.09): капс у мета знято (Р20) — «власник», «чекає»; лічильник «176 / 200 · далі вже мемуари».
 // Раунд 4, крок 6 (§8): сім рядків з даними, PATCH по blur, ліміт блокує
 // ввід, нотатка прибирається і повертається, стара сторінка — без прапора.
 
@@ -139,7 +140,7 @@ describe('Профіль v6', () => {
     await act(async () => { el.dispatchEvent(ev); });
     expect(ev.defaultPrevented).toBe(true);
     const counter = host.querySelector('[data-counter="name"]')!;
-    expect(counter.textContent).toBe('Все сюди вже не влізе. Лишімо головне.');
+    expect(counter.textContent).toBe('30 / 30 · Все сюди вже не влізе. Лишімо головне.');
     expect((counter as HTMLElement).style.opacity).toBe('1');
 
     // Нижче ліміту — не блокується, лічильник n/max.
@@ -147,7 +148,7 @@ describe('Профіль v6', () => {
     const ev2 = new KeyboardEvent('keydown', { key: 'а', bubbles: true, cancelable: true });
     await act(async () => { el.dispatchEvent(ev2); });
     expect(ev2.defaultPrevented).toBe(false);
-    expect(host.querySelector('[data-counter="name"]')!.textContent).toBe('5/30');
+    expect(host.querySelector('[data-counter="name"]')!.textContent).toBe('5 / 30');
   });
 
   it('Enter — blur, без нового рядка', async () => {
@@ -210,9 +211,9 @@ describe('9а: підказка без прикладів, зелена; сек�
       const home = host.querySelector('[data-section="home"]')!;
       expect(home.textContent).toContain('Дім');
       expect(home.textContent).toContain('Оксана');
-      expect(home.textContent).toContain('ВЛАСНИК');
+      expect(home.textContent).toContain('власник');
       expect(home.textContent).toContain('guest@x.local');
-      expect(home.textContent).toContain('ЧЕКАЄ');
+      expect(home.textContent).toContain('чекає');
       expect(calls.some((c) => c.url === '/v1/households/h1/invites')).toBe(true);
 
       const invite = [...home.querySelectorAll('button')].find((b) => b.textContent === 'Запросити')!;
@@ -282,7 +283,7 @@ describe('етап 4 · лічильник за 20 знаків до стелі,
       await act(async () => { el.textContent = 'а'.repeat(max - 20); fire(el, 'input'); });
       await act(async () => { await new Promise((r) => setTimeout(r, 1300)); });
       expect(c.style.opacity, `${k}: лічильник за 20 до ${max}`).toBe('1');
-      expect(c.textContent).toBe(`${max - 20}/${max}`);
+      expect(c.textContent).toBe(`${max - 20} / ${max}`);
     });
   }
 });

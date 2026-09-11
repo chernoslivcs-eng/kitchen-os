@@ -130,7 +130,8 @@ export const SERIES_TEXT: Record<'seasons' | 'tradition' | 'unsubscribe', string
 };
 
 export const STRICT_HINT = 'не пропоную сам; попросиш прямо — попереджу і зроблю';
-export const SOFT_HINT = 'враховую в пропозиціях, на пряме прохання роблю без попереджень';
+// Підказка мʼякого — з кадрів «Календар · 1440» aside і Prototype (A2 показує лише суворе).
+export const SOFT_HINT = 'враховую в пропозиціях, але не забороняю';
 
 export type OwnKind = 'diet' | 'holiday' | 'custom';
 export const OWN_KIND_LABEL: Record<OwnKind, string> = { diet: 'дієта', holiday: 'свято · своє', custom: 'подія дому' };

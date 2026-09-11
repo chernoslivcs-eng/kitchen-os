@@ -166,8 +166,8 @@ export function PeriodSubscriptions({ initialSet, onDone, onAddOwn, onClose }: S
 
   return (
     <div className={styles.body} data-testid="period-subscriptions">
-      <h2 className={styles.title}>{SUBSCRIPTIONS_COPY.title}</h2>
-      <p className={styles.text}>{SUBSCRIPTIONS_COPY.text}</p>
+      <h2 className={sub.head}>{SUBSCRIPTIONS_COPY.title}</h2>
+      <p className={sub['head-text']}>{SUBSCRIPTIONS_COPY.text}</p>
 
       <div className={sub.section}>
         <div className={sub['section-head']}>
@@ -191,7 +191,7 @@ export function PeriodSubscriptions({ initialSet, onDone, onAddOwn, onClose }: S
             );
           })}
         </div>
-        {!rows && !err && <div className={styles.loading}>ЧИТАЮ ДОВІДНИК…</div>}
+        {!rows && !err && <div className={styles.loading}>Читаю довідник…</div>}
         {rows && <div className={sub.list} data-list="tradition">{rows.map((i) => renderRow(i, false, viewedOn))}</div>}
       </div>
 

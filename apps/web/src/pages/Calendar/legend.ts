@@ -9,6 +9,7 @@
 import type { EventOccurrence } from '../../api';
 import type { IconName } from '../../components/Icon/icons';
 import { dayStart, DAY } from './days';
+import { coversDay, edgeCaption } from '../../lib/spans';
 
 const dow = (at: number) => new Date(at).toLocaleDateString('uk-UA', { weekday: 'short' });
 const num = (at: number) => new Date(at).getDate();
@@ -31,4 +32,31 @@ export function legendIcon(e: EventOccurrence): IconName | null {
   if (e.kind === 'supply') return 'live.supply';
   if (e.kind === 'constraint') return null;
   return 'live.household';
+}
+
+/**
+ * Підпис смуги тривалої в картці тижня (D3a): у тижні, де подія починається
+ * (або в першому видимому, якщо почалась раніше), — повний, як у легенді
+ * («Великий піст · день 12 з 46», «Гарбуз · сезон · з пн 15 · до ≈ 30.11»);
+ * у наступних тижнях — лише назва: смуга вже все сказала, а повторений
+ * щотижня підпис і є те, чого уникаємо. Тривала, що не триває сьогодні,
+ * у своєму тижні підписана формою краю («Гарбуз · сезон · до ≈ 30.11»).
+ */
+export function barLabel(e: EventOccurrence, weekStart: number, today: number, continued: boolean): string {
+  if (continued && dayStart(e.start) < weekStart) return e.title;
+  if (coversDay(e, today)) return legendLabel(e, today);
+  return edgeCaption(e, e.start) ?? e.title;
+}
+
+/** Знак і тон точкової події в дні (D3a/D3b): рід кольором, приготоване — muted із галочкою. */
+export function pointIcon(e: EventOccurrence): { icon: IconName | null; tone: 'ink' | 'muted' | 'sage' | 'amber' | 'plum' } {
+  if (e.done_at) return { icon: 'sys.done', tone: 'muted' };
+  if (e.kind === 'meal') return { icon: 'cook.type', tone: 'ink' };
+  if (e.kind === 'supply') return { icon: 'live.supply', tone: 'sage' };
+  if (e.kind === 'season') return { icon: 'live.season', tone: 'amber' };
+  if (e.kind === 'editorial' || e.source) return { icon: 'live.season', tone: 'amber' };
+  if (e.kind === 'tradition' || (e.force === 'restrict' && e.scope === 'catalog')) return { icon: 'live.tradition', tone: 'plum' };
+  if (e.kind === 'constraint') return { icon: null, tone: 'muted' };
+  if (e.force === 'restrict') return { icon: 'live.household', tone: 'plum' };
+  return { icon: 'live.household', tone: 'ink' };
 }

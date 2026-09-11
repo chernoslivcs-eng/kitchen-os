@@ -117,8 +117,10 @@ describe('PeriodArtifact', () => {
     const title = host!.querySelector<HTMLInputElement>('input[aria-label="Назва"]')!;
     expect(title.value).toBe('білкова');
     await setValue(host!.querySelector<HTMLInputElement>('input[aria-label="До"]')!, '2026-10-05');
-    await click(byText('мʼяко'));
-    expect(byText('суворо')).not.toBeNull();
+    // A2: мʼяко/суворо — пігулка з двома положеннями, не одна кнопка.
+    expect(host!.textContent).toContain('враховую в пропозиціях, але не забороняю');
+    await click(byText('суворо'));
+    expect(byText('суворо')?.getAttribute('aria-pressed')).toBe('true');
     expect(host!.textContent).toContain('не пропоную сам; попросиш прямо — попереджу і зроблю');
     await click(byText('Записати'));
     const patch = calls.find((c) => c.method === 'PATCH');
