@@ -1,125 +1,97 @@
-/* Онбординг «Семен» — канвас О1: 390 × повний екран, одна картка. На ширших
- * екранах та сама «телефонна» колонка по центру, до 440px; фон — папір-2. */
-.screen {
+/* Онбординг «Семен» — за «Kitchen OS - Onboarding.dc.html». Кадри: «Онбординг ·
+   Семен» (≥1024: шапка 72, риски прогресу в шапці, ілюстрація ліворуч, текст
+   праворуч ≤520, бабл r22/6, кнопки 48) і «Онбординг · 390» (шапка 60, смуга
+   прогресу під нею, текст → бабл → ілюстрація → кнопки 52 внизу). Кольори —
+   лише токени; фон — теплий градієнт бурштину 45 % → bg. Перехід kos-in /
+   kos-back 24 px, --dur-slow; reduced-motion — без зсуву (тривалість 0). */
+
+.page {
+  --e: cubic-bezier(.2, .7, .2, 1);
+  --sh: var(--sh-a), var(--sh-b);
   min-height: 100dvh;
-  background: #eef0f1;
-  display: flex;
-  justify-content: center;
-  color: #1d2126;
-  font-family: var(--font-body);
-}
-.phone {
-  width: 100%;
-  max-width: 440px;
-  min-height: 100dvh;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
   display: flex;
   flex-direction: column;
-  position: relative;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 45%, var(--bg)) 0, var(--bg) 60%);
+  overflow: hidden;
   touch-action: pan-y;
 }
+.mob { background: linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 45%, var(--bg)) 0, var(--bg) 50%); }
+.page :where(button) { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
 
-.head { display: flex; align-items: center; justify-content: space-between; padding: 22px 20px 0; }
-.logo { display: inline-flex; align-items: center; gap: 8px; font: 700 14px var(--font-display); letter-spacing: -0.02em; }
-.logo em { font-style: normal; color: #58754e; }
-.skip { font-family: var(--font-mono); font-size: 11px;color: #7b838b; background: none; border: 0; padding: 6px 0; cursor: pointer; }
-.skip:hover { color: #1d2126; }
+/* шапка · 72 / 60 */
+.head { height: 72px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 clamp(20px, 4vw, 64px); }
+.mob .head { height: 60px; padding: 0 20px; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.mob .logo { gap: 8px; }
+.mark { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--ink); display: grid; place-items: center; flex: none; }
+.mark > span { width: 9px; height: 9px; border-radius: 50%; background: var(--sage); }
+.mob .mark { width: 26px; height: 26px; }
+.mob .mark > span { width: 8px; height: 8px; }
+.logoText { font-weight: 700; font-size: 16px; letter-spacing: -.02em; }
+.mob .logoText { font-size: 15px; }
+.headRight { display: flex; align-items: center; gap: 20px; }
+.skip { font-size: 14px; font-weight: 500; color: var(--muted); }
+.mob .skip { font-size: 13px; }
 
-.progress { display: flex; gap: 3px; padding: 16px 20px 0; }
-.progress span { flex: 1; height: 3px; border-radius: 2px; background: #dde0e2; transition: background var(--dur-base, 250ms) var(--ease-standard, ease); }
-.progress .on { background: #58754e; }
+/* прогрес · риски 4 (28 активна / 12) у шапці; 390 — смуга під шапкою */
+.progress { display: flex; gap: 4px; }
+.dot { width: 12px; height: 4px; border-radius: 2px; background: var(--line2); transition: width 240ms var(--e), background 240ms var(--e); }
+.dotOn { background: var(--ink); }
+.dotCur { width: 28px; }
+.mob .progress { gap: 3px; padding: 0 20px 16px; flex: none; }
+.mob .dot { flex: 1; width: auto; height: 3px; }
 
-.card-wrap { flex: 1; padding: 16px 16px 0; display: flex; min-height: 0; }
-.card {
-  flex: 1;
-  background: #f8f9fa;
-  border-radius: 24px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 12px 40px rgba(29,33,38,.1);
-  min-height: 0;
-}
-.in { animation: cardin 350ms cubic-bezier(.2,.8,.2,1); }
-.back { animation: cardback 350ms cubic-bezier(.2,.8,.2,1); }
-@keyframes cardin { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
-@keyframes cardback { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
-
-.card-head { padding: 22px 22px 0; display: flex; justify-content: space-between; align-items: baseline; font-family: var(--font-mono); }
-.num { font-size: 11px;color: #58754e; }
-.tag { font-size: 10px;color: #7b838b; text-align: right; }
-.body { padding: 14px 22px 0; display: flex; flex-direction: column; gap: 12px; }
-.title { margin: 0; font: 700 24px/1.15 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
-.lines { display: flex; flex-direction: column; gap: 9px; font-size: 14.5px; line-height: 1.5; color: #3c4249; }
-.lines p { margin: 0; }
-.punch { color: #58754e; font-style: italic; }
-.ill { flex: 1; display: flex; align-items: flex-end; justify-content: center; padding: 12px 16px 14px; min-height: 0; }
-.ill img { max-width: 100%; max-height: 100%; object-fit: contain; }
-
-.controls { display: flex; gap: 10px; padding: 14px 16px 28px; }
-.prev { width: 52px; height: 52px; border-radius: 14px; border: 1px solid #ced3d6; background: none; color: #1d2126; font-size: 18px; cursor: pointer; transition: opacity var(--dur-fast, 150ms); flex: none; }
+/* десктоп · сітка 1fr 1fr ≤1200 */
+.main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px clamp(20px, 4vw, 64px) 40px; min-height: 0; }
+.grid { width: 100%; max-width: 1200px; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(24px, 4vw, 48px); align-items: center; }
+.ill { display: flex; align-items: center; justify-content: center; min-height: 0; }
+.desk .ill img { width: 100%; max-width: 560px; max-height: min(60vh, 560px); object-fit: contain; border-radius: 24px; }
+.text { display: flex; flex-direction: column; gap: 24px; max-width: 520px; justify-self: start; }
+.meta { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.num { font-weight: 600; color: var(--ink); }
+.of { color: var(--dim); }
+.sep { width: 3px; height: 3px; border-radius: 50%; background: var(--line2); }
+.tag { font-weight: 500; }
+.textBlock { display: flex; flex-direction: column; gap: 20px; min-height: 340px; }
+.title { margin: 0; font-weight: 700; font-size: clamp(28px, 3vw, 40px); letter-spacing: -.035em; line-height: 1.05; text-wrap: balance; }
+.bubble { position: relative; background: var(--card); border-radius: 22px 22px 22px 6px; padding: 20px 24px; box-shadow: var(--sh); max-width: 500px; display: flex; flex-direction: column; gap: 10px; }
+.lines { display: flex; flex-direction: column; gap: 8px; font-size: 17px; line-height: 1.55; }
+.lines p, .punch { margin: 0; }
+.punch { font-size: 16px; line-height: 1.5; color: var(--sage); font-weight: 500; }
+.controls { display: flex; align-items: center; gap: 10px; }
+.prev { width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--line2); display: grid; place-items: center; color: var(--muted); flex: none; }
 .prev:disabled { opacity: .35; cursor: default; }
-.next { flex: 1; height: 52px; border-radius: 14px; border: 0; background: #1d2126; color: #f8f9fa; font-size: 15px; font-weight: 600; cursor: pointer; transition: background var(--dur-base, 250ms) var(--ease-standard, ease); }
-.next-final { background: #58754e; }
-.next:hover { filter: brightness(1.15); }
+.next { height: 48px; padding: 0 22px; border-radius: 12px; background: var(--ink); color: var(--bg); display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; font-weight: 600; }
+.next:hover { filter: brightness(.96); }
 
-/* Низькі екрани: ілюстрація не мусить перекривати текст — картка скролиться. */
-@media (max-height: 700px) {
-  .card { overflow-y: auto; }
-  .ill { min-height: 180px; }
-}
+/* 390 · колонка */
+.col { flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 0 20px; overflow: hidden; min-height: 0; }
+.mob .meta { font-size: 12px; gap: 8px; }
+.colBlock { display: flex; flex-direction: column; gap: 16px; flex: none; }
+.mob .title { font-size: 26px; letter-spacing: -.03em; line-height: 1.1; }
+.mob .bubble { border-radius: 18px 18px 18px 6px; padding: 14px 16px; gap: 8px; max-width: none; }
+.mob .lines { gap: 6px; font-size: 15px; line-height: 1.5; }
+.mob .punch { font-size: 14px; line-height: 1.45; }
+.mob .ill { flex: 1; }
+.mob .ill img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.mob .controls { flex: none; padding: 12px 20px 24px; }
+.mob .prev { width: 52px; height: 52px; }
+.mob .next { flex: 1; height: 52px; }
+
+/* рух · kos-in / kos-back 24 px */
+@keyframes kos-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes kos-back { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+/* Тривалість — токеном (бандл 320 / 400 мс → --dur-slow 400; Р51): під reduce
+   вона нульова, тобто зсуву немає, картка просто зʼявляється. */
+.in { animation: kos-in var(--dur-slow) var(--e) both; }
+.back { animation: kos-back var(--dur-slow) var(--e) both; }
 @media (prefers-reduced-motion: reduce) {
-  .in, .back { animation: none; }
+  .dot { transition: none; }
 }
-
-/* ── ≥1280: канвас О3 — стрічка з трьох карток ─────────────────────────── */
-.desk {
-  min-height: 100dvh;
-  background: #eef0f1;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  color: #1d2126;
-  font-family: var(--font-body);
-  overflow: hidden;
+@media (max-height: 700px) and (max-width: 1023px) {
+  .col { overflow-y: auto; }
+  .mob .ill { min-height: 160px; }
 }
-.desk-head { display: flex; align-items: center; justify-content: space-between; padding: 28px 40px 0; }
-.desk-head .logo { font-size: 16px; gap: 10px; }
-.desk-head-right { display: flex; align-items: center; gap: 20px; }
-.desk-head-right .progress { width: 220px; padding: 0; gap: 4px; }
-.strip { flex: 1; display: flex; align-items: center; justify-content: center; gap: 24px; padding: 36px 0; min-height: 0; }
-.side {
-  width: 180px; height: 560px; flex: none;
-  background: #f8f9fa; border: 0; border-radius: 24px; padding: 0;
-  display: flex; flex-direction: column; overflow: hidden; text-align: left;
-  box-shadow: 0 8px 24px rgba(29,33,38,.06); cursor: pointer;
-  transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease), transform var(--dur-base, 250ms) var(--ease-standard, ease);
-  font-family: inherit; color: inherit;
-}
-.side-prev { transform: translateX(-40px); }
-.side-next { transform: translateX(40px); }
-.side:hover:not(:disabled) { transform: translateX(-32px); }
-.side-next:hover:not(:disabled) { transform: translateX(32px); }
-.side-empty { opacity: .35; cursor: default; }
-.side-text { padding: 22px 22px 0; display: flex; flex-direction: column; gap: 10px; }
-.side-num { font-family: var(--font-mono); font-size: 11px;color: #7b838b; }
-.side-title { font: 700 17px/1.2 var(--font-display); letter-spacing: -0.015em; color: #7b838b; }
-.side-ill { flex: 1; display: flex; align-items: flex-end; opacity: .6; min-height: 0; }
-.side-prev .side-ill { justify-content: flex-end; padding: 0 0 12px 22px; }
-.side-next .side-ill { justify-content: flex-start; padding: 0 22px 12px 0; }
-.side-ill img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.desk-card {
-  width: 880px; height: 560px; flex: none;
-  background: #f8f9fa; border-radius: 28px;
-  display: grid; grid-template-columns: 400px 1fr; overflow: hidden;
-  box-shadow: 0 30px 80px rgba(29,33,38,.14);
-}
-.desk-text { padding: 40px 8px 40px 44px; display: flex; flex-direction: column; gap: 20px; min-height: 0; }
-.desk-meta { display: flex; gap: 14px; align-items: baseline; font-family: var(--font-mono); }
-.desk-meta .num { font-size: 12px; }
-.desk-title { margin: 0; font: 700 32px/1.12 var(--font-display); letter-spacing: -0.025em; text-wrap: balance; }
-.desk-text .lines { gap: 12px; font-size: 16px; overflow-y: auto; }
-.desk-text .controls { margin-top: auto; padding: 0; }
-.desk-text .next { flex: none; padding: 0 28px; }
-.desk-ill { display: flex; align-items: center; justify-content: center; padding: 32px 36px; min-height: 0; background: #eef0f1; margin: 16px; border-radius: 20px; }
-.desk-ill img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.desk-hint { position: absolute; left: 40px; bottom: 24px; font-family: var(--font-mono); font-size: 10px;color: #7b838b; }

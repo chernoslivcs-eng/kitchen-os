@@ -31,7 +31,7 @@
 //           рахують висоти від нього — для пари ставити той самий, що й у застосунку
 // --scale N  deviceScaleFactor обох знімків (типово 2). Кадри вищі за ~8000 px (лендінг)
 //           на 2× обрізаються стелею текстури Chromium — для них --scale 1
-// --stub-rest STATUS|abort  усі інші GET /v1/* у застосунку — цим статусом і тілом {} або обривом (щоб живий API
+// --stub-rest STATUS|abort  усі інші /v1/* у застосунку (будь-який метод) — цим статусом і тілом {} або обривом (щоб живий API
 //           на :3000 не підкидав 401 у стор інцидентів, коли міряємо іншу смугу)
 // --app-sel селектор у застосунку — знімати лише цей елемент (смуга E2, тост E3), не вʼюпорт
 // --stub-json path=json[;path=json]  відповідати на GET path у застосунку цим JSON
@@ -101,9 +101,12 @@ await frame.scrollIntoViewIfNeeded();
 // (Prototype: «Готуємо» на пропозиції → «Готуємо» в панелі рецепта = Cook Mode).
 const dcClick = arg('dc-click', null);
 if (dcClick) {
+  // Крок може бути `text:Підпис` (клік по тексту, коли в бандлі нема класів) або
+  // `rclick:<css>` (contextmenu — меню станів Prototype відкривається правою кнопкою).
   for (const sel of dcClick.split(';;').map((x) => x.trim()).filter(Boolean)) {
-    await frame.waitForSelector(sel, { timeout: 15000 });
-    await frame.$eval(sel, (el) => el.click());
+    if (sel.startsWith('text:')) await frame.$$eval('button, a, span, div', (els, t) => { const el = els.find((e) => e.textContent.trim() === t); if (!el) throw new Error(`text не знайдено: ${t}`); el.click(); }, sel.slice(5));
+    else if (sel.startsWith('rclick:')) { const css = sel.slice(7); await frame.waitForSelector(css, { timeout: 15000 }); await frame.$eval(css, (el) => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))); }
+    else { await frame.waitForSelector(sel, { timeout: 15000 }); await frame.$eval(sel, (el) => el.click()); }
     await dcPage.waitForTimeout(Number(arg('dc-wait', 600)));
   }
 }
@@ -155,7 +158,8 @@ if (URL_BASE) {
   await page.emulateMedia({ colorScheme: THEME });
   // Загальна заглушка реєструється ПЕРШОЮ: Playwright віддає перевагу пізнішим route(), тож точкові --stub-json її перебивають.
   const stubRest = arg('stub-rest', null);
-  if (stubRest) await page.route((u) => u.pathname.startsWith('/v1/'), (route) => route.request().method() !== 'GET' ? route.continue() : stubRest === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(stubRest), contentType: 'application/json', body: '{}' }));
+  // Усі методи, не лише GET: POST /v1/events/track і sync-receipts інакше йшли б у живий API і ловили 401.
+  if (stubRest) await page.route((u) => u.pathname.startsWith('/v1/'), (route) => stubRest === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(stubRest), contentType: 'application/json', body: '{}' }));
   const stubJson = arg('stub-json', null);
   if (stubJson) {
     for (const pair of stubJson.split(';')) {

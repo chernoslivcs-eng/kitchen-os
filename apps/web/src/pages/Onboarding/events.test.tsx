@@ -21,6 +21,8 @@ let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 
 beforeEach(async () => {
+  // Етап 11: крок памʼятається в kos-onb-step (як у бандлі) — кожен тест починає з першої картки.
+  localStorage.clear();
   calls = [];
   vi.useFakeTimers();
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
