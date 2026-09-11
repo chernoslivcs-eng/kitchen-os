@@ -501,35 +501,21 @@ a.att-chip:hover { border-color: var(--sage); }
 /* «⌘K» dim 12 перед мікрофоном (Screens «Чат · збірка»); на дотиках — ні. */
 /* №30: підпис «⌘K» з поля знято; клавіша лишається (ефект у Feed.tsx). */
 
-/* №24 · D1 (Responsive): пунктирна шавлієва рамка 1.5 по стрічці, поки файл
-   над вікном — ціль одна, куди б не кинув. */
-.drop-frame {
-  position: absolute;
-  inset: 10px;
-  border: 1.5px dashed var(--sage);
-  border-radius: 12px;
-  pointer-events: none;
-  z-index: 8;
-}
-/* №24 · D1: композитор озброєний — шавлієвий контур 1.5 + ореол 5 sage-bg;
-   «+» у sage-bg; плейсхолдер «Відпусти — файл піде в розмову» шавлією 500. */
-.composer-armed {
-  box-shadow: 0 0 0 1.5px var(--sage), 0 0 0 5px var(--sage-bg), var(--sh-a), var(--sh-b) !important;
-}
-.composer-armed .composer-input::placeholder { color: var(--sage); font-weight: 500; }
-.composer-armed .attach-plus { background: var(--sage-bg); color: var(--sage); }
-/* №24 · D2: чотири секунди утримання — заливка шавлією, «+» лишається, вже
-   залитий; «Ти можеш відпустити. Він не втече.» 600. */
-.composer-armed-long {
-  background: var(--sage-bg);
-  box-shadow: 0 0 0 2px var(--sage), var(--sh-a), var(--sh-b) !important;
-}
-.composer-armed-long .composer-input::placeholder { font-weight: 600; }
-.composer-armed-long .attach-plus { background: var(--sage); color: var(--sage-on); }
+/* №24a: рамки й «озброєного» композитора при перетягуванні нема — один
+   оверлей поверх стрічки (components/DropZone/DropOverlay), за Prototype. */
 
-/* Запис: сам композитор не міняється (Prototype) — стан несе кнопка .mic-live;
-   клас лишається як гачок для тестів і стану. */
-.composer-recording { }
+/* №41 · Components A4: під час диктування — кільце шавлією 1.5 поверх тіні;
+   «+» стає мікрофоном на шавлієвій підкладці (пульс на знаку), «↑» — стопом. */
+.composer-recording { box-shadow: 0 0 0 1.5px var(--sage), var(--sh-a), var(--sh-b); }
+.listen-mark {
+  width: 42px; height: 42px; flex: none; border-radius: 50%;
+  background: var(--sage-bg); color: var(--sage);
+  display: grid; place-items: center;
+  animation: btn-morph var(--dur-fast, 150ms) var(--ease-enter, ease);
+}
+/* Поле на час запису сховане атрибутом hidden — глобальний reset його не
+   перекриває, але flex-дитина з display мусить піти явно. */
+.composer-input[hidden] { display: none; }
 .composer-input {
   flex: 1;
   min-width: 0;
@@ -559,7 +545,6 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 
 .frame-btn,
-.frame-btn-ghost,
 .frame-btn-solid {
   width: 42px;
   height: 42px;
@@ -570,22 +555,17 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
   transition: background var(--dur-fast);
 }
-/* Головне гніздо композитора (мікрофон на порожньому полі · стоп під час
-   думання) — чорнило, як «надіслати»: те саме місце, той самий вигляд.
-   Prototype тримає мікрофон прозорим поруч із «надіслати»; тут кнопки
-   міняються місцями, тож гніздо одне і воно чорнильне (рішення власника 11.09). */
+/* Головне гніздо композитора — ЗАВЖДИ чорнило (№42, рішення власника):
+   мікрофон білим на порожньому полі, стрілка білим при тексті, квадрат «стоп»
+   під час думання і диктування. Світлого idle з muted стрілкою нема — Screens
+   малює світле коло при порожньому, відхилення в реєстрі (Р97): одне гніздо
+   дії завжди видиме. */
 .frame-btn {
   border: 0;
   background: var(--btn-primary-bg);
   color: var(--btn-primary-fg);
 }
 .frame-btn:hover:not(:disabled) { filter: brightness(0.96); }
-.frame-btn-ghost {
-  border: 0;
-  background: transparent;
-  color: var(--dim);
-}
-.frame-btn-ghost:hover:not(:disabled) { color: var(--muted); }
 .frame-btn-solid {
   border: 0;
   background: var(--btn-primary-bg);
@@ -594,11 +574,11 @@ a.att-chip:hover { border-color: var(--sage); }
   font-weight: 600;
 }
 .frame-btn-solid:hover:not(:disabled) { filter: brightness(0.96); }
-/* Порожній драфт: світле коло, muted стрілка — кнопка є, дія ще ні. */
 .frame-btn:disabled,
-.frame-btn-ghost:disabled,
 .frame-btn-solid:disabled { opacity: 0.45; cursor: not-allowed; }
-.frame-btn-idle, .frame-btn-idle:disabled { background: var(--bg); color: var(--muted); opacity: 1; cursor: default; }
+/* Порожній драфт там, де диктовки нема (№42): те саме чорнильне гніздо зі
+   стрілкою, без пригашення — кнопка є, дія прийде з текстом. */
+.frame-btn-idle, .frame-btn-idle:disabled { opacity: 1; cursor: default; }
 
 /* ----- Toast: з етапу 10 — components/ErrorState/Toast (E3), власного тут нема. */
 
@@ -695,35 +675,6 @@ a.att-chip:hover { border-color: var(--sage); }
   background: var(--btn-primary-bg);
   border: 1px solid var(--btn-primary-bg);
   color: var(--btn-primary-fg);
-}
-
-/* Мікрофон — канон Бриф-2 5б: під час запису кнопка стає цегляним квадратом
-   38px зі стоп-іконкою і пульсом 1.2s; цегляний тут НЕ помилка, а «REC». */
-.mic-live {
-  width: 42px;
-  height: 42px;
-  border: 0;
-  border-radius: 50%;
-  /* Пул-7 №3: запис — шавлія, не цегла («червоний — небезпека»).
-     1.5b: тло sage-bg, знак sage (Prototype micBg/micFg); пульс — на знаку. */
-  background: var(--sage-bg);
-  color: var(--sage);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  flex: none;
-  animation: btn-morph var(--dur-fast, 150ms) var(--ease-enter, ease);
-}
-.mic-stop {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--bg);
-  display: block;
-}
-.input-recording {
-  border-color: var(--sage) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 10%, transparent);
 }
 
 /* Правка №7: колишнє притискання вліво (margin-left:36 + композитор зі своїм

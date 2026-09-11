@@ -1,0 +1,29 @@
+/* Prototype v3.1, стан dragging: inset 12 · r16 · 2 px dashed sage · заливка
+   sage-bg 70 % · по центру receipt 28 + «Кидай — розберу» 16/600 + підпис 13
+   muted. Токенами — живуть обидві теми. */
+.overlay {
+  position: absolute;
+  inset: 12px;
+  z-index: 8;
+  border-radius: 16px;
+  border: 2px dashed var(--sage);
+  background: color-mix(in srgb, var(--sage-bg) 70%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: overlay-in var(--dur-fast, 150ms) var(--ease-enter, ease);
+}
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--sage);
+}
+.title { font-size: 16px; font-weight: 600; }
+.sub { font-size: 13px; color: var(--muted); }

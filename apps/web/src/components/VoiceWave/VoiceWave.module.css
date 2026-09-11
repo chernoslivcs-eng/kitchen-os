@@ -1,30 +1,54 @@
+/* Components A4: рядок диктування замість поля — хвиля · почуте · таймер,
+   усе на одній осі 42, gap 14, відступ 0 8. */
 .wrap {
-  display: inline-flex;
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  flex: none;
+  gap: 14px;
+  padding: 0 8px;
   color: var(--sage);
 }
-.wave { display: block; }
+/* Хвиля: поки нічого не почуто — на всю ширину поля; з першими словами —
+   12 рисок по 3 px з проміжком 3 (69 px), решта — тексту. */
+.wave {
+  display: block;
+  /* Базис 0, не auto: власна ширина полотна (атрибут width) росте разом із
+     буфером і роздувала б flex-дитину — розмір задає лише контейнер. */
+  flex: 1 1 0;
+  min-width: 0;
+  width: 0;
+  height: 22px;
+  opacity: 0.35;
+  transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease), flex-basis var(--dur-base, 250ms) var(--ease-standard, ease);
+}
+.wave-compact { flex: 0 0 69px; }
+/* Моушн-2 №3: у тиші хвиля пригашена, на мові — повна (crossfade 250ms). */
+.loud { opacity: 1; }
+.heard {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+}
 .rec {
   font-family: var(--font-mono);
   font-size: 10px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  flex: none;
 }
 /* Індикатор запису — коло 6 px. Було гліфом ● у тексті (етап 1.5). */
 .rec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger, currentColor); flex: none; }
+/* A4: «0:07» 13 muted tabular, праворуч від хвилі на тій самій осі. */
 .timer {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--dim);
+  margin-left: auto;
+  flex: none;
+  font-size: 13px;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-
-/* Моушн-2 №3: у тиші хвиля пригашена, на мові — повна (crossfade 250ms). */
-.wave {
-  opacity: 0.35;
-  transition: opacity var(--dur-base, 250ms) var(--ease-standard, ease);
-}
-.loud { opacity: 1; }

@@ -294,3 +294,36 @@ describe('№29 · одне гніздо', () => {
     expect(document.activeElement).toBe(q('textarea'));
   });
 });
+
+// FIXES-V3-2 №24a (Prototype v3.1): кинутий у стрічку файл іде в розмову
+// одразу — вивантаження і хід без тексту, без чіпа над композитором; поки
+// файл над вікном — один оверлей «Кидай — розберу».
+describe('№24a · drop у стрічку', () => {
+  const dt = (files: File[]) => ({
+    types: ['Files'], files,
+    items: files.map((f) => ({ kind: 'file', type: f.type, webkitGetAsEntry: () => ({ isDirectory: false }) })),
+    dropEffect: 'none',
+  });
+  const fire = (type: string, transfer: unknown) => {
+    const e = new Event(type, { bubbles: true, cancelable: true });
+    Object.assign(e, { dataTransfer: transfer, clientX: 100, clientY: 100 });
+    act(() => { window.dispatchEvent(e); });
+  };
+
+  it('над вікном — оверлей; drop → хід із вкладенням без тексту, чіпа нема', async () => {
+    await mount();
+    const f = new File([new Uint8Array([1])], 'chek.jpg', { type: 'image/jpeg' });
+    fire('dragenter', dt([f]));
+    expect(q('[data-drop-overlay]')!.textContent).toContain('Кидай — розберу');
+    fire('drop', dt([f]));
+    // Оверлей гасне одразу, хід іде після вивантаження.
+    expect(q('[data-drop-overlay]')).toBeNull();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(chatCalls).toHaveLength(1);
+    expect(chatCalls[0]!.body.text).toBe('');
+    expect(chatCalls[0]!.body.attachments).toEqual([{ id: 'att-new' }]);
+    expect(q('[data-att-chip]')).toBeNull();
+    expect(q('[data-wait-turn]')).toBeTruthy();
+  });
+});

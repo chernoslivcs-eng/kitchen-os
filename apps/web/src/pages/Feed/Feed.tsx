@@ -26,7 +26,7 @@ import { useAuth } from '../../store/auth';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { useDropZone } from '../../components/DropZone/useDropZone';
-import { DropCard } from '../../components/DropZone/DropCard';
+import { DropOverlay } from '../../components/DropZone/DropOverlay';
 import { useNavStore } from '../../store/nav';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
@@ -198,12 +198,11 @@ export function Feed() {
   const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
   const [uploading, setUploading] = useState(false);
-  // Крок Д1: перетягування. Кинути можна будь-де в стрічці — хук слухає window;
-  // малюють це два місця: картка в кінці стрічки і сам композитор.
-  const drag = useDropZone({
-    pendingCount: pending.length,
-    max: MAX_ATTACHMENTS,
-    onFiles: useCallback((files: File[]) => { void pickFiles(files, 'drop'); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
+  // №24a (Prototype v3.1): перетягування. Кинути можна будь-де в стрічці — хук
+  // слухає window; малює це один оверлей поверх стрічки. Кинутий файл іде в
+  // розмову одразу — без чіпа над композитором і без «↑».
+  const dragging = useDropZone({
+    onFiles: useCallback((files: File[]) => { void dropFiles(files); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
     onFolder: useCallback(() => setToast({ id: Date.now(), kind: 'warn', text: 'Тека не піде — перетягни файли' }), []),
   });
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -249,12 +248,19 @@ export function Feed() {
     const d = startDictation({
       onText: (t) => setInput(join(t)),
       onDone: (t) => setInput(join(t)),
-      onEnd: () => { setListening(false); dictationRef.current = null; composerInputRef.current?.focus(); },
+      onEnd: () => { setListening(false); dictationRef.current = null; },
       // UX9-08: заборонений мікрофон / мережа — раніше кнопка тихо гасла.
       onError: (msg) => setToast({ id: Date.now(), kind: 'err', text: msg }),
     });
     if (d) { dictationRef.current = d; setListening(true); }
   }
+  // Після диктування фокус — назад у поле (воно на час запису сховане, тож
+  // focus() у onEnd не спрацював би: ефект чекає, поки поле знову видиме).
+  const wasListening = useRef(false);
+  useEffect(() => {
+    if (wasListening.current && !listening) composerInputRef.current?.focus();
+    wasListening.current = listening;
+  }, [listening]);
 
     // «Уточнити» на пропозиції: префілимо композитор назвою страви з тире —
   // відповідь механічно привʼязана до неї. Прототипний startRefine.
@@ -748,7 +754,7 @@ export function Feed() {
     }
   }
 
-  async function pickFiles(list: FileList | File[] | null, how: 'clip' | 'paste' | 'drop' = 'clip') {
+  async function pickFiles(list: FileList | File[] | null, how: 'clip' | 'paste' = 'clip') {
     if (!list || !('length' in list) || !list.length) return;
     if (pending.length + list.length > MAX_ATTACHMENTS) {
       setToast({ id: Date.now(), kind: 'warn', text: `Максимум ${MAX_ATTACHMENTS} вкладень за раз` });
@@ -768,6 +774,31 @@ export function Feed() {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  }
+
+  // №24a (Prototype: drop → одразу картка чека в стрічці + панель). Кинуті
+  // файли не стають чіпами: вивантажуються й ідуть у розмову своїм ходом, без
+  // тексту. Чернетка й чіпи зі скріпки лишаються на місці.
+  async function dropFiles(files: File[]) {
+    if (!files.length) return;
+    if (files.length > MAX_ATTACHMENTS) {
+      setToast({ id: Date.now(), kind: 'warn', text: `Максимум ${MAX_ATTACHMENTS} вкладень за раз` });
+      return;
+    }
+    setUploading(true);
+    const uploaded: TurnAttachment[] = [];
+    try {
+      for (const file of files) {
+        const rec = await api.attachments.upload(file);
+        uploaded.push({ id: rec.id, kind: rec.kind, name: rec.name });
+        track('attachment_added', { kind: rec.kind, how: 'drop' });
+      }
+    } catch (err) {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    } finally {
+      setUploading(false);
+    }
+    if (uploaded.length) await submit('', uploaded);
   }
 
   // Моушн-2 №2: видалення чіпа — колапс 250ms exit, потім геть з DOM.
@@ -903,6 +934,15 @@ export function Feed() {
     setPending([]);
     // Пул-7 №2: фокус лишається в полі — наступне повідомлення без кліку.
     composerInputRef.current?.focus();
+    await submit(text, attachments);
+  }
+
+  // Хід у розмову — з форми і з drop (№24a) тим самим шляхом: черга та сама.
+  async function submit(text: string, attachments: TurnAttachment[]) {
+    if (sending && queue.length >= QUEUE_MAX) {
+      setToast({ id: Date.now(), kind: 'warn', text: 'Дай відповісти — і кидай далі' });
+      return;
+    }
 
     // Пул-9 №5: поки модель відповідає, поле не гасне — наступна думка лягає
     // в стрічку одразу і стає в чергу. Черга СУВОРО послідовна: другий хід
@@ -1708,16 +1748,10 @@ export function Feed() {
             )}
           </div>
         )}
-        {!historyOpen && drag && (
-          /* Кухня відповідає ходом, як на будь-що інше: картка стоїть у кінці
-             стрічки, над композитором, і зникає, щойно файл відпустили. */
-          <DropCard drag={drag} max={MAX_ATTACHMENTS} />
-        )}
-
       </div>
-      {/* №24 · D1: пунктирна шавлієва рамка 1.5 по стрічці, поки файл над
-          вікном — куди б не кинув, ціль одна. */}
-      {drag && <div className={styles['drop-frame']} aria-hidden data-drop-frame />}
+      {/* №24a · Prototype: один оверлей поверх стрічки, поки файл над вікном —
+          куди б не кинув, ціль одна. */}
+      {dragging && <DropOverlay />}
 
       <div className={styles['composer-wrap']}>
         {/* Етап 3 (Components · «Стани дії»): рядок стану НАД композитором —
@@ -1805,9 +1839,8 @@ export function Feed() {
             всередині фрейму справа; при наборі 🎙 морфить у ↑, 📎 лишається.
             «Обери інструмент» стало «запиши» — ввід виглядає як рядок журналу. */}
         <form
-          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''} ${drag ? styles['composer-armed'] : ''} ${drag?.long ? styles['composer-armed-long'] : ''}`}
+          className={`${styles.composer} ${listening ? styles['composer-recording'] : ''}`}
           onSubmit={send}
-          data-drag={drag ? (drag.long ? 'long' : 'over') : undefined}
         >
           <input
             ref={fileInputRef}
@@ -1818,11 +1851,22 @@ export function Feed() {
             style={{ display: 'none' }}
             onChange={(e) => pickFiles(e.target.files)}
           />
+          {/* №41 · Components A4: під час диктування «+» стає мікрофоном на
+              шавлієвій підкладці (пульс на знаку, 1.5b), меню вкладень
+              недоступне — дія зараз одна. */}
+          {listening ? (
+            <span className={styles['listen-mark']} aria-hidden data-listen-mark>
+              <Icon name="sys.voice" size={18} inherit decorative live="mic" />
+            </span>
+          ) : (
           <span className={styles['attach-wrap']}>
             <button type="button" className={`${styles['attach-plus']} ${attachOpen ? styles['attach-plus-on'] : ''}`}
               onClick={() => setAttachOpen((v) => !v)} disabled={uploading} aria-label="Додати вкладення" aria-expanded={attachOpen} data-attach-plus>
               <Icon name="sys.add" size={20} inherit decorative />
             </button>
+            {/* Prototype v3.1: меню 260 на card r14 --sh2, пункти 44 r10 зі
+                знаком muted, підказка 11 dim. Знаки 17/19 кадру — на шкалі
+                словника 16/20 (IconSize). */}
             {attachOpen && headForm !== 'narrow' && (
               <div className={styles['attach-menu']} role="menu" data-attach-menu>
                 <button type="button" role="menuitem" className={styles['attach-item']} onClick={() => pickVia('application/pdf,image/*')}>
@@ -1858,15 +1902,19 @@ export function Feed() {
               </Sheet>
             )}
           </span>
-          {/* Пул-7 №3: під час запису — таймер + жива хвиля на ЛІВОМУ краю
-              (канон моушн-кіта §04-2), стоп ■ лишається справа. */}
-          {listening && <VoiceWave />}
+          )}
+          {/* №41 · A4: замість поля — рядок диктування: хвиля від реальної
+              гучності (на всю ширину, поки нічого не почуто), почуте, таймер —
+              на одній осі 42. Поле лишається в DOM (ref, авторіст), але
+              сховане: «Слухаю…» на хвилю не накладається. */}
+          {listening && <VoiceWave heard={input} />}
           {/* Правка №8: textarea з авторостом угору, 1→8 рядків, далі скрол.
               Enter = надіслати, Shift+Enter = новий рядок. */}
           <textarea
             ref={composerInputRef}
             rows={1}
             className={styles['composer-input']}
+            hidden={listening}
             /* Етап 6a: поки поле у фокусі, нижній бар (<768) ховається (HANDOFF, ⚠6).
                №21: той, хто ставить, і знімає — і на blur, і на демонтажі
                (перехід з екрана у фокусі blur не дає). */
@@ -1896,9 +1944,7 @@ export function Feed() {
               }
             }}
             placeholder={
-              drag ? 'Відпусти — файл піде в розмову'
-                : listening ? 'Слухаю…'
-                : pending.length > 0 ? 'Що з цим?'
+              pending.length > 0 ? 'Що з цим?'
                 : headForm === 'narrow' ? 'Що зʼявилось удома?'
                 : 'Що зʼявилось удома або що готуємо?'
             }
@@ -1909,16 +1955,17 @@ export function Feed() {
           {/* №29 (рішення власника, відхилення від Screens/Prototype «mic + send
               поруч»): одне головне гніздо праворуч — поле порожнє → мікрофон;
               є текст чи вкладення → стрілка надсилання на тому ж місці;
-              диктовка — гніздо «слухаю»; поки модель думає й поле порожнє —
-              «Стоп» (Пул-9 №4). №30: підпис «⌘K» з поля знято — сама клавіша
-              (фокус у композитор з будь-якого екрана) лишається. */}
+              диктовка — «Стоп» (A4); поки модель думає й поле порожнє —
+              «Стоп» (Пул-9 №4). №42 (рішення власника, відхилення від Screens
+              «світле коло при порожньому»): гніздо ЗАВЖДИ чорнильне — одне
+              гніздо дії завжди видиме. №30: підпис «⌘K» з поля знято — сама
+              клавіша (фокус у композитор з будь-якого екрана) лишається. */}
           {(() => {
             const hasDraft = !!(input.trim() || pending.length > 0);
             if (listening) {
-              /* 1.5b: рух — на знаку (mic пульсує 1.2 с), не на контейнері. */
               return (
-                <button type="button" className={styles['mic-live']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true" data-slot="listening">
-                  <Icon name="sys.voice" size={18} inherit decorative live="mic" />
+                <button type="button" className={styles['frame-btn']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true" data-slot="listening">
+                  <Icon name="sys.stop" size={16} inherit decorative />
                 </button>
               );
             }
@@ -1939,13 +1986,13 @@ export function Feed() {
             if (sending) {
               return (
                 <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop data-slot="stop">
-                  <span className={styles['mic-stop']} />
+                  <Icon name="sys.stop" size={16} inherit decorative />
                 </button>
               );
             }
             if (speechSupported()) {
               return (
-                <button type="button" className={styles['frame-btn-ghost']} onClick={toggleVoice} aria-label="Продиктувати" data-mic data-slot="mic">
+                <button type="button" className={styles['frame-btn']} onClick={toggleVoice} aria-label="Продиктувати" data-mic data-slot="mic">
                   <Icon name="sys.voice" size={18} inherit decorative />
                 </button>
               );
