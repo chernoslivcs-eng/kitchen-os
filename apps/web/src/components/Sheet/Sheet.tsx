@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './Sheet.module.css';
 import { keepFieldInView } from '../../lib/keepFieldInView';
+import { lockBodyScroll } from '../../lib/lockBodyScroll';
 import { useSheetDrag } from '../../lib/useSheetDrag';
 import { holdBodyFlag } from '../../lib/body-flags';
 import panel from '../ArtifactPanel/ArtifactPanel.module.css';
@@ -74,12 +75,12 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
     };
     document.addEventListener('keydown', onKey);
 
-    // Заблокуємо скрол body поки модалка відкрита.
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    // Заблокуємо скрол body поки модалка відкрита — спільним лічильником з
+    // іншими шторками (lib/lockBodyScroll), не власним prev.
+    const unlock = lockBodyScroll();
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
+      unlock();
     };
   }, [close]);
 

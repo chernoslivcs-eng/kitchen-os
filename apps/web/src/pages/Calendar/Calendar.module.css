@@ -20,9 +20,10 @@
   flex-direction: column;
   overflow: hidden;
 }
-/* Нижній бар (<768) резервує 64 у body — екран не вище за решту. */
+/* fix/ios-list-scroll: екран = вʼюпорт (мінус клавіатура), бар резервує низ .list. */
+.screen { height: calc(100dvh - var(--kb, 0px)); }
 @media (max-width: 767px) {
-  .screen { height: calc(100dvh - 64px - env(safe-area-inset-bottom)); }
+  .list { padding-bottom: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ── Шапка: підрядок місяця · «Сьогодні» · «Подія» ─────────────────────── */
@@ -100,7 +101,7 @@
 /* ── Стрічка: єдина зона скролу ─────────────────────────────────────────── */
 .list {
   flex: 1; min-height: 0;
-  overflow-y: auto;
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   scroll-padding-top: 34px; /* 0912 D (№5): день не ховається під липкий місяць */
   padding: 0 8px 24px;
 }

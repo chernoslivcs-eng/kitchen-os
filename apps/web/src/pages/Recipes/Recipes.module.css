@@ -3,15 +3,19 @@
    Числа з кадру: 1440 — картка r14, 16 18, знак 44, назва 17/600, рядки 13,
    сітка 2× gap 12; 390 — картка 14 16, знак 40, назва 15/600, рядки 12,
    колона gap 10. */
+/* fix/ios-list-scroll: як у чату — екран = вʼюпорт (мінус клавіатура iOS), скролить внутрішнє тіло; на ≤767 низ тіла резервує бар. На iOS документний скрол з html/body 100% не догортував список до кінця. */
 .screen {
-  min-height: 100dvh;
+  height: calc(100dvh - var(--kb, 0px));
   background: var(--bg);
   display: flex;
   flex-direction: column;
 }
 .body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0 16px 20px;
   display: flex;
   flex-direction: column;
@@ -249,3 +253,4 @@
 }
 /* 0912 C: поле на всю висоту рядка — ціль дотику = рядок, візуал той самий (тло прозоре). */
 .search input { align-self: stretch; }
+@media (max-width: 767px) { .body { padding-bottom: calc(20px + 64px + env(safe-area-inset-bottom, 0px)); } }

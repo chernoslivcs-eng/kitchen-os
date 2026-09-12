@@ -1,8 +1,9 @@
 /* Екран рецепта — крок 4 things-v3, Screens «Рецепт · 1440» / «Рецепт · 390».
    Шапка пігулками 36 на card + тінь; тіло — сітка minmax(0,1fr) 400, gap 24;
    картки r14 на card + тінь; на 390 — одна колонка, «Готуємо» липка знизу. */
+/* fix/ios-list-scroll: як у чату — екран = вʼюпорт (мінус клавіатура iOS), скролить внутрішнє тіло; на ≤767 низ тіла резервує бар. На iOS документний скрол з html/body 100% не догортував список до кінця. */
 .screen {
-  min-height: 100dvh;
+  height: calc(100dvh - var(--kb, 0px));
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -31,6 +32,10 @@
 
 .body {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 400px;
   gap: 24px;
@@ -126,7 +131,7 @@
   .head { padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 0; gap: 8px; }
   .pill { width: 38px; padding: 0; justify-content: center; }
   .pill-text { display: none; }
-  .body { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 16px 16px 0; }
+  .body { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 16px 16px calc(64px + env(safe-area-inset-bottom, 0px)); }
   .main, .aside { display: contents; }
   .lead { order: 1; gap: 8px; }
   .card-ing { order: 2; padding: 4px 16px 2px; }

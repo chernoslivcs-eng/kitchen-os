@@ -473,8 +473,10 @@
   .bar { display: flex; align-items: flex-start; justify-content: space-around; }
   :global(body.composer-focused) .bar,
   :global(body.sheet-open) .bar { transform: translateY(110%); }
-  /* Контент не ховається під бар. */
-  :global(body.with-sidebar) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  /* fix/ios-list-scroll: відступ body під бар знято — кожен екран каркаса
+     скролить усередині (.screen = вʼюпорт) і резервує бар сам; з відступом
+     документ мав зайві 64 px скролу, а на iOS з html/body 100% список не
+     догортувався до кінця. */
 }
 .bar-tab {
   flex: 1 1 0;

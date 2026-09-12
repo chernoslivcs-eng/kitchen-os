@@ -16,6 +16,8 @@
 // --slow prefix=MS  затримати відповідь за префіксом (стан «думаю»)
 // --patch-json path=json  злити поля у справжню відповідь GET
 // --scale — те саме, що в side-by-side.mjs (див. там)
+// --engine webkit  той самий прогін у WebKit
+// --actions scroll:bottom|top  догорнути документ і внутрішні скролери
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --click-after / --actions-after  те саме, але лише на половині «стало»
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
@@ -35,7 +37,7 @@
 // Сесія кешується на origin (out/.ba-state-<port>.json): magic-link має
 // ліміт 5 на 15 хв.
 
-import { chromium } from '@playwright/test';
+import { chromium, webkit } from '@playwright/test';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync, rmSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 
@@ -67,7 +69,9 @@ const lumOf = (rgb) => {
   return 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]);
 };
 
-const browser = await chromium.launch({
+// --engine webkit — той самий прогін у WebKit (двигун Safari; iOS-поведінку не імітує, лише рушій розкладки).
+const ENGINE = arg('engine', 'chromium');
+const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch({
   args: has('fake-media') ? ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] : [],
 });
 const FAKE_SPEECH = arg('fake-speech', null);
@@ -83,6 +87,8 @@ async function runActions(page, spec) {
     else if (op === 'press') await page.keyboard.press(v);
     else if (op === 'type') await page.keyboard.type(v, { delay: 40 });
     else if (op === 'focus') await page.focus(v);
+    // scroll:bottom — догорнути до кінця і документ, і всі внутрішні скролери (схема «екран = вʼюпорт»).
+    else if (op === 'scroll') await page.evaluate((where) => { const go = (el) => { el.scrollTop = where === 'top' ? 0 : el.scrollHeight; }; go(document.scrollingElement); for (const el of document.querySelectorAll('*')) { const cs = getComputedStyle(el); if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) go(el); } }, v);
     else if (op === 'downat') { const [x, y] = v.split(',').map(Number); await page.mouse.move(x, y); await page.mouse.down(); }
     else if (op === 'down') { const bb = await (await page.waitForSelector(v)).boundingBox(); await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); }
     else if (op === 'drag') { const [dx, dy] = v.split(',').map(Number); await page.mouse.move(dx, dy, { steps: 8 }); }
@@ -220,7 +226,9 @@ async function shoot(base, theme, side) {
       await route.fulfill({ response: res, json: body });
     });
   }
-  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
+  // Із збереженою сесією одразу йдемо на --path: у WebKit goto на «/» ще редіректить на /app, коли
+  // стартує наступний goto, і той падає «interrupted by another navigation».
+  if (!haveState) await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
   if (EMAIL && !haveState && !has('no-login')) {
     await page.request.post(`${base}/v1/auth/request`, { data: { email: EMAIL } });
     await page.waitForTimeout(600);

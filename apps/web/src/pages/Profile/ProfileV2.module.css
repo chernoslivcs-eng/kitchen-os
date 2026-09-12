@@ -17,12 +17,15 @@
    обране — кільце 1.5 ink; «Лишаюсь» 50 r12 ink 15/600, «Видалити
    назавжди» 50 · 0 16 · r12 · контур danger 14/600. */
 
-.screen { min-height: 100dvh; background: var(--bg); display: flex; flex-direction: column; }
+/* fix/ios-list-scroll: як у чату — екран = вʼюпорт (мінус клавіатура iOS), скролить внутрішнє тіло; на ≤767 низ тіла резервує бар. На iOS документний скрол з html/body 100% не догортував список до кінця. */
+.screen { height: calc(100dvh - var(--kb, 0px)); background: var(--bg); display: flex; flex-direction: column; }
 .main {
-  display: grid; grid-template-columns: minmax(0, 1fr);
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  display: grid; grid-template-columns: minmax(0, 1fr); align-content: start;
   gap: 16px;
   padding: 0 16px 40px;
 }
+@media (max-width: 767px) { .main { padding-bottom: calc(40px + 64px + env(safe-area-inset-bottom, 0px)); } }
 /* №16: дві колонки від ~1100 (як D4 і aside Prototype): ліворуч речення й
    нотатки, праворуч один стовпчик Підказка → Дім → Мережі → Акаунт; нижче —
    одна колонка в природному порядку: речення · підказка · Дім · Акаунт ·

@@ -2,15 +2,19 @@
    картка «За тиждень» 12/16 r12, групи днів (підпис 13/500 muted + картка
    r14 padding 0 16), рядок 64 з волосиною: коло 40 · назва 15/600 · мета 12
    muted · вердикт курсивом · «Знову» контурною пігулкою 34. */
+/* fix/ios-list-scroll: як у чату — екран = вʼюпорт (мінус клавіатура iOS), скролить внутрішнє тіло; на ≤767 низ тіла резервує бар. На iOS документний скрол з html/body 100% не догортував список до кінця. */
 .screen {
-  min-height: 100dvh;
+  height: calc(100dvh - var(--kb, 0px));
   background: var(--bg);
   display: flex;
   flex-direction: column;
 }
 .body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0 16px 24px;
   display: flex;
   flex-direction: column;
@@ -72,3 +76,4 @@
   .again { width: 34px; padding: 0; justify-content: center; }
   .again-text { display: none; }
 }
+@media (max-width: 767px) { .body { padding-bottom: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); } }
