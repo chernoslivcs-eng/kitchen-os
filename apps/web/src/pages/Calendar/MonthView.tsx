@@ -8,13 +8,12 @@
 import type { EventOccurrence } from '../../api';
 import { Icon } from '../../components/Icon/Icon';
 import { toneKey } from '../../lib/tone';
-import { weekSpans, VISIBLE_LIMIT, moreLabel } from '../../lib/spans';
+import { weekSpans, VISIBLE_LIMIT, moreLabel, capLasting, tailLabel } from '../../lib/spans';
 import { buildTimeline, dayStart, DAY, type TimelineWeek } from './days';
 import { pointIcon } from './legend';
 import styles from './Calendar.module.css';
 
 const DOW = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'нд'];
-const MONTH_BARS = 4;
 
 /** Понеділок першого тижня місяця й кількість тижнів, що покривають місяць (5–6). */
 export function monthWeeks(month: number): { from: number; weeks: number } {
@@ -38,9 +37,11 @@ interface Props {
   selecting: boolean;
   evMotion: (id: string) => string;
   todayRef?: React.Ref<HTMLDivElement>;
+  /** Хвіст «ще N сезони» веде в підписки — там повний список (B4). */
+  onTail: () => void;
 }
 
-export function MonthView({ month, today, lasting, point, onOpen, beginSelect, inSel, selecting, evMotion, todayRef }: Props) {
+export function MonthView({ month, today, lasting, point, onOpen, beginSelect, inSel, selecting, evMotion, todayRef, onTail }: Props) {
   const { from, weeks: n } = monthWeeks(month);
   const weeks: TimelineWeek[] = buildTimeline(point, from, n);
   const m = new Date(month).getMonth();
@@ -51,11 +52,13 @@ export function MonthView({ month, today, lasting, point, onOpen, beginSelect, i
     <div className={styles.mcard} data-month-grid>
       <div className={styles.mdow}>{DOW.map((d) => <span key={d}>{d}</span>)}</div>
       {weeks.map((w, wi) => {
-        // Смуг над датами — до чотирьох (кадр малює 2–3); решта тривалого і так
-        // є в чіпах над сіткою та в «Триває» — тут лише «+N».
+        // 12.09 (ANSWERS B4): смуг над датами — ≤ 3 за рангом (обмеження → своє →
+        // сезон: починається цього тижня → закінчується найближче); решта — рядок
+        // «ще N сезони» muted з бурштиновою крапкою, тап — у підписки.
         const all = weekSpans(lasting, w.start);
-        const spans = all.slice(0, MONTH_BARS);
-        const hiddenBars = all.length - spans.length;
+        const cap = capLasting(all.map((s) => s.event), w.start);
+        const spans = all.filter((s) => cap.shown.includes(s.event));
+        const tail = tailLabel(cap.hidden);
         return (
           <div key={w.start} className={`${styles.mweek} ${wi === weeks.length - 1 ? styles['mweek-last'] : ''}`} data-month-week={w.num}>
             {spans.length > 0 && (
@@ -67,7 +70,7 @@ export function MonthView({ month, today, lasting, point, onOpen, beginSelect, i
                     title={s.event.title} aria-label={s.event.title}
                     onClick={() => onOpen(s.event)} />
                 ))}
-                {hiddenBars > 0 && <button type="button" className={styles['mbar-more']} style={{ gridColumn: '7 / 8' }} onClick={() => onOpen(all[MONTH_BARS]!.event)}>+{hiddenBars}</button>}
+                {tail && <button type="button" className={styles['mbar-more']} style={{ gridColumn: '1 / 8' }} onClick={onTail} data-bars-tail><span className={styles['tail-dot']} aria-hidden />{tail}</button>}
               </div>
             )}
             <div className={styles.mdays}>

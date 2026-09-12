@@ -87,7 +87,8 @@
 }
 .start, .startDanger { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; }
 .start { color: var(--muted); }
-.startDanger { color: var(--danger); }
+/* 12.09 (ANSWERS A10): «не можна» — рід обмеження, plum з ban; danger лишається за прострочено/впало. */
+.startDanger { color: var(--plum); }
 @media (min-width: 1024px) { .start, .startDanger { font-size: inherit; } }
 .line { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1; }
 .edit {

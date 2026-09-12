@@ -31,6 +31,8 @@ describe('legendIcon', () => {
   it('рід → знак', () => {
     expect(legendIcon(ev({}))).toBe('live.season');
     expect(legendIcon(ev({ kind: 'tradition' }))).toBe('live.tradition');
+    // 12.09: обмеження з каталогу (піст) — moon, стан; church лишається святу без обмеження.
+    expect(legendIcon(ev({ kind: 'tradition', scope: 'catalog', force: 'restrict' }))).toBe('live.fast');
     expect(legendIcon(ev({ kind: 'supply', scope: 'household' }))).toBe('live.supply');
     expect(legendIcon(ev({ kind: 'custom', scope: 'household' }))).toBe('live.household');
     expect(legendIcon(ev({ kind: 'constraint', scope: 'household' }))).toBeNull();

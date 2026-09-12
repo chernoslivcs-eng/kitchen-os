@@ -365,7 +365,12 @@
 .mbar { height: 5px; border: 0; border-radius: 3px; padding: 0; background: var(--t); cursor: pointer; }
 .t-restrict.mbar, .t-tradition.mbar { opacity: .55; }
 .t-season.mbar { opacity: .4; }
-.mbar-more { justify-self: end; height: 12px; padding: 0 4px; border: 0; background: transparent; font-family: var(--font-body); font-size: 11px; line-height: 12px; color: var(--dim); cursor: pointer; }
+.mbar-more { justify-self: start; display: inline-flex; align-items: center; gap: 6px; height: 14px; padding: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 11px; line-height: 12px; color: var(--muted); cursor: pointer; }
+.mbar-more:hover { color: var(--ink); }
+/* Хвіст стелі (B4/B5): бурштинова крапка несе рід, слово — muted. */
+.tail-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex: none; }
+.chip-tail { --t: var(--muted); --t-bg: transparent; border: 1px solid var(--line2); }
+.chip-tail:hover { background: var(--card); }
 .mbar-approx { background: repeating-linear-gradient(90deg, var(--t) 0 6px, transparent 6px 9px); }
 .mdays { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding-top: 6px; }
 .mcell { display: flex; flex-direction: column; gap: 4px; min-width: 0; border-radius: 12px; }

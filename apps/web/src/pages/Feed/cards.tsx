@@ -207,7 +207,7 @@ function ClarifyRow({
         ) : (
           <>
             <span className={styles['rc-stepper']}>
-              <button type="button" disabled={busy} onClick={() => setValue((v) => Math.max(1, v - 1))} aria-label="Менше"><Icon name="live.nothing" size={12} inherit decorative /></button>
+              <button type="button" disabled={busy} onClick={() => setValue((v) => Math.max(1, v - 1))} aria-label="Менше"><Icon name="sys.less" size={12} inherit decorative /></button>
               <span className={styles['rc-stepper-n']}>{value}</span>
               <button type="button" disabled={busy} onClick={() => setValue((v) => v + 1)} aria-label="Більше"><Icon name="sys.add" size={12} inherit decorative /></button>
               <span className={styles['rc-stepper-u']}>{formatUnit(line.unit)}</span>

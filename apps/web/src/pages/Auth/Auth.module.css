@@ -48,12 +48,9 @@
 .resendWait { color: var(--muted); font-weight: 500; }
 .resendBtn { color: var(--sage); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
 
-/* Invite: картка дому · pad 14 20, r20; аватари 32; кнопка 56/28 ink; смуга 13 amber */
+/* Invite: картка дому · pad 14 20, r20; house у plum-колі 44 (12.09, E11 — замість аватарів, яких API не віддає); кнопка 56/28 ink; смуга 13 amber */
 .house { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-radius: 20px; background: var(--card); box-shadow: var(--sh2); text-align: left; }
-.avatars { display: flex; flex: none; }
-.avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--card); display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--card); }
-.avatar + .avatar { margin-left: -10px; }
-.avatarPlum { background: var(--plum); } .avatarAmber { background: var(--amber); } .avatarSage { background: var(--sage); }
+.houseMark { width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--plum-bg); color: var(--plum); display: grid; place-items: center; }
 .houseText { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .houseName { font-size: 16px; font-weight: 600; }
 .houseMeta { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
@@ -81,7 +78,7 @@
   .sentMail { font-size: 15px; }
   .change { padding: 0 14px; font-size: 13px; }
   .house { gap: 12px; padding: 14px 16px; border-radius: 18px; }
-  .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .houseMark { width: 40px; height: 40px; }
   .houseName { font-size: 15px; }
   .houseMeta { font-size: 12px; }
   .accept { height: 52px; border-radius: 26px; font-size: 15px; }

@@ -1,5 +1,7 @@
 # Пакет питань дизайн-чату · 12.09
 
+**Закрито 12.09.** Відповіді — `ai/project/ANSWERS-FROM-DESIGN-CHAT.md` («Пакет A–F · 12.09»); у коді — гілка `fix/design-answers-2` (DEVIATIONS-V3 Р110–Р113). §F — рішення власника, було закрите й до того.
+
 Зведено з `QUESTIONS-FOR-DESIGN-CHAT.md` §1–§25 і `PENDING_DESIGN_CHAT` у
 `apps/web/src/components/Icon/icons.ts`. Усе, що тут, — місця, де бандл мовчить
 або суперечить сам собі. Реалізація там уже зробила тимчасовий вибір (названий);

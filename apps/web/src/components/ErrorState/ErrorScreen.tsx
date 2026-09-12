@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { track, flushNow } from '../../lib/track';
+import { Logo } from '../Logo/Logo';
 import styles from './ErrorScreen.module.css';
 
 /** Рід крапки в кільці (Errors E1): danger — впав екран; amber — сервер/лінк,
@@ -35,6 +36,7 @@ export interface ErrorScreenProps {
 }
 
 const COPIED_MS = 1600;
+const DOT: Record<ErrorTone, string> = { danger: 'var(--danger)', amber: 'var(--amber)', sage: 'var(--sage)', dim: 'var(--dim)' };
 
 export function ErrorScreen({ kicker, code, tone = 'amber', h1a, h1b, body, cta, onCta, children }: ErrorScreenProps) {
   const [copied, setCopied] = useState(false);
@@ -65,8 +67,9 @@ export function ErrorScreen({ kicker, code, tone = 'amber', h1a, h1b, body, cta,
   return (
     <div className={styles.screen} data-error-screen data-error-tone={tone}>
       <div className={styles.inner}>
-        {/* Розірване кільце з логотипа, розімкнуте більше звичного; крапка несе рід. */}
-        <span className={styles.ring} aria-hidden="true"><span className={styles.ringGap} /><span className={`${styles.dot} ${styles[`dot-${tone}`]}`} /></span>
+        {/* 12.09 (ANSWERS E13): один знак — кільце логотипа з ширшим розривом
+            (90°, угорі праворуч); вузол бере колір роду. */}
+        <Logo size={64} gap={90} gapStart={-90} core={DOT[tone]} className={styles.ring} />
         <div className={styles.text}>
           <span className={styles.kicker} data-error-kicker>{kicker}</span>
           <h1 className={styles.h1}>

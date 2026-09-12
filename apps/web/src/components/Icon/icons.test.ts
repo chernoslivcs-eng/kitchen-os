@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ICONS, RESERVED, SHARED_ON_PURPOSE, PENDING_DESIGN_CHAT, type IconName } from './icons';
+import { ICONS, RESERVED, SHARED_ON_PURPOSE, OPERATORS, EXCEPTIONS, PENDING_DESIGN_CHAT, type IconName } from './icons';
 
 const entries = Object.entries(ICONS) as [IconName, (typeof ICONS)[IconName]][];
 
@@ -24,25 +24,45 @@ describe('словник знаків v3', () => {
       byGlyph.get(s.glyph)!.add(s.label);
     }
     const pendingLabels = new Set(PENDING_DESIGN_CHAT.flatMap((p) => p.meanings));
-    const clashes = [...byGlyph.values()]
+    const clashes = [...byGlyph.entries()]
+      // 12.09 (ANSWERS A): оператори — граматика, зміст несе слово поруч; у правило не входять.
+      .filter(([glyph]) => !OPERATORS.includes(glyph as (typeof OPERATORS)[number]))
+      .map(([, labels]) => labels)
       .filter((labels) => labels.size > 1)
       .map((labels) => [...labels])
       .filter((labels) => !labels.every((l) => SHARED_ON_PURPOSE.includes(l)))
+      // Записані винятки словника (refrigerator) — з причиною в icons.ts.
+      .filter((labels) => !EXCEPTIONS.some((x) => labels.every((l) => x.meanings.includes(l))))
       // Успадковане з бандла й винесене дизайн-чату — названо, не приховано.
       .filter((labels) => !labels.every((l) => pendingLabels.has(l)));
     expect(clashes, 'знак із двома значеннями').toEqual([]);
   });
 
-  it('Р21: flame — тільки «Горить»; chef-hat — тільки тип рецепта; cooking-pot — «Готуємо»', () => {
+  it('оператори — лише plus · minus · x · check · chevron · arrow (ANSWERS A11–A13)', () => {
+    // Список закритий: додати сюди знак — значить визнати його граматикою, а не значенням.
+    expect(OPERATORS.length).toBe(11);
+  });
+
+  it('виняток словника один — refrigerator: у рейці весь склад, у хедері зони — прилад', () => {
+    expect(EXCEPTIONS.map((x) => x.meanings)).toEqual([['Комора', 'Холодильник']]);
+    for (const x of EXCEPTIONS) {
+      const used = entries.filter(([, s]) => s.glyph === x.glyph).map(([, s]) => s.label).sort();
+      expect(used).toEqual([...x.meanings].sort());
+    }
+  });
+
+  it('закріплені знаки: flame «Горить» · chef-hat тип · cooking-pot «Готуємо» · alert-triangle «Прострочено» · sun «Сезон» · moon «Піст» · sun-moon «Тема» · house «Дім» · bookmark «Колись» · heart «Люблю» · trash-2 «Викинути» · equal «Нічого не змінилось»', () => {
     for (const { glyph, only } of RESERVED) {
-      const used = entries.filter(([, s]) => s.glyph === glyph).map(([, s]) => s.label);
+      // Два ключі з одним підписом (sys.home і auth.household — «Дім») — одне значення.
+      const used = [...new Set(entries.filter(([, s]) => s.glyph === glyph).map(([, s]) => s.label))];
       expect(used, `знак закріплено за «${only}»`).toEqual([only]);
     }
   });
 
-  it('колізії з бандла, що чекають дизайн-чату, справді існують — інакше список застарів', () => {
-    // Коли дизайн-чат відповість і знаки розійдуться, ця перевірка впаде —
-    // і це сигнал прибрати запис із PENDING_DESIGN_CHAT, а не залишити його.
+  it('колізій, що чекають дизайн-чату, немає: пакет A–F закрито 12.09', () => {
+    // Механізм лишається на майбутнє: нова колізія з бандла — сюди, з питанням.
+    // Поки запис є, знаки мусять справді збігатись — інакше список застарів.
+    expect(PENDING_DESIGN_CHAT).toEqual([]);
     for (const p of PENDING_DESIGN_CHAT) {
       const used = entries.filter(([, s]) => s.glyph === p.glyph).map(([, s]) => s.label).sort();
       expect(used, p.question).toEqual([...p.meanings].sort());

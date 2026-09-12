@@ -6,7 +6,9 @@
 // Етап 9а (Auth.dc.html, пакет C4): сторінка лендінгу — AuthShell, дім карткою,
 // кнопка — той самий чорний піл, що «Продовжити з Google». Аватарів і
 // «3 людини · 61 позиція» з кадру немає: /v1/invites/info віддає лише пошту,
-// назву дому й роль (DEVIATIONS-V3-landing Р49). Недійсне запрошення — AuthShell з кікером danger (етап 10).
+// назву дому й роль (DEVIATIONS-V3-landing Р49). 12.09 (ANSWERS E11): на їх
+// місці — house у plum-колі 44 (той самий «дім», що в кікері), без вигаданих
+// чисел. Недійсне запрошення — AuthShell з кікером danger (етап 10).
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
@@ -74,6 +76,7 @@ export function InvitePage() {
     <AuthShell {...KICK} h1b={`Тебе запрошують у «${state.household}».`}
       sub="Після прийняття все, що є вдома, стане спільним, і саме цей акаунт буде твоїм тут." foot={FOOT}>
       <div className={styles.house}>
+        <span className={styles.houseMark} aria-hidden="true"><Icon name="auth.household" size={20} inherit decorative /></span>
         <span className={styles.houseText}>
           <span className={styles.houseName}>Дім «{state.household}»</span>
           <span className={styles.houseMeta}>для {state.email}</span>

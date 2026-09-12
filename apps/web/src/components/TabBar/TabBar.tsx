@@ -230,10 +230,10 @@ export function TabBar({ shoppingCount }: Props) {
             <Icon name={t.icon} size={18} decorative className={styles.glyph} />
             <span>{t.label}</span>
             {t.badge != null && t.badge > 0 && <span className={styles.badge}><RollingNumber value={t.badge} /></span>}
-            {/* Responsive R1: на «Коморі» в рейці — крапка danger, коли щось горить;
-                у сайдбарі й шухляді — те саме число праворуч (12/500 danger). */}
-            {t.path === '/pantry' && (pantryFacts?.soon ?? 0) > 0 && <span className={styles['tab-dot']} aria-hidden />}
-            {t.path === '/pantry' && (pantryFacts?.soon ?? 0) > 0 && <span className={styles['tab-count']}>{pantryFacts!.soon}</span>}
+            {/* Responsive R1/R2 · 12.09 (ANSWERS B8): «Комора N» = прострочено; у рейці —
+                крапка danger без числа; при нулі — нічого. «Горить N» — чіп у шапці чату. */}
+            {t.path === '/pantry' && (pantryFacts?.overdue ?? 0) > 0 && <span className={styles['tab-dot']} aria-hidden />}
+            {t.path === '/pantry' && (pantryFacts?.overdue ?? 0) > 0 && <span className={styles['tab-count']}>{pantryFacts!.overdue}</span>}
           </button>
         );
       })}

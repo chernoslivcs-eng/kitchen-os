@@ -1,23 +1,32 @@
 // Словник знаків v3. Чотири сімʼї, не три.
 //
-// Бандл (ai/project/Kitchen OS - Icons.dc.html) назвав 64 знаки в трьох
-// сімʼях: system 24 · products 20 · cooking 20. Але зони комори — четверта
-// вісь, і сімейства під неї в бандлі немає: усі шість знаків зон там позичені
-// з інших сімей, і чотири з шести конфліктують (Р21). Тому сімей тут чотири.
+// Бандл (ai/project/Kitchen OS - Icons.dc.html) назвав знаки в трьох сімʼях:
+// system · products · cooking, плюс ряд «Дії й стани» (без моушну) і ряд
+// «Зони комори» — шість позичених знаків, своєї сімʼї в зон нема (ANSWERS §1).
+// У коді зони — окрема сімʼя-вісь, щоб фільтр і хедери адресувались одним
+// ключем; знаки в ній ті самі, що в бандлі.
 //
-// Правила, які цей файл тримає (перевіряються icons.test.ts):
-//   · `flame` — ТІЛЬКИ «Горить». Не гриль, не калорії, не зона Спецій.
+// Правила, які цей файл тримає (перевіряються icons.test.ts), за
+// ai/project/ANSWERS-FROM-DESIGN-CHAT.md (§1–§13 і пакет A–F, 12.09):
+//   · `flame` — ТІЛЬКИ «Горить». Не гриль, не калорії, не зона Спецій,
+//     не «Прострочено» (це alert-triangle, danger).
 //   · `cooking-pot` — дія «Готуємо». `chef-hat` — ТІЛЬКИ тип рецепта.
-//     (У бандлі мітки стоять навпаки; правило HANDOFF старше за набір.)
 //   · Один знак не несе двох РІЗНИХ значень. Один і той самий зміст на двох
 //     осях — не конфлікт: «Напої» як категорія продукту й як зона комори це
 //     одне й те саме, тому там знак спільний навмисно.
+//   · Оператори (plus · minus · x · check · chevron · arrow) — граматика, не
+//     значення: їхній зміст несе слово поруч (OPERATORS), у правило не входять.
+//   · Єдиний записаний виняток — `refrigerator` (EXCEPTIONS): у рейці означає
+//     весь склад, у хедері зони — сам прилад.
+//   · `house` — один референт «дім» скрізь: чіп «Дім зараз», картка «Дім»
+//     у профілі, кікер «Запрошення в дім». Не виняток — одне значення.
+//   · Тема — лише `sun-moon`; `sun` = сезон, `moon` = піст.
 import {
   MessageCircle, BookOpen, BookMarked, ListChecks, Calendar, House, ShoppingCart, Receipt,
   Plus, Mic, ArrowUp, Paperclip, Search, SlidersHorizontal, ArrowUpDown, Check, X,
   Undo2, ChevronRight, ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, PanelRightClose, SunMoon, Volume2, User, Menu, ArrowLeft, Bookmark, LogIn,
-  Refrigerator, Snowflake, Archive, FlaskConical, Wine,
-  Carrot, Apple, Leaf, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
+  Refrigerator, Snowflake, Archive, Amphora, Wine,
+  Carrot, Apple, Leaf, LeafyGreen, Wheat, Egg, Milk, Beef, Drumstick, Fish, Shell, Ham, Bean,
   Nut, Cherry, Citrus, Croissant, Candy, Coffee, Droplet,
   Soup, Salad, Pizza, Sandwich, EggFried, Cake, CookingPot, Microwave, FlameKindling,
   ChefHat, Timer, Scale, Utensils, Thermometer, Users, Clock, Ban, Heart, RotateCcw, Star, ShoppingBasket, Import, ListOrdered, BookmarkCheck, Share2, Reply,
@@ -25,6 +34,8 @@ import {
   Pause, Play,
   type LucideIcon,
 } from 'lucide-react';
+// 12.09 (ANSWERS A, ряд «Дії й стани» в Icons): нові знаки — окремим рядком.
+import { ArrowRight, Equal, EyeOff, ListPlus, Lock, Lightbulb, Mail, Trash2, Ellipsis, StickyNote, CircleDashed } from 'lucide-react';
 // Лендінг (блок «landing» у кінці мапи) — окремим рядком, щоб не чіпати імпорт вище.
 import { PackageOpen, History, List, Shuffle, ChevronLeft } from 'lucide-react';
 // Sent · Invite (Auth.dc.html) — теж окремим рядком.
@@ -53,7 +64,8 @@ export const ICONS = {
   'sys.recipes':   { glyph: BookOpen,          label: 'Рецепти',       family: 'system' },
   'sys.list':      { glyph: ListChecks,        label: 'Список',        family: 'system' },
   'sys.calendar':  { glyph: Calendar,          label: 'Календар',      family: 'system' },
-  'sys.home':      { glyph: House,             label: 'Дім зараз',     family: 'system' },
+  // 12.09 (A6): house = дім як обʼєкт, одне значення з auth.household.
+  'sys.home':      { glyph: House,             label: 'Дім',           family: 'system' },
   'sys.cart':      { glyph: ShoppingCart,      label: 'Кошик',         family: 'system' },
   'sys.receipt':   { glyph: Receipt,           label: 'Чек',           family: 'system' },
   'sys.add':       { glyph: Plus,              label: 'Додати',        family: 'system' },
@@ -91,35 +103,39 @@ export const ICONS = {
   'sys.profile':   { glyph: User,              label: 'Профіль',       family: 'system' },
   'sys.menu':      { glyph: Menu,              label: 'Меню',          family: 'system' },
   'sys.back':      { glyph: ArrowLeft,         label: 'Назад',         family: 'system' },
+  // 12.09 (A9): bookmark = зберегти на потім («Колись» на пропозиції, «У рецепти»
+  // на сторінці — одна дія, слово за місцем); «сподобалось» — heart (cook.love).
   'sys.later':     { glyph: Bookmark,          label: 'Колись',        family: 'system' },
+  // 12.09 (A11, A13): оператори. `minus` у степері — «менше», `arrow-right` —
+  // «перейти» (CTA «Далі», «Увійти в Кухню», наслідок «→ у комору»).
+  'sys.less':      { glyph: Minus,             label: 'Менше',         family: 'system' },
+  'sys.go':        { glyph: ArrowRight,        label: 'Перейти',       family: 'system' },
+  // 12.09 (A15–A18): дії й стани з кадрів календаря, профілю, картки позиції.
+  'sys.hide':      { glyph: EyeOff,            label: 'Сховати',       family: 'system' },
+  'sys.toList':    { glyph: ListPlus,          label: 'У список',      family: 'system' },
+  'sys.hint':      { glyph: Lightbulb,         label: 'Підказка',      family: 'system' },
+  'sys.mail':      { glyph: Mail,              label: 'Пошта',         family: 'system' },
+  'sys.trash':     { glyph: Trash2,            label: 'Викинути',      family: 'system' },
+  'sys.more':      { glyph: Ellipsis,          label: 'Ще',            family: 'system' },
+  'sys.notes':     { glyph: StickyNote,        label: 'Нотатки',       family: 'system' },
 
   // ---- зони комори ----
-  // Знаки — ті, що бандл ставить зонам у Screens.dc.html: leaf · refrigerator ·
-  // snowflake · archive · wine. Досі тут була МОЯ «четверта сімʼя» (sprout,
-  // flask-conical…) — вибір там, де бандл не мовчав, і тому не мій. Відкат
-  // 11.09 за межею зони.
-  //
-  // Що лишилось відкритим, і кому: чи потрібна зонам окрема вісь знаків
-  // взагалі, і якщо так — які. Це питання дизайн-чату, не реалізації
-  // (QUESTIONS-FOR-DESIGN-CHAT.md). Поки воно відкрите, `leaf` несе два
-  // значення (зона «Свіже» і категорія «Зелень»), і тест це називає, а не
-  // ховає.
-  //
-  // Єдиний виняток — «Спеції». Бандл ставить туди `flame`, а правило HANDOFF
-  // «flame — тільки Горить» старше за набір (рішення Р21: «Спеції → новий
-  // знак»). Знак ще не обраний; `flask-conical` тут — заглушка до відповіді
-  // дизайн-чату, і саме так підписана.
+  // Знаки — ті, що бандл ставить зонам (Screens, Icons «Зони комори»): leaf ·
+  // refrigerator · snowflake · archive · amphora · wine. Своєї сімʼї в зон
+  // нема (ANSWERS §1): зона на екрані ніколи не стоїть без назви в чорнильному
+  // хедері. Колізії розведено: Зелень → leafy-green, Спеції → amphora
+  // (flame — тільки «Горить»), refrigerator — записаний виняток (EXCEPTIONS).
   'zone.fresh':    { glyph: Leaf,          label: 'Свіже',       family: 'zones' },
   'zone.fridge':   { glyph: Refrigerator,  label: 'Холодильник', family: 'zones' },
   'zone.freezer':  { glyph: Snowflake,     label: 'Морозилка',   family: 'zones' },
   'zone.dry':      { glyph: Archive,       label: 'Суха шафа',   family: 'zones' },
-  'zone.spices':   { glyph: FlaskConical,  label: 'Спеції',      family: 'zones' }, // ЗАГЛУШКА — див. вище
+  'zone.spices':   { glyph: Amphora,       label: 'Спеції',      family: 'zones' },
   'zone.drinks':   { glyph: Wine,          label: 'Напої',       family: 'zones' },
 
   // ---- продукти: категорії каталогу ----
   'prod.veg':      { glyph: Carrot,    label: 'Овочі',          family: 'products' },
   'prod.fruit':    { glyph: Apple,     label: 'Фрукти',         family: 'products' },
-  'prod.greens':   { glyph: Leaf,      label: 'Зелень',         family: 'products' },
+  'prod.greens':   { glyph: LeafyGreen, label: 'Зелень',        family: 'products' },
   'prod.grain':    { glyph: Wheat,     label: 'Крупи, борошно', family: 'products' },
   'prod.egg':      { glyph: Egg,       label: 'Яйця',           family: 'products' },
   'prod.dairy':    { glyph: Milk,      label: 'Молочне',        family: 'products' },
@@ -154,14 +170,15 @@ export const ICONS = {
   'cook.scale':    { glyph: Scale,         label: 'Ваги',          family: 'cooking' },
   'cook.serve':    { glyph: Utensils,      label: 'Подача',        family: 'cooking' },
   'cook.temp':     { glyph: Thermometer,   label: 'Температура',   family: 'cooking' },
-  'cook.portions': { glyph: Users,         label: 'Порції',        family: 'cooking' },
+  // 12.09 (§6): «2 порції» — без знака, слово несе зміст; users лишається за
+  // подією дому (live.household).
   'cook.time':     { glyph: Clock,         label: 'Час',           family: 'cooking' },
   'cook.ban':      { glyph: Ban,           label: 'Не можна',      family: 'cooking' },
   'cook.love':     { glyph: Heart,         label: 'Люблю',         family: 'cooking' },
   // Бібліотека рецептів (Screens D5): «готував 2 рази» і «Знову» в журналі —
   // rotate-ccw, один зміст «повторно»; «бракує: …» — кошик-basket (не cart:
-  // cart — кошик мережі). «використає: …» іде під flame: рядок називає те,
-  // що горить, — той самий зміст, не другий.
+  // cart — кошик мережі). «використає: …» — словом, без знака (§7): знак
+  // конкурував би з чіпом «Горить».
   'cook.done':     { glyph: RotateCcw,     label: 'Готував, знову',family: 'cooking' },
   'cook.missing':  { glyph: ShoppingBasket,label: 'Бракує',        family: 'cooking' },
   'sys.import':    { glyph: Import,        label: 'Записати свій', family: 'system' },
@@ -176,23 +193,31 @@ export const ICONS = {
   // ---- живі стани й тривога ----
   'live.burning':  { glyph: Flame,         label: 'Горить',        family: 'live' },
   'live.thinking': { glyph: Sparkles,      label: 'Думаю',         family: 'live' },
+  // 12.09 (A10): alert-triangle — лише danger: «Прострочено N», плашка строку
+  // на danger-підкладці, «відповідь не прийшла». «Не можна» / алерген — ban plum.
   'live.overdue':  { glyph: TriangleAlert, label: 'Прострочено',   family: 'live' },
   // Роди періодів — як у бандлі (Components A2 кікер, Screens D3 чіпи):
   // сезон — sun / бурштин, традиція — church / слива, завіз — truck / шавлія,
   // подія дому — users / шавлія. Рамка дня — без знака (muted).
   'live.season':   { glyph: Sun,           label: 'Сезон',         family: 'live' },
-  'live.tradition':{ glyph: Church,        label: 'Свято, піст',   family: 'live' },
+  // 12.09: church — свято й кікер «з традиції» (джерело); стан обмеження — moon (live.fast).
+  'live.tradition':{ glyph: Church,        label: 'Свято',         family: 'live' },
   'live.supply':   { glyph: Truck,         label: 'Завіз',         family: 'live' },
   'live.household':{ glyph: Users,         label: 'Подія дому',    family: 'live' },
   'live.byHand':   { glyph: Pencil,        label: 'Рукою',         family: 'live' },
+  // 12.09 (§1): походження «домислено» — circle-dashed: «межа є, але не точна».
+  'live.inferred': { glyph: CircleDashed,  label: 'Домислено',     family: 'live' },
+  // 12.09 (A15): «обмежую» в картці посту — lock (plum); ban — «не можна».
+  'live.restrict': { glyph: Lock,          label: 'Обмежую',       family: 'live' },
   // 6b-5: суворий період у шапці чату (Screens «Чат · збірка»: moon «Піст · до 27 вер»).
   'live.fast':     { glyph: Moon,          label: 'Піст',          family: 'live' },
   // Стани дії — рядок над композитором (Components · «Стани дії»). Знаки з
-  // бандла, як намальовано: ліміт — пісочний годинник, мережа — wifi-off,
-  // «нічого не змінилось» — мінус. «Стоп» — квадрат, знак зупинки.
+  // бандла: ліміт (і денний ліміт, E19 — стану в коді нема) — пісочний
+  // годинник, мережа — wifi-off, «нічого не змінилось» — equal (12.09, A11:
+  // «=» і є «нічого не змінилось»; minus — оператор степера). «Стоп» — квадрат.
   'live.limit':    { glyph: Hourglass,     label: 'Ліміт',         family: 'live' },
   'live.offline':  { glyph: WifiOff,       label: 'Немає звʼязку', family: 'live' },
-  'live.nothing':  { glyph: Minus,         label: 'Нічого не змінилось', family: 'live' },
+  'live.nothing':  { glyph: Equal,         label: 'Нічого не змінилось', family: 'live' },
   'sys.stop':      { glyph: Square,        label: 'Стоп',          family: 'system' },
   'sys.retry':     { glyph: RotateCw,      label: 'Повторити',     family: 'system' },
   // Джерело події «з каталогу» в «Дім зараз» — book-marked, як у бандлі (Components).
@@ -212,33 +237,61 @@ export const ICONS = {
   'landing.toPanel':  { glyph: ChevronLeft, label: 'У панель',          family: 'system' },
 
   // ---- вхід між листом і продуктом (Auth.dc.html: Перевір пошту · Запрошення) ----
-  // house на кікері «Запрошення в дім» — бандл ставить той самий знак, що на
-  // «Дім зараз»: колізія з бандла, у PENDING_DESIGN_CHAT (QUESTIONS-landing.md §16 (додаток)).
+  // house на кікері «Запрошення в дім» — той самий «Дім», що в sys.home (A6).
   'auth.sent':      { glyph: Send,       label: 'Лінк летить',    family: 'system' },
   'auth.delivered': { glyph: MailCheck,  label: 'Лист надіслано', family: 'system' },
   'auth.household': { glyph: House,      label: 'Дім',            family: 'system' },
   'auth.otherUser': { glyph: UserRoundX, label: 'Інший акаунт',   family: 'system' },
   // ── Cook Mode + /share (feat/cook-share-v3, окремий блок у кінці) ──────────
-  // Prototype «COOK MODE», Cook and Share «Cook · 768/390»: пауза/старт таймера
-  // і перемикач теми sun/moon у шапці. Sun і Moon у словнику вже несуть
-  // «Сезон» і «Піст» — колізія з бандла, до дизайн-чату (PENDING_DESIGN_CHAT).
+  // Prototype «COOK MODE», Cook and Share «Cook · 768/390»: пауза/старт таймера.
+  // Перемикач теми — один тогл sys.theme (sun-moon), 12.09 (A7): sun і moon
+  // лишаються за сезоном і постом.
   'cook.pause':    { glyph: Pause,         label: 'Пауза',         family: 'cooking' },
   'cook.play':     { glyph: Play,          label: 'Старт',         family: 'cooking' },
-  'cook.themeLight':{ glyph: Sun,           label: 'Світла тема',   family: 'cooking' },
-  'cook.themeDark': { glyph: Moon,          label: 'Темна тема',    family: 'cooking' },
 } as const satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;
 
-/** Знаки, за якими правило закріплює РІВНО одне значення (HANDOFF). */
+/** Знаки, за якими правило закріплює РІВНО одне значення (HANDOFF; ANSWERS A, 12.09). */
 export const RESERVED: { glyph: LucideIcon; only: string }[] = [
   { glyph: Flame, only: 'Горить' },
   { glyph: ChefHat, only: 'Тип рецепта' },
   { glyph: CookingPot, only: 'Готуємо' },
+  { glyph: TriangleAlert, only: 'Прострочено' },
+  { glyph: Sun, only: 'Сезон' },
+  { glyph: Moon, only: 'Піст' },
+  { glyph: SunMoon, only: 'Тема' },
+  { glyph: House, only: 'Дім' },
+  { glyph: Bookmark, only: 'Колись' },
+  { glyph: Heart, only: 'Люблю' },
+  { glyph: Trash2, only: 'Викинути' },
+  { glyph: Equal, only: 'Нічого не змінилось' },
 ];
 
 /** Один зміст на двох осях — не конфлікт. Тут перелічено навмисні збіги. */
 export const SHARED_ON_PURPOSE = ['Напої', 'Морозилка'];
+
+/**
+ * Оператори — граматика, не значення (ANSWERS A11–A13, 12.09): зміст несе
+ * слово поруч, тому «Менше» в степері й «Закрити» на панелі не рахуються
+ * за колізію з чим завгодно. Список закритий: plus · minus · x · check ·
+ * chevron-* · arrow-*.
+ */
+export const OPERATORS: readonly LucideIcon[] = [
+  Plus, Minus, X, Check,
+  ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
+  ArrowUp, ArrowLeft, ArrowRight,
+];
+
+/**
+ * Записані винятки з правила «один знак — одне значення». Один: `refrigerator`
+ * у рейці означає весь склад («Комора»), у хедері зони — сам прилад. Рейка й
+ * хедер ніколи не в одному скануванні, а анімація дверцят — уже мова продукту
+ * (ANSWERS §1).
+ */
+export const EXCEPTIONS: { glyph: LucideIcon; meanings: string[]; why: string }[] = [
+  { glyph: Refrigerator, meanings: ['Комора', 'Холодильник'], why: 'знак приладу в рейці — весь склад, у хедері зони — сама зона' },
+];
 
 /**
  * Колізії, успадковані з бандла й винесені дизайн-чату. Це НЕ дозвіл — це
@@ -246,17 +299,7 @@ export const SHARED_ON_PURPOSE = ['Напої', 'Морозилка'];
  * запис звідси зникає, і тест знову падатиме на цьому знаку.
  */
 export const PENDING_DESIGN_CHAT: { glyph: LucideIcon; meanings: string[]; question: string }[] = [
-  { glyph: Leaf, meanings: ['Свіже', 'Зелень'], question: 'зонам потрібна окрема вісь знаків?' },
-  // Пакет 2, №25: Redesign 6c ставить chevron-left на ‹ місяця; лендінг уже має його як «У панель».
-  { glyph: ChevronLeft, meanings: ['У панель', 'Попередній'], question: 'шеврон ліворуч — один знак «назад / попередній» для лендінгу й календаря?' },
-  { glyph: Refrigerator, meanings: ['Комора', 'Холодильник'], question: 'навігаційна «Комора» і зона — один знак?' },
-  // Бандл ставить users і на «2 порції» (Redesign, Prototype, Screens D1), і на
-  // «Мама · чт – нд» / «подія дому» (Screens D3, Redesign). Один знак — два змісти.
-  { glyph: Users, meanings: ['Порції', 'Подія дому'], question: 'порції й подія дому — один знак?' },
-  // Auth.dc.html: house і на «Дім зараз» (шапка чату), і на кікері «Запрошення в дім».
-  { glyph: House, meanings: ['Дім зараз', 'Дім'], question: 'стан «Дім зараз» і дім як спільнота — один знак?' },
-  // Cook Mode ставить sun/moon перемикачем теми (Cook and Share, Prototype), а
-  // словник Icons дає їм «Сезон» і «Піст» і має окремий sun-moon «Тема».
-  { glyph: Sun, meanings: ['Сезон', 'Світла тема'], question: 'sun — сезон чи світла тема? Icons має окремий sun-moon «Тема»' },
-  { glyph: Moon, meanings: ['Піст', 'Темна тема'], question: 'moon — піст чи темна тема?' },
+  // Порожній з 12.09: §1 (leaf → leafy-green, refrigerator — виняток), §6
+  // (порції без знака), A6 (house — один референт), A7 (тема — sun-moon),
+  // A12 (chevron — оператор). Історія питань — QUESTIONS-FOR-DESIGN-CHAT.md.
 ];

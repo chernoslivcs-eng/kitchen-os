@@ -25,10 +25,13 @@ export function legendLabel(e: EventOccurrence, today: number): string {
   return dayN <= 7 ? `${t} · з ${d(e.start)} · ${until}` : `${t} · ${until}`;
 }
 
-/** Знак роду на чіпі: сезон · традиція · завіз · подія дому; рамка дня — без знака. */
+/** Знак роду на чіпі: сезон · піст (обмеження) · свято · завіз · подія дому; рамка дня — без знака.
+ *  12.09 (уточнення до A7): стан обмеження — moon (`live.fast`); church — свято
+ *  без обмеження й кікер «з традиції» (джерело), не стан. */
 export function legendIcon(e: EventOccurrence): IconName | null {
   if (e.kind === 'season' || e.kind === 'editorial') return 'live.season';
-  if (e.kind === 'tradition' || e.force === 'restrict' && e.scope === 'catalog') return 'live.tradition';
+  if (e.force === 'restrict' && e.scope === 'catalog') return 'live.fast';
+  if (e.kind === 'tradition') return 'live.tradition';
   if (e.kind === 'supply') return 'live.supply';
   if (e.kind === 'constraint') return null;
   return 'live.household';
@@ -55,7 +58,8 @@ export function pointIcon(e: EventOccurrence): { icon: IconName | null; tone: 'i
   if (e.kind === 'supply') return { icon: 'live.supply', tone: 'sage' };
   if (e.kind === 'season') return { icon: 'live.season', tone: 'amber' };
   if (e.kind === 'editorial' || e.source) return { icon: 'live.season', tone: 'amber' };
-  if (e.kind === 'tradition' || (e.force === 'restrict' && e.scope === 'catalog')) return { icon: 'live.tradition', tone: 'plum' };
+  if (e.force === 'restrict' && e.scope === 'catalog') return { icon: 'live.fast', tone: 'plum' };
+  if (e.kind === 'tradition') return { icon: 'live.tradition', tone: 'plum' };
   if (e.kind === 'constraint') return { icon: null, tone: 'muted' };
   if (e.force === 'restrict') return { icon: 'live.household', tone: 'plum' };
   return { icon: 'live.household', tone: 'ink' };

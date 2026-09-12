@@ -206,7 +206,7 @@ export function RecipePage() {
         <span className={styles['head-gap']} />
         {/* Порційник (Screens): пілюля на bg «− 2 порції +». */}
         <span className={styles.portions} role="group" aria-label="Порції">
-          <button type="button" aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}><Icon name="live.nothing" size={12} inherit decorative /></button>
+          <button type="button" aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}><Icon name="sys.less" size={12} inherit decorative /></button>
           <span className={styles['portions-n']}>{sv} {plural(sv, ['порція', 'порції', 'порцій'])}</span>
           <button type="button" aria-label="Більше порцій" disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}><Icon name="sys.add" size={12} inherit decorative /></button>
         </span>

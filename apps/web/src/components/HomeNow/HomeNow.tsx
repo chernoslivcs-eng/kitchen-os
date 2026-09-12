@@ -116,7 +116,8 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
               </div>
             ) : home.burning.length > 0 ? (
               <div className={styles.g3} data-home-burning>
-                <span className={`${styles.sq} ${home.overdue > 0 ? styles['sq-danger'] : styles['sq-amber']}`}><Icon name="live.burning" size={18} inherit decorative /></span>
+                {/* 12.09 (A10): знак іде за родом — прострочено danger/alert-triangle, горить amber/flame. */}
+                <span className={`${styles.sq} ${home.overdue > 0 ? styles['sq-danger'] : styles['sq-amber']}`}><Icon name={home.overdue > 0 ? 'live.overdue' : 'live.burning'} size={18} inherit decorative /></span>
                 <span className={styles['g3-text']}>
                   <span className={styles['g3-title']}>{home.overdue > 0 ? `Прострочено ${home.overdue}` : `Горить ${home.burning.length}`}</span>
                   <span className={styles['g3-sub']}>{home.burning.map((b) => `${b.label} ${daysShort(b.days)}`).join(' · ')}</span>
