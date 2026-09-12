@@ -114,7 +114,7 @@ export function SharedRecipePage() {
             <h1 className={`${styles.title} t-display`}>{r.t}</h1>
             <div className={styles.meta}>
               {r.tm ? <span className={styles['meta-item']}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.tm)}</span> : null}
-              {r.sv ? <span className={styles['meta-item']}><Icon name="cook.portions" size={12} inherit decorative />{r.sv} {plural(r.sv, ['порція', 'порції', 'порцій'])}</span> : null}
+              {r.sv ? <span className={styles['meta-item']}>{r.sv} {plural(r.sv, ['порція', 'порції', 'порцій'])}</span> : null}
               {kcal && <span>{kcal.replace(' · на порцію', '')}</span>}
             </div>
             {r.d && <p className={styles.desc}>{r.d}</p>}

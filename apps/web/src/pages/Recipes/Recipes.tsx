@@ -170,10 +170,11 @@ export function RecipesPage() {
                       <Icon name="cook.missing" size={12} inherit decorative />бракує: {r.missing.join(', ')}
                     </div>
                   )}
-                  {/* Чому саме зараз — те, що рецепт рятує з комори. */}
+                  {/* Чому саме зараз — те, що рецепт рятує з комори. 12.09 (§7): словом,
+                      без знака — flame конкурував би з чіпом «Горить». */}
                   {r.rescues.length > 0 && (
                     <div className={`${styles.line} ${styles['line-rescues']}`}>
-                      <Icon name="live.burning" size={12} inherit decorative />використає: {r.rescues.join(', ')}
+                      використає: {r.rescues.join(', ')}
                     </div>
                   )}
                 </div>

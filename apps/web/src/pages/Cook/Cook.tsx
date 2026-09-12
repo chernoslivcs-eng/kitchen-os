@@ -503,15 +503,14 @@ export function CookOverlay() {
     );
   };
 
+  // 12.09 (ANSWERS A7): один тогл sun-moon замість сегмента sun/moon — sun і
+  // moon у словнику лишаються за сезоном і постом. Та сама кругла кнопка,
+  // що звук; title каже, куди перемкне.
   const themeToggle = (
-    <span className={styles.theme} role="group" aria-label="Тема">
-      <button type="button" className={`${styles['theme-btn']} ${theme === 'light' ? styles['theme-on'] : ''}`} onClick={() => setTheme('light')} aria-pressed={theme === 'light'} aria-label="Світла тема">
-        <Icon name="cook.themeLight" size={16} inherit decorative />
-      </button>
-      <button type="button" className={`${styles['theme-btn']} ${theme === 'dark' ? styles['theme-on'] : ''}`} onClick={() => setTheme('dark')} aria-pressed={theme === 'dark'} aria-label="Темна тема">
-        <Icon name="cook.themeDark" size={16} inherit decorative />
-      </button>
-    </span>
+    <button type="button" className={styles.round} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      aria-label={theme === 'dark' ? 'Світла тема' : 'Темна тема'} title={theme === 'dark' ? 'Світла тема' : 'Темна тема'} data-theme-toggle={theme}>
+      <Icon name="sys.theme" size={16} inherit decorative />
+    </button>
   );
   const soundBtn = (
     <button type="button" className={`${styles.round} ${muted ? styles['round-off'] : ''}`} onClick={() => setMuted((m) => !m)} aria-pressed={!muted} aria-label={muted ? 'Увімкнути звук' : 'Вимкнути звук'} title={muted ? 'Звук вимкнено' : 'Звук'}>
@@ -592,7 +591,7 @@ export function CookOverlay() {
         <aside className={styles.route} data-route>
           <div className={styles['route-meta']}>
             {recipe.tm ? <span><Icon name="cook.time" size={12} inherit decorative />{recipe.tm} хв</span> : null}
-            {recipe.sv ? <span><Icon name="cook.portions" size={12} inherit decorative />{recipe.sv} {plural(recipe.sv, ['порція', 'порції', 'порцій'])}</span> : null}
+            {recipe.sv ? <span>{recipe.sv} {plural(recipe.sv, ['порція', 'порції', 'порцій'])}</span> : null}
             <span className={styles['route-meta-gap']} />
             <span className={styles['route-step']}>крок {stepIdx + 1} з {total}</span>
           </div>

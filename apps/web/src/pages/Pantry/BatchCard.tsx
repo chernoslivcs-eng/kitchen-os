@@ -191,7 +191,7 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
                 {UNIT_OPTIONS.map((o) => <option key={o.value ?? ''} value={o.value ?? ''}>{o.label}</option>)}
               </select>
             </label>
-            <button type="button" className={styles['card-nudge']} disabled={busy} onClick={() => nudge(-1)} aria-label="Менше" data-nudge="-"><Icon name="live.nothing" size={12} inherit decorative /></button>
+            <button type="button" className={styles['card-nudge']} disabled={busy} onClick={() => nudge(-1)} aria-label="Менше" data-nudge="-"><Icon name="sys.less" size={12} inherit decorative /></button>
             <button type="button" className={styles['card-nudge']} disabled={busy} onClick={() => nudge(1)} aria-label="Більше" data-nudge="+"><Icon name="sys.add" size={12} inherit decorative /></button>
           </div>
         </div>

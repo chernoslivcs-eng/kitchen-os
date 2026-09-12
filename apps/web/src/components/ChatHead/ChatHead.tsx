@@ -72,8 +72,8 @@ export function ChatHead(p: ChatHeadProps) {
 
       {p.home.overdue > 0 && (
         <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} onClick={p.onOverdue} data-chip-overdue>
-          {/* Живий стан: flame дихає, поки є позиції ≤ 3 дні (1.5b). */}
-          <Icon name="live.burning" size={16} inherit decorative live="flame" />
+          {/* 12.09 (ANSWERS A10): «Прострочено N» — alert-triangle, danger; flame — тільки «Горить». */}
+          <Icon name="live.overdue" size={16} inherit decorative />
           <span className={styles.long}>Прострочено </span>{p.home.overdue}
         </button>
       )}
