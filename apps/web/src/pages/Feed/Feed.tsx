@@ -43,7 +43,6 @@ import { type Turn, type TurnAttachment, attachmentKind, hhmm, newId, messageToT
 import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
-import panelStyles from '../../components/ArtifactPanel/ArtifactPanel.module.css';
 import { usePanelStore, ARTIFACT_SHEET_MAX } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
 
@@ -1277,6 +1276,9 @@ export function Feed() {
           else if (pc.session_id) void loadHistorySession(pc.session_id);
         }}
         form={headForm}
+        artifact={openArtifacts.length > 0 && shownArtifact
+          ? { kind: shownArtifact.kind, count: openArtifacts.length, open: panel.open, onOpen: () => openArtifact(shownArtifact.key) }
+          : undefined}
       />
       {homeOpen && (
         <HomeNowPanel
@@ -1716,24 +1718,8 @@ export function Feed() {
             onRefresh={() => { setCardConflict(false); void refreshCounts(); }}
           />
         )}
-        {/* Крок 5б: мобільна пігулка. На вузькому екрані панелі немає взагалі,
-            і кошик — єдина річ, що живе довше за одну прокрутку, — зникав
-            угору стрічки без дороги назад. Пігулка і є та дорога: вона
-            відкриває ту саму шторку з тими самими вкладками. */}
-        {openArtifacts.length > 0 && !panel.open && shownArtifact && (
-          <button
-            type="button"
-            className={panelStyles['rail-pill']}
-            onClick={() => openArtifact(shownArtifact.key)}
-          >
-            <span className={panelStyles['rail-pill-dot']} aria-hidden />
-            <span className={panelStyles['rail-pill-label']}>{shownArtifact.label}</span>
-            {shownArtifact.meta && <span className={panelStyles['rail-pill-meta']}>{shownArtifact.meta}</span>}
-            {openArtifacts.length > 1 && (
-              <span className={panelStyles['rail-pill-more']}>+{openArtifacts.length - 1}</span>
-            )}
-          </button>
-        )}
+        {/* Крок 5б → В4 (Р120): мобільна пілюля над композитором знята — на <704 артефакт
+            живе чіпом у шапці (ChatHead artifact), та сама дія openArtifact. */}
         {/* UX9-09: «Готування триває» жило В САМОМУ ВЕРХУ стрічки — на момент
             виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
             композитором: видиме завжди, доки готування живе. */}

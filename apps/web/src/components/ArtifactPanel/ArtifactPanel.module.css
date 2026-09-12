@@ -185,37 +185,9 @@
    живе в одному місці» лишається тим самим на всіх ширинах: у стрічці
    слід, повне подання — у шторці. Інакше на мобайлі кошик існував би
    двічі: карткою в стрічці і в шторці одночасно. */
-.rail-pill { display: none; }
+/* В4 (Р120): мобільна пілюля .rail-pill над композитором знята — артефакт на <704 живе чіпом у шапці чату (ChatHead). */
 
 @media (max-width: 1199px) {
-  /* №23: пілюля — у потоці над композитором, не absolute: раніше вона
-     лягала на останню репліку, щойно стрічка виростала до низу. */
-  .rail-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: max-content;
-    margin: 10px auto 0;
-    max-width: calc(100% - 32px);
-    padding: 9px 16px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--card);
-    box-shadow: var(--sh-a), var(--sh-b);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--ink);
-    cursor: pointer;
-  }
-  .rail-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-  .rail-pill-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .rail-pill-meta,
-  .rail-pill-more { color: var(--dim); flex: none; }
-
   /* Відкритий артефакт < 1200 — той самий <aside>, що й панель. Розмітку
      вкладок, ✕ і саму картку не дублюємо: змінюється лише геометрія. */
   .rail-open {

@@ -19,6 +19,7 @@ import { CookCountdown } from '../../lib/cook-watch';
 import { shortDate } from '../../lib/period';
 import type { CookSession } from '../../lib/cook-session';
 import type { HomeNow } from '../../store/homeNow';
+import { ARTIFACT_ICON, type ArtifactKey } from '../../pages/Feed/artifacts';
 import styles from './ChatHead.module.css';
 
 export interface ChatHeadProps {
@@ -42,6 +43,13 @@ export interface ChatHeadProps {
   onPending?: () => void;
   /** Форма за шириною контейнера стрічки (Р38): 'wide' ≥964 · 'mid' 704–963 (R2) · 'narrow' <704 (G3). */
   form: 'wide' | 'mid' | 'narrow';
+  /**
+   * В4 (власник 12.09, Р120): на <704 замість пілюлі над композитором — чіп
+   * артефакта в цьому ряду: знак роду (ARTIFACT_ICON) + число, коли їх > 1;
+   * тап — та сама дія, що була в пілюлі; поки шторка відкрита — active.
+   * Нема артефактів — нема чіпа. На 704+ чіп не показується (там панель/картка).
+   */
+  artifact?: { kind: ArtifactKey; count: number; open: boolean; onOpen: () => void };
 }
 
 export function ChatHead(p: ChatHeadProps) {
@@ -72,6 +80,15 @@ export function ChatHead(p: ChatHeadProps) {
       </button>
 
       <span className={styles.gap} />
+
+      {p.artifact && (
+        <button type="button" className={`${styles.chip} ${styles['chip-artifact']} ${p.artifact.open ? styles['chip-active'] : ''}`} data-tap
+          onClick={p.artifact.onOpen} aria-pressed={p.artifact.open}
+          aria-label={p.artifact.count > 1 ? `Артефакти · ${p.artifact.count}` : 'Артефакт'} data-chip-artifact>
+          <Icon name={ARTIFACT_ICON[p.artifact.kind]} size={16} inherit decorative />
+          {p.artifact.count > 1 && <span className={styles['artifact-n']}>{p.artifact.count}</span>}
+        </button>
+      )}
 
       {p.home.overdue > 0 && (
         <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} data-tap onClick={p.onOverdue} data-chip-overdue>
