@@ -327,3 +327,16 @@ describe('№7 · назва рядка з трійки', () => {
     expect(byLabel('салямі італійські нарізка').passport).toBe('');
   });
 });
+
+// 12.09 (ANSWERS §2): колонки зон — за шириною контейнера: одна до 1280, дві від 1280, три від 1500.
+import { zoneColumns } from './Pantry';
+describe('колонки зон за контейнером', () => {
+  it('1440 без панелі (≈1324) — дві; з панеллю (≈980) — одна; 768 — одна; 1920 — три', () => {
+    expect(zoneColumns(1324)).toBe(2);
+    expect(zoneColumns(980)).toBe(1);
+    expect(zoneColumns(1279)).toBe(1);
+    expect(zoneColumns(1280)).toBe(2);
+    expect(zoneColumns(704)).toBe(1);
+    expect(zoneColumns(1500)).toBe(3);
+  });
+});

@@ -534,16 +534,21 @@ export function PantryPage() {
 // Скільки колонок зон уміщує екран комори. Розкладка бандла — колонки з
 // чергуванням зон (не сітка рядками: картки різної висоти не тримають один
 // одного), тому кількість колонок потрібна в розмітці, а не лише в CSS.
-// Пороги — за Responsive: ≤ 1024 одна (з рейкою 60 контент 964), 1440 дві,
-// 1920 три (R0).
+// Пороги — за ANSWERS §2 / HANDOFF (12.09): за шириною КОНТЕЙНЕРА, не вікна —
+// одна до 1280, дві від 1280, три від 1500 (1920, R0). 1440 без панелі
+// (контейнер ≈ 1324) — дві; з відкритою панеллю артефакта (≈ 980) — одна:
+// три слоти рядка (безпека · походження · час) у вужчій колонці не влазять.
+export const ZONE_COLS_TWO = 1280;
+export const ZONE_COLS_THREE = 1500;
+export const zoneColumns = (w: number): number => (w >= ZONE_COLS_THREE ? 3 : w >= ZONE_COLS_TWO ? 2 : 1);
+
 function useZoneColumns(ref: { current: HTMLElement | null }): number {
   const [cols, setCols] = useState(1);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     const apply = () => {
-      const w = el.getBoundingClientRect().width;
-      setCols(w >= 1500 ? 3 : w >= 1000 ? 2 : 1);
+      setCols(zoneColumns(el.getBoundingClientRect().width));
     };
     apply();
     const ro = new ResizeObserver(apply);
