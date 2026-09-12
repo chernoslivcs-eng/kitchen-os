@@ -83,7 +83,7 @@
   overflow-y: auto;
   /* Шапка 56 + фейд 40 лежать поверх: верхній відступ дає першому ходу місце
      під градієнтом, коли стрічка прокручена до початку. */
-  padding: calc(64px + env(safe-area-inset-top, 0px)) 22px 20px;
+  padding: calc(64px + env(safe-area-inset-top, 0px)) 22px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -93,6 +93,8 @@
   width: 100%;
   max-width: 720px;
 }
+/* fix/ios-scroll-end-padding (13.09): iOS WebKit не рахує кінцевий padding скрол-контейнера у scrollable overflow — остання картка лишалась під баром, а гортати не було куди. Резерв під бар і низ скролера — реальний вміст: спейсер ::after, не padding-bottom. */
+.timeline::after { content: ''; display: block; flex: none; width: 100%; height: 20px; }
 .turn { display: flex; flex-direction: column; gap: 6px; }
 /* №3 (Prototype): розмова росте знизу, від композитора — коли ходів мало,
    вони стоять над ним, а не під шапкою. Саме margin-top: auto на першому

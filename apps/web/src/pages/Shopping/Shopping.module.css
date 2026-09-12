@@ -16,12 +16,14 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   overflow-x: hidden; overflow-anchor: none; /* fix/ios-inner-scroll-offset: скролер лише вертикальний, без якоріння */
-  padding: 0 16px 20px;
+  padding: 0 16px 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-@media (min-width: 768px) { .body { padding: 0 32px 24px; } }
+/* fix/ios-scroll-end-padding (13.09): iOS WebKit не рахує кінцевий padding скрол-контейнера у scrollable overflow — остання картка лишалась під баром, а гортати не було куди. Резерв під бар і низ скролера — реальний вміст: спейсер ::after, не padding-bottom. */
+.body::after { content: ''; display: block; flex: none; height: 20px; }
+@media (min-width: 768px) { .body { padding: 0 32px 0; } .body::after { height: 24px; } }
 
 /* ── Шапка ─────────────────────────────────────────────────────────────── */
 .meta { font-family: var(--font-body); font-size: 14px; color: var(--muted); white-space: nowrap; }
@@ -148,6 +150,6 @@
 @media (max-width: 767px) { .add input { font-size: 16px; } }
 /* 0912 C: поле на всю висоту рядка — ціль дотику = рядок, візуал той самий (тло прозоре). */
 .add input { align-self: stretch; }
-@media (max-width: 767px) { .body { padding-bottom: calc(20px + 64px + env(safe-area-inset-bottom, 0px)); } }
+@media (max-width: 767px) { .body::after { height: calc(20px + 64px + env(safe-area-inset-bottom, 0px)); } }
 /* fix/ios-inner-scroll-offset: у колонці з фіксованою висотою рейка з overflow-x: auto має min-height 0 і стискається до нуля (чіпи комори 0 px, рецептів 12 px на 390×664 — і в WebKit, і в Chromium). Діти скролера не стискаються. */
 .body > * { flex-shrink: 0; }
