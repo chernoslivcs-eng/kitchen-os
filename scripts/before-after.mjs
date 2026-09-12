@@ -12,7 +12,7 @@
 // --theme   light | dark | both (типово both — окремий файл на тему)
 // --path · --width · --height · --email · --log · --click · --init-storage ·
 // --stub-json · --stub-messages · --stub-rest · --app-sel · --full · --reduce ·
-// --stub-any prefix=STATUS  будь-який метод за префіксом шляху (POST теж) — «не записалось»
+// --stub-any prefix=STATUS[:json]  будь-який метод за префіксом шляху (POST теж) — «не записалось»; :json — тіло відповіді (401 з error unauthorized → смуга входу)
 // --slow prefix=MS  затримати відповідь за префіксом (стан «думаю»)
 // --patch-json path=json  злити поля у справжню відповідь GET
 // --scale — те саме, що в side-by-side.mjs (див. там)
@@ -197,7 +197,9 @@ async function shoot(base, theme, side) {
   if (stubAny) {
     for (const pair of stubAny.split(';')) {
       const i = pair.indexOf('='); const prefix = pair.slice(0, i).trim(); const val = pair.slice(i + 1).trim();
-      await page.route((u) => u.pathname.startsWith(prefix), (route) => val === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status: Number(val), contentType: 'application/json', body: '{"error":"stub"}' }));
+            // STATUS може мати тіло після двокрапки: 401:{"error":"unauthorized"} — коли смуга дивиться в payload.
+      const colon = val.indexOf(':'); const status = colon > 0 ? Number(val.slice(0, colon)) : Number(val); const bodyJson = colon > 0 ? val.slice(colon + 1) : null;
+      await page.route((u) => u.pathname.startsWith(prefix), (route) => val === 'abort' ? route.abort('internetdisconnected') : route.fulfill({ status, contentType: 'application/json', body: bodyJson ?? '{}' }));
     }
   }
   // --patch-json path=json — злити поля у СПРАВЖНЮ відповідь GET (замість підміни всієї).
