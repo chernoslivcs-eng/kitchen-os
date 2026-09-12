@@ -245,15 +245,24 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
     conn: RetailConnectionRow,
     fn: (provider: ReturnType<typeof makeProvider>) => Promise<T>,
   ): Promise<T> {
+    // Токен не врятувати — GET /v1/retail має показати «Увійти знову»
+    // (бурштин) тим самим шляхом, що й досі: status = expired ⇔ expires_at
+    // у минулому. Інакше стрічка діставала 401 щоразу, а профіль казав
+    // «підключено».
+    const markExpired = async () => {
+      try { await repo.upsertRetailConnection({ ...conn, expires_at: new Date(Date.now() - 1000).toISOString(), updated_at: new Date().toISOString() }); } catch { /* стан покаже наступний синк */ }
+    };
     try {
       return await fn(makeProvider(cipher.dec(conn.access_token_enc)));
     } catch (e) {
-      if (!(e instanceof RetailAuthError) || !conn.refresh_token_enc) throw e;
+      if (!(e instanceof RetailAuthError)) throw e;
+      if (!conn.refresh_token_enc) { await markExpired(); throw e; }
       let tokens: SilpoTokens;
       try {
         tokens = await refreshTokens(cipher.dec(conn.refresh_token_enc));
       } catch {
         // Мережа відкликала refresh_token — не наша справа розбиратись, чому.
+        await markExpired();
         throw new RetailAuthError();
       }
       const now = new Date();
@@ -265,7 +274,12 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
         updated_at: now.toISOString(),
       };
       await repo.upsertRetailConnection(updated);
-      return await fn(makeProvider(cipher.dec(updated.access_token_enc)));
+      try {
+        return await fn(makeProvider(cipher.dec(updated.access_token_enc)));
+      } catch (e2) {
+        if (e2 instanceof RetailAuthError) await repo.upsertRetailConnection({ ...updated, expires_at: new Date(Date.now() - 1000).toISOString() }).catch(() => {});
+        throw e2;
+      }
     }
   }
   const secure = process.env.NODE_ENV === 'production';

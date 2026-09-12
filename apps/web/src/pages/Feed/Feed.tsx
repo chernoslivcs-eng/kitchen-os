@@ -68,6 +68,9 @@ function splitPhrases(text: string): string[] {
 // два «5» в різних місцях розійшлись би за перший же перегляд.
 const MAX_ATTACHMENTS = 5;
 
+/** Тротл тихого синку чеків Сільпо — 10 хв між спробами, один на всі вкладки. */
+export const RETAIL_SYNC_KEY = 'kos_retail_sync_at';
+
 // Пул-9 №5: скільки реплік можна поставити в чергу, поки модель відповідає.
 // Три — стеля, за якою розмова перестає бути розмовою: далі кнопка відправки
 // гасне з підказкою «дай відповісти».
@@ -593,12 +596,16 @@ export function Feed() {
         if (messages.some((m) => m.card?.type === 'onboarding')) void loadProfileFields();
       } catch {/* offline: залишаємо порожню стрічку */}
       // M13: тихий синк чеків при відкритті стрічки. Не частіше ніж раз на
-      // 10 хв (sessionStorage), 409 «не підключено» — мовчазний no-op:
-      // «інформація — репліка», порожній синк не породжує жодного UI.
+      // 10 хв — у localStorage, незалежно від вкладки (у sessionStorage кожна
+      // нова вкладка синкала знову); 409 «не підключено» і 401 `retail_auth`
+      // (протух токен Сільпо) — мовчазний no-op: «інформація — репліка»,
+      // порожній синк не породжує жодного UI. Стан мережі після retail_auth
+      // ставить сервер (expires_at ← зараз), профіль «Мережі» покаже
+      // «Увійти знову» тим самим шляхом, що й раніше.
       try {
-        const last = Number(sessionStorage.getItem('kos_retail_sync_at') ?? 0);
+        const last = Number(localStorage.getItem(RETAIL_SYNC_KEY) ?? 0);
         if (Date.now() - last < 10 * 60_000) return;
-        sessionStorage.setItem('kos_retail_sync_at', String(Date.now()));
+        localStorage.setItem(RETAIL_SYNC_KEY, String(Date.now()));
         const sync = await api.retail.syncReceipts();
         if (!sync.cards.length) return;
         // Нові картки — свіжими ходами в кінець стрічки, з живим undo.
@@ -613,7 +620,7 @@ export function Feed() {
             fresh: true, justApplied: c.auto_applied,
           })),
         ]);
-      } catch {/* не підключено / мережа — стрічка живе як жила */}
+      } catch {/* не підключено / retail_auth / мережа — стрічка живе як жила */}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
