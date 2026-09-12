@@ -1570,3 +1570,33 @@ a.att-chip:hover { border-color: var(--sage); }
 /* 0912 C: хіт 44 у безіменних кнопок степерів (візуал 22 / 26 без змін). */
 .cart-stp button, .rc-stepper > button { position: relative; }
 .cart-stp button::before, .rc-stepper > button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
+
+/* ── Пакет 4 №1 (Р123) · порожня розмова (Screens «Чат · порожня розмова» 1440/390, Prototype В3) ──
+   Над композитором: h2 26/700 −.02em · пʼять чіпів 36 card+sh (знак 12 + слово) ·
+   підказка 13 dim. Блок стоїть у низу стрічки (margin-top: auto, як перший хід —
+   №3), а .composer-wrap на порожній розмові росте (flex-grow 1): разом вони
+   центруються по вертикалі. З першим ходом grow → 0 за --dur-slow (композитор
+   зʼїжджає вниз), чіпи гаснуть за --dur-fast; reduce — миттєво. */
+.empty-hero { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; padding: 0 0 8px; transition: opacity var(--dur-fast) var(--ease-standard); }
+.empty-hero-out { opacity: 0; }
+.empty-title { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); text-wrap: balance; }
+.empty-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 640px; }
+.empty-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 36px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; cursor: pointer;
+}
+.empty-chip > [data-icon] { color: var(--muted); }
+.empty-chip:hover { filter: brightness(0.97); }
+.empty-hint { margin: 0; font-family: var(--font-body); font-size: 13px; color: var(--dim); }
+.composer-wrap { transition: flex-grow var(--dur-slow) var(--ease-standard); }
+[data-chat-empty] .composer-wrap { flex-grow: 1; }
+/* Стрічка на порожній розмові не менша за свій вміст (заголовок + чіпи у 2–3 ряди на 390): інакше на 664 вона
+   ділила висоту з композитором навпіл і сама скролилась. */
+[data-chat-empty] .timeline { min-height: fit-content; padding-top: calc(100px + env(safe-area-inset-top, 0px)); } /* заголовок не заходить під шапку (56 + фейд 40), коли висоти на центрування бракує (390×664) */
+@media (prefers-reduced-motion: reduce) {
+  .empty-hero, .composer-wrap { transition: none; }
+}

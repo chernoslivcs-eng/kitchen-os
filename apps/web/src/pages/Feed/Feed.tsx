@@ -1227,7 +1227,8 @@ export function Feed() {
     const el = screenRef.current; if (!el || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(([en]) => {
       const w = en?.contentRect.width ?? 1440;
-      setHeadForm(w >= 964 ? 'wide' : w >= 704 ? 'mid' : 'narrow');
+      // Пакет 4 №3 (Р124): wide від 940 (було 964) — з панеллю на 1440 шапка лишається повною.
+      setHeadForm(w >= 940 ? 'wide' : w >= 704 ? 'mid' : 'narrow');
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -1251,11 +1252,30 @@ export function Feed() {
     setInput(text);
     window.setTimeout(() => composerInputRef.current?.focus(), 0);
   }
+  // Пакет 4 №1 (Р123), Screens «Чат · порожня розмова» / Prototype В3: поки ходів
+  // нема — заголовок, пʼять швидких чіпів і підказка над композитором, обидва
+  // по центру стрічки. З першим ходом чіпи гаснуть за --dur-fast (блок ще
+  // змонтований на цей час), композитор зʼїжджає вниз за --dur-slow (flex-grow
+  // .composer-wrap), стрічка росте від композитора (№3).
+  const emptyChat = !historyOpen && turns.length === 0 && !sending;
+  const [heroShown, setHeroShown] = useState(emptyChat);
+  const [heroOut, setHeroOut] = useState(false);
+  useEffect(() => {
+    if (emptyChat) { setHeroShown(true); setHeroOut(false); return; }
+    if (!heroShown) return;
+    const instant = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (instant) { setHeroShown(false); return; }
+    setHeroOut(true);
+    const id = window.setTimeout(() => { setHeroShown(false); setHeroOut(false); }, 160);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emptyChat]);
 
   return (
     <div
       className={styles.screen}
       ref={screenRef}
+      data-chat-empty={emptyChat || undefined}
     >
       <ChatHead
         title={historyOpen ? 'Історія' : sessionTitle}
@@ -1374,6 +1394,29 @@ export function Feed() {
             порожня стрічка над композитором (Screens «Чат»). Три входи
             (чек · фото · диктовка) живуть у «+» і в гнізді композитора. */}
 
+        {!historyOpen && heroShown && (
+          <div className={`${styles['empty-hero']} ${heroOut ? styles['empty-hero-out'] : ''}`} data-empty-hero>
+            <h2 className={styles['empty-title']}>Що готуємо — з того, що вже є?</h2>
+            <div className={styles['empty-chips']}>
+              <button type="button" className={styles['empty-chip']} data-tap onClick={() => askInComposer('Що на вечерю?')} data-empty-chip="dinner">
+                <Icon name="cook.serve" size={12} inherit decorative />Що на вечерю?
+              </button>
+              <button type="button" className={styles['empty-chip']} data-tap onClick={() => askInComposer('Що є на 20 хвилин?')} data-empty-chip="quick">
+                <Icon name="cook.timer" size={12} inherit decorative />Що є на 20 хвилин?
+              </button>
+              <button type="button" className={styles['empty-chip']} data-tap onClick={() => pickVia('image/*', 'environment')} data-empty-chip="receipt">
+                <Icon name="sys.receipt" size={12} inherit decorative />Кинь чек
+              </button>
+              <button type="button" className={styles['empty-chip']} data-tap onClick={() => pickVia('image/*')} data-empty-chip="shelf">
+                <Icon name="sys.gallery" size={12} inherit decorative />Фото полиці
+              </button>
+              <button type="button" className={styles['empty-chip']} data-tap onClick={() => navigate('/list')} data-empty-chip="list">
+                <Icon name="sys.list" size={12} inherit decorative />Список на тиждень
+              </button>
+            </div>
+            <p className={styles['empty-hint']}>Кидай чек, фото полиці або текст — розберу</p>
+          </div>
+        )}
         {!historyOpen && turns.map((t) => (
           <div key={t.id} id={`turn-${t.id}`} className={`${styles.turn} ${t.role === 'user' ? styles['turn-user'] : ''}`}>
             {/* 6b-5, Prototype: над репліками службового рядка немає — ані часу,
@@ -1611,13 +1654,18 @@ export function Feed() {
                         в комору» не чек, і вигадувати за людину, що вона
                         робила, ми не будемо. Етап 6b: слова етапу 3, форма —
                         пігулка бандла (знак · назва · підрядок · шеврон). */}
-                    {isReceiptSourced(t) ? 'Чек' : 'У комору'} · {receiptLines(t)}{' '}
-                    {plural(receiptLines(t), ['позиція', 'позиції', 'позицій'])}
+                    {/* Пакет 4 №5 (Р126), кадр «Чат · збірка»: «Чек Сільпо · 19» — магазин із
+                        джерела, число без слова «позицій». */}
+                    {isReceiptSourced(t) ? `Чек${t.card?.source?.kind === 'retail_receipt' && t.card.source.shop ? ` ${t.card.source.shop}` : ''}` : 'У комору'} · {receiptLines(t)}
                   </span>
                   {(() => {
                     const st = traceState(t.applied, t.undone, t.outcome, t.card?.ops?.length);
+                    // Підрядок за кадром: «чекає рішення · N не впевнений», N — рядки, яких каталог не впізнав (unmatched).
+                    const src = t.card?.source;
+                    const unsure = src?.kind === 'retail_receipt' ? src.unmatched.length : 0;
+                    const text = st.tone === 'pending' && src?.kind === 'retail_receipt' ? (unsure > 0 ? `чекає рішення · ${unsure} не впевнений` : 'чекає рішення') : st.text;
                     return (
-                      <span className={`${styles['trace-value']} ${st.tone === 'pending' ? styles['pending-pulse'] : ''}`} data-trace-tone={st.tone}>{st.text}</span>
+                      <span className={`${styles['trace-value']} ${st.tone === 'pending' ? styles['pending-pulse'] : ''}`} data-trace-tone={st.tone}>{text}</span>
                     );
                   })()}
                 </span>
@@ -1636,8 +1684,13 @@ export function Feed() {
                  (.prop-card / .rcard: card r16 + тінь) — обгортка .doccard
                  давала сіру рамку довкола білої картки й різала її тінь. */
               <CardShell
-                plain={t.card.type === 'onboarding' || t.card.type === 'proposal' || t.card.type === 'recipe_link'}
-                className={`${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.dismissed ? styles['doccard-off'] : ''} ${t.card.type === 'cart' || t.card.type === 'recipe_link' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}
+                /* Пакет 4 №2 (Р122): recipe_link — не plain (регресія №32 дублювала повну
+                   картку під .rcard на ≥1200), а обгортка лише з artifact-in-feed: у
+                   стрічці лишається слід-картка .rcard вище, повне подання — у панелі. */
+                plain={t.card.type === 'onboarding' || t.card.type === 'proposal'}
+                className={t.card.type === 'recipe_link'
+                  ? (styles['artifact-in-feed'] ?? '')
+                  : `${styles.doccard} ${t.justApplied ? styles['doccard-flash'] : ''} ${t.dismissed ? styles['doccard-off'] : ''} ${t.card.type === 'cart' || isIntakeArtifact(t) || (t.card.type === 'shopping' && t.applied) ? styles['artifact-in-feed'] : ''}`}
               >
               <Card
                 card={t.card}

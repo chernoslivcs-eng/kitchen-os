@@ -97,7 +97,7 @@ describe('слід у стрічці — єдине видиме предста�
     // слова етапу 3 звичайним регістром, форма — пігулка бандла зі знаком.
     expect(traceText()).toContain('Чек');
     expect(traceText()).toContain('3');
-    expect(traceText()).toContain('позиції');
+    expect(traceText()).toMatch(/Чек · \d+/) // пакет 4 №5: без слова «позицій»;
     expect(host!.querySelector(`.${styles['trace-icon']} svg`)).toBeTruthy();
     // Стрілка — обіцянка, що слід кудись веде (вкладка «Чек» у панелі).
     expect(host!.querySelector(`.${styles['trace-go']}`)).toBeTruthy();

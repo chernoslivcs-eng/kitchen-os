@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo/Logo';
+import { plural } from '../../lib/plural';
 import { api, type SessionInfo } from '../../api';
 import { dayLabel } from '../ChatHead/SessionsMenu';
 import { usePantryFacts } from '../../store/pantryFacts';
@@ -143,8 +144,9 @@ export function TabBar({ shoppingCount }: Props) {
   // Рядок профілю (Prototype nav): імʼя · «дім «Назва» · N» — дім і кількість
   // їдців із /v1/me; на 390 (R3) — «дім · N · профіль».
   const household = useAuth((s) => s.me?.household ?? null);
+  // Пакет 4 №19 (Р128, рішення власника): «дім · 3 їдці» — лічильник їдців без назви дому.
   const homeLine = household
-    ? `дім «${household.name}» · ${household.members.length}`
+    ? `дім · ${household.members.length} ${plural(household.members.length, ['їдець', 'їдці', 'їдців'])}`
     : null;
 
   // Правка №1: сесії — у сайдбарі (тільки десктоп: блок схований у мобільній

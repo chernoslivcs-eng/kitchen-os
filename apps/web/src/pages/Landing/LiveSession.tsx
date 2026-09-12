@@ -44,7 +44,7 @@ export function LiveSession({ tab }: { tab: boolean }) {
         </nav>
         <main className={styles.lsMain}>
           <header className={styles.lsHead}>
-            <span className={styles.sessionPill}>{ic('sys.open')}{LIVE.session}<span className={styles.sessionWhen}>{LIVE.when}</span></span>
+            <span className={styles.sessionPill}>{LIVE.session}<span className={styles.sessionWhen}>{LIVE.when}</span></span>
             <span className={styles.grow} />
             <span className={`${styles.chip} ${styles.chipAmber}`}>{ic('live.burning')}{LIVE.burning}</span>
             <span className={`${styles.chip} ${styles.chipSage} ${styles.kChip}`}>{ic('cook.timer')}{LIVE.cooking}<span className={styles.kTick}>{LIVE.tick}</span>{LIVE.secs}</span>
@@ -96,8 +96,8 @@ export function LiveSession({ tab }: { tab: boolean }) {
             <div className={styles.composer}>
               <span className={styles.cBtn}>{ic('sys.add', 18)}</span>
               <span className={styles.cPh}>{LIVE.composer}</span>
-              <span className={styles.cBtn}>{ic('sys.voice', 18)}</span>
-              <span className={`${styles.cBtn} ${styles.cSend}`}>{ic('sys.send', 18)}</span>
+              {/* Пакет 4 №16 (Р127): як у продукті після №22/№29 — одне чорнильне гніздо (голос), без окремого «надіслати». */}
+              <span className={`${styles.cBtn} ${styles.cSend}`}>{ic('sys.voice', 18)}</span>
             </div>
           </div>
         </main>
