@@ -20,7 +20,7 @@
 /* fix/ios-list-scroll: як у чату — екран = вʼюпорт (мінус клавіатура iOS), скролить внутрішнє тіло; на ≤767 низ тіла резервує бар. На iOS документний скрол з html/body 100% не догортував список до кінця. */
 .screen { height: calc(100dvh - var(--kb, 0px)); background: var(--bg); display: flex; flex-direction: column; }
 .main {
-  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-x: hidden; overflow-anchor: none;
   display: grid; grid-template-columns: minmax(0, 1fr); align-content: start;
   gap: 16px;
   padding: 0 16px 40px;

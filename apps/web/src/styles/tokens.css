@@ -241,6 +241,22 @@
   body.with-sidebar { padding-left: 64px; }
 }
 
+/* fix/ios-inner-scroll-offset (13.09): на iOS Safari після схеми «екран =
+   вʼюпорт» верх внутрішнього скролера зрізало (чіпи під шапкою, комора не
+   догортувалась). html/body/#root { height: 100% } — це нерухомий ICB, а
+   .screen { height: 100dvh } росте, коли Safari ховає тулбар: документ
+   отримує зайву висоту, Safari скролить його сам, і верх .body іде під шапку.
+   У каркасі застосунку (<768, є нижній бар) документу нема чого скролити:
+   html і body — рівно 100dvh, overflow hidden, без гуми. Публічні сторінки
+   (лендінг, auth) без with-sidebar лишаються документним скролом. */
+@media (max-width: 767px) {
+  html:has(body.with-sidebar), body.with-sidebar {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+}
+
 /* --- Radii + spacing ---------------------------------------------------- */
 :root {
   --r-sm:   8px;

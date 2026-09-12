@@ -14,7 +14,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden; overflow-anchor: none; /* fix/ios-inner-scroll-offset: скролер лише вертикальний, без якоріння */
   padding: 0 16px 24px;
   display: flex;
   flex-direction: column;
@@ -77,3 +77,5 @@
   .again-text { display: none; }
 }
 @media (max-width: 767px) { .body { padding-bottom: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); } }
+/* fix/ios-inner-scroll-offset: у колонці з фіксованою висотою рейка з overflow-x: auto має min-height 0 і стискається до нуля (чіпи комори 0 px, рецептів 12 px на 390×664 — і в WebKit, і в Chromium). Діти скролера не стискаються. */
+.body > * { flex-shrink: 0; }

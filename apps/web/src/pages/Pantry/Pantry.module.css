@@ -80,7 +80,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden; overflow-anchor: none; /* fix/ios-inner-scroll-offset: скролер лише вертикальний, без якоріння */
   /* Screens «Комора · збірка»: між рядами 14; поля 24/28 на 1440, 16 на 390. */
   padding: 0 22px 20px;
   display: flex;
@@ -790,7 +790,7 @@
 }
 
 @media (max-width: 767px) {
-  .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .chips { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; } /* flex: none — див. fix/ios-inner-scroll-offset */
   .chips::-webkit-scrollbar { display: none; }
   .zone-chip { height: 34px; }
   .chip-filter { display: inline-flex; }
@@ -838,3 +838,6 @@
 .search-input { align-self: stretch; }
 /* fix/ios-list-scroll: низ тіла резервує бар, body більше не має відступу. */
 @media (max-width: 767px) { .body { padding-bottom: calc(20px + 64px + env(safe-area-inset-bottom, 0px)); } }
+/* fix/ios-inner-scroll-offset: у колонці з фіксованою висотою рейка з overflow-x: auto має min-height 0 і стискається до нуля (чіпи комори 0 px, рецептів 12 px на 390×664 — і в WebKit, і в Chromium). Діти скролера не стискаються. */
+.body > * { flex-shrink: 0; }
+.rail-words { flex: none; }
