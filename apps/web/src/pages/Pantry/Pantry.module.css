@@ -181,8 +181,25 @@
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast);
 }
+/* 12.09 (ANSWERS §8): десктоп — ✕ лише при наведенні рядка (opacity, слот 44
+   постійний — ширина не стрибає), фокус клавіатурою теж показує. */
 @media (hover: hover) {
+  .row-x { opacity: 0; }
+  .row:hover .row-x, .row:focus-within .row-x, .row-x:focus-visible { opacity: 1; }
   .row-x:hover { background: var(--danger-bg); color: var(--danger); }
+  .row-x-swipe { display: none; }
+  .row-x-hover { display: inline-grid; place-items: center; }
+}
+/* Тач — ✕ постійно не показуємо: свайп рядка вліво зсуває тіло на 96 і
+   відкриває «Списати» (trash-2, danger-текст на card — danger ніколи заливкою). */
+@media (hover: none) {
+  .row { overflow: hidden; }
+  .row-main { transition: transform var(--dur-base) var(--ease-standard); touch-action: pan-y; }
+  .row-x { position: absolute; right: 0; top: 0; bottom: 0; width: 96px; height: auto; border-radius: 0; opacity: 0; pointer-events: none; color: var(--danger); font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; transition: opacity var(--dur-base); }
+  .row-x-hover { display: none; }
+  .row-x-swipe { display: inline-flex; align-items: center; gap: 6px; }
+  .row-swiped .row-main { transform: translateX(-96px); }
+  .row-swiped .row-x { opacity: 1; pointer-events: auto; }
 }
 
 /* Плашка «Списано · Повернути» — над таб-баром, зникає за 6 с. */

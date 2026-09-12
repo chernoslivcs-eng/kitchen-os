@@ -17,6 +17,7 @@ import { Icon } from '../../components/Icon/Icon';
 import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
 import { useFlipRows } from '../../lib/useFlipRows';
+import { useRowSwipe } from '../../lib/useRowSwipe';
 import { formatQty } from '../../lib/units';
 import { Toast } from '../../components/ErrorState/Toast';
 import { PANTRY_FAILED } from '../../components/ErrorState/copy';
@@ -35,6 +36,8 @@ export function PantryPage() {
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
+  // 12.09 (§8): ✕ у рядку — на десктопі при наведенні, на тачі — свайпом уліво.
+  const swipe = useRowSwipe();
   const [adding, setAdding] = useState(false);
   // 6b-5: «Ще N прострочених — у коморі, за свіжістю» з панелі «Дім зараз»
   // приходить із `state.sort` — комора відкривається вже в тому порядку.
@@ -263,9 +266,12 @@ export function PantryPage() {
     const b = r.it;
     return (
       /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
-         Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
-      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''}`} data-open={editing?.id === b.id || undefined}>
-        <button className={styles['row-main']} onClick={() => setEditing(b)}>
+         ✕ праворуч списує одним дотиком (з «Повернути» внизу). 12.09 (§8):
+         на десктопі ✕ видно при наведенні (слот 44 постійний, лише opacity),
+         на тачі — свайп рядка вліво відкриває «Списати»; у картці «Списати»
+         завжди. */
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''} ${swipe.openId === b.id ? styles['row-swiped'] : ''}`} data-open={editing?.id === b.id || undefined} data-swiped={swipe.openId === b.id || undefined}>
+        <button className={styles['row-main']} {...swipe.handlers(b.id)} onClick={() => { if (!swipe.swallowTap(b.id)) setEditing(b); }}>
           {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
           <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
             <span className={styles['name-text']} title={r.name}>{r.name}</span>
@@ -303,8 +309,11 @@ export function PantryPage() {
           className={styles['row-x']}
           aria-label={`Списати «${b.label}»`}
           title="Закінчилось? Прибрати"
-          onClick={() => void quickRemove(b)}
-        ><Icon name="sys.close" size={16} inherit /></button>
+          onClick={() => { swipe.close(); void quickRemove(b); }}
+        >
+          <span className={styles['row-x-hover']}><Icon name="sys.close" size={16} inherit decorative /></span>
+          <span className={styles['row-x-swipe']}><Icon name="sys.trash" size={16} inherit decorative />Списати</span>
+        </button>
       </div>
     );
   };
