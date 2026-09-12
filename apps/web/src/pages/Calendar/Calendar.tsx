@@ -33,7 +33,7 @@ import { toneKey } from '../../lib/tone';
 import { buildTimeline, dayStart, mondayOf, DAY, type TimelineWeek } from './days';
 import { legendLabel, legendIcon, barLabel, pointIcon } from './legend';
 import {
-  splitAxes, coversDay, edgeCaption, moreLabel, VISIBLE_LIMIT, MOBILE_RAILS, assignLanes, weekSpans,
+  splitAxes, coversDay, edgeCaption, moreLabel, VISIBLE_LIMIT, MOBILE_RAILS, assignLanes, weekSpans, capLasting, tailLabel,
 } from '../../lib/spans';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { PeriodEvent, type PeriodChange } from '../../components/PeriodArtifact/PeriodArtifact';
@@ -243,6 +243,9 @@ export function CalendarPage() {
     () => lasting.filter((e) => coversDay(e, today)).sort((a, b) => a.start - b.start),
     [lasting, today],
   );
+  const runningCap = useMemo(() => capLasting(running, mondayOf(today)), [running, today]);
+  // Хвіст стелі веде в підписки: там повний список сезонів і традицій.
+  const openTail = () => { setOpenEvent(null); setOpenSeries('seasons'); };
   const weeks = useMemo(() => buildTimeline(point, from, WEEKS), [point, from]);
   const grid = useMedia(GRID);
 
@@ -352,7 +355,11 @@ export function CalendarPage() {
 
   // ── 1440: тиждень карткою, 7 колонок (D3a) ───────────────────────────────
   const weekCard = (w: TimelineWeek, wi: number) => {
-    const spans = weekSpans(lasting, w.start);
+    // 12.09 (B4): та сама стеля три, що в сітці місяця; хвіст — «ще N сезони».
+    const allSpans = weekSpans(lasting, w.start);
+    const cap = capLasting(allSpans.map((s) => s.event), w.start);
+    const spans = allSpans.filter((s) => cap.shown.includes(s.event));
+    const tail = tailLabel(cap.hidden);
     return (
       <div key={w.start} ref={setWeekRef(w.start)} className={styles.week}>
         <div className={styles['week-cap']}>
@@ -371,6 +378,7 @@ export function CalendarPage() {
                 </button>
               </div>
             ))}
+            {tail && <button type="button" className={styles['mbar-more']} onClick={openTail} data-bars-tail><span className={styles['tail-dot']} aria-hidden />{tail}</button>}
           </div>
         )}
         <div className={styles.days}>
@@ -505,13 +513,19 @@ export function CalendarPage() {
             </button>
           </div>
           <div className={styles['c6-chips']}>
-            {running.map((e) => (
+            {/* 12.09 (ANSWERS B5): чіпів «що триває» — ≤ 3 за тим самим рангом, що смуги; хвіст — контурний «ще N», у підписки. */}
+            {runningCap.shown.map((e) => (
               <button key={`${e.scope}:${e.id}`} type="button"
                 className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
                 {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
                 {legendLabel(e, today)}
               </button>
             ))}
+            {runningCap.hidden.length > 0 && (
+              <button type="button" className={`${styles.chip} ${styles['chip-tail']}`} onClick={openTail} data-chips-tail>
+                <span className={styles['tail-dot']} aria-hidden />{tailLabel(runningCap.hidden)}
+              </button>
+            )}
             {/* Легенда — лише ті роди, що є в завантаженому діапазоні (без «чек»: даних чеків у календарі нема). */}
             {legend.length > 0 && (
               <span className={styles['c6-legend']} aria-hidden>
@@ -524,7 +538,7 @@ export function CalendarPage() {
               {loading && !events.length && <SkeletonRows rows={3} />}
               {view === 'month' && (
                 <MonthView month={month} today={today} lasting={lasting} point={point} onOpen={setOpenEvent}
-                  beginSelect={beginSelect} inSel={inSel} selecting={!!sel} evMotion={evMotion} todayRef={todayRef} />
+                  beginSelect={beginSelect} inSel={inSel} selecting={!!sel} evMotion={evMotion} todayRef={todayRef} onTail={openTail} />
               )}
               {view === 'week' && (weeks.find((w) => w.start === weekStart) ? weekCard(weeks.find((w) => w.start === weekStart)!, 0) : null)}
               {view === 'list' && (

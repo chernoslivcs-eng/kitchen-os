@@ -176,3 +176,47 @@ describe('доріжки рисок', () => {
     expect(lanes.get('свято')).toBe(3);   // за межею трьох — риски не буде
   });
 });
+
+// 12.09 (ANSWERS B4/B5): стеля ≤ 3 для смуг сезонів у тижні й чіпів у шапці —
+// за рангом «починається цього тижня → закінчується найближче» (усередині
+// сезонів; обмеження і своє стоять вище, як у rank()). Хвіст — «ще N».
+import { capLasting, tailLabel } from './spans';
+
+describe('стеля три для сезонів (B4/B5)', () => {
+  const season = (from: number, to: number, title: string) =>
+    ev(from, to, { title, scope: 'catalog', kind: 'season' });
+
+  it('до трьох — усе видно, хвоста нема', () => {
+    const { shown, hidden } = capLasting([season(0, 20, 'а'), season(1, 30, 'б')], mon);
+    expect(shown.length).toBe(2);
+    expect(hidden).toEqual([]);
+    expect(tailLabel(hidden)).toBeNull();
+  });
+
+  it('понад три: спершу ті, що починаються цього тижня, далі — що закінчуються найближче', () => {
+    const list = [
+      season(-20, 40, 'довгий'),      // почався давно, кінець далеко
+      season(-10, 3, 'кінчається'),   // почався давно, кінець цього тижня
+      season(2, 60, 'новий'),         // починається цього тижня
+      season(-30, 15, 'середній'),
+      season(4, 50, 'новий-2'),
+    ];
+    const { shown, hidden } = capLasting(list, mon);
+    expect(shown.map((e) => e.title)).toEqual(['новий-2', 'новий', 'кінчається']); // серед нових — той, що скінчиться раніше
+    expect(hidden.map((e) => e.title)).toEqual(['середній', 'довгий']);
+    expect(tailLabel(hidden)).toBe('ще 2 сезони');
+  });
+
+  it('обмеження і своя подія не ховаються за сезонами', () => {
+    const list = [season(0, 9, 'с1'), season(0, 9, 'с2'), season(0, 9, 'с3'),
+      ev(3, 5, { title: 'мама' }), ev(-5, 40, { title: 'піст', scope: 'catalog', kind: 'tradition', force: 'restrict' })];
+    const { shown, hidden } = capLasting(list, mon);
+    expect(shown.map((e) => e.title)).toEqual(['піст', 'мама', 'с1']);
+    expect(tailLabel(hidden)).toBe('ще 2 сезони');
+  });
+
+  it('хвіст без сезонів — просто «ще N»', () => {
+    expect(tailLabel([ev(0, 4, { title: 'гості' })])).toBe('ще 1');
+    expect(tailLabel([ev(0, 4, { title: 'а' }), season(0, 4, 'б')])).toBe('ще 2');
+  });
+});

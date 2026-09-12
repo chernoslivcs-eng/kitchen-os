@@ -120,6 +120,37 @@ export function weekSpans(lasting: EventOccurrence[], weekStart: number): WeekSp
   return out;
 }
 
+/**
+ * Стеля три для тривалого (12.09, ANSWERS B4/B5): у тижні — смуги, у шапці
+ * календаря — чіпи. Порядок: обмеження → своє (rank), далі сезони за
+ * «починається цього тижня → закінчується найближче». Ранг «є в коморі»
+ * (перший у відповіді) чекає на поле в контракті /v1/events — DEVIATIONS Р112.
+ */
+export const LASTING_CAP = 3;
+
+export function capLasting(lasting: EventOccurrence[], weekStart: number, cap = LASTING_CAP): { shown: EventOccurrence[]; hidden: EventOccurrence[] } {
+  const lo = dayStart(weekStart);
+  const hi = lo + 6 * DAY;
+  const startsThisWeek = (e: EventOccurrence) => { const s = dayStart(e.start); return s >= lo && s <= hi; };
+  const sorted = [...lasting].sort((a, b) =>
+    rank(a) - rank(b)
+    || Number(startsThisWeek(b)) - Number(startsThisWeek(a))
+    || dayStart(a.end) - dayStart(b.end)
+    || a.start - b.start,
+  );
+  return { shown: sorted.slice(0, cap), hidden: sorted.slice(cap) };
+}
+
+/** «ще N сезони» — muted з бурштиновою крапкою; не сезони — просто «ще N». */
+export function tailLabel(hidden: EventOccurrence[]): string | null {
+  if (!hidden.length) return null;
+  const n = hidden.length;
+  const allSeasons = hidden.every((e) => e.kind === 'season' || e.kind === 'editorial');
+  if (!allSeasons) return `ще ${n}`;
+  const word = n === 1 ? 'сезон' : n < 5 ? 'сезони' : 'сезонів';
+  return `ще ${n} ${word}`;
+}
+
 /** Чи триває подія в цей день — для риски збоку на мобільному. */
 export function coversDay(e: EventOccurrence, at: number): boolean {
   const d = dayStart(at);
