@@ -23,7 +23,7 @@
 /* fix/ios-list-scroll: екран = вʼюпорт (мінус клавіатура), бар резервує низ .list. */
 .screen { height: calc(100dvh - var(--kb, 0px)); }
 @media (max-width: 767px) {
-  .list { padding-bottom: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); }
+  .list::after { height: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ── Шапка: підрядок місяця · «Сьогодні» · «Подія» ─────────────────────── */
@@ -103,8 +103,10 @@
   flex: 1; min-height: 0;
   overflow-y: auto; overscroll-behavior: contain; overflow-x: hidden; overflow-anchor: none;
   scroll-padding-top: 34px; /* 0912 D (№5): день не ховається під липкий місяць */
-  padding: 0 8px 24px;
+  padding: 0 8px 0;
 }
+/* fix/ios-scroll-end-padding (13.09): iOS WebKit не рахує кінцевий padding скрол-контейнера у scrollable overflow — остання картка лишалась під баром, а гортати не було куди. Резерв під бар і низ скролера — реальний вміст: спейсер ::after, не padding-bottom. */
+.list::after { content: ''; display: block; height: 24px; }
 .list-grid { padding: 0 24px 24px 32px; display: flex; flex-direction: column; gap: 12px; }
 
 /* ── 1440: картка тижня ─────────────────────────────────────────────────── */

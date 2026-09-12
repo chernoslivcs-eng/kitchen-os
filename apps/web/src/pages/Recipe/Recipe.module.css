@@ -39,7 +39,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 400px;
   gap: 24px;
-  padding: 0 32px 32px;
+  padding: 0 32px 0;
   align-items: start;
 }
 .main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
@@ -122,7 +122,8 @@
 .cook-hint { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; }
 
 @media (max-width: 1023px) {
-  .body { grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; padding: 0 22px 24px; }
+  .body { grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; padding: 0 22px 0; }
+  .body::after { height: 24px; }
   .head { padding: 16px 22px 16px; }
 }
 @media (max-width: 767px) {
@@ -131,7 +132,9 @@
   .head { padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 0; gap: 8px; }
   .pill { width: 38px; padding: 0; justify-content: center; }
   .pill-text { display: none; }
-  .body { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 16px 16px calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .body { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 16px 16px 0; }
+  /* спейсер під бар — останнім і в колонці з order (fix/ios-scroll-end-padding) */
+  .body::after { order: 99; height: calc(64px + env(safe-area-inset-bottom, 0px)); }
   .main, .aside { display: contents; }
   .lead { order: 1; gap: 8px; }
   .card-ing { order: 2; padding: 4px 16px 2px; }
@@ -161,3 +164,5 @@
 /* 0912 C: хіт 44 у ± порцій (візуал 26 без змін). */
 .portions > button { position: relative; }
 .portions > button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
+/* fix/ios-scroll-end-padding (13.09): iOS WebKit не рахує кінцевий padding скрол-контейнера у scrollable overflow — остання картка лишалась під баром, а гортати не було куди. Резерв під бар і низ скролера — реальний вміст: спейсер ::after, не padding-bottom. */
+.body::after { content: ''; display: block; flex: none; grid-column: 1 / -1; height: 32px; }
