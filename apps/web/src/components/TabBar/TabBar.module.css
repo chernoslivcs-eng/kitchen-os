@@ -65,9 +65,8 @@
   place-items: center;
   border: 0;
   border-radius: 10px;
-  background: var(--card);
+  background: transparent;
   color: var(--muted);
-  box-shadow: var(--sh-a), var(--sh-b);
   cursor: pointer;
 }
 .panel-btn:hover { color: var(--ink); }
@@ -124,6 +123,9 @@
   font-variant-numeric: tabular-nums;
 }
 .tab.active .badge { background: var(--bg); color: var(--ink); }
+/* Р141: лічильник у кінці рядка сайдбара — пілюля 18 r999 чорнилом 11/600 (як бейдж #86 у .wide). */
+.tab-pill { display: grid; place-items: center; flex: none; margin-left: auto; height: 18px; min-width: 18px; padding: 0 5px; box-sizing: border-box; font-family: var(--font-body); font-size: 11px; line-height: 18px; font-weight: 600; text-align: center; background: var(--ink); color: var(--bg); border-radius: var(--r-pill); font-variant-numeric: tabular-nums; }
+.tab.active .tab-pill { background: var(--bg); color: var(--ink); }
 
 /* Одна скрольована стрічка між брендом і профілем (крок С1): цілі, «Розмови»,
    сесії. flex: 1 притискає профіль донизу; min-height: 0 — щоб overflow працював. */
@@ -282,6 +284,7 @@
 /* ── 390 (R3): у шухляді лише розмови, нова, профіль; цілі — в барі ── */
 @media (max-width: 767px) {
   .wrap .tab { display: none; }
+  .tab-pill { display: none; } /* лічильник рядка — лише рейка/сайдбар */
   .sessions-head { display: none; }
   .session-new-row { display: flex; }
   .session-day { font-size: 12px; padding: 14px 12px 6px; }
@@ -296,142 +299,161 @@
   .backdrop { display: none; }
 }
 
-/* ── Рейка (R1 1440 · R2 768): логотип 30, «панель» 38 card+sh, цілі 38 r10,
-   знак 18, активна чорнилом, аватар 30 внизу; волосина line2 праворуч
-   (рейка й сайдбар — так; шухляда поверх — ні, у неї тінь) ── */
+/* ── Рейка 60 ↔ сайдбар 256 (R1) · рейка 64 ↔ шухляда 300 (R2): ОДНА геометрія
+   на обидва стани (Р141; Motion «Сайдбар 60 ↔ 256»: ширина 400 мс, підписи
+   входять із затримкою, виходять першими, знаки не рухаються ні по x, ні по y).
+   Поле рейки 8 → внутрішній слот 44 (квадратна ціль 44×44, --tap); кожен рядок
+   (логотип, ціль, «панель», профіль) — завжди рядок з лівим полем 13 (логотип і
+   аватар 30 — 7, «панель» 38 — 3), тож центр знака стоїть на x = 30 і в рейці, і в
+   сайдбарі. Висоти й крок ті самі в обох станах: ціль 44, gap 2, «панель» 38,
+   профіль 44, логотип 30 — жодна висота не анімується, бо не міняється.
+   Підписи (назва, слова цілей, лічильник, «Розмови», імʼя · дім) завжди в DOM:
+   opacity + visibility, обрізані overflow рядка. Кнопка «панель» — свій рядок над
+   профілем в обох станах, на тому самому x/y (№13 у сайдбарі більше не в рядку
+   профілю — рішення власника 13.09; логотип і наведення №14 розгортають додатково).
+   Бейдж і крапка — на кутку знака (left/top від краю рядка), однакові в обох
+   станах. ── */
 @media (min-width: 768px) {
   .wrap {
+    --nav-label-delay: 80ms;
     position: fixed;
     top: 0; left: 0; bottom: 0;
     width: 60px;
-    padding: 16px 0;
+    padding: 16px 8px;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    align-items: stretch;
+    gap: 2px;
     box-shadow: none;
     border-right: 1px solid var(--line2);
     z-index: 5;
-    transition: width var(--dur-slow) var(--ease-standard), padding var(--dur-slow) var(--ease-standard);
+    overflow: hidden;
+    transition: width var(--dur-slow) var(--ease-standard);
   }
-  .brand { flex-direction: column; align-items: center; gap: 0; padding: 0 0 0; }
-  .brand-btn { width: 30px; height: 30px; margin-bottom: 6px; }
-  .brand-name { display: none; }
-  .foot { flex-direction: column-reverse; gap: 8px; }
-  .panel-btn { width: 38px; height: 38px; }
-  .sessions { display: none; }
-  .scroll { scrollbar-gutter: auto; }
+  /* Підписи: у рейці невидимі й не в доступності. Слова цілей, вордмарк і текст
+     профілю (власник 13.09) не проявляються прозорістю, а обрізаються по
+     символах трикрапкою — рядок росте з шириною, підпис відкривається літера за
+     літерою; лічильник, пілюля і список розмов — прозорістю. */
+  .brand-name, .tab > span:nth-child(2), .tab-count, .tab-pill, .user-text, .sessions {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast);
+  }
+  .brand-name, .tab > span:nth-child(2), .user-text {
+    opacity: 1;
+    visibility: hidden;
+    transition: visibility 0s linear var(--dur-slow);
+  }
+  .brand-name, .tab > span:nth-child(2), .tab-count, .user-name, .user-home { white-space: nowrap; }
+  .brand-name, .tab > span:nth-child(2) { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* 3. «Панель» показується лише в розгорнутому стані (власник 13.09); рядок під
+     нею лишається, тож нічого не їде. У рейці розгортає логотип і наведення (№14). */
+  .panel-btn { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast); }
+  .brand { flex-direction: row; align-items: center; gap: 10px; padding: 0 7px 14px; overflow: hidden; }
+  .brand-btn { width: 30px; height: 30px; margin: 0; flex: none; }
+  .scroll { scrollbar-gutter: auto; overflow-x: hidden; }
   .tab {
     flex: 0 0 auto;
-    width: 38px;
-    height: 38px;
-    padding: 0;
-    justify-content: center;
-    gap: 0;
+    width: auto;
+    height: 44px;
+    padding: 0 13px;
+    justify-content: flex-start;
+    gap: 12px;
+    overflow: hidden;
+    transition: background var(--dur-fast), color var(--dur-fast);
   }
-  .tab > span:nth-child(2) { display: none; }
-  .tab-dot { display: block; }
-  .tab-count { display: none; }
+  /* Знак 18 стоїть на 13/13 у рядку 44; крапка й бейдж — на його правому верхньому
+     кутку, від лівого краю рядка (не від правого — той їде з шириною). */
+  .tab-dot { display: block; top: 9px; left: 27px; right: auto; transition: opacity var(--dur-fast) var(--ease-standard); }
+  .tab-count { margin-left: auto; }
   .badge {
     position: absolute;
-    top: 5px; right: 5px;
+    top: 7px; left: 23px; right: auto;
     margin: 0;
     height: 16px;
     min-width: 16px;
     padding: 0 4px;
     line-height: 16px;
     font-size: 10px;
+    transition: opacity var(--dur-fast) var(--ease-standard);
   }
-  .user { width: 38px; min-height: 38px; padding: 0; justify-content: center; border-radius: 10px; flex: none; }
-  .user-text { display: none; }
+  .sessions { min-width: 0; overflow: hidden; }
+  /* Низ: «панель» у своєму рядку над профілем, профіль останній (column-reverse
+     лише в базі, однаково для обох станів). */
+  .foot { flex-direction: column-reverse; flex-wrap: nowrap; align-items: stretch; gap: 6px; padding-top: 12px; border-top: 1px solid transparent; overflow: hidden; transition: border-color var(--dur-base) var(--ease-standard); }
+  .foot .user { flex: none; min-width: 0; min-height: 44px; padding: 0 7px; gap: 10px; justify-content: flex-start; border-radius: 10px; overflow: hidden; transition: background var(--dur-fast); }
   .user-avatar { width: 30px; height: 30px; }
+  .panel-btn { width: 38px; height: 38px; margin: 0 0 0 3px; align-self: flex-start; }
 }
 
 /* ── Сайдбар 256 (R1 розгорнуто; вміст — Prototype nav) ──
-   16 12, gap 2; шапка 0 8 14: логотип 30 · вордмарк 17/700 · «панель» 36;
-   цілі 40 r10, 0 10, gap 12, знак 18, 14/500; «Розмови · + Нова» 18 10 6;
-   групи 11 dim; рядки 8 10 r10; профіль над волосиною: аватар 30, 13/500 + 11 dim. */
+   16 8, gap 2; шапка 0 7 14: логотип 30 · вордмарк 17/700; цілі 44 r10, 0 13,
+   gap 12, знак 18, 14/500; «Розмови · + Нова» 18 13 6; групи 11 dim; рядки
+   8 13 r10; «панель» 38 над профілем; профіль над волосиною: аватар 30, 13/500 + 11 dim. */
 @media (min-width: 1024px) {
-  .wrap.wide {
-    width: 256px;
-    padding: 16px 12px;
-    align-items: stretch;
-    gap: 2px;
-  }
+  .wrap.wide { width: 256px; }
   /* №14: оверлей із наведення — поверх контенту, з тінню шухляди; закріплений
      (body.nav-expanded) — у потоці, контент зсувається (tokens.css). */
   .wrap.peek { z-index: 30; box-shadow: var(--sh2); border-right: 0; }
-  .wide .brand { flex-direction: row; gap: 10px; padding: 0 8px 14px; }
-  .wide .brand-btn { margin-bottom: 0; }
-  .wide .brand-name { display: inline; }
-  .wide .foot { flex-direction: row; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line2); }
-  .wide .panel-btn { width: 36px; height: 36px; }
-  .wide .sessions { display: flex; }
+  .wide .brand-name, .wide .tab > span:nth-child(2), .wide .tab-count, .wide .tab-pill, .wide .user-text {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
+  }
+  .wide .brand-name, .wide .tab > span:nth-child(2), .wide .user-text { transition: visibility 0s; }
+  .wide .panel-btn { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow); }
+  /* Список розмов проявляється після ширини; при згортанні гасне першим. */
+  .wide .sessions {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow);
+  }
   .wide .scroll { scrollbar-gutter: stable; }
-  .wide .tab {
-    width: auto;
-    height: 40px;
-    padding: 0 10px;
-    justify-content: flex-start;
-    gap: 12px;
-  }
-  .wide .tab > span:nth-child(2) { display: inline; }
-  .wide .tab-dot { display: none; }
-  .wide .tab-count { display: inline; }
-  .wide .badge { position: static; margin-left: auto; height: 18px; min-width: 18px; line-height: 18px; padding: 0 5px; font-size: 11px; }
-  .wide .sessions-head { padding: 18px 10px 6px; }
-  .wide .session-day { padding-left: 10px; padding-right: 10px; }
-  .wide .session { padding: 8px 10px; }
-  .wide .session-archive { padding: 8px 10px; }
-  .wide .user {
-    width: auto;
-    min-height: 44px;
-    padding: 0 8px;
-    justify-content: flex-start;
-    border-radius: 10px;
-    flex: 1 1 0;
-  }
-  .wide .user-text { display: flex; }
-  .wide .user-avatar { width: 30px; height: 30px; }
+  .wide .tab-dot { opacity: 0; }
+  /* Бейдж на кутку знака гасне — інакше наїжджає на підпис; число — пілюлею в кінці рядка. */
+  .wide .badge { opacity: 0; }
+  .wide .sessions-head { padding: 18px 13px 6px; }
+  .wide .session-day { padding-left: 13px; padding-right: 13px; }
+  .wide .session { padding: 8px 13px; }
+  .wide .session-archive { padding: 8px 13px; }
+  .wide .foot { border-top-color: var(--line2); }
   .wide .user-name { font-size: 13px; }
   .wide .user-home { font-size: 11px; }
 }
 
-/* ── 768–1023 (R2): рейка 64 стоїть; кнопка «панель» розсуває шухляду 300 поверх ── */
+/* ── 768–1023 (R2): рейка 64 стоїть; логотип і «панель» розсувають шухляду 300 поверх ── */
 @media (min-width: 768px) and (max-width: 1023px) {
   .backdrop { display: block; }
   /* 64, як на проді (рішення власника 03.09; канвас пропонував 60). Пара до
-     body.with-sidebar { padding-left } у tokens.css — міняти разом. */
-  .wrap { width: 64px; padding: 14px 0; }
+     body.with-sidebar { padding-left } у tokens.css — міняти разом. Поле 10 →
+     той самий слот 44. */
+  .wrap { width: 64px; padding: 14px 10px; }
   .wrap.open {
     width: 300px;
-    padding: 14px 12px;
-    align-items: stretch;
-    gap: 2px;
     box-shadow: var(--sh2);
     border-right: 0;
     z-index: 30;
   }
-  .wrap.open .brand { flex-direction: row; gap: 10px; padding: 0 8px 14px; }
-  .wrap.open .brand-btn { margin-bottom: 0; }
-  .wrap.open .brand-name { display: inline; }
-  .wrap.open .foot { flex-direction: row; gap: 6px; }
-  .wrap.open .panel-btn { width: 36px; height: 36px; }
-  .wrap.open .sessions { display: flex; }
-  .wrap.open .scroll { scrollbar-gutter: stable; }
-  .wrap.open .tab {
-    width: auto;
-    height: 44px;
-    padding: 0 12px;
-    justify-content: flex-start;
-    gap: 12px;
+  .wrap.open .brand-name, .wrap.open .tab > span:nth-child(2), .wrap.open .tab-count, .wrap.open .tab-pill, .wrap.open .user-text {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
   }
-  .wrap.open .tab > span:nth-child(2) { display: inline; }
-  .wrap.open .tab-dot { display: none; }
-  .wrap.open .tab-count { display: inline; }
-  .wrap.open .badge { position: static; margin-left: auto; height: 20px; min-width: 20px; line-height: 20px; padding: 0 6px; font-size: 11px; }
-  .wrap.open .user { width: auto; min-height: 48px; padding: 0 8px; justify-content: flex-start; border-radius: 12px; flex: 1 1 0; }
-  .wrap.open .user-text { display: flex; }
-  .wrap.open .user-avatar { width: 32px; height: 32px; }
+  .wrap.open .brand-name, .wrap.open .tab > span:nth-child(2), .wrap.open .user-text { transition: visibility 0s; }
+  .wrap.open .panel-btn { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow); }
+  .wrap.open .sessions {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow);
+  }
+  .wrap.open .scroll { scrollbar-gutter: stable; }
+  .wrap.open .tab-dot { opacity: 0; }
+  /* Бейдж на кутку знака гасне — інакше наїжджає на підпис; число — пілюлею в кінці рядка. */
+  .wrap.open .badge { opacity: 0; }
+  .wrap.open .foot { border-top-color: var(--line2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap { --nav-label-delay: 0ms; }
 }
 
 /* Фокус-кільце в щільному списку сесій — всередину рядка (offset -2). */

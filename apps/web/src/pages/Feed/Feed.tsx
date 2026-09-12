@@ -23,6 +23,9 @@ import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWrit
 import { BatchCard } from '../Pantry/BatchCard';
 import { formatQty } from '../../lib/units';
 import { useAuth } from '../../store/auth';
+import { greeting } from '../../lib/greeting';
+import { homeFact } from '../../lib/homeFact';
+import { daysBetween, todayIso } from '../../lib/period';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { useDropZone } from '../../components/DropZone/useDropZone';
@@ -54,6 +57,16 @@ import { useCookStore } from '../../store/cook';
  * підложка під нею читалась як рамка в рамці. Окремий компонент, а не тернар у
  * розмітці: інакше `<Card>` довелося б дублювати двадцятьма пропами двічі.
  */
+// Порожня розмова за Prototype (Р140): підказки плейсхолдера і чотири чіпи —
+// слова рівно з renderVals (HINTS / hints).
+const EMPTY_HINTS = ['Кинь чек — розберу', 'Сфотографуй полицю', 'Скажи, що купив', 'Спитай, що на вечерю', 'Надиктуй список'];
+const EMPTY_CHIPS: { key: string; icon: 'cook.serve' | 'live.thinking' | 'sys.list' | 'sys.add'; label: string; short: string; t: string }[] = [
+  { key: 'today', icon: 'cook.serve', label: 'Що зготуємо сьогодні?', short: 'Що зготуємо?', t: 'що зготуємо сьогодні?' },
+  { key: 'exotic', icon: 'live.thinking', label: 'Хочу щось екзотичне', short: 'Екзотичне', t: 'хочу щось екзотичне' },
+  { key: 'list', icon: 'sys.list', label: 'Склади список', short: 'Список', t: 'склади список на тиждень' },
+  { key: 'bought', icon: 'sys.add', label: 'Купив…', short: 'Купив…', t: 'купив ' },
+];
+
 function CardShell({ plain, className, children }: { plain: boolean; className: string; children: ReactNode }) {
   return plain ? <>{children}</> : <div className={className}>{children}</div>;
 }
@@ -395,6 +408,8 @@ export function Feed() {
   // потрібен весь рядок комори: зона, терміни, БЖВ, походження. Другого
   // запиту для цього не робимо: /v1/pantry віддає це тим самим викликом.
   const [liveBatches, setLiveBatches] = useState<Map<string, PantryBatch>>(new Map());
+  // Р140: партія, списана сьогодні — для рядка «факт дому» на порожній розмові.
+  const [writtenOffToday, setWrittenOffToday] = useState<string | null>(null);
   const [liveProducts, setLiveProducts] = useState<HouseholdProduct[]>([]);
   useEffect(() => {
     let alive = true;
@@ -402,10 +417,13 @@ export function Feed() {
       .then((p) => {
         if (!alive) return;
         const m = new Map<string, PantryBatch>();
+        const day = todayIso();
+        let gone: string | null = null;
         for (const b of p.batches ?? []) {
-          if (b.state === 'depleted') continue;
+          if (b.state === 'depleted') { if (b.depleted_at?.startsWith(day)) gone = gone ?? b.label; continue; }
           m.set(b.id, b);
         }
+        setWrittenOffToday(gone);
         setLiveBatches(m);
         setLiveProducts(p.products ?? []);
       })
@@ -1252,30 +1270,89 @@ export function Feed() {
     setInput(text);
     window.setTimeout(() => composerInputRef.current?.focus(), 0);
   }
-  // Пакет 4 №1 (Р123), Screens «Чат · порожня розмова» / Prototype В3: поки ходів
-  // нема — заголовок, пʼять швидких чіпів і підказка над композитором, обидва
-  // по центру стрічки. З першим ходом чіпи гаснуть за --dur-fast (блок ще
-  // змонтований на цей час), композитор зʼїжджає вниз за --dur-slow (flex-grow
-  // .composer-wrap), стрічка росте від композитора (№3).
+  // Порожня розмова за Prototype (Р140, рішення власника 13.09; Р123 знято):
+  // вітання на імʼя в кличному відмінку за часом доби, під ним композитор,
+  // під композитором чотири чіпи-підказки і рядок «факт дому». Група стоїть по
+  // центру стрічки (стрічка ≥ вмісту, .composer-wrap росте). При першому
+  // надсиланні hero гасне (opacity 0, −6 px, --dur-fast), композитор зʼїжджає
+  // вниз за --dur-base (Prototype heroOp / sendShift), стрічка росте від нього.
   const emptyChat = !historyOpen && turns.length === 0 && !sending;
   const [heroShown, setHeroShown] = useState(emptyChat);
   const [heroOut, setHeroOut] = useState(false);
+  const reduceMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   useEffect(() => {
     if (emptyChat) { setHeroShown(true); setHeroOut(false); return; }
     if (!heroShown) return;
-    const instant = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (instant) { setHeroShown(false); return; }
+    if (reduceMotion()) { setHeroShown(false); return; }
     setHeroOut(true);
-    const id = window.setTimeout(() => { setHeroShown(false); setHeroOut(false); }, 160);
+    const id = window.setTimeout(() => { setHeroShown(false); setHeroOut(false); }, 120);
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emptyChat]);
+  // <768 (Screens «Чат · порожня розмова» 390, власник 13.09): спрощений блок #86 —
+  // заголовок, пʼять чіпів, підказка по центру стрічки, композитор унизу. Prototype
+  // (кличний, композитор під h1, чіпи, факт, плейсхолдер) — лише ≥768. Поріг — вʼюпорт,
+  // як у нижнього бара; при переході через 768 перемальовується один блок, без двох hero.
+  const [mobileEmpty, setMobileEmpty] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const on = () => setMobileEmpty(mq.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  const meName = useAuth((s) => s.me?.user.name ?? null);
+  const heroTitle = greeting(meName);
+  // Чіп → чернетка у композитор із кареткою в кінці; не надсилаємо.
+  function draftFromChip(text: string) {
+    setHomeOpen(false);
+    setInput(text);
+    window.setTimeout(() => { const el = composerInputRef.current; if (!el) return; el.focus(); try { el.setSelectionRange(text.length, text.length); } catch { /* jsdom */ } }, 40);
+  }
+  // Плейсхолдер «друкується» (Prototype HINTS): 1 символ / 55 мс, пауза ~1,1 с,
+  // стирання по 4; лише поки розмова порожня, чернетка порожня, не слухає й не
+  // надсилає. Reduced motion — статичний. Скрінрідеру — статичний aria-placeholder.
+  const [phText, setPhText] = useState('');
+  const phLive = emptyChat && !mobileEmpty && input === '' && !listening && pending.length === 0 && !reduceMotion();
+  useEffect(() => {
+    if (!phLive) { setPhText(''); return; }
+    let i = 0, len = 0, hold = 0; let phase: 'type' | 'hold' | 'erase' = 'type';
+    const id = window.setInterval(() => {
+      const full = EMPTY_HINTS[i % EMPTY_HINTS.length]!;
+      if (phase === 'type') { len = Math.min(full.length, len + 1); if (len === full.length) { phase = 'hold'; hold = 0; } }
+      else if (phase === 'hold') { hold += 1; if (hold > 20) phase = 'erase'; }
+      else { len = Math.max(0, len - 4); if (len === 0) { i += 1; phase = 'type'; } }
+      setPhText(EMPTY_HINTS[i % EMPTY_HINTS.length]!.slice(0, len));
+    }, 55);
+    return () => window.clearInterval(id);
+  }, [phLive]);
+  // «Факт дому» — з реальних даних (lib/homeFact): списане сьогодні при тихій
+  // коморі · піст · сезон цього тижня · бібліотека. Лічильники бібліотеки
+  // (збережено · приготовано) — два запити раз на монтування, лише коли
+  // розмова порожня.
+  const [library, setLibrary] = useState<{ saved: number; cooked: number } | null>(null);
+  const libraryAsked = useRef(false);
+  useEffect(() => {
+    if (!emptyChat || mobileEmpty || libraryAsked.current) return;
+    libraryAsked.current = true;
+    Promise.all([api.savedRecipes.list(), api.cookRuns.list()])
+      .then(([r, c]) => setLibrary({ saved: (r.recipes ?? []).length, cooked: (c.runs ?? []).length }))
+      .catch(() => setLibrary({ saved: 0, cooked: 0 }));
+  }, [emptyChat, mobileEmpty]);
+  const today = todayIso();
+  const seasonStarted = home.now.find((e) => toneOfNow(e) === 'season' && e.from <= today && daysBetween(e.from, today) <= 6)?.title ?? null;
+  const fact = homeFact({
+    writtenOffToday: home.overdue === 0 ? writtenOffToday : null,
+    fast: home.strict ? { day: daysBetween(home.strict.from, today) + 1, total: daysBetween(home.strict.from, home.strict.to) + 1 } : null,
+    seasonStarted,
+    library,
+  });
 
   return (
     <div
       className={styles.screen}
       ref={screenRef}
-      data-chat-empty={emptyChat || undefined}
+      data-chat-empty={emptyChat || undefined} data-chat-empty-mobile={(emptyChat && mobileEmpty) || undefined}
     >
       <ChatHead
         title={historyOpen ? 'Історія' : sessionTitle}
@@ -1394,27 +1471,33 @@ export function Feed() {
             порожня стрічка над композитором (Screens «Чат»). Три входи
             (чек · фото · диктовка) живуть у «+» і в гнізді композитора. */}
 
-        {!historyOpen && heroShown && (
-          <div className={`${styles['empty-hero']} ${heroOut ? styles['empty-hero-out'] : ''}`} data-empty-hero>
-            <h2 className={styles['empty-title']}>Що готуємо — з того, що вже є?</h2>
-            <div className={styles['empty-chips']}>
-              <button type="button" className={styles['empty-chip']} data-tap onClick={() => askInComposer('Що на вечерю?')} data-empty-chip="dinner">
+        {!historyOpen && heroShown && mobileEmpty && (
+          // Пакет 4 №1 (Р123) — Screens «Чат · порожня розмова · 390»: лишається каноном на <768.
+          <div className={`${styles['empty-hero-m']} ${heroOut ? styles['empty-out'] : ''}`} data-empty-hero data-empty-mobile>
+            <h2 className={styles['empty-title-m']}>Що готуємо — з того, що вже є?</h2>
+            <div className={styles['empty-chips-m']}>
+              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => askInComposer('Що на вечерю?')} data-empty-chip="dinner">
                 <Icon name="cook.serve" size={12} inherit decorative />Що на вечерю?
               </button>
-              <button type="button" className={styles['empty-chip']} data-tap onClick={() => askInComposer('Що є на 20 хвилин?')} data-empty-chip="quick">
+              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => askInComposer('Що є на 20 хвилин?')} data-empty-chip="quick">
                 <Icon name="cook.timer" size={12} inherit decorative />Що є на 20 хвилин?
               </button>
-              <button type="button" className={styles['empty-chip']} data-tap onClick={() => pickVia('image/*', 'environment')} data-empty-chip="receipt">
+              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => pickVia('image/*', 'environment')} data-empty-chip="receipt">
                 <Icon name="sys.receipt" size={12} inherit decorative />Кинь чек
               </button>
-              <button type="button" className={styles['empty-chip']} data-tap onClick={() => pickVia('image/*')} data-empty-chip="shelf">
+              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => pickVia('image/*')} data-empty-chip="shelf">
                 <Icon name="sys.gallery" size={12} inherit decorative />Фото полиці
               </button>
-              <button type="button" className={styles['empty-chip']} data-tap onClick={() => navigate('/list')} data-empty-chip="list">
+              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => navigate('/list')} data-empty-chip="list">
                 <Icon name="sys.list" size={12} inherit decorative />Список на тиждень
               </button>
             </div>
             <p className={styles['empty-hint']}>Кидай чек, фото полиці або текст — розберу</p>
+          </div>
+        )}
+        {!historyOpen && heroShown && !mobileEmpty && (
+          <div className={`${styles['empty-hero']} ${heroOut ? styles['empty-out'] : ''}`} data-empty-hero>
+            <h1 className={styles['empty-title']}>{heroTitle}</h1>
           </div>
         )}
         {!historyOpen && turns.map((t) => (
@@ -1940,9 +2023,11 @@ export function Feed() {
             }}
             placeholder={
               pending.length > 0 ? 'Що з цим?'
+                : phLive ? phText
                 : headForm === 'narrow' ? 'Що зʼявилось удома?'
                 : 'Що зʼявилось удома або що готуємо?'
             }
+            aria-placeholder={pending.length > 0 ? 'Що з цим?' : 'Що зʼявилось удома або що готуємо?'}
             /* 6b-5c: автофокус — лише для вказівника; на дотиках клавіатура
                вискакувала сама, ховала бар і половину стрічки. */
             autoFocus={pointerDevice}
@@ -1999,6 +2084,20 @@ export function Feed() {
             );
           })()}
         </form>
+        {!historyOpen && heroShown && !mobileEmpty && (
+          <div className={`${styles['empty-below']} ${heroOut ? styles['empty-out'] : ''}`} data-empty-below>
+            <div className={styles['empty-chips']}>
+              {EMPTY_CHIPS.map((c) => (
+                <button key={c.icon} type="button" className={styles['empty-chip']} data-tap onClick={() => draftFromChip(c.t)} data-empty-chip={c.key}>
+                  <Icon name={c.icon} size={16} inherit decorative />
+                  <span className={styles['empty-chip-long']}>{c.label}</span>
+                  <span className={styles['empty-chip-short']}>{c.short}</span>
+                </button>
+              ))}
+            </div>
+            {fact && <p className={styles['empty-fact']} data-empty-fact>{fact}</p>}
+          </div>
+        )}
       </div>
 
       {/* Черга Г (№3): права панель — навігатор стану на десктопі (≥1280).
