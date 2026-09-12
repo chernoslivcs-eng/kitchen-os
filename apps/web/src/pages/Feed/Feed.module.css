@@ -1597,6 +1597,14 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Стрічка на порожній розмові не менша за свій вміст (заголовок + чіпи у 2–3 ряди на 390): інакше на 664 вона
    ділила висоту з композитором навпіл і сама скролилась. */
 [data-chat-empty] .timeline { min-height: fit-content; padding-top: calc(100px + env(safe-area-inset-top, 0px)); } /* заголовок не заходить під шапку (56 + фейд 40), коли висоти на центрування бракує (390×664) */
+/* 390 (Screens «Чат · порожня розмова · 390», власник 13.09): макет спрощений — блок підказок стоїть по центру
+   СТРІЧКИ, композитор лишається внизу на своєму місці й при першому ході не зʼїжджає (нема куди); гаснуть лише
+   підказки. Заголовок у два рядки, чіпи 2 · 2 · 1. Поріг — той самий контейнерний G3 (<704), що й у шапки. */
+@container chat (max-width: 703px) {
+  [data-chat-empty] .composer-wrap { flex-grow: 0; }
+  [data-chat-empty] .timeline { min-height: 0; padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+  .empty-hero { margin: auto 0; padding: 0 8px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .empty-hero, .composer-wrap { transition: none; }
 }
