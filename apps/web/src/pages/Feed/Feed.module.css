@@ -1579,9 +1579,9 @@ a.att-chip:hover { border-color: var(--sage); }
    порожній розмові росте — група по центру. Перше надсилання: hero і чіпи гаснуть
    (opacity 0, −6 px, --dur-fast; Prototype 90 мс), композитор зʼїжджає вниз за
    --dur-base (Prototype 240); reduce — миттєво. */
-.empty-hero { margin-top: auto; display: flex; flex-direction: column; align-items: center; padding: 0 24px 18px; transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
+.empty-hero { margin-top: auto; display: flex; flex-direction: column; align-items: center; padding: 0 24px 6px; /* + margin композитора 12 = 18 (Prototype) */ transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
 .empty-title { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 28px; letter-spacing: -.03em; line-height: 1.15; text-align: center; max-width: 640px; color: var(--ink); text-wrap: balance; }
-.empty-below { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 4px 24px 0; transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
+.empty-below { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 24px 24px; transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
 .empty-out { opacity: 0; transform: translateY(-6px); pointer-events: none; }
 .empty-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 660px; }
 .empty-chip {
@@ -1600,11 +1600,13 @@ a.att-chip:hover { border-color: var(--sage); }
 .composer-wrap { transition: flex-grow var(--dur-base) var(--ease-standard); }
 [data-chat-empty] .composer-wrap { flex-grow: 1; }
 [data-chat-empty] .timeline { min-height: fit-content; padding-top: calc(100px + env(safe-area-inset-top, 0px)); }
+[data-chat-empty] .timeline::after { height: 0; }
+[data-chat-empty] .timeline { padding-bottom: 0; } /* Prototype feedPad 0: h1 → композитор = 18 */
 @container chat (max-width: 703px) {
   .empty-chip-long { display: none; }
   .empty-chip-short { display: inline; }
-  .empty-hero { padding: 0 16px 14px; }
-  .empty-below { padding: 4px 16px 0; }
+  .empty-hero { padding: 0 16px 6px; }
+  .empty-below { padding: 0 16px 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .empty-hero, .empty-below, .composer-wrap { transition: none; }
