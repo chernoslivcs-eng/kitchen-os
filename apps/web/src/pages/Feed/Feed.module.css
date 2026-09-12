@@ -1608,6 +1608,30 @@ a.att-chip:hover { border-color: var(--sage); }
   .empty-hero { padding: 0 16px 6px; }
   .empty-below { padding: 0 16px 16px; }
 }
+/* ── <768 · Пакет 4 №1 (Р123), Screens «Чат · порожня розмова · 390» — канон для мобайла
+   (власник 13.09: «для мобайла берете не той макет — у дизайні він лежить спрощений»).
+   Блок підказок по центру СТРІЧКИ (margin auto): h2 26/700 −.02em у два рядки · пʼять
+   чіпів 36 card+sh (знак 12 + слово) 2 · 2 · 1 · підказка 13 dim. Композитор унизу над
+   баром на своєму місці і при першому ході не зʼїжджає (нема куди) — гаснуть лише
+   підказки. Стрічка: padding-top 64 + safe-area, без min-height: fit-content. */
+.empty-hero-m { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; padding: 0 8px; transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
+.empty-title-m { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); text-wrap: balance; }
+.empty-chips-m { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 640px; }
+.empty-chip-m {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 36px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill);
+  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; cursor: pointer;
+}
+.empty-chip-m > [data-icon] { color: var(--muted); }
+.empty-chip-m:hover { filter: brightness(0.97); }
+.empty-hint { margin: 0; font-family: var(--font-body); font-size: 13px; color: var(--dim); }
+@media (max-width: 767px) {
+  [data-chat-empty-mobile] .composer-wrap { flex-grow: 0; }
+  [data-chat-empty-mobile] .timeline { min-height: 0; padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .empty-hero, .empty-below, .composer-wrap { transition: none; }
+  .empty-hero, .empty-hero-m, .empty-below, .composer-wrap { transition: none; }
 }
