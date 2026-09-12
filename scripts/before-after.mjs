@@ -18,7 +18,7 @@
 // --scale — те саме, що в side-by-side.mjs (див. там)
 // --vp safari|safari-full|pwa  390×664 (Safari з тулбаром) · 390×750 (без) · 390×844 (PWA); типова висота для ≤480 тепер 664
 // --engine webkit  той самий прогін у WebKit
-// --actions scroll:bottom|top  догорнути документ і внутрішні скролери
+// --actions scroll:bottom|top  догорнути документ і внутрішні скролери · scrollto:SEL — елемент у верх вʼюпорту
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --click-after / --actions-after  те саме, але лише на половині «стало»
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
@@ -103,6 +103,8 @@ async function runActions(page, spec) {
     else if (op === 'drag') { const [dx, dy] = v.split(',').map(Number); await page.mouse.move(dx, dy, { steps: 8 }); }
     else if (op === 'up') await page.mouse.up();
     else if (op === 'blur') await page.evaluate(() => document.activeElement?.blur());
+    // scrollto:SEL — довести елемент до верху вʼюпорту (довгі сторінки: лендінг).
+    else if (op === 'scrollto') await page.evaluate((sel) => document.querySelector(sel)?.scrollIntoView({ block: 'start' }), v);
     // dragfile:NAME:MIME · dropfile:NAME:MIME — файл над вікном / кинуто (D1–D3): справжній
     // DataTransfer із File, події на window, як робить браузер.
     else if (op === 'dragfile' || op === 'dropfile') {

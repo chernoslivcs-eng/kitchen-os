@@ -371,6 +371,17 @@
 .tab .featP { font-size: 16px; }
 .fragMWrap { direction: ltr; display: flex; justify-content: center; }
 .fragM { width: 100%; max-width: 440px; }
+/* Р137 (рішення власника 12.09): на планшеті й телефоні фрагмент був плоский і
+   зливався з полотном — даємо той самий матеріал, що .fragTilt на 1440, але
+   статично (без сцени, курсора й блобів). Планшет: perspective 1400 · rotateX 6°
+   · rotateY −12° · zoom 1.05 (440 → 462, у колонку вміщається); у рядках
+   .featRtl нахил дзеркальний — фрагмент «дивиться» на текст. Тінь --sh2 — на
+   картках усередині (.mCard, чипи чека), не на обгортці: фрагмент чека — не
+   одна коробка. Руху нема, reduced motion не стосується. */
+.tab .fragM { transform-style: preserve-3d; transform: perspective(1400px) rotateX(6deg) rotateY(-12deg); zoom: 1.05; }
+.tab .featRtl .fragM { transform: perspective(1400px) rotateX(6deg) rotateY(12deg); }
+.tab .fragM .mCard, .tab .fragM .mChipRow, .tab .fragM .mFile,
+.mob .fragM .mCard, .mob .fragM .mChipRow, .mob .fragM .mFile { box-shadow: var(--sh2); }
 .mob .featsM { padding: 64px 20px 0; gap: 56px; }
 .mob .featRowM { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
 .mob .featTextM { gap: 16px; }
@@ -379,6 +390,9 @@
 .mob .featP { font-size: 15px; line-height: 1.5; }
 .mob .fragMWrap { padding-top: 8px; }
 .mob .fragM { max-width: none; }
+/* Р137, телефон: легший нахил rotateX 4° · rotateY −6°, без zoom, на всю ширину;
+   ближній край виступає ~1–2 px у полі 20 — горизонтального переповнення нема. */
+.mob .fragM { transform-style: preserve-3d; transform: perspective(1400px) rotateX(4deg) rotateY(-6deg); }
 
 /* скло (GLASS з бандла) */
 .glass { background: linear-gradient(160deg, var(--glass-a), var(--glass-b)); backdrop-filter: blur(14px) saturate(1.15); -webkit-backdrop-filter: blur(14px) saturate(1.15); box-shadow: 0 1px 0 var(--glass-hi) inset, 0 -1px 0 rgba(26, 28, 30, .05) inset, 0 0 0 1px rgba(26, 28, 30, .10), 0 0 0 2px var(--glass-ring), 0 24px 48px rgba(26, 28, 30, .10); }
