@@ -1,6 +1,7 @@
+import { useEffect, useRef, type ReactNode } from 'react';
 import styles from './Icon.module.css';
 import { ICONS, type IconName } from './icons';
-import { MOTION, CUSTOM_PATHS, type LiveKey } from './motion';
+import { MOTION, CUSTOM_PATHS, V2_DURATION, isV2, type LiveKey, type IconPart } from './motion';
 
 /** Розміри з канону, і тільки вони: 12 — слот походження в рядку · 16 — у
  *  тексті · 18 — рейка (кнопки 38, іконки 18) · 20 — інтерфейс · 24 — Cook
@@ -25,6 +26,52 @@ interface Props {
   live?: LiveKey;
 }
 
+const CARRIER = 'button, a, [role="button"]';
+
+/**
+ * Icon Motion v2 (Р117): рух запускається на pointerenter і на click носія
+ * (кнопка/посилання зі знаком; без носія — сам знак), дограється до кінця
+ * і не обривається на mouseleave: носій тримає `data-play`, CSS грає частини
+ * знака; повтор — лише після завершення (data-play знімається за
+ * тривалість + 80 мс, як у файлі). Без залежностей: два слухачі й таймер.
+ */
+function usePlayOnCarrier(ref: React.RefObject<HTMLSpanElement | null>, motion: string | null) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !isV2(motion as never)) return;
+    const dur = V2_DURATION[motion as keyof typeof V2_DURATION]!;
+    const carrier = (el.closest(CARRIER) as HTMLElement | null) ?? el;
+    let timer = 0;
+    const play = () => {
+      if (carrier.dataset.play) return;
+      carrier.dataset.play = motion!;
+      timer = window.setTimeout(() => { delete carrier.dataset.play; }, dur + 80);
+    };
+    carrier.addEventListener('pointerenter', play);
+    carrier.addEventListener('click', play);
+    return () => {
+      carrier.removeEventListener('pointerenter', play);
+      carrier.removeEventListener('click', play);
+      window.clearTimeout(timer);
+      delete carrier.dataset.play;
+    };
+  }, [ref, motion]);
+}
+
+function renderPart(part: IconPart, i: number): ReactNode {
+  const tag = part.tag ?? 'path';
+  const attrs: Record<string, unknown> = { ...(part.attrs ?? {}) };
+  if (part.d) attrs.d = part.d;
+  if (part.p) attrs['data-p'] = part.p;
+  if (part.draw) { attrs['data-draw'] = ''; attrs.pathLength = 1; }
+  if (part.ve) attrs.vectorEffect = 'non-scaling-stroke';
+  const children = part.children?.map(renderPart);
+  if (tag === 'g') return <g key={i} {...attrs}>{children}</g>;
+  if (tag === 'circle') return <circle key={i} {...attrs} />;
+  if (tag === 'rect') return <rect key={i} {...attrs} />;
+  return <path key={i} {...attrs} />;
+}
+
 /**
  * Єдиний спосіб намалювати знак. Штрих 1.75 і заокруглені кінці стоять тут, а
  * не в кожному місці вжитку: канон обіцяє одну базу, і тримати її має одне
@@ -38,9 +85,11 @@ interface Props {
 export function Icon({ name, size = 20, tap, inherit, ink, decorative, className, live }: Props) {
   const spec = ICONS[name];
   const Glyph = spec.glyph;
-  // 1.5b: ключ руху з motion.ts — лише для системної сімʼї; решта статична.
+  // Ключ руху з motion.ts — лише для системної сімʼї; решта статична.
   const motion = name.startsWith('sys.') ? MOTION[name as keyof typeof MOTION] : null;
   const custom = CUSTOM_PATHS[name];
+  const ref = useRef<HTMLSpanElement>(null);
+  usePlayOnCarrier(ref, motion);
   const cls = [
     styles.icon,
     tap ? styles.tap : '',
@@ -50,6 +99,7 @@ export function Icon({ name, size = 20, tap, inherit, ink, decorative, className
   ].filter(Boolean).join(' ');
   return (
     <span
+      ref={ref}
       className={cls}
       data-icon={name}
       {...(motion ? { 'data-motion': motion } : {})}
@@ -57,11 +107,11 @@ export function Icon({ name, size = 20, tap, inherit, ink, decorative, className
       {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': spec.label })}
     >
       {custom ? (
-        /* Власні шляхи (Icons.dc.html:218-229): частини знака розділені під
-           рух; штрих і кінці — ті самі, що дає lucide-react. */
+        /* Частини знака з Icon Motion v2 (motion.ts CUSTOM_PATHS): data-p —
+           те, що рухає CSS; штрих і кінці — ті самі, що дає lucide-react. */
         <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          {custom.map((d, i) => <path key={i} d={d} />)}
+          {custom.map(renderPart)}
         </svg>
       ) : (
         <Glyph size={size} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />

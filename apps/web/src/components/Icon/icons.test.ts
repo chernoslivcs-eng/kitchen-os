@@ -74,22 +74,31 @@ describe('словник знаків v3', () => {
   });
 });
 
-// ── Етап 1.5b · моушн знаків (Icons.dc.html) ────────────────────────────────
+// ── Моушн знаків: Icon Motion v2 (16 знаків, Р117) + 1.5b (8 знаків поза файлом) ──
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { MOTION, CUSTOM_PATHS, LIVE_ICON } from './motion';
+import { MOTION, CUSTOM_PATHS, LIVE_ICON, V2_DURATION, isV2 } from './motion';
 
 const CSS = readFileSync(fileURLToPath(new URL('./Icon.module.css', import.meta.url)), 'utf8');
 const TOKENS = readFileSync(fileURLToPath(new URL('../../styles/tokens.css', import.meta.url)), 'utf8');
 
-describe('1.5b · рух частин знака', () => {
+describe('рух частин знака: v2 (файл власника) + 1.5b', () => {
+  // 16 знаків — Icon Motion v2 (data-motion у файлі); 8 — масив system Icons.dc.html.
   const BUNDLE_SYSTEM: Record<string, string> = {
     'sys.chat': 'bubble', 'sys.pantry': 'door', 'sys.recipes': 'book', 'sys.list': 'checks', 'sys.calendar': 'flip',
     'sys.home': 'home', 'sys.cart': 'roll', 'sys.receipt': 'unroll', 'sys.add': 'turn', 'sys.voice': 'listen',
-    'sys.send': 'lift', 'sys.attach': 'draw', 'sys.search': 'orbit', 'sys.filter': 'sliders', 'sys.sort': 'swap',
-    'sys.done': 'draw', 'sys.close': 'close', 'sys.undo': 'back', 'sys.next': 'draw', 'sys.out': 'lift',
+    'sys.send': 'lift', 'sys.attach': 'clip', 'sys.search': 'orbit', 'sys.filter': 'sliders', 'sys.sort': 'swap',
+    'sys.done': 'tick', 'sys.close': 'close', 'sys.undo': 'back', 'sys.next': 'draw', 'sys.out': 'out',
     'sys.collapse': 'fold', 'sys.theme': 'dial', 'sys.sound': 'waves', 'sys.profile': 'nod',
   };
+
+  it('v2: рівно 16 знаків із тривалістю по знаку, як у файлі (data-dur)', () => {
+    expect(Object.keys(V2_DURATION).length).toBe(16);
+    expect(V2_DURATION).toMatchObject({ bubble: 1050, door: 1050, book: 1150, checks: 1000, flip: 900, home: 980, roll: 1050, unroll: 850, turn: 620, listen: 1300, lift: 880, clip: 1050, orbit: 1150, sliders: 1250, swap: 1050, tick: 750 });
+    expect(isV2('draw')).toBe(false); expect(isV2('bubble')).toBe(true);
+    // Кожен v2-знак має власні частини (CUSTOM_PATHS) — рух іде по data-p.
+    for (const [k, m] of Object.entries(BUNDLE_SYSTEM)) if (isV2(m as never)) expect(CUSTOM_PATHS[k as keyof typeof CUSTOM_PATHS], `${k}: частини з файлу`).toBeTruthy();
+  });
 
   it('кожен system-знак має запис у motion.ts; 24 з масиву бандла — свій ключ, решта — статичні', () => {
     const system = (Object.keys(ICONS) as IconName[]).filter((k) => ICONS[k].family === 'system');
@@ -99,14 +108,22 @@ describe('1.5b · рух частин знака', () => {
     for (const k of extra) expect(MOTION[k as keyof typeof MOTION], `${k} — рух вигаданий, у бандлі його нема`).toBeNull();
   });
 
-  it('кожен ключ руху має правило наведення в Icon.module.css і свої @keyframes', () => {
+  it('кожен ключ руху має правило в Icon.module.css (v2 — за data-play носія, 1.5b — :hover) і свої @keyframes', () => {
     const keys = new Set(Object.values(MOTION).filter((v): v is NonNullable<typeof v> => !!v));
     for (const key of keys) {
       const rule = new RegExp(`\\[data-motion="${key}"\\][^{]*\\{([^}]*)\\}`, 'g');
-      const bodies = [...CSS.matchAll(rule)].map((m) => m[1]!);
+      const matches = [...CSS.matchAll(rule)];
+      const bodies = matches.map((m) => m[1]!);
       expect(bodies.length, `нема правила для ${key}`).toBeGreaterThan(0);
+      const heads = matches.map((m) => m[0]!.slice(0, m[0]!.indexOf('{')));
+      // v2 — рух запускає носій (data-play), :hover-правил для цих знаків нема; 1.5b — навпаки.
+      if (isV2(key as never)) {
+        expect(heads.some((h) => h.includes('[data-play]')), `${key}: правило за data-play`).toBe(true);
+        expect(heads.some((h) => h.includes(':hover')), `${key}: :hover знято`).toBe(false);
+      } else {
+        expect(heads.some((h) => h.includes(':hover')), `${key}: :hover 1.5b`).toBe(true);
+      }
       const names = bodies.flatMap((b) => [...b.matchAll(/animation:\s*([a-zA-Z]+)/g)].map((m) => m[1]!));
-      if (key === 'turn') { expect(bodies.some((b) => /rotate\(90deg\)/.test(b)), 'turn — поворот на 90°').toBe(true); continue; }
       expect(names.length, `${key} без animation`).toBeGreaterThan(0);
       for (const n of names) expect(CSS.includes(`@keyframes ${n} `), `@keyframes ${n} для ${key}`).toBe(true);
     }
@@ -116,12 +133,16 @@ describe('1.5b · рух частин знака', () => {
     for (const [k, spec] of Object.entries(ICONS)) {
       if (spec.family === 'products') expect(k in MOTION, `${k} — продукти статичні`).toBe(false);
     }
-    expect(CUSTOM_PATHS['sys.recipes']?.length).toBe(4);
-    expect(CUSTOM_PATHS['sys.pantry']?.length).toBe(4);
+    expect(CUSTOM_PATHS['sys.recipes']?.length).toBe(4);   // корінець · ліва · права · leaf
+    expect(CUSTOM_PATHS['sys.pantry']?.length).toBe(6);    // верх · полиця · ручка · рамка · shelf1 · група door
   });
 
-  it('тривалості — лише токенами: ховер 600–900 мс, живі стани — цикл 1.2–1.6 с', () => {
+  it('тривалості — лише токенами: 1.5b 600–900 мс, v2 — по знаку з файлу, живі стани — цикл 1.2–1.6 с', () => {
     const tok = (name: string) => Number(TOKENS.match(new RegExp(`--${name}:\\s*(\\d+)ms`))?.[1]);
+    // Icon Motion v2 — тривалості частин 1:1 з файлу.
+    for (const [n, v] of Object.entries({ 'dur-im-bub': 900, 'dur-im-dot': 760, 'dur-im-door': 1050, 'dur-im-book': 1150, 'dur-im-check': 500, 'dur-im-row': 560, 'dur-im-flip': 900, 'dur-im-home': 980, 'dur-im-roll': 1050, 'dur-im-unroll': 820, 'dur-im-line': 520, 'dur-im-turn': 620, 'dur-im-cap': 1250, 'dur-im-arc': 760, 'dur-im-stand': 620, 'dur-im-lift': 880, 'dur-im-clip': 1050, 'dur-im-orbit': 1150, 'dur-im-knob': 1050, 'dur-im-swap': 960, 'dur-im-tick': 720 })) {
+      expect(tok(n), n).toBe(v);
+    }
     for (const n of ['dur-icon-short', 'dur-icon', 'dur-icon-long']) {
       expect(tok(n), n).toBeGreaterThanOrEqual(600); expect(tok(n), n).toBeLessThanOrEqual(900);
     }
@@ -140,8 +161,26 @@ describe('1.5b · рух частин знака', () => {
     const reduce = CSS.match(/@media\s*\(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(reduce).toMatch(/\.icon > svg, \.icon > svg \* \{[^}]*animation: none !important[^}]*transition: none !important/);
     const zero = TOKENS.match(/@media\s*\(prefers-reduced-motion: reduce\)\s*\{\s*:root\s*\{([\s\S]*?)\}/)?.[1] ?? '';
-    for (const n of ['dur-icon-short', 'dur-icon', 'dur-icon-long', 'dur-live-flame', 'dur-live-timer', 'dur-live-mic', 'dur-live-think']) {
+    for (const n of ['dur-icon-short', 'dur-icon', 'dur-icon-long', 'dur-live-flame', 'dur-live-timer', 'dur-live-mic', 'dur-live-think', 'dur-im-bub', 'dur-im-tick', 'dur-im-turn']) {
       expect(zero.includes(`--${n}: 0ms`), n).toBe(true);
     }
+  });
+});
+
+// 12.09, правка власника: «Список» без блимання — основа галочки ніколи не
+// стирається, копія обводить поверх; рядки лише зсуваються.
+describe('checks · без блимання', () => {
+  // keyframes у файлі — в один рядок; беремо рядок цілком.
+  const minOpacity = (kf: string) => Math.min(...[...(CSS.match(new RegExp(`@keyframes ${kf} .*`))?.[0] ?? '').matchAll(/opacity:\s*([\d.]+)/g)].map((m) => Number(m[1])));
+  it('основа (baseDip) не нижче .45, рядки (rowIn) без opacity, drawIn на checks не застосовується', () => {
+    expect(minOpacity('baseDip')).toBeGreaterThanOrEqual(0.45);
+    expect(CSS.match(/@keyframes rowIn \{[^}]*\}/)?.[0]).not.toMatch(/opacity/);
+    const checksRules = [...CSS.matchAll(/\[data-motion="checks"\][^{]*\{([^}]*)\}/g)].map((m) => m[1]!).join('\n');
+    expect(checksRules).not.toMatch(/drawIn/);
+    expect(checksRules).toMatch(/traceIn/);
+    // Копії c1t/c2t: у спокої невидимі, штрих 2.4; основа c1/c2 — без data-draw.
+    const list = CUSTOM_PATHS['sys.list']!;
+    expect(list.filter((p) => p.p === 'c1' || p.p === 'c2').every((p) => !p.draw)).toBe(true);
+    expect(list.filter((p) => p.p === 'c1t' || p.p === 'c2t').every((p) => p.draw)).toBe(true);
   });
 });

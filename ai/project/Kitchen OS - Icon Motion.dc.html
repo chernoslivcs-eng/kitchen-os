@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; }
+a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
+* { box-sizing:border-box; }
+
+[data-motion] svg * { transform-box: fill-box; transform-origin: center; }
+[data-motion] svg { transition: transform 200ms cubic-bezier(.33,1,.68,1), color 160ms linear; }
+[data-motion]:hover svg { color:#1a1c1e; }
+[data-motion]:active svg { transform: scale(.955); transition-duration: 110ms; }
+[data-draw] { stroke-dasharray: 1; }
+
+/* Чат — бабл дихає, точки набігають */
+[data-motion="bubble"][data-play] [data-p="bub"] { transform-box: view-box; transform-origin: 5px 19px; animation: bubRise calc(900ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="bubble"][data-play] [data-p^="d"] { animation: dotPop calc(760ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="bubble"][data-play] [data-p="d2"] { animation-delay: calc(110ms * var(--sp,1)); }
+[data-motion="bubble"][data-play] [data-p="d3"] { animation-delay: calc(220ms * var(--sp,1)); }
+@keyframes bubRise { 0% { transform: scale(1); } 38% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@keyframes dotPop { 0% { transform: scale(.45); opacity:.2; } 45% { transform: scale(1); opacity:1; } 100% { transform: scale(1); opacity:1; } }
+
+/* Комора — нижні дверцята прочиняються */
+[data-motion="door"][data-play] [data-p="door"] { transform-box: view-box; transform-origin: 5px 16px; animation: swingX calc(1050ms * var(--sp,1)) cubic-bezier(.4,0,.25,1) both; }
+[data-motion="door"][data-play] [data-p="shelf1"] { animation: shelfIn calc(1050ms * var(--sp,1)) cubic-bezier(.4,0,.25,1) both; }
+@keyframes swingX { 0% { transform: scaleX(1) skewY(0); } 50% { transform: scaleX(.42) skewY(-3deg); } 100% { transform: scaleX(1) skewY(0); } }
+@keyframes shelfIn { 0% { opacity:0; } 32% { opacity:.55; } 68% { opacity:.55; } 100% { opacity:0; } }
+[data-motion="door"] [data-p="door"] path:first-child { fill: var(--frame,#f4f3ef); }
+
+/* Рецепти — сторінка перегортається через корінець */
+[data-motion="book"][data-play] [data-p="leaf"] { transform-box: view-box; transform-origin: 12px 12px; animation: leafTurn calc(1150ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+@keyframes leafTurn { 0% { transform: scaleX(1); opacity:0; } 14% { opacity:.95; } 50% { transform: scaleX(.04); opacity:.95; } 86% { opacity:.95; } 100% { transform: scaleX(-1); opacity:0; } }
+
+/* Список — галочки дописуються */
+/* галочки не стираються: основна лишається, копія обводить її поверх і гасне; рядки лише зсуваються */
+[data-motion="checks"] [data-p="c1t"], [data-motion="checks"] [data-p="c2t"] { opacity: 0; stroke-width: 2.4; }
+[data-motion="checks"][data-play] [data-p="c1"] { animation: baseDip calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="checks"][data-play] [data-p="c1t"] { animation: traceIn calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="checks"][data-play] [data-p="c2"] { animation: baseDip calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; animation-delay: calc(230ms * var(--sp,1)); }
+[data-motion="checks"][data-play] [data-p="c2t"] { animation: traceIn calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; animation-delay: calc(230ms * var(--sp,1)); }
+[data-motion="checks"][data-play] [data-p^="r"] { animation: rowIn calc(560ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+@keyframes traceIn { 0% { stroke-dashoffset: 1; opacity:1; } 62% { stroke-dashoffset: 0; opacity:1; } 100% { stroke-dashoffset: 0; opacity:0; } }
+@keyframes baseDip { 0% { opacity:1; } 18% { opacity:.45; } 62% { opacity:.45; } 100% { opacity:1; } }
+[data-motion="checks"][data-play] [data-p="r2"] { animation-delay: calc(120ms * var(--sp,1)); }
+[data-motion="checks"][data-play] [data-p="r3"] { animation-delay: calc(240ms * var(--sp,1)); }
+@keyframes drawIn { 0% { stroke-dashoffset: 1; opacity:.2; } 100% { stroke-dashoffset: 0; opacity:1; } }
+@keyframes rowIn { 0% { transform: translateX(-1.2px); } 100% { transform: none; } }
+
+/* Календар — гортає сторінку */
+[data-motion="flip"][data-play] [data-p="dates"] { animation: pageRow calc(900ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+[data-motion="flip"][data-play] [data-p="pin1"], [data-motion="flip"][data-play] [data-p="pin2"] { animation: pinBob calc(900ms * var(--sp,1)) cubic-bezier(.4,0,.2,1) both; }
+[data-motion="flip"][data-play] [data-p="pin2"] { animation-delay: calc(70ms * var(--sp,1)); }
+@keyframes pageRow { 0% { opacity:1; transform: translateY(0); } 42% { opacity:0; transform: translateY(-2.4px); } 44% { opacity:0; transform: translateY(2.4px); } 100% { opacity:1; transform: translateY(0); } }
+@keyframes pinBob { 0% { transform: translateY(0); } 45% { transform: translateY(.9px); } 100% { transform: translateY(0); } }
+
+/* Дім зараз — двері відчиняються */
+[data-motion="home"][data-play] [data-p="hdoor"] { transform-box: view-box; transform-origin: 9.5px 21px; animation: doorOpen calc(980ms * var(--sp,1)) cubic-bezier(.4,0,.25,1) both; }
+@keyframes doorOpen { 0% { transform: scaleX(1) skewY(0); } 52% { transform: scaleX(.42) skewY(-3deg); } 100% { transform: scaleX(1) skewY(0); } }
+
+/* Кошик — котиться, колеса крутяться */
+[data-motion="roll"][data-play] [data-p="cart"] { animation: rollX calc(1050ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+[data-motion="roll"][data-play] [data-p="sp1"] { transform-box: view-box; transform-origin: 8px 20.6px; animation: spinW calc(1050ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+[data-motion="roll"][data-play] [data-p="sp2"] { transform-box: view-box; transform-origin: 19px 20.6px; animation: spinW calc(1050ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+@keyframes rollX { 0% { transform: translateX(0); } 46% { transform: translateX(2.2px); } 100% { transform: translateX(0); } }
+@keyframes spinW { 0% { transform: rotate(0); } 46% { transform: rotate(155deg); } 100% { transform: rotate(0); } }
+
+/* Чек — розгортається, рядки проявляються */
+[data-motion="unroll"][data-play] [data-p="body"] { transform-box: view-box; transform-origin: 12px 2px; animation: unroll calc(820ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="unroll"][data-play] [data-p^="l"] { animation: lineIn calc(520ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="unroll"][data-play] [data-p="l2"] { animation-delay: calc(130ms * var(--sp,1)); }
+[data-motion="unroll"][data-play] [data-p="l3"] { animation-delay: calc(260ms * var(--sp,1)); }
+@keyframes unroll { 0% { transform: scaleY(.8); } 100% { transform: scaleY(1); } }
+@keyframes lineIn { 0% { opacity:0; transform: translateY(-1.4px); } 100% { opacity:1; transform: none; } }
+
+/* Додати — плавно робить чверть оберту й стає на місце */
+[data-motion="turn"][data-play] svg { animation: quarterTurn calc(620ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+@keyframes quarterTurn { 0% { transform: rotate(0); } 100% { transform: rotate(90deg); } }
+
+/* Голос — капсула набирає, дуга домальовується */
+[data-motion="listen"][data-play] [data-p="cap"] { animation: capBreathe calc(1250ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+[data-motion="listen"][data-play] [data-p="arc"] { animation: drawIn calc(760ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; animation-delay: calc(120ms * var(--sp,1)); }
+[data-motion="listen"][data-play] [data-p="stand"] { animation: lineIn calc(620ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; animation-delay: calc(320ms * var(--sp,1)); }
+@keyframes capBreathe { 0% { transform: scaleY(1); } 40% { transform: scaleY(1.07); } 100% { transform: scaleY(1); } }
+
+/* Надіслати — стрілка виходить угору і повертається знизу */
+[data-motion="lift"][data-play] [data-p="arrow"] { animation: liftLoop calc(880ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+@keyframes liftLoop { 0% { transform: translateY(0); opacity:1; } 42% { transform: translateY(-4.5px); opacity:0; } 44% { transform: translateY(4.5px); opacity:0; } 100% { transform: translateY(0); opacity:1; } }
+
+/* Вкласти — скріпка домальовується */
+[data-motion="clip"][data-play] [data-p="clip"] { animation: drawIn calc(1050ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+
+/* Пошук — лупа робить коло */
+[data-motion="orbit"][data-play] [data-p="lens"] { animation: orbit calc(1150ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+@keyframes orbit { 0% { transform: translate(0,0); } 25% { transform: translate(1.4px,-.9px); } 50% { transform: translate(0,-1.9px); } 75% { transform: translate(-1.4px,-.9px); } 100% { transform: translate(0,0); } }
+
+/* Фільтр — бігунки їдуть у різні боки */
+[data-motion="sliders"][data-play] [data-p="k1"] { animation: knobR calc(1050ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+[data-motion="sliders"][data-play] [data-p="k2"] { animation: knobL calc(1050ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; animation-delay: calc(90ms * var(--sp,1)); }
+[data-motion="sliders"][data-play] [data-p="k3"] { animation: knobR calc(1050ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; animation-delay: calc(180ms * var(--sp,1)); }
+@keyframes knobR { 0% { transform: translateX(0); } 48% { transform: translateX(3px); } 100% { transform: translateX(0); } }
+@keyframes knobL { 0% { transform: translateX(0); } 48% { transform: translateX(-3px); } 100% { transform: translateX(0); } }
+
+/* Порядок — стрілки міняються місцями */
+[data-motion="swap"][data-play] [data-p="up"] { animation: swapUp calc(960ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
+[data-motion="swap"][data-play] [data-p="down"] { animation: swapDown calc(960ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; animation-delay: calc(80ms * var(--sp,1)); }
+@keyframes swapUp { 0% { transform: translateY(0); } 48% { transform: translateY(-2.6px); } 100% { transform: translateY(0); } }
+@keyframes swapDown { 0% { transform: translateY(0); } 48% { transform: translateY(2.6px); } 100% { transform: translateY(0); } }
+
+/* Готово — галочка ставиться */
+[data-motion="tick"][data-play] [data-p="tick"] { animation: drawIn calc(720ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-motion] svg *, [data-motion] svg { animation: none !important; transition: color 160ms linear !important; }
+}
+</style>
+</helmet>
+
+<section data-iconlab style="padding:48px; display:flex; flex-direction:column; gap:36px; max-width:1220px;">
+
+<div style="display:flex; flex-direction:column; gap:10px;">
+  <div style="font-size:12px; font-weight:500; color:#6b6f74;">Kitchen OS · моушн-пас системних іконок · 16 знаків</div>
+  <div style="font-weight:700; font-size:38px; letter-spacing:-.03em; line-height:1.05; max-width:820px;">Рухається не іконка, а її частина. Наведи на будь-яку.</div>
+  <div style="font-size:15px; color:#6b6f74; line-height:1.6; max-width:760px;">Кожен рух — одна ідея, доведена до кінця й повернута в стан спокою: 1–4 px, 700–1200 мс, м'які криві без відскоку і без зміни напрямку на різкій швидкості. Анімація дограється навіть якщо курсор вже пішов — тому рух ніде не обрубується. Натиск — стискання .955 за 110 мс. Reduced motion гасить усе, крім кольору.</div>
+</div>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(212px,1fr)); gap:10px;">
+
+  <div data-motion="bubble" data-dur="1050" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <g data-p="bub"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><circle data-p="d1" cx="8.4" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle data-p="d2" cx="12" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle data-p="d3" cx="15.6" cy="11" r="1.05" fill="currentColor" stroke="none"/></g>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Чат</span><span style="font-size:12px; color:#9a9ea3;">ціль · головне вікно</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">бабл дихає, точки набігають</span></span>
+  </div>
+
+  <div data-motion="door" data-dur="1050" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path d="M5 10V6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4"/><path d="M5 10h14"/><path d="M15 5.5v2.5"/>
+        <path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10"/><path data-p="shelf1" d="M8 16h8" opacity="0"/><g data-p="door"><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10" vector-effect="non-scaling-stroke"/><path d="M15 13v3.5" vector-effect="non-scaling-stroke"/></g>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Комора</span><span style="font-size:12px; color:#9a9ea3;">ціль</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">нижні дверцята прочиняються</span></span>
+  </div>
+
+  <div data-motion="book" data-dur="1150" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path d="M12 7v14"/>
+        <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3z"/>
+        <path d="M21 18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3z"/>
+        <path data-p="leaf" d="M12 7a4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-9z" opacity="0" vector-effect="non-scaling-stroke"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Рецепти</span><span style="font-size:12px; color:#9a9ea3;">ціль</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">сторінка йде через корінець</span></span>
+  </div>
+
+  <div data-motion="checks" data-dur="1000" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path data-p="c1" d="m3 7 2 2 4-4"/><path data-p="c1t" data-draw pathLength="1" d="m3 7 2 2 4-4"/>
+        <path data-p="c2" d="m3 17 2 2 4-4"/><path data-p="c2t" data-draw pathLength="1" d="m3 17 2 2 4-4"/>
+        <path data-p="r1" d="M13 6h8"/><path data-p="r2" d="M13 12h8"/><path data-p="r3" d="M13 18h8"/>
+        <path d="M3 12h6" opacity=".45"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Список</span><span style="font-size:12px; color:#9a9ea3;">ціль</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">галочки дописуються по черзі</span></span>
+  </div>
+
+  <div data-motion="flip" data-dur="900" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path data-p="pin1" d="M8 2v4"/><path data-p="pin2" d="M16 2v4"/>
+        <g data-p="sheet"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></g>
+        <g data-p="dates"><circle cx="7.6" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="16.4" cy="15" r="1" fill="currentColor" stroke="none"/></g>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Календар</span><span style="font-size:12px; color:#9a9ea3;">ціль</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">дати відлітають і приходять нові</span></span>
+  </div>
+
+  <div data-motion="home" data-dur="980" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <path d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6"/><path data-p="hdoor" d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6" vector-effect="non-scaling-stroke"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Дім зараз</span><span style="font-size:12px; color:#9a9ea3;">стан дому · панель</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">двері відчиняються всередину</span></span>
+  </div>
+
+  <div data-motion="roll" data-dur="1050" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <g data-p="cart">
+          <path d="M2.5 3h1.8l2.5 11.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 1.95-1.55L21 7.6H5.4"/>
+          <circle cx="8" cy="20.6" r="1.6"/><path data-p="sp1" d="M8 20.6v-1.6"/>
+          <circle cx="19" cy="20.6" r="1.6"/><path data-p="sp2" d="M19 20.6v-1.6"/>
+        </g>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Кошик</span><span style="font-size:12px; color:#9a9ea3;">артефакт</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">котиться — колеса крутяться</span></span>
+  </div>
+
+  <div data-motion="unroll" data-dur="850" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <g data-p="body">
+          <path d="M5 3.5A1.5 1.5 0 0 1 6.5 2h11A1.5 1.5 0 0 1 19 3.5V22l-2.33-1.3L14.33 22 12 20.7 9.67 22 7.33 20.7 5 22Z" vector-effect="non-scaling-stroke"/>
+          <path data-p="l1" d="M8.5 7h7" vector-effect="non-scaling-stroke"/><path data-p="l2" d="M8.5 11h7" vector-effect="non-scaling-stroke"/><path data-p="l3" d="M8.5 15h4.5" vector-effect="non-scaling-stroke"/>
+        </g>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Чек</span><span style="font-size:12px; color:#9a9ea3;">артефакт · вкладення</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">розгортається, рядки проявляються</span></span>
+  </div>
+
+  <div data-motion="turn" data-dur="620" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path d="M5 12h14"/><path d="M12 5v14"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Додати</span><span style="font-size:12px; color:#9a9ea3;">нова розмова · позиція</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">робить чверть оберту й стає на місце</span></span>
+  </div>
+
+  <div data-motion="listen" data-dur="1300" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path data-p="cap" d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" vector-effect="non-scaling-stroke"/>
+        <path data-p="arc" data-draw pathLength="1" d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <path data-p="stand" d="M12 19v3"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Голос</span><span style="font-size:12px; color:#9a9ea3;">композитор</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">капсула набирає, дуга домальовується</span></span>
+  </div>
+
+  <div data-motion="lift" data-dur="880" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center; overflow:hidden;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px);">
+        <g data-p="arrow"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></g>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Надіслати</span><span style="font-size:12px; color:#9a9ea3;">композитор</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">стрілка йде вгору й повертається знизу</span></span>
+  </div>
+
+  <div data-motion="clip" data-dur="1050" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path data-p="clip" data-draw pathLength="1" d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Вкласти</span><span style="font-size:12px; color:#9a9ea3;">фото, PDF, TXT</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">скріпка домальовується одним рухом</span></span>
+  </div>
+
+  <div data-motion="orbit" data-dur="1150" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <g data-p="lens"><circle cx="11" cy="11" r="7"/></g>
+        <path d="m21 21-4.3-4.3"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Пошук</span><span style="font-size:12px; color:#9a9ea3;">комора · рецепти</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">лупа робить коло</span></span>
+  </div>
+
+  <div data-motion="sliders" data-dur="1250" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path d="M3 7h18" opacity=".45"/><path d="M3 12h18" opacity=".45"/><path d="M3 17h18" opacity=".45"/>
+        <path data-p="k1" d="M14 5v4"/><path data-p="k2" d="M10 10v4"/><path data-p="k3" d="M15 15v4"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Фільтр</span><span style="font-size:12px; color:#9a9ea3;">комора</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">бігунки їдуть у різні боки</span></span>
+  </div>
+
+  <div data-motion="swap" data-dur="1050" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <g data-p="up"><path d="M7 20V4"/><path d="m3 8 4-4 4 4"/></g>
+        <g data-p="down"><path d="M17 4v16"/><path d="m21 16-4 4-4-4"/></g>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Порядок</span><span style="font-size:12px; color:#9a9ea3;">комора · сортування</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">стрілки міняються місцями</span></span>
+  </div>
+
+  <div data-motion="tick" data-dur="750" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
+    <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
+        <path data-p="tick" data-draw pathLength="1" d="M20 6 9 17l-5-5"/>
+      </svg>
+    </span>
+    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font-size:14px; font-weight:500;">Готово</span><span style="font-size:12px; color:#9a9ea3;">застосувати · крок</span><span style="font-size:12px; color:#55724a; font-weight:500; margin-top:4px;">галочка ставиться одним штрихом</span></span>
+  </div>
+
+</div>
+
+<div style="display:flex; flex-direction:column; gap:12px;">
+  <div style="display:flex; align-items:baseline; gap:12px;"><span style="font-weight:600; font-size:20px; letter-spacing:-.02em;">У рейці — реальний розмір</span><span style="font-size:13px; color:#9a9ea3;">20 px, тон на крок тихіший за текст</span></div>
+  <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:12px; display:flex; gap:4px; align-items:center; box-shadow:0 1px 2px rgba(26,28,30,.05); max-width:760px;">
+    <span data-motion="bubble" data-dur="1050" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#1a1c1e; color:#f4f3ef; display:grid; place-items:center; cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><g data-p="bub"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><circle data-p="d1" cx="8.4" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle data-p="d2" cx="12" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle data-p="d3" cx="15.6" cy="11" r="1.05" fill="currentColor" stroke="none"/></g></svg>
+    </span>
+    <span data-motion="door" data-dur="1050" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer; --frame:#fff;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path d="M5 10V6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4"/><path d="M5 10h14"/><path d="M15 5.5v2.5"/><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10"/><path data-p="shelf1" d="M8 16h8" opacity="0"/><g data-p="door"><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10" vector-effect="non-scaling-stroke"/><path d="M15 13v3.5" vector-effect="non-scaling-stroke"/></g></svg>
+    </span>
+    <span data-motion="book" data-dur="1150" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3z"/><path d="M21 18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3z"/><path data-p="leaf" d="M12 7a4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-9z" opacity="0" vector-effect="non-scaling-stroke"/></svg>
+    </span>
+    <span data-motion="checks" data-dur="1000" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path data-p="c1" d="m3 7 2 2 4-4"/><path data-p="c1t" data-draw pathLength="1" d="m3 7 2 2 4-4"/><path data-p="c2" d="m3 17 2 2 4-4"/><path data-p="c2t" data-draw pathLength="1" d="m3 17 2 2 4-4"/><path data-p="r1" d="M13 6h8"/><path data-p="r2" d="M13 12h8"/><path data-p="r3" d="M13 18h8"/><path d="M3 12h6" opacity=".45"/></svg>
+    </span>
+    <span data-motion="flip" data-dur="900" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path data-p="pin1" d="M8 2v4"/><path data-p="pin2" d="M16 2v4"/><g data-p="sheet"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></g><g data-p="dates"><circle cx="7.6" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="16.4" cy="15" r="1" fill="currentColor" stroke="none"/></g></svg>
+    </span>
+    <span data-motion="home" data-dur="980" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6"/><path data-p="hdoor" d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6" vector-effect="non-scaling-stroke"/></svg>
+    </span>
+    <span data-motion="orbit" data-dur="1150" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><g data-p="lens"><circle cx="11" cy="11" r="7"/></g><path d="m21 21-4.3-4.3"/></svg>
+    </span>
+    <span data-motion="turn" data-dur="620" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    </span>
+    <span style="flex:1;"></span>
+    <span style="font-size:12px; color:#9a9ea3; padding-right:8px;">наведи або торкнись</span>
+  </div>
+</div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;speed&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;min&quot;:0.6,&quot;max&quot;:1.6,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Моушн&quot;},&quot;autoplay&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Моушн&quot;},&quot;iconSize&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:22,&quot;min&quot;:18,&quot;max&quot;:32,&quot;step&quot;:2,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Моушн&quot;}}">
+class Component extends DCLogic {
+  root() { return document.querySelector('[data-iconlab]'); }
+  componentDidMount() {
+    const r = this.root(); if (!r) return;
+    Array.from(r.querySelectorAll('[data-motion]')).forEach((el) => {
+      el.addEventListener('mouseenter', () => this.play(el));
+      el.addEventListener('click', () => this.play(el));
+    });
+    this.apply();
+  }
+  componentDidUpdate() { this.apply(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  speed() { const v = Number(this.props.speed); return v > 0 ? v : 1; }
+  apply() {
+    const r = this.root(); if (!r) return;
+    r.style.setProperty('--sp', String(1 / this.speed()));
+    r.style.setProperty('--isz', (this.props.iconSize ?? 22) + 'px');
+    clearInterval(this.timer);
+    if (this.props.autoplay) { this.sweep(); this.timer = setInterval(() => this.sweep(), 3800 / this.speed()); }
+  }
+  sweep() {
+    const r = this.root(); if (!r) return;
+    Array.from(r.querySelectorAll('[data-motion]')).forEach((el, i) => setTimeout(() => this.play(el), i * 70));
+  }
+  play(el) {
+    if (el.dataset.play) return;
+    const dur = (Number(el.dataset.dur) || 0) / this.speed();
+    if (!dur) return;
+    el.dataset.play = '1';
+    setTimeout(() => { delete el.dataset.play; }, dur + 80);
+  }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

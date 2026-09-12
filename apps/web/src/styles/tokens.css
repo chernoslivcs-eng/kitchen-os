@@ -175,6 +175,18 @@
   --dur-icon-short: 700ms;  /* checks · turn · lift · waves */
   --dur-icon:       800ms;  /* flip · swap · back · unroll · fold · nod · close */
   --dur-icon-long:  900ms;  /* bubble · door · book · home · roll · draw · orbit · listen · sliders · dial */
+  /* Icon Motion v2 (Р117, ai/project/Kitchen OS - Icon Motion.dc.html): тривалості
+     по знаку, як у файлі; носій тримає data-play повну тривалість (motion.ts
+     V2_DURATION), тут — тривалості окремих частин. Під reduce — 0. */
+  --dur-im-bub: 900ms;   --dur-im-dot: 760ms;    --dur-im-door: 1050ms;  --dur-im-book: 1150ms;
+  --dur-im-check: 500ms; --dur-im-row: 560ms;    --dur-im-flip: 900ms;   --dur-im-home: 980ms;
+  --dur-im-roll: 1050ms; --dur-im-unroll: 820ms; --dur-im-line: 520ms;   --dur-im-turn: 620ms;
+  --dur-im-cap: 1250ms;  --dur-im-arc: 760ms;    --dur-im-stand: 620ms;  --dur-im-lift: 880ms;
+  --dur-im-clip: 1050ms; --dur-im-orbit: 1150ms; --dur-im-knob: 1050ms;  --dur-im-swap: 960ms;
+  --dur-im-tick: 720ms;
+  --ease-im-out:   cubic-bezier(.33, 1, .68, 1);   /* домальовування, бабл, чек, галочка */
+  --ease-im-inout: cubic-bezier(.42, 0, .58, 1);   /* книга, кошик, лупа, бігунки, стрілки */
+  --ease-im-swing: cubic-bezier(.4, 0, .25, 1);    /* дверцята */
   --dur-live-flame: 1600ms; /* «Горить» дихає */
   --dur-live-timer: 1200ms; /* таймер тікає */
   --dur-live-mic:   1200ms; /* диктовка пульсує */
@@ -198,6 +210,11 @@
     --dur-icon-short: 0ms;
     --dur-icon: 0ms;
     --dur-icon-long: 0ms;
+    --dur-im-bub: 0ms; --dur-im-dot: 0ms; --dur-im-door: 0ms; --dur-im-book: 0ms; --dur-im-check: 0ms;
+    --dur-im-row: 0ms; --dur-im-flip: 0ms; --dur-im-home: 0ms; --dur-im-roll: 0ms; --dur-im-unroll: 0ms;
+    --dur-im-line: 0ms; --dur-im-turn: 0ms; --dur-im-cap: 0ms; --dur-im-arc: 0ms; --dur-im-stand: 0ms;
+    --dur-im-lift: 0ms; --dur-im-clip: 0ms; --dur-im-orbit: 0ms; --dur-im-knob: 0ms; --dur-im-swap: 0ms;
+    --dur-im-tick: 0ms;
     --dur-live-flame: 0ms;
     --dur-live-timer: 0ms;
     --dur-live-mic: 0ms;

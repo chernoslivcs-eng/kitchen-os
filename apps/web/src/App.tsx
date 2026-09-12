@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigat
 import { Landing } from './pages/Landing/Landing';
 import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
 import { Feed } from './pages/Feed/Feed';
+import { IconLab } from './pages/Dev/IconLab';
 import { PantryPage } from './pages/Pantry/Pantry';
 import { ShoppingPage } from './pages/Shopping/Shopping';
 import { ProfileRoute } from './pages/Profile/ProfileRoute';
@@ -189,6 +190,8 @@ export function App() {
           {/* Знайомство з Семеном — поза каркасом: без табів і панелі, як /share. */}
           <Route path="/welcome" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
           <Route path="/r/:id" element={<SharedRecipePage />} />
+          {/* Лабораторія знаків для запису руху (Р117) — лише в dev-збірці. */}
+          {import.meta.env.DEV && <Route path="/dev/icons" element={<IconLab />} />}
           <Route path="/invite" element={<InvitePage />} />
           {/* Крок Е1: сервер веде сюди браузер на 410 — щоб людина побачила
               екран, а не сирий JSON. Два різні: «запізнився» і «вже спрацював»
