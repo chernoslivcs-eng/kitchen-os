@@ -96,7 +96,9 @@ export function SharedRecipePage() {
         <b>Готуй у себе.</b> Кухня звірить склад із твоєю коморою й поведе по кроках із таймерами.
       </span>
       {signedIn ? (
-        <button type="button" className={styles['cta-btn']} onClick={takeIntoOwnKitchen} data-cook-mine>Готуй у себе</button>
+        /* Пакет 4, №13 (рішення власника): текст кнопки — «Увійти в Кухню» і для
+           свого; заголовок картки «Готуй у себе.» лишається. Дія та сама. */
+        <button type="button" className={styles['cta-btn']} onClick={takeIntoOwnKitchen} data-cook-mine>Увійти в Кухню<Icon name="sys.next" size={16} inherit decorative /></button>
       ) : (
         <button type="button" className={styles['cta-btn']} onClick={() => navigate(`/?next=/r/${id}`)} data-login>
           Увійти в Кухню<Icon name="sys.next" size={16} inherit decorative />

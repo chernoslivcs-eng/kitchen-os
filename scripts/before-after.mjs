@@ -28,6 +28,7 @@
 // --video N  замість знімка — запис N секунд (webm на кожну половину, поруч
 //           не клеїться); кроки з --actions виконуються під час запису
 // --label-before / --label-after  підписи половин (типово main · гілка)
+// --path-before / --path-after    свій шлях на половину (різні uuid на двох стендах)
 // --fake-media     Chromium із фейковим мікрофоном (--use-fake-device-for-media-stream):
 //           getUserMedia віддає синтетичний тон — хвиля диктування малюється з
 //           реального AnalyserNode, а не з fallback «REC»
@@ -248,7 +249,9 @@ async function shoot(base, theme, side) {
     mkdirSync(dirname(resolve(STATE_FILE)), { recursive: true });
     await ctx.storageState({ path: STATE_FILE });
   }
-  const path = arg('path', '/');
+  // --path-before / --path-after — коли шлях різний на половинах (окремі
+  // стенди дають різні uuid рецепта на /r/:id).
+  const path = arg(`path-${side}`, arg('path', '/'));
   await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
   // --click-after / --actions-after — лише на половині «стало» (елемента в «було» ще нема).

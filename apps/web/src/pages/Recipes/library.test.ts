@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterCounts, matches, statusWord, rank } from './library';
+import { filterCounts, matches, statusWord, rank, rescuesLine } from './library';
 
 // PLAN §8: лічильник рахує те, що під ним — у кожній пігулці своє число,
 // «Усі» — усі. Слово стану в роді (D5), порядок «спершу те, що можна зараз».
@@ -24,5 +24,14 @@ describe('бібліотека рецептів', () => {
   });
   it('порядок: можу зараз → майже → далеко', () => {
     expect([...rs].reverse().sort((a, b) => rank(a) - rank(b)).map((r) => r.status)).toEqual(['ready', 'ready', 'near', 'far']);
+  });
+});
+
+// Пакет 4, №11: «використає» — малими, через «·», дні в того, що горить.
+describe('рядок «використає»', () => {
+  it('назви малими, «·» між ними, «· N дні» після того, що горить; без дати — лише назва', () => {
+    expect(rescuesLine([{ label: 'Помідори', days: 3 }, { label: 'Фета', days: null }])).toBe('помідори · 3 дні · фета');
+    expect(rescuesLine([{ label: 'Молоко', days: 1 }, { label: 'Сир', days: 5 }])).toBe('молоко · 1 день · сир · 5 днів');
+    expect(rescuesLine([{ label: 'Рукола', days: 0 }])).toBe('рукола · сьогодні');
   });
 });

@@ -23,7 +23,7 @@ import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type Ba
 import styles from './Recipe.module.css';
 import { Icon } from '../../components/Icon/Icon';
 import { useCookStore } from '../../store/cook';
-import { statusWord } from '../Recipes/library';
+import { statusWord, rescuesLine } from '../Recipes/library';
 
 interface RecipeLocationState {
   recipe?: Recipe;
@@ -274,7 +274,7 @@ export function RecipePage() {
                 <span className={styles['chip-dot']} aria-hidden />{status.text} · {have} з {total}
               </span>
               {lib?.rescues?.length ? (
-                <span className={`${styles.chip} ${styles['chip-amber']}`}><Icon name="live.burning" size={12} inherit decorative />{lib.rescues.join(' · ')}</span>
+                <span className={`${styles.chip} ${styles['chip-amber']}`}><Icon name="live.burning" size={12} inherit decorative />{rescuesLine(lib.rescues)}</span>
               ) : null}
             </div>
             <h1 className={`${styles.title} t-display`}>{recipe.t}</h1>

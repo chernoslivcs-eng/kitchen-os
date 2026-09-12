@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Крок 4 things-v3: публічний рецепт за Screens «Публічний рецепт · 1440»
 // (B2): шапка без рейки, кроки номерами, «Склад · N», шавлієва картка з
-// однією дією — гостю «Увійти в Кухню», своєму «Готуй у себе».
+// однією дією — «Увійти в Кухню» (гостю — вхід, своєму — своя кухня; пакет 4, №13).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -47,9 +47,10 @@ describe('SharedRecipePage · крок 4', () => {
     expect(host!.querySelector('[data-cook-mine]')).toBeNull();
     expect(t).not.toMatch(/ІНГРЕДІЄНТИ|КРОКИ|СПІЛЬНИЙ РЕЦЕПТ/);
   });
-  it('свій: «Готуй у себе», без «Увійти»', async () => {
+  it('свій: кнопка «Увійти в Кухню» (дія — своя кухня), без «Увійти» у шапці', async () => {
     await mount('signed_in');
-    expect(host!.querySelector('[data-cook-mine]')!.textContent).toBe('Готуй у себе');
+    // Пакет 4, №13: текст кнопки «Увійти в Кухню» і для свого; дія — своя кухня.
+    expect(host!.querySelector('[data-cook-mine]')!.textContent).toBe('Увійти в Кухню');
     expect(host!.querySelector('[data-login]')).toBeNull();
     expect([...host!.querySelectorAll('button')].some((b) => b.textContent === 'Увійти')).toBe(false);
   });
