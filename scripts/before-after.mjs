@@ -16,6 +16,7 @@
 // --slow prefix=MS  затримати відповідь за префіксом (стан «думаю»)
 // --patch-json path=json  злити поля у справжню відповідь GET
 // --scale — те саме, що в side-by-side.mjs (див. там)
+// --vp safari|safari-full|pwa  390×664 (Safari з тулбаром) · 390×750 (без) · 390×844 (PWA); типова висота для ≤480 тепер 664
 // --engine webkit  той самий прогін у WebKit
 // --actions scroll:bottom|top  догорнути документ і внутрішні скролери
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
@@ -48,8 +49,15 @@ const BEFORE = (arg('before', 'http://localhost:5191')).replace(/\/$/, '');
 const AFTER = (arg('after', 'http://localhost:5190')).replace(/\/$/, '');
 const NAME = arg('name', 'pair');
 const OUT_DIR = arg('out-dir', 'docs/superpowers/plans/side-by-side/pack-2');
-const WIDTH = Number(arg('width', 1440));
-const HEIGHT = Number(arg('height', WIDTH <= 480 ? 844 : 900));
+// Пресети мобільної здачі (власник, 13.09): у Safari на iPhone видимих ~664 px із
+// тулбаром і ~750 без нього; 844 — висота ЕКРАНА, тобто лише PWA з домашнього
+// екрана. Стандарт — safari (664) і safari-full (750); pwa — окремим рядком.
+//   --vp safari | safari-full | pwa   (задає 390 × висоту; --width/--height перекривають)
+const VP_PRESETS = { safari: [390, 664], 'safari-full': [390, 750], pwa: [390, 844] };
+const VP = arg('vp', null);
+if (VP && !VP_PRESETS[VP]) { console.error(`before-after: невідомий --vp ${VP}; є ${Object.keys(VP_PRESETS).join(', ')}`); process.exit(1); }
+const WIDTH = Number(arg('width', VP ? VP_PRESETS[VP][0] : 1440));
+const HEIGHT = Number(arg('height', VP ? VP_PRESETS[VP][1] : WIDTH <= 480 ? 664 : 900));
 const THEMES = arg('theme', 'both') === 'both' ? ['light', 'dark'] : [arg('theme')];
 const EMAIL = arg('email', 'dev@local.test');
 const LOG = arg('log', '.qa-magic-links.log');

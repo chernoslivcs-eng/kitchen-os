@@ -149,3 +149,5 @@
 /* 0912 C: поле на всю висоту рядка — ціль дотику = рядок, візуал той самий (тло прозоре). */
 .add input { align-self: stretch; }
 @media (max-width: 767px) { .body { padding-bottom: calc(20px + 64px + env(safe-area-inset-bottom, 0px)); } }
+/* fix/ios-inner-scroll-offset: у колонці з фіксованою висотою рейка з overflow-x: auto має min-height 0 і стискається до нуля (чіпи комори 0 px, рецептів 12 px на 390×664 — і в WebKit, і в Chromium). Діти скролера не стискаються. */
+.body > * { flex-shrink: 0; }

@@ -434,3 +434,5 @@
 .c6-seg button { position: relative; }
 .c6-seg button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
 .subs-btn, .add { flex: none; }
+/* fix/ios-inner-scroll-offset: у колонці з фіксованою висотою рейка з overflow-x: auto має min-height 0 і стискається до нуля (чіпи комори 0 px, рецептів 12 px на 390×664 — і в WebKit, і в Chromium). Діти скролера не стискаються. */
+.legend { flex: none; }

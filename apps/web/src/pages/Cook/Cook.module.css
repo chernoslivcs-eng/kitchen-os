@@ -248,7 +248,7 @@
   .route { background: transparent; box-shadow: none; border-radius: 0; padding: 4px 20px 0; overflow: visible; flex: none; }
   .route-meta { padding-bottom: 10px; }
   .route .route-bar, .route .route-list, .route .route-foot { display: none; }
-  .route-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
+  .route-chips { flex: none; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
   .route-chips::-webkit-scrollbar { display: none; }
   .route-chips .route-row {
     flex: none; width: auto; min-height: 0; display: inline-flex; flex-direction: row; align-items: center; gap: 8px;
