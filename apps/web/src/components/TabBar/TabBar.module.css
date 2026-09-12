@@ -65,9 +65,8 @@
   place-items: center;
   border: 0;
   border-radius: 10px;
-  background: var(--card);
+  background: transparent;
   color: var(--muted);
-  box-shadow: var(--sh-a), var(--sh-b);
   cursor: pointer;
 }
 .panel-btn:hover { color: var(--ink); }
@@ -330,13 +329,25 @@
     overflow: hidden;
     transition: width var(--dur-slow) var(--ease-standard);
   }
-  /* Підписи: у рейці невидимі й не в доступності; проявляються після старту руху. */
+  /* Підписи: у рейці невидимі й не в доступності. Слова цілей, вордмарк і текст
+     профілю (власник 13.09) не проявляються прозорістю, а обрізаються по
+     символах трикрапкою — рядок росте з шириною, підпис відкривається літера за
+     літерою; лічильник, пілюля і список розмов — прозорістю. */
   .brand-name, .tab > span:nth-child(2), .tab-count, .tab-pill, .user-text, .sessions {
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast);
   }
+  .brand-name, .tab > span:nth-child(2), .user-text {
+    opacity: 1;
+    visibility: hidden;
+    transition: visibility 0s linear var(--dur-slow);
+  }
   .brand-name, .tab > span:nth-child(2), .tab-count, .user-name, .user-home { white-space: nowrap; }
+  .brand-name, .tab > span:nth-child(2) { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* 3. «Панель» показується лише в розгорнутому стані (власник 13.09); рядок під
+     нею лишається, тож нічого не їде. У рейці розгортає логотип і наведення (№14). */
+  .panel-btn { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast); }
   .brand { flex-direction: row; align-items: center; gap: 10px; padding: 0 7px 14px; overflow: hidden; }
   .brand-btn { width: 30px; height: 30px; margin: 0; flex: none; }
   .scroll { scrollbar-gutter: auto; overflow-x: hidden; }
@@ -388,6 +399,8 @@
     visibility: visible;
     transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
   }
+  .wide .brand-name, .wide .tab > span:nth-child(2), .wide .user-text { transition: visibility 0s; }
+  .wide .panel-btn { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow); }
   /* Список розмов проявляється після ширини; при згортанні гасне першим. */
   .wide .sessions {
     opacity: 1;
@@ -425,6 +438,8 @@
     visibility: visible;
     transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
   }
+  .wrap.open .brand-name, .wrap.open .tab > span:nth-child(2), .wrap.open .user-text { transition: visibility 0s; }
+  .wrap.open .panel-btn { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow); }
   .wrap.open .sessions {
     opacity: 1;
     visibility: visible;

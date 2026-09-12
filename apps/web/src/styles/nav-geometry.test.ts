@@ -67,11 +67,19 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     expect(rail768.decls).toMatch(/padding\s*:\s*14px 10px/);
     const foot = rules.find((r) => r.sel === '.foot')!;
     expect(foot.decls).toMatch(/flex-direction\s*:\s*column-reverse/);
-    const panel = rules.find((r) => r.sel === '.panel-btn')!;
-    expect(panel.decls).toMatch(/width\s*:\s*38px/);
+    const panel = rules.find((r) => r.sel === '.panel-btn' && /width\s*:\s*38px/.test(r.decls))!;
     expect(panel.decls).toMatch(/align-self\s*:\s*flex-start/);
-    expect(panel.decls).not.toMatch(/visibility|opacity/);
-    expect(rules.some((r) => /\.(wide|open)\b/.test(r.sel) && /\.panel-btn\s*$/.test(r.sel)), 'жодного правила для «панелі» в розгорнутому стані').toBe(false);
+    // «панель» лише в розгорнутому стані (власник 13.09): у рейці схована
+    // opacity/visibility без плашки, рядок під нею лишається — нічого не їде.
+    const panelHidden = rules.find((r) => r.sel === '.panel-btn' && /visibility\s*:\s*hidden/.test(r.decls))!;
+    expect(panelHidden.decls).toMatch(/pointer-events\s*:\s*none/);
+    const panelBase = rules.find((r) => r.sel === '.panel-btn' && /width\s*:\s*38px/.test(r.decls))!;
+    expect(panelBase.decls).not.toMatch(/visibility|opacity/);
+    for (const r of rules.filter((r) => /\.(wide|open)\b/.test(r.sel) && /\.panel-btn\s*$/.test(r.sel))) {
+      expect(r.decls.replace(/transition\s*:[^;]+;?/, ''), `«${r.sel}»`).not.toMatch(/(width|height|margin|top|left|right)\s*:/);
+    }
+    const panelChrome = [...css.matchAll(/\.panel-btn\s*\{([^}]*)\}/g)].map((m) => m[1]!).join(';');
+    expect(panelChrome, '«панель» без білої плашки').not.toMatch(/background\s*:\s*var\(--card\)|box-shadow/);
     for (const sel of ['.badge', '.tab-dot']) {
       const r = rules.find((r) => r.sel === sel)!;
       expect(r.decls, sel).toMatch(/left\s*:\s*\d+px/);
@@ -92,5 +100,15 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     const collapsed = rules.find((r) => r.sel.startsWith('.brand-name, .tab > span'))!;
     expect(collapsed.decls).toMatch(/opacity var\(--dur-fast\)/);
     expect(collapsed.decls).not.toMatch(/opacity var\(--dur-fast\)[^,;]*\d+ms/);
+  });
+  it('слова цілей і вордмарк обрізаються по символах трикрапкою, а не проявляються (власник 13.09)', () => {
+    const label = rules.find((r) => r.sel === '.brand-name, .tab > span:nth-child(2)')!;
+    expect(label.decls).toMatch(/text-overflow\s*:\s*ellipsis/);
+    expect(label.decls).toMatch(/min-width\s*:\s*0/);
+    const clip = rules.find((r) => r.sel === '.brand-name, .tab > span:nth-child(2), .user-text' && /opacity\s*:\s*1/.test(r.decls))!;
+    expect(clip.decls).not.toMatch(/transition\s*:[^;]*opacity/);
+    for (const r of rules.filter((r) => /^\.(wide|wrap\.open) \.brand-name, /.test(r.sel) && !/tab-count/.test(r.sel))) {
+      expect(r.decls.replace(/\s/g, ''), `«${r.sel}»`).toBe('transition:visibility0s;');
+    }
   });
 });
