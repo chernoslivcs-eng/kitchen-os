@@ -41,13 +41,19 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
 @keyframes leafTurn { 0% { transform: scaleX(1); opacity:0; } 14% { opacity:.95; } 50% { transform: scaleX(.04); opacity:.95; } 86% { opacity:.95; } 100% { transform: scaleX(-1); opacity:0; } }
 
 /* Список — галочки дописуються */
-[data-motion="checks"][data-play] [data-p="c1"] { animation: drawIn calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
-[data-motion="checks"][data-play] [data-p="c2"] { animation: drawIn calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; animation-delay: calc(230ms * var(--sp,1)); }
+/* галочки не стираються: основна лишається, копія обводить її поверх і гасне; рядки лише зсуваються */
+[data-motion="checks"] [data-p="c1t"], [data-motion="checks"] [data-p="c2t"] { opacity: 0; stroke-width: 2.4; }
+[data-motion="checks"][data-play] [data-p="c1"] { animation: baseDip calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="checks"][data-play] [data-p="c1t"] { animation: traceIn calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+[data-motion="checks"][data-play] [data-p="c2"] { animation: baseDip calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; animation-delay: calc(230ms * var(--sp,1)); }
+[data-motion="checks"][data-play] [data-p="c2t"] { animation: traceIn calc(500ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; animation-delay: calc(230ms * var(--sp,1)); }
 [data-motion="checks"][data-play] [data-p^="r"] { animation: rowIn calc(560ms * var(--sp,1)) cubic-bezier(.33,1,.68,1) both; }
+@keyframes traceIn { 0% { stroke-dashoffset: 1; opacity:1; } 62% { stroke-dashoffset: 0; opacity:1; } 100% { stroke-dashoffset: 0; opacity:0; } }
+@keyframes baseDip { 0% { opacity:1; } 18% { opacity:.45; } 62% { opacity:.45; } 100% { opacity:1; } }
 [data-motion="checks"][data-play] [data-p="r2"] { animation-delay: calc(120ms * var(--sp,1)); }
 [data-motion="checks"][data-play] [data-p="r3"] { animation-delay: calc(240ms * var(--sp,1)); }
 @keyframes drawIn { 0% { stroke-dashoffset: 1; opacity:.2; } 100% { stroke-dashoffset: 0; opacity:1; } }
-@keyframes rowIn { 0% { opacity:.3; transform: translateX(-1.2px); } 100% { opacity:1; transform: none; } }
+@keyframes rowIn { 0% { transform: translateX(-1.2px); } 100% { transform: none; } }
 
 /* Календар — гортає сторінку */
 [data-motion="flip"][data-play] [data-p="dates"] { animation: pageRow calc(900ms * var(--sp,1)) cubic-bezier(.42,0,.58,1) both; }
@@ -162,8 +168,8 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
   <div data-motion="checks" data-dur="1000" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 10px 28px rgba(26,28,30,.09);">
     <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:var(--isz,22px); height:var(--isz,22px); overflow:visible;">
-        <path data-p="c1" data-draw pathLength="1" d="m3 7 2 2 4-4"/>
-        <path data-p="c2" data-draw pathLength="1" d="m3 17 2 2 4-4"/>
+        <path data-p="c1" d="m3 7 2 2 4-4"/><path data-p="c1t" data-draw pathLength="1" d="m3 7 2 2 4-4"/>
+        <path data-p="c2" d="m3 17 2 2 4-4"/><path data-p="c2t" data-draw pathLength="1" d="m3 17 2 2 4-4"/>
         <path data-p="r1" d="M13 6h8"/><path data-p="r2" d="M13 12h8"/><path data-p="r3" d="M13 18h8"/>
         <path d="M3 12h6" opacity=".45"/>
       </svg>
@@ -309,7 +315,7 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3z"/><path d="M21 18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3z"/><path data-p="leaf" d="M12 7a4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-9z" opacity="0" vector-effect="non-scaling-stroke"/></svg>
     </span>
     <span data-motion="checks" data-dur="1000" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path data-p="c1" data-draw pathLength="1" d="m3 7 2 2 4-4"/><path data-p="c2" data-draw pathLength="1" d="m3 17 2 2 4-4"/><path data-p="r1" d="M13 6h8"/><path data-p="r2" d="M13 12h8"/><path data-p="r3" d="M13 18h8"/><path d="M3 12h6" opacity=".45"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path data-p="c1" d="m3 7 2 2 4-4"/><path data-p="c1t" data-draw pathLength="1" d="m3 7 2 2 4-4"/><path data-p="c2" d="m3 17 2 2 4-4"/><path data-p="c2t" data-draw pathLength="1" d="m3 17 2 2 4-4"/><path data-p="r1" d="M13 6h8"/><path data-p="r2" d="M13 12h8"/><path data-p="r3" d="M13 18h8"/><path d="M3 12h6" opacity=".45"/></svg>
     </span>
     <span data-motion="flip" data-dur="900" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; color:#6b6f74; display:grid; place-items:center; cursor:pointer;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px; overflow:visible;"><path data-p="pin1" d="M8 2v4"/><path data-p="pin2" d="M16 2v4"/><g data-p="sheet"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></g><g data-p="dates"><circle cx="7.6" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="16.4" cy="15" r="1" fill="currentColor" stroke="none"/></g></svg>
