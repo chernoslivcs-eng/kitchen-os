@@ -34,6 +34,7 @@ await cdp.send('Tracing.end'); await done;
 const count = (n) => events.filter((e) => e.name === n).length;
 const paints = events.filter((e) => e.name === 'Paint');
 const area = paints.reduce((a, e) => a + ((e.args?.data?.clip) ? 1 : 0), 0);
+const grain = await page.evaluate(() => { const b = getComputedStyle(document.body, '::before'); return { image: b.backgroundImage.includes('svg') ? 'svg' : b.backgroundImage.slice(0, 20), height: b.height, opacity: b.opacity }; });
 const names = {}; for (const e of events) names[e.name] = (names[e.name] ?? 0) + 1;
-console.log(JSON.stringify({ url, events: events.length, top: Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 8), frames: count('DrawFrame') + count('BeginFrame'), Paint: count('Paint'), Layout: count('Layout'), UpdateLayerTree: count('UpdateLayerTree'), Composite: count('CompositeLayers'), clips: area }));
+console.log(JSON.stringify({ url, grain, events: events.length, top: Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 8), frames: count('DrawFrame') + count('BeginFrame'), Paint: count('Paint'), Layout: count('Layout'), UpdateLayerTree: count('UpdateLayerTree'), Composite: count('CompositeLayers'), clips: area }));
 await browser.close();

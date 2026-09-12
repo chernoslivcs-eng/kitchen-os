@@ -321,13 +321,22 @@ body.dz-drag #root {
      Скло — матеріал усього продукту (рейка, артефакти, шторки, нижній бар);
      градієнт — ознака лише розмови й публічного рецепта. --glass-blur і
      --glass-sat — ручки для стенда (другий кандидат: 46 %, blur 30, sat 1.8). */
-  --glass-bg:   color-mix(in srgb, var(--card) 72%, transparent);
-  --glass-edge: rgba(255, 255, 255, 0.7);
-  --glass-top:  rgba(255, 255, 255, 0.9);
-  --glass-side: rgba(255, 255, 255, 0.5);
-  --glass-sh:   0 12px 40px rgba(26, 28, 30, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.6);
-  --glass-blur: 18px;
-  --glass-sat:  1.25;
+  /* Актуальні значення — Prototype Claude Design 12.09 (тонше скло з
+     зайомленням і грейном); spec у репо відстає. Канон v3.1 (spec) — поруч
+     коментарем, власник порівнює (body[data-glass='canon'] на стенді):
+       --glass-bg 72 % · --glass-edge .7 · --glass-top .9 · --glass-side .5 ·
+       --glass-sh 0 12px 40px rgba(26,28,30,.16), 0 0 0 1px rgba(255,255,255,.6) ·
+       --glass-blur 18px · --glass-sat 1.25, без brightness. */
+  --glass-bg:    color-mix(in srgb, var(--card) 46%, transparent);
+  --glass-edge:  rgba(255, 255, 255, 0.45);
+  --glass-top:   rgba(255, 255, 255, 0.85);
+  --glass-side:  rgba(255, 255, 255, 0.45);
+  --glass-low:   rgba(26, 28, 30, 0.07);
+  --glass-sheen: rgba(255, 255, 255, 0.42);
+  --glass-sh:    0 16px 48px rgba(26, 28, 30, 0.13), 0 0 0 1px rgba(255, 255, 255, 0.35);
+  --glass-blur:  30px;
+  --glass-sat:   1.8;
+  --glass-bright: 1.04;
   --chat-grad-top: color-mix(in srgb, var(--amber-bg) 32%, var(--bg));
   --chat-grad:  linear-gradient(to bottom, var(--chat-grad-top) 0, var(--bg) 240px);
 }
@@ -350,13 +359,19 @@ body.dz-drag #root {
 
   /* Скло і градієнт v3.1 — темна: підйом нейтральний (card 45 %, 260 px), не
      тоновий: тло під чіпами не позичає рід (tokens-v3, 12.09). */
-  --glass-bg:   color-mix(in srgb, var(--card) 78%, transparent);
-  --glass-edge: rgba(255, 255, 255, 0.10);
-  --glass-top:  rgba(255, 255, 255, 0.16);
-  --glass-side: rgba(255, 255, 255, 0.07);
-  --glass-sh:   0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --glass-blur: 18px;
-  --glass-sat:  1.25;
+  /* Канон v3.1 (spec), для порівняння: --glass-bg 78 % · edge .10 · top .16 ·
+     side .07 · --glass-sh 0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06)
+     · blur 18px · sat 1.25. Актуальне — Prototype 12.09: */
+  --glass-bg:    color-mix(in srgb, var(--card) 56%, transparent);
+  --glass-edge:  rgba(255, 255, 255, 0.07);
+  --glass-top:   rgba(255, 255, 255, 0.22);
+  --glass-side:  rgba(255, 255, 255, 0.10);
+  --glass-low:   rgba(0, 0, 0, 0.22);
+  --glass-sheen: rgba(255, 255, 255, 0.10);
+  --glass-sh:    0 16px 48px rgba(0, 0, 0, 0.46), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --glass-blur:  30px;
+  --glass-sat:   1.8;
+  --glass-bright: 1.04;
   --chat-grad-top: color-mix(in srgb, var(--card) 45%, var(--bg));
   --chat-grad:  linear-gradient(to bottom, var(--chat-grad-top) 0, var(--bg) 260px);
 }

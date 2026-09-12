@@ -47,6 +47,11 @@ function Shell() {
   // v3.1: градієнт — ознака тільки розмови; вішається на рамку екрана
   // (body, спільний предок рейки, стрічки й панелі) через data-screen.
   // Решта екранів — рівний --bg без винятків (glass-gradient-spec §2).
+  // Ручка стенда: localStorage kos-glass=canon → канон v3.1 (spec) замість
+  // актуального скла (Prototype 12.09) — власник порівнює обидва.
+  useEffect(() => {
+    try { if (localStorage.getItem('kos-glass') === 'canon') document.body.dataset.glass = 'canon'; } catch { /* приватний режим */ }
+  }, []);
   useEffect(() => {
     if (pathname === '/app') document.body.dataset.screen = 'chat';
     else delete document.body.dataset.screen;

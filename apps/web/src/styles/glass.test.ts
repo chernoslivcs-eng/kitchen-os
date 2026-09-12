@@ -13,11 +13,13 @@ const read = (p: string) => readFileSync(resolve(here, '..', p), 'utf-8');
 
 describe('скло і градієнт v3.1', () => {
   it('токени --glass-* у двох блоках тем (§6.2: інакше світла втрачає межу)', () => {
-    for (const name of ['glass-bg', 'glass-edge', 'glass-top', 'glass-side', 'glass-sh', 'glass-blur', 'glass-sat', 'chat-grad', 'chat-grad-top']) {
+    for (const name of ['glass-bg', 'glass-edge', 'glass-top', 'glass-side', 'glass-low', 'glass-sheen', 'glass-sh', 'glass-blur', 'glass-sat', 'glass-bright', 'chat-grad', 'chat-grad-top']) {
       expect(tokens.match(new RegExp(`--${name}:`, 'g'))?.length, `--${name}`).toBe(2);
     }
-    expect(tokens).toMatch(/--glass-bg:\s*color-mix\(in srgb, var\(--card\) 72%, transparent\)/);
-    expect(tokens).toMatch(/--glass-bg:\s*color-mix\(in srgb, var\(--card\) 78%, transparent\)/);
+    // Prototype Claude Design 12.09: 46 % / 56 %, blur 30, sat 1.8, brightness 1.04.
+    expect(tokens).toMatch(/--glass-bg:\s*color-mix\(in srgb, var\(--card\) 46%, transparent\)/);
+    expect(tokens).toMatch(/--glass-bg:\s*color-mix\(in srgb, var\(--card\) 56%, transparent\)/);
+    expect(tokens).toMatch(/--glass-blur:\s*30px/);
     expect(tokens).toMatch(/--chat-grad-top:\s*color-mix\(in srgb, var\(--amber-bg\) 32%, var\(--bg\)\)/);
     expect(tokens).toMatch(/--chat-grad-top:\s*color-mix\(in srgb, var\(--card\) 45%, var\(--bg\)\)/);
     expect(tokens).toMatch(/var\(--bg\) 240px/);
@@ -40,12 +42,21 @@ describe('скло і градієнт v3.1', () => {
     for (const cls of ['glass-inner', 'glass-rail', 'glass-bar']) {
       const m = glass.match(new RegExp(`\\.${cls}\\.${cls}\\s*\\{([^}]*)\\}`));
       expect(m, cls).not.toBeNull();
-      expect(m![1]).toContain('backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat))');
+      expect(m![1]).toContain('backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(var(--glass-bright))');
       expect(m![1]).toContain('contain: paint');
       expect(m![1]).toContain('background: var(--glass-bg)');
     }
-    expect(glass).toMatch(/\.glass-inner::after\s*\{[^}]*border:\s*1px solid var\(--glass-edge\)[^}]*inset 0 1px 0 var\(--glass-top\), inset 1px 0 0 var\(--glass-side\)/);
+    expect(glass).toMatch(/\.glass-inner::after\s*\{[^}]*border:\s*1px solid var\(--glass-edge\)[^}]*inset 0 1px 0 var\(--glass-top\), inset 1px 0 0 var\(--glass-side\),\s*inset 0 -1px 0 var\(--glass-low\), inset -1px 0 0 var\(--glass-low\)/);
+    expect(glass).toMatch(/\.glass-inner::before\s*\{[^}]*linear-gradient\(148deg, var\(--glass-sheen\) 0, transparent 34%, transparent 72%, var\(--glass-low\) 100%\)/);
     expect(glass).not.toContain('will-change');
+  });
+
+  it('грейн — лише в розмові: шар на рамці, 260 / 280 у темній, маска до 240 / 260; без прозорості — вимкнений', () => {
+    expect(glass).toMatch(/--grain-img:\s*url\("data:image\/svg\+xml[^"]*feTurbulence[^"]*baseFrequency='0\.8'[^"]*numOctaves='2'/);
+    expect(glass).toMatch(/body\[data-screen='chat'\]::before\s*\{[^}]*height:\s*260px[^}]*opacity:\s*\.2[^}]*transparent 240px/);
+    expect(glass).toMatch(/body\[data-screen='chat'\]::before\s*\{[^}]*height:\s*280px[^}]*opacity:\s*\.16[^}]*mix-blend-mode:\s*screen[^}]*transparent 260px/);
+    expect(glass).not.toMatch(/body\[data-screen='public-recipe'\]::before/);
+    expect(glass).toMatch(/prefers-reduced-transparency: reduce\)[^]*body\[data-screen='chat'\]::before \{ display: none; \}/);
   });
 
   it('без прозорості — щільний --card без розмиття', () => {
