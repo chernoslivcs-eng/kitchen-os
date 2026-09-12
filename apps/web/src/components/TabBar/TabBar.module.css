@@ -124,6 +124,9 @@
   font-variant-numeric: tabular-nums;
 }
 .tab.active .badge { background: var(--bg); color: var(--ink); }
+/* Р141: лічильник у кінці рядка сайдбара — пілюля 18 r999 чорнилом 11/600 (як бейдж #86 у .wide). */
+.tab-pill { display: grid; place-items: center; flex: none; margin-left: auto; height: 18px; min-width: 18px; padding: 0 5px; box-sizing: border-box; font-family: var(--font-body); font-size: 11px; line-height: 18px; font-weight: 600; text-align: center; background: var(--ink); color: var(--bg); border-radius: var(--r-pill); font-variant-numeric: tabular-nums; }
+.tab.active .tab-pill { background: var(--bg); color: var(--ink); }
 
 /* Одна скрольована стрічка між брендом і профілем (крок С1): цілі, «Розмови»,
    сесії. flex: 1 притискає профіль донизу; min-height: 0 — щоб overflow працював. */
@@ -282,6 +285,7 @@
 /* ── 390 (R3): у шухляді лише розмови, нова, профіль; цілі — в барі ── */
 @media (max-width: 767px) {
   .wrap .tab { display: none; }
+  .tab-pill { display: none; } /* лічильник рядка — лише рейка/сайдбар */
   .sessions-head { display: none; }
   .session-new-row { display: flex; }
   .session-day { font-size: 12px; padding: 14px 12px 6px; }
@@ -327,7 +331,7 @@
     transition: width var(--dur-slow) var(--ease-standard);
   }
   /* Підписи: у рейці невидимі й не в доступності; проявляються після старту руху. */
-  .brand-name, .tab > span:nth-child(2), .tab-count, .user-text, .sessions {
+  .brand-name, .tab > span:nth-child(2), .tab-count, .tab-pill, .user-text, .sessions {
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast);
@@ -359,6 +363,7 @@
     padding: 0 4px;
     line-height: 16px;
     font-size: 10px;
+    transition: opacity var(--dur-fast) var(--ease-standard);
   }
   .sessions { min-width: 0; overflow: hidden; }
   /* Низ: «панель» у своєму рядку над профілем, профіль останній (column-reverse
@@ -378,7 +383,7 @@
   /* №14: оверлей із наведення — поверх контенту, з тінню шухляди; закріплений
      (body.nav-expanded) — у потоці, контент зсувається (tokens.css). */
   .wrap.peek { z-index: 30; box-shadow: var(--sh2); border-right: 0; }
-  .wide .brand-name, .wide .tab > span:nth-child(2), .wide .tab-count, .wide .user-text {
+  .wide .brand-name, .wide .tab > span:nth-child(2), .wide .tab-count, .wide .tab-pill, .wide .user-text {
     opacity: 1;
     visibility: visible;
     transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
@@ -391,6 +396,8 @@
   }
   .wide .scroll { scrollbar-gutter: stable; }
   .wide .tab-dot { opacity: 0; }
+  /* Бейдж на кутку знака гасне — інакше наїжджає на підпис; число — пілюлею в кінці рядка. */
+  .wide .badge { opacity: 0; }
   .wide .sessions-head { padding: 18px 13px 6px; }
   .wide .session-day { padding-left: 13px; padding-right: 13px; }
   .wide .session { padding: 8px 13px; }
@@ -413,7 +420,7 @@
     border-right: 0;
     z-index: 30;
   }
-  .wrap.open .brand-name, .wrap.open .tab > span:nth-child(2), .wrap.open .tab-count, .wrap.open .user-text {
+  .wrap.open .brand-name, .wrap.open .tab > span:nth-child(2), .wrap.open .tab-count, .wrap.open .tab-pill, .wrap.open .user-text {
     opacity: 1;
     visibility: visible;
     transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
@@ -425,6 +432,8 @@
   }
   .wrap.open .scroll { scrollbar-gutter: stable; }
   .wrap.open .tab-dot { opacity: 0; }
+  /* Бейдж на кутку знака гасне — інакше наїжджає на підпис; число — пілюлею в кінці рядка. */
+  .wrap.open .badge { opacity: 0; }
   .wrap.open .foot { border-top-color: var(--line2); }
 }
 

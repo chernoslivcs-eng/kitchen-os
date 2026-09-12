@@ -25,7 +25,7 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     }
   });
   it('підписи завжди в DOM: ховаються opacity/visibility, не display', () => {
-    for (const label of ['.brand-name', '.tab > span:nth-child(2)', '.user-text', '.sessions', '.tab-count']) {
+    for (const label of ['.brand-name', '.tab > span:nth-child(2)', '.user-text', '.sessions', '.tab-count', '.tab-pill']) {
       const own = rules.filter((r) => r.sel.split(',').some((s) => s.trim().endsWith(label)));
       expect(own.length, `правила для ${label}`).toBeGreaterThan(0);
       for (const r of own) expect(r.decls, `«${r.sel}»`).not.toMatch(/(^|;)\s*display\s*:\s*(none|inline|block|flex)/);
@@ -78,6 +78,10 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
       expect(r.decls, sel).toMatch(/right\s*:\s*auto/);
       expect(r.decls, sel).not.toMatch(/transition\s*:[^;]*\b(left|right|top)\b/);
       expect(rules.some((x) => /\.(wide|open)\b/.test(x.sel) && x.sel.endsWith(sel) && /(left|right|top|height|font-size)\s*:/.test(x.decls)), `${sel} у .wide/.open не рухається`).toBe(false);
+      // у розгорнутому стані — лише opacity (гасне, число показує пілюля/лічильник у кінці рядка)
+      for (const x of rules.filter((x) => /\.(wide|open)\b/.test(x.sel) && x.sel.endsWith(sel))) {
+        expect(x.decls.replace(/\s/g, ''), `«${x.sel}»`).toMatch(/^opacity:0;?$/);
+      }
     }
   });
   it('підписи входять із затримкою, виходять першими; список розмов — після ширини', () => {

@@ -232,6 +232,8 @@ export function TabBar({ shoppingCount }: Props) {
             <Icon name={t.icon} size={18} decorative className={styles.glyph} />
             <span>{t.label}</span>
             {t.badge != null && t.badge > 0 && <span className={styles.badge}><RollingNumber value={t.badge} /></span>}
+            {/* Р141: у сайдбарі бейдж на кутку знака гасне, число — пілюлею в кінці рядка (як «2» комори). */}
+            {t.badge != null && t.badge > 0 && <span className={styles['tab-pill']} aria-hidden data-tab-pill>{t.badge}</span>}
             {/* Responsive R1/R2 · 12.09 (ANSWERS B8): «Комора N» = прострочено; у рейці —
                 крапка danger без числа; при нулі — нічого. «Горить N» — чіп у шапці чату. */}
             {t.path === '/pantry' && (pantryFacts?.overdue ?? 0) > 0 && <span className={styles['tab-dot']} aria-hidden />}
