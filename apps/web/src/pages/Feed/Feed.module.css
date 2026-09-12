@@ -7,7 +7,9 @@
      з таб-баром їдуть за екран. Хендоф тримає їх знизу завжди; скрол живе
      всередині .timeline (flex:1 + overflow-y). */
   height: 100dvh;
-  background: var(--bg);
+  /* v3.1: градієнт розмови живе на рамці (body[data-screen='chat'],
+     glass.css), колонка прозора — інакше він зсувався б з появою панелі. */
+  background: transparent;
   display: flex;
   flex-direction: column;
   /* 6b-5: шапка лежить поверх стрічки (absolute), а її розкладка рахується

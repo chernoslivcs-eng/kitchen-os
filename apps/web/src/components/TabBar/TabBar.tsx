@@ -192,7 +192,7 @@ export function TabBar({ shoppingCount }: Props) {
         onClick={() => setOpen(false)}
         aria-hidden="true"
       />
-    <div className={`${styles.wrap} ${open ? styles.open : ''} ${wide ? styles.wide : ''} ${peek ? styles.peek : ''}`} data-nav
+    <div className={`${styles.wrap} ${open ? styles.open : ''} ${wide ? styles.wide : ''} ${peek ? styles.peek : ''} glass-rail`} data-nav
       data-peek={peek || undefined} onPointerEnter={onRailEnter} onPointerLeave={onRailLeave}>
       {/* Д01: знак + вордмарк угорі сайдбара. На мобільному приховано. */}
       <div className={styles.brand}>
@@ -312,7 +312,7 @@ export function TabBar({ shoppingCount }: Props) {
       {/* Етап 6a, Screens D5 · 390: нижній бар із пʼяти цілей (закриває ⚠6).
           Ховається, поки композитор у фокусі й поки відкрита шторка —
           обидві умови з HANDOFF, класами на <body>. */}
-      <nav className={styles.bar} aria-label="Розділи" data-tab-bar>
+      <nav className={`${styles.bar} glass-bar`} aria-label="Розділи" data-tab-bar>
         {tabs.map((t) => {
           const active = pathname === t.path;
           return (

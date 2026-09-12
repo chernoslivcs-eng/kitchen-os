@@ -6,7 +6,9 @@
   position: absolute; top: 0; left: 0; right: 0; z-index: 4;
   display: flex; align-items: center; gap: 8px;
   height: 56px; padding: 0 24px 40px; box-sizing: content-box;
-  background: linear-gradient(to bottom, var(--bg) 0 56px, transparent 100%);
+  /* v3.1: фейд бере верх градієнта розмови (--chat-grad-top), не рівний --bg —
+     інакше під шапкою стояла б плоска смуга іншого тону. */
+  background: linear-gradient(to bottom, var(--chat-grad-top) 0 56px, transparent 100%);
   pointer-events: none;
 }
 .head > * { pointer-events: auto; }

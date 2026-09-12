@@ -247,7 +247,7 @@
     width: 380px;
     max-width: calc(100vw - 24px);
     border-radius: 18px;
-    box-shadow: var(--sh2);
+    box-shadow: var(--glass-sh);   /* v3.1: плавуча картка — скло */
     padding: 0;
   }
   .rail-scrim { display: none; }
@@ -632,10 +632,12 @@
 @media (min-width: 1200px) {
   :global(body.with-sidebar) .rail-artifact { display: flex; }
   .rail-artifact {
-    /* Prototype aside: card, r16, --sh2. */
+    /* Prototype aside: card, r16. v3.1: скло — тінь --glass-sh, тло й розмиття
+       з .glass-inner (glass.css); position — для контуру ::after. */
+    position: relative;
     background: var(--card);
     border-radius: 16px;
-    box-shadow: var(--sh2);
+    box-shadow: var(--glass-sh);
     overflow: hidden;
   }
 }

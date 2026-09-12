@@ -316,6 +316,20 @@ body.dz-drag #root {
   --sage-strong: #4a6640; --sage-bg-strong: #dae6d2; --sage-on: #f4f3ef;
   --amber-line: #e4d3ab; --plum-line: #dfc7d6; --line2-strong: #d5d2ca;
   --danger-bg: #f7e6e3; --danger-line: #e5b9b2;
+
+  /* Скло і градієнт v3.1 (tokens-v3 «Скло і градієнт», glass-gradient-spec §1–§2).
+     Скло — матеріал усього продукту (рейка, артефакти, шторки, нижній бар);
+     градієнт — ознака лише розмови й публічного рецепта. --glass-blur і
+     --glass-sat — ручки для стенда (другий кандидат: 46 %, blur 30, sat 1.8). */
+  --glass-bg:   color-mix(in srgb, var(--card) 72%, transparent);
+  --glass-edge: rgba(255, 255, 255, 0.7);
+  --glass-top:  rgba(255, 255, 255, 0.9);
+  --glass-side: rgba(255, 255, 255, 0.5);
+  --glass-sh:   0 12px 40px rgba(26, 28, 30, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.6);
+  --glass-blur: 18px;
+  --glass-sat:  1.25;
+  --chat-grad-top: color-mix(in srgb, var(--amber-bg) 32%, var(--bg));
+  --chat-grad:  linear-gradient(to bottom, var(--chat-grad-top) 0, var(--bg) 240px);
 }
 
 /* v3-dark */
@@ -333,4 +347,16 @@ body.dz-drag #root {
   --sage-strong: #a9c6a1; --sage-bg-strong: #2f3d33; --sage-on: #141a12;
   --amber-line: #4a3d26; --plum-line: #4a3040; --line2-strong: #3d434a;
   --danger-bg: #3a2320; --danger-line: #5a3530;
+
+  /* Скло і градієнт v3.1 — темна: підйом нейтральний (card 45 %, 260 px), не
+     тоновий: тло під чіпами не позичає рід (tokens-v3, 12.09). */
+  --glass-bg:   color-mix(in srgb, var(--card) 78%, transparent);
+  --glass-edge: rgba(255, 255, 255, 0.10);
+  --glass-top:  rgba(255, 255, 255, 0.16);
+  --glass-side: rgba(255, 255, 255, 0.07);
+  --glass-sh:   0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --glass-blur: 18px;
+  --glass-sat:  1.25;
+  --chat-grad-top: color-mix(in srgb, var(--card) 45%, var(--bg));
+  --chat-grad:  linear-gradient(to bottom, var(--chat-grad-top) 0, var(--bg) 260px);
 }

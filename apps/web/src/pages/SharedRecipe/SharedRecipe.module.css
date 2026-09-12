@@ -2,7 +2,8 @@
    без рейки; сітка minmax(0,1fr) 340, gap 32, поля 16 32, до 1040 по центру. */
 .screen {
   min-height: 100dvh;
-  background: var(--bg);
+  /* v3.1: градієнт на body[data-screen='public-recipe'] (glass.css). */
+  background: transparent;
   display: flex;
   flex-direction: column;
 }

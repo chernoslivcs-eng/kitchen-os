@@ -42,6 +42,11 @@ export function SharedRecipePage() {
   // 390: склад — акордеон над кроками (підпис кадра B2).
   const [ingOpen, setIngOpen] = useState(false);
 
+  // v3.1: публічний рецепт — другий екран із градієнтом розмови (spec §2).
+  useEffect(() => {
+    document.body.dataset.screen = 'public-recipe';
+    return () => { delete document.body.dataset.screen; };
+  }, []);
   useEffect(() => {
     if (!id) return;
     fetch(`/v1/r/${id}`)

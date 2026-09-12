@@ -1089,6 +1089,67 @@ Auth.dc.html («Перевір пошту» / «Запрошення в дім»
 якорів шапки (картка card, r12, sh2, рядки 44) під кнопкою; закривається після
 переходу. QUESTIONS §16.
 
+### Р118 · Скло і градієнт v3.1 у коді — `feat/glass-v3.1` (без мерджу, власник дивиться на стенді)
+
+Канон — `ai/project/glass-gradient-spec.md` §1–§3, §6 і `tokens-v3.md` «Скло
+і градієнт». Тільки вигляд: поведінка, дані, контракти не чіпались. Гілка
+від `origin/main` 273cdaf, у `.worktrees/glass-v3.1`.
+
+**Токени** (`tokens.css`, в обидва блоки v3 — `--glass-edge:` рівно двічі):
+`--glass-bg` (card 72 % світла / 78 % темна), `--glass-edge/-top/-side`,
+`--glass-sh`, ручки `--glass-blur: 18px` і `--glass-sat: 1.25` (другий кандидат
+для стенда — 46 % / 56 %, blur 30, sat 1.8), `--chat-grad` і `--chat-grad-top`
+(верх градієнта — його бере фейд шапки чату замість плоского `--bg`).
+
+**Градієнт** — на рамці: `body[data-screen='chat' | 'public-recipe']`
+(`glass.css`, `background-image`, щоб колір полотна лишався для запобіжників
+теми). Ознаку ставить Shell за маршрутом `/app`; публічний рецепт — сам.
+Колонки `Feed .screen` і `SharedRecipe .screen` — прозорі (§6.3). Решта
+екранів — рівний `--bg`: тест `glass.test.ts` стежить, що `chat-grad` не
+зʼявляється в модулях комори, рецептів, календаря, профілю, Cook.
+
+**Скло** — `styles/glass.css`, класи глобальні (носять три модулі):
+`.glass` (isolation: isolate, зовнішній шар) + `.glass-inner` (тло, blur ×
+saturate токенами, `contain: paint`, контур `::after` з `--glass-edge` та
+inset-підсвіткою `--glass-top` / `--glass-side`); `.glass-rail` (одношарова,
+межа праворуч; лише від 768 — той самий елемент < 768 є шухлядою, вона не в
+переліку скла); `.glass-bar` (межа зверху). Подвоєний селектор (0,2,0)
+перекриває власне тло/межу оболонок у модулях, геометрія (radius, overflow,
+position) лишається за оболонкою; `::after` бере radius через inherit.
+
+| поверхня | оболонка | шари |
+|---|---|---|
+| панель ≥ 1200 | `ArtifactPanel` aside = `.glass` (ручка ресайзу, полотно 12), `.rail-artifact` = `.glass-inner`, тінь `--glass-sh` (була `--sh2`) | два |
+| плавуча картка 380 (600–1199) і шторка < 600 | той самий aside `.rail-open` = `.glass.glass-inner` (шар обирається за `RAIL_IN_FLOW` у TSX — скла всередині скла не буває) | один |
+| `Sheet` (календар, комора, профіль) | `.panel` = `.glass.glass-inner` | один |
+| рейка 60 / сайдбар 256 (`TabBar .wrap`) | `.glass-rail` від 768 | один |
+| нижній бар 390 (`TabBar .bar`) | `.glass-bar` | один |
+
+Щільними лишились: картки контенту, бабли, тости, модалки («Дім зараз» —
+`--card`), картка кроку Cook Mode. У кадрі не більше двох скляних поверхонь:
+рейка + панель (1440), бар + шторка (390).
+
+**Продуктивність.** `contain: paint` на всіх скляних контейнерах; `will-change`
+у дітей скла нема (тест). `@media (prefers-reduced-transparency: reduce)` —
+щільний `--card`, `backdrop-filter: none`. Ідл-трейс Chromium
+(`scripts/glass-paint-trace.mjs`, devtools.timeline, 3 с спокою): чат 1440 з
+чеком у панелі, чат 390 зі шторкою й баром, комора 1440 з живим flame у
+банері — **Paint 0 · Layout 0 · UpdateLayerTree 0** на гілці й на main;
+рухаються лише композиторні кадри (Graphics.Pipeline ≈ 60 за 3 с). Тобто
+живі знаки не ганяють перемальовування крізь скло.
+
+**Пари «було · стало»** (`scripts/before-after.mjs`, main 273cdaf на :5193
+проти гілки на :5192, стенд `stand-seed` на :3013; обидві теми):
+`docs/superpowers/plans/side-by-side/glass/glass-chat-recipe-1440`,
+`glass-chat-receipt-1440`, `glass-chat-float-768`, `glass-chat-bar-390`,
+`glass-chat-sheet-390`, `glass-pantry-1440` (рівний фон, скляна рейка),
+`glass-public-1440`, `glass-public-390`. Стаб рецепта в панелі —
+`stub-recipe-glass.json`.
+
+Чого бандл не має і що лишено з коду: фейд шапки чату бере `--chat-grad-top`
+(у бандлі шапка без фону); тінь шторки знизу (`0 -12px 40px`) не міняно на
+`--glass-sh` — тінь угору для шторки й далі своя.
+
 ## Відкриті ⚠ — до власника, етап 1 ними не блокується
 
 | ⚠ | Питання | Пропозиція PLAN | Де впирається |

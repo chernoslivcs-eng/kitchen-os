@@ -99,7 +99,7 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`${styles.panel} ${closing ? styles['panel-out'] : ''}`}
+        className={`${styles.panel} ${closing ? styles['panel-out'] : ''} glass glass-inner`}
         style={closing ? undefined : drag.panelStyle}
         data-sheet
       >

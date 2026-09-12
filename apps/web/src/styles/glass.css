@@ -1,0 +1,78 @@
+/* Скло і градієнт v3.1 — glass-gradient-spec §2–§3, §6 «пастки»; tokens-v3
+   «Скло і градієнт». Правило одним рядком: скло — спільний матеріал усього
+   продукту, градієнт — ознака тільки розмови.
+
+   Класи глобальні: їх носять оболонки різних модулів (ArtifactPanel, Sheet,
+   TabBar), а псевдоелемент і медіазапит зручніше тримати в одному місці. */
+
+/* ── Градієнт — на РАМЦІ екрана (body), не на колонці: на колонці він
+   зсувається, коли відкривається артефакт (§6.3). Ознака екрана —
+   data-screen на <body>, ставить Shell за маршрутом. Решта екранів — рівний
+   --bg (reset.css), без винятків. ── */
+body[data-screen='chat'],
+body[data-screen='public-recipe'] {
+  /* background-image, не background: колір полотна (--bg з reset.css)
+     лишається — його читають запобіжники теми в side-by-side / before-after. */
+  background-image: var(--chat-grad);
+  background-attachment: fixed;
+}
+
+/* ── Скло, двошарове (§3 «Рецепт оболонки»): зовнішній .glass тримає геометрію
+   й тінь --glass-sh, overflow visible і ручку ресайзу; внутрішній .glass-inner
+   — тло --glass-bg, розмиття, radius inherit, overflow hidden і контур ::after.
+   isolation: isolate — щоб розмиття не множилось (§6.5); скла всередині скла
+   не буває. contain: paint — межа перемальовування: живі знаки всередині не
+   ганяють repaint назовні. ── */
+.glass { isolation: isolate; }
+/* Подвоєний селектор (0,2,0): оболонки тримають власне тло/межу в модулях
+   (0,1,0) — скло має їх перекрити, не змінюючи геометрію (radius, overflow,
+   position — свої в кожної оболонки; ::after бере radius через inherit). */
+.glass-inner.glass-inner {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  contain: paint;
+}
+.glass-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--glass-top), inset 1px 0 0 var(--glass-side);
+  z-index: 1;
+}
+
+/* ── Рейка 60 / сайдбар 256 — одношарові (§3), межа праворуч. Той самий
+   елемент < 768 — шухляда поверх контенту; вона не в переліку скла, тому
+   правило лише від 768. ── */
+@media (min-width: 768px) {
+  .glass-rail.glass-rail {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    border-right: 1px solid var(--glass-edge);
+    box-shadow: inset -1px 0 0 var(--glass-side);
+    contain: paint;
+  }
+}
+/* ── Нижній бар 390 — те саме, межа зверху. ── */
+.glass-bar.glass-bar {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border-top: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--glass-side);
+  contain: paint;
+}
+
+/* ── Продуктивність і доступність: без прозорості — щільний --card без
+   розмиття (§5 задачі; у Claude Design blur 30 + сотні svg поклали систему). ── */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-inner.glass-inner, .glass-rail.glass-rail, .glass-bar.glass-bar {
+    background: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

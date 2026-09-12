@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './styles/tokens.css';
 import './styles/roles.css';
 import './styles/reset.css';
+import './styles/glass.css';
 import { App } from './App';
 import { initTheme } from './theme';
 import { initSentry } from './lib/sentry';

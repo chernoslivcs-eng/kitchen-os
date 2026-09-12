@@ -44,6 +44,14 @@ import { GlobalCookAlarm } from './lib/cook-watch';
 // «без» стало нічим.
 function Shell() {
   const { pathname } = useLocation();
+  // v3.1: градієнт — ознака тільки розмови; вішається на рамку екрана
+  // (body, спільний предок рейки, стрічки й панелі) через data-screen.
+  // Решта екранів — рівний --bg без винятків (glass-gradient-spec §2).
+  useEffect(() => {
+    if (pathname === '/app') document.body.dataset.screen = 'chat';
+    else delete document.body.dataset.screen;
+    return () => { delete document.body.dataset.screen; };
+  }, [pathname]);
   // Онбординг «Семен» — раз, на вході в стрічку. Прапорець у localStorage:
   // це знайомство, а не стан дому, тож нове місце (інший браузер) покаже
   // його ще раз, і це нормально. Глибокі лінки (/recipe/:id) не перехоплює.

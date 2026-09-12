@@ -16,6 +16,7 @@
 @keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }
 
 .panel {
+  position: relative;   /* v3.1: контур скла ::after (glass.css) */
   width: 100%;
   /* Та сама геометрія, що в шторки артефакта (.rail-open): стеля 560,
      радіус 16, відступи 16, лінія зверху й та сама тінь. */
