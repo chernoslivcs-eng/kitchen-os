@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 // Токени v3 — контракт, не смак. Тест тримає ТОЧНІ значення з
-// ai/project/tokens-v3.md: перейменування шару не має права їх зсунути.
+// ai/project/tokens-v3.md (світлі sage/amber/plum — правка 12.09, ANSWERS C2): перейменування шару не має права їх зсунути.
 // Той самий рід перевірки, що PROFILE_FIELDS у profile-text.test.ts.
 const css = readFileSync(fileURLToPath(new URL('./tokens.css', import.meta.url)), 'utf8');
 
@@ -21,8 +21,8 @@ function tokenIn(marker: string, name: string): string | null {
 const LIGHT: Record<string, string> = {
   canvas: '#c9ccd0', bg: '#f4f3ef', card: '#ffffff', line: '#f0eee9',
   line2: '#e6e4de', faint: '#c9cbcd', ink: '#1a1c1e', muted: '#6b6f74',
-  dim: '#9a9ea3', sage: '#5b7a4f', 'sage-bg': '#e8efe3', amber: '#a67c2e',
-  'amber-bg': '#f6ecd6', plum: '#8a5c78', 'plum-bg': '#f1e5ec', danger: '#b5473c',
+  dim: '#9a9ea3', sage: '#55724a', 'sage-bg': '#e8efe3', amber: '#866425',
+  'amber-bg': '#f6ecd6', plum: '#885b77', 'plum-bg': '#f1e5ec', danger: '#b5473c',
 };
 
 const DARK: Record<string, string> = {
