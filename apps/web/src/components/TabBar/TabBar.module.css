@@ -298,15 +298,17 @@
 
 /* ── Рейка 60 ↔ сайдбар 256 (R1) · рейка 64 ↔ шухляда 300 (R2): ОДНА геометрія
    на обидва стани (Р141; Motion «Сайдбар 60 ↔ 256»: ширина 400 мс, підписи
-   входять із затримкою, виходять першими, знаки не рухаються).
+   входять із затримкою, виходять першими, знаки не рухаються ні по x, ні по y).
    Поле рейки 11 → внутрішній слот 38; кожен рядок (логотип, ціль, профіль) —
-   завжди рядок з лівим полем 10 (логотип 30 — 4), тож центр знака стоїть на
-   x = 30 і в рейці, і в сайдбарі. Підписи (назва, слова цілей, лічильник,
-   «Розмови», імʼя · дім) завжди в DOM: opacity + visibility, обрізані
-   overflow рядка; жодного display / flex-direction між станами. Бейдж —
-   absolute в обох станах, їде з кута у правий край рядка. Єдине, що змінює
-   рядок, — кнопка «панель»: у рейці над аватаром (wrap-reverse), у сайдбарі
-   праворуч від імені (№13). ── */
+   завжди рядок з лівим полем 10 (логотип і аватар 30 — 4), тож центр знака
+   стоїть на x = 30 і в рейці, і в сайдбарі. Висоти й крок ті самі в обох станах:
+   ціль 44 (--tap, §4в; кадр рейки давав 38 — відхилення на рішення власника),
+   gap 2, профіль 44, логотип 30 — жодна висота не анімується, бо не міняється.
+   Підписи (назва, слова цілей, лічильник, «Розмови», імʼя · дім) і кнопка
+   «панель» у рядку профілю (№13) завжди в DOM: opacity + visibility, обрізані
+   overflow рядка — у рейці кнопки «панель» не видно, розгортає логотип і
+   наведення (№14); нічого не переїжджає між рядками. Бейдж — absolute в обох
+   станах, один розмір і один top; їде лише right. ── */
 @media (min-width: 768px) {
   .wrap {
     --nav-label-delay: 80ms;
@@ -316,15 +318,15 @@
     padding: 16px 11px;
     flex-direction: column;
     align-items: stretch;
-    gap: 4px;
+    gap: 2px;
     box-shadow: none;
     border-right: 1px solid var(--line2);
     z-index: 5;
     overflow: hidden;
-    transition: width var(--dur-slow) var(--ease-standard), gap var(--dur-slow) var(--ease-standard);
+    transition: width var(--dur-slow) var(--ease-standard);
   }
   /* Підписи: у рейці невидимі й не в доступності; проявляються після старту руху. */
-  .brand-name, .tab > span:nth-child(2), .tab-count, .user-text, .sessions {
+  .brand-name, .tab > span:nth-child(2), .tab-count, .user-text, .sessions, .panel-btn {
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast);
@@ -336,12 +338,12 @@
   .tab {
     flex: 0 0 auto;
     width: auto;
-    height: 38px;
+    height: 44px;
     padding: 0 10px;
     justify-content: flex-start;
     gap: 12px;
     overflow: hidden;
-    transition: background var(--dur-fast), color var(--dur-fast), height var(--dur-slow) var(--ease-standard);
+    transition: background var(--dur-fast), color var(--dur-fast);
   }
   .tab-dot { display: block; transition: opacity var(--dur-fast) var(--ease-standard); }
   .tab-count { margin-left: auto; }
@@ -354,22 +356,23 @@
     padding: 0 4px;
     line-height: 16px;
     font-size: 10px;
-    transition: top var(--dur-slow) var(--ease-standard), right var(--dur-slow) var(--ease-standard), height var(--dur-slow) var(--ease-standard), min-width var(--dur-slow) var(--ease-standard), line-height var(--dur-slow) var(--ease-standard), font-size var(--dur-slow) var(--ease-standard);
+    transition: right var(--dur-slow) var(--ease-standard);
   }
   .sessions { min-width: 0; overflow: hidden; }
-  .foot { flex-direction: row; flex-wrap: wrap-reverse; align-items: center; gap: 6px; }
-  .user { flex: 1 1 0; min-width: 0; min-height: 38px; padding: 0 4px; gap: 10px; justify-content: flex-start; border-radius: 10px; overflow: hidden; transition: background var(--dur-fast), min-height var(--dur-slow) var(--ease-standard); }
+  .foot { flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; padding-top: 12px; border-top: 1px solid transparent; overflow: hidden; transition: border-color var(--dur-base) var(--ease-standard); }
+  /* .foot .user — перебити базове flex: 1 1 0 / min-width 0: у рейці рядок профілю
+     не вужчий за слот (аватар не обрізається), кнопка «панель» іде за край. */
+  .foot .user { flex: 1 1 auto; min-width: 38px; min-height: 44px; padding: 0 4px; gap: 10px; justify-content: flex-start; border-radius: 10px; overflow: hidden; transition: background var(--dur-fast); }
   .user-avatar { width: 30px; height: 30px; }
-  .panel-btn { width: 38px; height: 38px; transition: width var(--dur-slow) var(--ease-standard), height var(--dur-slow) var(--ease-standard), color var(--dur-fast); }
+  .panel-btn { width: 36px; height: 36px; transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast), color var(--dur-fast); }
 }
 
 /* ── Сайдбар 256 (R1 розгорнуто; вміст — Prototype nav) ──
-   16 11, gap 2; шапка 0 4 14: логотип 30 · вордмарк 17/700 · «панель» 36 у
-   рядку профілю; цілі 40 r10, 0 10, gap 12, знак 18, 14/500; «Розмови · + Нова»
-   18 10 6; групи 11 dim; рядки 8 10 r10; профіль над волосиною: аватар 30,
-   13/500 + 11 dim. */
+   16 11, gap 2; шапка 0 4 14: логотип 30 · вордмарк 17/700; цілі 44 r10, 0 10,
+   gap 12, знак 18, 14/500; «Розмови · + Нова» 18 10 6; групи 11 dim; рядки
+   8 10 r10; профіль над волосиною: аватар 30, 13/500 + 11 dim, «панель» 36. */
 @media (min-width: 1024px) {
-  .wrap.wide { width: 256px; gap: 2px; }
+  .wrap.wide { width: 256px; }
   /* №14: оверлей із наведення — поверх контенту, з тінню шухляди; закріплений
      (body.nav-expanded) — у потоці, контент зсувається (tokens.css). */
   .wrap.peek { z-index: 30; box-shadow: var(--sh2); border-right: 0; }
@@ -378,6 +381,11 @@
     visibility: visible;
     transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
   }
+  .wide .panel-btn {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay), color var(--dur-fast);
+  }
   /* Список розмов проявляється після ширини; при згортанні гасне першим. */
   .wide .sessions {
     opacity: 1;
@@ -385,21 +393,18 @@
     transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow);
   }
   .wide .scroll { scrollbar-gutter: stable; }
-  .wide .tab { height: 40px; }
   .wide .tab-dot { opacity: 0; }
-  .wide .badge { top: 11px; right: 10px; height: 18px; min-width: 18px; line-height: 18px; padding: 0 5px; font-size: 11px; }
+  .wide .badge { right: 10px; }
   .wide .sessions-head { padding: 18px 10px 6px; }
   .wide .session-day { padding-left: 10px; padding-right: 10px; }
   .wide .session { padding: 8px 10px; }
   .wide .session-archive { padding: 8px 10px; }
-  .wide .foot { padding-top: 12px; border-top: 1px solid var(--line2); }
-  .wide .panel-btn { width: 36px; height: 36px; }
-  .wide .user { min-height: 44px; }
+  .wide .foot { border-top-color: var(--line2); }
   .wide .user-name { font-size: 13px; }
   .wide .user-home { font-size: 11px; }
 }
 
-/* ── 768–1023 (R2): рейка 64 стоїть; кнопка «панель» розсуває шухляду 300 поверх ── */
+/* ── 768–1023 (R2): рейка 64 стоїть; логотип розсуває шухляду 300 поверх ── */
 @media (min-width: 768px) and (max-width: 1023px) {
   .backdrop { display: block; }
   /* 64, як на проді (рішення власника 03.09; канвас пропонував 60). Пара до
@@ -408,7 +413,6 @@
   .wrap { width: 64px; padding: 14px 13px; }
   .wrap.open {
     width: 300px;
-    gap: 2px;
     box-shadow: var(--sh2);
     border-right: 0;
     z-index: 30;
@@ -418,18 +422,20 @@
     visibility: visible;
     transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay);
   }
+  .wrap.open .panel-btn {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--dur-base) var(--ease-standard) var(--nav-label-delay), visibility 0s linear var(--nav-label-delay), color var(--dur-fast);
+  }
   .wrap.open .sessions {
     opacity: 1;
     visibility: visible;
     transition: opacity var(--dur-base) var(--ease-standard) var(--dur-slow), visibility 0s linear var(--dur-slow);
   }
   .wrap.open .scroll { scrollbar-gutter: stable; }
-  .wrap.open .tab { height: 44px; }
   .wrap.open .tab-dot { opacity: 0; }
-  .wrap.open .badge { top: 12px; right: 10px; height: 20px; min-width: 20px; line-height: 20px; padding: 0 6px; font-size: 11px; }
-  .wrap.open .panel-btn { width: 36px; height: 36px; }
-  .wrap.open .user { min-height: 48px; border-radius: 12px; }
-  .wrap.open .user-avatar { width: 32px; height: 32px; }
+  .wrap.open .badge { right: 10px; }
+  .wrap.open .foot { border-top-color: var(--line2); }
 }
 
 @media (prefers-reduced-motion: reduce) {

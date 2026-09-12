@@ -25,7 +25,7 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     }
   });
   it('підписи завжди в DOM: ховаються opacity/visibility, не display', () => {
-    for (const label of ['.brand-name', '.tab > span:nth-child(2)', '.user-text', '.sessions', '.tab-count']) {
+    for (const label of ['.brand-name', '.tab > span:nth-child(2)', '.user-text', '.sessions', '.tab-count', '.panel-btn']) {
       const own = rules.filter((r) => r.sel.split(',').some((s) => s.trim().endsWith(label)));
       expect(own.length, `правила для ${label}`).toBeGreaterThan(0);
       for (const r of own) expect(r.decls, `«${r.sel}»`).not.toMatch(/(^|;)\s*display\s*:\s*(none|inline|block|flex)/);
@@ -41,6 +41,23 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
       expect(r.decls, `«${r.sel}»`).not.toMatch(/(^|;)\s*padding(-left)?\s*:/);
       expect(r.decls, `«${r.sel}»`).not.toMatch(/justify-content\s*:/);
       expect(r.decls, `«${r.sel}»`).not.toMatch(/align-items\s*:/);
+    }
+  });
+  it('нічого не їде по y: висоти, вертикальні поля й gap однакові в обох станах, висота не анімується', () => {
+    const GEOM = /(^|;)\s*(height|min-height|max-height|padding|padding-top|padding-bottom|padding-block|gap|row-gap|margin|margin-top|margin-bottom|top|bottom|line-height|font-size|width|min-width|flex|flex-wrap|border-top-width|border-top\b)\s*:/;
+    const ROWS = ['.wrap', '.brand', '.brand-btn', '.tab', '.badge', '.foot', '.user', '.user-avatar', '.panel-btn', '.scroll'];
+    for (const r of rules.filter((r) => /\.(wide|open)\b/.test(r.sel))) {
+      const target = r.sel.split(',').map((s) => s.trim().split(/\s+/).at(-1)!);
+      if (!target.some((t) => ROWS.includes(t))) continue;
+      // Єдине, що змінюється: ширина .wrap і right бейджа.
+      const allowed = r.decls.replace(/(^|;)\s*width\s*:\s*(256|300)px/g, '$1').replace(/(^|;)\s*right\s*:[^;]+/g, '$1');
+      expect(allowed, `«${r.sel}»`).not.toMatch(GEOM);
+    }
+    for (const sel of ['.tab', '.foot .user', '.panel-btn', '.brand-btn', '.wrap']) {
+      for (const r of rules.filter((r) => r.sel === sel)) {
+        const tr = r.decls.match(/transition\s*:\s*([^;]+)/)?.[1] ?? '';
+        expect(tr, `transition у «${sel}»`).not.toMatch(/\b(height|min-height|line-height|padding|gap|top)\b/);
+      }
     }
   });
   it('підписи входять із затримкою, виходять першими; список розмов — після ширини', () => {
