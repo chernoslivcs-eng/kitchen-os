@@ -21,6 +21,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { Feed } from './Feed';
 import { usePanelStore } from '../../store/panel';
 import { ArtifactPanel } from '../../components/ArtifactPanel/ArtifactPanel';
+import { useAuth } from '../../store/auth';
+import { greeting } from '../../lib/greeting';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -28,6 +30,7 @@ interface ChatCall { body: { text?: string; attachments?: { id: string }[] } }
 let chatCalls: ChatCall[];
 let waiting: { resolve: (body: unknown) => void; reject: (e: Error) => void }[];
 let batches: { id: string; label: string; state: string; expires_at: string | null; days: number | null }[];
+let library: { recipes: unknown[]; runs: unknown[] };
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
@@ -56,6 +59,8 @@ function installFetch() {
     if (url === '/v1/pantry') return json({ count: batches.length, batches, products: [] });
     if (url === '/v1/shopping') return json({ count: 0, items: [] });
     if (url === '/v1/cards/pending') return json({ cards: [] });
+    if (url === '/v1/recipes') return json({ recipes: library.recipes });
+    if (url === '/v1/cook-runs') return json({ runs: library.runs });
     if (url === '/v1/retail') return json({ silpo: { status: 'none' } });
     if (url === '/v1/session/today') return json({ session: { id: 's1', created_at: '2026-09-06T06:00:00Z' }, messages: [] });
     if (url === '/v1/attachments') return json({ id: 'att-new', url: '/v1/attachments/att-new/bytes', kind: 'image', bytes: 10, content_type: 'image/jpeg' });
@@ -95,6 +100,8 @@ async function submit() {
 
 beforeEach(() => {
   batches = [];
+  library = { recipes: [], runs: [] };
+  useAuth.setState({ me: null });
   installFetch();
   vi.useRealTimers();
   // Панель живе в каркасі й переживає монтування Стрічки — між тестами
@@ -328,26 +335,60 @@ describe('№24a · drop у стрічку', () => {
   });
 });
 
-// Пакет 4 №1 (Р123): порожня розмова — заголовок, пʼять чіпів, підказка; чіп
-// «Що на вечерю?» кладе текст у композитор і НЕ надсилає; після першого ходу
-// блок зникає (гасне за --dur-fast).
-describe('Пакет 4 №1 · порожня розмова', () => {
-  it('порожньо: блок є, «Що на вечерю?» → текст у композиторі без запиту', async () => {
+// Порожня розмова за Prototype (Р140; Р123 знято): вітання в кличному за часом
+// доби, чотири чіпи → чернетка в композитор без надсилання, рядок «факт дому»
+// з бібліотеки, плейсхолдер «друкується» і зупиняється, щойно є чернетка;
+// після першого ходу hero зникає.
+describe('Р140 · порожня розмова за Prototype', () => {
+  it('вітання на імʼя в кличному; чотири чіпи; «Купив…» → «купив » без запиту', async () => {
+    useAuth.setState({ me: { user: { id: 'u1', name: 'Пилип', email: 'p@x' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] }, session_id: 's1' } as never });
     await mount();
-    expect(q('[data-empty-hero]')).toBeTruthy();
-    expect(q('[data-empty-hero] h2')!.textContent).toBe('Що готуємо — з того, що вже є?');
-    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(5);
-    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="dinner"]')!.click(); });
-    expect(textarea().value).toBe('Що на вечерю?');
+    expect(q('[data-empty-hero] h1')!.textContent).toBe(greeting('Пилип'));
+    expect(q('[data-empty-hero] h1')!.textContent!.startsWith('Пилипе, ')).toBe(true);
+    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(4);
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="bought"]')!.click(); });
+    expect(textarea().value).toBe('купив ');
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    expect(document.activeElement).toBe(textarea());
     expect(chatCalls).toHaveLength(0);
     expect(q('[data-chat-empty]'), 'екран у стані порожньої розмови').toBeTruthy();
   });
-  it('після першого ходу блок зникає', async () => {
+  it('без імені — без звертання; факт дому з бібліотеки', async () => {
+    useAuth.setState({ me: null });
+    library = { recipes: [{}, {}], runs: [{}, {}, {}] };
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const h1 = q('[data-empty-hero] h1')!.textContent!;
+    expect(['Що на вечерю?', 'Що готуємо?']).toContain(h1);
+    expect(q('[data-empty-fact]')!.textContent).toBe('Ти зберіг 2 рецепти і приготував 3. Решта живе життям, про яке ми не говоримо.');
+  });
+  it('порожня бібліотека — рядка нема; reduced motion — плейсхолдер статичний', async () => {
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(q('[data-empty-fact]')).toBeNull();
+    expect(textarea().placeholder).toBe('Що зʼявилось удома або що готуємо?');
+  });
+  it('плейсхолдер друкується з HINTS і зупиняється, щойно є чернетка', async () => {
+    vi.stubGlobal('matchMedia', (mq: string) => ({ matches: false, media: mq, addEventListener() {}, removeEventListener() {} }));
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    const ph = textarea().placeholder;
+    expect(ph.length).toBeGreaterThanOrEqual(3);
+    expect('Кинь чек — розберу'.startsWith(ph)).toBe(true);
+    expect(textarea().getAttribute('aria-placeholder')).toBe('Що зʼявилось удома або що готуємо?');
+    await type('к');
+    const stopped = textarea().placeholder;
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    expect(textarea().placeholder).toBe(stopped);
+    expect(stopped.startsWith('Кинь')).toBe(false);
+  });
+  it('після першого ходу hero зникає', async () => {
     await mount();
     await type('що на вечерю'); await submit();
     await act(async () => { waiting[0]!.resolve({ reply: 'ось' }); await new Promise((r) => setTimeout(r, 0)); });
     await act(async () => { await new Promise((r) => setTimeout(r, 220)); });
     expect(q('[data-empty-hero]')).toBeNull();
+    expect(q('[data-empty-below]')).toBeNull();
     expect(q('[data-chat-empty]')).toBeNull();
   });
 });
