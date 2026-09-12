@@ -35,8 +35,11 @@ export interface ChatHeadProps {
   /** Чіп «Дім зараз» / «Дім ●●● N». */
   onHome: () => void;
   homeOpen: boolean;
-  /** «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14). */
+  /** «· ще N» — рядки панелі без свого чіпа (§13: без свого чіпа). */
   quietCount: number;
+  /** 12.09 (§11): «Чекають на тебе · N» — картки, що чекають рішення (чек, кошик); при нулі чіп не показується. */
+  pendingCount?: number;
+  onPending?: () => void;
   /** Форма за шириною контейнера стрічки (Р38): 'wide' ≥964 · 'mid' 704–963 (R2) · 'narrow' <704 (G3). */
   form: 'wide' | 'mid' | 'narrow';
 }
@@ -92,13 +95,24 @@ export function ChatHead(p: ChatHeadProps) {
         </button>
       )}
 
-      {/* ≥768: «Дім зараз · ще N»; <768: «Дім ●●● N» — крапки родів активних станів, число — скільки їх. */}
+      {/* 12.09 (§11): «Чекають на тебе · N» — стан дому, а не вміст панелі: чіп у
+          тому самому ряду, форма як у чіпів родів, знак sys.mail, слово ink; на
+          R2/G3 — компактно «N»; при нулі не показується. */}
+      {(p.pendingCount ?? 0) > 0 && (
+        <button type="button" className={`${styles.chip} ${styles['chip-pending']}`} onClick={p.onPending} data-chip-pending>
+          <Icon name="sys.mail" size={16} inherit decorative />
+          <span className={styles.long}>Чекають на тебе · </span>{p.pendingCount}
+        </button>
+      )}
+
+      {/* ≥768: «Дім зараз · ще N»; <768: «Дім ●●● N» — крапки родів активних станів,
+          число — скільки їх; при нулі станів (§13) — «Дім · тихо» без крапок і числа. */}
       <button type="button" className={`${styles.chip} ${styles['chip-home']} ${p.homeOpen ? styles['chip-on'] : ''}`} onClick={p.onHome}
         aria-expanded={p.homeOpen} data-chip-home>
         <Icon name="sys.home" size={16} inherit decorative />
         <span className={styles['home-wide']}>Дім зараз{p.quietCount > 0 && <span className={styles['home-more']}> · ще {p.quietCount}</span>}</span>
-        <span className={styles['home-narrow']}>
-          Дім
+        <span className={styles['home-narrow']} data-home-quiet={kinds.length === 0 || undefined}>
+          {kinds.length === 0 ? <>Дім<span className={styles['home-more']}> · тихо</span></> : 'Дім'}
           {kinds.length > 0 && (
             <span className={styles.dots} aria-hidden>{kinds.map((k) => <span key={k} className={`${styles.dot} ${styles[`dot-${k}`]}`} />)}</span>
           )}

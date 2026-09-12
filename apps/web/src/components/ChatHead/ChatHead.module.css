@@ -24,7 +24,7 @@
   white-space: nowrap; cursor: pointer;
 }
 .pill-title { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
-.pill-when { color: var(--dim); font-weight: 400; }
+.pill-when { color: var(--muted); font-weight: 400; }
 
 /* «+ Нова» 32, muted, без фону, plus 15, 13. */
 .newBtn {
@@ -49,8 +49,11 @@
 .chip-plum { background: var(--plum-bg); color: var(--plum); }
 .chip-sage { background: var(--sage-bg); color: var(--sage); }
 .chip-home { background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
+/* 12.09 (§11): «Чекають на тебе · N» — нейтральний чіп: card, слово ink, знак muted. */
+.chip-pending { background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
+.chip-pending > [data-icon] { color: var(--muted); }
 .chip-on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b); }
-.home-more { color: var(--dim); font-weight: 400; }
+.home-more { color: var(--muted); font-weight: 400; }
 .home-narrow { display: none; align-items: center; gap: 8px; }
 .dots { display: flex; gap: 3px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; }

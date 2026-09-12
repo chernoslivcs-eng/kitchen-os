@@ -39,7 +39,8 @@ export function ArtifactPanel() {
   // Етап 6a: шторка артефакта (<1200) теж ховає нижній бар. №21: тримає
   // клас лише поки відкрита, через лічильник (Sheet поруч його не зніме).
   useEffect(() => { if (s.open) return holdBodyFlag('sheet-open'); }, [s.open]);
-  const { artifacts, render, extra, pendingDot, open, hidden, width, dragging, fresh, freshKeys } = s;
+  // 12.09 (§11): блок «Чекають на тебе · N» під панеллю знято — він чіпом у шапці чату.
+  const { artifacts, render, pendingDot, open, hidden, width, dragging, fresh, freshKeys } = s;
   // №35: у режимі шторки (< 600) змах униз по граберу/шапці закриває — той
   // самий механізм, що в Sheet (lib/useSheetDrag).
   const [sheetMode, setSheetMode] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(ARTIFACT_SHEET).matches);
@@ -52,7 +53,7 @@ export function ArtifactPanel() {
   }, []);
   const sheetDrag = useSheetDrag(() => s.setOpen(false), sheetMode && open);
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
-  const hasPanel = artifacts.length > 0 || !!extra;
+  const hasPanel = artifacts.length > 0;
 
   const [footSlot, setFootSlot] = useState<HTMLElement | null>(null);
   const [headSlot, setHeadSlot] = useState<HTMLElement | null>(null);
@@ -194,11 +195,8 @@ export function ArtifactPanel() {
               </div>
             </div>
             <div className={`${styles['rail-foot']} ${bodyScrolled ? styles['rail-foot-shadow'] : ''}`} ref={setFootSlot} data-panel-foot />
-            {/* №12: «Чекають на тебе · N» — у тій самій картці, під підвалом. */}
-            {extra}
           </div>
         )}
-        {!shown && extra && <div className={styles['rail-artifact']}>{extra}</div>}
       </aside>
       {open && <div className={styles['rail-scrim']} onClick={() => s.setOpen(false)} />}
       <div className={`${styles['rail-mini']} ${hidden ? styles['rail-mini-show'] : ''}`}>

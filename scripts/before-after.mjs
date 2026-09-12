@@ -19,7 +19,7 @@
 // --hover SEL      навести курсор перед знімком (стан наведення рядка, ручки)
 // --click-after / --actions-after  те саме, але лише на половині «стало»
 // --actions "a ;; b"  кроки перед знімком/під час запису: click:SEL · hover:SEL ·
-//           move:X,Y · wait:MS · press:KEY · type:TEXT · focus:SEL · swipe:SEL:up ·
+//           move:X,Y · wait:MS · press:KEY · type:TEXT · focus:SEL · swipe:SEL:up|down|left|right ·
 //           down:SEL · drag:X,Y · up:  (перетягування без відпускання — стан ручки) · blur: ·
 //           dragfile:NAME:MIME · dropfile:NAME:MIME (файл над вікном / кинуто)
 // --video N  замість знімка — запис N секунд (webm на кожну половину, поруч
@@ -102,8 +102,19 @@ async function runActions(page, spec) {
     }
     else if (op === 'swipe') {
       const [sel, dir] = v.split(':'); const bb = await (await page.waitForSelector(sel)).boundingBox();
-      const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2; const dy = dir === 'up' ? -80 : 80;
-      await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx, cy + dy, { steps: 6 }); await page.mouse.up();
+      const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+      if (dir === 'left' || dir === 'right') {
+        // Горизонтальний свайп рядка (комора, §8): синтетичні PointerEvent з
+        // pointerType 'touch' — миша тут не годиться, хук реагує лише на тач.
+        await page.evaluate(([sel, dx, cx, cy]) => {
+          const el = document.querySelector(sel); if (!el) return;
+          const pe = (type, x) => el.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: cy, pointerType: 'touch', bubbles: true }));
+          pe('pointerdown', cx); pe('pointermove', cx + dx / 2); pe('pointerup', cx + dx);
+        }, [sel, dir === 'left' ? -96 : 96, cx, cy]);
+      } else {
+        const dy = dir === 'up' ? -80 : 80;
+        await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx, cy + dy, { steps: 6 }); await page.mouse.up();
+      }
     }
     else throw new Error(`before-after: невідомий крок «${step}»`);
     await page.waitForTimeout(250);

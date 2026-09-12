@@ -70,7 +70,7 @@
   border-radius: 10px;
   background: var(--card);
   box-shadow: var(--sh-a), var(--sh-b);
-  color: var(--dim);
+  color: var(--muted);
 }
 .search input {
   flex: 1; min-width: 0;
@@ -131,7 +131,7 @@
 }
 @media (min-width: 768px) { .filter { height: 36px; padding: 0 14px; } }
 .filter-on { background: var(--ink); color: var(--bg); font-weight: 500; }
-.filter-n { color: var(--dim); }
+.filter-n { color: var(--muted); }
 .filter-on .filter-n { color: inherit; opacity: 0.6; }
 .filter-dot { width: 6px; height: 6px; border-radius: 50%; }
 @media (min-width: 768px) { .filter-dot { width: 7px; height: 7px; } }
@@ -200,7 +200,7 @@
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .status-sage  { color: var(--sage); }
 .status-amber { color: var(--amber); }
-.status-far   { color: var(--dim); }
+.status-far   { color: var(--muted); }
 @media (min-width: 768px) {
   .status { position: absolute; top: 16px; right: 56px; height: 26px; padding: 0 10px; gap: 6px; }
   .status-sage  { background: var(--sage-bg); }
@@ -226,7 +226,7 @@
   width: 30px; height: 30px;
   display: grid; place-items: center;
   background: transparent; border: 0; border-radius: 8px;
-  color: var(--dim); cursor: pointer;
+  color: var(--muted); cursor: pointer;
 }
 @media (min-width: 768px) { .remove { top: 12px; right: 12px; } }
 @media (hover: hover) { .remove:hover { background: var(--line); color: var(--muted); } }

@@ -40,4 +40,4 @@
 .t-em { font-weight: 600; color: var(--ink); }
 
 /* Курсив — виключно status: empty у профілі, більше ніде (tokens-v3). */
-.t-empty { font-style: italic; color: var(--dim); }
+.t-empty { font-style: italic; color: var(--muted); }

@@ -12,7 +12,7 @@
   font-size: 13px;
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
-  color: var(--dim);
+  color: var(--muted);
   font-weight: 500;
   display: inline-flex;
   align-items: baseline;
@@ -22,4 +22,4 @@
 .applied  { color: var(--sage); }
 .anti     { color: var(--plum); }
 .danger   { color: var(--danger); }
-.muted    { color: var(--dim); }
+.muted    { color: var(--muted); }

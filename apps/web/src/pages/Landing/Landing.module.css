@@ -16,7 +16,7 @@
   --bezel: linear-gradient(160deg, #2a2d31, #1a1c1e 40%, #0f1012);
   /* другий текст на чорнильній поверхні: у світлій = dim бандла (#9a9ea3 ≈ #9d9d9c), у темній читається (Р41) */
   --ink-2: color-mix(in srgb, var(--bg) 60%, var(--ink));
-  --dim-t: var(--dim);
+  --dim-t: var(--muted);
   --glass-a: rgba(255, 255, 255, .34); --glass-b: rgba(255, 255, 255, .14);
   --glass-hi: rgba(255, 255, 255, .95); --glass-ring: rgba(255, 255, 255, .5);
   --zone-head: color-mix(in srgb, var(--ink) 78%, transparent);

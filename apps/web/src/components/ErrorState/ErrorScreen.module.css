@@ -42,7 +42,7 @@
 .cta:hover { filter: brightness(0.96); }
 
 /* Код інциденту — лише на CRASH, унизу, dim; клік копіює. */
-.code { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--dim); }
+.code { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); }
 .codeBtn { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .codeBtn:hover { color: var(--muted); }
 

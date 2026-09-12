@@ -17,6 +17,7 @@ import { Icon } from '../../components/Icon/Icon';
 import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
 import { useFlipRows } from '../../lib/useFlipRows';
+import { useRowSwipe } from '../../lib/useRowSwipe';
 import { formatQty } from '../../lib/units';
 import { Toast } from '../../components/ErrorState/Toast';
 import { PANTRY_FAILED } from '../../components/ErrorState/copy';
@@ -35,6 +36,8 @@ export function PantryPage() {
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
+  // 12.09 (§8): ✕ у рядку — на десктопі при наведенні, на тачі — свайпом уліво.
+  const swipe = useRowSwipe();
   const [adding, setAdding] = useState(false);
   // 6b-5: «Ще N прострочених — у коморі, за свіжістю» з панелі «Дім зараз»
   // приходить із `state.sort` — комора відкривається вже в тому порядку.
@@ -263,9 +266,12 @@ export function PantryPage() {
     const b = r.it;
     return (
       /* QA9-09: рядок — контейнер: тап по тілу відкриває редагування,
-         Хрестик праворуч списує одним дотиком (з «Повернути» внизу). */
-      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''}`} data-open={editing?.id === b.id || undefined}>
-        <button className={styles['row-main']} onClick={() => setEditing(b)}>
+         ✕ праворуч списує одним дотиком (з «Повернути» внизу). 12.09 (§8):
+         на десктопі ✕ видно при наведенні (слот 44 постійний, лише opacity),
+         на тачі — свайп рядка вліво відкриває «Списати»; у картці «Списати»
+         завжди. */
+      <div key={b.id} id={`batch-${b.id}`} data-batch={b.label} className={`${styles.row} ${flat ? '' : styles['row-grouped']} ${hot.has(b.id) ? styles['row-hot'] : ''} ${flashIds.has(b.id) ? styles['row-flash'] : ''} ${freshIds.has(b.id) ? styles['row-fresh'] : ''} ${leavingIds.has(b.id) ? styles['row-leave'] : ''} ${editing?.id === b.id ? styles['row-open'] : ''} ${swipe.openId === b.id ? styles['row-swiped'] : ''}`} data-open={editing?.id === b.id || undefined} data-swiped={swipe.openId === b.id || undefined}>
+        <button className={styles['row-main']} {...swipe.handlers(b.id)} onClick={() => { if (!swipe.swallowTap(b.id)) setEditing(b); }}>
           {/* Назва двома ярусами: «наше імʼя» і паспортна нижче, тихо. */}
           <span className={`${styles.name} ${flat ? styles['name-flat'] : ''}`}>
             <span className={styles['name-text']} title={r.name}>{r.name}</span>
@@ -303,8 +309,11 @@ export function PantryPage() {
           className={styles['row-x']}
           aria-label={`Списати «${b.label}»`}
           title="Закінчилось? Прибрати"
-          onClick={() => void quickRemove(b)}
-        ><Icon name="sys.close" size={16} inherit /></button>
+          onClick={() => { swipe.close(); void quickRemove(b); }}
+        >
+          <span className={styles['row-x-hover']}><Icon name="sys.close" size={16} inherit decorative /></span>
+          <span className={styles['row-x-swipe']}><Icon name="sys.trash" size={16} inherit decorative />Списати</span>
+        </button>
       </div>
     );
   };
@@ -534,16 +543,21 @@ export function PantryPage() {
 // Скільки колонок зон уміщує екран комори. Розкладка бандла — колонки з
 // чергуванням зон (не сітка рядками: картки різної висоти не тримають один
 // одного), тому кількість колонок потрібна в розмітці, а не лише в CSS.
-// Пороги — за Responsive: ≤ 1024 одна (з рейкою 60 контент 964), 1440 дві,
-// 1920 три (R0).
+// Пороги — за ANSWERS §2 / HANDOFF (12.09): за шириною КОНТЕЙНЕРА, не вікна —
+// одна до 1280, дві від 1280, три від 1500 (1920, R0). 1440 без панелі
+// (контейнер ≈ 1324) — дві; з відкритою панеллю артефакта (≈ 980) — одна:
+// три слоти рядка (безпека · походження · час) у вужчій колонці не влазять.
+export const ZONE_COLS_TWO = 1280;
+export const ZONE_COLS_THREE = 1500;
+export const zoneColumns = (w: number): number => (w >= ZONE_COLS_THREE ? 3 : w >= ZONE_COLS_TWO ? 2 : 1);
+
 function useZoneColumns(ref: { current: HTMLElement | null }): number {
   const [cols, setCols] = useState(1);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     const apply = () => {
-      const w = el.getBoundingClientRect().width;
-      setCols(w >= 1500 ? 3 : w >= 1000 ? 2 : 1);
+      setCols(zoneColumns(el.getBoundingClientRect().width));
     };
     apply();
     const ro = new ResizeObserver(apply);
@@ -644,7 +658,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         <MonoLabel>Додати продукт</MonoLabel>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Назва</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Назва</span>
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -656,11 +670,11 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
 
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Кількість</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)' }}>Кількість</span>
             <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Одиниця</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)' }}>Одиниця</span>
             <select
               value={unit ?? ''}
               onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
@@ -676,7 +690,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Зона</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Зона</span>
           <select
             value={zone}
             onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}

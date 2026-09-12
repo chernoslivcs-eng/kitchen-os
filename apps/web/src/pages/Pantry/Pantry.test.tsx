@@ -320,3 +320,28 @@ describe('№36 · ✕ — оптимістично', () => {
     expect(toast?.querySelector('[data-toast-action]')?.textContent).toBe('Повторити');
   });
 });
+
+// 12.09 (ANSWERS §8): на тачі ✕ відкривається свайпом рядка вліво; тап по
+// тілу відкритого рядка закриває його, а не картку.
+describe('✕ у рядку: свайп на тачі', () => {
+  it('свайп ≥ 48 px уліво відкриває «Списати», тап по тілу закриває', async () => {
+    await mount();
+    const row = host!.querySelector<HTMLElement>('[data-batch="Огірки"]')!;
+    const main = row.querySelector<HTMLElement>('button')!;
+    const pe = (type: string, x: number) => new PointerEvent(type, { clientX: x, clientY: 100, pointerType: 'touch', bubbles: true });
+    await act(async () => { main.dispatchEvent(pe('pointerdown', 200)); main.dispatchEvent(pe('pointermove', 170)); main.dispatchEvent(pe('pointerup', 140)); });
+    expect(row.dataset.swiped).toBe('true');
+    await click(main);
+    expect(row.dataset.swiped).toBeUndefined();
+    // Картка від цього тапу не відкрилась.
+    expect(host!.querySelector('[data-open]')).toBeNull();
+  });
+  it('короткий рух (< 48) нічого не відкриває', async () => {
+    await mount();
+    const row = host!.querySelector<HTMLElement>('[data-batch="Огірки"]')!;
+    const main = row.querySelector<HTMLElement>('button')!;
+    const pe = (type: string, x: number) => new PointerEvent(type, { clientX: x, clientY: 100, pointerType: 'touch', bubbles: true });
+    await act(async () => { main.dispatchEvent(pe('pointerdown', 200)); main.dispatchEvent(pe('pointermove', 185)); main.dispatchEvent(pe('pointerup', 180)); });
+    expect(row.dataset.swiped).toBeUndefined();
+  });
+});

@@ -553,7 +553,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                   ? <>{op.label ?? '—'} <Icon name="sys.next" size={12} inherit decorative /> {(op as { to?: string }).to ?? '—'}</>
                   : op.label ?? '—'}
                 {op.op === 'correct' && (op as { zone?: string }).zone && (
-                  <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--dim)' }}>
+                  <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--muted)' }}>
                     <Icon name="sys.next" size={12} inherit decorative /> {ZONE_LABELS[(op as { zone?: string }).zone!] ?? (op as { zone?: string }).zone}
                   </span>
                 )}
@@ -868,7 +868,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>
             {card.recipe_title ?? 'Готування'}
           </div>
-          <div style={{ marginTop: 2, fontSize: 13, color: 'var(--dim)' }}>
+          <div style={{ marginTop: 2, fontSize: 13, color: 'var(--muted)' }}>
             Фото до цієї вечері
           </div>
         </div>
@@ -1232,7 +1232,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
               <div className={styles['cart-item-top']}>
                 <span
                   className={`${styles['cart-name']} ${justSwapped === i ? styles['row-text-in'] : ''}`}
-                  style={p ? undefined : { color: 'var(--dim)' }}
+                  style={p ? undefined : { color: 'var(--muted)' }}
                 >
                   {r.label}
                 </span>
@@ -1330,7 +1330,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                         aria-label={`додати ${a.name} окремо`}
                         style={{
                           border: '1px solid var(--line)', background: 'none',
-                          color: 'var(--dim)', opacity: adding === i ? 0.5 : 1,
+                          color: 'var(--muted)', opacity: adding === i ? 0.5 : 1,
                         }}
                       >+</button>
                     </div>
@@ -1417,7 +1417,7 @@ export function PeriodChatCard(props: CardProps) {
       <div style={{ fontSize: 10, letterSpacing: 'var(--tracking-caps)', color: kickerTone }}>{kicker}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17, lineHeight: 1.25, letterSpacing: '-0.01em', color: 'var(--ink)', marginTop: 6 }}>{title}</div>
       {line && <div style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--muted)', marginTop: 4 }}>{line}</div>}
-      <div style={{ fontSize: 12, color: applied && !undone ? 'var(--sage)' : 'var(--dim)', marginTop: 6 }}>{meta}</div>
+      <div style={{ fontSize: 12, color: applied && !undone ? 'var(--sage)' : 'var(--muted)', marginTop: 6 }}>{meta}</div>
       {!closed && !undone && (
         <div className={styles['card-actions']}>
           <Button variant="primary" onClick={onOpenArtifact} disabled={applying}>Відкрити</Button>

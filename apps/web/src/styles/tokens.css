@@ -310,7 +310,7 @@ body.dz-drag #root {
   --sage: #55724a; --sage-bg: #e8efe3;
   --amber: #866425; --amber-bg: #f6ecd6;
   --plum: #885b77; --plum-bg: #f1e5ec;
-  --danger: #b5473c;
+  --danger: #b3463b; /* 12.09: 4.42 → 4.51 на danger-bg, те саме правило, що C2 (Р115) */
 
   /* похідні (Р16) — форма та сама, що в шістнадцятці */
   --sage-strong: #4a6640; --sage-bg-strong: #dae6d2; --sage-on: #f4f3ef;
