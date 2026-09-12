@@ -148,6 +148,19 @@ export function byAddedThenName(a: PantryBatch, b: PantryBatch): number {
   return b.added_at.localeCompare(a.added_at) || a.label.localeCompare(b.label, 'uk');
 }
 
+/**
+ * 12.09 (ANSWERS B7): порядок у зоні «за місцем» — за строком, як на кадрі
+ * «Комора · збірка»: прострочене вгорі (стейк −9 · айсберг −4), далі «свіже
+ * до» за зростанням, без строку — внизу; ті самі — за назвою. Стабільність
+ * після правки тримає не заморозка порядку, а рух рядка на нове місце
+ * (Pantry.tsx, 240 мс).
+ */
+export function byTermThenName(a: PantryBatch, b: PantryBatch): number {
+  const da = a.days ?? Number.POSITIVE_INFINITY;
+  const db = b.days ?? Number.POSITIVE_INFINITY;
+  return (da - db) || a.label.localeCompare(b.label, 'uk');
+}
+
 export function sortItems(items: PantryBatch[], sort: SortDef): PantryBatch[] {
   if (!sort.by) return items;
   const by = sort.by;
@@ -314,7 +327,7 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
     // однакова дата — за назвою; не за порядком з сервера (терміновість/updated_at),
     // щоб рядки не стрибали після правки.
     groups: grouped
-      ? ZONE_ORDER.map((z) => ({ zone: z, label: ZONE_LABEL[z], items: shown.filter((it) => it.zone === z).sort(byAddedThenName) }))
+      ? ZONE_ORDER.map((z) => ({ zone: z, label: ZONE_LABEL[z], items: shown.filter((it) => it.zone === z).sort(byTermThenName) }))
         .filter((g) => g.items.length).map((g) => ({ zone: g.zone, label: g.label, count: g.items.length, items: g.items.map(row) }))
       : [],
     list: grouped ? [] : shown.map(row),

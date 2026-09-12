@@ -159,8 +159,8 @@
 
 /* --- Motion -------------------------------------------------------------- */
 :root {
-  --dur-fast:    150ms;    /* hover, press, checkbox */
-  --dur-base:    250ms;    /* card state, toast */
+  --dur-fast:    120ms;    /* hover, press, checkbox — ANSWERS §9: 120 / 240 / 400 */
+  --dur-base:    240ms;    /* card state, toast, перестановка рядка */
   --dur-slow:    400ms;    /* step change, screen transition */
   --dur-breathe: 1200ms;   /* pending pulse, spinner */
   /* Етап 5 (п.3): тривалості, які жили числами в модулях. Під reduce — 0,

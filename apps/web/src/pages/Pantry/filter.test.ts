@@ -54,16 +54,19 @@ describe('сортування', () => {
     expect(v.list[0]!.time).toBe('≈ ще 2 дн');
     expect(v.flatLabel).toBe('найшвидше зіпсується — зверху');
   });
-  it('Ф2а: усередині групи — за added_at (новіше зверху), потім за назвою; порядок сервера не впливає', () => {
+  it('12.09 (ANSWERS B7): усередині групи — за строком: прострочене вгорі, далі «свіже до» за зростанням, без строку — внизу; ті самі — за назвою', () => {
     const items = [
-      b('Сир', { zone: 'fridge', added_at: '2026-09-01T00:00:00.000Z' }),
-      b('Айран', { zone: 'fridge', added_at: '2026-09-03T00:00:00.000Z' }),
-      b('Бринза', { zone: 'fridge', added_at: '2026-09-03T00:00:00.000Z' }),
-      b('Йогурт', { zone: 'fridge', added_at: '2026-09-02T00:00:00.000Z' }),
+      b('Сир', { zone: 'fridge', days: 5, catalog_key: 'cheese' }),
+      b('Стейк', { zone: 'fridge', days: -9, catalog_key: 'beef' }),
+      b('Айсберг', { zone: 'fridge', days: -4, catalog_key: 'lettuce' }),
+      b('Сіль', { zone: 'fridge', days: null, added_at: '2026-09-03T00:00:00.000Z' }),
+      b('Бринза', { zone: 'fridge', days: 5, catalog_key: 'brynza' }),
+      b('Йогурт', { zone: 'fridge', days: 2, catalog_key: 'yogurt' }),
     ];
     const names = (list: PantryBatch[]) => applyFilter(list, INITIAL, ctx).groups[0]!.items.map((r) => r.name);
-    expect(names(items)).toEqual(['Айран', 'Бринза', 'Йогурт', 'Сир']);
-    expect(names([...items].reverse())).toEqual(['Айран', 'Бринза', 'Йогурт', 'Сир']);
+    expect(names(items)).toEqual(['Стейк', 'Айсберг', 'Йогурт', 'Бринза', 'Сир', 'Сіль']);
+    // Порядок сервера не впливає; після правки рядок їде на своє місце (рух — Pantry.tsx).
+    expect(names([...items].reverse())).toEqual(['Стейк', 'Айсберг', 'Йогурт', 'Бринза', 'Сир', 'Сіль']);
   });
 
   it('за місцем — групи за зонами в порядку брифу', () => {

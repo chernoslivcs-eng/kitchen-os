@@ -16,6 +16,7 @@ import { BatchCard } from './BatchCard';
 import { Icon } from '../../components/Icon/Icon';
 import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
+import { useFlipRows } from '../../lib/useFlipRows';
 import { formatQty } from '../../lib/units';
 import { Toast } from '../../components/ErrorState/Toast';
 import { PANTRY_FAILED } from '../../components/ErrorState/copy';
@@ -240,6 +241,9 @@ export function PantryPage() {
   // минув — у рядку це «−N дн» тоном danger. Підрядок — три найтерміновіші
   // (прострочені й ті, що добігають), решта «нижче за свіжістю».
   const allRows = view.grouped ? view.groups.flatMap((g) => g.items) : view.list;
+  // 12.09 (ANSWERS B7): порядок у зоні — за строком; після правки рядок їде на
+  // нове місце рухом 240 (--dur-base), а не стрибає. Ключ — id партії.
+  useFlipRows(allRows.map((r) => r.it.id), (id) => `batch-${id}`);
   const ended = allRows.filter((r) => r.timeTone === 'danger');
   const urgent = allRows.filter((r) => r.scale && r.it.days != null && (r.timeTone === 'danger' || r.timeTone === 'amber'))
     .sort((a, b) => (a.it.days ?? 0) - (b.it.days ?? 0));
