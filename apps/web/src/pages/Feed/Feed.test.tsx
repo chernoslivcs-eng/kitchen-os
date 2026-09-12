@@ -327,3 +327,27 @@ describe('№24a · drop у стрічку', () => {
     expect(q('[data-wait-turn]')).toBeTruthy();
   });
 });
+
+// Пакет 4 №1 (Р123): порожня розмова — заголовок, пʼять чіпів, підказка; чіп
+// «Що на вечерю?» кладе текст у композитор і НЕ надсилає; після першого ходу
+// блок зникає (гасне за --dur-fast).
+describe('Пакет 4 №1 · порожня розмова', () => {
+  it('порожньо: блок є, «Що на вечерю?» → текст у композиторі без запиту', async () => {
+    await mount();
+    expect(q('[data-empty-hero]')).toBeTruthy();
+    expect(q('[data-empty-hero] h2')!.textContent).toBe('Що готуємо — з того, що вже є?');
+    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(5);
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="dinner"]')!.click(); });
+    expect(textarea().value).toBe('Що на вечерю?');
+    expect(chatCalls).toHaveLength(0);
+    expect(q('[data-chat-empty]'), 'екран у стані порожньої розмови').toBeTruthy();
+  });
+  it('після першого ходу блок зникає', async () => {
+    await mount();
+    await type('що на вечерю'); await submit();
+    await act(async () => { waiting[0]!.resolve({ reply: 'ось' }); await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 220)); });
+    expect(q('[data-empty-hero]')).toBeNull();
+    expect(q('[data-chat-empty]')).toBeNull();
+  });
+});

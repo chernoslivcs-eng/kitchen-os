@@ -16,7 +16,7 @@ export function PhoneMock({ variant }: { variant: 'hero' | 'final' }) {
       <span aria-hidden="true" data-gloss className={`${styles.gloss} ${styles.glossPhone}`} />
       <div className={styles.phScreen}>
         <header className={styles.phHead}>
-          <span className={styles.phPill}>{LIVE.session}{ic('sys.open')}</span>
+          <span className={styles.phPill}>{LIVE.session}</span>
           <span className={styles.grow} />
           <span className={`${styles.phChip} ${styles.chipAmber}`}>{ic('live.burning')}{LIVE.burningShort}</span>
           {live && <span className={`${styles.phChip} ${styles.chipSage} ${styles.kChip}`}>{ic('cook.timer')}{LIVE.cookingShort}<span className={styles.kTick}>{LIVE.tick}</span>{LIVE.secs}</span>}
