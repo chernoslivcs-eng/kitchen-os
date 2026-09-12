@@ -226,7 +226,9 @@ async function shoot(base, theme, side) {
       await route.fulfill({ response: res, json: body });
     });
   }
-  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
+  // Із збереженою сесією одразу йдемо на --path: у WebKit goto на «/» ще редіректить на /app, коли
+  // стартує наступний goto, і той падає «interrupted by another navigation».
+  if (!haveState) await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
   if (EMAIL && !haveState && !has('no-login')) {
     await page.request.post(`${base}/v1/auth/request`, { data: { email: EMAIL } });
     await page.waitForTimeout(600);
