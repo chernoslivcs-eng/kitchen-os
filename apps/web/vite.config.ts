@@ -34,7 +34,9 @@ export default defineConfig({
         // П.8 pre-deploy: react-рантайм окремим чанком — кешується між
         // деплоями, бо міняється рідше за код продукту.
         manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // 0912 A: react-dom/client — окремий вхід пакета, без нього ядро react-dom
+          // лягало в index (536 kB джерел), а «вендорний» чанк мав 52 kB.
+          'react-vendor': ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
         },
       },
     },

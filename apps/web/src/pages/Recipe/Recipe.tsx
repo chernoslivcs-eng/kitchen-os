@@ -15,6 +15,7 @@ import { track } from '../../lib/track';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { api, type Recipe, type RecipeNutritionInfo, type SavedRecipe } from '../../api';
+import { loadPantry } from '../../store/pantryList';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
@@ -95,7 +96,7 @@ export function RecipePage() {
       .catch(() => {/* silent */});
     // Мапа id партії → людський label: модель показує на комору через `ing.p`,
     // а рендер має показати назву, не uuid.
-    api.pantry()
+    loadPantry()
       .then(({ batches, products }) => {
         setBatchLabels(new Map(batches.map((b) => [b.id, b.label])));
         setStepLabels(stepLabelsFrom(batches, products));

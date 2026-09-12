@@ -7,6 +7,7 @@ import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, ZONE_ORDER, ZONE_LABEL, applyFilter, toggleKind, toggleState, resetFilter, shortDate, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
+import { loadPantry } from '../../store/pantryList';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -133,7 +134,7 @@ export function PantryPage() {
   const snapshotReady = useRef(false);
   async function refresh() {
     try {
-      const [p, s] = await Promise.all([api.pantry(), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
+      const [p, s] = await Promise.all([loadPantry({ fresh: true }), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
       const prev = prevSnapshot.current;
       // Перше завантаження — без входів: список просто зʼявляється. Далі кожна
       // партія, якої не було в знімку, вʼїжджає — і в порожню комору теж.

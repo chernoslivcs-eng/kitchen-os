@@ -48,7 +48,8 @@ describe('без DSN', () => {
 });
 
 describe('з DSN', () => {
-  beforeEach(() => { initSentry(DSN); });
+  // 0912 A: SDK підвантажується окремим чанком — дочекатись, як у main.tsx.
+  beforeEach(async () => { await initSentry(DSN); });
 
   it('падіння рендера летить і повертає код, який людина бачить на екрані', async () => {
     const code = captureCrash(new Error('впав рендер комори'), '\n    at Pantry');

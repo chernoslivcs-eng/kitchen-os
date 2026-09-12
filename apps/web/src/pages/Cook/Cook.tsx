@@ -9,6 +9,7 @@ import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { currentTheme, setThemeOverride, type ThemeChoice } from '../../theme';
 import { api, type Recipe } from '../../api';
+import { loadPantry } from '../../store/pantryList';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';
 import { useIncidentStore } from '../../store/incident';
@@ -114,7 +115,7 @@ export function CookOverlay() {
   useEffect(() => {
     // Мапа id партії → людський label. Модель показує на комору через `ing.p`
     // (uuid), крокі мають плейсхолдери {0} → назва інгредієнта, не uuid.
-    api.pantry()
+    loadPantry()
       .then(({ batches, products }) => {
         setBatchLabels(new Map(batches.map((b) => [b.id, b.label])));
         setStepLabels(stepLabelsFrom(batches, products));

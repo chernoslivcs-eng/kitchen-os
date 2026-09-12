@@ -11,6 +11,7 @@ import { api, type NowItem, type PantryBatch } from '../api';
 import { isSoon, hasScale, freshness } from '@kitchen/domain/shelf-thresholds';
 import { usePantryStore } from './pantry';
 import { loadPantryFacts, type PantryFacts } from './pantryFacts';
+import { loadPantry } from './pantryList';
 import { toneOfNow } from '../lib/period';
 
 export interface BurningRow { id: string; label: string; days: number; tone: 'danger' | 'amber' }
@@ -69,7 +70,7 @@ export function useHomeNow(dep?: unknown): HomeNow {
     if (pantryCache && pantryCache.version === version && Date.now() - pantryCache.at < 60_000) {
       setPantry(pantryCache);
     } else {
-      api.pantry().then(({ batches }) => {
+      loadPantry().then(({ batches }) => {
         const v = burningOf(batches);
         pantryCache = { ...v, at: Date.now(), version };
         if (alive) setPantry(v);

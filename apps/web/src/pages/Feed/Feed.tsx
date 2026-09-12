@@ -17,6 +17,7 @@ import { Button } from '../../components/Button/Button';
 import { plural } from '../../lib/plural';
 import { applyMode } from '@kitchen/domain/card-modes';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
+import { loadPantry } from '../../store/pantryList';
 import { Card, ShoppingListCard, RecipeStreamCard, traceState, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
 import { BatchCard } from '../Pantry/BatchCard';
@@ -394,7 +395,7 @@ export function Feed() {
   const [liveProducts, setLiveProducts] = useState<HouseholdProduct[]>([]);
   useEffect(() => {
     let alive = true;
-    api.pantry()
+    loadPantry()
       .then((p) => {
         if (!alive) return;
         const m = new Map<string, PantryBatch>();
@@ -505,7 +506,7 @@ export function Feed() {
       // а не блоком у панелі. Разом із ним пішов і зайвий запит на кожен
       // refreshCounts.
       const [p, s, pend] = await Promise.all([
-        api.pantry(),
+        loadPantry({ fresh: true }),
         api.shopping.list().catch(() => ({ count: 0 })),
         api.cards.pending().catch(() => ({ cards: [] as { id: string; type: string; session_id: string | null; created_at: string | null }[] })),
       ]);

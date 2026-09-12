@@ -58,7 +58,8 @@ export function Landing() {
   };
 
   const img = (name: string, w: number, h: number, cls?: string) => (
-    <img className={`${s.ill} ${cls}`} src={`/landing/${name}.webp`} width={w} height={h} alt="" loading="lazy" decoding="async" />
+    // 0912 A (№49): на 390 картинка стоїть у ~320 px — віддаємо половинну (-sm), повну лише широким; пріоритет низький, це не перший екран.
+    <img className={`${s.ill} ${cls}`} src={`/landing/${name}.webp`} srcSet={`/landing/${name}-sm.webp ${Math.round(w / 2)}w, /landing/${name}.webp ${w}w`} sizes={`(max-width: 767px) ${Math.round(w / 2)}px, ${w}px`} width={w} height={h} alt="" loading="lazy" decoding="async" fetchPriority="low" />
   );
 
   return (
