@@ -25,7 +25,7 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     }
   });
   it('підписи завжди в DOM: ховаються opacity/visibility, не display', () => {
-    for (const label of ['.brand-name', '.tab > span:nth-child(2)', '.user-text', '.sessions', '.tab-count', '.panel-btn']) {
+    for (const label of ['.brand-name', '.tab > span:nth-child(2)', '.user-text', '.sessions', '.tab-count']) {
       const own = rules.filter((r) => r.sel.split(',').some((s) => s.trim().endsWith(label)));
       expect(own.length, `правила для ${label}`).toBeGreaterThan(0);
       for (const r of own) expect(r.decls, `«${r.sel}»`).not.toMatch(/(^|;)\s*display\s*:\s*(none|inline|block|flex)/);
@@ -33,9 +33,10 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
   });
   it('знак цілі стоїть на тому самому x: поле рейки й поле рядка не міняються в .wide/.open', () => {
     const base = rules.find((r) => r.sel === '.wrap' && /--nav-label-delay/.test(r.decls))!;
-    expect(base.decls).toMatch(/padding\s*:\s*16px 11px/);
+    expect(base.decls).toMatch(/padding\s*:\s*16px 8px/);
     const tab = rules.find((r) => r.sel === '.tab')!;
-    expect(tab.decls).toMatch(/padding\s*:\s*0 10px/);
+    expect(tab.decls).toMatch(/height\s*:\s*44px/);
+    expect(tab.decls).toMatch(/padding\s*:\s*0 13px/);
     expect(tab.decls).toMatch(/justify-content\s*:\s*flex-start/);
     for (const r of rules.filter((r) => /\.(wide|open)\b/.test(r.sel) && /\.(wrap|tab)\b\s*$/.test(r.sel))) {
       expect(r.decls, `«${r.sel}»`).not.toMatch(/(^|;)\s*padding(-left)?\s*:/);
@@ -49,8 +50,8 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     for (const r of rules.filter((r) => /\.(wide|open)\b/.test(r.sel))) {
       const target = r.sel.split(',').map((s) => s.trim().split(/\s+/).at(-1)!);
       if (!target.some((t) => ROWS.includes(t))) continue;
-      // Єдине, що змінюється: ширина .wrap і right бейджа.
-      const allowed = r.decls.replace(/(^|;)\s*width\s*:\s*(256|300)px/g, '$1').replace(/(^|;)\s*right\s*:[^;]+/g, '$1');
+      // Єдине, що змінюється: ширина .wrap.
+      const allowed = r.decls.replace(/(^|;)\s*width\s*:\s*(256|300)px/g, '$1');
       expect(allowed, `«${r.sel}»`).not.toMatch(GEOM);
     }
     for (const sel of ['.tab', '.foot .user', '.panel-btn', '.brand-btn', '.wrap']) {
@@ -58,6 +59,25 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
         const tr = r.decls.match(/transition\s*:\s*([^;]+)/)?.[1] ?? '';
         expect(tr, `transition у «${sel}»`).not.toMatch(/\b(height|min-height|line-height|padding|gap|top)\b/);
       }
+    }
+  });
+  it('квадрат 44 у рейці 60; «панель» 38 у своєму рядку над профілем; бейдж і крапка — на кутку знака від лівого краю', () => {
+    // рейка 60 = 8 + 44 + 8; 768: 64 = 10 + 44 + 10
+    const rail768 = rules.find((r) => r.sel === '.wrap' && /width\s*:\s*64px/.test(r.decls))!;
+    expect(rail768.decls).toMatch(/padding\s*:\s*14px 10px/);
+    const foot = rules.find((r) => r.sel === '.foot')!;
+    expect(foot.decls).toMatch(/flex-direction\s*:\s*column-reverse/);
+    const panel = rules.find((r) => r.sel === '.panel-btn')!;
+    expect(panel.decls).toMatch(/width\s*:\s*38px/);
+    expect(panel.decls).toMatch(/align-self\s*:\s*flex-start/);
+    expect(panel.decls).not.toMatch(/visibility|opacity/);
+    expect(rules.some((r) => /\.(wide|open)\b/.test(r.sel) && /\.panel-btn\s*$/.test(r.sel)), 'жодного правила для «панелі» в розгорнутому стані').toBe(false);
+    for (const sel of ['.badge', '.tab-dot']) {
+      const r = rules.find((r) => r.sel === sel)!;
+      expect(r.decls, sel).toMatch(/left\s*:\s*\d+px/);
+      expect(r.decls, sel).toMatch(/right\s*:\s*auto/);
+      expect(r.decls, sel).not.toMatch(/transition\s*:[^;]*\b(left|right|top)\b/);
+      expect(rules.some((x) => /\.(wide|open)\b/.test(x.sel) && x.sel.endsWith(sel) && /(left|right|top|height|font-size)\s*:/.test(x.decls)), `${sel} у .wide/.open не рухається`).toBe(false);
     }
   });
   it('підписи входять із затримкою, виходять першими; список розмов — після ширини', () => {
