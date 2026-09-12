@@ -22,6 +22,7 @@
 //   users / list-checks / sun), назва 15/600 (тихі 500), деталь 13 muted, дія
 //   («Готуємо» ink 34 / «До плити» sage 34) лише де є що робити, решта — шеврон.
 import { useEffect, useRef } from 'react';
+import { lockBodyScroll } from '../../lib/lockBodyScroll';
 import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icons';
 import { CookCountdown } from '../../lib/cook-watch';
@@ -76,6 +77,8 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
 }) {
   // №35: змах униз закриває шторку — один механізм на всі шторки.
   const drag = useSheetDrag(onClose, sheet);
+  // 0912 D (№42): поки «Дім зараз» відкрито, документ під ним не скролиться.
+  useEffect(() => lockBodyScroll(), []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);

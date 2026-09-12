@@ -143,7 +143,7 @@
 /* ── Сітка: колона gap 10 на 390; 2× gap 12 з 768 ──────────────────────── */
 .grid { display: flex; flex-direction: column; gap: 10px; }
 @media (min-width: 768px) {
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; } /* 0912 D (№2) */
 }
 
 /* ── Картка: знак · назва + стан · час · ккал · готував · рядки · ✕ ────── */
@@ -243,3 +243,7 @@
 }
 /* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
 @media (max-width: 767px) { .search input { font-size: 16px; } }
+/* 0912 D (№2): на 768–1023 пошук стискається, а не виштовхує «Записати свій» за край (WebKit/Firefox давали hscroll 42–50). */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .search { width: auto; flex: 1 1 120px; min-width: 0; max-width: 260px; }
+}

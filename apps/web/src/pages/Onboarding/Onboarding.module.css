@@ -22,7 +22,7 @@
 .page :where(button) { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
 
 /* шапка · 72 / 60 */
-.head { height: 72px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 clamp(20px, 4vw, 64px); }
+.head { margin-top: env(safe-area-inset-top, 0px); height: 72px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 clamp(20px, 4vw, 64px); }
 .mob .head { height: 60px; padding: 0 20px; }
 .logo { display: flex; align-items: center; gap: 10px; }
 .mob .logo { gap: 8px; }
@@ -116,7 +116,7 @@
 .inNext:disabled { opacity: .6; cursor: default; }
 /* 390 */
 /* 0912 B (№16): на 390 сцена = вʼюпорт (з клавіатурою — менший), сітка скролиться всередині, «← · Пропустити · Далі» завжди над клавіатурою. */
-.mob.intake { height: 100dvh; min-height: 0; }
+.mob.intake { height: calc(100dvh - var(--kb, 0px)); min-height: 0; }
 .mob .inGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
 .mob .inText { min-height: 0; }
 .mob .inTitle { min-height: 64px; font-size: 26px; }

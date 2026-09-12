@@ -22,7 +22,8 @@
    body.composer-focused / body.sheet-open. Раніше висота екрана
    перемикалась стрибком, а стрічка й композитор мали ще й свої відступи. */
 @media (max-width: 767px) {
-  .screen { height: 100dvh; }
+  /* 0912 D (42в): мінус клавіатура iOS (--kb з visualViewport, lib/keyboard-offset). */
+  .screen { height: calc(100dvh - var(--kb, 0px)); }
   .composer-wrap {
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     transition: padding-bottom var(--dur-base) var(--ease-standard);
@@ -82,7 +83,7 @@
   overflow-y: auto;
   /* Шапка 56 + фейд 40 лежать поверх: верхній відступ дає першому ходу місце
      під градієнтом, коли стрічка прокручена до початку. */
-  padding: 64px 22px 20px;
+  padding: calc(64px + env(safe-area-inset-top, 0px)) 22px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -497,7 +498,7 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 .attach-item > [data-icon] { color: var(--muted); }
 .attach-item:hover { background: var(--line); }
-.attach-hint { font-size: 11px; color: var(--muted); padding: 6px 12px 4px; }
+.attach-hint { font-size: 12px; /* 0912 D (№9): 11 → 12 */ color: var(--muted); padding: 6px 12px 4px; }
 /* «⌘K» dim 12 перед мікрофоном (Screens «Чат · збірка»); на дотиках — ні. */
 /* №30: підпис «⌘K» з поля знято; клавіша лишається (ефект у Feed.tsx). */
 

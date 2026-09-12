@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { keepFieldInView } from '../../lib/keepFieldInView';
+import { lockBodyScroll } from '../../lib/lockBodyScroll';
 import { ARTIFACT_ICON } from '../../pages/Feed/artifacts';
 import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
@@ -53,6 +54,8 @@ export function ArtifactPanel() {
     return () => mq.removeEventListener('change', on);
   }, []);
   const sheetDrag = useSheetDrag(() => s.setOpen(false), sheetMode && open);
+  // 0912 D (№42): шторка (<600) блокує скрол документа під собою.
+  useEffect(() => { if (sheetMode && open) return lockBodyScroll(); }, [sheetMode, open]);
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
   const hasPanel = artifacts.length > 0;
 

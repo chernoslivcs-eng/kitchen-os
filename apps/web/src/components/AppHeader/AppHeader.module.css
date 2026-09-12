@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 18px 20px 12px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 12px; /* 0912 D (42а): під статус-бар PWA */
   /* Лінії під шапкою немає (кадри Screens/Prototype; власник 11.09):
      шапка — той самий шар, що й полотно, межу малює вміст. */
   /* Без власного тла — як .hdr у макеті (падінги 18/20/12 і лінія, і все).
@@ -48,7 +48,7 @@
    і без, а він тут єдиний індикатор того, де ти. */
 .action {
   flex: none;
-  min-width: 36px;
+  min-width: 0; /* 0912 D (№2): слот дії стискається разом із пошуком */
   height: 36px;
   display: flex;
   align-items: center;

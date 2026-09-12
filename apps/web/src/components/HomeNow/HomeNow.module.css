@@ -11,7 +11,7 @@
 /* Вікно: 560 (max 92vw), r18, --sh; вхід — fade + scale .98 → 1 за --dur-base. */
 .dialog {
   top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 560px; max-width: 92vw; max-height: 88vh; overflow: auto;
+  width: 560px; max-width: 92vw; max-height: 88dvh; overflow: auto; overscroll-behavior: contain;
   border-radius: 18px;
   animation: dialog-in var(--dur-base) var(--ease-enter);
 }
@@ -21,6 +21,7 @@
   left: 0; right: 0; bottom: 0; max-width: 560px; margin: 0 auto;
   border-radius: 18px 18px 0 0; box-shadow: var(--sh2);
   padding: 8px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height: 88dvh; overflow: auto; overscroll-behavior: contain; /* 0912 D (№42) */
   animation: sheet-in var(--dur-base) var(--ease-enter);
 }
 .scrim-dark { background: rgba(26, 28, 30, 0.28); }

@@ -33,7 +33,7 @@
   box-sizing: border-box;
   background: var(--bg);
   box-shadow: var(--sh2);
-  padding: 14px 12px calc(34px + env(safe-area-inset-bottom));
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 12px calc(34px + env(safe-area-inset-bottom)); /* 0912 D (42а) */
   display: flex;
   flex-direction: column;
   gap: 2px;

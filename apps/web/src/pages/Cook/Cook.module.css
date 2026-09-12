@@ -18,6 +18,7 @@
   inset: 0;
   z-index: 90;
   overflow-y: auto;
+  padding-top: env(safe-area-inset-top, 0px); /* 0912 D (42а) */
   background: var(--bg);
   color: var(--ink);
   container-type: inline-size;
