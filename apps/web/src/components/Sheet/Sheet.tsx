@@ -42,8 +42,12 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
   // №21: через лічильник — інша шторка поруч клас не зніме.
   useEffect(() => holdBodyFlag('sheet-open'), []);
   const [closing, setClosing] = useState(false);
+  // fix/sheet-drag-jump: змах уже вивіз панель за екран (useSheetDrag, leaving) —
+  // свій sheet-out від translateY(0) грати не треба, інакше стрибок угору.
+  const leftByDrag = useRef(false);
 
   const close = useCallback(() => {
+    if (leftByDrag.current) { onClose(); return; }
     setClosing((was) => {
       if (was) return was;
       const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -88,6 +92,7 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
   // lib/useSheetDrag); скрол усередині не перехоплюється, бо обробники
   // стоять лише на граберi й шапці.
   const drag = useSheetDrag(close, !closing);
+  leftByDrag.current = drag.leaving;
 
   return (
     <div
@@ -102,8 +107,8 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`${styles.panel} ${closing ? styles['panel-out'] : ''}`}
-        style={closing ? undefined : drag.panelStyle}
+        className={`${styles.panel} ${closing && !drag.leaving ? styles['panel-out'] : ''}`}
+        style={closing && !drag.leaving ? undefined : drag.panelStyle}
         data-sheet
       >
         <div className={styles.grab} {...drag.handleProps} data-sheet-grab>

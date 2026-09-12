@@ -258,7 +258,7 @@
     left: 0; right: 0; bottom: 0;
     max-width: 560px;
     margin: 0 auto;
-    max-height: 82dvh;
+    max-height: 82svh; /* fix/sheet-drag-jump: svh — стала під пальцем, dvh стрибає з тулбаром iOS */
     overscroll-behavior: contain; /* 0912 D (№42) */
     border-top: 1px solid var(--line);
     border-radius: 16px 16px 0 0;
