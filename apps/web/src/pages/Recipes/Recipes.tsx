@@ -24,7 +24,7 @@ import { formatDuration } from '@kitchen/domain/duration';
 import styles from './Recipes.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { RecipesHead, SearchRow } from './RecipesHead';
-import { FILTERS, filterCounts, matches, rank, statusWord, type Filter } from './library';
+import { FILTERS, filterCounts, matches, rank, statusWord, rescuesLine, type Filter } from './library';
 import { Toast } from '../../components/ErrorState/Toast';
 import { RECIPES_FAILED } from '../../components/ErrorState/copy';
 
@@ -171,10 +171,12 @@ export function RecipesPage() {
                     </div>
                   )}
                   {/* Чому саме зараз — те, що рецепт рятує з комори. 12.09 (§7): словом,
-                      без знака — flame конкурував би з чіпом «Горить». */}
+                      без знака — flame конкурував би з чіпом «Горить». Пакет 4, №11:
+                      малими, через «·», з днями в того, що горить; знаків роду страви
+                      нема (рішення власника — даних немає). */}
                   {r.rescues.length > 0 && (
                     <div className={`${styles.line} ${styles['line-rescues']}`}>
-                      використає: {r.rescues.join(', ')}
+                      використає: {rescuesLine(r.rescues)}
                     </div>
                   )}
                 </div>

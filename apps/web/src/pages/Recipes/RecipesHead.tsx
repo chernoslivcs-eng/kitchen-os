@@ -65,10 +65,13 @@ export function RecipesHead({ tab, savedCount, query, onQuery, searchOpen, onSea
       {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
           лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
           моделі явний сигнал на recipe-картку (DA2-23). */}
-      <button type="button" className={styles.write} data-tap aria-label="Записати свій"
-        onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}>
-        <Icon name="sys.import" size={16} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
-      </button>
+      {/* Пакет 4, №12 (кадр Screens «Журнал»): на вкладці Журнал «Записати свій» нема. */}
+      {tab === 'saved' && (
+        <button type="button" className={styles.write} data-tap aria-label="Записати свій"
+          onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}>
+          <Icon name="sys.import" size={16} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
+        </button>
+      )}
     </>} />
   );
 }

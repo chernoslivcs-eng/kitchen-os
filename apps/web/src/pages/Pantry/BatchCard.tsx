@@ -157,10 +157,13 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
     </div>
   ) : (
     /* Підвал (Components / G6): «Зміни зберігаються самі» 13 muted · «Списати»
-       контуром danger 38. Без «Зберегти» (⚠2). */
+       контуром danger 38 зі знаком trash (пакет 4, №17). Без «Зберегти» (⚠2);
+       третьої дії «Був у морозилці» нема — контракт, рішення власника. */
     <div className={styles['card-foot']}>
       <span className={styles['card-foot-note']}>Зміни зберігаються самі</span>
-      <button type="button" className={styles['card-remove']} data-tap disabled={busy} onClick={() => setAskReason(true)}>Списати</button>
+      <button type="button" className={styles['card-remove']} data-tap disabled={busy} onClick={() => setAskReason(true)}>
+        <Icon name="sys.trash" size={16} inherit decorative />Списати
+      </button>
     </div>
   );
 

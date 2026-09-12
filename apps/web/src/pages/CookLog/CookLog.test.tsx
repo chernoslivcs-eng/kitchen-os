@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
-import { CookLogPage, dayLabel, runMinutes } from './CookLog';
+import { CookLogPage, dayLabel, runMinutes, logDuration } from './CookLog';
 
 let root: Root | undefined; let host: HTMLDivElement | undefined;
 const json = (o: unknown) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
@@ -65,11 +65,12 @@ describe('CookLogPage · крок 4', () => {
   });
 });
 
-// FIXES-V3-2 №43: шапка однакова на обох вкладках — пошук і «Записати свій»
-// не зникають у Журналі навіть на порожньому екрані; порожній стан — той
-// самий патерн, що в «Збережених» (пунктирна картка, копі без змін).
+// FIXES-V3-2 №43: шапка однакова на обох вкладках — пошук не зникає в Журналі
+// навіть на порожньому екрані; порожній стан — той самий патерн, що в
+// «Збережених» (пунктирна картка, копі без змін). Пакет 4, №12: «Записати
+// свій» — лише на вкладці Збережені (у журнал не записують).
 describe('№43 · порожній Журнал', () => {
-  it('шапка з пошуком і «Записати свій», порожній стан карткою', async () => {
+  it('шапка з пошуком, без «Записати свій» (№12), порожній стан карткою', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (url === '/v1/cook-runs') return json({ runs: [] });
       if (url === '/v1/recipes') return json({ recipes: [] });
@@ -77,8 +78,18 @@ describe('№43 · порожній Журнал', () => {
     }));
     await mount();
     expect(host!.querySelector('[data-search] input')!.getAttribute('placeholder')).toBe('Знайти в журналі');
-    expect(host!.querySelector('[aria-label="Записати свій"]')).not.toBeNull();
+    expect(host!.querySelector('[aria-label="Записати свій"]')).toBeNull();
     expect(host!.querySelector('[data-empty]')!.textContent).toContain('Тут ще тихо');
     expect(host!.querySelector('[data-empty] h3')).not.toBeNull();
+  });
+});
+
+// Пакет 4, №12: тривалість ≥ 60 хв — годинами: «1 год 40 хв», рівно — «2 год».
+describe('№12 · тривалість годинами', () => {
+  it('до години — хвилинами, від години — «N год M хв», рівна — без хвилин', () => {
+    expect(logDuration(27)).toBe('27 хв');
+    expect(logDuration(60)).toBe('1 год');
+    expect(logDuration(100)).toBe('1 год 40 хв');
+    expect(logDuration(120)).toBe('2 год');
   });
 });

@@ -6,6 +6,7 @@
 // «те, що під нею» (PLAN §8), «Збережені · N» у сегменті — усі.
 
 import type { SavedRecipe } from '../../api';
+import { plural } from '../../lib/plural';
 
 export type Filter = 'all' | 'ready' | 'near' | 'cooked';
 
@@ -42,4 +43,18 @@ export function statusWord(r: Pick<SavedRecipe, 'status'>): { text: string; tone
 /** Порядок як на проді: спершу те, що можна робити зараз. */
 export function rank(r: Pick<SavedRecipe, 'status'>): number {
   return r.status === 'ready' ? 0 : r.status === 'near' ? 1 : 2;
+}
+
+/**
+ * Пакет 4, №11: рядок «використає:» — назви малими, роздільник «·», у того,
+ * що горить, після назви скільки днів лишилось (як у кадрі «помідори · 3 дні»).
+ * Відкрите без дати — лише назва; 0 і менше — «сьогодні».
+ */
+export function rescuesLine(rescues: SavedRecipe['rescues']): string {
+  return rescues.map((r) => {
+    const name = r.label.toLowerCase();
+    if (r.days == null) return name;
+    if (r.days <= 0) return `${name} · сьогодні`;
+    return `${name} · ${r.days} ${plural(r.days, ['день', 'дні', 'днів'])}`;
+  }).join(' · ');
 }

@@ -21,7 +21,7 @@ const json = (o: unknown) => new Response(JSON.stringify(o), { status: 200, head
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url === '/v1/recipes/r1') return json({ id: 'r1', saved_at: '2026-09-01T00:00:00Z', recipe, nutrition_calc: null });
-    if (url === '/v1/recipes') return json({ recipes: [{ id: 'r1', title: recipe.t, status: 'near', have: 2, total: 3, missing: ['часник'], rescues: ['помідори · 3 дні'], cooked_count: 2, payload: recipe }] });
+    if (url === '/v1/recipes') return json({ recipes: [{ id: 'r1', title: recipe.t, status: 'near', have: 2, total: 3, missing: ['часник'], rescues: [{ label: 'Помідори', days: 3 }], cooked_count: 2, payload: recipe }] });
     if (url.startsWith('/v1/pantry')) return json({ batches: [{ id: 'b1', label: 'Помідори', state: 'sealed' }, { id: 'b2', label: 'Спагеті', state: 'opened' }], products: [] });
     if (url.startsWith('/v1/profile')) return json({ veto: [] });
     return json({});

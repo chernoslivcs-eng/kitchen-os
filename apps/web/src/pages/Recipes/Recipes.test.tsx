@@ -15,7 +15,7 @@ const R = (id: string, status: SavedRecipe['status'], o: Partial<SavedRecipe> = 
   status, have: 4, total: 6, missing: [], rescues: [], ...o,
 });
 const recipes = [
-  R('a', 'ready', { cooked_count: 2, rescues: ['помідори'] }),
+  R('a', 'ready', { cooked_count: 2, rescues: [{ label: 'Помідори', days: 3 }, { label: 'Фета', days: null }] }),
   R('b', 'ready'),
   R('c', 'near', { missing: ['яйця', 'фета'], cooked_count: 1 }),
   R('d', 'far'),
@@ -45,7 +45,7 @@ describe('RecipesPage', () => {
     await mount();
     expect(cards().length).toBe(4);
     expect(cards()[0]!.textContent).toContain('можу зараз');
-    expect(cards()[0]!.textContent).toContain('використає: помідори');
+    expect(cards()[0]!.textContent).toContain('використає: помідори · 3 дні · фета');
     expect(cards()[0]!.textContent).toContain('2 рази');
     await act(async () => { (chip('near') as HTMLElement).click(); });
     expect(cards().map((c) => c.getAttribute('data-status'))).toEqual(['near']);

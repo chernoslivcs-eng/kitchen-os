@@ -1032,7 +1032,8 @@ export interface SavedRecipe {
   have: number;
   total: number;
   missing: string[];
-  rescues: string[];
+  /** Що рецепт рятує з комори: назва партії і скільки днів лишилось (null — відкрите без дати). */
+  rescues: { label: string; days: number | null }[];
 }
 
 export interface CookRunBatchChange {

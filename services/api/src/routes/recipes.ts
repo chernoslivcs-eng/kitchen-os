@@ -9,7 +9,7 @@ import { recipeStaleByNotes } from '../recipe-dedup.js';
 import { recipeVetoHits } from '../veto.js';
 import { recipeNutritionFor, loadRecipeBatches } from '../nutrition.js';
 import { randomUUID } from 'node:crypto';
-import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, type RecipeIngredient } from '@kitchen/domain';
+import { maskHistoryQuantities, matchRecipe, resolveRecipeLabels, effectiveExpiry, daysLeft, type RecipeIngredient } from '@kitchen/domain';
 import type { Repo } from '@kitchen/domain';
 import { callRecipe, sumUsage } from '../model.js';
 import type { Recipe, RecipeIng } from '@kitchen/domain';
@@ -296,9 +296,10 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
       repo.listRecipes(user_id, 50),
       repo.listBatches(household_id),
     ]);
+    const nowMs = Date.now();
     const recipes = rows.map((r) => {
       const payload = r.payload as { ing?: RecipeIngredient[] } | null;
-      const match = matchRecipe(payload?.ing ?? [], pantry);
+      const match = matchRecipe(payload?.ing ?? [], pantry, nowMs);
       return {
         id: r.id,
         title: r.title,
@@ -315,7 +316,13 @@ export function recipesRoutes(app: FastifyInstance, repo: Repo) {
         total: match.total,
         // Назви, не uuid — на екрані має бути «бракує: яйця, бекон».
         missing: match.missing.map((m) => m.n ?? 'інгредієнт'),
-        rescues: match.rescues.map((b) => b.label),
+        // Пакет 4, №11: до назви — скільки днів лишилось (та сама Б1-формула,
+        // що в коморі), щоб картка казала «помідори · 3 дні»; відкрите без
+        // дати — лише назва.
+        rescues: match.rescues.map((b) => ({
+          label: b.label,
+          days: daysLeft(effectiveExpiry(b, b.catalog_key, nowMs), nowMs),
+        })),
       };
     });
     return { recipes };

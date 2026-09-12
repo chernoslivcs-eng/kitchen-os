@@ -16,6 +16,14 @@ import { Icon } from '../../components/Icon/Icon';
 import { api, type CookRunWithRecipe } from '../../api';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
+
+/** Пакет 4, №12 (кадр Screens «Журнал»): у журналі від години — «1 год 40 хв»,
+ *  рівна година — «2 год»; до години — як усюди («27 хв»). */
+export function logDuration(min: number): string {
+  if (!Number.isFinite(min) || min < 60) return formatDuration(min);
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  return m === 0 ? `${h} год` : `${h} год ${m} хв`;
+}
 import styles from './CookLog.module.css';
 import rs from '../Recipes/Recipes.module.css';
 import { useCookStore } from '../../store/cook';
@@ -184,7 +192,7 @@ export function CookLogPage() {
                               <><span>·</span><span>скасовано — комора повернена</span></>
                             ) : (
                               <>
-                                {minutes != null && <><span>·</span><span>{formatDuration(minutes)}</span></>}
+                                {minutes != null && <><span>·</span><span>{logDuration(minutes)}</span></>}
                                 {r.rating != null && <><span>·</span><Rating value={r.rating} /></>}
                                 {used > 0 && <><span>·</span><span>{used} з того, що було вдома</span></>}
                               </>

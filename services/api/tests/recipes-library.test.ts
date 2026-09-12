@@ -103,7 +103,11 @@ describe('бібліотека рецептів', () => {
     const { recipes } = (await app.inject({
       method: 'GET', url: '/v1/recipes', headers: { cookie: me.cookie },
     })).json();
-    expect(recipes[0].rescues).toEqual(['Пармезан']);
+    // Пакет 4, №11: назва + скільки днів лишилось (відкритий пармезан без
+    // ручної дати — строк рахує каталог, тож число є).
+    expect(recipes[0].rescues).toHaveLength(1);
+    expect(recipes[0].rescues[0].label).toBe('Пармезан');
+    expect(recipes[0].rescues[0]).toHaveProperty('days');
   });
 
   it('приготований рецепт у списку з лічильником, навіть без «на потім»', async () => {
