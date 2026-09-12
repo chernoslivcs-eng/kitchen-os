@@ -7,7 +7,6 @@ import { Toast } from '../../components/ErrorState/Toast';
 import { Icon } from '../../components/Icon/Icon';
 import { Sheet } from '../../components/Sheet/Sheet';
 import { holdBodyFlag } from '../../lib/body-flags';
-import type { IconName } from '../../components/Icon/icons';
 import { ActionState } from '../../components/ActionState/ActionState';
 import { useIncidentStore } from '../../store/incident';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
