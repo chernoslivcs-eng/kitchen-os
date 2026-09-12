@@ -3,7 +3,7 @@
    йде під шапку у фейд). Три розкладки за шириною контейнера `chat`
    (Feed .screen): пороги 1024 і 768, як у вʼюпортів. */
 .head {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 4;
+  position: absolute; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 4; /* 0912 D (42а) */
   display: flex; align-items: center; gap: 8px;
   height: 56px; padding: 0 24px 40px; box-sizing: content-box;
   background: linear-gradient(to bottom, var(--bg) 0 56px, transparent 100%);

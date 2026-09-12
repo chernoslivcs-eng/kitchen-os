@@ -160,7 +160,7 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
        контуром danger 38. Без «Зберегти» (⚠2). */
     <div className={styles['card-foot']}>
       <span className={styles['card-foot-note']}>Зміни зберігаються самі</span>
-      <button type="button" className={styles['card-remove']} disabled={busy} onClick={() => setAskReason(true)}>Списати</button>
+      <button type="button" className={styles['card-remove']} data-tap disabled={busy} onClick={() => setAskReason(true)}>Списати</button>
     </div>
   );
 
@@ -171,7 +171,7 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
           «чек Сільпо · 7 вер» (G6 «з чека: … · Сільпо 7 вер»; сирого рядка чека
           й ціни в даних нема). На 390 — без цього рядка (G6). */}
       <div className={styles['card-head']}>
-        <input className={styles['card-title']} value={label} aria-label="Назва" disabled={busy}
+        <input className={styles['card-title']} value={label} aria-label="Назва" enterKeyHint="done" disabled={busy}
           onChange={(e) => setLabel(e.target.value)} onBlur={commitLabel} onKeyDown={onEnter} />
         {passport && <span className={styles['card-passport']}>{passport}</span>}
         {batch.origin && <span className={styles['card-origin']} data-testid="origin-line">{originLine(batch)}</span>}
@@ -182,7 +182,7 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
         <div className={styles['card-field']}>
           <span className={styles['card-label']}>Кількість</span>
           <div className={styles['card-qty']}>
-            <input className={styles['card-qty-input']} inputMode="decimal" value={value} aria-label="Кількість" disabled={busy}
+            <input className={styles['card-qty-input']} inputMode="decimal" enterKeyHint="done" value={value} aria-label="Кількість" disabled={busy}
               onChange={(e) => setValue(e.target.value)} onBlur={commitValue} onKeyDown={onEnter} />
             <label className={styles['card-unit']}>
               <span>{unitLabel}</span><Icon name="sys.open" size={12} inherit decorative />
@@ -191,16 +191,16 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
                 {UNIT_OPTIONS.map((o) => <option key={o.value ?? ''} value={o.value ?? ''}>{o.label}</option>)}
               </select>
             </label>
-            <button type="button" className={styles['card-nudge']} disabled={busy} onClick={() => nudge(-1)} aria-label="Менше" data-nudge="-"><Icon name="sys.less" size={12} inherit decorative /></button>
-            <button type="button" className={styles['card-nudge']} disabled={busy} onClick={() => nudge(1)} aria-label="Більше" data-nudge="+"><Icon name="sys.add" size={12} inherit decorative /></button>
+            <button type="button" className={styles['card-nudge']} data-tap disabled={busy} onClick={() => nudge(-1)} aria-label="Менше" data-nudge="-"><Icon name="sys.less" size={12} inherit decorative /></button>
+            <button type="button" className={styles['card-nudge']} data-tap disabled={busy} onClick={() => nudge(1)} aria-label="Більше" data-nudge="+"><Icon name="sys.add" size={12} inherit decorative /></button>
           </div>
         </div>
         <div className={`${styles['card-field']} ${styles['card-field-state']}`}>
           <span className={styles['card-label']}>Стан</span>
           <div className={styles['card-seg']} role="radiogroup" aria-label="Стан">
-            <button type="button" role="radio" aria-checked={!opened} className={`${styles['card-seg-btn']} ${!opened ? styles['card-seg-on'] : ''}`}
+            <button type="button" role="radio" aria-checked={!opened} className={`${styles['card-seg-btn']} ${!opened ? styles['card-seg-on'] : ''}`} data-tap
               disabled={busy} onClick={() => { if (opened) void commit({ state: 'sealed' }); }}>ціле</button>
-            <button type="button" role="radio" aria-checked={opened} className={`${styles['card-seg-btn']} ${opened ? styles['card-seg-on'] : ''}`}
+            <button type="button" role="radio" aria-checked={opened} className={`${styles['card-seg-btn']} ${opened ? styles['card-seg-on'] : ''}`} data-tap
               disabled={busy} onClick={() => { if (!opened) void commit({ state: 'opened' }); }}>відкрито</button>
           </div>
         </div>
@@ -239,7 +239,7 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
           <input type="date" className={styles['card-date-input']} value={expires} aria-label="Свіже до" disabled={busy}
             onChange={(e) => commitExpires(e.target.value)} />
           {batch.expires_at && batch.expires_source === 'manual'
-            ? <button type="button" className={styles['link-btn']} disabled={busy} onClick={(e) => { e.preventDefault(); commitExpires(''); }}>прибрати</button>
+            ? <button type="button" className={styles['link-btn']} data-tap disabled={busy} onClick={(e) => { e.preventDefault(); commitExpires(''); }}>прибрати</button>
             : <span className={styles['card-date-hint']}>дд.мм</span>}
         </label>
       </div>

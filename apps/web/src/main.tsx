@@ -6,11 +6,10 @@ import './styles/reset.css';
 import { App } from './App';
 import { initTheme } from './theme';
 import { initSentry } from './lib/sentry';
+import { installKeyboardOffset } from './lib/keyboard-offset';
 
-// Крок О1б: раніше за все інше — інакше падіння в initTheme або в першому
-// рендері нікуди не полетить.
-initSentry();
 initTheme();
+installKeyboardOffset();
 
 // Реєструємо service worker лише в проді — у dev-режимі Vite HMR ламатиметься.
 // ?v=<BUILD_ID> — кожен білд отримує нову URL реєстрації → нова SW → нова
@@ -28,3 +27,11 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+// Мобільний аудит 0912 · A (№50): Sentry — після першого кадру, окремим
+// чанком (lib/sentry — фасад із чергою: падіння першого рендера не
+// губиться, ErrorBoundary кладе його в чергу, і воно летить, щойно SDK тут).
+const idle: (cb: () => void) => void = 'requestIdleCallback' in window
+  ? (cb) => window.requestIdleCallback(cb, { timeout: 2000 })
+  : (cb) => { window.setTimeout(cb, 300); };
+idle(() => { void initSentry(); });

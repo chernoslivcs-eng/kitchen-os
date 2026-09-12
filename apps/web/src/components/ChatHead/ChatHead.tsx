@@ -53,7 +53,7 @@ export function ChatHead(p: ChatHeadProps) {
   return (
     <header className={styles.head} data-chat-head data-form={p.form}>
       {/* 390: кнопка «панель» 40 на card — шухляда або сайдбар. */}
-      <button type="button" className={styles.burger} onClick={p.onAllSessions} aria-label="Розгорнути панель">
+      <button type="button" className={styles.burger} data-tap onClick={p.onAllSessions} aria-label="Розгорнути панель">
         <Icon name="sys.expand" size={18} inherit decorative />
       </button>
 
@@ -61,34 +61,34 @@ export function ChatHead(p: ChatHeadProps) {
           знято, тап відкриває те саме, що кнопка ліворуч (сайдбар / шухляда).
           Без шеврона стану «розкрито». */}
       <div className={styles['pill-wrap']}>
-        <button type="button" className={styles.pill} onClick={p.onAllSessions} aria-label="Розмови" data-session-pill>
+        <button type="button" className={styles.pill} data-tap onClick={p.onAllSessions} aria-label="Розмови" data-session-pill>
           <span className={styles['pill-title']}>{p.title ?? 'Нова розмова'}</span>
           <span className={styles['pill-when']}>· {p.when}</span>
         </button>
       </div>
 
-      <button type="button" className={styles.newBtn} onClick={p.onNewSession} data-new-session>
+      <button type="button" className={styles.newBtn} data-tap onClick={p.onNewSession} data-new-session>
         <Icon name="sys.add" size={16} inherit decorative />Нова
       </button>
 
       <span className={styles.gap} />
 
       {p.home.overdue > 0 && (
-        <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} onClick={p.onOverdue} data-chip-overdue>
+        <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} data-tap onClick={p.onOverdue} data-chip-overdue>
           {/* 12.09 (ANSWERS A10): «Прострочено N» — alert-triangle, danger; flame — тільки «Горить». */}
           <Icon name="live.overdue" size={16} inherit decorative />
           <span className={styles.long}>Прострочено </span>{p.home.overdue}
         </button>
       )}
       {p.home.strict && (
-        <button type="button" className={`${styles.chip} ${styles['chip-plum']}`} onClick={p.onHome} data-chip-strict>
+        <button type="button" className={`${styles.chip} ${styles['chip-plum']}`} data-tap onClick={p.onHome} data-chip-strict>
           <Icon name="live.fast" size={16} inherit decorative />
           <span className={styles.long}>{p.home.strict.title} · до {shortDate(p.home.strict.to)}</span>
           <span className={styles.short}>{p.home.strict.title.toLocaleLowerCase('uk')}</span>
         </button>
       )}
       {p.cookLive && (
-        <button type="button" className={`${styles.chip} ${styles['chip-sage']}`} onClick={p.onCook} data-chip-cooking>
+        <button type="button" className={`${styles.chip} ${styles['chip-sage']}`} data-tap onClick={p.onCook} data-chip-cooking>
           {/* Живий стан: timer тікає, поки таймер біжить (1.5b). */}
           <Icon name="cook.timer" size={16} inherit decorative live={p.cookLive.deadline ? 'timer' : undefined} />
           <span className={styles.long}>Готуємо · </span><CookCountdown deadline={p.cookLive.deadline} />
@@ -99,7 +99,7 @@ export function ChatHead(p: ChatHeadProps) {
           тому самому ряду, форма як у чіпів родів, знак sys.mail, слово ink; на
           R2/G3 — компактно «N»; при нулі не показується. */}
       {(p.pendingCount ?? 0) > 0 && (
-        <button type="button" className={`${styles.chip} ${styles['chip-pending']}`} onClick={p.onPending} data-chip-pending>
+        <button type="button" className={`${styles.chip} ${styles['chip-pending']}`} data-tap onClick={p.onPending} data-chip-pending>
           <Icon name="sys.mail" size={16} inherit decorative />
           <span className={styles.long}>Чекають на тебе · </span>{p.pendingCount}
         </button>
@@ -107,7 +107,7 @@ export function ChatHead(p: ChatHeadProps) {
 
       {/* ≥768: «Дім зараз · ще N»; <768: «Дім ●●● N» — крапки родів активних станів,
           число — скільки їх; при нулі станів (§13) — «Дім · тихо» без крапок і числа. */}
-      <button type="button" className={`${styles.chip} ${styles['chip-home']} ${p.homeOpen ? styles['chip-on'] : ''}`} onClick={p.onHome}
+      <button type="button" className={`${styles.chip} ${styles['chip-home']} ${p.homeOpen ? styles['chip-on'] : ''}`} data-tap onClick={p.onHome}
         aria-expanded={p.homeOpen} data-chip-home>
         <Icon name="sys.home" size={16} inherit decorative />
         <span className={styles['home-wide']}>Дім зараз{p.quietCount > 0 && <span className={styles['home-more']}> · ще {p.quietCount}</span>}</span>

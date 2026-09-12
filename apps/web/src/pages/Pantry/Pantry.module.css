@@ -11,7 +11,7 @@
   container-name: pantry;
 }
 .head {
-  padding: 22px 22px 8px;
+  padding: calc(22px + env(safe-area-inset-top, 0px)) 22px 8px; /* 0912 D (42а) */
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -557,7 +557,7 @@
    (select під ним), ± 32 r8 на card (Prototype). */
 .card-qty { height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 0 4px 0 12px; gap: 6px; }
 .card-qty-input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; font-family: var(--font-body); font-size: 15px; font-weight: 500; color: var(--ink); outline: 0; padding: 0; font-variant-numeric: tabular-nums; }
-.card-unit { position: relative; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); cursor: pointer; flex: none; }
+.card-unit { position: relative; align-self: stretch; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); cursor: pointer; flex: none; } /* 0912 C: align-self stretch — select на всю висоту поля 40 */
 .card-unit-select { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
 .card-nudge { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: var(--card); color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 .card-nudge:hover { color: var(--ink); }
@@ -673,7 +673,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px; /* 0912 D (№10): 13 → 14 */
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -816,8 +816,19 @@
   }
   .row-grouped .name { display: contents; }
   .row-grouped .name-text { grid-area: n; }
-  .row-grouped .safety { grid-area: s; height: 20px; padding: 0 6px; font-size: 11px; }
+  .row-grouped .safety { grid-area: s; height: 20px; padding: 0 6px; font-size: 12px; } /* 0912 D (№9): 11 → 12 */
   .row-grouped .passport { grid-area: p; font-size: 12px; }
   .row-grouped .time { grid-area: t; width: auto; margin-left: 10px; gap: 5px; }
   .row-grouped .qty { grid-area: q; width: auto; font-size: 12px; color: var(--muted); }
 }
+/* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
+@media (max-width: 767px) {
+  .search-input { font-size: 16px; }
+  .card-qty-input { font-size: 16px; }
+}
+/* 0912 D (№3): на ≤430 підзаголовок банера — два рядки, не трикрапка на 230 px. */
+@media (max-width: 430px) {
+  .banner-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}
+/* 0912 C: поле на всю висоту рядка — ціль дотику = рядок, візуал той самий (тло прозоре). */
+.search-input { align-self: stretch; }

@@ -65,7 +65,7 @@ export function MonthView({ month, today, lasting, point, onOpen, beginSelect, i
               <div className={styles.mbars}>
                 {spans.map((s) => (
                   <button key={s.event.id} type="button"
-                    className={`${styles.mbar} ${styles[`t-${toneKey(s.event)}`]} ${s.event.approx ? styles['mbar-approx'] : ''} ${evMotion(s.event.id)}`}
+                    className={`${styles.mbar} ${styles[`t-${toneKey(s.event)}`]} ${s.event.approx ? styles['mbar-approx'] : ''} ${evMotion(s.event.id)}`} data-tap
                     style={{ gridColumn: `${s.from} / ${s.to}` }}
                     title={s.event.title} aria-label={s.event.title}
                     onClick={() => onOpen(s.event)} />
@@ -96,7 +96,7 @@ export function MonthView({ month, today, lasting, point, onOpen, beginSelect, i
                         </button>
                       );
                     })}
-                    {more && <button type="button" className={styles.more} onClick={() => onOpen(d.events[VISIBLE_LIMIT]!)}>{more}</button>}
+                    {more && <button type="button" className={styles.more} data-tap onClick={() => onOpen(d.events[VISIBLE_LIMIT]!)}>{more}</button>}
                     {end && <button type="button" className={`${styles.mev} ${styles['ev-amber']}`} onClick={() => onOpen(end)}>кінець сезону</button>}
                   </div>
                 );

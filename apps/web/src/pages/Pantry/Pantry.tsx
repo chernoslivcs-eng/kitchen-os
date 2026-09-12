@@ -7,6 +7,7 @@ import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, ZONE_ORDER, ZONE_LABEL, applyFilter, toggleKind, toggleState, resetFilter, shortDate, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
 import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
+import { loadPantry } from '../../store/pantryList';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
@@ -133,7 +134,7 @@ export function PantryPage() {
   const snapshotReady = useRef(false);
   async function refresh() {
     try {
-      const [p, s] = await Promise.all([api.pantry(), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
+      const [p, s] = await Promise.all([loadPantry({ fresh: true }), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
       const prev = prevSnapshot.current;
       // Перше завантаження — без входів: список просто зʼявляється. Далі кожна
       // партія, якої не було в знімку, вʼїжджає — і в порожню комору теж.
@@ -350,7 +351,7 @@ export function PantryPage() {
             <label className={styles.search} data-search>
               <Icon name="sys.search" size={16} inherit decorative />
               <input
-                type="search"
+                type="search" enterKeyHint="search" autoComplete="off"
                 value={filter.q}
                 onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
                 placeholder="Продукт або категорія"
@@ -360,19 +361,19 @@ export function PantryPage() {
             </label>
           )}
           {batches.length > 0 && (
-            <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} onClick={() => setSearchOpen((v) => !v)}
+            <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} data-tap onClick={() => setSearchOpen((v) => !v)}
               aria-label="Знайти в коморі" aria-pressed={searchOpen} data-search-toggle>
               <Icon name="sys.search" size={16} inherit decorative />
             </button>
           )}
           {batches.length > 0 && (
-            <button type="button" className={`${styles['head-icon']} ${styles['head-filter']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`}
+            <button type="button" className={`${styles['head-icon']} ${styles['head-filter']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`} data-tap
               onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-toggle>
               <Icon name="sys.filter" size={16} inherit decorative />
               {view.dirty && <span className={styles['head-badge']} aria-hidden />}
             </button>
           )}
-          <button type="button" className={styles['head-add']} onClick={() => setAdding(true)} data-add>
+          <button type="button" className={styles['head-add']} data-tap onClick={() => setAdding(true)} data-add>
             <Icon name="sys.add" size={16} inherit decorative /><span className={styles['head-add-text']}>Додати</span>
           </button>
       </>} />
@@ -381,7 +382,7 @@ export function PantryPage() {
         {batches.length > 0 && searchOpen && (
           <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
             <Icon name="sys.search" size={16} inherit decorative />
-            <input type="search" value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+            <input type="search" enterKeyHint="search" autoComplete="off" value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
               placeholder="Продукт або категорія" aria-label="Знайти в коморі" className={styles['search-input']} autoFocus />
           </label>
         )}
@@ -391,19 +392,19 @@ export function PantryPage() {
              порядку зі знаком «↕» (відкриває рейки). На 390 другий чіп —
              «Фільтр» колом 34, як у кадрі; слово порядку ховається. */
           <div className={styles.chips} data-zone-chips>
-            <button type="button" className={`${styles['zone-chip']} ${zoneFocus === null ? styles['zone-chip-on'] : ''}`}
+            <button type="button" className={`${styles['zone-chip']} ${zoneFocus === null ? styles['zone-chip-on'] : ''}`} data-tap
               aria-pressed={zoneFocus === null} onClick={() => setZoneFocus(null)}>Усе</button>
-            <button type="button" className={`${styles['zone-chip']} ${styles['chip-filter']} ${filterOpen || view.dirty ? styles['zone-chip-on'] : ''}`}
+            <button type="button" className={`${styles['zone-chip']} ${styles['chip-filter']} ${filterOpen || view.dirty ? styles['zone-chip-on'] : ''}`} data-tap
               onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-chip>
               <Icon name="sys.filter" size={16} inherit decorative />
             </button>
             {zoneChips.map((z) => (
-              <button key={z} type="button" className={`${styles['zone-chip']} ${zoneFocus === z ? styles['zone-chip-on'] : ''}`}
+              <button key={z} type="button" className={`${styles['zone-chip']} ${zoneFocus === z ? styles['zone-chip-on'] : ''}`} data-tap
                 aria-pressed={zoneFocus === z} onClick={() => setZoneFocus((cur) => (cur === z ? null : z))} data-zone-chip={z}>
                 <Icon name={ZONE_ICON[z] as 'zone.fresh'} size={16} inherit decorative />{ZONE_LABEL[z]}<span className={styles['zone-chip-n']}>{zoneCounts.get(z)}</span>
               </button>
             ))}
-            <button type="button" className={styles['chips-sort']} onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen} data-sort-word>
+            <button type="button" className={styles['chips-sort']} data-tap onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen} data-sort-word>
               <Icon name="sys.sort" size={16} inherit decorative />{view.sort.label}
             </button>
           </div>
@@ -434,10 +435,10 @@ export function PantryPage() {
                 {urgent.length > 3 ? ' — решта нижче за свіжістю' : ''}
               </span>
             </button>
-            <button type="button" className={styles['banner-main']} onClick={() => navigate('/app', { state: { composePrefix: 'Приготуй щось із того, що горить: ' } })} aria-label="Приготувати з цього" data-banner-cook>
+            <button type="button" className={styles['banner-main']} data-tap onClick={() => navigate('/app', { state: { composePrefix: 'Приготуй щось із того, що горить: ' } })} aria-label="Приготувати з цього" data-banner-cook>
               <Icon name="cook.go" size={16} inherit decorative /><span className={styles['banner-main-text']}>Приготувати з цього</span>
             </button>
-            <button type="button" className={styles['banner-ghost']} onClick={() => { setFilter((f) => ({ ...f, sort: 'fresh' })); setFilterOpen(true); }} data-banner-check>
+            <button type="button" className={styles['banner-ghost']} data-tap onClick={() => { setFilter((f) => ({ ...f, sort: 'fresh' })); setFilterOpen(true); }} data-banner-check>
               Перевірити {ended.length}
             </button>
           </div>
@@ -456,13 +457,13 @@ export function PantryPage() {
         {!loading && view.empty && (
           <div className={styles.empty} data-testid="filter-empty">
             <h3>{view.emptyTitle}</h3>
-            <p>{view.emptyText} <button type="button" className={styles['link-btn']} onClick={() => setFilter((f) => resetFilter(f))}>Показати все</button></p>
+            <p>{view.emptyText} <button type="button" className={styles['link-btn']} data-tap onClick={() => setFilter((f) => resetFilter(f))}>Показати все</button></p>
           </div>
         )}
         {!loading && batches.length > 0 && !view.empty && view.shown.length === 0 && (
           <div className={styles.empty} data-testid="search-empty">
             <h3>Нічого не знайшли</h3>
-            <p>За «{filter.q}» у коморі порожньо. <button type="button" className={styles['link-btn']} onClick={() => setFilter((f) => ({ ...resetFilter(f), q: '' }))}>Показати все</button></p>
+            <p>За «{filter.q}» у коморі порожньо. <button type="button" className={styles['link-btn']} data-tap onClick={() => setFilter((f) => ({ ...resetFilter(f), q: '' }))}>Показати все</button></p>
           </div>
         )}
 
@@ -518,7 +519,7 @@ export function PantryPage() {
           {!removedReason && (
             <span className={styles['undo-reasons']} role="group" aria-label="Чому списали">
               {(Object.keys(DEPLETED_REASON_LABEL) as DepletedReason[]).map((r) => (
-                <button key={r} type="button" data-reason={r} className={styles['undo-reason']}
+                <button key={r} type="button" data-reason={r} className={styles['undo-reason']} data-tap
                   onClick={() => void tellReason(removed, r)}>{DEPLETED_REASON_LABEL[r]}</button>
               ))}
             </span>
@@ -671,7 +672,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
             <span style={{ fontSize: 13, color: 'var(--muted)' }}>Кількість</span>
-            <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
+            <Input inputMode="decimal" enterKeyHint="done" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
             <span style={{ fontSize: 13, color: 'var(--muted)' }}>Одиниця</span>

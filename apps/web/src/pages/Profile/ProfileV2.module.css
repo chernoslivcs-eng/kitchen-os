@@ -337,7 +337,8 @@
   font-size: 14px; color: var(--ink);
   animation: toast-in var(--dur-base) var(--ease-enter); z-index: 2;
 }
-@media (max-width: 767px) { .toast { bottom: 84px; } }
+/* 0912 D (42б): бар 64 + safe-area — тост над ним і на iPhone з індикатором. */
+@media (max-width: 767px) { .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); } }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* ── Видалення — шторка (D4 · 390 · видалення) ──────────────────────────── */
@@ -377,3 +378,8 @@
   cursor: pointer;
 }
 .exitConfirm:disabled { opacity: 0.5; cursor: default; }
+/* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
+@media (max-width: 767px) {
+  .inviteInput { font-size: 16px; }
+  .edit { font-size: 16px; }
+}

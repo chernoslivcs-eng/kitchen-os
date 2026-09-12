@@ -80,6 +80,7 @@ export function TagInput({
       <input
         ref={inputRef}
         className={styles.input}
+        enterKeyHint="done"
         value={draft}
         placeholder={placeholder}
         disabled={disabled || busy}
@@ -111,7 +112,7 @@ export function TagInput({
                 {prefix ? `${prefix} ` : ''}{anti ? anti.text : v}
                 <button
                   type="button"
-                  className={styles.x}
+                  className={styles.x} data-tap
                   onClick={() => void drop(v)}
                   disabled={disabled}
                   aria-label={`Прибрати «${v}»`}

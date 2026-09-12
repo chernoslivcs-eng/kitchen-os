@@ -157,7 +157,7 @@ export function PeriodSubscriptions({ initialSet, onDone, onAddOwn, onClose }: S
         <span className={`${sub['row-sub']} ${i.enabled && i.strict ? sub['row-strict'] : ''}`}>{rowSub(i, setOn)}</span>
       </span>
       <button type="button" role="switch" aria-checked={i.enabled} aria-label={i.title}
-        className={`${sub.switch} ${i.enabled ? sub['switch-on'] : ''}`}
+        className={`${sub.switch} ${i.enabled ? sub['switch-on'] : ''}`} data-tap
         disabled={busy !== null} onClick={() => void toggle(i)}>
         <span className={sub.knob} />
       </button>
@@ -173,7 +173,7 @@ export function PeriodSubscriptions({ initialSet, onDone, onAddOwn, onClose }: S
         <div className={sub['section-head']}>
           <span className={sub.label}>{SUBSCRIPTIONS_COPY.traditions}</span>
           {rows && (
-            <button type="button" className={sub['set-link']} disabled={busy !== null} onClick={() => void setAll(!viewedOn)} data-set-toggle={viewedOn ? 'off' : 'on'}>
+            <button type="button" className={sub['set-link']} data-tap disabled={busy !== null} onClick={() => void setAll(!viewedOn)} data-set-toggle={viewedOn ? 'off' : 'on'}>
               {viewedOn ? SUBSCRIPTIONS_COPY.setOff : SUBSCRIPTIONS_COPY.setOn}
             </button>
           )}

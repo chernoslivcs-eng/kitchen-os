@@ -101,6 +101,7 @@
 .list {
   flex: 1; min-height: 0;
   overflow-y: auto;
+  scroll-padding-top: 34px; /* 0912 D (№5): день не ховається під липкий місяць */
   padding: 0 8px 24px;
 }
 .list-grid { padding: 0 24px 24px 32px; display: flex; flex-direction: column; gap: 12px; }
@@ -200,6 +201,7 @@
 .month { font-weight: 600; font-size: 13px; color: var(--ink); }
 
 .day {
+  scroll-margin-top: 34px; /* 0912 D (№5) */
   display: flex;
   min-height: 64px;
   margin: 0 8px;
@@ -246,7 +248,7 @@
   display: flex; flex-direction: column; align-items: center;
   padding-top: 12px; line-height: 1.1;
 }
-.day .dow { font-size: 11px; color: var(--muted); }
+.day .dow { font-size: 12px; color: var(--muted); } /* 0912 D (№9): 11 → 12 */
 .day .num { font-size: 17px; font-weight: 600; color: var(--ink); }
 .day.we .dow { color: var(--amber); }
 .day.we:not(.today) .num { color: var(--amber); }
@@ -280,11 +282,11 @@
   border: 0; border-radius: var(--r-pill);
   background: var(--t-bg); color: var(--t);
   text-align: left; cursor: pointer;
-  font-family: var(--font-body); font-size: 11px; font-weight: 500;
-  white-space: nowrap; overflow: hidden;
+  font-family: var(--font-body); font-size: 12px; font-weight: 500; /* 0912 D (№9): 11 → 12 */
+  white-space: nowrap; /* 0912 C: overflow — на .tag-text, інакше хіт-зона ::before обрізається */
   align-self: flex-start;
 }
-.tag-text { overflow: hidden; text-overflow: ellipsis; }
+.tag-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Моушн-чекліст: подія, що зʼявилась після «Записати»/правки, чіп у легенді
    й смуга входять через base/enter. Прибрана — гасне й осідає (exit);
@@ -427,3 +429,7 @@
 .c6-subs { border: 0; background: transparent; padding: 4px 0 0; text-align: left; font-family: var(--font-body); font-size: 13px; color: var(--muted); cursor: pointer; }
 .c6-subs:hover { color: var(--ink); }
 .c6-empty { font-size: 13px; color: var(--muted); }
+/* 0912 C: хіт 44 у сегментах виду (≥1024) і кнопках шапки; на 360 шапка не стискає «Підписки»/«Подія». */
+.c6-seg button { position: relative; }
+.c6-seg button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
+.subs-btn, .add { flex: none; }

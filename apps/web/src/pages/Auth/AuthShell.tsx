@@ -26,8 +26,8 @@ export function AuthShell({ tone, kickIcon, kick, h1a, h1b, sub, foot, children 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <Link to="/" className={styles.logo}><span className={styles.mark} aria-hidden="true"><span /></span><span className={styles.logoText}>Kitchen OS</span></Link>
-        <Link to="/" className={styles.back}><Icon name="sys.back" size={16} inherit decorative />На головну</Link>
+        <Link to="/" className={styles.logo} data-tap><span className={styles.mark} aria-hidden="true"><span /></span><span className={styles.logoText}>Kitchen OS</span></Link>
+        <Link to="/" className={styles.back} data-tap><Icon name="sys.back" size={16} inherit decorative />На головну</Link>
       </header>
       <main className={styles.main}>
         <span className={`${styles.kick} ${styles[`kick-${tone}`]}`}><Icon name={kickIcon} size={16} inherit decorative />{kick}</span>

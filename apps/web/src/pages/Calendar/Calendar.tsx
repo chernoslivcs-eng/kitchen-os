@@ -347,7 +347,7 @@ export function CalendarPage() {
 
   const eventRow = (e: EventOccurrence, cls: string) => (
     <button key={`${e.scope}:${e.id}`} type="button"
-      className={`${cls} ${styles[`ev-${pointIcon(e).tone}`]} ${e.done_at ? styles['ev-done'] : ''} ${evMotion(e.id)}`}
+      className={`${cls} ${styles[`ev-${pointIcon(e).tone}`]} ${e.done_at ? styles['ev-done'] : ''} ${evMotion(e.id)}`} data-tap
       onClick={() => setOpenEvent(e)}>
       {pointIcon(e).icon && <Icon name={pointIcon(e).icon!} size={12} inherit decorative />}
       <span className={styles['ev-text']}>{e.title}</span>
@@ -396,10 +396,10 @@ export function CalendarPage() {
                 </div>
                 {shown.map((e) => eventRow(e, styles.ev!))}
                 {more && (
-                  <button type="button" className={styles.more} onClick={() => setOpenEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
+                  <button type="button" className={styles.more} data-tap onClick={() => setOpenEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
                 )}
                 {isToday && (
-                  <button type="button" className={styles.ask} onClick={() => navigate('/app')}>
+                  <button type="button" className={styles.ask} data-tap onClick={() => navigate('/app')}>
                     Що на вечерю?<Icon name="sys.next" size={12} inherit decorative />
                   </button>
                 )}
@@ -446,17 +446,17 @@ export function CalendarPage() {
           </div>
           <div className={styles.content}>
             {captions.map(({ e, text }) => (
-              <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
+              <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => setOpenEvent(e)}>
                 {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
                 <span className={styles['tag-text']}>{text}</span>
               </button>
             ))}
             {shown.map((e) => eventRow(e, styles['ev-m']!))}
             {more && (
-              <button type="button" className={styles.more} onClick={() => setOpenEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
+              <button type="button" className={styles.more} data-tap onClick={() => setOpenEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
             )}
             {isToday && (
-              <button type="button" className={styles.ask} onClick={() => navigate('/app')}>
+              <button type="button" className={styles.ask} data-tap onClick={() => navigate('/app')}>
                 Що на вечерю?<Icon name="sys.next" size={12} inherit decorative />
               </button>
             )}
@@ -502,14 +502,14 @@ export function CalendarPage() {
               <button type="button" onClick={() => shift(-1)} aria-label={view === 'week' ? 'Попередній тиждень' : 'Попередній місяць'}><Icon name="sys.prev" size={16} inherit decorative /></button>
               <button type="button" onClick={() => shift(1)} aria-label={view === 'week' ? 'Наступний тиждень' : 'Наступний місяць'}><Icon name="sys.next" size={16} inherit decorative /></button>
             </span>
-            <button type="button" className={styles['today-pill']} onClick={goToday}>Сьогодні</button>
+            <button type="button" className={styles['today-pill']} data-tap onClick={goToday}>Сьогодні</button>
             <span className={styles['head-gap']} />
             <span className={styles['c6-seg']} role="radiogroup" aria-label="Вид" data-cal-views>
               {([['month', 'Місяць'], ['week', 'Тиждень'], ['list', 'Список']] as const).map(([v, label]) => (
                 <button key={v} type="button" role="radio" aria-checked={view === v} aria-pressed={view === v} onClick={() => setView(v)} data-view={v}>{label}</button>
               ))}
             </span>
-            <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">
+            <button type="button" className={styles.add} data-tap onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">
               <Icon name="sys.add" size={16} inherit decorative /><span className={styles['add-text']}>Подія</span>
             </button>
           </div>
@@ -517,13 +517,13 @@ export function CalendarPage() {
             {/* 12.09 (ANSWERS B5): чіпів «що триває» — ≤ 3 за тим самим рангом, що смуги; хвіст — контурний «ще N», у підписки. */}
             {runningCap.shown.map((e) => (
               <button key={`${e.scope}:${e.id}`} type="button"
-                className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
+                className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => setOpenEvent(e)}>
                 {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
                 {legendLabel(e, today)}
               </button>
             ))}
             {runningCap.hidden.length > 0 && (
-              <button type="button" className={`${styles.chip} ${styles['chip-tail']}`} onClick={openTail} data-chips-tail>
+              <button type="button" className={`${styles.chip} ${styles['chip-tail']}`} data-tap onClick={openTail} data-chips-tail>
                 <span className={styles['tail-dot']} aria-hidden />{tailLabel(runningCap.hidden)}
               </button>
             )}
@@ -624,15 +624,15 @@ export function CalendarPage() {
         action={(
           <>
             <span className={styles['head-gap']} />
-            <button type="button" className={styles['today-pill']} onClick={goToday}>Сьогодні</button>
+            <button type="button" className={styles['today-pill']} data-tap onClick={goToday}>Сьогодні</button>
             {/* №26: вхід до підписок у шапці — власник не знаходив рядки внизу
                 стрічки. ≥768 — пілюля зі знаком і словом, 390 — коло 36 зі
                 знаком → шторка. */}
-            <button type="button" className={styles['subs-btn']} onClick={() => { setOpenEvent(null); setOpenSeries(traditions[0] ?? 'orthodox'); }}
+            <button type="button" className={styles['subs-btn']} data-tap onClick={() => { setOpenEvent(null); setOpenSeries(traditions[0] ?? 'orthodox'); }}
               aria-label="Підписки" title="Що впливає на кухню протягом року" data-subscriptions>
               <Icon name="sys.tradition" size={16} inherit decorative /><span className={styles['subs-text']}>Підписки</span>
             </button>
-            <button type="button" className={styles.add} onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">
+            <button type="button" className={styles.add} data-tap onClick={() => setCreating({ date: isoOf(today), dateTo: '' })} aria-label="Нова подія">
               <Icon name="sys.add" size={16} inherit decorative /><span className={styles['add-text']}>Подія</span>
             </button>
           </>
@@ -645,7 +645,7 @@ export function CalendarPage() {
         <div className={styles.legend}>
           {running.map((e) => (
             <button key={`${e.scope}:${e.id}`} type="button"
-              className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} onClick={() => setOpenEvent(e)}>
+              className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => setOpenEvent(e)}>
               {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
               {legendLabel(e, today)}
             </button>

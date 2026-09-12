@@ -17,6 +17,7 @@ import { Button } from '../../components/Button/Button';
 import { plural } from '../../lib/plural';
 import { applyMode } from '@kitchen/domain/card-modes';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
+import { loadPantry } from '../../store/pantryList';
 import { Card, ShoppingListCard, RecipeStreamCard, traceState, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
 import { BatchCard } from '../Pantry/BatchCard';
@@ -394,7 +395,7 @@ export function Feed() {
   const [liveProducts, setLiveProducts] = useState<HouseholdProduct[]>([]);
   useEffect(() => {
     let alive = true;
-    api.pantry()
+    loadPantry()
       .then((p) => {
         if (!alive) return;
         const m = new Map<string, PantryBatch>();
@@ -505,7 +506,7 @@ export function Feed() {
       // а не блоком у панелі. Разом із ним пішов і зайвий запит на кожен
       // refreshCounts.
       const [p, s, pend] = await Promise.all([
-        api.pantry(),
+        loadPantry({ fresh: true }),
         api.shopping.list().catch(() => ({ count: 0 })),
         api.cards.pending().catch(() => ({ cards: [] as { id: string; type: string; session_id: string | null; created_at: string | null }[] })),
       ]);
@@ -1793,7 +1794,7 @@ export function Feed() {
             </span>
           ) : (
           <span className={styles['attach-wrap']}>
-            <button type="button" className={`${styles['attach-plus']} ${attachOpen ? styles['attach-plus-on'] : ''}`}
+            <button type="button" className={`${styles['attach-plus']} ${attachOpen ? styles['attach-plus-on'] : ''}`} data-tap
               onClick={() => setAttachOpen((v) => !v)} disabled={uploading} aria-label="Додати вкладення" aria-expanded={attachOpen} data-attach-plus>
               <Icon name="sys.add" size={20} inherit decorative />
             </button>
@@ -1846,6 +1847,7 @@ export function Feed() {
           <textarea
             ref={composerInputRef}
             rows={1}
+            enterKeyHint="send"
             className={styles['composer-input']}
             hidden={listening}
             /* Етап 6a: поки поле у фокусі, нижній бар (<768) ховається (HANDOFF, ⚠6).
@@ -1897,7 +1899,7 @@ export function Feed() {
             const hasDraft = !!(input.trim() || pending.length > 0);
             if (listening) {
               return (
-                <button type="button" className={styles['frame-btn']} onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true" data-slot="listening">
+                <button type="button" className={styles['frame-btn']} data-tap onClick={toggleVoice} aria-label="Зупинити диктування" aria-pressed="true" data-slot="listening">
                   <Icon name="sys.stop" size={16} inherit decorative />
                 </button>
               );
@@ -1908,7 +1910,7 @@ export function Feed() {
               return (
                 <button
                   type="submit"
-                  className={styles['frame-btn-solid']}
+                  className={styles['frame-btn-solid']} data-tap
                   disabled={sending && queue.length >= QUEUE_MAX}
                   title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
                   aria-label="Надіслати"
@@ -1918,20 +1920,20 @@ export function Feed() {
             }
             if (sending) {
               return (
-                <button type="button" className={styles['frame-btn']} onClick={stopSending} aria-label="Зупинити" data-stop data-slot="stop">
+                <button type="button" className={styles['frame-btn']} data-tap onClick={stopSending} aria-label="Зупинити" data-stop data-slot="stop">
                   <Icon name="sys.stop" size={16} inherit decorative />
                 </button>
               );
             }
             if (speechSupported()) {
               return (
-                <button type="button" className={styles['frame-btn']} onClick={toggleVoice} aria-label="Продиктувати" data-mic data-slot="mic">
+                <button type="button" className={styles['frame-btn']} data-tap onClick={toggleVoice} aria-label="Продиктувати" data-mic data-slot="mic">
                   <Icon name="sys.voice" size={18} inherit decorative />
                 </button>
               );
             }
             return (
-              <button type="submit" className={`${styles['frame-btn-solid']} ${styles['frame-btn-idle']}`} disabled aria-label="Надіслати" data-send data-slot="send-idle">
+              <button type="submit" className={`${styles['frame-btn-solid']} ${styles['frame-btn-idle']}`} data-tap disabled aria-label="Надіслати" data-send data-slot="send-idle">
                 <Icon name="sys.send" size={18} inherit decorative />
               </button>
             );

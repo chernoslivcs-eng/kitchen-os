@@ -58,24 +58,25 @@ export function Landing() {
   };
 
   const img = (name: string, w: number, h: number, cls?: string) => (
-    <img className={`${s.ill} ${cls}`} src={`/landing/${name}.webp`} width={w} height={h} alt="" loading="lazy" decoding="async" />
+    // 0912 A (№49): на 390 картинка стоїть у ~320 px — віддаємо половинну (-sm), повну лише широким; пріоритет низький, це не перший екран.
+    <img className={`${s.ill} ${cls}`} src={`/landing/${name}.webp`} srcSet={`/landing/${name}-sm.webp ${Math.round(w / 2)}w, /landing/${name}.webp ${w}w`} sizes={`(max-width: 767px) ${Math.round(w / 2)}px, ${w}px`} width={w} height={h} alt="" loading="lazy" decoding="async" fetchPriority="low" />
   );
 
   return (
     <div ref={root} id="top" className={`${s.page} ${s[bp]}`}>
       <div className={s.top}>
         <header ref={headerRef} className={s.header}>
-          <a href="#top" className={s.logo} onClick={go}><Mark /><span className={s.logoText}>{FOOTER.brand}</span></a>
-          <nav className={s.nav}>{NAV.map(([h, t]) => <a key={h} href={h} onClick={go}>{t}</a>)}</nav>
+          <a href="#top" className={s.logo} data-tap onClick={go}><Mark /><span className={s.logoText}>{FOOTER.brand}</span></a>
+          <nav className={s.nav}>{NAV.map(([h, t]) => <a key={h} href={h} onClick={go} data-tap>{t}</a>)}</nav>
           <div className={s.headerRight}>
-            <a href="#l3-signin" className={s.enter} onClick={go}>{SIGNIN.enter}</a>
+            <a href="#l3-signin" className={s.enter} data-tap onClick={go}>{SIGNIN.enter}</a>
             {mob && (
-              <button type="button" className={s.menuBtn} aria-label="Меню" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
+              <button type="button" className={s.menuBtn} data-tap aria-label="Меню" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
                 <Icon name="sys.menu" size={18} inherit decorative />
               </button>
             )}
           </div>
-          {mob && menu && <nav className={s.menu}>{NAV.map(([h, t]) => <a key={h} href={h} onClick={go}>{t}</a>)}</nav>}
+          {mob && menu && <nav className={s.menu}>{NAV.map(([h, t]) => <a key={h} href={h} onClick={go} data-tap>{t}</a>)}</nav>}
         </header>
 
         <div ref={heroRef} className={s.hero}>

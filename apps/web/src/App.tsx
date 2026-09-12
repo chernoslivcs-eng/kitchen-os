@@ -1,100 +1,39 @@
-import { useEffect } from 'react';
-import { startTracking } from './lib/track';
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Landing } from './pages/Landing/Landing';
-import { MagicLinkSent } from './pages/MagicLinkSent/MagicLinkSent';
-import { Feed } from './pages/Feed/Feed';
-import { IconLab } from './pages/Dev/IconLab';
-import { PantryPage } from './pages/Pantry/Pantry';
-import { ShoppingPage } from './pages/Shopping/Shopping';
-import { ProfileRoute } from './pages/Profile/ProfileRoute';
-import { RecipePage } from './pages/Recipe/Recipe';
-import { CookOverlay } from './pages/Cook/Cook';
+import { Suspense, useEffect } from 'react';
+import { lazyPage } from './lib/lazyPage';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+const Landing = lazyPage(() => import('./pages/Landing/Landing').then((m) => ({ default: m.Landing })));
+const MagicLinkSent = lazyPage(() => import('./pages/MagicLinkSent/MagicLinkSent').then((m) => ({ default: m.MagicLinkSent })));
+const Feed = lazyPage(() => import('./pages/Feed/Feed').then((m) => ({ default: m.Feed })));
+const IconLab = lazyPage(() => import('./pages/Dev/IconLab').then((m) => ({ default: m.IconLab })));
+const PantryPage = lazyPage(() => import('./pages/Pantry/Pantry').then((m) => ({ default: m.PantryPage })));
+const ShoppingPage = lazyPage(() => import('./pages/Shopping/Shopping').then((m) => ({ default: m.ShoppingPage })));
+const ProfileRoute = lazyPage(() => import('./pages/Profile/ProfileRoute').then((m) => ({ default: m.ProfileRoute })));
+const RecipePage = lazyPage(() => import('./pages/Recipe/Recipe').then((m) => ({ default: m.RecipePage })));
+const CookOverlay = lazyPage(() => import('./pages/Cook/Cook').then((m) => ({ default: m.CookOverlay })));
 import { useCookStore } from './store/cook';
-import { SharePage } from './pages/Share/Share';
-import { CookLogPage } from './pages/CookLog/CookLog';
-import { RecipesPage } from './pages/Recipes/Recipes';
-import { CalendarPage } from './pages/Calendar/Calendar';
-import { AdminOccasionsPage } from './pages/Admin/AdminOccasions';
-import { PulsePage } from './pages/Admin/Pulse';
-import { BoomPage } from './pages/Admin/Boom';
-import { AdminShell } from './pages/Admin/AdminShell';
-import { HouseholdsPage } from './pages/Admin/Households';
-import { SharedRecipePage } from './pages/SharedRecipe/SharedRecipe';
-import { InvitePage } from './pages/Invite/Invite';
-import { NotFoundPage } from './pages/NotFound/NotFound';
-import { OnboardingPage, shouldShowOnboarding, markSeenLocally } from './pages/Onboarding/Onboarding';
+const SharePage = lazyPage(() => import('./pages/Share/Share').then((m) => ({ default: m.SharePage })));
+const CookLogPage = lazyPage(() => import('./pages/CookLog/CookLog').then((m) => ({ default: m.CookLogPage })));
+const RecipesPage = lazyPage(() => import('./pages/Recipes/Recipes').then((m) => ({ default: m.RecipesPage })));
+const CalendarPage = lazyPage(() => import('./pages/Calendar/Calendar').then((m) => ({ default: m.CalendarPage })));
+const AdminOccasionsPage = lazyPage(() => import('./pages/Admin/AdminOccasions').then((m) => ({ default: m.AdminOccasionsPage })));
+const PulsePage = lazyPage(() => import('./pages/Admin/Pulse').then((m) => ({ default: m.PulsePage })));
+const BoomPage = lazyPage(() => import('./pages/Admin/Boom').then((m) => ({ default: m.BoomPage })));
+const AdminShell = lazyPage(() => import('./pages/Admin/AdminShell').then((m) => ({ default: m.AdminShell })));
+const HouseholdsPage = lazyPage(() => import('./pages/Admin/Households').then((m) => ({ default: m.HouseholdsPage })));
+const SharedRecipePage = lazyPage(() => import('./pages/SharedRecipe/SharedRecipe').then((m) => ({ default: m.SharedRecipePage })));
+const InvitePage = lazyPage(() => import('./pages/Invite/Invite').then((m) => ({ default: m.InvitePage })));
+const NotFoundPage = lazyPage(() => import('./pages/NotFound/NotFound').then((m) => ({ default: m.NotFoundPage })));
+const OnboardingPage = lazyPage(() => import('./pages/Onboarding/Onboarding').then((m) => ({ default: m.OnboardingPage })));
 import { ErrorBoundary } from './components/ErrorState/ErrorBoundary';
 import { captureCrash } from './lib/sentry';
 import { ErrorScreen } from './components/ErrorState/ErrorScreen';
 import { SERVER_DOWN } from './components/ErrorState/copy';
-import { IncidentStrips, useIncidentSink } from './components/ErrorState/IncidentStrips';
-import { LinkExpiredPage, LinkConsumedPage } from './pages/LinkGone/LinkGone';
+const LinkExpiredPage = lazyPage(() => import('./pages/LinkGone/LinkGone').then((m) => ({ default: m.LinkExpiredPage })));
+const LinkConsumedPage = lazyPage(() => import('./pages/LinkGone/LinkGone').then((m) => ({ default: m.LinkConsumedPage })));
 import { useAuth } from './store/auth';
-import { TabBar } from './components/TabBar/TabBar';
-import { ArtifactPanel } from './components/ArtifactPanel/ArtifactPanel';
 import { GlobalCookAlarm } from './lib/cook-watch';
 
-// Пул-7 №6: навігація — спільний каркас, не елемент сторінки. TabBar живе тут
-// ОДИН раз (кінець блиманню і повторним фетчам на кожній навігації), сторінки
-// рендеряться в Outlet. Обгортка з key=pathname дає перехід розділу
-// (crossfade + X10). /share — свідомо поза каркасом.
-//
-// Списку «мобільних маршрутів» більше немає: нижній бар прибрано, і шухляда
-// доступна з кожного екрана каркаса — ділити маршрути на «з навігацією» і
-// «без» стало нічим.
-function Shell() {
-  const { pathname } = useLocation();
-  // Онбординг «Семен» — раз, на вході в стрічку. Прапорець у localStorage:
-  // це знайомство, а не стан дому, тож нове місце (інший браузер) покаже
-  // його ще раз, і це нормально. Глибокі лінки (/recipe/:id) не перехоплює.
-  const navigate = useNavigate();
-  // Крок О2 (2.2): джерело правди — СЕРВЕР (welcome_seen_at із /v1/me).
-  // localStorage лишається кешем: він тільки запамʼятовує «бачив», щоб не
-  // ходити зайвий раз, і не має права сказати «бачив» за сервера.
-  //
-  // Перший захід був `if (!onboardingSeen()) navigate(...)` з безіменною
-  // одиницею в localStorage, і на проді це означало: новий акаунт у браузері,
-  // де онбординг бачив хтось інший, Семена не отримував узагалі. Тепер кеш
-  // іменний — чужа позначка за цю людину не говорить.
-  const me = useAuth((s) => s.me);
-  useEffect(() => {
-    if (pathname !== '/app' || !me) return;
-    if (me.user.welcome_seen_at) { markSeenLocally(me.user.id); return; }
-    if (shouldShowOnboarding(me)) navigate('/welcome', { replace: true });
-  }, [pathname, navigate, me]);
-  // Крок Е1: 401/429/офлайн ловляться в api.req і показуються смугою тут —
-  // одне місце на всі екрани.
-  useIncidentSink();
-  // Крок О1а: черга подій поведінки. Живе стільки, скільки відкритий застосунок.
-  useEffect(() => startTracking(), []);
-  // 6b-5: ⌘K з будь-де (Components «Композитор (⌘K з будь-де)») — з інших
-  // екранів веде в стрічку й фокусує композитор; у самій стрічці ловить Feed.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k' && pathname !== '/app') {
-        e.preventDefault(); navigate('/app', { state: { focusComposer: true, at: Date.now() } });
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [pathname, navigate]);
-  return (
-    <>
-      <IncidentStrips />
-      <div key={pathname} className="screen-view">
-        <Outlet />
-      </div>
-      {/* Після контенту: шухляда fixed, порядок у потоці на неї не впливає,
-          але так вона лягає поверх без боротьби зі стековими контекстами. */}
-      <TabBar />
-      {/* Права панель артефактів — теж каркас (крок 3, 03.09): сторінки лише
-          публікують у неї. Раніше жила всередині Стрічки, і на Календарі її
-          не існувало — подія на ≥1200 відкривалась шторкою всупереч канвасу. */}
-      <ArtifactPanel />
-    </>
-  );
-}
+const Shell = lazyPage(() => import('./Shell').then((m) => ({ default: m.Shell })));
 
 function Boot({ children }: { children: React.ReactNode }) {
   const refresh = useAuth((s) => s.refresh);
@@ -143,6 +82,8 @@ function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const Quiet = () => <div style={{ minHeight: '100dvh', background: 'var(--bg)' }} />;
+
 function CookHost() {
   // Пул-3: Cook Mode — поп-ап поверх будь-якого екрана. key скидає стан
   // кроків/таймера, коли відкривають ІНШЕ готування.
@@ -159,6 +100,9 @@ export function App() {
             captureCrash повертає вісім знаків event id — той самий, що людина
             бачить чипом на екрані падіння й може продиктувати. */}
         <ErrorBoundary onError={(e, info) => captureCrash(e, info.componentStack)}>
+        {/* Мобільний аудит 0912 · A (№46): сторінки — лазі-чанками (lib/lazyPage);
+            поки чанк іде — те саме тихе поле, що й у RequireAuth. */}
+        <Suspense fallback={<Quiet />}>
         <Routes>
           <Route path="/" element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
@@ -200,8 +144,9 @@ export function App() {
           <Route path="/link/consumed" element={<LinkConsumedPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </Suspense>
         </ErrorBoundary>
-        <CookHost />
+        <Suspense fallback={null}><CookHost /></Suspense>
         {/* Пул-7 №1: таймер, що вибіг поза Cook Mode, дзвонить звідусіль. */}
         <GlobalCookAlarm />
       </Boot>

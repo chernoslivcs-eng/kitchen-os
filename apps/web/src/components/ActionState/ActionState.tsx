@@ -40,7 +40,7 @@ export function ActionState({ sending, waited, parsing, nothingChanged, cardConf
         {/* data-wait — контракт Пул-9 №3: годинник справжній, тест його читає. */}
         <span className={styles.text} {...(st.kind === 'thinking' ? { 'data-wait': true } : {})}>{st.text}</span>
         {act && act.run && (
-          <button type="button" className={styles.action} onClick={act.run} data-action={st.action}>
+          <button type="button" className={styles.action} data-tap onClick={act.run} data-action={st.action}>
             <Icon name={act.icon} size={12} inherit decorative />{act.label}
           </button>
         )}

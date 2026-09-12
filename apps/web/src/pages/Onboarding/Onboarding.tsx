@@ -28,38 +28,8 @@ import { track } from '../../lib/track';
 import styles from './Onboarding.module.css';
 import { Icon } from '../../components/Icon/Icon';
 
-export const ONBOARDING_SEEN_KEY = 'kos-onboarding-seen';
-
-/**
- * Крок О2 (2.2): кеш ІМЕННИЙ. Раніше тут лежала одиниця — «в цьому браузері
- * онбординг бачили», без уточнення хто. Через це новий акаунт у браузері, де
- * Семена бачив хтось інший, його не отримував узагалі: чужа одиниця
- * перебивала сервер.
- *
- * Тепер кеш каже, ХТО бачив, і тому не може говорити за іншу людину. Роль у
- * нього лишилась одна — прикрити щілину між «людина щойно закрила онбординг»
- * і «сервер це підтвердив»: meSeen() і refresh() летять слідом, і без кешу
- * стрічка встигла б відкинути її назад на /welcome.
- *
- * Стара одиниця з попередніх версій ні з ким не збігається — тобто просто
- * перестає діяти, і це правильно: приписати її комусь ми не можемо.
- */
-export function onboardingSeen(userId: string): boolean {
-  try { return !!userId && localStorage.getItem(ONBOARDING_SEEN_KEY) === userId; } catch { return false; }
-}
-export function markSeenLocally(userId: string) {
-  try { localStorage.setItem(ONBOARDING_SEEN_KEY, userId); } catch { /* приватний режим — покажемо ще раз, не біда */ }
-}
-/**
- * Крок О2 (2.2): одне правило, за яким вирішується, чи показувати знайомство.
- * Живе тут, а не в каркасі, бо це рішення продукту, а не навігації: сервер
- * каже, чи людина його бачила; кеш має право лише підтвердити «щойно бачила»
- * для ТІЄЇ САМОЇ людини, поки /v1/me ще не перечитався.
- */
-export function shouldShowOnboarding(me: { user: { id: string; welcome_seen_at?: string | null } }): boolean {
-  if (me.user.welcome_seen_at) return false;
-  return !onboardingSeen(me.user.id);
-}
+export { ONBOARDING_SEEN_KEY, onboardingSeen, markSeenLocally, shouldShowOnboarding } from './seen';
+import { markSeenLocally } from './seen';
 
 // Крок 7: позначка — на сервері (welcome_seen_at), локально — кеш.
 function markSeen(userId: string) {
@@ -238,7 +208,7 @@ export function OnboardingPage() {
       <div className={`${styles.page} ${styles.intake} ${desktop ? styles.desk : styles.mob}`} onTouchStart={onTS} onTouchEnd={onTE} data-onb-step={step + 1}>
         <header className={styles.head}>
           {logo}
-          <button type="button" className={styles.skip} onClick={() => finish('skipped')} data-intake-later>Заповню потім</button>
+          <button type="button" className={styles.skip} data-tap onClick={() => finish('skipped')} data-intake-later>Заповню потім</button>
         </header>
         <div className={styles.inProgress} aria-hidden="true">
           {PROFILE_ROWS.map((r, i) => <span key={r.k} className={`${styles.inBar} ${i <= step - SEMEN ? styles.inBarOn : ''}`} />)}
@@ -252,7 +222,7 @@ export function OnboardingPage() {
               <div className={styles.fieldBlock}>
                 <span className={row.danger ? styles.startDanger : styles.start}>{row.danger && <Icon name="cook.ban" size={12} inherit decorative />}{row.start}</span>
                 <input
-                  ref={inputRef} className={styles.input} type="text" value={draftOf(row.k)} placeholder={row.ph} maxLength={row.max} spellCheck={false}
+                  ref={inputRef} className={styles.input} type="text" enterKeyHint={last ? 'done' : 'next'} value={draftOf(row.k)} placeholder={row.ph} maxLength={row.max} spellCheck={false}
                   aria-label={row.start} data-intake-input
                   onChange={(e) => setDrafts((d) => ({ ...d, [row.k]: e.target.value }))}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void intakeNext(); } }}
@@ -275,7 +245,8 @@ export function OnboardingPage() {
   // ── Семен · кроки 1–11 (етап 11, «Онбординг · Семен» / «Онбординг · 390») ──
   const progress = (
     <div className={styles.progress} aria-hidden="true">
-      {Array.from({ length: SEMEN }, (_, i) => <button key={i} type="button" tabIndex={-1} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} onClick={() => go(i, i > step ? 'f' : 'b')} />)}
+      {/* 0912 C: риски 4 px — індикатор, не кнопки; перехід — «Далі/Назад», ← →, свайп. */}
+      {Array.from({ length: SEMEN }, (_, i) => <span key={i} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} />)}
     </div>
   );
   const meta = <div className={styles.meta}><span className={styles.num}>{pad(step + 1)}</span><span className={styles.of}>/ {SEMEN}</span><span className={styles.sep} /><span className={styles.tag}>{card.tag}</span></div>;
@@ -290,7 +261,7 @@ export function OnboardingPage() {
       {logo}
       <div className={styles.headRight}>
         {desktop && progress}
-        <button type="button" className={styles.skip} onClick={() => finish('skipped')}>Пропустити</button>
+        <button type="button" className={styles.skip} data-tap onClick={() => finish('skipped')}>Пропустити</button>
       </div>
     </header>
   );

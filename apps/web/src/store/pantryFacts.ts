@@ -7,7 +7,7 @@
 // крапка в рейці — danger без числа; «горить» лишається чіпом у шапці чату
 // й у «Дім зараз». Тому тут два числа, і навігація бере `overdue`.
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { loadPantry } from './pantryList';
 import { isSoon, hasScale } from '@kitchen/domain/shelf-thresholds';
 import { usePantryStore } from './pantry';
 
@@ -19,7 +19,7 @@ let inflight: Promise<PantryFacts> | null = null;
 export function loadPantryFacts(version: number): Promise<PantryFacts> {
   if (cache && cache.version === version && Date.now() - cache.at < 60_000) return Promise.resolve(cache.value);
   if (!inflight) {
-    inflight = api.pantry()
+    inflight = loadPantry()
       .then(({ count, batches }) => {
         const soon = batches.filter((b) => isSoon(b.days) && hasScale(b.catalog_key)).length;
         const overdue = batches.filter((b) => b.days != null && b.days < 0 && hasScale(b.catalog_key)).length;

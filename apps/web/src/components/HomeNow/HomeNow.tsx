@@ -22,6 +22,7 @@
 //   users / list-checks / sun), назва 15/600 (тихі 500), деталь 13 muted, дія
 //   («Готуємо» ink 34 / «До плити» sage 34) лише де є що робити, решта — шеврон.
 import { useEffect, useRef } from 'react';
+import { lockBodyScroll } from '../../lib/lockBodyScroll';
 import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icons';
 import { CookCountdown } from '../../lib/cook-watch';
@@ -76,6 +77,8 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
 }) {
   // №35: змах униз закриває шторку — один механізм на всі шторки.
   const drag = useSheetDrag(onClose, sheet);
+  // 0912 D (№42): поки «Дім зараз» відкрито, документ під ним не скролиться.
+  useEffect(() => lockBodyScroll(), []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -105,7 +108,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
       <span className={styles.title}>Дім зараз</span>
       <span className={styles.date}>{dateLabel}</span>
       <span className={styles.gap} />
-      <button type="button" ref={closeRef} className={styles.close} onClick={onClose} aria-label="Закрити"><Icon name="sys.close" size={16} inherit decorative /></button>
+      <button type="button" ref={closeRef} className={styles.close} data-tap onClick={onClose} aria-label="Закрити"><Icon name="sys.close" size={16} inherit decorative /></button>
     </div>
   );
 
@@ -135,7 +138,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
                   <span className={styles['g3-title']}>{home.overdue > 0 ? `Прострочено ${home.overdue}` : `Горить ${home.burning.length}`}</span>
                   <span className={styles['g3-sub']}>{home.burning.map((b) => `${b.label} ${daysShort(b.days)}`).join(' · ')}</span>
                 </span>
-                <button type="button" className={`${styles.act} ${styles['act-ink']}`} onClick={askBurning}>Готуємо</button>
+                <button type="button" className={`${styles.act} ${styles['act-ink']}`} data-tap onClick={askBurning}>Готуємо</button>
               </div>
             ) : (
               <div className={`${styles.g3} ${styles['g3-quiet']}`} data-home-empty="calm">
@@ -160,7 +163,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
                   <span className={styles['g3-title']}>Готуємо · {cookLive.recipe.t}</span>
                   <span className={styles['g3-sub']}>крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)} з {cookLive.recipe.st.length}{cookLive.deadline ? <> · таймер <CookCountdown deadline={cookLive.deadline} /></> : null}</span>
                 </span>
-                <button type="button" className={`${styles.act} ${styles['act-sage']}`} onClick={onCook}>До плити</button>
+                <button type="button" className={`${styles.act} ${styles['act-sage']}`} data-tap onClick={onCook}>До плити</button>
               </div>
             )}
             {quiet.map((e) => (
@@ -190,7 +193,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
               </button>
             )}
           </div>
-          <button type="button" className={styles.ask} onClick={() => onAsk('Що на вечерю?')}>Що на вечерю?<Icon name="sys.next" size={12} inherit decorative /></button>
+          <button type="button" className={styles.ask} data-tap onClick={() => onAsk('Що на вечерю?')}>Що на вечерю?<Icon name="sys.next" size={12} inherit decorative /></button>
         </div>
       </>
     );
@@ -219,10 +222,10 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
                 </div>
               ))}
               {restOverdue > 0 && (
-                <button type="button" className={styles.tail} onClick={onOverdue}>Ще {restOverdue} прострочених — у коморі, за свіжістю</button>
+                <button type="button" className={styles.tail} data-tap onClick={onOverdue}>Ще {restOverdue} прострочених — у коморі, за свіжістю</button>
               )}
               {home.burning.length > 0 && (
-                <button type="button" className={`${styles.act} ${styles['act-ink']}`} onClick={askBurning}>Готуємо</button>
+                <button type="button" className={`${styles.act} ${styles['act-ink']}`} data-tap onClick={askBurning}>Готуємо</button>
               )}
             </>
           )}
@@ -237,7 +240,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
                 <span className={styles.name}>Готуємо · {cookLive.recipe.t}</span>
                 <span className={styles.sub}>крок {Math.min(cookLive.stepIdx + 1, cookLive.recipe.st.length)} з {cookLive.recipe.st.length}{cookLive.deadline ? <> · таймер <CookCountdown deadline={cookLive.deadline} /></> : null}</span>
               </span>
-              <button type="button" className={`${styles.act} ${styles['act-sage']}`} onClick={onCook}>До плити</button>
+              <button type="button" className={`${styles.act} ${styles['act-sage']}`} data-tap onClick={onCook}>До плити</button>
             </div>
           )}
           {shown.map((e) => {
@@ -258,7 +261,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
           {!cookLive && shown.length === 0 && (
             <div className={styles.empty} data-home-empty="no-events"><Icon name="sys.calendar" size={16} inherit decorative />{EMPTY.noEvents}</div>
           )}
-          {restNow > 0 && <button type="button" className={styles.tail} onClick={onCalendar}>Ще {restNow} — у календарі</button>}
+          {restNow > 0 && <button type="button" className={styles.tail} data-tap onClick={onCalendar}>Ще {restNow} — у календарі</button>}
         </section>
 
         {/* Р116: у вікні — одна головна дія на всю ширину, чорнило 44; у шторці лишається посилання. */}

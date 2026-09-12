@@ -258,7 +258,8 @@
     left: 0; right: 0; bottom: 0;
     max-width: 560px;
     margin: 0 auto;
-    max-height: 82vh;
+    max-height: 82dvh;
+    overscroll-behavior: contain; /* 0912 D (№42) */
     border-top: 1px solid var(--line);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -12px 40px rgba(29, 33, 38, 0.18);

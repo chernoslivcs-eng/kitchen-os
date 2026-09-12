@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 20px 32px 20px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 32px 20px; /* 0912 D (42а) */
 }
 .head-gap { flex: 1; }
 .pill {
@@ -123,7 +123,7 @@
 @media (max-width: 767px) {
   /* Кадр «Рецепт · 390»: шапка знаками 38 колом, одна колонка: лід · склад ·
      кроки; «Готуємо» липка знизу з фейдом. */
-  .head { padding: 14px 16px 0; gap: 8px; }
+  .head { padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 0; gap: 8px; }
   .pill { width: 38px; padding: 0; justify-content: center; }
   .pill-text { display: none; }
   .body { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 16px 16px 0; }
@@ -153,3 +153,6 @@
   .step-num { width: 26px; height: 26px; }
   .step-text { font-size: 14px; line-height: 1.45; }
 }
+/* 0912 C: хіт 44 у ± порцій (візуал 26 без змін). */
+.portions > button { position: relative; }
+.portions > button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }

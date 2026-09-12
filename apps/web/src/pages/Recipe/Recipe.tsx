@@ -15,6 +15,7 @@ import { track } from '../../lib/track';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { api, type Recipe, type RecipeNutritionInfo, type SavedRecipe } from '../../api';
+import { loadPantry } from '../../store/pantryList';
 import { formatQty } from '../../lib/units';
 import { plural } from '../../lib/plural';
 import { formatDuration } from '@kitchen/domain/duration';
@@ -95,7 +96,7 @@ export function RecipePage() {
       .catch(() => {/* silent */});
     // Мапа id партії → людський label: модель показує на комору через `ing.p`,
     // а рендер має показати назву, не uuid.
-    api.pantry()
+    loadPantry()
       .then(({ batches, products }) => {
         setBatchLabels(new Map(batches.map((b) => [b.id, b.label])));
         setStepLabels(stepLabelsFrom(batches, products));
@@ -179,7 +180,7 @@ export function RecipePage() {
           <div key={i} className={`${styles.step} ${current ? styles['step-current'] : ''}`} data-step-state={done ? 'done' : current ? 'current' : 'pending'}>
             <button
               type="button"
-              className={`${styles['step-num']} ${done ? styles['step-done'] : current ? styles['step-now'] : ''}`}
+              className={`${styles['step-num']} ${done ? styles['step-done'] : current ? styles['step-now'] : ''}`} data-tap
               onClick={() => toggleDone(i)}
               aria-label={done ? 'Скасувати виконання' : 'Позначити готовим'}
             >
@@ -189,7 +190,7 @@ export function RecipePage() {
               <b>{step.t}.</b> {renderStepContent(step.c, recipe.ing, stepLabels)}
             </span>
             {!!step.s && (
-              <button type="button" className={styles['step-timer']} onClick={() => cookOpen({ recipe: recipe!, startAt: i, recipeId: id })}>
+              <button type="button" className={styles['step-timer']} data-tap onClick={() => cookOpen({ recipe: recipe!, startAt: i, recipeId: id })}>
                 <Icon name="cook.timer" size={12} inherit decorative />{formatSeconds(step.s)}
               </button>
             )}
@@ -246,20 +247,20 @@ export function RecipePage() {
   return (
     <div className={styles.screen}>
       <header className={styles.head}>
-        <button type="button" className={`${styles.pill} ${styles['pill-back']}`} onClick={() => navigate(-1)} aria-label="Назад до рецептів">
+        <button type="button" className={`${styles.pill} ${styles['pill-back']}`} data-tap onClick={() => navigate(-1)} aria-label="Назад до рецептів">
           <Icon name="sys.back" size={16} inherit decorative /><span className={styles['pill-text']}>Рецепти</span>
         </button>
         <span className={styles['head-gap']} />
         {/* «Збережено» шавлією (bookmark-check) або «Колись» (підтверджене
             відхилення: закладка на потім). */}
-        <button type="button" className={`${styles.pill} ${savedId ? styles['pill-saved'] : ''}`} onClick={saveForLater} disabled={savedId !== null || saving} aria-label={savedId ? 'Збережено' : 'Колись'} data-save>
+        <button type="button" className={`${styles.pill} ${savedId ? styles['pill-saved'] : ''}`} data-tap onClick={saveForLater} disabled={savedId !== null || saving} aria-label={savedId ? 'Збережено' : 'Колись'} data-save>
           <Icon name={savedId ? 'sys.saved' : 'sys.later'} size={16} inherit decorative /><span className={styles['pill-text']}>{savedId ? 'Збережено' : saving ? '…' : 'Колись'}</span>
         </button>
-        <button type="button" className={styles.pill} onClick={share} aria-label="Поділитись" data-share>
+        <button type="button" className={styles.pill} data-tap onClick={share} aria-label="Поділитись" data-share>
           <Icon name="sys.share" size={16} inherit decorative /><span className={styles['pill-text']}>Поділитись</span>
         </button>
         {id && (
-          <button type="button" className={styles.pill} onClick={() => void discuss()} aria-label="Обговорити в чаті" data-discuss>
+          <button type="button" className={styles.pill} data-tap onClick={() => void discuss()} aria-label="Обговорити в чаті" data-discuss>
             <Icon name="sys.reply" size={16} inherit decorative /><span className={styles['pill-text']}>Обговорити в чаті</span>
           </button>
         )}

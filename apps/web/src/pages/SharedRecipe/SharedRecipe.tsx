@@ -61,7 +61,7 @@ export function SharedRecipePage() {
       <span className={styles['top-name']}>Кухня</span>
       <span className={styles['top-kicker']}>спільний рецепт</span>
       <span className={styles['top-gap']} />
-      {!signedIn && <button type="button" className={styles['top-login']} onClick={() => navigate(`/?next=/r/${id}`)}>Увійти</button>}
+      {!signedIn && <button type="button" className={styles['top-login']} data-tap onClick={() => navigate(`/?next=/r/${id}`)}>Увійти</button>}
     </header>
   );
 

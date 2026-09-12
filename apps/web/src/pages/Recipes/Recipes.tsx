@@ -110,7 +110,7 @@ export function RecipesPage() {
               const active = filter === f.id;
               return (
                 <button key={f.id} type="button" onClick={() => setFilter(f.id)} aria-pressed={active}
-                  className={`${styles.filter} ${active ? styles['filter-on'] : ''}`} data-filter={f.id}>
+                  className={`${styles.filter} ${active ? styles['filter-on'] : ''}`} data-tap data-filter={f.id}>
                   {f.id === 'ready' && <span className={`${styles['filter-dot']} ${styles.sage}`} aria-hidden />}
                   {f.id === 'near' && <span className={`${styles['filter-dot']} ${styles.amber}`} aria-hidden />}
                   {f.id === 'cooked' && <Icon name="sys.done" size={12} inherit decorative />}
@@ -182,7 +182,7 @@ export function RecipesPage() {
 
               {/* QA9-08: ✕ на КОЖНОМУ рядку — «готував, не зберіг» раніше
                   висів у бібліотеці назавжди без жодного способу прибрати. */}
-              <button type="button" className={styles.remove}
+              <button type="button" className={styles.remove} data-tap
                 onClick={(e) => { e.stopPropagation(); void unsave(r); }}
                 aria-label={`Прибрати «${r.title}» з рецептів`}
                 title="Прибрати з рецептів"

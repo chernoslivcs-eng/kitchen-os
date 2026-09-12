@@ -22,7 +22,8 @@
    body.composer-focused / body.sheet-open. Раніше висота екрана
    перемикалась стрибком, а стрічка й композитор мали ще й свої відступи. */
 @media (max-width: 767px) {
-  .screen { height: 100dvh; }
+  /* 0912 D (42в): мінус клавіатура iOS (--kb з visualViewport, lib/keyboard-offset). */
+  .screen { height: calc(100dvh - var(--kb, 0px)); }
   .composer-wrap {
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     transition: padding-bottom var(--dur-base) var(--ease-standard);
@@ -82,7 +83,7 @@
   overflow-y: auto;
   /* Шапка 56 + фейд 40 лежать поверх: верхній відступ дає першому ходу місце
      під градієнтом, коли стрічка прокручена до початку. */
-  padding: 64px 22px 20px;
+  padding: calc(64px + env(safe-area-inset-top, 0px)) 22px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -497,7 +498,7 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 .attach-item > [data-icon] { color: var(--muted); }
 .attach-item:hover { background: var(--line); }
-.attach-hint { font-size: 11px; color: var(--muted); padding: 6px 12px 4px; }
+.attach-hint { font-size: 12px; /* 0912 D (№9): 11 → 12 */ color: var(--muted); padding: 6px 12px 4px; }
 /* «⌘K» dim 12 перед мікрофоном (Screens «Чат · збірка»); на дотиках — ні. */
 /* №30: підпис «⌘K» з поля знято; клавіша лишається (ефект у Feed.tsx). */
 
@@ -1559,3 +1560,11 @@ a.att-chip:hover { border-color: var(--sage); }
 .source-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
 .source-title { font-size: 15px; font-weight: 500; }
 .source-sub { font-size: 12px; color: var(--muted); }
+/* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
+@media (max-width: 767px) {
+  .composer-input { font-size: 16px; }
+  .slist-add input { font-size: 16px; }
+}
+/* 0912 C: хіт 44 у безіменних кнопок степерів (візуал 22 / 26 без змін). */
+.cart-stp button, .rc-stepper > button { position: relative; }
+.cart-stp button::before, .rc-stepper > button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }

@@ -495,16 +495,16 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
           {readOnly ? (
             shown.rule ? <p className={styles.rule}>{shown.rule}</p> : null
           ) : (
-            <input className={styles['rule-input']} value={rule} onChange={(ev) => setRule(ev.target.value)}
+            <input className={styles['rule-input']} value={rule} onChange={(ev) => setRule(ev.target.value)} enterKeyHint="done"
               placeholder="правило одним рядком" aria-label="Правило" />
           )}
           {/* Мʼяко / суворо — пігулка-перемикач (A2): активне суворе — слива,
               активне мʼяке — card з тінню; підказка поруч 12 muted. */}
           <div className={styles['strict-row']}>
             <div className={`${styles.strict} ${readOnly ? styles['strict-static'] : ''}`} role="group" aria-label="Суворість">
-              <button type="button" className={`${styles['strict-opt']} ${!strict ? styles['strict-soft-on'] : ''}`}
+              <button type="button" className={`${styles['strict-opt']} ${!strict ? styles['strict-soft-on'] : ''}`} data-tap
                 onClick={() => { if (!readOnly) setStrict(false); }} aria-pressed={!strict} disabled={readOnly}>мʼяко</button>
-              <button type="button" className={`${styles['strict-opt']} ${strict ? styles['strict-hard-on'] : ''}`}
+              <button type="button" className={`${styles['strict-opt']} ${strict ? styles['strict-hard-on'] : ''}`} data-tap
                 onClick={() => { if (!readOnly) setStrict(true); }} aria-pressed={strict} disabled={readOnly}>суворо</button>
             </div>
             <span className={styles.hint}>{strict ? STRICT_HINT : SOFT_HINT}</span>

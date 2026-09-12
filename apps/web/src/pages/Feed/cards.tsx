@@ -201,7 +201,7 @@ function ClarifyRow({
       </div>
       <div className={styles['rc-unk-chips']}>
         {!editing ? (
-          <button type="button" className={styles['rc-chip']} onClick={() => setEditing(true)}>
+          <button type="button" className={styles['rc-chip']} data-tap onClick={() => setEditing(true)}>
             <Icon name="live.byHand" size={12} inherit decorative />уточнити
           </button>
         ) : (
@@ -214,7 +214,7 @@ function ClarifyRow({
             </span>
             <button
               type="button"
-              className={`${styles['rc-chip']} ${styles['rc-chip-ok']}`}
+              className={`${styles['rc-chip']} ${styles['rc-chip-ok']}`} data-tap
               disabled={busy || !cardId}
               onClick={async () => {
                 if (!cardId) return;
@@ -283,7 +283,7 @@ function ReceiptGroup({
       {tail && <div className={styles['rgroup-tail']}>{tail}</div>}
       {hidden > 0 && (
         /* Screens «Чат · збірка»: «Ще 6 ▾» — 36, 13 muted, шеврон зі словника. */
-        <button type="button" className={styles['rgroup-more']} onClick={() => setAll(true)}>
+        <button type="button" className={styles['rgroup-more']} data-tap onClick={() => setAll(true)}>
           Ще {hidden}<Icon name="sys.open" size={12} inherit decorative />
         </button>
       )}
@@ -475,7 +475,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                     role="checkbox"
                     aria-checked={!off.has(i)}
                     aria-label={op.label ?? 'позиція'}
-                    className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
+                    className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`} data-tap
                     onClick={(e) => { e.stopPropagation(); toggle(i); }}
                   >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</button>
                 ) : (
@@ -544,7 +544,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
                 <span
                   role="checkbox"
                   aria-checked={!off.has(i)}
-                  className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`}
+                  className={`${styles.rbox} ${off.has(i) ? '' : styles['rbox-on']}`} data-tap
                 >{off.has(i) ? null : <Icon name="sys.done" size={12} inherit decorative />}</span>
               )}
               <span className={styles['op-sign']}>{signFor(op.op)}</span>
@@ -612,7 +612,7 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
                   ? <span className={styles['prop-sub-amber']}>бракує: {needs.join(', ')}</span>
                   : it.character ? <span className={styles['prop-sub']}>{it.character}</span> : null}
               </span>
-              <button type="button" className={styles['prop-act']} onClick={() => setOpenIdx(i)} aria-label={`Розгорнути «${title}»`} title="Розгорнути">
+              <button type="button" className={styles['prop-act']} data-tap onClick={() => setOpenIdx(i)} aria-label={`Розгорнути «${title}»`} title="Розгорнути">
                 <Icon name="sys.add" size={16} inherit decorative />
               </button>
             </div>
@@ -638,12 +638,12 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
             {(onOpen || onRefine) && (
               <span className={styles['prop-actions']}>
                 {onOpen && (
-                  <button type="button" className={`${styles['prop-act']} ${styles['prop-act-sage']}`} onClick={() => onOpen(i)} aria-label={`Готуємо «${title}»`} title="Готуємо" data-proposal-open>
+                  <button type="button" className={`${styles['prop-act']} ${styles['prop-act-sage']}`} data-tap onClick={() => onOpen(i)} aria-label={`Готуємо «${title}»`} title="Готуємо" data-proposal-open>
                     <Icon name="cook.go" size={16} inherit decorative />
                   </button>
                 )}
                 {onRefine && it.title && (
-                  <button type="button" className={styles['prop-act']} onClick={() => onRefine(it.title!)} aria-label={`Уточнити «${title}»`} title="Уточнити" data-proposal-refine>
+                  <button type="button" className={styles['prop-act']} data-tap onClick={() => onRefine(it.title!)} aria-label={`Уточнити «${title}»`} title="Уточнити" data-proposal-refine>
                     <Icon name="sys.reply" size={16} inherit decorative />
                   </button>
                 )}
@@ -719,7 +719,7 @@ export function ShoppingListCard({
         role="checkbox"
         aria-checked={it.checked}
         aria-label={it.label}
-        className={`${styles.rbox} ${it.checked ? styles['rbox-bought'] : ''}`}
+        className={`${styles.rbox} ${it.checked ? styles['rbox-bought'] : ''}`} data-tap
         onClick={() => onToggle(it.id, !it.checked)}
       >{it.checked ? <Icon name="sys.done" size={12} inherit decorative /> : null}</button>
       <span className={`${styles['rrow-name']} ${it.checked ? styles['srow-done'] : ''}`}>{it.label}</span>
@@ -742,6 +742,7 @@ export function ShoppingListCard({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="+ додати в список…"
+          enterKeyHint="done"
           aria-label="Додати в список"
         />
       </form>
@@ -1098,16 +1099,16 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCa
           «Поділитись» у стрічці не малюються — QUESTIONS §13. */}
       <div className={styles['rcard-acts']} data-recipe-actions={collapsed ? 'collapsed' : 'open'}>
         {collapsed ? (
-          <button type="button" className={styles['rcard-act']} onClick={() => setCollapsed(false)} aria-label="Розгорнути" title="Розгорнути">
+          <button type="button" className={styles['rcard-act']} data-tap onClick={() => setCollapsed(false)} aria-label="Розгорнути" title="Розгорнути">
             <Icon name="sys.add" size={16} inherit decorative />
           </button>
         ) : (
           <>
-            <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-sage']}`} onClick={onOpen} aria-label="Готуємо" title="Готуємо">
+            <button type="button" className={`${styles['rcard-act']} ${styles['rcard-act-sage']}`} data-tap onClick={onOpen} aria-label="Готуємо" title="Готуємо">
               <Icon name="cook.go" size={16} inherit decorative />
             </button>
             {onAsk && (
-              <button type="button" className={styles['rcard-act']} onClick={() => onAsk(title)} aria-label="Уточнити" title="Уточнити">
+              <button type="button" className={styles['rcard-act']} data-tap onClick={() => onAsk(title)} aria-label="Уточнити" title="Уточнити">
                 <Icon name="sys.reply" size={16} inherit decorative />
               </button>
             )}
@@ -1313,7 +1314,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                         type="button"
                         disabled={busy}
                         onClick={() => void swap(i, ai)}
-                        className={styles['cart-alt-btn']}
+                        className={styles['cart-alt-btn']} data-tap
                         title="замінити цією"
                         aria-label={`замінити на ${a.name}`}
                         style={{
@@ -1325,7 +1326,7 @@ export function RetailCartCard({ card: initial, cardId }: CardProps) {
                         type="button"
                         disabled={busy}
                         onClick={() => void addAlt(i, ai)}
-                        className={styles['cart-alt-btn']}
+                        className={styles['cart-alt-btn']} data-tap
                         title="додати окремим рядком"
                         aria-label={`додати ${a.name} окремо`}
                         style={{
