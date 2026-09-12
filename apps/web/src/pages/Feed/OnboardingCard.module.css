@@ -27,7 +27,7 @@
 .dots { display: flex; gap: 4px; }
 .dots > span { flex: 1; height: 4px; border-radius: 2px; background: var(--line2); }
 .dots > .dotOn { background: var(--ink); }
-.step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); flex: none; }
+.step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex: none; }
 .stepNum { font-weight: 600; color: var(--ink); }
 .stepSep { width: 3px; height: 3px; border-radius: 50%; background: var(--line2); }
 .step > :last-child:not(.stepNum) { color: var(--muted); font-weight: 500; }
@@ -64,7 +64,7 @@
 .edit:empty::before { content: attr(data-ph); color: var(--dim); opacity: .7; }
 
 .fieldMeta { display: flex; justify-content: flex-end; padding-top: 5px; flex: none; }
-.counter { font-size: 13px; line-height: 1.4; color: var(--dim); }
+.counter { font-size: 13px; line-height: 1.4; color: var(--muted); }
 .counterLimit { color: var(--amber); }
 
 .hint { font-size: 13px; line-height: 1.5; color: var(--sage); min-height: calc(13px * 1.5 * 2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 6px; flex: none; }
@@ -76,4 +76,4 @@
 
 /* Лічильник унизу під панеллю (О2 1.4) — 13 dim. */
 .nav { display: flex; align-items: center; justify-content: center; padding: 0 4px; }
-.progress { font-size: 13px; color: var(--dim); }
+.progress { font-size: 13px; color: var(--muted); }

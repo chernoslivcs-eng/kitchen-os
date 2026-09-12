@@ -1359,7 +1359,7 @@ export function Feed() {
                     }}>
                       {s.title ?? dayLabel}
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--dim)', marginTop: 3 }}>
+                    <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
                       {s.title ? `${dayLabel} · ` : ''}{d.getHours().toString().padStart(2, '0')}:{d.getMinutes().toString().padStart(2, '0')} · {s.message_count} {plural(s.message_count, ['ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕННЯ', 'ПОВІДОМЛЕНЬ'])}
                     </div>
                   </div>
@@ -1376,7 +1376,7 @@ export function Feed() {
                         if (s.id === sessionId) void startFreshSession();
                       }).catch(() => {/* тихо */});
                     }}
-                    style={{ color: 'var(--dim)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
+                    style={{ color: 'var(--muted)', fontSize: 13, padding: '6px 8px', cursor: 'pointer' }}
                   ><Icon name="sys.close" size={12} inherit /></span>
                   <span style={{ color: 'var(--dim)' }}><Icon name="sys.next" size={12} inherit decorative /></span>
                 </button>

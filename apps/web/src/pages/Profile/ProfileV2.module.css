@@ -121,7 +121,7 @@
    бурштином і «176 / 200»; на стелі — «… · далі вже мемуари» бурштином. */
 .counter {
   position: absolute; right: 16px; bottom: 6px;
-  font-size: 12px; color: var(--dim); white-space: nowrap;
+  font-size: 12px; color: var(--muted); white-space: nowrap;
   transition: opacity var(--dur-slow) var(--ease-standard); pointer-events: none;
 }
 @media (min-width: 1024px) { .counter { right: 22px; bottom: auto; top: 50%; transform: translateY(-50%); } }
@@ -160,7 +160,7 @@
 @keyframes hint-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* Р8: база кухні — те, чого людина не писала. Тихо, під полем. */
-.baseline { font-size: 13px; line-height: 1.4; color: var(--dim); padding: 6px 0 4px; }
+.baseline { font-size: 13px; line-height: 1.4; color: var(--muted); padding: 6px 0 4px; }
 
 /* ── Нотатки, джерела ──────────────────────────────────────────────────── */
 .section { display: flex; flex-direction: column; gap: 8px; }
@@ -178,7 +178,7 @@
 @media (min-width: 1024px) { .notesCard { padding: 0 20px 2px; } }
 .notesCard .svcHead { margin: 0 -16px 4px; padding: 0 16px; }
 @media (min-width: 1024px) { .notesCard .svcHead { margin: 0 -20px 4px; padding: 0 20px; } }
-.empty { display: block; padding: 12px 0; font-size: 14px; color: var(--dim); }
+.empty { display: block; padding: 12px 0; font-size: 14px; color: var(--muted); }
 /* №31: рядок нотатки — сітка auto 1fr auto: дата 12 dim зліва зверху, текст
    15 з переносом у межах колонки, «прибрати» праворуч по верхньому краю.
    Довга нотатка більше не вилазить за край картки. */
@@ -189,7 +189,7 @@
   font-size: 15px; line-height: 1.5; color: var(--ink);
 }
 .note:last-child { border-bottom: 0; }
-.noteDate { width: 40px; font-size: 12px; line-height: 1.5; padding-top: 3px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.noteDate { width: 40px; font-size: 12px; line-height: 1.5; padding-top: 3px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .noteText { min-width: 0; overflow-wrap: anywhere; }
 .note .noteRemove, .note .noteRestore { padding-top: 3px; }
 .noteRemove, .noteRestore {
@@ -249,7 +249,7 @@
 .svcMuted { color: var(--muted); }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .svcValue { font-size: 14px; }
-.svcMeta { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); white-space: nowrap; }
+.svcMeta { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .metaOk { color: var(--sage); font-weight: 500; }
 .metaAmber { color: var(--amber); font-weight: 500; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); }
@@ -258,7 +258,7 @@
   font-family: var(--font-body); font-size: 12px; color: var(--muted); white-space: nowrap;
 }
 .svcLink:hover { color: var(--ink); }
-.dim { color: var(--dim); }
+.dim { color: var(--muted); }
 .avatar {
   width: 26px; height: 26px; flex: none;
   display: grid; place-items: center;

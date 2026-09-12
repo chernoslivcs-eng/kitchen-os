@@ -225,7 +225,7 @@
 .op-qty {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--dim);
+  color: var(--muted);
 }
 
 .card-actions { display: flex; gap: 10px; margin-top: 4px; }
@@ -272,7 +272,7 @@
 .chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .chip-qty { flex: none; }
 .prop-chip-amber { background: var(--amber-bg); color: var(--amber); font-weight: 500; }
-.prop-chip-dim { color: var(--dim); }
+.prop-chip-dim { color: var(--muted); }
 .prop-actions { flex: none; display: flex; flex-direction: column; gap: 6px; }
 .prop-act {
   width: 36px; height: 36px; flex: none;
@@ -303,7 +303,7 @@
 }
 .session-pill > [data-icon] { color: var(--dim); }
 .session-pill-title { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
-.session-pill-when { color: var(--dim); font-weight: 400; }
+.session-pill-when { color: var(--muted); font-weight: 400; }
 .head-chip {
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 12px;
@@ -349,7 +349,7 @@
 .turn-note {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--dim);
+  color: var(--muted);
   padding-top: 2px;
 }
 
@@ -381,7 +381,7 @@
 }
 .att-chip-image { width: 40px; padding: 0; justify-content: center; }
 .att-text { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
-.att-meta { font-size: 11px; color: var(--dim); }
+.att-meta { font-size: 11px; color: var(--muted); }
 /* Пул-9 №2: у стрічці чіп — посилання на файл. Підкреслення й колір
    посилання тут зайві: клікабельний сам квадратик. */
 a.att-chip {
@@ -420,7 +420,7 @@ a.att-chip:hover { border-color: var(--sage); }
   border: 1px solid var(--line2);
   border-radius: 50%;
   background: var(--card);
-  color: var(--dim);
+  color: var(--muted);
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
@@ -497,7 +497,7 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 .attach-item > [data-icon] { color: var(--muted); }
 .attach-item:hover { background: var(--line); }
-.attach-hint { font-size: 11px; color: var(--dim); padding: 6px 12px 4px; }
+.attach-hint { font-size: 11px; color: var(--muted); padding: 6px 12px 4px; }
 /* «⌘K» dim 12 перед мікрофоном (Screens «Чат · збірка»); на дотиках — ні. */
 /* №30: підпис «⌘K» з поля знято; клавіша лишається (ефект у Feed.tsx). */
 
@@ -611,8 +611,8 @@ a.att-chip:hover { border-color: var(--sage); }
 .wait-turn { gap: 4px; }
 .wait-row { display: flex; align-items: center; gap: 10px; min-height: 24px; }
 .wait-verb { font-family: var(--font-body); font-size: 14px; color: var(--muted); }
-.wait-clock { font-family: var(--font-body); font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; }
-.wait-long { font-family: var(--font-body); font-size: 13px; color: var(--dim); }
+.wait-clock { font-family: var(--font-body); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wait-long { font-family: var(--font-body); font-size: 13px; color: var(--muted); }
 /* DA-02: «система думає» — 3 крапки, 1.2s, stagger 150ms (Моушн-кіт §02).
    При reduced motion --dur-breathe = 0 і крапки просто стоять. */
 .thinking {
@@ -931,7 +931,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .trace-go {
   flex: none;
   padding-left: 4px;
-  color: var(--dim);
+  color: var(--muted);
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 600;
@@ -996,7 +996,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .cart-stp button:disabled { cursor: default; }
 /* 26px, а не 16 як у макеті: вагові показують «0,64» — на 16 воно б різалось. */
 .cart-qty { font-family: var(--font-mono); font-size: 13px; min-width: 26px; text-align: center; }
-.cart-unit { flex: none; width: 20px; font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
+.cart-unit { flex: none; width: 20px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 .cart-price {
   flex: none;
   min-width: 46px;
@@ -1011,7 +1011,7 @@ a.att-chip:hover { border-color: var(--sage); }
   min-width: 0;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--dim);
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1077,7 +1077,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .cart-alt-warn {
   font-family: var(--font-body);
   font-size: 11px;
-  color: var(--dim);
+  color: var(--muted);
   padding-top: 2px;
 }
 
@@ -1104,7 +1104,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .pill-sage { background: var(--sage-bg); color: var(--sage); }
 .pill-amber { background: var(--amber-bg); color: var(--amber); }
-.pill-far { background: var(--bg); color: var(--dim); }
+.pill-far { background: var(--bg); color: var(--muted); }
 .pill-card { height: 32px; padding: 0 12px; background: var(--bg); color: var(--ink); font-size: 13px; cursor: pointer; }
 .pill-card:hover:not(:disabled) { background: var(--line); }
 .pill-saved { color: var(--sage); cursor: default; }
@@ -1154,7 +1154,7 @@ a.att-chip:hover { border-color: var(--sage); }
   font-variant-numeric: tabular-nums;
 }
 .recipe-step-t { flex: 1; min-width: 0; }
-.recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
+.recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 /* «Готуємо» — чорнило 48 r12 з cooking-pot, на всю ширину низу картки. */
 .cook-go {
   flex: 1;
@@ -1221,7 +1221,7 @@ a.att-chip:hover { border-color: var(--sage); }
   color: var(--ink);
   white-space: nowrap;
 }
-.strip-state-dim { color: var(--dim); font-size: 12px; font-weight: 400; }
+.strip-state-dim { color: var(--muted); font-size: 12px; font-weight: 400; }
 .strip-state-warn { color: var(--amber); font-size: 12px; font-weight: 400; }
 
 /* Чорнильна кнопка-посилання: та сама геометрія, що .btn.strip, але це
@@ -1247,7 +1247,7 @@ a.att-chip:hover { border-color: var(--sage); }
   border: 0;
   border-radius: 8px;
   background: none;
-  color: var(--dim);
+  color: var(--muted);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -1339,7 +1339,7 @@ a.att-chip:hover { border-color: var(--sage); }
 .rrow-gap { width: 16px; flex: none; }
 .rrow-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .rrow-title { min-width: 0; }
-.rrow-sub { font-size: 12px; font-weight: 400; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rrow-sub { font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rrow-inlist { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 400; color: var(--sage); }
 .rrow-qty {
   flex: none;
@@ -1352,7 +1352,7 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Шапка документа, підвал і невпізнаний рядок чека. */
 .rc-head { display: flex; align-items: baseline; gap: 8px; min-height: 28px; }
 .rc-title { font-size: 15px; font-weight: 600; color: var(--ink); }
-.rc-meta { font-size: 13px; color: var(--dim); }
+.rc-meta { font-size: 13px; color: var(--muted); }
 .rc-foot { gap: 12px; }
 .rc-sum { flex: 1; min-width: 0; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
 .rc-no { flex: none; height: 38px; padding: 0 12px; border: 0; background: transparent; font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; }
@@ -1402,12 +1402,12 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Шавлієва підсвітка «щойно додано» — відповідь на питання, яке виникає
    одразу після репліки Кухні: що саме зараз змінилось. */
 .srow-fresh { background: var(--sage-bg); margin: 0 -10px; padding-left: 10px; padding-right: 10px; }
-.srow-done { color: var(--dim); text-decoration: line-through; }
+.srow-done { color: var(--muted); text-decoration: line-through; }
 .srow-src {
   flex: none;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--dim);
+  color: var(--muted);
 }
 /* Низ у два поверхи: поле «додати» і рядок стану з виходом у кошик. */
 .slist-foot { display: flex; flex-direction: column; gap: 10px; }
@@ -1436,7 +1436,7 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--dim);
+  color: var(--muted);
 }
 .trace-undo:hover { color: var(--ink); }
 /* Відкочено: блок гасне, значення закреслене, стрілки немає — вести вже
@@ -1448,8 +1448,8 @@ a.att-chip:hover { border-color: var(--sage); }
   cursor: default;
 }
 .trace-undone .trace-icon,
-.trace-undone .trace-kind { color: var(--dim); }
-.trace-undone .trace-value { color: var(--dim); text-decoration: line-through; }
+.trace-undone .trace-kind { color: var(--muted); }
+.trace-undone .trace-value { color: var(--muted); text-decoration: line-through; }
 
 /* Шапки стрічки на десктопі немає: у ній лишався тільки аватар, а він там
    і так display:none — аватар живе внизу бічного меню. Порожня смуга на
@@ -1478,7 +1478,7 @@ a.att-chip:hover { border-color: var(--sage); }
   padding: 6px 12px 2px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--dim);
+  color: var(--muted);
 }
 
 /* Списання після готування — подія, а не артефакт: рядок тексту замість
@@ -1489,7 +1489,7 @@ a.att-chip:hover { border-color: var(--sage); }
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.5;
-  color: var(--dim);
+  color: var(--muted);
 }
 
 /* Дія шапки Стрічки (блок А1): моно-caps, без рамки — одна дія на екран. */
@@ -1558,4 +1558,4 @@ a.att-chip:hover { border-color: var(--sage); }
 .source-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--bg); display: grid; place-items: center; color: var(--ink); flex: none; }
 .source-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
 .source-title { font-size: 15px; font-weight: 500; }
-.source-sub { font-size: 12px; color: var(--dim); }
+.source-sub { font-size: 12px; color: var(--muted); }

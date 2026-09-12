@@ -649,7 +649,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         <MonoLabel>Додати продукт</MonoLabel>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Назва</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Назва</span>
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -661,11 +661,11 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
 
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Кількість</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)' }}>Кількість</span>
             <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-            <span style={{ fontSize: 13, color: 'var(--dim)' }}>Одиниця</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)' }}>Одиниця</span>
             <select
               value={unit ?? ''}
               onChange={(e) => setUnit((e.target.value || null) as PantryBatch['unit'])}
@@ -681,7 +681,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--dim)' }}>Зона</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Зона</span>
           <select
             value={zone}
             onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}

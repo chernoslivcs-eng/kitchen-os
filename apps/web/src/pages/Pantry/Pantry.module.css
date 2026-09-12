@@ -27,7 +27,7 @@
   /* Screens «Комора · збірка»: лічильник 13 dim біля назви. */
   font-family: var(--font-body);
   font-size: 13px;
-  color: var(--dim);
+  color: var(--muted);
   white-space: nowrap;
 }
 .head-gap { flex: 1; }
@@ -38,7 +38,7 @@
   display: none; align-items: center; gap: 8px;
   height: 36px; width: 260px; padding: 0 12px;
   border-radius: 10px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
-  color: var(--dim);
+  color: var(--muted);
 }
 .search-input { flex: 1; min-width: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 14px; color: var(--ink); outline: 0; }
 .search-input::placeholder { color: var(--dim); }
@@ -176,7 +176,7 @@
   border: 0;
   border-radius: var(--r);
   background: transparent;
-  color: var(--dim);
+  color: var(--muted);
   font-size: 14px;
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast);
@@ -342,7 +342,7 @@
   box-sizing: border-box;
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: var(--dim);
+  color: var(--muted);
 }
 .rail-words {
   display: flex;
@@ -372,7 +372,7 @@
   padding: 2px 2px 1px;
   border-radius: 0;
   border-bottom: 2px solid transparent;
-  color: var(--dim);
+  color: var(--muted);
 }
 .word-sort.word-on {
   color: var(--ink);
@@ -420,7 +420,7 @@
 
 /* Тони позначок і підрядків — токенами, тема сама перемикає. */
 .tone-fg { color: var(--ink); }
-.tone-dim { color: var(--dim); }
+.tone-dim { color: var(--muted); }
 .tone-amber { color: var(--amber); }
 .tone-plum { color: var(--plum); }
 .tone-sage { color: var(--sage); }
@@ -450,7 +450,7 @@
 .sub, .zone-tag { font-size: 13px; line-height: 1.4; }
 /* Другий випадок того самого дефекту, що `.section-count`: токен РАМКИ у ролі
  * тексту. `line2` — рамка контролів, ніколи не текст. */
-.zone-tag { color: var(--dim); }
+.zone-tag { color: var(--muted); }
 .val {
   flex: none;
   min-width: 72px;
@@ -470,7 +470,7 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--tracking-mono);
-  color: var(--dim);
+  color: var(--muted);
 }
 .flat-title { flex: 1; min-width: 0; }
 /* Крок Ф2: заголовок шкали одним рядком над колонкою значення; ваги — без заголовка. */
@@ -530,8 +530,8 @@
 .card-title:focus { outline: none; border-bottom-color: var(--ink); }
 .card-passport { font-size: 13px; color: var(--muted); }
 /* Третій рядок паспорта — походження (G6 «з чека: … · Сільпо 7 вер»). */
-.card-origin { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
-.card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--dim); }
+.card-origin { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+.card-hint { font-family: var(--font-body); font-size: 12px; line-height: 1.45; color: var(--muted); }
 .card-row { display: flex; gap: 10px; align-items: flex-start; }
 .card-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
 .card-field-state { flex: none; width: 150px; }
@@ -567,8 +567,8 @@
 /* Дата з пачки — рядок 40 r10 на bg: знак calendar · пояснення 13 dim · «дд.мм»;
    саме поле дати лежить поверх рядка прозорим. */
 .card-date { position: relative; height: 40px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; padding: 0 12px; gap: 10px; color: var(--muted); cursor: pointer; }
-.card-date-text { flex: 1; min-width: 0; font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-date-hint { font-size: 12px; color: var(--dim); }
+.card-date-text { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-date-hint { font-size: 12px; color: var(--muted); }
 .card-date-input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .card-date .link-btn { position: relative; z-index: 1; font-size: 13px; }
 /* Безпека — чіп 32/999 plum-bg + ban (Components / G6). */
@@ -610,7 +610,7 @@
   display: block;
   font-size: 13px;
   line-height: 1.4;
-  color: var(--dim);
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -644,7 +644,7 @@
   display: inline-grid;
   place-items: center;
   flex: none;
-  color: var(--dim);
+  color: var(--muted);
 }
 
 /* Час — свій слот праворуч, 92 (Components), крапка 6 + слово 13, до правого
@@ -694,7 +694,7 @@
 .card-reason-danger { color: var(--danger); border-color: var(--danger); }
 .card-reason-cancel {
   height: 40px; padding: 0 10px; border: 0; background: transparent;
-  color: var(--dim); font: inherit; font-size: 14px; cursor: pointer; margin-left: auto;
+  color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; margin-left: auto;
 }
 
 /* 2c: трійка причин у плашці «Списано · Повернути». Необовʼязкова —
@@ -721,7 +721,7 @@
   transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
 .zone-chip [data-icon] { color: var(--muted); }
-.zone-chip-n { color: var(--dim); font-variant-numeric: tabular-nums; }
+.zone-chip-n { color: var(--muted); font-variant-numeric: tabular-nums; }
 /* «Обрано» — чорнилом, не шавлією (рішення 11.09). */
 .zone-chip-on { background: var(--ink); color: var(--bg); font-weight: 500; box-shadow: none; }
 .zone-chip-on [data-icon], .zone-chip-on .zone-chip-n { color: inherit; }
@@ -802,5 +802,5 @@
   .row-grouped .safety { grid-area: s; height: 20px; padding: 0 6px; font-size: 11px; }
   .row-grouped .passport { grid-area: p; font-size: 12px; }
   .row-grouped .time { grid-area: t; width: auto; margin-left: 10px; gap: 5px; }
-  .row-grouped .qty { grid-area: q; width: auto; font-size: 12px; color: var(--dim); }
+  .row-grouped .qty { grid-area: q; width: auto; font-size: 12px; color: var(--muted); }
 }

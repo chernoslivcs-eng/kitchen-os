@@ -3,7 +3,7 @@
  * Кольори — лише токени; --dim-t повторює правило лендінгу. Темної теми
  * ці сторінки не мають (№2): AuthShell тримає data-theme='light'. */
 .page {
-  --dim-t: var(--dim);
+  --dim-t: var(--muted);
   min-height: 100dvh;
   background: linear-gradient(to bottom, color-mix(in srgb, var(--amber-bg) 45%, var(--bg)) 0, var(--bg) 560px);
   color: var(--ink);

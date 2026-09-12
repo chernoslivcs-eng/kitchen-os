@@ -105,7 +105,7 @@
 .route-done .route-t { text-decoration: line-through; color: var(--muted); }
 .route-r { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-body); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .route-foot { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; }
-.route-label { font-family: var(--font-body); font-size: 13px; color: var(--dim); }
+.route-label { font-family: var(--font-body); font-size: 13px; color: var(--muted); }
 .route-ings { display: flex; flex-wrap: wrap; gap: 6px; }
 .ing-chip {
   display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
@@ -116,7 +116,7 @@
 /* №33: назва в чіпі з трьома крапками, кількість не ріжеться; повна — у title. */
 .chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .chip-qty { flex: none; }
-.route-offline { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 13px; color: var(--dim); padding-top: 6px; }
+.route-offline { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 13px; color: var(--muted); padding-top: 6px; }
 
 .focus { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
 .focus-card {
@@ -131,7 +131,7 @@
   height: 32px; padding: 0 12px; border-radius: var(--r-pill); background: var(--bg);
   font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink);
 }
-.step-chip-t { color: var(--dim); font-weight: 400; }
+.step-chip-t { color: var(--muted); font-weight: 400; }
 .dots { display: flex; gap: 6px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line2); }
 .dot-done { background: var(--sage); }
@@ -252,23 +252,23 @@
   .route-chips .route-row {
     flex: none; width: auto; min-height: 0; display: inline-flex; flex-direction: row; align-items: center; gap: 8px;
     height: 40px; padding: 0 12px 0 6px; border: 0; border-radius: var(--r-pill);
-    background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--dim);
+    background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted);
     font: inherit; cursor: pointer; overflow: visible;
   }
   .route-chips .route-n { width: 28px; height: 28px; font-size: 12px; }
   .route-chips .route-done .route-n { background: var(--sage-bg); border-color: var(--sage-bg); color: var(--sage); }
-  .route-chips .route-t { font-size: 13px; font-weight: 400; color: var(--dim); text-decoration: none; }
+  .route-chips .route-t { font-size: 13px; font-weight: 400; color: var(--muted); text-decoration: none; }
   .route-chips .route-next .route-t { color: var(--muted); }
   .route-chips .route-row.route-cur { background: var(--ink); color: var(--bg); box-shadow: none; padding-right: 14px; }
   .route-chips .route-cur .route-n { background: var(--card); border-color: var(--card); color: var(--ink); }
   .route-chips .route-cur .route-t { color: var(--bg); font-weight: 600; }
   .route-chips .route-cur .route-r { color: var(--bg); opacity: .8; font-weight: 500; }
-  .route-chips .route-r { font-size: 13px; color: var(--dim); }
+  .route-chips .route-r { font-size: 13px; color: var(--muted); }
   .focus { padding: 16px 20px 0; gap: 0; flex: 1; }
   .focus-card { border-radius: 18px; padding: 32px 36px; gap: 24px; }
   .focus-head { gap: 12px; }
   .step-chip { height: 30px; font-size: 13px; }
-  .step-chip-t { color: var(--dim); }
+  .step-chip-t { color: var(--muted); }
   .dots { display: none; }
   .step-text { font-size: 32px; font-weight: 600; line-height: 40px; letter-spacing: -0.025em; }
   .step-ing { height: 32px; padding: 7px 13px; }
@@ -304,7 +304,7 @@
     background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
     font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer;
   }
-  .step-pill-n { color: var(--dim); }
+  .step-pill-n { color: var(--muted); }
   .step-pill-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .step-pill-gap { flex: 1; }
   .step-pill > [data-icon] { color: var(--muted); }

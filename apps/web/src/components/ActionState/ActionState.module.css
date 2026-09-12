@@ -34,4 +34,4 @@
 .tone-amber .icon { color: var(--amber); }
 .tone-danger .icon { color: var(--danger); }
 /* Пул-9 №3: друга — і остання — фраза за довгого очікування. */
-.note { font-size: 13px; color: var(--dim); padding: 4px 16px 0; }
+.note { font-size: 13px; color: var(--muted); padding: 4px 16px 0; }
