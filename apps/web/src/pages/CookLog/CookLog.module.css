@@ -14,7 +14,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden; overflow-anchor: none; /* fix/ios-inner-scroll-offset: скролер лише вертикальний, без якоріння */
   padding: 0 16px 24px;
   display: flex;
   flex-direction: column;

@@ -101,7 +101,7 @@
 /* ── Стрічка: єдина зона скролу ─────────────────────────────────────────── */
 .list {
   flex: 1; min-height: 0;
-  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  overflow-y: auto; overscroll-behavior: contain; overflow-x: hidden; overflow-anchor: none;
   scroll-padding-top: 34px; /* 0912 D (№5): день не ховається під липкий місяць */
   padding: 0 8px 24px;
 }

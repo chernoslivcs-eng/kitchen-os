@@ -80,7 +80,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden; overflow-anchor: none; /* fix/ios-inner-scroll-offset: скролер лише вертикальний, без якоріння */
   /* Screens «Комора · збірка»: між рядами 14; поля 24/28 на 1440, 16 на 390. */
   padding: 0 22px 20px;
   display: flex;
