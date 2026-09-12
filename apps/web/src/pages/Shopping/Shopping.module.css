@@ -3,15 +3,19 @@
    Картка списку до 720: r14, 4 20, рядки 56 з волосиною --line, чекбокс 22 r6
    (1.5 line2 · done: шавлія + check 13), назва 15/500, під нею 12 dim,
    куплене — opacity .5 і закреслення. «+ Додати…» — рядок 48 dim 14. */
+/* fix/ios-list-scroll: як у чату — екран = вʼюпорт (мінус клавіатура iOS), скролить внутрішнє тіло; на ≤767 низ тіла резервує бар. На iOS документний скрол з html/body 100% не догортував список до кінця. */
 .screen {
-  min-height: 100dvh;
+  height: calc(100dvh - var(--kb, 0px));
   background: var(--bg);
   display: flex;
   flex-direction: column;
 }
 .body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0 16px 20px;
   display: flex;
   flex-direction: column;
@@ -144,3 +148,4 @@
 @media (max-width: 767px) { .add input { font-size: 16px; } }
 /* 0912 C: поле на всю висоту рядка — ціль дотику = рядок, візуал той самий (тло прозоре). */
 .add input { align-self: stretch; }
+@media (max-width: 767px) { .body { padding-bottom: calc(20px + 64px + env(safe-area-inset-bottom, 0px)); } }
