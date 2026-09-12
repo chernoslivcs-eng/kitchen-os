@@ -13,11 +13,11 @@
 <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <style>
 body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; }
-a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
+a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
 * { box-sizing:border-box; }
-[data-tile] svg, [data-tile] svg * { transition: transform 300ms cubic-bezier(.4,0,.2,1), color 300ms, opacity 300ms; transform-box: fill-box; transform-origin: center; }
+[data-tile] svg, [data-tile] svg * { transition: transform 240ms cubic-bezier(.4,0,.2,1), color 120ms, opacity 240ms; transform-box: fill-box; transform-origin: center; }
 [data-tile]:hover svg { color:#1a1c1e; }
-[data-tile]:active svg { transform: scale(.96); transition-duration: 160ms; }
+[data-tile]:active svg { transform: scale(.96); transition-duration: 120ms; }
 /* Список: галочки дописуються по черзі */
 [data-motion="checks"]:hover svg path:nth-child(1), [data-motion="checks"]:hover svg path:nth-child(2) { stroke-dasharray: 12; animation: drawShort 700ms ease-in-out both; }
 [data-motion="checks"]:hover svg path:nth-child(1) { animation-delay: 180ms; }
@@ -116,19 +116,19 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 
 <div style="display:flex; gap:48px; align-items:flex-start; width:1440px;">
   <div style="display:flex; flex-direction:column; gap:10px; flex:1;">
-    <div style="font-size:12px; font-weight:500; color:#6b6f74;">Kitchen OS · Набір іконок v3 · Lucide 1.75 px · три сім'ї · моушн</div>
+    <div style="font-size:12px; font-weight:500; color:#6b6f74;">Kitchen OS · Набір іконок v3 · Lucide 1.75 px · три сім'ї + дії без моушну + зони · один знак — одне значення</div>
     <div style="font-weight:700; font-size:40px; letter-spacing:-.03em; line-height:1.05; max-width:900px;">Іконки: система, продукти, готування. Наведи на будь-яку.</div>
-    <div style="font-size:16px; color:#6b6f74; line-height:1.55; max-width:800px;">Одна база — Lucide, контур 1.75 px, заокруглені кінці, сітка 24, оптичний розмір 20 в інтерфейсі й 16 у тексті. Три сім'ї відрізняються не стилем, а роллю: системні — дії й місця в застосунку; продукти — те, що лежить у коморі; готування — процес і рецепт. Системні мають моушн-пас: рухається не іконка, а її частини — галочки дописуються, колеса котяться, сторінка календаря перегортається. Маленькі кроки: 1–2 px, 600–900 мс, одна м’яка крива ease-in-out, без відскоку і різких змін напрямку. Натиск — ледь помітне стискання 160 мс.</div>
+    <div style="font-size:16px; color:#6b6f74; line-height:1.55; max-width:800px;">Одна база — Lucide, контур 1.75 px, заокруглені кінці, сітка 24, оптичний розмір 20 в інтерфейсі й 16 у тексті. Три сім'ї відрізняються не стилем, а роллю: системні — дії й місця в застосунку; продукти — те, що лежить у коморі; готування — процес і рецепт. Системні мають моушн-пас: рухається не іконка, а її частини — галочки дописуються, колеса котяться, сторінка календаря перегортається. Маленькі кроки: 1–2 px, 600–900 мс, одна м’яка крива ease-in-out, без відскоку і різких змін напрямку. Натиск — ледь помітне стискання 120 мс. Знаки зон, продуктів і готування — статичні, лише натиск.</div>
   </div>
   <div style="width:400px; flex:none; background:#fff; border-radius:20px; corner-shape:squircle; padding:20px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.06); font-size:14px; line-height:1.5;">
     <div style="font-size:12px; color:#9a9ea3;">Специфікація</div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Контур</span><span>1.75 px · round cap · round join</span></div>
-    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Розміри</span><span>16 · 20 · 24 (Cook: 28)</span></div>
+    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Розміри</span><span>12 · 16 · 18 · 20 · 24 — закритий союз</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Тап-зона</span><span>44 × 44 завжди</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Колір</span><span>currentColor · muted → ink на ховері</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Ховер</span><span>рух частин іконки · 1–2 px · 600–900 мс · ease-in-out</span></div>
-    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Натиск</span><span>scale .96 · 160 мс</span></div>
-    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Стан «живе»</span><span>цикл 1.2–1.6 с, тільки поки триває</span></div>
+    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Натиск</span><span>scale .96 · 120 мс</span></div>
+    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Стан «живе»</span><span>цикл 1.8–2.4 с, тільки поки триває</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Reduced motion</span><span>усе, крім кольору, вимикається</span></div>
   </div>
 </div>
@@ -141,7 +141,7 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
       <div data-tile data-motion="{{ it.m }}" style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 16px 14px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 2px rgba(26,28,30,.05); cursor:pointer;" style-hover="box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.08);">
         <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;"><i data-lucide="{{ it.icon }}" style="width:20px; height:20px;"></i></span>
         <span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">{{ it.label }}</span><span style="font-size:12px; color:#9a9ea3;">{{ it.use }}</span></span>
-        <span style="font-size:11px; color:#5b7a4f; font-weight:500;">{{ it.motion }}</span>
+        <span style="font-size:11px; color:#55724a; font-weight:500;">{{ it.motion }}</span>
       </div>
     </sc-for>
   </div>
@@ -151,10 +151,35 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 <div style="display:flex; flex-direction:column; gap:12px; width:1440px;">
   <div style="display:flex; align-items:baseline; gap:12px;"><span style="font-weight:600; font-size:20px; letter-spacing:-.02em;">Живі стани</span><span style="font-size:13px; color:#9a9ea3;">анімація йде, поки триває процес — без наведення</span></div>
   <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
-    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="flame" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f6ecd6; color:#a67c2e; display:grid; place-items:center;"><i data-lucide="flame" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Горить · 3</span><span style="font-size:12px; color:#9a9ea3;">дихає 1.6 с, поки є позиції ≤ 3 дні</span></span></div>
-    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="timer" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#e8efe3; color:#5b7a4f; display:grid; place-items:center;"><i data-lucide="timer" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Готуємо · 6:42</span><span style="font-size:12px; color:#9a9ea3;">тікає 1.2 с, поки таймер біжить</span></span></div>
-    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="mic" style="width:44px; height:44px; border-radius:50%; background:#1a1c1e; color:#f4f3ef; display:grid; place-items:center;"><i data-lucide="mic" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Слухаю</span><span style="font-size:12px; color:#9a9ea3;">пульс 1.2 с під час диктовки</span></span></div>
-    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="think" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;"><i data-lucide="sparkles" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Думаю</span><span style="font-size:12px; color:#9a9ea3;">погойдування 1.4 с, поки чекаємо відповідь</span></span></div>
+    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="flame" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f6ecd6; color:#866425; display:grid; place-items:center;"><i data-lucide="flame" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Горить · 3</span><span style="font-size:12px; color:#9a9ea3;">дихає 2.4 с, поки є позиції ≤ 3 дні</span></span></div>
+    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="timer" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#e8efe3; color:#55724a; display:grid; place-items:center;"><i data-lucide="timer" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Готуємо · 6:42</span><span style="font-size:12px; color:#9a9ea3;">тікає 2.4 с, поки таймер біжить</span></span></div>
+    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="mic" style="width:44px; height:44px; border-radius:50%; background:#1a1c1e; color:#f4f3ef; display:grid; place-items:center;"><i data-lucide="mic" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Слухаю</span><span style="font-size:12px; color:#9a9ea3;">пульс 1.8 с під час диктовки</span></span></div>
+    <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 1px 2px rgba(26,28,30,.05);"><span data-live="think" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;"><i data-lucide="sparkles" style="width:20px; height:20px;"></i></span><span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">Думаю</span><span style="font-size:12px; color:#9a9ea3;">мерехтіння 2.2 с, поки чекаємо відповідь</span></span></div>
+  </div>
+</div>
+
+<!-- ACTIONS (static) -->
+<div style="display:flex; flex-direction:column; gap:12px; width:1440px;">
+  <div style="display:flex; align-items:baseline; gap:12px;"><span style="font-weight:600; font-size:20px; letter-spacing:-.02em;">Дії й стани</span><span style="font-size:13px; color:#9a9ea3;">кнопки в картках, смуги, походження · без моушну, лише натиск 120 мс · колір — рід, слово поруч — ink</span></div>
+  <div style="display:grid; grid-template-columns:repeat(8,1fr); gap:10px;">
+    <sc-for list="{{ actions }}" as="it" hint-placeholder-count="8">
+      <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:16px 16px 14px; display:flex; flex-direction:column; gap:10px; box-shadow:0 1px 2px rgba(26,28,30,.05);">
+        <span style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#f4f3ef; color:#6b6f74; display:grid; place-items:center;"><i data-lucide="{{ it.icon }}" style="width:20px; height:20px;"></i></span>
+        <span style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:14px; font-weight:500;">{{ it.label }}</span><span style="font-size:12px; color:#6b6f74;">{{ it.use }}</span></span>
+      </div>
+    </sc-for>
+  </div>
+</div>
+
+<!-- ZONES (borrowed) -->
+<div style="display:flex; flex-direction:column; gap:12px; width:1440px;">
+  <div style="display:flex; align-items:baseline; gap:12px;"><span style="font-weight:600; font-size:20px; letter-spacing:-.02em;">Зони комори</span><span style="font-size:13px; color:#9a9ea3;">своєї сімʼї нема — знаки позичені; у чорнильному хедері поруч завжди назва. Виняток словника один: refrigerator у рейці — весь склад, у хедері — прилад</span></div>
+  <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:10px;">
+    <sc-for list="{{ zones }}" as="it" hint-placeholder-count="6">
+      <div style="display:flex; align-items:center; gap:10px; height:44px; padding:0 16px; border-radius:12px; corner-shape:squircle; background:#1a1c1e; color:#f4f3ef;">
+        <i data-lucide="{{ it.icon }}" style="width:16px; height:16px;"></i><span style="font-size:14px; font-weight:600;">{{ it.label }}</span><span style="font-size:12px; opacity:.7; margin-left:auto;">{{ it.icon }}</span>
+      </div>
+    </sc-for>
   </div>
 </div>
 
@@ -189,14 +214,14 @@ a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
   <div style="display:flex; align-items:baseline; gap:12px;"><span style="font-weight:600; font-size:20px; letter-spacing:-.02em;">У контексті</span><span style="font-size:13px; color:#9a9ea3;">три розміри · тон іконки завжди на крок тихіший за текст</span></div>
   <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
     <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:6px 20px; box-shadow:0 1px 2px rgba(26,28,30,.05);">
-      <div style="display:flex; align-items:center; gap:12px; height:56px; border-bottom:1px solid #f0eee9;"><span style="width:36px; height:36px; border-radius:50%; border:1px solid #e6e4de; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="carrot" style="width:18px; height:18px;"></i></span><span style="flex:1; font-size:15px; font-weight:500;">Морква</span><span style="font-size:13px; color:#a67c2e;">4 дні</span><span style="font-size:14px; color:#6b6f74;">600 г</span></div>
+      <div style="display:flex; align-items:center; gap:12px; height:56px; border-bottom:1px solid #f0eee9;"><span style="width:36px; height:36px; border-radius:50%; border:1px solid #e6e4de; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="carrot" style="width:18px; height:18px;"></i></span><span style="flex:1; font-size:15px; font-weight:500;">Морква</span><span style="font-size:13px; color:#866425;">4 дні</span><span style="font-size:14px; color:#6b6f74;">600 г</span></div>
       <div style="display:flex; align-items:center; gap:12px; height:56px; border-bottom:1px solid #f0eee9;"><span style="width:36px; height:36px; border-radius:50%; border:1px solid #e6e4de; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="milk" style="width:18px; height:18px;"></i></span><span style="flex:1; font-size:15px; font-weight:500;">Молоко</span><span style="font-size:14px; color:#6b6f74;">900 мл</span></div>
-      <div style="display:flex; align-items:center; gap:12px; height:56px;"><span style="width:36px; height:36px; border-radius:50%; border:1px solid #e6e4de; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="fish" style="width:18px; height:18px;"></i></span><span style="flex:1; font-size:15px; font-weight:500; display:flex; align-items:center; gap:8px;">Дорадо<span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; color:#8a5c78; background:#f1e5ec; padding:2px 8px; border-radius:999px;"><i data-lucide="ban" style="width:11px; height:11px;"></i>Оля</span></span><span style="font-size:14px; color:#6b6f74;">2 шт</span></div>
+      <div style="display:flex; align-items:center; gap:12px; height:56px;"><span style="width:36px; height:36px; border-radius:50%; border:1px solid #e6e4de; display:grid; place-items:center; color:#6b6f74;"><i data-lucide="fish" style="width:18px; height:18px;"></i></span><span style="flex:1; font-size:15px; font-weight:500; display:flex; align-items:center; gap:8px;">Дорадо<span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; color:#885b77; background:#f1e5ec; padding:2px 8px; border-radius:999px;"><i data-lucide="ban" style="width:11px; height:11px;"></i>Оля</span></span><span style="font-size:14px; color:#6b6f74;">2 шт</span></div>
     </div>
     <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:18px 20px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 2px rgba(26,28,30,.05);">
-      <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#6b6f74;"><i data-lucide="clock" style="width:14px; height:14px;"></i>20 хв<i data-lucide="users" style="width:14px; height:14px; margin-left:6px;"></i>2<i data-lucide="flame" style="width:14px; height:14px; margin-left:6px; color:#a67c2e;"></i>540 ккал</div>
+      <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#6b6f74;"><i data-lucide="clock" style="width:14px; height:14px;"></i>20 хв<span style="margin-left:6px;">2 порції</span><i data-lucide="activity" style="width:14px; height:14px; margin-left:6px;"></i>540 ккал</div>
       <div style="font-weight:600; font-size:20px; letter-spacing:-.02em;">Паста з помідорами й фуетом</div>
-      <div style="display:flex; gap:6px;"><span style="display:inline-flex; align-items:center; gap:5px; background:#e8efe3; color:#5b7a4f; border-radius:999px; padding:5px 10px; font-size:13px; font-weight:500;"><i data-lucide="check" style="width:12px; height:12px;"></i>усе є</span><span style="display:inline-flex; align-items:center; gap:5px; border:1px solid #e6e4de; color:#6b6f74; border-radius:999px; padding:5px 10px; font-size:13px;"><i data-lucide="cooking-pot" style="width:12px; height:12px;"></i>плита</span><span style="display:inline-flex; align-items:center; gap:5px; border:1px solid #e6e4de; color:#6b6f74; border-radius:999px; padding:5px 10px; font-size:13px;"><i data-lucide="leaf" style="width:12px; height:12px;"></i>пісне</span></div>
+      <div style="display:flex; gap:6px;"><span style="display:inline-flex; align-items:center; gap:5px; background:#e8efe3; color:#55724a; border-radius:999px; padding:5px 10px; font-size:13px; font-weight:500;"><i data-lucide="check" style="width:12px; height:12px;"></i>усе є</span><span style="display:inline-flex; align-items:center; gap:5px; border:1px solid #e6e4de; color:#6b6f74; border-radius:999px; padding:5px 10px; font-size:13px;"><i data-lucide="cooking-pot" style="width:12px; height:12px;"></i>плита</span><span style="display:inline-flex; align-items:center; gap:5px; border:1px solid #e6e4de; color:#6b6f74; border-radius:999px; padding:5px 10px; font-size:13px;"><i data-lucide="leaf" style="width:12px; height:12px;"></i>пісне</span></div>
     </div>
     <div style="background:#fff; border-radius:16px; corner-shape:squircle; padding:12px; display:flex; gap:6px; box-shadow:0 1px 2px rgba(26,28,30,.05); align-items:center;">
       <span data-tile data-motion="bubble" style="width:44px; height:44px; border-radius:12px; corner-shape:squircle; background:#1a1c1e; color:#f4f3ef; display:grid; place-items:center; cursor:pointer;"><i data-lucide="message-circle" style="width:20px; height:20px;"></i></span>
@@ -255,20 +280,50 @@ class Component extends DCLogic {
       { icon:'sun-moon', label:'Тема', use:'Cook Mode · профіль', m:'dial', motion:'прокручується' },
       { icon:'volume-2', label:'Звук', use:'Cook Mode', m:'waves', motion:'хвилі виходять по черзі' },
       { icon:'user', label:'Профіль', use:'сайдбар', m:'nod', motion:'голова киває' },
+      { icon:'arrow-right', label:'Перейти', use:'CTA · наслідок «→ у комору»', m:'lift', motion:'стрілка зсувається' },
+      { icon:'users', label:'Подія дому', use:'календар · «Мама · чт – нд»', m:'nod', motion:'голови кивають' },
+    ];
+    const actions = [
+      { icon:'bookmark', label:'Зберегти', use:'«Колись» · «У рецепти»' },
+      { icon:'heart', label:'Сподобалось', use:'Готово · лендінг «Памʼять»' },
+      { icon:'share-2', label:'Поділитись', use:'сторінка рецепта · Готово' },
+      { icon:'trash-2', label:'Викинути', use:'списати · зіпсувалось · назавжди' },
+      { icon:'list-plus', label:'У список', use:'картка сезону · рецепт' },
+      { icon:'eye-off', label:'Сховати', use:'традиція в календарі' },
+      { icon:'lock', label:'Обмежую', use:'піст · мʼяко/суворо' },
+      { icon:'lightbulb', label:'Підказка', use:'знайомство · крок' },
+      { icon:'mail', label:'Пошта', use:'акаунт · лист не дійшов (смуга amber)' },
+      { icon:'image', label:'Фото', use:'джерела на 390' },
+      { icon:'sticky-note', label:'Нотатки', use:'хедер у профілі' },
+      { icon:'ellipsis', label:'Ще', use:'меню рядка' },
+      { icon:'equal', label:'Нічого не змінилось', use:'стан після чека' },
+      { icon:'hourglass', label:'Денний ліміт', use:'смуга E2' },
+      { icon:'alert-triangle', label:'Прострочено', use:'danger · впало' },
+      { icon:'ban', label:'Не можна', use:'plum · алерген · «Мені не можна»' },
+      { icon:'sun', label:'Сезон', use:'календар · amber' },
+      { icon:'moon', label:'Піст', use:'календар · plum' },
+      { icon:'receipt', label:'Чек', use:'походження · 12' },
+      { icon:'pencil', label:'Рукою', use:'походження · 12' },
+      { icon:'message-circle', label:'З розмови', use:'походження · 12' },
+      { icon:'circle-dashed', label:'Домислено', use:'походження · 12 · «?домисл. N %»' },
+    ];
+    const zones = [
+      { icon:'leaf', label:'Свіже' }, { icon:'refrigerator', label:'Холодильник' }, { icon:'snowflake', label:'Морозилка' },
+      { icon:'archive', label:'Суха шафа' }, { icon:'amphora', label:'Спеції' }, { icon:'wine', label:'Напої' },
     ];
     const products = [
-      { icon:'carrot', label:'Овочі' }, { icon:'apple', label:'Фрукти' }, { icon:'leaf', label:'Зелень' }, { icon:'wheat', label:'Крупи, борошно' }, { icon:'egg', label:'Яйця' },
+      { icon:'carrot', label:'Овочі' }, { icon:'apple', label:'Фрукти' }, { icon:'leafy-green', label:'Зелень' }, { icon:'wheat', label:'Крупи, борошно' }, { icon:'egg', label:'Яйця' },
       { icon:'milk', label:'Молочне' }, { icon:'beef', label:'Мʼясо' }, { icon:'drumstick', label:'Птиця' }, { icon:'fish', label:'Риба' }, { icon:'shell', label:'Морепродукти' },
       { icon:'ham', label:'Ковбаси' }, { icon:'bean', label:'Бобові' }, { icon:'nut', label:'Горіхи' }, { icon:'cherry', label:'Ягоди' }, { icon:'citrus', label:'Цитруси' },
       { icon:'croissant', label:'Хліб, випічка' }, { icon:'candy', label:'Солодке' }, { icon:'coffee', label:'Кава, чай' }, { icon:'wine', label:'Напої' }, { icon:'droplet', label:'Олія, соуси' },
     ];
     const cooking = [
       { icon:'soup', label:'Суп' }, { icon:'salad', label:'Салат' }, { icon:'pizza', label:'Піца, тісто' }, { icon:'sandwich', label:'Сендвіч' }, { icon:'egg-fried', label:'Сніданок' },
-      { icon:'cake', label:'Десерт' }, { icon:'cooking-pot', label:'Плита' }, { icon:'microwave', label:'Духовка, мікро' }, { icon:'flame', label:'Гриль, вогонь' }, { icon:'snowflake', label:'Морозилка' },
-      { icon:'chef-hat', label:'Готуємо' }, { icon:'timer', label:'Таймер' }, { icon:'scale', label:'Ваги' }, { icon:'utensils', label:'Подача' }, { icon:'thermometer', label:'Температура' },
-      { icon:'users', label:'Порції' }, { icon:'clock', label:'Час' }, { icon:'ban', label:'Не можна' }, { icon:'heart', label:'Люблю' }, { icon:'history', label:'Готував' },
+      { icon:'cake', label:'Десерт' }, { icon:'cooking-pot', label:'Плита · Готуємо' }, { icon:'microwave', label:'Духовка, мікро' }, { icon:'activity', label:'Поживність' }, { icon:'snowflake', label:'Морозилка' },
+      { icon:'chef-hat', label:'Тип рецепта' }, { icon:'timer', label:'Таймер' }, { icon:'scale', label:'Ваги' }, { icon:'utensils', label:'Подача' }, { icon:'thermometer', label:'Температура' },
+      { icon:'clock', label:'Час' }, { icon:'ban', label:'Не можна' }, { icon:'heart', label:'Люблю' }, { icon:'history', label:'Готував' },
     ];
-    return { system, products, cooking };
+    return { system, actions, zones, products, cooking };
   }
 }
 </script>
