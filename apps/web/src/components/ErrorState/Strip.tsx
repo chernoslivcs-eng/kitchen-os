@@ -10,6 +10,22 @@
 // прибрати за нами.
 
 import { useEffect, useState } from 'react';
+
+/** В6 (Р121): компактна форма на ≤767 — один рядок, повний текст розгортається тапом. */
+const COMPACT = '(max-width: 767px)';
+function useCompact(): boolean {
+  const get = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && !!window.matchMedia(COMPACT)?.matches;
+  const [compact, setCompact] = useState(get);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(COMPACT);
+    if (!mq || typeof mq.addEventListener !== 'function') return;
+    const on = () => setCompact(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return compact;
+}
 import { track } from '../../lib/track';
 import { Button } from '../Button/Button';
 import { Icon } from '../Icon/Icon';
@@ -57,6 +73,11 @@ export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kin
   // виграти.
   useEffect(() => { track('error_shown', { state: kicker }); }, [kicker]);
   const [left, setLeft] = useState(seconds ?? 0);
+  // В6 (Р121): на ≤767 смуга — рядок 44: знак · кікер · дія; тап по рядку розгортає
+  // заголовок і тіло під ним, повторний — згортає. На десктопі — як була.
+  const compact = useCompact();
+  const [expanded, setExpanded] = useState(false);
+  const toggle = () => setExpanded((v) => !v);
 
   useEffect(() => {
     if (!timed) return;
@@ -77,19 +98,23 @@ export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kin
   }, [timed, seconds]);
 
   return (
-    <div className={`${styles.strip} ${styles[`tone-${tone}`]}`} data-strip role="status" data-strip-kind={kind} data-strip-tone={tone}>
+    <div className={`${styles.strip} ${styles[`tone-${tone}`]}`} data-strip role="status" data-strip-kind={kind} data-strip-tone={tone}
+      data-strip-compact={compact || undefined} data-expanded={(compact && expanded) || undefined}
+      onClick={compact ? toggle : undefined}>
       {icon && <span className={styles.icon}><Icon name={icon} size={16} inherit decorative /></span>}
       <div className={styles.text}>
         <div className={styles.mono}>
-          <span>{kicker}</span>
+          {compact
+            ? <button type="button" className={styles.kickerBtn} aria-expanded={expanded} onClick={(e) => { e.stopPropagation(); toggle(); }} data-strip-toggle>{kicker}</button>
+            : <span>{kicker}</span>}
         </div>
-        <span className={styles.title}>
+        <span className={`${styles.title} ${styles.detail}`}>
           {h1a} <span className={styles.h1b}>{h1b}</span>
         </span>
-        <span className={styles.body}>{body}</span>
+        <span className={`${styles.body} ${styles.detail}`}>{body}</span>
       </div>
       {cta
-        ? <div className={styles.action}><Button variant="secondary" onClick={onCta}>{cta}</Button></div>
+        ? <div className={styles.action}><Button variant="secondary" onClick={(e) => { e.stopPropagation(); onCta?.(); }}>{cta}</Button></div>
         : <span className={styles.passes} data-strip-passes>мине саме</span>}
       {timed && (
         <span

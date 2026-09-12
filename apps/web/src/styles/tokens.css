@@ -255,6 +255,16 @@
     overflow: hidden;
     overscroll-behavior: none;
   }
+  /* В6 (Р121): каркас — flex-колонка на висоту вʼюпорта (мінус клавіатура, --kb):
+     смуги інцидентів беруть свою висоту, екран (.screen-view > .screen) стискається
+     на стільки ж, композитор і бар лишаються на місці. Висоти .screen у модулях
+     (100dvh − --kb) тут перекриваються — керує flex. */
+  body.with-sidebar { height: calc(100dvh - var(--kb, 0px)); }
+  body.with-sidebar #root { display: flex; flex-direction: column; height: 100%; }
+  /* Лише обгортка Outlet у каркасі (#root > .screen-view): корінь профілю теж носить
+     клас screen-view, і без «#root >» його діти (шапка, вступ, .main) ділили б висоту. */
+  body.with-sidebar #root > .screen-view { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  body.with-sidebar #root > .screen-view > * { flex: 1 1 0; min-height: 0; height: auto; }
 }
 
 /* --- Radii + spacing ---------------------------------------------------- */
