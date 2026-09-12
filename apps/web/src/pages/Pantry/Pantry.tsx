@@ -350,7 +350,7 @@ export function PantryPage() {
             <label className={styles.search} data-search>
               <Icon name="sys.search" size={16} inherit decorative />
               <input
-                type="search"
+                type="search" enterKeyHint="search" autoComplete="off"
                 value={filter.q}
                 onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
                 placeholder="Продукт або категорія"
@@ -381,7 +381,7 @@ export function PantryPage() {
         {batches.length > 0 && searchOpen && (
           <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
             <Icon name="sys.search" size={16} inherit decorative />
-            <input type="search" value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+            <input type="search" enterKeyHint="search" autoComplete="off" value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
               placeholder="Продукт або категорія" aria-label="Знайти в коморі" className={styles['search-input']} autoFocus />
           </label>
         )}
@@ -671,7 +671,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 2 }}>
             <span style={{ fontSize: 13, color: 'var(--muted)' }}>Кількість</span>
-            <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
+            <Input inputMode="decimal" enterKeyHint="done" value={value} onChange={(e) => setValue(e.target.value)} placeholder="250" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
             <span style={{ fontSize: 13, color: 'var(--muted)' }}>Одиниця</span>

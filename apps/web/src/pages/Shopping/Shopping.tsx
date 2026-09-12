@@ -237,6 +237,7 @@ export function ShoppingPage() {
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               placeholder="Додати…"
+              enterKeyHint="done"
               aria-label="Додати в список"
             />
             {newLabel.trim() && (

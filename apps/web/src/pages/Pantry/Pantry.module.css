@@ -821,3 +821,8 @@
   .row-grouped .time { grid-area: t; width: auto; margin-left: 10px; gap: 5px; }
   .row-grouped .qty { grid-area: q; width: auto; font-size: 12px; color: var(--muted); }
 }
+/* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
+@media (max-width: 767px) {
+  .search-input { font-size: 16px; }
+  .card-qty-input { font-size: 16px; }
+}

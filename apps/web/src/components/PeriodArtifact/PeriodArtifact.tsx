@@ -495,7 +495,7 @@ export function PeriodEvent({ event, card, cardId, initial, applied, applying, d
           {readOnly ? (
             shown.rule ? <p className={styles.rule}>{shown.rule}</p> : null
           ) : (
-            <input className={styles['rule-input']} value={rule} onChange={(ev) => setRule(ev.target.value)}
+            <input className={styles['rule-input']} value={rule} onChange={(ev) => setRule(ev.target.value)} enterKeyHint="done"
               placeholder="правило одним рядком" aria-label="Правило" />
           )}
           {/* Мʼяко / суворо — пігулка-перемикач (A2): активне суворе — слива,

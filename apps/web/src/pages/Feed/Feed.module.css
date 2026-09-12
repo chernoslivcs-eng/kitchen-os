@@ -1559,3 +1559,8 @@ a.att-chip:hover { border-color: var(--sage); }
 .source-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
 .source-title { font-size: 15px; font-weight: 500; }
 .source-sub { font-size: 12px; color: var(--muted); }
+/* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
+@media (max-width: 767px) {
+  .composer-input { font-size: 16px; }
+  .slist-add input { font-size: 16px; }
+}

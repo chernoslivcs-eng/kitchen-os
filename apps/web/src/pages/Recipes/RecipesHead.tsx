@@ -53,7 +53,7 @@ export function RecipesHead({ tab, savedCount, query, onQuery, searchOpen, onSea
       <span className={styles['head-gap']} />
       <label className={styles.search} data-search>
         <Icon name="sys.search" size={16} inherit decorative />
-        <input type="search" value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
+        <input type="search" enterKeyHint="search" autoComplete="off" value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
       </label>
       <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} aria-label={placeholder} aria-pressed={searchOpen}
         onClick={() => onSearchOpen(!searchOpen)}>
@@ -79,7 +79,7 @@ export function SearchRow({ tab, query, onQuery }: Pick<Props, 'tab' | 'query' |
   return (
     <label className={`${styles.search} ${styles['search-row']}`} data-search-row>
       <Icon name="sys.search" size={16} inherit decorative />
-      <input type="search" value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder} autoFocus />
+      <input type="search" enterKeyHint="search" autoComplete="off" value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder} autoFocus />
     </label>
   );
 }

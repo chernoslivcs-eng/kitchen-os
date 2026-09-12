@@ -171,7 +171,7 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
           «чек Сільпо · 7 вер» (G6 «з чека: … · Сільпо 7 вер»; сирого рядка чека
           й ціни в даних нема). На 390 — без цього рядка (G6). */}
       <div className={styles['card-head']}>
-        <input className={styles['card-title']} value={label} aria-label="Назва" disabled={busy}
+        <input className={styles['card-title']} value={label} aria-label="Назва" enterKeyHint="done" disabled={busy}
           onChange={(e) => setLabel(e.target.value)} onBlur={commitLabel} onKeyDown={onEnter} />
         {passport && <span className={styles['card-passport']}>{passport}</span>}
         {batch.origin && <span className={styles['card-origin']} data-testid="origin-line">{originLine(batch)}</span>}
@@ -182,7 +182,7 @@ export function BatchCard({ batch, product, onChanged, onRemove }: {
         <div className={styles['card-field']}>
           <span className={styles['card-label']}>Кількість</span>
           <div className={styles['card-qty']}>
-            <input className={styles['card-qty-input']} inputMode="decimal" value={value} aria-label="Кількість" disabled={busy}
+            <input className={styles['card-qty-input']} inputMode="decimal" enterKeyHint="done" value={value} aria-label="Кількість" disabled={busy}
               onChange={(e) => setValue(e.target.value)} onBlur={commitValue} onKeyDown={onEnter} />
             <label className={styles['card-unit']}>
               <span>{unitLabel}</span><Icon name="sys.open" size={12} inherit decorative />

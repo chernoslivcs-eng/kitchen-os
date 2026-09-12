@@ -12,6 +12,7 @@
 // padding-left через body.with-sidebar.
 
 import { useEffect, useRef, useState } from 'react';
+import { keepFieldInView } from '../../lib/keepFieldInView';
 import { ARTIFACT_ICON } from '../../pages/Feed/artifacts';
 import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
@@ -156,7 +157,7 @@ export function ArtifactPanel() {
   return (
     <>
       <aside className={`${styles.rail} ${open ? styles['rail-open'] : ''} ${hidden ? styles['rail-hidden'] : ''}`}
-        style={sheetMode && open ? sheetDrag.panelStyle : undefined} data-artifact-sheet={sheetMode && open ? true : undefined}>
+        style={sheetMode && open ? sheetDrag.panelStyle : undefined} onFocusCapture={keepFieldInView} data-artifact-sheet={sheetMode && open ? true : undefined}>
         {sheetMode && open && <div className={styles['rail-grab']} {...sheetDrag.handleProps} data-sheet-grab><span className={styles['rail-grab-bar']} /></div>}
         {/* HANDOFF «Артефакти»: ліва кромка тягнеться 300–720. Дабл-клік —
             назад до типової за екраном. */}

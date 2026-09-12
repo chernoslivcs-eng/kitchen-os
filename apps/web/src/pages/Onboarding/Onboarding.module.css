@@ -115,6 +115,8 @@
 .inNext:hover { filter: brightness(.96); }
 .inNext:disabled { opacity: .6; cursor: default; }
 /* 390 */
+/* 0912 B (№16): на 390 сцена = вʼюпорт (з клавіатурою — менший), сітка скролиться всередині, «← · Пропустити · Далі» завжди над клавіатурою. */
+.mob.intake { height: 100dvh; min-height: 0; }
 .mob .inGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
 .mob .inText { min-height: 0; }
 .mob .inTitle { min-height: 64px; font-size: 26px; }

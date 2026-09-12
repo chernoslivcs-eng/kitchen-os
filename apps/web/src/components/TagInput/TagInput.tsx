@@ -80,6 +80,7 @@ export function TagInput({
       <input
         ref={inputRef}
         className={styles.input}
+        enterKeyHint="done"
         value={draft}
         placeholder={placeholder}
         disabled={disabled || busy}

@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './Sheet.module.css';
+import { keepFieldInView } from '../../lib/keepFieldInView';
 import { useSheetDrag } from '../../lib/useSheetDrag';
 import { holdBodyFlag } from '../../lib/body-flags';
 import panel from '../ArtifactPanel/ArtifactPanel.module.css';
@@ -96,6 +97,7 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
       <div
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
+        onFocusCapture={keepFieldInView}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}

@@ -46,7 +46,7 @@ export function SignInForm({ id, or = true, className }: Props) {
       )}
       <form className={styles.pill} onSubmit={submit} noValidate>
         <input
-          type="email" inputMode="email" autoComplete="email" placeholder={SIGNIN.email} required
+          type="email" inputMode="email" autoComplete="email" enterKeyHint="go" placeholder={SIGNIN.email} required
           value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email"
         />
         <button type="submit" className={styles.pillBtn} disabled={loading} aria-label={SIGNIN.send}>

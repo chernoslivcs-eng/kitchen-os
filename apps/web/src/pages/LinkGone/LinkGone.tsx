@@ -78,6 +78,7 @@ function LinkGone({ copy, tone }: { copy: ErrorCopy; tone: 'amber' | 'sage' }) {
         <input
           type="email"
           inputMode="email"
+          enterKeyHint="go"
           className={styles.input}
           value={email}
           onChange={(e) => setEmail(e.target.value)}

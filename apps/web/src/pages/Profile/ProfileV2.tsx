@@ -332,7 +332,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
               )}
               {inviteOpen && (
                 <form onSubmit={inviteSend} className={styles.inviteForm} data-invite-form>
-                  <input type="email" inputMode="email" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={styles.inviteInput} aria-label="email" />
+                  <input type="email" inputMode="email" autoComplete="email" enterKeyHint="send" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={styles.inviteInput} aria-label="email" />
                   <button type="submit" className={styles.inviteSend} disabled={inviting}>{SECTION.inviteSend}</button>
                 </form>
               )}
@@ -446,6 +446,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                           className={styles.edit}
                           contentEditable
                           suppressContentEditableWarning
+                          enterKeyHint="done"
                           role="textbox"
                           aria-label={row.start}
                           data-ph={row.ph}

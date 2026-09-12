@@ -248,3 +248,5 @@
 .toast button { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer; }
 .err { margin-top: 12px; font-size: 13px; color: var(--danger); }
 .loading { margin-top: 14px; font-size: 13px; color: var(--muted); }
+/* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
+@media (max-width: 767px) { .rule-input { font-size: 16px; } }

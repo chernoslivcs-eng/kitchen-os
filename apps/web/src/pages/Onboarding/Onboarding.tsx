@@ -252,7 +252,7 @@ export function OnboardingPage() {
               <div className={styles.fieldBlock}>
                 <span className={row.danger ? styles.startDanger : styles.start}>{row.danger && <Icon name="cook.ban" size={12} inherit decorative />}{row.start}</span>
                 <input
-                  ref={inputRef} className={styles.input} type="text" value={draftOf(row.k)} placeholder={row.ph} maxLength={row.max} spellCheck={false}
+                  ref={inputRef} className={styles.input} type="text" enterKeyHint={last ? 'done' : 'next'} value={draftOf(row.k)} placeholder={row.ph} maxLength={row.max} spellCheck={false}
                   aria-label={row.start} data-intake-input
                   onChange={(e) => setDrafts((d) => ({ ...d, [row.k]: e.target.value }))}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void intakeNext(); } }}

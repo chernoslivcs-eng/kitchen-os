@@ -742,6 +742,7 @@ export function ShoppingListCard({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="+ додати в список…"
+          enterKeyHint="done"
           aria-label="Додати в список"
         />
       </form>

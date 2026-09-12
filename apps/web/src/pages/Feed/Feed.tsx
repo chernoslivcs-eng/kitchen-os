@@ -1846,6 +1846,7 @@ export function Feed() {
           <textarea
             ref={composerInputRef}
             rows={1}
+            enterKeyHint="send"
             className={styles['composer-input']}
             hidden={listening}
             /* Етап 6a: поки поле у фокусі, нижній бар (<768) ховається (HANDOFF, ⚠6).

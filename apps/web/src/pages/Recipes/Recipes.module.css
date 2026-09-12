@@ -241,3 +241,5 @@
   from { opacity: 1; max-height: 220px; }
   to   { opacity: 0; max-height: 0; }
 }
+/* Мобільний аудит 0912 · B (№14): iOS Safari зумить сторінку при фокусі в полі з кеглем < 16 px — на ≤767 поле 16, коробка та сама (висоту тримають height/line-height). */
+@media (max-width: 767px) { .search input { font-size: 16px; } }

@@ -124,7 +124,7 @@
 .mob .google { height: 52px; border-radius: 26px; gap: 10px; font-size: 15px; }
 .mob .or { font-size: 12px; gap: 12px; padding: 0; }
 .mob .pill { height: 52px; padding: 5px; border-radius: 26px; }
-.mob .pill input { padding: 0 14px; font-size: 14px; }
+.mob .pill input { padding: 0 14px; font-size: 16px; } /* 0912 B (№14): 14 → 16, без зуму iOS */
 .mob .pillBtn { width: 42px; height: 42px; padding: 0; border-radius: 21px; border: 0; background: var(--ink); color: var(--bg); display: grid; place-items: center; }
 .mob .pillBtnText { display: none; }
 .mob .pillBtnIcon { display: grid; }
