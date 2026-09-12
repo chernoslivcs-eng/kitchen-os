@@ -1,5 +1,6 @@
-/* «Дім зараз» — Components «home now»: card r18 --sh, 20, gap 18. Накладка
-   під чіпом (≥768 за контейнером) або шторка знизу (390, G3). */
+/* «Дім зараз» — Components «home now»: card r18 --sh, 20, gap 18. На ≥704 —
+   ВІКНО по центру вʼюпорту з темним скримом (рішення власника 12.09, Р116;
+   раніше — накладка під чіпом), на 390 (G3) — шторка знизу. */
 .scrim { position: fixed; inset: 0; z-index: 40; background: transparent; }
 .panel {
   position: fixed; z-index: 41;
@@ -7,7 +8,15 @@
   padding: 20px; background: var(--card);
   box-shadow: var(--sh-a), var(--sh-b);
 }
-.popover { top: 60px; right: 24px; width: 360px; border-radius: 18px; animation: pop-in var(--dur-fast) var(--ease-enter); }
+/* Вікно: 560 (max 92vw), r18, --sh; вхід — fade + scale .98 → 1 за --dur-base. */
+.dialog {
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 560px; max-width: 92vw; max-height: 88vh; overflow: auto;
+  border-radius: 18px;
+  animation: dialog-in var(--dur-base) var(--ease-enter);
+}
+.dialog:focus { outline: none; }
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 .sheet {
   left: 0; right: 0; bottom: 0; max-width: 560px; margin: 0 auto;
   border-radius: 18px 18px 0 0; box-shadow: var(--sh2);
@@ -15,7 +24,6 @@
   animation: sheet-in var(--dur-base) var(--ease-enter);
 }
 .scrim-dark { background: rgba(26, 28, 30, 0.28); }
-@keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .handle { width: 36px; height: 4px; border-radius: 2px; background: var(--line2); margin: 0 auto; }
 
@@ -90,10 +98,23 @@ button.g3 { cursor: pointer; }
 .g3 > [data-icon] { color: var(--dim); }
 .sheet .head { padding: 12px 0 0; }
 .sheet .ask { margin-top: 6px; }
+/* Шторка (G3): «Що на вечерю?» — посилання 12 sage, як було. */
 .ask {
   align-self: flex-start; border: 0; background: transparent; padding: 0;
   display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--sage); cursor: pointer;
+}
+/* Вікно: «Що на вечерю?» — одна головна дія, чорнило, на всю ширину, 44/10. */
+.ask-main {
+  width: 100%; height: 44px; border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-body); font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.ask-main:hover { filter: brightness(1.08); }
+@media (prefers-reduced-motion: reduce) {
+  .dialog { animation: none; }
+  .sheet { animation: none; }
 }
 /* №35: зона грабера на всю ширину; риска — як була. */
 .grab { display: grid; place-items: center; padding: 2px 0 6px; }

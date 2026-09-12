@@ -1,6 +1,9 @@
 // Панель «Дім зараз» (6b-5) — вміст за Components «home now»: card r18 --sh,
-// 20, gap 18. Відкриває чіп у шапці чату накладкою (Prototype openHome); на
-// вузькому контейнері (<704, Р38) — шторкою за Responsive G3 з рядками-станами.
+// 20, gap 18. Відкриває чіп у шапці чату; на ≥704 — ВІКНО по центру вʼюпорту
+// з темним скримом (рішення власника 12.09, Р116; раніше — накладка під
+// чіпом), на вузькому контейнері (<704, Р38) — шторкою за Responsive G3.
+// Вікно: фокус на відкритті — на ✕ усередині, на закритті — назад на чіп;
+// Esc і клік по скриму закривають; низ — одна головна кнопка «Що на вечерю?».
 //
 // Накладка (Components):
 //   «Горить · N» 12/500 amber — завжди; до 3 рядків 44 з волосиною: назва
@@ -18,7 +21,7 @@
 //   (flame/danger-bg · moon/plum-bg · timer/sage-bg; тихі — сірий квадрат,
 //   users / list-checks / sun), назва 15/600 (тихі 500), деталь 13 muted, дія
 //   («Готуємо» ink 34 / «До плити» sage 34) лише де є що робити, решта — шеврон.
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icons';
 import { CookCountdown } from '../../lib/cook-watch';
@@ -78,6 +81,16 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+  // Р116: вікно — фокус на ✕ при відкритті, назад на те, що було активне
+  // (чіп «Дім зараз»), при закритті. Шторка на 390 фокус не перехоплює.
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (sheet) return;
+    openerRef.current = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => { openerRef.current?.focus?.(); };
+  }, [sheet]);
 
   const shown = home.now.slice(0, 3);
   const restNow = Math.max(0, home.now.length - shown.length);
@@ -92,7 +105,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
       <span className={styles.title}>Дім зараз</span>
       <span className={styles.date}>{dateLabel}</span>
       <span className={styles.gap} />
-      <button type="button" className={styles.close} onClick={onClose} aria-label="Закрити"><Icon name="sys.close" size={16} inherit decorative /></button>
+      <button type="button" ref={closeRef} className={styles.close} onClick={onClose} aria-label="Закрити"><Icon name="sys.close" size={16} inherit decorative /></button>
     </div>
   );
 
@@ -185,8 +198,8 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
 
   return (
     <>
-      <div className={styles.scrim} onClick={onClose} />
-      <div className={`${styles.panel} ${styles.popover}`} role="dialog" aria-label="Дім зараз" data-home-now data-home-form="popover">
+      <div className={`${styles.scrim} ${styles['scrim-dark']}`} onClick={onClose} />
+      <div className={`${styles.panel} ${styles.dialog}`} role="dialog" aria-modal="true" aria-label="Дім зараз" data-home-now data-home-form="dialog">
         {head}
 
         {/* «Горить» — секція є завжди; комора порожня — її слово замість секції. */}
@@ -248,7 +261,10 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
           {restNow > 0 && <button type="button" className={styles.tail} onClick={onCalendar}>Ще {restNow} — у календарі</button>}
         </section>
 
-        <button type="button" className={styles.ask} onClick={() => onAsk('Що на вечерю?')}>Що на вечерю?<Icon name="sys.next" size={12} inherit decorative /></button>
+        {/* Р116: у вікні — одна головна дія на всю ширину, чорнило 44; у шторці лишається посилання. */}
+        <button type="button" className={styles['ask-main']} onClick={() => onAsk('Що на вечерю?')} data-home-ask>
+          <Icon name="sys.chat" size={16} inherit decorative />Що на вечерю?
+        </button>
       </div>
     </>
   );
