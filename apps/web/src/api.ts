@@ -57,7 +57,12 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     // 401 на /v1/me при старті — це «гість», а не «сесія протухла»; смуга там
     // була б брехнею, і саме її обробляє store/auth.
-    if (res.status === 401 && path !== '/v1/me') getIncident()?.setAuthExpired(true);
+    // 401 — «сесія протухла» лише коли так каже middleware/session.ts
+    // (`{error:'unauthorized'}`) або тіла нема. 401 із `retail_auth`
+    // (протух токен Сільпо у /v1/retail/silpo/*) — не про нашу сесію: смуга
+    // «Вхід — уже ні» при живій сесії була брехнею з проду; викликач розбирає
+    // ApiError сам.
+    if (res.status === 401 && path !== '/v1/me' && isSessionExpired(payload)) getIncident()?.setAuthExpired(true);
     if (res.status === 429) {
       const header = Number(res.headers.get('Retry-After'));
       // Етап 3: `kind` у тілі каже, ЯКИЙ ліміт. Поля може не бути — тоді null,
@@ -70,6 +75,12 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(res.status, payload, msg);
   }
   return payload as T;
+}
+
+/** 401 без тіла або з `unauthorized` — наша сесія; будь-який інший `error` — чужа (retail_auth тощо). */
+export function isSessionExpired(payload: unknown): boolean {
+  const err = extractError(payload);
+  return err === null || err === 'unauthorized';
 }
 
 function safeParse(text: string): unknown {

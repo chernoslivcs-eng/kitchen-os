@@ -556,6 +556,11 @@ describe('retail routes · silpo', () => {
     expect(r.statusCode).toBe(401);
     expect(r.json().error).toBe('retail_auth');
     expect(refreshCalls).toBe(1); // рівно раз — без ретраю в петлі
+    // fix/retail-401-strip: токен не врятувати → звʼязок позначено протухлим,
+    // і GET /v1/retail каже «expired» (профіль «Мережі» → «Увійти знову») тим
+    // самим шляхом, що й досі — через expires_at, без нового поля.
+    const st = await refreshApp.inject({ method: 'GET', url: '/v1/retail', headers: { cookie: me.cookie } });
+    expect(st.json().silpo.status).toBe('expired');
   });
 
   it('немає refresh_token (dev-конект) — 401 без спроби рефрешу', async () => {

@@ -244,7 +244,8 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const [retailBusy, setRetailBusy] = useState(false);
   useEffect(() => {
     let alive = true;
-    if (new URLSearchParams(window.location.search).get('retail') === 'connected') sessionStorage.removeItem('kos_retail_sync_at');
+    // Після підключення — наступне відкриття стрічки синкає одразу (тротл у localStorage, як у Feed).
+    if (new URLSearchParams(window.location.search).get('retail') === 'connected') { try { localStorage.removeItem('kos_retail_sync_at'); } catch { /* ок */ } }
     void api.retail.status()
       .then((r) => { if (alive) { setRetail(r.silpo.status); setReceiptAt(r.silpo.last_receipt_at ?? null); setKarpaty(r.karpaty?.status === 'available'); } })
       .catch(() => { if (alive) setRetail('unavailable'); });
