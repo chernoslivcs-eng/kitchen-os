@@ -22,7 +22,7 @@ const LIGHT: Record<string, string> = {
   canvas: '#c9ccd0', bg: '#f4f3ef', card: '#ffffff', line: '#f0eee9',
   line2: '#e6e4de', faint: '#c9cbcd', ink: '#1a1c1e', muted: '#6b6f74',
   dim: '#9a9ea3', sage: '#55724a', 'sage-bg': '#e8efe3', amber: '#866425',
-  'amber-bg': '#f6ecd6', plum: '#885b77', 'plum-bg': '#f1e5ec', danger: '#b5473c',
+  'amber-bg': '#f6ecd6', plum: '#885b77', 'plum-bg': '#f1e5ec', danger: '#b3463b',
 };
 
 const DARK: Record<string, string> = {
