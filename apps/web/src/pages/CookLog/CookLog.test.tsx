@@ -64,3 +64,21 @@ describe('CookLogPage · крок 4', () => {
     expect(t).not.toMatch(/СЬОГОДНІ|ГОТУВАНЬ|СКАСОВАНО|ЗНОВУ/);
   });
 });
+
+// FIXES-V3-2 №43: шапка однакова на обох вкладках — пошук і «Записати свій»
+// не зникають у Журналі навіть на порожньому екрані; порожній стан — той
+// самий патерн, що в «Збережених» (пунктирна картка, копі без змін).
+describe('№43 · порожній Журнал', () => {
+  it('шапка з пошуком і «Записати свій», порожній стан карткою', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/cook-runs') return json({ runs: [] });
+      if (url === '/v1/recipes') return json({ recipes: [] });
+      return json({});
+    }));
+    await mount();
+    expect(host!.querySelector('[data-search] input')!.getAttribute('placeholder')).toBe('Знайти в журналі');
+    expect(host!.querySelector('[aria-label="Записати свій"]')).not.toBeNull();
+    expect(host!.querySelector('[data-empty]')!.textContent).toContain('Тут ще тихо');
+    expect(host!.querySelector('[data-empty] h3')).not.toBeNull();
+  });
+});

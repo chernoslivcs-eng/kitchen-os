@@ -34,6 +34,12 @@
 // --stub-rest STATUS|abort  усі інші /v1/* у застосунку (будь-який метод) — цим статусом і тілом {} або обривом (щоб живий API
 //           на :3000 не підкидав 401 у стор інцидентів, коли міряємо іншу смугу)
 // --app-sel селектор у застосунку — знімати лише цей елемент (смуга E2, тост E3), не вʼюпорт
+// --dc-eval JS   виконати в бандлі перед знімком кадра, `el` — кадр (стани, яких клік не дає:
+//           Prototype dragging — dispatchEvent('dragover') на main)
+// --app-eval JS  виконати в застосунку перед знімком (той самий DragEvent на body)
+// --fake-media   Chromium із фейковим мікрофоном (getUserMedia віддає тон — хвиля A4 жива)
+// --fake-speech TEXT  підмінити SpeechRecognition у застосунку: слова TEXT interim-результатами
+//           по одному на 350 мс (стан «почуте», Components A4)
 // --stub-json path=json[;path=json]  відповідати на GET path у застосунку цим JSON
 //           (значення `abort` — обірвати запит, як зникла мережа)
 //           (лише в мережі цього знімка; база не чіпається). Для лендінгу без API:
@@ -72,7 +78,9 @@ if (URL_BASE) {
   if (!local) { console.error(`side-by-side: відмова — ${host} не локальний. Порівняння знімається лише з засіву.`); process.exit(2); }
 }
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  args: has('fake-media') ? ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] : [],
+});
 
 // ── кадр бандла ────────────────────────────────────────────────────────────
 const [DC_W, DC_H] = (arg('dc-viewport', '2400x1600')).split('x').map(Number);
@@ -116,6 +124,8 @@ if (dcClick) {
     await dcPage.waitForTimeout(Number(arg('dc-wait', 600)));
   }
 }
+const dcEval = arg('dc-eval', null);
+if (dcEval) { await frame.evaluate((el, js) => new Function('el', js)(el), dcEval); await dcPage.waitForTimeout(Number(arg('dc-wait', 600))); }
 const frameLabel = (await frame.getAttribute('data-screen-label')) ?? SEL;
 const frameBox = await frame.boundingBox();
 const framePng = await frame.screenshot({ type: 'png' });
@@ -159,6 +169,29 @@ if (URL_BASE) {
   if (initStorage) {
     const pairs = initStorage.split(/,(?=[a-zA-Z_-]+=)/).map((kv) => { const i = kv.indexOf('='); return [kv.slice(0, i), kv.slice(i + 1)]; });
     await appCtx.addInitScript((entries) => { for (const [k, v] of entries) localStorage.setItem(k, v); }, pairs);
+  }
+  const fakeSpeech = arg('fake-speech', null);
+  if (fakeSpeech) {
+    await appCtx.addInitScript((text) => {
+      class FakeRecognition {
+        start() {
+          const words = text.split(' ');
+          let i = 0;
+          const tick = () => {
+            if (this.stopped) return;
+            i += 1;
+            const res = [{ transcript: words.slice(0, i).join(' ') }]; res.isFinal = false;
+            this.onresult?.({ resultIndex: 0, results: [res] });
+            if (i < words.length) this.timer = setTimeout(tick, 350);
+          };
+          this.timer = setTimeout(tick, 350);
+        }
+        stop() { this.stopped = true; clearTimeout(this.timer); this.onend?.(); }
+        abort() { this.stop(); }
+      }
+      window.SpeechRecognition = FakeRecognition;
+      window.webkitSpeechRecognition = FakeRecognition;
+    }, fakeSpeech);
   }
   const page = await appCtx.newPage();
   await page.emulateMedia({ colorScheme: THEME });
@@ -225,6 +258,8 @@ if (URL_BASE) {
   // --click теж приймає кілька селекторів через « ;; » (чіп → «До плити» в панелі).
   const click = arg('click', null);
   if (click) { for (const sel of click.split(';;').map((x) => x.trim()).filter(Boolean)) { await page.click(sel); await page.waitForTimeout(800); } }
+  const appEval = arg('app-eval', null);
+  if (appEval) { await page.evaluate((js) => new Function(js)(), appEval); await page.waitForTimeout(Number(arg('app-wait', 800))); }
   assertTheme('застосунку', await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   const appSel = arg('app-sel', null);
   if (appSel) { const el = await page.waitForSelector(appSel, { timeout: 15000 }); appPng = await el.screenshot({ type: 'png' }); const bb = await el.boundingBox(); if (bb) appImgW = Math.round(bb.width); }

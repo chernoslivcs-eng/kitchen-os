@@ -25,6 +25,11 @@
 // --video N  замість знімка — запис N секунд (webm на кожну половину, поруч
 //           не клеїться); кроки з --actions виконуються під час запису
 // --label-before / --label-after  підписи половин (типово main · гілка)
+// --fake-media     Chromium із фейковим мікрофоном (--use-fake-device-for-media-stream):
+//           getUserMedia віддає синтетичний тон — хвиля диктування малюється з
+//           реального AnalyserNode, а не з fallback «REC»
+// --fake-speech TEXT  підмінити SpeechRecognition: після start() слова TEXT
+//           приходять interim-результатами по одному на 350 мс (стан «почуте»)
 //
 // Обидва сервери — лише локальні (той самий запобіжник, що в side-by-side).
 // Сесія кешується на origin (out/.ba-state-<port>.json): magic-link має
@@ -62,7 +67,10 @@ const lumOf = (rgb) => {
   return 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]);
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  args: has('fake-media') ? ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] : [],
+});
+const FAKE_SPEECH = arg('fake-speech', null);
 
 async function runActions(page, spec) {
   if (!spec) return;
@@ -118,6 +126,29 @@ async function shoot(base, theme, side) {
   if (initStorage) {
     const pairs = initStorage.split(/,(?=[a-zA-Z_-]+=)/).map((kv) => { const i = kv.indexOf('='); return [kv.slice(0, i), kv.slice(i + 1)]; });
     await ctx.addInitScript((entries) => { for (const [k, v] of entries) localStorage.setItem(k, v); }, pairs);
+  }
+  if (FAKE_SPEECH) {
+    await ctx.addInitScript((text) => {
+      class FakeRecognition {
+        start() {
+          const words = text.split(' ');
+          let i = 0;
+          const tick = () => {
+            if (this.stopped) return;
+            i += 1;
+            const transcript = words.slice(0, i).join(' ');
+            const res = [{ transcript }]; res.isFinal = false;
+            this.onresult?.({ resultIndex: 0, results: [res] });
+            if (i < words.length) this.timer = setTimeout(tick, 350);
+          };
+          this.timer = setTimeout(tick, 350);
+        }
+        stop() { this.stopped = true; clearTimeout(this.timer); this.onend?.(); }
+        abort() { this.stop(); }
+      }
+      window.SpeechRecognition = FakeRecognition;
+      window.webkitSpeechRecognition = FakeRecognition;
+    }, FAKE_SPEECH);
   }
   const page = await ctx.newPage();
   await page.emulateMedia({ colorScheme: theme });

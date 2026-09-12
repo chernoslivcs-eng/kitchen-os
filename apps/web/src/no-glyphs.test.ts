@@ -31,6 +31,15 @@ import { fileURLToPath } from 'node:url';
 // у наборі — гейт бачить лише те, що йому назвали.
 // Трикрапка «…» у наборі НЕ стоїть: це типографіка — обрізка, «зберігаю…».
 const GLYPHS = '◌●○✓✕＋→←↩↗☆★⟳◈✳▤☰◷◉❋⌀▦◇◆■□⋯';
+// №44 (пакет 3): емодзі — теж гліф, намальований текстом. Гейт бачив лише
+// названий набір, і «📷 Сфотографувати полицю» на заставці порожнього чату
+// жив у JSX рік, не зачеплений жодним прогоном. Тепер — уся піктографіка
+// Юнікоду (Extended_Pictographic: 📷 🧾 🎙 📎 ⚠ ☀ …), не список. І емодзі
+// поруч зі словами — не «фраза для копірайтера», а знак замість Lucide:
+// падає завжди. © ® ™ — типографіка, не піктограма.
+const PICTO = /\p{Extended_Pictographic}/u;
+const isEmoji = (c: string) => PICTO.test(c) && !'©®™'.includes(c);
+const isGlyph = (c: string) => GLYPHS.includes(c) || isEmoji(c);
 // Landing і SignIn знято з винятків 11.09 (етапи 9 і 9а): лендінг v3 і Sent /
 // Invite на Icon і токенах, гліфів у них нуль; теки SignIn більше нема.
 const SKIP_DIRS = ['Admin'];
@@ -79,14 +88,20 @@ function scan(): { alone: Hit[]; inPhrase: Hit[] } {
   const inPhrase: Hit[] = [];
   for (const file of walk(SRC)) {
     const clean = stripComments(readFileSync(file, 'utf8'));
-    for (let i = 0; i < clean.length; i++) {
-      if (!GLYPHS.includes(clean[i]!)) continue;
-      const line = clean.slice(0, i).split('\n').length;
-      const from = clean.lastIndexOf('\n', i) + 1;
-      const to = clean.indexOf('\n', i);
+    // Кодовими точками, не UTF-16-одиницями: емодзі — сурогатна пара, і
+    // `clean[i]` віддавав половину, яку жоден тест на піктограму не бачив.
+    // Саме тому «📷 Сфотографувати полицю» проходив гейт (№44).
+    for (let i = 0; i < clean.length;) {
+      const ch = String.fromCodePoint(clean.codePointAt(i)!);
+      const at = i;
+      i += ch.length;
+      if (!isGlyph(ch)) continue;
+      const line = clean.slice(0, at).split('\n').length;
+      const from = clean.lastIndexOf('\n', at) + 1;
+      const to = clean.indexOf('\n', at);
       const snippet = clean.slice(from, to < 0 ? undefined : to).trim().slice(0, 88);
       const hit: Hit = { file: file.slice(SRC.length), line, snippet };
-      (isAlone(clean, i) ? alone : inPhrase).push(hit);
+      (isEmoji(ch) || isAlone(clean, at) ? alone : inPhrase).push(hit);
     }
   }
   return { alone, inPhrase };

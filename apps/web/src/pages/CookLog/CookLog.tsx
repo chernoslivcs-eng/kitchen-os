@@ -19,8 +19,7 @@ import { formatDuration } from '@kitchen/domain/duration';
 import styles from './CookLog.module.css';
 import rs from '../Recipes/Recipes.module.css';
 import { useCookStore } from '../../store/cook';
-import { AppHeader } from '../../components/AppHeader/AppHeader';
-import { useNavStore } from '../../store/nav';
+import { RecipesHead, SearchRow } from '../Recipes/RecipesHead';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 
 const WEEKDAYS = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
@@ -67,7 +66,6 @@ function Rating({ value }: { value: number }) {
 
 export function CookLogPage() {
   const navigate = useNavigate();
-  const openNav = useNavStore((st) => st.setOpen);
   const cookOpen = useCookStore((s) => s.open);
   const [runs, setRuns] = useState<CookRunWithRecipe[]>([]);
   const [savedCount, setSavedCount] = useState<number>(0);
@@ -90,9 +88,9 @@ export function CookLogPage() {
     })();
   }, []);
 
-  // Пошук по назві — з 8 записів, як у коді (підпис кадра).
+  // Пошук по назві. Кадр «Журнал · 1440» підписує «з 8 записів» — №43:
+  // шапка однакова на обох вкладках, пошук не зникає (Р99).
   const q = query.trim().toLowerCase();
-  const searchable = runs.length >= 8;
   const filteredRuns = q ? runs.filter((r) => r.recipe.title.toLowerCase().includes(q)) : runs;
 
   const groups = new Map<string, CookRunWithRecipe[]>();
@@ -130,47 +128,20 @@ export function CookLogPage() {
 
   return (
     <div className={styles.screen}>
-      <AppHeader title="Рецепти" onMenu={() => openNav(true)} fill action={<>
-          <div className={rs.segment} role="tablist">
-            <button type="button" role="tab" aria-selected="false" className={rs.seg} onClick={() => navigate('/recipes')}>
-              Збережені{savedCount > 0 && <span className={rs['seg-n']}>· {savedCount}</span>}
-            </button>
-            <span role="tab" aria-selected="true" className={`${rs.seg} ${rs['seg-on']}`}>Журнал</span>
-          </div>
-          <span className={rs['head-gap']} />
-          {searchable && (
-            <label className={rs.search} data-search>
-              <Icon name="sys.search" size={16} inherit decorative />
-              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти в журналі" aria-label="Знайти в журналі" />
-            </label>
-          )}
-          {searchable && (
-            <button type="button" className={`${rs['head-icon']} ${rs['head-search']}`} aria-label="Знайти в журналі" aria-pressed={searchOpen}
-              onClick={() => setSearchOpen((v) => !v)}>
-              <Icon name="sys.search" size={16} inherit decorative />
-            </button>
-          )}
-          <button type="button" className={rs['head-icon']} aria-label="Збережені" title="Збережені" onClick={() => navigate('/recipes')}>
-            <Icon name="sys.recipes" size={16} inherit decorative />
-          </button>
-      </>} />
+      <RecipesHead tab="log" savedCount={savedCount} query={query} onQuery={setQuery} searchOpen={searchOpen} onSearchOpen={setSearchOpen} />
 
       <div className={styles.body}>
-        {searchable && searchOpen && (
-          <label className={`${rs.search} ${rs['search-row']}`} data-search-row>
-            <Icon name="sys.search" size={16} inherit decorative />
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Знайти в журналі" aria-label="Знайти в журналі" autoFocus />
-          </label>
-        )}
+        {searchOpen && <SearchRow tab="log" query={query} onQuery={setQuery} />}
         {loading && <SkeletonRows rows={4} />}
+        {/* №43: той самий порожній стан, що в «Збережених» (Recipes .empty). */}
         {empty && (
-          <div className={styles.empty}>
+          <div className={rs.empty} data-empty>
             <h3>Тут ще тихо</h3>
             <p>Перша приготовлена страва зʼявиться тут — не для оцінок, щоб потім згадати, що взагалі було смачно.</p>
           </div>
         )}
         {!empty && filteredRuns.length === 0 && query && (
-          <div className={styles.empty}><p>За «{query}» нічого.</p></div>
+          <div className={`${rs.empty} ${rs['empty-filter']}`}><p>За «{query}» нічого.</p></div>
         )}
 
         {weekRuns.length > 0 && (
