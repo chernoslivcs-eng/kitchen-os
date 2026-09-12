@@ -200,7 +200,8 @@ export const ICONS = {
   // сезон — sun / бурштин, традиція — church / слива, завіз — truck / шавлія,
   // подія дому — users / шавлія. Рамка дня — без знака (muted).
   'live.season':   { glyph: Sun,           label: 'Сезон',         family: 'live' },
-  'live.tradition':{ glyph: Church,        label: 'Свято, піст',   family: 'live' },
+  // 12.09: church — свято й кікер «з традиції» (джерело); стан обмеження — moon (live.fast).
+  'live.tradition':{ glyph: Church,        label: 'Свято',         family: 'live' },
   'live.supply':   { glyph: Truck,         label: 'Завіз',         family: 'live' },
   'live.household':{ glyph: Users,         label: 'Подія дому',    family: 'live' },
   'live.byHand':   { glyph: Pencil,        label: 'Рукою',         family: 'live' },

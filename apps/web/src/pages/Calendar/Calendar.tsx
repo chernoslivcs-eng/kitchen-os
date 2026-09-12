@@ -226,7 +226,8 @@ export function CalendarPage() {
       if (e.done_at) add('sys.done', 'готували');
       else if (e.kind === 'meal') add('cook.type', 'готуємо');
       else if (e.kind === 'season' || e.kind === 'editorial') add('live.season', 'сезон');
-      else if (e.kind === 'tradition' || (e.force === 'restrict' && e.scope === 'catalog')) add('live.tradition', 'піст');
+      else if (e.force === 'restrict' && e.scope === 'catalog') add('live.fast', 'піст');
+      else if (e.kind === 'tradition') add('live.tradition', 'свято');
       else if (e.kind === 'supply') add('live.supply', 'завіз');
       else if (e.scope === 'household') add('live.household', 'подія');
     }
