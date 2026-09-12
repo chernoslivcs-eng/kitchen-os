@@ -56,11 +56,18 @@
 /* Рецепти — сторінка йде через корінець */
 :global([data-play]) .icon[data-motion="book"] > svg [data-p="leaf"],
 .icon[data-motion="book"][data-play] > svg [data-p="leaf"] { transform-box: view-box; transform-origin: 12px 12px; animation: leafTurn var(--dur-im-book) var(--ease-im-inout) both; }
-/* Список — галочки дописуються по черзі, рядки під'їжджають */
+/* Список — галочки дописуються по черзі, рядки під'їжджають. Без блимання
+   (12.09): основна галочка лишається (baseDip), копія обводить поверх і
+   гасне (traceIn); рядки лише зсуваються — жодна частина не нижче .45. */
+.icon[data-motion="checks"] > svg :is([data-p="c1t"], [data-p="c2t"]) { opacity: 0; stroke-width: 2.4; }
 :global([data-play]) .icon[data-motion="checks"] > svg [data-p="c1"],
-.icon[data-motion="checks"][data-play] > svg [data-p="c1"] { animation: drawIn var(--dur-im-check) var(--ease-im-out) both; }
+.icon[data-motion="checks"][data-play] > svg [data-p="c1"] { animation: baseDip var(--dur-im-check) var(--ease-im-out) both; }
+:global([data-play]) .icon[data-motion="checks"] > svg [data-p="c1t"],
+.icon[data-motion="checks"][data-play] > svg [data-p="c1t"] { animation: traceIn var(--dur-im-check) var(--ease-im-out) both; }
 :global([data-play]) .icon[data-motion="checks"] > svg [data-p="c2"],
-.icon[data-motion="checks"][data-play] > svg [data-p="c2"] { animation: drawIn var(--dur-im-check) var(--ease-im-out) both; animation-delay: 230ms; }
+.icon[data-motion="checks"][data-play] > svg [data-p="c2"] { animation: baseDip var(--dur-im-check) var(--ease-im-out) both; animation-delay: 230ms; }
+:global([data-play]) .icon[data-motion="checks"] > svg [data-p="c2t"],
+.icon[data-motion="checks"][data-play] > svg [data-p="c2t"] { animation: traceIn var(--dur-im-check) var(--ease-im-out) both; animation-delay: 230ms; }
 :global([data-play]) .icon[data-motion="checks"] > svg [data-p^="r"],
 .icon[data-motion="checks"][data-play] > svg [data-p^="r"] { animation: rowIn var(--dur-im-row) var(--ease-im-out) both; }
 :global([data-play]) .icon[data-motion="checks"] > svg [data-p="r2"],
@@ -175,7 +182,9 @@
 @keyframes shelfIn { 0% { opacity: 0; } 32% { opacity: .55; } 68% { opacity: .55; } 100% { opacity: 0; } }
 @keyframes leafTurn { 0% { transform: scaleX(1); opacity: 0; } 14% { opacity: .95; } 50% { transform: scaleX(.04); opacity: .95; } 86% { opacity: .95; } 100% { transform: scaleX(-1); opacity: 0; } }
 @keyframes drawIn { 0% { stroke-dashoffset: 1; opacity: .2; } 100% { stroke-dashoffset: 0; opacity: 1; } }
-@keyframes rowIn { 0% { opacity: .3; transform: translateX(-1.2px); } 100% { opacity: 1; transform: none; } }
+@keyframes rowIn { 0% { transform: translateX(-1.2px); } 100% { transform: none; } }
+@keyframes traceIn { 0% { stroke-dashoffset: 1; opacity: 1; } 62% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes baseDip { 0% { opacity: 1; } 18% { opacity: .45; } 62% { opacity: .45; } 100% { opacity: 1; } }
 @keyframes pageRow { 0% { opacity: 1; transform: translateY(0); } 42% { opacity: 0; transform: translateY(-2.4px); } 44% { opacity: 0; transform: translateY(2.4px); } 100% { opacity: 1; transform: translateY(0); } }
 @keyframes pinBob { 0% { transform: translateY(0); } 45% { transform: translateY(.9px); } 100% { transform: translateY(0); } }
 @keyframes doorOpen { 0% { transform: scaleX(1) skewY(0); } 52% { transform: scaleX(.42) skewY(-3deg); } 100% { transform: scaleX(1) skewY(0); } }

@@ -166,3 +166,21 @@ describe('рух частин знака: v2 (файл власника) + 1.5b'
     }
   });
 });
+
+// 12.09, правка власника: «Список» без блимання — основа галочки ніколи не
+// стирається, копія обводить поверх; рядки лише зсуваються.
+describe('checks · без блимання', () => {
+  // keyframes у файлі — в один рядок; беремо рядок цілком.
+  const minOpacity = (kf: string) => Math.min(...[...(CSS.match(new RegExp(`@keyframes ${kf} .*`))?.[0] ?? '').matchAll(/opacity:\s*([\d.]+)/g)].map((m) => Number(m[1])));
+  it('основа (baseDip) не нижче .45, рядки (rowIn) без opacity, drawIn на checks не застосовується', () => {
+    expect(minOpacity('baseDip')).toBeGreaterThanOrEqual(0.45);
+    expect(CSS.match(/@keyframes rowIn \{[^}]*\}/)?.[0]).not.toMatch(/opacity/);
+    const checksRules = [...CSS.matchAll(/\[data-motion="checks"\][^{]*\{([^}]*)\}/g)].map((m) => m[1]!).join('\n');
+    expect(checksRules).not.toMatch(/drawIn/);
+    expect(checksRules).toMatch(/traceIn/);
+    // Копії c1t/c2t: у спокої невидимі, штрих 2.4; основа c1/c2 — без data-draw.
+    const list = CUSTOM_PATHS['sys.list']!;
+    expect(list.filter((p) => p.p === 'c1' || p.p === 'c2').every((p) => !p.draw)).toBe(true);
+    expect(list.filter((p) => p.p === 'c1t' || p.p === 'c2t').every((p) => p.draw)).toBe(true);
+  });
+});
