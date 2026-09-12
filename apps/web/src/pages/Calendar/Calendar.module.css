@@ -281,10 +281,10 @@
   background: var(--t-bg); color: var(--t);
   text-align: left; cursor: pointer;
   font-family: var(--font-body); font-size: 11px; font-weight: 500;
-  white-space: nowrap; overflow: hidden;
+  white-space: nowrap; /* 0912 C: overflow — на .tag-text, інакше хіт-зона ::before обрізається */
   align-self: flex-start;
 }
-.tag-text { overflow: hidden; text-overflow: ellipsis; }
+.tag-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Моушн-чекліст: подія, що зʼявилась після «Записати»/правки, чіп у легенді
    й смуга входять через base/enter. Прибрана — гасне й осідає (exit);
@@ -427,3 +427,7 @@
 .c6-subs { border: 0; background: transparent; padding: 4px 0 0; text-align: left; font-family: var(--font-body); font-size: 13px; color: var(--muted); cursor: pointer; }
 .c6-subs:hover { color: var(--ink); }
 .c6-empty { font-size: 13px; color: var(--muted); }
+/* 0912 C: хіт 44 у сегментах виду (≥1024) і кнопках шапки; на 360 шапка не стискає «Підписки»/«Подія». */
+.c6-seg button { position: relative; }
+.c6-seg button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
+.subs-btn, .add { flex: none; }

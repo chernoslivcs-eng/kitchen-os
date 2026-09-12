@@ -238,7 +238,7 @@ export function OnboardingPage() {
       <div className={`${styles.page} ${styles.intake} ${desktop ? styles.desk : styles.mob}`} onTouchStart={onTS} onTouchEnd={onTE} data-onb-step={step + 1}>
         <header className={styles.head}>
           {logo}
-          <button type="button" className={styles.skip} onClick={() => finish('skipped')} data-intake-later>Заповню потім</button>
+          <button type="button" className={styles.skip} data-tap onClick={() => finish('skipped')} data-intake-later>Заповню потім</button>
         </header>
         <div className={styles.inProgress} aria-hidden="true">
           {PROFILE_ROWS.map((r, i) => <span key={r.k} className={`${styles.inBar} ${i <= step - SEMEN ? styles.inBarOn : ''}`} />)}
@@ -275,7 +275,8 @@ export function OnboardingPage() {
   // ── Семен · кроки 1–11 (етап 11, «Онбординг · Семен» / «Онбординг · 390») ──
   const progress = (
     <div className={styles.progress} aria-hidden="true">
-      {Array.from({ length: SEMEN }, (_, i) => <button key={i} type="button" tabIndex={-1} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} onClick={() => go(i, i > step ? 'f' : 'b')} />)}
+      {/* 0912 C: риски 4 px — індикатор, не кнопки; перехід — «Далі/Назад», ← →, свайп. */}
+      {Array.from({ length: SEMEN }, (_, i) => <span key={i} className={`${styles.dot} ${i <= step ? styles.dotOn : ''} ${i === step ? styles.dotCur : ''}`} />)}
     </div>
   );
   const meta = <div className={styles.meta}><span className={styles.num}>{pad(step + 1)}</span><span className={styles.of}>/ {SEMEN}</span><span className={styles.sep} /><span className={styles.tag}>{card.tag}</span></div>;
@@ -290,7 +291,7 @@ export function OnboardingPage() {
       {logo}
       <div className={styles.headRight}>
         {desktop && progress}
-        <button type="button" className={styles.skip} onClick={() => finish('skipped')}>Пропустити</button>
+        <button type="button" className={styles.skip} data-tap onClick={() => finish('skipped')}>Пропустити</button>
       </div>
     </header>
   );

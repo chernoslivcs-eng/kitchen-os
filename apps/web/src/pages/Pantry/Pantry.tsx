@@ -360,19 +360,19 @@ export function PantryPage() {
             </label>
           )}
           {batches.length > 0 && (
-            <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} onClick={() => setSearchOpen((v) => !v)}
+            <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} data-tap onClick={() => setSearchOpen((v) => !v)}
               aria-label="Знайти в коморі" aria-pressed={searchOpen} data-search-toggle>
               <Icon name="sys.search" size={16} inherit decorative />
             </button>
           )}
           {batches.length > 0 && (
-            <button type="button" className={`${styles['head-icon']} ${styles['head-filter']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`}
+            <button type="button" className={`${styles['head-icon']} ${styles['head-filter']} ${filterOpen || view.dirty ? styles['head-icon-on'] : ''}`} data-tap
               onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-toggle>
               <Icon name="sys.filter" size={16} inherit decorative />
               {view.dirty && <span className={styles['head-badge']} aria-hidden />}
             </button>
           )}
-          <button type="button" className={styles['head-add']} onClick={() => setAdding(true)} data-add>
+          <button type="button" className={styles['head-add']} data-tap onClick={() => setAdding(true)} data-add>
             <Icon name="sys.add" size={16} inherit decorative /><span className={styles['head-add-text']}>Додати</span>
           </button>
       </>} />
@@ -391,19 +391,19 @@ export function PantryPage() {
              порядку зі знаком «↕» (відкриває рейки). На 390 другий чіп —
              «Фільтр» колом 34, як у кадрі; слово порядку ховається. */
           <div className={styles.chips} data-zone-chips>
-            <button type="button" className={`${styles['zone-chip']} ${zoneFocus === null ? styles['zone-chip-on'] : ''}`}
+            <button type="button" className={`${styles['zone-chip']} ${zoneFocus === null ? styles['zone-chip-on'] : ''}`} data-tap
               aria-pressed={zoneFocus === null} onClick={() => setZoneFocus(null)}>Усе</button>
-            <button type="button" className={`${styles['zone-chip']} ${styles['chip-filter']} ${filterOpen || view.dirty ? styles['zone-chip-on'] : ''}`}
+            <button type="button" className={`${styles['zone-chip']} ${styles['chip-filter']} ${filterOpen || view.dirty ? styles['zone-chip-on'] : ''}`} data-tap
               onClick={() => setFilterOpen((v) => !v)} aria-label="Фільтр" title="Фільтр" aria-expanded={filterOpen} data-filter-chip>
               <Icon name="sys.filter" size={16} inherit decorative />
             </button>
             {zoneChips.map((z) => (
-              <button key={z} type="button" className={`${styles['zone-chip']} ${zoneFocus === z ? styles['zone-chip-on'] : ''}`}
+              <button key={z} type="button" className={`${styles['zone-chip']} ${zoneFocus === z ? styles['zone-chip-on'] : ''}`} data-tap
                 aria-pressed={zoneFocus === z} onClick={() => setZoneFocus((cur) => (cur === z ? null : z))} data-zone-chip={z}>
                 <Icon name={ZONE_ICON[z] as 'zone.fresh'} size={16} inherit decorative />{ZONE_LABEL[z]}<span className={styles['zone-chip-n']}>{zoneCounts.get(z)}</span>
               </button>
             ))}
-            <button type="button" className={styles['chips-sort']} onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen} data-sort-word>
+            <button type="button" className={styles['chips-sort']} data-tap onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen} data-sort-word>
               <Icon name="sys.sort" size={16} inherit decorative />{view.sort.label}
             </button>
           </div>
@@ -434,10 +434,10 @@ export function PantryPage() {
                 {urgent.length > 3 ? ' — решта нижче за свіжістю' : ''}
               </span>
             </button>
-            <button type="button" className={styles['banner-main']} onClick={() => navigate('/app', { state: { composePrefix: 'Приготуй щось із того, що горить: ' } })} aria-label="Приготувати з цього" data-banner-cook>
+            <button type="button" className={styles['banner-main']} data-tap onClick={() => navigate('/app', { state: { composePrefix: 'Приготуй щось із того, що горить: ' } })} aria-label="Приготувати з цього" data-banner-cook>
               <Icon name="cook.go" size={16} inherit decorative /><span className={styles['banner-main-text']}>Приготувати з цього</span>
             </button>
-            <button type="button" className={styles['banner-ghost']} onClick={() => { setFilter((f) => ({ ...f, sort: 'fresh' })); setFilterOpen(true); }} data-banner-check>
+            <button type="button" className={styles['banner-ghost']} data-tap onClick={() => { setFilter((f) => ({ ...f, sort: 'fresh' })); setFilterOpen(true); }} data-banner-check>
               Перевірити {ended.length}
             </button>
           </div>
@@ -456,13 +456,13 @@ export function PantryPage() {
         {!loading && view.empty && (
           <div className={styles.empty} data-testid="filter-empty">
             <h3>{view.emptyTitle}</h3>
-            <p>{view.emptyText} <button type="button" className={styles['link-btn']} onClick={() => setFilter((f) => resetFilter(f))}>Показати все</button></p>
+            <p>{view.emptyText} <button type="button" className={styles['link-btn']} data-tap onClick={() => setFilter((f) => resetFilter(f))}>Показати все</button></p>
           </div>
         )}
         {!loading && batches.length > 0 && !view.empty && view.shown.length === 0 && (
           <div className={styles.empty} data-testid="search-empty">
             <h3>Нічого не знайшли</h3>
-            <p>За «{filter.q}» у коморі порожньо. <button type="button" className={styles['link-btn']} onClick={() => setFilter((f) => ({ ...resetFilter(f), q: '' }))}>Показати все</button></p>
+            <p>За «{filter.q}» у коморі порожньо. <button type="button" className={styles['link-btn']} data-tap onClick={() => setFilter((f) => ({ ...resetFilter(f), q: '' }))}>Показати все</button></p>
           </div>
         )}
 
@@ -518,7 +518,7 @@ export function PantryPage() {
           {!removedReason && (
             <span className={styles['undo-reasons']} role="group" aria-label="Чому списали">
               {(Object.keys(DEPLETED_REASON_LABEL) as DepletedReason[]).map((r) => (
-                <button key={r} type="button" data-reason={r} className={styles['undo-reason']}
+                <button key={r} type="button" data-reason={r} className={styles['undo-reason']} data-tap
                   onClick={() => void tellReason(removed, r)}>{DEPLETED_REASON_LABEL[r]}</button>
               ))}
             </span>

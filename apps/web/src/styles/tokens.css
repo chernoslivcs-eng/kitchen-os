@@ -351,3 +351,18 @@ body.dz-drag #root {
   --amber-line: #4a3d26; --plum-line: #4a3040; --line2-strong: #3d434a;
   --danger-bg: #3a2320; --danger-line: #5a3530;
 }
+
+/* Мобільний аудит 0912 · C: зона дотику ≥ --tap (44) без зміни візуалу. data-tap
+   на елементі → невидимий ::before по центру, не менший за 44×44 (прецедент —
+   .att-remove у Feed). Не пробиває overflow: hidden предка і не поєднується з
+   власним ::before елемента. :where — щоб position: absolute модуля (✕ на
+   картці) лишався сильнішим. */
+:where([data-tap]) { position: relative; }
+[data-tap]::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: max(100%, var(--tap));
+  height: max(100%, var(--tap));
+  transform: translate(-50%, -50%);
+}

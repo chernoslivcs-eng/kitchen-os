@@ -196,7 +196,7 @@ export function CookLogPage() {
                       {!undone && (
                         <button
                           type="button"
-                          className={styles.again}
+                          className={styles.again} data-tap
                           onClick={() => cookOpen({ recipe: r.recipe.payload, recipeId: r.recipe_id })}
                           aria-label="Приготувати знову"
                         >

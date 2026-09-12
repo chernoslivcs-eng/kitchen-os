@@ -198,7 +198,7 @@ export function TabBar({ shoppingCount }: Props) {
       <div className={styles.brand}>
         {/* Prototype nav: логотип у рейці теж розгортає (30, коло). Кнопка
             «панель» — унизу, в рядку профілю (№13). */}
-        <button type="button" className={styles['brand-btn']}
+        <button type="button" className={styles['brand-btn']} data-tap
           onClick={() => { if (window.innerWidth >= 1024) toggleExpanded(); else setOpen(!open); }}
           aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
           title={expanded || open ? 'Згорнути' : 'Розгорнути'} data-brand-btn>
@@ -222,7 +222,7 @@ export function TabBar({ shoppingCount }: Props) {
         return (
           <button
             key={t.path}
-            className={`${styles.tab} ${active ? styles.active : ''}`}
+            className={`${styles.tab} ${active ? styles.active : ''}`} data-tap
             onClick={() => navigate(t.path)}
             title={t.label}
             aria-current={active ? 'page' : undefined}
@@ -246,7 +246,7 @@ export function TabBar({ shoppingCount }: Props) {
         {/* ≥768: «Розмови · + Нова» (Prototype nav); 390: рядок-картка
             «+ Нова розмова» шавлією (R3) — одна дія, дві форми, перемикає CSS. */}
         <div className={styles['sessions-head']}><span className={styles['sessions-label']}>Розмови</span>
-        <button className={styles['session-new']} onClick={newSession}><Icon name="sys.add" size={12} inherit decorative /> Нова</button></div>
+        <button className={styles['session-new']} data-tap onClick={newSession}><Icon name="sys.add" size={12} inherit decorative /> Нова</button></div>
         <button className={styles['session-new-row']} onClick={newSession} data-new-session-row>
           <Icon name="sys.add" size={16} inherit decorative /> Нова розмова
         </button>
@@ -258,7 +258,7 @@ export function TabBar({ shoppingCount }: Props) {
             <div key={s.id} className={`${styles['session-row']} ${leavingSessions.has(s.id) ? styles['session-leave'] : ''}`}>
               {first && <div className={styles['session-day']}>{day}</div>}
               <button
-                className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`}
+                className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`} data-tap
                 onClick={() => openSession(s.id)}
                 title={title}
               >
@@ -267,7 +267,7 @@ export function TabBar({ shoppingCount }: Props) {
               {/* №18: слот 28 існує завжди (opacity, не display) — рядок не
                   скаче, хрестик по центру рядка. */}
               <button
-                className={styles['session-x']}
+                className={styles['session-x']} data-tap
                 aria-label={`Видалити розмову «${title}»`}
                 onClick={(e) => void removeSession(e, s.id, s.title)}
                 tabIndex={-1}
@@ -276,7 +276,7 @@ export function TabBar({ shoppingCount }: Props) {
           );
         })}
         {sessions.length > 0 && (
-          <button className={styles['session-archive']} onClick={openArchive}>Історія →</button>
+          <button className={styles['session-archive']} data-tap onClick={openArchive}>Історія →</button>
         )}
       </div>
       </div>
@@ -291,7 +291,7 @@ export function TabBar({ shoppingCount }: Props) {
           сама кнопка внизу над аватаром. */}
       <div className={styles.foot}>
         <button
-          className={`${styles.user} ${pathname === '/profile' ? styles.active : ''}`}
+          className={`${styles.user} ${pathname === '/profile' ? styles.active : ''}`} data-tap
           onClick={() => navigate('/profile')}
           aria-label="Профіль"
         >
@@ -301,7 +301,7 @@ export function TabBar({ shoppingCount }: Props) {
             {homeLine && <span className={styles['user-home']}>{homeLine}<span className={styles['user-home-tail']}> · профіль</span></span>}
           </span>
         </button>
-        <button type="button" className={styles['panel-btn']}
+        <button type="button" className={styles['panel-btn']} data-tap
           onClick={() => { if (window.innerWidth >= 1024) { clearPeekTimer(); setPeek(false); toggleExpanded(); } else setOpen(!open); }}
           aria-label={expanded || open ? 'Згорнути панель' : 'Розгорнути панель'}
           title={expanded || open ? 'Згорнути' : 'Закріпити'} data-panel-btn>

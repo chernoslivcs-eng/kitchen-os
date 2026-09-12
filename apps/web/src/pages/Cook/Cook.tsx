@@ -507,13 +507,13 @@ export function CookOverlay() {
   // moon у словнику лишаються за сезоном і постом. Та сама кругла кнопка,
   // що звук; title каже, куди перемкне.
   const themeToggle = (
-    <button type="button" className={styles.round} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+    <button type="button" className={styles.round} data-tap onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       aria-label={theme === 'dark' ? 'Світла тема' : 'Темна тема'} title={theme === 'dark' ? 'Світла тема' : 'Темна тема'} data-theme-toggle={theme}>
       <Icon name="sys.theme" size={16} inherit decorative />
     </button>
   );
   const soundBtn = (
-    <button type="button" className={`${styles.round} ${muted ? styles['round-off'] : ''}`} onClick={() => setMuted((m) => !m)} aria-pressed={!muted} aria-label={muted ? 'Увімкнути звук' : 'Вимкнути звук'} title={muted ? 'Звук вимкнено' : 'Звук'}>
+    <button type="button" className={`${styles.round} ${muted ? styles['round-off'] : ''}`} data-tap onClick={() => setMuted((m) => !m)} aria-pressed={!muted} aria-label={muted ? 'Увімкнути звук' : 'Вимкнути звук'} title={muted ? 'Звук вимкнено' : 'Звук'}>
       <Icon name="sys.sound" size={16} inherit decorative />
     </button>
   );
@@ -562,20 +562,20 @@ export function CookOverlay() {
   return (
     <div className={styles.shell} data-cook-mode>
     <div className={styles.screen}>
-      {/* 390: сегменти прогресу вгорі; тап по будь-якому сегменту — перехід (№10). */}
+      {/* 390: сегменти прогресу вгорі — лише індикатор (0912 C: 4 px не ціль дотику;
+          перехід — кроками-пілюлями в шторці та «← →»). */}
       <div className={styles.segments} aria-hidden>
         {recipe.st.map((_, i) => (
-          <button key={i} type="button" className={`${styles.seg} ${done.has(i) ? styles['seg-done'] : i === stepIdx ? styles['seg-cur'] : ''}`}
-            tabIndex={-1} onClick={() => goToStep(i)} />
+          <span key={i} className={`${styles.seg} ${done.has(i) ? styles['seg-done'] : i === stepIdx ? styles['seg-cur'] : ''}`} />
         ))}
       </div>
 
       <header className={styles.head}>
-        <button type="button" className={styles.exit} onClick={exitToOrigin} data-exit>
+        <button type="button" className={styles.exit} data-tap onClick={exitToOrigin} data-exit>
           <Icon name="sys.close" size={16} inherit decorative /><span className={styles['exit-text']}>Вийти</span>
         </button>
         {/* 390: пілюля «N з M · крок» зі знаком списку → шторка кроків. */}
-        <button type="button" className={styles['step-pill']} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" data-step-pill>
+        <button type="button" className={styles['step-pill']} data-tap onClick={() => setSheetOpen(true)} aria-haspopup="dialog" data-step-pill>
           <span className={styles['step-pill-n']}>{stepIdx + 1} з {total}</span>
           <span className={styles['step-pill-t']}>· {step ? shortOf(step) : ''}</span>
           <span className={styles['step-pill-gap']} />
@@ -652,7 +652,7 @@ export function CookOverlay() {
               <span className={styles['sheet-title']}>Кроки · {total}</span>
               <span className={styles['focus-gap']} />
               {themeToggle}
-              <button type="button" className={styles.round} onClick={() => setSheetOpen(false)} aria-label="Закрити"><Icon name="sys.close" size={16} inherit decorative /></button>
+              <button type="button" className={styles.round} data-tap onClick={() => setSheetOpen(false)} aria-label="Закрити"><Icon name="sys.close" size={16} inherit decorative /></button>
             </div>
             <div className={styles['route-list']}>{recipe.st.map((_, i) => routeRow(i, 'list'))}</div>
             <span className={styles['route-label']}>Усе для страви</span>

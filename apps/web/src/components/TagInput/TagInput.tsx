@@ -112,7 +112,7 @@ export function TagInput({
                 {prefix ? `${prefix} ` : ''}{anti ? anti.text : v}
                 <button
                   type="button"
-                  className={styles.x}
+                  className={styles.x} data-tap
                   onClick={() => void drop(v)}
                   disabled={disabled}
                   aria-label={`Прибрати «${v}»`}

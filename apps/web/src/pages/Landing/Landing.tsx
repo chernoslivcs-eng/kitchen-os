@@ -70,7 +70,7 @@ export function Landing() {
           <div className={s.headerRight}>
             <a href="#l3-signin" className={s.enter} onClick={go}>{SIGNIN.enter}</a>
             {mob && (
-              <button type="button" className={s.menuBtn} aria-label="Меню" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
+              <button type="button" className={s.menuBtn} data-tap aria-label="Меню" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
                 <Icon name="sys.menu" size={18} inherit decorative />
               </button>
             )}

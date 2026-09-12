@@ -288,7 +288,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                 <span className={styles.svcName}>{SECTION.home}</span>
                 <span className={styles.svcSub}>{SECTION.homeDesktop}</span>
                 <span className={styles.svcGap} />
-                {!inviteOpen && <button type="button" className={styles.svcAction} onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>}
+                {!inviteOpen && <button type="button" className={styles.svcAction} data-tap onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>}
               </div>
               {me1.household.members.length <= 1 && (
                 <div className={styles.svcRow}><span className={styles.svcMuted}>{SECTION.homeEmpty}</span></div>
@@ -327,13 +327,13 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                   <span className={styles.bannerText}>
                     {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам.` : `Лист до ${lastInvite.email} не дійшов. Передай лінк сам, месенджером.`}
                   </span>
-                  <button type="button" className={styles.bannerAction} onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати'}</button>
+                  <button type="button" className={styles.bannerAction} data-tap onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати'}</button>
                 </div>
               )}
               {inviteOpen && (
                 <form onSubmit={inviteSend} className={styles.inviteForm} data-invite-form>
                   <input type="email" inputMode="email" autoComplete="email" enterKeyHint="send" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={styles.inviteInput} aria-label="email" />
-                  <button type="submit" className={styles.inviteSend} disabled={inviting}>{SECTION.inviteSend}</button>
+                  <button type="submit" className={styles.inviteSend} data-tap disabled={inviting}>{SECTION.inviteSend}</button>
                 </form>
               )}
               {inviteError && <div className={styles.inviteError}>{inviteError}</div>}
@@ -352,9 +352,9 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                 {retail === 'active' && <span className={`${styles.svcMeta} ${styles.metaOk}`}><span className={styles.dot} />{receiptAt ? `чек ${fmtDay(receiptAt)}` : 'підключено'}</span>}
                 {retail === 'expired' && <span className={`${styles.svcMeta} ${styles.metaAmber}`}>сесія закінчилась</span>}
                 {retail === 'disconnected' && <span className={styles.svcMeta}>відключено</span>}
-                {retail === 'none' && <a className={styles.svcAction} href="/v1/retail/silpo/connect">Підключити</a>}
-                {retail === 'expired' && <a className={`${styles.svcAction} ${styles.metaAmber}`} href="/v1/retail/silpo/connect">Увійти знову</a>}
-                {retail === 'disconnected' && <button type="button" className={styles.svcAction} onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
+                {retail === 'none' && <a className={styles.svcAction} data-tap href="/v1/retail/silpo/connect">Підключити</a>}
+                {retail === 'expired' && <a className={`${styles.svcAction} ${styles.metaAmber}`} data-tap href="/v1/retail/silpo/connect">Увійти знову</a>}
+                {retail === 'disconnected' && <button type="button" className={styles.svcAction} data-tap onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
                 {retail === 'active' && <button type="button" className={styles.svcLink} onClick={() => void retailDisconnect()} disabled={retailBusy}>Відключити</button>}
               </div>
               {karpaty && (
@@ -384,16 +384,16 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
               <span className={styles.segment} role="radiogroup" aria-label={SECTION.theme}>
                 {THEMES.map((t) => (
                   <button key={t.v} type="button" role="radio" aria-checked={theme === t.v}
-                    className={`${styles.seg} ${theme === t.v ? styles.segOn : ''}`} onClick={() => pickTheme(t.v)}>{t.label}</button>
+                    className={`${styles.seg} ${theme === t.v ? styles.segOn : ''}`} data-tap onClick={() => pickTheme(t.v)}>{t.label}</button>
                 ))}
               </span>
             </div>
             {/* tokens-v3 (11.09): «Вийти» — контурна кнопка; «Видалити акаунт» — текст danger без рамки. */}
             <div className={styles.actions}>
-              <button type="button" className={styles.logout} onClick={() => void logout()}>{SECTION.logout}</button>
+              <button type="button" className={styles.logout} data-tap onClick={() => void logout()}>{SECTION.logout}</button>
               <button
                 type="button"
-                className={styles.deleteAccount}
+                className={styles.deleteAccount} data-tap
                 onClick={() => { setExitOpen(true); setExitReason(null); setExitComment(''); setExitError(null); }}
               >{SECTION.deleteAccount}</button>
             </div>
@@ -517,7 +517,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                 <div key={n.id} className={styles.note} data-note={n.id}>
                   <span className={styles.noteDate}>{fmtDate(n.created_at)}</span>
                   <span className={styles.noteText}>{n.text}</span>
-                  <button type="button" className={styles.noteRemove} onClick={() => void removeNote(n)}>{SECTION.noteRemove}</button>
+                  <button type="button" className={styles.noteRemove} data-tap onClick={() => void removeNote(n)}>{SECTION.noteRemove}</button>
                 </div>
               ))}
               {noteToast && (

@@ -208,7 +208,7 @@ export function SharePage() {
           <div className={styles.seg} role="tablist" aria-label="Формат">
             {(Object.keys(FORMATS) as Format[]).map((f) => (
               <button key={f} type="button" role="tab" aria-selected={format === f}
-                className={`${styles['seg-btn']} ${format === f ? styles['seg-on'] : ''}`} onClick={() => setFormat(f)} data-format={f}>
+                className={`${styles['seg-btn']} ${format === f ? styles['seg-on'] : ''}`} data-tap onClick={() => setFormat(f)} data-format={f}>
                 {FORMATS[f].label}
               </button>
             ))}

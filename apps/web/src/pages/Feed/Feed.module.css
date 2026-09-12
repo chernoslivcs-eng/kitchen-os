@@ -1564,3 +1564,6 @@ a.att-chip:hover { border-color: var(--sage); }
   .composer-input { font-size: 16px; }
   .slist-add input { font-size: 16px; }
 }
+/* 0912 C: хіт 44 у безіменних кнопок степерів (візуал 22 / 26 без змін). */
+.cart-stp button, .rc-stepper > button { position: relative; }
+.cart-stp button::before, .rc-stepper > button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }

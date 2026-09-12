@@ -109,7 +109,7 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
           <div className={styles.handle} aria-hidden />
         </div>
         <div className={`${panel['rail-tabs']} ${styles.head}`} {...drag.handleProps} data-sheet-head>
-          <button type="button" className={styles.close} onClick={close} title="Закрити" aria-label="Закрити"><PanelIcon /></button>
+          <button type="button" className={styles.close} data-tap onClick={close} title="Закрити" aria-label="Закрити"><PanelIcon /></button>
           {kind && (
             <span className={`${panel['rail-tab']} ${panel['rail-tab-on']} ${styles.tab}`} aria-hidden>
               <span className={panel['rail-tab-glyph']}><Icon name={ARTIFACT_ICON[kind]} size={16} inherit decorative /></span>

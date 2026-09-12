@@ -178,7 +178,7 @@ export function ArtifactPanel() {
                 <span className={styles['rail-kicker-title']}>{shown.kind === 'recipe' ? 'Рецепт' : shown.label}</span>
               </div>
               <div className={styles['rail-head-actions']} ref={setHeadSlot} hidden />
-              <button type="button" className={styles['rail-collapse']} onClick={s.collapse} title="Згорнути панель" aria-label="Згорнути панель">
+              <button type="button" className={styles['rail-collapse']} data-tap onClick={s.collapse} title="Згорнути панель" aria-label="Згорнути панель">
                 <Icon name="sys.panelClose" size={16} inherit decorative />
               </button>
             </div>
@@ -201,12 +201,12 @@ export function ArtifactPanel() {
       </aside>
       {open && <div className={styles['rail-scrim']} onClick={() => s.setOpen(false)} />}
       <div className={`${styles['rail-mini']} ${hidden ? styles['rail-mini-show'] : ''}`}>
-        <button type="button" className={styles['rail-mini-expand']} onClick={miniClick} aria-label="Розгорнути панель">
+        <button type="button" className={styles['rail-mini-expand']} data-tap onClick={miniClick} aria-label="Розгорнути панель">
           <PanelIcon />
           {pendingDot && <span className={styles['rail-mini-dot']} />}
         </button>
         {shown && (
-          <button type="button" className={`${styles['mini-marker']} ${styles['mini-marker-on']} ${fresh ? styles['mini-fresh'] : ''}`}
+          <button type="button" className={`${styles['mini-marker']} ${styles['mini-marker-on']} ${fresh ? styles['mini-fresh'] : ''}`} data-tap
             onClick={miniClick} aria-label={`Відкрити: ${shown.label}${fresh ? ' (нове)' : ''}`}>
             <span className={styles['mini-glyph']}><Icon name={ARTIFACT_ICON[shown.kind]} size={16} inherit decorative /></span>
             {shown.meta && <span className={styles['mini-badge']}>{shown.meta}</span>}
@@ -214,7 +214,7 @@ export function ArtifactPanel() {
           </button>
         )}
         {miniOthers.length > 0 && (
-          <button type="button" className={styles['mini-marker']} onClick={() => setMiniListOpen((v) => !v)} aria-expanded={miniListOpen} aria-label="Інші артефакти">
+          <button type="button" className={styles['mini-marker']} data-tap onClick={() => setMiniListOpen((v) => !v)} aria-expanded={miniListOpen} aria-label="Інші артефакти">
             <span className={styles['mini-plus']}>+{miniOthers.length}</span>
           </button>
         )}

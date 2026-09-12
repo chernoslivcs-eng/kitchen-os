@@ -223,6 +223,8 @@
   transition: opacity var(--dur-fast) var(--ease-standard);
 }
 .session-row:hover .session-x, .session-x:focus-visible { opacity: 1; }
+/* 0912 C (№36): на тачі ховера нема — ✕ видно завжди; хіт 44 — data-tap. */
+@media (hover: none) { .session-x { opacity: 1; } }
 .session-x:hover { background: var(--line); color: var(--ink); }
 /* «Історія →» — вхід до архіву розмов; у кадрах його нема (DEVIATIONS Р8x). */
 .session-archive {

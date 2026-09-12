@@ -291,7 +291,7 @@
 /* ── <768 («Cook · 390») — за шириною попапа (№9) ─────────────────────── */
 @container cook (max-width: 767px) {
   .segments { display: flex; gap: 5px; padding: 14px 16px 0; flex: none; }
-  .seg { flex: 1; height: 4px; border: 0; border-radius: 2px; background: var(--line2); padding: 0; cursor: pointer; }
+  .seg { flex: 1; height: 4px; border: 0; border-radius: 2px; background: var(--line2); padding: 0; pointer-events: none; }
   .seg-done { background: var(--sage); }
   .seg-cur { background: var(--ink); }
   .head { height: auto; padding: 12px 16px 0; gap: 8px; }

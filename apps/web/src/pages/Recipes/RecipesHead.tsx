@@ -37,7 +37,7 @@ export function RecipesHead({ tab, savedCount, query, onQuery, searchOpen, onSea
       <div className={styles.segment} role="tablist">
         {tab === 'saved' ? (
           <span role="tab" aria-selected="true" className={`${styles.seg} ${styles['seg-on']}`}>
-            Збережені{savedCount > 0 && <span className={styles['seg-n']}>· {savedCount}</span>}
+            Збережені{savedCount > 0 && <span className={styles['seg-n']} data-tap>· {savedCount}</span>}
           </span>
         ) : (
           <button type="button" role="tab" aria-selected="false" className={styles.seg} onClick={() => navigate('/recipes')}>
@@ -45,7 +45,7 @@ export function RecipesHead({ tab, savedCount, query, onQuery, searchOpen, onSea
           </button>
         )}
         {tab === 'log' ? (
-          <span role="tab" aria-selected="true" className={`${styles.seg} ${styles['seg-on']}`}>Журнал</span>
+          <span role="tab" aria-selected="true" className={`${styles.seg} ${styles['seg-on']}`} data-tap>Журнал</span>
         ) : (
           <button type="button" role="tab" aria-selected="false" className={styles.seg} onClick={() => navigate('/cooklog')}>Журнал</button>
         )}
@@ -55,17 +55,17 @@ export function RecipesHead({ tab, savedCount, query, onQuery, searchOpen, onSea
         <Icon name="sys.search" size={16} inherit decorative />
         <input type="search" enterKeyHint="search" autoComplete="off" value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
       </label>
-      <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} aria-label={placeholder} aria-pressed={searchOpen}
+      <button type="button" className={`${styles['head-icon']} ${styles['head-search']}`} data-tap aria-label={placeholder} aria-pressed={searchOpen}
         onClick={() => onSearchOpen(!searchOpen)}>
         <Icon name="sys.search" size={16} inherit decorative />
       </button>
-      <button type="button" className={styles['head-icon']} aria-label={other.label} title={other.label} onClick={() => navigate(other.to)}>
+      <button type="button" className={styles['head-icon']} data-tap aria-label={other.label} title={other.label} onClick={() => navigate(other.to)}>
         <Icon name={other.icon} size={16} inherit decorative />
       </button>
       {/* DA2-22, Р-2 варіант 2: точка входу там, де її шукають, а канал
           лишається один — чат. Префікс «Запиши мій рецепт:» заодно дає
           моделі явний сигнал на recipe-картку (DA2-23). */}
-      <button type="button" className={styles.write} aria-label="Записати свій"
+      <button type="button" className={styles.write} data-tap aria-label="Записати свій"
         onClick={() => navigate('/app', { state: { composePrefix: 'Запиши мій рецепт: ' } })}>
         <Icon name="sys.import" size={16} inherit decorative /><span className={styles['write-text']}>Записати свій</span>
       </button>

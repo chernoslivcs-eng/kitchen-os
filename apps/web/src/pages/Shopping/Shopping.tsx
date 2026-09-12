@@ -221,7 +221,7 @@ export function ShoppingPage() {
                     {sub && <span className={styles.sub}>{sub}</span>}
                   </span>
                 </button>
-                <button type="button" className={styles.delete} onClick={() => remove(it)} aria-label={`Прибрати «${it.label}» зі списку`} title="Прибрати зі списку">
+                <button type="button" className={styles.delete} data-tap onClick={() => remove(it)} aria-label={`Прибрати «${it.label}» зі списку`} title="Прибрати зі списку">
                   <Icon name="sys.close" size={12} inherit />
                 </button>
               </div>
@@ -241,7 +241,7 @@ export function ShoppingPage() {
               aria-label="Додати в список"
             />
             {newLabel.trim() && (
-              <button type="submit" className={styles['add-go']} disabled={adding}>Додати</button>
+              <button type="submit" className={styles['add-go']} data-tap disabled={adding}>Додати</button>
             )}
           </form>
         </div>
