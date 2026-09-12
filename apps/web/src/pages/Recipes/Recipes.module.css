@@ -247,3 +247,5 @@
 @media (min-width: 768px) and (max-width: 1023px) {
   .search { width: auto; flex: 1 1 120px; min-width: 0; max-width: 260px; }
 }
+/* 0912 C: поле на всю висоту рядка — ціль дотику = рядок, візуал той самий (тло прозоре). */
+.search input { align-self: stretch; }

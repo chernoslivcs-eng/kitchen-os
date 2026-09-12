@@ -32,7 +32,7 @@ export function AppHeader({ title, action, onMenu, fill }: Props) {
     <header className={styles.head}>
       <button
         type="button"
-        className={styles.burger}
+        className={styles.burger} data-tap
         aria-label="Розгорнути панель"
         onClick={onMenu}
       ><Icon name="sys.expand" size={18} inherit /></button>

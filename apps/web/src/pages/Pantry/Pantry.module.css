@@ -830,3 +830,5 @@
 @media (max-width: 430px) {
   .banner-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 }
+/* 0912 C: поле на всю висоту рядка — ціль дотику = рядок, візуал той самий (тло прозоре). */
+.search-input { align-self: stretch; }

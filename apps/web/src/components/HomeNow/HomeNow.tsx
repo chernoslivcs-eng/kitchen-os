@@ -193,7 +193,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
               </button>
             )}
           </div>
-          <button type="button" className={styles.ask} onClick={() => onAsk('Що на вечерю?')}>Що на вечерю?<Icon name="sys.next" size={12} inherit decorative /></button>
+          <button type="button" className={styles.ask} data-tap onClick={() => onAsk('Що на вечерю?')}>Що на вечерю?<Icon name="sys.next" size={12} inherit decorative /></button>
         </div>
       </>
     );
@@ -222,7 +222,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
                 </div>
               ))}
               {restOverdue > 0 && (
-                <button type="button" className={styles.tail} onClick={onOverdue}>Ще {restOverdue} прострочених — у коморі, за свіжістю</button>
+                <button type="button" className={styles.tail} data-tap onClick={onOverdue}>Ще {restOverdue} прострочених — у коморі, за свіжістю</button>
               )}
               {home.burning.length > 0 && (
                 <button type="button" className={`${styles.act} ${styles['act-ink']}`} data-tap onClick={askBurning}>Готуємо</button>
@@ -261,7 +261,7 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
           {!cookLive && shown.length === 0 && (
             <div className={styles.empty} data-home-empty="no-events"><Icon name="sys.calendar" size={16} inherit decorative />{EMPTY.noEvents}</div>
           )}
-          {restNow > 0 && <button type="button" className={styles.tail} onClick={onCalendar}>Ще {restNow} — у календарі</button>}
+          {restNow > 0 && <button type="button" className={styles.tail} data-tap onClick={onCalendar}>Ще {restNow} — у календарі</button>}
         </section>
 
         {/* Р116: у вікні — одна головна дія на всю ширину, чорнило 44; у шторці лишається посилання. */}

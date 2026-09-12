@@ -40,14 +40,14 @@ export function RecipesHead({ tab, savedCount, query, onQuery, searchOpen, onSea
             Збережені{savedCount > 0 && <span className={styles['seg-n']} data-tap>· {savedCount}</span>}
           </span>
         ) : (
-          <button type="button" role="tab" aria-selected="false" className={styles.seg} onClick={() => navigate('/recipes')}>
+          <button type="button" role="tab" aria-selected="false" className={styles.seg} data-tap onClick={() => navigate('/recipes')}>
             Збережені{savedCount > 0 && <span className={styles['seg-n']}>· {savedCount}</span>}
           </button>
         )}
         {tab === 'log' ? (
           <span role="tab" aria-selected="true" className={`${styles.seg} ${styles['seg-on']}`} data-tap>Журнал</span>
         ) : (
-          <button type="button" role="tab" aria-selected="false" className={styles.seg} onClick={() => navigate('/cooklog')}>Журнал</button>
+          <button type="button" role="tab" aria-selected="false" className={styles.seg} data-tap onClick={() => navigate('/cooklog')}>Журнал</button>
         )}
       </div>
       <span className={styles['head-gap']} />
