@@ -27,11 +27,12 @@
   padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  max-height: 82dvh; /* 0912 D: dvh — з адресним рядком iOS шторка не вища за екран */
+  /* fix/sheet-drag-jump: svh, не dvh — під пальцем Safari ховає/показує тулбар, dvh
+     стрибає, і шторка з ним «розкривалась на мить»; svh стала. */
+  max-height: 82svh;
   overflow: hidden;
   animation: sheet-in var(--dur-slow, 400ms) var(--ease-enter, ease);
-  /* Пружина назад після недотягнутого драгу. */
-  transition: transform var(--dur-base, 250ms) var(--ease-standard, ease);
+  /* Пружина назад після недотягнутого драгу — тепер inline з useSheetDrag (--dur-fast). */
 }
 .panel-out {
   animation: sheet-out var(--dur-base, 250ms) var(--ease-exit, ease) forwards;

@@ -28,12 +28,39 @@ describe('№35 · змах униз закриває шторку', () => {
     const panel = host!.querySelector<HTMLElement>('[data-sheet]')!;
     await act(async () => { grab.dispatchEvent(pe('pointerdown', 100)); grab.dispatchEvent(pe('pointermove', 140)); });
     expect(panel.style.transform).toBe('translateY(40px)');
+    expect(panel.style.animation, 'анімація входу знята першим дотиком').toBe('none');
+    expect(panel.style.transition).toBe('none');
+    expect(panel.style.willChange).toBe('transform');
+    // Повільний жест: 40 px за 300 мс — нижче і порога ходу, і порога швидкості.
+    await act(async () => { vi.advanceTimersByTime(300); });
     await act(async () => { grab.dispatchEvent(pe('pointerup', 140)); });
-    expect(panel.style.transform, 'не дотягнув — назад').toBe('');
+    expect(panel.style.transform, 'не дотягнув — їде назад за --dur-fast').toBe('translateY(0px)');
+    expect(panel.style.transition).toContain('--dur-fast');
+    await act(async () => { vi.advanceTimersByTime(200); });
+    expect(panel.style.transform, 'після пружини inline знято').toBe('');
+    expect(panel.style.willChange).toBe('');
     expect(onClose).not.toHaveBeenCalled();
     await act(async () => { grab.dispatchEvent(pe('pointerdown', 100)); grab.dispatchEvent(pe('pointermove', 200)); grab.dispatchEvent(pe('pointerup', 200)); });
+    expect(panel.style.transform, 'за порогом — виїжджає з поточної точки, не з 0').toBe('translateY(110%)');
+    expect(panel.className, 'свій sheet-out не грає').not.toContain('panel-out');
+    expect(onClose).not.toHaveBeenCalled();
     await act(async () => { vi.advanceTimersByTime(300); });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('дотик під час анімації входу знімає її одразу, зсув — лише translateY', async () => {
+    const onClose = vi.fn();
+    await mount(onClose);
+    const grab = host!.querySelector<HTMLElement>('[data-sheet-grab]')!;
+    const panel = host!.querySelector<HTMLElement>('[data-sheet]')!;
+    expect(panel.style.animation).toBe('');
+    await act(async () => { grab.dispatchEvent(pe('pointerdown', 100)); });
+    expect(panel.style.animation).toBe('none');
+    expect(panel.style.transform).toBe('translateY(0px)');
+    expect(panel.style.willChange).toBe('transform');
+    expect(panel.style.transition).toBe('none');
+    await act(async () => { grab.dispatchEvent(pe('pointercancel', 100)); });
+    expect(panel.style.transform).toBe('');
   });
 
   it('шапка теж закриває; вміст — ні (скрол не перехоплюється)', async () => {
