@@ -13,9 +13,9 @@
 <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <style>
 body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
-a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 * { box-sizing:border-box; }
-.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#55724a; --sage-bg:#e8efe3; --amber:#866425; --amber-bg:#f6ecd6; --plum:#885b77; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); --e:cubic-bezier(.2,.7,.2,1); --eo:cubic-bezier(.4,0,1,1); }
+.v3 { --tap:44px; --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b3463b; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); --e:cubic-bezier(.2,.7,.2,1); --eo:cubic-bezier(.4,0,1,1); }
 .v3[data-theme="dark"] { --bg:#16181b; --card:#1f2226; --line:#2a2e33; --line2:#33383e; --ink:#ecebe7; --muted:#a3a7ac; --dim:#6f7379; --sage:#93b48b; --sage-bg:#26312a; --amber:#d2ad6b; --amber-bg:#332a1c; --plum:#c99ab4; --plum-bg:#2f2329; --danger:#d47f74; --danger-bg:#3a2320; --sh:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4); --sh2:0 12px 40px rgba(0,0,0,.5); }
 [data-tile] svg, [data-tile] svg * { transition: transform 300ms cubic-bezier(.4,0,.2,1), color 300ms, opacity 300ms; transform-box: fill-box; transform-origin: center; }
 [data-tile]:hover svg { color:#1a1c1e; }
@@ -308,6 +308,36 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
     <sc-for list="{{ spec }}" as="s" hint-placeholder-count="12">
       <div style="display:grid; grid-template-columns:220px 260px 1fr 90px 150px; gap:16px; min-height:44px; align-items:center; font-size:13px; border-bottom:1px solid var(--line); padding:6px 0;"><span style="font-weight:500;">{{ s.el }}</span><span style="color:var(--muted);">{{ s.what }}</span><span style="color:var(--muted); line-height:1.4;">{{ s.how }}</span><span>{{ s.ms }}</span><span style="color:var(--muted);">{{ s.ease }}</span></div>
     </sc-for>
+  </div>
+</div>
+
+<div style="display:flex; flex-direction:column; gap:8px; width:1200px; padding-top:16px; border-top:1px solid var(--line2);">
+  <div style="font-size:12px; font-weight:500; color:var(--muted);">Навігація і порожня розмова · рішення 12.09 (В2, В3)</div>
+  <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05;">Рейка не підміняється сайдбаром — вона розширюється. Композитор не зникає з центру — він зʼїжджає.</div>
+</div>
+
+<div style="display:flex; gap:24px; align-items:flex-start; width:1200px;">
+  <div style="width:560px; display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:500; color:var(--dim);">M8 · рейка 60 ↔ сайдбар 256 — одна панель</div>
+    <div style="background:var(--card); border-radius:14px; box-shadow:var(--sh); padding:16px 18px; display:flex; flex-direction:column; gap:10px; font-size:14px; line-height:1.55;">
+      <div><b style="font-weight:600;">Одна геометрія в обох станах.</b> Знаки табів стоять на тому самому x: слот 38 з лівим полем 11 — і в рейці 60, і в сайдбарі 256. Жодного зсуву іконок.</div>
+      <div><b style="font-weight:600;">Ширина</b> 60 → 256 за <code>--dur-slow</code> (400) <code>--ease-standard</code>.</div>
+      <div><b style="font-weight:600;">Підписи</b> завжди в розмітці; проявляються opacity 0 → 1 за <code>--dur-base</code> (240) із затримкою 80 мс після старту ширини, гаснуть за <code>--dur-fast</code> (120) без затримки.</div>
+      <div><b style="font-weight:600;">Рядок логотипа й рядок профілю</b> — одна структура (рядок) у двох станах; назва «Kitchen OS» та імʼя проявляються як підписи.</div>
+      <div><b style="font-weight:600;">Список розмов</b> проявляється після того, як ширина доїхала (затримка = <code>--dur-slow</code>); при згортанні гасне першим.</div>
+      <div><b style="font-weight:600;">Заборонено</b> перемикати <code>display</code> / <code>flex-direction</code> під час руху — саме це читалось як «інший сайдбар». Бейджі (крапка комори, число списку) переїжджають transition-ом top/right за 240, а не стрибають.</div>
+      <div><b style="font-weight:600;">Reduced motion:</b> миттєво, без проявлення.</div>
+    </div>
+  </div>
+  <div style="width:560px; display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:500; color:var(--dim);">M9 · порожня розмова → перше надсилання</div>
+    <div style="background:var(--card); border-radius:14px; box-shadow:var(--sh); padding:16px 18px; display:flex; flex-direction:column; gap:10px; font-size:14px; line-height:1.55;">
+      <div><b style="font-weight:600;">До надсилання:</b> композитор в оптичному центрі полотна, над ним питання (28/700), під ним підказки-чіпи.</div>
+      <div><b style="font-weight:600;">Після першого надсилання:</b> композитор зʼїжджає з центру вниз за <code>--dur-base</code> (240) <code>--ease-standard</code> — рух короткий, бо він не подія, а звільнення місця; зайве (питання, підказки, рядок про drop) гасне <b style="font-weight:600;">першим</b> за 90 мс із підйомом на 6 px; стрічка росте від композитора вгору одразу, як він доїхав.</div>
+      <div><b style="font-weight:600;">Тап по підказці</b> — не рух екрана: текст лягає в поле, фокус у полі, композитор лишається на місці.</div>
+      <div><b style="font-weight:600;">390:</b> композитор і так унизу — рухаються тільки підказки (гаснуть за 120).</div>
+      <div><b style="font-weight:600;">Reduced motion:</b> миттєво.</div>
+    </div>
   </div>
 </div>
 </section>

@@ -13,15 +13,15 @@
 <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <style>
 body { margin:0; background:#c9ccd0; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
-a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 * { box-sizing:border-box; }
-.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#55724a; --sage-bg:#e8efe3; --sage-deep:#3b5234; --amber:#866425; --amber-bg:#f6ecd6; --plum:#885b77; --plum-bg:#f1e5ec; --danger:#b5473c; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); }
+.v3 { --tap:44px; --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --sage-deep:#3f5837; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b3463b; --danger-bg:#f6e3e0; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); }
 </style>
 </helmet>
 
 <section class="v3" style="padding:48px; display:flex; flex-direction:column; gap:40px; width:max-content; color:var(--ink);">
 <div style="display:flex; flex-direction:column; gap:8px; width:1440px;">
-  <div style="font-size:12px; font-weight:500; color:var(--muted);">Пакет C3–C4 · Перевір пошту · Запрошення в дім · «як у лендінгу»: та ж шапка, той самий hero-градієнт, центрована колонка, картка з лендінгу · вхід = лендінг</div>
+  <div style="font-size:12px; font-weight:500; color:var(--muted);">Пакет C3–C4 · лише світла тема (№2) · Перевір пошту · Запрошення в дім · «як у лендінгу»: та ж шапка, той самий hero-градієнт, центрована колонка, картка з лендінгу · вхід = лендінг</div>
   <div style="font-weight:700; font-size:32px; letter-spacing:-.03em; line-height:1.05; max-width:1100px;">Два екрани, що живуть між листом і продуктом. Вони — сторінки лендінгу, не окремий застосунок.</div>
 </div>
 
@@ -44,7 +44,7 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
               <span style="font-size:13px; color:var(--dim);">Лист не прийшов? <span style="color:var(--muted); font-weight:500;">Надіслати ще раз · 0:47</span></span>
             </sc-if>
             <sc-if value="{{ sc.isInvite }}" hint-placeholder-val="{{ false }}">
-              <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-radius:20px; background:var(--card); box-shadow:var(--sh2); text-align:left;"><span style="display:flex;"><span style="width:32px; height:32px; border-radius:50%; background:var(--plum); border:2px solid var(--card); display:grid; place-items:center; font-size:12px; font-weight:600; color:#fff;">О</span><span style="width:32px; height:32px; border-radius:50%; background:var(--amber); border:2px solid var(--card); display:grid; place-items:center; font-size:12px; font-weight:600; color:#fff; margin-left:-10px;">Т</span><span style="width:32px; height:32px; border-radius:50%; background:var(--sage); border:2px solid var(--card); display:grid; place-items:center; font-size:12px; font-weight:600; color:#fff; margin-left:-10px;">М</span></span><span style="flex:1; display:flex; flex-direction:column; line-height:1.25;"><span style="font-size:16px; font-weight:600;">Дім «Сімейна»</span><span style="font-size:13px; color:var(--muted);">3 людини · 61 позиція в коморі · для olya@gmail.com</span></span></div>
+              <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-radius:20px; background:var(--card); box-shadow:var(--sh2); text-align:left;"><span style="flex:1; display:flex; flex-direction:column; line-height:1.25;"><span style="font-size:16px; font-weight:600;">Дім «Сімейна»</span><span style="font-size:13px; color:var(--muted);">для olya@gmail.com</span></span></div>
               <span style="height:56px; width:100%; border-radius:28px; background:var(--ink); color:var(--bg); display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:600; box-shadow:var(--sh2);">Прийняти запрошення</span>
               <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px; background:var(--amber-bg); color:var(--amber); font-size:13px; line-height:1.45; text-align:left;"><i data-lucide="user-round-x" style="width:15px; height:15px; flex:none;"></i><span>Ти вже увійшов як <b style="font-weight:600;">pylyp@…</b> — після прийняття акаунт зміниться на <b style="font-weight:600;">olya@…</b>.</span></div>
             </sc-if>
@@ -72,7 +72,7 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
                 <span style="font-size:13px; color:var(--dim);">Лист не прийшов? <span style="color:var(--muted); font-weight:500;">Надіслати ще раз · 0:47</span></span>
               </sc-if>
               <sc-if value="{{ sc.isInvite }}" hint-placeholder-val="{{ false }}">
-                <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:18px; background:var(--card); box-shadow:var(--sh2); text-align:left;"><span style="display:flex;"><span style="width:30px; height:30px; border-radius:50%; background:var(--plum); border:2px solid var(--card); display:grid; place-items:center; font-size:11px; font-weight:600; color:#fff;">О</span><span style="width:30px; height:30px; border-radius:50%; background:var(--amber); border:2px solid var(--card); display:grid; place-items:center; font-size:11px; font-weight:600; color:#fff; margin-left:-10px;">Т</span><span style="width:30px; height:30px; border-radius:50%; background:var(--sage); border:2px solid var(--card); display:grid; place-items:center; font-size:11px; font-weight:600; color:#fff; margin-left:-10px;">М</span></span><span style="flex:1; display:flex; flex-direction:column; line-height:1.25; min-width:0;"><span style="font-size:15px; font-weight:600;">Дім «Сімейна»</span><span style="font-size:12px; color:var(--muted);">3 людини · 61 позиція</span></span></div>
+                <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:18px; background:var(--card); box-shadow:var(--sh2); text-align:left;"><span style="width:36px; height:36px; border-radius:10px; background:var(--sage-bg); color:var(--sage); display:grid; place-items:center; flex:none;"><i data-lucide="house" style="width:17px; height:17px;"></i></span><span style="flex:1; display:flex; flex-direction:column; line-height:1.25; min-width:0;"><span style="font-size:15px; font-weight:600;">Дім «Сімейна»</span><span style="font-size:12px; color:var(--muted);">для olya@gmail.com</span></span></div>
                 <span style="height:52px; width:100%; border-radius:26px; background:var(--ink); color:var(--bg); display:inline-flex; align-items:center; justify-content:center; font-size:15px; font-weight:600; box-shadow:var(--sh2);">Прийняти запрошення</span>
                 <div style="display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:12px; background:var(--amber-bg); color:var(--amber); font-size:12px; line-height:1.45; text-align:left;"><i data-lucide="user-round-x" style="width:14px; height:14px; flex:none; margin-top:1px;"></i><span>Ти вже увійшов як <b style="font-weight:600;">pylyp@…</b> — після прийняття акаунт зміниться.</span></div>
               </sc-if>
@@ -86,7 +86,7 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
   <div style="width:360px; flex:none; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--muted); padding-top:8px;">
     <div><b style="color:var(--ink); font-weight:600;">Вхід — це лендінг.</b> Окремого /signin нема: «Увійти» скролить до картки в hero. Тому Sent і Invite — сторінки тієї ж родини: шапка лендінгу, hero-градієнт, центрована колонка, заголовок у два тони.</div>
     <div><b style="color:var(--ink); font-weight:600;">Sent:</b> замість форми — той самий email-піл, але вже «відправлений»: іконка mail-check шавлією, маска адреси, «Змінити» на місці кнопки. Таймер повтору — в реченні під ним.</div>
-    <div><b style="color:var(--ink); font-weight:600;">Invite:</b> дім показаний карткою (аватари, «3 людини · 61 позиція», для кого), кнопка — той самий чорний піл, що «Продовжити з Google». Конфлікт сесії — бурштинова смуга під кнопкою, а не абзац.</div>
+    <div><b style="color:var(--ink); font-weight:600;">Invite:</b> дім показаний карткою (аватари, «для olya@gmail.com</div>
     <div><b style="color:var(--ink); font-weight:600;">Копі</b> з MagicLinkSent.tsx і Invite.tsx; кікер — піл із іконкою в роді: send (шавлія) / house (слива).</div>
     <div><b style="color:var(--ink); font-weight:600;">Недійсне запрошення</b> — Errors E1 із кікером danger і «На головну».</div>
   </div>
