@@ -12,9 +12,9 @@
 <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <style>
 body { margin:0; background:#f4f3ef; font-family:Onest,system-ui,sans-serif; color:#1a1c1e; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
-a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
+a { color:#5b7a4f; text-decoration:none; } a:hover { color:#3f5837; }
 * { box-sizing:border-box; }
-.v3 { --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#55724a; --sage-bg:#e8efe3; --amber:#866425; --amber-bg:#f6ecd6; --plum:#885b77; --plum-bg:#f1e5ec; --danger:#b5473c; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); --e:cubic-bezier(.2,.7,.2,1); }
+.v3 { --tap:44px; --bg:#f4f3ef; --card:#fff; --line:#f0eee9; --line2:#e6e4de; --ink:#1a1c1e; --muted:#6b6f74; --dim:#9a9ea3; --sage:#5b7a4f; --sage-bg:#e8efe3; --amber:#a67c2e; --amber-bg:#f6ecd6; --plum:#8a5c78; --plum-bg:#f1e5ec; --danger:#b3463b; --sh:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.07); --sh2:0 12px 40px rgba(26,28,30,.18); --e:cubic-bezier(.2,.7,.2,1); }
 @keyframes kos-in { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:none; } }
 @keyframes kos-back { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:none; } }
 </style>
@@ -85,8 +85,17 @@ class Component extends DCLogic {
   componentDidMount() { this.setState({ ready: true }); this.icons(); this._k = (e) => { if (e.key === 'ArrowRight') this.go(this.state.step + 1, 'f'); if (e.key === 'ArrowLeft') this.go(this.state.step - 1, 'b'); }; window.addEventListener('keydown', this._k); this._r = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this._r); }
   componentWillUnmount() { window.removeEventListener('keydown', this._k); window.removeEventListener('resize', this._r); }
   componentDidUpdate() { this.icons(); }
-  go(n, d) { if (n < 0 || n > 10) return; try { localStorage.setItem('kos-onb-step', String(n)); } catch {} this.setState({ step: n, dir: d }); }
+  go(n, d) { if (n < 0 || n > 17) return; try { localStorage.setItem('kos-onb-step', String(n)); } catch {} this.setState({ step: n, dir: d }); }
   renderVals() {
+    const INTAKE = [
+      { tag:'Знайомство', title:'Як тебе звати', lines:['Одного слова вистачить. Тут поки без автобіографії.'], lead:'Мене звати', ph:'Пилип', hint:'Так я знатиму, до кого звертаюсь.' },
+      { tag:'Знайомство', title:'Це просто не їмо', lines:['Мʼясо, кінзу, морепродукти — що завгодно. Напиши прямо, і воно перестане лізти у вечерю.'], lead:'Я не їм', ph:'кінзи й оливок', hint:'Те, чого на твоєму столі просто не має бути. Я це не пропонуватиму, навіть якщо воно є вдома.' },
+      { tag:'Знайомство', title:'Тут тільки важливе', lines:['Алергії й медичні обмеження. Якщо їх нема — тут нічого писати не треба.'], lead:'Мені не можна', ph:'фундук', danger:true, hint:'Тільки алергії й медичні обмеження. Я перевірятиму кожен рецепт і не пропонуватиму нічого з цього.' },
+      { tag:'Знайомство', title:'До чого тебе тягне', lines:['Гостре, риба, паста, грузинське. Напрямок, а не довічний контракт.'], lead:'Я люблю', ph:'гостре, рибу, грузинську кухню', hint:'Я частіше пропонуватиму те, що поруч із цим.' },
+      { tag:'Знайомство', title:'Можна. Просто не хочеться', lines:['Гостре, багато мʼяса, година біля плити. Я спершу піду коротшою дорогою.'], lead:'Я не дуже люблю', ph:'дуже гостре, багато мʼяса, довго готувати', hint:'Це мʼяке обмеження: попрошу — зроблю, сам не пропоную.' },
+      { tag:'Знайомство', title:'Що ще живе на кухні', lines:['Аерогриль, блендер, вок, ваги. Або «без духовки». Бо такі сюрпризи краще знати до рецепта.'], lead:'У мене на кухні є', ph:'аерогриль, блендер, ваги; без духовки', hint:'Рецепти йтимуть під те, що в тебе справді є.' },
+      { tag:'Знайомство', title:'Як це буває в житті', lines:['Коли, на скількох і скільки є часу. Бо «люблю готувати» і «сьогодні вівторок» — різні речі.'], lead:'Я зазвичай готую', ph:'ввечері, на двох, до години', hint:'Це ставить масштаб: порції, час і настрій вечері.' },
+    ];
     const CARDS = [
       { tag:'Знайомство', title:'Привіт, я Семен', lines:['Я користуюсь Kitchen OS. Покажу, як.','Я не дуже організований, тому мені подобається, що тут не треба вести кухню як бухгалтерію.','*Зараз би ще згадати, навіщо я відкрив холодильник.'] },
       { tag:'Додати продукти', title:'Я просто кажу, що зʼявилось удома', lines:['Можна сфотографувати полицю, кинути чек, написати списком або надиктувати.','Я зазвичай пишу.','*Голосом швидше, але тоді треба розмовляти.'] },
@@ -99,7 +108,7 @@ class Component extends DCLogic {
       { tag:'Особистий контекст', title:'Але всі в цьому домі їдять по-різному', lines:['Мама любить цибулю.','Я не їм фундук.','Хтось інший не любить гостре.','Продукти в нас спільні. Смаки — ні.','*Це дуже корисно, коли троє людей дивляться на одну каструлю з трьома різними очікуваннями.'] },
       { tag:'Після готування', title:'Після вечері я нічого не переписую', lines:['Підтверджую, що приготував — залишки оновлюються.','А якщо щось вийшло не так, просто пишу:','«наступного разу менше перцю».','*Деякі мої кулінарні помилки тепер мають довготривалу практичну цінність.'] },
       { tag:'Фінал', title:'От і весь мій метод', lines:['Я повідомляю, що зʼявилось.','Kitchen OS памʼятає, що залишилось.','А коли я не знаю, що готувати, він уже знає достатньо, щоб допомогти.','*Значно більше, ніж я.'] },
-    ];
+    ].concat(INTAKE);
     const s = this.state.step, c = CARDS[s], last = s === 10;
     const pad = (n) => String(n).padStart(2, '0');
     const card = { tag:c.tag, title:c.title, body:c.lines.filter(l => !l.startsWith('*')), punch:c.lines.filter(l => l.startsWith('*')).map(l => l.slice(1)), img:`apps/web/public/onboarding/semen-${pad(s+1)}.png` };

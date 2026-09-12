@@ -32,83 +32,71 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
 /* Чат / галочка / стрілки: контур домальовується */
 [data-motion="draw"]:hover svg path, [data-motion="draw"]:hover svg line, [data-motion="draw"]:hover svg polyline { stroke-dasharray: 64; animation: draw 1100ms ease-in-out both; }
 /* Чат: бабл ледь дихає */
-[data-motion="bubble"]:hover svg path { transform-origin: bottom left; animation: bubbleSoft 1100ms ease-in-out both; }
-/* Рецепти: сторінки книги розгортаються */
-[data-motion="book"]:hover svg path:nth-child(4) { transform-origin: left center; animation: leaf 1100ms ease-in-out both; }
-/* Дім: двері відкриваються */
-[data-motion="home"]:hover svg path:nth-child(1) { transform-origin: left; animation: door 900ms cubic-bezier(.4,0,.2,1) both; }
-/* Пошук: лупа робить коло */
-[data-motion="orbit"]:hover svg circle { animation: orbit 1050ms cubic-bezier(.4,0,.2,1) both; }
-/* Мікрофон: капсула набирає, дуга домальовується */
-[data-motion="listen"]:hover svg path:nth-child(1) { animation: breatheSoft 1200ms ease-in-out both; }
-[data-motion="listen"]:hover svg path:nth-child(2) { animation: fadeSoft 900ms ease-in-out both; }
-/* Плюс: повертається на 90° */
-[data-motion="turn"] svg { transition: transform 700ms cubic-bezier(.45,0,.2,1); }
-[data-motion="turn"]:hover svg { transform: rotate(90deg); }
-/* Фільтр: повзунки роз'їжджаються */
-[data-motion="sliders"]:hover svg line:nth-child(7), [data-motion="sliders"]:hover svg line:nth-child(9) { animation: knobR 1100ms ease-in-out both; }
-[data-motion="sliders"]:hover svg line:nth-child(8) { animation: knobL 1100ms ease-in-out both; }
-/* Порядок: стрілки міняються місцями */
-[data-motion="swap"]:hover svg path:nth-child(-n+2) { animation: down 780ms cubic-bezier(.4,0,.2,1) both; }
-[data-motion="swap"]:hover svg path:nth-child(n+3) { animation: up 780ms cubic-bezier(.4,0,.2,1) both; }
-/* Стрілка вгору / назовні: зсув усередині коробки */
-[data-motion="lift"]:hover svg path, [data-motion="lift"]:hover svg line, [data-motion="lift"]:hover svg polyline { animation: lift 720ms cubic-bezier(.4,0,.2,1) both; }
-/* Скасувати: стрілка їде назад */
-[data-motion="back"]:hover svg path:nth-child(1) { animation: back 780ms cubic-bezier(.4,0,.2,1) both; }
-/* Чек: розкривається знизу */
-[data-motion="unroll"]:hover svg path:nth-child(1) { transform-origin: top; animation: unroll 840ms cubic-bezier(.4,0,.2,1) both; }
-[data-motion="unroll"]:hover svg path:nth-child(n+2) { animation: fadein 840ms cubic-bezier(.4,0,.2,1) both; }
-/* Панель: панель складається */
-[data-motion="fold"]:hover svg path:nth-child(2) { animation: nudgeL 750ms cubic-bezier(.4,0,.2,1) both; }
-/* Тема: сонце прокручується в місяць */
-[data-motion="dial"]:hover svg path { animation: dial 900ms cubic-bezier(.4,0,.2,1) both; }
-/* Звук: хвилі виходять по черзі */
-[data-motion="waves"]:hover svg path:nth-child(2) { animation: fadein 600ms ease both; }
-[data-motion="waves"]:hover svg path:nth-child(3) { animation: fadein 600ms 240ms ease both; }
-/* Профіль: голова киває */
-[data-motion="nod"]:hover svg circle { animation: nod 780ms cubic-bezier(.4,0,.2,1) both; }
-/* Закрити: хрестик стягується */
-[data-motion="close"]:hover svg path { animation: pinch 800ms ease-in-out both; }
-
-[data-live="flame"] svg path { animation: flame 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
-[data-live="timer"] svg path:nth-child(3), [data-live="timer"] svg line:nth-child(3) { animation: hand 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
-[data-live="mic"] svg path:nth-child(1) { animation: breathe 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-[data-live="think"] svg path { animation: twinkle 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-[data-live="think"] svg path:nth-child(2) { animation-delay: 300ms; }
-[data-live="think"] svg path:nth-child(3) { animation-delay: 600ms; }
-
-@keyframes drawShort { from { stroke-dashoffset: 12; opacity:.35; } to { stroke-dashoffset: 0; opacity:1; } }
-@keyframes drawMid { from { stroke-dashoffset: 24; opacity:.35; } to { stroke-dashoffset: 0; opacity:1; } }
-@keyframes pinch { 0%,100% { transform: scale(1); } 50% { transform: scale(.82); } }
-@keyframes bubbleSoft { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06) translateY(-.5px); } }
-@keyframes draw { from { stroke-dashoffset: 64; opacity:.35; } to { stroke-dashoffset: 0; opacity:1; } }
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(200deg); } }
-@keyframes nudge { 0% { transform: translateX(0); } 50% { transform: translateX(1.2px); } 100% { transform: translateX(0); } }
-@keyframes nudgeL { 0% { transform: translateX(0); } 50% { transform: translateX(-2px); } 100% { transform: translateX(0); } }
-@keyframes flip { 0%,100% { transform: scaleY(1); opacity:1; } 50% { transform: scaleY(.55); opacity:.7; } }
-@keyframes pins { 0%,100% { transform: translateY(0); } 40% { transform: translateY(1px); } }
-@keyframes door { 0%,100% { transform: scaleX(1) skewY(0); } 50% { transform: scaleX(.6) skewY(-6deg); } }
-@keyframes handle { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-1.5px); } }
-@keyframes leaf { 0% { transform: scaleX(1); opacity:0; } 20% { opacity:1; } 50% { transform: scaleX(0); opacity:1; } 80% { opacity:1; } 100% { transform: scaleX(-1); opacity:0; } }
-@keyframes orbit { 0% { transform: translate(0,0); } 25% { transform: translate(1.5px,-1px); } 50% { transform: translate(0,-2px); } 75% { transform: translate(-1.5px,-1px); } 100% { transform: translate(0,0); } }
-@keyframes breatheSoft { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
-@keyframes fadeSoft { 0% { opacity:.45; transform: translateY(1px); } 100% { opacity:1; transform: translateY(0); } }
-@keyframes breathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.18); } }
-@keyframes knobR { 0%,100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
-@keyframes knobL { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-3px); } }
-@keyframes slideL { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-2px); } }
-@keyframes slideR { 0%,100% { transform: translateX(0); } 50% { transform: translateX(2px); } }
-@keyframes down { 0%,100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
-@keyframes up { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-@keyframes lift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-@keyframes back { 0% { transform: translateX(0); } 50% { transform: translateX(-2px); } 100% { transform: translateX(0); } }
-@keyframes unroll { 0% { transform: scaleY(.85); } 100% { transform: scaleY(1); } }
-@keyframes fadein { 0% { opacity: 0; transform: translateY(2px); } 100% { opacity: 1; transform: translateY(0); } }
-@keyframes dial { 0% { transform: rotate(0); } 100% { transform: rotate(180deg); } }
-@keyframes nod { 0%,100% { transform: translateY(0); } 40% { transform: translateY(1.5px); } }
-@keyframes flame { 0%,100% { transform: scale(1,1); } 45% { transform: scale(1.04,1.09); } 70% { transform: scale(.98,1.02); } }
-@keyframes hand { 0%,100% { transform: rotate(0); } 50% { transform: rotate(24deg); } }
-@keyframes twinkle { 0%,100% { transform: scale(1); opacity:1; } 50% { transform: scale(.75); opacity:.55; } }
+/* ── моушн-пас системних іконок (Icon Motion, 12.09) ── */
+svg[data-motion] *, [data-motion] svg * { transform-box: fill-box; transform-origin: center; }
+svg[data-motion], [data-motion] svg { transition: transform 200ms cubic-bezier(.33,1,.68,1), color 160ms linear; }
+svg[data-motion]:active, [data-motion]:active svg { transform: scale(.955); transition-duration: 110ms; }
+[data-draw] { stroke-dasharray: 1; }
+[data-motion="bubble"][data-play] [data-p="bub"] { transform-box: view-box; transform-origin: 5px 19px; animation: bubRise 900ms cubic-bezier(.33,1,.68,1) both; }
+[data-motion="bubble"][data-play] [data-p^="d"] { animation: dotPop 760ms cubic-bezier(.33,1,.68,1) both; }
+[data-motion="bubble"][data-play] [data-p="d2"] { animation-delay: 110ms; }
+[data-motion="bubble"][data-play] [data-p="d3"] { animation-delay: 220ms; }
+@keyframes bubRise { 0% { transform: scale(1); } 38% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@keyframes dotPop { 0% { transform: scale(.45); opacity:.2; } 45% { transform: scale(1); opacity:1; } 100% { transform: scale(1); opacity:1; } }
+[data-motion="door"][data-play] [data-p="door"] { transform-box: view-box; transform-origin: 5px 16px; animation: swingX 1050ms cubic-bezier(.4,0,.25,1) both; }
+[data-motion="door"][data-play] [data-p="shelf1"] { animation: shelfIn 1050ms cubic-bezier(.4,0,.25,1) both; }
+@keyframes swingX { 0% { transform: scaleX(1) skewY(0); } 50% { transform: scaleX(.42) skewY(-3deg); } 100% { transform: scaleX(1) skewY(0); } }
+@keyframes shelfIn { 0% { opacity:0; } 32% { opacity:.55; } 68% { opacity:.55; } 100% { opacity:0; } }
+[data-motion="door"] [data-p="door"] path:first-child { fill: var(--frame, #f4f3ef); }
+[data-motion="book"][data-play] [data-p="leaf"] { transform-box: view-box; transform-origin: 12px 12px; animation: leafTurn 1150ms cubic-bezier(.42,0,.58,1) both; }
+@keyframes leafTurn { 0% { transform: scaleX(1); opacity:0; } 14% { opacity:.95; } 50% { transform: scaleX(.04); opacity:.95; } 86% { opacity:.95; } 100% { transform: scaleX(-1); opacity:0; } }
+[data-motion="checks"][data-play] [data-p="c1"] { animation: drawIn 500ms cubic-bezier(.33,1,.68,1) both; }
+[data-motion="checks"][data-play] [data-p="c2"] { animation: drawIn 500ms cubic-bezier(.33,1,.68,1) both; animation-delay: 230ms; }
+[data-motion="checks"][data-play] [data-p^="r"] { animation: rowIn 560ms cubic-bezier(.33,1,.68,1) both; }
+[data-motion="checks"][data-play] [data-p="r2"] { animation-delay: 120ms; }
+[data-motion="checks"][data-play] [data-p="r3"] { animation-delay: 240ms; }
+@keyframes drawIn { 0% { stroke-dashoffset: 1; opacity:.2; } 100% { stroke-dashoffset: 0; opacity:1; } }
+@keyframes rowIn { 0% { opacity:.3; transform: translateX(-1.2px); } 100% { opacity:1; transform: none; } }
+[data-motion="flip"][data-play] [data-p="dates"] { animation: pageRow 900ms cubic-bezier(.42,0,.58,1) both; }
+[data-motion="flip"][data-play] [data-p="pin1"], [data-motion="flip"][data-play] [data-p="pin2"] { animation: pinBob 900ms cubic-bezier(.4,0,.2,1) both; }
+[data-motion="flip"][data-play] [data-p="pin2"] { animation-delay: 70ms; }
+@keyframes pageRow { 0% { opacity:1; transform: translateY(0); } 42% { opacity:0; transform: translateY(-2.4px); } 44% { opacity:0; transform: translateY(2.4px); } 100% { opacity:1; transform: translateY(0); } }
+@keyframes pinBob { 0% { transform: translateY(0); } 45% { transform: translateY(.9px); } 100% { transform: translateY(0); } }
+[data-motion="home"][data-play] [data-p="hdoor"] { transform-box: view-box; transform-origin: 9.5px 21px; animation: doorOpen 980ms cubic-bezier(.4,0,.25,1) both; }
+@keyframes doorOpen { 0% { transform: scaleX(1) skewY(0); } 52% { transform: scaleX(.42) skewY(-3deg); } 100% { transform: scaleX(1) skewY(0); } }
+[data-motion="roll"][data-play] [data-p="cart"] { animation: rollX 1050ms cubic-bezier(.42,0,.58,1) both; }
+[data-motion="roll"][data-play] [data-p="sp1"] { transform-box: view-box; transform-origin: 8px 20.6px; animation: spinW 1050ms cubic-bezier(.42,0,.58,1) both; }
+[data-motion="roll"][data-play] [data-p="sp2"] { transform-box: view-box; transform-origin: 19px 20.6px; animation: spinW 1050ms cubic-bezier(.42,0,.58,1) both; }
+@keyframes rollX { 0% { transform: translateX(0); } 46% { transform: translateX(2.2px); } 100% { transform: translateX(0); } }
+@keyframes spinW { 0% { transform: rotate(0); } 46% { transform: rotate(155deg); } 100% { transform: rotate(0); } }
+[data-motion="unroll"][data-play] [data-p="body"] { transform-box: view-box; transform-origin: 12px 2px; animation: unroll 820ms cubic-bezier(.33,1,.68,1) both; }
+[data-motion="unroll"][data-play] [data-p^="l"] { animation: lineIn 520ms cubic-bezier(.33,1,.68,1) both; }
+[data-motion="unroll"][data-play] [data-p="l2"] { animation-delay: 130ms; }
+[data-motion="unroll"][data-play] [data-p="l3"] { animation-delay: 260ms; }
+@keyframes unroll { 0% { transform: scaleY(.8); } 100% { transform: scaleY(1); } }
+@keyframes lineIn { 0% { opacity:0; transform: translateY(-1.4px); } 100% { opacity:1; transform: none; } }
+[data-motion="turn"][data-play] svg { animation: quarterTurn 620ms cubic-bezier(.33,1,.68,1) both; }
+@keyframes quarterTurn { 0% { transform: rotate(0); } 100% { transform: rotate(90deg); } }
+[data-motion="listen"][data-play] [data-p="cap"] { animation: capBreathe 1250ms cubic-bezier(.42,0,.58,1) both; }
+[data-motion="listen"][data-play] [data-p="arc"] { animation: drawIn 760ms cubic-bezier(.33,1,.68,1) both; animation-delay: 120ms; }
+[data-motion="listen"][data-play] [data-p="stand"] { animation: lineIn 620ms cubic-bezier(.33,1,.68,1) both; animation-delay: 320ms; }
+@keyframes capBreathe { 0% { transform: scaleY(1); } 40% { transform: scaleY(1.07); } 100% { transform: scaleY(1); } }
+[data-motion="lift"][data-play] [data-p="arrow"] { animation: liftLoop 880ms cubic-bezier(.42,0,.58,1) both; }
+@keyframes liftLoop { 0% { transform: translateY(0); opacity:1; } 42% { transform: translateY(-4.5px); opacity:0; } 44% { transform: translateY(4.5px); opacity:0; } 100% { transform: translateY(0); opacity:1; } }
+[data-motion="clip"][data-play] [data-p="clip"] { animation: drawIn 1050ms cubic-bezier(.42,0,.58,1) both; }
+[data-motion="orbit"][data-play] [data-p="lens"] { animation: orbit 1150ms cubic-bezier(.42,0,.58,1) both; }
+@keyframes orbit { 0% { transform: translate(0,0); } 25% { transform: translate(1.4px,-.9px); } 50% { transform: translate(0,-1.9px); } 75% { transform: translate(-1.4px,-.9px); } 100% { transform: translate(0,0); } }
+[data-motion="sliders"][data-play] [data-p="k1"] { animation: knobR 1050ms cubic-bezier(.42,0,.58,1) both; }
+[data-motion="sliders"][data-play] [data-p="k2"] { animation: knobL 1050ms cubic-bezier(.42,0,.58,1) both; animation-delay: 90ms; }
+[data-motion="sliders"][data-play] [data-p="k3"] { animation: knobR 1050ms cubic-bezier(.42,0,.58,1) both; animation-delay: 180ms; }
+@keyframes knobR { 0% { transform: translateX(0); } 48% { transform: translateX(3px); } 100% { transform: translateX(0); } }
+@keyframes knobL { 0% { transform: translateX(0); } 48% { transform: translateX(-3px); } 100% { transform: translateX(0); } }
+[data-motion="swap"][data-play] [data-p="up"] { animation: swapUp 960ms cubic-bezier(.42,0,.58,1) both; }
+[data-motion="swap"][data-play] [data-p="down"] { animation: swapDown 960ms cubic-bezier(.42,0,.58,1) both; animation-delay: 80ms; }
+@keyframes swapUp { 0% { transform: translateY(0); } 48% { transform: translateY(-2.6px); } 100% { transform: translateY(0); } }
+@keyframes swapDown { 0% { transform: translateY(0); } 48% { transform: translateY(2.6px); } 100% { transform: translateY(0); } }
+[data-motion="tick"][data-play] [data-p="tick"] { animation: drawIn 720ms cubic-bezier(.33,1,.68,1) both; }
+@media (prefers-reduced-motion: reduce) { svg[data-motion] *, [data-motion] svg *, [data-motion] svg { animation: none !important; } }
 </style>
 </helmet>
 
@@ -121,15 +109,22 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
     <div style="font-size:16px; color:#6b6f74; line-height:1.55; max-width:800px;">Одна база — Lucide, контур 1.75 px, заокруглені кінці, сітка 24, оптичний розмір 20 в інтерфейсі й 16 у тексті. Три сім'ї відрізняються не стилем, а роллю: системні — дії й місця в застосунку; продукти — те, що лежить у коморі; готування — процес і рецепт. Системні мають моушн-пас: рухається не іконка, а її частини — галочки дописуються, колеса котяться, сторінка календаря перегортається. Маленькі кроки: 1–2 px, 600–900 мс, одна м’яка крива ease-in-out, без відскоку і різких змін напрямку. Натиск — ледь помітне стискання 120 мс. Знаки зон, продуктів і готування — статичні, лише натиск.</div>
   </div>
   <div style="width:400px; flex:none; background:#fff; border-radius:20px; corner-shape:squircle; padding:20px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.06); font-size:14px; line-height:1.5;">
-    <div style="font-size:12px; color:#9a9ea3;">Специфікація</div>
+    <div style="font-size:12px; color:#9a9ea3;">Специфікація · Icon Motion v2 (12.09)</div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Контур</span><span>1.75 px · round cap · round join</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Розміри</span><span>12 · 16 · 18 · 20 · 24 — закритий союз</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Тап-зона</span><span>44 × 44 завжди</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Колір</span><span>currentColor · muted → ink на ховері</span></div>
-    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Ховер</span><span>рух частин іконки · 1–2 px · 600–900 мс · ease-in-out</span></div>
-    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Натиск</span><span>scale .96 · 120 мс</span></div>
+    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Ховер</span><span>рух частин іконки · 1–4 px · 620–1300 мс</span></div>
+    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Криві</span><span>ease-out (.33,1,.68,1) — «домальовується», «набігає» · ease-in-out (.42,0,.58,1) — петлі · (.4,0,.25,1) — дверцята</span></div>
+    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Запуск</span><span>mouseenter / click; рух <b>дограється до кінця</b>, навіть коли курсор пішов; повтор — лише після завершення</span></div>
+    <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Натиск</span><span>scale .955 · 110 мс</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Стан «живе»</span><span>цикл 1.8–2.4 с, тільки поки триває</span></div>
     <div style="display:flex; justify-content:space-between;"><span style="color:#6b6f74;">Reduced motion</span><span>усе, крім кольору, вимикається</span></div>
+  </div>
+  <div style="max-width:760px; padding:14px 16px; border-radius:12px; background:#fff; box-shadow:0 1px 2px rgba(26,28,30,.05), 0 8px 24px rgba(26,28,30,.06); font-size:13px; line-height:1.55; color:#6b6f74;">
+    <b style="color:#1a1c1e; font-weight:600;">Канон руху для 16 знаків — «Kitchen OS - Icon Motion».</b> Там лежать самі криві й тривалості (bubble, door, book, checks, flip, roll, orbit, listen, turn, sliders, swap, unroll, dial, waves, nod, draw) і вони ж — джерело правди. Тут словник: гліф, значення, поле <code>m</code> = назва руху з того файлу.<br><br>
+    <b style="color:#1a1c1e; font-weight:600;">Вісім знаків поза новим файлом</b> — close, undo, next, out, collapse, theme, sound, profile — <b style="color:#1a1c1e; font-weight:600;">лишаються як у 1.5b</b>: короткий стан 120 мс, без власних кривих. Причина: це знаки-дії в кнопках, де рух уже несе сама кнопка (натиск .955), і власна анімація гліфа читалась би як друга подія. Якщо власник захоче — доведу до v2 окремим кроком.<br><br>
+    <b style="color:#1a1c1e; font-weight:600;">Гліфи, оновлені разом із рухом:</b> чат із трьома крапками, календар із трьома датами, список рядками, кошик зі спицями, книга з повною сторінкою-листком, комора з дверцятами-накладкою.
   </div>
 </div>
 
@@ -239,18 +234,70 @@ a { color:#55724a; text-decoration:none; } a:hover { color:#3b5234; }
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  icons() { const run = () => { if (window.lucide) { window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); this.fridge(); this.book(); } else setTimeout(run, 200); }; run(); }
-  book() {
-    document.querySelectorAll('[data-motion="book"] svg').forEach((svg) => {
-      svg.removeAttribute('data-lucide'); if (svg.dataset.split) return; svg.dataset.split = '1';
-      svg.innerHTML = '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3z"/><path d="M21 18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3z"/><path d="M12 8.5c1.6-1.6 3.6-2.3 6-2.3" opacity="0"/>';
-    });
+  iconTable() {
+    return {
+      'message-circle': ['bubble', '<g data-p="bub"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><circle data-p="d1" cx="8.4" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle data-p="d2" cx="12" cy="11" r="1.05" fill="currentColor" stroke="none"/><circle data-p="d3" cx="15.6" cy="11" r="1.05" fill="currentColor" stroke="none"/></g>'],
+      'refrigerator': ['door', '<path d="M5 10V6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4"/><path d="M5 10h14"/><path d="M15 5.5v2.5"/><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10"/><path data-p="shelf1" d="M8 16h8" opacity="0"/><g data-p="door"><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10" vector-effect="non-scaling-stroke"/><path d="M15 13v3.5" vector-effect="non-scaling-stroke"/></g>'],
+      'book-open': ['book', '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3z"/><path d="M21 18a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3z"/><path data-p="leaf" d="M12 7a4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-9z" opacity="0" vector-effect="non-scaling-stroke"/>'],
+      'list-checks': ['checks', '<path data-p="c1" data-draw="" pathLength="1" d="m3 7 2 2 4-4"/><path data-p="c2" data-draw="" pathLength="1" d="m3 17 2 2 4-4"/><path data-p="r1" d="M13 6h8"/><path data-p="r2" d="M13 12h8"/><path data-p="r3" d="M13 18h8"/><path d="M3 12h6" opacity=".45"/>'],
+      'calendar': ['flip', '<path data-p="pin1" d="M8 2v4"/><path data-p="pin2" d="M16 2v4"/><g data-p="sheet"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></g><g data-p="dates"><circle cx="7.6" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="16.4" cy="15" r="1" fill="currentColor" stroke="none"/></g>'],
+      'house': ['home', '<path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6"/><path data-p="hdoor" d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6" vector-effect="non-scaling-stroke"/>'],
+      'shopping-cart': ['roll', '<g data-p="cart"><path d="M2.5 3h1.8l2.5 11.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 1.95-1.55L21 7.6H5.4"/><circle cx="8" cy="20.6" r="1.6"/><path data-p="sp1" d="M8 20.6v-1.6"/><circle cx="19" cy="20.6" r="1.6"/><path data-p="sp2" d="M19 20.6v-1.6"/></g>'],
+      'receipt': ['unroll', '<g data-p="body"><path d="M5 3.5A1.5 1.5 0 0 1 6.5 2h11A1.5 1.5 0 0 1 19 3.5V22l-2.33-1.3L14.33 22 12 20.7 9.67 22 7.33 20.7 5 22Z" vector-effect="non-scaling-stroke"/><path data-p="l1" d="M8.5 7h7" vector-effect="non-scaling-stroke"/><path data-p="l2" d="M8.5 11h7" vector-effect="non-scaling-stroke"/><path data-p="l3" d="M8.5 15h4.5" vector-effect="non-scaling-stroke"/></g>'],
+      'plus': ['turn', '<path d="M5 12h14"/><path d="M12 5v14"/>'],
+      'mic': ['listen', '<path data-p="cap" d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" vector-effect="non-scaling-stroke"/><path data-p="arc" data-draw="" pathLength="1" d="M19 10v2a7 7 0 0 1-14 0v-2"/><path data-p="stand" d="M12 19v3"/>'],
+      'arrow-up': ['lift', '<g data-p="arrow"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></g>'],
+      'paperclip': ['clip', '<path data-p="clip" data-draw="" pathLength="1" d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>'],
+      'search': ['orbit', '<g data-p="lens"><circle cx="11" cy="11" r="7"/></g><path d="m21 21-4.3-4.3"/>'],
+      'sliders-horizontal': ['sliders', '<path d="M3 7h18" opacity=".45"/><path d="M3 12h18" opacity=".45"/><path d="M3 17h18" opacity=".45"/><path data-p="k1" d="M14 5v4"/><path data-p="k2" d="M10 10v4"/><path data-p="k3" d="M15 15v4"/>'],
+      'arrow-up-down': ['swap', '<g data-p="up"><path d="M7 20V4"/><path d="m3 8 4-4 4 4"/></g><g data-p="down"><path d="M17 4v16"/><path d="m21 16-4 4-4-4"/></g>'],
+      'check': ['tick', '<path data-p="tick" data-draw="" pathLength="1" d="M20 6 9 17l-5-5"/>'],
+    };
   }
-  fridge() {
-    document.querySelectorAll('[data-motion="door"] svg').forEach((svg) => {
-      svg.removeAttribute('data-lucide'); if (svg.dataset.split) return; svg.dataset.split = '1';
-      svg.innerHTML = '<path d="M5 10V6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4"/><path d="M5 10h14"/><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10"/><path d="M15 13v4"/>';
-    });
+  icons() {
+    const T = this.iconTable();
+    const DUR = { bubble:1050, door:1050, book:1150, checks:1000, flip:900, home:980, roll:1050, unroll:850, turn:620, listen:1300, lift:880, clip:1050, orbit:1150, sliders:1250, swap:1050, tick:750 };
+    const run = () => {
+      const L = window.lucide;
+      if (!L) { setTimeout(run, 200); return; }
+      L.createIcons({ attrs: { 'stroke-width': 1.75 } });
+      document.querySelectorAll('i[data-lucide], svg[data-lucide], [data-ico-src]').forEach(() => {});
+      document.querySelectorAll('svg.lucide, svg[data-ico], i[data-lucide]').forEach(() => {});
+      // apply custom set over whatever lucide produced
+      document.querySelectorAll('[data-ico-name]').forEach(el => el.removeAttribute('data-ico-name'));
+      const nodes = document.querySelectorAll('svg:not([data-custom])');
+      nodes.forEach(svg => {
+        const cls = svg.getAttribute('class') || '';
+        const m = cls.match(/lucide-([a-z0-9-]+)/);
+        const name = m ? m[1] : null;
+        if (!name || !T[name] || svg.dataset.custom === name) return;
+        const [motion, inner] = T[name];
+        const doc = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg">' + inner + '</svg>', 'image/svg+xml');
+        if (doc.querySelector('parsererror')) { svg.dataset.custom = name; return; }
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        Array.from(doc.documentElement.childNodes).forEach(n => svg.appendChild(document.importNode(n, true)));
+        svg.setAttribute('overflow', 'visible');
+        svg.removeAttribute('data-lucide');
+        svg.dataset.custom = name;
+        const par = svg.parentElement;
+        const host = (par && par.querySelectorAll('svg').length === 1 && par.children.length <= 2) ? par : svg;
+        if (host && !host.dataset.motion) host.dataset.motion = motion;
+      });
+      document.querySelectorAll('[data-motion]').forEach(host => {
+        if (!host.dataset.dur) host.dataset.dur = String(DUR[host.dataset.motion] || 900);
+        if (host.dataset.motion === 'door' || host.dataset.motion === 'home') {
+          let bg = '', n = host;
+          while (n && n !== document.body) { const c = getComputedStyle(n).backgroundColor; if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') { bg = c; break; } n = n.parentElement; }
+          host.style.setProperty('--frame', bg || '#f4f3ef');
+        }
+        if (host.dataset.mbound) return;
+        host.dataset.mbound = '1';
+        const play = () => { if (host.dataset.play) return; host.dataset.play = '1'; setTimeout(() => { delete host.dataset.play; }, (Number(host.dataset.dur) || 900) + 80); };
+        host.addEventListener('mouseenter', play);
+        host.addEventListener('click', play);
+      });
+    };
+    run();
   }
   componentDidMount() { this.icons(); }
   componentDidUpdate() { this.icons(); }
