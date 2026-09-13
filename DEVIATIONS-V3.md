@@ -3133,3 +3133,47 @@ OS - Prototype.dc.html`, стан emptyChat (renderVals greeting / joke / hints 
   `docs/superpowers/plans/side-by-side/p148/profile-{1440,390}-{unlinked,linked}-{light,dark}`,
   `profile-1440-link-shown-{light,dark}`, `profile-{1440,390}-error-light`,
   `chat-{1440,390}-telegram-{light,dark}` (`--stub-messages`, хід із `channel: 'telegram'`).
+
+### Р149 · Telegram-бот, PR 2 «бот відповідає» (TELEGRAM-PLAN-0913; рішення власника 13.09)
+
+Гілка `feat/telegram-chat` від `origin/main` 838a8fe.
+- **Той самий хід чату.** Тіло `POST /v1/chat` (routes/chat.ts, ~900 рядків одним замиканням)
+  перенесено дослівно у `services/api/src/chat-turn.ts` · `runChatTurn(repo, store, opts,
+  input)`; маршрут — тонкий HTTP-шар (кука, ліміт, тіло, коди). Змінилось лише: HTTP-помилки
+  (400/403/404/502) — виняток `ChatTurnHttpError`, який маршрут перетворює на
+  `reply.code().send()`; раковина інцидентів — `host` з input (у вебі — сам req); кожен
+  `saveMessage` дописує `channel`, коли хід не з вебу (`'web'` у базу не пишеться —
+  типове значення колонки). Повний набір тестів API (632) пройшов без змін — перенос
+  поведінку не змінив. Бот кличе `runChatTurn` для привʼязаної людини (дім — `firstHouseholdOf`,
+  як у verifyChallenge) з `channel: 'telegram'` — обидва повідомлення (user + assistant)
+  несуть channel; після ходу бот сам чекає `settleTelemetry` + `flushSentry` (у вебі це
+  робить onSend-хук fastify, на серверлесі без цього інцидент губився б).
+- **Відповідь у Telegram**: reply-текст + картка текстом + рядок «Відкрити у вебі:
+  {APP_URL}/app» — одним повідомленням HTML (екрановано &, <, >), довше за 4096 — по межі
+  рядка/речення на два-три. Картки: proposal — «Варіанти: 1) назва · опис …» (часу в
+  ProposalCard нема — desc); recipe/recipe_link — назва · хв · порції + склад списком;
+  intake_diff — «Розібрав: N позицій» + список (+/−/відкрито/→); shopping — список (+/−);
+  event — рядки ops; period — назва й дати; cart/cook_photo/onboarding та службові — без
+  тексту. Без кнопок (PR 3). HTML не пройшов (тег у відповіді моделі) — те саме простим
+  текстом. Поки хід думає — `sendChatAction('typing')` кожні 4 с.
+- **Помилка ходу** (502 model_unavailable або виняток) → текст E1. **Відхилення від
+  постановки:** рядка «Не вийшло відповісти · спробуй ще раз» у Errors нема; узято
+  дослівно `REPLY_FAILED` з `ErrorState/copy.ts` — «Я подумав. Відповідь — ні. Повторити?»
+  (той самий, що бачить веб). У Sentry — той самий `incident('broke', 'chat-model-call-failed')`
+  усередині ходу, як у вебі.
+- **Ліміт**: 30 ходів на хвилину на Telegram-користувача (як у вебі на user_id; окремий
+  лічильник, бо серверлес-функції різні) → «Дай хвилину — і продовжимо.» (нове речення —
+  на рішення власника; у вебі це 429 без тексту).
+- **Вебхук**: `telegram-handler.ts` сам перевіряє секрет (X-Telegram-Bot-Api-Secret-Token),
+  віддає 200 одразу і доганяє хід через `waitUntil` з `@vercel/functions` (нова
+  залежність) у межах maxDuration — `vercel.json` для `api/telegram.ts` піднято до 120 с /
+  1024 МБ (як api/index). У polling-режимі (стенд) — просто await.
+- **`scripts/telegram-dev.mts`**: прапорець `--model` або `TELEGRAM_DEV_MODEL=1` — ключі
+  моделі не затираються; типово, як було, затираються (стаб). Фікс `dotenv`
+  (ERR_MODULE_NOT_FOUND у корені) — імпорт з пакета services/api.
+- **Тести** (`services/api/tests/telegram.test.ts`, 10): контракт профілю, /start без
+  токена і з чужим, привʼязка й разовість, 15 хв, текст → той самий хід (user + assistant з
+  channel, заголовок сесії, `/v1/session/today` віддає channel), хід із вебу без channel,
+  картка → текст (proposal/recipe/intake_diff/shopping, null для службових) + екранування й
+  розбиття, помилка → E1, дубль update_id, /stop і DELETE. Модель — стаб.
+- **Не зроблено свідомо**: кнопки, фото/документи, голос, cron (PR 2–3 плану).

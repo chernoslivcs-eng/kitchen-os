@@ -175,11 +175,13 @@ await run('omelet', { daysAgo: 4, hour: 8, minutes: 10 });
 await run('pasta', { daysAgo: 9, hour: 19, minutes: 25, rating: 4 });
 console.log(`stand-seed: рецепт «Паста…» — /recipe/${recipeIds.pasta} · /r/${recipeIds.pasta}`);
 
-const app = buildApp(repo, new InMemoryStore(), new ConsoleMailer());
+const store = new InMemoryStore();
+const app = buildApp(repo, store, new ConsoleMailer());
 await app.listen({ port: PORT, host: '127.0.0.1' });
-// Р147: dev-бот polling'ом проти цього ж репозиторію в памʼяті (scripts/telegram-dev.mts).
+// Р147/Р149: dev-бот polling'ом проти цього ж репозиторію в памʼяті (scripts/telegram-dev.mts);
+// хід чату — той самий, що /v1/chat (з моделлю, якщо ключ не затерто).
 if (process.env.TELEGRAM_DEV_BOT_TOKEN) {
-  const bot = makeTelegramBot(process.env.TELEGRAM_DEV_BOT_TOKEN, { repo, appUrl: process.env.APP_URL ?? 'http://localhost:5173' });
+  const bot = makeTelegramBot(process.env.TELEGRAM_DEV_BOT_TOKEN, { repo, store, appUrl: process.env.APP_URL ?? 'http://localhost:5173', log: app.log });
   void bot.start({ onStart: (me) => console.log(`stand-seed: Telegram dev-бот @${me.username} слухає (polling)`) });
 }
 console.log(`stand-seed: API на :${PORT} · дім ${household_id.slice(0, 8)} · вхід ${EMAIL} · ${(await repo.listBatches(household_id)).length} партій`);

@@ -10,8 +10,8 @@
       "includeFiles": "{apps/web/dist/index.html,api-dist/**}"
     },
     "api/telegram.ts": {
-      "maxDuration": 30,
-      "memory": 512,
+      "maxDuration": 120,
+      "memory": 1024,
       "includeFiles": "api-dist/**"
     }
   },
