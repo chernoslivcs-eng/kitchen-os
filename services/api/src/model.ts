@@ -1144,10 +1144,10 @@ export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCa
 
 // ── «Факт дому» (Р146) ───────────────────────────────────────────────────
 // Один рядок під чіпами порожньої розмови з трьох списків, які збирає сервер
-// (routes/home-fact.ts). Не критичний шлях: шаблон уже відданий; тут — лише
-// одна спроба з жорстким бюджетом 8 с (без withRetry: він помножив би його
-// на три) і без temperature (типова). Помилка летить нагору — маршрут її
-// зафіксує як guard і лишить шаблон.
+// (routes/home-fact.ts). Профіль — smart, як чат (власник 13.09). Не критичний
+// шлях: одна спроба з жорстким бюджетом 8 с (без withRetry: він помножив би
+// його на три) і без temperature (типова). Помилка летить нагору — маршрут
+// віддасть { text: null } і зафіксує guard.
 export interface HomeFactCall {
   text: string | null;
   calls: ModelCallUsage[];
@@ -1160,9 +1160,13 @@ export async function callHomeFact(facts: string): Promise<HomeFactCall> {
   if (!client) return { text: null, calls: [ZERO_USAGE], meta: { promptVersion: prompt.version, model: 'stub', mode: 'stub' } };
   const model = modelForCall('home_fact', prompt);
   const system = compose('home_fact', prompt);
+  // max_tokens 1024, не 120 (постановка): smart-модель думає за замовчуванням, і на
+  // 120 міркування зʼїдали бюджет — приходило 1–11 знаків (евал 13.09). Платимо за
+  // фактичний вихід, а він і так ≤ 220 знаків.
   const resp = await client.messages.create({
     model,
-    max_tokens: 120,
+    max_tokens: 1024,
+    ...thinkingOff(model),
     system: cachedSystem(system),
     messages: [{ role: 'user', content: facts }],
   }, { timeout: 8_000, maxRetries: 0 });

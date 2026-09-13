@@ -67,7 +67,7 @@ describe('GET /v1/home-fact', () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
-  it('прапорець увімкнено: текст моделі, usage записано з профілем fast', async () => {
+  it('прапорець увімкнено: текст моделі, usage записано з профілем smart (як чат)', async () => {
     const generate = vi.fn(async (input: string) => { expect(input).toContain('[КОМОРА]'); return live('Борщ позавчора був, сьогодні його черга повторитись.'); });
     const app = build({ llm: true, generate }); await app.ready();
     const me = await signIn(app, mailer, 'me@example.com');
@@ -77,7 +77,7 @@ describe('GET /v1/home-fact', () => {
     expect(generate).toHaveBeenCalledTimes(1);
     const usage = (await repo.listTokenUsage(me.user_id)).filter((u) => u.call === 'home_fact');
     expect(usage).toHaveLength(1);
-    expect(usage[0]).toMatchObject({ profile: 'fast', input_tokens: 900, output_tokens: 40, mode: 'live' });
+    expect(usage[0]).toMatchObject({ profile: 'smart', input_tokens: 900, output_tokens: 40, mode: 'live' });
   });
 
   it('модель каже «—» (нема фактів) — рядка нема, без guard', async () => {
