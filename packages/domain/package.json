@@ -11,7 +11,8 @@
     "./card-modes": "./card-modes.ts",
     "./duration": "./duration.ts",
     "./profile-fields": "./profile-fields.ts",
-    "./shelf-thresholds": "./shelf-thresholds.ts"
+    "./shelf-thresholds": "./shelf-thresholds.ts",
+    "./home-fact": "./home-fact.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

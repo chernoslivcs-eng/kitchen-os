@@ -56,6 +56,9 @@ import { useCookStore } from '../../store/cook';
  */
 // Порожня розмова за Prototype (Р140): підказки плейсхолдера і чотири чіпи —
 // слова рівно з renderVals (HINTS / hints).
+// Р146: повтор запиту факту дому, коли модель ще в дорозі (1,5–3 с).
+const FACT_RETRY_MS = 1500;
+const FACT_RETRY_JITTER_MS = 1500;
 const EMPTY_HINTS = ['Кинь чек — розберу', 'Сфотографуй полицю', 'Скажи, що купив', 'Спитай, що на вечерю', 'Надиктуй список'];
 const EMPTY_CHIPS: { key: string; icon: 'cook.serve' | 'live.thinking' | 'sys.list' | 'sys.add'; label: string; short: string; t: string }[] = [
   { key: 'today', icon: 'cook.serve', label: 'Що зготуємо сьогодні?', short: 'Що зготуємо?', t: 'що зготуємо сьогодні?' },
@@ -1312,27 +1315,53 @@ export function Feed() {
     }, 55);
     return () => window.clearInterval(id);
   }, [phLive]);
-  // «Факт дому» — з реальних даних (lib/homeFact): списане сьогодні при тихій
-  // коморі · піст · сезон цього тижня · бібліотека. Лічильники бібліотеки
-  // (збережено · приготовано) — два запити раз на монтування, лише коли
-  // розмова порожня.
-  const [library, setLibrary] = useState<{ saved: number; cooked: number } | null>(null);
-  const libraryAsked = useRef(false);
-  useEffect(() => {
-    if (!emptyChat || mobileEmpty || libraryAsked.current) return;
-    libraryAsked.current = true;
-    Promise.all([api.savedRecipes.list(), api.cookRuns.list()])
-      .then(([r, c]) => setLibrary({ saved: (r.recipes ?? []).length, cooked: (c.runs ?? []).length }))
-      .catch(() => setLibrary({ saved: 0, cooked: 0 }));
-  }, [emptyChat, mobileEmpty]);
+  // «Факт дому» (Р146): текст із GET /v1/home-fact — шаблон одразу (source
+  // template), модель дописує у фоні; якщо прийшов pending — один повтор через
+  // 1,5–3 с і мʼяка підміна тексту (opacity, --dur-base). null — рядка нема.
+  // Ендпоінт не відповів — локальний шаблон (lib/homeFact) з того, що вже є.
   const today = todayIso();
   const seasonStarted = home.now.find((e) => toneOfNow(e) === 'season' && e.from <= today && daysBetween(e.from, today) <= 6)?.title ?? null;
-  const fact = homeFact({
+  const localFact = homeFact({
     writtenOffToday: home.overdue === 0 ? writtenOffToday : null,
     fast: home.strict ? { day: daysBetween(home.strict.from, today) + 1, total: daysBetween(home.strict.from, home.strict.to) + 1 } : null,
     seasonStarted,
-    library,
+    library: null,
   });
+  const [factRow, setFactRow] = useState<{ text: string | null; source: 'llm' | 'template' | null } | null>(null);
+  // Запит один на монтування; відповідь приймаємо, поки живий компонент, а не
+  // ефект — emptyChat мигає під час завантаження сесії, і cleanup ефекту губив би її.
+  const factAsked = useRef(false);
+  const factAlive = useRef(true);
+  const factTimer = useRef<number | undefined>(undefined);
+  // StrictMode у dev монтує двічі зі збереженими ref-ами — тому «живий» ставимо в самому ефекті, не в ініціалізаторі.
+  useEffect(() => { factAlive.current = true; return () => { factAlive.current = false; if (factTimer.current) window.clearTimeout(factTimer.current); }; }, []);
+  useEffect(() => {
+    if (!emptyChat || mobileEmpty || factAsked.current) return;
+    factAsked.current = true;
+    let retried = false;
+    const ask = () => {
+      api.homeFact.get()
+        .then((r) => {
+          if (!factAlive.current) return;
+          setFactRow({ text: r.text, source: r.source });
+          if (r.pending && !retried) { retried = true; factTimer.current = window.setTimeout(ask, FACT_RETRY_MS + Math.random() * FACT_RETRY_JITTER_MS); }
+        })
+        .catch(() => { if (factAlive.current) setFactRow({ text: localFact, source: localFact ? 'template' : null }); });
+    };
+    ask();
+  }, [emptyChat, mobileEmpty, localFact]);
+  // Мʼяка підміна: старий текст гасне за --dur-base, потім стає новий.
+  const [factShown, setFactShown] = useState<string | null>(null);
+  const [factFading, setFactFading] = useState(false);
+  useEffect(() => {
+    const next = factRow?.text ?? null;
+    if (next === factShown) return;
+    if (factShown === null || reduceMotion()) { setFactShown(next); return; }
+    setFactFading(true);
+    const id = window.setTimeout(() => { setFactShown(next); setFactFading(false); }, 240);
+    return () => window.clearTimeout(id);
+  }, [factRow]);
+  const fact = factShown;
 
   return (
     <div
@@ -2081,7 +2110,7 @@ export function Feed() {
                 </button>
               ))}
             </div>
-            {fact && <p className={styles['empty-fact']} data-empty-fact>{fact}</p>}
+            {fact && <p className={`${styles['empty-fact']} ${factFading ? styles['empty-fact-out'] : ''}`} data-empty-fact data-fact-source={factRow?.source ?? undefined}>{fact}</p>}
           </div>
         )}
       </div>

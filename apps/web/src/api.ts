@@ -738,6 +738,11 @@ export const api = {
     remove: (id: string) => req<{ deleted: true }>(`/v1/sessions/${id}`, { method: 'DELETE' }),
   },
 
+  // Р146: «факт дому» під чіпами порожньої розмови. template — одразу, llm — після
+  // фонової генерації; pending — варто повторити раз через 1,5–3 с.
+  homeFact: {
+    get: () => req<{ text: string | null; date: string; source: 'llm' | 'template' | null; pending: boolean }>('/v1/home-fact'),
+  },
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
     save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string; session_id?: string; ask_writeoff?: boolean }) =>

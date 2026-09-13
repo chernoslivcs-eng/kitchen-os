@@ -27,3 +27,4 @@ export * from './periods.js';
 export * from './hebrew-calendar.js';
 export * from './islamic-calendar.js';
 export * from './duration.js';
+export * from './home-fact.js';

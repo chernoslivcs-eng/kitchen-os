@@ -30,6 +30,7 @@ import { profileRoutes } from './routes/profile.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
 import { onboardingRoutes } from './routes/onboarding.js';
+import { homeFactRoutes, type HomeFactOpts } from './routes/home-fact.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
@@ -62,6 +63,8 @@ export interface BuildAppOpts {
   };
   google?: GoogleAuthOpts;
   retail?: RetailOpts;
+  /** Р146: «факт дому» від моделі (HOME_FACT_LLM=1); без опції — лише шаблон. */
+  homeFact?: HomeFactOpts;
 }
 
 export function buildApp(
@@ -180,6 +183,7 @@ export function buildApp(
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);
   onboardingRoutes(app, repo);
+  homeFactRoutes(app, repo, opts.homeFact);
   chatRoute(app, repo, store, {
     rateLimit: opts.rateLimits?.chat,
     retailCart: retail?.attemptBuildCart,
@@ -279,7 +283,9 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
       // Стейки Карпат — відкритий каталог без ключів; KARPATY_ENABLED=0 вимикає.
       karpaty: { enabled: process.env.KARPATY_ENABLED !== '0' } }
     : undefined;
-  return buildApp(repo, store, mailer, { google, retail });
+  // Р146: модель для «факту дому» вмикає власник прапорцем після перегляду евалу.
+  const homeFact = { llm: process.env.HOME_FACT_LLM === '1' };
+  return buildApp(repo, store, mailer, { google, retail, homeFact });
 }
 
 // entrypoint

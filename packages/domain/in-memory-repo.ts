@@ -6,6 +6,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   SessionRow, MessageRow, LastAppliedIntake, IntakeCard, AppEventRow,
+  HomeFactRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -43,6 +44,7 @@ export class InMemoryRepo implements Repo {
   private adminOccasions = new Map<string, AdminOccasionRow>();
   private recipes = new Map<string, RecipeRow>();
   private cookRuns = new Map<string, CookRunRow>();
+  private homeFacts = new Map<string, HomeFactRow>();          // `${household_id}:${date}` → рядок (Р146)
   private chatSessions = new Map<string, SessionRow>();
   private chatSessionsByUserDay = new Map<string, string>();   // `${user_id}:${day}` → session_id
   private messages = new Map<string, MessageRow[]>();          // session_id → messages
@@ -750,6 +752,13 @@ export class InMemoryRepo implements Repo {
   async updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict' | 'photo_url'>>): Promise<void> {
     const cur = this.cookRuns.get(id);
     if (cur) this.cookRuns.set(id, { ...cur, ...patch });
+  }
+  async getHomeFact(household_id: string, date: string): Promise<HomeFactRow | null> {
+    const r = this.homeFacts.get(`${household_id}:${date}`);
+    return r ? { ...r } : null;
+  }
+  async saveHomeFact(row: HomeFactRow): Promise<void> {
+    this.homeFacts.set(`${row.household_id}:${row.date}`, { ...row });
   }
   async listCookRuns(user_id: string, limit = 20): Promise<CookRunWithRecipe[]> {
     return [...this.cookRuns.values()]

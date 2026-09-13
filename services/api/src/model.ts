@@ -3,7 +3,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { loadPrompt, compose, hashPromptText, type CallName, type LoadedPrompt } from '@kitchen/prompts';
-import type { OccasionRow } from '@kitchen/domain';
+import type { OccasionRow , CallMode } from '@kitchen/domain';
 import { INTAKE_TOO_BIG_REPLY } from './reply-guard.js';
 import { noteFrom,
   buildKitchenContext,
@@ -1142,3 +1142,34 @@ export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCa
   }
 }
 
+// ── «Факт дому» (Р146) ───────────────────────────────────────────────────
+// Один рядок під чіпами порожньої розмови з трьох списків, які збирає сервер
+// (routes/home-fact.ts). Не критичний шлях: шаблон уже відданий; тут — лише
+// одна спроба з жорстким бюджетом 8 с (без withRetry: він помножив би його
+// на три) і без temperature (типова). Помилка летить нагору — маршрут її
+// зафіксує як guard і лишить шаблон.
+export interface HomeFactCall {
+  text: string | null;
+  calls: ModelCallUsage[];
+  meta: { promptVersion: string; model: string; mode: CallMode };
+}
+
+export async function callHomeFact(facts: string): Promise<HomeFactCall> {
+  const prompt = loadPrompt();
+  const client = makeClient();
+  if (!client) return { text: null, calls: [ZERO_USAGE], meta: { promptVersion: prompt.version, model: 'stub', mode: 'stub' } };
+  const model = modelForCall('home_fact', prompt);
+  const system = compose('home_fact', prompt);
+  const resp = await client.messages.create({
+    model,
+    max_tokens: 120,
+    system: cachedSystem(system),
+    messages: [{ role: 'user', content: facts }],
+  }, { timeout: 8_000, maxRetries: 0 });
+  const text = resp.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join(' ')
+    .trim();
+  return { text: text || null, calls: [usageFrom(resp.usage)], meta: { promptVersion: prompt.version, model, mode: 'live' } };
+}

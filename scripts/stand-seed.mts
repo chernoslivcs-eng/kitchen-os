@@ -174,6 +174,6 @@ await run('omelet', { daysAgo: 4, hour: 8, minutes: 10 });
 await run('pasta', { daysAgo: 9, hour: 19, minutes: 25, rating: 4 });
 console.log(`stand-seed: рецепт «Паста…» — /recipe/${recipeIds.pasta} · /r/${recipeIds.pasta}`);
 
-const app = buildApp(repo, new InMemoryStore(), new ConsoleMailer());
+const app = buildApp(repo, new InMemoryStore(), new ConsoleMailer(), { homeFact: { llm: process.env.HOME_FACT_LLM === '1' } });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 console.log(`stand-seed: API на :${PORT} · дім ${household_id.slice(0, 8)} · вхід ${EMAIL} · ${(await repo.listBatches(household_id)).length} партій`);

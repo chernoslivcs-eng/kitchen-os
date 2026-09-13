@@ -622,7 +622,7 @@ export interface ShoppingItemRow {
 // це тримало дірку в обліку: рід викликів, який не можна було назвати в
 // типі, неможливо було й записати в `token_usage`. Колонка `call` — вільний
 // text без CHECK (міграція 0003), тож розширення типу міграції не потребує.
-export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen' | 'alt_filter';
+export type CallName = 'chat' | 'attachment_parse' | 'recipe_gen' | 'alt_filter' | 'home_fact';
 export type ModelProfile = 'fast' | 'smart' | 'stub';
 export type CallMode = 'live' | 'stub';
 
@@ -821,4 +821,18 @@ export interface HouseholdEventRow {
   expires_at: string | null;
   done_at: string | null;
   created_at: string;
+}
+
+// Р146: «факт дому» дня — кеш по (household_id, date). Шаблон лягає одразу,
+// модель дописує у фоні; llm_state каже, чи є сенс чекати на модель.
+export type HomeFactSource = 'llm' | 'template';
+export type HomeFactLlmState = 'none' | 'pending' | 'done' | 'failed';
+export interface HomeFactRow {
+  household_id: string;
+  /** Локальний день дому, YYYY-MM-DD. */
+  date: string;
+  text: string | null;
+  source: HomeFactSource | null;
+  llm_state: HomeFactLlmState;
+  updated_at: string;
 }

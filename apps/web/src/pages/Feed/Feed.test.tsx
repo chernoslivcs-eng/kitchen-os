@@ -30,7 +30,7 @@ interface ChatCall { body: { text?: string; attachments?: { id: string }[]; sess
 let chatCalls: ChatCall[];
 let waiting: { resolve: (body: unknown) => void; reject: (e: Error) => void }[];
 let batches: { id: string; label: string; state: string; expires_at: string | null; days: number | null }[];
-let library: { recipes: unknown[]; runs: unknown[] };
+let homeFactResp: { text: string | null; date: string; source: 'llm' | 'template' | null; pending: boolean } | (() => unknown);
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
@@ -59,8 +59,7 @@ function installFetch() {
     if (url === '/v1/pantry') return json({ count: batches.length, batches, products: [] });
     if (url === '/v1/shopping') return json({ count: 0, items: [] });
     if (url === '/v1/cards/pending') return json({ cards: [] });
-    if (url === '/v1/recipes') return json({ recipes: library.recipes });
-    if (url === '/v1/cook-runs') return json({ runs: library.runs });
+    if (url === '/v1/home-fact') return json(typeof homeFactResp === 'function' ? homeFactResp() : homeFactResp);
     if (url === '/v1/retail') return json({ silpo: { status: 'none' } });
     if (url === '/v1/session/today') return json({ session: { id: 's1', created_at: '2026-09-06T06:00:00Z' }, messages: [] });
     if (url === '/v1/attachments') return json({ id: 'att-new', url: '/v1/attachments/att-new/bytes', kind: 'image', bytes: 10, content_type: 'image/jpeg' });
@@ -100,7 +99,7 @@ async function submit() {
 
 beforeEach(() => {
   batches = [];
-  library = { recipes: [], runs: [] };
+  homeFactResp = { text: null, date: '2026-09-13', source: null, pending: false };
   useAuth.setState({ me: null });
   installFetch();
   vi.useRealTimers();
@@ -424,17 +423,35 @@ describe('Р140 · порожня розмова ≥768 за Prototype', () => {
     expect(q('[data-chat-empty]'), 'екран у стані порожньої розмови').toBeTruthy();
     expect(q('[data-chat-empty-mobile]')).toBeNull();
   });
-  it('без імені — без звертання; факт дому з бібліотеки', async () => {
+  it('без імені — без звертання; факт дому — з ендпоінта (шаблон)', async () => {
     desktopMedia(true);
     useAuth.setState({ me: null });
-    library = { recipes: [{}, {}], runs: [{}, {}, {}] };
+    homeFactResp = { text: 'Ти зберіг 2 рецепти і приготував 3. Решта живе життям, про яке ми не говоримо.', date: '2026-09-13', source: 'template', pending: false };
     await mount();
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     const h1 = q('[data-empty-hero] h1')!.textContent!;
     expect(['Що на вечерю?', 'Що готуємо?']).toContain(h1);
     expect(q('[data-empty-fact]')!.textContent).toBe('Ти зберіг 2 рецепти і приготував 3. Решта живе життям, про яке ми не говоримо.');
+    expect(q('[data-empty-fact]')!.getAttribute('data-fact-source')).toBe('template');
+    expect(chatCalls).toHaveLength(0);
   });
-  it('порожня бібліотека — рядка нема; reduced motion — плейсхолдер статичний', async () => {
+  it('Р146: pending → один повтор через 1,5–3 с, текст моделі підміняє шаблон', async () => {
+    desktopMedia(true);
+    let calls = 0;
+    homeFactResp = () => (++calls === 1
+      ? { text: 'Сезон «гарбузи» почався. Тепер усе, що ти скажеш, я потайки зводитиму до крем-супу.', date: '2026-09-13', source: 'template', pending: true }
+      : { text: 'Гарбузи в силі, а помідори вже другий день чекають свого моменту.', date: '2026-09-13', source: 'llm', pending: false });
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(q('[data-empty-fact]')!.getAttribute('data-fact-source')).toBe('template');
+    await act(async () => { await new Promise((r) => setTimeout(r, 3300)); });
+    expect(calls).toBe(2);
+    expect(q('[data-empty-fact]')!.textContent).toBe('Гарбузи в силі, а помідори вже другий день чекають свого моменту.');
+    expect(q('[data-empty-fact]')!.getAttribute('data-fact-source')).toBe('llm');
+    await act(async () => { await new Promise((r) => setTimeout(r, 3300)); });
+    expect(calls, 'повтор лише один').toBe(2);
+  }, 10_000);
+  it('null з ендпоінта — рядка нема; reduced motion — плейсхолдер статичний', async () => {
     desktopMedia(true);
     await mount();
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });

@@ -22,7 +22,8 @@ export type CallName =
   | 'chat'
   | 'recipe_gen'
   | 'attachment_parse'
-  | 'alt_filter';
+  | 'alt_filter'
+  | 'home_fact';
 
 export interface CallSpec {
   // `profile` — ЄДИНЕ джерело того, яка модель обслуговує виклик. Раніше

@@ -56,7 +56,7 @@ function filesForCalls(prompt: LoadedPrompt, calls: CallName[]): string[] {
   return out;
 }
 
-const ALL_CALLS: CallName[] = ['chat', 'recipe_gen', 'attachment_parse', 'alt_filter'];
+const ALL_CALLS: CallName[] = ['chat', 'recipe_gen', 'attachment_parse', 'alt_filter', 'home_fact'];
 
 /**
  * Перетини маркерів у файлах промпту. Перетин = маркер у ≥ minFiles файлах.

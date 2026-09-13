@@ -1395,7 +1395,8 @@ a.att-chip:hover { border-color: var(--sage); }
 .empty-chip > [data-icon] > svg { width: 15px; height: 15px; }
 .empty-chip:hover { filter: brightness(0.97); }
 .empty-chip-short { display: none; }
-.empty-fact { margin: 0; font-family: var(--font-body); font-size: 13px; line-height: 1.5; color: var(--muted); max-width: 520px; text-align: center; text-wrap: pretty; }
+.empty-fact { margin: 0; font-family: var(--font-body); font-size: 13px; line-height: 1.5; color: var(--muted); max-width: 520px; text-align: center; text-wrap: pretty; transition: opacity var(--dur-base) var(--ease-standard); }
+.empty-fact-out { opacity: 0; } /* Р146: підміна шаблону текстом моделі */
 .composer-wrap { transition: flex-grow var(--dur-base) var(--ease-standard); }
 [data-chat-empty] .composer-wrap { flex-grow: 1; }
 [data-chat-empty] .timeline { min-height: fit-content; padding-top: calc(100px + env(safe-area-inset-top, 0px)); }
@@ -1432,7 +1433,7 @@ a.att-chip:hover { border-color: var(--sage); }
   [data-chat-empty-mobile] .timeline { min-height: 0; padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .empty-hero, .empty-hero-m, .empty-below, .composer-wrap { transition: none; }
+  .empty-hero, .empty-hero-m, .empty-below, .composer-wrap, .empty-fact { transition: none; }
 }
 
 /* Позначки груп у картках (були в cards.module.css без імпортера — аудит 0913 C.6).
