@@ -483,6 +483,9 @@ export interface MessageRow {
   // станом кухні («у Сільпо є два» → «у тебе є два», живий репро 01.09).
   // Не показується людині — живе тільки в історії, яка їде в модель.
   source?: 'retail_search';
+  // Р147: звідки прийшов хід. Відсутнє = 'web' (усе, що було); 'telegram' —
+  // написано боту, веб показує міткою «з Telegram» у мета-рядку.
+  channel?: 'web' | 'telegram';
   // Аудит раунд 3, крок 1: похідні поля з card_pending (той самий id —
   // message.id === card_pending.id), приєднуються при listMessages, а не
   // зберігаються на самому рядку message. Джерело істини одне — card_pending;
@@ -821,4 +824,22 @@ export interface HouseholdEventRow {
   expires_at: string | null;
   done_at: string | null;
   created_at: string;
+}
+
+// Р147: Telegram як другий канал у чат дому (TELEGRAM-PLAN-0913, PR 1).
+export interface TelegramAccountRow {
+  telegram_user_id: number;
+  user_id: string;
+  chat_id: number;
+  linked_at: string;
+  /** /stop: рядок лишається, писати в дім більше не можна; новий /start оживляє. */
+  revoked_at: string | null;
+}
+/** Разовий токен «Підключити» з профілю: 15 хвилин, один раз. Зберігається як є (не хеш):
+ *  він і так живе в URL t.me, ходить лише до нашого бота і згорає за 15 хв. */
+export interface TelegramLinkTokenRow {
+  token: string;
+  user_id: string;
+  expires_at: string;
+  consumed_at: string | null;
 }

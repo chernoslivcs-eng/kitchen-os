@@ -24,6 +24,7 @@ import type { VetoRow } from '../packages/domain/profile-text.ts';
 import { buildApp } from '../services/api/src/server.ts';
 import { InMemoryStore } from '../services/api/src/attachment-store.ts';
 import { ConsoleMailer } from '../services/api/src/mailer.ts';
+import { makeTelegramBot } from '../services/api/src/telegram-bot.ts';
 
 const EMAIL = process.env.STAND_EMAIL ?? 'dev@local.test';
 const PORT = Number(process.env.PORT ?? 3010);
@@ -176,4 +177,9 @@ console.log(`stand-seed: рецепт «Паста…» — /recipe/${recipeIds.
 
 const app = buildApp(repo, new InMemoryStore(), new ConsoleMailer());
 await app.listen({ port: PORT, host: '127.0.0.1' });
+// Р147: dev-бот polling'ом проти цього ж репозиторію в памʼяті (scripts/telegram-dev.mts).
+if (process.env.TELEGRAM_DEV_BOT_TOKEN) {
+  const bot = makeTelegramBot(process.env.TELEGRAM_DEV_BOT_TOKEN, { repo, appUrl: process.env.APP_URL ?? 'http://localhost:5173' });
+  void bot.start({ onStart: (me) => console.log(`stand-seed: Telegram dev-бот @${me.username} слухає (polling)`) });
+}
 console.log(`stand-seed: API на :${PORT} · дім ${household_id.slice(0, 8)} · вхід ${EMAIL} · ${(await repo.listBatches(household_id)).length} партій`);

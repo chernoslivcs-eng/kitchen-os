@@ -7,6 +7,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   LastAppliedIntake, AppEventRow,
+  TelegramAccountRow, TelegramLinkTokenRow,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type {
@@ -288,6 +289,16 @@ export interface Repo {
   listSessionsForUser(user_id: string, limit?: number): Promise<Array<SessionRow & { message_count: number }>>;
   setSessionTitle(id: string, title: string): Promise<void>;
   saveMessage(msg: MessageRow): Promise<void>;
+
+  // Р147: Telegram. Токен привʼязки — разовий, consume повертає рядок лише
+  // живий і невикористаний (і позначає використаним); привʼязка — upsert по
+  // telegram_user_id (новий /start після /stop оживляє рядок).
+  saveTelegramLinkToken(row: TelegramLinkTokenRow): Promise<void>;
+  consumeTelegramLinkToken(token: string, now: string): Promise<TelegramLinkTokenRow | null>;
+  linkTelegram(row: TelegramAccountRow): Promise<void>;
+  getTelegramByUser(user_id: string): Promise<TelegramAccountRow | null>;
+  getTelegramByTelegramUser(telegram_user_id: number): Promise<TelegramAccountRow | null>;
+  revokeTelegram(user_id: string, at: string): Promise<void>;
   listMessages(session_id: string): Promise<MessageRow[]>;
   // Правка №6: cards-роут шукає повідомлення застосованої картки, щоб пост-кук
   // списання відповіло в ту саму сесію детермінованим «Як вийшло?».
