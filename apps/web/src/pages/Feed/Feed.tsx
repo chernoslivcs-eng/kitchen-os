@@ -209,8 +209,11 @@ export function Feed() {
   // слухає window; малює це один оверлей поверх стрічки. Кинутий файл іде в
   // розмову одразу — без чіпа над композитором і без «↑».
   const dragging = useDropZone({
-    onFiles: useCallback((files: File[]) => { void dropFiles(files); }, []),  // eslint-disable-line react-hooks/exhaustive-deps
-    onFolder: useCallback(() => setToast({ id: Date.now(), kind: 'warn', text: 'Тека не піде — перетягни файли' }), []),
+    // useDropZone тримає колбеки в ref і оновлює щорендеру (useDropZone.ts:33) —
+    // стабільність тут не потрібна, а useCallback(…, []) заморожував перший
+    // dropFiles → submit із sessionId=null і sending=false (аудит 0913, C.5).
+    onFiles: (files: File[]) => { void dropFiles(files); },
+    onFolder: () => setToast({ id: Date.now(), kind: 'warn', text: 'Тека не піде — перетягни файли' }),
   });
   const timelineRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

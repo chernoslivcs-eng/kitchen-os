@@ -26,7 +26,7 @@ import { greeting } from '../../lib/greeting';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-interface ChatCall { body: { text?: string; attachments?: { id: string }[] } }
+interface ChatCall { body: { text?: string; attachments?: { id: string }[]; session_id?: string } }
 let chatCalls: ChatCall[];
 let waiting: { resolve: (body: unknown) => void; reject: (e: Error) => void }[];
 let batches: { id: string; label: string; state: string; expires_at: string | null; days: number | null }[];
@@ -332,6 +332,37 @@ describe('№24a · drop у стрічку', () => {
     expect(chatCalls[0]!.body.attachments).toEqual([{ id: 'att-new' }]);
     expect(q('[data-att-chip]')).toBeNull();
     expect(q('[data-wait-turn]')).toBeTruthy();
+  });
+
+  // Аудит 0913 C.5: onFiles через useCallback(…, []) тримав перший dropFiles —
+  // хід ішов із sessionId=null (сервер клав у сесію дня) і повз чергу.
+  it('drop після відкриття сесії йде з її session_id, а не з «сесією дня»', async () => {
+    await mount();
+    const f = new File([new Uint8Array([1])], 'chek.jpg', { type: 'image/jpeg' });
+    fire('drop', dt([f]));
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(chatCalls).toHaveLength(1);
+    expect(chatCalls[0]!.body.session_id).toBe('s1');
+  });
+
+  it('drop під час відповіді стає в чергу, а не йде паралельно', async () => {
+    await mount();
+    await type('привіт'); await submit();
+    expect(chatCalls).toHaveLength(1);
+    const f = new File([new Uint8Array([1])], 'chek.jpg', { type: 'image/jpeg' });
+    fire('drop', dt([f]));
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    // Поки перша відповідь не прийшла — другого виклику /v1/chat нема.
+    expect(chatCalls).toHaveLength(1);
+    expect(qa('[data-queued]')).toHaveLength(1);
+    await act(async () => {
+      waiting[0]!.resolve({ reply: 'ок', card: null, card_id: null });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(chatCalls).toHaveLength(2);
+    expect(chatCalls[1]!.body.attachments).toEqual([{ id: 'att-new' }]);
   });
 });
 
