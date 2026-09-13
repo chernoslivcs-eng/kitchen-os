@@ -3,13 +3,13 @@
 // текст, помилка → E1, /stop, дубль update_id, контракт профілю. Модель — стаб.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildApp } from '../src/server.js';
-import { InMemoryRepo, type Card } from '@kitchen/domain';
+import { InMemoryRepo, type Card, type Recipe } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
 import {
   handleTelegramText, createTelegramLinkToken, resetSeenUpdates, resetBotUsernameCache,
-  renderCardText, renderTurnMessages, splitTelegramText, escapeHtml, COPY, TELEGRAM_LINK_TTL_MS,
+  renderCardText, renderTurnMessages, renderRecipeBlocks, splitTelegramText, escapeHtml, formatQty, COPY, TELEGRAM_LINK_TTL_MS, TELEGRAM_MSG_MAX,
 } from '../src/telegram.js';
 import { ChatTurnHttpError } from '../src/chat-turn.js';
 import { localDay } from '../src/local-day.js';
@@ -105,8 +105,8 @@ describe('Р147/Р149 · Telegram', () => {
   it('картка → текст: proposal, recipe, intake_diff, shopping; невідома — null; екранування й розбиття', () => {
     const proposal: Card = { type: 'proposal', items: [{ title: 'Паста', desc: '20 хв' }, { title: 'Омлет', desc: '10 хв' }] };
     expect(renderCardText(proposal)).toBe('Варіанти:\n1) Паста · 20 хв\n2) Омлет · 10 хв');
-    const recipe: Card = { type: 'recipe', recipe: { t: 'Паста з томатами', sv: 2, tm: 20, ch: '', d: '', rk: '', ing: [{ p: 'паста', v: 200, u: 'g' }, { n: 'сіль' }], st: [] } };
-    expect(renderCardText(recipe)).toBe('Паста з томатами · 20 хв · 2 порц.\n— паста · 200 g\n— сіль');
+    const recipe: Card = { type: 'recipe', recipe: { t: 'Паста з томатами', sv: 2, tm: 20, ch: '', d: '', rk: '', ing: [{ p: 'b1', n: 'паста', v: 200, u: 'g' }, { n: 'сіль' }], st: [] } };
+    expect(renderCardText(recipe)).toBe('Паста з томатами · 20 хв · 2 порц.\n— паста · 200 г\n— сіль');
     const intake: Card = { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко', value: 1, unit: 'ml' }, { op: 'deplete', label: 'хліб' }] };
     expect(renderCardText(intake)).toBe('Розібрав: 2 позиції\n+ молоко · 1 ml\n− хліб');
     const shopping: Card = { type: 'shopping', items: [{ op: 'add', label: 'яйця', v: 10, u: 'pcs' }, { op: 'remove', label: 'сіль' }] };
@@ -120,6 +120,79 @@ describe('Р147/Р149 · Telegram', () => {
     expect(parts.length).toBeGreaterThan(1);
     for (const p of parts) expect(p.length).toBeLessThanOrEqual(4096);
     expect(parts.join('\n')).toBe(long);
+  });
+
+  // Власник 14.09: після вибору варіанта — повний рецепт, як панель «Рецепт» у вебі.
+  const FIX: Recipe = {
+    t: 'Фарфалле з креветками, жовтими томатами та шпинатом', sv: 2, tm: 20, ch: 'швидко', d: 'Легка паста на вечір.', rk: 'Креветки — не більше двох хвилин на сковороді.',
+    nu: { kcal: 480, p: 24, f: 14, c: 60 },
+    ing: [
+      { p: 'b-salt', n: 'сіль', v: 5, u: 'g' },
+      { p: 'b-pasta', n: 'фарфалле Barilla №65', v: 200, u: 'g' },
+      { p: 'b-shrimp', n: 'креветки Metro Chef 58/66', v: 250, u: 'g' },
+      { p: 'b-tomato', n: 'жовті томати', v: 300, u: 'g' },
+      { p: 'b-spinach', n: 'шпинат', v: 100, u: 'g' },
+      { n: 'вершки 20%', v: 150, u: 'ml' },
+    ],
+    st: [
+      { t: 'Розморозка морепродуктів', c: 'Викласти {2} у друшляк під холодну воду.', s: 180 },
+      { t: 'Паста', c: 'Закипʼятити воду, посолити ({0}), варити {1} до al dente.', s: 600 },
+      { t: 'Соус', c: 'Обсмажити {3}, додати {5} і {4}, прогріти.' },
+      { t: 'Креветки', c: 'На сильному вогні {2} — по хвилині з кожного боку.', s: 120 },
+      { t: 'Зібрати', c: 'Змішати пасту з соусом і креветками, подавати одразу.' },
+    ],
+  };
+  it('рецепт → повний текст як панель: заголовок · мета · примітки · склад із кількостями й «— нема» · кроки з таймерами й текстом · відкрити у вебі', () => {
+    const msgs = renderTurnMessages({ reply: 'Ось рецепт.', card: { type: 'recipe', recipe: FIX } }, APP);
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toBe([
+      'Ось рецепт.',
+      '',
+      '<b>Фарфалле з креветками, жовтими томатами та шпинатом</b>',
+      '20 хв · ≈ 480 ккал · 2 порції · є 5 з 6',
+      '<i>Легка паста на вечір.</i>',
+      '<i>Креветки — не більше двох хвилин на сковороді.</i>',
+      '',
+      '<b>Склад · 6</b>',
+      '• сіль — 5 г',
+      '• фарфалле Barilla №65 — 200 г',
+      '• креветки Metro Chef 58/66 — 250 г',
+      '• жовті томати — 300 г',
+      '• шпинат — 100 г',
+      '• вершки 20% — 150 мл — нема',
+      '',
+      '<b>Кроки · 5</b>',
+      '1. Розморозка морепродуктів · 3:00',
+      '   Викласти креветки Metro Chef 58/66 у друшляк під холодну воду.',
+      '2. Паста · 10:00',
+      '   Закипʼятити воду, посолити (сіль), варити фарфалле Barilla №65 до al dente.',
+      '3. Соус',
+      '   Обсмажити жовті томати, додати вершки 20% і шпинат, прогріти.',
+      '4. Креветки · 2:00',
+      '   На сильному вогні креветки Metro Chef 58/66 — по хвилині з кожного боку.',
+      '5. Зібрати',
+      '   Змішати пасту з соусом і креветками, подавати одразу.',
+      '',
+      `Відкрити у вебі: ${APP}/app`,
+    ].join('\n'));
+    // recipe_link з рецептом (після вибору варіанта) — той самий повний текст
+    expect(renderTurnMessages({ reply: null, card: { type: 'recipe_link', recipe_id: 'r1', title: FIX.t, recipe: FIX } }, APP)[0]).toContain('<b>Кроки · 5</b>');
+    expect(formatQty(1200, 'g')).toBe('1,2 кг'); expect(formatQty(1500, 'ml')).toBe('1,5 л'); expect(formatQty(3, 'pcs')).toBe('3 шт');
+  });
+  it('довгий рецепт — два повідомлення: заголовок + склад і кроки; крок не рветься', () => {
+    const long: Recipe = { ...FIX, st: Array.from({ length: 40 }, (_, i) => ({ t: `Крок ${i + 1}`, c: 'Довгий текст кроку. '.repeat(8), s: 60 })) };
+    const msgs = renderTurnMessages({ reply: null, card: { type: 'recipe', recipe: long } }, APP);
+    expect(msgs.length).toBeGreaterThanOrEqual(2);
+    for (const m of msgs) expect(m.length).toBeLessThanOrEqual(TELEGRAM_MSG_MAX);
+    expect(msgs[0]).toContain('<b>Склад · 6</b>');
+    expect(msgs[0]).not.toContain('<b>Кроки');
+    expect(msgs[1]).toMatch(/^<b>Кроки · 40<\/b>\n1\. Крок 1/);
+    for (const m of msgs.slice(1)) for (const line of m.split('\n')) expect(line.length).toBeLessThanOrEqual(TELEGRAM_MSG_MAX);
+    // кожен крок цілий: після номера йде його текст у тому самому повідомленні
+    for (const m of msgs.slice(1)) { const nums = m.match(/^\d+\. /gm) ?? []; const texts = m.match(/^ {3}\S/gm) ?? []; expect(texts.length).toBe(nums.length); }
+    expect(msgs.at(-1)).toContain(`Відкрити у вебі: ${APP}/app`);
+    const { head, steps } = renderRecipeBlocks(long);
+    expect(head.length + steps.length).toBeGreaterThan(TELEGRAM_MSG_MAX);
   });
 
   it('помилка ходу (502 model_unavailable або виняток) → текст E1, обидві сторони живі', async () => {

@@ -15,7 +15,7 @@
 // Ліміт — 30 ходів на хвилину на Telegram-користувача (як у вебі на user_id).
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
-import type { Repo, Card } from '@kitchen/domain';
+import { resolveRecipeLabels, type Repo, type Card, type Recipe } from '@kitchen/domain';
 import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
@@ -118,7 +118,52 @@ export function splitTelegramText(text: string, max = TELEGRAM_MSG_MAX): string[
   return out;
 }
 
-const ing = (i: { p?: string; n?: string; v?: number; u?: string }) => [i.p ?? i.n ?? '', i.v != null ? `${i.v}${i.u ? ' ' + i.u : ''}` : ''].filter(Boolean).join(' · ');
+// Кількість — те саме правило, що apps/web/src/lib/units.ts formatQty (веб імпортувати
+// не можемо): «250 г», від 1000 г — «1,2 кг», від 1000 мл — «1,5 л», одиниці українською.
+const UNIT_UK: Record<string, string> = { g: 'г', kg: 'кг', ml: 'мл', l: 'л', pcs: 'шт', pack: 'пач' };
+export function formatQty(value?: number | null, unit?: string | null): string {
+  if (value == null) return '';
+  const key = unit?.toLowerCase();
+  if ((key === 'g' || key === 'ml') && value >= 1000) {
+    const big = Math.round(value / 100) / 10;
+    const num = Number.isInteger(big) ? String(big) : big.toFixed(1).replace('.', ',');
+    return `${num} ${key === 'g' ? 'кг' : 'л'}`;
+  }
+  const u = key ? (UNIT_UK[key] ?? unit ?? '') : '';
+  return u ? `${value} ${u}` : String(value);
+}
+const pluralUk = (n: number, forms: [string, string, string]) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? forms[2] : b > 1 && b < 5 ? forms[1] : b === 1 ? forms[0] : forms[2]; };
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const ingName = (i: { p?: string; n?: string }) => i.n ?? i.p ?? '';
+const ing = (i: { p?: string; n?: string; v?: number; u?: string }) => [ingName(i), formatQty(i.v, i.u)].filter(Boolean).join(' · ');
+
+/** Повний рецепт як панель «Рецепт» у вебі (Recipe.tsx), HTML: заголовок + склад і кроки —
+ *  двома блоками, щоб довгий рецепт розкладати на два повідомлення, не рвучи крок. */
+export function renderRecipeBlocks(r: Recipe): { head: string; steps: string } {
+  const total = r.ing.length;
+  const have = r.ing.filter((i) => !!i.p).length;
+  const meta = [
+    `${r.tm} хв`,
+    r.nu?.kcal ? `≈ ${r.nu.kcal} ккал` : null,
+    `${r.sv} ${pluralUk(r.sv, ['порція', 'порції', 'порцій'])}`,
+    `є ${have} з ${total}`,
+  ].filter(Boolean).join(' · ');
+  const notes = [r.d, r.rk].filter((s) => s && s.trim()).map((s) => `<i>${escapeHtml(s!.trim())}</i>`);
+  const head = [
+    `<b>${escapeHtml(r.t)}</b>`,
+    escapeHtml(meta),
+    ...notes,
+    '',
+    `<b>Склад · ${total}</b>`,
+    ...r.ing.map((i) => `• ${escapeHtml(ingName(i))}${i.v != null ? ` — ${escapeHtml(formatQty(i.v, i.u))}` : ''}${i.p ? '' : ' — нема'}`),
+  ].join('\n');
+  const fill = (c: string) => c.replace(/\{(\d+)\}/g, (_, k: string) => ingName(r.ing[Number(k)] ?? {}) || `{${k}}`);
+  const steps = [
+    `<b>Кроки · ${r.st.length}</b>`,
+    ...r.st.map((s, i) => `${i + 1}. ${escapeHtml(s.t)}${s.s ? ` · ${mmss(s.s)}` : ''}\n   ${escapeHtml(fill(s.c))}`),
+  ].join('\n');
+  return { head, steps };
+}
 
 /** Картка → простий текст (PR 2: без кнопок — це PR 3). Повертає null для карток, яким тут нема місця. */
 export function renderCardText(card: Card | null | undefined): string | null {
@@ -126,12 +171,13 @@ export function renderCardText(card: Card | null | undefined): string | null {
   switch (card.type) {
     case 'proposal':
       return 'Варіанти:\n' + card.items.map((it, i) => `${i + 1}) ${it.title}${it.desc ? ' · ' + it.desc : ''}`).join('\n');
-    case 'recipe': {
-      const r = card.recipe;
+    case 'recipe':
+    case 'recipe_link': {
+      // Повний рецепт — у renderTurnMessages (свій HTML і розбиття); тут — лише без рецепта.
+      if (card.type === 'recipe_link' && !card.recipe) return card.title;
+      const r = card.type === 'recipe' ? card.recipe : card.recipe!;
       return `${r.t} · ${r.tm} хв · ${r.sv} порц.\n` + r.ing.map((i) => `— ${ing(i)}`).join('\n');
     }
-    case 'recipe_link':
-      return card.recipe ? `${card.recipe.t} · ${card.recipe.tm} хв · ${card.recipe.sv} порц.` : card.title;
     case 'intake_diff': {
       const rows = card.ops.map((o) => {
         if (o.op === 'add') return `+ ${o.label}${o.value != null ? ` · ${o.value}${o.unit ? ' ' + o.unit : ''}` : ''}`;
@@ -155,13 +201,41 @@ export function renderCardText(card: Card | null | undefined): string | null {
 
 /** Відповідь ходу → повідомлення для Telegram (HTML, ≤ 4096 кожне). */
 export function renderTurnMessages(out: { reply: string | null; card: Card | null }, appUrl: string): string[] {
+  const open = escapeHtml(COPY.openWeb(appUrl));
+  const recipe = out.card?.type === 'recipe' ? out.card.recipe : out.card?.type === 'recipe_link' ? out.card.recipe : undefined;
+  if (recipe) {
+    // Власник 14.09: після вибору варіанта — повний рецепт, як панель «Рецепт» у вебі.
+    // Одне повідомлення, коли ≤ 4096; інакше «заголовок + склад» і «кроки» (крок не рветься).
+    const { head, steps } = renderRecipeBlocks(recipe);
+    const reply = out.reply ? escapeHtml(out.reply) + '\n\n' : '';
+    const whole = `${reply}${head}\n\n${steps}\n\n${open}`;
+    if (whole.length <= TELEGRAM_MSG_MAX) return [whole];
+    const first = `${reply}${head}`;
+    const rest = `${steps}\n\n${open}`;
+    return [...splitTelegramText(first), ...splitByBlocks(rest, /\n(?=\d+\. )/)];
+  }
   const parts: string[] = [];
   if (out.reply) parts.push(escapeHtml(out.reply));
   const cardText = renderCardText(out.card);
   if (cardText) parts.push(escapeHtml(cardText));
   if (!parts.length) return [];
-  parts.push(escapeHtml(COPY.openWeb(appUrl)));
+  parts.push(open);
   return splitTelegramText(parts.join('\n\n'));
+}
+
+/** Розбити по межах блоків (кроків), не рвучи блок; занадто довгий блок — як звичайний текст. */
+export function splitByBlocks(text: string, boundary: RegExp, max = TELEGRAM_MSG_MAX): string[] {
+  const blocks = text.split(boundary);
+  const out: string[] = [];
+  let cur = '';
+  for (const b of blocks) {
+    const next = cur ? `${cur}\n${b}` : b;
+    if (next.length <= max) { cur = next; continue; }
+    if (cur) out.push(cur);
+    if (b.length <= max) cur = b; else { out.push(...splitTelegramText(b, max)); cur = ''; }
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 export type TelegramReply = { messages: string[]; html: boolean } | null;
@@ -206,7 +280,9 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
   try {
     const turn = deps.turn ?? ((input: ChatTurnInput) => runChatTurn(deps.repo, deps.store ?? noStore, deps.chatOpts ?? {}, input));
     const out = await turn({ user: { user_id: linked.user_id, household_id }, text, channel: 'telegram', host, log });
-    const messages = renderTurnMessages(out, deps.appUrl);
+    // Рецепт показує на комору через ing.p (uuid) — як і веб, підставляємо назви партій.
+    const card = await withRecipeLabels(deps.repo, household_id, out.card);
+    const messages = renderTurnMessages({ reply: out.reply, card }, deps.appUrl);
     return messages.length ? { messages, html: true } : null;
   } catch (err) {
     // 502 model_unavailable і решта — той самий текст, що бачить веб (E1); інцидент
@@ -219,6 +295,13 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     await settleTelemetry(host);
     await flushSentry(1000);
   }
+}
+
+async function withRecipeLabels(repo: Repo, household_id: string, card: Card | null): Promise<Card | null> {
+  if (!card) return null;
+  if (card.type === 'recipe') return { ...card, recipe: resolveRecipeLabels(card.recipe, await repo.listBatches(household_id)) };
+  if (card.type === 'recipe_link' && card.recipe) return { ...card, recipe: resolveRecipeLabels(card.recipe, await repo.listBatches(household_id)) };
+  return card;
 }
 
 // Дім людини — як у verifyChallenge (auth.ts): перший household_member.
