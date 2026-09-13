@@ -52,6 +52,8 @@ export interface TelegramDeps {
   /** Руки чату (Сільпо тощо) — як у chatRoute; типово порожньо. */
   chatOpts?: ChatRouteOpts;
   log?: FastifyBaseLogger;
+  /** Username бота для botInfo без getMe (типово з env TELEGRAM_BOT_USERNAME). */
+  botUsername?: string | null;
   /** Тести: власний хід замість runChatTurn. */
   turn?: (input: ChatTurnInput) => Promise<ChatTurnOutput>;
   now?: () => Date;

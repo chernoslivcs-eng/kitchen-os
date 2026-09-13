@@ -193,6 +193,9 @@ importers:
       nodemailer:
         specifier: ^6.9.16
         version: 6.10.1
+      undici:
+        specifier: ^6
+        version: 6.28.0
     devDependencies:
       '@types/nodemailer':
         specifier: ^6.4.17

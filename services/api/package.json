@@ -23,7 +23,8 @@
     "dotenv": "^16.4.5",
     "fastify": "^5.1.0",
     "grammy": "^1",
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^6.9.16",
+    "undici": "^6"
   },
   "devDependencies": {
     "@types/nodemailer": "^6.4.17",
