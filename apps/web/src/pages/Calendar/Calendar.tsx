@@ -618,9 +618,17 @@ export function CalendarPage() {
                     <span className={styles['c6-lnote']}>{runningNote(e)}</span>
                   </button>
                 ))}
-                <button type="button" className={styles['c6-subs']} onClick={() => showSeries(hidden.length ? 'seasons' : (traditions[0] ?? 'orthodox'))} data-subscriptions>
-                  {hidden.length ? `Приховані сезони · ${hidden.length}` : 'Приховані сезони · нема'} · Свята: {traditions.length ? traditions.map((t) => TRADITION_LABEL[t].toLocaleLowerCase('uk')).join(', ') : 'не обрано'}
-                </button>
+                {/* Р145 (рішення власника 13.09): замість рядка «Приховані сезони · N ·
+                    Свята: …» — вторинна кнопка «Усі підписки» (чіп стану 36/13, як
+                    «Перевірити N» у смузі комори; <600 — на всю ширину, 44) і
+                    поруч дрібно «N приховано», лише коли N > 0. Дія та сама. */}
+                <div className={styles['c6-subs-row']}>
+                  <button type="button" className={styles['c6-subs']} data-tap aria-label="Усі підписки"
+                    onClick={() => showSeries(hidden.length ? 'seasons' : (traditions[0] ?? 'orthodox'))} data-subscriptions>
+                    Усі підписки
+                  </button>
+                  {hidden.length > 0 && <span className={styles['c6-hidden']} data-hidden-count>{hidden.length} приховано</span>}
+                </div>
               </div>
             </aside>
           </div>

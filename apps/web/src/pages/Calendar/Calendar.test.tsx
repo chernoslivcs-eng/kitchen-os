@@ -174,6 +174,38 @@ describe('панель: подія ↔ підписки — одне з двох
     expect(usePanelStore.getState().active).toBe('subscriptions');
   });
 
+  // Р145 (рішення власника 13.09): у картці «Триває» — кнопка «Усі підписки»
+  // замість рядка «Приховані сезони · N · Свята: …»; «N приховано» — лише при N > 0.
+  it('≥1024: у «Триває» — кнопка «Усі підписки», без переліку конфесій; «N приховано» лише коли є приховані', async () => {
+    await mount(true);
+    const card = host!.querySelector('[data-subscriptions][aria-label="Усі підписки"]')!;
+    expect(card).not.toBeNull();
+    expect(card.textContent).toBe('Усі підписки');
+    expect(host!.textContent).not.toContain('Приховані сезони');
+    expect(host!.textContent).not.toContain('Свята:');
+    expect(host!.querySelector('[data-hidden-count]')).toBeNull();
+    await click(card);
+    expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Підписки']);
+  });
+
+  it('≥1024: два приховані сезони → «2 приховано» поруч із кнопкою', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
+    const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } });
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/events')) return json({ events: events() });
+      if (url.includes('/v1/occasions/subscriptions')) return json({ subscriptions: [
+        { occasion_id: 's1', enabled: false, type: 'season', tradition: null, title: 'Кавуни', updated_at: '' },
+        { occasion_id: 's2', enabled: false, type: 'season', tradition: null, title: 'Гриби', updated_at: '' },
+        { occasion_id: 't1', enabled: false, type: 'tradition', tradition: 'orthodox', title: 'Православні', updated_at: '' },
+      ] });
+      return json({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    expect(host!.querySelector('[data-hidden-count]')!.textContent).toBe('2 приховано');
+  });
+
   it('<600 (шторка): Підписки → клік по події → шторка події, не підписок', async () => {
     await mount(false);
     await click(host!.querySelector('[data-subscriptions]'));
