@@ -21,7 +21,7 @@ export function audioFormatOf(content_type: string | null | undefined): string {
   if (ct.includes('ogg') || ct.includes('opus')) return 'ogg';
   if (ct.includes('mpeg') || ct.includes('mp3')) return 'mp3';
   if (ct.includes('wav')) return 'wav';
-  if (ct.includes('mp4') || ct.includes('m4a') || ct.includes('aac')) return 'm4a';
+  if (ct.includes('mp4') || ct.includes('m4a') || ct.includes('aac') || ct.includes('x-m4a')) return 'm4a';
   if (ct.includes('webm')) return 'webm';
   return 'ogg';
 }

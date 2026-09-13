@@ -117,6 +117,10 @@ export const COPY = {
   voiceUnclear: 'Не розібрав — напиши текстом',
 } as const;
 
+/** Аудіо, надіслане як «Файл» (document): m4a/mp3/ogg/wav → голосовий шлях, не «не читаю». */
+export function isAudioMime(content_type: string | null | undefined): boolean {
+  return /^audio\//i.test(content_type ?? '');
+}
 /** Ліміти голосового: 2 хв / 5 МБ (постановка). */
 export const TELEGRAM_VOICE_MAX_SEC = 120;
 export const TELEGRAM_VOICE_MAX_BYTES = 5 * 1024 * 1024;
@@ -298,6 +302,10 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
   if (!linked) return plain(COPY.linkFirst(deps.appUrl));
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
   const content_type = u.source === 'photo' ? 'image/jpeg' : (u.mime_type ?? null);
+  if (u.source === 'document' && isAudioMime(content_type)) {
+    seen.delete(u.update_id);   // той самий апдейт іде голосовим шляхом
+    return handleTelegramVoice(deps, { update_id: u.update_id, telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, file_id: u.file_id, file_size: u.file_size, mime_type: content_type });
+  }
   const kind = attachmentKindOf(content_type);
   if (!kind) return plain(COPY.fileUnsupported);
   if ((u.file_size ?? 0) > TELEGRAM_FILE_MAX) return plain(COPY.fileTooBig);
