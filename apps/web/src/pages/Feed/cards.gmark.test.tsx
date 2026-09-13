@@ -13,9 +13,6 @@ import { join } from 'node:path';
 const here = join(__dirname);
 const css = readFileSync(join(here, 'Feed.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 const defined = new Set([...css.matchAll(/\.([A-Za-z_][\w-]*)/g)].map((m) => m[1]));
-// Відомі дірки поза обсягом хотфіксу 0913 (Етап 1 — рівно п'ять пунктів):
-// 'card-empty' (cards.tsx «Подію прибрано.») — правила нема з bd222f3.
-const KNOWN_MISSING = new Set(['card-empty']);
 
 function literalsOf(file: string): string[] {
   const src = readFileSync(join(here, file), 'utf8');
@@ -27,7 +24,7 @@ function literalsOf(file: string): string[] {
 
 describe('класи Feed.module.css, на які посилається код', () => {
   it.each(['cards.tsx', 'Feed.tsx'])('%s — кожен літерал styles[…] має правило', (file) => {
-    const missing = literalsOf(file).filter((c) => !defined.has(c) && !KNOWN_MISSING.has(c));
+    const missing = literalsOf(file).filter((c) => !defined.has(c));
     expect(missing).toEqual([]);
   });
 

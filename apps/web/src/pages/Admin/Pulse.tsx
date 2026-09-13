@@ -18,9 +18,8 @@
 // 404 всім, крім пошти з ADMIN_EMAILS.
 
 import { useEffect, useState } from 'react';
-import { useOutletContext, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { api, type Pulse, type PulseMoney } from '../../api';
-import type { AdminContext } from './AdminShell';
 import styles from './Pulse.module.css';
 
 /** Локальний день, не UTC: пульс читають по днях життя. */
@@ -84,7 +83,6 @@ export function PulsePage() {
   const [loading, setLoading] = useState(true);
   // Крок А2: дім — з адреси. Немає в адресі — свій, як було.
   const { household_id } = useParams();
-  const { house } = useOutletContext<AdminContext>();
 
   useEffect(() => {
     let alive = true;

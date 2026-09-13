@@ -17,7 +17,7 @@ import { lockBodyScroll } from '../../lib/lockBodyScroll';
 import { ARTIFACT_ICON } from '../../pages/Feed/artifacts';
 import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
-import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, RAIL_DEFAULT, ARTIFACT_SHEET } from '../../store/panel';
+import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, ARTIFACT_SHEET } from '../../store/panel';
 import { useSheetDrag } from '../../lib/useSheetDrag';
 import styles from './ArtifactPanel.module.css';
 import { holdBodyFlag } from '../../lib/body-flags';

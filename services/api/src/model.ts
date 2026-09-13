@@ -24,7 +24,7 @@ import { noteFrom,
 } from '@kitchen/domain';
 import type {
   Card, PantryBatch, ShoppingItemRow, RecipeRow,
-  Recipe, RecipeIng, RecipeStep, HouseholdProduct, PendingCard,
+  Recipe, HouseholdProduct, PendingCard,
 } from '@kitchen/domain';
 // Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
 // а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.

@@ -9,7 +9,6 @@ import { dirname, resolve } from 'node:path';
 // (0,1,0), і всі іконки були кольору accent. Стилі беремо з живого
 // Pantry.module.css: якщо базове правило знову отримає color — тест упаде.
 const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'Pantry.module.css'), 'utf-8');
-const TOKENS = ':root { --accent: rgb(88, 117, 78); --amber: rgb(150, 113, 44); --danger: rgb(168, 72, 61); }';
 
 afterEach(() => { document.head.innerHTML = ''; document.body.innerHTML = ''; });
 

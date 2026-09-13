@@ -14,7 +14,6 @@ import styles from './Shopping.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
-import { useAuth } from '../../store/auth';
 
 export function ShoppingPage() {
   const openNav = useNavStore((st) => st.setOpen);

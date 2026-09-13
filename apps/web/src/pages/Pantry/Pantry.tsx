@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, ZONE_ORDER, ZONE_LABEL, applyFilter, toggleKind, toggleState, resetFilter, shortDate, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
-import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type ShoppingList } from '../../api';
+import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch } from '../../api';
 import { loadPantry } from '../../store/pantryList';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
@@ -19,14 +19,12 @@ import { FreshIcon } from './FreshIcon';
 import { plural } from '../../lib/plural';
 import { useFlipRows } from '../../lib/useFlipRows';
 import { useRowSwipe } from '../../lib/useRowSwipe';
-import { formatQty } from '../../lib/units';
 import { Toast } from '../../components/ErrorState/Toast';
 import { PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Pantry.module.css';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
-import { useAuth } from '../../store/auth';
 
 
 export function PantryPage() {
@@ -34,7 +32,6 @@ export function PantryPage() {
   const navigate = useNavigate();
   const [batches, setBatches] = useState<PantryBatch[]>([]);
   const [products, setProducts] = useState<HouseholdProduct[]>([]);
-  const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PantryBatch | null>(null);
   // 12.09 (§8): ✕ у рядку — на десктопі при наведенні, на тачі — свайпом уліво.
@@ -134,7 +131,8 @@ export function PantryPage() {
   const snapshotReady = useRef(false);
   async function refresh() {
     try {
-      const [p, s] = await Promise.all([loadPantry({ fresh: true }), api.shopping.list().catch(() => ({ count: 0 } as ShoppingList))]);
+      // Лічильник списку тут ніхто не читав (аудит 0913 A.4) — запит /v1/shopping знято.
+      const p = await loadPantry({ fresh: true });
       const prev = prevSnapshot.current;
       // Перше завантаження — без входів: список просто зʼявляється. Далі кожна
       // партія, якої не було в знімку, вʼїжджає — і в порожню комору теж.
@@ -171,7 +169,6 @@ export function PantryPage() {
       setBatches(p.batches);
       setProducts(p.products ?? []);
       setLastReceiptAt(p.last_receipt_at ?? null);
-      setShoppingCount(s.count);
       setLoadFailed(false);
     } catch {
       // Крок Е1: раніше виняток летів далі, а екран лишався з порожнім

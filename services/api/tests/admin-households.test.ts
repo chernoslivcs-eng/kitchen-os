@@ -11,7 +11,6 @@
 //   — сторонній отримує 403 замість 404 і дізнається, що адмінка існує.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { randomUUID } from 'node:crypto';
 import { buildApp } from '../src/server.js';
 import { InMemoryRepo } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';

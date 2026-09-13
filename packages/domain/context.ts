@@ -16,7 +16,7 @@ import { type HouseholdProduct } from './product.js';
 import { fastingActive, isFastingRestricted } from './occasions.js';
 import { serializeNow, subscribedTraditions, subscribedRows } from './periods.js';
 import { BUILTIN_OCCASIONS, type OccasionRow } from './occasion-data.js';
-import { PROFILE_FIELDS, serializeProfileText, emptyProfileText, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
+import { serializeProfileText, emptyProfileText, type ProfileText, type ProfileNote, type VetoRow } from './profile-text.js';
 import { pantryVetoRows, effectiveExpiry, daysLeft } from './pantry-view.js';
 
 import { serializeModes, type KitchenMode } from './modes.js';

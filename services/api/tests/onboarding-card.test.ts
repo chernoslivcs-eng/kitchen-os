@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildApp } from '../src/server.js';
 import { InMemoryRepo, ONBOARDING_GREETING, PROFILE_SUMMARY_REQUEST } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';

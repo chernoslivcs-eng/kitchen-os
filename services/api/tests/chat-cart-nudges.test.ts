@@ -38,7 +38,7 @@ function makeApp() {
 
 describe('чат: нуджі навколо cart_go — «є ще» і «зібрати заново»', () => {
   it('cart_go з explicit items — reply згадує решту списку поза замовленням', async () => {
-    const { repo, mailer, app } = makeApp();
+    const { mailer, app } = makeApp();
     await app.ready();
     const me = await signIn(app, mailer, 'me@example.com');
     await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
@@ -60,7 +60,7 @@ describe('чат: нуджі навколо cart_go — «є ще» і «зіб�
   });
 
   it('«прибери X зі списку» після того, як кошик уже був зібраний — reply пропонує зібрати заново', async () => {
-    const { repo, mailer, app } = makeApp();
+    const { mailer, app } = makeApp();
     await app.ready();
     const me = await signIn(app, mailer, 'me@example.com');
     await app.inject({ method: 'GET', url: '/v1/retail/silpo/connect', headers: { cookie: me.cookie } });
@@ -107,7 +107,7 @@ describe('чат: нуджі навколо cart_go — «є ще» і «зіб�
   });
 
   it('«прибери X зі списку» БЕЗ попереднього кошика — нуджу нема (нема що перезбирати)', async () => {
-    const { repo, mailer, app } = makeApp();
+    const { mailer, app } = makeApp();
     await app.ready();
     const me = await signIn(app, mailer, 'me@example.com');
     await app.inject({

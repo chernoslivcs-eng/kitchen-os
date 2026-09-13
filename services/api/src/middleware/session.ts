@@ -4,7 +4,7 @@
 // Не глобальний — реєструємо як onRequest hook саме для роутів, які його потребують.
 // /v1/auth/* ходить окремо: request і verify мають бути доступні без сесії.
 
-import type { FastifyInstance, FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
+import type { FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
 import type { Repo, UserContext } from '@kitchen/domain';
 import { resolveSession } from '@kitchen/domain';
 import { COOKIE_NAME } from '../routes/auth.js';

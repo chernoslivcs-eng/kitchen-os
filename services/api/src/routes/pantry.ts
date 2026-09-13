@@ -14,7 +14,7 @@
 //   лишається в last_by/last_action.
 
 import type { FastifyInstance } from 'fastify';
-import type { PantryBatch, Repo, Zone, Unit, BatchState, DepletedReason, IntakeCard } from '@kitchen/domain';
+import type { PantryBatch, Repo, Zone, Unit, BatchState, DepletedReason } from '@kitchen/domain';
 import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, DEPLETED_REASONS } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { BY_KEY } from '@kitchen/catalog/seed';

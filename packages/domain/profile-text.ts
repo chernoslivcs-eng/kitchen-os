@@ -7,7 +7,7 @@
 import { createHash } from 'node:crypto';
 
 export * from './profile-fields.js';
-import { PROFILE_FIELD_KEYS, PROFILE_FIELDS, KIT_DEFAULTS, emptyProfileText, clampProfileText, type ProfileFieldKey, type ProfileFieldValue, type ProfileText, type VetoField } from './profile-fields.js';
+import { PROFILE_FIELD_KEYS, PROFILE_FIELDS, KIT_DEFAULTS, clampProfileText, type ProfileFieldKey, type ProfileFieldValue, type ProfileText, type VetoField } from './profile-fields.js';
 
 // ----- Нотатки (§2.2) -------------------------------------------------------
 

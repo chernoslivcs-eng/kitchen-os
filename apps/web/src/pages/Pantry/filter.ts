@@ -21,7 +21,7 @@ export type Tone = 'fg' | 'dim' | 'amber' | 'plum' | 'sage' | 'danger';
 //
 // Реекспорт лишається, щоб не переписувати місця вжитку заради шляху імпорту.
 import {
-  SOON_CUT_DAYS, freshness, isSoon, timeWord, hasScale, type Freshness,
+  freshness, isSoon, timeWord, hasScale, type Freshness,
 } from '@kitchen/domain/shelf-thresholds';
 export {
   SOON_CUT_DAYS, FRESH_SOON_DAYS, FRESH_CHECK_DAYS,
@@ -269,8 +269,6 @@ export function applyFilter(items: PantryBatch[], st: FilterState, ctx: { produc
   const q = st.q.trim().toLowerCase();
   const pass = (it: PantryBatch) => active.every((c) => c.test(it)) && passQuery(it, q, ctx.productsById);
   const shown = sortItems(items.filter(pass), sort);
-  const receiptOn = active.some((c) => c.key === 'receipt');
-  const receiptSub = ctx.receiptAt ? `чек · ${shortDate(ctx.receiptAt)}` : 'з чека';
   const row = (it: PantryBatch): RowView => {
     const st = freshness(it.days);
     // Другий ярус — бренд і різновид із трійки продукту. Назва не може бути
