@@ -32,49 +32,6 @@
   :global(body.sheet-open) .composer-wrap { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
 
-/* ----- Header --------------------------------------------------------- */
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 22px 22px 12px;
-  gap: 12px;
-  min-width: 0;
-}
-.head-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex: none;
-}
-
-/* Правка №1: «+» нова сесія — іконка 40px у правому куті (мобайл). */
-.new-session-btn {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--line2);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  flex: none;
-}
-.new-session-btn:hover { background: var(--line); color: var(--ink); }
-
-.segments {
-  display: flex;
-  gap: 4px;
-  padding: 0 16px 8px;
-}
-
-/* Правка №1: на десктопі сесіями керує сайдбар — сегменти і «+» зайві. */
-@media (min-width: 1024px) {
-  :global(body.with-sidebar) .segments { display: none; }
-  :global(body.with-sidebar) .new-session-btn { display: none; }
-}
-
 /* ----- Timeline ------------------------------------------------------- */
 /* Правка №7: скрол-контейнер — ВСЯ центральна зона (курсор будь-де в зоні
    крутить стрічку), а вузька колонка контенту центрується дітьми. */
@@ -104,19 +61,15 @@
    звичайним. */
 .seg-view-today > .turn:first-child { margin-top: auto; }
 
-.seg-new { color: var(--sage); font-weight: 600; }
-
 /* Пул-4 №2а: ряд кнопок рецепта — на вузьких екранах головна на всю
    ширину, другорядні рядком під нею; текст у пілюлях не переноситься. */
 /* Канон B: другорядні дії тепер текстові й вузькі — все в один рядок,
    зелена «Готуємо» тягнеться, wrap на мобілці більше не потрібен. */
-.recipe-actions { display: contents; }
 
 /* Пул-2 №2: банер готування в стрічці — тільки мобайл; на десктопі
    (сайдбарна верстка) фрейм живе в лівому сайдбарі. */
 @media (min-width: 1024px) {
   /* !important: у кнопки інлайновий display:flex — стилю з файлу він б'є. */
-  :global(body.with-sidebar) .cook-banner-mobile { display: none !important; }
 }
 .turn-text {
   font-family: var(--font-body);
@@ -294,36 +247,8 @@
    14/500 · «· сьогодні» dim), розпірка, чіпи 36 r999 13/500 зі знаком 15:
    «Горить N» amber-bg/amber, «Готуємо · таймер» sage-bg/sage, «Дім зараз»
    card+тінь. */
-.chat-head { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 24px; flex: none; }
-.chat-head-gap { flex: 1; }
-.session-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 36px; padding: 0 12px 0 8px;
-  border: 0; border-radius: var(--r-pill);
-  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
-  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink);
-  white-space: nowrap; min-width: 0; cursor: pointer;
-}
-.session-pill > [data-icon] { color: var(--dim); }
-.session-pill-title { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
-.session-pill-when { color: var(--muted); font-weight: 400; }
-.head-chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 36px; padding: 0 12px;
-  border: 0; border-radius: var(--r-pill);
-  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
-  white-space: nowrap; flex: none; cursor: pointer;
-}
-.head-chip:hover { filter: brightness(0.96); }
-.head-chip-amber { background: var(--amber-bg); color: var(--amber); box-shadow: none; }
-.head-chip-sage { background: var(--sage-bg); color: var(--sage); box-shadow: none; }
 @media (max-width: 767px) {
-  .chat-head { padding: 0 16px; height: 56px; }
-  .session-pill-title { max-width: 150px; }
-  .session-pill-when { display: none; }
   /* Кадр 390 (Prototype only-m): «Дім» зі станом; повний підпис — від 768. */
-  .head-chip-home-text { display: none; }
 }
 
 /* ----- Composer ------------------------------------------------------- */
@@ -333,20 +258,6 @@
   /* Мобільна пілюля артефактів стоїть тут у потоці (№23), не absolute. */
   position: relative;
 }
-/* Пул-9 №3: рядок очікування — спінер/крапки і час поруч. */
-.wait-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 0;
-}
-.wait-text {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Пул-9: тиха мітка під ходом — «чекає» (репліка в черзі) і «зупинив»
    (людина обірвала думання). Не помилка, тому не червоне: це стан. */
 .turn-note {
@@ -432,23 +343,6 @@ a.att-chip:hover { border-color: var(--sage); }
   padding: 0;
 }
 .att-remove:hover { color: var(--danger); border-color: var(--danger); }
-
-.attach-btn {
-  height: 48px;
-  width: 48px;
-  flex: none;
-  border-radius: var(--r);
-  background: var(--line);
-  border: 1px solid var(--line2);
-  color: var(--muted);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-.attach-btn:hover:not(:disabled) { background: var(--line); color: var(--ink); }
-.attach-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Бриф-3 п.6 — канон: композитор = одна пілюля-фрейм 52px; кнопки живуть
    усередині (📎 ghost без рамки, 🎙 з рамкою; ↑ — інверсна). */
@@ -589,7 +483,7 @@ a.att-chip:hover { border-color: var(--sage); }
 @media (min-width: 720px) {
   /* Правка №7: .timeline тут НЕМАЄ навмисно — вона лишається скрол-зоною на
      всю ширину (колесо працює будь-де), а колонку центрують її діти. */
-  .head, .composer {
+  .composer {
     max-width: 720px;
     width: 100%;
     margin-left: auto;
@@ -640,26 +534,6 @@ a.att-chip:hover { border-color: var(--sage); }
 
 /* Бриф-2: сегменти «Сьогодні | Історія». Активна пігулка інверсна
    (фон = fg, текст = bg) — як сегменти зон у UI-кіті. */
-.seg,
-.seg-active {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: var(--r-pill);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.seg {
-  background: transparent;
-  border: 1px solid var(--line2);
-  color: var(--muted);
-}
-.seg-active {
-  background: var(--btn-primary-bg);
-  border: 1px solid var(--btn-primary-bg);
-  color: var(--btn-primary-fg);
-}
 
 /* Правка №7: колишнє притискання вліво (margin-left:36 + композитор зі своїм
    краєм) скасоване — колонка чату (таймлайн-діти + композитор) центрована в
@@ -728,15 +602,10 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 
 /* Моушн-2 №5: банер «готування триває» — вхід height+fade+Y, крапка дихає. */
-.banner-in {
-  animation: banner-in var(--dur-base, 250ms) var(--ease-enter, ease);
-  overflow: hidden;
-}
 @keyframes banner-in {
   from { opacity: 0; transform: translateY(8px); max-height: 0; padding-top: 0; padding-bottom: 0; }
   to   { opacity: 1; transform: translateY(0); max-height: 72px; }
 }
-.banner-dot { animation: pulse var(--dur-breathe, 1.2s) ease-in-out infinite; }
 @keyframes rail-row-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -745,24 +614,6 @@ a.att-chip:hover { border-color: var(--sage); }
   from { background: color-mix(in srgb, var(--sage) 14%, transparent); }
   to   { background: transparent; }
 }
-
-/* Моушн-2 №8: хвіст кроків рецепта — висота 0→auto + fade, шеврон крутиться. */
-.steps-rest {
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition: max-height var(--dur-base, 250ms) var(--ease-standard, ease),
-              opacity var(--dur-base, 250ms) var(--ease-standard, ease);
-}
-.steps-rest-open {
-  max-height: 1200px;
-  opacity: 1;
-}
-.chev {
-  display: inline-block;
-  transition: transform var(--dur-base, 250ms) var(--ease-standard, ease);
-}
-.chev-open { transform: rotate(180deg); }
 
 /* «Документ»-картка для структурованих повідомлень, що не малюють поверхню
    самі (список · рецепт · подія · фото готування). №32: до-v3 заливка --line
@@ -843,15 +694,6 @@ a.att-chip:hover { border-color: var(--sage); }
 }
 
 /* Пул-7 №4: розбір вкладення — спінер з текстом дії, не «думаю»-крапки. */
-.parse-spinner {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  border: 2px solid var(--line2);
-  border-top-color: var(--sage);
-  animation: spin var(--dur-breathe) linear infinite;
-  flex: none;
-}
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ----- Крок 2: кошик — одне повідомлення, два подання ------------------- */
@@ -908,8 +750,6 @@ a.att-chip:hover { border-color: var(--sage); }
 .trace-pending .trace-value,
 .trace-pending .trace-go { color: var(--amber); }
 .trace-icon { flex: none; display: grid; place-items: center; color: var(--muted); }
-.trace-dot { display: none; }
-.trace-dot-off { display: none; }
 .trace-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .trace-kind {
   font-family: var(--font-body);
@@ -1095,7 +935,6 @@ a.att-chip:hover { border-color: var(--sage); }
    номером 11/600 muted, текст 14/1.45; блоки на відстані 16. */
 .recipe-msg { gap: 16px; }
 .recipe-head { display: flex; flex-direction: column; gap: 8px; }
-.recipe-pills { display: flex; gap: 8px; flex-wrap: wrap; }
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
   height: 26px; padding: 0 10px;
@@ -1108,8 +947,6 @@ a.att-chip:hover { border-color: var(--sage); }
 .pill-sage { background: var(--sage-bg); color: var(--sage); }
 .pill-amber { background: var(--amber-bg); color: var(--amber); }
 .pill-far { background: var(--bg); color: var(--muted); }
-.pill-card { height: 32px; padding: 0 12px; background: var(--bg); color: var(--ink); font-size: 13px; cursor: pointer; }
-.pill-card:hover:not(:disabled) { background: var(--line); }
 .pill-saved { color: var(--sage); cursor: default; }
 .pill-mini { height: 22px; padding: 0 8px; font-size: 11px; margin-left: 8px; }
 /* Назва — 22/700 (Prototype; роль h2 дає 600 — панель важча, рішення власника 11.09). */
@@ -1157,7 +994,6 @@ a.att-chip:hover { border-color: var(--sage); }
   font-variant-numeric: tabular-nums;
 }
 .recipe-step-t { flex: 1; min-width: 0; }
-.recipe-step-s { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 /* «Готуємо» — чорнило 48 r12 з cooking-pot, на всю ширину низу картки. */
 .cook-go {
   flex: 1;
@@ -1176,12 +1012,6 @@ a.att-chip:hover { border-color: var(--sage); }
 .recipe-foot { flex-direction: column; align-items: stretch; gap: 10px; padding: 0; margin: 0; }
 .recipe-foot .recipe-tolist { text-align: center; }
 .recipe-foot .cook-go { flex: none; width: 100%; height: 48px; border-radius: 12px; }
-.recipe-miss {
-  flex: 1;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--amber);
-}
 .recipe-tolist {
   padding: 0;
   border: 0;
@@ -1225,7 +1055,6 @@ a.att-chip:hover { border-color: var(--sage); }
   white-space: nowrap;
 }
 .strip-state-dim { color: var(--muted); font-size: 12px; font-weight: 400; }
-.strip-state-warn { color: var(--amber); font-size: 12px; font-weight: 400; }
 
 /* Чорнильна кнопка-посилання: та сама геометрія, що .btn.strip, але це
    <a> — вихід назовні, не дія всередині продукту. */
@@ -1244,21 +1073,7 @@ a.att-chip:hover { border-color: var(--sage); }
   font-size: 14px;
   font-weight: 600;
 }
-.head-act {
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-}
-.head-act:hover:not(:disabled) { background: var(--line); color: var(--ink); }
-.head-act:disabled { cursor: default; color: var(--sage); }
 /* Немає слота шапки (стрічка) — навігаційні дії лишаються у смузі. */
-.strip-head-fallback { display: flex; align-items: center; gap: 2px; flex: none; }
 @container (max-width: 379px) {
   .card-foot { flex-wrap: wrap; row-gap: 10px; }
   /* Порядок за V7: стан → головна на всю ширину → друга під нею. У DOM
@@ -1457,9 +1272,6 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Шапки стрічки на десктопі немає: у ній лишався тільки аватар, а він там
    і так display:none — аватар живе внизу бічного меню. Порожня смуга на
    67px просто відсувала журнал від краю. */
-@media (min-width: 1024px) {
-  :global(body.with-sidebar) .head { display: none; }
-}
 @keyframes rail-swap {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -1494,19 +1306,6 @@ a.att-chip:hover { border-color: var(--sage); }
   line-height: 1.5;
   color: var(--muted);
 }
-
-/* Дія шапки Стрічки (блок А1): моно-caps, без рамки — одна дія на екран. */
-.head-new {
-  background: transparent;
-  border: 0;
-  padding: 5px 4px;
-  color: var(--sage);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.head-new:hover { color: var(--sage-strong); }
 
 /* ── Картка рецепта в стрічці — за Prototype propDesk (6b-4) ─────────────
    Біла картка r16 з тінню; знак страви колом 44; дії колом 36 праворуч:
@@ -1640,3 +1439,6 @@ a.att-chip:hover { border-color: var(--sage); }
    Залите коло — є/зроблено, кільце — чекає. */
 .gmark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }
 .gmark-ring { display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; vertical-align: middle; }
+
+/* Слід події в панелі, коли подію вже прибрали (cards.tsx EventCard). Правила не було з bd222f3 — аудит 0913. */
+.card-empty { padding: 12px 0; font-size: 13px; color: var(--muted); }
