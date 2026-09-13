@@ -96,12 +96,24 @@ function useMedia(query: string): boolean {
   return on;
 }
 
+/** Що відкрито праворуч (панель ≥1200 / картка 600–1199 / шторка <600): подія або набір підписок — одне з двох. */
+type OpenPanel = { kind: 'event'; event: EventOccurrence } | { kind: 'series'; set: OccasionSet } | null;
+
 export function CalendarPage() {
   const navigate = useNavigate();
   const openNav = useNavStore((s) => s.setOpen);
   const [events, setEvents] = useState<EventOccurrence[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openEvent, setOpenEvent] = useState<EventOccurrence | null>(null);
+  // Хотфікс 13.09 (баг власника на проді): «що відкрито праворуч» — ОДИН стан,
+  // а не два (openEvent + openSeries): з двома клік по події після «Підписок»
+  // не перемикав панель, бо ефект брав серію пріоритетно, а setOpenEvent її
+  // не скидав. Тепер показати подію = сховати серію, і навпаки — за побудовою.
+  const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
+  const openEvent = openPanel?.kind === 'event' ? openPanel.event : null;
+  const openSeries = openPanel?.kind === 'series' ? openPanel.set : null;
+  const showEvent = (e: EventOccurrence) => setOpenPanel({ kind: 'event', event: e });
+  const showSeries = (set: OccasionSet) => setOpenPanel({ kind: 'series', set });
+  const closePanel = () => setOpenPanel(null);
   const [version, setVersion] = useState(0);
   // Моушн-кіт §03: прибрана чи вимкнена подія згортається 250ms exit до
   // перечитування; правлена — після перечитування флешить тінтом 700ms.
@@ -189,7 +201,6 @@ export function CalendarPage() {
   }, [version]);
   const hidden = subs.filter((r) => !r.enabled && r.type !== 'tradition');
   const traditions = [...new Set(subs.filter((r) => r.enabled && r.tradition).map((r) => r.tradition!))] as Tradition[];
-  const [openSeries, setOpenSeries] = useState<OccasionSet | null>(null);
 
   const [loadFailed, setLoadFailed] = useState(false);
   useEffect(() => {
@@ -200,7 +211,7 @@ export function CalendarPage() {
         if (openAfterCreate.current) {
           const made = events.find((e) => e.id === openAfterCreate.current);
           openAfterCreate.current = null;
-          if (made) setOpenEvent(made);
+          if (made) showEvent(made);
         }
       })
       // Етап 5 (п.2): не принести ≠ «нічого не триває». Дні є завжди, тому
@@ -246,7 +257,7 @@ export function CalendarPage() {
   );
   const runningCap = useMemo(() => capLasting(running, mondayOf(today)), [running, today]);
   // Хвіст стелі веде в підписки: там повний список сезонів і традицій.
-  const openTail = () => { setOpenEvent(null); setOpenSeries('seasons'); };
+  const openTail = () => showSeries('seasons');
   const weeks = useMemo(() => buildTimeline(point, from, WEEKS), [point, from]);
   const grid = useMedia(GRID);
 
@@ -261,7 +272,7 @@ export function CalendarPage() {
         artifacts: [{ key, kind: 'event', label: 'Підписки', meta: '' }],
         render: () => (
           <PeriodSubscriptions key={openSeries} initialSet={openSeries}
-            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)}
+            onClose={() => closePanel()} onDone={(c) => onEventChanged(undefined, c)}
             onAddOwn={() => setCreating({ date: isoOf(today), dateTo: '' })} />
         ),
       });
@@ -274,12 +285,12 @@ export function CalendarPage() {
       artifacts: [{ key, kind: 'event', label: 'Подія', meta: '' }],
       render: () => (
         <PeriodEvent key={openEvent!.id} event={openEvent!}
-          onClose={() => setOpenEvent(null)} onChanged={onEventChanged} />
+          onClose={() => closePanel()} onChanged={onEventChanged} />
       ),
     });
     panel.openArtifact(key);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- колбеки картки нові щорендеру — публікуємо лише на зміну відкритої події/серії
-  }, [panelInFlow, openEvent, openSeries]);
+  }, [panelInFlow, openPanel]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps -- clear лише при розмонтуванні; panel — стабільний стор
 
   // Сьогодні зверху на старті; пігулка повертає до нього. Гортається сама
@@ -348,7 +359,7 @@ export function CalendarPage() {
   const eventRow = (e: EventOccurrence, cls: string) => (
     <button key={`${e.scope}:${e.id}`} type="button"
       className={`${cls} ${styles[`ev-${pointIcon(e).tone}`]} ${e.done_at ? styles['ev-done'] : ''} ${evMotion(e.id)}`} data-tap
-      onClick={() => setOpenEvent(e)}>
+      onClick={() => showEvent(e)}>
       {pointIcon(e).icon && <Icon name={pointIcon(e).icon!} size={12} inherit decorative />}
       <span className={styles['ev-text']}>{e.title}</span>
     </button>
@@ -374,7 +385,7 @@ export function CalendarPage() {
                 <button type="button"
                   className={`${styles.bar} ${toneClass(s.event)} ${s.openLeft ? styles['bar-open-l'] : ''} ${s.openRight ? styles['bar-open-r'] : ''} ${s.event.approx ? styles['bar-approx'] : ''} ${evMotion(s.event.id)}`}
                   style={{ gridColumn: `${s.from} / ${s.to}` }}
-                  onClick={() => setOpenEvent(s.event)}>
+                  onClick={() => showEvent(s.event)}>
                   {barLabel(s.event, w.start, today, s.openLeft && wi > 0)}
                 </button>
               </div>
@@ -396,7 +407,7 @@ export function CalendarPage() {
                 </div>
                 {shown.map((e) => eventRow(e, styles.ev!))}
                 {more && (
-                  <button type="button" className={styles.more} data-tap onClick={() => setOpenEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
+                  <button type="button" className={styles.more} data-tap onClick={() => showEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
                 )}
                 {isToday && (
                   <button type="button" className={styles.ask} data-tap onClick={() => navigate('/app')}>
@@ -446,14 +457,14 @@ export function CalendarPage() {
           </div>
           <div className={styles.content}>
             {captions.map(({ e, text }) => (
-              <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => setOpenEvent(e)}>
+              <button key={`c${e.id}`} type="button" className={`${styles.tag} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => showEvent(e)}>
                 {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
                 <span className={styles['tag-text']}>{text}</span>
               </button>
             ))}
             {shown.map((e) => eventRow(e, styles['ev-m']!))}
             {more && (
-              <button type="button" className={styles.more} data-tap onClick={() => setOpenEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
+              <button type="button" className={styles.more} data-tap onClick={() => showEvent(d.events[VISIBLE_LIMIT]!)}>{more}</button>
             )}
             {isToday && (
               <button type="button" className={styles.ask} data-tap onClick={() => navigate('/app')}>
@@ -473,14 +484,14 @@ export function CalendarPage() {
       <div className={styles['foot-row']}>
         <span className={styles['foot-label']}>приховані</span>
         <span className={styles['foot-value']}>{hidden.length ? hidden.map((h) => h.title).join(', ') : 'нічого'}</span>
-        <button type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries('seasons'); }}>
+        <button type="button" className={styles['foot-link']} onClick={() => showSeries('seasons')}>
           {hidden.length ? 'повернути' : 'сезони'}
         </button>
       </div>
       <div className={styles['foot-row']}>
         <span className={styles['foot-label']}>свята</span>
         <span className={styles['foot-value']}>{traditions.length ? traditions.map((t) => TRADITION_LABEL[t]).join(', ') : 'не обрано'}</span>
-        <button type="button" className={styles['foot-link']} onClick={() => { setOpenEvent(null); setOpenSeries(traditions[0] ?? 'orthodox'); }}>
+        <button type="button" className={styles['foot-link']} onClick={() => showSeries(traditions[0] ?? 'orthodox')}>
           {traditions.length ? 'змінити' : 'підключити'}
         </button>
       </div>
@@ -517,7 +528,7 @@ export function CalendarPage() {
             {/* 12.09 (ANSWERS B5): чіпів «що триває» — ≤ 3 за тим самим рангом, що смуги; хвіст — контурний «ще N», у підписки. */}
             {runningCap.shown.map((e) => (
               <button key={`${e.scope}:${e.id}`} type="button"
-                className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => setOpenEvent(e)}>
+                className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => showEvent(e)}>
                 {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
                 {legendLabel(e, today)}
               </button>
@@ -538,7 +549,7 @@ export function CalendarPage() {
             <div className={`${styles['c6-main']} ${view === 'month' ? '' : styles['c6-scroll']}`} ref={view === 'month' ? undefined : listRef}>
               {loading && !events.length && <SkeletonRows rows={3} />}
               {view === 'month' && (
-                <MonthView month={month} today={today} lasting={lasting} point={point} onOpen={setOpenEvent}
+                <MonthView month={month} today={today} lasting={lasting} point={point} onOpen={showEvent}
                   beginSelect={beginSelect} inSel={inSel} selecting={!!sel} evMotion={evMotion} todayRef={todayRef} onTail={openTail} />
               )}
               {view === 'week' && (weeks.find((w) => w.start === weekStart) ? weekCard(weeks.find((w) => w.start === weekStart)!, 0) : null)}
@@ -557,7 +568,7 @@ export function CalendarPage() {
                   <span className={styles['c6-today-tag']}>сьогодні</span>
                 </div>
                 {todayHousehold.map((e) => (
-                  <button key={e.id} type="button" className={`${styles['c6-row']} ${styles['c6-row-sage']}`} onClick={() => setOpenEvent(e)}>
+                  <button key={e.id} type="button" className={`${styles['c6-row']} ${styles['c6-row-sage']}`} onClick={() => showEvent(e)}>
                     <Icon name={legendIcon(e) ?? 'live.household'} size={16} inherit decorative />
                     <span className={styles['c6-row-text']}>
                       <span className={styles['c6-row-title']}>{e.title}</span>
@@ -586,7 +597,7 @@ export function CalendarPage() {
                   {thisWeek.map((e) => {
                     const pi = pointIcon(e);
                     return (
-                      <button key={`${e.scope}:${e.id}`} type="button" className={styles['c6-wrow']} onClick={() => setOpenEvent(e)}>
+                      <button key={`${e.scope}:${e.id}`} type="button" className={styles['c6-wrow']} onClick={() => showEvent(e)}>
                         <span className={styles['c6-wdow']}>{DOW_SHORT[new Date(e.start).getDay()]}</span>
                         {pi.icon && <Icon name={pi.icon} size={16} inherit decorative />}
                         <span className={styles['c6-wtitle']}>{e.title}</span>
@@ -601,15 +612,23 @@ export function CalendarPage() {
                 <div className={styles['c6-kicker']}>Триває</div>
                 {running.length === 0 && <span className={styles['c6-empty']}>Зараз нічого не триває.</span>}
                 {running.map((e) => (
-                  <button key={`${e.scope}:${e.id}`} type="button" className={`${styles['c6-lrow']} ${toneClass(e)}`} onClick={() => setOpenEvent(e)}>
+                  <button key={`${e.scope}:${e.id}`} type="button" className={`${styles['c6-lrow']} ${toneClass(e)}`} onClick={() => showEvent(e)}>
                     <span className={styles['c6-ldot']} aria-hidden />
                     <span className={styles['c6-ltitle']}>{e.title}</span>
                     <span className={styles['c6-lnote']}>{runningNote(e)}</span>
                   </button>
                 ))}
-                <button type="button" className={styles['c6-subs']} onClick={() => { setOpenEvent(null); setOpenSeries(hidden.length ? 'seasons' : (traditions[0] ?? 'orthodox')); }} data-subscriptions>
-                  {hidden.length ? `Приховані сезони · ${hidden.length}` : 'Приховані сезони · нема'} · Свята: {traditions.length ? traditions.map((t) => TRADITION_LABEL[t].toLocaleLowerCase('uk')).join(', ') : 'не обрано'}
-                </button>
+                {/* Р145 (рішення власника 13.09): замість рядка «Приховані сезони · N ·
+                    Свята: …» — кнопка «Каталог подій», така сама, як «Що на вечерю
+                    завтра?» у «Сьогодні» (.c6-ask: 44, чорнило, знак ліворуч); під
+                    нею дрібно по центру «N приховано», лише коли N > 0. Дія та сама. */}
+                <div className={styles['c6-subs-row']}>
+                  <button type="button" className={styles['c6-ask']} data-tap aria-label="Усі підписки"
+                    onClick={() => showSeries(hidden.length ? 'seasons' : (traditions[0] ?? 'orthodox'))} data-subscriptions>
+                    <Icon name="sys.calendar" size={16} inherit decorative />Каталог подій
+                  </button>
+                  {hidden.length > 0 && <span className={styles['c6-hidden']} data-hidden-count>{hidden.length} приховано</span>}
+                </div>
               </div>
             </aside>
           </div>
@@ -628,7 +647,7 @@ export function CalendarPage() {
             {/* №26: вхід до підписок у шапці — власник не знаходив рядки внизу
                 стрічки. ≥768 — пілюля зі знаком і словом, 390 — коло 36 зі
                 знаком → шторка. */}
-            <button type="button" className={styles['subs-btn']} data-tap onClick={() => { setOpenEvent(null); setOpenSeries(traditions[0] ?? 'orthodox'); }}
+            <button type="button" className={styles['subs-btn']} data-tap onClick={() => showSeries(traditions[0] ?? 'orthodox')}
               aria-label="Підписки" title="Що впливає на кухню протягом року" data-subscriptions>
               <Icon name="sys.tradition" size={16} inherit decorative /><span className={styles['subs-text']}>Підписки</span>
             </button>
@@ -645,7 +664,7 @@ export function CalendarPage() {
         <div className={styles.legend}>
           {running.map((e) => (
             <button key={`${e.scope}:${e.id}`} type="button"
-              className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => setOpenEvent(e)}>
+              className={`${styles.chip} ${toneClass(e)} ${evMotion(e.id)}`} data-tap onClick={() => showEvent(e)}>
               {legendIcon(e) && <Icon name={legendIcon(e)!} size={12} inherit decorative />}
               {legendLabel(e, today)}
             </button>
@@ -677,15 +696,15 @@ export function CalendarPage() {
         </Sheet>
       )}
       {openEvent && !panelInFlow && (
-        <Sheet onClose={() => setOpenEvent(null)} ariaLabel={openEvent.title} kind="event">
+        <Sheet onClose={() => closePanel()} ariaLabel={openEvent.title} kind="event">
           <PeriodEvent key={openEvent.id} event={openEvent}
-            onClose={() => setOpenEvent(null)} onChanged={onEventChanged} />
+            onClose={() => closePanel()} onChanged={onEventChanged} />
         </Sheet>
       )}
       {openSeries && !panelInFlow && (
-        <Sheet onClose={() => setOpenSeries(null)} ariaLabel="Підписки" kind="event">
+        <Sheet onClose={() => closePanel()} ariaLabel="Підписки" kind="event">
           <PeriodSubscriptions key={openSeries} initialSet={openSeries}
-            onClose={() => setOpenSeries(null)} onDone={(c) => onEventChanged(undefined, c)}
+            onClose={() => closePanel()} onDone={(c) => onEventChanged(undefined, c)}
             onAddOwn={() => setCreating({ date: isoOf(today), dateTo: '' })} />
         </Sheet>
       )}

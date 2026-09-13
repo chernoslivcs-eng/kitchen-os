@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { CalendarPage } from './Calendar';
 import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
+import { usePanelStore } from '../../store/panel';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -126,5 +127,95 @@ describe('CalendarPage · дві осі в двох розкладках', () =>
     expect(tags.filter((t) => t?.startsWith('Великий піст')).length).toBe(2); // початок і кінець
     expect(host!.querySelector('[class*="monthbar"]')?.textContent).toMatch(/тиждень \d+ · \d+ – \d+/);
     expect(host!.textContent).not.toMatch(/ТРИВАЄ/);
+  });
+});
+
+// Хотфікс 13.09 (баг власника на проді): після «Підписок» клік по події не
+// перемикав панель — два стани (openEvent + openSeries), ефект брав серію
+// пріоритетно. Тепер «що відкрито» — один стан: подія або серія.
+describe('панель: подія ↔ підписки — одне з двох', () => {
+  let root: Root | undefined; let host: HTMLDivElement | undefined;
+  const FIXED_NOW = '2026-09-16T10:00:00';
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); usePanelStore.getState().clear(); });
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const day = (offset: number) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + offset); return d; };
+  const events = () => [
+    { id: 'fast', scope: 'catalog', kind: 'tradition', title: 'Великий піст', start: day(-3).getTime(), end: day(20).getTime(), force: 'restrict', strict: true, from: iso(day(-3)), to: iso(day(20)) },
+    { id: 'guests', scope: 'household', kind: 'custom', title: 'Мама приїжджає', start: day(1).getTime(), end: day(1).getTime(), force: 'hint', from: iso(day(1)), to: iso(day(1)) },
+  ];
+  // wide: і сітка (≥1024), і панель у потоці (≥600); narrow — ні те, ні те (шторка).
+  async function mount(wide: boolean) {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: wide, addEventListener: () => {}, removeEventListener: () => {} })));
+    const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } });
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/events')) return json({ events: events() });
+      if (url.includes('/v1/occasions/subscriptions')) return json({ subscriptions: [] });
+      return json({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+  }
+  const click = async (el: Element | null) => { expect(el).not.toBeNull(); await act(async () => { (el as HTMLButtonElement).click(); }); await act(async () => {}); };
+  const eventButton = () => [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Мама приїжджає')) ?? null;
+
+  it('≥1200 (панель): Підписки → клік по події → панель «Подія» з назвою; подія → Підписки → «Підписки»', async () => {
+    await mount(true);
+    await click(host!.querySelector('[data-subscriptions]'));
+    expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Підписки']);
+    await click(eventButton());
+    const st = usePanelStore.getState();
+    expect(st.artifacts.map((a) => a.label)).toEqual(['Подія']);
+    expect(st.active).toBe('event:guests');
+    await click(host!.querySelector('[data-subscriptions]'));
+    expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Підписки']);
+    expect(usePanelStore.getState().active).toBe('subscriptions');
+  });
+
+  // Р145 (рішення власника 13.09): у картці «Триває» — кнопка «Каталог подій» (як
+  // «Що на вечерю завтра?») замість рядка «Приховані сезони · N · Свята: …»;
+  // «N приховано» під нею — лише при N > 0.
+  it('≥1024: у «Триває» — кнопка «Каталог подій» (aria «Усі підписки»), без переліку конфесій; «N приховано» лише коли є приховані', async () => {
+    await mount(true);
+    const card = host!.querySelector('[data-subscriptions][aria-label="Усі підписки"]')!;
+    expect(card).not.toBeNull();
+    expect(card.textContent).toBe('Каталог подій');
+    expect(card.querySelector('[data-icon]')).not.toBeNull();
+    expect(host!.textContent).not.toContain('Приховані сезони');
+    expect(host!.textContent).not.toContain('Свята:');
+    expect(host!.querySelector('[data-hidden-count]')).toBeNull();
+    await click(card);
+    expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Підписки']);
+  });
+
+  it('≥1024: два приховані сезони → «2 приховано» поруч із кнопкою', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
+    const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } });
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/events')) return json({ events: events() });
+      if (url.includes('/v1/occasions/subscriptions')) return json({ subscriptions: [
+        { occasion_id: 's1', enabled: false, type: 'season', tradition: null, title: 'Кавуни', updated_at: '' },
+        { occasion_id: 's2', enabled: false, type: 'season', tradition: null, title: 'Гриби', updated_at: '' },
+        { occasion_id: 't1', enabled: false, type: 'tradition', tradition: 'orthodox', title: 'Православні', updated_at: '' },
+      ] });
+      return json({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    expect(host!.querySelector('[data-hidden-count]')!.textContent).toBe('2 приховано');
+  });
+
+  it('<600 (шторка): Підписки → клік по події → шторка події, не підписок', async () => {
+    await mount(false);
+    await click(host!.querySelector('[data-subscriptions]'));
+    expect(host!.textContent).toContain('Що впливає на кухню');
+    await click(eventButton());
+    const sheets = [...host!.querySelectorAll('[data-sheet]')].map((e) => e.getAttribute('aria-label'));
+    expect(sheets).toContain('Мама приїжджає');
+    expect(sheets).not.toContain('Підписки');
+    expect(host!.textContent).not.toContain('Що впливає на кухню');
   });
 });
