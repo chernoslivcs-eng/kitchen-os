@@ -5,7 +5,8 @@
 // Хотфікс 13.09 (#99): тіло на Vercel уже прочитане рантаймом у req.body — потік
 // завершений, `end` не настане; тіло беремо з req.body, з потоку — лише живого.
 // Хотфікс 13.09 №3: getMe з лямбди висів (init timeout) — botInfo без getMe, запити до
-// Telegram лише по IPv4 через undici (telegram-bot.ts), діагностика егресу в лог.
+// Telegram лише по IPv4 через undici (telegram-bot.ts); діагностику егресу знято
+// після підтвердження на проді (14.09).
 // Хотфікс 13.09 №2: після 200 фон через waitUntil на проді не виконувався (лог
 // обривався на «secret ok»). Тому хід — ДО відповіді: await init + handleUpdate
 // (включно з sendMessage), потім 200; maxDuration 120 с (vercel.json). Telegram на
@@ -16,7 +17,7 @@ import './env.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Bot } from 'grammy';
 import { pickRepo, pickStore } from './server.js';
-import { makeTelegramBot, telegramFetch } from './telegram-bot.js';
+import { makeTelegramBot } from './telegram-bot.js';
 
 export const INIT_TIMEOUT_MS = 5_000;
 export const BODY_TIMEOUT_MS = 3_000;
@@ -34,32 +35,6 @@ async function getBot(token: string): Promise<Bot> {
     })().catch((err: unknown) => { botPromise = null; throw err; });   // невдалий init не залипає на весь теплий контейнер
   }
   return botPromise;
-}
-
-// Діагностика №3 (один раз на теплий контейнер, у лог без токена): чи доходить
-// лямбда до api.telegram.org — глобальний fetch (як робив grammY), undici лише по
-// IPv4, і IPv4-літерал із заголовком host (TLS на ньому впаде — але швидко, якщо
-// мережа є). Прибрати окремим комітом, коли причина ясна.
-let diagDone = false;
-async function diagnoseTelegramEgress(token: string): Promise<void> {
-  if (diagDone) return;
-  diagDone = true;
-  const path = `/bot${token}/getMe`;
-  const probe = async (name: string, run: () => Promise<Response>) => {
-    const t0 = Date.now();
-    try {
-      const r = await run();
-      console.log(`telegram-diag ${name}: status ${r.status} ${Date.now() - t0}ms`);
-    } catch (err) {
-      const e = err as Error & { cause?: Error & { code?: string } };
-      console.log(`telegram-diag ${name}: ERR ${e.name} ${e.message.slice(0, 80)} cause=${e.cause?.name ?? ''}/${e.cause?.code ?? ''} ${e.cause?.message?.slice(0, 80) ?? ''} ${Date.now() - t0}ms`);
-    }
-  };
-  await Promise.allSettled([
-    probe('global-fetch', () => fetch(`https://api.telegram.org${path}`, { signal: AbortSignal.timeout(4000) })),
-    probe('undici-ipv4', () => telegramFetch(`https://api.telegram.org${path}`, { signal: AbortSignal.timeout(4000) })),
-    probe('ipv4-literal', () => fetch(`https://149.154.167.220${path}`, { headers: { host: 'api.telegram.org' }, signal: AbortSignal.timeout(4000) })),
-  ]);
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
@@ -107,7 +82,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     console.log('telegram-webhook: init…');
     const bot = await getBot(token);
-    await diagnoseTelegramEgress(token);
     console.log('telegram-webhook: init ok', `${Date.now() - t0}ms`, '→ handleUpdate', update.update_id);
     // handleUpdate чекає весь ланцюжок: хід чату і ctx.reply (sendMessage).
     await bot.handleUpdate(update as Parameters<Bot['handleUpdate']>[0]);
