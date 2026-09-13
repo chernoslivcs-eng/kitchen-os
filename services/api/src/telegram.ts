@@ -16,7 +16,23 @@ import { deriveSessionTitle, type Repo } from '@kitchen/domain';
 import { localDay } from './local-day.js';
 
 export const TELEGRAM_LINK_TTL_MS = 15 * 60_000;
-export const TELEGRAM_BOT_USERNAME = () => process.env.TELEGRAM_BOT_USERNAME ?? 'KitchenOSBot';
+
+// Username бота — для посилання «Підключити»: з env TELEGRAM_BOT_USERNAME, інакше
+// один раз через getMe за TELEGRAM_BOT_TOKEN (кеш на процес); без обох — null,
+// і посилання зробити нема з чого (link-token → 503).
+let usernameCache: string | null | undefined;
+export async function resolveBotUsername(getMe?: () => Promise<{ username?: string }>): Promise<string | null> {
+  if (process.env.TELEGRAM_BOT_USERNAME) return process.env.TELEGRAM_BOT_USERNAME;
+  if (usernameCache !== undefined) return usernameCache;
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+  try {
+    const me = getMe ? await getMe() : await (async () => { const { Bot } = await import('grammy'); return new Bot(token).api.getMe(); })();
+    usernameCache = me.username ?? null;
+  } catch { usernameCache = undefined; return null; }
+  return usernameCache;
+}
+export function resetBotUsernameCache(): void { usernameCache = undefined; }
 
 export interface TelegramDeps {
   repo: Repo;
@@ -26,11 +42,11 @@ export interface TelegramDeps {
 }
 
 /** Профіль → «Підключити»: разовий токен і посилання t.me/<bot>?start=<token>. */
-export async function createTelegramLinkToken(repo: Repo, user_id: string, now = new Date()): Promise<{ token: string; url: string; expires_at: string }> {
+export async function createTelegramLinkToken(repo: Repo, user_id: string, username: string, now = new Date()): Promise<{ token: string; url: string; expires_at: string }> {
   const token = randomBytes(24).toString('base64url');
   const expires_at = new Date(now.getTime() + TELEGRAM_LINK_TTL_MS).toISOString();
   await repo.saveTelegramLinkToken({ token, user_id, expires_at, consumed_at: null });
-  return { token, url: `https://t.me/${TELEGRAM_BOT_USERNAME()}?start=${encodeURIComponent(token)}`, expires_at };
+  return { token, url: `https://t.me/${username}?start=${encodeURIComponent(token)}`, expires_at };
 }
 
 export interface IncomingText {
@@ -84,7 +100,7 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     return COPY.stopped;
   }
   if (!linked) return COPY.linkFirst(deps.appUrl);
-  if (text.startsWith('/')) return COPY.linkFirst(deps.appUrl) === '' ? null : null;   // інші команди — мовчки
+  if (text.startsWith('/')) return null;   // інші команди — мовчки
 
   // Хід користувача в сесію дня — рівно те, що робить /v1/chat для тексту,
   // без моделі (routes/chat.ts:328-344).

@@ -3081,24 +3081,23 @@ OS - Prototype.dc.html`, стан emptyChat (renderVals greeting / joke / hints 
 - **Локально**: `scripts/telegram-dev.mts` → стенд у памʼяті + dev-бот polling'ом
   (`TELEGRAM_DEV_BOT_TOKEN`), ключі моделі затерті ДО імпорту стенда (env.ts не перекриває
   задані змінні → model.ts у стабі).
-- **Веб**: профіль → «Акаунт» → рядок «Telegram · без підключення · Підключити / підключено ·
-  Відключити» (той самий рядок, що «Сільпо» в Мережах; копі-слова наявні); «Підключити» →
-  `POST /v1/telegram/link-token` → `t.me/<bot>?start=<token>` відкривається в новій вкладці і
-  показується текстом під рядком (скопіювати в телефон); `GET /v1/telegram` → `{ linked,
-  username }`; `DELETE /v1/telegram`. У стрічці хід із `channel: 'telegram'` несе мітку
-  «з Telegram» у `.turn-note` під текстом (у чаті над репліками службового рядка нема —
-  6b-5, тож мітка йде туди, де «чекає» / «зупинив»). **Відхилення/додаток:** стрічка не
-  опитує сервер — хід із Telegram було б видно лише після F5; додано перечитування сесії дня
-  на фокусі/видимості вкладки (той самий слухач, що оновлює лічильники), лише коли нічого
-  не надсилається, черга порожня, історія закрита і ходів у базі більше, ніж на екрані.
+- **Контракт для веб-профілю** (веб-рядок і мітку «з Telegram» у стрічці робить інша
+  сесія; головний чат 13.09): `GET /v1/telegram` → `{ linked, username: string | null,
+  linked_at: string | null }`; `POST /v1/telegram/link-token` → `{ url:
+  'https://t.me/<username>?start=<token>', expires_at }` (username з env
+  `TELEGRAM_BOT_USERNAME`, інакше один раз через `getMe` за `TELEGRAM_BOT_TOKEN`; без обох —
+  503 `telegram_not_configured`); `DELETE /v1/telegram` → `{ ok: true }`; усі за кукою `kos`.
+  Сервер лише пише `message.channel` і віддає його в `GET /v1/session/today` і в історії
+  (`/v1/sessions/:id`) — `'web'` у JSON не возиться, лише `'telegram'`.
 - **Env**: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME`
   (типово KitchenOSBot — для посилання), `TELEGRAM_DEV_BOT_TOKEN` (лише локально). Секрети в
   чат не пишуться.
 - **Тести**: `services/api/tests/telegram.test.ts` (6: /start без токена і з чужим; токен →
   привʼязка на імʼя, разовість, статус у профілі; 15 хвилин; текст → хід у сесію дня з
-  channel і заголовком, без моделі, веб бачить channel; дубль update_id; /stop і DELETE →
-  відключено, новий /start оживляє), `packages/db/tests/sql-arity` (INSERT message з channel),
-  `apps/web … turns.telegram.test` (мітка). Гейти: typecheck, vitest усіх пакетів, lint;
+  channel і заголовком, без моделі, `/v1/session/today` віддає channel; дубль update_id; /stop і
+  DELETE → відключено, новий /start оживляє; без username → 503), `packages/db/tests/sql-arity`
+  (INSERT message з channel),
+  контракт профілю (GET/POST/DELETE, 503 без username). Гейти: typecheck, vitest усіх пакетів, lint;
   `build:vercel-fn` збирає обидва бандли (server.mjs 10,7 МБ, telegram.mjs 11,7 МБ).
 - **Не зроблено свідомо** (постановка): модель, картки, кнопки, фото, Mini App, cron, черги,
   Sentry-теги. Здача відео — коли власник дасть dev-токен.

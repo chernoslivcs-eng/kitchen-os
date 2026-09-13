@@ -130,8 +130,6 @@ export function Feed() {
   const setNavExpanded = useNavStore((st) => st.setExpanded);
   const navigate = useNavigate();
   const [turns, setTurns] = useState<Turn[]>([]);
-  // Р147: живий стан для перечитування розмови на фокусі (нижче) — без залежностей ефекту.
-  const liveRef = useRef({ sending: false, pending: 0, historyOpen: false, sessionId: null as string | null, turns: 0 });
   // Крок 7: стан панелей картки «Про тебе» — з profile_text; перечитується
   // після кожного запису (з картки, зі сторінки, з фрази в чаті).
   const [profileFields, setProfileFields] = useState<Record<string, ProfileFieldV2> | null>(null);
@@ -571,20 +569,8 @@ export function Feed() {
   }, []);
 
   // UX9-15: застарілі лічильники другого вікна — перечитуємо на фокусі.
-  // Р147: і саму розмову дня — хід із Telegram інакше видно лише після F5.
-  // Лише коли нічого не надсилається, черга порожня, історія закрита, і лише
-  // коли ходів у базі більше, ніж на екрані: власні стани стрічки не чіпаємо.
   useEffect(() => {
-    const refetch = () => {
-      void refreshCounts();
-      const live = liveRef.current;
-      if (document.visibilityState !== 'visible' || live.sending || live.pending > 0 || live.historyOpen) return;
-      void api.session.today().then(({ session, messages }) => {
-        const now = liveRef.current;
-        if (now.sending || now.pending > 0 || now.historyOpen || session.id !== now.sessionId) return;
-        if (messages.length > now.turns) setTurns(messages.map((m) => messageToTurn(m)));
-      }).catch(() => { /* лічильники вже оновлені; розмова — після F5 */ });
-    };
+    const refetch = () => { void refreshCounts(); };
     window.addEventListener('focus', refetch);
     document.addEventListener('visibilitychange', refetch);
     return () => {
@@ -662,7 +648,6 @@ export function Feed() {
   }
 
   const [historyOpen, setHistoryOpen] = useState(false);
-  liveRef.current = { sending, pending: pending.length, historyOpen, sessionId, turns: turns.length };
   // Моушн-2 №6: скрол кожної вкладки живе окремо і відновлюється при поверненні.
   const segScroll = useRef<{ t: number; h: number }>({ t: 0, h: 0 });
   useLayoutEffect(() => {
@@ -1546,8 +1531,6 @@ export function Feed() {
                 ))}
               </div>
             )}
-            {/* Р147: хід прийшов із Telegram-бота. */}
-            {t.fromTelegram && <div className={styles['turn-note']} data-telegram>з Telegram</div>}
             {t.queued && (
               /* Пул-9 №5: репліка вже у стрічці, але виклик ще не стартував. */
               <div className={styles['turn-note']} data-queued>чекає</div>
