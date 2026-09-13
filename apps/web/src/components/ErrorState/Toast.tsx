@@ -50,7 +50,7 @@ export function Toast({ text, tone = 'danger', action, onDismiss }: Props) {
     if (!onDismiss) return;
     const t = window.setTimeout(leave, action ? TOAST_TTL.withAction : TOAST_TTL.plain);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- таймер живе від ознак «є дія»/«є onDismiss», не від самих обʼєктів, що нові щорендеру
   }, [text, !!action, !!onDismiss]);
 
   const onPointerDown = (e: React.PointerEvent) => {

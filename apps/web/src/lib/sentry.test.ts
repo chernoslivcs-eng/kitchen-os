@@ -36,7 +36,7 @@ afterEach(async () => {
 
 describe('без DSN', () => {
   it('мовчить, і падіння лишається хоч у консолі', () => {
-    initSentry(undefined);
+    void initSentry(undefined);
     expect(sentryOn()).toBe(false);
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     // Коду немає — і чипа на екрані помилки не буде: порожній чип гірший за

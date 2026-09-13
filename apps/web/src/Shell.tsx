@@ -36,7 +36,7 @@ export function Shell() {
   useEffect(() => {
     if (pathname !== '/app' || !me) return;
     if (me.user.welcome_seen_at) { markSeenLocally(me.user.id); return; }
-    if (shouldShowOnboarding(me)) navigate('/welcome', { replace: true });
+    if (shouldShowOnboarding(me)) void navigate('/welcome', { replace: true });
   }, [pathname, navigate, me]);
   // Крок Е1: 401/429/офлайн ловляться в api.req і показуються смугою тут —
   // одне місце на всі екрани.
@@ -48,7 +48,7 @@ export function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k' && pathname !== '/app') {
-        e.preventDefault(); navigate('/app', { state: { focusComposer: true, at: Date.now() } });
+        e.preventDefault(); void navigate('/app', { state: { focusComposer: true, at: Date.now() } });
       }
     };
     window.addEventListener('keydown', onKey);

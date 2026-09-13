@@ -143,9 +143,9 @@ export function RecipesPage() {
                 onClick={async () => {
                   try {
                     const { session } = await api.session.fresh(r.id);
-                    navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
+                    void navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
                   } catch {
-                    navigate(`/recipe/${r.id}`, { state: { recipe: r.payload } });
+                    void navigate(`/recipe/${r.id}`, { state: { recipe: r.payload } });
                   }
                 }}
               >

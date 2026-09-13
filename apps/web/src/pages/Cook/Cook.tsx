@@ -74,8 +74,8 @@ export function CookOverlay() {
 
   // Крок О1а: почали готувати. Кроки й фініш нижче — разом вони дають
   // єдину криву, де видно, на чому люди зупиняються.
-  useEffect(() => { if (recipe) track('cook_started', { steps: recipe.st.length }); }, [recipe?.t]);  // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (recipe) track('cook_step_reached', { step: stepIdx + 1, of: recipe.st.length }); }, [stepIdx]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (recipe) track('cook_started', { steps: recipe.st.length }); }, [recipe?.t]);  // eslint-disable-line react-hooks/exhaustive-deps -- трек старту раз на рецепт
+  useEffect(() => { if (recipe) track('cook_step_reached', { step: stepIdx + 1, of: recipe.st.length }); }, [stepIdx]);  // eslint-disable-line react-hooks/exhaustive-deps -- трек кроку лише на зміну кроку
 
   // Бриф-3 п.1: повернення на пройдений крок — тап по смузі або ↩.
   // Таймер при поверненні стає на паузу (він не «відмотує час», людина
@@ -169,7 +169,7 @@ export function CookOverlay() {
       if (any) setTick((v) => v + 1);
     }, 1000);
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- секундний тік — один інтервал на життя попапа, читає refs
   }, []);
 
   // QA8-03: таймер рахує від дедлайну, не тіками. Лічильник тіків втрачав
@@ -201,7 +201,7 @@ export function CookOverlay() {
     };
     // secondsLeft свідомо не в залежностях: дедлайн фіксується на старті,
     // а «+1 хв» коригує його напряму.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- secondsLeft свідомо поза залежностями (див. коментар вище)
   }, [running]);
 
   useEffect(() => {
@@ -244,7 +244,7 @@ export function CookOverlay() {
       }
       clearCookSession();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- відновлення сесії лише при монтуванні
   }, []);
 
 
@@ -305,7 +305,6 @@ export function CookOverlay() {
       else softTick('sec');
     }
     prevSecRef.current = secondsLeft;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secondsLeft, running]);
 
   // DA2-08: таймер, який мовчить, — це таймер, якого немає. Кіт: сигнал
@@ -350,7 +349,7 @@ export function CookOverlay() {
       return stopAlarm;
     }
     stopAlarm();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- сигнал лише на перехід до нуля
   }, [secondsLeft === 0]);
 
 
@@ -361,7 +360,7 @@ export function CookOverlay() {
     if (!recipe || finishedRef.current) return;
     // Пул-7 №1: running → пишемо дедлайн, рахунок живе поза попапом.
     saveCookSession({ recipe, stepIdx, secondsLeft, deadline: running ? deadlineRef.current : null, recipeId: state.recipeId, returnSessionId: state.returnSessionId, done: [...done], timers: timersRef.current });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- пишемо на зміну кроку/стану, не щосекунди (secondsLeft — у refs)
   }, [stepIdx, running, done]);
   // QA8-06: «Вийти» за 20 секунд до кінця повертало повний таймер — запис
   // ішов тільки на дію. Тепер вихід (unmount) пише точний залишок.
@@ -375,7 +374,7 @@ export function CookOverlay() {
       const left = dl != null ? Math.max(0, Math.ceil((dl - Date.now()) / 1000)) : snap.secondsLeft;
       if (!finishedRef.current) saveCookSession({ recipe, stepIdx: snap.stepIdx, secondsLeft: left, deadline: dl, recipeId: state.recipeId, returnSessionId: state.returnSessionId, done: [...snap.done], timers: timersRef.current });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- запис при виході бере знімок із refs; залежність — лише рецепт
   }, [recipe?.t]);
 
   // QA8-20: guard стоїть ПІСЛЯ всіх хуків — кількість викликаних хуків
@@ -436,10 +435,10 @@ export function CookOverlay() {
     closeOverlay();
     if (after === 'share' && saved && recipe) {
       // Той самий стан, що й точки входу зі стрічки.
-      navigate('/share', { state: { recipe, recipeId: state.recipeId } });
+      void navigate('/share', { state: { recipe, recipeId: state.recipeId } });
       return;
     }
-    navigate('/app', sid ? { state: { sessionId: sid, at: Date.now() } } : undefined);
+    void navigate('/app', sid ? { state: { sessionId: sid, at: Date.now() } } : undefined);
   }
 
   // ── Вигляд (feat/cook-share-v3) — за Prototype «COOK MODE» (1440) і Cook and

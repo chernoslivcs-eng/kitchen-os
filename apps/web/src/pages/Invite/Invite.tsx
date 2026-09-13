@@ -49,7 +49,7 @@ export function InvitePage() {
     try {
       await api.invites.accept(token);
       await refreshMe();
-      navigate('/app', { replace: true });
+      void navigate('/app', { replace: true });
     } catch (err) {
       setError((err as Error).message);
       setState({ ...state, kind: 'ready' });

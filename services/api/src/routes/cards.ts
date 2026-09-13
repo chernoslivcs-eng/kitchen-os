@@ -127,6 +127,7 @@ export function cardsRoutes(app: FastifyInstance, repo: Repo) {
     Body: { undo_token: string };
   }>('/v1/cards/:id/undo', { preHandler: authenticated(repo) }, async (req, reply) => {
     const { user_id } = requireUser(req);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- baseline #5
     const { undo_token } = req.body ?? ({} as any);
     if (!undo_token) return reply.code(400).send({ error: 'undo_token required' });
     try {

@@ -10,6 +10,7 @@
     "test": "pnpm -r --parallel test",
     "typecheck": "pnpm -r --parallel typecheck",
     "smoke": "bash scripts/smoke.sh",
+    "lint": "eslint . --cache --cache-location out/.eslintcache && node scripts/css-orphans.mjs",
     "build:vercel-fn": "esbuild services/api/src/vercel-handler.ts --bundle --platform=node --format=esm --target=node20 --sourcemap --external:pg-native --banner:js='import { createRequire } from \"node:module\"; const require = createRequire(import.meta.url);' --outfile=api-dist/server.mjs && rm -rf api-dist/versions && cp -R packages/prompts/versions api-dist/versions"
   },
   "devDependencies": {
@@ -17,8 +18,12 @@
     "@sentry/cli": "^3.7.0",
     "@types/node": "^22.7.5",
     "esbuild": "^0.24.0",
+    "eslint": "^9",
+    "eslint-plugin-react-hooks": "^5",
+    "globals": "^15",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8",
     "vitest": "^2.1.4"
   }
 }

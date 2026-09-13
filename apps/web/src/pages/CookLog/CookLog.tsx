@@ -82,7 +82,7 @@ export function CookLogPage() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const [r, s] = await Promise.all([
           api.cookRuns.list().catch(() => ({ runs: [] as CookRunWithRecipe[] })),
@@ -128,9 +128,9 @@ export function CookLogPage() {
       let sid = r.session_id ?? null;
       if (!sid) sid = (await api.session.findByRecipe(r.recipe_id)).session_id;
       if (!sid) sid = (await api.session.fresh(r.recipe_id)).session.id;
-      navigate('/app', { state: { sessionId: sid, at: Date.now() } });
+      void navigate('/app', { state: { sessionId: sid, at: Date.now() } });
     } catch {
-      navigate('/recipe', { state: { recipe: r.recipe.payload } });
+      void navigate('/recipe', { state: { recipe: r.recipe.payload } });
     }
   };
 

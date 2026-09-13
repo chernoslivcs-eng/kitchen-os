@@ -192,7 +192,6 @@ export function PantryPage() {
       window.removeEventListener('focus', refetch);
       document.removeEventListener('visibilitychange', refetch);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Крок Ф2: картка позиції живе в правій панелі артефактів (тій самій, що
@@ -218,13 +217,13 @@ export function PantryPage() {
         />
       ),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- колбеки картки нові щорендеру — публікуємо лише на зміну партії/продуктів
   }, [editingLive, products]);
   useEffect(() => {
     if (editing) { track('pantry_card_opened'); panel.openArtifact(`batch:${editing.id}`); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- відкриття артефакту раз на партію (id), не на кожен обʼєкт editing
   }, [editing?.id]);
-  useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps -- clear лише при розмонтуванні; panel — стабільний стор
 
   // Раунд 5, крок Ф1: порядок / тільки / стан — логіка в filter.ts (спека
   // дизайну один в один), тут лише стан і рендер.

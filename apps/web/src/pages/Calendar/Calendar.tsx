@@ -180,7 +180,7 @@ export function CalendarPage() {
     if (view === 'week') setWeekStart((w) => Math.min(Math.max(w + dir * 7 * DAY, from), rangeEnd - 7 * DAY));
     else setMonth((m) => Math.min(Math.max(addMonths(m, dir), monthStart(from)), monthStart(rangeEnd)));
   };
-  const cook = useMemo(() => loadCookSession(), [version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cook = useMemo(() => loadCookSession(), [version]); // eslint-disable-line react-hooks/exhaustive-deps -- version — ручний тригер перечитування сесії готування зі storage
 
   // П2: підписки дому — для рядків «Приховані» і «Свята» внизу.
   const [subs, setSubs] = useState<SubscriptionRow[]>([]);
@@ -278,9 +278,9 @@ export function CalendarPage() {
       ),
     });
     panel.openArtifact(key);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- колбеки картки нові щорендеру — публікуємо лише на зміну відкритої події/серії
   }, [panelInFlow, openEvent, openSeries]);
-  useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps -- clear лише при розмонтуванні; panel — стабільний стор
 
   // Сьогодні зверху на старті; пігулка повертає до нього. Гортається сама
   // стрічка (.list), не вікно — шапка й легенда стоять.
@@ -304,7 +304,7 @@ export function CalendarPage() {
     if (loading || scrolledOnce.current || !todayRef.current) return;
     scrolledOnce.current = true;
     scrollToToday('auto');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- прокрутка до «сьогодні» один раз після завантаження
   }, [loading]);
   const goToday = () => {
     setMonth(monthStart(today));

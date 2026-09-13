@@ -39,7 +39,7 @@ export function themeOverride(): ThemeChoice | null {
 }
 
 export function setThemeOverride(v: ThemeChoice | null): void {
-  try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch { /* приватний режим */ }
+  try { if (v) localStorage.setItem(KEY, v); else localStorage.removeItem(KEY); } catch { /* приватний режим */ }
   apply(v ? v === 'light' : media().matches);
 }
 

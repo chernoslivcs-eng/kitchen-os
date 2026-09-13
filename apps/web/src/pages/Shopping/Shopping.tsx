@@ -39,7 +39,7 @@ export function ShoppingPage() {
     try {
       await api.retail.buildCart();
       // Картка з цінами приходить у стрічку — ведемо людину до неї.
-      navigate('/app');
+      void navigate('/app');
     } catch {
       setBuilding(false);
     }

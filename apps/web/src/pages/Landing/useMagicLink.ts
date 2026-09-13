@@ -28,7 +28,7 @@ export function useMagicLink() {
     try {
       await requestMagicLink(trimmed, next);
       rememberEmail(trimmed);
-      navigate('/sent', { state: { email: trimmed } });
+      void navigate('/sent', { state: { email: trimmed } });
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError('Забагато спроб. Спробуй через 15 хвилин.');
