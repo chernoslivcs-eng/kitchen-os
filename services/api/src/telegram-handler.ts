@@ -2,16 +2,16 @@
 // Секрет вебхука — заголовок X-Telegram-Bot-Api-Secret-Token (той самий рядок, що в
 // setWebhook secret_token). Без токена або секрету — 503.
 //
-// Хотфікс 13.09 (прод висів, «Read timeout expired»): на Vercel рантайм ЧИТАЄ тіло
-// запиту сам і кладе його в req.body — потік уже завершений, і `req.on('end')` не
-// настане ніколи; функція мовчала до першого логу. Тепер тіло беремо з req.body,
-// коли воно є, зі свого потоку — лише коли той ще живий, і з таймаутом. 200 іде
-// одразу після секрету й тіла — ДО init бота і будь-якої мережі; init (getMe) і
-// сам хід — через waitUntil з @vercel/functions у межах maxDuration (120 с),
-// init — з таймаутом 5 с, кожен крок — у логи функції.
+// Хотфікс 13.09 (#99): тіло на Vercel уже прочитане рантаймом у req.body — потік
+// завершений, `end` не настане; тіло беремо з req.body, з потоку — лише живого.
+// Хотфікс 13.09 №2: після 200 фон через waitUntil на проді не виконувався (лог
+// обривався на «secret ok»). Тому хід — ДО відповіді: await init + handleUpdate
+// (включно з sendMessage), потім 200; maxDuration 120 с (vercel.json). Telegram на
+// довгий хід сам не зʼїде: після свого таймауту він повторить той самий update_id,
+// а його ми вже ігноруємо — TTL-кеш ставиться в handleTelegramText ПЕРШИМ рядком,
+// до будь-якої обробки. Помилка ходу — теж 200 (щоб Telegram не повторював), у лог.
 import './env.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { waitUntil } from '@vercel/functions';
 import type { Bot } from 'grammy';
 import { pickRepo, pickStore } from './server.js';
 import { makeTelegramBot } from './telegram-bot.js';
@@ -74,18 +74,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     res.writeHead(400); return res.end();
   }
   console.log('telegram-webhook: secret ok, body from', source, 'update_id', update.update_id);
-  // 200 одразу — до init бота й будь-якої мережі; Telegram інакше повторює апдейт.
+  try {
+    console.log('telegram-webhook: init…');
+    const bot = await getBot(token);
+    console.log('telegram-webhook: init ok', `${Date.now() - t0}ms`, '→ handleUpdate', update.update_id);
+    // handleUpdate чекає весь ланцюжок: хід чату і ctx.reply (sendMessage).
+    await bot.handleUpdate(update as Parameters<Bot['handleUpdate']>[0]);
+    console.log('telegram-webhook: done', update.update_id, `${Date.now() - t0}ms`);
+  } catch (err) {
+    console.error('telegram-webhook: failed', update.update_id, `${Date.now() - t0}ms`, String(err));
+  }
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end('{"ok":true}');
-  waitUntil((async () => {
-    try {
-      console.log('telegram-webhook: init…');
-      const bot = await getBot(token);
-      console.log('telegram-webhook: init ok', `${Date.now() - t0}ms`, '→ handleUpdate', update.update_id);
-      await bot.handleUpdate(update as Parameters<Bot['handleUpdate']>[0]);
-      console.log('telegram-webhook: done', update.update_id, `${Date.now() - t0}ms`);
-    } catch (err) {
-      console.error('telegram-webhook: failed', update.update_id, String(err));
-    }
-  })());
 }
