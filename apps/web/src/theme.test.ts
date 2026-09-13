@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { initTheme, setLightOnly, setThemeOverride, LIGHT_ONLY_PATHS } from './theme';
+import { initTheme, setLightOnly, setThemeOverride, setThemeSetting, themeSetting, LIGHT_ONLY_PATHS } from './theme';
 
 const darkOS = () => vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn() })));
 const theme = () => document.documentElement.dataset.theme;
@@ -20,13 +20,38 @@ describe('№2 · світлий поза входом', () => {
     for (const p of ['/app', '/pantry', '/profile', '/r/abc', '/welcomed']) expect(LIGHT_ONLY_PATHS.test(p), p).toBe(false);
   });
 
-  it('темна ОС: на / перший кадр світлий; у застосунку — темний', () => {
+  // Профіль за Prototype (рішення власника 13.09): без вибору — Світла всюди;
+  // темна ОС вмикає темну лише при явному «Авто».
+  it('темна ОС без вибору: і на /, і в застосунку — світлий; «Авто» — за ОС; «Темна» — темний', () => {
     history.replaceState(null, '', '/');
     initTheme();
     expect(theme()).toBe('light');
     history.replaceState(null, '', '/app');
     initTheme();
+    expect(theme()).toBe('light');
+    expect(themeSetting()).toBe('light');
+    setThemeSetting('auto');
     expect(theme()).toBe('dark');
+    expect(themeSetting()).toBe('auto');
+    setThemeSetting('dark');
+    expect(theme()).toBe('dark');
+    setThemeSetting('light');
+    expect(theme()).toBe('light');
+  });
+
+  it('зміна ОС перемикає тему лише при «Авто»', () => {
+    let handler: ((e: { matches: boolean }) => void) | null = null;
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: (_: string, h: (e: { matches: boolean }) => void) => { handler = h; } })));
+    history.replaceState(null, '', '/app');
+    initTheme();
+    expect(theme()).toBe('light');
+    handler!({ matches: false });
+    expect(theme(), 'без вибору ОС не слухаємо').toBe('light');
+    setThemeSetting('auto');
+    handler!({ matches: false });
+    expect(theme()).toBe('dark');
+    handler!({ matches: true });
+    expect(theme()).toBe('light');
   });
 
   it('прапорець сильніший за вибір із профілю; знято — тема повертається', () => {
@@ -46,7 +71,8 @@ describe('№2 · світлий поза входом', () => {
     history.replaceState(null, '', '/welcome');
     initTheme();
     expect(theme()).toBe('light');
-    // /welcome → /app: онбординг розмонтовано (cleanup useLightOnly), вибору людини нема — за ОС
+    // /welcome → /app: онбординг розмонтовано (cleanup useLightOnly); «Авто» — за ОС (темна)
+    setThemeSetting('auto');
     setLightOnly(false);
     expect(theme()).toBe('dark');
     // /app → /welcome: онбординг змонтовано — знову світлий

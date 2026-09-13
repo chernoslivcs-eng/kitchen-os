@@ -1,6 +1,7 @@
-// Auto-theme за prefers-color-scheme: OS каже — ми слухаємо. Раунд 4, крок 6:
-// сторінка профілю дає перемикач, який перевизначає OS; вибір живе в
-// localStorage і переживає перезавантаження. Без вибору — як було.
+// Тема застосунку. Раунд 4, крок 6: сторінка профілю дає перемикач Світла ·
+// Темна · Авто; вибір живе в localStorage і переживає перезавантаження.
+// Профіль за Prototype (рішення власника 13.09): без вибору — Світла; ОС
+// (prefers-color-scheme) слухаємо лише при явному «Авто».
 
 const KEY = 'kos-theme';
 export type ThemeChoice = 'light' | 'dark';
@@ -29,38 +30,53 @@ export const LIGHT_ONLY_PATHS = /^\/($|sent$|invite$|link\/|welcome($|\/))/;
 
 export function setLightOnly(on: boolean): void {
   lightOnly = on;
-  const o = themeOverride();
-  apply(o ? o === 'light' : media().matches);
+  apply(wantsLight());
 }
 
-export function themeOverride(): ThemeChoice | null {
+/** Збережений вибір: light · dark · auto; нема — null. */
+function stored(): ThemeSetting | null {
   try {
     const v = localStorage.getItem(KEY);
-    return v === 'light' || v === 'dark' ? v : null;
+    return v === 'light' || v === 'dark' || v === 'auto' ? v : null;
   } catch { return null; }
+}
+
+/** Світла чи ні — з вибору. Профіль за Prototype (рішення власника 13.09):
+ *  без збереженого вибору — СВІТЛА, не за ОС; ОС слухаємо лише при явному «Авто». */
+function wantsLight(): boolean {
+  const s = stored();
+  if (s === 'auto') return media().matches;
+  return s !== 'dark';
+}
+
+/** Жорсткий вибір людини (light/dark); «Авто» і відсутність вибору — null. */
+export function themeOverride(): ThemeChoice | null {
+  const s = stored();
+  return s === 'light' || s === 'dark' ? s : null;
 }
 
 export function setThemeOverride(v: ThemeChoice | null): void {
   try { if (v) localStorage.setItem(KEY, v); else localStorage.removeItem(KEY); } catch { /* приватний режим */ }
-  apply(v ? v === 'light' : media().matches);
+  apply(wantsLight());
 }
 
 export function currentTheme(): ThemeChoice {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 }
 
-/** «Тема · Світла / Темна / Авто» (профіль, Screens D2a — підтверджене
- *  відхилення від проду): auto = без власного вибору, за ОС. */
+/** «Тема · Світла / Темна / Авто» (профіль): auto — за ОС; без вибору — Світла. */
 export type ThemeSetting = ThemeChoice | 'auto';
-export function themeSetting(): ThemeSetting { return themeOverride() ?? 'auto'; }
-export function setThemeSetting(v: ThemeSetting): void { setThemeOverride(v === 'auto' ? null : v); }
+export function themeSetting(): ThemeSetting { return stored() ?? 'light'; }
+export function setThemeSetting(v: ThemeSetting): void {
+  try { localStorage.setItem(KEY, v); } catch { /* приватний режим */ }
+  apply(wantsLight());
+}
 
 export function initTheme(): void {
   const m = media();
-  const o = themeOverride();
   lightOnly = LIGHT_ONLY_PATHS.test(location.pathname);
-  apply(o ? o === 'light' : m.matches);
+  apply(wantsLight());
   // Змін ОС слухаємо в реальному часі — macOS перемикання «день/ніч»
-  // без перезавантаження вкладки. Явний вибір людини сильніший за ОС.
-  m.addEventListener('change', (e) => { if (!themeOverride()) apply(e.matches); });
+  // без перезавантаження вкладки — але лише при явному «Авто».
+  m.addEventListener('change', (e) => { if (stored() === 'auto') apply(e.matches); });
 }

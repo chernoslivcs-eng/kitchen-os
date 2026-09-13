@@ -1,15 +1,23 @@
-// Профіль v6 (AUDIT-ROUND-4.md §8, design/PROFILE-v6.dc.html): сім речень,
-// нотатки, мережі, акаунт. Крок 11: єдина сторінка профілю (ProfileRoute
-// лише завантажує GET /v1/profile).
+// Профіль за Prototype (`Kitchen OS - Prototype.dc.html`, вкладка «Профіль»,
+// 1440 і 390) — рішення власника 13.09, PROFILE-LOGIC-0913.md §7. Логіка і
+// склад елементів — як були (сім речень з автозбереженням, нотатки з undo,
+// дім, мережі, акаунт, видалення шторкою); змінилось розташування:
+//   1440 — ліворуч картка-аркуш (Профіль · вступ · імʼя · речення рядками
+//   «початок · відповідь» з волосинами · підпис про вето · Нотатки), праворуч
+//   Дім · Мережі · Акаунт без карток і без чорнильних шапок (Р90 знято);
+//   390 — один стовпчик у тому ж порядку.
+// Підказок нема зовсім; лічильник «N / 200» — лише під час введення. Дії з
+// людиною — з меню «…» (ті самі запити й підтвердження, що були).
 //
-// Рядок — речення: початок сірим (для «Мені не можна» — --plum з ban, 12.09 A10), закінчення
-// contenteditable з пунктиром. Автозбереження PATCH /v1/profile/:key по blur і
-// по паузі 800 мс, оптимістично, без спінерів; помилка — тост і один повтор.
+// Рядок — речення: початок сірим (для «Мені не можна» — --plum з ban), відповідь
+// contenteditable. Автозбереження PATCH /v1/profile/:key по blur і по паузі
+// 800 мс, оптимістично, без спінерів; помилка — тост і один повтор.
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated } from '../../api';
-import { PROFILE_ROWS, HINT_IDLE, SECTION, PLAN_LABEL, type ProfileRowCopy } from '../../lib/profile-copy';
+import { PROFILE_ROWS, SECTION, PLAN_LABEL, type ProfileRowCopy } from '../../lib/profile-copy';
+import { plural } from '../../lib/plural';
 import { KIT_DEFAULTS, type ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { useAuth } from '../../store/auth';
 import { themeSetting, setThemeSetting, type ThemeSetting } from '../../theme';
@@ -38,6 +46,7 @@ const fmtDay = (iso: string) => {
   return `${d.getDate()} ${M[d.getMonth()]}`;
 };
 const initialOf = (name: string) => (name.trim().charAt(0) || "·").toUpperCase();
+const hoursLeft = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 3_600_000));
 
 const EXIT_REASONS: Array<{ code: string; label: string }> = [
   { code: 'unused', label: 'Не користуюсь' },
@@ -54,14 +63,12 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const logout = useAuth((s) => s.logout);
   const openNav = useNavStore((s) => s.setOpen);
 
-  // ----- Про тебе ---------------------------------------------------------
+  // ----- Речення ------------------------------------------------------------
   const [fields, setFields] = useState<Fields>(initial.fields);
   const [focus, setFocus] = useState<ProfileFieldKey | null>(null);
-  const [hover, setHover] = useState<ProfileFieldKey | null>(null);
   const [typing, setTyping] = useState<ProfileFieldKey | null>(null);
   const [lens, setLens] = useState<Record<ProfileFieldKey, number>>(() =>
     Object.fromEntries(PROFILE_ROWS.map((r) => [r.k, len(initial.fields[r.k].text)])) as Record<ProfileFieldKey, number>);
-  const [hintKey, setHintKey] = useState(0);
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const edits = useRef<Partial<Record<ProfileFieldKey, HTMLSpanElement | null>>>({});
   const lastSaved = useRef<Record<ProfileFieldKey, string>>(
@@ -106,11 +113,9 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   }
   function onBlur(k: ProfileFieldKey) {
     setFocus((f) => (f === k ? null : f));
-    setHintKey((n) => n + 1);
     window.clearTimeout(timers.current[`save-${k}`]);
     void persist(k);
   }
-  function onFocus(k: ProfileFieldKey) { setFocus(k); setHintKey((n) => n + 1); }
   function onKeyDown(_k: ProfileFieldKey, row: ProfileRowCopy, e: KeyboardEvent<HTMLSpanElement>) {
     if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); return; }
     // Ліміт: набір блокується, лічильник лишається з текстом ліміту.
@@ -126,28 +131,19 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     onInput(k);
   }
 
-  const firstDay = PROFILE_ROWS.every((r) => fields[r.k].status === 'empty');
-  const hintRow = PROFILE_ROWS.find((r) => r.k === focus) ?? null;
-
-  // Етап 4 (PLAN §3, §6): лічильник зʼявляється за 20 знаків до стелі — на
-  // кожному з пʼяти лімітів (30 / 140 / 200 / 250 / 260), і не лише під час
-  // набору. Обрізати не мовчки: людина має бачити межу ДО того, як у неї
-  // впреться. Доти лічильник жив лише ~1 с після останнього символа — тобто
-  // з'являвся, коли вже пізно.
+  // Етап 4 (PLAN §3, §6): лічильник зʼявляється за 20 знаків до стелі; тепер
+  // (§7) — лише під час введення в рядку, без підказки.
   const COUNTER_AHEAD = 20;
   const counter = (row: ProfileRowCopy) => {
     const n = lens[row.k];
     const atLimit = n >= row.max;
     const near = row.max - n <= COUNTER_AHEAD;
     const active = focus === row.k;
-    // Components «profile states»: «176 / 200 · далі вже мемуари» — число і
-    // текст ліміту разом, під рядком, зі смужкою.
     return {
       text: atLimit ? `${n} / ${row.max} · ${row.lim}` : `${n} / ${row.max}`,
       visible: active && (typing === row.k || atLimit || near),
       atLimit,
       near,
-      pct: Math.min(100, Math.round((n / row.max) * 100)),
     };
   };
 
@@ -175,7 +171,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     try { await api.profileV2.restoreNote(t.note.id); } catch { /* рядок уже на місці; повторний DELETE поверне все назад */ }
   }
 
-  // ----- Дім (9а(7)): люди, з якими ділиш комору — існуючі ендпоінти, як у v1 ---
+  // ----- Дім (9а(7)): люди, з якими ділиш комору — існуючі ендпоінти ------
   const refreshMe = useAuth((s) => s.refresh);
   const [invites, setInvites] = useState<InviteInfo[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -184,6 +180,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [lastInvite, setLastInvite] = useState<InviteCreated | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const householdId = me?.household.id;
   useEffect(() => {
     if (!householdId) return;
@@ -191,6 +188,15 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     api.households.listInvites(householdId).then((r) => { if (alive) setInvites(r.invites); }).catch(() => {});
     return () => { alive = false; };
   }, [householdId]);
+  // Меню «…» закривається кліком повз і Escape.
+  useEffect(() => {
+    if (!menuFor) return;
+    const close = () => setMenuFor(null);
+    const key = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('keydown', key); };
+  }, [menuFor]);
   const activeInvites = invites.filter((i) => !i.consumed_at && !i.revoked_at);
   const inviteStatus = (inv: InviteInfo): { text: string; cls: string } => {
     if (inv.consumed_at) return { text: 'прийнято', cls: styles.metaOk ?? '' };
@@ -261,11 +267,20 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     setRetailBusy(true);
     try { await api.retail.reconnect(); setRetail('active'); } catch { /* nop */ } finally { setRetailBusy(false); }
   }
+  // «Пости й сезони · N підписок ›» → /calendar (§7: є в кадрі, дешево). Число —
+  // з підписок дому; поки не приїхало або впало — рядок без числа.
+  const [subsCount, setSubsCount] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.occasions.subscriptions()
+      .then((r) => { if (alive) setSubsCount(r.subscriptions.filter((s) => s.enabled).length); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // ----- Акаунт -----------------------------------------------------------
-  // Тема · Світла / Темна / Авто (Screens D2a, Prototype; «Авто» — підтверджене
-  // відхилення від проду): сегмент, не кнопка «Темна».
-  const [theme, setTheme] = useState<ThemeSetting>(() => (typeof document === 'undefined' ? 'auto' : themeSetting()));
+  // Тема · Світла / Темна / Авто; без вибору — Світла (рішення власника 13.09).
+  const [theme, setTheme] = useState<ThemeSetting>(() => (typeof document === 'undefined' ? 'light' : themeSetting()));
   function pickTheme(next: ThemeSetting) { setThemeSetting(next); setTheme(next); }
   const THEMES: { v: ThemeSetting; label: string }[] = [
     { v: 'light', label: SECTION.themeLight }, { v: 'dark', label: SECTION.themeDark }, { v: 'auto', label: SECTION.themeAuto },
@@ -278,143 +293,165 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
 
   const email = me?.user.email ?? '';
   const plan = PLAN_LABEL[me?.user.plan ?? 'beta'] ?? me?.user.plan ?? '';
+  const others = me ? me.household.members.filter((m) => m.user_id !== me.user.id).map((m) => m.name) : [];
 
   const me1 = me;
-  const svcCards = (
-    <>
-          {me1 && (
-            <div className={styles.svc} data-section="home">
-              <div className={styles.svcHead}>
-                <Icon name="sys.home" size={16} inherit decorative />
-                <span className={styles.svcName}>{SECTION.home}</span>
-                <span className={styles.svcSub}>{SECTION.homeDesktop}</span>
-                <span className={styles.svcGap} />
-                {!inviteOpen && <button type="button" className={styles.svcAction} data-tap onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>}
-              </div>
-              {me1.household.members.length <= 1 && (
-                <div className={styles.svcRow}><span className={styles.svcMuted}>{SECTION.homeEmpty}</span></div>
-              )}
-              {me1.household.members.length > 1 && me1.household.members.map((mem) => {
-                const isMe = mem.user_id === me1.user.id;
-                const iAmOwner = me1.household.role === 'owner';
-                const canRemove = (iAmOwner && !isMe) || (isMe && me1.household.role !== 'owner');
-                return (
-                  <div key={mem.user_id} className={styles.svcRow} data-member={mem.user_id}>
-                    <span className={`${styles.avatar} ${isMe ? '' : styles.avatarGuest}`}>{initialOf(mem.name)}</span>
-                    <span className={styles.svcText}>{mem.name}{isMe && <span className={styles.dim}> (ти)</span>}</span>
-                    <span className={styles.svcMeta}>{mem.role === 'owner' ? 'власник' : 'учасник'}</span>
-                    {iAmOwner && !isMe && mem.role === 'member' && (
-                      <button type="button" className={styles.svcLink} onClick={() => void memberPromote(mem.user_id, mem.name)}>Передати роль</button>
-                    )}
-                    {canRemove && (
-                      <button type="button" className={styles.svcLink} onClick={() => void memberRemove(mem.user_id, isMe, mem.name)}>{isMe ? 'Вийти з дому' : 'Виключити'}</button>
-                    )}
-                  </div>
-                );
-              })}
-              {activeInvites.map((inv) => {
-                const st = inviteStatus(inv);
-                return (
-                  <div key={inv.id} className={styles.svcRow} data-invite={inv.id}>
-                    <span className={`${styles.avatar} ${styles.avatarPending}`} aria-hidden />
-                    <span className={`${styles.svcText} ${styles.svcMuted} ${styles.ellipsis}`}>{inv.email}</span>
-                    <span className={`${styles.svcMeta} ${st.cls}`}>{st.text}</span>
-                    {st.text === 'чекає' && <button type="button" className={styles.svcLink} onClick={() => void inviteRevoke(inv.id)}>Скасувати</button>}
-                  </div>
-                );
-              })}
-              {lastInvite && (
-                <div className={`${styles.banner} ${lastInvite.mail_sent ? styles.bannerOk : ''}`} data-invite-link>
-                  <span className={styles.bannerText}>
-                    {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам.` : `Лист до ${lastInvite.email} не дійшов. Передай лінк сам, месенджером.`}
-                  </span>
-                  <button type="button" className={styles.bannerAction} data-tap onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати'}</button>
-                </div>
-              )}
-              {inviteOpen && (
-                <form onSubmit={inviteSend} className={styles.inviteForm} data-invite-form>
-                  <input type="email" inputMode="email" autoComplete="email" enterKeyHint="send" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={styles.inviteInput} aria-label="email" />
-                  <button type="submit" className={styles.inviteSend} data-tap disabled={inviting}>{SECTION.inviteSend}</button>
-                </form>
-              )}
-              {inviteError && <div className={styles.inviteError}>{inviteError}</div>}
-            </div>
-          )}
-
-          {retail !== 'loading' && retail !== 'unavailable' && (
-            <div className={styles.svc} data-section="networks">
-              <div className={styles.svcHead}>
-                <Icon name="sys.receipt" size={16} inherit decorative />
-                <span className={styles.svcName}>{SECTION.networks}</span>
-                <span className={styles.svcSub}>{SECTION.networksDesktop}</span>
-              </div>
-              <div className={styles.svcRow}>
-                <span className={styles.svcText}>Сільпо</span>
-                {retail === 'active' && <span className={`${styles.svcMeta} ${styles.metaOk}`}><span className={styles.dot} />{receiptAt ? `чек ${fmtDay(receiptAt)}` : 'підключено'}</span>}
-                {retail === 'expired' && <span className={`${styles.svcMeta} ${styles.metaAmber}`}>сесія закінчилась</span>}
-                {retail === 'disconnected' && <span className={styles.svcMeta}>відключено</span>}
-                {retail === 'none' && <a className={styles.svcAction} data-tap href="/v1/retail/silpo/connect">Підключити</a>}
-                {retail === 'expired' && <a className={`${styles.svcAction} ${styles.metaAmber}`} data-tap href="/v1/retail/silpo/connect">Увійти знову</a>}
-                {retail === 'disconnected' && <button type="button" className={styles.svcAction} data-tap onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
-                {retail === 'active' && <button type="button" className={styles.svcLink} onClick={() => void retailDisconnect()} disabled={retailBusy}>Відключити</button>}
-              </div>
-              {karpaty && (
-                <div className={styles.svcRow}>
-                  <span className={styles.svcText}>Стейки Карпат</span>
-                  <span className={styles.svcMeta}>без підключення</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className={styles.svc} data-section="account">
-            <div className={styles.svcHead}>
-              <Icon name="sys.profile" size={16} inherit decorative />
-              <span className={styles.svcName}>{SECTION.account}</span>
-            </div>
-            <div className={styles.svcRow}>
-              <span className={`${styles.svcText} ${styles.svcMuted}`}>{SECTION.email}</span>
-              <span className={styles.svcValue}>{email}</span>
-            </div>
-            <div className={styles.svcRow}>
-              <span className={`${styles.svcText} ${styles.svcMuted}`}>{SECTION.plan}</span>
-              <span className={styles.svcValue}>{plan}</span>
-            </div>
-            <div className={styles.svcRow}>
-              <span className={`${styles.svcText} ${styles.svcMuted}`}>{SECTION.theme}</span>
-              <span className={styles.segment} role="radiogroup" aria-label={SECTION.theme}>
-                {THEMES.map((t) => (
-                  <button key={t.v} type="button" role="radio" aria-checked={theme === t.v}
-                    className={`${styles.seg} ${theme === t.v ? styles.segOn : ''}`} data-tap onClick={() => pickTheme(t.v)}>{t.label}</button>
+  const homeSection = me1 && (
+    <section className={styles.svc} data-section="home">
+      <div className={styles.svcHead}>
+        <span className={styles.svcName}>{SECTION.home}</span>
+        <span className={styles.svcGap} />
+        {!inviteOpen && <button type="button" className={styles.svcAction} data-tap onClick={() => setInviteOpen(true)}>{SECTION.invite}</button>}
+      </div>
+      <span className={styles.svcSub}>{SECTION.homeSub}</span>
+      {me1.household.members.length <= 1 && (
+        <p className={styles.svcEmpty}>{SECTION.homeEmpty}</p>
+      )}
+      {me1.household.members.length > 1 && me1.household.members.map((mem) => {
+        const isMe = mem.user_id === me1.user.id;
+        const iAmOwner = me1.household.role === 'owner';
+        // Дії — як були: власник передає роль і виключає; учасник виходить сам.
+        const actions: { label: string; danger?: boolean; go: () => void }[] = [];
+        if (iAmOwner && !isMe && mem.role === 'member') actions.push({ label: SECTION.memberPromote, go: () => void memberPromote(mem.user_id, mem.name) });
+        if (iAmOwner && !isMe) actions.push({ label: SECTION.memberRemove, danger: true, go: () => void memberRemove(mem.user_id, false, mem.name) });
+        if (isMe && !iAmOwner) actions.push({ label: SECTION.memberLeave, danger: true, go: () => void memberRemove(mem.user_id, true, mem.name) });
+        const open = menuFor === mem.user_id;
+        return (
+          <div key={mem.user_id} className={styles.person} data-member={mem.user_id}>
+            <span className={`${styles.avatar} ${isMe ? styles.avatarMe : styles.avatarGuest}`}>{initialOf(mem.name)}</span>
+            <span className={styles.personName}>{mem.name}{isMe && <span className={styles.dim}> (ти)</span>}</span>
+            <span className={styles.personRole}>{mem.role === 'owner' ? 'власник' : 'учасник'}</span>
+            {actions.length > 0 && (
+              <button type="button" className={`${styles.more} ${open ? styles.moreOn : ''}`} data-tap aria-label={`Дії · ${mem.name}`} aria-expanded={open}
+                onClick={(e) => { e.stopPropagation(); setMenuFor(open ? null : mem.user_id); }}>
+                <Icon name="sys.more" size={16} inherit decorative />
+              </button>
+            )}
+            {open && (
+              <div className={styles.menu} role="menu" data-member-menu onClick={(e) => e.stopPropagation()}>
+                {actions.map((a) => (
+                  <button key={a.label} type="button" role="menuitem" className={`${styles.menuItem} ${a.danger ? styles.menuDanger : ''}`}
+                    onClick={() => { setMenuFor(null); a.go(); }}>{a.label}</button>
                 ))}
-              </span>
-            </div>
-            {/* tokens-v3 (11.09): «Вийти» — контурна кнопка; «Видалити акаунт» — текст danger без рамки. */}
-            <div className={styles.actions}>
-              <button type="button" className={styles.logout} data-tap onClick={() => void logout()}>{SECTION.logout}</button>
-              <button
-                type="button"
-                className={styles.deleteAccount} data-tap
-                onClick={() => { setExitOpen(true); setExitReason(null); setExitComment(''); setExitError(null); }}
-              >{SECTION.deleteAccount}</button>
-            </div>
+              </div>
+            )}
           </div>
-    </>
+        );
+      })}
+      {activeInvites.map((inv) => {
+        const st = inviteStatus(inv);
+        const h = hoursLeft(inv.expires_at);
+        return (
+          <div key={inv.id} className={styles.person} data-invite={inv.id}>
+            <span className={`${styles.avatar} ${styles.avatarPending}`} aria-hidden><Icon name="sys.mail" size={12} inherit decorative /></span>
+            <span className={styles.personText}>
+              <span className={`${styles.personName} ${styles.muted}`}>{inv.email}</span>
+              {st.text === 'чекає' && <span className={styles.personSub}>{SECTION.inviteLinkHours(h)}</span>}
+            </span>
+            <span className={`${styles.personRole} ${st.cls}`}>{st.text}</span>
+            {st.text === 'чекає' && <button type="button" className={styles.svcLink} data-tap onClick={() => void inviteRevoke(inv.id)}>Скасувати</button>}
+          </div>
+        );
+      })}
+      {lastInvite && (
+        <div className={`${styles.banner} ${lastInvite.mail_sent ? styles.bannerOk : ''}`} data-invite-link>
+          <span className={styles.bannerText}>
+            {lastInvite.mail_sent ? `Лист пішов на ${lastInvite.email}. Або передай лінк сам.` : `Лист до ${lastInvite.email} не дійшов. Передай лінк сам, месенджером.`}
+          </span>
+          <button type="button" className={styles.bannerAction} data-tap onClick={() => void copyInviteLink()}>{linkCopied ? 'Скопійовано' : 'Скопіювати'}</button>
+        </div>
+      )}
+      {inviteOpen && (
+        <form onSubmit={inviteSend} className={styles.inviteForm} data-invite-form>
+          <input type="email" inputMode="email" autoComplete="email" enterKeyHint="send" placeholder="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={styles.inviteInput} aria-label="email" />
+          <button type="submit" className={styles.inviteSend} data-tap disabled={inviting}>{SECTION.inviteSend}</button>
+        </form>
+      )}
+      {inviteError && <div className={styles.inviteError}>{inviteError}</div>}
+    </section>
   );
+
+  const networksSection = (
+    <section className={styles.svc} data-section="networks">
+      <div className={styles.svcHead}><span className={styles.svcName}>{SECTION.networks}</span></div>
+      <span className={styles.svcSub}>{SECTION.networksSub}</span>
+      {retail !== 'loading' && retail !== 'unavailable' && (
+        <div className={styles.netRow}>
+          <span className={styles.netName}>Сільпо</span>
+          {retail === 'active' && <span className={`${styles.netState} ${styles.metaOk}`}>{receiptAt ? `чек ${fmtDay(receiptAt)}` : 'підключено'}</span>}
+          {retail === 'expired' && <span className={`${styles.netState} ${styles.metaAmber}`}>сесія закінчилась</span>}
+          {retail === 'disconnected' && <span className={styles.netState}>відключено</span>}
+          {retail === 'none' && <span className={styles.netState}>без підключення</span>}
+          {retail === 'none' && <a className={`${styles.svcLink} ${styles.linkSage}`} data-tap href="/v1/retail/silpo/connect">Підключити</a>}
+          {retail === 'expired' && <a className={`${styles.svcLink} ${styles.metaAmber}`} data-tap href="/v1/retail/silpo/connect">Увійти знову</a>}
+          {retail === 'disconnected' && <button type="button" className={`${styles.svcLink} ${styles.linkSage}`} data-tap onClick={() => void retailReconnect()} disabled={retailBusy}>Повернути</button>}
+          {retail === 'active' && <button type="button" className={styles.svcLink} data-tap onClick={() => void retailDisconnect()} disabled={retailBusy}>Відключити</button>}
+        </div>
+      )}
+      {retail !== 'loading' && retail !== 'unavailable' && karpaty && (
+        <div className={styles.netRow}>
+          <span className={styles.netName}>Стейки Карпат</span>
+          <span className={styles.netState}>без підключення</span>
+        </div>
+      )}
+      <button type="button" className={`${styles.netRow} ${styles.netLink}`} data-tap data-seasons onClick={() => navigate('/calendar')}>
+        <span className={styles.netName}>{SECTION.seasons}</span>
+        {subsCount != null && <span className={styles.netState}>{subsCount} {plural(subsCount, ['підписка', 'підписки', 'підписок'])}</span>}
+        <Icon name="sys.next" size={16} inherit decorative />
+      </button>
+    </section>
+  );
+
+  const accountSection = (
+    <section className={styles.svc} data-section="account">
+      <div className={styles.svcHead}><span className={styles.svcName}>{SECTION.account}</span></div>
+      <div className={styles.accRow}>
+        <span className={styles.accKey}>{SECTION.email}</span>
+        <span className={styles.accVal}>{email}</span>
+      </div>
+      <div className={styles.accRow}>
+        <span className={styles.accKey}>{SECTION.plan}</span>
+        <span className={styles.accVal}>{plan}</span>
+      </div>
+      <div className={`${styles.accRow} ${styles.accRowTheme}`}>
+        <span className={styles.accKey}>{SECTION.theme}<span className={styles.accKeySub}>{SECTION.themeSub}</span></span>
+        <span className={styles.segment} role="radiogroup" aria-label={SECTION.theme}>
+          {THEMES.map((t) => (
+            <button key={t.v} type="button" role="radio" aria-checked={theme === t.v}
+              className={`${styles.seg} ${theme === t.v ? styles.segOn : ''}`} data-tap onClick={() => pickTheme(t.v)}>{t.label}</button>
+          ))}
+        </span>
+      </div>
+      <div className={styles.actions}>
+        <button type="button" className={styles.logout} data-tap onClick={() => void logout()}>{SECTION.logout}</button>
+        <button
+          type="button"
+          className={styles.deleteAccount} data-tap
+          onClick={() => { setExitOpen(true); setExitReason(null); setExitComment(''); setExitError(null); }}
+        >{SECTION.deleteAccount}</button>
+      </div>
+      {others.length > 0 && <p className={styles.deleteNote} data-delete-note>{SECTION.deleteNote(others.join(', '))}</p>}
+    </section>
+  );
+
   return (
     <div className={`${styles.screen} screen-view`}>
-      <AppHeader title={SECTION.title} onMenu={() => openNav(true)} />
+      {/* Заголовок сторінки — в аркуші (Prototype); шапка оболонки лишається
+          лише на <1024 заради кнопки шухляди, без власного «Профіль». */}
+      <div className={styles.head}><AppHeader title="" onMenu={() => openNav(true)} /></div>
 
       <div className={styles.main}>
-        {/* ── Ліва колонка: речення · підказка · нотатки · джерела ── */}
+        {/* ── Аркуш: Профіль · вступ · імʼя · речення · вето · Нотатки ── */}
         <div className={styles.left}>
-          {/* Вступ: 1440 — «Про тебе · закінчи…» під h1; 390 — перший день /
-              заповнений двома різними абзацами (D4). */}
-          <p className={styles.introDesktop}>{SECTION.about} {SECTION.aboutDesktop}</p>
-          <p className={styles.introMobile}>{firstDay ? SECTION.aboutFirstDay : SECTION.aboutMobile}</p>
+          <div className={styles.sheet}>
+            <div className={styles.sheetHead}>
+              <h1 className={styles.sheetTitle}>{SECTION.title}</h1>
+              <p className={styles.intro}><span className={styles.introDesktop}>{SECTION.intro}</span><span className={styles.introMobile}>{SECTION.introMobile}</span></p>
+            </div>
+            <div className={styles.rule} />
+            <div className={styles.name}>{me?.user.name ?? ''}</div>
 
-          <div className={styles.about}>
-            <div className={styles.card}>
+            <div className={styles.rows}>
               {PROFILE_ROWS.map((row) => {
                 const active = focus === row.k;
                 const c = counter(row);
@@ -422,16 +459,13 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                 return (
                   <div key={row.k} className={styles.rowWrap}>
                     {/* Етап 4 (PLAN §6, Б2): status — три різні ФОРМИ, не тон.
-                        filled — чорнило; empty — плейсхолдер dim курсивом з
-                        пунктиром (єдине місце курсиву в продукті, tokens-v3);
-                        none — «нічого такого» muted без курсиву + галочка в
-                        шавлієвому колі (Components «profile states»). */}
+                        filled — чорнило; empty — плейсхолдер dim курсивом (єдине
+                        місце курсиву в продукті, tokens-v3); none — «нічого
+                        такого» muted без курсиву + галочка в шавлієвому колі. */}
                     <div
                       data-row={row.k}
                       data-status={st}
-                      className={[styles.row, active ? styles.rowActive : '', hover === row.k && !active ? styles.rowHover : '', st === 'none' ? styles.rowNone : '', st === 'empty' ? styles.rowEmpty : ''].filter(Boolean).join(' ')}
-                      onMouseEnter={() => setHover(row.k)}
-                      onMouseLeave={() => setHover(null)}
+                      className={[styles.row, active ? styles.rowActive : '', st === 'none' ? styles.rowNone : '', st === 'empty' ? styles.rowEmpty : ''].filter(Boolean).join(' ')}
                       onClick={(e) => { if (e.target === e.currentTarget) edits.current[row.k]?.focus(); }}
                     >
                       <span className={row.danger ? styles.startDanger : styles.start}>
@@ -444,7 +478,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                         )}
                         <span
                           ref={(el) => { edits.current[row.k] = el; }}
-                          className={styles.edit}
+                          className={`${styles.edit} ${row.danger ? styles.editDanger : ''}`}
                           contentEditable
                           suppressContentEditableWarning
                           enterKeyHint="done"
@@ -453,7 +487,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                           data-ph={row.ph}
                           spellCheck={false}
                           onInput={() => onInput(row.k)}
-                          onFocus={() => onFocus(row.k)}
+                          onFocus={() => setFocus(row.k)}
                           onBlur={() => onBlur(row.k)}
                           onKeyDown={(e) => onKeyDown(row.k, row, e)}
                           onPaste={(e) => onPaste(row.k, row, e)}
@@ -468,9 +502,6 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                         aria-hidden={!c.visible}
                         data-counter={row.k}
                       >{c.text}</span>
-                      {c.visible && c.near && (
-                        <span className={styles.bar} aria-hidden><span className={styles.barFill} style={{ width: `${c.pct}%` }} /></span>
-                      )}
                     </div>
                     {/* Р8: «база кухні» — єдиний текст у профілі, якого людина не
                         писала: під полем і не в ньому, роллю caption. */}
@@ -479,41 +510,19 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                         {KIT_DEFAULTS.join(' · ')} — є за замовчуванням, це не твої слова
                       </div>
                     )}
-                    {/* 390 (D4): підказка розкривається під активним рядком, шавлією. */}
-                    {active && (
-                      <div className={styles.hintMobile} key={hintKey}>{row.hint}</div>
-                    )}
                   </div>
                 );
               })}
+              <p className={styles.vetoNote}>{SECTION.vetoNote}</p>
             </div>
-          </div>
 
-        </div>
-
-        {/* ── Права колонка (№16, порядок aside Prototype): Підказка → Дім →
-            Мережі → Акаунт; нижче ~1100 — та сама колонка одразу після речень,
-            підказка не sticky. Третьої колонки не буває. ── */}
-        <div className={styles.right}>
-          <aside className={styles.hintAside} key={hintKey} data-hint-aside>
-            <span className={styles.hintLabel}>{hintRow ? hintRow.start : HINT_IDLE.label}</span>
-            {/* 9а(5): приклади (`ex`) з копі не рендеряться — лишається текст підказки. */}
-            <p className={styles.hintText}>{hintRow ? hintRow.hint : HINT_IDLE.text}</p>
-          </aside>
-          {svcCards}
-        </div>
-
-        <div className={styles.bottom}>
-          {/* ── Нотатки (D4): підпис + картка рядків 48 ── */}
-          <div className={styles.section} data-section="notes">
-            {/* №15: хедер картки — чорнильний, як зони комори; знака для нотаток у
-                словнику нема (питання дизайн-чату), тож лише назва. */}
-            <div className={styles.notesCard}>
-              <div className={styles.svcHead}>
-                <span className={styles.svcName}>{SECTION.notes}</span>
-                <span className={styles.svcSub} title={SECTION.notesDesktop}>{SECTION.notesDesktop}</span>
+            {/* ── Нотатки ── */}
+            <div className={styles.notes} data-section="notes">
+              <div className={styles.notesHead}>
+                <span className={styles.notesTitle}>{SECTION.notes}</span>
+                <span className={styles.notesSub}>{SECTION.notesSub}</span>
               </div>
-              {notes.length === 0 && !noteToast && <span className={styles.empty}>{SECTION.notesEmpty}</span>}
+              {notes.length === 0 && !noteToast && <p className={styles.notesEmpty}>{SECTION.notesEmpty}</p>}
               {notes.map((n) => (
                 <div key={n.id} className={styles.note} data-note={n.id}>
                   <span className={styles.noteDate}>{fmtDate(n.created_at)}</span>
@@ -525,19 +534,28 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                 <div className={`${styles.note} ${styles.noteRemoved}`} role="status" data-note-removed>
                   <span className={styles.noteDate}>{fmtDate(noteToast.note.created_at)}</span>
                   <span className={`${styles.noteText} ${styles.noteStruck}`}>{noteToast.note.text}</span>
-                  <span className={styles.noteRestore}>{SECTION.removed} <button type="button" className={styles.noteRestoreBtn} onClick={() => void restoreNote()}>{SECTION.restore}</button></span>
+                  <span className={styles.noteRestore}>{SECTION.removed} <button type="button" className={styles.noteRestoreBtn} data-tap onClick={() => void restoreNote()}>{SECTION.restore}</button></span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* ── Джерела даних (раунд 5, Н1): абзац, у D4 — під нотатками ── */}
-          <div className={styles.section} data-section="data">
-            <div className={styles.sectionLabel}><span className={styles.sectionName}>{SECTION.data}</span></div>
-            <p className={styles.dataText}>{SECTION.dataText}</p>
-          </div>
         </div>
 
+        {/* ── Права колонка без карток і шапок: Дім → Мережі → Акаунт ── */}
+        <div className={styles.right}>
+          {homeSection}
+          <div className={styles.divider} />
+          {networksSection}
+          <div className={styles.divider} />
+          {accountSection}
+        </div>
+
+        {/* ── Джерела даних (раунд 5, Н1): під аркушем на 1440, останнім на 390 ── */}
+        <div className={styles.data} data-section="data">
+          <span className={styles.dataName}>{SECTION.data}</span>
+          <p className={styles.dataText}>{SECTION.dataText}</p>
+        </div>
       </div>
 
       {saveToast && <div className={styles.toast} role="status">{saveToast}</div>}
