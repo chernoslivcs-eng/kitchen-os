@@ -125,9 +125,6 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.60.0
         version: 0.60.0
-      '@kitchen/catalog':
-        specifier: workspace:*
-        version: link:../catalog
       '@kitchen/domain':
         specifier: workspace:*
         version: link:../domain
@@ -179,9 +176,6 @@ importers:
         specifier: ^6.9.16
         version: 6.10.1
     devDependencies:
-      '@types/form-data':
-        specifier: ^2.5.0
-        version: 2.5.2
       '@types/nodemailer':
         specifier: ^6.4.17
         version: 6.4.24
@@ -1441,10 +1435,6 @@ packages:
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
-
-  '@types/form-data@2.5.2':
-    resolution: {integrity: sha512-tfmcyHn1Pp9YHAO5r40+UuZUPAZbUEgqTel3EuEKpmF9hPkXgR4l41853raliXnb4gwyPNoQOfvgGGlHN5WSog==}
-    deprecated: This is a stub types definition. form-data provides its own type definitions, so you do not need this installed.
 
   '@types/node@18.19.130':
     resolution: {integrity: sha512-GRaXQx6jGfL8sKfaIDD6OupbIHBr9jv7Jnaml9tB7l4v068PAOXqfcujMMo5PhbIs6ggR1XODELqahT2R8v0fg==}
@@ -3907,10 +3897,6 @@ snapshots:
       '@types/ssh2': 1.15.5
 
   '@types/estree@1.0.9': {}
-
-  '@types/form-data@2.5.2':
-    dependencies:
-      form-data: 4.0.6
 
   '@types/node@18.19.130':
     dependencies:
