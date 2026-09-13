@@ -59,3 +59,9 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+      # Аудит 0913, Етап 2: eslint (rules-of-hooks, exhaustive-deps, no-floating-promises,
+      # no-unused-vars, tseslint recommended) + scripts/css-orphans.mjs («0 сиріт»).
+      # Старі порушення — eslint-baseline.md; масово не виправляємо.
+      - name: Lint
+        run: pnpm lint
