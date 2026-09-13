@@ -48,14 +48,18 @@ export function homeFactTemplate(i: HomeFactTemplateInput): string | null {
 
 /** Вихід моделі: 1–3 речення, разом ≤ 220 знаків, лише текст. Довше — зріз по
  *  межі останнього повного речення в межах 220 (евал 13.09: у переповнених домах
- *  haiku дає 225–250); нема такої межі, порожньо або з емодзі — null (шаблон). */
+ *  haiku дає 225–250); нема такої межі, обривок, порожньо або з емодзі — null (шаблон). */
 export const HOME_FACT_MAX_CHARS = 220;
+export const HOME_FACT_MIN_CHARS = 30;
 export function cleanHomeFactText(raw: string | null | undefined): string | null {
   if (!raw) return null;
   let t = raw.replace(/\s+/g, ' ').trim();
   t = t.replace(/^[«"“]+/, '').replace(/[»"”]+$/, '').trim();
   if (!t) return null;
   if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(t)) return null;
+  // Обривок (модель уперлась у max_tokens: без кінцевого знака або коротше за
+  // 30) — не рядок; евал 13.09 давав «Помідори вже прострочені на день,».
+  if (t.length < HOME_FACT_MIN_CHARS || !/[.!?…»]$/.test(t)) return null;
   if (t.length > HOME_FACT_MAX_CHARS) {
     const head = t.slice(0, HOME_FACT_MAX_CHARS + 1);
     const cut = Math.max(head.lastIndexOf('. '), head.lastIndexOf('! '), head.lastIndexOf('? '), head.lastIndexOf('.»'), head.lastIndexOf('!»'));

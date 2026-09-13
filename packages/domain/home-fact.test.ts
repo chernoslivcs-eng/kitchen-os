@@ -13,6 +13,8 @@ describe('Р146 · факт дому', () => {
     expect(long.length).toBeGreaterThan(220);
     expect(cleanHomeFactText(long)).toBe(s1 + s2.trimEnd());
     expect(cleanHomeFactText('а'.repeat(230))).toBeNull();
+    expect(cleanHomeFactText('Помідори вже прострочені на день,'), 'обривок без кінцевого знака').toBeNull();
+    expect(cleanHomeFactText('Молоко, кефір.'), 'коротше за 30').toBeNull();
   });
   it('шаблон: пріоритет і тексти Prototype', () => {
     expect(homeFactTemplate({ writtenOffToday: 'Помідори', fast: null, seasonStarted: null, library: null })).toContain('уперше за тиждень у коморі тихо');

@@ -63,7 +63,7 @@ export interface BuildAppOpts {
   };
   google?: GoogleAuthOpts;
   retail?: RetailOpts;
-  /** Р146: «факт дому» від моделі (HOME_FACT_LLM=1); без опції — { text: null }. */
+  /** Р146: «факт дому» від моделі — тести підставляють свій генератор. */
   homeFact?: HomeFactOpts;
 }
 
@@ -283,9 +283,7 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
       // Стейки Карпат — відкритий каталог без ключів; KARPATY_ENABLED=0 вимикає.
       karpaty: { enabled: process.env.KARPATY_ENABLED !== '0' } }
     : undefined;
-  // Р146: модель для «факту дому» вмикає власник прапорцем після перегляду евалу.
-  const homeFact = { llm: process.env.HOME_FACT_LLM === '1' };
-  return buildApp(repo, store, mailer, { google, retail, homeFact });
+  return buildApp(repo, store, mailer, { google, retail });
 }
 
 // entrypoint

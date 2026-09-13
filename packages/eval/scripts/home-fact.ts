@@ -95,7 +95,7 @@ async function main() {
   const system = compose('home_fact', prompt);
   const client = new Anthropic({ apiKey: key, baseURL: baseURL() });
   const rows: string[] = [];
-  let input = 0, output = 0, cached = 0, cacheWrite = 0, calls = 0, bad = 0, dash = 0; let orCost = 0; let orMissing = 0; let errors = 0;
+  let input = 0, output = 0, cached = 0, cacheWrite = 0, calls = 0, bad = 0, dash = 0; let orCost = 0; let orMissing = 0; let errors = 0; let seasonMentions = 0;
   for (let i = 0; i < CASES.length; i++) {
     const c = CASES[i]!;
     const facts = inputOf(c);
@@ -103,17 +103,18 @@ async function main() {
     const t0 = Date.now();
     let resp: Anthropic.Message;
     try {
-      // max_tokens 1024, не 120: gemini думає за замовчуванням і на 120 віддавав 1–11 знаків
-      // (міркування зʼїдали бюджет). Платимо лише за фактичний вихід. usage.include —
-      // OpenRouter кладе cost прямо у usage відповіді.
+      // Як на сервері (callHomeFact): міркування мінімальні (вимкнути gemini через
+      // OpenRouter не дає), max_tokens 2048, таймаут 15 с (рішення власника 13.09; останній
+      // прогін у звіті ще на 1024 / 8 с). usage.include — cost у відповіді.
       resp = await client.messages.create({
-        model, max_tokens: 1024,
+        model, max_tokens: 2048,
+        ...(/sonnet-5/.test(model) ? { thinking: { type: 'disabled' as const } } : {}),
         system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: facts }],
-        ...(process.env.OPENROUTER_API_KEY ? ({ usage: { include: true } } as object) : {}),
-      }, { timeout: 8_000, maxRetries: 0 });
+        ...(process.env.OPENROUTER_API_KEY ? ({ reasoning: { effort: 'minimal' }, usage: { include: true } } as object) : {}),
+      }, { timeout: 15_000, maxRetries: 0 });
     } catch (e) {
-      // Той самий бюджет, що на сервері: таймаут 8 с або помилка → { text: null }, лишається шаблон.
+      // Той самий бюджет, що на сервері: таймаут 15 с або помилка → { text: null }, лишається шаблон.
       errors++;
       const why = e instanceof Error ? e.constructor.name : String(e);
       rows.push(`### ${i + 1}. ${c.name}\n\nВхід (ті самі блоки, що в чаті):\n\`\`\`\n${facts}\n\`\`\`\n\n> (без відповіді)\n\n✗ ${why} за ${Date.now() - t0} мс → на сервері { text: null }, шаблон\n`);
@@ -129,6 +130,7 @@ async function main() {
       if (c == null) orMissing++; else orCost += c;
     }
     const isDash = raw.replace(/[\s.«»"]/g, '') === '—' || raw.replace(/[\s.«»"]/g, '') === '-';
+    if (!isDash && /сезон/i.test(raw)) seasonMentions++;
     const clean = isDash ? null : cleanHomeFactText(raw);
     const verdict = isDash ? '— (нема фактів, рядка нема)' : clean ? `✓ ${clean.length} зн.${clean.length < raw.trim().length ? ` (зріз із ${raw.trim().length})` : ''}` : `✗ відкинуто (${raw.length} зн. або не текст) → шаблон`;
     if (isDash) dash++; else if (!clean) bad++;
@@ -145,17 +147,17 @@ async function main() {
   const head = [
     '# «Факт дому» від моделі — евал 13.09 (Р146)',
     '',
-    `Промпт \`packages/prompts/versions/${prompt.version}/home-fact.md\` (виклик \`home_fact\`, профіль smart як у чаті, compose role + home-fact), модель \`${model}\`, max_tokens 1024 (модель думає — 120 не вистачало), temperature типова.`,
+    `Промпт \`packages/prompts/versions/${prompt.version}/home-fact.md\` (виклик \`home_fact\`, профіль smart як у чаті, compose role + home-fact), модель \`${model}\`, міркування minimal (вимкнути через OpenRouter не можна), max_tokens 2048, таймаут 15 с (у коді; цей прогін — 1024 / 8 с), temperature типова.`,
     `${CASES.length} знімків домів: лише спливає / лише сезон / лише страви / спливає + страви / усе / порожньо. Вхід — рівно ті блоки, що бачить чат-модель ([СЬОГОДНІ] · [ЗАРАЗ] · [КОМОРА] · [ОСТАННІ ГОТУВАННЯ]), серіалізовані тими самими функціями @kitchen/domain; профіль і покупки не передаються.`,
     `Правило виходу: промпт просить одне–три речення до 180 знаків лише з переданих фактів; сервер зрізає довше за 220 по межі речення, без межі або з емодзі — { text: null } (лишається шаблон); «—» = модель не знайшла фактів.`,
     '',
-    `Викликів: ${calls} · без відповіді (таймаут 8 с / помилка): ${errors} · відкинуто: ${bad} · «—»: ${dash} · токени: вхід ${input}, кеш-читання ${cached}, кеш-запис ${cacheWrite}, вихід ${output} · ${costNote}.`,
+    `Викликів: ${calls} · без відповіді (таймаут / помилка): ${errors} · відкинуто: ${bad} · «—»: ${dash} · рядків зі словом «сезон»: ${seasonMentions} · токени: вхід ${input}, кеш-читання ${cached}, кеш-запис ${cacheWrite}, вихід ${output} · ${costNote}.`,
     '',
     '---',
     '',
   ];
   const was = process.env.HOME_FACT_WAS && existsSync(process.env.HOME_FACT_WAS) ? '\n---\n\n' + readFileSync(process.env.HOME_FACT_WAS, 'utf8') : '';
   writeFileSync(OUT_PATH, head.join('\n') + rows.join('\n') + was);
-  console.log(`\n→ ${OUT_PATH}\nвикликів ${calls} · без відповіді ${errors} · відкинуто ${bad} · «—» ${dash} · токени in ${input} / cached ${cached} / cache-write ${cacheWrite} / out ${output} · ${costNote}`);
+  console.log(`\n→ ${OUT_PATH}\nвикликів ${calls} · без відповіді ${errors} · відкинуто ${bad} · «—» ${dash} · «сезон» ${seasonMentions} · токени in ${input} / cached ${cached} / cache-write ${cacheWrite} / out ${output} · ${costNote}`);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

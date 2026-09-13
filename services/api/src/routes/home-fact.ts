@@ -6,9 +6,10 @@
 // [СЬОГОДНІ] + [ЗАРАЗ] (приводи крізь підписку дому, записи дому), [КОМОРА]
 // (та сама серіалізація з «!Nдн», ⚠) і [ОСТАННІ ГОТУВАННЯ] — тими самими
 // функціями @kitchen/domain, без нового збирача; профіль, список покупок,
-// чеки — не передаються. Один виклик MODEL_FAST з блоком home-fact, таймаут
-// 8 с, без retry; помилка або порожня відповідь → { text: null } і guard
-// (не broke). Без HOME_FACT_LLM=1 — { text: null } без виклику.
+// чеки — не передаються. Один виклик профілю smart з блоком home-fact,
+// таймаут 15 с, без retry; помилка або порожня відповідь → { text: null } і guard
+// (не broke). Працює завжди, коли є ключ моделі; без ключа (стенд, тести) —
+// { text: null } тихо.
 import type { FastifyInstance } from 'fastify';
 import {
   type Repo, type RecentCookRunSummary,
@@ -21,8 +22,6 @@ import { recordUsage } from '../usage.js';
 import { incident } from '../incident.js';
 
 export interface HomeFactOpts {
-  /** HOME_FACT_LLM=1: модель увімкнена. Без прапорця — { text: null } без виклику. */
-  llm?: boolean;
   /** Тести: власний генератор замість моделі. */
   generate?: (facts: string) => Promise<HomeFactCall>;
 }
@@ -54,11 +53,9 @@ export function isNoFactReply(raw: string | null | undefined): boolean {
 }
 
 export function homeFactRoutes(app: FastifyInstance, repo: Repo, opts: HomeFactOpts = {}): void {
-  const llm = opts.llm ?? false;
   const generate = opts.generate ?? callHomeFact;
   app.get('/v1/home-fact', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id, household_id } = requireUser(req);
-    if (!llm) return { text: null };
     const started = Date.now();
     try {
       const input = await homeFactInput(repo, household_id, user_id);

@@ -1145,7 +1145,7 @@ export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCa
 // ── «Факт дому» (Р146) ───────────────────────────────────────────────────
 // Один рядок під чіпами порожньої розмови з трьох списків, які збирає сервер
 // (routes/home-fact.ts). Профіль — smart, як чат (власник 13.09). Не критичний
-// шлях: одна спроба з жорстким бюджетом 8 с (без withRetry: він помножив би
+// шлях: одна спроба з жорстким бюджетом 15 с (без withRetry: він помножив би
 // його на три) і без temperature (типова). Помилка летить нагору — маршрут
 // віддасть { text: null } і зафіксує guard.
 export interface HomeFactCall {
@@ -1160,16 +1160,23 @@ export async function callHomeFact(facts: string): Promise<HomeFactCall> {
   if (!client) return { text: null, calls: [ZERO_USAGE], meta: { promptVersion: prompt.version, model: 'stub', mode: 'stub' } };
   const model = modelForCall('home_fact', prompt);
   const system = compose('home_fact', prompt);
-  // max_tokens 1024, не 120 (постановка): smart-модель думає за замовчуванням, і на
-  // 120 міркування зʼїдали бюджет — приходило 1–11 знаків (евал 13.09). Платимо за
-  // фактичний вихід, а він і так ≤ 220 знаків.
+  // Міркування — мінімальні (власник 13.09 просив вимкнути; gemini через
+  // OpenRouter їх вимкнути не дає: `reasoning.enabled=false` і `effort=none`
+  // ігноруються, `thinking.disabled` → 400 «Reasoning is mandatory for this
+  // endpoint»; перевірено пробами 13.09). `effort: 'minimal'` зменшує міркування
+  // (≈ 300–900 токенів), але вони входять у max_tokens — на 256/512/1024 відповідь
+  // обривалась (евал). Рішення власника 13.09: max_tokens 2048 і таймаут 15 с
+  // (на 8 с не встигали 2 з 19, затримки 6–12 с); платимо лише за фактичний вихід.
+  // Параметр OpenRouter іде в тілі поза типами SDK; прямий Anthropic його
+  // ігнорує, там працює thinkingOff.
   const resp = await client.messages.create({
     model,
-    max_tokens: 1024,
+    max_tokens: 2048,
     ...thinkingOff(model),
+    ...(isOpenRouter() ? ({ reasoning: { effort: 'minimal' } } as object) : {}),
     system: cachedSystem(system),
     messages: [{ role: 'user', content: facts }],
-  }, { timeout: 8_000, maxRetries: 0 });
+  }, { timeout: 15_000, maxRetries: 0 });
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
