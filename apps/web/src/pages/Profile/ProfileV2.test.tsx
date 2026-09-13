@@ -43,6 +43,7 @@ function installFetch() {
     calls.push({ url, method, body });
     const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
     if (url === '/v1/retail') return json({ silpo: { status: 'unavailable' } });
+    if (url === '/v1/occasions/subscriptions') return json({ subscriptions: [{ occasion_id: 'a', enabled: true }, { occasion_id: 'b', enabled: true }, { occasion_id: 'c', enabled: false }] });
     if (url === '/v1/households/h1/invites' && method === 'GET') return json({ invites: [{ id: 'i1', email: 'guest@x.local', role: 'member', created_at: '2026-09-05T00:00:00.000Z', expires_at: '2036-01-01T00:00:00.000Z', consumed_at: null, revoked_at: null }] });
     if (url === '/v1/households/h1/invite' && method === 'POST') return json({ id: 'i2', household_id: 'h1', email: body.email, role: 'member', expires_at: '2036-01-01T00:00:00.000Z', link: 'http://x/invite?token=t', mail_sent: true });
     if (url === '/v1/invites/i1/revoke') return json(null);
@@ -177,18 +178,19 @@ describe('Профіль v6', () => {
     expect(host.textContent).not.toContain('Прибрано.');
   });
 
-  it('порожні нотатки — «Поки порожньо. Дай духовці трохи часу.»', async () => {
+  it('порожні нотатки — «Зʼявляться, коли розкажеш щось між ділом…» (Prototype)', async () => {
     await mount({ ...initial(), notes: [] });
-    expect(host.textContent).toContain('Поки порожньо. Дай духовці трохи часу.');
+    expect(host.textContent).toContain('Зʼявляться, коли розкажеш щось між ділом');
   });
 });
 
-describe('9а: підказка без прикладів, зелена; секція «Дім»', () => {
-  it('приклади (`ex`) не рендеряться ні в панелі, ні під рядком', async () => {
+describe('профіль за Prototype (рішення власника 13.09): без підказок; секція «Дім»', () => {
+  it('підказки (`hint`) і приклади (`ex`) не рендеряться — ні праворуч, ні під рядком, ні у фокусі', async () => {
     await mount();
+    expect(host.textContent).not.toContain('Стань у рядок');
     const el = edit('no');
     await act(async () => { el.focus(); fire(el, 'focusin'); });
-    expect(host.textContent).toContain('Те, чого на твоєму столі просто не має бути.');
+    expect(host.textContent).not.toContain('Те, чого на твоєму столі просто не має бути.');
     expect(host.textContent).not.toContain('кінзи й оливок');
     expect(host.textContent).not.toContain('— нічого тваринного');
   });
@@ -316,5 +318,69 @@ describe('етап 4 · status — три різні форми, не тон (PL
     expect(row.getAttribute('data-status')).toBe('filled');
     expect(row.querySelector('[data-none]')).toBeNull();
     expect(edit('name').textContent).toBe('Пилип');
+  });
+});
+
+// Профіль за Prototype (рішення власника 13.09, PROFILE-LOGIC-0913.md §7):
+// «…» замість слів «Передати роль / Виключити» — меню з тими самими діями
+// й тим самим confirm; запрошення — «лінк діє N год»; «Пости й сезони · N
+// підписок ›» → /calendar; під «Видалити акаунт» — що лишиться дому.
+describe('профіль за Prototype · дім, мережі, акаунт', () => {
+  const twoOfUs = () => useAuth.setState({
+    status: 'signed_in',
+    me: {
+      user: { id: 'u1', name: 'Пилип', email: 'me@x.local', plan: 'beta' },
+      household: { id: 'h1', name: 'Дім', role: 'owner', members: [
+        { user_id: 'u1', name: 'Пилип', role: 'owner', joined_at: '2026-09-01T00:00:00.000Z' },
+        { user_id: 'u2', name: 'Оля', role: 'member', joined_at: '2026-09-02T00:00:00.000Z' },
+      ] },
+      session_id: 's1',
+    },
+  });
+
+  it('«…» відкриває меню з «Передати роль власника» і «Виключити з дому»; дія — через confirm, як було', async () => {
+    twoOfUs();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    try {
+      await mount();
+      await act(async () => { await Promise.resolve(); });
+      const row = host.querySelector('[data-member="u2"]')!;
+      expect(row.textContent).not.toContain('Передати роль');
+      const more = row.querySelector<HTMLButtonElement>('button[aria-expanded]')!;
+      await act(async () => { more.click(); });
+      const menu = host.querySelector('[data-member-menu]')!;
+      const labels = [...menu.querySelectorAll('button')].map((b) => b.textContent);
+      expect(labels).toEqual(['Передати роль власника', 'Виключити з дому']);
+      await act(async () => { (menu.querySelectorAll('button')[1] as HTMLButtonElement).click(); });
+      expect(confirmSpy).toHaveBeenCalledWith('Виключити Оля?');
+      expect(host.querySelector('[data-member-menu]')).toBeNull();
+      // Власник сам себе не виключає — «…» у своєму рядку нема.
+      expect(host.querySelector('[data-member="u1"] button[aria-expanded]')).toBeNull();
+    } finally { confirmSpy.mockRestore(); useAuth.setState({ status: 'idle', me: null }); }
+  });
+
+  it('запрошення: «лінк діє N год» під поштою; «Пости й сезони · 2 підписки» веде в календар; текст під «Видалити акаунт» — про Олю', async () => {
+    twoOfUs();
+    try {
+      await mount();
+      await act(async () => { await Promise.resolve(); });
+      const inv = host.querySelector('[data-invite="i1"]')!;
+      expect(inv.textContent).toMatch(/лінк діє \d+ год/);
+      const seasons = host.querySelector('[data-seasons]')!;
+      expect(seasons.textContent).toContain('Пости й сезони');
+      expect(seasons.textContent).toContain('2 підписки');
+      expect(host.querySelector('[data-delete-note]')!.textContent).toBe('Комора лишиться Оля — зникнуть лише твої дані.');
+      expect(host.textContent).not.toContain('Підказка');
+      expect(host.querySelector('[data-section="account"]')!.textContent).toContain('на цьому пристрої');
+    } finally { useAuth.setState({ status: 'idle', me: null }); }
+  });
+
+  it('сам у домі: тексту під «Видалити акаунт» нема', async () => {
+    useAuth.setState({ status: 'signed_in', me: { user: { id: 'u1', name: 'Пилип', email: 'me@x.local' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [{ user_id: 'u1', name: 'Пилип', role: 'owner', joined_at: '2026-09-01T00:00:00.000Z' }] }, session_id: 's1' } });
+    try {
+      await mount();
+      await act(async () => { await Promise.resolve(); });
+      expect(host.querySelector('[data-delete-note]')).toBeNull();
+    } finally { useAuth.setState({ status: 'idle', me: null }); }
   });
 });

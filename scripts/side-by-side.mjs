@@ -9,6 +9,7 @@
 //        --email dev@local.test --log .qa-magic-links.log --out out/pantry-1440.png
 //
 // --dc      файл бандла без префікса й розширення (Screens · Responsive · Components …)
+// --dc-path повний шлях до .dc.html замість --dc (канон поза репо)
 // --frame   підрядок data-screen-label; --nth N — який зі збігів (0)
 // --sel     замість --frame: довільний селектор у бандлі
 // --theme   light | dark (типово light) — і бандл (data-theme), і застосунок (emulateMedia)
@@ -70,7 +71,8 @@ const EMAIL = arg('email', null);
 const LOG = arg('log', '.qa-magic-links.log');
 const STATE = arg('state', null);
 
-const dcPath = resolve(`ai/project/Kitchen OS - ${DC}.dc.html`);
+// --dc-path — явний шлях до бандла (канон може лежати поза репо, напр. «ai 2/project»)
+const dcPath = resolve(arg('dc-path', `ai/project/Kitchen OS - ${DC}.dc.html`));
 
 if (URL_BASE) {
   const host = new URL(URL_BASE).hostname;
