@@ -52,6 +52,11 @@ export function CookOverlay() {
   // «Крок готово» (там подвійний тап відмітив би ще й наступний); навігація
   // маршрутом, сегментами й «Назад» — без лока.
   const [stepLocked, setStepLocked] = useState(false);
+  // Аудит 0913 C.7: finishing/finishedRef були оголошені ПІСЛЯ guard-а
+  // `if (!recipe) return null` (і після перших читань finishedRef) — хуки
+  // мають іти до будь-якого раннього return.
+  const [finishing, setFinishing] = useState(false);
+  const finishedRef = useRef(false);
   // №10: таймери кроків, з яких пішли. Таймер, що біг, несе дедлайн і йде
   // далі; на паузі — залишок. Поточний крок живе в secondsLeft/running.
   type StepTimer = { deadline: number | null; left: number };
@@ -349,13 +354,6 @@ export function CookOverlay() {
   }, [secondsLeft === 0]);
 
 
-  // QA8-20: guard стоїть ПІСЛЯ всіх хуків — кількість викликаних хуків
-  // не залежить від наявності рецепта (Rules of Hooks).
-  if (!recipe) return null;
-
-  const total = recipe.st.length;
-  const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
-
   // Актуальний знімок для збереження — оминаємо замикання ефектів.
   const sessionSnapRef = useRef({ stepIdx, secondsLeft, done });
   sessionSnapRef.current = { stepIdx, secondsLeft, done };
@@ -380,14 +378,19 @@ export function CookOverlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.t]);
 
+  // QA8-20: guard стоїть ПІСЛЯ всіх хуків — кількість викликаних хуків
+  // не залежить від наявності рецепта (Rules of Hooks).
+  if (!recipe) return null;
+
+  const total = recipe.st.length;
+  const nextStep = stepIdx < total - 1 ? recipe.st[stepIdx + 1] : null;
+
   // Правка №6: фінішного екрана більше немає — «Приготували» закриває Cook
   // Mode як поп-ап і повертає в сесію запуску, де сервер уже поклав
   // детерміноване «Списати продукти?». Списання їде звичайною intake_diff-
   // карткою після «так», оцінка — реплікою на «Як вийшло?». Канони Бриф-2
   // п.4 (модалка «Що списуємо повністю?») і п.7 (ретро-оцінка на фініші)
   // скасовано свідомо (рішення Пилипа, 2026-08-30).
-  const [finishing, setFinishing] = useState(false);
-  const finishedRef = useRef(false);
   /**
    * Крок О2 (3): `after` каже, куди йти після запису. «Поділитись
    * результатом» — не обхідний шлях повз журнал: воно робить рівно ту саму
