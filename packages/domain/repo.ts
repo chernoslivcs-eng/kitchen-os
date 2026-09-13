@@ -7,7 +7,6 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   LastAppliedIntake, AppEventRow,
-  HomeFactRow,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type {
@@ -328,10 +327,6 @@ export interface Repo {
   updateCookRun(id: string, patch: Partial<Pick<CookRunRow, 'rating' | 'verdict' | 'photo_url'>>): Promise<void>;
   markCookRunUndone(id: string, undone_at: string): Promise<void>;
   listCookRuns(user_id: string, limit?: number): Promise<CookRunWithRecipe[]>;
-
-  // Р146: «факт дому» дня — один рядок на дім і день, upsert.
-  getHomeFact(household_id: string, date: string): Promise<HomeFactRow | null>;
-  saveHomeFact(row: HomeFactRow): Promise<void>;
 
   // Список покупок
   listShoppingItems(household_id: string): Promise<ShoppingItemRow[]>;

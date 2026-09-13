@@ -56,9 +56,19 @@ import { useCookStore } from '../../store/cook';
  */
 // Порожня розмова за Prototype (Р140): підказки плейсхолдера і чотири чіпи —
 // слова рівно з renderVals (HINTS / hints).
-// Р146: повтор запиту факту дому, коли модель ще в дорозі (1,5–3 с).
-const FACT_RETRY_MS = 1500;
-const FACT_RETRY_JITTER_MS = 1500;
+// Р146: кеш жарту від моделі на день — localStorage, щоб не смикати модель при кожному відкритті.
+export const HOME_FACT_CACHE_KEY = 'kos-home-fact';
+function readHomeFactCache(date: string): string | null {
+  try {
+    const raw = localStorage.getItem(HOME_FACT_CACHE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { date?: string; text?: string };
+    return v.date === date && typeof v.text === 'string' && v.text ? v.text : null;
+  } catch { return null; }
+}
+function writeHomeFactCache(date: string, text: string): void {
+  try { localStorage.setItem(HOME_FACT_CACHE_KEY, JSON.stringify({ date, text })); } catch { /* приватний режим */ }
+}
 const EMPTY_HINTS = ['Кинь чек — розберу', 'Сфотографуй полицю', 'Скажи, що купив', 'Спитай, що на вечерю', 'Надиктуй список'];
 const EMPTY_CHIPS: { key: string; icon: 'cook.serve' | 'live.thinking' | 'sys.list' | 'sys.add'; label: string; short: string; t: string }[] = [
   { key: 'today', icon: 'cook.serve', label: 'Що зготуємо сьогодні?', short: 'Що зготуємо?', t: 'що зготуємо сьогодні?' },
@@ -1315,53 +1325,54 @@ export function Feed() {
     }, 55);
     return () => window.clearInterval(id);
   }, [phLive]);
-  // «Факт дому» (Р146): текст із GET /v1/home-fact — шаблон одразу (source
-  // template), модель дописує у фоні; якщо прийшов pending — один повтор через
-  // 1,5–3 с і мʼяка підміна тексту (opacity, --dur-base). null — рядка нема.
-  // Ендпоінт не відповів — локальний шаблон (lib/homeFact) з того, що вже є.
+  // «Факт дому» — шаблон з реальних даних (lib/homeFact, Р140): списане сьогодні
+  // при тихій коморі · піст · сезон цього тижня · бібліотека (два запити раз на
+  // монтування, лише коли розмова порожня). Р146: поверх шаблону — жарт від
+  // моделі з GET /v1/home-fact; кеш на день у localStorage (kos-home-fact): є на
+  // сьогодні — показується одразу; інакше один запит, і коли прийшов текст —
+  // мʼяка підміна (opacity, --dur-base) і запис у кеш. null — лишається шаблон.
+  const [library, setLibrary] = useState<{ saved: number; cooked: number } | null>(null);
+  const libraryAsked = useRef(false);
+  useEffect(() => {
+    if (!emptyChat || mobileEmpty || libraryAsked.current) return;
+    libraryAsked.current = true;
+    Promise.all([api.savedRecipes.list(), api.cookRuns.list()])
+      .then(([r, c]) => setLibrary({ saved: (r.recipes ?? []).length, cooked: (c.runs ?? []).length }))
+      .catch(() => setLibrary({ saved: 0, cooked: 0 }));
+  }, [emptyChat, mobileEmpty]);
   const today = todayIso();
   const seasonStarted = home.now.find((e) => toneOfNow(e) === 'season' && e.from <= today && daysBetween(e.from, today) <= 6)?.title ?? null;
-  const localFact = homeFact({
+  const templateFact = homeFact({
     writtenOffToday: home.overdue === 0 ? writtenOffToday : null,
     fast: home.strict ? { day: daysBetween(home.strict.from, today) + 1, total: daysBetween(home.strict.from, home.strict.to) + 1 } : null,
     seasonStarted,
-    library: null,
+    library,
   });
-  const [factRow, setFactRow] = useState<{ text: string | null; source: 'llm' | 'template' | null } | null>(null);
-  // Запит один на монтування; відповідь приймаємо, поки живий компонент, а не
-  // ефект — emptyChat мигає під час завантаження сесії, і cleanup ефекту губив би її.
+  const [llmFact, setLlmFact] = useState<string | null>(() => readHomeFactCache(today));
   const factAsked = useRef(false);
   const factAlive = useRef(true);
-  const factTimer = useRef<number | undefined>(undefined);
-  // StrictMode у dev монтує двічі зі збереженими ref-ами — тому «живий» ставимо в самому ефекті, не в ініціалізаторі.
-  useEffect(() => { factAlive.current = true; return () => { factAlive.current = false; if (factTimer.current) window.clearTimeout(factTimer.current); }; }, []);
+  // StrictMode у dev монтує двічі зі збереженими ref-ами — «живий» ставимо в ефекті.
+  useEffect(() => { factAlive.current = true; return () => { factAlive.current = false; }; }, []);
   useEffect(() => {
-    if (!emptyChat || mobileEmpty || factAsked.current) return;
+    if (!emptyChat || mobileEmpty || factAsked.current || llmFact !== null) return;
     factAsked.current = true;
-    let retried = false;
-    const ask = () => {
-      api.homeFact.get()
-        .then((r) => {
-          if (!factAlive.current) return;
-          setFactRow({ text: r.text, source: r.source });
-          if (r.pending && !retried) { retried = true; factTimer.current = window.setTimeout(ask, FACT_RETRY_MS + Math.random() * FACT_RETRY_JITTER_MS); }
-        })
-        .catch(() => { if (factAlive.current) setFactRow({ text: localFact, source: localFact ? 'template' : null }); });
-    };
-    ask();
-  }, [emptyChat, mobileEmpty, localFact]);
-  // Мʼяка підміна: старий текст гасне за --dur-base, потім стає новий.
+    api.homeFact.get()
+      .then((r) => { if (!factAlive.current || !r.text) return; setLlmFact(r.text); writeHomeFactCache(today, r.text); })
+      .catch(() => { /* лишається шаблон */ });
+  }, [emptyChat, mobileEmpty, llmFact, today]);
+  // Мʼяка підміна: старий текст гасне за --dur-base, потім стає новий; reduce — одразу.
+  const factWanted = llmFact ?? templateFact;
   const [factShown, setFactShown] = useState<string | null>(null);
   const [factFading, setFactFading] = useState(false);
   useEffect(() => {
-    const next = factRow?.text ?? null;
-    if (next === factShown) return;
-    if (factShown === null || reduceMotion()) { setFactShown(next); return; }
+    if (factWanted === factShown) return;
+    if (factShown === null || factWanted === null || reduceMotion()) { setFactShown(factWanted); return; }
     setFactFading(true);
-    const id = window.setTimeout(() => { setFactShown(next); setFactFading(false); }, 240);
+    const id = window.setTimeout(() => { setFactShown(factWanted); setFactFading(false); }, 240);
     return () => window.clearTimeout(id);
-  }, [factRow]);
+  }, [factWanted, factShown]);
   const fact = factShown;
+  const factSource: 'llm' | 'template' | null = fact === null ? null : fact === llmFact ? 'llm' : 'template';
 
   return (
     <div
@@ -2110,7 +2121,7 @@ export function Feed() {
                 </button>
               ))}
             </div>
-            {fact && <p className={`${styles['empty-fact']} ${factFading ? styles['empty-fact-out'] : ''}`} data-empty-fact data-fact-source={factRow?.source ?? undefined}>{fact}</p>}
+            {fact && <p className={`${styles['empty-fact']} ${factFading ? styles['empty-fact-out'] : ''}`} data-empty-fact data-fact-source={factSource ?? undefined}>{fact}</p>}
           </div>
         )}
       </div>

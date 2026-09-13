@@ -1,13 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { cleanHomeFactText, serializeHomeFacts, homeFactsEmpty, homeFactTemplate } from './home-fact';
+import { cleanHomeFactText, homeFactTemplate } from './home-fact';
 
 describe('Р146 · факт дому', () => {
-  it('серіалізація: три рядки, порожні пропускаються, дні словами', () => {
-    expect(serializeHomeFacts({ burning: [{ label: 'помідори', days: -1 }, { label: 'йогурт', days: 0 }, { label: 'курка', days: 2 }], seasons: [{ title: 'гарбузи', startedThisWeek: true }, { title: 'яблука', startedThisWeek: false }], dishes: [{ title: 'Борщ', daysAgo: 0 }, { title: 'Сирники', daysAgo: 1 }, { title: 'Плов', daysAgo: 5 }] }))
-      .toBe('СПЛИВАЄ: помідори · прострочено 1 дн; йогурт · останній день; курка · лишилось 2 дн\nСЕЗОН: гарбузи (почалось цього тижня); яблука\nОСТАННІ СТРАВИ: Борщ · сьогодні; Сирники · вчора; Плов · 5 днів тому');
-    expect(serializeHomeFacts({ burning: [], seasons: [], dishes: [{ title: 'Борщ', daysAgo: 3 }] })).toBe('ОСТАННІ СТРАВИ: Борщ · 3 дні тому');
-    expect(homeFactsEmpty({ burning: [], seasons: [], dishes: [] })).toBe(true);
-  });
   it('вихід: лапки й переноси знімаються; емодзі й порожнє — null; довше за 220 — зріз по реченню', () => {
     expect(cleanHomeFactText('«Помідори вчора перетнули межу.»\n')).toBe('Помідори вчора перетнули межу.');
     expect(cleanHomeFactText('')).toBeNull();

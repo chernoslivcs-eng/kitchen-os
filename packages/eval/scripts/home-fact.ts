@@ -1,10 +1,9 @@
-// Р146: евал «факту дому» — 20 знімків домів (лише горить / лише сезон / лише
-// страви / усе / порожньо) → промпт home-fact.md → 20 рядків у
-// HOME-FACT-EVAL-0913.md з вхідними фактами поруч; власник дивиться очима.
-// Без бази, без чату: вхід — літерали нижче, серіалізовані тією самою
-// функцією, що й на сервері (serializeHomeFacts з @kitchen/domain).
+// Р146: евал «факту дому» — 10 знімків домів → ті самі блоки, що бачить чат
+// ([СЬОГОДНІ] · [ЗАРАЗ] · [КОМОРА] · [ОСТАННІ ГОТУВАННЯ], серіалізація
+// @kitchen/domain) → промпт home-fact.md → 10 рядків у HOME-FACT-EVAL-0913.md
+// з вхідними фактами поруч; власник дивиться очима. Без бази, без чату.
 //   pnpm --filter @kitchen/eval run home-fact
-// Ключ — з кореневого .env (env.ts). Вартість рахується локально за тарифами
+// Ключ — з кореневого .env (env.ts). Вартість — за тарифами
 // services/api/src/pricing.ts (haiku: 1.00 / 5.00 за 1M, кеш 0.10, запис ×1.25).
 import '../env.js';
 import Anthropic from '@anthropic-ai/sdk';
@@ -12,7 +11,11 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { loadPrompt, compose } from '@kitchen/prompts';
-import { serializeHomeFacts, homeFactsEmpty, cleanHomeFactText, type HomeFacts } from '@kitchen/domain';
+import {
+  BUILTIN_OCCASIONS, subscribedRows, subscribedTraditions, fastingActive,
+  serializeNow, serializePantry, serializeCookRun, todayLabel, cleanHomeFactText,
+  type PantryBatch, type RecentCookRunSummary,
+} from '@kitchen/domain';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT_PATH = join(HERE, '../../../HOME-FACT-EVAL-0913.md');
@@ -24,28 +27,46 @@ const model = process.env.MODEL_FAST ?? (process.env.OPENROUTER_API_KEY ? 'anthr
 // Тарифи haiku, USD за 1M (services/api/src/pricing.ts:72-81 — тримати рівними).
 const RATE = { input: 1.0, cached: 0.1, output: 5.0, cacheWrite: 1.25 };
 
-const CASES: { name: string; facts: HomeFacts }[] = [
-  { name: 'лише горить · одне прострочене', facts: { burning: [{ label: 'помідори', days: -1 }], seasons: [], dishes: [] } },
-  { name: 'лише горить · прострочене + спливає', facts: { burning: [{ label: 'йогурт', days: -2 }, { label: 'курка', days: 1 }], seasons: [], dishes: [] } },
-  { name: 'лише горить · останній день', facts: { burning: [{ label: 'молоко', days: 0 }], seasons: [], dishes: [] } },
-  { name: 'лише горить · шість позицій', facts: { burning: [{ label: 'сир', days: -3 }, { label: 'шпинат', days: -1 }, { label: 'сметана', days: 0 }, { label: 'огірки', days: 1 }, { label: 'хліб', days: 2 }, { label: 'банани', days: 3 }], seasons: [], dishes: [] } },
-  { name: 'лише сезон · один, почався цього тижня', facts: { burning: [], seasons: [{ title: 'гарбузи', startedThisWeek: true }], dishes: [] } },
-  { name: 'лише сезон · три триваючі', facts: { burning: [], seasons: [{ title: 'кавуни', startedThisWeek: false }, { title: 'персики', startedThisWeek: false }, { title: 'кукурудза', startedThisWeek: false }], dishes: [] } },
-  { name: 'лише сезон · триває + новий', facts: { burning: [], seasons: [{ title: 'яблука', startedThisWeek: false }, { title: 'гриби', startedThisWeek: true }], dishes: [] } },
-  { name: 'лише страви · одна сьогодні', facts: { burning: [], seasons: [], dishes: [{ title: 'Паста з томатами й фетою', daysAgo: 0 }] } },
-  { name: 'лише страви · три за тиждень', facts: { burning: [], seasons: [], dishes: [{ title: 'Сирники', daysAgo: 1 }, { title: 'Борщ', daysAgo: 3 }, { title: 'Омлет зі шпинатом', daysAgo: 6 }] } },
-  { name: 'лише страви · давно', facts: { burning: [], seasons: [], dishes: [{ title: 'Плов', daysAgo: 12 }, { title: 'Гречка з грибами', daysAgo: 19 }] } },
-  { name: 'лише страви · одна й та сама тричі', facts: { burning: [], seasons: [], dishes: [{ title: 'Паста з томатами', daysAgo: 1 }, { title: 'Паста з томатами', daysAgo: 3 }, { title: 'Паста з томатами', daysAgo: 5 }] } },
-  { name: 'горить + сезон', facts: { burning: [{ label: 'молоко', days: 1 }], seasons: [{ title: 'кавуни', startedThisWeek: false }], dishes: [] } },
-  { name: 'горить + страви', facts: { burning: [{ label: 'помідори', days: -1 }, { label: 'фета', days: 2 }], seasons: [], dishes: [{ title: 'Паста з томатами й фетою', daysAgo: 3 }] } },
-  { name: 'сезон + страви', facts: { burning: [], seasons: [{ title: 'гарбузи', startedThisWeek: true }], dishes: [{ title: 'Крем-суп із гарбуза', daysAgo: 2 }] } },
-  { name: 'усе · спокійний дім', facts: { burning: [{ label: 'йогурт', days: 3 }], seasons: [{ title: 'яблука', startedThisWeek: false }], dishes: [{ title: 'Вівсянка з яблуками', daysAgo: 0 }, { title: 'Курка з рисом', daysAgo: 2 }] } },
-  { name: 'усе · багато простроченого', facts: { burning: [{ label: 'сметана', days: -4 }, { label: 'шинка', days: -2 }, { label: 'салат', days: -1 }, { label: 'сир', days: 0 }], seasons: [{ title: 'кукурудза', startedThisWeek: true }], dishes: [{ title: 'Піца', daysAgo: 9 }] } },
-  { name: 'усе · пʼять страв, шість позицій, шість сезонів', facts: { burning: [{ label: 'молоко', days: -1 }, { label: 'кефір', days: 0 }, { label: 'курка', days: 1 }, { label: 'риба', days: 1 }, { label: 'зелень', days: 2 }, { label: 'ягоди', days: 3 }], seasons: [{ title: 'кавуни', startedThisWeek: false }, { title: 'дині', startedThisWeek: false }, { title: 'сливи', startedThisWeek: true }, { title: 'виноград', startedThisWeek: true }, { title: 'кукурудза', startedThisWeek: false }, { title: 'перець', startedThisWeek: false }], dishes: [{ title: 'Салат із кавуном і фетою', daysAgo: 0 }, { title: 'Рибні котлети', daysAgo: 1 }, { title: 'Курка з овочами', daysAgo: 2 }, { title: 'Сирники', daysAgo: 4 }, { title: 'Борщ', daysAgo: 5 }] } },
-  { name: 'усе · назви з великої і з лапками', facts: { burning: [{ label: 'Сир «Ферма» 45%', days: 1 }], seasons: [{ title: 'полуниця', startedThisWeek: true }], dishes: [{ title: 'Панкейки з полуницею', daysAgo: 1 }] } },
-  { name: 'горить · назва довга з чека', facts: { burning: [{ label: 'Йогурт Активіа натуральний 3,5% 290 г', days: 0 }], seasons: [], dishes: [] } },
-  { name: 'порожньо', facts: { burning: [], seasons: [], dishes: [] } },
+type B = { label: string; zone?: PantryBatch['zone']; days?: number; v?: number; u?: PantryBatch['unit']; opened?: boolean };
+type Case = { name: string; now: string; batches: B[]; runs: { title: string; daysAgo: number; rating?: number }[] };
+
+const CASES: Case[] = [
+  { name: 'лише спливає · одне прострочене', now: '2026-09-13T12:00:00', batches: [{ label: 'помідори', zone: 'fresh', days: -1, v: 500 }, { label: 'рис', zone: 'dry', days: 300, v: 1000 }], runs: [] },
+  { name: 'лише спливає · прострочене + спливає, шість позицій', now: '2026-09-13T12:00:00', batches: [{ label: 'сир', zone: 'fridge', days: -3, v: 200 }, { label: 'шпинат', zone: 'fresh', days: -1, v: 150 }, { label: 'сметана', zone: 'fridge', days: 0, v: 350 }, { label: 'огірки', zone: 'fresh', days: 1, v: 400 }, { label: 'хліб', zone: 'dry', days: 2, v: 1, u: 'pcs' }, { label: 'банани', zone: 'fresh', days: 3, v: 4, u: 'pcs' }, { label: 'гречка', zone: 'dry', days: 400, v: 800 }], runs: [] },
+  { name: 'лише сезон · вересень (гарбузи, гриби)', now: '2026-09-13T12:00:00', batches: [{ label: 'гречка', zone: 'dry', days: 400, v: 800 }, { label: 'олія', zone: 'dry', days: 200, v: 1000, u: 'ml' }], runs: [] },
+  { name: 'лише сезон · червень (полуниця, черешня)', now: '2026-06-10T12:00:00', batches: [{ label: 'макарони', zone: 'dry', days: 300, v: 500 }], runs: [] },
+  { name: 'лише страви · три за тиждень', now: '2026-09-13T12:00:00', batches: [{ label: 'сіль', zone: 'spices', days: 900, v: 500 }], runs: [{ title: 'Сирники', daysAgo: 1, rating: 5 }, { title: 'Борщ', daysAgo: 3 }, { title: 'Омлет зі шпинатом', daysAgo: 6 }] },
+  { name: 'лише страви · одна й та сама тричі', now: '2026-09-13T12:00:00', batches: [{ label: 'сіль', zone: 'spices', days: 900, v: 500 }], runs: [{ title: 'Паста з томатами', daysAgo: 1 }, { title: 'Паста з томатами', daysAgo: 3 }, { title: 'Паста з томатами', daysAgo: 5 }] },
+  { name: 'спливає + страви', now: '2026-09-13T12:00:00', batches: [{ label: 'помідори', zone: 'fresh', days: -1, v: 500 }, { label: 'фета', zone: 'fridge', days: 2, v: 200 }], runs: [{ title: 'Паста з томатами й фетою', daysAgo: 3, rating: 4 }] },
+  { name: 'усе · спокійний дім', now: '2026-09-13T12:00:00', batches: [{ label: 'йогурт', zone: 'fridge', days: 3, v: 2, u: 'pcs' }, { label: 'яблука', zone: 'fresh', days: 10, v: 1200 }, { label: 'вівсянка', zone: 'dry', days: 300, v: 700 }], runs: [{ title: 'Вівсянка з яблуками', daysAgo: 0 }, { title: 'Курка з рисом', daysAgo: 2, rating: 4 }] },
+  { name: 'усе · переповнений дім (відкриті партії, довгі назви з чека)', now: '2026-09-13T12:00:00', batches: [{ label: 'Йогурт Активіа натуральний 3,5% 290 г', zone: 'fridge', days: 0, v: 290 }, { label: 'молоко', zone: 'fridge', days: -1, v: 1000, u: 'ml' }, { label: 'курка', zone: 'fridge', days: 1, v: 900 }, { label: 'риба', zone: 'fridge', days: 1, v: 600 }, { label: 'зелень', zone: 'fresh', days: 2, v: 100 }, { label: 'ягоди', zone: 'fresh', days: 3, v: 300 }, { label: 'сир «Ферма» 45%', zone: 'fridge', opened: true, days: 5, v: 250 }, { label: 'рис', zone: 'dry', days: 300, v: 1000 }], runs: [{ title: 'Салат із кавуном і фетою', daysAgo: 0 }, { title: 'Рибні котлети', daysAgo: 1, rating: 3 }, { title: 'Курка з овочами', daysAgo: 2 }, { title: 'Сирники', daysAgo: 4 }, { title: 'Борщ', daysAgo: 5 }] },
+  { name: 'порожньо · лише крупи, без строків, без страв, без сезону (лютий)', now: '2026-02-10T12:00:00', batches: [{ label: 'гречка', zone: 'dry', days: 400, v: 800 }, { label: 'сіль', zone: 'spices', days: 900, v: 500 }], runs: [] },
 ];
+
+function batchesOf(c: Case): PantryBatch[] {
+  const now = new Date(c.now).getTime();
+  return c.batches.map((b, i) => ({
+    id: `b${i}`, household_id: 'h', catalog_key: null, label: b.label, zone: b.zone ?? 'fridge',
+    value: b.v ?? null, unit: b.u ?? (b.v != null ? 'g' : null), state: b.opened ? 'opened' : 'sealed',
+    opened_at: b.opened ? new Date(now - 2 * 86_400_000).toISOString() : null,
+    expires_at: b.days != null ? new Date(now + b.days * 86_400_000).toISOString() : null,
+    best_before_opened_days: null, added_at: new Date(now - 5 * 86_400_000).toISOString(), depleted_at: null,
+    confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: null,
+  } as PantryBatch));
+}
+function inputOf(c: Case): string {
+  const now = new Date(c.now);
+  const occasions = subscribedRows(BUILTIN_OCCASIONS, []);
+  const trads = subscribedTraditions(occasions);
+  const runs: RecentCookRunSummary[] = c.runs.map((r) => ({ title: r.title, rating: r.rating ?? null, verdict: null, finished_at: new Date(now.getTime() - r.daysAgo * 86_400_000).toISOString() }));
+  const cookLog = runs.length
+    ? '\n\n[ОСТАННІ ГОТУВАННЯ]\n' + runs.map((r, i) => serializeCookRun(r, now.getTime(), i === 0)).join('\n')
+    : '\n\n[ОСТАННІ ГОТУВАННЯ] порожньо — жодного завершеного готування ще немає.';
+  return '[СЬОГОДНІ] ' + todayLabel(now)
+    + serializeNow(occasions, [], now)
+    + '\n\n[КОМОРА]\n' + serializePantry(batchesOf(c), now.getTime(), fastingActive(now, occasions, trads), 'none', 120, [], '', [])
+    + cookLog;
+}
 
 async function main() {
   const key = apiKey();
@@ -54,16 +75,11 @@ async function main() {
   const system = compose('home_fact', prompt);
   const client = new Anthropic({ apiKey: key, baseURL: baseURL() });
   const rows: string[] = [];
-  let input = 0, output = 0, cached = 0, cacheWrite = 0, calls = 0, bad = 0;
+  let input = 0, output = 0, cached = 0, cacheWrite = 0, calls = 0, bad = 0, dash = 0;
   for (let i = 0; i < CASES.length; i++) {
     const c = CASES[i]!;
-    const facts = serializeHomeFacts(c.facts);
+    const facts = inputOf(c);
     process.stdout.write(`${String(i + 1).padStart(2)}. ${c.name} … `);
-    if (homeFactsEmpty(c.facts)) {
-      rows.push(`### ${i + 1}. ${c.name}\n\nВхід: (усі три списки порожні)\n\n> — (модель не викликається, рядка нема)\n`);
-      console.log('без виклику');
-      continue;
-    }
     const t0 = Date.now();
     const resp = await client.messages.create({
       model, max_tokens: 120,
@@ -73,26 +89,27 @@ async function main() {
     const raw = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join(' ').trim();
     const u = resp.usage as Anthropic.Usage & { cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null };
     input += u.input_tokens; output += u.output_tokens; cached += u.cache_read_input_tokens ?? 0; cacheWrite += u.cache_creation_input_tokens ?? 0; calls++;
-    const clean = cleanHomeFactText(raw);
-    const verdict = clean ? `✓ ${clean.length} зн.` : `✗ відкинуто (${raw.length} зн. або не текст) → шаблон`;
-    if (!clean) bad++;
-    rows.push(`### ${i + 1}. ${c.name}\n\nВхід:\n\`\`\`\n${facts}\n\`\`\`\n\n> ${raw.replace(/\n/g, ' ')}\n\n${verdict} · ${Date.now() - t0} мс\n`);
-    console.log(`${verdict}`);
+    const isDash = raw.replace(/[\s.«»"]/g, '') === '—' || raw.replace(/[\s.«»"]/g, '') === '-';
+    const clean = isDash ? null : cleanHomeFactText(raw);
+    const verdict = isDash ? '— (нема фактів, рядка нема)' : clean ? `✓ ${clean.length} зн.${clean.length < raw.trim().length ? ` (зріз із ${raw.trim().length})` : ''}` : `✗ відкинуто (${raw.length} зн. або не текст) → шаблон`;
+    if (isDash) dash++; else if (!clean) bad++;
+    rows.push(`### ${i + 1}. ${c.name}\n\nВхід (ті самі блоки, що в чаті):\n\`\`\`\n${facts}\n\`\`\`\n\n> ${raw.replace(/\n/g, ' ')}\n\n${verdict} · ${Date.now() - t0} мс\n`);
+    console.log(verdict);
   }
   const cost = (input * RATE.input + cached * RATE.cached + cacheWrite * RATE.input * RATE.cacheWrite + output * RATE.output) / 1_000_000;
   const head = [
     '# «Факт дому» від моделі — евал 13.09 (Р146)',
     '',
     `Промпт \`packages/prompts/versions/${prompt.version}/home-fact.md\` (виклик \`home_fact\`, fast), модель \`${model}\`, max_tokens 120, temperature типова.`,
-    `20 знімків домів: лише горить / лише сезон / лише страви / усе / порожньо. Вхід — рівно те, що збирає сервер (\`serializeHomeFacts\`).`,
-    `Правило виходу: промпт просить одне–два речення до 180 знаків, лише передані факти; сервер відкидає довше за 220 або з емодзі — тоді лишається шаблон.`,
+    `10 знімків домів: лише спливає / лише сезон / лише страви / спливає + страви / усе / порожньо. Вхід — рівно ті блоки, що бачить чат-модель ([СЬОГОДНІ] · [ЗАРАЗ] · [КОМОРА] · [ОСТАННІ ГОТУВАННЯ]), серіалізовані тими самими функціями @kitchen/domain; профіль і покупки не передаються.`,
+    `Правило виходу: промпт просить одне–три речення до 180 знаків лише з переданих фактів; сервер зрізає довше за 220 по межі речення, без межі або з емодзі — { text: null } (лишається шаблон); «—» = модель не знайшла фактів.`,
     '',
-    `Викликів: ${calls} · відкинуто: ${bad} · токени: вхід ${input}, кеш-читання ${cached}, кеш-запис ${cacheWrite}, вихід ${output} · вартість прогону ≈ $${cost.toFixed(4)}.`,
+    `Викликів: ${calls} · відкинуто: ${bad} · «—»: ${dash} · токени: вхід ${input}, кеш-читання ${cached}, кеш-запис ${cacheWrite}, вихід ${output} · вартість прогону ≈ $${cost.toFixed(4)}.`,
     '',
     '---',
     '',
   ];
   writeFileSync(OUT_PATH, head.join('\n') + rows.join('\n'));
-  console.log(`\n→ ${OUT_PATH}\nвикликів ${calls} · відкинуто ${bad} · токени in ${input} / cached ${cached} / cache-write ${cacheWrite} / out ${output} · ≈ $${cost.toFixed(4)}`);
+  console.log(`\n→ ${OUT_PATH}\nвикликів ${calls} · відкинуто ${bad} · «—» ${dash} · токени in ${input} / cached ${cached} / cache-write ${cacheWrite} / out ${output} · ≈ $${cost.toFixed(4)}`);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

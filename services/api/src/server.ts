@@ -63,7 +63,7 @@ export interface BuildAppOpts {
   };
   google?: GoogleAuthOpts;
   retail?: RetailOpts;
-  /** Р146: «факт дому» від моделі (HOME_FACT_LLM=1); без опції — лише шаблон. */
+  /** Р146: «факт дому» від моделі (HOME_FACT_LLM=1); без опції — { text: null }. */
   homeFact?: HomeFactOpts;
 }
 

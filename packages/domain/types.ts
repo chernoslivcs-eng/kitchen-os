@@ -822,17 +822,3 @@ export interface HouseholdEventRow {
   done_at: string | null;
   created_at: string;
 }
-
-// Р146: «факт дому» дня — кеш по (household_id, date). Шаблон лягає одразу,
-// модель дописує у фоні; llm_state каже, чи є сенс чекати на модель.
-export type HomeFactSource = 'llm' | 'template';
-export type HomeFactLlmState = 'none' | 'pending' | 'done' | 'failed';
-export interface HomeFactRow {
-  household_id: string;
-  /** Локальний день дому, YYYY-MM-DD. */
-  date: string;
-  text: string | null;
-  source: HomeFactSource | null;
-  llm_state: HomeFactLlmState;
-  updated_at: string;
-}

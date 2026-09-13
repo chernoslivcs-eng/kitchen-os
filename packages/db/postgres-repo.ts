@@ -19,7 +19,6 @@ import type {
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
-  HomeFactRow,
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -1134,32 +1133,6 @@ export class PostgresRepo implements Repo {
 
   async revokeSession(id: string): Promise<void> {
     await this.pool.query('UPDATE auth_session SET revoked_at = now() WHERE id = $1', [id]);
-  }
-
-  // ----- Факт дому (Р146) ------------------------------------------------
-
-  async getHomeFact(household_id: string, date: string): Promise<HomeFactRow | null> {
-    const { rows } = await this.pool.query(
-      `SELECT household_id, to_char(date, 'YYYY-MM-DD') AS date, text, source, llm_state, updated_at
-         FROM home_fact WHERE household_id = $1 AND date = $2`,
-      [household_id, date],
-    );
-    const r = rows[0];
-    if (!r) return null;
-    return {
-      household_id: r.household_id, date: r.date, text: r.text ?? null, source: r.source ?? null,
-      llm_state: r.llm_state, updated_at: new Date(r.updated_at).toISOString(),
-    };
-  }
-
-  async saveHomeFact(row: HomeFactRow): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO home_fact (household_id, date, text, source, llm_state, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (household_id, date) DO UPDATE SET
-         text = EXCLUDED.text, source = EXCLUDED.source, llm_state = EXCLUDED.llm_state, updated_at = EXCLUDED.updated_at`,
-      [row.household_id, row.date, row.text, row.source, row.llm_state, row.updated_at],
-    );
   }
 
   // ----- Облік токенів ---------------------------------------------------
