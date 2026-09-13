@@ -30,6 +30,7 @@ import { profileRoutes } from './routes/profile.js';
 import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
 import { onboardingRoutes } from './routes/onboarding.js';
+import { telegramRoutes } from './routes/telegram.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
@@ -180,6 +181,7 @@ export function buildApp(
   cookRunsRoutes(app, repo);
   sessionRoutes(app, repo);
   onboardingRoutes(app, repo);
+  telegramRoutes(app, repo);
   chatRoute(app, repo, store, {
     rateLimit: opts.rateLimits?.chat,
     retailCart: retail?.attemptBuildCart,
@@ -243,7 +245,9 @@ export function pickStore(): AttachmentStore {
 }
 
 // Обрати сховище: PG_URL → PostgresRepo (з міграцією), інакше InMemoryRepo.
-export async function buildAppWithBackend(): Promise<FastifyInstance> {
+// Р147: окремо від buildAppWithBackend — Telegram-функція (telegram-handler.ts)
+// бере той самий репозиторій без fastify.
+export async function pickRepo(): Promise<Repo> {
   const url = process.env.PG_URL;
   let repo: Repo;
   if (url) {
@@ -263,6 +267,11 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
   } else {
     repo = new InMemoryRepo();
   }
+  return repo;
+}
+
+export async function buildAppWithBackend(): Promise<FastifyInstance> {
+  const repo = await pickRepo();
   const store: AttachmentStore = pickStore();
   const mailer: Mailer = pickMailer();
   const google = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
