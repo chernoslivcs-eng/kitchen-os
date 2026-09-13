@@ -4,7 +4,7 @@
 // повідомленням HTML, довше за 4096 — двома-трьома.
 import { Bot, InlineKeyboard, type BotConfig, type Context } from 'grammy';
 import { Agent, fetch as undiciFetch } from 'undici';
-import { handleTelegramText, handleTelegramFile, handleTelegramCallback, type TelegramDeps, type TelegramReply } from './telegram.js';
+import { handleTelegramText, handleTelegramFile, handleTelegramVoice, handleTelegramCallback, type TelegramDeps, type TelegramReply } from './telegram.js';
 
 export const TYPING_EVERY_MS = 4_000;
 
@@ -74,6 +74,14 @@ export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
     return withTyping(ctx, () => handleTelegramFile(fileDeps, {
       update_id: ctx.update.update_id, telegram_user_id: ctx.from.id, chat_id: ctx.chat.id,
       source: 'document', file_id: d.file_id, file_size: d.file_size, mime_type: d.mime_type, caption: ctx.message.caption,
+    }));
+  });
+  // Р151: голосове (ogg/opus) і аудіофайл — транскрипція → «Почув: «…»» → той самий хід.
+  bot.on(['message:voice', 'message:audio'], (ctx) => {
+    const v = ctx.message.voice ?? ctx.message.audio!;
+    return withTyping(ctx, () => handleTelegramVoice(fileDeps, {
+      update_id: ctx.update.update_id, telegram_user_id: ctx.from.id, chat_id: ctx.chat.id,
+      file_id: v.file_id, duration: v.duration, file_size: v.file_size, mime_type: v.mime_type,
     }));
   });
   bot.on('callback_query:data', async (ctx) => {

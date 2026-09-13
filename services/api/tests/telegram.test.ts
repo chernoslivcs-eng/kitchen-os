@@ -5,11 +5,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { buildApp } from '../src/server.js';
 import { InMemoryRepo, createPending, type Card, type Recipe } from '@kitchen/domain';
 import type { ChatTurnInput } from '../src/chat-turn.js';
+import { audioFormatOf, STT_INSTRUCTION } from '../src/telegram-stt.js';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
 import {
-  handleTelegramText, handleTelegramFile, handleTelegramCallback, createTelegramLinkToken, resetSeenUpdates, resetBotUsernameCache,
+  handleTelegramText, handleTelegramFile, handleTelegramVoice, handleTelegramCallback, createTelegramLinkToken, resetSeenUpdates, resetBotUsernameCache,
   renderCardText, renderTurnMessages, renderRecipeBlocks, splitTelegramText, escapeHtml, formatQty, COPY, TELEGRAM_LINK_TTL_MS, TELEGRAM_MSG_MAX,
 } from '../src/telegram.js';
 import { ChatTurnHttpError } from '../src/chat-turn.js';
@@ -273,6 +274,55 @@ describe('Р147/Р149 · Telegram', () => {
     expect((await repo.listBatches(me.household_id)).filter((x) => x.state !== 'depleted')).toHaveLength(2);
     expect(await handleTelegramCallback(deps(), { update_id: 1404, telegram_user_id: 500, data: 'weird' })).toBeNull();
     expect(await handleTelegramCallback(deps(), { update_id: 1405, telegram_user_id: 999, data: `apply:${b}` })).toEqual({ status: COPY.linkFirst(APP) });
+  });
+
+  // ── Р151: голос ──
+  const ogg = Buffer.from('4f676753', 'hex');
+  const voiceDeps = (stt: (b: Buffer, ct: string | null) => Promise<{ text: string; model: string; usage: { input: number; output: number }; prompt_hash: string }>, turn?: (input: ChatTurnInput) => Promise<{ reply: string | null; card: Card | null; card_id: string | null }>) =>
+    deps({ downloadFile: async () => ({ buffer: ogg, content_type: 'audio/ogg' }), stt, ...(turn ? { turn } : {}) });
+  const heardStt = async () => ({ text: 'купив молоко і хліб', model: 'google/gemini-test', usage: { input: 80, output: 10 }, prompt_hash: 'abc123' });
+
+  it('голосове → транскрипція (стаб) → «Почув: «…»» + той самий хід; usage як telegram_stt', async () => {
+    const me = await linked();
+    const seen: ChatTurnInput[] = [];
+    const r = await handleTelegramVoice(voiceDeps(heardStt, async (input) => { seen.push(input); return { reply: 'Записав молоко і хліб.', card: null, card_id: null }; }), { update_id: 2001, telegram_user_id: 500, chat_id: 500, file_id: 'v1', duration: 4, file_size: 9000, mime_type: 'audio/ogg' });
+    expect(r?.html).toBe(true);
+    expect(r?.messages[0]).toBe('Почув: «купив молоко і хліб»');
+    expect(r?.messages[1]).toContain('Записав молоко і хліб.');
+    expect(seen[0]).toMatchObject({ text: 'купив молоко і хліб', channel: 'telegram' });
+    const usage = (await repo.listTokenUsage(me.user_id)).filter((u) => u.call === 'telegram_stt');
+    expect(usage).toHaveLength(1);
+    expect(usage[0]).toMatchObject({ profile: 'smart', model: 'google/gemini-test', input_tokens: 80, output_tokens: 10, prompt_hash: 'abc123', mode: 'live' });
+  });
+
+  it('голосове через справжній хід (стаб моделі): «Почув» + хід у сесію дня з channel', async () => {
+    const me = await linked();
+    const r = await handleTelegramVoice(voiceDeps(heardStt), { update_id: 2101, telegram_user_id: 500, chat_id: 500, file_id: 'v2', duration: 4 });
+    expect(r?.messages[0]).toBe('Почув: «купив молоко і хліб»');
+    const session = await repo.getOrCreateSessionForDay(me.user_id, localDay());
+    expect((await repo.listMessages(session.id)).find((m) => m.role === 'user')).toMatchObject({ text: 'купив молоко і хліб', channel: 'telegram' });
+  });
+
+  it('задовге (> 2 хв або > 5 МБ) → «Задовге — скажи коротше», без транскрипції', async () => {
+    await linked();
+    let calls = 0;
+    const d = voiceDeps(async () => { calls++; return heardStt(); });
+    expect(await handleTelegramVoice(d, { update_id: 2201, telegram_user_id: 500, chat_id: 500, file_id: 'v3', duration: 121 })).toEqual({ messages: [COPY.voiceTooLong], html: false });
+    expect(await handleTelegramVoice(d, { update_id: 2202, telegram_user_id: 500, chat_id: 500, file_id: 'v4', duration: 10, file_size: 6 * 1024 * 1024 })).toEqual({ messages: [COPY.voiceTooLong], html: false });
+    expect(calls).toBe(0);
+  });
+
+  it('помилка або порожня транскрипція → «Не розібрав — напиши текстом»; непривʼязаний → «Спершу підключи…»', async () => {
+    await linked();
+    expect(await handleTelegramVoice(voiceDeps(async () => { throw new Error('openrouter 500'); }), { update_id: 2301, telegram_user_id: 500, chat_id: 500, file_id: 'v5', duration: 3 })).toEqual({ messages: [COPY.voiceUnclear], html: false });
+    expect(await handleTelegramVoice(voiceDeps(async () => ({ text: '  ', model: 'm', usage: { input: 1, output: 0 }, prompt_hash: 'h' })), { update_id: 2302, telegram_user_id: 500, chat_id: 500, file_id: 'v6', duration: 3 })).toEqual({ messages: [COPY.voiceUnclear], html: false });
+    expect(await handleTelegramVoice(voiceDeps(heardStt), { update_id: 2303, telegram_user_id: 999, chat_id: 999, file_id: 'v7', duration: 3 })).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+  });
+
+  it('формат аудіо для OpenRouter — з mime; інструкція без файлу в prompts', () => {
+    expect(audioFormatOf('audio/ogg')).toBe('ogg'); expect(audioFormatOf('audio/ogg; codecs=opus')).toBe('ogg');
+    expect(audioFormatOf('audio/mpeg')).toBe('mp3'); expect(audioFormatOf('audio/x-wav')).toBe('wav'); expect(audioFormatOf('audio/mp4')).toBe('m4a'); expect(audioFormatOf(null)).toBe('ogg');
+    expect(STT_INSTRUCTION).toMatch(/дослівно/);
   });
 
   it('помилка ходу (502 model_unavailable або виняток) → текст E1, обидві сторони живі', async () => {

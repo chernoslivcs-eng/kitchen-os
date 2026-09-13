@@ -22,7 +22,9 @@ export type CallName =
   | 'chat'
   | 'recipe_gen'
   | 'attachment_parse'
-  | 'alt_filter';
+  | 'alt_filter'
+  // Р151: розпізнавання голосу з Telegram — службовий виклик з інлайн-інструкцією, блоку в versions/ нема.
+  | 'telegram_stt';
 
 export interface CallSpec {
   // `profile` — ЄДИНЕ джерело того, яка модель обслуговує виклик. Раніше

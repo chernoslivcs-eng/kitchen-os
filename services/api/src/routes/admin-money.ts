@@ -76,6 +76,7 @@ const CALL_WORD: Record<string, string> = {
   attachment_parse: 'розбір вкладення',
   recipe_gen: 'генерація рецепта',
   alt_filter: 'фільтр альтернатив',
+  telegram_stt: 'голос із Telegram',
   recipe_import: 'імпорт рецепта',
   pantry_search: 'пошук по коморі',
 };
