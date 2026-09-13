@@ -6,6 +6,7 @@ import { buildApp } from '../src/server.js';
 import { InMemoryRepo, createPending, type Card, type Recipe } from '@kitchen/domain';
 import type { ChatTurnInput } from '../src/chat-turn.js';
 import { audioFormatOf, STT_INSTRUCTION } from '../src/telegram-stt.js';
+import { audioContentTypeOf } from '../src/telegram.js';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
@@ -332,6 +333,28 @@ describe('Р147/Р149 · Telegram', () => {
     expect(r?.messages[1]).toContain('Записав.');
     expect(fmt).toBe('m4a');
     expect(await handleTelegramFile(d, { update_id: 2402, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'a2', file_size: 6 * 1024 * 1024, mime_type: 'audio/mpeg' })).toEqual({ messages: [COPY.voiceTooLong], html: false });
+  });
+
+  it('document application/octet-stream + x.m4a (і video/mp4, і порожній mime) → STT як m4a; невідоме → «не читаю» з логом', async () => {
+    await linked();
+    const fmts: string[] = [];
+    const warned: unknown[] = [];
+    const d = deps({
+      downloadFile: async () => ({ buffer: ogg, content_type: 'application/octet-stream' }),
+      stt: async (_b: Buffer, ct: string | null) => { fmts.push(audioFormatOf(ct)); return heardStt(); },
+      turn: async () => ({ reply: 'Записав.', card: null, card_id: null }),
+      log: { warn: (o: unknown) => warned.push(o), info() {}, error() {}, debug() {} },
+    });
+    expect((await handleTelegramFile(d, { update_id: 2501, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'a3', file_size: 158_000, mime_type: 'application/octet-stream', file_name: 'voice-sample.m4a' }))?.messages[0]).toBe('Почув: «купив молоко і хліб»');
+    expect((await handleTelegramFile(d, { update_id: 2502, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'a4', file_size: 158_000, mime_type: 'video/mp4', file_name: 'voice-sample.M4A' }))?.messages[0]).toBe('Почув: «купив молоко і хліб»');
+    expect((await handleTelegramFile(d, { update_id: 2503, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'a5', file_size: 158_000, mime_type: null, file_name: 'note.opus' }))?.messages[0]).toBe('Почув: «купив молоко і хліб»');
+    expect(fmts).toEqual(['m4a', 'm4a', 'ogg']);
+    expect(await handleTelegramFile(d, { update_id: 2504, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'a6', file_size: 100, mime_type: 'application/octet-stream', file_name: 'archive.zip' })).toEqual({ messages: [COPY.fileUnsupported], html: false });
+    expect(warned.at(-1)).toMatchObject({ mime_type: 'application/octet-stream', file_name: 'archive.zip', source: 'document' });
+    expect(JSON.stringify(warned.at(-1))).not.toContain('a6');
+    expect(audioContentTypeOf('audio/mp4', 'x.m4a')).toBe('audio/mp4');
+    expect(audioContentTypeOf('video/mp4', null)).toBeNull();
+    expect(audioContentTypeOf('application/pdf', 'doc.pdf')).toBeNull();
   });
 
   it('формат аудіо для OpenRouter — з mime; інструкція без файлу в prompts', () => {

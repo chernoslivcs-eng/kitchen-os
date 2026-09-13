@@ -117,9 +117,21 @@ export const COPY = {
   voiceUnclear: 'Не розібрав — напиши текстом',
 } as const;
 
-/** Аудіо, надіслане як «Файл» (document): m4a/mp3/ogg/wav → голосовий шлях, не «не читаю». */
-export function isAudioMime(content_type: string | null | undefined): boolean {
-  return /^audio\//i.test(content_type ?? '');
+/** Аудіо, надіслане як «Файл» (document) → голосовий шлях, не «не читаю». Telegram (надто web K)
+ *  для m4a може віддати audio/mp4, video/mp4, application/octet-stream або порожній mime —
+ *  тому вирішуємо і за розширенням file_name: .m4a/.mp3/.ogg/.oga/.opus/.wav/.aac. Повертає
+ *  content_type для STT (формат — з нього, telegram-stt.ts) або null, якщо це не аудіо. */
+export const AUDIO_EXT: Record<string, string> = { m4a: 'audio/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav', aac: 'audio/aac' };
+export function audioContentTypeOf(mime_type: string | null | undefined, file_name?: string | null): string | null {
+  const ext = (file_name ?? '').toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  const byExt = ext ? AUDIO_EXT[ext] : undefined;
+  const mime = (mime_type ?? '').toLowerCase();
+  if (/^audio\//.test(mime)) return byExt ?? mime;               // audio/* — беремо (розширення точніше для mp4)
+  if (byExt && (mime === '' || mime === 'application/octet-stream' || /^video\/(mp4|quicktime)$/.test(mime))) return byExt;
+  return null;
+}
+export function isAudioMime(content_type: string | null | undefined, file_name?: string | null): boolean {
+  return audioContentTypeOf(content_type, file_name) !== null;
 }
 /** Ліміти голосового: 2 хв / 5 МБ (постановка). */
 export const TELEGRAM_VOICE_MAX_SEC = 120;
@@ -288,6 +300,7 @@ export interface IncomingFile {
   file_id: string;
   file_size?: number | null;
   mime_type?: string | null;
+  file_name?: string | null;
   caption?: string | null;
 }
 
@@ -302,12 +315,17 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
   if (!linked) return plain(COPY.linkFirst(deps.appUrl));
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
   const content_type = u.source === 'photo' ? 'image/jpeg' : (u.mime_type ?? null);
-  if (u.source === 'document' && isAudioMime(content_type)) {
+  const audio = u.source === 'document' ? audioContentTypeOf(content_type, u.file_name) : null;
+  if (audio) {
     seen.delete(u.update_id);   // той самий апдейт іде голосовим шляхом
-    return handleTelegramVoice(deps, { update_id: u.update_id, telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, file_id: u.file_id, file_size: u.file_size, mime_type: content_type });
+    return handleTelegramVoice(deps, { update_id: u.update_id, telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, file_id: u.file_id, file_size: u.file_size, mime_type: audio });
   }
   const kind = attachmentKindOf(content_type);
-  if (!kind) return plain(COPY.fileUnsupported);
+  if (!kind) {
+    // Щоб наступного разу бачити, що саме прислав Telegram (без file_id).
+    (deps.log ?? (console as unknown as FastifyBaseLogger)).warn({ mime_type: u.mime_type ?? null, file_name: u.file_name ?? null, file_size: u.file_size ?? null, source: u.source }, 'telegram-file-unsupported');
+    return plain(COPY.fileUnsupported);
+  }
   if ((u.file_size ?? 0) > TELEGRAM_FILE_MAX) return plain(COPY.fileTooBig);
   if (!deps.downloadFile || !deps.store) return plain(COPY.replyFailed);
   const household_id = await householdOf(deps.repo, linked.user_id);
@@ -467,7 +485,8 @@ export async function handleTelegramVoice(deps: TelegramDeps, u: IncomingVoice):
   try {
     const file = await deps.downloadFile(u.file_id);
     if (file.buffer.length > TELEGRAM_VOICE_MAX_BYTES) return plain(COPY.voiceTooLong);
-    const stt = await (deps.stt ?? transcribeTelegramAudio)(file.buffer, file.content_type ?? u.mime_type ?? null);
+    // Формат — спершу з того, що знаємо з апдейту (mime/розширення), потім із заголовка завантаження.
+    const stt = await (deps.stt ?? transcribeTelegramAudio)(file.buffer, u.mime_type ?? file.content_type ?? null);
     // usage — окремий call telegram_stt (token_usage), профіль smart як у чаті.
     const household_id = await householdOf(deps.repo, linked.user_id);
     await deps.repo.logTokenUsage({
