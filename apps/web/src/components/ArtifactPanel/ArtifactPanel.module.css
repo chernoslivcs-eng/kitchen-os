@@ -15,31 +15,6 @@
    капсу й моно: кікер 12/500 muted, рядки 40 зі знаком 16 (куди пише
    картка) і словом 14/500; бурштин — «чекає». Волосина зверху — межа з
    підвалом. Де блоку жити остаточно — QUESTIONS §12. */
-.rail-block { display: flex; flex-direction: column; gap: 0; padding: 12px 18px 14px; border-top: 1px solid var(--line); }
-.rail-title {
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--muted);
-  padding-bottom: 6px;
-}
-.rail-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 0 8px;
-  margin: 0 -8px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--amber);
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-}
-.rail-row:hover { background: var(--bg); }
 .rail-label {
   font-family: var(--font-body);
   font-size: 14px;
@@ -49,7 +24,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rail-meta { display: inline-grid; place-items: center; flex: none; color: var(--amber); }
 /* Правка №7: зона чату закінчується перед панеллю — відступ на РІВНІ ЕКРАНА,
    щоб колонка центрувалась у зоні, а скрол-зона лишалась суцільною.
    Крок 1.1 (02.09): поріг 1200. Нижче панелі немає взагалі — там пігулка
@@ -63,10 +37,6 @@
     transition: padding-right 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }
-
-/* Моушн-2 №4: rail — нові рядки в'їжджають, змінені спалахують шавлією. */
-.rail-row { animation: rail-row-in var(--dur-base, 250ms) var(--ease-enter, ease); }
-.rail-flash { animation: row-flash-rail var(--dur-flash) var(--ease-standard, ease) both; }
 
 /* Пул-6 №2: rail — смужка/оверлей/колапс. */
 /* Керування панеллю — ліворуч, артефакти — праворуч. Кнопка в тій самій
@@ -93,24 +63,6 @@
    нижче. Окремим правилом тут це не працює: там стоїть margin: -7px
    скороченою формою, і вона перебиває margin-left. */
 .rail-mini { display: none; }
-.rail-mini-item {
-  width: 44px;
-  height: 44px;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--dim);
-  border-radius: 10px;
-}
-.rail-mini-item:hover { background: var(--line); }
-.rail-mini-count { font-size: 11px; }
 .rail-scrim { display: none; }
 .rail-grab { display: none; }
 
@@ -171,15 +123,6 @@
    Її overflow: hidden різав лічильник на вкладці — а сам ellipsis уже не
    мав чого обрізати: тексту у вкладці немає. */
 
-.rail-artifact .recipe-msg-cols {
-  flex-direction: column;
-  gap: 14px;
-}
-.rail-artifact .recipe-msg-cols > div:first-child,
-.rail-artifact .recipe-msg-cols > div:last-child {
-  flex: initial;
-}
-
 /* ── Крок 5б: мобайл. Пігулка + шторка ───────────────────────────────
    Нижче 1024 панелі не буде ніколи — місця немає. Але правило «артефакт
    живе в одному місці» лишається тим самим на всіх ширинах: у стрічці
@@ -236,7 +179,6 @@
   }
   /* Рецепт — знову в одну колонку: ширина тут вузька так само, як була
      вузькою панель. */
-  .rail-open .recipe-msg-cols { flex-direction: column; gap: 14px; }
 }
 /* №34 (рішення власника, відхилення від R2 «768 — шторка»): від планшета
    артефакт — праворуч, плавучою карткою 380 (G6: card r18 --sh2), контент
@@ -365,8 +307,7 @@
 .rail-foot-shadow:not(:empty) { box-shadow: 0 -8px 20px rgba(29, 33, 38, 0.06); }
 /* У слоті геометрію малює .rail-foot; власні рамка й відступи картки тут
    зайві — вони для стрічки, де підвал лишається всередині картки. */
-.rail-foot .card-foot,
-.rail-foot .recipe-actions { border-top: 0; padding-top: 0; margin-top: 0; }
+.rail-foot .card-foot { border-top: 0; padding-top: 0; margin-top: 0; }
 
 /* Підвал кошика — клас, а не інлайн: інакше .rail-foot не мала б чим його
    перебити. */
@@ -520,25 +461,6 @@
 
 /* Вкладки прокручуються, керування — ні. Смуга прокрутки схована: вона
    тут була б третім елементом інтерфейсу в рядку, де й так тісно. */
-.rail-tabs-scroll {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  /* overflow-x: auto відсікає по ОБОХ осях. Лічильник висить на -5px від
-     кута вкладки, тож йому треба місце всередині області відсікання з усіх
-     чотирьох боків: спершу я дав його лише згори, і бейдж останньої
-     вкладки далі різався справа. Відʼємний зовнішній відступ повертає
-     рядок на місце. */
-  padding: 7px 7px 7px 7px;
-  /* Відʼємні поля компенсують падінг, який дає лічильникам місце всередині
-     області відсікання. Праворуч вкладки притискає auto на .rail-head-actions
-     — першому елементі правої групи. */
-  margin: -7px;
-}
-.rail-tabs-scroll::-webkit-scrollbar { display: none; }
 
 /* ── Вкладки панелі — іконками (02.09) ───────────────────────────────
    Назва активного артефакта стоїть заголовком одразу під шапкою, тож
@@ -565,24 +487,7 @@
   color: var(--sage-strong);
 }
 /* Приглушений — це вхід, а не вкладка: список «сам не з'являється». */
-.rail-tab-ghost { border-style: dashed; opacity: 0.7; }
-.rail-tab-ghost:hover { opacity: 1; }
 .rail-tab-glyph { font-family: var(--font-mono); font-size: 14px; line-height: 1; }
-.rail-tab-badge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 15px;
-  padding: 1px 4px;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--card);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 1.4;
-  text-align: center;
-}
-.rail-tab-on .rail-tab-badge { background: var(--sage); color: var(--sage-on); }
 
 /* ── Крок 5: моушн панелі (V9) ───────────────────────────────────────
    Три тривалості з токенів, не голі мілісекунди: 150 — зміна стану,
