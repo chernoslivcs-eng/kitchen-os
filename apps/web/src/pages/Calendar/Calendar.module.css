@@ -107,7 +107,6 @@
 }
 /* fix/ios-scroll-end-padding (13.09): iOS WebKit не рахує кінцевий padding скрол-контейнера у scrollable overflow — остання картка лишалась під баром, а гортати не було куди. Резерв під бар і низ скролера — реальний вміст: спейсер ::after, не padding-bottom. */
 .list::after { content: ''; display: block; height: 24px; }
-.list-grid { padding: 0 24px 24px 32px; display: flex; flex-direction: column; gap: 12px; }
 
 /* ── 1440: картка тижня ─────────────────────────────────────────────────── */
 .week {
@@ -313,7 +312,6 @@
   font-size: 13px;
   color: var(--muted);
 }
-.list-grid .foot { margin: 6px 0 30px; }
 .foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .foot-label { width: 72px; flex: none; font-size: 12px; font-weight: 500; color: var(--muted); }
 .foot-value { color: var(--muted); }

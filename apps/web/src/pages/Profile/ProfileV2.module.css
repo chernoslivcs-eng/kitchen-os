@@ -171,8 +171,6 @@
 .section { display: flex; flex-direction: column; gap: 8px; }
 .sectionLabel { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
 .sectionName { font-weight: 600; color: var(--ink); }
-.sectionSub { color: var(--muted); }
-@media (max-width: 1023px) { .sectionSub { display: none; } }
 .notesCard {
   background: var(--card);
   border-radius: 14px;

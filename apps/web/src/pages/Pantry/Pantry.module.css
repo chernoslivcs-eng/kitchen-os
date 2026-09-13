@@ -11,12 +11,6 @@
   container-type: inline-size;
   container-name: pantry;
 }
-.head {
-  padding: calc(22px + env(safe-area-inset-top, 0px)) 22px 8px; /* 0912 D (42а) */
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
 .title {
   font-family: var(--font-display);
   font-weight: 700;
@@ -283,7 +277,7 @@
 /* R0 (1920): контент обмежений 1400 і центрований. На 1440 (Screens) —
    на всю ширину екрана комори, без стелі. */
 @container pantry (min-width: 1500px) {
-  .head, .body { max-width: 1400px; width: 100%; margin-left: auto; margin-right: auto; }
+  .body { max-width: 1400px; width: 100%; margin-left: auto; margin-right: auto; }
 }
 
 
@@ -291,7 +285,6 @@
    на 232+36px від краю, а не плаває по центру з провалом ~400px (крок 1
    черги design-audit-desktop). Діє тільки коли сайдбар змонтований. */
 @media (min-width: 1024px) {
-  :global(body.with-sidebar) .head,
   :global(body.with-sidebar) .body,
   :global(body.with-sidebar) .timeline,
   :global(body.with-sidebar) .composer-wrap {
@@ -339,7 +332,6 @@
 }
 
 /* Моушн-кіт: гліф стану ●/◔ «клацає» при перемиканні (key за станом). */
-.mark-tick { animation: mark-tick var(--dur-fast, 150ms) var(--ease-standard, ease); transition: color var(--dur-fast, 150ms); }
 @keyframes mark-tick { from { transform: scale(0.8); } to { transform: scale(1); } }
 
 /* ===== Раунд 5, крок Ф1: фільтр — порядок / тільки / стан (design/PANTRY-FILTER-v2) ===== */
