@@ -73,7 +73,7 @@ export function Strip({ kicker, h1a, h1b, body, cta, onCta, seconds, onDone, kin
       setLeft(rest);
     }, 100);
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- відлік стартує з timed/seconds; onDone читається в момент спрацювання
   }, [timed, seconds]);
 
   return (

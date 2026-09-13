@@ -165,7 +165,7 @@ export function RecipePage() {
     if (!id) return;
     try {
       const { session } = await api.session.fresh(id);
-      navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
+      void navigate('/app', { state: { sessionId: session.id, at: Date.now() } });
     } catch {/* тихо */}
   };
   const share = () => navigate('/share', { state: { recipe, recipeId: id ?? savedId } });

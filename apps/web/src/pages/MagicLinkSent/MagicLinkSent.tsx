@@ -35,7 +35,7 @@ export function MagicLinkSent() {
     if (left <= 0) return;
     const t = setInterval(() => setLeft((v) => v - 1), 1000);
     return () => clearInterval(t);
-  }, [left > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [left > 0]); // eslint-disable-line react-hooks/exhaustive-deps -- інтервал живе, поки є відлік; щосекундна зміна left не має його перезапускати
 
   async function resend() {
     if (!email || left > 0) return;

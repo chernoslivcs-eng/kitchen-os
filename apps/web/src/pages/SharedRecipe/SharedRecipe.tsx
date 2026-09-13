@@ -87,7 +87,7 @@ export function SharedRecipePage() {
   const takeIntoOwnKitchen = () => {
     // Розшарений рецепт — чужий payload. У «своїй кухні» він живе відірвано:
     // відкриваємо як recipe без збереження; cook run збереже під нашого owner.
-    navigate('/recipe', { state: { recipe: r } });
+    void navigate('/recipe', { state: { recipe: r } });
   };
 
   const action = (

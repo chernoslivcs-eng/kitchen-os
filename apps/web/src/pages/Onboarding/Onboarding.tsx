@@ -142,7 +142,7 @@ export function OnboardingPage() {
     if (how === 'finished') { track('onboarding_finished'); track('welcome_finished'); }
     else track('welcome_skipped', { card: step + 1 });
     markSeen(useAuth.getState().me?.user.id ?? '');
-    navigate('/app', { replace: true });
+    void navigate('/app', { replace: true });
   };
 
   /** «Далі» на картці знайомства: є текст — записати; порожньо на алергіях — «нічого такого»; порожньо деінде — пропуск. */

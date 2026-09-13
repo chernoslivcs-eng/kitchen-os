@@ -129,7 +129,7 @@ export function ArtifactPanel() {
     if (fromTurn.length) s.surfaceArtifact(fromTurn[fromTurn.length - 1]!);
     else if (added.length && hidden) s.setFresh(true);
     if (!hidden) s.setFresh(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- freshKeys/hidden читаються зі стору в момент події — реагуємо лише на keys і hidden
   }, [keys, hidden]);
 
   const lastDown = useRef(0);

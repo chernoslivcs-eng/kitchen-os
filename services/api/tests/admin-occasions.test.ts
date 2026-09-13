@@ -73,7 +73,7 @@ describe('admin occasions · CRUD', () => {
   };
 
   it('створення без обовʼязкового source — 400', async () => {
-    const { source, ...rest } = valid;
+    const { source: _source, ...rest } = valid;
     const res = await app.inject({ method: 'POST', url: '/v1/admin/occasions', headers: hdr(), payload: rest });
     expect(res.statusCode).toBe(400);
   });

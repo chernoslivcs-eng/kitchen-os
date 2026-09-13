@@ -67,6 +67,7 @@ export async function loadWithRecovery<T>(load: () => Promise<T>, deps: LazyDeps
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- baseline #1
 export function lazyPage<T extends ComponentType<any>>(load: () => Promise<{ default: T }>) {
   return lazy(() => loadWithRecovery(load));
 }

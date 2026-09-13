@@ -297,7 +297,6 @@ export function Feed() {
       // Чистимо state, щоб F5 не префіксив удруге.
       window.history.replaceState({}, '');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
     // «☆ На потім» просто зі стрічки: чернетка вже має адресу — це PATCH-позначка.
@@ -578,7 +577,6 @@ export function Feed() {
       window.removeEventListener('focus', refetch);
       document.removeEventListener('visibilitychange', refetch);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -603,7 +601,7 @@ export function Feed() {
     // Cards із applied>0 показуються в стані «застосовано» (без Apply-кнопки).
     // Правка №1: якщо прийшли з сайдбара/бібліотеки з конкретною сесією —
     // location-ефект нижче переграє це завантаження.
-    (async () => {
+    void (async () => {
       try {
         const { session, messages } = await api.session.today();
         activate(session.id, session.created_at, session.title);
@@ -637,7 +635,6 @@ export function Feed() {
         ]);
       } catch {/* не підключено / retail_auth / мережа — стрічка живе як жила */}
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startFreshSession() {
@@ -689,7 +686,6 @@ export function Feed() {
     else if (st.openHistory) void openHistory();
     // ⌘K з іншого екрана: оболонка привела сюди — фокус у композитор.
     if (st.focusComposer) window.setTimeout(() => composerInputRef.current?.focus(), 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
   // ⌘K / Ctrl+K на стрічці — фокус у композитор (Components: «Композитор (⌘K з будь-де)»).
@@ -743,7 +739,7 @@ export function Feed() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [turns]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [turns]);
 
   // №11: час тоста тримає сам компонент (4 с / 8 с з дією) — тут лише
   // «persist» для «Готую рецепт…» (без onDismiss тост стоїть до кінця).
@@ -980,7 +976,6 @@ export function Feed() {
     const [next, ...rest] = queue;
     setQueue(rest);
     void dispatchChat(next!.text, next!.attachments, next!.turnId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sending, queue]);
 
   async function apply(turnId: string, selected?: number[]) {
@@ -1111,7 +1106,7 @@ export function Feed() {
         }]);
       } else {
         // Аварійний шлях без id (не мало б статись) — старий екран.
-        navigate('/recipe', { state: { recipe } });
+        void navigate('/recipe', { state: { recipe } });
       }
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -1213,9 +1208,8 @@ export function Feed() {
       },
       // 12.09 (§11): «Чекають на тебе · N» переїхав чіпом у шапку чату (ChatHead); блоку під панеллю нема.
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artifactKeys, turns, shoppingItems, listOpen, housePending, shoppingLabels, savedRecipeIds, batchLabels, stepLabels, livePositions, liveBatches, liveProducts, buildingCart, sessionStartedAt, sessionId]);
-  useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => panel.clear(), []);
 
   // 6b-5: стан дому для шапки й панелі «Дім зараз» (Screens «Чат · збірка»,
   // Responsive G1/G3, Components «home now»).
@@ -1280,7 +1274,6 @@ export function Feed() {
     setHeroOut(true);
     const id = window.setTimeout(() => { setHeroShown(false); setHeroOut(false); }, 120);
     return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emptyChat]);
   // <768 (Screens «Чат · порожня розмова» 390, власник 13.09): спрощений блок #86 —
   // заголовок, пʼять чіпів, підказка по центру стрічки, композитор унизу. Prototype

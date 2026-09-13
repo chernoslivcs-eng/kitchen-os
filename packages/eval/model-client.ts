@@ -285,7 +285,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       system: cachedSystem(system.stable, system.dynamic),
       messages: fixtureAsUserTurn(fx),
     });
-    let text = resp.content
+    const text = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
@@ -295,7 +295,7 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
     // в принципі: він шукав card, не знаходив, і клав уламок JSON у reply.
     // recipe_gen віддає голий JSON рецепта — загортаємо в card {type:'recipe'},
     // щоб інваріанти читали його тим самим шляхом, що продиктований рецепт.
-    let { reply, card, note } = call === 'attachment_parse'
+    const { reply, card, note } = call === 'attachment_parse'
       ? { ...parseAttachmentResponse(text), note: null as string | null }
       : call === 'recipe_gen'
         ? (() => {

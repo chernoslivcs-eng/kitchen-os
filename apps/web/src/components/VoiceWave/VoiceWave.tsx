@@ -40,7 +40,7 @@ export function VoiceWave({ heard }: { heard: string }) {
     let stream: MediaStream | null = null;
     let alive = true;
     let ro: ResizeObserver | null = null;
-    (async () => {
+    void (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         if (!alive) { stream.getTracks().forEach((tr) => tr.stop()); return; }

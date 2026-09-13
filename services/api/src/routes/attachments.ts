@@ -26,9 +26,11 @@ function kindOf(contentType: string): AttachmentKind {
 export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: AttachmentStore) {
   app.post('/v1/attachments', { preHandler: authenticated(repo) }, async (req, reply) => {
     const { user_id, household_id } = requireUser(req);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- baseline #2
     if (typeof (req as any).file !== 'function') {
       return reply.code(500).send({ error: 'multipart not registered' });
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- baseline #3
     const file = await (req as any).file();
     if (!file) return reply.code(400).send({ error: 'no file' });
 
@@ -91,6 +93,7 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
   }>('/v1/attachments/:id/reparse', { preHandler: authenticated(repo) }, async (req, reply) => {
     const ctx = requireUser(req);
     const { user_id, household_id } = ctx;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- baseline #4
     const { hint } = req.body ?? ({} as any);
     if (!hint) return reply.code(400).send({ error: 'hint required' });
 

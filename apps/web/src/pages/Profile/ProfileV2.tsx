@@ -76,7 +76,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
       const el = edits.current[r.k];
       if (el && el.textContent !== initial.fields[r.k].text) el.textContent = initial.fields[r.k].text;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- скидання contentEditable лише при монтуванні — initial першого рендера навмисно
   }, []);
   useEffect(() => () => { for (const t of Object.values(timers.current)) window.clearTimeout(t); }, []);
 
@@ -582,7 +582,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
                   try {
                     await api.deleteAccount(exitReason, exitComment.trim() || undefined);
                     await logout().catch(() => {/* кука вже мертва — ок */});
-                    navigate('/', { replace: true });
+                    void navigate('/', { replace: true });
                   } catch (err) {
                     setExitError((err as Error).message);
                     setExitBusy(false);

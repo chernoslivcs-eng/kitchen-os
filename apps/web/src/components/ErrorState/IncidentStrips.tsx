@@ -85,7 +85,7 @@ export function IncidentStrips() {
               // Тому не перезавантаження і не редирект: просто ведемо на вхід.
               setAuthExpired(false);
               void useAuth.getState().logout();
-              navigate('/');
+              void navigate('/');
             }}
           />
         )}
