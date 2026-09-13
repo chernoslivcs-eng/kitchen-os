@@ -738,6 +738,12 @@ export const api = {
     remove: (id: string) => req<{ deleted: true }>(`/v1/sessions/${id}`, { method: 'DELETE' }),
   },
 
+  // Р147: Telegram у профілі. Посилання t.me/<bot>?start=<token> — разове, 15 хв.
+  telegram: {
+    status: () => req<{ linked: boolean; username: string }>('/v1/telegram'),
+    linkToken: () => req<{ token: string; url: string; expires_in_min: number }>('/v1/telegram/link-token', { method: 'POST', body: '{}' }),
+    unlink: () => req<{ linked: false }>('/v1/telegram', { method: 'DELETE' }),
+  },
   cookRuns: {
     list: () => req<{ runs: CookRunWithRecipe[] }>('/v1/cook-runs'),
     save: (recipe: Recipe, opts?: { servings?: number; rating?: number; verdict?: string; keep?: (string | { id: string; v?: number })[]; skip_pantry?: boolean; recipe_id?: string; session_id?: string; ask_writeoff?: boolean }) =>
@@ -1013,6 +1019,8 @@ export interface MessageInfo {
   // Пул-9 №2: файли, прикріплені до цього ходу (attachment.message_id).
   // Стрічка малює з них мініатюри — і після F5 теж.
   attachments?: { id: string; mime: string | null }[];
+  // Р147: хід, написаний у Telegram-бот — мітка «з Telegram» у стрічці.
+  channel?: 'web' | 'telegram';
 }
 
 // Рецепт у бібліотеці. `status` рахує сервер проти поточної комори:

@@ -19,6 +19,7 @@ import type {
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
+  TelegramAccountRow, TelegramLinkTokenRow,
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -264,6 +265,22 @@ function rowToPending(r: Row): PendingCard {
     undo_snapshot: (r.undo_snapshot as UndoSnapshot | null) ?? null,
     undone_at: r.undone_at ? new Date(r.undone_at as string).toISOString() : null,
     dismissed_at: r.dismissed_at ? new Date(r.dismissed_at as string).toISOString() : null,
+  };
+}
+
+// Р147: bigint із pg приходить рядком.
+function rowToTelegramAccount(r: Record<string, unknown>): TelegramAccountRow {
+  return {
+    telegram_user_id: Number(r.telegram_user_id), user_id: String(r.user_id), chat_id: Number(r.chat_id),
+    linked_at: new Date(r.linked_at as string).toISOString(),
+    revoked_at: r.revoked_at ? new Date(r.revoked_at as string).toISOString() : null,
+  };
+}
+function rowToTelegramToken(r: Record<string, unknown>): TelegramLinkTokenRow {
+  return {
+    token: String(r.token), user_id: String(r.user_id),
+    expires_at: new Date(r.expires_at as string).toISOString(),
+    consumed_at: r.consumed_at ? new Date(r.consumed_at as string).toISOString() : null,
   };
 }
 
@@ -1135,6 +1152,51 @@ export class PostgresRepo implements Repo {
     await this.pool.query('UPDATE auth_session SET revoked_at = now() WHERE id = $1', [id]);
   }
 
+  // ----- Telegram (Р147) ---------------------------------------------------
+
+  async saveTelegramLinkToken(row: TelegramLinkTokenRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO telegram_link_token (token, user_id, expires_at, consumed_at)
+       VALUES ($1,$2,$3,$4)`,
+      [row.token, row.user_id, row.expires_at, row.consumed_at],
+    );
+  }
+  async consumeTelegramLinkToken(token: string, now: string): Promise<TelegramLinkTokenRow | null> {
+    // Одним UPDATE: живий, невикористаний → позначити й повернути. Дві гонки
+    // на один токен — один отримає рядок, другий null.
+    const { rows } = await this.pool.query(
+      `UPDATE telegram_link_token SET consumed_at = $2
+        WHERE token = $1 AND consumed_at IS NULL AND expires_at > $2
+        RETURNING token, user_id, expires_at, consumed_at`,
+      [token, now],
+    );
+    const r = rows[0];
+    return r ? rowToTelegramToken(r) : null;
+  }
+  async linkTelegram(row: TelegramAccountRow): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO telegram_account (telegram_user_id, user_id, chat_id, linked_at, revoked_at)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (telegram_user_id) DO UPDATE SET
+         user_id = EXCLUDED.user_id, chat_id = EXCLUDED.chat_id, linked_at = EXCLUDED.linked_at, revoked_at = NULL`,
+      [row.telegram_user_id, row.user_id, row.chat_id, row.linked_at, null],
+    );
+  }
+  async getTelegramByUser(user_id: string): Promise<TelegramAccountRow | null> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM telegram_account WHERE user_id = $1 AND revoked_at IS NULL ORDER BY linked_at DESC LIMIT 1`,
+      [user_id],
+    );
+    return rows[0] ? rowToTelegramAccount(rows[0]) : null;
+  }
+  async getTelegramByTelegramUser(telegram_user_id: number): Promise<TelegramAccountRow | null> {
+    const { rows } = await this.pool.query('SELECT * FROM telegram_account WHERE telegram_user_id = $1', [telegram_user_id]);
+    return rows[0] ? rowToTelegramAccount(rows[0]) : null;
+  }
+  async revokeTelegram(user_id: string, at: string): Promise<void> {
+    await this.pool.query('UPDATE telegram_account SET revoked_at = $2 WHERE user_id = $1 AND revoked_at IS NULL', [user_id, at]);
+  }
+
   // ----- Облік токенів ---------------------------------------------------
 
   async logTokenUsage(row: TokenUsageRow): Promise<void> {
@@ -1225,14 +1287,16 @@ export class PostgresRepo implements Repo {
 
   async saveMessage(msg: MessageRow): Promise<void> {
     await this.pool.query(
-      `INSERT INTO message (id, session_id, role, text, card, applied, created_at, source)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      `INSERT INTO message (id, session_id, role, text, card, applied, created_at, source, channel)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [
         msg.id, msg.session_id, msg.role, msg.text,
         msg.card == null ? null : JSON.stringify(msg.card),
         msg.applied, msg.created_at,
         // NULL = написала модель; підпис ставиться лише винятком (серверна проза).
         msg.source ?? null,
+        // Р147: звідки хід; усе, що було, — web.
+        msg.channel ?? 'web',
       ],
     );
   }
@@ -1261,6 +1325,8 @@ export class PostgresRepo implements Repo {
       // `m.source ?` в chat-history.ts брав би порожню гілку правильно, але
       // рядок віз би зайве null у кожному ході історії.
       ...(r.source ? { source: r.source as MessageRow['source'] } : {}),
+      // Р147: 'web' у JSON не возимо — лише те, що не за замовчуванням.
+      ...(r.channel && r.channel !== 'web' ? { channel: r.channel as MessageRow['channel'] } : {}),
       undone_at: r.pc_undone_at ? new Date(r.pc_undone_at as string).toISOString() : null,
       dismissed_at: r.pc_dismissed_at ? new Date(r.pc_dismissed_at as string).toISOString() : null,
     }));
@@ -1353,6 +1419,7 @@ export class PostgresRepo implements Repo {
       card: r.card ?? null,
       applied: r.applied ?? 0,
       created_at: new Date(r.created_at).toISOString(),
+      ...(r.channel && r.channel !== 'web' ? { channel: r.channel as MessageRow['channel'] } : {}),
     };
   }
 

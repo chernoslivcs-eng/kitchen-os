@@ -6,6 +6,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   SessionRow, MessageRow, LastAppliedIntake, IntakeCard, AppEventRow,
+  TelegramAccountRow, TelegramLinkTokenRow,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -46,6 +47,8 @@ export class InMemoryRepo implements Repo {
   private chatSessions = new Map<string, SessionRow>();
   private chatSessionsByUserDay = new Map<string, string>();   // `${user_id}:${day}` → session_id
   private messages = new Map<string, MessageRow[]>();          // session_id → messages
+  private telegramTokens = new Map<string, TelegramLinkTokenRow>();   // Р147: token → рядок
+  private telegramAccounts = new Map<number, TelegramAccountRow>();  // Р147: telegram_user_id → рядок
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -598,6 +601,33 @@ export class InMemoryRepo implements Repo {
     const s = this.chatSessions.get(id);
     if (s) this.chatSessions.set(id, { ...s, title });
   }
+  // ── Р147: Telegram ──
+  async saveTelegramLinkToken(row: TelegramLinkTokenRow): Promise<void> {
+    this.telegramTokens.set(row.token, { ...row });
+  }
+  async consumeTelegramLinkToken(token: string, now: string): Promise<TelegramLinkTokenRow | null> {
+    const row = this.telegramTokens.get(token);
+    if (!row || row.consumed_at || row.expires_at <= now) return null;
+    const next = { ...row, consumed_at: now };
+    this.telegramTokens.set(token, next);
+    return { ...next };
+  }
+  async linkTelegram(row: TelegramAccountRow): Promise<void> {
+    this.telegramAccounts.set(row.telegram_user_id, { ...row, revoked_at: null });
+  }
+  async getTelegramByUser(user_id: string): Promise<TelegramAccountRow | null> {
+    const rows = [...this.telegramAccounts.values()].filter((a) => a.user_id === user_id && !a.revoked_at)
+      .sort((a, b) => b.linked_at.localeCompare(a.linked_at));
+    return rows[0] ? { ...rows[0] } : null;
+  }
+  async getTelegramByTelegramUser(telegram_user_id: number): Promise<TelegramAccountRow | null> {
+    const a = this.telegramAccounts.get(telegram_user_id);
+    return a ? { ...a } : null;
+  }
+  async revokeTelegram(user_id: string, at: string): Promise<void> {
+    for (const [k, a] of this.telegramAccounts) if (a.user_id === user_id && !a.revoked_at) this.telegramAccounts.set(k, { ...a, revoked_at: at });
+  }
+
   async saveMessage(msg: MessageRow): Promise<void> {
     const arr = this.messages.get(msg.session_id) ?? [];
     arr.push({ ...msg });
