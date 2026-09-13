@@ -16,7 +16,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated } from '../../api';
-import { PROFILE_ROWS, SECTION, PLAN_LABEL, type ProfileRowCopy } from '../../lib/profile-copy';
+import { PROFILE_ROWS, SECTION, PLAN_LABEL, TELEGRAM, type ProfileRowCopy } from '../../lib/profile-copy';
+import { TABLET_MIN } from '../../lib/device';
 import { plural } from '../../lib/plural';
 import { KIT_DEFAULTS, type ProfileFieldKey } from '@kitchen/domain/profile-fields';
 import { useAuth } from '../../store/auth';
@@ -243,6 +244,39 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     } catch (err) { alert((err as Error).message); }
   }
 
+  // ----- Telegram (Р148): рядок в «Акаунті» -------------------------------------
+  type TgState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; linked: boolean; username: string | null };
+  const [tg, setTg] = useState<TgState>({ kind: 'loading' });
+  const [tgBusy, setTgBusy] = useState(false);
+  const [tgLink, setTgLink] = useState<string | null>(null);
+  const [tgCopied, setTgCopied] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void api.telegram.status()
+      .then((r) => { if (alive) setTg({ kind: 'ready', linked: r.linked, username: r.username }); })
+      .catch(() => { if (alive) setTg({ kind: 'error' }); });
+    return () => { alive = false; };
+  }, []);
+  async function tgConnect() {
+    if (tgBusy) return;
+    setTgBusy(true);
+    try {
+      const { url } = await api.telegram.linkToken();
+      // До 768 Telegram перехопить лінк сам; далі — лінк у рядку, бо телефон окремо.
+      if (window.innerWidth < TABLET_MIN) window.open(url); else { setTgLink(url); setTgCopied(false); }
+    } catch { setTg({ kind: 'error' }); } finally { setTgBusy(false); }
+  }
+  async function tgDisconnect() {
+    if (tgBusy || !confirm(TELEGRAM.disconnectConfirm)) return;
+    setTgBusy(true);
+    try { await api.telegram.unlink(); setTg({ kind: 'ready', linked: false, username: null }); setTgLink(null); }
+    catch { setTg({ kind: 'error' }); } finally { setTgBusy(false); }
+  }
+  async function tgCopy() {
+    if (!tgLink) return;
+    try { await navigator.clipboard.writeText(tgLink); setTgCopied(true); } catch { /* лінк видно — скопіює рукою */ }
+  }
+
   // ----- Мережі (існуючі ендпоінти M13, без нової логіки) --------------------
   const [retail, setRetail] = useState<RetailStatus>('loading');
   const [receiptAt, setReceiptAt] = useState<string | null>(null);
@@ -413,6 +447,28 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
         <span className={styles.accKey}>{SECTION.plan}</span>
         <span className={styles.accVal}>{plan}</span>
       </div>
+      <div className={`${styles.accRow} ${styles.accRowTg}`} data-telegram>
+        <span className={styles.accKey}>{TELEGRAM.row}</span>
+        {tg.kind === 'error' && <span className={`${styles.accVal} ${styles.tgError}`}>{TELEGRAM.error}</span>}
+        {tg.kind === 'ready' && tg.linked && (
+          <>
+            <span className={styles.accVal}>{TELEGRAM.linked(tg.username)}</span>
+            <button type="button" className={styles.svcLink} data-tap onClick={() => void tgDisconnect()} disabled={tgBusy}>{TELEGRAM.disconnect}</button>
+          </>
+        )}
+        {(tg.kind === 'loading' || (tg.kind === 'ready' && !tg.linked)) && (
+          <button type="button" className={styles.tgConnect} data-tap onClick={() => void tgConnect()} disabled={tg.kind === 'loading' || tgBusy}>{TELEGRAM.connect}</button>
+        )}
+      </div>
+      {tgLink && tg.kind === 'ready' && !tg.linked && (
+        <div className={styles.tgLinkBox} data-telegram-link>
+          <div className={styles.tgLinkRow}>
+            <code className={styles.tgLink}>{tgLink}</code>
+            <button type="button" className={styles.svcLink} data-tap onClick={() => void tgCopy()}>{tgCopied ? TELEGRAM.copied : TELEGRAM.copy}</button>
+          </div>
+          <span className={styles.tgHint}>{TELEGRAM.linkHint}</span>
+        </div>
+      )}
       <div className={`${styles.accRow} ${styles.accRowTheme}`}>
         <span className={styles.accKey}>{SECTION.theme}<span className={styles.accKeySub}>{SECTION.themeSub}</span></span>
         <span className={styles.segment} role="radiogroup" aria-label={SECTION.theme}>

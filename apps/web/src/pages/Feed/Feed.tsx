@@ -14,6 +14,7 @@ import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { plural } from '../../lib/plural';
+import { TELEGRAM } from '../../lib/profile-copy';
 import { applyMode } from '@kitchen/domain/card-modes';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatResponse, type HouseholdProduct, type PantryBatch, type ShoppingItem } from '../../api';
 import { loadPantry } from '../../store/pantryList';
@@ -1530,6 +1531,10 @@ export function Feed() {
                   </a>
                 ))}
               </div>
+            )}
+            {t.role === 'user' && t.channel === 'telegram' && (
+              /* Р148: репліка прийшла ботом — тиха мітка під баблом, без знака. */
+              <div className={styles['turn-channel']} data-channel="telegram">{TELEGRAM.fromChannel}</div>
             )}
             {t.queued && (
               /* Пул-9 №5: репліка вже у стрічці, але виклик ще не стартував. */
