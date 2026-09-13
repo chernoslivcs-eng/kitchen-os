@@ -3,12 +3,13 @@
 // текст, помилка → E1, /stop, дубль update_id, контракт профілю. Модель — стаб.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildApp } from '../src/server.js';
-import { InMemoryRepo, type Card, type Recipe } from '@kitchen/domain';
+import { InMemoryRepo, createPending, type Card, type Recipe } from '@kitchen/domain';
+import type { ChatTurnInput } from '../src/chat-turn.js';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
 import {
-  handleTelegramText, createTelegramLinkToken, resetSeenUpdates, resetBotUsernameCache,
+  handleTelegramText, handleTelegramFile, handleTelegramCallback, createTelegramLinkToken, resetSeenUpdates, resetBotUsernameCache,
   renderCardText, renderTurnMessages, renderRecipeBlocks, splitTelegramText, escapeHtml, formatQty, COPY, TELEGRAM_LINK_TTL_MS, TELEGRAM_MSG_MAX,
 } from '../src/telegram.js';
 import { ChatTurnHttpError } from '../src/chat-turn.js';
@@ -108,7 +109,7 @@ describe('Р147/Р149 · Telegram', () => {
     const recipe: Card = { type: 'recipe', recipe: { t: 'Паста з томатами', sv: 2, tm: 20, ch: '', d: '', rk: '', ing: [{ p: 'b1', n: 'паста', v: 200, u: 'g' }, { n: 'сіль' }], st: [] } };
     expect(renderCardText(recipe)).toBe('Паста з томатами · 20 хв · 2 порц.\n— паста · 200 г\n— сіль');
     const intake: Card = { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко', value: 1, unit: 'ml' }, { op: 'deplete', label: 'хліб' }] };
-    expect(renderCardText(intake)).toBe('Розібрав: 2 позиції\n+ молоко · 1 ml\n− хліб');
+    expect(renderCardText(intake)).toBe('Розібрав: 2 позиції\n+ молоко · 1 мл\n− хліб');
     const shopping: Card = { type: 'shopping', items: [{ op: 'add', label: 'яйця', v: 10, u: 'pcs' }, { op: 'remove', label: 'сіль' }] };
     expect(renderCardText(shopping)).toBe('Список:\n+ яйця · 10 pcs\n− сіль');
     expect(renderCardText({ type: 'cook_go', title: 'x' })).toBeNull();
@@ -193,6 +194,85 @@ describe('Р147/Р149 · Telegram', () => {
     expect(msgs.at(-1)).toContain(`Відкрити у вебі: ${APP}/app`);
     const { head, steps } = renderRecipeBlocks(long);
     expect(head.length + steps.length).toBeGreaterThan(TELEGRAM_MSG_MAX);
+  });
+
+  // ── Р150: фото / документи ──
+  const png = Buffer.from('89504e470d0a1a0a', 'hex');
+  const fileDeps = (turn: (input: ChatTurnInput) => Promise<{ reply: string | null; card: Card | null; card_id: string | null; auto_applied?: boolean }>, extra: Record<string, unknown> = {}) =>
+    deps({ downloadFile: async () => ({ buffer: png, content_type: 'image/jpeg' }), turn, ...extra });
+  const intakeOut = (card_id: string) => ({ reply: 'Розібрав чек.', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко', value: 1000, unit: 'ml' }, { op: 'add', label: 'хліб', value: 1, unit: 'pcs' }] } as Card, card_id, auto_applied: false });
+
+  it('фото → той самий store і attachment, хід із вкладенням (pending), список позицій і кнопки «У комору / Не треба»; caption — текст ходу', async () => {
+    const me = await linked();
+    const seen: ChatTurnInput[] = [];
+    const r = await handleTelegramFile(fileDeps(async (input) => { seen.push(input); return intakeOut('11111111-1111-4111-8111-111111111111'); }), { update_id: 1001, telegram_user_id: 500, chat_id: 500, source: 'photo', file_id: 'f1', file_size: 12345, caption: 'чек із Сільпо' });
+    expect(seen).toHaveLength(1);
+    const input = seen[0]!;
+    expect(input.text).toBe('чек із Сільпо');
+    expect(input.channel).toBe('telegram');
+    expect(input.attachmentApply).toBe('pending');
+    expect(input.attachments).toHaveLength(1);
+    const att = await repo.getAttachment(input.attachments![0]!.id);
+    expect(att).toMatchObject({ user_id: me.user_id, kind: 'image', content_type: 'image/jpeg', bytes: png.length });
+    expect((await store.get(att!.url)).buffer.equals(png)).toBe(true);
+    expect(r?.html).toBe(true);
+    expect(r?.messages[0]).toContain('Розібрав: 2 позиції');
+    expect(r?.messages[0]).toContain('+ молоко · 1 л');
+    expect(r?.keyboard).toEqual([[{ text: 'У комору', data: 'apply:11111111-1111-4111-8111-111111111111' }, { text: 'Не треба', data: 'dismiss:11111111-1111-4111-8111-111111111111' }]]);
+  });
+
+  it('документ PDF і text/plain — той самий шлях; невідомий тип → відмова; завеликий → відмова; непривʼязаний → «Спершу підключи…»', async () => {
+    await linked();
+    const seen: ChatTurnInput[] = [];
+    const d = fileDeps(async (input) => { seen.push(input); return { reply: 'Ок.', card: null, card_id: null }; }, { downloadFile: async () => ({ buffer: Buffer.from('%PDF-1.4'), content_type: 'application/pdf' }) });
+    expect((await handleTelegramFile(d, { update_id: 1101, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'f2', mime_type: 'application/pdf', file_size: 100 }))?.html).toBe(true);
+    expect((await repo.getAttachment(seen[0]!.attachments![0]!.id))?.kind).toBe('pdf');
+    await handleTelegramFile(d, { update_id: 1102, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'f3', mime_type: 'text/plain', file_size: 100 });
+    expect((await repo.getAttachment(seen[1]!.attachments![0]!.id))?.kind).toBe('text');
+    expect(await handleTelegramFile(d, { update_id: 1103, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'f4', mime_type: 'application/zip', file_size: 100 })).toEqual({ messages: [COPY.fileUnsupported], html: false });
+    expect(await handleTelegramFile(d, { update_id: 1104, telegram_user_id: 500, chat_id: 500, source: 'photo', file_id: 'f5', file_size: 21 * 1024 * 1024 })).toEqual({ messages: [COPY.fileTooBig], html: false });
+    expect(seen).toHaveLength(2);
+    expect(await handleTelegramFile(d, { update_id: 1105, telegram_user_id: 999, chat_id: 999, source: 'photo', file_id: 'f6' })).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+  });
+
+  it('стиснуте фото без позицій — підказка про файл без стиснення', async () => {
+    await linked();
+    const r = await handleTelegramFile(fileDeps(async () => ({ reply: 'Схоже на чек, але рядків не видно.', card: null, card_id: null })), { update_id: 1201, telegram_user_id: 500, chat_id: 500, source: 'photo', file_id: 'f7' });
+    expect(r?.messages.at(-1)).toBe(COPY.photoHint);
+    const r2 = await handleTelegramFile(fileDeps(async () => ({ reply: 'Порожньо.', card: { type: 'intake_diff', ops: [] } as Card, card_id: 'x', auto_applied: false })), { update_id: 1202, telegram_user_id: 500, chat_id: 500, source: 'photo', file_id: 'f8' });
+    expect(r2?.messages.at(-1)).toBe(COPY.photoHint);
+    expect(r2?.keyboard).toBeUndefined();
+  });
+
+  it('фото через справжній хід: вкладення привʼязане до ходу з channel telegram, картка не застосована сама', async () => {
+    const me = await linked();
+    await handleTelegramFile(deps({ downloadFile: async () => ({ buffer: png, content_type: 'image/jpeg' }) }), { update_id: 1301, telegram_user_id: 500, chat_id: 500, source: 'photo', file_id: 'f9', caption: 'чек' });
+    const session = await repo.getOrCreateSessionForDay(me.user_id, localDay());
+    const msgs = await repo.listMessages(session.id);
+    const userMsg = msgs.find((m) => m.role === 'user');
+    expect(userMsg).toMatchObject({ channel: 'telegram' });
+    expect(userMsg?.attachments?.length ?? 0).toBe(1);
+    const applied = msgs.filter((m) => m.role === 'assistant' && m.applied > 0);
+    expect(applied, 'у Telegram intake_diff чекає кнопки').toHaveLength(0);
+  });
+
+  it('кнопка «У комору» → той самий applyCard, «Не треба» → dismissCard; статус для редагування; повтор → без падіння', async () => {
+    const me = await linked();
+    const mk = async () => {
+      const card: Card = { type: 'intake_diff', ops: [{ op: 'add', label: 'молоко', value: 1000, unit: 'ml', zone: 'fridge' }, { op: 'add', label: 'хліб', value: 1, unit: 'pcs', zone: 'dry' }] };
+      const id = crypto.randomUUID();
+      await createPending(repo, { message_id: id, household_id: me.household_id, user_id: me.user_id, card });
+      return id;
+    };
+    const a = await mk();
+    expect(await handleTelegramCallback(deps(), { update_id: 1401, telegram_user_id: 500, data: `apply:${a}` })).toEqual({ status: 'Додав у комору · 2' });
+    expect((await repo.listBatches(me.household_id)).filter((b) => b.state !== 'depleted').map((b) => b.label).sort()).toEqual(['молоко', 'хліб']);
+    expect(await handleTelegramCallback(deps(), { update_id: 1402, telegram_user_id: 500, data: `apply:${a}` })).toEqual({ status: 'Додав у комору · 0' });
+    const b = await mk();
+    expect(await handleTelegramCallback(deps(), { update_id: 1403, telegram_user_id: 500, data: `dismiss:${b}` })).toEqual({ status: COPY.notAdded });
+    expect((await repo.listBatches(me.household_id)).filter((x) => x.state !== 'depleted')).toHaveLength(2);
+    expect(await handleTelegramCallback(deps(), { update_id: 1404, telegram_user_id: 500, data: 'weird' })).toBeNull();
+    expect(await handleTelegramCallback(deps(), { update_id: 1405, telegram_user_id: 999, data: `apply:${b}` })).toEqual({ status: COPY.linkFirst(APP) });
   });
 
   it('помилка ходу (502 model_unavailable або виняток) → текст E1, обидві сторони живі', async () => {
