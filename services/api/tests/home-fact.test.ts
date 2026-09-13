@@ -1,6 +1,6 @@
 // Р146: «факт дому» від моделі — без кешу на сервері. Вхід — ті самі блоки, що в
 // чаті; порожні блоки — модель відповідає «—» і рядка нема; fallback на помилку
-// або задовгу відповідь; без ключа — тихо; usage.
+// або задовгу відповідь (> 300); без ключа — тихо; usage.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { buildApp } from '../src/server.js';
@@ -86,13 +86,13 @@ describe('GET /v1/home-fact', () => {
     const ev = await repo.listAppEventsForHousehold(me.household_id, { from: new Date(Date.now() - 60_000), to: new Date(Date.now() + 60_000), limit: 50 });
     expect(ev.some((e) => e.name === 'incident:home-fact-llm-failed' && (e.props as { kind?: string }).kind === 'guard')).toBe(true);
 
-    const app2 = build({ generate: async () => live('а'.repeat(230)) }); await app2.ready();
+    const app2 = build({ generate: async () => live('а'.repeat(310)) }); await app2.ready();
     expect((await get(app2, me.cookie)).json()).toEqual({ text: null });
   });
 
-  it('задовга відповідь із межею речення — зріз до 220', async () => {
-    const s1 = 'Молоко вже вчора перетнуло межу, кефір живе останній день.';
-    const s2 = ' Курка й риба теж мають один день, і хтось із них сьогодні стане обідом.';
+  it('задовга відповідь із межею речення — зріз до 300', async () => {
+    const s1 = 'Молоко вже вчора перетнуло межу, кефір живе останній день, а сметана тримається ще два.';
+    const s2 = ' Курка й риба теж мають один день, і хтось із них сьогодні неодмінно стане обідом, бо інакше вони самі вирішать, ким бути.';
     const s3 = ' Сливи й виноград щойно ввійшли в сезон, і вони явно мають намір витіснити з кухні все, що робилось раніше, включно з борщем.';
     const app = build({ generate: async () => live(s1 + s2 + s3) }); await app.ready();
     const me = await signIn(app, mailer, 'me@example.com');
