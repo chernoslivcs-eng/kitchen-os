@@ -901,6 +901,10 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels, stepLa
   const rid = card.recipe_id;
   const [listed, setListed] = useState<Set<number>>(new Set());
   const pressTimer = useRef<number | null>(null);
+  // Аудит 0913 C.7: useContext стояли після ранніх return — хуки йдуть до них.
+  const footSlot = useContext(PanelFootSlot);
+  const headSlot = useContext(PanelHeadSlot);
+  void headSlot;
   if (!rid) return null;
 
   // Старі повідомлення (до рецепта-в-розмові) мають тільки посилання.
@@ -953,10 +957,6 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels, stepLa
     leftToList.forEach(addOne);
   }
 
-
-  const footSlot = useContext(PanelFootSlot);
-  const headSlot = useContext(PanelHeadSlot);
-  void headSlot;
 
   // 6b-3 — за артефактом «Рецепт» у Prototype (той, що «можу зараз · 8 з 8»):
   // пілюля 24, назва h2 22/700, рядок 13 «20 хв · ≈ 540 ккал · оцінка моделі ·

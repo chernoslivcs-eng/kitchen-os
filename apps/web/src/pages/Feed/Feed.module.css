@@ -1635,3 +1635,8 @@ a.att-chip:hover { border-color: var(--sage); }
 @media (prefers-reduced-motion: reduce) {
   .empty-hero, .empty-hero-m, .empty-below, .composer-wrap { transition: none; }
 }
+
+/* Позначки груп у картках (були в cards.module.css без імпортера — аудит 0913 C.6).
+   Залите коло — є/зроблено, кільце — чекає. */
+.gmark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.gmark-ring { display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; vertical-align: middle; }

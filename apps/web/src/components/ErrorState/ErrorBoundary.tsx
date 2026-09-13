@@ -7,7 +7,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ErrorScreen } from './ErrorScreen';
-import { CRASH } from './copy';
+import { CRASH, OFFLINE_CHUNK } from './copy';
 
 interface Props {
   children: ReactNode;
@@ -48,6 +48,22 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.error) return this.props.children;
+    const reload = () => (this.props.onReload ?? (() => window.location.reload()))();
+    // Аудит 0913 C.3: чанк не приїхав через офлайн (lib/lazyPage) — це не
+    // падіння коду: без коду інциденту, «Повторити» перезавантажує.
+    if (this.state.error.name === 'ChunkOfflineError') {
+      return (
+        <ErrorScreen
+          kicker={OFFLINE_CHUNK.kicker}
+          tone="amber"
+          h1a={OFFLINE_CHUNK.h1a}
+          h1b={OFFLINE_CHUNK.h1b}
+          body={OFFLINE_CHUNK.body}
+          cta={OFFLINE_CHUNK.cta}
+          onCta={reload}
+        />
+      );
+    }
     return (
       <ErrorScreen
         kicker={CRASH.kicker}
@@ -57,7 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
         h1b={CRASH.h1b}
         body={CRASH.body}
         cta={CRASH.cta}
-        onCta={() => (this.props.onReload ?? (() => window.location.reload()))()}
+        onCta={reload}
       />
     );
   }

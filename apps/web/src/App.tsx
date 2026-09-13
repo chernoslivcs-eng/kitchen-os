@@ -25,7 +25,7 @@ const InvitePage = lazyPage(() => import('./pages/Invite/Invite').then((m) => ({
 const NotFoundPage = lazyPage(() => import('./pages/NotFound/NotFound').then((m) => ({ default: m.NotFoundPage })));
 const OnboardingPage = lazyPage(() => import('./pages/Onboarding/Onboarding').then((m) => ({ default: m.OnboardingPage })));
 import { ErrorBoundary } from './components/ErrorState/ErrorBoundary';
-import { captureCrash } from './lib/sentry';
+import { captureCrash, captureClientIncident } from './lib/sentry';
 import { ErrorScreen } from './components/ErrorState/ErrorScreen';
 import { SERVER_DOWN } from './components/ErrorState/copy';
 const LinkExpiredPage = lazyPage(() => import('./pages/LinkGone/LinkGone').then((m) => ({ default: m.LinkExpiredPage })));
@@ -99,7 +99,11 @@ export function App() {
         {/* Крок О1б: місце під код інциденту, залишене в Е1, тепер заповнене.
             captureCrash повертає вісім знаків event id — той самий, що людина
             бачить чипом на екрані падіння й може продиктувати. */}
-        <ErrorBoundary onError={(e, info) => captureCrash(e, info.componentStack)}>
+        <ErrorBoundary onError={(e, info) => {
+          // Аудит 0913 C.3: офлайн-чанк — інцидент мережі, не падіння коду.
+          if (e.name === 'ChunkOfflineError') { captureClientIncident('chunk-offline'); return null; }
+          return captureCrash(e, info.componentStack);
+        }}>
         {/* Мобільний аудит 0912 · A (№46): сторінки — лазі-чанками (lib/lazyPage);
             поки чанк іде — те саме тихе поле, що й у RequireAuth. */}
         <Suspense fallback={<Quiet />}>

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -41,7 +41,12 @@ describe('CalendarPage · збій завантаження', () => {
 // рисками в жолобі й підписом-чіпом у день початку. Одна подія — в одній осі.
 describe('CalendarPage · дві осі в двох розкладках', () => {
   let host: HTMLDivElement | undefined; let root: Root | undefined;
-  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); });
+  // Аудит 0913 C.8: фікстура будувалась від реального new Date() — «завтра» в
+  // неділю вже наступний тиждень, і «Цього тижня» порожніло. Час — середа.
+  // CAL_TEST_NOW — лише для ручного прогону на інших днях тижня.
+  const FIXED_NOW = process.env.CAL_TEST_NOW ?? '2026-09-16T10:00:00';
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const day = (offset: number) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + offset); return d; };
@@ -78,6 +83,16 @@ describe('CalendarPage · дві осі в двох розкладках', () =>
     expect(host!.querySelector('[data-cal-running]')!.textContent).toContain('Великий піст');
     expect(host!.querySelector('[data-cal-ask]')!.textContent).toContain('Що на вечерю завтра?');
     expect(host!.querySelector('[data-subscriptions]')).not.toBeNull();
+  });
+
+  // Зафіксована поведінка продукту: «Цього тижня» — до неділі включно; у
+  // неділю завтрашня подія вже належить наступному тижню й у колонці не стоїть.
+  it('≥1024, неділя: подія «завтра» не потрапляє в «Цього тижня»', async () => {
+    vi.setSystemTime(new Date('2026-09-13T10:00:00'));
+    localStorage.removeItem('kos-cal-view');
+    await mount(true);
+    expect(host!.querySelector('[data-cal-week]')!.textContent).not.toContain('Мама приїжджає');
+    expect(host!.querySelector('[data-cal-week]')!.textContent).toContain('Нічого не заплановано.');
   });
 
   it('≥1024: «Тиждень» — картка тижня D3a з підписом «день N з M»; «Список» — стрічка днів; вид памʼятається', async () => {
