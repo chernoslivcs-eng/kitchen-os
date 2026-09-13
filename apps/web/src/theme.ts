@@ -22,8 +22,10 @@ function apply(light: boolean) {
   document.documentElement.dataset.theme = light || lightOnly ? 'light' : 'dark';
 }
 
-/** Маршрути поза входом — світлі з першого кадру, ще до монтування React. */
-export const LIGHT_ONLY_PATHS = /^\/($|sent$|invite$|link\/)/;
+/** Маршрути поза входом — світлі з першого кадру, ще до монтування React.
+ *  Хотфікс 13.09 (рішення власника): онбординг /welcome — теж лише світлий, як
+ *  лендінг; на телефонах з «Авто» вдень він був темним і виглядав погано. */
+export const LIGHT_ONLY_PATHS = /^\/($|sent$|invite$|link\/|welcome($|\/))/;
 
 export function setLightOnly(on: boolean): void {
   lightOnly = on;

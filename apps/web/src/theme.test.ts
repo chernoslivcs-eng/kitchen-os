@@ -16,8 +16,8 @@ beforeEach(() => { darkOS(); localStorage.clear(); delete document.documentEleme
 
 describe('№2 · світлий поза входом', () => {
   it('маршрути поза входом: / · /sent · /invite · /link/* — так; /app і решта — ні', () => {
-    for (const p of ['/', '/sent', '/invite', '/link/expired', '/link/consumed']) expect(LIGHT_ONLY_PATHS.test(p), p).toBe(true);
-    for (const p of ['/app', '/pantry', '/profile', '/r/abc', '/welcome']) expect(LIGHT_ONLY_PATHS.test(p), p).toBe(false);
+    for (const p of ['/', '/sent', '/invite', '/link/expired', '/link/consumed', '/welcome', '/welcome/2']) expect(LIGHT_ONLY_PATHS.test(p), p).toBe(true);
+    for (const p of ['/app', '/pantry', '/profile', '/r/abc', '/welcomed']) expect(LIGHT_ONLY_PATHS.test(p), p).toBe(false);
   });
 
   it('темна ОС: на / перший кадр світлий; у застосунку — темний', () => {
@@ -41,8 +41,21 @@ describe('№2 · світлий поза входом', () => {
     expect(theme()).toBe('dark');
   });
 
-  it('CSS лендінгу й auth не має власних правил темної', () => {
-    for (const f of ['pages/Landing/Landing.module.css', 'pages/Auth/Auth.module.css']) {
+  // Хотфікс 13.09: онбординг /welcome — лише світлий, як лендінг (усі 11 кроків).
+  it('темна ОС: /welcome — світлий з першого кадру; перехід у застосунок і назад перемикає без перезавантаження', () => {
+    history.replaceState(null, '', '/welcome');
+    initTheme();
+    expect(theme()).toBe('light');
+    // /welcome → /app: онбординг розмонтовано (cleanup useLightOnly), вибору людини нема — за ОС
+    setLightOnly(false);
+    expect(theme()).toBe('dark');
+    // /app → /welcome: онбординг змонтовано — знову світлий
+    setLightOnly(true);
+    expect(theme()).toBe('light');
+  });
+
+  it('CSS лендінгу, auth і онбордингу не має власних правил темної', () => {
+    for (const f of ['pages/Landing/Landing.module.css', 'pages/Auth/Auth.module.css', 'pages/Onboarding/Onboarding.module.css']) {
       const css = readFileSync(resolve(fileURLToPath(import.meta.url), '..', f), 'utf8');
       expect(css.includes("data-theme='dark'"), f).toBe(false);
     }
