@@ -178,9 +178,9 @@ describe('Профіль v6', () => {
     expect(host.textContent).not.toContain('Прибрано.');
   });
 
-  it('порожні нотатки — «Зʼявляться, коли розкажеш щось між ділом…» (Prototype)', async () => {
+  it('порожні нотатки — «Поки порожньо. Дай духовці трохи часу.» (прод-текст, власник 13.09)', async () => {
     await mount({ ...initial(), notes: [] });
-    expect(host.textContent).toContain('Зʼявляться, коли розкажеш щось між ділом');
+    expect(host.textContent).toContain('Поки порожньо. Дай духовці трохи часу.');
   });
 });
 
