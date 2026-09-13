@@ -66,6 +66,9 @@ export interface ChatTurnInput {
   action?: 'profile_summary';
   /** Звідки хід; 'web' не пишеться в базу (типове значення колонки). */
   channel?: 'web' | 'telegram';
+  /** Р150: intake_diff із вкладення — у вебі застосовується одразу (Пул-8, запобіжник — undo);
+   *  Telegram питає кнопками «У комору / Не треба», тож картка лишається pending. */
+  attachmentApply?: 'auto' | 'pending';
   /** Раковина інцидентів і незавершених записів (telemetry.ts): у вебі — req, у боті — свій host. */
   host: TelemetryHost;
   log: FastifyBaseLogger;
@@ -191,7 +194,7 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       // Пул-8 №2: розібраний чек/фото полиці — теж одразу в комору, undo є.
       let att_auto = false;
       let att_undo: string | undefined;
-      if (call.card?.type === 'intake_diff' && card_id) {
+      if (call.card?.type === 'intake_diff' && card_id && (input.attachmentApply ?? 'auto') === 'auto') {
         const r = await applyCard(repo, card_id, [], user_id);
         // Промах операції: ціль не знайдено, стан не змінився. Логуємо, бо
         // частоти цього ми не знаємо — а без числа неможливо вирішити, чи це

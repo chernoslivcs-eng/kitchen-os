@@ -15,7 +15,8 @@
 // Ліміт — 30 ходів на хвилину на Telegram-користувача (як у вебі на user_id).
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
-import { resolveRecipeLabels, type Repo, type Card, type Recipe } from '@kitchen/domain';
+import { randomUUID } from 'node:crypto';
+import { resolveRecipeLabels, applyCard, dismissCard, type Repo, type Card, type Recipe, type AttachmentKind } from '@kitchen/domain';
 import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
@@ -54,6 +55,8 @@ export interface TelegramDeps {
   log?: FastifyBaseLogger;
   /** Username бота для botInfo без getMe (типово з env TELEGRAM_BOT_USERNAME). */
   botUsername?: string | null;
+  /** Р150: завантажити файл Telegram за file_id (бот — через getFile + telegramFetch; тести — стаб). */
+  downloadFile?: (file_id: string) => Promise<{ buffer: Buffer; content_type: string | null }>;
   /** Тести: власний хід замість runChatTurn. */
   turn?: (input: ChatTurnInput) => Promise<ChatTurnOutput>;
   now?: () => Date;
@@ -96,7 +99,26 @@ export const COPY = {
   replyFailed: 'Я подумав. Відповідь — ні. Повторити?',
   tooMany: 'Дай хвилину — і продовжимо.',
   openWeb: (appUrl: string) => `Відкрити у вебі: ${appUrl}/app`,
+  // Р150 (постановка 14.09): кнопки й підписи для вкладень — нові слова, на рішення власника.
+  toPantry: 'У комору',
+  notNeeded: 'Не треба',
+  added: (n: number) => `Додав у комору · ${n}`,
+  notAdded: 'Не додав',
+  fileUnsupported: 'Такий файл не читаю — фото, PDF або текст',
+  fileTooBig: 'Завеликий файл — до 20 МБ',
+  photoHint: 'Якщо чек не розібрався — надішли його як файл, без стиснення',
 } as const;
+
+/** Ліміт файлу — як у вебі (server.ts multipart fileSize). */
+export const TELEGRAM_FILE_MAX = 20 * 1024 * 1024;
+/** Що приймаємо з Telegram: фото (image/jpeg), документи image/*, PDF, plain text. */
+export function attachmentKindOf(content_type: string | null | undefined): AttachmentKind | null {
+  const ct = (content_type ?? '').toLowerCase();
+  if (ct.startsWith('image/')) return 'image';
+  if (ct === 'application/pdf') return 'pdf';
+  if (ct === 'text/plain') return 'text';
+  return null;
+}
 
 /** Екранування для parse_mode: 'HTML' (Telegram приймає лише &, <, >). */
 export function escapeHtml(s: string): string {
@@ -180,7 +202,7 @@ export function renderCardText(card: Card | null | undefined): string | null {
     }
     case 'intake_diff': {
       const rows = card.ops.map((o) => {
-        if (o.op === 'add') return `+ ${o.label}${o.value != null ? ` · ${o.value}${o.unit ? ' ' + o.unit : ''}` : ''}`;
+        if (o.op === 'add') return `+ ${o.label}${o.value != null ? ` · ${formatQty(o.value, o.unit)}` : ''}`;
         if (o.op === 'deplete') return `− ${o.label}`;
         if (o.op === 'open') return `відкрито: ${o.label}`;
         if (o.op === 'rename') return `${o.label} → ${o.to}`;
@@ -238,7 +260,103 @@ export function splitByBlocks(text: string, boundary: RegExp, max = TELEGRAM_MSG
   return out;
 }
 
-export type TelegramReply = { messages: string[]; html: boolean } | null;
+/** Клавіатура — до ОСТАННЬОГО повідомлення; data — `apply:<card_id>` / `dismiss:<card_id>`. */
+export type TelegramReply = { messages: string[]; html: boolean; keyboard?: { text: string; data: string }[][] } | null;
+
+export interface IncomingFile {
+  update_id: number;
+  telegram_user_id: number;
+  chat_id: number;
+  /** photo — найбільший розмір; document — як є. */
+  source: 'photo' | 'document';
+  file_id: string;
+  file_size?: number | null;
+  mime_type?: string | null;
+  caption?: string | null;
+}
+
+/** Фото або документ → той самий attachment-store і той самий хід із вкладенням, що /v1/chat;
+ *  intake_diff лишається pending і питає кнопками «У комору / Не треба» (callback → applyCard / dismissCard). */
+export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): Promise<TelegramReply> {
+  const now = deps.now?.() ?? new Date();
+  if (seenUpdate(u.update_id, now.getTime())) return null;
+  const plain = (s: string): TelegramReply => ({ messages: [s], html: false });
+  const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
+  const linked = account && !account.revoked_at ? account : null;
+  if (!linked) return plain(COPY.linkFirst(deps.appUrl));
+  if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
+  const content_type = u.source === 'photo' ? 'image/jpeg' : (u.mime_type ?? null);
+  const kind = attachmentKindOf(content_type);
+  if (!kind) return plain(COPY.fileUnsupported);
+  if ((u.file_size ?? 0) > TELEGRAM_FILE_MAX) return plain(COPY.fileTooBig);
+  if (!deps.downloadFile || !deps.store) return plain(COPY.replyFailed);
+  const household_id = await householdOf(deps.repo, linked.user_id);
+  if (!household_id) return plain(COPY.linkFirst(deps.appUrl));
+  const log = deps.log ?? (console as unknown as FastifyBaseLogger);
+  const host: TelemetryHost = { log, telemetry: [] };
+  try {
+    const file = await deps.downloadFile(u.file_id);
+    if (file.buffer.length > TELEGRAM_FILE_MAX) return plain(COPY.fileTooBig);
+    // Рівно те, що робить POST /v1/attachments (routes/attachments.ts): store.put + saveAttachment.
+    const id = randomUUID();
+    const stored = await deps.store.put(id, file.buffer, content_type ?? 'application/octet-stream');
+    await deps.repo.saveAttachment({
+      id, message_id: null, household_id, user_id: linked.user_id, kind, url: stored.url,
+      content_type, bytes: stored.bytes, hint: null, created_at: now.toISOString(),
+    });
+    const turn = deps.turn ?? ((input: ChatTurnInput) => runChatTurn(deps.repo, deps.store ?? noStore, deps.chatOpts ?? {}, input));
+    const out = await turn({
+      user: { user_id: linked.user_id, household_id }, text: u.caption?.trim() || undefined,
+      attachments: [{ id }], channel: 'telegram', attachmentApply: 'pending', host, log,
+    });
+    const card = out.card;
+    if (card?.type === 'intake_diff' && out.card_id && card.ops.length) {
+      const text = [
+        out.reply ? escapeHtml(out.reply) : null,
+        escapeHtml(renderCardText(card)!),
+        escapeHtml(COPY.openWeb(deps.appUrl)),
+      ].filter(Boolean).join('\n\n');
+      return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.toPantry, data: `apply:${out.card_id}` }, { text: COPY.notNeeded, data: `dismiss:${out.card_id}` }]] };
+    }
+    // Нічого не розібрав (нема картки або порожній список): стиснуте фото — підказка про файл.
+    const messages = renderTurnMessages({ reply: out.reply, card }, deps.appUrl);
+    const nothing = !card || (card.type === 'intake_diff' && !card.ops.length);
+    if (u.source === 'photo' && nothing) messages.push(escapeHtml(COPY.photoHint));
+    return messages.length ? { messages, html: true } : plain(COPY.photoHint);
+  } catch (err) {
+    if (!(err instanceof ChatTurnHttpError)) log.error({ err: String(err), telegram_user_id: u.telegram_user_id }, 'telegram-file-failed');
+    return plain(COPY.replyFailed);
+  } finally {
+    await settleTelemetry(host);
+    await flushSentry(1000);
+  }
+}
+
+export interface IncomingCallback { update_id: number; telegram_user_id: number; data: string }
+
+/** Кнопка під карткою → той самий applyCard / dismissCard, що у вебі. Повертає рядок статусу
+ *  для редагування повідомлення (кнопки знімаються); null — дубль або чужа/невідома кнопка. */
+export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCallback): Promise<{ status: string } | null> {
+  const now = deps.now?.() ?? new Date();
+  if (seenUpdate(u.update_id, now.getTime())) return null;
+  const m = u.data.match(/^(apply|dismiss):([0-9a-f-]{36})$/);
+  if (!m) return null;
+  const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
+  const linked = account && !account.revoked_at ? account : null;
+  if (!linked) return { status: COPY.linkFirst(deps.appUrl) };
+  try {
+    if (m[1] === 'apply') {
+      const r = await applyCard(deps.repo, m[2]!, [], linked.user_id);
+      return { status: COPY.added(r.applied) };
+    }
+    await dismissCard(deps.repo, m[2]!, linked.user_id);
+    return { status: COPY.notAdded };
+  } catch (err) {
+    // Уже застосовано/відхилено, чужа картка — кнопки просто знімаємо.
+    (deps.log ?? (console as unknown as FastifyBaseLogger)).warn({ err: String(err), data: u.data }, 'telegram-callback');
+    return { status: COPY.notAdded };
+  }
+}
 
 /** Один апдейт → повідомлення боту (null — нічого не відповідати: дубль або порожньо).
  *  Довгий крок (модель) — усередині; хто кличе, той тримає «typing» (telegram-bot.ts). */
