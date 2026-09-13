@@ -30,6 +30,7 @@ import { Icon } from '../../components/Icon/Icon';
 
 export { ONBOARDING_SEEN_KEY, onboardingSeen, markSeenLocally, shouldShowOnboarding } from './seen';
 import { markSeenLocally } from './seen';
+import { useLightOnly } from '../../lib/useLightOnly';
 
 // Крок 7: позначка — на сервері (welcome_seen_at), локально — кеш.
 function markSeen(userId: string) {
@@ -93,6 +94,9 @@ function Mark() {
 }
 
 export function OnboardingPage() {
+  // Хотфікс 13.09 (рішення власника): онбординг лише світлий, як лендінг — і при
+  // клієнтському переході з /app сюди й назад; після виходу cleanup повертає вибір людини/ОС.
+  useLightOnly();
   const navigate = useNavigate();
   const [step, setStep] = useState(readStep);
   const [dir, setDir] = useState<'f' | 'b'>('f');
