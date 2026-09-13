@@ -573,6 +573,12 @@ export const api = {
 
   // M13 «Мережі»: стан підключення і синк чеків. connect — не fetch, а
   // навігація на /v1/retail/silpo/connect (OAuth-редирект наскрізь браузером).
+  // Р148: Telegram-бот. Контракт зафіксований, сервер робить «ЛЕНДІНГ».
+  telegram: {
+    status: () => req<{ linked: boolean; username: string | null; linked_at: string | null }>('/v1/telegram'),
+    linkToken: () => req<{ url: string; expires_at: string }>('/v1/telegram/link-token', { method: 'POST', body: '{}' }),
+    unlink: () => req<{ ok: true }>('/v1/telegram', { method: 'DELETE' }),
+  },
   retail: {
     status: () => req<{
       silpo: {
@@ -1013,6 +1019,8 @@ export interface MessageInfo {
   // Пул-9 №2: файли, прикріплені до цього ходу (attachment.message_id).
   // Стрічка малює з них мініатюри — і після F5 теж.
   attachments?: { id: string; mime: string | null }[];
+  // Р148: звідки прийшов хід. Відсутнє поле = web (старі рядки й веб-чат).
+  channel?: 'web' | 'telegram';
 }
 
 // Рецепт у бібліотеці. `status` рахує сервер проти поточної комори:

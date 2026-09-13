@@ -60,3 +60,14 @@ describe('messageToTurn: вкладення', () => {
     expect(messageToTurn(msg({ text: 'привіт', attachments: [] })).attachments).toBeUndefined();
   });
 });
+
+// Р148: канал ходу. Повідомлення з Telegram несуть channel: 'telegram';
+// відсутнє поле = web, і тоді мітки на ході нема.
+describe('messageToTurn: канал', () => {
+  it('channel: telegram переноситься на хід', () => {
+    expect(messageToTurn(msg({ channel: 'telegram' })).channel).toBe('telegram');
+  });
+  it('без поля — web', () => {
+    expect(messageToTurn(msg()).channel).toBe('web');
+  });
+});

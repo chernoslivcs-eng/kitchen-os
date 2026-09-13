@@ -266,6 +266,13 @@
   color: var(--muted);
   padding-top: 2px;
 }
+/* Р148: канал ходу — дрібно, --dim, під баблом людини (вирівняно flex-end). */
+.turn-channel {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--dim);
+  padding-top: 2px;
+}
 
 .pending-attachments {
   padding: 10px 22px 0;

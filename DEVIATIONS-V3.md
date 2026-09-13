@@ -3050,3 +3050,31 @@ OS - Prototype.dc.html`, стан emptyChat (renderVals greeting / joke / hints 
 `docs/superpowers/plans/side-by-side/cal-panel/145-running-card-1440-light`
 і `145-running-card-1440-hidden7-light` (стаб підписок: 7 прихованих сезонів;
 локально — PNG у docs git-ignored).
+
+### Р148 · Telegram у профілі й мітка каналу в чаті (постановка «ГОЛОВНИЙ ЧАТ» 13.09; пара до Р147)
+
+Гілка `feat/telegram-profile` від `origin/main` fe82e27, лише `apps/web`; сервер не чіпався —
+працює проти контракту `GET /v1/telegram` · `POST /v1/telegram/link-token` · `DELETE /v1/telegram`
+і поля `message.channel` (відсутнє = web).
+- **Профіль → «Акаунт»**, рядок після «Тариф»: `Telegram` · праворуч «Підключити» — контур, як
+  «Вийти» (`.tgConnect`: 44 на 390, 32 на ≥1024). Клік → POST link-token → на <768 (`TABLET_MIN`)
+  одразу `window.open(url)`; на ≥768 під рядком лінк моноширинним (`--font-mono` 12) +
+  «Скопіювати» (`.svcLink`, стає «Скопійовано») і підпис «Відкрий на телефоні — лінк діє 15 хв»
+  (`--dim`). `linked` → «підключено · @username» і текстова «Відключити» з `confirm()` — тим
+  самим механізмом, що «Вийти з дому», далі DELETE. Завантаження — рядок є, кнопка disabled;
+  помилка статусу чи запиту — текст E1 у рядку (`TELEGRAM.error`, `--danger` 13). Усі тексти —
+  `profile-copy.ts` (`TELEGRAM`). Бандла для цього рядка нема — форма взята з сусідів рядка
+  (`.accRow`, `.svcLink`, `.logout`), ширина копі-рядка на 390 не перевірялась на довгих
+  username (обріз `overflow-wrap: anywhere` на `.accVal`).
+- **Чат**: `MessageInfo.channel` → `Turn.channel` (`messageToTurn`, дефолт `'web'`); хід
+  людини з `'telegram'` отримує під баблом `.turn-channel` «з Telegram» — 11 px, `--dim`, без
+  знака, вирівняно flex-end разом із баблом. **Відхилення від постановки:** «після часу» —
+  часу над репліками в стрічці нема з 6b-5 (Prototype), тож мітка стоїть сама, під баблом.
+- **Тести**: `turns.test.ts` (канал переноситься, дефолт web), `Feed.test.tsx` «Р148 · мітка
+  каналу», `ProfileV2.test.tsx` «Р148 · Telegram у профілі» — не підключено / підключено з
+  confirm→DELETE / помилка / ≥768 лінк показаний / <768 `window.open`.
+- **Пари** (`before-after.mjs`, main :5191 проти гілки :5190, стенд :3012, стаб
+  `/v1/telegram` і `POST /v1/telegram/link-token`; PNG у docs git-ignored — прикріплені до PR):
+  `docs/superpowers/plans/side-by-side/p148/profile-{1440,390}-{unlinked,linked}-{light,dark}`,
+  `profile-1440-link-shown-{light,dark}`, `profile-{1440,390}-error-light`,
+  `chat-{1440,390}-telegram-{light,dark}` (`--stub-messages`, хід із `channel: 'telegram'`).

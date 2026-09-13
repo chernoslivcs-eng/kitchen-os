@@ -382,3 +382,27 @@
 @media (max-width: 767px) {
   .inviteInput { font-size: 16px; }
 }
+
+/* Р148: рядок «Telegram» в «Акаунті». Кнопка — контур, як «Вийти», 44 на 390. */
+.accRowTg { min-height: 52px; }
+@media (min-width: 1024px) { .accRowTg { min-height: 42px; } }
+.tgConnect {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 44px; padding: 0 14px;
+  border: 1px solid var(--line2); border-radius: 12px; background: transparent;
+  font-family: var(--font-body); font-size: 14px; font-weight: 600; color: var(--ink);
+  cursor: pointer;
+}
+.tgConnect:disabled { opacity: .5; cursor: default; }
+@media (min-width: 1024px) { .tgConnect { height: 32px; border-radius: 10px; font-size: 13px; } }
+.tgError { color: var(--danger); font-size: 13px; }
+.tgLinkBox { display: flex; flex-direction: column; gap: 6px; padding: 8px 0 12px; }
+.tgLinkRow { display: flex; align-items: center; gap: 10px; }
+.tgLink {
+  flex: 1; min-width: 0;
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.tgHint { font-size: 12px; color: var(--dim); }
+.accRowTg .svcLink, .tgLinkRow .svcLink { min-height: 44px; display: inline-flex; align-items: center; }
+@media (min-width: 1024px) { .accRowTg .svcLink, .tgLinkRow .svcLink { min-height: 32px; } }

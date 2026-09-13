@@ -79,3 +79,19 @@ export const SECTION = {
 };
 
 export const PLAN_LABEL: Record<string, string> = { beta: 'Бета-тест' };
+
+// Р148: Telegram — рядок в «Акаунті» і мітка каналу в чаті. Один голос із
+// ErrorState/copy.ts: помилка каже, що робити, без «упс».
+export const TELEGRAM = {
+  row: 'Telegram',
+  connect: 'Підключити',
+  disconnect: 'Відключити',
+  linked: (username: string | null) => (username ? `підключено · @${username}` : 'підключено'),
+  copy: 'Скопіювати',
+  copied: 'Скопійовано',
+  linkHint: 'Відкрий на телефоні — лінк діє 15 хв',
+  disconnectConfirm: 'Відключити Telegram? Чат у застосунку лишиться, зникне тільки бот.',
+  error: 'Не вийшло звʼязатись із Telegram. Спробуй ще раз за хвилину.',
+  /** Мітка під реплікою людини в стрічці. */
+  fromChannel: 'з Telegram',
+};

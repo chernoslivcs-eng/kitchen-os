@@ -31,6 +31,8 @@ let chatCalls: ChatCall[];
 let waiting: { resolve: (body: unknown) => void; reject: (e: Error) => void }[];
 let batches: { id: string; label: string; state: string; expires_at: string | null; days: number | null }[];
 let library: { recipes: unknown[]; runs: unknown[] };
+// Р148: історія сьогоднішньої сесії — щоб перевірити мітку каналу на ході.
+let todayMessages: unknown[];
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
@@ -62,7 +64,7 @@ function installFetch() {
     if (url === '/v1/recipes') return json({ recipes: library.recipes });
     if (url === '/v1/cook-runs') return json({ runs: library.runs });
     if (url === '/v1/retail') return json({ silpo: { status: 'none' } });
-    if (url === '/v1/session/today') return json({ session: { id: 's1', created_at: '2026-09-06T06:00:00Z' }, messages: [] });
+    if (url === '/v1/session/today') return json({ session: { id: 's1', created_at: '2026-09-06T06:00:00Z' }, messages: todayMessages });
     if (url === '/v1/attachments') return json({ id: 'att-new', url: '/v1/attachments/att-new/bytes', kind: 'image', bytes: 10, content_type: 'image/jpeg' });
     return json({});
   }));
@@ -101,6 +103,7 @@ async function submit() {
 beforeEach(() => {
   batches = [];
   library = { recipes: [], runs: [] };
+  todayMessages = [];
   useAuth.setState({ me: null });
   installFetch();
   vi.useRealTimers();
@@ -464,5 +467,19 @@ describe('Р140 · порожня розмова ≥768 за Prototype', () => {
     expect(q('[data-empty-hero]')).toBeNull();
     expect(q('[data-empty-below]')).toBeNull();
     expect(q('[data-chat-empty]')).toBeNull();
+  });
+});
+
+describe('Р148 · мітка каналу', () => {
+  it('хід людини з Telegram підписаний «з Telegram», веб-хід — ні', async () => {
+    todayMessages = [
+      { id: 'm1', session_id: 's1', role: 'user', text: 'Купив молоко', card: null, applied: 0, created_at: '2026-09-06T09:07:00Z', channel: 'telegram' },
+      { id: 'm2', session_id: 's1', role: 'user', text: 'І хліб', card: null, applied: 0, created_at: '2026-09-06T09:08:00Z' },
+    ];
+    await mount();
+    const marks = qa('[data-channel="telegram"]');
+    expect(marks).toHaveLength(1);
+    expect(marks[0]!.textContent).toBe('з Telegram');
+    expect(marks[0]!.closest('[id^="turn-"]')!.textContent).toContain('Купив молоко');
   });
 });

@@ -31,6 +31,8 @@ const initial = (): ProfileV2Response => ({
 });
 
 type Call = { url: string; method: string; body: unknown };
+// Р148: стан Telegram у стабі — `null` = сервер відповідає 500.
+let telegram: { linked: boolean; username: string | null; linked_at: string | null } | null;
 let calls: Call[];
 let root: Root;
 let host: HTMLDivElement;
@@ -43,6 +45,9 @@ function installFetch() {
     calls.push({ url, method, body });
     const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
     if (url === '/v1/retail') return json({ silpo: { status: 'unavailable' } });
+    if (url === '/v1/telegram' && method === 'GET') return telegram ? json(telegram) : json({ error: 'boom' }, 500);
+    if (url === '/v1/telegram/link-token' && method === 'POST') return json({ url: 'https://t.me/kitchen_os_bot?start=tok1', expires_at: '2036-01-01T00:00:00.000Z' });
+    if (url === '/v1/telegram' && method === 'DELETE') return json({ ok: true });
     if (url === '/v1/occasions/subscriptions') return json({ subscriptions: [{ occasion_id: 'a', enabled: true }, { occasion_id: 'b', enabled: true }, { occasion_id: 'c', enabled: false }] });
     if (url === '/v1/households/h1/invites' && method === 'GET') return json({ invites: [{ id: 'i1', email: 'guest@x.local', role: 'member', created_at: '2026-09-05T00:00:00.000Z', expires_at: '2036-01-01T00:00:00.000Z', consumed_at: null, revoked_at: null }] });
     if (url === '/v1/households/h1/invite' && method === 'POST') return json({ id: 'i2', household_id: 'h1', email: body.email, role: 'member', expires_at: '2036-01-01T00:00:00.000Z', link: 'http://x/invite?token=t', mail_sent: true });
@@ -68,7 +73,7 @@ async function mount(data = initial()) {
 const edit = (k: string) => host.querySelector<HTMLSpanElement>(`[data-row="${k}"] [contenteditable]`)!;
 const fire = (el: Element, type: string, init: EventInit = {}) => el.dispatchEvent(new Event(type, { bubbles: true, ...init }));
 
-beforeEach(installFetch);
+beforeEach(() => { telegram = { linked: false, username: null, linked_at: null }; installFetch(); });
 afterEach(async () => {
   await act(async () => { root.unmount(); });
   host.remove();
@@ -382,5 +387,62 @@ describe('профіль за Prototype · дім, мережі, акаунт', 
       await act(async () => { await Promise.resolve(); });
       expect(host.querySelector('[data-delete-note]')).toBeNull();
     } finally { useAuth.setState({ status: 'idle', me: null }); }
+  });
+});
+
+// Р148: рядок «Telegram» в «Акаунті» після «Тариф» і мітка каналу в чаті.
+describe('Р148 · Telegram у профілі', () => {
+  const row = () => host.querySelector<HTMLElement>('[data-telegram]')!;
+
+  it('не підключено: рядок після «Тариф», кнопка «Підключити»', async () => {
+    await mount();
+    const rows = [...host.querySelectorAll('[data-section="account"] > div')];
+    const plan = rows.findIndex((r) => r.textContent?.startsWith('Тариф'));
+    expect(rows[plan + 1]!.hasAttribute('data-telegram')).toBe(true);
+    expect(row().textContent).toContain('Telegram');
+    const btn = row().querySelector<HTMLButtonElement>('button')!;
+    expect(btn.textContent).toBe('Підключити');
+    expect(btn.disabled).toBe(false);
+  });
+
+  it('підключено: «підключено · @username» і «Відключити» → підтвердження → DELETE', async () => {
+    telegram = { linked: true, username: 'pylyp', linked_at: '2026-09-10T00:00:00.000Z' };
+    await mount();
+    expect(row().textContent).toContain('підключено · @pylyp');
+    const btn = [...row().querySelectorAll('button')].find((b) => b.textContent === 'Відключити')!;
+    vi.stubGlobal('confirm', vi.fn(() => false));
+    await act(async () => { btn.click(); });
+    expect(calls.filter((c) => c.url === '/v1/telegram' && c.method === 'DELETE')).toHaveLength(0);
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    await act(async () => { btn.click(); });
+    expect(calls.filter((c) => c.url === '/v1/telegram' && c.method === 'DELETE')).toHaveLength(1);
+    expect(row().textContent).toContain('Підключити');
+  });
+
+  it('помилка статусу: рядок є, текст E1 з копірайту', async () => {
+    telegram = null;
+    await mount();
+    expect(row().textContent).toContain('Не вийшло звʼязатись із Telegram');
+  });
+
+  it('≥768: клік → POST link-token → лінк моноширинним, «Скопіювати», підпис про 15 хв', async () => {
+    await mount();
+    await act(async () => { row().querySelector<HTMLButtonElement>('button')!.click(); });
+    expect(calls.filter((c) => c.url === '/v1/telegram/link-token' && c.method === 'POST')).toHaveLength(1);
+    const link = host.querySelector<HTMLElement>('[data-telegram-link]')!;
+    expect(link.textContent).toContain('https://t.me/kitchen_os_bot?start=tok1');
+    expect(host.textContent).toContain('Скопіювати');
+    expect(host.textContent).toContain('лінк діє 15 хв');
+  });
+
+  it('<768: клік → POST → window.open(url), без лінка в рядку', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    await mount();
+    await act(async () => { row().querySelector<HTMLButtonElement>('button')!.click(); });
+    expect(open).toHaveBeenCalledWith('https://t.me/kitchen_os_bot?start=tok1');
+    expect(host.querySelector('[data-telegram-link]')).toBeNull();
+    Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true });
   });
 });

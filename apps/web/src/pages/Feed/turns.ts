@@ -38,6 +38,8 @@ export interface Turn {
   aborted?: boolean;
   // Пул-9 №5: репліка стоїть у черзі — видима одразу, під нею «чекає».
   queued?: boolean;
+  // Р148: канал ходу — «з Telegram» під реплікою людини; web — без мітки.
+  channel?: 'web' | 'telegram';
 }
 
 // Пул-9 №2: мінімум, щоб намалювати мініатюру й відкрити файл. `kind` рахуємо
@@ -77,6 +79,7 @@ export function messageToTurn(m: MessageInfo): Turn {
     // просто не було в MessageInfo.
     undone: !!m.undone_at,
     dismissed: !!m.dismissed_at,
+    channel: m.channel ?? 'web',
     // Пул-9 №2: вкладення переживають F5 — сервер віддає їх у MessageInfo,
     // прив'язаними до ходу через attachment.message_id.
     ...(m.attachments?.length
