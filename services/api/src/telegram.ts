@@ -22,6 +22,8 @@ import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput,
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
 import { flushSentry } from './sentry.js';
 import { makeRateLimiter } from './rate-limit.js';
+import { transcribeTelegramAudio, type SttResult } from './telegram-stt.js';
+import { loadPrompt } from '@kitchen/prompts';
 
 export const TELEGRAM_LINK_TTL_MS = 15 * 60_000;
 /** Ліміт Telegram: 4096 знаків на повідомлення. */
@@ -57,6 +59,8 @@ export interface TelegramDeps {
   botUsername?: string | null;
   /** Р150: завантажити файл Telegram за file_id (бот — через getFile + telegramFetch; тести — стаб). */
   downloadFile?: (file_id: string) => Promise<{ buffer: Buffer; content_type: string | null }>;
+  /** Р151: голос → текст (типово OpenRouter, telegram-stt.ts; тести — стаб). */
+  stt?: (buffer: Buffer, content_type: string | null) => Promise<SttResult>;
   /** Тести: власний хід замість runChatTurn. */
   turn?: (input: ChatTurnInput) => Promise<ChatTurnOutput>;
   now?: () => Date;
@@ -107,7 +111,15 @@ export const COPY = {
   fileUnsupported: 'Такий файл не читаю — фото, PDF або текст',
   fileTooBig: 'Завеликий файл — до 20 МБ',
   photoHint: 'Якщо чек не розібрався — надішли його як файл, без стиснення',
+  // Р151 (постановка 14.09)
+  heard: (text: string) => `Почув: «${text}»`,
+  voiceTooLong: 'Задовге — скажи коротше',
+  voiceUnclear: 'Не розібрав — напиши текстом',
 } as const;
+
+/** Ліміти голосового: 2 хв / 5 МБ (постановка). */
+export const TELEGRAM_VOICE_MAX_SEC = 120;
+export const TELEGRAM_VOICE_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Ліміт файлу — як у вебі (server.ts multipart fileSize). */
 export const TELEGRAM_FILE_MAX = 20 * 1024 * 1024;
@@ -387,32 +399,82 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
   if (!linked) return plain(COPY.linkFirst(deps.appUrl));
   if (text.startsWith('/')) return null;   // інші команди — мовчки
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
+  return textTurn(deps, linked.user_id, u.telegram_user_id, text);
+}
 
-  // Той самий хід, що POST /v1/chat. Хто написав — привʼязана людина; дім — її.
-  const user = await deps.repo.getUser(linked.user_id);
+/** Той самий хід, що POST /v1/chat, для привʼязаної людини; дім — її. Спільне для тексту й голосу. */
+async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: number, text: string, prefix?: string): Promise<TelegramReply> {
+  const plain = (s: string): TelegramReply => ({ messages: [s], html: false });
+  const user = await deps.repo.getUser(user_id);
   if (!user) return plain(COPY.linkFirst(deps.appUrl));
-  const household_id = await householdOf(deps.repo, linked.user_id);
+  const household_id = await householdOf(deps.repo, user_id);
   if (!household_id) return plain(COPY.linkFirst(deps.appUrl));
   const log = deps.log ?? (console as unknown as FastifyBaseLogger);
   const host: TelemetryHost = { log, telemetry: [] };
   try {
     const turn = deps.turn ?? ((input: ChatTurnInput) => runChatTurn(deps.repo, deps.store ?? noStore, deps.chatOpts ?? {}, input));
-    const out = await turn({ user: { user_id: linked.user_id, household_id }, text, channel: 'telegram', host, log });
+    const out = await turn({ user: { user_id, household_id }, text, channel: 'telegram', host, log });
     // Рецепт показує на комору через ing.p (uuid) — як і веб, підставляємо назви партій.
     const card = await withRecipeLabels(deps.repo, household_id, out.card);
     const messages = renderTurnMessages({ reply: out.reply, card }, deps.appUrl);
+    if (prefix) messages.unshift(escapeHtml(prefix));
     return messages.length ? { messages, html: true } : null;
   } catch (err) {
     // 502 model_unavailable і решта — той самий текст, що бачить веб (E1); інцидент
     // уже записано всередині ходу, як і для вебу.
-    if (!(err instanceof ChatTurnHttpError)) log.error({ err: String(err), telegram_user_id: u.telegram_user_id }, 'telegram-turn-failed');
-    return plain(COPY.replyFailed);
+    if (!(err instanceof ChatTurnHttpError)) log.error({ err: String(err), telegram_user_id }, 'telegram-turn-failed');
+    return { messages: [...(prefix ? [prefix] : []), COPY.replyFailed], html: false };
   } finally {
     // У вебі це робить onSend-хук fastify; тут хука нема — чекаємо самі, інакше
     // інцидент і app_event губляться на серверлесі.
     await settleTelemetry(host);
     await flushSentry(1000);
   }
+}
+
+export interface IncomingVoice {
+  update_id: number;
+  telegram_user_id: number;
+  chat_id: number;
+  file_id: string;
+  duration?: number | null;
+  file_size?: number | null;
+  mime_type?: string | null;
+}
+
+/** Голосове/аудіо → getFile → транскрипція (telegram-stt.ts) → «Почув: «…»» + звичайний хід. */
+export async function handleTelegramVoice(deps: TelegramDeps, u: IncomingVoice): Promise<TelegramReply> {
+  const now = deps.now?.() ?? new Date();
+  if (seenUpdate(u.update_id, now.getTime())) return null;
+  const plain = (s: string): TelegramReply => ({ messages: [s], html: false });
+  const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
+  const linked = account && !account.revoked_at ? account : null;
+  if (!linked) return plain(COPY.linkFirst(deps.appUrl));
+  if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
+  if ((u.duration ?? 0) > TELEGRAM_VOICE_MAX_SEC || (u.file_size ?? 0) > TELEGRAM_VOICE_MAX_BYTES) return plain(COPY.voiceTooLong);
+  if (!deps.downloadFile) return plain(COPY.voiceUnclear);
+  const log = deps.log ?? (console as unknown as FastifyBaseLogger);
+  const started = Date.now();
+  let heard: string;
+  try {
+    const file = await deps.downloadFile(u.file_id);
+    if (file.buffer.length > TELEGRAM_VOICE_MAX_BYTES) return plain(COPY.voiceTooLong);
+    const stt = await (deps.stt ?? transcribeTelegramAudio)(file.buffer, file.content_type ?? u.mime_type ?? null);
+    // usage — окремий call telegram_stt (token_usage), профіль smart як у чаті.
+    const household_id = await householdOf(deps.repo, linked.user_id);
+    await deps.repo.logTokenUsage({
+      id: randomUUID(), user_id: linked.user_id, household_id, call: 'telegram_stt', profile: 'smart', model: stt.model,
+      prompt_version: loadPrompt().version, mode: 'live', input_tokens: stt.usage.input, output_tokens: stt.usage.output, cached_tokens: 0,
+      latency_ms: Date.now() - started, prompt_hash: stt.prompt_hash, prompt_chars: null, message_id: null, session_id: null,
+      cache_write_tokens: null, created_at: new Date().toISOString(),
+    });
+    heard = stt.text.trim();
+  } catch (err) {
+    log.warn({ err: String(err), telegram_user_id: u.telegram_user_id }, 'telegram-stt-failed');
+    return plain(COPY.voiceUnclear);
+  }
+  if (!heard) return plain(COPY.voiceUnclear);
+  return textTurn(deps, linked.user_id, u.telegram_user_id, heard, COPY.heard(heard));
 }
 
 async function withRecipeLabels(repo: Repo, household_id: string, card: Card | null): Promise<Card | null> {
