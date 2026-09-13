@@ -245,6 +245,27 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
 
   // ----- Мережі (існуючі ендпоінти M13, без нової логіки) --------------------
   const [retail, setRetail] = useState<RetailStatus>('loading');
+  // Р147: Telegram у профілі — стан з /v1/telegram, посилання з /v1/telegram/link-token.
+  const [telegram, setTelegram] = useState<'loading' | 'none' | 'linked' | 'unavailable'>('loading');
+  const [telegramBusy, setTelegramBusy] = useState(false);
+  const [telegramLink, setTelegramLink] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void api.telegram.status().then((r) => { if (alive) setTelegram(r.linked ? 'linked' : 'none'); }).catch(() => { if (alive) setTelegram('unavailable'); });
+    return () => { alive = false; };
+  }, []);
+  async function telegramConnect() {
+    if (telegramBusy) return; setTelegramBusy(true);
+    try {
+      const r = await api.telegram.linkToken();
+      setTelegramLink(r.url);
+      window.open(r.url, '_blank', 'noopener');
+    } catch { /* рядок лишається як був */ } finally { setTelegramBusy(false); }
+  }
+  async function telegramDisconnect() {
+    if (telegramBusy) return; setTelegramBusy(true);
+    try { await api.telegram.unlink(); setTelegram('none'); setTelegramLink(null); } catch { /* рядок лишається як був */ } finally { setTelegramBusy(false); }
+  }
   const [receiptAt, setReceiptAt] = useState<string | null>(null);
   const [karpaty, setKarpaty] = useState(false);
   const [retailBusy, setRetailBusy] = useState(false);
@@ -405,6 +426,21 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const accountSection = (
     <section className={styles.svc} data-section="account">
       <div className={styles.svcHead}><span className={styles.svcName}>{SECTION.account}</span></div>
+      {/* Р147: Telegram — той самий рядок, що «Сільпо» в Мережах: назва · стан · дія.
+          «Підключити» дає разове посилання t.me/<bot>?start=<token> (15 хв); на столі
+          воно ще й показується текстом, щоб скопіювати в телефон. */}
+      <div className={styles.netRow} data-telegram-row>
+        <span className={styles.netName}>Telegram</span>
+        {telegram === 'linked' && <span className={`${styles.netState} ${styles.metaOk}`}>підключено</span>}
+        {telegram === 'none' && <span className={styles.netState}>без підключення</span>}
+        {telegram === 'none' && <button type="button" className={`${styles.svcLink} ${styles.linkSage}`} data-tap onClick={() => void telegramConnect()} disabled={telegramBusy}>Підключити</button>}
+        {telegram === 'linked' && <button type="button" className={styles.svcLink} data-tap onClick={() => void telegramDisconnect()} disabled={telegramBusy}>Відключити</button>}
+      </div>
+      {telegramLink && telegram === 'none' && (
+        <p className={styles.deleteNote} data-telegram-link>
+          <a href={telegramLink} target="_blank" rel="noreferrer">{telegramLink}</a>
+        </p>
+      )}
       <div className={styles.accRow}>
         <span className={styles.accKey}>{SECTION.email}</span>
         <span className={styles.accVal}>{email}</span>
