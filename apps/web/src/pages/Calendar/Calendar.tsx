@@ -619,13 +619,13 @@ export function CalendarPage() {
                   </button>
                 ))}
                 {/* Р145 (рішення власника 13.09): замість рядка «Приховані сезони · N ·
-                    Свята: …» — вторинна кнопка «Усі підписки» (чіп стану 36/13, як
-                    «Перевірити N» у смузі комори; <600 — на всю ширину, 44) і
-                    поруч дрібно «N приховано», лише коли N > 0. Дія та сама. */}
+                    Свята: …» — кнопка «Каталог подій», така сама, як «Що на вечерю
+                    завтра?» у «Сьогодні» (.c6-ask: 44, чорнило, знак ліворуч); під
+                    нею дрібно по центру «N приховано», лише коли N > 0. Дія та сама. */}
                 <div className={styles['c6-subs-row']}>
-                  <button type="button" className={styles['c6-subs']} data-tap aria-label="Усі підписки"
+                  <button type="button" className={styles['c6-ask']} data-tap aria-label="Усі підписки"
                     onClick={() => showSeries(hidden.length ? 'seasons' : (traditions[0] ?? 'orthodox'))} data-subscriptions>
-                    Усі підписки
+                    <Icon name="sys.calendar" size={16} inherit decorative />Каталог подій
                   </button>
                   {hidden.length > 0 && <span className={styles['c6-hidden']} data-hidden-count>{hidden.length} приховано</span>}
                 </div>

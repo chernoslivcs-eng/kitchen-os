@@ -427,18 +427,13 @@
 .c6-ldot { width: 8px; height: 8px; border-radius: 50%; background: var(--t); flex: none; }
 .c6-ltitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c6-lnote { font-size: 12px; color: var(--muted); white-space: nowrap; }
-/* Р145: «Усі підписки» — вторинна кнопка 36 · 0 12 · r10 · контур line2 · 13/500 muted
-   (як «Перевірити N» у смузі комори); поруч «N приховано» 12 dim. */
-.c6-subs-row { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
-.c6-subs {
-  flex: none; height: 36px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 10px;
-  background: transparent; color: var(--muted); font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-standard);
-}
-.c6-subs:hover { color: var(--ink); }
-.c6-hidden { font-size: 12px; color: var(--dim); white-space: nowrap; }
-/* <1024 картки «Триває» нема (стрічка D3a, вхід у підписки — кнопка шапки), тому
-   мобільного правила для кнопки не потрібно. */
+/* Р145: «Каталог подій» — та сама кнопка, що «Що на вечерю завтра?» (.c6-ask), на всю
+   ширину картки; під нею «N приховано» 12 dim по центру, лише при N > 0. Між
+   списком і кнопкою 12 (gap картки-tight 10 + 2).
+   <1024 картки «Триває» нема (стрічка D3a, вхід у підписки — кнопка шапки). */
+.c6-subs-row { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.c6-subs-row .c6-ask { width: 100%; }
+.c6-hidden { font-size: 12px; color: var(--dim); text-align: center; }
 .c6-empty { font-size: 13px; color: var(--muted); }
 /* 0912 C: хіт 44 у сегментах виду (≥1024) і кнопках шапки; на 360 шапка не стискає «Підписки»/«Подія». */
 .c6-seg button { position: relative; }

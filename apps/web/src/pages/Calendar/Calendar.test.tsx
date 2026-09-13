@@ -174,13 +174,15 @@ describe('панель: подія ↔ підписки — одне з двох
     expect(usePanelStore.getState().active).toBe('subscriptions');
   });
 
-  // Р145 (рішення власника 13.09): у картці «Триває» — кнопка «Усі підписки»
-  // замість рядка «Приховані сезони · N · Свята: …»; «N приховано» — лише при N > 0.
-  it('≥1024: у «Триває» — кнопка «Усі підписки», без переліку конфесій; «N приховано» лише коли є приховані', async () => {
+  // Р145 (рішення власника 13.09): у картці «Триває» — кнопка «Каталог подій» (як
+  // «Що на вечерю завтра?») замість рядка «Приховані сезони · N · Свята: …»;
+  // «N приховано» під нею — лише при N > 0.
+  it('≥1024: у «Триває» — кнопка «Каталог подій» (aria «Усі підписки»), без переліку конфесій; «N приховано» лише коли є приховані', async () => {
     await mount(true);
     const card = host!.querySelector('[data-subscriptions][aria-label="Усі підписки"]')!;
     expect(card).not.toBeNull();
-    expect(card.textContent).toBe('Усі підписки');
+    expect(card.textContent).toBe('Каталог подій');
+    expect(card.querySelector('[data-icon]')).not.toBeNull();
     expect(host!.textContent).not.toContain('Приховані сезони');
     expect(host!.textContent).not.toContain('Свята:');
     expect(host!.querySelector('[data-hidden-count]')).toBeNull();
