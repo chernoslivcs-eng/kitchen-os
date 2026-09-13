@@ -33,3 +33,11 @@ data/nutrition/*-report.json
 # Редизайн v3: артефакти дизайн-розмови (63 МБ), прототипи на них не посилаються
 ai/project/uploads/*.png
 out/
+
+# Скріншоти й записи пар до/після — на диску, не в індексі (аудит 0913 A.6: 630 файлів, 107 МБ)
+docs/superpowers/**/*.png
+docs/superpowers/**/*.webm
+docs/superpowers/**/*.jpg
+docs/superpowers/**/*.jpeg
+docs/superpowers/**/*.gif
+docs/superpowers/**/*.mp4
