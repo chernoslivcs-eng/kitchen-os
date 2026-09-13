@@ -6,7 +6,7 @@ import { detectRepeat, repeatReply } from '../repeat-guard.js';
 import { recipeStaleByNotes } from '../recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
 import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
-import { createPending, applyCard, applyMode, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
+import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from '../chat-history.js';
 import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
@@ -412,9 +412,8 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
     // ставало сирим 500, а клієнт ковтав його мовчки: людина писала в мертвий
     // продукт і не знала. 502 з кодом — клієнт показує «не надіслалось · повторити».
     let call: Awaited<ReturnType<typeof callChat>>;
-    let chatArgs: Parameters<typeof callChat>[0];
     try {
-      call = await callChat(chatArgs = {
+      call = await callChat({
         user_id, session_id: session.id, text: text ?? '', pantry, stage, recentCookRuns,
         history, profileText, profileNotes, vetoIndex, occasions, shopping, recentRecipes, products, retailConnected, retailKarpaty,
         // №4: ситуація рахується сервером із повідомлень сесії — той самий

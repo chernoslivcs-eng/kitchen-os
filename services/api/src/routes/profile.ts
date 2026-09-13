@@ -20,7 +20,7 @@ const isKey = (k: string): k is ProfileFieldKey => (PROFILE_FIELD_KEYS as readon
 
 export function profileRoutes(app: FastifyInstance, repo: Repo) {
   app.get('/v1/profile', { preHandler: authenticated(repo) }, async (req) => {
-    const { user_id, household_id } = requireUser(req);
+    const { user_id } = requireUser(req);
     const [text, notes, veto] = await Promise.all([
       repo.getProfileText(user_id),
       repo.listProfileNotes(user_id, { limit: NOTES_IN_PROMPT }),

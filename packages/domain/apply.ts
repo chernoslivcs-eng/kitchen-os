@@ -12,7 +12,6 @@ import { subscriptionDefault, ruleFromDates } from './periods.js';
 import { CARD_APPLY_MODE } from './card-modes.js';
 import { rebuildVetoIndex } from './veto-index.js';
 import { expiryOnOpen, effectiveExpiry } from './pantry-view.js';
-import type { Tradition } from './occasion-rules.js';
 import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
@@ -21,13 +20,11 @@ import type {
   Card,
   EventCard,
   HouseholdEventRow,
-  IntakeCard,
   IntakeOp,
   PantryBatch,
   PendingCard,
   UndoSnapshot,
   Provenance,
-  ShoppingItemRow,
   Zone,
   Unit,
 } from './types.js';

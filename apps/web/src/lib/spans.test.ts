@@ -5,7 +5,6 @@ import {
 } from './spans';
 import type { EventOccurrence } from '../api';
 
-const DAY = 86_400_000;
 // Понеділок 2026-03-02.
 const mon = new Date(2026, 2, 2).getTime();
 const at = (off: number, h = 0) => new Date(2026, 2, 2 + off, h).getTime();

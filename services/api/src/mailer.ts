@@ -66,7 +66,7 @@ export class SmtpMailer implements Mailer {
   private transporter: Transporter;
   private from: string;
 
-  constructor(private cfg: SmtpConfig) {
+  constructor(cfg: SmtpConfig) {
     this.transporter = createTransport({
       host: cfg.host,
       port: cfg.port,

@@ -12,13 +12,12 @@ import { useIncidentStore } from '../../store/incident';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, useCallback } from 'react';
 import { track } from '../../lib/track';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Logo } from '../../components/Logo/Logo';
 import { Button } from '../../components/Button/Button';
 import { plural } from '../../lib/plural';
 import { applyMode } from '@kitchen/domain/card-modes';
-import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatCard, type ChatResponse, type HouseholdProduct, type MessageInfo, type PantryBatch, type ShoppingItem } from '../../api';
+import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatResponse, type HouseholdProduct, type PantryBatch, type ShoppingItem } from '../../api';
 import { loadPantry } from '../../store/pantryList';
-import { Card, ShoppingListCard, RecipeStreamCard, traceState, labelFor, appliedToast, LivePositions, type LivePosition} from './cards';
+import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, LivePositions, type LivePosition} from './cards';
 import { isIntakeArtifact, isReceiptSourced, pickArtifacts, receiptLines, isWriteOff, survivingBatches, goneLabels } from './artifacts';
 import { BatchCard } from '../Pantry/BatchCard';
 import { formatQty } from '../../lib/units';
@@ -31,18 +30,16 @@ import { usePantryStore } from '../../store/pantry';
 import { useDropZone } from '../../components/DropZone/useDropZone';
 import { DropOverlay } from '../../components/DropZone/DropOverlay';
 import { useNavStore } from '../../store/nav';
-import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { VoiceWave } from '../../components/VoiceWave/VoiceWave';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { speechSupported, startDictation, type Dictation } from '../../lib/speech';
 import { loadCookSession, type CookSession } from '../../lib/cook-session';
-import { CookCountdown } from '../../lib/cook-watch';
 import { useHomeNow } from '../../store/homeNow';
 import { ChatHead } from '../../components/ChatHead/ChatHead';
 import { HomeNowPanel } from '../../components/HomeNow/HomeNow';
 import { toneOfNow } from '../../lib/period';
 import { stepLabelsFrom } from '../../lib/recipe';
-import { type Turn, type TurnAttachment, attachmentKind, hhmm, newId, messageToTurn } from './turns';
+import { type Turn, type TurnAttachment, hhmm, newId, messageToTurn } from './turns';
 import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
@@ -142,13 +139,12 @@ export function Feed() {
       setProfileFields(r.fields);
     } catch { /* офлайн — картки й так нема */ }
   }, []);
-  const [shoppingCount, setShoppingCount] = useState<number>(0);
   // M13 (канвас М6): чи можна пропонувати «зібрати кошик» — мережа активна.
   // cartNudgeShown — раз за сесію стрічки, не на кожен доданий інгредієнт.
   const [retailActive, setRetailActive] = useState(false);
   const cartNudgeShown = useRef(false);
-  // shoppingCount у стейті застарілий одразу після await refreshCounts()
-  // (React ще не перерендерив) — ref синхронізується в тому ж місці.
+  // Лічильник списку — у ref, не в стейті: після await refreshCounts() React
+  // ще не перерендерив, а maybeNudgeCart уже читає актуальне число.
   const shoppingCountRef = useRef(0);
   const [input, setInput] = useState('');
   // Крок О1а: найцінніша подія набору. Людина почала писати (≥10 знаків) і
@@ -202,7 +198,6 @@ export function Feed() {
   // №21: тримач класу composer-focused — знімається на blur і на демонтажі.
   const composerHold = useRef<(() => void) | null>(null);
   useEffect(() => () => { composerHold.current?.(); composerHold.current = null; }, []);
-  const [openingRecipe, setOpeningRecipe] = useState(false);
   const [pending, setPending] = useState<AttachmentUploaded[]>([]);
   const [uploading, setUploading] = useState(false);
   // №24a (Prototype v3.1): перетягування. Кинути можна будь-де в стрічці — хук
@@ -551,7 +546,6 @@ export function Feed() {
       // Мапа id→label: рецепт-повідомлення показує «Вершки 33%», а не «з комори».
       setBatchLabels(new Map(p.batches.map((b) => [b.id, b.label])));
       setStepLabels(stepLabelsFrom(p.batches, p.products));
-      setShoppingCount(s.count);
       shoppingCountRef.current = s.count;
       // 6b-6: капс-рядок «КРАЩЕ НЕ ВІДКЛАДАТИ · …» над композитором знято —
       // у бандлі його нема; ті самі партії (isSoon) живуть у «Дім зараз»
@@ -1085,7 +1079,6 @@ export function Feed() {
     const items = (turn.card.items as { title?: string; desc?: string }[] | undefined) ?? [];
     const pick = items[index];
     if (!pick?.title) return;
-    setOpeningRecipe(true);
     setToast({ id: Date.now(), kind: 'ok', text: 'Складаю рецепт…', persist: true });
     try {
       const { id, recipe, reply } = await api.recipes.generate(pick.title, pick.desc, sessionId ?? undefined);
@@ -1122,8 +1115,6 @@ export function Feed() {
       }
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
-    } finally {
-      setOpeningRecipe(false);
     }
   }
 
@@ -1254,7 +1245,6 @@ export function Feed() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const narrow = headForm === 'narrow';
   // №34: «Дім зараз» шторкою лише на контейнері < 600 (один поріг з панеллю); інакше — накладка праворуч.
   const [homeSheet, setHomeSheet] = useState(false);
   useEffect(() => {

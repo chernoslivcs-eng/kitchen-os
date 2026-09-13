@@ -16,13 +16,12 @@ import { OnboardingCard } from './OnboardingCard';
 // на фронті. Субпуть, не '@kitchen/domain' — той тягне Repo/node:crypto,
 // а веб серверний код не бандлить (той самий принцип, що whenLabel у when.ts).
 import { CARD_BUTTON_LABEL, applyMode } from '@kitchen/domain/card-modes';
-import { PROFILE_FIELDS } from '@kitchen/domain/profile-fields';
 import { formatDuration } from '@kitchen/domain/duration';
 import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { formatQty, formatUnit } from '../../lib/units';
-import { renderStepContent, scaleRecipe } from '../../lib/recipe';
+import { scaleRecipe } from '../../lib/recipe';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
 import { groupShopping, sourceLabel } from './shopping-groups';
@@ -896,7 +895,7 @@ export function CookPhotoCard({ card, applied, applying, dismissed, undone, undo
 // «+ у список» інлайн), кроки з номерами, довгі згорнуті до трьох із
 // «Показати всі N». «Готуємо» веде тільки в Cook Mode; /recipe/:id
 // лишається адресою для «У рецепти» і шерингу.
-export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels, stepLabels }: CardProps) {
+export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: CardProps) {
   const r = card.recipe as Recipe | undefined;
   const rid = card.recipe_id;
   const [listed, setListed] = useState<Set<number>>(new Set());

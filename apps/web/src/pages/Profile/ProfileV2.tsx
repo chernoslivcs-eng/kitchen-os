@@ -111,7 +111,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     void persist(k);
   }
   function onFocus(k: ProfileFieldKey) { setFocus(k); setHintKey((n) => n + 1); }
-  function onKeyDown(k: ProfileFieldKey, row: ProfileRowCopy, e: KeyboardEvent<HTMLSpanElement>) {
+  function onKeyDown(_k: ProfileFieldKey, row: ProfileRowCopy, e: KeyboardEvent<HTMLSpanElement>) {
     if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); return; }
     // Ліміт: набір блокується, лічильник лишається з текстом ліміту.
     if (len(e.currentTarget.textContent ?? '') >= row.max && e.key.length === 1 && !e.metaKey && !e.ctrlKey) e.preventDefault();

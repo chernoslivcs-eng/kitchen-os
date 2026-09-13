@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
 import { currentTheme, setThemeOverride, type ThemeChoice } from '../../theme';
-import { api, type Recipe } from '../../api';
+import { api } from '../../api';
 import { loadPantry } from '../../store/pantryList';
 import { plural } from '../../lib/plural';
 import { formatQty } from '../../lib/units';

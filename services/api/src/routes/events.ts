@@ -465,7 +465,7 @@ export function eventsRoutes(app: FastifyInstance, repo: Repo, opts: { rateLimit
     '/v1/events/year',
     { preHandler: authenticated(repo) },
     async (req, reply) => {
-      const { household_id, user_id } = requireUser(req);
+      const { household_id } = requireUser(req);
       const year = Number(req.query.year);
       if (!Number.isInteger(year) || year < 2000 || year > 2100) {
         return reply.code(400).send({ error: 'year invalid' });
