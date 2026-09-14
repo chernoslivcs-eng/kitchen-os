@@ -244,7 +244,8 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     // UI-NOTES-0914 п. 7а: коротке питання з однією темою довідки — відповідь
     // дослівно, як після тапу по чіпу; модель не викликається (0 $).
     const helpId = text && !summaryTurn ? helpTopicFor(text) : null;
-    const helpTopic = helpId ? helpTopicById(helpId) : null;
+    // 15.09: у боті — TG-варіант тексту (HELP_TOPICS_TG), у вебі — веб.
+    const helpTopic = helpId ? helpTopicById(helpId, input.channel === 'telegram' ? 'telegram' : 'web') : null;
     if (helpTopic && text) {
       if (!session.title) { const title = deriveSessionTitle(text); if (title) await repo.setSessionTitle(session.id, title); }
       input.log.info({ user_id, topic: helpTopic.id }, 'help-topic');

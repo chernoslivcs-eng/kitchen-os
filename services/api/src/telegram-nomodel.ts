@@ -16,10 +16,11 @@ import {
   type Repo, type PantryBatch, type Zone, type NowItem, type Recipe,
 } from '@kitchen/domain';
 import { hasScale, isSoon, freshness } from '@kitchen/domain/shelf-thresholds';
+import { HELP_TOPICS_TG, upcomingEvents, subscribedTraditions, whenLabel, type UpcomingEvent } from '@kitchen/domain';
 import { escapeHtml, splitTelegramText, splitByBlocks, renderRecipeBlocks, formatQty, TELEGRAM_MSG_MAX } from './telegram.js';
 
 // ── розпізнавання команди: латиниця з меню, українська команда, слово з клавіатури ──
-export type QuickCommand = 'pantry' | 'list' | 'recipes' | 'home';
+export type QuickCommand = 'pantry' | 'list' | 'recipes' | 'home' | 'calendar';
 
 // Хотфікс (голова 14.09): /дом — русизм, прибрано; лише українська форма й латиниця з меню.
 const ALIASES: Record<QuickCommand, string[]> = {
@@ -27,6 +28,8 @@ const ALIASES: Record<QuickCommand, string[]> = {
   list: ['/list', '/список', 'список'],
   recipes: ['/recipes', '/рецепти', 'рецепти'],
   home: ['/home', '/дім', 'дім зараз', 'дім'],
+  // 15.09: /calendar — лише команда і меню; reply-клавіатура лишається 2×2.
+  calendar: ['/calendar', '/календар', 'календар'],
 };
 
 /** Текст ходу → одна з чотирьох команд, або null (звичайний хід / інша команда). */
@@ -206,4 +209,64 @@ export async function renderHome(repo: Repo, household_id: string, user_id: stri
   const facts = await collectHomeFacts(repo, household_id, user_id);
   const text = renderHomeText(facts);
   return { messages: [`${text}\n\n${escapeHtml(`Відкрити у вебі: ${web('/app')}`)}`], html: true };
+}
+
+// ── довідки (HELP-CHIPS-TG-0915) ─────────────────────────────────────────
+/** Inline 2×3 з шістьма довідками — після /start і на /help. data — `help:<id>`. */
+export const HELP_KEYBOARD_ROWS: QuickKeyboardBtn[][] = [0, 2, 4].map((i) =>
+  HELP_TOPICS_TG.slice(i, i + 2).map((t) => ({ text: t.chip, data: `help:${t.id}` })));
+/** Ряд без прочитаної (5) — під довідкою, як у вебі. */
+export function helpKeyboardWithout(id: string): QuickKeyboardBtn[][] {
+  const rest = HELP_TOPICS_TG.filter((t) => t.id !== id).map((t) => ({ text: t.chip, data: `help:${t.id}` }));
+  return [rest.slice(0, 2), rest.slice(2, 4), rest.slice(4)].filter((r) => r.length);
+}
+/** Текст довідки для Telegram: абзаци через порожній рядок, **…** → <b>. */
+export function renderHelpHtml(text: string): string {
+  return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+}
+
+// ── /calendar (читання, як /pantry) ──────────────────────────────────────
+export interface CalendarFacts {
+  /** Триває: піст/дієта/гості з nowItems (сезони — окремо). */
+  now: Pick<NowItem, 'kind' | 'title' | 'from' | 'to' | 'strict' | 'source' | 'servings'>[];
+  /** Активні сезони одним рядком. */
+  seasons: string[];
+  /** Найближчі за датою (упорядковано). */
+  upcoming: Pick<UpcomingEvent, 'at' | 'title' | 'kind'>[];
+}
+export const CALENDAR_EMPTY = 'Нічого не триває. Скажи «ми католики» або «в суботу гості» — запишу.';
+export const CALENDAR_HOLIDAYS_HINT = 'Свята додаються словами: «ми католики», «постуємо».';
+
+export async function collectCalendarFacts(repo: Repo, household_id: string, user_id: string, now = new Date()): Promise<CalendarFacts> {
+  const rows = subscribedRows(await repo.listOccasionCatalog(), await repo.listOccasionSubscriptions(household_id));
+  const events = await repo.listOwnEvents(household_id, user_id);
+  const items = nowItems(rows, events, now);
+  const seasons = items.filter((i) => i.kind === 'season' || i.kind === 'editorial').map((i) => i.title);
+  const rest = items.filter((i) => i.kind !== 'season' && i.kind !== 'editorial');
+  const upcoming = upcomingEvents(now, subscribedTraditions(rows), 60, rows);
+  return { now: rest, seasons, upcoming };
+}
+
+export function renderCalendarText(f: CalendarFacts, nowMs = Date.now()): string {
+  const blocks: string[] = [];
+  if (f.now.length) {
+    const lines = f.now.map((i) => {
+      const single = i.from === i.to;
+      const when = single ? `· ${shortDate(i.to)}` : `· до ${shortDate(i.to)}`;
+      const who = i.servings != null ? ` · на ${i.servings}` : '';
+      return `${escapeHtml(i.title)} ${when}${who}`;
+    });
+    blocks.push(`<b>Триває</b>\n${lines.join('\n')}`);
+  }
+  if (f.seasons.length) blocks.push(`<b>Сезони</b>\n${escapeHtml(f.seasons.join(', '))}`);
+  const soon = [...f.upcoming].sort((a, b) => a.at - b.at).slice(0, 3);
+  if (soon.length) blocks.push(`<b>Далі</b>\n${soon.map((s) => `${escapeHtml(s.title)} · ${whenLabel(s.at, nowMs)}`).join('\n')}`);
+  return blocks.length ? blocks.join('\n\n') : CALENDAR_EMPTY;
+}
+export function calendarKeyboard(web: WebLink): QuickKeyboardBtn[][] {
+  return [[{ text: 'Свята', data: 'calendar:holidays' }, openWebBtn(web('/calendar'))]];
+}
+export async function renderCalendar(repo: Repo, household_id: string, user_id: string, web: WebLink): Promise<QuickReply> {
+  const text = renderCalendarText(await collectCalendarFacts(repo, household_id, user_id));
+  return { messages: splitTelegramText(text), html: true, keyboard: calendarKeyboard(web) };
 }

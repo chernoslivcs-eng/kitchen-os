@@ -17,7 +17,9 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, type Repo, type Card, type Recipe, type AttachmentKind } from '@kitchen/domain';
+import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind } from '@kitchen/domain';
+import { saveScriptedTurn } from './chat-turn.js';
+import { localDay } from './local-day.js';
 import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
@@ -29,6 +31,7 @@ import {
   matchQuickCommand, QUICK_KEYBOARD, renderPantry, renderShopping, renderRecipes, renderSavedRecipe, renderHome,
   renderPantryText, renderShoppingText, pantryKeyboard, listKeyboard,
   type QuickReply, type ShoppingLike, type QuickKeyboardBtn,
+  HELP_KEYBOARD_ROWS, helpKeyboardWithout, renderHelpHtml, renderCalendar, renderCalendarText, collectCalendarFacts, calendarKeyboard, CALENDAR_HOLIDAYS_HINT,
   type WebLink,
 } from './telegram-nomodel.js';
 
@@ -112,6 +115,8 @@ export const COPY = {
   /** /start <token> із профілю, а токен уже не діє — не плодимо новий акаунт, просимо натиснути «Підключити» ще раз. */
   linkExpired: 'Лінк із профілю вже не діє — натисни «Підключити» ще раз.',
   stopped: 'Відключив.',
+  /** /help — над рядом шести довідок. */
+  helpPrompt: 'Про що розповісти?',
   /** E1, ErrorState/copy.ts REPLY_FAILED — той самий рядок, що показує веб при падінні моделі. */
   replyFailed: 'Я подумав. Відповідь — ні. Повторити?',
   tooMany: 'Дай хвилину — і продовжимо.',
@@ -440,7 +445,9 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
   const pantry = u.data.match(/^pantry:(soon|all)$/);
   const toggle = u.data.match(/^list-toggle:([0-9a-f-]{36})$/);
   const recipe = u.data.match(/^recipe:([0-9a-f-]{36})$/);
-  if (!pantry && !toggle && !recipe) return null;
+  const help = u.data.match(/^help:(start|telegram|app|list|pantry|calendar)$/);
+  const calendar = u.data.match(/^calendar:(holidays)$/);
+  if (!pantry && !toggle && !recipe && !help && !calendar) return null;
   if (seenUpdate(u.update_id, (deps.now?.() ?? new Date()).getTime())) return null;
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
@@ -448,6 +455,19 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
   const household_id = await householdOf(deps.repo, linked.user_id);
   if (!household_id) return { kind: 'reply', reply: { messages: [COPY.startFirst], html: false } };
   const web = await webLink(deps, linked.user_id);
+  if (help) {
+    // HELP-CHIPS-TG-0915: довідка текстом (TG-варіант), у розмову — як scripted (channel telegram),
+    // під нею — ряд без прочитаної. Без моделі.
+    const topic = helpTopicById(help[1]!, 'telegram')!;
+    const session = await deps.repo.getOrCreateSessionForDay(linked.user_id, localDay());
+    await saveScriptedTurn(deps.repo, session.id, topic, topic.chip, 'telegram');
+    return { kind: 'reply', reply: { messages: splitTelegramText(renderHelpHtml(topic.text)), html: true, keyboard: helpKeyboardWithout(topic.id) } };
+  }
+  if (calendar) {
+    // «Свята»: серія з галочками в боті — наступним PR (рішення власника); поки — та сама відповідь + рядок.
+    const text = renderCalendarText(await collectCalendarFacts(deps.repo, household_id, linked.user_id));
+    return { kind: 'edit', text: `${text}\n\n${escapeHtml(CALENDAR_HOLIDAYS_HINT)}`, keyboard: calendarKeyboard(web) };
+  }
   if (pantry) return { kind: 'edit', text: renderPantryText(await deps.repo.listBatches(household_id), Date.now(), pantry[1] as 'soon' | 'all'), keyboard: pantryKeyboard(web) };
   if (toggle) {
     const items = await deps.repo.listShoppingItems(household_id);
@@ -479,11 +499,12 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
       if (!row) return plain(COPY.linkExpired);
       await deps.repo.linkTelegram({ telegram_user_id: u.telegram_user_id, user_id: row.user_id, chat_id: u.chat_id, linked_at: now.toISOString(), revoked_at: null });
       const user = await deps.repo.getUser(row.user_id);
-      return { messages: [COPY.hello(user?.name?.trim() || 'привіт')], html: false, replyKeyboard: QUICK_KEYBOARD };
+      return { messages: [COPY.hello(user?.name?.trim() || 'привіт')], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
     }
     // PR 2: перший контакт із продуктом — у Telegram. Акаунт без пошти одразу; повторний /start — той самий.
     const r = await signInWithTelegram(deps.repo, { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null }, null, null);
-    return { messages: [COPY.hello(r.user.name?.trim() || 'привіт')], html: false, replyKeyboard: QUICK_KEYBOARD };
+    // HELP-CHIPS-TG-0915: під привітанням — шість довідок 2×3.
+    return { messages: [COPY.hello(r.user.name?.trim() || 'привіт')], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
   }
 
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
@@ -494,6 +515,8 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     return plain(COPY.stopped);
   }
   if (!linked) return plain(COPY.startFirst);
+  // HELP-CHIPS-TG-0915: /help — той самий ряд шести довідок.
+  if (/^\/help(?:@\w+)?$/.test(text)) return { messages: [COPY.helpPrompt], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
   // PR 2: /web — разовий лінк входу у веб (той самий, що на всіх «Відкрити у вебі»).
   if (/^\/web(?:@\w+)?$/.test(text)) {
     const web = await webLink(deps, linked.user_id);
@@ -522,6 +545,7 @@ async function runQuickCommand(cmd: ReturnType<typeof matchQuickCommand> & {}, d
     case 'list': return renderShopping(deps.repo, household_id, web);
     case 'recipes': return renderRecipes(deps.repo, user_id, web);
     case 'home': return renderHome(deps.repo, household_id, user_id, web);
+    case 'calendar': return renderCalendar(deps.repo, household_id, user_id, web);
   }
 }
 
