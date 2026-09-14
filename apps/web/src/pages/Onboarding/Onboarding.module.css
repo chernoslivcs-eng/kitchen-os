@@ -115,7 +115,11 @@
 .inNext:disabled { opacity: .6; cursor: default; }
 /* 390 */
 /* 0912 B (№16): на 390 сцена = вʼюпорт (з клавіатурою — менший), сітка скролиться всередині, «← · Пропустити · Далі» завжди над клавіатурою. */
-.mob.intake { height: calc(100dvh - var(--kb, 0px)); min-height: 0; }
+/* 14.09 (звіт тестувальниці, Chrome iOS 390×740): сцена Семена мала лише min-height:100dvh
+   і overflow:hidden — на висотах 700–780 ілюстрація не стискалась, «Далі» йшла за кадр, а
+   скрол колонки вмикався лише до 700. Сцена = вʼюпорт (як анкета): .col і .ill з min-height:0
+   стискають картинку, кнопки завжди на екрані. */
+.mob.page { height: calc(100dvh - var(--kb, 0px)); min-height: 0; }
 .mob .inGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
 .mob .inControls { padding-bottom: max(80px, calc(20px + env(safe-area-inset-bottom, 0px))); } /* «Далі» над нижніми 80 px (власник, 13.09) */
 /* Хотфікс 14.09: на низьких вʼюпортах (Safari 390×664) сітка має визначену висоту, і auto-рядок тексту з min-height:0 стискався до вільного місця — ілюстрація лягала на підказку. auto — рядок росте до вмісту, зайве скролиться в сітці. */
