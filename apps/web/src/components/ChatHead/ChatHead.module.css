@@ -28,6 +28,8 @@
 .chip-plum { background: var(--plum-bg); color: var(--plum); }
 .chip-sage { background: var(--sage-bg); color: var(--sage); }
 .chip-home { background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
+/* 14.09: «?» — круглий чіп того самого ряду й розміру, що «Дім»; знак 16. */
+.chip-help { width: 32px; padding: 0; justify-content: center; background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
 .chip-on { box-shadow: inset 0 0 0 1.5px var(--ink), var(--sh-a), var(--sh-b); }
 .burger { display: none; }
 
@@ -39,6 +41,7 @@
 @container chat (max-width: 939px) {
   .head { padding: 0 16px 40px; }
   .chip { height: 36px; font-size: 13px; gap: 6px; }
+  .chip-help { width: 36px; }
   .chip > [data-icon] > svg { width: 14px; height: 14px; }
   .long { display: none; }
   .short { display: inline; }

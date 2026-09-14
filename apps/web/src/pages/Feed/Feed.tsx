@@ -16,6 +16,7 @@ import { Button } from '../../components/Button/Button';
 import { plural } from '../../lib/plural';
 import { TELEGRAM } from '../../lib/profile-copy';
 import { applyMode } from '@kitchen/domain/card-modes';
+import { HELP_TOPICS, type HelpTopicId } from '@kitchen/domain/help-topics';
 import { api, ApiError, type ProfileFieldV2, type AttachmentUploaded, type ChatResponse, type HouseholdProduct, type PantryBatch, type ShoppingItem } from '../../api';
 import { loadPantry } from '../../store/pantryList';
 import { Card, ShoppingListCard, RecipeStreamCard, traceState, appliedToast, LivePositions, type LivePosition} from './cards';
@@ -54,19 +55,35 @@ import { useCookStore } from '../../store/cook';
 // Порожня розмова за Prototype (Р140): підказки плейсхолдера і чотири чіпи —
 // слова рівно з renderVals (HINTS / hints).
 const EMPTY_HINTS = ['Кинь чек — розберу', 'Сфотографуй полицю', 'Скажи, що купив', 'Спитай, що на вечерю', 'Надиктуй список'];
-const EMPTY_CHIPS: { key: string; icon: 'cook.serve' | 'live.thinking' | 'sys.list' | 'sys.add'; label: string; short: string; t: string }[] = [
-  { key: 'today', icon: 'cook.serve', label: 'Що зготуємо сьогодні?', short: 'Що зготуємо?', t: 'що зготуємо сьогодні?' },
-  { key: 'exotic', icon: 'live.thinking', label: 'Хочу щось екзотичне', short: 'Екзотичне', t: 'хочу щось екзотичне' },
-  { key: 'list', icon: 'sys.list', label: 'Склади список', short: 'Список', t: 'склади список на тиждень' },
-  { key: 'bought', icon: 'sys.add', label: 'Купив…', short: 'Купив…', t: 'купив ' },
+// UI-NOTES-0914 п. 6: замість чотирьох чіпів-ходів у модель — шість
+// довідок (канон HELP-CHIPS-FINAL-0914). Тап → скриптована репліка, 0 $.
+const EMPTY_CHIPS: { key: HelpTopicId; icon: 'cook.serve' | 'auth.sent' | 'sys.chat' | 'sys.list' | 'sys.pantry' | 'sys.calendar'; label: string }[] = [
+  { key: 'start', icon: 'cook.serve', label: HELP_TOPICS[0]!.chip },
+  { key: 'telegram', icon: 'auth.sent', label: HELP_TOPICS[1]!.chip },
+  { key: 'app', icon: 'sys.chat', label: HELP_TOPICS[2]!.chip },
+  { key: 'list', icon: 'sys.list', label: HELP_TOPICS[3]!.chip },
+  { key: 'pantry', icon: 'sys.pantry', label: HELP_TOPICS[4]!.chip },
+  { key: 'calendar', icon: 'sys.calendar', label: HELP_TOPICS[5]!.chip },
 ];
 
 function CardShell({ plain, className, children }: { plain: boolean; className: string; children: ReactNode }) {
   return plain ? <>{children}</> : <div className={className}>{children}</div>;
 }
 
+// 14.09: переноси рядків лишаються у фразі (абзаци довідок і моделі через
+// порожній рядок; .turn-text — pre-wrap). Раніше \s+ ковтало \n\n — і довідка
+// на мобайлі читалась стіною. Ріжемо по пробілах після крапки і після переносу.
+// 14.09: жирний у довідках — **…** → <strong> ЛИШЕ для scripted-реплік
+// (канон власника ставить розмітку на шляхи й кнопки); у відповідях моделі
+// markdown заборонений, там зірочки лишаються текстом.
+function renderBold(text: string): ReactNode {
+  const parts = text.split(/\*\*(.+?)\*\*/);
+  if (parts.length === 1) return text;
+  return parts.map((p, i) => (i % 2 ? <strong key={i}>{p}</strong> : p));
+}
+
 function splitPhrases(text: string): string[] {
-  const parts = text.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const parts = text.split(/(?<=[.!?…])[ \t]+|(?<=\n)(?=\S)/).filter(Boolean);
   return parts.length ? parts : [text];
 }
 
@@ -323,6 +340,26 @@ export function Feed() {
       text: `У списку ${count} ${plural(count, ['позиція', 'позиції', 'позицій'])}, Сільпо підключено. Зібрати кошик — гляну ціни й наявність?`,
       cartNudge: true, fresh: true,
     }]);
+  }
+
+  // UI-NOTES-0914 п. 6: довідка без моделі. Дві репліки лягають у стрічку
+  // одразу (тексти — з домену, ті самі, що запише сервер), POST лише
+  // зберігає їх у розмову, щоб пережили F5. Не хід моделі: без «думаю».
+  // 14.09: «?» у шапці → ряд шести довідок над композитором (не повідомлення).
+  const [helpOpen, setHelpOpen] = useState(false);
+  function sendScripted(key: HelpTopicId) {
+    const topic = HELP_TOPICS.find((t) => t.id === key);
+    if (!topic) return;
+    setHomeOpen(false);
+    setHelpOpen(false);
+    const time = hhmm();
+    setTurns((prev) => [...prev,
+      { id: newId(), role: 'user', time, text: topic.chip },
+      { id: newId(), role: 'assistant', time, text: topic.text, card: null, fresh: true, scripted: key },
+    ]);
+    void api.chatScripted({ topic: key, session_id: sessionId ?? undefined }).catch((err) => {
+      setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
+    });
   }
 
   // Крок 7: «Показати, що вийшло» — серверний хід без репліки людини; модель
@@ -924,6 +961,7 @@ export function Feed() {
     e.preventDefault();
     const text = input.trim();
     if (!text && pending.length === 0) return;
+    setHelpOpen(false);
     if (sending && queue.length >= QUEUE_MAX) return;
     sentRef.current = true;
     setInput('');
@@ -1239,7 +1277,7 @@ export function Feed() {
   }
   // Порожня розмова за Prototype (Р140, рішення власника 13.09; Р123 знято):
   // вітання на імʼя в кличному відмінку за часом доби, під ним композитор,
-  // під композитором чотири чіпи-підказки і рядок «факт дому». Група стоїть по
+  // під композитором шість чіпів-довідок (14.09) і рядок «факт дому». Група стоїть по
   // центру стрічки (стрічка ≥ вмісту, .composer-wrap росте). При першому
   // надсиланні hero гасне (opacity 0, −6 px, --dur-fast), композитор зʼїжджає
   // вниз за --dur-base (Prototype heroOp / sendShift), стрічка росте від нього.
@@ -1269,12 +1307,6 @@ export function Feed() {
   }, []);
   const meName = useAuth((s) => s.me?.user.name ?? null);
   const heroTitle = greeting(meName);
-  // Чіп → чернетка у композитор із кареткою в кінці; не надсилаємо.
-  function draftFromChip(text: string) {
-    setHomeOpen(false);
-    setInput(text);
-    window.setTimeout(() => { const el = composerInputRef.current; if (!el) return; el.focus(); try { el.setSelectionRange(text.length, text.length); } catch { /* jsdom */ } }, 40);
-  }
   // Плейсхолдер «друкується» (Prototype HINTS): 1 символ / 55 мс, пауза ~1,1 с,
   // стирання по 4; лише поки розмова порожня, чернетка порожня, не слухає й не
   // надсилає. Reduced motion — статичний. Скрінрідеру — статичний aria-placeholder.
@@ -1306,6 +1338,9 @@ export function Feed() {
         onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
         onHome={() => setHomeOpen((v) => !v)}
         homeOpen={homeOpen}
+        // 14.09 (власник): на порожній розмові «?» нема — шість чіпів і так унизу.
+        onHelp={turns.length > 0 ? () => { setHomeOpen(false); setHelpOpen((v) => !v); } : undefined}
+        helpOpen={helpOpen}
         form={headForm}
       />
       {homeOpen && (
@@ -1409,21 +1444,11 @@ export function Feed() {
           <div className={`${styles['empty-hero-m']} ${heroOut ? styles['empty-out'] : ''}`} data-empty-hero data-empty-mobile>
             <h2 className={styles['empty-title-m']}>Що готуємо — з того, що вже є?</h2>
             <div className={styles['empty-chips-m']}>
-              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => askInComposer('Що на вечерю?')} data-empty-chip="dinner">
-                <Icon name="cook.serve" size={12} inherit decorative />Що на вечерю?
-              </button>
-              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => askInComposer('Що є на 20 хвилин?')} data-empty-chip="quick">
-                <Icon name="cook.timer" size={12} inherit decorative />Що є на 20 хвилин?
-              </button>
-              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => pickVia('image/*', 'environment')} data-empty-chip="receipt">
-                <Icon name="sys.receipt" size={12} inherit decorative />Кинь чек
-              </button>
-              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => pickVia('image/*')} data-empty-chip="shelf">
-                <Icon name="sys.gallery" size={12} inherit decorative />Фото полиці
-              </button>
-              <button type="button" className={styles['empty-chip-m']} data-tap onClick={() => navigate('/list')} data-empty-chip="list">
-                <Icon name="sys.list" size={12} inherit decorative />Список на тиждень
-              </button>
+              {EMPTY_CHIPS.map((c) => (
+                <button key={c.key} type="button" className={styles['empty-chip-m']} data-tap onClick={() => sendScripted(c.key)} data-empty-chip={c.key}>
+                  <Icon name={c.icon} size={12} inherit decorative />{c.label}
+                </button>
+              ))}
             </div>
             <p className={styles['empty-hint']}>Кидай чек, фото полиці або текст — розберу</p>
           </div>
@@ -1442,16 +1467,11 @@ export function Feed() {
               t.role === 'assistant' && t.fresh ? (
                 <div className={`${styles['turn-text']} ${styles['reply-phrases']}`}>
                   {splitPhrases(t.text).map((ph, i) => (
-                    <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{ph}{' '}</span>
+                    <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{t.scripted ? renderBold(ph) : ph}{ph.endsWith('\n') ? '' : ' '}</span>
                   ))}
-                  {/* Пул-7 №4: каретка блимає, ПОКИ фрази стрімляться, і гасне. */}
-                  <span
-                    className={styles['stream-caret']}
-                    style={{ animationDelay: `0ms, ${splitPhrases(t.text).length * 150 + 1200}ms` }}
-                  />
                 </div>
               ) : (
-                <div className={styles['turn-text']}>{t.text}</div>
+                <div className={styles['turn-text']}>{t.scripted ? renderBold(t.text) : t.text}</div>
               )
             )}
             {t.attachments && t.attachments.length > 0 && (
@@ -1475,6 +1495,17 @@ export function Feed() {
                     )}
                     {a.name && <span className={styles['att-name']}>{a.name}</span>}
                   </a>
+                ))}
+              </div>
+            )}
+            {t.scripted && t === turns[turns.length - 1] && (
+              /* 14.09: під останньою довідкою — решта довідок (без прочитаної).
+                 Не повідомлення: зникає, щойно нижче зʼявиться будь-яка репліка. */
+              <div className={styles['help-followup']} data-help-followup>
+                {EMPTY_CHIPS.filter((c) => c.key !== t.scripted).map((c) => (
+                  <button key={c.key} type="button" className={styles['empty-chip-m']} data-tap onClick={() => sendScripted(c.key)} data-help-chip={c.key}>
+                    <Icon name={c.icon} size={12} inherit decorative />{c.label}
+                  </button>
                 ))}
               </div>
             )}
@@ -1768,6 +1799,16 @@ export function Feed() {
       {dragging && <DropOverlay />}
 
       <div className={styles['composer-wrap']}>
+        {helpOpen && !historyOpen && (
+          /* 14.09: «?» у шапці — усі шість довідок над композитором, у будь-якій розмові. */
+          <div className={styles['help-row']} data-help-row>
+            {EMPTY_CHIPS.map((c) => (
+              <button key={c.key} type="button" className={styles['empty-chip-m']} data-tap onClick={() => sendScripted(c.key)} data-help-chip={c.key}>
+                <Icon name={c.icon} size={12} inherit decorative />{c.label}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Етап 3 (Components · «Стани дії»): рядок стану НАД композитором —
             тут, а не в кінці стрічки, бо стрічка прокручується, а стан дії
             має бути видний рівно тоді, коли він є.
@@ -2017,10 +2058,9 @@ export function Feed() {
           <div className={`${styles['empty-below']} ${heroOut ? styles['empty-out'] : ''}`} data-empty-below>
             <div className={styles['empty-chips']}>
               {EMPTY_CHIPS.map((c) => (
-                <button key={c.icon} type="button" className={styles['empty-chip']} data-tap onClick={() => draftFromChip(c.t)} data-empty-chip={c.key}>
+                <button key={c.key} type="button" className={styles['empty-chip']} data-tap onClick={() => sendScripted(c.key)} data-empty-chip={c.key}>
                   <Icon name={c.icon} size={16} inherit decorative />
-                  <span className={styles['empty-chip-long']}>{c.label}</span>
-                  <span className={styles['empty-chip-short']}>{c.short}</span>
+                  <span>{c.label}</span>
                 </button>
               ))}
             </div>

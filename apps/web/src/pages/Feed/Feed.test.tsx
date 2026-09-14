@@ -23,11 +23,13 @@ import { usePanelStore } from '../../store/panel';
 import { ArtifactPanel } from '../../components/ArtifactPanel/ArtifactPanel';
 import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
+import { HELP_TOPICS } from '@kitchen/domain/help-topics';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 interface ChatCall { body: { text?: string; attachments?: { id: string }[]; session_id?: string } }
 let chatCalls: ChatCall[];
+let scriptedCalls: { body: { topic?: string } | null }[];
 let waiting: { resolve: (body: unknown) => void; reject: (e: Error) => void }[];
 let batches: { id: string; label: string; state: string; expires_at: string | null; days: number | null }[];
 let library: { recipes: unknown[]; runs: unknown[] };
@@ -42,9 +44,11 @@ const json = (o: unknown) =>
 
 function installFetch() {
   chatCalls = [];
+  scriptedCalls = [];
   waiting = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
+    if (url === '/v1/chat/scripted') { scriptedCalls.push({ body }); return json({ reply: 'ДОВІДКА', card: null, card_id: null, usage: { input: 0, output: 0 }, meta: { promptVersion: 'help-topic', model: 'deterministic', mode: 'stub', scripted: body?.topic } }); }
     if (url === '/v1/chat') {
       chatCalls.push({ body });
       // Виклик зависає, поки тест його сам не відпустить — так видно і
@@ -380,17 +384,23 @@ const desktopMedia = (reduce: boolean) => vi.stubGlobal('matchMedia', (mq: strin
 }));
 
 describe('Р123 · порожня розмова <768 (Screens 390)', () => {
-  it('порожньо: блок є, «Що на вечерю?» → текст у композиторі без запиту; блоку Prototype нема', async () => {
+  it('порожньо: блок є, шість чіпів-довідок; тап → довідка без моделі; блоку Prototype нема', async () => {
     await mount();
     expect(q('[data-empty-hero][data-empty-mobile]')).toBeTruthy();
     expect(q('[data-empty-hero] h2')!.textContent).toBe('Що готуємо — з того, що вже є?');
-    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(5);
+    // UI-NOTES-0914 п. 6: шість чіпів-довідок замість чотирьох/пʼяти старих.
+    expect([...host!.querySelectorAll('[data-empty-chip]')].map((c) => c.getAttribute('data-empty-chip'))).toEqual(['start', 'telegram', 'app', 'list', 'pantry', 'calendar']);
     expect(q('[data-empty-below]')).toBeNull();
     expect(q('[data-empty-hero] h1')).toBeNull();
-    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="dinner"]')!.click(); });
-    expect(textarea().value).toBe('Що на вечерю?');
-    expect(chatCalls).toHaveLength(0);
     expect(q('[data-chat-empty-mobile]'), 'екран у мобільному стані порожньої розмови').toBeTruthy();
+    // Тап → дві репліки одразу (підпис чіпа за людину, канон за Кухню), POST /v1/chat/scripted, моделі — нуль.
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    expect(textarea().value).toBe('');
+    expect(chatCalls).toHaveLength(0);
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['pantry']);
+    const texts = [...host!.querySelectorAll('[id^="turn-"]')].map((t) => t.textContent ?? '');
+    expect(texts[0]).toContain('Як працює комора');
+    expect(texts[1]).toContain('Комора показує все, що є вдома, по місцях');
   });
   it('плейсхолдер не друкується, лише один hero у DOM', async () => {
     vi.stubGlobal('matchMedia', (mq: string) => ({ matches: !mq.includes('reduced-motion'), media: mq, addEventListener() {}, removeEventListener() {} }));
@@ -410,7 +420,7 @@ describe('Р123 · порожня розмова <768 (Screens 390)', () => {
 });
 
 describe('Р140 · порожня розмова ≥768 за Prototype', () => {
-  it('вітання на імʼя в кличному; чотири чіпи; «Купив…» → «купив » без запиту', async () => {
+  it('вітання на імʼя в кличному; шість чіпів-довідок; тап → довідка без моделі', async () => {
     desktopMedia(true);
     useAuth.setState({ me: { user: { id: 'u1', name: 'Пилип', email: 'p@x' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] }, session_id: 's1' } as never });
     await mount();
@@ -418,14 +428,16 @@ describe('Р140 · порожня розмова ≥768 за Prototype', () => {
     expect(host!.querySelectorAll('[data-empty-hero]').length).toBe(1);
     expect(q('[data-empty-hero] h1')!.textContent).toBe(greeting('Пилип'));
     expect(q('[data-empty-hero] h1')!.textContent!.startsWith('Пилипе, ')).toBe(true);
-    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(4);
-    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="bought"]')!.click(); });
-    expect(textarea().value).toBe('купив ');
-    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
-    expect(document.activeElement).toBe(textarea());
-    expect(chatCalls).toHaveLength(0);
+    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(6);
     expect(q('[data-chat-empty]'), 'екран у стані порожньої розмови').toBeTruthy();
     expect(q('[data-chat-empty-mobile]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="telegram"]')!.click(); });
+    expect(textarea().value).toBe('');
+    expect(chatCalls).toHaveLength(0);
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['telegram']);
+    expect(host!.textContent).toContain('Так, зі мною можна говорити і в Telegram.');
+    // Розмова вже не порожня — стан порожнього чату знято.
+    expect(q('[data-chat-empty]')).toBeNull();
   });
   it('без імені — без звертання', async () => {
     desktopMedia(true);
@@ -529,5 +541,126 @@ describe('14.09 · шапка чату розчищена (відгук тест
     await act(async () => { cookBtn.click(); });
     expect(usePanelStore.getState().active).toBe('rec-1');
     expect(usePanelStore.getState().open).toBe(true);
+  });
+});
+
+// Доповнення власника 14.09: під ОСТАННЬОЮ реплікою-довідкою — ряд із пʼяти
+// чіпів (без щойно прочитаної теми). Живе лише поки остання репліка — довідка;
+// після F5 упізнається по канонічному тексту (meta на рядку не зберігається).
+describe('довідки · ряд-продовження', () => {
+  const followup = () => [...host!.querySelectorAll('[data-help-followup] [data-help-chip]')].map((c) => c.getAttribute('data-help-chip'));
+  it('після «pantry» — пʼять чіпів без «Як працює комора»; наступний тап → наступна довідка і ряд без неї', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    expect(followup()).toEqual(['start', 'telegram', 'app', 'list', 'calendar']);
+    expect(host!.querySelectorAll('[data-help-followup]').length).toBe(1);
+    await act(async () => { q<HTMLButtonElement>('[data-help-chip="calendar"]')!.click(); });
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['pantry', 'calendar']);
+    expect(host!.querySelectorAll('[data-help-followup]').length).toBe(1);
+    expect(followup()).toEqual(['start', 'telegram', 'app', 'list', 'pantry']);
+  });
+  it('після власного ходу ряду нема', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    await type('що на вечерю'); await submit();
+    expect(q('[data-help-followup]')).toBeNull();
+  });
+  it('F5 після довідки — ряд є (остання репліка — канонічний текст довідки)', async () => {
+    const pantry = HELP_TOPICS.find((t) => t.id === 'pantry')!;
+    todayMessages = [
+      { id: 'm1', session_id: 's1', role: 'user', text: pantry.chip, card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' },
+      { id: 'm2', session_id: 's1', role: 'assistant', text: pantry.text, card: null, applied: 0, created_at: '2026-09-14T09:00:01Z' },
+    ];
+    await mount();
+    expect(followup()).toEqual(['start', 'telegram', 'app', 'list', 'calendar']);
+  });
+});
+
+// 14.09 (власник): «?» у шапці — ряд шести довідок над композитором у будь-якій
+// розмові; повторний тап або власна репліка ховає. Не новий чат.
+describe('довідки · «?» у шапці', () => {
+  const row = () => [...host!.querySelectorAll('[data-help-row] [data-help-chip]')].map((c) => c.getAttribute('data-help-chip'));
+  // Власник 14.09: на порожній розмові «?» нема — шість чіпів і так унизу.
+  it('порожній чат — «?» нема; після першої репліки — є', async () => {
+    await mount();
+    expect(q('[data-chip-help]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="app"]')!.click(); });
+    expect(q('[data-chip-help]')).toBeTruthy();
+  });
+  it('тап «?» → шість чіпів; тап по чіпу → довідка в поточну розмову; повторний «?» ховає', async () => {
+    todayMessages = [{ id: 'm0', session_id: 's1', role: 'user', text: 'привіт', card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' }];
+    await mount();
+    expect(q('[data-help-row]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(row()).toEqual(['start', 'telegram', 'app', 'list', 'pantry', 'calendar']);
+    await act(async () => { q<HTMLButtonElement>('[data-help-row] [data-help-chip="app"]')!.click(); });
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['app']);
+    expect(q('[data-help-row]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(row()).toHaveLength(6);
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(q('[data-help-row]')).toBeNull();
+  });
+  it('власний хід ховає ряд', async () => {
+    todayMessages = [{ id: 'm0', session_id: 's1', role: 'user', text: 'привіт', card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' }];
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(q('[data-help-row]')).toBeTruthy();
+    await type('що на вечерю'); await submit();
+    expect(q('[data-help-row]')).toBeNull();
+  });
+});
+
+// Абзаци канону в стрічці: свіжа репліка ріжеться на фрази для анімації —
+// порожній рядок між абзацами має пережити нарізку (і в довідках, і в моделі).
+describe('довідки · абзаци', () => {
+  it('свіжа довідка: між першим і другим абзацом — порожній рядок', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    const turn = [...host!.querySelectorAll('[id^="turn-"]')][1]!;
+    const text = turn.querySelector('[class*="turn-text"]')!.textContent ?? '';
+    expect(text).toContain('«сир» або «овочі».\n\nНаповнювати її можна');
+    expect(text).not.toMatch(/\n /); // без пробілу на початку абзацу
+  });
+});
+
+// Жирний у довідках (власник 14.09): **…** → <strong> лише для scripted-реплік
+// (свіжа і після F5); у звичайній відповіді моделі markdown заборонений —
+// зірочки лишаються текстом.
+describe('довідки · жирний', () => {
+  it('свіжа довідка: <strong>Профіль</strong>, зірочок у тексті нема', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="start"]')!.click(); });
+    const turn = [...host!.querySelectorAll('[id^="turn-"]')][1]!;
+    expect([...turn.querySelectorAll('strong')].map((s) => s.textContent)).toContain('Профіль');
+    expect(turn.textContent).not.toContain('**');
+  });
+  it('після F5 довідка теж із <strong>', async () => {
+    const start = HELP_TOPICS.find((t) => t.id === 'start')!;
+    todayMessages = [
+      { id: 'm1', session_id: 's1', role: 'user', text: start.chip, card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' },
+      { id: 'm2', session_id: 's1', role: 'assistant', text: start.text, card: null, applied: 0, created_at: '2026-09-14T09:00:01Z' },
+    ];
+    await mount();
+    expect(host!.querySelectorAll('[id^="turn-"] strong').length).toBeGreaterThan(0);
+  });
+  it('звичайна репліка моделі: **x** лишається текстом', async () => {
+    await mount();
+    await type('привіт'); await submit();
+    await act(async () => { waiting[0]!.resolve({ reply: 'Ось **так** буде.' }); await new Promise((r) => setTimeout(r, 0)); });
+    expect(host!.querySelector('[id^="turn-"] strong')).toBeNull();
+    expect(host!.textContent).toContain('**так**');
+  });
+});
+
+// Власник 14.09: зелена каретка стрімінгу «в усі репліки залазить» — знята
+// повністю; анімація появи фраз лишається.
+describe('репліка без каретки', () => {
+  it('свіжа репліка моделі: фрази є, каретки нема', async () => {
+    await mount();
+    await type('привіт'); await submit();
+    await act(async () => { waiting[0]!.resolve({ reply: 'Привіт. Що готуємо?' }); await new Promise((r) => setTimeout(r, 0)); });
+    expect(host!.querySelector('[class*="reply-phrases"]')).toBeTruthy();
+    expect(host!.querySelector('[class*="stream-caret"]')).toBeNull();
   });
 });

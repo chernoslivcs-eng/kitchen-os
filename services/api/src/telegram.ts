@@ -255,14 +255,17 @@ export function renderCardText(card: Card | null | undefined): string | null {
 }
 
 /** Відповідь ходу → повідомлення для Telegram (HTML, ≤ 4096 кожне). */
-export function renderTurnMessages(out: { reply: string | null; card: Card | null }, appUrl: string): string[] {
+export function renderTurnMessages(out: { reply: string | null; card: Card | null; scripted?: boolean }, appUrl: string): string[] {
   const open = escapeHtml(COPY.openWeb(appUrl));
+  // 14.09: довідка (scripted) несе **…** для шляхів і кнопок → <b>; звичайна
+  // репліка моделі markdown не має, зірочки лишаються як є.
+  const replyHtml = (r: string) => (out.scripted ? escapeHtml(r).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') : escapeHtml(r));
   const recipe = out.card?.type === 'recipe' ? out.card.recipe : out.card?.type === 'recipe_link' ? out.card.recipe : undefined;
   if (recipe) {
     // Власник 14.09: після вибору варіанта — повний рецепт, як панель «Рецепт» у вебі.
     // Одне повідомлення, коли ≤ 4096; інакше «заголовок + склад» і «кроки» (крок не рветься).
     const { head, steps } = renderRecipeBlocks(recipe);
-    const reply = out.reply ? escapeHtml(out.reply) + '\n\n' : '';
+    const reply = out.reply ? replyHtml(out.reply) + '\n\n' : '';
     const whole = `${reply}${head}\n\n${steps}\n\n${open}`;
     if (whole.length <= TELEGRAM_MSG_MAX) return [whole];
     const first = `${reply}${head}`;
@@ -270,7 +273,7 @@ export function renderTurnMessages(out: { reply: string | null; card: Card | nul
     return [...splitTelegramText(first), ...splitByBlocks(rest, /\n(?=\d+\. )/)];
   }
   const parts: string[] = [];
-  if (out.reply) parts.push(escapeHtml(out.reply));
+  if (out.reply) parts.push(replyHtml(out.reply));
   const cardText = renderCardText(out.card);
   if (cardText) parts.push(escapeHtml(cardText));
   if (!parts.length) return [];
@@ -365,7 +368,7 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
       return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.toPantry, data: `apply:${out.card_id}` }, { text: COPY.notNeeded, data: `dismiss:${out.card_id}` }]] };
     }
     // Нічого не розібрав (нема картки або порожній список): стиснуте фото — підказка про файл.
-    const messages = renderTurnMessages({ reply: out.reply, card }, deps.appUrl);
+    const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, deps.appUrl);
     const nothing = !card || (card.type === 'intake_diff' && !card.ops.length);
     if (u.source === 'photo' && nothing) messages.push(escapeHtml(COPY.photoHint));
     return messages.length ? { messages, html: true } : plain(COPY.photoHint);
@@ -504,7 +507,7 @@ async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: n
     const out = await turn({ user: { user_id, household_id }, text, channel: 'telegram', host, log });
     // Рецепт показує на комору через ing.p (uuid) — як і веб, підставляємо назви партій.
     const card = await withRecipeLabels(deps.repo, household_id, out.card);
-    const messages = renderTurnMessages({ reply: out.reply, card }, deps.appUrl);
+    const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, deps.appUrl);
     if (prefix) messages.unshift(escapeHtml(prefix));
     return messages.length ? { messages, html: true } : null;
   } catch (err) {

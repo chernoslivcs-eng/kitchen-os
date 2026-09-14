@@ -4,6 +4,7 @@
 // без jsdom і без монтування половини продукту.
 
 import type { ChatCard, MessageInfo } from '../../api';
+import { helpTopicByText, type HelpTopicId } from '@kitchen/domain/help-topics';
 
 export interface Turn {
   id: string;
@@ -40,6 +41,9 @@ export interface Turn {
   queued?: boolean;
   // Р148: канал ходу — «з Telegram» під реплікою людини; web — без мітки.
   channel?: 'web' | 'telegram';
+  // 14.09: репліка-довідка (скриптована, без моделі) — під ОСТАННЬОЮ такою
+  // стрічка малює ряд решти довідок. Після F5 упізнається по канонічному тексту.
+  scripted?: HelpTopicId;
 }
 
 // Пул-9 №2: мінімум, щоб намалювати мініатюру й відкрити файл. `kind` рахуємо
@@ -80,6 +84,7 @@ export function messageToTurn(m: MessageInfo): Turn {
     undone: !!m.undone_at,
     dismissed: !!m.dismissed_at,
     channel: m.channel ?? 'web',
+    ...(m.role === 'assistant' && helpTopicByText(m.text) ? { scripted: helpTopicByText(m.text)!.id } : {}),
     // Пул-9 №2: вкладення переживають F5 — сервер віддає їх у MessageInfo,
     // прив'язаними до ходу через attachment.message_id.
     ...(m.attachments?.length

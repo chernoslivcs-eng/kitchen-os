@@ -659,23 +659,7 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Пул-6 №2: коли rail схований — чат забирає його місце (лишається 56px смужки). */
 
 
-/* Пул-7 №4: каретка стрімінгу — блимає, поки фрази з'являються, потім гасне
-   (тривалість життя задається inline animation-delay від кількості фраз). */
-.stream-caret {
-  display: inline-block;
-  width: 2px;
-  height: 14px;
-  background: var(--sage);
-  vertical-align: -2px;
-  margin-left: 3px;
-  /* Блимання — через токен (під reduce стоїть); caret-gone 1ms — не рух, а
-     затримка зникнення, тривалість тут не має значення і під reduce теж. */
-  animation:
-    caret-blink var(--dur-breathe) steps(2) infinite,
-    caret-gone var(--dur-fast, 1ms) forwards; /* delay інлайном */
-}
-@keyframes caret-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
-@keyframes caret-gone { to { opacity: 0; visibility: hidden; } }
+/* 14.09 (власник): каретка стрімінгу (Пул-7 №4) знята повністю — «в усі репліки залазить». */
 
 /* Пул-7 №4: apply — картка спалахує шавлією 700ms (кіт: ✓ + флеш). */
 .doccard-flash { animation: doccard-flash var(--dur-flash) var(--ease-standard, ease); }
@@ -1406,15 +1390,13 @@ a.att-chip:hover { border-color: var(--sage); }
 .empty-chip > [data-icon] { color: var(--muted); }
 .empty-chip > [data-icon] > svg { width: 15px; height: 15px; }
 .empty-chip:hover { filter: brightness(0.97); }
-.empty-chip-short { display: none; }
 .composer-wrap { transition: flex-grow var(--dur-base) var(--ease-standard); }
 [data-chat-empty] .composer-wrap { flex-grow: 1; }
 [data-chat-empty] .timeline { min-height: fit-content; padding-top: calc(100px + env(safe-area-inset-top, 0px)); }
 [data-chat-empty] .timeline::after { height: 0; }
 [data-chat-empty] .timeline { padding-bottom: 0; } /* Prototype feedPad 0: h1 → композитор = 18 */
 @container chat (max-width: 703px) {
-  .empty-chip-long { display: none; }
-  .empty-chip-short { display: inline; }
+  /* 14.09: коротких підписів нема — шість довідок мають повні назви на будь-якій ширині, ряд переноситься. */
   .empty-hero { padding: 0 16px 6px; }
   .empty-below { padding: 0 16px 16px; }
 }
@@ -1426,7 +1408,22 @@ a.att-chip:hover { border-color: var(--sage); }
    підказки. Стрічка: padding-top 64 + safe-area, без min-height: fit-content. */
 .empty-hero-m { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; padding: 0 8px; transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
 .empty-title-m { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); text-wrap: balance; }
-.empty-chips-m { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 640px; }
+/* UI-NOTES-0914 п. 6: на 390 — той самий ряд шести довідок зі скролом, без переносу. */
+.empty-chips-m { display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 16px; }
+.empty-chips-m::-webkit-scrollbar { display: none; }
+/* 14.09: ряд решти довідок під останньою реплікою-довідкою — той самий скрол-ряд, тими самими чіпами. */
+.help-followup { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 4px 0 2px; }
+.help-followup::-webkit-scrollbar { display: none; }
+/* 14.09: ряд довідок над композитором з «?» у шапці — той самий скрол-ряд. */
+.help-row { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 0 8px; }
+.help-row::-webkit-scrollbar { display: none; }
+.help-row > * { flex: none; white-space: nowrap; }
+/* ≥768 — місця вистачає: обидва ряди переносяться, скрол лише на телефоні. */
+@media (min-width: 768px) {
+  .help-followup, .help-row { flex-wrap: wrap; overflow: visible; }
+}
+.help-followup > * { flex: none; white-space: nowrap; }
+.empty-chips-m > * { flex: none; white-space: nowrap; }
 .empty-chip-m {
   display: inline-flex; align-items: center; gap: 6px; flex: none;
   height: 36px; padding: 0 12px;
