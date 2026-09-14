@@ -601,3 +601,16 @@ describe('довідки · «?» у шапці', () => {
     expect(q('[data-help-row]')).toBeNull();
   });
 });
+
+// Абзаци канону в стрічці: свіжа репліка ріжеться на фрази для анімації —
+// порожній рядок між абзацами має пережити нарізку (і в довідках, і в моделі).
+describe('довідки · абзаци', () => {
+  it('свіжа довідка: між першим і другим абзацом — порожній рядок', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    const turn = [...host!.querySelectorAll('[id^="turn-"]')][1]!;
+    const text = turn.querySelector('[class*="turn-text"]')!.textContent ?? '';
+    expect(text).toContain('«сир» або «овочі».\n\nНаповнювати її можна');
+    expect(text).not.toMatch(/\n /); // без пробілу на початку абзацу
+  });
+});

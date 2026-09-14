@@ -30,6 +30,7 @@ describe('довідки без моделі', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.reply).toBe(topic.text);
+    expect(body.reply).toContain('\n\n'); // абзаци канону — і в Telegram-тексті
     expect(body.card).toBeNull();
     expect(body.meta.scripted).toBe('pantry');
     expect(body.meta.model).toBe('deterministic');

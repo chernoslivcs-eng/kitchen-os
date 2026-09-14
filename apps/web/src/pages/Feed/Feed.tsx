@@ -70,8 +70,11 @@ function CardShell({ plain, className, children }: { plain: boolean; className: 
   return plain ? <>{children}</> : <div className={className}>{children}</div>;
 }
 
+// 14.09: переноси рядків лишаються у фразі (абзаци довідок і моделі через
+// порожній рядок; .turn-text — pre-wrap). Раніше \s+ ковтало \n\n — і довідка
+// на мобайлі читалась стіною. Ріжемо по пробілах після крапки і після переносу.
 function splitPhrases(text: string): string[] {
-  const parts = text.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const parts = text.split(/(?<=[.!?…])[ \t]+|(?<=\n)(?=\S)/).filter(Boolean);
   return parts.length ? parts : [text];
 }
 
@@ -1454,7 +1457,7 @@ export function Feed() {
               t.role === 'assistant' && t.fresh ? (
                 <div className={`${styles['turn-text']} ${styles['reply-phrases']}`}>
                   {splitPhrases(t.text).map((ph, i) => (
-                    <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{ph}{' '}</span>
+                    <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{ph}{ph.endsWith('\n') ? '' : ' '}</span>
                   ))}
                   {/* Пул-7 №4: каретка блимає, ПОКИ фрази стрімляться, і гасне. */}
                   <span
