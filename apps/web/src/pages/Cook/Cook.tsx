@@ -416,6 +416,9 @@ export function CookOverlay() {
     let saved = true;
     const opts = {
       skip_pantry: true,
+      // Порційник (14.09): рецепт уже перерахований, servings — явно, щоб
+      // cook_run.servings не залежав від того, чи прочитає сервер recipe.sv.
+      servings: recipe!.sv,
       recipe_id: state.recipeId,
       session_id: sid ?? undefined,
       ask_writeoff: true,

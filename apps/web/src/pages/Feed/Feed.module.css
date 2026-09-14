@@ -962,6 +962,8 @@ a.att-chip:hover { border-color: var(--sage); }
 .recipe-note { margin: 0; font-family: var(--font-body); font-size: 13px; line-height: 1.45; color: var(--muted); }
 .recipe-section { display: flex; flex-direction: column; }
 .recipe-section-head { font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--muted); padding-bottom: 6px; }
+/* Порційник (14.09): підпис зліва, пілюля степера праворуч — як «Склад · 6» у Screens. */
+.recipe-section-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
 .recipe-ing {
   display: flex;
   align-items: center;

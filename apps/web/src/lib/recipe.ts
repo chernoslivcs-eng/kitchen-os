@@ -126,3 +126,25 @@ export function batchMatchesQuery(
     return term.includes(query) || query.includes(term);
   });
 }
+
+// Порційник у панелі (14.09): чи покриває партія потребу рецепта на вибрані
+// порції. Зіставні одиниці — однакові, г↔кг, мл↔л (те саме, що
+// normalizeForBatch на сервері при списанні); решта (шт проти г, пачки,
+// невідома кількість) — 'unknown', і рядок лишається «є», як досі.
+// Рецепт пише одиниці і латиницею ('g'), і по-нашому ('г') — обидва читаємо.
+const UNIT_BASE: Record<string, { base: 'g' | 'ml' | 'pcs' | 'pack'; k: number }> = {
+  g: { base: 'g', k: 1 }, 'г': { base: 'g', k: 1 },
+  kg: { base: 'g', k: 1000 }, 'кг': { base: 'g', k: 1000 },
+  ml: { base: 'ml', k: 1 }, 'мл': { base: 'ml', k: 1 },
+  l: { base: 'ml', k: 1000 }, 'л': { base: 'ml', k: 1000 },
+  pcs: { base: 'pcs', k: 1 }, 'шт': { base: 'pcs', k: 1 },
+  pack: { base: 'pack', k: 1 }, 'пач': { base: 'pack', k: 1 },
+};
+export type Coverage = 'enough' | 'short' | 'unknown';
+export function coversNeed(needV: number | null | undefined, needU: string | null | undefined, haveV: number | null | undefined, haveU: string | null | undefined): Coverage {
+  if (needV == null || haveV == null || !needU || !haveU) return 'unknown';
+  const a = UNIT_BASE[needU.toLowerCase()];
+  const b = UNIT_BASE[haveU.toLowerCase()];
+  if (!a || !b || a.base !== b.base) return 'unknown';
+  return needV * a.k > haveV * b.k ? 'short' : 'enough';
+}

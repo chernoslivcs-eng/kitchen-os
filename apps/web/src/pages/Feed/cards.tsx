@@ -21,7 +21,8 @@ import { Button } from '../../components/Button/Button';
 import { MonoLabel } from '../../components/MonoLabel/MonoLabel';
 import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { formatQty, formatUnit } from '../../lib/units';
-import { scaleRecipe } from '../../lib/recipe';
+import { scaleRecipe, coversNeed } from '../../lib/recipe';
+import { Portions } from '../../components/Portions/Portions';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
 import { groupShopping, sourceLabel } from './shopping-groups';
@@ -904,6 +905,10 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
   const footSlot = useContext(PanelFootSlot);
   const headSlot = useContext(PanelHeadSlot);
   void headSlot;
+  // Порційник (14.09): вибір живе до перерендеру картки — не зберігається.
+  const [servings, setServings] = useState<number | null>(null);
+  // Кількості партій — щоб «N з M» рахувати по вибраних порціях, не лише за фактом партії.
+  const live = useContext(LivePositions);
   if (!rid) return null;
 
   // Старі повідомлення (до рецепта-в-розмові) мають тільки посилання.
@@ -927,8 +932,15 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
     );
   }
 
-  const sv = r.sv ?? 1;
+  const sv = servings ?? r.sv ?? 1;
   const scaled = scaleRecipe(r, sv);
+  // Рядок «бракує»: партії нема — або партія є, але на вибрані порції її
+  // замало (зіставні одиниці: однакові, г↔кг, мл↔л; інакше — «є», як досі).
+  const isMissing = (ing: (typeof scaled.ing)[number]): boolean => {
+    if (!ing.p) return true;
+    const pos = live?.get(ing.p);
+    return !!pos && coversNeed(ing.v, ing.u, pos.value, pos.unit) === 'short';
+  };
 
   // Наявність — тоном, а не гліфом (V2). Те, що вже вдома, іде вниз мутед-
   // сірим: так «БРАКУЄ N» у низу читається просто проти верху списку, і
@@ -936,8 +948,8 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
   // кроках, не в переліку інгредієнтів, — переставляти тут безпечно.
   const ordered = scaled.ing
     .map((ing, i) => ({ ing, i }))
-    .sort((a, b) => Number(!!a.ing.p) - Number(!!b.ing.p));
-  const missIdx = scaled.ing.map((ing, i) => (!ing.p && ing.n ? i : -1)).filter((i) => i >= 0);
+    .sort((a, b) => Number(!isMissing(a.ing)) - Number(!isMissing(b.ing)));
+  const missIdx = scaled.ing.map((ing, i) => (isMissing(ing) && ing.n ? i : -1)).filter((i) => i >= 0);
   const leftToList = missIdx.filter((i) => !listed.has(i));
 
   function addOne(i: number) {
@@ -962,8 +974,8 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
   // 2 порції» без степера, «Склад · N» і «Кроки · N» підписами 12/500, рядки
   // 40 із крапкою роду й волосиною, кола кроків 24 контурні, «Готуємо» 48
   // притиснута до низу картки. «У рецепти» / «Поділитись» тут не живуть —
-  // це сторінка рецепта й картка в стрічці. Порційник знято разом зі
-  // степером: кількості — на sv рецепта (рішення власника 11.09).
+  // це сторінка рецепта й картка в стрічці. Порційник повернуто 14.09
+  // (рішення власника): степер у шапці «Склад · N», як у Screens і на сторінці.
   const total = scaled.ing.length;
   const have = total - missIdx.length;
   const status = missIdx.length === 0
@@ -1007,9 +1019,12 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
       </div>
 
       <section className={styles['recipe-section']} data-recipe-ings>
-        <div className={styles['recipe-section-head']}>Склад · {total}</div>
+        <div className={`${styles['recipe-section-head']} ${styles['recipe-section-head-row']}`}>
+          <span>Склад · {total}</span>
+          <Portions value={sv} onChange={setServings} />
+        </div>
         {ordered.map(({ ing, i }) => {
-          const missing = !ing.p;
+          const missing = isMissing(ing);
           const added = listed.has(i);
           return (
             <div key={i} className={styles['recipe-ing']}

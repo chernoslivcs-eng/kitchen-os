@@ -22,6 +22,7 @@ import { formatDuration } from '@kitchen/domain/duration';
 import { resolveIngName, renderStepContent, stepLabelsFrom, scaleRecipe, type BatchLabels } from '../../lib/recipe';
 import styles from './Recipe.module.css';
 import { Icon } from '../../components/Icon/Icon';
+import { Portions } from '../../components/Portions/Portions';
 import { useCookStore } from '../../store/cook';
 import { statusWord, rescuesLine } from '../Recipes/library';
 
@@ -205,12 +206,8 @@ export function RecipePage() {
       <div className={styles['card-head']}>
         <Icon name="cook.missing" size={16} inherit decorative />Склад · {total}
         <span className={styles['head-gap']} />
-        {/* Порційник (Screens): пілюля на bg «− 2 порції +». */}
-        <span className={styles.portions} role="group" aria-label="Порції">
-          <button type="button" aria-label="Менше порцій" disabled={sv <= 1} onClick={() => setServings(Math.max(1, sv - 1))}><Icon name="sys.less" size={12} inherit decorative /></button>
-          <span className={styles['portions-n']}>{sv} {plural(sv, ['порція', 'порції', 'порцій'])}</span>
-          <button type="button" aria-label="Більше порцій" disabled={sv >= 12} onClick={() => setServings(Math.min(12, sv + 1))}><Icon name="sys.add" size={12} inherit decorative /></button>
-        </span>
+        {/* Порційник (Screens): пілюля на bg «− 2 порції +» — спільний із панеллю в чаті. */}
+        <Portions value={sv} onChange={setServings} />
       </div>
       {recipe.ing.map((ing, i) => {
         const name = resolveIngName(ing, batchLabels);

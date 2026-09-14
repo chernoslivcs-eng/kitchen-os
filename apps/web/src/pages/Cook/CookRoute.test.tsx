@@ -76,3 +76,31 @@ describe('№10 · маршрут відкритий', () => {
     vi.useRealTimers();
   });
 });
+
+// Порційник у панелі (14.09): «Готуємо» на 4 порції → у POST /v1/cook-runs
+// їде перерахований рецепт (ing.v ×2, sv 4) і servings: 4 — списання по них.
+describe('порції → cook-run', () => {
+  it('sv=4: тіло запиту несе recipe.sv 4, ing.v 400 і servings 4', async () => {
+    const calls: { url: string; body: unknown }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, body: init?.body ? JSON.parse(init.body as string) : null });
+      if (url === '/v1/session/today') return json({ session: { id: 's1' }, messages: [] });
+      if (url === '/v1/cook-runs') return json({ id: 'cr1', recipe_id: 'r1', depleted: 0, partial: 0, opened: 0, depleted_batch_ids: [] });
+      return json({ batches: [], products: [] });
+    }));
+    const scaled = { ...RECIPE, sv: 4, ing: [{ n: 'паста', v: 400, u: 'г' }] } as Recipe;
+    useCookStore.getState().open({ recipe: scaled, recipeId: 'r1' });
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter initialEntries={['/x']}><Host /></MemoryRouter>); });
+    await click('[data-step-done]'); await unlock();
+    await click('[data-step-done]'); await unlock();
+    await click('[data-finish]');
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    const run = calls.find((c) => c.url === '/v1/cook-runs')!;
+    expect(run).toBeTruthy();
+    const body = run.body as { recipe: Recipe; servings?: number };
+    expect(body.recipe.sv).toBe(4);
+    expect(body.recipe.ing[0]!.v).toBe(400);
+    expect(body.servings).toBe(4);
+  });
+});

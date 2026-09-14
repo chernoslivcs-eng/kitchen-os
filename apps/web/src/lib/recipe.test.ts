@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderStepContent, resolveIngName, stepIngredients, stepLabelsFrom, scaleRecipe, batchMatchesQuery, type BatchLabels } from './recipe.js';
+import { renderStepContent, resolveIngName, stepIngredients, stepLabelsFrom, scaleRecipe, batchMatchesQuery, coversNeed, type BatchLabels } from './recipe.js';
 
 describe('resolveIngName', () => {
   const labels: BatchLabels = new Map([['b1', 'Моцарела'], ['b2', 'Пелаті']]);
@@ -181,5 +181,24 @@ describe('batchMatchesQuery', () => {
   it('без продукту — тільки назва, як раніше', () => {
     expect(batchMatchesQuery('сир', { label: 'сіль', product_id: null }, byId)).toBe(false);
     expect(batchMatchesQuery('сіль', { label: 'сіль', product_id: null }, byId)).toBe(true);
+  });
+});
+
+// Порційник у панелі (14.09): «можу зараз · N з M» — по ВИБРАНИХ порціях.
+// Рядок «бракує», коли партія є, одиниці зіставні і треба більше, ніж лежить.
+describe('coversNeed', () => {
+  it('вистачає: 300 г проти партії 500 г', () => {
+    expect(coversNeed(300, 'g', 500, 'g')).toBe('enough');
+  });
+  it('не вистачає у г проти кг: 1200 г проти 1 кг → short', () => {
+    expect(coversNeed(1200, 'g', 1, 'kg')).toBe('short');
+    expect(coversNeed(0.8, 'kg', 500, 'g')).toBe('short');
+    expect(coversNeed(1.5, 'l', 2000, 'ml')).toBe('enough');
+  });
+  it('незіставні одиниці або невідома кількість → unknown', () => {
+    expect(coversNeed(2, 'pcs', 500, 'g')).toBe('unknown');
+    expect(coversNeed(200, 'g', null, 'g')).toBe('unknown');
+    expect(coversNeed(undefined, 'g', 500, 'g')).toBe('unknown');
+    expect(coversNeed(200, 'г', 500, 'g')).toBe('enough'); // українське написання з рецепта
   });
 });

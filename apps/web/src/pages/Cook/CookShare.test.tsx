@@ -142,7 +142,7 @@ describe('О2 (3): «Поділитись результатом»', () => {
     // сторі, звідки смуга «не записалось» шле його ще раз.
     const stash = loadUnsavedRun();
     expect(stash?.recipe.t).toBe(RECIPE.t);
-    expect(stash?.opts).toEqual({ skip_pantry: true, recipe_id: undefined, session_id: 's1', ask_writeoff: true });
+    expect(stash?.opts).toEqual({ skip_pantry: true, servings: 2, recipe_id: undefined, session_id: 's1', ask_writeoff: true });
     expect(useIncidentStore.getState().unsavedCook?.recipe.t).toBe(RECIPE.t);
   });
 
