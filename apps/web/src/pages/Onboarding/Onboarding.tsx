@@ -28,7 +28,7 @@ import { track } from '../../lib/track';
 import styles from './Onboarding.module.css';
 import { Icon } from '../../components/Icon/Icon';
 
-export { ONBOARDING_SEEN_KEY, onboardingSeen, markSeenLocally, shouldShowOnboarding } from './seen';
+export { ONBOARDING_SEEN_KEY, ONBOARDING_ENABLED, onboardingSeen, markSeenLocally, shouldShowOnboarding, onboardingRuleWants } from './seen';
 import { markSeenLocally } from './seen';
 import { useLightOnly } from '../../lib/useLightOnly';
 
