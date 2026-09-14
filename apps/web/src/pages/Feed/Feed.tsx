@@ -73,6 +73,15 @@ function CardShell({ plain, className, children }: { plain: boolean; className: 
 // 14.09: переноси рядків лишаються у фразі (абзаци довідок і моделі через
 // порожній рядок; .turn-text — pre-wrap). Раніше \s+ ковтало \n\n — і довідка
 // на мобайлі читалась стіною. Ріжемо по пробілах після крапки і після переносу.
+// 14.09: жирний у довідках — **…** → <strong> ЛИШЕ для scripted-реплік
+// (канон власника ставить розмітку на шляхи й кнопки); у відповідях моделі
+// markdown заборонений, там зірочки лишаються текстом.
+function renderBold(text: string): ReactNode {
+  const parts = text.split(/\*\*(.+?)\*\*/);
+  if (parts.length === 1) return text;
+  return parts.map((p, i) => (i % 2 ? <strong key={i}>{p}</strong> : p));
+}
+
 function splitPhrases(text: string): string[] {
   const parts = text.split(/(?<=[.!?…])[ \t]+|(?<=\n)(?=\S)/).filter(Boolean);
   return parts.length ? parts : [text];
@@ -1457,7 +1466,7 @@ export function Feed() {
               t.role === 'assistant' && t.fresh ? (
                 <div className={`${styles['turn-text']} ${styles['reply-phrases']}`}>
                   {splitPhrases(t.text).map((ph, i) => (
-                    <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{ph}{ph.endsWith('\n') ? '' : ' '}</span>
+                    <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{t.scripted ? renderBold(ph) : ph}{ph.endsWith('\n') ? '' : ' '}</span>
                   ))}
                   {/* Пул-7 №4: каретка блимає, ПОКИ фрази стрімляться, і гасне. */}
                   <span
@@ -1466,7 +1475,7 @@ export function Feed() {
                   />
                 </div>
               ) : (
-                <div className={styles['turn-text']}>{t.text}</div>
+                <div className={styles['turn-text']}>{t.scripted ? renderBold(t.text) : t.text}</div>
               )
             )}
             {t.attachments && t.attachments.length > 0 && (

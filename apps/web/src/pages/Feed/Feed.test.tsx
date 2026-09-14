@@ -614,3 +614,32 @@ describe('довідки · абзаци', () => {
     expect(text).not.toMatch(/\n /); // без пробілу на початку абзацу
   });
 });
+
+// Жирний у довідках (власник 14.09): **…** → <strong> лише для scripted-реплік
+// (свіжа і після F5); у звичайній відповіді моделі markdown заборонений —
+// зірочки лишаються текстом.
+describe('довідки · жирний', () => {
+  it('свіжа довідка: <strong>Профіль</strong>, зірочок у тексті нема', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="start"]')!.click(); });
+    const turn = [...host!.querySelectorAll('[id^="turn-"]')][1]!;
+    expect([...turn.querySelectorAll('strong')].map((s) => s.textContent)).toContain('Профіль');
+    expect(turn.textContent).not.toContain('**');
+  });
+  it('після F5 довідка теж із <strong>', async () => {
+    const start = HELP_TOPICS.find((t) => t.id === 'start')!;
+    todayMessages = [
+      { id: 'm1', session_id: 's1', role: 'user', text: start.chip, card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' },
+      { id: 'm2', session_id: 's1', role: 'assistant', text: start.text, card: null, applied: 0, created_at: '2026-09-14T09:00:01Z' },
+    ];
+    await mount();
+    expect(host!.querySelectorAll('[id^="turn-"] strong').length).toBeGreaterThan(0);
+  });
+  it('звичайна репліка моделі: **x** лишається текстом', async () => {
+    await mount();
+    await type('привіт'); await submit();
+    await act(async () => { waiting[0]!.resolve({ reply: 'Ось **так** буде.' }); await new Promise((r) => setTimeout(r, 0)); });
+    expect(host!.querySelector('[id^="turn-"] strong')).toBeNull();
+    expect(host!.textContent).toContain('**так**');
+  });
+});

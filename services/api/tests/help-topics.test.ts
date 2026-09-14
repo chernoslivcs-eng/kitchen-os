@@ -4,6 +4,7 @@ import { InMemoryRepo, HELP_TOPICS } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
+import { renderTurnMessages } from '../src/telegram.js';
 
 // UI-NOTES-0914 п. 6–7: шість довідок без моделі. Тап по чіпу →
 // POST /v1/chat/scripted {topic}: у розмову лягають репліка людини (підпис
@@ -58,5 +59,14 @@ describe('довідки без моделі', () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const res = await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie }, payload: { text: 'що на вечерю?' } });
     expect(res.json().meta.scripted).toBeUndefined();
+  });
+});
+
+describe('довідка в Telegram', () => {
+  it('**…** → <b>…</b>, решта екранована; звичайна репліка зірочки лишає', () => {
+    const [m] = renderTurnMessages({ reply: 'Відкрий **Профіль → Акаунт** & далі', card: null, scripted: true }, 'https://x');
+    expect(m).toContain('Відкрий <b>Профіль → Акаунт</b> &amp; далі');
+    const [n] = renderTurnMessages({ reply: 'Ось **так**', card: null }, 'https://x');
+    expect(n).toContain('Ось **так**');
   });
 });
