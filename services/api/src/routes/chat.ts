@@ -4,7 +4,9 @@ import type { AttachmentStore } from '../attachment-store.js';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { makeRateLimiter } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
-import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts } from '../chat-turn.js';
+import { runChatTurn, saveScriptedTurn, ChatTurnHttpError, type ChatRouteOpts } from '../chat-turn.js';
+import { helpTopicById } from '@kitchen/domain';
+import { localDay } from '../local-day.js';
 
 export type { ChatRouteOpts } from '../chat-turn.js';
 
@@ -26,6 +28,18 @@ export function chatRoute(app: FastifyInstance, repo: Repo, store: AttachmentSto
       return reply;
     }
   };
+
+  // UI-NOTES-0914 п. 6: тап по чіпу довідки → дві репліки в розмову без
+  // моделі. Ліміт той самий, що в чату (це запис у розмову, не читання).
+  app.post<{ Body: { topic?: string; session_id?: string } }>('/v1/chat/scripted', { preHandler: [authenticated(repo), limitCheck] }, async (req, reply) => {
+    const { user_id } = requireUser(req);
+    const topic = helpTopicById(String(req.body?.topic ?? ''));
+    if (!topic) return reply.code(400).send({ error: 'unknown topic' });
+    let session = req.body?.session_id ? await repo.getSession(req.body.session_id) : null;
+    if (session && session.user_id !== user_id) session = null;
+    if (!session) session = await repo.getOrCreateSessionForDay(user_id, localDay());
+    return saveScriptedTurn(repo, session.id, topic, topic.chip, 'web');
+  });
 
   app.post<{
     Body: {

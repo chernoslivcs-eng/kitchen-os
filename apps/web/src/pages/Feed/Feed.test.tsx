@@ -28,6 +28,7 @@ import { greeting } from '../../lib/greeting';
 
 interface ChatCall { body: { text?: string; attachments?: { id: string }[]; session_id?: string } }
 let chatCalls: ChatCall[];
+let scriptedCalls: { body: { topic?: string } | null }[];
 let waiting: { resolve: (body: unknown) => void; reject: (e: Error) => void }[];
 let batches: { id: string; label: string; state: string; expires_at: string | null; days: number | null }[];
 let library: { recipes: unknown[]; runs: unknown[] };
@@ -42,9 +43,11 @@ const json = (o: unknown) =>
 
 function installFetch() {
   chatCalls = [];
+  scriptedCalls = [];
   waiting = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     const body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
+    if (url === '/v1/chat/scripted') { scriptedCalls.push({ body }); return json({ reply: 'ДОВІДКА', card: null, card_id: null, usage: { input: 0, output: 0 }, meta: { promptVersion: 'help-topic', model: 'deterministic', mode: 'stub', scripted: body?.topic } }); }
     if (url === '/v1/chat') {
       chatCalls.push({ body });
       // Виклик зависає, поки тест його сам не відпустить — так видно і
@@ -380,17 +383,23 @@ const desktopMedia = (reduce: boolean) => vi.stubGlobal('matchMedia', (mq: strin
 }));
 
 describe('Р123 · порожня розмова <768 (Screens 390)', () => {
-  it('порожньо: блок є, «Що на вечерю?» → текст у композиторі без запиту; блоку Prototype нема', async () => {
+  it('порожньо: блок є, шість чіпів-довідок; тап → довідка без моделі; блоку Prototype нема', async () => {
     await mount();
     expect(q('[data-empty-hero][data-empty-mobile]')).toBeTruthy();
     expect(q('[data-empty-hero] h2')!.textContent).toBe('Що готуємо — з того, що вже є?');
-    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(5);
+    // UI-NOTES-0914 п. 6: шість чіпів-довідок замість чотирьох/пʼяти старих.
+    expect([...host!.querySelectorAll('[data-empty-chip]')].map((c) => c.getAttribute('data-empty-chip'))).toEqual(['start', 'telegram', 'app', 'list', 'pantry', 'calendar']);
     expect(q('[data-empty-below]')).toBeNull();
     expect(q('[data-empty-hero] h1')).toBeNull();
-    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="dinner"]')!.click(); });
-    expect(textarea().value).toBe('Що на вечерю?');
-    expect(chatCalls).toHaveLength(0);
     expect(q('[data-chat-empty-mobile]'), 'екран у мобільному стані порожньої розмови').toBeTruthy();
+    // Тап → дві репліки одразу (підпис чіпа за людину, канон за Кухню), POST /v1/chat/scripted, моделі — нуль.
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    expect(textarea().value).toBe('');
+    expect(chatCalls).toHaveLength(0);
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['pantry']);
+    const texts = [...host!.querySelectorAll('[id^="turn-"]')].map((t) => t.textContent ?? '');
+    expect(texts[0]).toContain('Як працює комора');
+    expect(texts[1]).toContain('Комора показує все, що є вдома, по місцях');
   });
   it('плейсхолдер не друкується, лише один hero у DOM', async () => {
     vi.stubGlobal('matchMedia', (mq: string) => ({ matches: !mq.includes('reduced-motion'), media: mq, addEventListener() {}, removeEventListener() {} }));
@@ -410,7 +419,7 @@ describe('Р123 · порожня розмова <768 (Screens 390)', () => {
 });
 
 describe('Р140 · порожня розмова ≥768 за Prototype', () => {
-  it('вітання на імʼя в кличному; чотири чіпи; «Купив…» → «купив » без запиту', async () => {
+  it('вітання на імʼя в кличному; шість чіпів-довідок; тап → довідка без моделі', async () => {
     desktopMedia(true);
     useAuth.setState({ me: { user: { id: 'u1', name: 'Пилип', email: 'p@x' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] }, session_id: 's1' } as never });
     await mount();
@@ -418,14 +427,16 @@ describe('Р140 · порожня розмова ≥768 за Prototype', () => {
     expect(host!.querySelectorAll('[data-empty-hero]').length).toBe(1);
     expect(q('[data-empty-hero] h1')!.textContent).toBe(greeting('Пилип'));
     expect(q('[data-empty-hero] h1')!.textContent!.startsWith('Пилипе, ')).toBe(true);
-    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(4);
-    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="bought"]')!.click(); });
-    expect(textarea().value).toBe('купив ');
-    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
-    expect(document.activeElement).toBe(textarea());
-    expect(chatCalls).toHaveLength(0);
+    expect(host!.querySelectorAll('[data-empty-chip]').length).toBe(6);
     expect(q('[data-chat-empty]'), 'екран у стані порожньої розмови').toBeTruthy();
     expect(q('[data-chat-empty-mobile]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="telegram"]')!.click(); });
+    expect(textarea().value).toBe('');
+    expect(chatCalls).toHaveLength(0);
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['telegram']);
+    expect(host!.textContent).toContain('Так, зі мною можна говорити і в Telegram.');
+    // Розмова вже не порожня — стан порожнього чату знято.
+    expect(q('[data-chat-empty]')).toBeNull();
   });
   it('без імені — без звертання', async () => {
     desktopMedia(true);

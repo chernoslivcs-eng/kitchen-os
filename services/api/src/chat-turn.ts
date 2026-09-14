@@ -15,7 +15,7 @@ import { mergeAttachmentCalls } from './attachment-merge.js';
 import { detectRepeat, repeatReply } from './repeat-guard.js';
 import { recipeStaleByNotes } from './recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
-import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote } from '@kitchen/domain';
+import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
 import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from './chat-history.js';
 import type { AttachmentStore } from './attachment-store.js';
@@ -55,6 +55,25 @@ export interface ChatRouteOpts {
   // №4: «додай X» при відкритому кошику — дописати рядок у ТУ САМУ картку,
   // а не перезбирати кошик і не підміняти його однією позицією.
   retailCartExtend?: (user_id: string, card_id: string, items: string[]) => Promise<RetailCartAttempt>;
+}
+
+// UI-NOTES-0914 п. 6–7: довідка без моделі. Той самий шлях для тапу по чіпу
+// (POST /v1/chat/scripted) і для наміру в /v1/chat: у розмову лягають репліка
+// людини (підпис чіпа або її текст) і репліка Кухні з текстом-каноном —
+// звичайні повідомлення, переживають F5. Модель не викликається, нічого не
+// списується, у контекст моделі довідка не потрапляє інакше як історія.
+export async function saveScriptedTurn(
+  repo: Repo, sessionId: string, topic: HelpTopic, userText: string, channel?: 'web' | 'telegram',
+): Promise<ChatTurnOutput> {
+  const now = () => new Date().toISOString();
+  const ch = channel && channel !== 'web' ? { channel } : {};
+  await repo.saveMessage({ id: randomUUID(), session_id: sessionId, role: 'user', text: userText, card: null, applied: 0, created_at: now(), ...ch });
+  await repo.saveMessage({ id: randomUUID(), session_id: sessionId, role: 'assistant', text: topic.text, card: null, applied: 0, created_at: now(), ...ch });
+  return {
+    reply: topic.text, card: null, card_id: null,
+    usage: { input: 0, output: 0 },
+    meta: { promptVersion: 'help-topic', model: 'deterministic', mode: 'stub', scripted: topic.id },
+  };
 }
 
 export interface ChatTurnInput {
@@ -222,6 +241,15 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     const lastMsg = preMessages[preMessages.length - 1];
     const detMeta = { promptVersion: 'post-cook', model: 'deterministic', mode: 'stub' as const };
     const zeroUsage = { input: 0, output: 0 };
+    // UI-NOTES-0914 п. 7а: коротке питання з однією темою довідки — відповідь
+    // дослівно, як після тапу по чіпу; модель не викликається (0 $).
+    const helpId = text && !summaryTurn ? helpTopicFor(text) : null;
+    const helpTopic = helpId ? helpTopicById(helpId) : null;
+    if (helpTopic && text) {
+      if (!session.title) { const title = deriveSessionTitle(text); if (title) await repo.setSessionTitle(session.id, title); }
+      input.log.info({ user_id, topic: helpTopic.id }, 'help-topic');
+      return saveScriptedTurn(repo, session.id, helpTopic, text, input.channel);
+    }
     // Аудит 04.09 (3.1): та сама репліка вдруге після застосованої картки —
     // відповідаємо без моделі (прод s41: повтор дав +58 партій-дублів).
     const repeat = text ? detectRepeat(text, preMessages) : null;

@@ -500,7 +500,7 @@ export interface ChatResponse {
   followup?: string;
   raw_kind?: string | null;
   usage: { input: number; output: number; cached?: number };
-  meta: { promptVersion: string; model: string; mode: 'stub' | 'live' };
+  meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; scripted?: string };
 }
 
 // ----- Ендпоінти ---------------------------------------------------------
@@ -663,6 +663,10 @@ export const api = {
       body: JSON.stringify(input),
       ...(signal ? { signal } : {}),
     }),
+
+  // UI-NOTES-0914 п. 6: довідка без моделі — дві репліки в розмову.
+  chatScripted: (input: { topic: string; session_id?: string }) =>
+    req<ChatResponse>('/v1/chat/scripted', { method: 'POST', body: JSON.stringify(input) }),
 
   // П2: довідник для картки серії і підписки дому.
   occasions: {
