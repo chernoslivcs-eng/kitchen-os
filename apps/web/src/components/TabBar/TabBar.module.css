@@ -46,8 +46,11 @@
   transition: transform var(--dur-base) var(--ease-enter), width var(--dur-base) var(--ease-enter);
 }
 
-/* Шапка: логотип 32 · «Kitchen OS» 17/700 (OS шавлією). */
-.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 14px; }
+/* Шапка: логотип 32 · «Kitchen OS» 17/700 (OS шавлією). Висота фіксована
+   (44, як квадрат .tab) в обох станах — рейка/сайдбар: без неї .brand-name
+   входить у потік ширшого стану своїм line-height і зсуває логотип і всі
+   таби нижче на 3–6.5 px (власник 14.09, виміряно на проді). */
+.brand { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 14px; }
 .brand-name {
   font-family: var(--font-body);
   font-weight: 700;
@@ -227,7 +230,35 @@
 .session-row:hover .session-x, .session-x:focus-visible { opacity: 1; }
 /* 0912 C (№36): на тачі ховера нема — ✕ видно завжди; хіт 44 — data-tap. */
 @media (hover: none) { .session-x { opacity: 1; } }
+/* 14.09 (власник): і за шириною <768 — devtools-емуляція мобільного лишає
+   hover: hover (мишею), тож саму (hover: none) не ловить; ширина надійніша. */
+@media (max-width: 767px) { .session-x { opacity: 1; } }
 .session-x:hover { background: var(--line); color: var(--ink); }
+
+/* 14.09 (власник): підтвердження видалення в самому рядку — «Видалити
+   розмову? · Так · Ні», замість системного confirm() (не показується у
+   вбудованих браузерах/WebView). Висота — як .session (36), щоб рядок не
+   скакав; «Так» — danger, «Ні» — muted, як звичайна дія. */
+.session-confirm {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 36px; width: 100%; padding: 8px 12px;
+  border-radius: 10px;
+}
+.session-confirm-label {
+  flex: 1; min-width: 0;
+  font-family: var(--font-body); font-size: 14px; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.session-confirm-yes, .session-confirm-no {
+  flex: none;
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  padding: 4px 8px; border-radius: 8px;
+}
+.session-confirm-yes { color: var(--danger); }
+.session-confirm-yes:hover { background: var(--danger-bg); }
+.session-confirm-no { color: var(--muted); }
+.session-confirm-no:hover { background: var(--line); color: var(--ink); }
 /* «Історія →» — вхід до архіву розмов; у кадрах його нема (DEVIATIONS Р8x). */
 .session-archive {
   display: flex;

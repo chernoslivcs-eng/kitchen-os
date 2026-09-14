@@ -101,6 +101,23 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     expect(collapsed.decls).toMatch(/opacity var\(--dur-fast\)/);
     expect(collapsed.decls).not.toMatch(/opacity var\(--dur-fast\)[^,;]*\d+ms/);
   });
+  it('14.09 (власник): .brand — фіксована висота 44 в обох станах, лого й перший таб не зсуваються по y', () => {
+    // Без явної height .brand-name (17/700, «Kitchen OS») входить у потік
+    // ширшого стану своєю line-height і піднімає .brand на 3–6.5 px —
+    // виміряно на проді. Фіксована height рятує в обох станах одразу: цей
+    // рядок бере БАЗОВЕ правило .brand (не .wide .brand), тож будь-яке
+    // .wide/.open-перевизначення, що додало б свою height, теж зловиться
+    // попереднім тестом («нічого не їде по y» — .brand у списку ROWS).
+    // Базове правило .brand стоїть ДО anchor «desktop» (спільне для всіх
+    // ширин, не лише ≥768) — шукаємо в повному css, не в зрізі rules.
+    const brandBase = [...css.matchAll(/(^|\})\s*\.brand\s*\{([^{}]*)\}/g)].map((m) => m[2]!)[0]!;
+    expect(brandBase).toMatch(/(^|;)\s*height\s*:\s*44px/);
+    // Перший таб іде одразу після .brand у тій самій колонці (.scroll) —
+    // фіксована height + без display/flex-direction-перемикань (тест вище)
+    // означає: 0 px різниці на y між рейкою і сайдбаром.
+    const wideBrandOverrides = rules.filter((r) => /\.(wide|open)\b/.test(r.sel) && /\.brand\s*$/.test(r.sel));
+    for (const r of wideBrandOverrides) expect(r.decls, `«${r.sel}»`).not.toMatch(/(^|;)\s*height\s*:/);
+  });
   it('слова цілей і вордмарк обрізаються по символах трикрапкою, а не проявляються (власник 13.09)', () => {
     const label = rules.find((r) => r.sel === '.brand-name, .tab > span:nth-child(2)')!;
     expect(label.decls).toMatch(/text-overflow\s*:\s*ellipsis/);

@@ -427,22 +427,30 @@ describe('Р140 · порожня розмова ≥768 за Prototype', () => {
     expect(q('[data-chat-empty]'), 'екран у стані порожньої розмови').toBeTruthy();
     expect(q('[data-chat-empty-mobile]')).toBeNull();
   });
-  it('без імені — без звертання; факт дому з бібліотеки', async () => {
+  it('без імені — без звертання', async () => {
     desktopMedia(true);
     useAuth.setState({ me: null });
-    library = { recipes: [{}, {}], runs: [{}, {}, {}] };
     await mount();
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     const h1 = q('[data-empty-hero] h1')!.textContent!;
     expect(['Що на вечерю?', 'Що готуємо?']).toContain(h1);
-    expect(q('[data-empty-fact]')!.textContent).toBe('Ти зберіг 2 рецепти і приготував 3. Решта живе життям, про яке ми не говоримо.');
   });
-  it('порожня бібліотека — рядка нема; reduced motion — плейсхолдер статичний', async () => {
+  it('reduced motion — плейсхолдер статичний', async () => {
     desktopMedia(true);
     await mount();
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(q('[data-empty-fact]')).toBeNull();
     expect(textarea().placeholder).toBe('Що зʼявилось удома або що готуємо?');
+  });
+  it('14.09 (власник): рядок «факт дому» під чіпами порожнього чату знятий повністю', async () => {
+    desktopMedia(true);
+    library = { recipes: [{}, {}], runs: [{}, {}, {}] };
+    batches = [{ id: 'b1', label: 'молоко', state: 'depleted', expires_at: null, days: null }];
+    await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(q('[data-empty-fact]')).toBeNull();
+    expect(host!.textContent).not.toContain('Решта живе життям');
+    // Чіпи-підказки лишаються — прибрано лише рядок факту під ними.
+    expect(host!.querySelectorAll('[data-empty-chip]').length).toBeGreaterThan(0);
   });
   it('плейсхолдер друкується з HINTS і зупиняється, щойно є чернетка', async () => {
     desktopMedia(false);

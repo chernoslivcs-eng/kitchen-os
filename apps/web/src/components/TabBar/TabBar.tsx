@@ -176,9 +176,30 @@ export function TabBar({ shoppingCount }: Props) {
   // Пул-4 №1: видалення сесії. Активна видалена → свіжа сесія.
   // Моушн-кіт §03: рядок розмови згортається 250ms exit перед тим, як зникнути.
   const [leavingSessions, setLeavingSessions] = useState<Set<string>>(new Set());
-  async function removeSession(e: React.MouseEvent, id: string, title: string | null) {
+  // 14.09 (власник): системний confirm() у вбудованих браузерах/WebView не
+  // показується взагалі (повертає «Скасувати») — замінено на підтвердження
+  // в самому рядку («Видалити розмову? · Так · Ні»), як плашка «Повернути»
+  // в коморі. Гасне саме через 3.5 с або по тапу «Ні» / деінде.
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const confirmTimer = useRef<number | null>(null);
+  function clearConfirmTimer() {
+    if (confirmTimer.current != null) { window.clearTimeout(confirmTimer.current); confirmTimer.current = null; }
+  }
+  function askRemove(e: React.SyntheticEvent, id: string) {
     e.stopPropagation();
-    if (!confirm(`Видалити розмову${title ? ` «${title}»` : ''}? Сам чат зникне, але приготовані страви лишаться в журналі.`)) return;
+    clearConfirmTimer();
+    setConfirmId(id);
+    confirmTimer.current = window.setTimeout(() => setConfirmId(null), 3500);
+  }
+  function cancelRemove(e: React.MouseEvent) {
+    e.stopPropagation();
+    clearConfirmTimer();
+    setConfirmId(null);
+  }
+  async function removeSession(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    clearConfirmTimer();
+    setConfirmId(null);
     setLeavingSessions((prev) => new Set(prev).add(id));
     try {
       await Promise.all([api.session.remove(id), new Promise<void>((res) => window.setTimeout(res, 250))]);
@@ -187,6 +208,23 @@ export function TabBar({ shoppingCount }: Props) {
       if (id === activeSessionId) void navigate('/app', { state: { freshSession: true, at: Date.now() } });
     } catch {/* тихо: рядок лишиться, повторний тап спробує ще */}
   }
+  // Довгий тап (<768, де хрестика на рядку може не бути видно) — те саме
+  // підтвердження, що й хрестик; коротший тап відкриває розмову як завжди.
+  const pressTimer = useRef<number | null>(null);
+  const suppressClick = useRef(false);
+  function sessionPressStart(id: string) {
+    suppressClick.current = false;
+    pressTimer.current = window.setTimeout(() => {
+      suppressClick.current = true;
+      setConfirmId(id);
+      clearConfirmTimer();
+      confirmTimer.current = window.setTimeout(() => setConfirmId(null), 3500);
+    }, 500);
+  }
+  function sessionPressEnd() {
+    if (pressTimer.current != null) { window.clearTimeout(pressTimer.current); pressTimer.current = null; }
+  }
+  useEffect(() => () => { clearConfirmTimer(); sessionPressEnd(); }, []);
 
   return (
     <>
@@ -262,24 +300,38 @@ export function TabBar({ shoppingCount }: Props) {
           const { title } = sessionLabel(s);
           const day = dayLabel(s.day);
           const first = i === 0 || sessions[i - 1]!.day !== s.day;
+          const confirming = confirmId === s.id;
           return (
             <div key={s.id} className={`${styles['session-row']} ${leavingSessions.has(s.id) ? styles['session-leave'] : ''}`}>
               {first && <div className={styles['session-day']}>{day}</div>}
-              <button
-                className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`} data-tap
-                onClick={() => openSession(s.id)}
-                title={title}
-              >
-                <span className={styles['session-title']}>{title}</span>
-              </button>
-              {/* №18: слот 28 існує завжди (opacity, не display) — рядок не
-                  скаче, хрестик по центру рядка. */}
-              <button
-                className={styles['session-x']} data-tap
-                aria-label={`Видалити розмову «${title}»`}
-                onClick={(e) => void removeSession(e, s.id, s.title)}
-                tabIndex={-1}
-              ><Icon name="sys.close" size={16} inherit /></button>
+              {confirming ? (
+                <div className={styles['session-confirm']} role="status">
+                  <span className={styles['session-confirm-label']}>Видалити розмову?</span>
+                  <button type="button" className={styles['session-confirm-yes']} data-tap onClick={(e) => void removeSession(e, s.id)}>Так</button>
+                  <button type="button" className={styles['session-confirm-no']} data-tap onClick={cancelRemove}>Ні</button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    className={`${styles.session} ${s.id === activeSessionId ? styles.active : ''}`} data-tap
+                    onClick={(e) => { if (suppressClick.current) { suppressClick.current = false; return; } e.stopPropagation(); openSession(s.id); }}
+                    onPointerDown={() => sessionPressStart(s.id)}
+                    onPointerUp={sessionPressEnd}
+                    onPointerLeave={sessionPressEnd}
+                    title={title}
+                  >
+                    <span className={styles['session-title']}>{title}</span>
+                  </button>
+                  {/* №18: слот 28 існує завжди (opacity, не display) — рядок не
+                      скаче, хрестик по центру рядка; на <768 видно завжди (14.09). */}
+                  <button
+                    className={styles['session-x']} data-tap
+                    aria-label={`Видалити розмову «${title}»`}
+                    onClick={(e) => askRemove(e, s.id)}
+                    tabIndex={-1}
+                  ><Icon name="sys.close" size={16} inherit /></button>
+                </>
+              )}
             </div>
           );
         })}

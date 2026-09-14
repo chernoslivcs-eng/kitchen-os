@@ -3,9 +3,12 @@
 // 14.09 (рішення власника, відгук тестувальниці): шапка чату розчищена
 // повністю, на будь-якій ширині (`wide`/`mid`/`narrow`) — пілюля розмови
 // (назва сесії, №22), «+ Нова» (дублювала сайдбар/шухляду) і чіп «Чекають
-// на тебе · N» (§11 від 12.09) зняті. Цей файл вартує саме це: жодного з
-// трьох елементів у DOM немає, решта шапки (панель, чіпи стану, «Дім
-// зараз») лишається на місці.
+// на тебе · N» (§11 від 12.09) зняті. Того самого дня (пізніше, окрема
+// правка): чіп дому стиснуто до «⌂ · N» — лише знак і число активних
+// станів, той самий вигляд на всіх ширинах, без слів і без числа при нулі
+// станів. Цей файл вартує все це разом: жодного з трьох знятих елементів
+// у DOM немає, чіп дому — компактний скрізь, решта шапки (панель, чіпи
+// стану) лишається на місці.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { act } from 'react';
@@ -15,9 +18,10 @@ import type { HomeNow } from '../../store/homeNow';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const home: HomeNow = { facts: null, overdue: 0, burning: [], now: [], strict: null, shopping: null };
+const calmHome: HomeNow = { facts: null, overdue: 0, burning: [], now: [], strict: null, shopping: null };
+const busyHome: HomeNow = { facts: null, overdue: 2, burning: [], now: [], strict: null, shopping: null };
 
-function baseProps(form: ChatHeadProps['form']): ChatHeadProps {
+function baseProps(form: ChatHeadProps['form'], home: HomeNow = calmHome): ChatHeadProps {
   return {
     home,
     cookLive: null,
@@ -26,7 +30,6 @@ function baseProps(form: ChatHeadProps['form']): ChatHeadProps {
     onOverdue: () => {},
     onHome: () => {},
     homeOpen: false,
-    quietCount: 0,
     form,
   };
 }
@@ -34,11 +37,11 @@ function baseProps(form: ChatHeadProps['form']): ChatHeadProps {
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 
-async function mount(form: ChatHeadProps['form']) {
+async function mount(form: ChatHeadProps['form'], home?: HomeNow) {
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
-  await act(async () => { root!.render(<ChatHead {...baseProps(form)} />); });
+  await act(async () => { root!.render(<ChatHead {...baseProps(form, home)} />); });
 }
 
 afterEach(() => {
@@ -72,8 +75,17 @@ describe.each(['wide', 'mid', 'narrow'] as const)('ChatHead, форма %s', (fo
     expect(host!.querySelector('[aria-label="Розгорнути панель"]')).not.toBeNull();
   });
 
-  it('чіп «Дім зараз» лишається', async () => {
-    await mount(form);
-    expect(host!.querySelector('[data-chip-home]')).not.toBeNull();
+  it('чіп дому — лише знак, без числа, коли нема активних станів; без слів «Дім»/«зараз»/«ще»/«тихо»', async () => {
+    await mount(form, calmHome);
+    const chip = host!.querySelector('[data-chip-home]')!;
+    expect(chip).not.toBeNull();
+    expect(chip.textContent).toBe('');
+    for (const word of ['Дім', 'зараз', 'ще', 'тихо']) expect(host!.textContent).not.toContain(word);
+  });
+
+  it('чіп дому — знак і число, коли є активний стан (той самий вигляд на всіх формах)', async () => {
+    await mount(form, busyHome);
+    const chip = host!.querySelector('[data-chip-home]')!;
+    expect(chip.textContent!.trim()).toBe('· 1');
   });
 });
