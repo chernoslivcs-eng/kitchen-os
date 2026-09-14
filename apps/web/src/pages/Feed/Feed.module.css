@@ -1427,6 +1427,18 @@ a.att-chip:hover { border-color: var(--sage); }
 /* UI-NOTES-0914 п. 6: на 390 — той самий ряд шести довідок зі скролом, без переносу. */
 .empty-chips-m { display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 16px; }
 .empty-chips-m::-webkit-scrollbar { display: none; }
+/* 14.09: ряд решти довідок під останньою реплікою-довідкою — той самий скрол-ряд, тими самими чіпами. */
+.help-followup { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 4px 0 2px; }
+.help-followup::-webkit-scrollbar { display: none; }
+/* 14.09: ряд довідок над композитором з «?» у шапці — той самий скрол-ряд. */
+.help-row { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 0 8px; }
+.help-row::-webkit-scrollbar { display: none; }
+.help-row > * { flex: none; white-space: nowrap; }
+/* ≥768 — місця вистачає: обидва ряди переносяться, скрол лише на телефоні. */
+@media (min-width: 768px) {
+  .help-followup, .help-row { flex-wrap: wrap; overflow: visible; }
+}
+.help-followup > * { flex: none; white-space: nowrap; }
 .empty-chips-m > * { flex: none; white-space: nowrap; }
 .empty-chip-m {
   display: inline-flex; align-items: center; gap: 6px; flex: none;

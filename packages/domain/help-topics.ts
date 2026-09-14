@@ -51,3 +51,10 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
 export function helpTopicById(id: string): HelpTopic | null {
   return HELP_TOPICS.find((t) => t.id === id) ?? null;
 }
+
+/** Довідка по канонічному тексту репліки — так стрічка впізнає її після F5 (meta на рядку не зберігається). */
+export function helpTopicByText(text: string | null | undefined): HelpTopic | null {
+  if (!text) return null;
+  const t = text.trim();
+  return HELP_TOPICS.find((h) => h.text === t) ?? null;
+}

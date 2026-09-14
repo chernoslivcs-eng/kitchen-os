@@ -23,6 +23,7 @@ import { usePanelStore } from '../../store/panel';
 import { ArtifactPanel } from '../../components/ArtifactPanel/ArtifactPanel';
 import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
+import { HELP_TOPICS } from '@kitchen/domain/help-topics';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -540,5 +541,63 @@ describe('14.09 · шапка чату розчищена (відгук тест
     await act(async () => { cookBtn.click(); });
     expect(usePanelStore.getState().active).toBe('rec-1');
     expect(usePanelStore.getState().open).toBe(true);
+  });
+});
+
+// Доповнення власника 14.09: під ОСТАННЬОЮ реплікою-довідкою — ряд із пʼяти
+// чіпів (без щойно прочитаної теми). Живе лише поки остання репліка — довідка;
+// після F5 упізнається по канонічному тексту (meta на рядку не зберігається).
+describe('довідки · ряд-продовження', () => {
+  const followup = () => [...host!.querySelectorAll('[data-help-followup] [data-help-chip]')].map((c) => c.getAttribute('data-help-chip'));
+  it('після «pantry» — пʼять чіпів без «Як працює комора»; наступний тап → наступна довідка і ряд без неї', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    expect(followup()).toEqual(['start', 'telegram', 'app', 'list', 'calendar']);
+    expect(host!.querySelectorAll('[data-help-followup]').length).toBe(1);
+    await act(async () => { q<HTMLButtonElement>('[data-help-chip="calendar"]')!.click(); });
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['pantry', 'calendar']);
+    expect(host!.querySelectorAll('[data-help-followup]').length).toBe(1);
+    expect(followup()).toEqual(['start', 'telegram', 'app', 'list', 'pantry']);
+  });
+  it('після власного ходу ряду нема', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="pantry"]')!.click(); });
+    await type('що на вечерю'); await submit();
+    expect(q('[data-help-followup]')).toBeNull();
+  });
+  it('F5 після довідки — ряд є (остання репліка — канонічний текст довідки)', async () => {
+    const pantry = HELP_TOPICS.find((t) => t.id === 'pantry')!;
+    todayMessages = [
+      { id: 'm1', session_id: 's1', role: 'user', text: pantry.chip, card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' },
+      { id: 'm2', session_id: 's1', role: 'assistant', text: pantry.text, card: null, applied: 0, created_at: '2026-09-14T09:00:01Z' },
+    ];
+    await mount();
+    expect(followup()).toEqual(['start', 'telegram', 'app', 'list', 'calendar']);
+  });
+});
+
+// 14.09 (власник): «?» у шапці — ряд шести довідок над композитором у будь-якій
+// розмові; повторний тап або власна репліка ховає. Не новий чат.
+describe('довідки · «?» у шапці', () => {
+  const row = () => [...host!.querySelectorAll('[data-help-row] [data-help-chip]')].map((c) => c.getAttribute('data-help-chip'));
+  it('тап «?» → шість чіпів; тап по чіпу → довідка в поточну розмову; повторний «?» ховає', async () => {
+    await mount();
+    expect(q('[data-help-row]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(row()).toEqual(['start', 'telegram', 'app', 'list', 'pantry', 'calendar']);
+    await act(async () => { q<HTMLButtonElement>('[data-help-row] [data-help-chip="app"]')!.click(); });
+    expect(scriptedCalls.map((c) => c.body?.topic)).toEqual(['app']);
+    expect(q('[data-help-row]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(row()).toHaveLength(6);
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(q('[data-help-row]')).toBeNull();
+  });
+  it('власний хід ховає ряд', async () => {
+    await mount();
+    await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
+    expect(q('[data-help-row]')).toBeTruthy();
+    await type('що на вечерю'); await submit();
+    expect(q('[data-help-row]')).toBeNull();
   });
 });

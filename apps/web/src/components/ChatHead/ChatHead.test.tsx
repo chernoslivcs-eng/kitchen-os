@@ -89,3 +89,20 @@ describe.each(['wide', 'mid', 'narrow'] as const)('ChatHead, форма %s', (fo
     expect(chip.textContent!.trim()).toBe('· 1');
   });
 });
+
+// 14.09 (власник): «?» — круглий чіп праворуч, після «Дім», на всіх формах;
+// окремий елемент, щоб не перетинатись із правками самого чіпа «Дім».
+describe('«?» довідка', () => {
+  for (const form of ['wide', 'mid', 'narrow'] as const) {
+    it(`є на ${form}, aria «Довідка», стоїть після чіпа «Дім», тап → onHelp`, async () => {
+      let hit = 0;
+      host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+      await act(async () => { root!.render(<ChatHead {...baseProps(form)} onHelp={() => { hit += 1; }} helpOpen={false} />); });
+      const btn = host!.querySelector<HTMLButtonElement>('[data-chip-help]')!;
+      expect(btn.getAttribute('aria-label')).toBe('Довідка');
+      expect(btn.previousElementSibling?.hasAttribute('data-chip-home')).toBe(true);
+      await act(async () => { btn.click(); });
+      expect(hit).toBe(1);
+    });
+  }
+});

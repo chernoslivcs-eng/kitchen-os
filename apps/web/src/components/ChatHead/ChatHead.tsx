@@ -44,6 +44,9 @@ export interface ChatHeadProps {
   homeOpen: boolean;
   /** Форма за шириною контейнера стрічки (Р38): 'wide' ≥964 · 'mid' 704–963 (R2) · 'narrow' <704 (G3). */
   form: 'wide' | 'mid' | 'narrow';
+  /** 14.09: «?» — ряд довідок над композитором; окремий елемент після чіпа «Дім». */
+  onHelp?: () => void;
+  helpOpen?: boolean;
 }
 
 export function ChatHead(p: ChatHeadProps) {
@@ -91,6 +94,12 @@ export function ChatHead(p: ChatHeadProps) {
         <Icon name="sys.home" size={16} inherit decorative />
         {kinds.length > 0 && <span>· {kinds.length}</span>}
       </button>
+      {p.onHelp && (
+        <button type="button" className={`${styles.chip} ${styles['chip-help']} ${p.helpOpen ? styles['chip-on'] : ''}`} data-tap onClick={p.onHelp}
+          aria-label="Довідка" aria-expanded={!!p.helpOpen} data-chip-help>
+          <Icon name="sys.help" size={16} inherit decorative />
+        </button>
+      )}
     </header>
   );
 }

@@ -333,14 +333,17 @@ export function Feed() {
   // UI-NOTES-0914 п. 6: довідка без моделі. Дві репліки лягають у стрічку
   // одразу (тексти — з домену, ті самі, що запише сервер), POST лише
   // зберігає їх у розмову, щоб пережили F5. Не хід моделі: без «думаю».
+  // 14.09: «?» у шапці → ряд шести довідок над композитором (не повідомлення).
+  const [helpOpen, setHelpOpen] = useState(false);
   function sendScripted(key: HelpTopicId) {
     const topic = HELP_TOPICS.find((t) => t.id === key);
     if (!topic) return;
     setHomeOpen(false);
+    setHelpOpen(false);
     const time = hhmm();
     setTurns((prev) => [...prev,
       { id: newId(), role: 'user', time, text: topic.chip },
-      { id: newId(), role: 'assistant', time, text: topic.text, card: null, fresh: true },
+      { id: newId(), role: 'assistant', time, text: topic.text, card: null, fresh: true, scripted: key },
     ]);
     void api.chatScripted({ topic: key, session_id: sessionId ?? undefined }).catch((err) => {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
@@ -946,6 +949,7 @@ export function Feed() {
     e.preventDefault();
     const text = input.trim();
     if (!text && pending.length === 0) return;
+    setHelpOpen(false);
     if (sending && queue.length >= QUEUE_MAX) return;
     sentRef.current = true;
     setInput('');
@@ -1322,6 +1326,8 @@ export function Feed() {
         onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
         onHome={() => setHomeOpen((v) => !v)}
         homeOpen={homeOpen}
+        onHelp={() => { setHomeOpen(false); setHelpOpen((v) => !v); }}
+        helpOpen={helpOpen}
         form={headForm}
       />
       {homeOpen && (
@@ -1481,6 +1487,17 @@ export function Feed() {
                     )}
                     {a.name && <span className={styles['att-name']}>{a.name}</span>}
                   </a>
+                ))}
+              </div>
+            )}
+            {t.scripted && t === turns[turns.length - 1] && (
+              /* 14.09: під останньою довідкою — решта довідок (без прочитаної).
+                 Не повідомлення: зникає, щойно нижче зʼявиться будь-яка репліка. */
+              <div className={styles['help-followup']} data-help-followup>
+                {EMPTY_CHIPS.filter((c) => c.key !== t.scripted).map((c) => (
+                  <button key={c.key} type="button" className={styles['empty-chip-m']} data-tap onClick={() => sendScripted(c.key)} data-help-chip={c.key}>
+                    <Icon name={c.icon} size={12} inherit decorative />{c.label}
+                  </button>
                 ))}
               </div>
             )}
@@ -1774,6 +1791,16 @@ export function Feed() {
       {dragging && <DropOverlay />}
 
       <div className={styles['composer-wrap']}>
+        {helpOpen && !historyOpen && (
+          /* 14.09: «?» у шапці — усі шість довідок над композитором, у будь-якій розмові. */
+          <div className={styles['help-row']} data-help-row>
+            {EMPTY_CHIPS.map((c) => (
+              <button key={c.key} type="button" className={styles['empty-chip-m']} data-tap onClick={() => sendScripted(c.key)} data-help-chip={c.key}>
+                <Icon name={c.icon} size={12} inherit decorative />{c.label}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Етап 3 (Components · «Стани дії»): рядок стану НАД композитором —
             тут, а не в кінці стрічки, бо стрічка прокручується, а стан дії
             має бути видний рівно тоді, коли він є.
