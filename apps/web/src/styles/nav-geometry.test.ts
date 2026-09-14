@@ -118,6 +118,23 @@ describe('Р141 · рейка ↔ сайдбар без перемикань', (
     const wideBrandOverrides = rules.filter((r) => /\.(wide|open)\b/.test(r.sel) && /\.brand\s*$/.test(r.sel));
     for (const r of wideBrandOverrides) expect(r.decls, `«${r.sel}»`).not.toMatch(/(^|;)\s*height\s*:/);
   });
+  it('14.09 (доповнення, власник — свіжий вимір на проді показав 2.41 px різниці): height:44 повторено й у правилі ≥768 (.brand у рейці/сайдбарі), плюс min/max-height проти автоматичного мінімуму flex-item', () => {
+    // .brand — flex-item у .wrap (display:flex; flex-direction:column), а в
+    // flex-item «автоматичний мінімум за вмістом» (min-height: auto) міг би
+    // перебити явну height, якби overflow десь збився з hidden на visible.
+    // Дублюємо в обох правилах, щоб один явний height ніде не був єдиною
+    // лінією оборони. Перевірено й живим виміром getBoundingClientRect у
+    // браузері: рейка й сайдбар — top 16 (лого) і 62 (перший таб) в обох
+    // станах, 0 px різниці.
+    const brandBase = [...css.matchAll(/(^|\})\s*\.brand\s*\{([^{}]*)\}/g)].map((m) => m[2]!)[0]!;
+    expect(brandBase).toMatch(/(^|;)\s*min-height\s*:\s*44px/);
+    expect(brandBase).toMatch(/(^|;)\s*max-height\s*:\s*44px/);
+    const brand768 = rules.find((r) => r.sel === '.brand')!;
+    expect(brand768.decls).toMatch(/(^|;)\s*height\s*:\s*44px/);
+    expect(brand768.decls).toMatch(/(^|;)\s*min-height\s*:\s*44px/);
+    expect(brand768.decls).toMatch(/(^|;)\s*max-height\s*:\s*44px/);
+    expect(brand768.decls).toMatch(/(^|;)\s*overflow\s*:\s*hidden/);
+  });
   it('слова цілей і вордмарк обрізаються по символах трикрапкою, а не проявляються (власник 13.09)', () => {
     const label = rules.find((r) => r.sel === '.brand-name, .tab > span:nth-child(2)')!;
     expect(label.decls).toMatch(/text-overflow\s*:\s*ellipsis/);

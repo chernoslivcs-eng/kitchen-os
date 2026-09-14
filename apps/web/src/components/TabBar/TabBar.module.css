@@ -49,8 +49,12 @@
 /* Шапка: логотип 32 · «Kitchen OS» 17/700 (OS шавлією). Висота фіксована
    (44, як квадрат .tab) в обох станах — рейка/сайдбар: без неї .brand-name
    входить у потік ширшого стану своїм line-height і зсуває логотип і всі
-   таби нижче на 3–6.5 px (власник 14.09, виміряно на проді). */
-.brand { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 14px; }
+   таби нижче на 3–6.5 px (власник 14.09, виміряно на проді). min/max-height
+   поруч із height — .brand є flex-item у .wrap (column), а в flex-item
+   автоматичний мінімум за вмістом (min-height: auto) міг би перебити явну
+   height, якби десь у каскаді overflow збився з hidden на visible; так —
+   без варіантів. */
+.brand { display: flex; align-items: center; gap: 10px; height: 44px; min-height: 44px; max-height: 44px; padding: 0 8px 14px; }
 .brand-name {
   font-family: var(--font-body);
   font-weight: 700;
@@ -379,7 +383,7 @@
   /* 3. «Панель» показується лише в розгорнутому стані (власник 13.09); рядок під
      нею лишається, тож нічого не їде. У рейці розгортає логотип і наведення (№14). */
   .panel-btn { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-standard), visibility 0s linear var(--dur-fast); }
-  .brand { flex-direction: row; align-items: center; gap: 10px; padding: 0 7px 14px; overflow: hidden; }
+  .brand { flex-direction: row; align-items: center; gap: 10px; height: 44px; min-height: 44px; max-height: 44px; padding: 0 7px 14px; overflow: hidden; }
   .brand-btn { width: 30px; height: 30px; margin: 0; flex: none; }
   .scroll { scrollbar-gutter: auto; overflow-x: hidden; }
   .tab {
