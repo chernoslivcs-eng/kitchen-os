@@ -51,7 +51,7 @@ describe('Р152 · /pantry — текст', () => {
     expect(text).toMatch(/помідори[^\n]*· прострочено/);   // days < 0 — слово, не «-1 дн»
     expect(text).toContain('<b>🥬 Свіже · 1</b>');
     expect(text).toContain('<b>🧊 Холодильник · 3</b>');
-    expect(text).toContain('<b>Суха шафа · 2</b>');
+    expect(text).toContain('<b>🥫 Суха шафа · 2</b>');
     expect(text).not.toMatch(/хліб[^\n]*дн/);   // без catalog_key — рядок є, мітки «N дн» нема
   });
   it('«Спливає» — лише горить; нічого — «Нічого не спливає.»', () => {
