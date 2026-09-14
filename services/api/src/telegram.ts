@@ -26,7 +26,8 @@ import { transcribeTelegramAudio, type SttResult } from './telegram-stt.js';
 import { loadPrompt } from '@kitchen/prompts';
 import {
   matchQuickCommand, QUICK_KEYBOARD, renderPantry, renderShopping, renderRecipes, renderSavedRecipe, renderHome,
-  renderPantryText, renderShoppingText, type QuickReply, type ShoppingLike,
+  renderPantryText, renderShoppingText, pantryKeyboard, listKeyboard,
+  type QuickReply, type ShoppingLike, type QuickKeyboardBtn,
 } from './telegram-nomodel.js';
 
 export const TELEGRAM_LINK_TTL_MS = 15 * 60_000;
@@ -292,11 +293,11 @@ export function splitByBlocks(text: string, boundary: RegExp, max = TELEGRAM_MSG
   return out;
 }
 
-/** Клавіатура — до ОСТАННЬОГО повідомлення; data — `apply:<card_id>` / `dismiss:<card_id>`. */
 /** Клавіатура — до ОСТАННЬОГО повідомлення; data — `apply:<card_id>` / `dismiss:<card_id>` /
- *  `pantry:soon|all` / `list-toggle:<id>` / `recipe:<id>` (Р152). `replyKeyboard` — постійна
- *  reply-клавіатура (не inline): лише з відповіді на привʼязку і з чотирьох команд PR 5. */
-export type TelegramReply = { messages: string[]; html: boolean; keyboard?: { text: string; data: string }[][]; replyKeyboard?: string[][] } | null;
+ *  `pantry:soon|all` / `list-toggle:<id>` / `recipe:<id>` (Р152); url — «Відкрити у вебі», не
+ *  callback (grammY `InlineKeyboard.url`). `replyKeyboard` — постійна reply-клавіатура (не
+ *  inline): лише з відповіді на привʼязку і з чотирьох команд PR 5. */
+export type TelegramReply = { messages: string[]; html: boolean; keyboard?: { text: string; data?: string; url?: string }[][]; replyKeyboard?: string[][] } | null;
 
 export interface IncomingFile {
   update_id: number;
@@ -403,27 +404,18 @@ export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCall
   }
 }
 
-/** Кнопки PR 5 (Р152): «Спливає/Усе» під /pantry (нова відповідь, не редагування), тогл рядка
- *  списку (той самий toggleShoppingItem, що робить POST /v1/shopping/:id — веб-роут інлайнить
- *  логіку без окремої domain-функції, повторено тут 1:1) і рядок «Рецепти» → повний рецепт.
- *  «noop» (кнопка «Відкрити у вебі» в inline-рядку) — тільки answerCallbackQuery, без відповіді. */
-export interface QuickKeyboardBtn { text: string; data: string }
+/** Кнопки PR 5 (Р152): «Спливає/Усе» під /pantry (редагування на місці) і тогл рядка списку
+ *  (той самий toggleShoppingItem, що робить POST /v1/shopping/:id — веб-роут інлайнить логіку
+ *  без окремої domain-функції, повторено тут 1:1) — обидва callback, редагують повідомлення;
+ *  рядок «Рецепти» → повний рецепт НОВИМ повідомленням. «Відкрити у вебі» — url-кнопка
+ *  (pantryKeyboard/listKeyboard/recipesKeyboard у telegram-nomodel.ts), Telegram шле її напряму
+ *  в браузер — сюди апдейт callback_query за неї взагалі не приходить. */
 export type QuickCallbackResult =
   | { kind: 'reply'; reply: QuickReply }
   | { kind: 'edit'; text: string; keyboard: QuickKeyboardBtn[][] }
-  | { kind: 'noop' }
   | null;
 
-const PANTRY_KEYBOARD: QuickKeyboardBtn[][] = [[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [{ text: 'Відкрити у вебі', data: 'noop' }]];
-const LIST_KEYBOARD_MAX = 8;
-function listKeyboard(items: ShoppingLike[]): QuickKeyboardBtn[][] {
-  const rows = items.slice(0, LIST_KEYBOARD_MAX).map((i) => [{ text: `${i.checked ? '☑' : '☐'} ${i.label}`.slice(0, 64), data: `list-toggle:${i.id}` }]);
-  rows.push([{ text: 'Відкрити у вебі', data: 'noop' }]);
-  return rows;
-}
-
 export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallback): Promise<QuickCallbackResult> {
-  if (u.data === 'noop') return { kind: 'noop' };
   const pantry = u.data.match(/^pantry:(soon|all)$/);
   const toggle = u.data.match(/^list-toggle:([0-9a-f-]{36})$/);
   const recipe = u.data.match(/^recipe:([0-9a-f-]{36})$/);
@@ -434,14 +426,14 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
   if (!linked) return { kind: 'reply', reply: { messages: [COPY.linkFirst(deps.appUrl)], html: false } };
   const household_id = await householdOf(deps.repo, linked.user_id);
   if (!household_id) return { kind: 'reply', reply: { messages: [COPY.linkFirst(deps.appUrl)], html: false } };
-  if (pantry) return { kind: 'edit', text: renderPantryText(await deps.repo.listBatches(household_id), Date.now(), pantry[1] as 'soon' | 'all'), keyboard: PANTRY_KEYBOARD };
+  if (pantry) return { kind: 'edit', text: renderPantryText(await deps.repo.listBatches(household_id), Date.now(), pantry[1] as 'soon' | 'all'), keyboard: pantryKeyboard(deps.appUrl) };
   if (toggle) {
     const items = await deps.repo.listShoppingItems(household_id);
     const item = items.find((i) => i.id === toggle[1]);
-    if (!item) return { kind: 'edit', text: renderShoppingText(items), keyboard: listKeyboard(items) };
+    if (!item) return { kind: 'edit', text: renderShoppingText(items), keyboard: listKeyboard(items, deps.appUrl) };
     await deps.repo.toggleShoppingItem(item.id, !item.checked);
     const updated: ShoppingLike[] = items.map((i) => (i.id === item.id ? { ...i, checked: !i.checked } : i));
-    return { kind: 'edit', text: renderShoppingText(updated), keyboard: listKeyboard(updated) };
+    return { kind: 'edit', text: renderShoppingText(updated), keyboard: listKeyboard(updated, deps.appUrl) };
   }
   const r = await renderSavedRecipe(deps.repo, household_id, recipe![1]!, deps.appUrl);
   return r ? { kind: 'reply', reply: r } : { kind: 'reply', reply: { messages: ['Рецепт не знайдено — можливо, видалений.'], html: false } };

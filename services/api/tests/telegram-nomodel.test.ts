@@ -48,11 +48,11 @@ describe('Р152 · /pantry — текст', () => {
     const burningIdx = text.indexOf('Горить');
     expect(text.indexOf('помідори')).toBeLessThan(text.indexOf('молоко'));
     expect(text.indexOf('помідори')).toBeGreaterThan(burningIdx);
-    expect(text).toMatch(/помідори[^\n]*!-1дн/);
+    expect(text).toMatch(/помідори[^\n]*· прострочено/);   // days < 0 — слово, не «-1 дн»
     expect(text).toContain('<b>Свіже · 1</b>');
     expect(text).toContain('<b>Холодильник · 3</b>');
     expect(text).toContain('<b>Суха шафа · 2</b>');
-    expect(text).not.toContain('хліб · !');   // без catalog_key — рядок є, мітки !Nдн нема
+    expect(text).not.toMatch(/хліб[^\n]*дн/);   // без catalog_key — рядок є, мітки «N дн» нема
   });
   it('«Спливає» — лише горить; нічого — «Нічого не спливає.»', () => {
     const calm = [batch({ label: 'рис', catalog_key: 'rice', expires_at: iso(300) })];

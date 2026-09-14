@@ -422,7 +422,7 @@ describe('Р147/Р149 · Telegram', () => {
       expect(r?.messages[0]).toContain('<b>Комора · 2</b>');
       expect(r?.messages[0]).toContain('<b>Горить · 1</b>');
       expect(r?.replyKeyboard).toEqual(QUICK_KEYBOARD);
-      expect(r?.keyboard).toEqual([[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [{ text: 'Відкрити у вебі', data: 'noop' }]]);
+      expect(r?.keyboard).toEqual([[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [{ text: 'Відкрити у вебі', url: `${APP}/pantry` }]]);
     }
     const soon = await handleQuickCallback(deps(), { update_id: 9001, telegram_user_id: 500, data: 'pantry:soon' });
     expect(soon).toMatchObject({ kind: 'edit' });
@@ -430,7 +430,6 @@ describe('Р147/Р149 · Telegram', () => {
     expect((soon as { text: string }).text).not.toContain('рис');
     const all = await handleQuickCallback(deps(), { update_id: 9002, telegram_user_id: 500, data: 'pantry:all' });
     expect((all as { text: string }).text).toContain('рис');
-    expect(await handleQuickCallback(deps(), { update_id: 9003, telegram_user_id: 500, data: 'noop' })).toEqual({ kind: 'noop' });
   });
 
   it('/list → рядки з тоглами; callback list-toggle → repo.toggleShoppingItem і повідомлення редагується', async () => {
@@ -440,6 +439,7 @@ describe('Р147/Р149 · Telegram', () => {
     expect(r?.messages[0]).toContain('<b>Список · 2</b>');
     expect(r?.messages[0]).toContain('☐ яйця · 10 шт');
     expect(r?.keyboard?.[0]).toEqual([{ text: '☐ яйця', data: `list-toggle:${id1}` }]);
+    expect(r?.keyboard?.at(-1)).toEqual([{ text: 'Відкрити у вебі', url: `${APP}/list` }]);
     const q = await handleQuickCallback(deps(), { update_id: 9101, telegram_user_id: 500, data: `list-toggle:${id1}` });
     expect(q).toMatchObject({ kind: 'edit' });
     expect((q as { text: string }).text).toContain('☑ яйця');
@@ -463,7 +463,7 @@ describe('Р147/Р149 · Telegram', () => {
     const r = await handleTelegramText(deps(), upd(500, '/рецепти'));
     expect(r?.messages[0]).toContain('<b>Рецепти · 1</b>');
     expect(r?.messages[0]).toContain('Паста з томатами · 20 хв · 2 порц.');
-    expect(r?.keyboard).toEqual([[{ text: 'Паста з томатами', data: `recipe:${id}` }]]);
+    expect(r?.keyboard).toEqual([[{ text: 'Паста з томатами', data: `recipe:${id}` }], [{ text: 'Відкрити у вебі', url: `${APP}/recipes` }]]);
     const q = await handleQuickCallback(deps(), { update_id: 9201, telegram_user_id: 500, data: `recipe:${id}` });
     expect(q).toMatchObject({ kind: 'reply' });
     const reply = (q as { reply: { messages: string[]; html: boolean } }).reply;

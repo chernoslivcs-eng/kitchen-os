@@ -54,7 +54,7 @@ export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
       : undefined;
     for (const [i, m] of reply.messages.entries()) {
       const last = i === reply.messages.length - 1;
-      const inlineKb = last && reply.keyboard ? InlineKeyboard.from(reply.keyboard.map((row) => row.map((b) => InlineKeyboard.text(b.text, b.data)))) : undefined;
+      const inlineKb = last && reply.keyboard ? InlineKeyboard.from(reply.keyboard.map((row) => row.map((b) => (b.url ? InlineKeyboard.url(b.text, b.url) : InlineKeyboard.text(b.text, b.data!))))) : undefined;
       const reply_markup = inlineKb ?? (last ? replyKb : undefined);
       try {
         await ctx.reply(m, { ...(reply.html ? { parse_mode: 'HTML' as const } : {}), ...(reply_markup ? { reply_markup } : {}) });
@@ -102,13 +102,12 @@ export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
   bot.on('callback_query:data', async (ctx) => {
     const u = { update_id: ctx.update.update_id, telegram_user_id: ctx.from.id, data: ctx.callbackQuery.data };
     // Р152: кнопки /pantry, /list, /recipes — редагування на місці або новий рецепт;
-    // «noop» («Відкрити у вебі» в inline-рядку) — лише answerCallbackQuery.
+    // «Відкрити у вебі» тепер url-кнопка — Telegram відкриває її напряму, callback сюди не приходить.
     const q = await handleQuickCallback(deps, u);
     if (q) {
-      if (q.kind === 'noop') { await ctx.answerCallbackQuery().catch(() => {}); return; }
       await ctx.answerCallbackQuery().catch(() => { /* прострочений запит — не критично */ });
       if (q.kind === 'edit') {
-        const kb = InlineKeyboard.from(q.keyboard.map((row) => row.map((b) => InlineKeyboard.text(b.text, b.data))));
+        const kb = InlineKeyboard.from(q.keyboard.map((row) => row.map((b) => (b.url ? InlineKeyboard.url(b.text, b.url) : InlineKeyboard.text(b.text, b.data!)))));
         await ctx.editMessageText(q.text, { parse_mode: 'HTML', reply_markup: kb }).catch(() => {});
         return;
       }

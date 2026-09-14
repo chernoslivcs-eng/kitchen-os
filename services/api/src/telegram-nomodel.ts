@@ -21,11 +21,12 @@ import { escapeHtml, splitTelegramText, splitByBlocks, renderRecipeBlocks, forma
 // ── розпізнавання команди: латиниця з меню, українська команда, слово з клавіатури ──
 export type QuickCommand = 'pantry' | 'list' | 'recipes' | 'home';
 
+// Хотфікс (голова 14.09): /дом — русизм, прибрано; лише українська форма й латиниця з меню.
 const ALIASES: Record<QuickCommand, string[]> = {
   pantry: ['/pantry', '/комора', 'комора'],
   list: ['/list', '/список', 'список'],
   recipes: ['/recipes', '/рецепти', 'рецепти'],
-  home: ['/home', '/дім', '/дом', 'дім зараз', 'дім'],
+  home: ['/home', '/дім', 'дім зараз', 'дім'],
 };
 
 /** Текст ходу → одна з чотирьох команд, або null (звичайний хід / інша команда). */
@@ -43,6 +44,12 @@ export function matchQuickCommand(rawText: string): QuickCommand | null {
 
 // ── reply-клавіатура: постійна, 2×2 ──
 export const QUICK_KEYBOARD: string[][] = [['Комора', 'Список'], ['Рецепти', 'Дім зараз']];
+
+// Кнопка inline-клавіатури: або callback (`data`), або посилання (`url`) — ніколи обидва.
+// Хотфікс (голова 14.09): «Відкрити у вебі» була мертвою кнопкою з data:'noop' — тепер
+// справжнє посилання (grammY InlineKeyboard.url), обробки 'noop' у callback більше нема.
+export interface QuickKeyboardBtn { text: string; data?: string; url?: string }
+const openWebBtn = (url: string): QuickKeyboardBtn => ({ text: 'Відкрити у вебі', url });
 
 // ── /pantry ──────────────────────────────────────────────────────────────
 const ZONE_ORDER: Zone[] = ['fresh', 'fridge', 'freezer', 'dry', 'spices', 'drinks'];
@@ -64,12 +71,22 @@ function pantryRows(batches: PantryBatch[], nowMs: number): { rows: PantryRow[];
   return { rows, burning };
 }
 
-/** «Комора · N» — Горить зверху (якщо є), потім зони за ZONE_ORDER, кожен рядок «назва · кількість · !N дн». */
+/** «N дн» (постановка: через пробіл, без «!»); прострочене (days < 0) — слово, не число. */
+function daysTail(r: PantryRow): string {
+  if (r.days == null || !r.tone) return '';
+  return r.days < 0 ? ' · прострочено' : ` · ${r.days} дн`;
+}
+
+export function pantryKeyboard(appUrl: string): QuickKeyboardBtn[][] {
+  return [[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [openWebBtn(`${appUrl}/pantry`)]];
+}
+
+/** «Комора · N» — Горить зверху (якщо є), потім зони за ZONE_ORDER, кожен рядок «назва · кількість · N дн». */
 export function renderPantryText(batches: PantryBatch[], nowMs = Date.now(), only: 'soon' | 'all' = 'all'): string {
   const { rows, burning } = pantryRows(batches, nowMs);
   const live = batches.filter((b) => b.state !== 'depleted');
   if (!live.length) return 'Комора порожня. Кинь чек — розберу.';
-  const line = (r: PantryRow) => `• ${escapeHtml(r.label)}${r.qty ? ` · ${escapeHtml(r.qty)}` : ''}${r.days != null && r.tone ? ` · !${r.days}дн` : ''}`;
+  const line = (r: PantryRow) => `• ${escapeHtml(r.label)}${r.qty ? ` · ${escapeHtml(r.qty)}` : ''}${daysTail(r)}`;
   if (only === 'soon') {
     if (!burning.length) return 'Нічого не спливає.';
     return [`<b>Горить · ${burning.length}</b>`, ...burning.map(line)].join('\n');
@@ -84,15 +101,15 @@ export function renderPantryText(batches: PantryBatch[], nowMs = Date.now(), onl
   return out.join('\n');
 }
 
-export interface QuickReply { messages: string[]; html: boolean; keyboard?: { text: string; data: string }[][]; replyKeyboard?: string[][] }
+export interface QuickReply { messages: string[]; html: boolean; keyboard?: QuickKeyboardBtn[][]; replyKeyboard?: string[][] }
 
 export async function renderPantry(repo: Repo, household_id: string, appUrl: string, only: 'soon' | 'all' = 'all'): Promise<QuickReply> {
   const batches = await repo.listBatches(household_id);
   const text = renderPantryText(batches, Date.now(), only);
   const hasAny = batches.some((b) => b.state !== 'depleted');
-  const keyboard = hasAny ? [[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [{ text: 'Відкрити у вебі', data: 'noop' }]] : undefined;
-  const messages = splitTelegramText(`${text}\n\n${escapeHtml(`Відкрити у вебі: ${appUrl}/pantry`)}`);
-  return { messages, html: true, ...(keyboard ? { keyboard } : {}) };
+  // «Відкрити у вебі» тепер сама url-кнопка (не мертва data:'noop') — окремий текстовий
+  // рядок під нею більше не дублюється (був до цієї правки).
+  return { messages: splitTelegramText(text), html: true, ...(hasAny ? { keyboard: pantryKeyboard(appUrl) } : {}) };
 }
 
 // ── /list ────────────────────────────────────────────────────────────────
@@ -105,18 +122,18 @@ export function renderShoppingText(items: ShoppingLike[]): string {
 }
 
 const LIST_KEYBOARD_MAX = 8;
+export function listKeyboard(items: ShoppingLike[], appUrl: string): QuickKeyboardBtn[][] {
+  const rows: QuickKeyboardBtn[][] = items.slice(0, LIST_KEYBOARD_MAX).map((i) => [{ text: `${i.checked ? '☑' : '☐'} ${i.label}`.slice(0, 64), data: `list-toggle:${i.id}` }]);
+  rows.push([openWebBtn(`${appUrl}/list`)]);
+  return rows;
+}
 
 export async function renderShopping(repo: Repo, household_id: string, appUrl: string): Promise<QuickReply> {
   const items = await repo.listShoppingItems(household_id);
   const text = renderShoppingText(items);
-  if (!items.length) {
-    return { messages: [text, escapeHtml(`Відкрити у вебі: ${appUrl}/list`)], html: true };
-  }
-  const shown = items.slice(0, LIST_KEYBOARD_MAX);
-  const keyboard = shown.map((i) => [{ text: `${i.checked ? '☑' : '☐'} ${i.label}`.slice(0, 64), data: `list-toggle:${i.id}` }]);
-  keyboard.push([{ text: 'Відкрити у вебі', data: 'noop' }]);
-  const messages = splitTelegramText(`${text}\n\n${escapeHtml(`Відкрити у вебі: ${appUrl}/list`)}`);
-  return { messages, html: true, keyboard };
+  // Порожній список — без inline-клавіатури, «Відкрити у вебі» лишається текстом (нема кнопки, яку б чіплять).
+  if (!items.length) return { messages: [text, escapeHtml(`Відкрити у вебі: ${appUrl}/list`)], html: true };
+  return { messages: splitTelegramText(text), html: true, keyboard: listKeyboard(items, appUrl) };
 }
 
 // ── /recipes ─────────────────────────────────────────────────────────────
@@ -128,12 +145,15 @@ export function renderRecipesText(recipes: SavedRecipeLike[]): string {
   return [`<b>Рецепти · ${recipes.length}</b>`, ...recipes.map(line)].join('\n');
 }
 
+export function recipesKeyboard(recipes: SavedRecipeLike[], appUrl: string): QuickKeyboardBtn[][] {
+  return [...recipes.map((r) => [{ text: r.title.slice(0, 64), data: `recipe:${r.id}` }]), [openWebBtn(`${appUrl}/recipes`)]];
+}
+
 export async function renderRecipes(repo: Repo, user_id: string, appUrl: string): Promise<QuickReply> {
   const recipes = await repo.listRecipes(user_id, 5);
   const text = renderRecipesText(recipes);
   if (!recipes.length) return { messages: [text], html: true };
-  const keyboard = recipes.map((r) => [{ text: r.title.slice(0, 64), data: `recipe:${r.id}` }]);
-  return { messages: [`${text}\n\n${escapeHtml(`Відкрити у вебі: ${appUrl}/recipes`)}`], html: true, keyboard };
+  return { messages: [text], html: true, keyboard: recipesKeyboard(recipes, appUrl) };
 }
 
 /** Рядок «Рецепти» → повний рецепт текстом (той самий renderRecipeBlocks, що після «1»). */
@@ -179,6 +199,7 @@ export function renderHomeText(facts: HomeFacts): string {
   return [`<b>Дім зараз</b>`, ...lines].join('\n');
 }
 
+/** /home без inline-клавіатури — «Відкрити у вебі» лишається текстовим рядком (постановка 14.09). */
 export async function renderHome(repo: Repo, household_id: string, user_id: string, appUrl: string): Promise<QuickReply> {
   const facts = await collectHomeFacts(repo, household_id, user_id);
   const text = renderHomeText(facts);
