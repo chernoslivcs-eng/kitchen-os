@@ -106,6 +106,11 @@ function matchesStem(word: string, stems: readonly string[]): boolean {
   return stems.some((s) => word.startsWith(s));
 }
 
+/** Чи є в репліці слово-продукт із каталогу (гейт К1; для довідок — help-intent). */
+export function hasCatalogWord(text: string): boolean {
+  return tokens(text).some((w) => !STOP.has(w) && !matchesStem(w, [...SKIP_IN_CATALOG]) && isCatalogWord(w));
+}
+
 function isCatalogWord(word: string): boolean {
   if (word.length < 3) return false;
   const s = stem(word);

@@ -7,10 +7,11 @@
 // відповіді. «список» без «покупок/замовлення/сільпо/кошик» — теж тема list
 // (кнопка «У список» — це саме він), але лише коли решта умов виконана.
 
-import { isProductQuestion } from './product-question.js';
+import { isProductQuestion, hasCatalogWord } from './product-question.js';
 import type { HelpTopicId } from './help-topics.js';
 
 const MAX_WORDS = 8;
+const STOP_WORDS = new Set(['що', 'це', 'ти', 'я', 'мені', 'а', 'і', 'й', 'та', 'чи', 'тут', 'у', 'в', 'з', 'із', 'за', 'про', 'для', 'ще', 'вже']);
 
 const TOPIC_STEMS: Record<HelpTopicId, readonly string[]> = {
   telegram: ['телеграм', 'telegram', 'месендж', 'мессендж', 'месндж', 'меснж', 'бот'],
@@ -44,7 +45,19 @@ export function helpTopicFor(text: string): HelpTopicId | null {
   const ws = words(text);
   if (!ws.length || ws.length > MAX_WORDS) return null;
   const t = text.toLowerCase();
-  if (!isProductQuestion(text) && !HELP_QUESTION_FORMS.some((re) => re.test(t))) return null;
+  const byForm = HELP_QUESTION_FORMS.some((re) => re.test(t));
+  if (!isProductQuestion(text) && !byForm) return null;
+  // Слово-продукт у репліці — це не про додаток («як почати готувати борщ?»,
+  // «що таке кімчі?»): модель. Самі слова форм («таке», «почати») і дієслово
+  // «користуватись» гейт каталогу зачіпає хибно — їх перед перевіркою знімаємо.
+  const rest = HELP_QUESTION_FORMS.reduce((acc, re) => acc.replace(re, ' '), t).replace(/(?<!\p{L})користува\p{L}*/gu, ' ');
+  if (hasCatalogWord(rest)) return null;
+  // Репліка, що пройшла ЛИШЕ за формою (не за К1), не має нести нічого, крім
+  // теми: «як почати піст?» — це період, не довідка «З чого почати».
+  if (!isProductQuestion(text)) {
+    const extra = words(rest).filter((w) => !STOP_WORDS.has(w) && !(Object.values(TOPIC_STEMS).flat()).some((st) => w.startsWith(st)));
+    if (extra.length) return null;
+  }
   const hits = (Object.keys(TOPIC_STEMS) as HelpTopicId[]).filter((id) =>
     ws.some((w) => TOPIC_STEMS[id].some((s) => w.startsWith(s))) || (TOPIC_PHRASES[id] ?? []).some((re) => re.test(t)),
   );
