@@ -790,7 +790,8 @@
   .chip-filter { display: inline-flex; }
   .chips-sort { display: none; }
   .head-filter { display: none; }
-  .zone-cols { flex-direction: column; gap: 12px; }
+  /* 14.09: у колонковому флексі align-items: flex-start з десктопу означав «не розтягувати по ширині» — картка зони брала ширину вмісту (у дому з короткими назвами — пів екрана). */
+  .zone-cols { flex-direction: column; gap: 12px; align-items: stretch; }
   .zone-col { gap: 12px; }
   .zone-card { padding: 0 16px 4px; }
   .section-label { margin: 0 -16px 6px; padding: 0 16px; }
