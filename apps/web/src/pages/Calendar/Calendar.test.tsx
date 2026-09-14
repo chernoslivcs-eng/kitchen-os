@@ -172,7 +172,7 @@ describe('панель: подія ↔ підписки — одне з двох
     await click(host!.querySelector('[data-subscriptions]'));
     expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Підписки']);
     expect(usePanelStore.getState().active).toBe('subscriptions');
-  });
+  }, 15_000);   // три кліки з перемонтуванням панелі; на раннері CI файл іде ~20 с, і 5 с не вистачало (флейк 14.09 ×2 на main)
 
   // Р145 (рішення власника 13.09): у картці «Триває» — кнопка «Каталог подій» (як
   // «Що на вечерю завтра?») замість рядка «Приховані сезони · N · Свята: …»;
