@@ -68,10 +68,6 @@
 .card-head { display: flex; align-items: center; gap: 8px; height: 44px; color: var(--muted); font-size: 13px; font-weight: 500; }
 
 /* Порційник — пілюля 30 на bg: «− 2 порції +». */
-.portions { display: inline-flex; align-items: center; height: 30px; border-radius: var(--r-pill); background: var(--bg); padding: 0 4px; gap: 2px; color: var(--ink); }
-.portions > button { width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer; }
-.portions > button:disabled { color: var(--dim); cursor: default; }
-.portions-n { min-width: 60px; text-align: center; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* Склад: рядок 46, крапка 8 роду, чіп 22/11, кількість muted. */
 .ing { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 4px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink); }
@@ -148,9 +144,6 @@
   .title { font-size: 26px; letter-spacing: -.03em; line-height: 1.1; }
   .meta { gap: 10px; font-size: 13px; }
   .card-head { height: 42px; }
-  .portions { height: 28px; }
-  .portions > button { width: 24px; height: 24px; }
-  .portions-n { min-width: 56px; font-size: 12px; }
   .ing { min-height: 42px; padding: 2px 0; }
   .dot { width: 7px; height: 7px; }
   .tag { height: 20px; padding: 0 7px; font-size: 10px; }
@@ -161,8 +154,5 @@
   .step-num { width: 26px; height: 26px; }
   .step-text { font-size: 14px; line-height: 1.45; }
 }
-/* 0912 C: хіт 44 у ± порцій (візуал 26 без змін). */
-.portions > button { position: relative; }
-.portions > button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
 /* fix/ios-scroll-end-padding (13.09): iOS WebKit не рахує кінцевий padding скрол-контейнера у scrollable overflow — остання картка лишалась під баром, а гортати не було куди. Резерв під бар і низ скролера — реальний вміст: спейсер ::after, не padding-bottom. */
 .body::after { content: ''; display: block; flex: none; grid-column: 1 / -1; height: 32px; }

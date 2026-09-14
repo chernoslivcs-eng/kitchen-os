@@ -1,0 +1,13 @@
+/* Порційник за Screens: пілюля 30 на bg, кнопки 26 круглі, число tabular. Tap-area — --tap поверх 26 (мобайл). */
+.portions { display: inline-flex; align-items: center; height: 30px; border-radius: var(--r-pill); background: var(--bg); padding: 0 4px; gap: 2px; color: var(--ink); }
+.portions > button { position: relative; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.portions > button::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--tap)); height: max(100%, var(--tap)); transform: translate(-50%, -50%); }
+.portions > button:disabled { color: var(--dim); cursor: default; }
+.n { min-width: 60px; text-align: center; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+/* <768 (зі сторінки рецепта): компактніша пілюля 28, кнопки 24 — хіт лишається --tap. */
+@media (max-width: 767px) {
+  .portions { height: 28px; }
+  .portions > button { width: 24px; height: 24px; }
+  .n { min-width: 28px; font-size: 12px; }
+  .word { display: none; }
+}
