@@ -21,6 +21,7 @@ const commands = [
   { command: 'list', description: 'Список' },
   { command: 'recipes', description: 'Рецепти' },
   { command: 'home', description: 'Дім зараз' },
+  { command: 'web', description: 'Відкрити у вебі' },
   { command: 'stop', description: 'Відключити' },
 ];
 const r = await telegramFetch(`https://api.telegram.org/bot${token}/setMyCommands`, {

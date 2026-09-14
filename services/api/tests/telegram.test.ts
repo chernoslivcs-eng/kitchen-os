@@ -49,10 +49,10 @@ describe('Р147/Р149 · Telegram', () => {
     expect(tok.statusCode).toBe(503);
   });
 
-  it('/start без токена або з чужим — «Спершу підключи…»; текст від непривʼязаного — те саме', async () => {
-    expect(await handleTelegramText(deps(), upd(100, '/start'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
-    expect(await handleTelegramText(deps(), upd(100, '/start nope'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
-    expect(await handleTelegramText(deps(), upd(100, 'привіт'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+  it('PR 2: /start із чужим токеном — «лінк не діє», без акаунта; текст від незнайомого — «натисни /start» (/start без токена — telegram-login.test)', async () => {
+    expect(await handleTelegramText(deps(), upd(100, '/start nope'))).toEqual({ messages: [COPY.linkExpired], html: false });
+    expect(await handleTelegramText(deps(), upd(100, 'привіт'))).toEqual({ messages: [COPY.startFirst], html: false });
+    expect(await repo.getUserByTelegramId(100)).toBeNull();
   });
 
   it('контракт профілю: GET → { linked, username, linked_at }; POST link-token → { url, expires_at }; /start <token> → привʼязка; токен разовий', async () => {
@@ -67,7 +67,7 @@ describe('Р147/Р149 · Telegram', () => {
     expect(reply?.messages[0]).toMatch(/^Привіт, .*Це кухня дому/);
     expect(await repo.getTelegramByTelegramUser(500)).toMatchObject({ user_id: me.user_id, chat_id: 777, revoked_at: null });
     expect((await get(me.cookie)).json()).toMatchObject({ linked: true, username: BOT });
-    expect(await handleTelegramText(deps(), upd(501, `/start ${token}`))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+    expect(await handleTelegramText(deps(), upd(501, `/start ${token}`))).toEqual({ messages: [COPY.linkExpired], html: false });
   });
 
   it('токен живе 15 хвилин', async () => {
@@ -75,7 +75,7 @@ describe('Р147/Р149 · Telegram', () => {
     const t0 = new Date('2026-09-13T10:00:00Z');
     const { token } = await createTelegramLinkToken(repo, me.user_id, BOT, t0);
     const late = new Date(t0.getTime() + TELEGRAM_LINK_TTL_MS + 1000);
-    expect(await handleTelegramText(deps({ now: () => late }), upd(600, `/start ${token}`))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+    expect(await handleTelegramText(deps({ now: () => late }), upd(600, `/start ${token}`))).toEqual({ messages: [COPY.linkExpired], html: false });
     const { token: t2 } = await createTelegramLinkToken(repo, me.user_id, BOT, t0);
     const inTime = new Date(t0.getTime() + TELEGRAM_LINK_TTL_MS - 1000);
     expect((await handleTelegramText(deps({ now: () => inTime }), upd(601, `/start ${t2}`)))?.messages[0]).toMatch(/^Привіт/);
@@ -85,7 +85,7 @@ describe('Р147/Р149 · Telegram', () => {
     const me = await linked();
     const reply = await handleTelegramText(deps(), upd(500, 'купив молоко і хліб'));
     expect(reply?.html).toBe(true);
-    expect(reply?.messages.at(-1)).toContain(COPY.openWeb(APP));
+    expect(reply?.messages.at(-1)).toMatch(new RegExp(`Відкрити у вебі: ${APP}/v1/auth/telegram\\?token=[A-Za-z0-9_-]+&amp;next=%2Fapp`));
     const session = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     const msgs = await repo.listMessages(session.id);
     const user = msgs.filter((m) => m.role === 'user');
@@ -119,7 +119,7 @@ describe('Р147/Р149 · Telegram', () => {
     expect(renderCardText({ type: 'cook_go', title: 'x' })).toBeNull();
     const msgs = renderTurnMessages({ reply: 'a < b & c', card: proposal }, APP);
     expect(msgs).toHaveLength(1);
-    expect(msgs[0]).toBe(`a &lt; b &amp; c\n\n${escapeHtml(renderCardText(proposal)!)}\n\n${escapeHtml(COPY.openWeb(APP))}`);
+    expect(msgs[0]).toBe(`a &lt; b &amp; c\n\n${escapeHtml(renderCardText(proposal)!)}\n\n${escapeHtml(COPY.openWeb(`${APP}/app`))}`);
     const long = Array.from({ length: 300 }, (_, i) => `рядок ${i} ${'x'.repeat(20)}`).join('\n');
     const parts = splitTelegramText(long);
     expect(parts.length).toBeGreaterThan(1);
@@ -236,7 +236,7 @@ describe('Р147/Р149 · Telegram', () => {
     expect(await handleTelegramFile(d, { update_id: 1103, telegram_user_id: 500, chat_id: 500, source: 'document', file_id: 'f4', mime_type: 'application/zip', file_size: 100 })).toEqual({ messages: [COPY.fileUnsupported], html: false });
     expect(await handleTelegramFile(d, { update_id: 1104, telegram_user_id: 500, chat_id: 500, source: 'photo', file_id: 'f5', file_size: 21 * 1024 * 1024 })).toEqual({ messages: [COPY.fileTooBig], html: false });
     expect(seen).toHaveLength(2);
-    expect(await handleTelegramFile(d, { update_id: 1105, telegram_user_id: 999, chat_id: 999, source: 'photo', file_id: 'f6' })).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+    expect(await handleTelegramFile(d, { update_id: 1105, telegram_user_id: 999, chat_id: 999, source: 'photo', file_id: 'f6' })).toEqual({ messages: [COPY.startFirst], html: false });
   });
 
   it('стиснуте фото без позицій — підказка про файл без стиснення', async () => {
@@ -276,7 +276,7 @@ describe('Р147/Р149 · Telegram', () => {
     expect(await handleTelegramCallback(deps(), { update_id: 1403, telegram_user_id: 500, data: `dismiss:${b}` })).toEqual({ status: COPY.notAdded });
     expect((await repo.listBatches(me.household_id)).filter((x) => x.state !== 'depleted')).toHaveLength(2);
     expect(await handleTelegramCallback(deps(), { update_id: 1404, telegram_user_id: 500, data: 'weird' })).toBeNull();
-    expect(await handleTelegramCallback(deps(), { update_id: 1405, telegram_user_id: 999, data: `apply:${b}` })).toEqual({ status: COPY.linkFirst(APP) });
+    expect(await handleTelegramCallback(deps(), { update_id: 1405, telegram_user_id: 999, data: `apply:${b}` })).toEqual({ status: COPY.startFirst });
   });
 
   // ── Р151: голос ──
@@ -319,7 +319,7 @@ describe('Р147/Р149 · Telegram', () => {
     await linked();
     expect(await handleTelegramVoice(voiceDeps(async () => { throw new Error('openrouter 500'); }), { update_id: 2301, telegram_user_id: 500, chat_id: 500, file_id: 'v5', duration: 3 })).toEqual({ messages: [COPY.voiceUnclear], html: false });
     expect(await handleTelegramVoice(voiceDeps(async () => ({ text: '  ', model: 'm', usage: { input: 1, output: 0 }, prompt_hash: 'h' })), { update_id: 2302, telegram_user_id: 500, chat_id: 500, file_id: 'v6', duration: 3 })).toEqual({ messages: [COPY.voiceUnclear], html: false });
-    expect(await handleTelegramVoice(voiceDeps(heardStt), { update_id: 2303, telegram_user_id: 999, chat_id: 999, file_id: 'v7', duration: 3 })).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+    expect(await handleTelegramVoice(voiceDeps(heardStt), { update_id: 2303, telegram_user_id: 999, chat_id: 999, file_id: 'v7', duration: 3 })).toEqual({ messages: [COPY.startFirst], html: false });
   });
 
   it('аудіофайл як «Файл» (document audio/x-m4a) → той самий STT-шлях: «Почув» + хід, формат m4a', async () => {
@@ -385,14 +385,14 @@ describe('Р147/Р149 · Telegram', () => {
   it('/stop і DELETE /v1/telegram — відключають; текст після цього — «Спершу підключи…»; новий /start оживляє', async () => {
     const me = await linked();
     expect(await handleTelegramText(deps(), upd(500, '/stop'))).toEqual({ messages: [COPY.stopped], html: false });
-    expect(await handleTelegramText(deps(), upd(500, 'привіт'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+    expect(await handleTelegramText(deps(), upd(500, 'привіт'))).toEqual({ messages: [COPY.startFirst], html: false });
     expect((await get(me.cookie)).json()).toMatchObject({ linked: false });
     const { token: t2 } = await createTelegramLinkToken(repo, me.user_id, BOT);
     await handleTelegramText(deps(), upd(500, `/start ${t2}`));
     expect((await get(me.cookie)).json()).toMatchObject({ linked: true });
     const del = await app.inject({ method: 'DELETE', url: '/v1/telegram', headers: { cookie: me.cookie } });
     expect(del.json()).toEqual({ ok: true });
-    expect(await handleTelegramText(deps(), upd(500, 'ще раз'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+    expect(await handleTelegramText(deps(), upd(500, 'ще раз'))).toEqual({ messages: [COPY.startFirst], html: false });
   });
 
   // ── Р152 (PR 5, «Подивитись без моделі»): /pantry /list /recipes /home ──
@@ -422,7 +422,10 @@ describe('Р147/Р149 · Telegram', () => {
       expect(r?.messages[0]).toContain('<b>Комора · 2</b>');
       expect(r?.messages[0]).toContain('<b>Горить · 1</b>');
       expect(r?.replyKeyboard).toEqual(QUICK_KEYBOARD);
-      expect(r?.keyboard).toEqual([[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [{ text: 'Відкрити у вебі', url: `${APP}/pantry` }]]);
+      expect(r?.keyboard?.[0]).toEqual([{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }]);
+      // PR 2: «Відкрити у вебі» — разовий лінк входу з next=/pantry.
+      expect(r?.keyboard?.[1]?.[0]).toMatchObject({ text: 'Відкрити у вебі' });
+      expect(r?.keyboard?.[1]?.[0]?.url).toMatch(new RegExp(`^${APP}/v1/auth/telegram\\?token=[A-Za-z0-9_-]+&next=%2Fpantry$`));
     }
     const soon = await handleQuickCallback(deps(), { update_id: 9001, telegram_user_id: 500, data: 'pantry:soon' });
     expect(soon).toMatchObject({ kind: 'edit' });
@@ -439,7 +442,8 @@ describe('Р147/Р149 · Telegram', () => {
     expect(r?.messages[0]).toContain('<b>Список · 2</b>');
     expect(r?.messages[0]).toContain('☐ яйця · 10 шт');
     expect(r?.keyboard?.[0]).toEqual([{ text: '☐ яйця', data: `list-toggle:${id1}` }]);
-    expect(r?.keyboard?.at(-1)).toEqual([{ text: 'Відкрити у вебі', url: `${APP}/list` }]);
+    expect(r?.keyboard?.at(-1)?.[0]?.text).toBe('Відкрити у вебі');
+    expect(r?.keyboard?.at(-1)?.[0]?.url).toMatch(/\/v1\/auth\/telegram\?token=[A-Za-z0-9_-]+&next=%2Flist$/);
     const q = await handleQuickCallback(deps(), { update_id: 9101, telegram_user_id: 500, data: `list-toggle:${id1}` });
     expect(q).toMatchObject({ kind: 'edit' });
     expect((q as { text: string }).text).toContain('☑ яйця');
@@ -463,7 +467,8 @@ describe('Р147/Р149 · Telegram', () => {
     const r = await handleTelegramText(deps(), upd(500, '/рецепти'));
     expect(r?.messages[0]).toContain('<b>Рецепти · 1</b>');
     expect(r?.messages[0]).toContain('Паста з томатами · 20 хв · 2 порц.');
-    expect(r?.keyboard).toEqual([[{ text: 'Паста з томатами', data: `recipe:${id}` }], [{ text: 'Відкрити у вебі', url: `${APP}/recipes` }]]);
+    expect(r?.keyboard?.[0]).toEqual([{ text: 'Паста з томатами', data: `recipe:${id}` }]);
+    expect(r?.keyboard?.[1]?.[0]?.url).toMatch(/\/v1\/auth\/telegram\?token=[A-Za-z0-9_-]+&next=%2Frecipes$/);
     const q = await handleQuickCallback(deps(), { update_id: 9201, telegram_user_id: 500, data: `recipe:${id}` });
     expect(q).toMatchObject({ kind: 'reply' });
     const reply = (q as { reply: { messages: string[]; html: boolean } }).reply;
@@ -497,8 +502,8 @@ describe('Р147/Р149 · Telegram', () => {
 
   it('непривʼязаний або чужий — «Спершу підключи…»; звичайний хід і /stop не плутаються з командами', async () => {
     const me = await linked();
-    expect(await handleTelegramText(deps(), upd(999, '/pantry'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
-    expect(await handleQuickCallback(deps(), { update_id: 9301, telegram_user_id: 999, data: 'pantry:all' })).toEqual({ kind: 'reply', reply: { messages: [COPY.linkFirst(APP)], html: false } });
+    expect(await handleTelegramText(deps(), upd(999, '/pantry'))).toEqual({ messages: [COPY.startFirst], html: false });
+    expect(await handleQuickCallback(deps(), { update_id: 9301, telegram_user_id: 999, data: 'pantry:all' })).toEqual({ kind: 'reply', reply: { messages: [COPY.startFirst], html: false } });
     // «Комора» саме по собі — команда; довший текст із тим самим словом — звичайний хід.
     const turn = deps({ turn: async () => ({ reply: 'Ок.', card: null, card_id: null }) });
     const reply = await handleTelegramText(turn, upd(500, 'у коморі закінчилось молоко'));
