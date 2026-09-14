@@ -484,12 +484,13 @@ describe('Р148 · мітка каналу', () => {
   });
 });
 
-describe('14.09 · дві пілюлі зняті (відгук тестувальниці)', () => {
-  it('пілюлі сесії (назва розмови) нема в шапці чату', async () => {
+describe('14.09 · шапка чату розчищена (відгук тестувальниці)', () => {
+  it('пілюлі сесії (назва розмови), «+ Нова» й чіпа «Чекають на тебе» нема в шапці чату', async () => {
     await mount();
     expect(q('[data-session-pill]')).toBeNull();
-    // Решта шапки лишається: «панель», «+ Нова», чіп «Дім зараз».
-    expect(q('[data-new-session]')).not.toBeNull();
+    expect(q('[data-new-session]')).toBeNull();
+    expect(q('[data-chip-pending]')).toBeNull();
+    // Решта шапки лишається: чіп «Дім зараз».
     expect(q('[data-chip-home]')).not.toBeNull();
   });
 

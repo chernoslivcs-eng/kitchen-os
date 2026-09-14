@@ -1334,20 +1334,12 @@ export function Feed() {
       <ChatHead
         home={home}
         cookLive={cookLive}
-        onNewSession={() => void startFreshSession()}
         onAllSessions={openAllSessions}
         onCook={() => cookLive && cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
         onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
         onHome={() => setHomeOpen((v) => !v)}
         homeOpen={homeOpen}
         quietCount={quietCount}
-        pendingCount={housePending.length}
-        onPending={() => {
-          const pc = housePending[0]; if (!pc) return;
-          const turn = turns.find((t) => t.cardId === pc.id);
-          if (turn) document.getElementById(`turn-${turn.id}`)?.scrollIntoView({ block: 'center' });
-          else if (pc.session_id) void loadHistorySession(pc.session_id);
-        }}
         form={headForm}
       />
       {homeOpen && (

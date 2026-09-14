@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 //
-// 14.09 (рішення власника, відгук тестувальниці): пілюля розмови (назва
-// сесії, №22) знята з шапки чату повністю — на будь-якій ширині. Цей файл
-// вартує саме це: незалежно від форми (`wide`/`mid`/`narrow`) пілюлі в DOM
-// немає, а решта шапки (панель, «+ Нова», чіпи) лишається на місці.
+// 14.09 (рішення власника, відгук тестувальниці): шапка чату розчищена
+// повністю, на будь-якій ширині (`wide`/`mid`/`narrow`) — пілюля розмови
+// (назва сесії, №22), «+ Нова» (дублювала сайдбар/шухляду) і чіп «Чекають
+// на тебе · N» (§11 від 12.09) зняті. Цей файл вартує саме це: жодного з
+// трьох елементів у DOM немає, решта шапки (панель, чіпи стану, «Дім
+// зараз») лишається на місці.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { act } from 'react';
@@ -19,14 +21,12 @@ function baseProps(form: ChatHeadProps['form']): ChatHeadProps {
   return {
     home,
     cookLive: null,
-    onNewSession: () => {},
     onAllSessions: () => {},
     onCook: () => {},
     onOverdue: () => {},
     onHome: () => {},
     homeOpen: false,
     quietCount: 0,
-    pendingCount: 0,
     form,
   };
 }
@@ -55,10 +55,21 @@ describe.each(['wide', 'mid', 'narrow'] as const)('ChatHead, форма %s', (fo
     expect(host!.textContent).not.toContain('Нова розмова');
   });
 
-  it('панель (кнопка «Розгорнути панель») і «+ Нова» лишаються в розмітці', async () => {
+  it('«+ Нова» нема — нова розмова лише в сайдбарі/шухляді', async () => {
+    await mount(form);
+    expect(host!.querySelector('[data-new-session]')).toBeNull();
+    expect(host!.textContent).not.toContain('Нова');
+  });
+
+  it('чіп «Чекають на тебе» нема, навіть якщо був би рахунок', async () => {
+    await mount(form);
+    expect(host!.querySelector('[data-chip-pending]')).toBeNull();
+    expect(host!.textContent).not.toContain('Чекають на тебе');
+  });
+
+  it('панель (кнопка «Розгорнути панель») лишається в розмітці', async () => {
     await mount(form);
     expect(host!.querySelector('[aria-label="Розгорнути панель"]')).not.toBeNull();
-    expect(host!.querySelector('[data-new-session]')).not.toBeNull();
   });
 
   it('чіп «Дім зараз» лишається', async () => {

@@ -2,19 +2,23 @@
 // (390: один чіп «Дім ●●● N» → шторка). Без фону: лежить поверх стрічки на
 // градієнті bg → прозорий, стрічка йде під неї у фейд.
 //
-// 14.09 (рішення власника, відгук тестувальниці): пілюля розмови (назва
-// сесії, №22) знята повністю — назва чату нікому не була потрібна, «де я»
-// показує сайдбар/нижній бар, не шапка. Пункт №22 у FIXES-V3.md позначений
-// скасованим.
+// 14.09 (рішення власника, відгук тестувальниці): шапка розчищена повністю,
+// на 390 і 1440. Знято: пілюлю розмови (назва сесії, №22 — «де я» показує
+// сайдбар/нижній бар, не шапка), «+ Нова» (дублювала «Нова» в сайдбарі/
+// шухляді — TabBar), чіп «Чекають на тебе · N» (§11 від 12.09 — рахунок і
+// прокрутка до картки жили лише заради нього й теж прибрані). №22 і §11 у
+// FIXES-V3.md позначені скасованими. Лишилось: panel-left (лише <704),
+// чіпи стану, «Дім зараз». Зліва — порожньо (крім panel-left на <704),
+// чіпи праворуч, без «стрибків» при появі/зникненні чіпів.
 //
 // Три розкладки за шириною КОНТЕЙНЕРА стрічки, не вʼюпорту (Р38): панель
 // артефакта 720 на 1440 лишає стрічці ~440, і там діє правило 390. Пороги —
 // ті самі, що у вʼюпортів, мінус рейка: 1024 − 60 = 964, 768 − 64 = 704.
-//   ≥964   panel-left (лише <704 видно) · «+ Нова» · розпірка · чіпи родів ·
+//   ≥964   panel-left (лише <704 видно) · розпірка · чіпи родів ·
 //          «Дім зараз · ще N»
 //   704…   (R2) розпірка · компактні чіпи 36/13: flame «10» · moon «піст» ·
 //          timer «6:32» (знак + найкоротший факт) · «Дім ●●● N» (№27:
-//          згорнутий чіп дому лишається, тап — панель; §14 закрито); «Нова» нема
+//          згорнутий чіп дому лишається, тап — панель; §14 закрито)
 //   <704   (G3) panel-left-open · розпірка · «Дім ●●● N»
 // Чіпи — по одному на рід і лише коли стан є: danger flame «Прострочено N»,
 // plum moon «Піст · до 27 вер», sage timer «Готуємо · таймер». Сезони й свої
@@ -29,8 +33,7 @@ import styles from './ChatHead.module.css';
 export interface ChatHeadProps {
   home: HomeNow;
   cookLive: CookSession | null;
-  onNewSession: () => void;
-  /** panel-left-open і пілюля (№22) — розгорнути сайдбар або шухляду. */
+  /** panel-left-open — розгорнути сайдбар або шухляду. */
   onAllSessions: () => void;
   onCook: () => void;
   onOverdue: () => void;
@@ -39,9 +42,6 @@ export interface ChatHeadProps {
   homeOpen: boolean;
   /** «· ще N» — рядки панелі без свого чіпа (§13: без свого чіпа). */
   quietCount: number;
-  /** 12.09 (§11): «Чекають на тебе · N» — картки, що чекають рішення (чек, кошик); при нулі чіп не показується. */
-  pendingCount?: number;
-  onPending?: () => void;
   /** Форма за шириною контейнера стрічки (Р38): 'wide' ≥964 · 'mid' 704–963 (R2) · 'narrow' <704 (G3). */
   form: 'wide' | 'mid' | 'narrow';
 }
@@ -58,10 +58,6 @@ export function ChatHead(p: ChatHeadProps) {
           стоїть завжди докованим, окремої кнопки в шапці не треба. */}
       <button type="button" className={styles.burger} data-tap onClick={p.onAllSessions} aria-label="Розгорнути панель">
         <Icon name="sys.expand" size={18} inherit decorative />
-      </button>
-
-      <button type="button" className={styles.newBtn} data-tap onClick={p.onNewSession} data-new-session>
-        <Icon name="sys.add" size={16} inherit decorative />Нова
       </button>
 
       <span className={styles.gap} />
@@ -85,16 +81,6 @@ export function ChatHead(p: ChatHeadProps) {
           {/* Живий стан: timer тікає, поки таймер біжить (1.5b). */}
           <Icon name="cook.timer" size={16} inherit decorative live={p.cookLive.deadline ? 'timer' : undefined} />
           <span className={styles.long}>Готуємо · </span><CookCountdown deadline={p.cookLive.deadline} />
-        </button>
-      )}
-
-      {/* 12.09 (§11): «Чекають на тебе · N» — стан дому, а не вміст панелі: чіп у
-          тому самому ряду, форма як у чіпів родів, знак sys.mail, слово ink; на
-          R2/G3 — компактно «N»; при нулі не показується. */}
-      {(p.pendingCount ?? 0) > 0 && (
-        <button type="button" className={`${styles.chip} ${styles['chip-pending']}`} data-tap onClick={p.onPending} data-chip-pending>
-          <Icon name="sys.mail" size={16} inherit decorative />
-          <span className={styles.long}>Чекають на тебе · </span>{p.pendingCount}
         </button>
       )}
 
