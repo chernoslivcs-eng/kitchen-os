@@ -9,10 +9,22 @@ export function installKeyboardOffset() {
   if (!vv) return;
   const root = document.documentElement;
   let raf = 0;
+  let wasOpen = false;
   const update = () => {
     raf = 0;
     const kb = Math.round(window.innerHeight - vv.height);
-    root.style.setProperty('--kb', kb > 40 ? `${kb}px` : '0px');
+    const open = kb > 40;
+    root.style.setProperty('--kb', open ? `${kb}px` : '0px');
+    // 14.09: кнопка «сховати клавіатуру» в iOS не знімає фокус із поля — клас
+    // body.composer-focused лишався, і нижній бар не повертався, доки людина
+    // не відправить або не тапне поза полем. Клавіатура зникла, поле у фокусі —
+    // знімаємо фокус самі; набраний текст лишається. Android/десктоп сюди не
+    // потрапляють (kb там завжди 0, переходу «відкрито → закрито» нема).
+    if (wasOpen && !open) {
+      const el = document.activeElement;
+      if (el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) el.blur();
+    }
+    wasOpen = open;
   };
   const schedule = () => { if (!raf) raf = window.requestAnimationFrame(update); };
   vv.addEventListener('resize', schedule);
