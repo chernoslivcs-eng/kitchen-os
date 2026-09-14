@@ -3633,3 +3633,32 @@ eval-тести (overlap-lint) зелені. PR — з таблицею «бул
 розмітки, і з CSS одночасно), `apps/web` тести — 707 зелені, `packages/eval`
 (overlap-lint) — 65 зелені, `services/api` `product-map.test.ts` — 6 зелені.
 Не мерджити.
+
+### Р157 · Чіп «Прострочено N» у шапці чату знятий (доповнення до PR #124), 14.09
+
+Гілка `fix/chip-overdue-remove` від `origin/main` d3b448a (#124 змерджено).
+Прогонів моделі не було.
+
+Чіп `data-chip-overdue` (danger, «⚠ Прострочено N») знятий з `ChatHead.tsx`
+повністю — крапку того самого роду (danger) вже несе `kinds` у чіпі
+«⌂ · N» (Р156), а число прострочених лишилось першим рядком панелі «Дім
+зараз». `onOverdue` прибрано з `ChatHeadProps`/виклику `<ChatHead>` у
+Feed.tsx; той самий пропс у `<HomeNowPanel>` (окремий, веде на
+`/pantry?sort=fresh`) НЕ чіпав — постановка явно просила лічбу
+`home.overdue` лишити, нею й далі живуть і `kinds`, і панель.
+
+CSS: `.chip-danger` прибрано з `ChatHead.module.css` разом зі згадкою в
+ширинному правилі `<704` (`.chip-danger, .chip-plum, .chip-sage {
+display:none }` → без `.chip-danger`).
+
+product-map.md (К1а): абзац «Чат» — «Прострочено N» прибрано з переліку
+чіпів, дописано, де тепер живе число прострочених.
+
+Тести: `ChatHead.test.tsx` — новий тест на всіх трьох формах: чіпа
+`[data-chip-overdue]` нема навіть при `overdue > 0`, а «⌂ · N» усе одно
+рахує danger.
+
+Здача: typecheck 0 (увесь монорепо), `pnpm lint` 0 (орфанів CSS нема —
+`.chip-danger` прибрано і з розмітки, і з CSS одночасно), `apps/web`
+тести — 712 зелені, `packages/eval` (overlap-lint) — 65 зелені,
+`services/api` `product-map.test.ts` — 6 зелені. Не мерджити.

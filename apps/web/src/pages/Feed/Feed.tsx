@@ -1335,7 +1335,6 @@ export function Feed() {
         cookLive={cookLive}
         onAllSessions={openAllSessions}
         onCook={() => cookLive && cookOpen({ recipe: cookLive.recipe, recipeId: cookLive.recipeId, returnSessionId: cookLive.returnSessionId ?? sessionId })}
-        onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
         onHome={() => setHomeOpen((v) => !v)}
         homeOpen={homeOpen}
         // 14.09 (власник): на порожній розмові «?» нема — шість чіпів і так унизу.

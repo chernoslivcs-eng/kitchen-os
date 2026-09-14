@@ -24,7 +24,6 @@
   background: transparent; white-space: nowrap; flex: none; cursor: pointer;
 }
 .chip:hover { filter: brightness(0.96); }
-.chip-danger { background: var(--danger-bg); color: var(--danger); }
 .chip-plum { background: var(--plum-bg); color: var(--plum); }
 .chip-sage { background: var(--sage-bg); color: var(--sage); }
 .chip-home { background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
@@ -54,7 +53,7 @@
     width: 40px; height: 40px; border: 0; border-radius: 50%;
     background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted); cursor: pointer;
   }
-  .chip-danger, .chip-plum, .chip-sage { display: none; }
+  .chip-plum, .chip-sage { display: none; }
 }
 
 /* 14.09: пілюля розмови (№22), «+ Нова» й чіп «Чекають на тебе» (§11) знято

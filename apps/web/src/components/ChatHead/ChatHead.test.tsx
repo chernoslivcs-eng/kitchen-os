@@ -6,7 +6,10 @@
 // на тебе · N» (§11 від 12.09) зняті. Того самого дня (пізніше, окрема
 // правка): чіп дому стиснуто до «⌂ · N» — лише знак і число активних
 // станів, той самий вигляд на всіх ширинах, без слів і без числа при нулі
-// станів. Цей файл вартує все це разом: жодного з трьох знятих елементів
+// станів. Ще одна правка того самого дня (доповнення до PR #124): чіп
+// «⚠ Прострочено N» (danger) знятий повністю — «⌂ · N» уже несе крапку
+// того самого роду через kinds, а число прострочених лишилось у панелі
+// «Дім зараз». Цей файл вартує все це разом: жодного зі знятих елементів
 // у DOM немає, чіп дому — компактний скрізь, решта шапки (панель, чіпи
 // стану) лишається на місці.
 
@@ -27,7 +30,6 @@ function baseProps(form: ChatHeadProps['form'], home: HomeNow = calmHome): ChatH
     cookLive: null,
     onAllSessions: () => {},
     onCook: () => {},
-    onOverdue: () => {},
     onHome: () => {},
     homeOpen: false,
     form,
@@ -87,6 +89,14 @@ describe.each(['wide', 'mid', 'narrow'] as const)('ChatHead, форма %s', (fo
     await mount(form, busyHome);
     const chip = host!.querySelector('[data-chip-home]')!;
     expect(chip.textContent!.trim()).toBe('· 1');
+  });
+
+  it('доповнення до PR #124: чіп «Прострочено N» знятий — нема навіть коли є прострочене', async () => {
+    await mount(form, busyHome);
+    expect(host!.querySelector('[data-chip-overdue]')).toBeNull();
+    expect(host!.textContent).not.toContain('Прострочено');
+    // Роду не втрачено: «⌂ · N» усе одно рахує danger серед kinds.
+    expect(host!.querySelector('[data-chip-home]')!.textContent!.trim()).toBe('· 1');
   });
 });
 

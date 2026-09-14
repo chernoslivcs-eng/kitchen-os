@@ -15,16 +15,22 @@
 // («⌂ · 3»), той самий вигляд на всіх ширинах, без слів «Дім», «зараз»,
 // «ще», «тихо» і без крапок родів; нуль станів — лише знак, без числа.
 //
+// 14.09 (доповнення до PR #124): чіп «⚠ Прострочено N» (danger) знятий
+// повністю — «⌂ · N» уже несе крапку того самого роду (danger серед
+// kinds), а число прострочених — перший рядок панелі «Дім зараз» (onOverdue
+// лишився лише в HomeNowPanel). Лічба home.overdue не чіпалась — нею й
+// далі живуть kinds і панель.
+//
 // Три розкладки за шириною КОНТЕЙНЕРА стрічки, не вʼюпорту (Р38): панель
 // артефакта 720 на 1440 лишає стрічці ~440, і там діє правило 390. Пороги —
 // ті самі, що у вʼюпортів, мінус рейка: 1024 − 60 = 964, 768 − 64 = 704.
 //   ≥964   panel-left (лише <704 видно) · розпірка · чіпи родів · «⌂ · N»
-//   704…   (R2) розпірка · компактні чіпи 36/13: flame «10» · moon «піст» ·
-//          timer «6:32» (знак + найкоротший факт) · «⌂ · N»
+//   704…   (R2) розпірка · компактні чіпи 36/13: moon «піст» · timer
+//          «6:32» (знак + найкоротший факт) · «⌂ · N»
 //   <704   (G3) panel-left-open · розпірка · «⌂ · N»
-// Чіпи — по одному на рід і лише коли стан є: danger flame «Прострочено N»,
-// plum moon «Піст · до 27 вер», sage timer «Готуємо · таймер». Сезони й свої
-// події чіпів не мають — вони тихі рядки панелі «Дім зараз».
+// Чіпи — по одному на рід і лише коли стан є: plum moon «Піст · до 27 вер»,
+// sage timer «Готуємо · таймер». Сезони й свої події чіпів не мають — вони
+// тихі рядки панелі «Дім зараз».
 import { Icon } from '../Icon/Icon';
 import { CookCountdown } from '../../lib/cook-watch';
 import { shortDate } from '../../lib/period';
@@ -38,7 +44,6 @@ export interface ChatHeadProps {
   /** panel-left-open — розгорнути сайдбар або шухляду. */
   onAllSessions: () => void;
   onCook: () => void;
-  onOverdue: () => void;
   /** Чіп «⌂ · N» — панель «Дім зараз». */
   onHome: () => void;
   homeOpen: boolean;
@@ -65,13 +70,6 @@ export function ChatHead(p: ChatHeadProps) {
 
       <span className={styles.gap} />
 
-      {p.home.overdue > 0 && (
-        <button type="button" className={`${styles.chip} ${styles['chip-danger']}`} data-tap onClick={p.onOverdue} data-chip-overdue>
-          {/* 12.09 (ANSWERS A10): «Прострочено N» — alert-triangle, danger; flame — тільки «Горить». */}
-          <Icon name="live.overdue" size={16} inherit decorative />
-          <span className={styles.long}>Прострочено </span>{p.home.overdue}
-        </button>
-      )}
       {p.home.strict && (
         <button type="button" className={`${styles.chip} ${styles['chip-plum']}`} data-tap onClick={p.onHome} data-chip-strict>
           <Icon name="live.fast" size={16} inherit decorative />
