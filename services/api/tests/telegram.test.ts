@@ -11,9 +11,11 @@ import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
 import {
-  handleTelegramText, handleTelegramFile, handleTelegramVoice, handleTelegramCallback, createTelegramLinkToken, resetSeenUpdates, resetBotUsernameCache,
+  handleTelegramText, handleTelegramFile, handleTelegramVoice, handleTelegramCallback, handleQuickCallback, createTelegramLinkToken, resetSeenUpdates, resetBotUsernameCache,
   renderCardText, renderTurnMessages, renderRecipeBlocks, splitTelegramText, escapeHtml, formatQty, COPY, TELEGRAM_LINK_TTL_MS, TELEGRAM_MSG_MAX,
 } from '../src/telegram.js';
+import { QUICK_KEYBOARD } from '../src/telegram-nomodel.js';
+import { randomUUID } from 'node:crypto';
 import { ChatTurnHttpError } from '../src/chat-turn.js';
 import { localDay } from '../src/local-day.js';
 
@@ -391,5 +393,123 @@ describe('Р147/Р149 · Telegram', () => {
     const del = await app.inject({ method: 'DELETE', url: '/v1/telegram', headers: { cookie: me.cookie } });
     expect(del.json()).toEqual({ ok: true });
     expect(await handleTelegramText(deps(), upd(500, 'ще раз'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+  });
+
+  // ── Р152 (PR 5, «Подивитись без моделі»): /pantry /list /recipes /home ──
+  async function seedPantry(household_id: string) {
+    await repo.insertBatch({ id: randomUUID(), household_id, catalog_key: 'tomato', label: 'помідори', zone: 'fresh', value: 500, unit: 'g', state: 'sealed', opened_at: null, expires_at: new Date(Date.now() - 86_400_000).toISOString(), best_before_opened_days: null, added_at: new Date().toISOString(), depleted_at: null, confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: null });
+    await repo.insertBatch({ id: randomUUID(), household_id, catalog_key: 'rice', label: 'рис', zone: 'dry', value: 1000, unit: 'g', state: 'sealed', opened_at: null, expires_at: new Date(Date.now() + 300 * 86_400_000).toISOString(), best_before_opened_days: null, added_at: new Date().toISOString(), depleted_at: null, confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: null });
+  }
+  async function seedShopping(household_id: string) {
+    const id1 = randomUUID(); const id2 = randomUUID();
+    await repo.insertShoppingItem({ id: id1, household_id, label: 'яйця', reason: null, value: 10, unit: 'pcs', zone: null, checked: false, added_by: null, source: 'user', created_at: new Date().toISOString() });
+    await repo.insertShoppingItem({ id: id2, household_id, label: 'сіль', reason: null, value: null, unit: null, zone: null, checked: false, added_by: null, source: 'user', created_at: new Date().toISOString() });
+    return { id1, id2 };
+  }
+  async function seedRecipe(user_id: string, household_id: string) {
+    const id = randomUUID();
+    const recipe = { t: 'Паста з томатами', sv: 2, tm: 20, ch: '', d: '', rk: '', ing: [{ n: 'паста', v: 200, u: 'g' }], st: [{ t: 'Варимо', c: 'Закипʼятити воду.' }] };
+    await repo.saveRecipe({ id, owner_id: user_id, household_id, origin: 'generated', title: recipe.t, descr: '', character: '', risk: '', base_servings: 2, time_total: 20, nutrition: null, payload: recipe, created_at: new Date().toISOString(), saved_at: new Date().toISOString(), hidden_at: null } as never);
+    return id;
+  }
+
+  it('/pantry (усі три форми) → «Комора · N», «Горить» зверху, reply-клавіатура QUICK_KEYBOARD; «Спливає»/«Усе» редагують на місці', async () => {
+    const me = await linked();
+    await seedPantry(me.household_id);
+    for (const cmd of ['/pantry', '/комора', 'Комора']) {
+      const r = await handleTelegramText(deps(), upd(500, cmd));
+      expect(r?.html).toBe(true);
+      expect(r?.messages[0]).toContain('<b>Комора · 2</b>');
+      expect(r?.messages[0]).toContain('<b>Горить · 1</b>');
+      expect(r?.replyKeyboard).toEqual(QUICK_KEYBOARD);
+      expect(r?.keyboard).toEqual([[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [{ text: 'Відкрити у вебі', data: 'noop' }]]);
+    }
+    const soon = await handleQuickCallback(deps(), { update_id: 9001, telegram_user_id: 500, data: 'pantry:soon' });
+    expect(soon).toMatchObject({ kind: 'edit' });
+    expect((soon as { text: string }).text).toContain('<b>Горить · 1</b>');
+    expect((soon as { text: string }).text).not.toContain('рис');
+    const all = await handleQuickCallback(deps(), { update_id: 9002, telegram_user_id: 500, data: 'pantry:all' });
+    expect((all as { text: string }).text).toContain('рис');
+    expect(await handleQuickCallback(deps(), { update_id: 9003, telegram_user_id: 500, data: 'noop' })).toEqual({ kind: 'noop' });
+  });
+
+  it('/list → рядки з тоглами; callback list-toggle → repo.toggleShoppingItem і повідомлення редагується', async () => {
+    const me = await linked();
+    const { id1 } = await seedShopping(me.household_id);
+    const r = await handleTelegramText(deps(), upd(500, '/список'));
+    expect(r?.messages[0]).toContain('<b>Список · 2</b>');
+    expect(r?.messages[0]).toContain('☐ яйця · 10 шт');
+    expect(r?.keyboard?.[0]).toEqual([{ text: '☐ яйця', data: `list-toggle:${id1}` }]);
+    const q = await handleQuickCallback(deps(), { update_id: 9101, telegram_user_id: 500, data: `list-toggle:${id1}` });
+    expect(q).toMatchObject({ kind: 'edit' });
+    expect((q as { text: string }).text).toContain('☑ яйця');
+    const items = await repo.listShoppingItems(me.household_id);
+    expect(items.find((i) => i.id === id1)?.checked).toBe(true);
+    // повторний тогл повертає назад
+    const q2 = await handleQuickCallback(deps(), { update_id: 9102, telegram_user_id: 500, data: `list-toggle:${id1}` });
+    expect((q2 as { text: string }).text).toContain('☐ яйця');
+  });
+
+  it('/list порожній — «Список порожній.» + «Відкрити у вебі», без клавіатури', async () => {
+    await linked();
+    const r = await handleTelegramText(deps(), upd(500, '/list'));
+    expect(r?.messages[0]).toBe('Список порожній.');
+    expect(r?.keyboard).toBeUndefined();
+  });
+
+  it('/recipes → останні збережені з кнопками; callback recipe:<id> → повний рецепт тим самим renderRecipeBlocks', async () => {
+    const me = await linked();
+    const id = await seedRecipe(me.user_id, me.household_id);
+    const r = await handleTelegramText(deps(), upd(500, '/рецепти'));
+    expect(r?.messages[0]).toContain('<b>Рецепти · 1</b>');
+    expect(r?.messages[0]).toContain('Паста з томатами · 20 хв · 2 порц.');
+    expect(r?.keyboard).toEqual([[{ text: 'Паста з томатами', data: `recipe:${id}` }]]);
+    const q = await handleQuickCallback(deps(), { update_id: 9201, telegram_user_id: 500, data: `recipe:${id}` });
+    expect(q).toMatchObject({ kind: 'reply' });
+    const reply = (q as { reply: { messages: string[]; html: boolean } }).reply;
+    expect(reply.html).toBe(true);
+    expect(reply.messages[0]).toContain('<b>Паста з томатами</b>');
+    expect(reply.messages[0]).toContain('<b>Кроки · 1</b>');
+    // видалений рецепт — увічливо, не падає
+    await repo.deleteRecipe(id);
+    const gone = await handleQuickCallback(deps(), { update_id: 9202, telegram_user_id: 500, data: `recipe:${id}` });
+    expect((gone as { reply: { messages: string[] } }).reply.messages[0]).toMatch(/не знайдено/);
+  });
+
+  it('/recipes порожньо — «Збережених рецептів ще нема.»', async () => {
+    await linked();
+    const r = await handleTelegramText(deps(), upd(500, '/recipes'));
+    expect(r?.messages[0]).toBe('Збережених рецептів ще нема.');
+  });
+
+  it('/home (/дім, «Дім зараз») → рядки прострочено/горить/список; спокійний дім — окремий рядок', async () => {
+    const me = await linked();
+    const r0 = await handleTelegramText(deps(), upd(500, '/дім'));
+    expect(r0?.messages[0]).toContain('Дім спокійний. Нічого не горить.');
+    await seedPantry(me.household_id);
+    await seedShopping(me.household_id);
+    const r = await handleTelegramText(deps(), upd(500, 'Дім зараз'));
+    expect(r?.messages[0]).toContain('<b>Дім зараз</b>');
+    expect(r?.messages[0]).toContain('Горить: помідори');
+    expect(r?.messages[0]).toContain('Список · 2');
+    expect(r?.replyKeyboard).toEqual(QUICK_KEYBOARD);
+  });
+
+  it('непривʼязаний або чужий — «Спершу підключи…»; звичайний хід і /stop не плутаються з командами', async () => {
+    const me = await linked();
+    expect(await handleTelegramText(deps(), upd(999, '/pantry'))).toEqual({ messages: [COPY.linkFirst(APP)], html: false });
+    expect(await handleQuickCallback(deps(), { update_id: 9301, telegram_user_id: 999, data: 'pantry:all' })).toEqual({ kind: 'reply', reply: { messages: [COPY.linkFirst(APP)], html: false } });
+    // «Комора» саме по собі — команда; довший текст із тим самим словом — звичайний хід.
+    const turn = deps({ turn: async () => ({ reply: 'Ок.', card: null, card_id: null }) });
+    const reply = await handleTelegramText(turn, upd(500, 'у коморі закінчилось молоко'));
+    expect(reply?.messages[0]).not.toContain('<b>Комора');
+    void me;
+  });
+
+  it('привʼязка дає reply-клавіатуру одразу', async () => {
+    const meRepo = repo;
+    const { token } = await createTelegramLinkToken(meRepo, (await signIn(app, mailer, 'kb@example.com')).user_id, BOT);
+    const r = await handleTelegramText(deps(), upd(777, `/start ${token}`));
+    expect(r?.replyKeyboard).toEqual(QUICK_KEYBOARD);
   });
 });

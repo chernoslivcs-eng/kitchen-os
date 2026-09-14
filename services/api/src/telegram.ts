@@ -24,6 +24,10 @@ import { flushSentry } from './sentry.js';
 import { makeRateLimiter } from './rate-limit.js';
 import { transcribeTelegramAudio, type SttResult } from './telegram-stt.js';
 import { loadPrompt } from '@kitchen/prompts';
+import {
+  matchQuickCommand, QUICK_KEYBOARD, renderPantry, renderShopping, renderRecipes, renderSavedRecipe, renderHome,
+  renderPantryText, renderShoppingText, type QuickReply, type ShoppingLike,
+} from './telegram-nomodel.js';
 
 export const TELEGRAM_LINK_TTL_MS = 15 * 60_000;
 /** Ліміт Telegram: 4096 знаків на повідомлення. */
@@ -289,7 +293,10 @@ export function splitByBlocks(text: string, boundary: RegExp, max = TELEGRAM_MSG
 }
 
 /** Клавіатура — до ОСТАННЬОГО повідомлення; data — `apply:<card_id>` / `dismiss:<card_id>`. */
-export type TelegramReply = { messages: string[]; html: boolean; keyboard?: { text: string; data: string }[][] } | null;
+/** Клавіатура — до ОСТАННЬОГО повідомлення; data — `apply:<card_id>` / `dismiss:<card_id>` /
+ *  `pantry:soon|all` / `list-toggle:<id>` / `recipe:<id>` (Р152). `replyKeyboard` — постійна
+ *  reply-клавіатура (не inline): лише з відповіді на привʼязку і з чотирьох команд PR 5. */
+export type TelegramReply = { messages: string[]; html: boolean; keyboard?: { text: string; data: string }[][]; replyKeyboard?: string[][] } | null;
 
 export interface IncomingFile {
   update_id: number;
@@ -396,6 +403,50 @@ export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCall
   }
 }
 
+/** Кнопки PR 5 (Р152): «Спливає/Усе» під /pantry (нова відповідь, не редагування), тогл рядка
+ *  списку (той самий toggleShoppingItem, що робить POST /v1/shopping/:id — веб-роут інлайнить
+ *  логіку без окремої domain-функції, повторено тут 1:1) і рядок «Рецепти» → повний рецепт.
+ *  «noop» (кнопка «Відкрити у вебі» в inline-рядку) — тільки answerCallbackQuery, без відповіді. */
+export interface QuickKeyboardBtn { text: string; data: string }
+export type QuickCallbackResult =
+  | { kind: 'reply'; reply: QuickReply }
+  | { kind: 'edit'; text: string; keyboard: QuickKeyboardBtn[][] }
+  | { kind: 'noop' }
+  | null;
+
+const PANTRY_KEYBOARD: QuickKeyboardBtn[][] = [[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [{ text: 'Відкрити у вебі', data: 'noop' }]];
+const LIST_KEYBOARD_MAX = 8;
+function listKeyboard(items: ShoppingLike[]): QuickKeyboardBtn[][] {
+  const rows = items.slice(0, LIST_KEYBOARD_MAX).map((i) => [{ text: `${i.checked ? '☑' : '☐'} ${i.label}`.slice(0, 64), data: `list-toggle:${i.id}` }]);
+  rows.push([{ text: 'Відкрити у вебі', data: 'noop' }]);
+  return rows;
+}
+
+export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallback): Promise<QuickCallbackResult> {
+  if (u.data === 'noop') return { kind: 'noop' };
+  const pantry = u.data.match(/^pantry:(soon|all)$/);
+  const toggle = u.data.match(/^list-toggle:([0-9a-f-]{36})$/);
+  const recipe = u.data.match(/^recipe:([0-9a-f-]{36})$/);
+  if (!pantry && !toggle && !recipe) return null;
+  if (seenUpdate(u.update_id, (deps.now?.() ?? new Date()).getTime())) return null;
+  const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
+  const linked = account && !account.revoked_at ? account : null;
+  if (!linked) return { kind: 'reply', reply: { messages: [COPY.linkFirst(deps.appUrl)], html: false } };
+  const household_id = await householdOf(deps.repo, linked.user_id);
+  if (!household_id) return { kind: 'reply', reply: { messages: [COPY.linkFirst(deps.appUrl)], html: false } };
+  if (pantry) return { kind: 'edit', text: renderPantryText(await deps.repo.listBatches(household_id), Date.now(), pantry[1] as 'soon' | 'all'), keyboard: PANTRY_KEYBOARD };
+  if (toggle) {
+    const items = await deps.repo.listShoppingItems(household_id);
+    const item = items.find((i) => i.id === toggle[1]);
+    if (!item) return { kind: 'edit', text: renderShoppingText(items), keyboard: listKeyboard(items) };
+    await deps.repo.toggleShoppingItem(item.id, !item.checked);
+    const updated: ShoppingLike[] = items.map((i) => (i.id === item.id ? { ...i, checked: !i.checked } : i));
+    return { kind: 'edit', text: renderShoppingText(updated), keyboard: listKeyboard(updated) };
+  }
+  const r = await renderSavedRecipe(deps.repo, household_id, recipe![1]!, deps.appUrl);
+  return r ? { kind: 'reply', reply: r } : { kind: 'reply', reply: { messages: ['Рецепт не знайдено — можливо, видалений.'], html: false } };
+}
+
 /** Один апдейт → повідомлення боту (null — нічого не відповідати: дубль або порожньо).
  *  Довгий крок (модель) — усередині; хто кличе, той тримає «typing» (telegram-bot.ts). */
 export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): Promise<TelegramReply> {
@@ -412,7 +463,7 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     if (!row) return plain(COPY.linkFirst(deps.appUrl));
     await deps.repo.linkTelegram({ telegram_user_id: u.telegram_user_id, user_id: row.user_id, chat_id: u.chat_id, linked_at: now.toISOString(), revoked_at: null });
     const user = await deps.repo.getUser(row.user_id);
-    return plain(COPY.hello(user?.name?.trim() || 'привіт'));
+    return { messages: [COPY.hello(user?.name?.trim() || 'привіт')], html: false, replyKeyboard: QUICK_KEYBOARD };
   }
 
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
@@ -423,9 +474,28 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     return plain(COPY.stopped);
   }
   if (!linked) return plain(COPY.linkFirst(deps.appUrl));
+  // Р152 (PR 5, «Подивитись без моделі»): чотири команди читають Repo напряму, 0 $, без ходу
+  // чату. Матчимо ДО catch-all «інші команди — мовчки»; кожна відповідь несе постійну
+  // reply-клавіатуру — той самий набір, що прийшов із привʼязки.
+  const quick = matchQuickCommand(text);
+  if (quick) {
+    const household_id = await householdOf(deps.repo, linked.user_id);
+    if (!household_id) return plain(COPY.linkFirst(deps.appUrl));
+    const r = await runQuickCommand(quick, deps, household_id, linked.user_id);
+    return { ...r, replyKeyboard: QUICK_KEYBOARD };
+  }
   if (text.startsWith('/')) return null;   // інші команди — мовчки
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
   return textTurn(deps, linked.user_id, u.telegram_user_id, text);
+}
+
+async function runQuickCommand(cmd: ReturnType<typeof matchQuickCommand> & {}, deps: TelegramDeps, household_id: string, user_id: string): Promise<QuickReply> {
+  switch (cmd) {
+    case 'pantry': return renderPantry(deps.repo, household_id, deps.appUrl);
+    case 'list': return renderShopping(deps.repo, household_id, deps.appUrl);
+    case 'recipes': return renderRecipes(deps.repo, user_id, deps.appUrl);
+    case 'home': return renderHome(deps.repo, household_id, user_id, deps.appUrl);
+  }
 }
 
 /** Той самий хід, що POST /v1/chat, для привʼязаної людини; дім — її. Спільне для тексту й голосу. */
