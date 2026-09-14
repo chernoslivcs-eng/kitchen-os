@@ -2017,6 +2017,12 @@ export function Feed() {
                   title={sending && queue.length >= QUEUE_MAX ? 'дай відповісти' : undefined}
                   aria-label="Надіслати"
                   data-send data-slot="send"
+                  /* 14.09 (власник, Chrome iOS): тап по кнопці забирав фокус з поля →
+                     клавіатура ховалась, композитор зсувався, і click прилітав повз
+                     кнопку — доводилось тиснути двічі. Не віддаємо фокус на натискання:
+                     поле лишається у фокусі, submit іде з першого тапу. */
+                  onMouseDown={(e) => e.preventDefault()}
+                  onPointerDown={(e) => e.preventDefault()}
                 ><Icon name="sys.send" size={18} inherit decorative /></button>
               );
             }
