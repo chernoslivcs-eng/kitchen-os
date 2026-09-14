@@ -580,7 +580,15 @@ describe('довідки · ряд-продовження', () => {
 // розмові; повторний тап або власна репліка ховає. Не новий чат.
 describe('довідки · «?» у шапці', () => {
   const row = () => [...host!.querySelectorAll('[data-help-row] [data-help-chip]')].map((c) => c.getAttribute('data-help-chip'));
+  // Власник 14.09: на порожній розмові «?» нема — шість чіпів і так унизу.
+  it('порожній чат — «?» нема; після першої репліки — є', async () => {
+    await mount();
+    expect(q('[data-chip-help]')).toBeNull();
+    await act(async () => { q<HTMLButtonElement>('[data-empty-chip="app"]')!.click(); });
+    expect(q('[data-chip-help]')).toBeTruthy();
+  });
   it('тап «?» → шість чіпів; тап по чіпу → довідка в поточну розмову; повторний «?» ховає', async () => {
+    todayMessages = [{ id: 'm0', session_id: 's1', role: 'user', text: 'привіт', card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' }];
     await mount();
     expect(q('[data-help-row]')).toBeNull();
     await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
@@ -594,6 +602,7 @@ describe('довідки · «?» у шапці', () => {
     expect(q('[data-help-row]')).toBeNull();
   });
   it('власний хід ховає ряд', async () => {
+    todayMessages = [{ id: 'm0', session_id: 's1', role: 'user', text: 'привіт', card: null, applied: 0, created_at: '2026-09-14T09:00:00Z' }];
     await mount();
     await act(async () => { q<HTMLButtonElement>('[data-chip-help]')!.click(); });
     expect(q('[data-help-row]')).toBeTruthy();

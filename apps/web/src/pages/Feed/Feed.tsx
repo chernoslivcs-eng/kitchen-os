@@ -1338,7 +1338,8 @@ export function Feed() {
         onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
         onHome={() => setHomeOpen((v) => !v)}
         homeOpen={homeOpen}
-        onHelp={() => { setHomeOpen(false); setHelpOpen((v) => !v); }}
+        // 14.09 (власник): на порожній розмові «?» нема — шість чіпів і так унизу.
+        onHelp={turns.length > 0 ? () => { setHomeOpen(false); setHelpOpen((v) => !v); } : undefined}
         helpOpen={helpOpen}
         form={headForm}
       />
