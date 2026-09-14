@@ -652,3 +652,15 @@ describe('довідки · жирний', () => {
     expect(host!.textContent).toContain('**так**');
   });
 });
+
+// Власник 14.09: зелена каретка стрімінгу «в усі репліки залазить» — знята
+// повністю; анімація появи фраз лишається.
+describe('репліка без каретки', () => {
+  it('свіжа репліка моделі: фрази є, каретки нема', async () => {
+    await mount();
+    await type('привіт'); await submit();
+    await act(async () => { waiting[0]!.resolve({ reply: 'Привіт. Що готуємо?' }); await new Promise((r) => setTimeout(r, 0)); });
+    expect(host!.querySelector('[class*="reply-phrases"]')).toBeTruthy();
+    expect(host!.querySelector('[class*="stream-caret"]')).toBeNull();
+  });
+});

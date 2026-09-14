@@ -1469,11 +1469,6 @@ export function Feed() {
                   {splitPhrases(t.text).map((ph, i) => (
                     <span key={i} style={{ animationDelay: `${i * 150}ms` }}>{t.scripted ? renderBold(ph) : ph}{ph.endsWith('\n') ? '' : ' '}</span>
                   ))}
-                  {/* Пул-7 №4: каретка блимає, ПОКИ фрази стрімляться, і гасне. */}
-                  <span
-                    className={styles['stream-caret']}
-                    style={{ animationDelay: `0ms, ${splitPhrases(t.text).length * 150 + 1200}ms` }}
-                  />
                 </div>
               ) : (
                 <div className={styles['turn-text']}>{t.scripted ? renderBold(t.text) : t.text}</div>

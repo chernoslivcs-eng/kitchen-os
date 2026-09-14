@@ -659,23 +659,7 @@ a.att-chip:hover { border-color: var(--sage); }
 /* Пул-6 №2: коли rail схований — чат забирає його місце (лишається 56px смужки). */
 
 
-/* Пул-7 №4: каретка стрімінгу — блимає, поки фрази з'являються, потім гасне
-   (тривалість життя задається inline animation-delay від кількості фраз). */
-.stream-caret {
-  display: inline-block;
-  width: 2px;
-  height: 14px;
-  background: var(--sage);
-  vertical-align: -2px;
-  margin-left: 3px;
-  /* Блимання — через токен (під reduce стоїть); caret-gone 1ms — не рух, а
-     затримка зникнення, тривалість тут не має значення і під reduce теж. */
-  animation:
-    caret-blink var(--dur-breathe) steps(2) infinite,
-    caret-gone var(--dur-fast, 1ms) forwards; /* delay інлайном */
-}
-@keyframes caret-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
-@keyframes caret-gone { to { opacity: 0; visibility: hidden; } }
+/* 14.09 (власник): каретка стрімінгу (Пул-7 №4) знята повністю — «в усі репліки залазить». */
 
 /* Пул-7 №4: apply — картка спалахує шавлією 700ms (кіт: ✓ + флеш). */
 .doccard-flash { animation: doccard-flash var(--dur-flash) var(--ease-standard, ease); }
