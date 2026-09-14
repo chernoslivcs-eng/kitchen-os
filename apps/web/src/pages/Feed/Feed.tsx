@@ -24,8 +24,6 @@ import { BatchCard } from '../Pantry/BatchCard';
 import { formatQty } from '../../lib/units';
 import { useAuth } from '../../store/auth';
 import { greeting } from '../../lib/greeting';
-import { homeFact } from '../../lib/homeFact';
-import { daysBetween, todayIso } from '../../lib/period';
 import { useSessionStore } from '../../store/session';
 import { usePantryStore } from '../../store/pantry';
 import { useDropZone } from '../../components/DropZone/useDropZone';
@@ -38,7 +36,6 @@ import { loadCookSession, type CookSession } from '../../lib/cook-session';
 import { useHomeNow } from '../../store/homeNow';
 import { ChatHead } from '../../components/ChatHead/ChatHead';
 import { HomeNowPanel } from '../../components/HomeNow/HomeNow';
-import { toneOfNow } from '../../lib/period';
 import { stepLabelsFrom } from '../../lib/recipe';
 import { type Turn, type TurnAttachment, hhmm, newId, messageToTurn } from './turns';
 import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
@@ -405,8 +402,6 @@ export function Feed() {
   // потрібен весь рядок комори: зона, терміни, БЖВ, походження. Другого
   // запиту для цього не робимо: /v1/pantry віддає це тим самим викликом.
   const [liveBatches, setLiveBatches] = useState<Map<string, PantryBatch>>(new Map());
-  // Р140: партія, списана сьогодні — для рядка «факт дому» на порожній розмові.
-  const [writtenOffToday, setWrittenOffToday] = useState<string | null>(null);
   const [liveProducts, setLiveProducts] = useState<HouseholdProduct[]>([]);
   useEffect(() => {
     let alive = true;
@@ -414,13 +409,10 @@ export function Feed() {
       .then((p) => {
         if (!alive) return;
         const m = new Map<string, PantryBatch>();
-        const day = todayIso();
-        let gone: string | null = null;
         for (const b of p.batches ?? []) {
-          if (b.state === 'depleted') { if (b.depleted_at?.startsWith(day)) gone = gone ?? b.label; continue; }
+          if (b.state === 'depleted') continue;
           m.set(b.id, b);
         }
-        setWrittenOffToday(gone);
         setLiveBatches(m);
         setLiveProducts(p.products ?? []);
       })
@@ -1240,9 +1232,6 @@ export function Feed() {
   }, []);
   // Вказівник: ≥1024 або (hover: hover). На дотику фокус — тільки від людини.
   const pointerDevice = typeof window !== 'undefined' && (window.innerWidth >= 1024 || (window.matchMedia?.('(hover: hover)')?.matches ?? false));
-  // «· ще N» — рядки панелі без свого чіпа (тимчасово, до QUESTIONS §14):
-  // «горить», але не прострочено, і рядки «Зараз», що не суворі.
-  const quietCount = home.burning.filter((b) => b.days >= 0).length + home.now.slice(0, 3).filter((e) => toneOfNow(e) !== 'restrict').length;
   function askInComposer(text: string) {
     setHomeOpen(false);
     setInput(text);
@@ -1303,28 +1292,6 @@ export function Feed() {
     }, 55);
     return () => window.clearInterval(id);
   }, [phLive]);
-  // «Факт дому» — з реальних даних (lib/homeFact): списане сьогодні при тихій
-  // коморі · піст · сезон цього тижня · бібліотека. Лічильники бібліотеки
-  // (збережено · приготовано) — два запити раз на монтування, лише коли
-  // розмова порожня.
-  const [library, setLibrary] = useState<{ saved: number; cooked: number } | null>(null);
-  const libraryAsked = useRef(false);
-  useEffect(() => {
-    if (!emptyChat || mobileEmpty || libraryAsked.current) return;
-    libraryAsked.current = true;
-    Promise.all([api.savedRecipes.list(), api.cookRuns.list()])
-      .then(([r, c]) => setLibrary({ saved: (r.recipes ?? []).length, cooked: (c.runs ?? []).length }))
-      .catch(() => setLibrary({ saved: 0, cooked: 0 }));
-  }, [emptyChat, mobileEmpty]);
-  const today = todayIso();
-  const seasonStarted = home.now.find((e) => toneOfNow(e) === 'season' && e.from <= today && daysBetween(e.from, today) <= 6)?.title ?? null;
-  const fact = homeFact({
-    writtenOffToday: home.overdue === 0 ? writtenOffToday : null,
-    fast: home.strict ? { day: daysBetween(home.strict.from, today) + 1, total: daysBetween(home.strict.from, home.strict.to) + 1 } : null,
-    seasonStarted,
-    library,
-  });
-
   return (
     <div
       className={styles.screen}
@@ -1339,7 +1306,6 @@ export function Feed() {
         onOverdue={() => navigate('/pantry', { state: { sort: 'fresh' } })}
         onHome={() => setHomeOpen((v) => !v)}
         homeOpen={homeOpen}
-        quietCount={quietCount}
         form={headForm}
       />
       {homeOpen && (
@@ -2058,7 +2024,6 @@ export function Feed() {
                 </button>
               ))}
             </div>
-            {fact && <p className={styles['empty-fact']} data-empty-fact>{fact}</p>}
           </div>
         )}
       </div>

@@ -38,9 +38,13 @@
 .timeline {
   flex: 1;
   overflow-y: auto;
-  /* Шапка 56 + фейд 40 лежать поверх: верхній відступ дає першому ходу місце
-     під градієнтом, коли стрічка прокручена до початку. */
-  padding: calc(64px + env(safe-area-inset-top, 0px)) 22px 0;
+  /* 14.09 (власник): фейд під шапкою піднято до краю (.head, 28 px) —
+     стрічка йде майже до верху, чіп «Дім» і panel-left лишаються поверх
+     (.head — position:absolute, z-index 4). Раніше тут стояв відступ 64 px
+     під колишню повну шапку (пілюля, «+ Нова», «Чекають на тебе») — з тих
+     пір шапка розчищена (#118), і повідомлення обрізались зайвою смугою
+     ще до 130 px від верху. */
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 22px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1403,7 +1407,6 @@ a.att-chip:hover { border-color: var(--sage); }
 .empty-chip > [data-icon] > svg { width: 15px; height: 15px; }
 .empty-chip:hover { filter: brightness(0.97); }
 .empty-chip-short { display: none; }
-.empty-fact { margin: 0; font-family: var(--font-body); font-size: 13px; line-height: 1.5; color: var(--muted); max-width: 520px; text-align: center; text-wrap: pretty; }
 .composer-wrap { transition: flex-grow var(--dur-base) var(--ease-standard); }
 [data-chat-empty] .composer-wrap { flex-grow: 1; }
 [data-chat-empty] .timeline { min-height: fit-content; padding-top: calc(100px + env(safe-area-inset-top, 0px)); }

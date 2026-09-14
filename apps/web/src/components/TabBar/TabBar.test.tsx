@@ -34,8 +34,10 @@ const session = (i: number) => ({
 });
 
 // Живий склад короткого екрана з завдання: три активні події і шість сесій.
+let deleteCalls: string[];
 function installFetch() {
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+  deleteCalls = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     if (url.startsWith('/v1/now')) {
       return json({ now: [
         { id: 'n1', title: 'Великий піст', from: '2026-03-02', to: '2026-04-18', strict: true },
@@ -45,6 +47,10 @@ function installFetch() {
     }
     if (url === '/v1/shopping') return json({ count: 3, items: [] });
     if (url === '/v1/sessions') return json({ sessions: [1, 2, 3, 4, 5, 6].map(session) });
+    if (url.startsWith('/v1/sessions/') && init?.method === 'DELETE') {
+      deleteCalls.push(url);
+      return json({ deleted: true });
+    }
     return json({});
   }));
 }
@@ -250,5 +256,51 @@ describe('пакет правок 1 · сайдбар', () => {
     expect(xRule).not.toMatch(/position: absolute/);
     expect(xRule).toMatch(/width: 28px; height: 28px/);
     expect(css).not.toMatch(/session-when/);
+  });
+
+  it('14.09 (власник): хрестик замість confirm() відкриває підтвердження в рядку — «Ні» скасовує, DELETE не летить', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    await mount();
+    const x = host!.querySelector<HTMLElement>('[data-nav] button[aria-label^="Видалити"]')!;
+    await act(async () => { x.click(); });
+    expect(host!.textContent).toContain('Видалити розмову?');
+    const no = [...host!.querySelectorAll('button')].find((b) => b.textContent === 'Ні')!;
+    await act(async () => { no.click(); });
+    expect(host!.textContent).not.toContain('Видалити розмову?');
+    expect(deleteCalls).toHaveLength(0);
+  });
+
+  it('14.09: «Так» видаляє тим самим DELETE, що й раніше — без window.confirm', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    const confirmSpy = vi.fn();
+    vi.stubGlobal('confirm', confirmSpy);
+    await mount();
+    const x = host!.querySelector<HTMLElement>('[data-nav] button[aria-label^="Видалити"]')!;
+    await act(async () => { x.click(); });
+    const yes = [...host!.querySelectorAll('button')].find((b) => b.textContent === 'Так')!;
+    await act(async () => { yes.click(); });
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(deleteCalls).toEqual(['/v1/sessions/s1']);
+  });
+
+  it('14.09: підтвердження гасне саме через 3.5 с, якщо ніхто не торкнувся', async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+    vi.useFakeTimers();
+    await mount();
+    const x = host!.querySelector<HTMLElement>('[data-nav] button[aria-label^="Видалити"]')!;
+    await act(async () => { x.click(); });
+    expect(host!.textContent).toContain('Видалити розмову?');
+    await act(async () => { vi.advanceTimersByTime(3499); });
+    expect(host!.textContent).toContain('Видалити розмову?');
+    await act(async () => { vi.advanceTimersByTime(1); });
+    expect(host!.textContent).not.toContain('Видалити розмову?');
+    vi.useRealTimers();
+  });
+
+  it('14.09: <768 — хрестик видно завжди (не лише на hover)', () => {
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'TabBar.module.css'), 'utf8');
+    const m = css.match(/@media \(max-width: 767px\) \{\s*\.session-x \{([^}]*)\}\s*\}/);
+    expect(m, 'ширинний медіа-запит для .session-x').toBeTruthy();
+    expect(m![1]).toMatch(/opacity\s*:\s*1/);
   });
 });
