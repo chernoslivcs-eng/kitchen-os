@@ -21,6 +21,7 @@ import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, ARTIFACT_SHEET } from 
 import { useSheetDrag } from '../../lib/useSheetDrag';
 import styles from './ArtifactPanel.module.css';
 import { holdBodyFlag } from '../../lib/body-flags';
+import { useBackdropClose } from '../../lib/backdrop-close';
 
 const RAIL_OVERHEAD = 916;  // 276 накладних + 640 мінімум журналу
 
@@ -54,6 +55,8 @@ export function ArtifactPanel() {
     return () => mq.removeEventListener('change', on);
   }, []);
   const sheetDrag = useSheetDrag(() => s.setOpen(false), sheetMode && open);
+  // п. 4 звіту: скрім закриває по pointerup і click, раз на дотик, cursor: pointer (iOS).
+  const scrimClose = useBackdropClose(() => s.setOpen(false));
   // 0912 D (№42): шторка (<600) блокує скрол документа під собою.
   useEffect(() => { if (sheetMode && open) return lockBodyScroll(); }, [sheetMode, open]);
   const shown = artifacts.find((a) => a.key === s.active) ?? artifacts[0];
@@ -202,7 +205,7 @@ export function ArtifactPanel() {
           </div>
         )}
       </aside>
-      {open && <div className={styles['rail-scrim']} onClick={() => s.setOpen(false)} />}
+      {open && <div className={styles['rail-scrim']} {...scrimClose} data-rail-scrim />}
       <div className={`${styles['rail-mini']} ${hidden ? styles['rail-mini-show'] : ''}`}>
         <button type="button" className={styles['rail-mini-expand']} data-tap onClick={miniClick} aria-label="Розгорнути панель">
           <PanelIcon />

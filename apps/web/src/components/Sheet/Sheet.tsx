@@ -20,6 +20,7 @@ import { keepFieldInView } from '../../lib/keepFieldInView';
 import { lockBodyScroll } from '../../lib/lockBodyScroll';
 import { useSheetDrag } from '../../lib/useSheetDrag';
 import { holdBodyFlag } from '../../lib/body-flags';
+import { useBackdropClose } from '../../lib/backdrop-close';
 import panel from '../ArtifactPanel/ArtifactPanel.module.css';
 import { PanelIcon } from '../ArtifactPanel/ArtifactPanel';
 import { ARTIFACT_ICON, type ArtifactKey } from '../../pages/Feed/artifacts';
@@ -94,15 +95,18 @@ export function Sheet({ onClose, ariaLabel, kind, children }: Props) {
   const drag = useSheetDrag(close, !closing);
   leftByDrag.current = drag.leaving;
 
+  // п. 4 звіту: закриття по pointerup і click, раз на дотик, cursor: pointer (iOS).
+  const backdrop = useBackdropClose(close);
   return (
     <div
-      onClick={close}
+      {...backdrop}
       role="presentation"
       className={`${styles.backdrop} ${closing ? styles['backdrop-out'] : ''}`}
     >
       <div
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
         onFocusCapture={keepFieldInView}
         role="dialog"
         aria-modal="true"

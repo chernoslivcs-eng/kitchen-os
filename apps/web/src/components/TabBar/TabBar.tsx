@@ -13,6 +13,7 @@ import styles from './TabBar.module.css';
 import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icons';
 import { useNavStore } from '../../store/nav';
+import { useBackdropClose } from '../../lib/backdrop-close';
 
 /* Рядок розмови всюди один (G1): назва; другий рядок — лише стан («чекає
    рішення»), якого TabBar не знає (Р81). №19: час під назвою знято — день
@@ -42,6 +43,8 @@ export function TabBar({ shoppingCount }: Props) {
   const { pathname } = useLocation();
   const open = useNavStore((s) => s.open);
   const setOpen = useNavStore((s) => s.setOpen);
+  // п. 4 звіту: бекдроп шухляди закриває по pointerup і click, раз на дотик, cursor: pointer (iOS).
+  const navBackdrop = useBackdropClose(() => setOpen(false));
 
   // Після вибору цілі шухляда йде геть, а «де я» лишається в заголовку шапки:
   // без нижнього бара він єдиний індикатор екрана.
@@ -191,8 +194,9 @@ export function TabBar({ shoppingCount }: Props) {
           постійно, і затемнювати нема чого. */}
       <div
         className={`${styles.backdrop} ${open ? styles['backdrop-on'] : ''}`}
-        onClick={() => setOpen(false)}
+        {...navBackdrop}
         aria-hidden="true"
+        data-nav-backdrop
       />
     <div className={`${styles.wrap} ${open ? styles.open : ''} ${wide ? styles.wide : ''} ${peek ? styles.peek : ''}`} data-nav
       data-peek={peek || undefined} onPointerEnter={onRailEnter} onPointerLeave={onRailLeave}>
