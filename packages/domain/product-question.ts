@@ -44,6 +44,15 @@ const PRODUCT_STEMS = [
   'телеграм', 'telegram', 'бот', 'порці', 'голос', 'ккал',
 ];
 
+// 2а) Слова, що бувають ЛИШЕ про додаток, ніколи не про їжу. Коли таке слово
+// є, гейт каталогу не має вето: «як перевести це в телеграм?» гальмував,
+// бо «перевести» стеммилось у «перев» і збігалось з «перець» (14.09, лог
+// Олени) — карта не підмішалась, і модель чесно сказала, що Telegram нема.
+const STRONG_PRODUCT_STEMS = [
+  'телеграм', 'telegram', 'бот', 'профіл', 'акаунт', 'тариф', 'додатк', 'застосун',
+  'сільпо', 'silpo', 'календар', 'нотатк', 'фільтр', 'сортув', 'ккал', 'бжв', 'штрих',
+];
+
 // Слова, які збігаються зі словниками вище, у каталозі не шукаємо:
 // «список», «чек», «профіль» — не продукти, навіть якщо в каталозі є
 // «чеддер» чи «профітролі».
@@ -120,6 +129,7 @@ export function isProductQuestion(text: string): boolean {
   const aboutProduct = ws.some((w) => matchesStem(w, PRODUCT_STEMS));
   if (!aboutProduct) return false;
 
+  if (ws.some((w) => matchesStem(w, STRONG_PRODUCT_STEMS))) return true;
   const catalogHit = ws.some((w) => !STOP.has(w) && !matchesStem(w, [...SKIP_IN_CATALOG]) && isCatalogWord(w));
   return !catalogHit;
 }
