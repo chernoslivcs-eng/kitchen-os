@@ -98,7 +98,8 @@ function extractError(p: unknown): string | null {
 // ----- Types (мінімум, під те, що потрібно на MVP) ---------------------
 
 export interface Me {
-  user: { id: string; name: string; email: string; plan?: string; welcome_seen_at?: string | null };
+  /** email null — акаунт народжений із Telegram (PR 1, 0036); профіль показує «Telegram». */
+  user: { id: string; name: string; email: string | null; plan?: string; welcome_seen_at?: string | null };
   household: {
     id: string;
     name: string;

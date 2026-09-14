@@ -58,8 +58,10 @@ export function meRoute(app: FastifyInstance, repo: Repo) {
       const { user_id } = requireUser(req);
       const user = await repo.getUser(user_id);
       if (user) {
+        // PR 1 (0036): акаунт із Telegram без пошти — у зошит виходу йде його Telegram-id.
+        const tg = user.email ? null : await repo.getTelegramByUser(user_id);
         await repo.recordExitSurvey({
-          email: user.email,
+          email: user.email ?? `telegram:${tg?.telegram_user_id ?? user_id}`,
           reason: (req.body?.reason ?? '').trim() || 'unspecified',
           comment: req.body?.comment?.trim() || null,
         });

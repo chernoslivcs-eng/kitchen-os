@@ -19,7 +19,8 @@ import type { OccasionSubscriptionRow } from './periods.js';
 export interface UserRow {
   id: string;
   name: string;
-  email: string;
+  /** null — акаунт народжений із Telegram (міграція 0036); пошту людина додає сама. */
+  email: string | null;
   created_at: string;
   /** Раунд 4, крок 6: тариф. Поки один — 'beta' (міграція 0024). */
   plan: string;
@@ -39,7 +40,8 @@ export interface HouseholdRow {
 export interface HouseholdMemberRow {
   user_id: string;
   name: string;
-  email: string;
+  /** null — учасник із Telegram без пошти (PR 1, 0036); веб показує «Telegram». */
+  email: string | null;
   role: HouseholdRole;
   joined_at: string;
 }
@@ -224,6 +226,10 @@ export interface Repo {
   // createUserOnly — «гість»: тільки user-рядок. Далі його вручну додають у чужий дім
   // через addMember. Своєї комори гість не має за визначенням — це те, за що платить хазяїн.
   findUserByEmail(email: string): Promise<UserRow | null>;
+  // PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): акаунт із Telegram-id. Пошук — за
+  // telegram_account без revoked; створення — user без пошти + дім + привʼязка.
+  getUserByTelegramId(telegram_user_id: number): Promise<UserRow | null>;
+  createUserFromTelegram(tg: { telegram_user_id: number; chat_id: number | null; name: string }): Promise<{ user_id: string; household_id: string }>;
   getUser(id: string): Promise<UserRow | null>;
   // Крок 7: разові позначки на користувачі (Семен, картка «Про тебе»).
   touchUser(user_id: string, field: UserStampField, at: string): Promise<void>;
