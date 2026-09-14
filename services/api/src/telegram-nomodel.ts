@@ -16,10 +16,11 @@ import {
   type Repo, type PantryBatch, type Zone, type NowItem, type Recipe,
 } from '@kitchen/domain';
 import { hasScale, isSoon, freshness } from '@kitchen/domain/shelf-thresholds';
+import { HELP_TOPICS_TG, TG_EMOJI, tgHeading, upcomingEvents, subscribedTraditions, whenLabel, type UpcomingEvent } from '@kitchen/domain';
 import { escapeHtml, splitTelegramText, splitByBlocks, renderRecipeBlocks, formatQty, TELEGRAM_MSG_MAX } from './telegram.js';
 
 // ── розпізнавання команди: латиниця з меню, українська команда, слово з клавіатури ──
-export type QuickCommand = 'pantry' | 'list' | 'recipes' | 'home';
+export type QuickCommand = 'pantry' | 'list' | 'recipes' | 'home' | 'calendar';
 
 // Хотфікс (голова 14.09): /дом — русизм, прибрано; лише українська форма й латиниця з меню.
 const ALIASES: Record<QuickCommand, string[]> = {
@@ -27,6 +28,8 @@ const ALIASES: Record<QuickCommand, string[]> = {
   list: ['/list', '/список', 'список'],
   recipes: ['/recipes', '/рецепти', 'рецепти'],
   home: ['/home', '/дім', 'дім зараз', 'дім'],
+  // 15.09: /calendar — лише команда і меню; reply-клавіатура лишається 2×2.
+  calendar: ['/calendar', '/календар', 'календар'],
 };
 
 /** Текст ходу → одна з чотирьох команд, або null (звичайний хід / інша команда). */
@@ -91,14 +94,14 @@ export function renderPantryText(batches: PantryBatch[], nowMs = Date.now(), onl
   const line = (r: PantryRow) => `• ${escapeHtml(r.label)}${r.qty ? ` · ${escapeHtml(r.qty)}` : ''}${daysTail(r)}`;
   if (only === 'soon') {
     if (!burning.length) return 'Нічого не спливає.';
-    return [`<b>Горить · ${burning.length}</b>`, ...burning.map(line)].join('\n');
+    return [`<b>${tgHeading(TG_EMOJI.burning, 'Горить', burning.length)}</b>`, ...burning.map(line)].join('\n');
   }
   const out = [`<b>Комора · ${live.length}</b>`];
-  if (burning.length) out.push('', `<b>Горить · ${burning.length}</b>`, ...burning.map(line));
+  if (burning.length) out.push('', `<b>${tgHeading(TG_EMOJI.burning, 'Горить', burning.length)}</b>`, ...burning.map(line));
   for (const zone of ZONE_ORDER) {
     const zoneRows = rows.filter((_, i) => live[i]?.zone === zone);
     if (!zoneRows.length) continue;
-    out.push('', `<b>${ZONE_LABEL[zone]} · ${zoneRows.length}</b>`, ...zoneRows.map(line));
+    out.push('', `<b>${tgHeading(TG_EMOJI.zone[zone], ZONE_LABEL[zone], zoneRows.length)}</b>`, ...zoneRows.map(line));
   }
   return out.join('\n');
 }
@@ -120,7 +123,7 @@ export interface ShoppingLike { id: string; label: string; value: number | null;
 export function renderShoppingText(items: ShoppingLike[]): string {
   if (!items.length) return 'Список порожній.';
   const line = (i: ShoppingLike) => `${i.checked ? '☑' : '☐'} ${escapeHtml(i.label)}${i.value != null ? ` · ${escapeHtml(formatQty(i.value, i.unit))}` : ''}`;
-  return [`<b>Список · ${items.length}</b>`, ...items.map(line)].join('\n');
+  return [`<b>${tgHeading(TG_EMOJI.cmd.list, 'Список', items.length)}</b>`, ...items.map(line)].join('\n');
 }
 
 const LIST_KEYBOARD_MAX = 8;
@@ -144,7 +147,7 @@ export interface SavedRecipeLike { id: string; title: string; time_total: number
 export function renderRecipesText(recipes: SavedRecipeLike[]): string {
   if (!recipes.length) return 'Збережених рецептів ще нема.';
   const line = (r: SavedRecipeLike) => `• ${escapeHtml(r.title)}${r.time_total ? ` · ${r.time_total} хв` : ''} · ${r.base_servings} порц.`;
-  return [`<b>Рецепти · ${recipes.length}</b>`, ...recipes.map(line)].join('\n');
+  return [`<b>${tgHeading(TG_EMOJI.cmd.recipes, 'Рецепти', recipes.length)}</b>`, ...recipes.map(line)].join('\n');
 }
 
 export function recipesKeyboard(recipes: SavedRecipeLike[], web: WebLink): QuickKeyboardBtn[][] {
@@ -198,7 +201,7 @@ export function renderHomeText(facts: HomeFacts): string {
   if (facts.strict) lines.push(`${escapeHtml(facts.strict.title)} · до ${shortDate(facts.strict.to)}`);
   if (facts.shoppingCount > 0) lines.push(`Список · ${facts.shoppingCount}`);
   if (!lines.length) return 'Дім спокійний. Нічого не горить.';
-  return [`<b>Дім зараз</b>`, ...lines].join('\n');
+  return [`<b>${tgHeading(TG_EMOJI.cmd.home, 'Дім зараз')}</b>`, ...lines].join('\n');
 }
 
 /** /home без inline-клавіатури — «Відкрити у вебі» лишається текстовим рядком (постановка 14.09). */
@@ -206,4 +209,64 @@ export async function renderHome(repo: Repo, household_id: string, user_id: stri
   const facts = await collectHomeFacts(repo, household_id, user_id);
   const text = renderHomeText(facts);
   return { messages: [`${text}\n\n${escapeHtml(`Відкрити у вебі: ${web('/app')}`)}`], html: true };
+}
+
+// ── довідки (HELP-CHIPS-TG-0915) ─────────────────────────────────────────
+/** Inline 2×3 з шістьма довідками — після /start і на /help. data — `help:<id>`. */
+export const HELP_KEYBOARD_ROWS: QuickKeyboardBtn[][] = [0, 2, 4].map((i) =>
+  HELP_TOPICS_TG.slice(i, i + 2).map((t) => ({ text: t.chip, data: `help:${t.id}` })));
+/** Ряд без прочитаної (5) — під довідкою, як у вебі. */
+export function helpKeyboardWithout(id: string): QuickKeyboardBtn[][] {
+  const rest = HELP_TOPICS_TG.filter((t) => t.id !== id).map((t) => ({ text: t.chip, data: `help:${t.id}` }));
+  return [rest.slice(0, 2), rest.slice(2, 4), rest.slice(4)].filter((r) => r.length);
+}
+/** Текст довідки для Telegram: абзаци через порожній рядок, **…** → <b>. */
+export function renderHelpHtml(text: string): string {
+  return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+}
+
+// ── /calendar (читання, як /pantry) ──────────────────────────────────────
+export interface CalendarFacts {
+  /** Триває: піст/дієта/гості з nowItems (сезони — окремо). */
+  now: Pick<NowItem, 'kind' | 'title' | 'from' | 'to' | 'strict' | 'source' | 'servings'>[];
+  /** Активні сезони одним рядком. */
+  seasons: string[];
+  /** Найближчі за датою (упорядковано). */
+  upcoming: Pick<UpcomingEvent, 'at' | 'title' | 'kind'>[];
+}
+export const CALENDAR_EMPTY = 'Нічого не триває. Скажи «ми католики» або «в суботу гості» — запишу.';
+export const CALENDAR_HOLIDAYS_HINT = 'Свята додаються словами: «ми католики», «постуємо».';
+
+export async function collectCalendarFacts(repo: Repo, household_id: string, user_id: string, now = new Date()): Promise<CalendarFacts> {
+  const rows = subscribedRows(await repo.listOccasionCatalog(), await repo.listOccasionSubscriptions(household_id));
+  const events = await repo.listOwnEvents(household_id, user_id);
+  const items = nowItems(rows, events, now);
+  const seasons = items.filter((i) => i.kind === 'season' || i.kind === 'editorial').map((i) => i.title);
+  const rest = items.filter((i) => i.kind !== 'season' && i.kind !== 'editorial');
+  const upcoming = upcomingEvents(now, subscribedTraditions(rows), 60, rows);
+  return { now: rest, seasons, upcoming };
+}
+
+export function renderCalendarText(f: CalendarFacts, nowMs = Date.now()): string {
+  const blocks: string[] = [];
+  if (f.now.length) {
+    const lines = f.now.map((i) => {
+      const single = i.from === i.to;
+      const when = single ? `· ${shortDate(i.to)}` : `· до ${shortDate(i.to)}`;
+      const who = i.servings != null ? ` · на ${i.servings}` : '';
+      return `${escapeHtml(i.title)} ${when}${who}`;
+    });
+    blocks.push(`<b>${tgHeading(TG_EMOJI.calendar.now, 'Триває')}</b>\n${lines.join('\n')}`);
+  }
+  if (f.seasons.length) blocks.push(`<b>${tgHeading(TG_EMOJI.calendar.seasons, 'Сезони')}</b>\n${escapeHtml(f.seasons.join(', '))}`);
+  const soon = [...f.upcoming].sort((a, b) => a.at - b.at).slice(0, 3);
+  if (soon.length) blocks.push(`<b>${tgHeading(TG_EMOJI.calendar.upcoming, 'Далі')}</b>\n${soon.map((s) => `${escapeHtml(s.title)} · ${whenLabel(s.at, nowMs)}`).join('\n')}`);
+  return blocks.length ? blocks.join('\n\n') : CALENDAR_EMPTY;
+}
+export function calendarKeyboard(web: WebLink): QuickKeyboardBtn[][] {
+  return [[{ text: 'Свята', data: 'calendar:holidays' }, openWebBtn(web('/calendar'))]];
+}
+export async function renderCalendar(repo: Repo, household_id: string, user_id: string, web: WebLink): Promise<QuickReply> {
+  const text = renderCalendarText(await collectCalendarFacts(repo, household_id, user_id));
+  return { messages: splitTelegramText(text), html: true, keyboard: calendarKeyboard(web) };
 }
