@@ -67,6 +67,7 @@ export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
 
   bot.on('message:text', (ctx) => withTyping(ctx, () => handleTelegramText(deps, {
     update_id: ctx.update.update_id, telegram_user_id: ctx.from.id, chat_id: ctx.chat.id, text: ctx.message.text,
+    first_name: ctx.from.first_name ?? null, username: ctx.from.username ?? null,
   })));
   bot.on('message:photo', (ctx) => {
     const best = ctx.message.photo.at(-1)!;   // найбільший розмір — останній

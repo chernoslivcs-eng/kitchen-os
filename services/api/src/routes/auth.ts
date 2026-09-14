@@ -103,6 +103,24 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     return reply.send({ ok: true, user_id: out.result.user_id, household_id: out.result.household_id });
   });
 
+  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): разовий лінк входу з бота — той самий
+  // auth_challenge (kind 'telegram'), cookie як у verify, редірект на next
+  // (лише відносний шлях; типово /app). Вдруге — 410, як магік-лінк.
+  app.get<{ Querystring: { token?: string; next?: string } }>('/v1/auth/telegram', async (req, reply) => {
+    const raw = req.query.token;
+    if (!raw) return reply.code(400).send({ error: 'token required' });
+    const out = await verifyChallenge(repo, raw, req.ip, req.headers['user-agent'] ?? null);
+    if (!out.ok) {
+      const wantsHtmlPage = /text\/html/i.test(String(req.headers.accept ?? ''));
+      if (wantsHtmlPage && (out.reason === 'expired' || out.reason === 'consumed')) return reply.redirect(`/link/${out.reason}`);
+      return reply.code(out.reason === 'not_found' ? 404 : 410).send({ error: out.reason });
+    }
+    reply.setCookie(COOKIE_NAME, out.result.raw_cookie, { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: SESSION_TTL_MS / 1000 });
+    const next = req.query.next;
+    const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
+    return reply.redirect(safeNext);
+  });
+
   app.post('/v1/auth/logout', async (req, reply) => {
     const raw = (req.cookies as Record<string, string | undefined>)[COOKIE_NAME];
     if (raw) await logoutSession(repo, raw);

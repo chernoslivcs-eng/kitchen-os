@@ -3,7 +3,8 @@
 // (telegram-bot.ts) лише перекладають Update у IncomingText і назад.
 //
 //   /start <token>  → привʼязка (токен разовий, 15 хв) → привітання на імʼя
-//   /start          → «Спершу підключи Telegram у профілі: {url}/profile»
+//   /start          → PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): акаунт одразу (signInWithTelegram) → те саме привітання
+//   /web            → разовий лінк входу у веб ({APP_URL}/v1/auth/telegram?token=…&next=/app, 15 хв)
 //   /stop           → відключити
 //   текст           → ТОЙ САМИЙ хід чату, що за POST /v1/chat (chat-turn.ts:
 //                     сесія дня людини, модель, картки, обидва повідомлення з
@@ -16,7 +17,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { resolveRecipeLabels, applyCard, dismissCard, type Repo, type Card, type Recipe, type AttachmentKind } from '@kitchen/domain';
+import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, type Repo, type Card, type Recipe, type AttachmentKind } from '@kitchen/domain';
 import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
 import { settleTelemetry, type TelemetryHost } from './telemetry.js';
@@ -28,6 +29,7 @@ import {
   matchQuickCommand, QUICK_KEYBOARD, renderPantry, renderShopping, renderRecipes, renderSavedRecipe, renderHome,
   renderPantryText, renderShoppingText, pantryKeyboard, listKeyboard,
   type QuickReply, type ShoppingLike, type QuickKeyboardBtn,
+  type WebLink,
 } from './telegram-nomodel.js';
 
 export const TELEGRAM_LINK_TTL_MS = 15 * 60_000;
@@ -84,6 +86,9 @@ export interface IncomingText {
   telegram_user_id: number;
   chat_id: number;
   text: string;
+  /** PR 2: для /start без токена — імʼя акаунта; з ctx.from. */
+  first_name?: string | null;
+  username?: string | null;
 }
 
 // Дубль update_id — TTL 10 хв у памʼяті процесу (на серверлесі — у межах
@@ -102,12 +107,16 @@ const limiter = makeRateLimiter({ max: 30, windowMs: 60_000 });
 
 export const COPY = {
   hello: (name: string) => `Привіт, ${name}. Це кухня дому — тепер усе, що напишеш сюди, зʼявиться в чаті Kitchen OS.`,
-  linkFirst: (appUrl: string) => `Спершу підключи Telegram у профілі: ${appUrl}/profile`,
+  // PR 2: акаунт народжується з /start — «підключи в профілі» більше не потрібно.
+  startFirst: 'Натисни /start — і почнемо.',
+  /** /start <token> із профілю, а токен уже не діє — не плодимо новий акаунт, просимо натиснути «Підключити» ще раз. */
+  linkExpired: 'Лінк із профілю вже не діє — натисни «Підключити» ще раз.',
   stopped: 'Відключив.',
   /** E1, ErrorState/copy.ts REPLY_FAILED — той самий рядок, що показує веб при падінні моделі. */
   replyFailed: 'Я подумав. Відповідь — ні. Повторити?',
   tooMany: 'Дай хвилину — і продовжимо.',
-  openWeb: (appUrl: string) => `Відкрити у вебі: ${appUrl}/app`,
+  /** PR 2: url — разовий лінк входу (webLink), не голий APP_URL. */
+  openWeb: (url: string) => `Відкрити у вебі: ${url}`,
   // Р150 (постановка 14.09): кнопки й підписи для вкладень — нові слова, на рішення власника.
   toPantry: 'У комору',
   notNeeded: 'Не треба',
@@ -255,8 +264,9 @@ export function renderCardText(card: Card | null | undefined): string | null {
 }
 
 /** Відповідь ходу → повідомлення для Telegram (HTML, ≤ 4096 кожне). */
-export function renderTurnMessages(out: { reply: string | null; card: Card | null; scripted?: boolean }, appUrl: string): string[] {
-  const open = escapeHtml(COPY.openWeb(appUrl));
+export function renderTurnMessages(out: { reply: string | null; card: Card | null; scripted?: boolean }, web: WebLink | string): string[] {
+  const link = typeof web === 'string' ? (next: string) => `${web}${next}` : web;
+  const open = escapeHtml(COPY.openWeb(link('/app')));
   // 14.09: довідка (scripted) несе **…** для шляхів і кнопок → <b>; звичайна
   // репліка моделі markdown не має, зірочки лишаються як є.
   const replyHtml = (r: string) => (out.scripted ? escapeHtml(r).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') : escapeHtml(r));
@@ -300,6 +310,13 @@ export function splitByBlocks(text: string, boundary: RegExp, max = TELEGRAM_MSG
  *  `pantry:soon|all` / `list-toggle:<id>` / `recipe:<id>` (Р152); url — «Відкрити у вебі», не
  *  callback (grammY `InlineKeyboard.url`). `replyKeyboard` — постійна reply-клавіатура (не
  *  inline): лише з відповіді на привʼязку і з чотирьох команд PR 5. */
+/** PR 2: усі «Відкрити у вебі» — разовий лінк входу з бота: один токен на відповідь
+ *  (auth_challenge kind 'telegram', 15 хв, одноразово), next — куди після входу. */
+export async function webLink(deps: TelegramDeps, user_id: string): Promise<WebLink> {
+  const { raw_token } = await createWebLoginChallenge(deps.repo, user_id);
+  return (next: string) => `${deps.appUrl}/v1/auth/telegram?token=${encodeURIComponent(raw_token)}&next=${encodeURIComponent(next)}`;
+}
+
 export type TelegramReply = { messages: string[]; html: boolean; keyboard?: { text: string; data?: string; url?: string }[][]; replyKeyboard?: string[][] } | null;
 
 export interface IncomingFile {
@@ -323,7 +340,7 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
   const plain = (s: string): TelegramReply => ({ messages: [s], html: false });
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
-  if (!linked) return plain(COPY.linkFirst(deps.appUrl));
+  if (!linked) return plain(COPY.startFirst);
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
   const content_type = u.source === 'photo' ? 'image/jpeg' : (u.mime_type ?? null);
   const audio = u.source === 'document' ? audioContentTypeOf(content_type, u.file_name) : null;
@@ -340,7 +357,7 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
   if ((u.file_size ?? 0) > TELEGRAM_FILE_MAX) return plain(COPY.fileTooBig);
   if (!deps.downloadFile || !deps.store) return plain(COPY.replyFailed);
   const household_id = await householdOf(deps.repo, linked.user_id);
-  if (!household_id) return plain(COPY.linkFirst(deps.appUrl));
+  if (!household_id) return plain(COPY.startFirst);
   const log = deps.log ?? (console as unknown as FastifyBaseLogger);
   const host: TelemetryHost = { log, telemetry: [] };
   try {
@@ -359,16 +376,17 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
       attachments: [{ id }], channel: 'telegram', attachmentApply: 'pending', host, log,
     });
     const card = out.card;
+    const web = await webLink(deps, linked.user_id);
     if (card?.type === 'intake_diff' && out.card_id && card.ops.length) {
       const text = [
         out.reply ? escapeHtml(out.reply) : null,
         escapeHtml(renderCardText(card)!),
-        escapeHtml(COPY.openWeb(deps.appUrl)),
+        escapeHtml(COPY.openWeb(web('/pantry'))),
       ].filter(Boolean).join('\n\n');
       return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.toPantry, data: `apply:${out.card_id}` }, { text: COPY.notNeeded, data: `dismiss:${out.card_id}` }]] };
     }
     // Нічого не розібрав (нема картки або порожній список): стиснуте фото — підказка про файл.
-    const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, deps.appUrl);
+    const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, web);
     const nothing = !card || (card.type === 'intake_diff' && !card.ops.length);
     if (u.source === 'photo' && nothing) messages.push(escapeHtml(COPY.photoHint));
     return messages.length ? { messages, html: true } : plain(COPY.photoHint);
@@ -392,7 +410,7 @@ export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCall
   if (!m) return null;
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
-  if (!linked) return { status: COPY.linkFirst(deps.appUrl) };
+  if (!linked) return { status: COPY.startFirst };
   try {
     if (m[1] === 'apply') {
       const r = await applyCard(deps.repo, m[2]!, [], linked.user_id);
@@ -426,19 +444,20 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
   if (seenUpdate(u.update_id, (deps.now?.() ?? new Date()).getTime())) return null;
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
-  if (!linked) return { kind: 'reply', reply: { messages: [COPY.linkFirst(deps.appUrl)], html: false } };
+  if (!linked) return { kind: 'reply', reply: { messages: [COPY.startFirst], html: false } };
   const household_id = await householdOf(deps.repo, linked.user_id);
-  if (!household_id) return { kind: 'reply', reply: { messages: [COPY.linkFirst(deps.appUrl)], html: false } };
-  if (pantry) return { kind: 'edit', text: renderPantryText(await deps.repo.listBatches(household_id), Date.now(), pantry[1] as 'soon' | 'all'), keyboard: pantryKeyboard(deps.appUrl) };
+  if (!household_id) return { kind: 'reply', reply: { messages: [COPY.startFirst], html: false } };
+  const web = await webLink(deps, linked.user_id);
+  if (pantry) return { kind: 'edit', text: renderPantryText(await deps.repo.listBatches(household_id), Date.now(), pantry[1] as 'soon' | 'all'), keyboard: pantryKeyboard(web) };
   if (toggle) {
     const items = await deps.repo.listShoppingItems(household_id);
     const item = items.find((i) => i.id === toggle[1]);
-    if (!item) return { kind: 'edit', text: renderShoppingText(items), keyboard: listKeyboard(items, deps.appUrl) };
+    if (!item) return { kind: 'edit', text: renderShoppingText(items), keyboard: listKeyboard(items, web) };
     await deps.repo.toggleShoppingItem(item.id, !item.checked);
     const updated: ShoppingLike[] = items.map((i) => (i.id === item.id ? { ...i, checked: !i.checked } : i));
-    return { kind: 'edit', text: renderShoppingText(updated), keyboard: listKeyboard(updated, deps.appUrl) };
+    return { kind: 'edit', text: renderShoppingText(updated), keyboard: listKeyboard(updated, web) };
   }
-  const r = await renderSavedRecipe(deps.repo, household_id, recipe![1]!, deps.appUrl);
+  const r = await renderSavedRecipe(deps.repo, household_id, recipe![1]!, web);
   return r ? { kind: 'reply', reply: r } : { kind: 'reply', reply: { messages: ['Рецепт не знайдено — можливо, видалений.'], html: false } };
 }
 
@@ -454,11 +473,17 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
   const start = text.match(/^\/start(?:@\w+)?(?:\s+(\S+))?$/);
   if (start) {
     const token = start[1];
-    const row = token ? await deps.repo.consumeTelegramLinkToken(token, now.toISOString()) : null;
-    if (!row) return plain(COPY.linkFirst(deps.appUrl));
-    await deps.repo.linkTelegram({ telegram_user_id: u.telegram_user_id, user_id: row.user_id, chat_id: u.chat_id, linked_at: now.toISOString(), revoked_at: null });
-    const user = await deps.repo.getUser(row.user_id);
-    return { messages: [COPY.hello(user?.name?.trim() || 'привіт')], html: false, replyKeyboard: QUICK_KEYBOARD };
+    if (token) {
+      // Профіль → «Підключити»: привʼязка до акаунта з поштою, як і раніше.
+      const row = await deps.repo.consumeTelegramLinkToken(token, now.toISOString());
+      if (!row) return plain(COPY.linkExpired);
+      await deps.repo.linkTelegram({ telegram_user_id: u.telegram_user_id, user_id: row.user_id, chat_id: u.chat_id, linked_at: now.toISOString(), revoked_at: null });
+      const user = await deps.repo.getUser(row.user_id);
+      return { messages: [COPY.hello(user?.name?.trim() || 'привіт')], html: false, replyKeyboard: QUICK_KEYBOARD };
+    }
+    // PR 2: перший контакт із продуктом — у Telegram. Акаунт без пошти одразу; повторний /start — той самий.
+    const r = await signInWithTelegram(deps.repo, { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null }, null, null);
+    return { messages: [COPY.hello(r.user.name?.trim() || 'привіт')], html: false, replyKeyboard: QUICK_KEYBOARD };
   }
 
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
@@ -468,14 +493,20 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     if (linked) await deps.repo.revokeTelegram(linked.user_id, now.toISOString());
     return plain(COPY.stopped);
   }
-  if (!linked) return plain(COPY.linkFirst(deps.appUrl));
+  if (!linked) return plain(COPY.startFirst);
+  // PR 2: /web — разовий лінк входу у веб (той самий, що на всіх «Відкрити у вебі»).
+  if (/^\/web(?:@\w+)?$/.test(text)) {
+    const web = await webLink(deps, linked.user_id);
+    const url = web('/app');
+    return { messages: [COPY.openWeb(url)], html: false, keyboard: [[{ text: 'Відкрити у вебі', url }]], replyKeyboard: QUICK_KEYBOARD };
+  }
   // Р152 (PR 5, «Подивитись без моделі»): чотири команди читають Repo напряму, 0 $, без ходу
   // чату. Матчимо ДО catch-all «інші команди — мовчки»; кожна відповідь несе постійну
   // reply-клавіатуру — той самий набір, що прийшов із привʼязки.
   const quick = matchQuickCommand(text);
   if (quick) {
     const household_id = await householdOf(deps.repo, linked.user_id);
-    if (!household_id) return plain(COPY.linkFirst(deps.appUrl));
+    if (!household_id) return plain(COPY.startFirst);
     const r = await runQuickCommand(quick, deps, household_id, linked.user_id);
     return { ...r, replyKeyboard: QUICK_KEYBOARD };
   }
@@ -485,11 +516,12 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
 }
 
 async function runQuickCommand(cmd: ReturnType<typeof matchQuickCommand> & {}, deps: TelegramDeps, household_id: string, user_id: string): Promise<QuickReply> {
+  const web = await webLink(deps, user_id);
   switch (cmd) {
-    case 'pantry': return renderPantry(deps.repo, household_id, deps.appUrl);
-    case 'list': return renderShopping(deps.repo, household_id, deps.appUrl);
-    case 'recipes': return renderRecipes(deps.repo, user_id, deps.appUrl);
-    case 'home': return renderHome(deps.repo, household_id, user_id, deps.appUrl);
+    case 'pantry': return renderPantry(deps.repo, household_id, web);
+    case 'list': return renderShopping(deps.repo, household_id, web);
+    case 'recipes': return renderRecipes(deps.repo, user_id, web);
+    case 'home': return renderHome(deps.repo, household_id, user_id, web);
   }
 }
 
@@ -497,9 +529,9 @@ async function runQuickCommand(cmd: ReturnType<typeof matchQuickCommand> & {}, d
 async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: number, text: string, prefix?: string): Promise<TelegramReply> {
   const plain = (s: string): TelegramReply => ({ messages: [s], html: false });
   const user = await deps.repo.getUser(user_id);
-  if (!user) return plain(COPY.linkFirst(deps.appUrl));
+  if (!user) return plain(COPY.startFirst);
   const household_id = await householdOf(deps.repo, user_id);
-  if (!household_id) return plain(COPY.linkFirst(deps.appUrl));
+  if (!household_id) return plain(COPY.startFirst);
   const log = deps.log ?? (console as unknown as FastifyBaseLogger);
   const host: TelemetryHost = { log, telemetry: [] };
   try {
@@ -507,7 +539,8 @@ async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: n
     const out = await turn({ user: { user_id, household_id }, text, channel: 'telegram', host, log });
     // Рецепт показує на комору через ing.p (uuid) — як і веб, підставляємо назви партій.
     const card = await withRecipeLabels(deps.repo, household_id, out.card);
-    const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, deps.appUrl);
+    const web = await webLink(deps, user_id);
+    const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, web);
     if (prefix) messages.unshift(escapeHtml(prefix));
     return messages.length ? { messages, html: true } : null;
   } catch (err) {
@@ -540,7 +573,7 @@ export async function handleTelegramVoice(deps: TelegramDeps, u: IncomingVoice):
   const plain = (s: string): TelegramReply => ({ messages: [s], html: false });
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
-  if (!linked) return plain(COPY.linkFirst(deps.appUrl));
+  if (!linked) return plain(COPY.startFirst);
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
   if ((u.duration ?? 0) > TELEGRAM_VOICE_MAX_SEC || (u.file_size ?? 0) > TELEGRAM_VOICE_MAX_BYTES) return plain(COPY.voiceTooLong);
   if (!deps.downloadFile) return plain(COPY.voiceUnclear);

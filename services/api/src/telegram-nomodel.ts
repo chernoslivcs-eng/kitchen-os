@@ -77,8 +77,10 @@ function daysTail(r: PantryRow): string {
   return r.days < 0 ? ' · прострочено' : ` · ${r.days} дн`;
 }
 
-export function pantryKeyboard(appUrl: string): QuickKeyboardBtn[][] {
-  return [[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [openWebBtn(`${appUrl}/pantry`)]];
+export type WebLink = (next: string) => string;
+
+export function pantryKeyboard(web: WebLink): QuickKeyboardBtn[][] {
+  return [[{ text: 'Спливає', data: 'pantry:soon' }, { text: 'Усе', data: 'pantry:all' }], [openWebBtn(web('/pantry'))]];
 }
 
 /** «Комора · N» — Горить зверху (якщо є), потім зони за ZONE_ORDER, кожен рядок «назва · кількість · N дн». */
@@ -103,13 +105,13 @@ export function renderPantryText(batches: PantryBatch[], nowMs = Date.now(), onl
 
 export interface QuickReply { messages: string[]; html: boolean; keyboard?: QuickKeyboardBtn[][]; replyKeyboard?: string[][] }
 
-export async function renderPantry(repo: Repo, household_id: string, appUrl: string, only: 'soon' | 'all' = 'all'): Promise<QuickReply> {
+export async function renderPantry(repo: Repo, household_id: string, web: WebLink, only: 'soon' | 'all' = 'all'): Promise<QuickReply> {
   const batches = await repo.listBatches(household_id);
   const text = renderPantryText(batches, Date.now(), only);
   const hasAny = batches.some((b) => b.state !== 'depleted');
   // «Відкрити у вебі» тепер сама url-кнопка (не мертва data:'noop') — окремий текстовий
   // рядок під нею більше не дублюється (був до цієї правки).
-  return { messages: splitTelegramText(text), html: true, ...(hasAny ? { keyboard: pantryKeyboard(appUrl) } : {}) };
+  return { messages: splitTelegramText(text), html: true, ...(hasAny ? { keyboard: pantryKeyboard(web) } : {}) };
 }
 
 // ── /list ────────────────────────────────────────────────────────────────
@@ -122,18 +124,18 @@ export function renderShoppingText(items: ShoppingLike[]): string {
 }
 
 const LIST_KEYBOARD_MAX = 8;
-export function listKeyboard(items: ShoppingLike[], appUrl: string): QuickKeyboardBtn[][] {
+export function listKeyboard(items: ShoppingLike[], web: WebLink): QuickKeyboardBtn[][] {
   const rows: QuickKeyboardBtn[][] = items.slice(0, LIST_KEYBOARD_MAX).map((i) => [{ text: `${i.checked ? '☑' : '☐'} ${i.label}`.slice(0, 64), data: `list-toggle:${i.id}` }]);
-  rows.push([openWebBtn(`${appUrl}/list`)]);
+  rows.push([openWebBtn(web('/list'))]);
   return rows;
 }
 
-export async function renderShopping(repo: Repo, household_id: string, appUrl: string): Promise<QuickReply> {
+export async function renderShopping(repo: Repo, household_id: string, web: WebLink): Promise<QuickReply> {
   const items = await repo.listShoppingItems(household_id);
   const text = renderShoppingText(items);
   // Порожній список — без inline-клавіатури, «Відкрити у вебі» лишається текстом (нема кнопки, яку б чіплять).
-  if (!items.length) return { messages: [text, escapeHtml(`Відкрити у вебі: ${appUrl}/list`)], html: true };
-  return { messages: splitTelegramText(text), html: true, keyboard: listKeyboard(items, appUrl) };
+  if (!items.length) return { messages: [text, escapeHtml(`Відкрити у вебі: ${web('/list')}`)], html: true };
+  return { messages: splitTelegramText(text), html: true, keyboard: listKeyboard(items, web) };
 }
 
 // ── /recipes ─────────────────────────────────────────────────────────────
@@ -145,24 +147,24 @@ export function renderRecipesText(recipes: SavedRecipeLike[]): string {
   return [`<b>Рецепти · ${recipes.length}</b>`, ...recipes.map(line)].join('\n');
 }
 
-export function recipesKeyboard(recipes: SavedRecipeLike[], appUrl: string): QuickKeyboardBtn[][] {
-  return [...recipes.map((r) => [{ text: r.title.slice(0, 64), data: `recipe:${r.id}` }]), [openWebBtn(`${appUrl}/recipes`)]];
+export function recipesKeyboard(recipes: SavedRecipeLike[], web: WebLink): QuickKeyboardBtn[][] {
+  return [...recipes.map((r) => [{ text: r.title.slice(0, 64), data: `recipe:${r.id}` }]), [openWebBtn(web('/recipes'))]];
 }
 
-export async function renderRecipes(repo: Repo, user_id: string, appUrl: string): Promise<QuickReply> {
+export async function renderRecipes(repo: Repo, user_id: string, web: WebLink): Promise<QuickReply> {
   const recipes = await repo.listRecipes(user_id, 5);
   const text = renderRecipesText(recipes);
   if (!recipes.length) return { messages: [text], html: true };
-  return { messages: [text], html: true, keyboard: recipesKeyboard(recipes, appUrl) };
+  return { messages: [text], html: true, keyboard: recipesKeyboard(recipes, web) };
 }
 
 /** Рядок «Рецепти» → повний рецепт текстом (той самий renderRecipeBlocks, що після «1»). */
-export async function renderSavedRecipe(repo: Repo, household_id: string, recipe_id: string, appUrl: string): Promise<QuickReply | null> {
+export async function renderSavedRecipe(repo: Repo, household_id: string, recipe_id: string, web: WebLink): Promise<QuickReply | null> {
   const row = await repo.getRecipe(recipe_id);
   if (!row) return null;
   const recipe = resolveRecipeLabels(row.payload as Recipe, await repo.listBatches(household_id));
   const { head, steps } = renderRecipeBlocks(recipe);
-  const open = escapeHtml(`Відкрити у вебі: ${appUrl}/recipes`);
+  const open = escapeHtml(`Відкрити у вебі: ${web('/recipes')}`);
   const whole = `${head}\n\n${steps}\n\n${open}`;
   if (whole.length <= TELEGRAM_MSG_MAX) return { messages: [whole], html: true };
   return { messages: [...splitTelegramText(head), ...splitByBlocks(`${steps}\n\n${open}`, /\n(?=\d+\. )/)], html: true };
@@ -200,8 +202,8 @@ export function renderHomeText(facts: HomeFacts): string {
 }
 
 /** /home без inline-клавіатури — «Відкрити у вебі» лишається текстовим рядком (постановка 14.09). */
-export async function renderHome(repo: Repo, household_id: string, user_id: string, appUrl: string): Promise<QuickReply> {
+export async function renderHome(repo: Repo, household_id: string, user_id: string, web: WebLink): Promise<QuickReply> {
   const facts = await collectHomeFacts(repo, household_id, user_id);
   const text = renderHomeText(facts);
-  return { messages: [`${text}\n\n${escapeHtml(`Відкрити у вебі: ${appUrl}/app`)}`], html: true };
+  return { messages: [`${text}\n\n${escapeHtml(`Відкрити у вебі: ${web('/app')}`)}`], html: true };
 }
