@@ -32,7 +32,8 @@ export function requireAdmin(repo: Repo): preHandlerHookHandler {
     }
     const { user_id } = requireUser(req);
     const user = await repo.getUser(user_id);
-    if (!user || !emails.has(user.email.toLowerCase())) {
+    // PR 1 (0036): акаунт із Telegram без пошти адміном бути не може.
+    if (!user?.email || !emails.has(user.email.toLowerCase())) {
       reply.code(404).send({ error: 'not_found' });
       return reply;
     }

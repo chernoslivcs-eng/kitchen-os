@@ -1520,5 +1520,27 @@ export function describeRepoContract(name: string, factory: RepoFactory) {
         expect(outside.session_id).toBeNull();
       });
     });
+
+    // PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915, міграція 0036): акаунт із Telegram-id без пошти.
+    describe('акаунт із Telegram', () => {
+      it('createUserFromTelegram: user з email null, дім, привʼязка; getUserByTelegramId знаходить; revoked — ні', async () => {
+        const { repo } = ctx;
+        const made = await repo.createUserFromTelegram({ telegram_user_id: 990001, chat_id: null, name: 'Олена' });
+        const u = await repo.getUserByTelegramId(990001);
+        expect(u?.id).toBe(made.user_id);
+        expect(u?.email).toBeNull();
+        expect(await repo.firstHouseholdOf(made.user_id)).toBe(made.household_id);
+        expect((await repo.getTelegramByTelegramUser(990001))?.chat_id).toBeNull();
+        await repo.revokeTelegram(made.user_id, new Date().toISOString());
+        expect(await repo.getUserByTelegramId(990001)).toBeNull();
+      });
+      it('два акаунти без пошти не конфліктують; знайти за поштою їх не можна', async () => {
+        const { repo } = ctx;
+        await repo.createUserFromTelegram({ telegram_user_id: 990002, chat_id: 1, name: 'А' });
+        await repo.createUserFromTelegram({ telegram_user_id: 990003, chat_id: 2, name: 'Б' });
+        expect(await repo.getUserByTelegramId(990002)).not.toBeNull();
+        expect(await repo.getUserByTelegramId(990003)).not.toBeNull();
+      });
+    });
   });
 }

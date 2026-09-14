@@ -325,7 +325,8 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const [exitBusy, setExitBusy] = useState(false);
   const [exitError, setExitError] = useState<string | null>(null);
 
-  const email = me?.user.email ?? '';
+  // PR 1 (0036): акаунт народжений із Telegram — пошти нема, рядок каже «Telegram».
+  const email = me?.user.email ?? SECTION.emailNone;
   const plan = PLAN_LABEL[me?.user.plan ?? 'beta'] ?? me?.user.plan ?? '';
   const others = me ? me.household.members.filter((m) => m.user_id !== me.user.id).map((m) => m.name) : [];
 

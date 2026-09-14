@@ -484,7 +484,7 @@ export class InMemoryRepo implements Repo {
       .filter((m) => m.household_id === household_id && m.role === 'owner')
       .map((m) => this.users.get(m.user_id))
       .find(Boolean);
-    return !!owner && owner.email.toLowerCase().endsWith(suffix);
+    return !!owner && !!owner.email && owner.email.toLowerCase().endsWith(suffix);
   }
 
   async roleOf(household_id: string, user_id: string): Promise<HouseholdRole | null> {
@@ -627,6 +627,23 @@ export class InMemoryRepo implements Repo {
   async revokeTelegram(user_id: string, at: string): Promise<void> {
     for (const [k, a] of this.telegramAccounts) if (a.user_id === user_id && !a.revoked_at) this.telegramAccounts.set(k, { ...a, revoked_at: at });
   }
+  // PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): акаунт із Telegram-id, без пошти.
+  async getUserByTelegramId(telegram_user_id: number): Promise<UserRow | null> {
+    const a = this.telegramAccounts.get(telegram_user_id);
+    if (!a || a.revoked_at) return null;
+    const u = this.users.get(a.user_id);
+    return u ? { ...u } : null;
+  }
+  async createUserFromTelegram(tg: { telegram_user_id: number; chat_id: number | null; name: string }): Promise<{ user_id: string; household_id: string }> {
+    const user_id = randomUUID();
+    const household_id = randomUUID();
+    const now = new Date().toISOString();
+    this.users.set(user_id, { id: user_id, name: tg.name, email: null, created_at: now, plan: 'beta', welcome_seen_at: null, profile_onboarding_at: null });
+    this.households.set(household_id, { id: household_id, name: `Дім ${tg.name}`, created_at: now });
+    this.members.push({ household_id, user_id, role: 'owner', joined_at: now });
+    this.telegramAccounts.set(tg.telegram_user_id, { telegram_user_id: tg.telegram_user_id, user_id, chat_id: tg.chat_id, linked_at: now, revoked_at: null });
+    return { user_id, household_id };
+  }
 
   async saveMessage(msg: MessageRow): Promise<void> {
     const arr = this.messages.get(msg.session_id) ?? [];
@@ -694,7 +711,7 @@ export class InMemoryRepo implements Repo {
       if (s.user_id === user_id) await this.deleteSession(id);
     }
     const u = this.users.get(user_id);
-    if (u) this.usersByEmail.delete(u.email);
+    if (u?.email) this.usersByEmail.delete(u.email);
     this.users.delete(user_id);
     for (const [hash, s] of this.sessions) if (s.user_id === user_id) this.sessions.delete(hash);
     this.profileTexts.delete(user_id);

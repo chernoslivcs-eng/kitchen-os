@@ -271,7 +271,7 @@ function rowToPending(r: Row): PendingCard {
 // Р147: bigint із pg приходить рядком.
 function rowToTelegramAccount(r: Record<string, unknown>): TelegramAccountRow {
   return {
-    telegram_user_id: Number(r.telegram_user_id), user_id: String(r.user_id), chat_id: Number(r.chat_id),
+    telegram_user_id: Number(r.telegram_user_id), user_id: String(r.user_id), chat_id: r.chat_id == null ? null : Number(r.chat_id),
     linked_at: new Date(r.linked_at as string).toISOString(),
     revoked_at: r.revoked_at ? new Date(r.revoked_at as string).toISOString() : null,
   };
@@ -1089,10 +1089,10 @@ export class PostgresRepo implements Repo {
 
   async saveChallenge(c: AuthChallenge): Promise<void> {
     await this.pool.query(
-      `INSERT INTO auth_challenge (id, email, token_hash, created_at, expires_at, consumed_at, ip, user_agent)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `INSERT INTO auth_challenge (id, email, token_hash, created_at, expires_at, consumed_at, ip, user_agent, kind, user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (token_hash) DO NOTHING`,
-      [c.id, c.email, c.token_hash, c.created_at, c.expires_at, c.consumed_at, c.ip, c.user_agent],
+      [c.id, c.email, c.token_hash, c.created_at, c.expires_at, c.consumed_at, c.ip, c.user_agent, c.kind ?? 'email', c.user_id ?? null],
     );
   }
 
@@ -1102,7 +1102,9 @@ export class PostgresRepo implements Repo {
     if (!r) return null;
     return {
       id: r.id,
-      email: r.email,
+      email: r.email ?? null,
+      kind: (r.kind as 'email' | 'telegram' | null) ?? 'email',
+      user_id: r.user_id ?? null,
       token_hash: r.token_hash,
       created_at: new Date(r.created_at).toISOString(),
       expires_at: new Date(r.expires_at).toISOString(),
@@ -1195,6 +1197,45 @@ export class PostgresRepo implements Repo {
   }
   async revokeTelegram(user_id: string, at: string): Promise<void> {
     await this.pool.query('UPDATE telegram_account SET revoked_at = $2 WHERE user_id = $1 AND revoked_at IS NULL', [user_id, at]);
+  }
+  // PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): акаунт із Telegram-id, без пошти (міграція 0036).
+  async getUserByTelegramId(telegram_user_id: number): Promise<UserRow | null> {
+    const { rows } = await this.pool.query(
+      `SELECT u.* FROM telegram_account t JOIN "user" u ON u.id = t.user_id
+       WHERE t.telegram_user_id = $1 AND t.revoked_at IS NULL`,
+      [telegram_user_id],
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id, name: r.name, email: r.email ?? null, created_at: new Date(r.created_at).toISOString(),
+      plan: (r.plan as string | null) ?? 'beta',
+      welcome_seen_at: r.welcome_seen_at ? new Date(r.welcome_seen_at).toISOString() : null,
+      profile_onboarding_at: r.profile_onboarding_at ? new Date(r.profile_onboarding_at).toISOString() : null,
+    };
+  }
+  async createUserFromTelegram(tg: { telegram_user_id: number; chat_id: number | null; name: string }): Promise<{ user_id: string; household_id: string }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const u = await client.query<{ id: string }>('INSERT INTO "user" (name, email) VALUES ($1, $2) RETURNING id', [tg.name, null]);
+      const user_id = u.rows[0]!.id;
+      const h = await client.query<{ id: string }>('INSERT INTO household (name) VALUES ($1) RETURNING id', [`Дім ${tg.name}`]);
+      const household_id = h.rows[0]!.id;
+      await client.query('INSERT INTO household_member (household_id, user_id, role) VALUES ($1, $2, $3)', [household_id, user_id, 'owner']);
+      await client.query(
+        `INSERT INTO telegram_account (telegram_user_id, user_id, chat_id, linked_at, revoked_at) VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (telegram_user_id) DO UPDATE SET user_id = EXCLUDED.user_id, chat_id = EXCLUDED.chat_id, linked_at = EXCLUDED.linked_at, revoked_at = NULL`,
+        [tg.telegram_user_id, user_id, tg.chat_id, new Date().toISOString(), null],
+      );
+      await client.query('COMMIT');
+      return { user_id, household_id };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ----- Облік токенів ---------------------------------------------------

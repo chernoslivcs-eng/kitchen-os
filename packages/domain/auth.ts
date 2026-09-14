@@ -4,6 +4,7 @@
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
 import type { Repo } from './repo.js';
 import type { AuthChallenge, AuthSession, UserContext } from './types.js';
+import type { UserRow } from './repo.js';
 
 const CHALLENGE_TTL_MIN = 15;
 const SESSION_TTL_DAYS = 30;
@@ -99,8 +100,82 @@ export async function verifyChallenge(repo: Repo, raw_token: string, ip?: string
 
   await repo.consumeChallenge(challenge.id);
 
+  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): разовий лінк у веб із бота — сесія
+  // вже відомого user, без пошти.
+  if (challenge.kind === 'telegram' && challenge.user_id) {
+    const household_id = await repo.firstHouseholdOf(challenge.user_id);
+    if (!household_id) return { ok: false, reason: 'not_found' };
+    const { session, raw_cookie } = await openSession(repo, challenge.user_id, ip, user_agent);
+    return { ok: true, result: { session, raw_cookie, user_id: challenge.user_id, household_id } };
+  }
+  if (!challenge.email) return { ok: false, reason: 'not_found' };
   const result = await signInWithVerifiedEmail(repo, challenge.email, challenge.email.split('@')[0] ?? 'Anon', ip, user_agent);
   return { ok: true, result };
+}
+
+/** PR 2: одноразовий лінк входу у веб із бота — той самий auth_challenge (kind 'telegram', TTL 15 хв). */
+export async function createWebLoginChallenge(repo: Repo, user_id: string, ip?: string | null, user_agent?: string | null): Promise<{ challenge: AuthChallenge; raw_token: string }> {
+  const raw = randomToken();
+  const now = new Date();
+  const challenge: AuthChallenge = {
+    id: randomUUID(),
+    email: null,
+    kind: 'telegram',
+    user_id,
+    token_hash: sha256(raw),
+    created_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + CHALLENGE_TTL_MS).toISOString(),
+    consumed_at: null,
+    ip: ip ?? null,
+    user_agent: user_agent ?? null,
+  };
+  await repo.saveChallenge(challenge);
+  return { challenge, raw_token: raw };
+}
+
+export interface TelegramSignIn {
+  telegram_user_id: number;
+  /** null — вхід із віджета на лендингу; заповниться при першому /start. */
+  chat_id?: number | null;
+  first_name: string;
+  username?: string | null;
+}
+
+// PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): вхід за Telegram-id — дзеркало
+// signInWithVerifiedEmail. Знайти за telegram_account (без revoked) → інакше
+// створити user без пошти + дім + привʼязку. Привʼязка з профілю до акаунта з
+// поштою не змінюється: такий user знайдеться тут же за telegram_user_id.
+export async function signInWithTelegram(
+  repo: Repo,
+  tg: TelegramSignIn,
+  ip?: string | null,
+  user_agent?: string | null,
+): Promise<VerifyChallengeResult & { user: UserRow; created: boolean }> {
+  const chat_id = tg.chat_id ?? null;
+  let user = await repo.getUserByTelegramId(tg.telegram_user_id);
+  let created = false;
+  if (!user) {
+    // /stop лишає рядок із revoked_at — новий /start оживляє його, а не плодить акаунт.
+    const revoked = await repo.getTelegramByTelegramUser(tg.telegram_user_id);
+    if (revoked) {
+      await repo.linkTelegram({ ...revoked, chat_id: chat_id ?? revoked.chat_id, linked_at: new Date().toISOString(), revoked_at: null });
+      user = await repo.getUser(revoked.user_id);
+    }
+  }
+  if (!user) {
+    const made = await repo.createUserFromTelegram({ telegram_user_id: tg.telegram_user_id, chat_id, name: tg.first_name });
+    user = await repo.getUser(made.user_id);
+    created = true;
+  } else if (chat_id != null) {
+    // Вхід із віджета не знав chat_id — перший /start доповнює рядок.
+    const acc = await repo.getTelegramByTelegramUser(tg.telegram_user_id);
+    if (acc && acc.chat_id !== chat_id) await repo.linkTelegram({ ...acc, chat_id });
+  }
+  if (!user) throw new Error(`telegram user ${tg.telegram_user_id}: account not created`);
+  const household_id = await repo.firstHouseholdOf(user.id);
+  if (!household_id) throw new Error(`user ${user.id} has no household — data invariant broken`);
+  const { session, raw_cookie } = await openSession(repo, user.id, ip, user_agent);
+  return { session, raw_cookie, user_id: user.id, household_id, user, created };
 }
 
 // Спільне ядро входу для будь-якого способу, що ДОВІВ володіння мейлом

@@ -446,3 +446,19 @@ describe('Р148 · Telegram у профілі', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true });
   });
 });
+
+// PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): акаунт народжений із Telegram — пошти
+// нема; рядок «Пошта» показує «Telegram», не порожнє місце.
+describe('акаунт без пошти', () => {
+  it('рядок «Пошта» → «Telegram»', async () => {
+    useAuth.setState({
+      status: 'signed_in',
+      me: { user: { id: 'u1', name: 'Олена', email: null, plan: 'beta' }, household: { id: 'h1', name: 'Дім', role: 'owner', members: [] }, session_id: 's1' },
+    } as never);
+    try {
+      await mount();
+      const row = [...host.querySelectorAll('[data-section="account"] > div')].find((r) => r.textContent?.startsWith('Пошта'))!;
+      expect(row.textContent).toContain('Telegram');
+    } finally { useAuth.setState({ me: null } as never); }
+  });
+});

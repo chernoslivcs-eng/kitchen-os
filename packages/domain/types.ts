@@ -681,7 +681,11 @@ export interface TokenUsageRow {
 
 export interface AuthChallenge {
   id: string;
-  email: string;
+  /** Магік-лінк: пошта. Вхід із Telegram-бота (PR 2, міграція 0036): null. */
+  email: string | null;
+  /** 'email' — магік-лінк; 'telegram' — разовий лінк у веб із бота (user_id, чию сесію відкрити). */
+  kind?: 'email' | 'telegram';
+  user_id?: string | null;
   token_hash: string;                // SHA-256(hex) від сирого токена, який їде в листі
   created_at: string;
   expires_at: string;
@@ -830,7 +834,8 @@ export interface HouseholdEventRow {
 export interface TelegramAccountRow {
   telegram_user_id: number;
   user_id: string;
-  chat_id: number;
+  /** null — вхід із віджета на лендингу (PR 2): chat_id зʼявиться при першому /start. */
+  chat_id: number | null;
   linked_at: string;
   /** /stop: рядок лишається, писати в дім більше не можна; новий /start оживляє. */
   revoked_at: string | null;
