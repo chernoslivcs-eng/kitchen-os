@@ -47,6 +47,17 @@ export function useSheetDrag(onClose: () => void, enabled = true): SheetDrag {
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
 
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  // KOS-TEST-REPORT п. 4 (раунд 3): після «leaving» фаза не поверталась у idle
+  // ніколи. Sheet це не помічав (він демонтується), а шторка артефакта живе в
+  // каркасі — на повторному open вона отримувала той самий translateY(110%)
+  // і стояла за екраном під живим скрімом. Кожне нове вмикання — з чистої фази.
+  useEffect(() => {
+    if (!enabled) return;
+    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+    start.current = null;
+    setDragY(0);
+    setPhase('idle');
+  }, [enabled]);
 
   const end = (e: ReactPointerEvent<HTMLElement>, cancel = false) => {
     const st = start.current;
