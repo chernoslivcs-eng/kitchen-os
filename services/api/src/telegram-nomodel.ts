@@ -16,7 +16,7 @@ import {
   type Repo, type PantryBatch, type Zone, type NowItem, type Recipe,
 } from '@kitchen/domain';
 import { hasScale, isSoon, freshness } from '@kitchen/domain/shelf-thresholds';
-import { HELP_TOPICS_TG, upcomingEvents, subscribedTraditions, whenLabel, type UpcomingEvent } from '@kitchen/domain';
+import { HELP_TOPICS_TG, TG_EMOJI, tgHeading, upcomingEvents, subscribedTraditions, whenLabel, type UpcomingEvent } from '@kitchen/domain';
 import { escapeHtml, splitTelegramText, splitByBlocks, renderRecipeBlocks, formatQty, TELEGRAM_MSG_MAX } from './telegram.js';
 
 // ── розпізнавання команди: латиниця з меню, українська команда, слово з клавіатури ──
@@ -94,14 +94,14 @@ export function renderPantryText(batches: PantryBatch[], nowMs = Date.now(), onl
   const line = (r: PantryRow) => `• ${escapeHtml(r.label)}${r.qty ? ` · ${escapeHtml(r.qty)}` : ''}${daysTail(r)}`;
   if (only === 'soon') {
     if (!burning.length) return 'Нічого не спливає.';
-    return [`<b>Горить · ${burning.length}</b>`, ...burning.map(line)].join('\n');
+    return [`<b>${tgHeading(TG_EMOJI.burning, 'Горить', burning.length)}</b>`, ...burning.map(line)].join('\n');
   }
   const out = [`<b>Комора · ${live.length}</b>`];
-  if (burning.length) out.push('', `<b>Горить · ${burning.length}</b>`, ...burning.map(line));
+  if (burning.length) out.push('', `<b>${tgHeading(TG_EMOJI.burning, 'Горить', burning.length)}</b>`, ...burning.map(line));
   for (const zone of ZONE_ORDER) {
     const zoneRows = rows.filter((_, i) => live[i]?.zone === zone);
     if (!zoneRows.length) continue;
-    out.push('', `<b>${ZONE_LABEL[zone]} · ${zoneRows.length}</b>`, ...zoneRows.map(line));
+    out.push('', `<b>${tgHeading(TG_EMOJI.zone[zone], ZONE_LABEL[zone], zoneRows.length)}</b>`, ...zoneRows.map(line));
   }
   return out.join('\n');
 }
@@ -123,7 +123,7 @@ export interface ShoppingLike { id: string; label: string; value: number | null;
 export function renderShoppingText(items: ShoppingLike[]): string {
   if (!items.length) return 'Список порожній.';
   const line = (i: ShoppingLike) => `${i.checked ? '☑' : '☐'} ${escapeHtml(i.label)}${i.value != null ? ` · ${escapeHtml(formatQty(i.value, i.unit))}` : ''}`;
-  return [`<b>Список · ${items.length}</b>`, ...items.map(line)].join('\n');
+  return [`<b>${tgHeading(TG_EMOJI.cmd.list, 'Список', items.length)}</b>`, ...items.map(line)].join('\n');
 }
 
 const LIST_KEYBOARD_MAX = 8;
@@ -147,7 +147,7 @@ export interface SavedRecipeLike { id: string; title: string; time_total: number
 export function renderRecipesText(recipes: SavedRecipeLike[]): string {
   if (!recipes.length) return 'Збережених рецептів ще нема.';
   const line = (r: SavedRecipeLike) => `• ${escapeHtml(r.title)}${r.time_total ? ` · ${r.time_total} хв` : ''} · ${r.base_servings} порц.`;
-  return [`<b>Рецепти · ${recipes.length}</b>`, ...recipes.map(line)].join('\n');
+  return [`<b>${tgHeading(TG_EMOJI.cmd.recipes, 'Рецепти', recipes.length)}</b>`, ...recipes.map(line)].join('\n');
 }
 
 export function recipesKeyboard(recipes: SavedRecipeLike[], web: WebLink): QuickKeyboardBtn[][] {
@@ -201,7 +201,7 @@ export function renderHomeText(facts: HomeFacts): string {
   if (facts.strict) lines.push(`${escapeHtml(facts.strict.title)} · до ${shortDate(facts.strict.to)}`);
   if (facts.shoppingCount > 0) lines.push(`Список · ${facts.shoppingCount}`);
   if (!lines.length) return 'Дім спокійний. Нічого не горить.';
-  return [`<b>Дім зараз</b>`, ...lines].join('\n');
+  return [`<b>${tgHeading(TG_EMOJI.cmd.home, 'Дім зараз')}</b>`, ...lines].join('\n');
 }
 
 /** /home без inline-клавіатури — «Відкрити у вебі» лишається текстовим рядком (постановка 14.09). */
@@ -256,11 +256,11 @@ export function renderCalendarText(f: CalendarFacts, nowMs = Date.now()): string
       const who = i.servings != null ? ` · на ${i.servings}` : '';
       return `${escapeHtml(i.title)} ${when}${who}`;
     });
-    blocks.push(`<b>Триває</b>\n${lines.join('\n')}`);
+    blocks.push(`<b>${tgHeading(TG_EMOJI.calendar.now, 'Триває')}</b>\n${lines.join('\n')}`);
   }
-  if (f.seasons.length) blocks.push(`<b>Сезони</b>\n${escapeHtml(f.seasons.join(', '))}`);
+  if (f.seasons.length) blocks.push(`<b>${tgHeading(TG_EMOJI.calendar.seasons, 'Сезони')}</b>\n${escapeHtml(f.seasons.join(', '))}`);
   const soon = [...f.upcoming].sort((a, b) => a.at - b.at).slice(0, 3);
-  if (soon.length) blocks.push(`<b>Далі</b>\n${soon.map((s) => `${escapeHtml(s.title)} · ${whenLabel(s.at, nowMs)}`).join('\n')}`);
+  if (soon.length) blocks.push(`<b>${tgHeading(TG_EMOJI.calendar.upcoming, 'Далі')}</b>\n${soon.map((s) => `${escapeHtml(s.title)} · ${whenLabel(s.at, nowMs)}`).join('\n')}`);
   return blocks.length ? blocks.join('\n\n') : CALENDAR_EMPTY;
 }
 export function calendarKeyboard(web: WebLink): QuickKeyboardBtn[][] {

@@ -25,7 +25,7 @@ describe('A · довідки в боті', () => {
     const r = await handleTelegramText(deps(), upd(1, '/start'));
     expect(r?.keyboard?.length).toBe(3);
     expect(helpIds(r?.keyboard)).toEqual(['start', 'telegram', 'app', 'list', 'pantry', 'calendar']);
-    expect(r?.keyboard?.[0]?.[1]?.text).toBe('Kitchen OS у вебі');
+    expect(r?.keyboard?.[0]?.[1]?.text).toBe('💻 Kitchen OS у вебі');
     const h = await handleTelegramText(deps(), upd(1, '/help'));
     expect(helpIds(h?.keyboard)).toEqual(['start', 'telegram', 'app', 'list', 'pantry', 'calendar']);
     expect(HELP_KEYBOARD_ROWS.flat().length).toBe(6);
@@ -45,7 +45,7 @@ describe('A · довідки в боті', () => {
     const session = await repo.getOrCreateSessionForDay(user!.id, localDay());
     const msgs = (await repo.listMessages(session.id)).filter((m) => m.card?.type !== 'onboarding');
     expect(msgs.map((m) => [m.role, m.channel])).toEqual([['user', 'telegram'], ['assistant', 'telegram']]);
-    expect(msgs[0]!.text).toBe('Як працює комора');
+    expect(msgs[0]!.text).toBe('🥬 Як працює комора');
     expect(msgs[1]!.text).toBe(HELP_TOPICS_TG.find((t) => t.id === 'pantry')!.text);
   });
 
@@ -78,11 +78,11 @@ describe('B · /calendar', () => {
         { at: Date.now() + 15 * DAY, title: 'Зайве', kind: 'tradition' },
       ],
     }, Date.now());
-    expect(text).toMatch(/<b>Триває<\/b>\n/);
+    expect(text).toMatch(/<b>🔴 Триває<\/b>\n/);
     expect(text).toContain('Без цукру · до ');
     expect(text).toContain('Гості · ');
-    expect(text).toContain('<b>Сезони</b>\nПолуниця, Черешня');
-    expect(text).toMatch(/<b>Далі<\/b>\n[\s\S]*День народження[\s\S]*Трійця[\s\S]*Мама на тиждень/);
+    expect(text).toContain('<b>🌿 Сезони</b>\nПолуниця, Черешня');
+    expect(text).toMatch(/<b>📌 Далі<\/b>\n[\s\S]*День народження[\s\S]*Трійця[\s\S]*Мама на тиждень/);
     expect(text).not.toContain('Зайве');
   });
   it('порожньо — підказка словами', () => {
@@ -102,7 +102,7 @@ describe('B · /calendar', () => {
       await repo.insertHouseholdEvent(ev({ household_id: hh, created_by: user!.id, title: 'Гості', servings: 4 }));
       const r = await handleTelegramText(deps(), upd(10, '/calendar'));
       expect(r?.html).toBe(true);
-      expect(r?.messages[0]).toContain('<b>Триває</b>');
+      expect(r?.messages[0]).toContain('<b>🔴 Триває</b>');
       expect(r?.messages[0]).toContain('Гості');
       const btns = (r?.keyboard ?? []).flat();
       expect(btns.find((b) => b.data === 'calendar:holidays')?.text).toBe('Свята');

@@ -5,7 +5,7 @@ import { HELP_TOPICS, HELP_TOPICS_TG, helpTopicById, helpTopicByText } from './h
 describe('HELP_TOPICS_TG', () => {
   it('ті самі id, підпис 2 — «Kitchen OS у вебі», без ⟨⟩, з абзацами і жирним', () => {
     expect(HELP_TOPICS_TG.map((t) => t.id)).toEqual(HELP_TOPICS.map((t) => t.id));
-    expect(HELP_TOPICS_TG[1]!.chip).toBe('Kitchen OS у вебі');
+    expect(HELP_TOPICS_TG[1]!.chip).toBe('💻 Kitchen OS у вебі');
     for (const t of HELP_TOPICS_TG) {
       expect(t.text).not.toMatch(/[⟨⟩]/);
       expect(t.text).toContain('\n\n');
