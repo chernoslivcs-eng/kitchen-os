@@ -2,9 +2,9 @@
 // і polling (стенд, scripts/telegram-dev.mts) — той самий бот. Поки хід думає —
 // «typing» кожні 4 с (Telegram тримає індикатор ~5 с); відповідь — одним
 // повідомленням HTML, довше за 4096 — двома-трьома.
-import { Bot, InlineKeyboard, type BotConfig, type Context } from 'grammy';
+import { Bot, InlineKeyboard, Keyboard, type BotConfig, type Context } from 'grammy';
 import { Agent, fetch as undiciFetch } from 'undici';
-import { handleTelegramText, handleTelegramFile, handleTelegramVoice, handleTelegramCallback, audioContentTypeOf, type TelegramDeps, type TelegramReply } from './telegram.js';
+import { handleTelegramText, handleTelegramFile, handleTelegramVoice, handleTelegramCallback, handleQuickCallback, audioContentTypeOf, type TelegramDeps, type TelegramReply } from './telegram.js';
 
 export const TYPING_EVERY_MS = 4_000;
 
@@ -47,14 +47,20 @@ export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
     let reply: TelegramReply = null;
     try { reply = await run(); } finally { clearInterval(timer); }
     if (!reply) return;
+    // Р152: постійна reply-клавіатура (не inline) — лише на останньому повідомленні;
+    // разом з inline-клавіатурою карток вони не конфліктують (різні reply_markup).
+    const replyKb = reply.replyKeyboard
+      ? Keyboard.from(reply.replyKeyboard.map((row) => row.map((t) => Keyboard.text(t)))).resized()
+      : undefined;
     for (const [i, m] of reply.messages.entries()) {
       const last = i === reply.messages.length - 1;
-      const keyboard = last && reply.keyboard ? InlineKeyboard.from(reply.keyboard.map((row) => row.map((b) => InlineKeyboard.text(b.text, b.data)))) : undefined;
+      const inlineKb = last && reply.keyboard ? InlineKeyboard.from(reply.keyboard.map((row) => row.map((b) => (b.url ? InlineKeyboard.url(b.text, b.url) : InlineKeyboard.text(b.text, b.data!))))) : undefined;
+      const reply_markup = inlineKb ?? (last ? replyKb : undefined);
       try {
-        await ctx.reply(m, { ...(reply.html ? { parse_mode: 'HTML' as const } : {}), ...(keyboard ? { reply_markup: keyboard } : {}) });
+        await ctx.reply(m, { ...(reply.html ? { parse_mode: 'HTML' as const } : {}), ...(reply_markup ? { reply_markup } : {}) });
       } catch {
         // HTML не пройшов (несподіваний тег у відповіді моделі) — те саме простим текстом.
-        await ctx.reply(m.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'), keyboard ? { reply_markup: keyboard } : undefined);
+        await ctx.reply(m.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'), reply_markup ? { reply_markup } : undefined);
       }
     }
   };
@@ -94,7 +100,20 @@ export function makeTelegramBot(token: string, deps: TelegramDeps): Bot {
     }));
   });
   bot.on('callback_query:data', async (ctx) => {
-    const r = await handleTelegramCallback(deps, { update_id: ctx.update.update_id, telegram_user_id: ctx.from.id, data: ctx.callbackQuery.data });
+    const u = { update_id: ctx.update.update_id, telegram_user_id: ctx.from.id, data: ctx.callbackQuery.data };
+    // Р152: кнопки /pantry, /list, /recipes — редагування на місці або новий рецепт;
+    // «Відкрити у вебі» тепер url-кнопка — Telegram відкриває її напряму, callback сюди не приходить.
+    const q = await handleQuickCallback(deps, u);
+    if (q) {
+      await ctx.answerCallbackQuery().catch(() => { /* прострочений запит — не критично */ });
+      if (q.kind === 'edit') {
+        const kb = InlineKeyboard.from(q.keyboard.map((row) => row.map((b) => (b.url ? InlineKeyboard.url(b.text, b.url) : InlineKeyboard.text(b.text, b.data!)))));
+        await ctx.editMessageText(q.text, { parse_mode: 'HTML', reply_markup: kb }).catch(() => {});
+        return;
+      }
+      return withTyping(ctx, async () => q.reply);
+    }
+    const r = await handleTelegramCallback(deps, u);
     await ctx.answerCallbackQuery().catch(() => { /* прострочений запит — не критично */ });
     if (!r) return;
     // Кнопки зникають, повідомлення редагується: список лишається, статус — унизу.
