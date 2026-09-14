@@ -231,6 +231,9 @@ export interface Repo {
   getUserByTelegramId(telegram_user_id: number): Promise<UserRow | null>;
   createUserFromTelegram(tg: { telegram_user_id: number; chat_id: number | null; name: string }): Promise<{ user_id: string; household_id: string }>;
   getUser(id: string): Promise<UserRow | null>;
+  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): «Додати пошту» до акаунта без неї.
+  // Викликач гарантує унікальність заздалегідь (findUserByEmail перед цим).
+  updateUserEmail(user_id: string, email: string): Promise<void>;
   // Крок 7: разові позначки на користувачі (Семен, картка «Про тебе»).
   touchUser(user_id: string, field: UserStampField, at: string): Promise<void>;
   createUserWithHousehold(email: string, name: string): Promise<{ user_id: string; household_id: string }>;

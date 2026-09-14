@@ -16,6 +16,12 @@ export const HERO = {
 
 export const SIGNIN = {
   google: 'Продовжити з Google',
+  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): функціональне копі, не з бандла —
+  // кнопка входу, не маркетинговий текст (COPY.md правило 5 стосується
+  // розмітки лендінгу, не цього).
+  telegram: 'Продовжити з Telegram',
+  telegramBusy: 'Зʼєднуюсь…',
+  telegramError: 'Не вийшло увійти через Telegram. Спробуй ще раз.',
   or: 'або лінк на пошту',
   email: 'Твій email',
   send: 'Надіслати лінк',

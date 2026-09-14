@@ -115,11 +115,13 @@ describe('google oauth', () => {
   });
 
   it('GET /v1/auth/providers відображає доступність google', async () => {
+    // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): той самий роут тепер каже й про
+    // Telegram — тут його нема, лише google.
     const on = await app.inject({ method: 'GET', url: '/v1/auth/providers' });
-    expect(on.json()).toEqual({ google: true });
+    expect(on.json()).toEqual({ google: true, telegram: false, telegramBotId: null });
     const bare = buildApp(new InMemoryRepo(), new InMemoryStore(), new ConsoleMailer());
     await bare.ready();
     const off = await bare.inject({ method: 'GET', url: '/v1/auth/providers' });
-    expect(off.json()).toEqual({ google: false });
+    expect(off.json()).toEqual({ google: false, telegram: false, telegramBotId: null });
   });
 });

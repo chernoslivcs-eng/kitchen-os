@@ -312,6 +312,15 @@ export class InMemoryRepo implements Repo {
     if (u) u[field] = at;
   }
 
+  async updateUserEmail(user_id: string, email: string): Promise<void> {
+    const u = this.users.get(user_id);
+    if (!u) throw new Error(`user not found: ${user_id}`);
+    const key = email.toLowerCase();
+    if (u.email) this.usersByEmail.delete(u.email.toLowerCase());
+    u.email = key;
+    this.usersByEmail.set(key, user_id);
+  }
+
   async getUser(id: string): Promise<UserRow | null> {
     const u = this.users.get(id);
     return u ? { ...u } : null;

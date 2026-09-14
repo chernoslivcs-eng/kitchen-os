@@ -34,6 +34,7 @@ import { telegramRoutes } from './routes/telegram.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
+import { telegramAuthRoutes, type TelegramAuthOpts } from './routes/auth-telegram.js';
 import { retailRoutes, type RetailOpts } from './routes/retail.js';
 
 /**
@@ -62,6 +63,7 @@ export interface BuildAppOpts {
     shopping?: RateLimitCfg;
   };
   google?: GoogleAuthOpts;
+  telegramAuth?: TelegramAuthOpts;
   retail?: RetailOpts;
 }
 
@@ -160,7 +162,8 @@ export function buildApp(
   app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
   authRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.authRequest });
-  googleAuthRoutes(app, repo, opts.google);
+  googleAuthRoutes(app, repo, opts.google, opts.telegramAuth && { botId: opts.telegramAuth.botId, botUsername: opts.telegramAuth.botUsername });
+  telegramAuthRoutes(app, repo, opts.telegramAuth);
   const retail = retailRoutes(app, repo, opts.retail);
   invitesRoutes(app, repo, mailer, { rateLimit: opts.rateLimits?.invite });
   meRoute(app, repo);
@@ -277,6 +280,12 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
   const google = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
     ? { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET }
     : undefined;
+  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): той самий токен, що вже читає бот
+  // (services/api/src/telegram.ts) — botId рахуємо з нього (частина до «:»),
+  // окремої змінної для нього не заводимо.
+  const telegramAuth = process.env.TELEGRAM_BOT_TOKEN
+    ? { botToken: process.env.TELEGRAM_BOT_TOKEN, botId: process.env.TELEGRAM_BOT_TOKEN.split(':')[0], botUsername: process.env.TELEGRAM_BOT_USERNAME }
+    : undefined;
   // M13: client_id — разова динамічна реєстрація на mcp.silpo.ua/register
   // (SILPO-MCP-RECON.md), секрет шифрування токенів — власний, довільний рядок.
   const retail = process.env.SILPO_CLIENT_ID && process.env.RETAIL_TOKEN_SECRET
@@ -288,7 +297,7 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
       // Стейки Карпат — відкритий каталог без ключів; KARPATY_ENABLED=0 вимикає.
       karpaty: { enabled: process.env.KARPATY_ENABLED !== '0' } }
     : undefined;
-  return buildApp(repo, store, mailer, { google, retail });
+  return buildApp(repo, store, mailer, { google, telegramAuth, retail });
 }
 
 // entrypoint

@@ -790,6 +790,10 @@ export class PostgresRepo implements Repo {
     return rows[0]!.id;
   }
 
+  async updateUserEmail(user_id: string, email: string): Promise<void> {
+    await this.pool.query('UPDATE "user" SET email = $2 WHERE id = $1', [user_id, email.toLowerCase()]);
+  }
+
   async getUser(id: string): Promise<UserRow | null> {
     const { rows } = await this.pool.query('SELECT * FROM "user" WHERE id = $1', [id]);
     const r = rows[0];

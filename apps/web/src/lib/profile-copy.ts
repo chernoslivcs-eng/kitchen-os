@@ -67,6 +67,14 @@ export const SECTION = {
   email: 'Пошта',
   /** PR 1 (0036): акаунт із Telegram без пошти — у рядку «Пошта». */
   emailNone: 'Telegram',
+  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): та сама ситуація — кнопка поруч,
+  // щоб пошту можна було додати, не виходячи з рядка.
+  emailAdd: 'Додати пошту',
+  emailPlaceholder: 'Твій email',
+  emailSend: 'Надіслати лінк',
+  emailSent: 'Лист надіслано — перевір пошту',
+  emailTaken: 'Ця пошта вже має акаунт',
+  emailAddError: 'Не вийшло надіслати лист. Спробуй ще раз за хвилину.',
   plan: 'Тариф',
   theme: 'Тема',
   themeSub: 'на цьому пристрої',

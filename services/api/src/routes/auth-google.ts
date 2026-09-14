@@ -64,8 +64,20 @@ function makeRealExchange(clientId: string, clientSecret: string) {
   };
 }
 
-export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: GoogleAuthOpts) {
-  app.get('/v1/auth/providers', async () => ({ google: Boolean(opts) }));
+// PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): /v1/auth/providers — той самий роут,
+// що ховає/показує кнопку Google, тепер каже й про Telegram; окремого
+// ендпоінта не заводимо (Fastify не дозволить два GET на той самий шлях).
+export interface TelegramProvidersInfo {
+  botId?: string;
+  botUsername?: string;
+}
+
+export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: GoogleAuthOpts, telegram?: TelegramProvidersInfo) {
+  app.get('/v1/auth/providers', async () => ({
+    google: Boolean(opts),
+    telegram: Boolean(telegram?.botId),
+    telegramBotId: telegram?.botId ?? null,
+  }));
 
   if (!opts) return;
   const exchange = opts.exchange ?? makeRealExchange(opts.clientId, opts.clientSecret);
