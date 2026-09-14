@@ -28,7 +28,16 @@ export function markSeenLocally(userId: string) {
  * каже, чи людина його бачила; кеш має право лише підтвердити «щойно бачила»
  * для ТІЄЇ САМОЇ людини, поки /v1/me ще не перечитався.
  */
-export function shouldShowOnboarding(me: { user: { id: string; welcome_seen_at?: string | null } }): boolean {
+export function onboardingRuleWants(me: { user: { id: string; welcome_seen_at?: string | null } }): boolean {
   if (me.user.welcome_seen_at) return false;
   return !onboardingSeen(me.user.id);
+}
+/**
+ * 14.09, власник: «відключи онбординг поки що». Один вимикач, одна константа —
+ * не env і не прапор у базі, щоб увімкнути назад однією зміною. Маршрут
+ * /welcome лишається живим за прямим URL; каркас на нього не веде.
+ */
+export const ONBOARDING_ENABLED = false;
+export function shouldShowOnboarding(me: { user: { id: string; welcome_seen_at?: string | null } }): boolean {
+  return ONBOARDING_ENABLED && onboardingRuleWants(me);
 }
