@@ -483,3 +483,42 @@ describe('Р148 · мітка каналу', () => {
     expect(marks[0]!.closest('[id^="turn-"]')!.textContent).toContain('Купив молоко');
   });
 });
+
+describe('14.09 · дві пілюлі зняті (відгук тестувальниці)', () => {
+  it('пілюлі сесії (назва розмови) нема в шапці чату', async () => {
+    await mount();
+    expect(q('[data-session-pill]')).toBeNull();
+    // Решта шапки лишається: «панель», «+ Нова», чіп «Дім зараз».
+    expect(q('[data-new-session]')).not.toBeNull();
+    expect(q('[data-chip-home]')).not.toBeNull();
+  });
+
+  it('rail-pill (пігулка артефакта над композитором) не рендериться, коли артефакт відкрито картою, а шторка закрита', async () => {
+    // <1200: не «в потоці» — саме той режим, у якому раніше зʼявлялась rail-pill.
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }));
+    await mount();
+    await type('рецепт'); await submit();
+    await act(async () => {
+      waiting[0]!.resolve({ reply: 'ось', card: { type: 'recipe_link', recipe_id: 'r1', title: 'Борщ' }, card_id: 'rec-1' });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(usePanelStore.getState().active).toBe('rec-1');
+    expect(usePanelStore.getState().open).toBe(false); // сервер лише позначив активним, не відкрив шторку сам
+    expect(qa('.rail-pill')).toHaveLength(0);
+  });
+
+  it('шторка артефакта на мобайлі відкривається тапом по самій картці рецепта («Готуємо»), як і раніше', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }));
+    await mount();
+    await type('рецепт'); await submit();
+    await act(async () => {
+      waiting[0]!.resolve({ reply: 'ось', card: { type: 'recipe_link', recipe_id: 'r1', title: 'Борщ' }, card_id: 'rec-1' });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    const cookBtn = host!.querySelector<HTMLButtonElement>('[data-recipe-stream] button[aria-label="Готуємо"]')!;
+    expect(cookBtn).not.toBeNull();
+    await act(async () => { cookBtn.click(); });
+    expect(usePanelStore.getState().active).toBe('rec-1');
+    expect(usePanelStore.getState().open).toBe(true);
+  });
+});

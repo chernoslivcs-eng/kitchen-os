@@ -44,7 +44,6 @@ import { type Turn, type TurnAttachment, hhmm, newId, messageToTurn } from './tu
 import { REPLY_FAILED, PANTRY_FAILED } from '../../components/ErrorState/copy';
 import styles from './Feed.module.css';
 
-import panelStyles from '../../components/ArtifactPanel/ArtifactPanel.module.css';
 import { usePanelStore, ARTIFACT_SHEET_MAX } from '../../store/panel';
 import { useCookStore } from '../../store/cook';
 
@@ -588,12 +587,9 @@ export function Feed() {
   // щось міняється.
   const sessionStore = useSessionStore();
   const cookOpen = useCookStore((s) => s.open);
-  // 6b-5: пілюля сесії в шапці (Prototype) — назва розмови й «· сьогодні».
-  const [sessionTitle, setSessionTitle] = useState<string | null>(null);
-  function activate(id: string | null, startedAt?: string, title?: string | null) {
+  function activate(id: string | null, startedAt?: string) {
     setSessionId(id);
     setSessionStartedAt(startedAt ?? null);
-    setSessionTitle(title ?? null);
     sessionStore.setActive(id);
   }
 
@@ -605,7 +601,7 @@ export function Feed() {
     void (async () => {
       try {
         const { session, messages } = await api.session.today();
-        activate(session.id, session.created_at, session.title);
+        activate(session.id, session.created_at);
         setTurns(messages.map((m) => messageToTurn(m)));
         if (messages.some((m) => m.card?.type === 'onboarding')) void loadProfileFields();
       } catch {/* offline: залишаємо порожню стрічку */}
@@ -641,7 +637,7 @@ export function Feed() {
   async function startFreshSession() {
     try {
       const { session } = await api.session.fresh();
-      activate(session.id, session.created_at, session.title);
+      activate(session.id, session.created_at);
       setTurns([]);
       setHistoryOpen(false);
       sessionStore.bump();
@@ -670,7 +666,7 @@ export function Feed() {
   async function loadHistorySession(id: string) {
     try {
       const { session, messages } = await api.session.get(id);
-      activate(session.id, session.created_at, session.title);
+      activate(session.id, session.created_at);
       setTurns(messages.map((m) => messageToTurn(m)));
       setHistoryOpen(false);
     } catch {/* тихо */}
@@ -1216,16 +1212,10 @@ export function Feed() {
   // Responsive G1/G3, Components «home now»).
   const home = useHomeNow(sessionId);
   const [homeOpen, setHomeOpen] = useState(false);
-  const sessionWhen = (() => {
-    if (!sessionStartedAt) return 'сьогодні';
-    const d = new Date(sessionStartedAt); const now = new Date();
-    const same = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    return same ? 'сьогодні' : d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }).replace('.', '');
-  })();
   const homeDate = new Date().toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
   // «Усі розмови» / panel-left-open — розмови живуть у сайдбарі (≥1024) або шухляді.
   function openAllSessions() { if (window.innerWidth >= 1024) setNavExpanded(true); else openNav(true); }
-  // №22: меню пілюлі знято — список розмов живе лише в сайдбарі/шухляді (TabBar).
+  // 14.09: пілюля розмови знята (№22 скасовано) — список розмов живе лише в сайдбарі/шухляді (TabBar).
   // Ширина КОНТЕЙНЕРА стрічки (Р38): нижче 768 «Дім зараз» — шторка, не накладка.
   // Форма шапки за шириною контейнера (Р38): ≥964 wide · 704–963 mid (R2) · <704 narrow (G3).
   const screenRef = useRef<HTMLDivElement>(null);
@@ -1342,8 +1332,6 @@ export function Feed() {
       data-chat-empty={emptyChat || undefined} data-chat-empty-mobile={(emptyChat && mobileEmpty) || undefined}
     >
       <ChatHead
-        title={historyOpen ? 'Історія' : sessionTitle}
-        when={sessionWhen}
         home={home}
         cookLive={cookLive}
         onNewSession={() => void startFreshSession()}
@@ -1843,24 +1831,10 @@ export function Feed() {
             onRefresh={() => { setCardConflict(false); void refreshCounts(); }}
           />
         )}
-        {/* Крок 5б: мобільна пігулка. На вузькому екрані панелі немає взагалі,
-            і кошик — єдина річ, що живе довше за одну прокрутку, — зникав
-            угору стрічки без дороги назад. Пігулка і є та дорога: вона
-            відкриває ту саму шторку з тими самими вкладками. */}
-        {openArtifacts.length > 0 && !panel.open && shownArtifact && (
-          <button
-            type="button"
-            className={panelStyles['rail-pill']}
-            onClick={() => openArtifact(shownArtifact.key)}
-          >
-            <span className={panelStyles['rail-pill-dot']} aria-hidden />
-            <span className={panelStyles['rail-pill-label']}>{shownArtifact.label}</span>
-            {shownArtifact.meta && <span className={panelStyles['rail-pill-meta']}>{shownArtifact.meta}</span>}
-            {openArtifacts.length > 1 && (
-              <span className={panelStyles['rail-pill-more']}>+{openArtifacts.length - 1}</span>
-            )}
-          </button>
-        )}
+        {/* 14.09 (рішення власника, відгук тестувальниці): мобільна пігулка
+            артефакта (rail-pill) над композитором знята повністю — десктоп
+            аналога не мав. Дорога до шторки лишається та сама: тап по картці
+            артефакта в самій стрічці (рецепт, чек тощо). */}
         {/* UX9-09: «Готування триває» жило В САМОМУ ВЕРХУ стрічки — на момент
             виходу з Cook Mode воно було на 2000+ px вище вʼюпорта. Тепер над
             композитором: видиме завжди, доки готування живе. */}

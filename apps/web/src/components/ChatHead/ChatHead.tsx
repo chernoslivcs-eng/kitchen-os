@@ -1,16 +1,21 @@
-// Шапка чату (6b-5) — за Screens «Чат · збірка» (1440), Responsive G1 (пілюля
-// розмов) і G3 (390: один чіп «Дім ●●● N» → шторка). Без фону: лежить поверх
-// стрічки на градієнті bg → прозорий, стрічка йде під неї у фейд.
+// Шапка чату (6b-5) — за Screens «Чат · збірка» (1440), Responsive G1/G3
+// (390: один чіп «Дім ●●● N» → шторка). Без фону: лежить поверх стрічки на
+// градієнті bg → прозорий, стрічка йде під неї у фейд.
+//
+// 14.09 (рішення власника, відгук тестувальниці): пілюля розмови (назва
+// сесії, №22) знята повністю — назва чату нікому не була потрібна, «де я»
+// показує сайдбар/нижній бар, не шапка. Пункт №22 у FIXES-V3.md позначений
+// скасованим.
 //
 // Три розкладки за шириною КОНТЕЙНЕРА стрічки, не вʼюпорту (Р38): панель
 // артефакта 720 на 1440 лишає стрічці ~440, і там діє правило 390. Пороги —
 // ті самі, що у вʼюпортів, мінус рейка: 1024 − 60 = 964, 768 − 64 = 704.
-//   ≥964   пілюля · «+ Нова» · розпірка · чіпи родів · «Дім зараз · ще N»
-//   704…   (R2) пілюля 36 без «· сьогодні» · розпірка · компактні чіпи 36/13:
-//          flame «10» · moon «піст» · timer «6:32» (знак + найкоротший факт) ·
-//          «Дім ●●● N» (№27: згорнутий чіп дому лишається, тап — панель; §14
-//          закрито); «Нова» нема
-//   <704   (G3) panel-left-open · пілюля · розпірка · «Дім ●●● N»
+//   ≥964   panel-left (лише <704 видно) · «+ Нова» · розпірка · чіпи родів ·
+//          «Дім зараз · ще N»
+//   704…   (R2) розпірка · компактні чіпи 36/13: flame «10» · moon «піст» ·
+//          timer «6:32» (знак + найкоротший факт) · «Дім ●●● N» (№27:
+//          згорнутий чіп дому лишається, тап — панель; §14 закрито); «Нова» нема
+//   <704   (G3) panel-left-open · розпірка · «Дім ●●● N»
 // Чіпи — по одному на рід і лише коли стан є: danger flame «Прострочено N»,
 // plum moon «Піст · до 27 вер», sage timer «Готуємо · таймер». Сезони й свої
 // події чіпів не мають — вони тихі рядки панелі «Дім зараз».
@@ -22,9 +27,6 @@ import type { HomeNow } from '../../store/homeNow';
 import styles from './ChatHead.module.css';
 
 export interface ChatHeadProps {
-  title: string | null;
-  /** «· сьогодні» / «· 7 вер». */
-  when: string;
   home: HomeNow;
   cookLive: CookSession | null;
   onNewSession: () => void;
@@ -52,20 +54,11 @@ export function ChatHead(p: ChatHeadProps) {
 
   return (
     <header className={styles.head} data-chat-head data-form={p.form}>
-      {/* 390: кнопка «панель» 40 на card — шухляда або сайдбар. */}
+      {/* 390: кнопка «панель» 40 на card — шухляда або сайдбар. Ширше — сайдбар
+          стоїть завжди докованим, окремої кнопки в шапці не треба. */}
       <button type="button" className={styles.burger} data-tap onClick={p.onAllSessions} aria-label="Розгорнути панель">
         <Icon name="sys.expand" size={18} inherit decorative />
       </button>
-
-      {/* №22 (рішення власника): пілюля — назва розмови, «де я»; меню в ній
-          знято, тап відкриває те саме, що кнопка ліворуч (сайдбар / шухляда).
-          Без шеврона стану «розкрито». */}
-      <div className={styles['pill-wrap']}>
-        <button type="button" className={styles.pill} data-tap onClick={p.onAllSessions} aria-label="Розмови" data-session-pill>
-          <span className={styles['pill-title']}>{p.title ?? 'Нова розмова'}</span>
-          <span className={styles['pill-when']}>· {p.when}</span>
-        </button>
-      </div>
 
       <button type="button" className={styles.newBtn} data-tap onClick={p.onNewSession} data-new-session>
         <Icon name="sys.add" size={16} inherit decorative />Нова
