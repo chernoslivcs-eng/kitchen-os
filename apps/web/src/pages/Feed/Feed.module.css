@@ -1408,22 +1408,20 @@ a.att-chip:hover { border-color: var(--sage); }
    підказки. Стрічка: padding-top 64 + safe-area, без min-height: fit-content. */
 .empty-hero-m { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; padding: 0 8px; transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
 .empty-title-m { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); text-wrap: balance; }
-/* UI-NOTES-0914 п. 6: на 390 — той самий ряд шести довідок зі скролом, без переносу. */
-.empty-chips-m { display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 16px; }
-.empty-chips-m::-webkit-scrollbar { display: none; }
-/* 14.09: ряд решти довідок під останньою реплікою-довідкою — той самий скрол-ряд, тими самими чіпами. */
-.help-followup { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 4px 0 2px; }
+/* 15.09 (власник, прод 390): порожній чат — шість довідок ВИКЛАДКОЮ з переносом
+   по центру, без overflow (скрол-ряд обрізав чіпи і гуляв по y між кадрами). */
+.empty-chips-m { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 640px; }
+/* Ряди в стрічці — під останньою довідкою і за «?» над композитором: горизонтальний
+   скрол лише на телефоні, без вертикального (overflow-y hidden — без bounce); ≥768 — перенос. */
+.help-followup { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 4px 0 2px; }
 .help-followup::-webkit-scrollbar { display: none; }
-/* 14.09: ряд довідок над композитором з «?» у шапці — той самий скрол-ряд. */
-.help-row { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 0 8px; }
+.help-row { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 0 0 8px; }
 .help-row::-webkit-scrollbar { display: none; }
 .help-row > * { flex: none; white-space: nowrap; }
-/* ≥768 — місця вистачає: обидва ряди переносяться, скрол лише на телефоні. */
+.help-followup > * { flex: none; white-space: nowrap; }
 @media (min-width: 768px) {
   .help-followup, .help-row { flex-wrap: wrap; overflow: visible; }
 }
-.help-followup > * { flex: none; white-space: nowrap; }
-.empty-chips-m > * { flex: none; white-space: nowrap; }
 .empty-chip-m {
   display: inline-flex; align-items: center; gap: 6px; flex: none;
   height: 36px; padding: 0 12px;
