@@ -526,6 +526,15 @@ export class InMemoryRepo implements Repo {
     }
   }
 
+  async attachChallengeUser(id: string, user_id: string): Promise<void> {
+    for (const [hash, c] of this.challenges) {
+      if (c.id === id) {
+        this.challenges.set(hash, { ...c, user_id });
+        return;
+      }
+    }
+  }
+
   async saveSession(s: AuthSession): Promise<void> {
     this.sessions.set(s.cookie_hash, { ...s });
   }

@@ -134,7 +134,6 @@ export async function createWebLoginChallenge(repo: Repo, user_id: string, ip?: 
 
 export interface TelegramSignIn {
   telegram_user_id: number;
-  /** null — вхід із віджета на лендингу; заповниться при першому /start. */
   chat_id?: number | null;
   first_name: string;
   username?: string | null;
@@ -175,6 +174,73 @@ export async function signInWithTelegram(
   if (!household_id) throw new Error(`user ${user.id} has no household — data invariant broken`);
   const { session, raw_cookie } = await openSession(repo, user.id, ip, user_agent);
   return { session, raw_cookie, user_id: user.id, household_id, user, created };
+}
+
+// ── Хотфікс 15.09: вхід через бота з лендингу (заміна Login Widget — на
+// десктопі «Запит на вхід» від Telegram не приходить, на мобайлі власний
+// popup). Три кроки, той самий auth_challenge, новий kind 'tg_login':
+//   1. beginTelegramLogin (веб, клік «Продовжити з Telegram») — challenge
+//      без user_id, повертає токен для /start login_<token>.
+//   2. attachTelegramLoginUser (бот, /start login_<token>) — знаходить чи
+//      створює акаунт (chat_id уже відомий — сам факт /start це UPDATE
+//      бота), дописує user_id у challenge. Сесію тут НЕ відкриває.
+//   3. pollTelegramLogin (веб, раз на 2 с) — поки user_id порожній: pending;
+//      щойно з'явився: consume + відкрити сесію (той самий кінцевий крок,
+//      що verifyChallenge для kind 'telegram').
+
+/** Крок 1: лендинг створює challenge ДО того, як особу знають. TTL — 15 хв, як у магік-лінка. */
+export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_agent?: string | null): Promise<{ challenge: AuthChallenge; raw_token: string }> {
+  const raw = randomToken();
+  const now = new Date();
+  const challenge: AuthChallenge = {
+    id: randomUUID(),
+    email: null,
+    kind: 'tg_login',
+    user_id: null,
+    token_hash: sha256(raw),
+    created_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + CHALLENGE_TTL_MS).toISOString(),
+    consumed_at: null,
+    ip: ip ?? null,
+    user_agent: user_agent ?? null,
+  };
+  await repo.saveChallenge(challenge);
+  return { challenge, raw_token: raw };
+}
+
+export type AttachTelegramLoginOutcome =
+  | { ok: true; user: UserRow; created: boolean }
+  | { ok: false; reason: 'not_found' | 'expired' | 'consumed' };
+
+/** Крок 2: бот отримав /start login_<login_token> — знайти/створити акаунт і записати user_id у challenge. Не відкриває сесію (це робить лише pollTelegramLogin, коли веб питає) — інакше довелося б плодити зайву cookie-сесію, якою ніхто не скористається. */
+export async function attachTelegramLoginUser(repo: Repo, login_token: string, tg: TelegramSignIn): Promise<AttachTelegramLoginOutcome> {
+  const token_hash = sha256(login_token);
+  const challenge = await repo.getChallengeByHash(token_hash);
+  if (!challenge || challenge.kind !== 'tg_login') return { ok: false, reason: 'not_found' };
+  if (challenge.consumed_at) return { ok: false, reason: 'consumed' };
+  if (new Date(challenge.expires_at).getTime() < Date.now()) return { ok: false, reason: 'expired' };
+  const { user, created } = await signInWithTelegram(repo, tg, null, null);
+  await repo.attachChallengeUser(challenge.id, user.id);
+  return { ok: true, user, created };
+}
+
+export type PollTelegramLoginOutcome =
+  | { status: 'pending' }
+  | { status: 'expired' }
+  | { status: 'ok'; result: VerifyChallengeResult };
+
+/** Крок 3: лендинг питає раз на 2 с. 'expired' — і для протухлого, і для вже спожитого (повторний poll після 'ok') — контракт навмисно двозначний: людині однаково, який саме, кнопка на сайті та сама «Продовжити з Telegram» ще раз. */
+export async function pollTelegramLogin(repo: Repo, raw_token: string, ip?: string | null, user_agent?: string | null): Promise<PollTelegramLoginOutcome> {
+  const token_hash = sha256(raw_token);
+  const challenge = await repo.getChallengeByHash(token_hash);
+  if (!challenge || challenge.kind !== 'tg_login' || challenge.consumed_at) return { status: 'expired' };
+  if (new Date(challenge.expires_at).getTime() < Date.now()) return { status: 'expired' };
+  if (!challenge.user_id) return { status: 'pending' };
+  const household_id = await repo.firstHouseholdOf(challenge.user_id);
+  if (!household_id) return { status: 'expired' };
+  await repo.consumeChallenge(challenge.id);
+  const { session, raw_cookie } = await openSession(repo, challenge.user_id, ip, user_agent);
+  return { status: 'ok', result: { session, raw_cookie, user_id: challenge.user_id, household_id } };
 }
 
 // Спільне ядро входу для будь-якого способу, що ДОВІВ володіння мейлом

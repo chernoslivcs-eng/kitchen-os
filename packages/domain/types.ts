@@ -683,8 +683,14 @@ export interface AuthChallenge {
   id: string;
   /** Магік-лінк: пошта. Вхід із Telegram-бота (PR 2, міграція 0036): null. */
   email: string | null;
-  /** 'email' — магік-лінк; 'telegram' — разовий лінк у веб із бота (user_id, чию сесію відкрити). */
-  kind?: 'email' | 'telegram';
+  /**
+   * 'email' — магік-лінк; 'telegram' — разовий лінк у веб із бота (user_id
+   * відомий одразу, чию сесію відкрити); 'tg_login' — вхід через бота З
+   * ЛЕНДИНГУ (хотфікс 15.09, заміна Login Widget): народжується без user_id,
+   * бот дописує його через attachTelegramLoginUser, коли людина тисне Start
+   * у застосунку, а веб дізнається про це через pollTelegramLogin.
+   */
+  kind?: 'email' | 'telegram' | 'tg_login';
   user_id?: string | null;
   token_hash: string;                // SHA-256(hex) від сирого токена, який їде в листі
   created_at: string;

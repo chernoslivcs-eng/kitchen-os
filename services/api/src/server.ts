@@ -282,8 +282,10 @@ export async function buildAppWithBackend(): Promise<FastifyInstance> {
     : undefined;
   // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): той самий токен, що вже читає бот
   // (services/api/src/telegram.ts) — botId рахуємо з нього (частина до «:»),
-  // окремої змінної для нього не заводимо.
-  const telegramAuth = process.env.TELEGRAM_BOT_TOKEN
+  // окремої змінної для нього не заводимо. Хотфікс 15.09: begin/poll (вхід
+  // через бота) будує лінк t.me/<username>?start=… — без TELEGRAM_BOT_USERNAME
+  // цей роут просто нема сенсу вмикати, тому обидві змінні обовʼязкові разом.
+  const telegramAuth = process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_USERNAME
     ? { botToken: process.env.TELEGRAM_BOT_TOKEN, botId: process.env.TELEGRAM_BOT_TOKEN.split(':')[0], botUsername: process.env.TELEGRAM_BOT_USERNAME }
     : undefined;
   // M13: client_id — разова динамічна реєстрація на mcp.silpo.ua/register

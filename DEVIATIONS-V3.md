@@ -3852,3 +3852,78 @@ Telegram (не видно, що взагалі відбувається). Дод
 
 Гейти: typecheck 0, lint 0 (той самий baseline), `apps/web` — 749 зелені
 (747 + 2 нових). Зміни лише в `apps/web`. Не мерджити.
+
+### Р160 · Telegram-вхід: ЗАМІНА Login Widget ботом (той самий PR #133), 15.09
+
+Власник (через головний чат): Login Widget не тримається — на десктопі
+«Запит на вхід» від Telegram не приходив узагалі, на мобайлі popup/редирект
+із Р159 усе одно потребував зайвого стрибка. Замість підпису HMAC від
+віджета — вхід ЧЕРЕЗ САМОГО БОТА, весь Р158/Р159-код на це замінено (у тому
+самому PR #133, від origin/main 132e7fc — main не рухався з часу PR #128).
+
+**Контракт** (той самий `auth_challenge`, новий `kind: 'tg_login'`, без
+міграції — колонка `kind` уже `text` без CHECK):
+1. `POST /v1/auth/telegram/begin` — challenge БЕЗ user_id (особу ще не
+   знають), TTL 15 хв. Повертає `{ token, url: t.me/<bot>?start=login_<token> }`.
+2. Клік відкриває цей url (десктоп — нова вкладка `window.open` у жесті
+   кліку, з фолбеком на ту саму вкладку, якщо блокувальник зрізав; дотик/
+   вузький екран — `location.href`, бо deep-link у застосунок Telegram
+   перехоплює навігацію без реального переходу).
+3. Бот, `/start login_<token>`: `attachTelegramLoginUser` (packages/domain/
+   auth.ts) знаходить challenge за хешем токена, перевіряє
+   не consumed/не expired, резолвить чи створює акаунт (`signInWithTelegram`
+   — той самий код, що й звичайний `/start` без токена), дописує user_id у
+   challenge через новий `repo.attachChallengeUser`. Сесію тут НЕ відкриває
+   — інакше плодилась би сесія, якою ніхто не скористається (poll відкриє
+   свою). Відповідь — hello + inline-кнопка «Відкрити сайт» (той самий
+   `webLink` → одноразовий `GET /v1/auth/telegram`, що вже був для /web) +
+   шість довідок. Протухлий/вигаданий/уже спожитий токен — `COPY.loginExpired`
+   («Лінк для входу вже не діє — натисни «Продовжити з Telegram» на сайті
+   ще раз»), акаунт НЕ створюється (перевірка ДО `signInWithTelegram`).
+4. Лендинг раз на 2 с (`GET /v1/auth/telegram/poll?token=…`, поки
+   `tgWaiting`): `pending` — user_id ще нема; `ok` — сервер сам
+   `consumeChallenge` + `openSession`, ставить ту саму cookie-сесію
+   (`COOKIE_NAME`, `SESSION_TTL_MS`), веде на `/app`; `expired` — і для
+   протухлого, і для вже спожитого (повторний poll після `ok`) — кнопка
+   назад у звичайний стан, `SIGNIN.telegramExpired`.
+
+**Прибрано повністю**: `apps/web/src/pages/Landing/telegram-widget.ts`
+(+тест), `apps/web/src/pages/AuthTelegram/` (редирект-callback з Р159 —
+більше не потрібен, немає ні popup, ні OAuth-редиректу, куди повертатись),
+`POST /v1/auth/telegram/widget` і `verifyTelegramWidgetHash`
+(HMAC-перевірка підпису віджета). CSP (`vercel.json`) — прибрано
+`script-src telegram.org`, `img-src t.me`, `frame-src oauth.telegram.org`
+(усе дійсно неживе: t.me відкривається звичайною навігацією/`window.open`,
+під CSP не підпадає).
+
+**Домен** (`packages/domain`): `AuthChallenge.kind` += `'tg_login'`;
+`Repo.attachChallengeUser(id, user_id)` (нова, окремо від `consumeChallenge`
+— бот лише дописує, консюмить лише poll); `beginTelegramLogin`,
+`attachTelegramLoginUser`, `pollTelegramLogin`. `TelegramAuthOpts.botUsername`
+став обов'язковим (без нього begin не може зібрати t.me-лінк) — `server.ts`
+тепер вмикає весь `telegramAuth` лише коли є ОБИДВІ змінні
+(`TELEGRAM_BOT_TOKEN` і `TELEGRAM_BOT_USERNAME`), не тільки токен.
+
+**product-map** (К1а, «Telegram») і `packages/prompts/CHANGELOG.md` —
+доповнено: «Продовжити з Telegram» описано як вхід через бота, без згадки
+підпису від віджета.
+
+Тести: `services/api/tests/auth-telegram.test.ts` (begin-контракт, poll
+pending/expired, providers, 404 без конфігурації) переписаний під новий
+контракт; новий `services/api/tests/telegram-login-begin.test.ts` — повний
+цикл begin → poll pending → бот `/start login_x` → poll ok + cookie на
+новий акаунт; повторний poll → expired; протухлий/вигаданий/спожитий
+токен у боті → `loginExpired`, акаунт не плодиться; той самий telegram_id
+двічі — той самий акаунт. `apps/web` `SignInForm.test.tsx` переписаний:
+кнопка лише при providers.telegram, десктоп — begin+window.open+рядок
+очікування, дотик/вузький — begin+location.href, poll pending→ok→редирект
+на /app, poll expired→кнопка звичайна+текст, begin мережева помилка,
+«Не відкрилось? Ще раз» повторно відкриває той самий лінк.
+
+Гейти: typecheck 0 (усі 7 пакетів), `pnpm lint` 0 (той самий baseline — 8
+CSS-сиріт-не-доведено). `apps/web` — 741 зелені (92→90 файлів: −2 видалені
+файли віджета/редиректу, тести SignInForm переписані), `services/api` —
+715 зелені, `packages/domain` — typecheck чистий (нові функції покриті
+опосередковано через services/api), `packages/eval` (overlap-lint) — 65
+зелені, `packages/db` — typecheck чистий, Postgres-тести скіпнуті без
+Docker/PG_TEST_URL (прод не чіпав). Не мерджити.

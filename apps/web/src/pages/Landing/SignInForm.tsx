@@ -3,16 +3,19 @@
 // GET /v1/auth/providers без змін, змінено лише вигляд. Кнопка Google і
 // роздільник з'являються тоді, коли провайдер увімкнено на сервері.
 //
-// PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): поруч із Google — «Продовжити з
-// Telegram», тим самим рядом і стилем, теж лише коли провайдер увімкнено
-// (є TELEGRAM_BOT_TOKEN на сервері). Офіційний віджет не вбудовується як
-// видима кнопка — telegram-widget.ts тягне лише скрипт заради
-// Telegram.Login.auth(...), кнопка тут своя.
-import { useEffect, useState } from 'react';
+// Telegram (TELEGRAM-AUTH-PAY-PLAN-0915; хотфікс 15.09 — ЗАМІНА Login
+// Widget): на десктопі офіційний віджет мовчав («Запит на вхід» не
+// приходив), на мобайлі popup мовчки блокувався iOS Safari. Замість підпису
+// від віджета — вхід через самого бота:
+//   клік → POST /v1/auth/telegram/begin (challenge без user_id) → відкриваємо
+//   t.me/<bot>?start=login_<token> → людина тисне Start у застосунку → бот
+//   дописує user_id у challenge → лендинг, поки чекає, опитує
+//   GET /v1/auth/telegram/poll раз на 2 с → 'ok' ставить cookie-сесію й веде
+//   на /app.
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import { Icon } from '../../components/Icon/Icon';
 import { useMagicLink } from './useMagicLink';
-import { telegramLoginAuth, isTouchOrNarrow, buildTelegramRedirectUrl, preloadTelegramWidget, consumeTelegramRedirectError } from './telegram-widget';
 import { SIGNIN } from './copy';
 import styles from './Landing.module.css';
 
@@ -38,9 +41,21 @@ function TelegramMark() {
   );
 }
 
-// Хотфікс 15.09 (доповнення): скільки чекаємо підтвердження в Telegram
-// (popup, десктоп), перш ніж повернути кнопку в звичайний стан.
-const TELEGRAM_LOGIN_TIMEOUT_MS = 120_000;
+// Дотик/вузький екран: t.me відкриваємо в поточній вкладці (deep-link у
+// застосунок Telegram перехоплює навігацію без реального переходу). Десктоп
+// — нова вкладка, щоб лендинг лишався живим і продовжував опитувати poll.
+function isTouchOrNarrow(): boolean {
+  const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  return coarse || window.innerWidth < 768;
+}
+
+function openTelegram(url: string): void {
+  if (isTouchOrNarrow()) { window.location.href = url; return; }
+  const win = window.open(url, '_blank', 'noopener');
+  if (!win) window.location.href = url; // блокувальник попапів — та сама вкладка
+}
+
+const TELEGRAM_POLL_MS = 2_000;
 
 interface Props {
   id?: string;
@@ -52,65 +67,52 @@ interface Props {
 export function SignInForm({ id, or = true, className }: Props) {
   const { email, setEmail, error, loading, submit } = useMagicLink();
   const [googleOn, setGoogleOn] = useState(false);
-  const [telegramBotId, setTelegramBotId] = useState<string | null>(null);
-  const [tgBusy, setTgBusy] = useState(false);
+  const [telegramOn, setTelegramOn] = useState(false);
+  const [tgWaiting, setTgWaiting] = useState(false);
+  const [tgUrl, setTgUrl] = useState<string | null>(null);
   const [tgError, setTgError] = useState<string | null>(null);
-  // Хотфікс 15.09: після 120 с без відповіді — кнопка звичайна, під нею
-  // «не прийшло? … відкрий бота» замість «Зʼєднуюсь…».
-  const [tgTimedOut, setTgTimedOut] = useState(false);
+  const pollTimer = useRef<number | null>(null);
+
   useEffect(() => {
     api.auth.providers()
-      .then((p) => { setGoogleOn(p.google); setTelegramBotId(p.telegram ? p.telegramBotId : null); })
-      .catch(() => { setGoogleOn(false); setTelegramBotId(null); });
+      .then((p) => { setGoogleOn(p.google); setTelegramOn(p.telegram); })
+      .catch(() => { setGoogleOn(false); setTelegramOn(false); });
   }, []);
-  // Хотфікс (15.09, прод): на десктопі popup відкривається лише СИНХРОННО в
-  // обробнику кліку, тому скрипт віджета тягнемо заздалегідь, при монтуванні
-  // — інакше await всередині telegramLoginAuth зсуває window.open поза жест
-  // кліку, і блокувальники попапів зрізають вікно (не лише на iOS).
-  useEffect(() => {
-    if (telegramBotId && !isTouchOrNarrow()) preloadTelegramWidget();
-  }, [telegramBotId]);
-  // /auth/telegram (редирект-гілка) веде сюди при провалі — той самий текст,
-  // що й попап-помилка.
-  useEffect(() => {
-    if (consumeTelegramRedirectError()) setTgError(SIGNIN.telegramError);
-  }, []);
+
+  useEffect(() => () => { if (pollTimer.current) window.clearInterval(pollTimer.current); }, []);
+
+  function stopPolling() {
+    if (pollTimer.current) { window.clearInterval(pollTimer.current); pollTimer.current = null; }
+  }
+
   async function telegramLogin() {
-    if (!telegramBotId || tgBusy) return;
-    // Дотик/вузький екран: popup Telegram.Login.auth відкриває window.open
-    // ПІСЛЯ асинхронного завантаження скрипта — уже поза жестом тапу, тому
-    // iOS Safari мовчки блокує вікно. На таких екранах — прямий редирект,
-    // без попапу; сама навігація і є жестом тапу.
-    if (isTouchOrNarrow()) {
-      window.location.href = buildTelegramRedirectUrl(telegramBotId);
-      return;
-    }
-    setTgBusy(true);
+    if (!telegramOn || tgWaiting) return;
     setTgError(null);
-    setTgTimedOut(false);
-    // 120 с без відповіді від попапу (людина не бачить повідомлення в
-    // Telegram, забула застосунок відкритим тощо) — не тримати кнопку
-    // «Зʼєднуюсь…» вічно; сам колбек Telegram.Login.auth скасувати
-    // неможливо, тому просто перестаємо на нього чекати УІ-ішно — якщо
-    // відповідь усе ж прийде пізніше, вхід все одно відбудеться.
-    let timedOut = false;
-    const timer = window.setTimeout(() => {
-      timedOut = true;
-      setTgBusy(false);
-      setTgTimedOut(true);
-    }, TELEGRAM_LOGIN_TIMEOUT_MS);
     try {
-      const user = await telegramLoginAuth(telegramBotId);
-      window.clearTimeout(timer);
-      if (!user) { if (!timedOut) setTgBusy(false); return; } // людина закрила вікно — не помилка
-      const { next } = await api.auth.telegramWidget(user);
-      window.location.href = next;
+      const { token, url } = await api.auth.telegramBegin();
+      setTgUrl(url);
+      setTgWaiting(true);
+      openTelegram(url);
+      pollTimer.current = window.setInterval(() => {
+        void api.auth.telegramPoll(token).then((res) => {
+          if (res.status === 'ok') {
+            stopPolling();
+            window.location.href = '/app';
+          } else if (res.status === 'expired') {
+            stopPolling();
+            setTgWaiting(false);
+            setTgUrl(null);
+            setTgError(SIGNIN.telegramExpired);
+          }
+          // 'pending' — просто чекаємо далі, наступний тик.
+        }).catch(() => { /* транзитний збій мережі — спробуємо на наступному тику */ });
+      }, TELEGRAM_POLL_MS);
     } catch {
-      window.clearTimeout(timer);
-      if (!timedOut) { setTgError(SIGNIN.telegramError); setTgBusy(false); }
+      setTgError(SIGNIN.telegramError);
     }
   }
-  const anyProviderOn = googleOn || !!telegramBotId;
+
+  const anyProviderOn = googleOn || telegramOn;
   return (
     <div id={id} className={`${styles.signin} ${className ?? ''}`}>
       {googleOn && (
@@ -118,17 +120,20 @@ export function SignInForm({ id, or = true, className }: Props) {
           <GoogleMark />{SIGNIN.google}
         </button>
       )}
-      {telegramBotId && (
-        <button type="button" className={styles.google} onClick={() => void telegramLogin()} disabled={tgBusy}>
-          <TelegramMark />{tgBusy ? SIGNIN.telegramBusy : SIGNIN.telegram}
+      {telegramOn && !tgWaiting && (
+        <button type="button" className={styles.google} onClick={() => void telegramLogin()}>
+          <TelegramMark />{SIGNIN.telegram}
         </button>
       )}
-      {tgBusy && <span className={styles.note}>{SIGNIN.telegramWaitHint}</span>}
-      {tgTimedOut && (
-        <span className={styles.note}>
-          {SIGNIN.telegramTimeoutHint}{' '}
-          <a href={SIGNIN.telegramBotLink} target="_blank" rel="noreferrer">{SIGNIN.telegramBotLinkLabel}</a>
-        </span>
+      {tgWaiting && (
+        <>
+          <span className={styles.note}>{SIGNIN.telegramWaitTitle}</span>
+          {tgUrl && (
+            <a className={styles.tgRetry} href={tgUrl} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); openTelegram(tgUrl); }}>
+              {SIGNIN.telegramRetry}
+            </a>
+          )}
+        </>
       )}
       {tgError && <div className={styles.formError} role="alert">{tgError}</div>}
       {anyProviderOn && or && <div className={styles.or}><span />{SIGNIN.or}<span /></div>}

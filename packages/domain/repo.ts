@@ -279,6 +279,8 @@ export interface Repo {
   saveChallenge(c: AuthChallenge): Promise<void>;
   getChallengeByHash(token_hash: string): Promise<AuthChallenge | null>;
   consumeChallenge(id: string): Promise<void>;
+  /** Хотфікс 15.09: бот дописує user_id у challenge kind 'tg_login', яку веб створив ДО того, як особу знали (attachTelegramLoginUser). Не чіпає consumed — гонитва з poll неможлива (poll сам consume). */
+  attachChallengeUser(id: string, user_id: string): Promise<void>;
 
   saveSession(s: AuthSession): Promise<void>;
   getSessionByCookieHash(cookie_hash: string): Promise<AuthSession | null>;

@@ -1107,7 +1107,7 @@ export class PostgresRepo implements Repo {
     return {
       id: r.id,
       email: r.email ?? null,
-      kind: (r.kind as 'email' | 'telegram' | null) ?? 'email',
+      kind: (r.kind as 'email' | 'telegram' | 'tg_login' | null) ?? 'email',
       user_id: r.user_id ?? null,
       token_hash: r.token_hash,
       created_at: new Date(r.created_at).toISOString(),
@@ -1120,6 +1120,12 @@ export class PostgresRepo implements Repo {
 
   async consumeChallenge(id: string): Promise<void> {
     await this.pool.query('UPDATE auth_challenge SET consumed_at = now() WHERE id = $1', [id]);
+  }
+
+  // Хотфікс 15.09: бот дописує user_id у challenge kind 'tg_login' (не чіпає
+  // consumed — poll сам consume, гонитви немає).
+  async attachChallengeUser(id: string, user_id: string): Promise<void> {
+    await this.pool.query('UPDATE auth_challenge SET user_id = $2 WHERE id = $1', [id, user_id]);
   }
 
   async saveSession(s: AuthSession): Promise<void> {
