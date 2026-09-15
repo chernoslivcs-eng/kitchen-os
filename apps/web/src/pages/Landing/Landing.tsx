@@ -20,7 +20,7 @@ import {
   NAV, HERO, SIGNIN, PAINS, PAINS_H2, HOME_IMG, ROWS, TURN, KNOWS_HEAD, KNOWS, LEDGER_HEAD, LEDGER, GUESS_CHIP,
   HOME, RULES_H2, RULES, RULE_2, RULE_3_CHIP, PRICE, PLANS, FINAL, FOOTER,
 } from './copy';
-import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, reducedMotion } from './useLandingMotion';
+import { useBreakpoint, useFrameZoom, useReveal, useGloss, useLiveStart, useScrollScene, useHeroOverflow, reducedMotion } from './useLandingMotion';
 import styles from './Landing.module.css';
 import { useLightOnly } from '../../lib/useLightOnly';
 
@@ -46,6 +46,7 @@ export function Landing() {
   useGloss(root, bp);
   useLiveStart(root, bp);
   const { active, heroRef, headerRef, illRef } = useScrollScene(root, desk);
+  useHeroOverflow(root, heroRef, headerRef, desk);
 
   const go = (e: MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href');
