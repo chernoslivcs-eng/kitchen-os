@@ -112,7 +112,7 @@ export function HouseholdsPage() {
         ) : (
           <div className={styles.table} role="table">
             <div className={styles.rowHead} role="row">
-              <span>ДІМ</span><span>ЛЮДЕЙ</span><span>ОСТАННІЙ ХІД</span><span>ХОДІВ</span><span />
+              <span>ДІМ</span><span>ЛЮДЕЙ</span><span>КАНАЛ</span><span>ОСТАННІЙ ХІД</span><span>ХОДІВ</span><span />
             </div>
             {households.map((h) => (
               <div
@@ -140,6 +140,8 @@ export function HouseholdsPage() {
                   </span>
                 </div>
                 <span className={styles.mono}>{h.people}</span>
+                {/* 15.09: канал — є Telegram-привʼязка чи лише веб. */}
+                <span className={styles.mono} data-channel={h.telegram ? 'telegram' : 'web'}>{h.telegram ? 'TG' : <span className={styles.dim}>веб</span>}</span>
                 <span className={styles.mono}>
                   {h.last_turn_at ? whenWord(h.last_turn_at) : <span className={styles.dim}>ходів не було</span>}
                 </span>

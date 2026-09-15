@@ -9,7 +9,7 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminMoneyGroup, AdminMoneyAverages,
+  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminBetaRow, AdminMoneyGroup, AdminMoneyAverages,
   PantryBatch, PendingCard, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
@@ -876,6 +876,49 @@ export class PostgresRepo implements Repo {
    * Той самий шлях уже стоїть у pulse.ts (listSessionsForUser на учасника),
    * тобто межа не нова — вона просто стала видимою в новому місці.
    */
+  async adminBetaRows(now: Date): Promise<AdminBetaRow[]> {
+    // Один запит, усе підзапитами по людині — таблиця на десяток тестерів,
+    // циклу по людях у коді нема (той самий принцип, що listAdminHouseholds).
+    const { rows } = await this.pool.query(`
+      WITH first_home AS (
+        SELECT DISTINCT ON (user_id) user_id, household_id FROM household_member ORDER BY user_id, joined_at
+      )
+      SELECT u.id, u.name, u.email, u.created_at, fh.household_id, h.name AS household_name,
+             t.telegram_user_id,
+             EXISTS (SELECT 1 FROM auth_challenge c WHERE c.email = u.email AND coalesce(c.kind, 'email') = 'email' AND c.consumed_at IS NOT NULL) AS had_magic,
+             (SELECT count(*)::int FROM pantry_batch b WHERE b.household_id = fh.household_id AND b.state <> 'depleted') AS pantry,
+             (SELECT count(*)::int FROM profile_text p WHERE p.user_id = u.id AND p.status <> 'empty') AS profile_filled,
+             (SELECT count(*)::int FROM session s JOIN message m ON m.session_id = s.id WHERE s.user_id = u.id AND m.role = 'assistant' AND m.card->>'type' = 'proposal') AS dinner_asks,
+             (SELECT count(*)::int FROM cook_run r WHERE r.user_id = u.id AND r.undone_at IS NULL AND r.finished_at IS NOT NULL) AS cooks,
+             (SELECT count(*)::int FROM cook_run r WHERE r.user_id = u.id AND r.undone_at IS NULL AND (r.rating IS NOT NULL OR nullif(btrim(r.verdict), '') IS NOT NULL)) AS feedback,
+             (SELECT count(*)::int FROM card_pending p WHERE p.user_id = u.id AND p.applied_at IS NOT NULL AND p.card->>'type' IN ('period', 'event')) AS periods,
+             (SELECT count(*)::int FROM household_invite i WHERE i.invited_by = u.id) AS invites,
+             EXISTS (SELECT 1 FROM retail_connection rc WHERE rc.user_id = u.id AND rc.provider = 'silpo' AND rc.status = 'active') AS silpo,
+             (SELECT max(a.last_seen_at) FROM auth_session a WHERE a.user_id = u.id) AS last_seen_at,
+             (SELECT m.channel FROM session s JOIN message m ON m.session_id = s.id WHERE s.user_id = u.id AND m.role = 'user' ORDER BY m.created_at DESC LIMIT 1) AS last_channel,
+             (SELECT count(DISTINCT d)::int FROM (
+                SELECT (e.created_at)::date AS d FROM app_event e WHERE e.user_id = u.id AND e.created_at >= $1
+                UNION
+                SELECT (m.created_at)::date FROM session s JOIN message m ON m.session_id = s.id WHERE s.user_id = u.id AND m.role = 'user' AND m.created_at >= $1
+             ) x) AS active_days_7
+        FROM "user" u
+        JOIN first_home fh ON fh.user_id = u.id
+        JOIN household h ON h.id = fh.household_id
+        LEFT JOIN LATERAL (SELECT telegram_user_id FROM telegram_account ta WHERE ta.user_id = u.id AND ta.revoked_at IS NULL ORDER BY linked_at DESC LIMIT 1) t ON true
+    `, [new Date(now.getTime() - 7 * 86_400_000).toISOString()]);
+    return rows.map((r): AdminBetaRow => ({
+      user_id: r.id, name: r.name, email: r.email ?? null, household_id: r.household_id, household_name: r.household_name,
+      started_at: new Date(r.created_at).toISOString(),
+      source: !r.email ? 'telegram' : r.had_magic ? 'email' : r.telegram_user_id != null ? 'telegram' : 'google',
+      telegram_user_id: r.telegram_user_id == null ? null : Number(r.telegram_user_id),
+      pantry: r.pantry, profile_filled: r.profile_filled, dinner_asks: r.dinner_asks, cooks: r.cooks, feedback: r.feedback,
+      periods: r.periods, invites: r.invites, silpo: !!r.silpo,
+      last_seen_at: r.last_seen_at ? new Date(r.last_seen_at).toISOString() : null,
+      last_channel: (r.last_channel as 'web' | 'telegram' | null) ?? null,
+      active_days_7: r.active_days_7,
+    }));
+  }
+
   async listAdminHouseholds(): Promise<AdminHouseholdRow[]> {
     const { rows } = await this.pool.query(`
       WITH people AS (
@@ -914,7 +957,8 @@ export class PostgresRepo implements Repo {
              turns.last_turn_at,
              coalesce(turns.n, 0)   AS turns,
              seen.last_seen_at,
-             owner.id AS owner_id, owner.name AS owner_name, owner.email AS owner_email
+             owner.id AS owner_id, owner.name AS owner_name, owner.email AS owner_email,
+             EXISTS (SELECT 1 FROM household_member hm JOIN telegram_account t ON t.user_id = hm.user_id AND t.revoked_at IS NULL WHERE hm.household_id = h.id) AS telegram
         FROM household h
         LEFT JOIN people ON people.household_id = h.id
         LEFT JOIN turns  ON turns.household_id  = h.id
@@ -931,6 +975,7 @@ export class PostgresRepo implements Repo {
       turns: r.turns,
       last_seen_at: r.last_seen_at ? new Date(r.last_seen_at).toISOString() : null,
       owner_id: r.owner_id ?? null,
+      telegram: !!r.telegram,
       owner_name: r.owner_name ?? null,
       owner_email: r.owner_email ?? null,
     }));

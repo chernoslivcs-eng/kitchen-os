@@ -33,6 +33,8 @@ export const KNOWN_EVENTS = new Set([
   // решти подій; через дефіс пишуться інциденти, і це інший набір.
   'welcome_started', 'welcome_card_reached', 'welcome_finished', 'welcome_skipped',
   'onboarding_started', 'onboarding_panel_reached', 'onboarding_finished', 'onboarding_skipped',
+  // 15.09: події з Telegram-бота — пише сервер напряму (telegram.ts botEvent), не клієнт.
+  'tg_start', 'tg_command', 'tg_help', 'tg_web_link', 'tg_message', 'tg_card_apply', 'tg_card_dismiss', 'tg_series_save',
 ]);
 
 /**

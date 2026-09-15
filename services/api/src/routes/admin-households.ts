@@ -56,6 +56,8 @@ export interface AdminHouseholdItem {
   owner_email: string | null;
   /** Пошта власника на зарезервованому домені — жива людина такої не має. */
   technical: boolean;
+  /** 15.09: канал — у домі є Telegram-привʼязка. */
+  telegram: boolean;
 }
 
 export function adminHouseholdsRoutes(app: FastifyInstance, repo: Repo) {
@@ -80,6 +82,7 @@ export function adminHouseholdsRoutes(app: FastifyInstance, repo: Repo) {
         owner_name: h.owner_name,
         owner_email: h.owner_email,
         technical: isTechnical(h.owner_email),
+        telegram: h.telegram,
       }));
 
       // Фільтр стоїть ТУТ, а не в SQL, з двох причин: політика «що вважати

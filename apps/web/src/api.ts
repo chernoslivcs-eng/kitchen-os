@@ -119,6 +119,8 @@ export interface PulseTurn {
   user_id: string;
   who: string;
   role: 'user' | 'assistant';
+  /** 15.09: звідки хід — web чи telegram (значок у пульсі). */
+  channel?: 'web' | 'telegram';
   text: string | null;
   card_type: string | null;
   /** Стан картки словом: застосована / скасована / відхилена / чекає. */
@@ -146,6 +148,18 @@ export interface PulseMember {
   user_id: string;
   name: string;
   role: HouseholdRole;
+  /** 15.09: джерело акаунта і Telegram-id, якщо привʼязано. */
+  source?: 'telegram' | 'email' | 'google';
+  telegram_user_id?: number | null;
+}
+
+/** BETA-PLAN-0915: рядок таблиці «Бета» (GET /v1/admin/beta). */
+export interface AdminBetaRow {
+  user_id: string; name: string; email: string | null; household_id: string; household_name: string;
+  started_at: string; source: 'telegram' | 'email' | 'google'; telegram_user_id: number | null;
+  pantry: number; pantry_ok: boolean; profile_filled: number; profile_ok: boolean;
+  dinner_asks: number; cooks: number; feedback: number; periods: number; invites: number; silpo: boolean;
+  last_seen_at: string | null; last_channel: 'web' | 'telegram' | null; active_days_7: number;
 }
 
 export interface PulseMemberMoney extends PulseMember {
@@ -189,6 +203,8 @@ export interface AdminHousehold {
   owner_email: string | null;
   /** Пошта власника на зарезервованому домені (RFC 2606) — не жива людина. */
   technical: boolean;
+  /** 15.09: у домі є Telegram-привʼязка. */
+  telegram?: boolean;
 }
 
 /** Крок А4: розріз грошей — за типом виклику, моделлю, домом, людиною. */
@@ -870,6 +886,8 @@ export const api = {
     // перевірка доступу, якою сторінка /admin/boom вирішує, показати 404 чи
     // впасти. Без прапорця той самий маршрут кидає справжній виняток.
     boomDry: () => req<{ ok: true }>('/v1/admin/boom?dry=1'),
+    // BETA-PLAN-0915: таблиця «Бета».
+    beta: () => req<{ rows: AdminBetaRow[]; thresholds: { pantry: number; profile: number } }>('/v1/admin/beta'),
   },
 
   shopping: {

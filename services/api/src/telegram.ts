@@ -322,7 +322,23 @@ export function splitByBlocks(text: string, boundary: RegExp, max = TELEGRAM_MSG
  *  (auth_challenge kind 'telegram', 15 хв, одноразово), next — куди після входу. */
 export async function webLink(deps: TelegramDeps, user_id: string): Promise<WebLink> {
   const { raw_token } = await createWebLoginChallenge(deps.repo, user_id);
-  return (next: string) => `${deps.appUrl}/v1/auth/telegram?token=${encodeURIComponent(raw_token)}&next=${encodeURIComponent(next)}`;
+  let logged = false;
+  return (next: string) => {
+    // tg_web_link — раз на виданий токен, з тим next, куди веде лінк.
+    if (!logged) { logged = true; void botEvent(deps, user_id, 'tg_web_link', { next }); }
+    return `${deps.appUrl}/v1/auth/telegram?token=${encodeURIComponent(raw_token)}&next=${encodeURIComponent(next)}`;
+  };
+}
+
+/** Власник 15.09: подія з бота → app_event (та сама таблиця й формат, що /v1/events/track).
+ *  Пристрою нема — писав сервер. Не кидає: телеметрія не має права зіпсувати відповідь. */
+export async function botEvent(deps: TelegramDeps, user_id: string, name: string, props: Record<string, unknown> = {}): Promise<void> {
+  try {
+    const household_id = await householdOf(deps.repo, user_id);
+    await deps.repo.saveAppEvents([{ id: randomUUID(), user_id, household_id, name, props, viewport_w: null, device_class: null, ua_family: null, created_at: new Date().toISOString() }]);
+  } catch (err) {
+    (deps.log ?? (console as unknown as FastifyBaseLogger)).warn({ err: String(err), name }, 'telegram-event-failed');
+  }
 }
 
 export type TelegramReply = { messages: string[]; html: boolean; keyboard?: { text: string; data?: string; url?: string }[][]; replyKeyboard?: string[][] } | null;
@@ -350,6 +366,7 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
   const linked = account && !account.revoked_at ? account : null;
   if (!linked) return plain(COPY.startFirst);
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
+  await botEvent(deps, linked.user_id, 'tg_message', { kind: u.source });
   const content_type = u.source === 'photo' ? 'image/jpeg' : (u.mime_type ?? null);
   const audio = u.source === 'document' ? audioContentTypeOf(content_type, u.file_name) : null;
   if (audio) {
@@ -420,6 +437,8 @@ export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCall
   const linked = account && !account.revoked_at ? account : null;
   if (!linked) return { status: COPY.startFirst };
   try {
+    const pcKind = (await deps.repo.getPending(m[2]!))?.card.type ?? null;
+    await botEvent(deps, linked.user_id, m[1] === 'apply' ? 'tg_card_apply' : 'tg_card_dismiss', { kind: pcKind });
     if (m[1] === 'apply') {
       const pc = await deps.repo.getPending(m[2]!);
       const r = await applyCard(deps.repo, m[2]!, [], linked.user_id);
@@ -469,6 +488,7 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
     const topic = helpTopicById(help[1]!, 'telegram')!;
     const session = await deps.repo.getOrCreateSessionForDay(linked.user_id, localDay());
     await saveScriptedTurn(deps.repo, session.id, topic, topic.chip, 'telegram');
+    await botEvent(deps, linked.user_id, 'tg_help', { topic: topic.id });
     return { kind: 'reply', reply: { messages: splitTelegramText(renderHelpHtml(topic.text)), html: true, keyboard: helpKeyboardWithout(topic.id) } };
   }
   if (calendar) {
@@ -497,6 +517,7 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
     try {
       const r = selected.length ? await applyCard(deps.repo, pc.id, selected, linked.user_id) : await applyCard(deps.repo, pc.id, [], linked.user_id, { none: true });
       void r;
+      await botEvent(deps, linked.user_id, 'tg_series_save', { n: selected.length });
       return { kind: 'edit', text: `${renderPeriodSeriesText(pc.card, mask)}\n\nЗаписав у календар · ${selected.length}`, keyboard: [] };
     } catch (err) {
       (deps.log ?? (console as unknown as FastifyBaseLogger)).warn({ err: String(err), data: u.data }, 'telegram-period-apply');
@@ -534,10 +555,12 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
       if (!row) return plain(COPY.linkExpired);
       await deps.repo.linkTelegram({ telegram_user_id: u.telegram_user_id, user_id: row.user_id, chat_id: u.chat_id, linked_at: now.toISOString(), revoked_at: null });
       const user = await deps.repo.getUser(row.user_id);
+      await botEvent(deps, row.user_id, 'tg_start', { created: false, linked: true });
       return { messages: [COPY.hello(user?.name?.trim() || 'привіт')], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
     }
     // PR 2: перший контакт із продуктом — у Telegram. Акаунт без пошти одразу; повторний /start — той самий.
     const r = await signInWithTelegram(deps.repo, { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null }, null, null);
+    await botEvent(deps, r.user.id, 'tg_start', { created: r.created });
     // HELP-CHIPS-TG-0915: під привітанням — шість довідок 2×3.
     return { messages: [COPY.hello(r.user.name?.trim() || 'привіт')], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
   }
@@ -546,16 +569,17 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
   const linked = account && !account.revoked_at ? account : null;
 
   if (/^\/stop(?:@\w+)?$/.test(text)) {
-    if (linked) await deps.repo.revokeTelegram(linked.user_id, now.toISOString());
+    if (linked) { await botEvent(deps, linked.user_id, 'tg_command', { name: 'stop' }); await deps.repo.revokeTelegram(linked.user_id, now.toISOString()); }
     return plain(COPY.stopped);
   }
   if (!linked) return plain(COPY.startFirst);
   // HELP-CHIPS-TG-0915: /help — той самий ряд шести довідок.
-  if (/^\/help(?:@\w+)?$/.test(text)) return { messages: [COPY.helpPrompt], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
+  if (/^\/help(?:@\w+)?$/.test(text)) { await botEvent(deps, linked.user_id, 'tg_command', { name: 'help' }); return { messages: [COPY.helpPrompt], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD }; }
   // PR 2: /web — разовий лінк входу у веб (той самий, що на всіх «Відкрити у вебі»).
   if (/^\/web(?:@\w+)?$/.test(text)) {
     const web = await webLink(deps, linked.user_id);
     const url = web('/app');
+    await botEvent(deps, linked.user_id, 'tg_command', { name: 'web' });
     return { messages: [COPY.openWeb(url)], html: false, keyboard: [[{ text: 'Відкрити у вебі', url }]], replyKeyboard: QUICK_KEYBOARD };
   }
   // Р152 (PR 5, «Подивитись без моделі»): чотири команди читають Repo напряму, 0 $, без ходу
@@ -565,11 +589,13 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
   if (quick) {
     const household_id = await householdOf(deps.repo, linked.user_id);
     if (!household_id) return plain(COPY.startFirst);
+    await botEvent(deps, linked.user_id, 'tg_command', { name: quick });
     const r = await runQuickCommand(quick, deps, household_id, linked.user_id);
     return { ...r, replyKeyboard: QUICK_KEYBOARD };
   }
   if (text.startsWith('/')) return null;   // інші команди — мовчки
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
+  await botEvent(deps, linked.user_id, 'tg_message', { kind: 'text' });
   return textTurn(deps, linked.user_id, u.telegram_user_id, text);
 }
 
@@ -653,6 +679,7 @@ export async function handleTelegramVoice(deps: TelegramDeps, u: IncomingVoice):
   const linked = account && !account.revoked_at ? account : null;
   if (!linked) return plain(COPY.startFirst);
   if (!limiter.check(String(u.telegram_user_id))) return plain(COPY.tooMany);
+  await botEvent(deps, linked.user_id, 'tg_message', { kind: 'voice' });
   if ((u.duration ?? 0) > TELEGRAM_VOICE_MAX_SEC || (u.file_size ?? 0) > TELEGRAM_VOICE_MAX_BYTES) return plain(COPY.voiceTooLong);
   if (!deps.downloadFile) return plain(COPY.voiceUnclear);
   const log = deps.log ?? (console as unknown as FastifyBaseLogger);

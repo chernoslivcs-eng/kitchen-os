@@ -24,7 +24,7 @@ const iso = (offsetSec: number) => new Date(T0.getTime() + offsetSec * 1000).toI
 function turn(over: Partial<PulseTurn> & { at: string; role: 'user' | 'assistant' }): PulseTurn {
   return {
     message_id: over.message_id ?? `m-${over.at}`,
-    user_id: 'u-1', who: 'Пилип', text: null,
+    user_id: 'u-1', who: 'Пилип', channel: 'web', text: null,
     card_type: null, card_state: null,
     latency_ms: null, usd: null, price_from: null,
     ...over,

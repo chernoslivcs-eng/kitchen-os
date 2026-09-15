@@ -175,7 +175,7 @@ export function PulsePage() {
                           <td className={styles.mono}>{hhmm(t.at)}</td>
                           {/* Чий це хід. У домі з двох людей стрічка без імені
                               не читається взагалі. */}
-                          <td className={styles.mono}>{t.who}</td>
+                          <td className={styles.mono}>{t.who}{t.channel === 'telegram' && <span className={styles.chan} data-channel="telegram" title="з Telegram"> TG</span>}</td>
                           {/* Рід репліки, не рід людини: «сказала» тут читалось
                               неправильно рівно для половини дому. */}
                           <td className={styles.mono}>{t.role === 'user' ? 'людина' : 'Семен'}</td>
@@ -237,7 +237,7 @@ export function PulsePage() {
                 <tbody>
                   {data.money.byMember.map((m) => (
                     <tr key={m.user_id} data-member={m.user_id}>
-                      <td>{m.name}</td>
+                      <td>{m.name}{(() => { const src = data.members.find((x) => x.user_id === m.user_id); return src?.source ? <span className={styles.dim}> · {src.source === 'telegram' ? `Telegram${src.telegram_user_id != null ? ` ${src.telegram_user_id}` : ''}` : src.source === 'google' ? 'Google' : 'пошта'}</span> : null; })()}</td>
                       <td className={`${styles.mono} ${styles.dim}`}>{ROLE_WORD[m.role] ?? m.role}</td>
                       <td className={styles.mono}>{usd(m.day.usd)}</td>
                       <td className={`${styles.mono} ${styles.dim}`}>{m.day.calls}</td>
