@@ -445,7 +445,8 @@ function extractTrailingQuantity(label: string): { label: string; value: number 
 //
 // Продукт при undo партії НЕ видаляється: це довідник, наступна покупка тієї
 // ж трійки має його знайти.
-async function ensureProduct(
+// 15.09: експортовано — ручна форма «Додати» в коморі йде тим самим шляхом.
+export async function ensureProduct(
   repo: Repo,
   household_id: string,
   triple: ProductTriple,

@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { ZONE_OPTIONS, UNIT_OPTIONS, ORIGIN_ICON, ZONE_ICON, ZONE_ORDER, ZONE_LABEL, applyFilter, toggleKind, toggleState, resetFilter, shortDate, INITIAL, SORTS, type FilterState, type FilterView, type RowView, type SortKey, type KindKey, type StateKey } from './filter';
 import { usePanelStore } from '../../store/panel';
-import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch } from '../../api';
+import { api, DEPLETED_REASON_LABEL, type DepletedReason, type HouseholdProduct, type PantryBatch, type PantryResolveHint } from '../../api';
 import { loadPantry } from '../../store/pantryList';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
@@ -626,13 +626,38 @@ function FilterRails({ view, state, onSort, onKind, onState, onReset }: {
   );
 }
 
-function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+// 15.09 (власник): форма «Додати» — через суворий резолвер, як чат і чек.
+// Після паузи набору 300 мс — тихий рядок під назвою (GET /v1/pantry/resolve,
+// без моделі); зона підставляється з підказки, поки людина її не чіпала.
+const HINT_DEBOUNCE_MS = 300;
+export function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
   const [label, setLabel] = useState('');
   const [value, setValue] = useState<string>('');
   const [unit, setUnit] = useState<PantryBatch['unit']>('g');
   const [zone, setZone] = useState<PantryBatch['zone']>('fridge');
+  const [zoneTouched, setZoneTouched] = useState(false);
+  // undefined — рядка нема (порожня назва); null — не впізнала; інакше — продукт довідника.
+  const [hint, setHint] = useState<Extract<PantryResolveHint, { name: string }> | null | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const l = label.trim();
+    if (!l) { setHint(undefined); return; }
+    let alive = true;
+    const id = window.setTimeout(() => {
+      void api.batches.resolve(l).then((h) => {
+        if (!alive) return;
+        setHint(h.key ? h : null);
+        if (h.key && !zoneTouched) setZone(h.zone);
+      }).catch(() => { if (alive) setHint(undefined); });
+    }, HINT_DEBOUNCE_MS);
+    return () => { alive = false; window.clearTimeout(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- підставляти зону лише на нову підказку, не на кожен тап по селекту
+  }, [label]);
+  // Стрілка — знак sys.go з набору, не гліф у тексті (канон no-glyphs).
+  const hintLine = hint === undefined ? null
+    : hint === null ? 'без категорії — строк не рахуватиму'
+    : `${hint.name} · ${ZONE_LABEL[hint.zone]}${hint.days == null ? ' · не псується' : ` · ≈ ${hint.days} дн`}`;
 
   async function submit() {
     const l = label.trim();
@@ -663,6 +688,7 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
             error={error}
             autoFocus
           />
+          {hintLine && <span className={styles['add-hint']} data-add-hint data-add-hint-key={hint?.key ?? ''}><Icon name="sys.go" size={12} inherit decorative />{hintLine}</span>}
         </label>
 
         <div style={{ display: 'flex', gap: 10 }}>
@@ -690,7 +716,8 @@ function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onCreated:
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>Зона</span>
           <select
             value={zone}
-            onChange={(e) => setZone(e.target.value as PantryBatch['zone'])}
+            data-zone
+            onChange={(e) => { setZoneTouched(true); setZone(e.target.value as PantryBatch['zone']); }}
             style={{
               padding: '11px 12px', background: 'var(--bg)',
               border: '1px solid var(--line)', borderRadius: 'var(--r)',

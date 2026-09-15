@@ -15,7 +15,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit, BatchState, DepletedReason } from '@kitchen/domain';
-import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, DEPLETED_REASONS } from '@kitchen/domain';
+import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, DEPLETED_REASONS, ensureProduct, pantryAddHint, normalizeTriple } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
 
@@ -141,8 +141,13 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     }
     const unit = req.body.unit ?? null;
     if (unit != null && !UNITS.includes(unit)) return reply.code(400).send({ error: 'unit_invalid' });
-    const zone = req.body.zone ?? 'dry';
-    if (!ZONES.includes(zone)) return reply.code(400).send({ error: 'zone_invalid' });
+    if (req.body.zone != null && !ZONES.includes(req.body.zone)) return reply.code(400).send({ error: 'zone_invalid' });
+    // 15.09: той самий шлях, що для chat/receipt — продукт дому за трійкою
+    // (без дублів із чеком/чатом), ключ суворим резолвером на продукті (не
+    // на партії, як в apply). Зона: людина не чіпала — з довідника; інакше — її.
+    const product = await ensureProduct(repo, household_id, normalizeTriple({ product: label }), label, undefined, unit);
+    const hint = pantryAddHint(label);
+    const zone: Zone = req.body.zone ?? hint?.zone ?? 'dry';
 
     const { randomUUID } = await import('node:crypto');
     const id = randomUUID();
@@ -151,6 +156,7 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       id,
       household_id,
       catalog_key: null,
+      product_id: product?.id ?? null,
       label,
       zone,
       value,
@@ -169,6 +175,12 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     });
     const batch = await repo.getBatch(id);
     return reply.code(201).send({ batch });
+  });
+
+  // 15.09: підказка для форми «Додати» — без моделі, той самий суворий резолвер.
+  app.get<{ Querystring: { label?: string } }>('/v1/pantry/resolve', { preHandler: authenticated(repo) }, async (req) => {
+    const hint = pantryAddHint((req.query.label ?? '').trim());
+    return hint ?? { key: null };
   });
 
   app.patch<{

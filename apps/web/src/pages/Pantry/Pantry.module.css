@@ -838,3 +838,6 @@
 /* fix/ios-inner-scroll-offset: у колонці з фіксованою висотою рейка з overflow-x: auto має min-height 0 і стискається до нуля (чіпи комори 0 px, рецептів 12 px на 390×664 — і в WebKit, і в Chromium). Діти скролера не стискаються. */
 .body > * { flex-shrink: 0; }
 .rail-words { flex: none; }
+
+/* 15.09: підказка резолвера під полем «Назва» у формі «Додати» — 13/muted, без чіпів і кнопок; на 390 те саме. */
+.add-hint { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 13px; line-height: 1.4; color: var(--muted); }

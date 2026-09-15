@@ -355,6 +355,9 @@ export interface HouseholdProduct {
   search_terms?: string[];
 }
 
+/** GET /v1/pantry/resolve: { key: null } або продукт довідника з зоною і строком. */
+export type PantryResolveHint = { key: null } | { key: string; name: string; cat: string; zone: PantryBatch['zone']; days: number | null };
+
 export interface PantryList {
   household_id: string;
   count: number;
@@ -656,6 +659,8 @@ export const api = {
   pantry: () => req<PantryList>('/v1/pantry'),
 
   batches: {
+    // 15.09: підказка форми «Додати» — суворий резолвер, без моделі.
+    resolve: (label: string) => req<PantryResolveHint>(`/v1/pantry/resolve?label=${encodeURIComponent(label)}`),
     create: (input: { label: string; value?: number | null; unit?: PantryBatch['unit']; zone?: PantryBatch['zone'] }) =>
       req<{ batch: PantryBatch }>('/v1/pantry', {
         method: 'POST',
