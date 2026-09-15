@@ -74,7 +74,9 @@ export const MOTION: Record<Extract<IconName, `sys.${string}` | `landing.${strin
 /**
  * Частини знаків Icon Motion v2 — 1:1 з файлу (viewBox 24, штрих 1.75).
  * Дерево елементів: `p` → data-p (частина, яку рухає CSS), `draw` → data-draw
- * + pathLength=1 (домальовування), `ve` → vector-effect non-scaling-stroke.
+ * + pathLength=1 (домальовування), `ve` → non-scaling-stroke ЛИШЕ поки грає
+ * transform-анімація (Icon.module.css, [data-play]) — у спокої штрих
+ * масштабується з кеглем, як увесь канон (без цього плющиться в 12 px).
  * Знаки, де змінився сам гліф (проти lucide 0.460): чат (бабл + три крапки),
  * календар (рядок дат крапками), список (дві галочки + три рядки + тиха
  * лінія), кошик (спиці в колесах), книга (лист — повна сторінка), комора

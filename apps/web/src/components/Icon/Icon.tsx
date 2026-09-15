@@ -64,7 +64,12 @@ function renderPart(part: IconPart, i: number): ReactNode {
   if (part.d) attrs.d = part.d;
   if (part.p) attrs['data-p'] = part.p;
   if (part.draw) { attrs['data-draw'] = ''; attrs.pathLength = 1; }
-  if (part.ve) attrs.vectorEffect = 'non-scaling-stroke';
+  // Хотфікс 15.09: non-scaling-stroke лише поки грає transform-анімація
+  // (інакше штрих плющить в'їдливо тонкий канон 12 px — FIXES-V3 №6);
+  // у спокої штрих має масштабуватись із кеглем, як усі знаки. Тому не
+  // атрибут тут, а маркер — Icon.module.css вмикає властивість лише під
+  // [data-play].
+  if (part.ve) attrs['data-ve'] = '';
   const children = part.children?.map(renderPart);
   if (tag === 'g') return <g key={i} {...attrs}>{children}</g>;
   if (tag === 'circle') return <circle key={i} {...attrs} />;
