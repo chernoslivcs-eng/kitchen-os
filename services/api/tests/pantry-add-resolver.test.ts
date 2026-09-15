@@ -46,6 +46,13 @@ describe('POST /v1/pantry через резолвер', () => {
     expect(batch.zone).toBe('freezer');
   });
 
+  it('«кефір» → як у чаті: продукт без ключа, зона з generic-рівня — холодильник', async () => {
+    const me = await signIn(app, mailer, 'me@example.com');
+    const { batch } = (await add(me.cookie, { label: 'кефір' })).json();
+    expect((await repo.listProducts(me.household_id))[0]!.catalog_key).toBeNull();
+    expect(batch.zone).toBe('fridge');
+  });
+
   it('«щось xyz» → продукт без ключа, зона dry за замовчуванням', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const { batch } = (await add(me.cookie, { label: 'щось xyz' })).json();
@@ -62,9 +69,9 @@ describe('POST /v1/pantry через резолвер', () => {
     expect(typeof ok.cat).toBe('string');
     expect(ok.days).toBeGreaterThan(0);
     const no = (await app.inject({ method: 'GET', url: '/v1/pantry/resolve?label=' + encodeURIComponent('щось xyz'), headers: { cookie: me.cookie } })).json();
-    expect(no).toEqual({ key: null });
-    // суворий рівень: «кефір» без варіанта в довіднику нема — не вгадуємо
+    expect(no).toEqual({ key: null, zone: null });
+    // «кефір»: рівень той самий, що в чаті — ключа нема (у довіднику лише варіанти), зона — холодильник (generic, як apply)
     const kefir = (await app.inject({ method: 'GET', url: '/v1/pantry/resolve?label=' + encodeURIComponent('кефір'), headers: { cookie: me.cookie } })).json();
-    expect(kefir).toEqual({ key: null });
+    expect(kefir).toEqual({ key: null, zone: 'fridge' });
   });
 });

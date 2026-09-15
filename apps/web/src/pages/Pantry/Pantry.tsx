@@ -648,7 +648,8 @@ export function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onC
       void api.batches.resolve(l).then((h) => {
         if (!alive) return;
         setHint(h.key ? h : null);
-        if (h.key && !zoneTouched) setZone(h.zone);
+        // Зона може бути відома і без ключа (generic, як у чаті) — підставляємо, поки не чіпали.
+        if (h.zone && !zoneTouched) setZone(h.zone);
       }).catch(() => { if (alive) setHint(undefined); });
     }, HINT_DEBOUNCE_MS);
     return () => { alive = false; window.clearTimeout(id); };

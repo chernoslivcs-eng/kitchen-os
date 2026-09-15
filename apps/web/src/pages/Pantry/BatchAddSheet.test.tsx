@@ -21,7 +21,7 @@ beforeEach(() => {
     calls.push(`${init?.method ?? 'GET'} ${url}`);
     if (url.startsWith('/v1/pantry/resolve')) {
       const label = decodeURIComponent(url.split('label=')[1] ?? '');
-      return label.toLowerCase() === 'молоко' ? json({ key: 'milk_cow_25', name: 'Молоко коровʼяче 2.5%', cat: 'молоко', zone: 'fridge', days: 7 }) : json({ key: null });
+      return label.toLowerCase() === 'молоко' ? json({ key: 'milk_cow_25', name: 'Молоко коровʼяче 2.5%', cat: 'молоко', zone: 'fridge', days: 7 }) : label.toLowerCase() === 'кефір' ? json({ key: null, zone: 'fridge' }) : json({ key: null, zone: null });
     }
     return json({ batch: {} });
   }));
@@ -56,6 +56,13 @@ describe('BatchAddSheet · підказка резолвера', () => {
     expect(calls.filter((c) => c.includes('/resolve'))).toHaveLength(1);
     expect(hint()!.textContent).toBe('Молоко коровʼяче 2.5% · Холодильник · ≈ 7 дн');
     expect(hint()!.querySelector('[data-icon]')).toBeTruthy(); // стрілка — знак sys.go, не гліф
+    expect(zone().value).toBe('fridge');
+  });
+  it('«кефір» без ключа, але з зоною — рядок «без категорії», зона підставлена', async () => {
+    await mount();
+    await act(async () => { zone().value = 'dry'; }); // початковий стан селекта, не «торкнулась»
+    await type('кефір'); await settle();
+    expect(hint()!.textContent).toBe('без категорії — строк не рахуватиму');
     expect(zone().value).toBe('fridge');
   });
   it('невідоме → «→ без категорії — строк не рахуватиму»; порожня назва — рядка нема', async () => {

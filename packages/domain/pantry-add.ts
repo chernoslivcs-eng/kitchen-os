@@ -1,8 +1,9 @@
-// Власник 15.09: ручна форма «Додати» в коморі — через той самий суворий
-// резолвер, що чат і чек (exact | anchored; generic/words — ні, невпевнений →
-// null, без вгадування, як після посилення 08.09). Підказка для форми і
-// зона/строк для партії — з довідника за ключем.
-import { resolveLabelToKey } from '@kitchen/catalog';
+// Власник 15.09: ручна форма «Додати» в коморі — рівно той самий рівень, що
+// чат-шлях apply (не суворіший): ключ — resolveLabelToKey (anchored, як в
+// ensureProduct), зона — resolveLabelToZone (generic, як `zone` партії в
+// apply). Тому «кефір» тут, як і в чаті: ключа нема (у довіднику лише
+// варіанти), а зона — холодильник.
+import { resolveLabelToKey, resolveLabelToZone } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import { shelfSealedDays } from './shelf-life.js';
 import { ZONE_SHELF_DAYS } from './pantry-view.js';
@@ -18,11 +19,16 @@ export interface PantryAddHint {
   days: number | null;
 }
 
+/** Зона за чат-рівнем (generic) — навіть коли ключа нема. */
+export function pantryAddZone(label: string): Zone | null {
+  return resolveLabelToZone(label.trim()) ?? null;
+}
+
 export function pantryAddHint(label: string): PantryAddHint | null {
   const key = resolveLabelToKey(label.trim());
   const item = key ? BY_KEY.get(key) : undefined;
   if (!key || !item) return null;
-  const zone = item.zone_default;
+  const zone = pantryAddZone(label) ?? item.zone_default;
   const fromCatalog = shelfSealedDays(key, zone);
   const days = fromCatalog === null ? null : (fromCatalog ?? ZONE_SHELF_DAYS[zone] ?? null);
   return { key, name: item.name, cat: item.categories[0] ?? '', zone, days };

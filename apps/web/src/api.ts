@@ -356,7 +356,7 @@ export interface HouseholdProduct {
 }
 
 /** GET /v1/pantry/resolve: { key: null } або продукт довідника з зоною і строком. */
-export type PantryResolveHint = { key: null } | { key: string; name: string; cat: string; zone: PantryBatch['zone']; days: number | null };
+export type PantryResolveHint = { key: null; zone: PantryBatch['zone'] | null } | { key: string; name: string; cat: string; zone: PantryBatch['zone']; days: number | null };
 
 export interface PantryList {
   household_id: string;
