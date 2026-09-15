@@ -3662,3 +3662,117 @@ product-map.md (К1а): абзац «Чат» — «Прострочено N» �
 `.chip-danger` прибрано і з розмітки, і з CSS одночасно), `apps/web`
 тести — 712 зелені, `packages/eval` (overlap-lint) — 65 зелені,
 `services/api` `product-map.test.ts` — 6 зелені. Не мерджити.
+
+### Р158 · Telegram як вхід — PR 2-веб (TELEGRAM-AUTH-PAY-PLAN-0915), 15.09
+
+Гілка `feat/telegram-auth-web` від `origin/main` bedb170. Паралельно йде
+«TELEGRAM BOT» (PR 1 — домен `signInWithTelegram`+міграція, і PR 2-бот —
+Start без токена, /web); домену від PR 1 ще нема, тож `signInWithTelegram`
+тут — тимчасовий стаб (коментар «PR 1» на місці, сигнатура зафіксована
+контрактом із дозвіла). Прогонів моделі не було.
+
+**1. Лендинг — «Продовжити з Telegram»**: `SignInForm.tsx`, той самий стиль,
+що Google (`.google` клас, не рядок буквально — існуючий лейаут Google-кнопки
+вже вертикальний стовпчик, не ряд; пішов за тим, що вже є в коді, не за
+буквальним словом постановки). Офіційний віджет не вбудований як кнопка:
+`telegram-widget.ts` тягне лише `telegram-widget.js` заради
+`Telegram.Login.auth(...)`, видима кнопка своя. `/v1/auth/providers`
+(auth-google.ts — той самий роут, Fastify не дає двох GET на один шлях)
+тепер віддає `telegram`/`telegramBotId`; `botId` рахується з
+`TELEGRAM_BOT_TOKEN` (частина до «:»), той самий токен, що вже читає бот.
+
+**2. `POST /v1/auth/telegram/widget`** (`auth-telegram.ts`, новий файл):
+перевірка `hash` = HMAC-SHA256(data_check_string, SHA256(bot_token)) з
+`timingSafeEqual`, `auth_date` не старший за добу (і не з майбутнього —
+допуск 60 с) → `signInWithTelegram` (стаб) → та сама кука `kos`, ті самі
+опції (httpOnly/secure/sameSite/maxAge), що magic-link і Google.
+
+**3. Профіль → Акаунт, «Додати пошту»**: рядок Telegram (Р148) — той самий,
+не чіпав (він уже показує «підключено · @username»). Новий шлях — для
+ПОРОЖНЬОЇ пошти: замість значення кнопка «Додати пошту» → поле → та сама
+подія `requestChallenge`, лінк несе `&attach=1`. Не заводив нової таблиці —
+`GET /v1/auth/verify` розгалужується на `attach`: `verifyEmailAttach`
+(новий у auth.ts) не логінить, а дописує пошту ТІЙ сесії, яка активна В
+МОМЕНТ VERIFY (не request) — device-independent, як звичайний magic-link,
+але без нового логіну. Пошта, зайнята іншим акаунтом, — 409
+`email_taken` і на request, і на verify (подвійна перевірка: одразу і в
+consumeChallenge). Новий repo-метод `updateUserEmail` — у `Repo`,
+`InMemoryRepo`, `PostgresRepo`.
+
+**4. product-map.md** (К1а): абзац «Вхід» — три способи; абзац «Telegram»
+доповнено спереду (можна почати прямо в боті, «Продовжити з Telegram» на
+лендінгу, «Додати пошту» для акаунта без неї) — фактично описує функціонал
+ОБОХ паралельних PR разом, за прямою вказівкою постановки.
+
+Рішення поза постановкою:
+- **Стаб `signInWithTelegram` живе прямо в `packages/domain/auth.ts`**, не
+  в окремому файлі — так імпорт (`@kitchen/domain`) лишається тим самим
+  шляхом, яким користуватиметься реальна реалізація; конфлікт на rebase
+  після мержу PR 1 — очікуваний і навмисний (беру їхню реалізацію, прибираю
+  стаб і плейсхолдер-email).
+- **«Додати пошту» — власний дизайн, не буквально «magic-link на attach»
+  з готової таблиці**: перевикористав ЦІЛКОМ існуючий `auth_challenge`
+  (жодної нової таблиці/міграції) — `&attach=1` у самому лінку як маркер
+  режиму, довіра — email-лист + активна сесія на момент verify. Просто, без
+  нового стану, що можна розійтись з PR 1's майбутньою міграцією.
+- **`Me.user.email` типізовано `string | null` уже зараз** (api.ts) —
+  контракт наперед, хоч бек сьогодні завжди віддає рядок; ламких місць не
+  знайшов (typecheck зелений), захисні перевірки (`!email`) уже там, де
+  потрібно.
+- **Живої перевірки у браузері не робив**: без `/setdomain` у BotFather
+  (борг власника, PLAN §PR2) сам віджет на проді однаково не запрацює, а
+  локально DEV-бот теж вимагає домену — вирішив, що юніт/інтеграційні тести
+  (HMAC валідний/підроблений/чужий бот/протухлий, providers-гейтинг,
+  клік → Login.auth → POST → редирект, профіль без пошти) дають реальнішу
+  гарантію, ніж спроба відтворити недоступний зовнішній домен локально.
+
+Тести: `auth-telegram.test.ts` (8 — 404 без конфіга, providers-прапорець,
+валідний підпис + кука + акаунт, повторний вхід тим самим telegram_id — той
+самий акаунт, підроблений hash, чужий бот, протухлий auth_date, відсутні
+поля); `auth-email-attach.test.ts` (6 — 401 без сесії, щасливий шлях без
+нової сесії, зайнята пошта, verify без куки — 401, ідемпотентність своєї
+пошти, невалідна пошта); `SignInForm.test.tsx` (4 — кнопки нема/є за
+прапорцем, повний клік-флоу, скасування без помилки); `ProfileV2.test.tsx`
+(+3 — «Додати пошту» нема з поштою, є без пошти й шле лист, 409 показує
+точний текст); `auth-google.test.ts` (оновлено 1 — нова форма
+`/v1/auth/providers`).
+
+Здача: typecheck 0 (увесь монорепо), `pnpm lint` 0, `apps/web` — 736
+зелені, `services/api` — 690 зелені, `packages/domain` — 477 зелені,
+`packages/eval` (overlap-lint) — 65 зелені, `packages/db` — Postgres-тести
+скіпнуті без Docker/PG_TEST_URL (як завжди в цьому середовищі; typecheck
+пакета зелений). Не мерджити.
+
+**Ребейз (15.09, той самий PR #128, до мерджу)** — «TELEGRAM BOT» домерджив
+PR 1 (сигнатура `signInWithTelegram` — `{session, raw_cookie, user_id,
+household_id, user, created}`, `TelegramSignIn` тип, `getUserByTelegramId`,
+`createUserFromTelegram`) і PR 2-бот (`GET /v1/auth/telegram`,
+`createWebLoginChallenge`, `AuthChallenge.kind`/`user_id`, `email: string |
+null` в усьому ланцюжку). Ребейзнув `feat/telegram-auth-web` на `origin/main`
+ae56f08:
+- Стаб `signInWithTelegram`/`TelegramSignInInput`/`TelegramSignInResult`
+  прибрав повністю з `auth.ts` — лишилась реальна реалізація «TELEGRAM
+  BOT» (та сама, що вже викликав мій `auth-telegram.ts`, бо писав проти
+  контракту заздалегідь — імпорт не змінився).
+- `verifyEmailAttach` доповнив явним null-guard на `challenge.email` (тип
+  розширився до `string | null` через `kind: 'telegram'`-гілку челенджів
+  бота) — у моєму потоці email завжди реальний, guard лише проти нового
+  типу.
+- **Профіль → Акаунт, конфлікт дизайну**: PR 1 незалежно додав своє
+  рішення для порожньої пошти — статичний рядок `SECTION.emailNone`
+  ('Telegram'), без дії. Мій «Додати пошту» лишався мертвим кодом позаду
+  нового `email ?? emailNone` фолбека (умова `{email ? ... : ...}` завжди
+  бачила truthy-рядок). Злив обидва: значення тепер «Telegram · @username»
+  (коли бот уже підключений і відомий username — читаю той самий `tg`-стан,
+  що вже живить рядок Telegram нижче), кнопка «Додати пошту» — поруч, той
+  самий рядок. Тест PR 1 («рядок «Пошта» → «Telegram»») і мої три —
+  разом, обидва проходять.
+- `auth-telegram.test.ts`: тест «повторний вхід тим самим telegram_id»
+  спирався на деталь стаба (плейсхолдер-email `telegram-<id>@stub.invalid`)
+  — переписав на `repo.getUserByTelegramId` (реальний метод) і додав
+  перевірку `user.email === null` (те, що обіцяв контракт, тепер справді
+  так).
+
+Гейти після ребейзу: typecheck 0, `pnpm lint` 0, `apps/web` — 737 зелені,
+`services/api` — 712 зелені, `packages/domain` — 492 зелені, `packages/eval`
+— 65 зелені, `packages/db` — Postgres skip, як і раніше. Не мерджити.

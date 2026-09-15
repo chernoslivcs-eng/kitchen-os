@@ -2,9 +2,8 @@
 // Не знає про HTTP, cookie або пошту — це шар над Repo.
 
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
-import type { Repo } from './repo.js';
+import type { Repo, UserRow } from './repo.js';
 import type { AuthChallenge, AuthSession, UserContext } from './types.js';
-import type { UserRow } from './repo.js';
 
 const CHALLENGE_TTL_MIN = 15;
 const SESSION_TTL_DAYS = 30;
@@ -235,3 +234,34 @@ export async function logoutSession(repo: Repo, raw_cookie: string): Promise<voi
   const session = await repo.getSessionByCookieHash(sha256(raw_cookie));
   if (session) await repo.revokeSession(session.id);
 }
+
+// ── PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): «Додати пошту» до акаунта без неї ──
+// Пошта підтверджується тим самим magic-link конвеєром (requestChallenge/
+// getChallengeByHash/consumeChallenge) — маршрут лише додає `&attach=1` до
+// лінка з листа; жодних нових таблиць. Довіра прив'язана до email самого
+// листа + активної сесії того, хто відкрив лінк (незалежно від пристрою —
+// сесія читається в момент verify, не в момент request).
+export type AttachEmailOutcome =
+  | { ok: true }
+  | { ok: false; reason: 'not_found' | 'expired' | 'consumed' | 'email_taken' | 'no_session' };
+
+export async function verifyEmailAttach(repo: Repo, raw_token: string, current_user_id: string | null): Promise<AttachEmailOutcome> {
+  const token_hash = sha256(raw_token);
+  const challenge = await repo.getChallengeByHash(token_hash);
+  if (!challenge) return { ok: false, reason: 'not_found' };
+  if (challenge.consumed_at) return { ok: false, reason: 'consumed' };
+  if (new Date(challenge.expires_at).getTime() < Date.now()) return { ok: false, reason: 'expired' };
+  if (!current_user_id) return { ok: false, reason: 'no_session' };
+
+  await repo.consumeChallenge(challenge.id);
+
+  // Атач завжди йде через requestChallenge зі справжньою поштою — email тут
+  // null лише для challenge.kind === 'telegram' (лінк входу з бота), який
+  // сюди ніколи не потрапляє (він не проходить через verifyEmailAttach).
+  if (!challenge.email) return { ok: false, reason: 'not_found' };
+  const existing = await repo.findUserByEmail(challenge.email);
+  if (existing && existing.id !== current_user_id) return { ok: false, reason: 'email_taken' };
+  if (!existing) await repo.updateUserEmail(current_user_id, challenge.email);
+  return { ok: true };
+}
+

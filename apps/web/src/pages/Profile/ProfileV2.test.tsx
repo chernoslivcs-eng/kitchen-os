@@ -48,6 +48,10 @@ function installFetch() {
     if (url === '/v1/telegram' && method === 'GET') return telegram ? json(telegram) : json({ error: 'boom' }, 500);
     if (url === '/v1/telegram/link-token' && method === 'POST') return json({ url: 'https://t.me/kitchen_os_bot?start=tok1', expires_at: '2036-01-01T00:00:00.000Z' });
     if (url === '/v1/telegram' && method === 'DELETE') return json({ ok: true });
+    if (url === '/v1/auth/email/attach/request' && method === 'POST') {
+      if (body?.email === 'taken@example.com') return json({ error: 'email_taken' }, 409);
+      return json({ ok: true }, 202);
+    }
     if (url === '/v1/occasions/subscriptions') return json({ subscriptions: [{ occasion_id: 'a', enabled: true }, { occasion_id: 'b', enabled: true }, { occasion_id: 'c', enabled: false }] });
     if (url === '/v1/households/h1/invites' && method === 'GET') return json({ invites: [{ id: 'i1', email: 'guest@x.local', role: 'member', created_at: '2026-09-05T00:00:00.000Z', expires_at: '2036-01-01T00:00:00.000Z', consumed_at: null, revoked_at: null }] });
     if (url === '/v1/households/h1/invite' && method === 'POST') return json({ id: 'i2', household_id: 'h1', email: body.email, role: 'member', expires_at: '2036-01-01T00:00:00.000Z', link: 'http://x/invite?token=t', mail_sent: true });
@@ -460,5 +464,62 @@ describe('акаунт без пошти', () => {
       const row = [...host.querySelectorAll('[data-section="account"] > div')].find((r) => r.textContent?.startsWith('Пошта'))!;
       expect(row.textContent).toContain('Telegram');
     } finally { useAuth.setState({ me: null } as never); }
+  });
+});
+
+describe('PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915) · акаунт без пошти — «Додати пошту»', () => {
+  const accountMe = (email: string | null) => ({
+    status: 'signed_in' as const,
+    me: {
+      user: { id: 'u1', name: 'Пилип', email, plan: 'beta' },
+      household: { id: 'h1', name: 'Дім', role: 'owner' as const, members: [{ user_id: 'u1', name: 'Пилип', role: 'owner' as const, joined_at: '2026-09-01T00:00:00.000Z' }] },
+      session_id: 's1',
+    },
+  });
+  const noEmail = () => useAuth.setState(accountMe(null));
+
+  it('акаунт із поштою — «Додати пошту» не показується', async () => {
+    useAuth.setState(accountMe('me@x.local'));
+    await mount();
+    expect(host.textContent).not.toContain('Додати пошту');
+    expect(host.textContent).toContain('me@x.local');
+  });
+
+  it('акаунт без пошти — «Додати пошту»; клік відкриває поле; надсилання → POST attach/request, «Лист надіслано»', async () => {
+    noEmail();
+    await mount();
+    expect(host.textContent).toContain('Додати пошту');
+    const addBtn = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Додати пошту')!;
+    await act(async () => { addBtn.click(); });
+    const input = host.querySelector<HTMLInputElement>('[data-section="account"] input[type="email"]')!;
+    expect(input).not.toBeNull();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, 'new@example.com');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const form = input.closest('form')!;
+    await act(async () => { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    const sent = calls.filter((c) => c.url === '/v1/auth/email/attach/request');
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).toEqual({ email: 'new@example.com' });
+    expect(host.textContent).toContain('Лист надіслано');
+  });
+
+  it('пошта вже зайнята іншим акаунтом (409) — показує «Ця пошта вже має акаунт», поле лишається', async () => {
+    noEmail();
+    await mount();
+    const addBtn = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Додати пошту')!;
+    await act(async () => { addBtn.click(); });
+    const input = host.querySelector<HTMLInputElement>('[data-section="account"] input[type="email"]')!;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, 'taken@example.com');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const form = input.closest('form')!;
+    await act(async () => { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    expect(host.textContent).toContain('Ця пошта вже має акаунт');
+    expect(host.querySelector<HTMLInputElement>('[data-section="account"] input[type="email"]')).not.toBeNull();
   });
 });

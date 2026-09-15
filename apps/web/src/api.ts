@@ -567,7 +567,13 @@ export const api = {
         body: JSON.stringify(next ? { email, next } : { email }),
       }),
     logout: () => req<null>('/v1/auth/logout', { method: 'POST', body: '{}' }),
-    providers: () => req<{ google: boolean }>('/v1/auth/providers'),
+    providers: () => req<{ google: boolean; telegram: boolean; telegramBotId: string | null }>('/v1/auth/providers'),
+    // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): payload — те, що повертає
+    // Telegram.Login.auth(...) на фронті, дослівно.
+    telegramWidget: (payload: { id: number; first_name: string; last_name?: string; username?: string; photo_url?: string; auth_date: number; hash: string }) =>
+      req<{ ok: true; next: string }>('/v1/auth/telegram/widget', { method: 'POST', body: JSON.stringify(payload) }),
+    attachEmailRequest: (email: string) =>
+      req<{ ok: true }>('/v1/auth/email/attach/request', { method: 'POST', body: JSON.stringify({ email }) }),
   },
 
   me: () => req<Me>('/v1/me'),

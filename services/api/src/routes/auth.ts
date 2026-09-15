@@ -12,7 +12,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Repo } from '@kitchen/domain';
-import { requestChallenge, verifyChallenge, logoutSession, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
+import { requestChallenge, verifyChallenge, verifyEmailAttach, resolveSession, logoutSession, CHALLENGE_TTL_MS, SESSION_TTL_MS } from '@kitchen/domain';
 import type { Mailer } from '../mailer.js';
 import { makeRateLimiter, type RateLimitCfg } from '../rate-limit.js';
 import { tooMany } from '../too-many.js';
@@ -69,9 +69,57 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     },
   );
 
-  app.get<{ Querystring: { token?: string; next?: string } }>('/v1/auth/verify', async (req, reply) => {
+  // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): «Додати пошту» до акаунта без неї
+  // (Telegram-only). Авторизований маршрут — ставить requestChallenge на ту
+  // саму пошту, лінк веде на /v1/auth/verify?...&attach=1, а не на логін.
+  app.post<{ Body: { email?: string } }>(
+    '/v1/auth/email/attach/request',
+    { preHandler: limitCheck },
+    async (req, reply) => {
+      const raw = (req.cookies as Record<string, string | undefined>)[COOKIE_NAME];
+      const ctx = await resolveSession(repo, raw ?? null);
+      if (!ctx) return reply.code(401).send({ error: 'unauthorized' });
+      const email = req.body?.email?.trim().toLowerCase();
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return reply.code(400).send({ error: 'valid email required' });
+      }
+      const existing = await repo.findUserByEmail(email);
+      if (existing && existing.id !== ctx.user_id) {
+        return reply.code(409).send({ error: 'email_taken' });
+      }
+      const { raw_token } = await requestChallenge(repo, {
+        email,
+        ip: req.ip,
+        user_agent: req.headers['user-agent'] ?? null,
+      });
+      const link = `${baseUrl()}/v1/auth/verify?token=${encodeURIComponent(raw_token)}&attach=1`;
+      await mailer.sendMagicLink({ to: email, link, expires_in_min: CHALLENGE_TTL_MS / 60_000 });
+      return reply.code(202).send({ ok: true });
+    },
+  );
+
+  app.get<{ Querystring: { token?: string; next?: string; attach?: string } }>('/v1/auth/verify', async (req, reply) => {
     const raw = req.query.token;
     if (!raw) return reply.code(400).send({ error: 'token required' });
+    if (req.query.attach === '1') {
+      const cookieRaw = (req.cookies as Record<string, string | undefined>)[COOKIE_NAME];
+      const ctx = await resolveSession(repo, cookieRaw ?? null);
+      const out = await verifyEmailAttach(repo, raw, ctx?.user_id ?? null);
+      if (!out.ok) {
+        const code = out.reason === 'expired' || out.reason === 'consumed' ? 410
+          : out.reason === 'email_taken' ? 409
+          : out.reason === 'no_session' ? 401
+          : 404;
+        const wantsHtmlPage = /text\/html/i.test(String(req.headers.accept ?? ''));
+        if (wantsHtmlPage && (out.reason === 'expired' || out.reason === 'consumed')) {
+          return reply.redirect(`/link/${out.reason}`);
+        }
+        return reply.code(code).send({ error: out.reason });
+      }
+      const wantsHtml = /text\/html/i.test(String(req.headers.accept ?? ''));
+      if (wantsHtml) return reply.redirect('/profile');
+      return reply.send({ ok: true });
+    }
     const out = await verifyChallenge(repo, raw, req.ip, req.headers['user-agent'] ?? null);
     if (!out.ok) {
       const code = out.reason === 'expired' ? 410 : out.reason === 'consumed' ? 410 : 404;

@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated } from '../../api';
+import { api, ApiError, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated } from '../../api';
 import { PROFILE_ROWS, SECTION, PLAN_LABEL, TELEGRAM, type ProfileRowCopy } from '../../lib/profile-copy';
 import { TABLET_MIN } from '../../lib/device';
 import { plural } from '../../lib/plural';
@@ -244,6 +244,29 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     } catch (err) { alert((err as Error).message); }
   }
 
+  // ----- Додати пошту (PR 2, TELEGRAM-AUTH-PAY-PLAN-0915): акаунт без пошти
+  // (Telegram-only) — рядок «Пошта» замість значення показує «Додати пошту»;
+  // тап відкриває поле, той самий magic-link конвеєр (лінк несе &attach=1,
+  // не логінить, а дописує пошту в поточну сесію). --------------------------
+  type EmailAddState = 'idle' | 'editing' | 'sending' | 'sent';
+  const [emailAdd, setEmailAdd] = useState<EmailAddState>('idle');
+  const [emailDraft, setEmailDraft] = useState('');
+  const [emailAddError, setEmailAddError] = useState<string | null>(null);
+  async function emailAddSubmit(e: FormEvent) {
+    e.preventDefault();
+    const value = emailDraft.trim().toLowerCase();
+    if (!value) return;
+    setEmailAdd('sending');
+    setEmailAddError(null);
+    try {
+      await api.auth.attachEmailRequest(value);
+      setEmailAdd('sent');
+    } catch (err) {
+      setEmailAdd('editing');
+      setEmailAddError(err instanceof ApiError && err.status === 409 ? SECTION.emailTaken : SECTION.emailAddError);
+    }
+  }
+
   // ----- Telegram (Р148): рядок в «Акаунті» -------------------------------------
   type TgState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; linked: boolean; username: string | null };
   const [tg, setTg] = useState<TgState>({ kind: 'loading' });
@@ -442,8 +465,29 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
       <div className={styles.svcHead}><span className={styles.svcName}>{SECTION.account}</span></div>
       <div className={styles.accRow}>
         <span className={styles.accKey}>{SECTION.email}</span>
-        <span className={styles.accVal}>{email}</span>
+        {me?.user.email ? (
+          <span className={styles.accVal}>{email}</span>
+        ) : emailAdd === 'sent' ? (
+          <span className={styles.accVal}>{SECTION.emailSent}</span>
+        ) : emailAdd === 'editing' || emailAdd === 'sending' ? (
+          <form className={styles.tgLinkRow} onSubmit={(e) => void emailAddSubmit(e)}>
+            <input
+              type="email" inputMode="email" autoComplete="email" placeholder={SECTION.emailPlaceholder} required autoFocus
+              value={emailDraft} onChange={(e) => setEmailDraft(e.target.value)} aria-label={SECTION.email}
+              disabled={emailAdd === 'sending'} className={styles.inviteInput}
+            />
+            <button type="submit" className={styles.svcLink} disabled={emailAdd === 'sending'}>{SECTION.emailSend}</button>
+          </form>
+        ) : (
+          // PR 1 дає лише статичне «Telegram» (SECTION.emailNone); тут — те
+          // саме значення (з @username, коли відомий), плюс дія поруч.
+          <span className={styles.tgLinkRow}>
+            <span className={styles.accVal}>{email}{tg.kind === 'ready' && tg.linked && tg.username ? ` · @${tg.username}` : ''}</span>
+            <button type="button" className={styles.svcLink} data-tap onClick={() => setEmailAdd('editing')}>{SECTION.emailAdd}</button>
+          </span>
+        )}
       </div>
+      {emailAddError && <span className={styles.tgError}>{emailAddError}</span>}
       <div className={styles.accRow}>
         <span className={styles.accKey}>{SECTION.plan}</span>
         <span className={styles.accVal}>{plan}</span>
