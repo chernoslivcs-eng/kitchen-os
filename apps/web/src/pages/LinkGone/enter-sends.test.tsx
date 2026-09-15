@@ -16,7 +16,7 @@ import { LinkExpiredPage } from './LinkGone';
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
-const request = vi.fn(async () => {});
+const request = vi.fn(async () => ({ ok: true as const }));
 
 beforeEach(() => {
   request.mockClear();
@@ -51,7 +51,9 @@ describe('№1 · Enter у полі пошти надсилає лінк', () =>
     const input = host!.querySelector<HTMLInputElement>('input[type="email"]')!;
     expect(input.closest('form')!.querySelector('button[type="submit"]')).not.toBeNull();
     await typeAndSubmit(input, 'dev@local.test');
-    expect(request).toHaveBeenCalledWith('dev@local.test', null);
+    // AUTH-BRIEF-0915: SignInForm тепер шле mode ('start' — типово, без
+    // попередньої сесії в цьому браузері).
+    expect(request).toHaveBeenCalledWith('dev@local.test', null, 'start');
   });
 
   it('«лінк застарів»: поле у формі, відправка форми надсилає новий лінк', async () => {

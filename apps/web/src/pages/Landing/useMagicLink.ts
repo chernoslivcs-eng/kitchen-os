@@ -4,12 +4,16 @@
 import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../store/auth';
-import { ApiError } from '../../api';
+import { ApiError, type AuthMode } from '../../api';
 import { rememberEmail } from '../LinkGone/LinkGone';
 
-export function useMagicLink() {
+/** AUTH-BRIEF-0915: mode — «Почати» (типово) шле лист і для невідомої пошти;
+ * «Увійти» на невідому пошту отримує {error:'no_account'} замість листа —
+ * noAccount піднімає це в SignInForm для рядка-note замість /sent. */
+export function useMagicLink(mode: AuthMode = 'start') {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [noAccount, setNoAccount] = useState(false);
   const [loading, setLoading] = useState(false);
   const requestMagicLink = useAuth((s) => s.requestMagicLink);
   const navigate = useNavigate();
@@ -19,6 +23,7 @@ export function useMagicLink() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setNoAccount(false);
     const trimmed = email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
       setError('Схоже, це не email');
@@ -26,7 +31,8 @@ export function useMagicLink() {
     }
     setLoading(true);
     try {
-      await requestMagicLink(trimmed, next);
+      const result = await requestMagicLink(trimmed, next, mode);
+      if ('error' in result) { setNoAccount(true); return; }
       rememberEmail(trimmed);
       void navigate('/sent', { state: { email: trimmed } });
     } catch (err) {
@@ -40,5 +46,5 @@ export function useMagicLink() {
     }
   }
 
-  return { email, setEmail, error, loading, submit };
+  return { email, setEmail, error, noAccount, loading, submit };
 }

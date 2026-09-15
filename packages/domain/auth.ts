@@ -188,7 +188,12 @@ export async function signInWithTelegram(
 //      щойно з'явився: consume + відкрити сесію (той самий кінцевий крок,
 //      що verifyChallenge для kind 'telegram').
 
-/** Крок 1: лендинг створює challenge ДО того, як особу знають. TTL — 15 хв, як у магік-лінка. */
+/**
+ * Крок 1: лендинг створює challenge ДО того, як особу знають. TTL — 15 хв,
+ * як у магік-лінка. `mode` (AUTH-BRIEF-0915) — «Почати» завжди створює
+ * акаунт для невідомого telegram_user_id (як і було); «Увійти» — ніколи
+ * (attachTelegramLoginUser зупиниться раніше, ніж покличе signInWithTelegram).
+ */
 export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_agent?: string | null, mode: 'start' | 'login' = 'start'): Promise<{ challenge: AuthChallenge; raw_token: string }> {
   const raw = randomToken();
   const now = new Date();
@@ -213,7 +218,15 @@ export type AttachTelegramLoginOutcome =
   | { ok: true; user: UserRow; created: boolean }
   | { ok: false; reason: 'not_found' | 'expired' | 'consumed' | 'no_account' };
 
-/** Крок 2: бот отримав /start login_<login_token> — знайти/створити акаунт і записати user_id у challenge. Не відкриває сесію (це робить лише pollTelegramLogin, коли веб питає) — інакше довелося б плодити зайву cookie-сесію, якою ніхто не скористається. */
+/**
+ * Крок 2: бот отримав /start login_<login_token>. mode 'start' — знайти чи
+ * створити акаунт, як і було. mode 'login' — лише знайти: жоден telegram_id,
+ * навіть щойно побачений ботом, не створює акаунт у цьому режимі. «Знайти»
+ * тут включає й revoked-звʼязку (/stop): вона все одно веде на ІСНУЮЧИЙ
+ * акаунт, вхід її оживляє, це не «новий акаунт». Не відкриває сесію (це
+ * робить лише pollTelegramLogin, коли веб питає) — інакше довелося б плодити
+ * зайву cookie-сесію, якою ніхто не скористається.
+ */
 export async function attachTelegramLoginUser(repo: Repo, login_token: string, tg: TelegramSignIn): Promise<AttachTelegramLoginOutcome> {
   const token_hash = sha256(login_token);
   const challenge = await repo.getChallengeByHash(token_hash);
@@ -238,7 +251,7 @@ export type PollTelegramLoginOutcome =
   | { status: 'no_account' }
   | { status: 'ok'; result: VerifyChallengeResult };
 
-/** Крок 3: лендинг питає раз на 2 с. 'expired' — і для протухлого, і для вже спожитого (повторний poll після 'ok') — контракт навмисно двозначний: людині однаково, який саме, кнопка на сайті та сама «Продовжити з Telegram» ще раз. */
+/** Крок 3: лендинг питає раз на 2 с. 'expired' — і для протухлого, і для вже спожитого (повторний poll після 'ok') — контракт навмисно двозначний: людині однаково, який саме, кнопка на сайті та сама «Продовжити з Telegram» ще раз. 'no_account' — бот бачив Start (mode 'login'), але такого акаунта нема; challenge лишається неспожитою (status не consumed_at), тож повторний poll знову отримає 'no_account' — той самий стан, аж поки не спливе TTL. */
 export async function pollTelegramLogin(repo: Repo, raw_token: string, ip?: string | null, user_agent?: string | null): Promise<PollTelegramLoginOutcome> {
   const token_hash = sha256(raw_token);
   const challenge = await repo.getChallengeByHash(token_hash);

@@ -3,8 +3,9 @@
 // після успішного /auth/verify (браузер вже має cookie), і після logout.
 
 import { create } from 'zustand';
-import { api, ApiError, type Me } from '../api';
+import { api, ApiError, type AuthMode, type Me } from '../api';
 import { setSentryUser, captureClientIncident } from '../lib/sentry';
+import { markHadSession } from '../lib/session-flag';
 
 type Status = 'idle' | 'loading' | 'guest' | 'signed_in' | 'error';
 
@@ -13,7 +14,7 @@ interface AuthState {
   me: Me | null;
   error: string | null;
   refresh: () => Promise<void>;
-  requestMagicLink: (email: string, next?: string | null) => Promise<void>;
+  requestMagicLink: (email: string, next?: string | null, mode?: AuthMode) => Promise<{ ok: true } | { error: 'no_account' }>;
   logout: () => Promise<void>;
 }
 
@@ -29,6 +30,7 @@ export const useAuth = create<AuthState>((set) => ({
       // Крок О1б: хто це — щоб падіння в Sentry зводилось зі стрічкою дня на
       // /admin/pulse. Тільки id: пошта й імʼя туди не їдуть.
       setSentryUser(me.user.id);
+      markHadSession();
       set({ status: 'signed_in', me });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -46,9 +48,7 @@ export const useAuth = create<AuthState>((set) => ({
     }
   },
 
-  requestMagicLink: async (email, next) => {
-    await api.auth.request(email, next);
-  },
+  requestMagicLink: async (email, next, mode) => api.auth.request(email, next, mode),
 
   logout: async () => {
     try { await api.auth.logout(); } catch {}

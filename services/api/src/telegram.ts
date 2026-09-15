@@ -568,8 +568,12 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
         token.slice('login_'.length),
         { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null },
       );
+      // AUTH-BRIEF-0915 / злиття (15.09): mode 'login' і телеграм-акаунт
+      // невідомий — окремий текст, акаунт НЕ створюємо (на відміну від
+      // loginExpired, тут токен сам по собі живий, річ у тім, що людина
+      // натиснула «Увійти», а не «Почати»).
       if (!out.ok) return plain(out.reason === 'no_account' ? COPY.loginNoAccount : COPY.loginExpired);
-      (deps.log ?? (console as unknown as FastifyBaseLogger)).info({ telegram_user_id: u.telegram_user_id, login: true }, 'tg_start');
+      await botEvent(deps, out.user.id, 'tg_start', { created: out.created, login: true });
       const web = await webLink(deps, out.user.id);
       const url = web('/app');
       return { messages: [COPY.hello(out.user.name?.trim() || 'привіт')], html: false, keyboard: [[{ text: 'Відкрити сайт', url }], ...HELP_KEYBOARD_ROWS], replyKeyboard: QUICK_KEYBOARD };

@@ -29,6 +29,10 @@ export interface GoogleAuthOpts {
 }
 
 const STATE_COOKIE = 'kos_oauth_state';
+// AUTH-BRIEF-0915: «Почати / Увійти» — той самий OAuth-флоу, лише режим
+// пронести крізь редирект на Google і назад. Окрема кука (не в state,
+// щоб не чіпати CSRF-порівняння 1:1) із тим самим TTL, що state.
+const MODE_COOKIE = 'kos_oauth_mode';
 
 function isSecure(): boolean {
   return process.env.NODE_ENV === 'production';
@@ -83,7 +87,7 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
   const exchange = opts.exchange ?? makeRealExchange(opts.clientId, opts.clientSecret);
   const redirectUri = () => `${baseUrl()}/v1/auth/google/callback`;
 
-  app.get('/v1/auth/google', async (_req, reply) => {
+  app.get<{ Querystring: { mode?: string } }>('/v1/auth/google', async (req, reply) => {
     const state = randomBytes(24).toString('base64url');
     reply.setCookie(STATE_COOKIE, state, {
       httpOnly: true,
@@ -92,6 +96,9 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
       path: '/',
       maxAge: 600, // стейт живе 10 хв — консент довше не триває
     });
+    if (req.query.mode === 'login') {
+      reply.setCookie(MODE_COOKIE, 'login', { httpOnly: true, secure: isSecure(), sameSite: 'lax', path: '/', maxAge: 600 });
+    }
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.searchParams.set('client_id', opts.clientId);
     url.searchParams.set('redirect_uri', redirectUri());
@@ -105,7 +112,9 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
     '/v1/auth/google/callback',
     async (req, reply) => {
       const expected = (req.cookies as Record<string, string | undefined>)[STATE_COOKIE];
+      const mode = (req.cookies as Record<string, string | undefined>)[MODE_COOKIE] === 'login' ? 'login' : 'start';
       reply.clearCookie(STATE_COOKIE, { path: '/' });
+      reply.clearCookie(MODE_COOKIE, { path: '/' });
       // Юзер натиснув «скасувати» на консенті — повертаємо на вхід без драми.
       if (req.query.error) return reply.redirect('/signin');
       if (!req.query.code || !req.query.state || !expected || req.query.state !== expected) {
@@ -116,6 +125,11 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
         return reply.code(403).send({ error: 'email not verified by google' });
       }
       const email = profile.email.toLowerCase();
+      // AUTH-BRIEF-0915: «Увійти» ніколи не створює — той самий виняток із
+      // анти-енумерації, що POST /v1/auth/request (людина сама обрала «Увійти»).
+      if (mode === 'login' && !(await repo.findUserByEmail(email))) {
+        return reply.redirect('/?err=no_account&via=google');
+      }
       const result = await signInWithVerifiedEmail(
         repo, email, profile.name || email.split('@')[0] || 'Anon',
         req.ip, req.headers['user-agent'] ?? null,
