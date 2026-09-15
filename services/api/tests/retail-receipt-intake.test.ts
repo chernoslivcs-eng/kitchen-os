@@ -102,8 +102,11 @@ describe('receiptLinesToIntake', () => {
       line('Папір туалетний Zewa 8 рулонів', 8, 'шт'),
       line('Хліб Салтівський особливий', 1, 'шт'),
     ]);
-    expect(r.ops).toHaveLength(1);
+    // GENERIC-0915: «Хліб …» тепер має загальний запис «Хліб» (голова слова = аліас) —
+    // рядок не unmatched, а хліб у dry; раніше йшов у «без категорії».
+    expect(r.ops).toHaveLength(2);
+    expect(r.ops.map((o) => (o as { catalog_key?: string }).catalog_key)).toContain('gen_bread');
     expect(r.nonfood).toHaveLength(1);
-    expect(r.unmatched).toHaveLength(1);
+    expect(r.unmatched).toHaveLength(0);
   });
 });

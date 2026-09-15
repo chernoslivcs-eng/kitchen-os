@@ -46,10 +46,10 @@ describe('POST /v1/pantry через резолвер', () => {
     expect(batch.zone).toBe('freezer');
   });
 
-  it('«кефір» → як у чаті: продукт без ключа, зона з generic-рівня — холодильник', async () => {
+  it('«кефір» → загальний запис «Кефір» (GENERIC-0915), холодильник', async () => {
     const me = await signIn(app, mailer, 'me@example.com');
     const { batch } = (await add(me.cookie, { label: 'кефір' })).json();
-    expect((await repo.listProducts(me.household_id))[0]!.catalog_key).toBeNull();
+    expect((await repo.listProducts(me.household_id))[0]!.catalog_key).toBe('gen_kefir');
     expect(batch.zone).toBe('fridge');
   });
 
@@ -70,8 +70,8 @@ describe('POST /v1/pantry через резолвер', () => {
     expect(ok.days).toBeGreaterThan(0);
     const no = (await app.inject({ method: 'GET', url: '/v1/pantry/resolve?label=' + encodeURIComponent('щось xyz'), headers: { cookie: me.cookie } })).json();
     expect(no).toEqual({ key: null, zone: null });
-    // «кефір»: рівень той самий, що в чаті — ключа нема (у довіднику лише варіанти), зона — холодильник (generic, як apply)
+    // «кефір»: з 15.09 має загальний запис (GENERIC-0915) — підказка з назвою й строком
     const kefir = (await app.inject({ method: 'GET', url: '/v1/pantry/resolve?label=' + encodeURIComponent('кефір'), headers: { cookie: me.cookie } })).json();
-    expect(kefir).toEqual({ key: null, zone: 'fridge' });
+    expect(kefir).toMatchObject({ key: 'gen_kefir', name: 'Кефір', zone: 'fridge' });
   });
 });
