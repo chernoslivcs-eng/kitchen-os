@@ -73,7 +73,9 @@
 .menu { position: absolute; right: 20px; top: 56px; z-index: 6; background: var(--card); border-radius: 12px; box-shadow: var(--sh2); padding: 6px; display: flex; flex-direction: column; min-width: 200px; }
 .menu a { height: 44px; display: flex; align-items: center; padding: 0 14px; border-radius: 8px; font-size: 15px; font-weight: 500; }
 .tab .header { height: 68px; justify-content: space-between; padding: 0 48px; position: static; backdrop-filter: none; -webkit-backdrop-filter: none; }
-.tab .logo, .tab .headerRight { position: static; }
+/* .logo — relative, не static: data-tap::before логотипа інакше розтягується на весь .top (relative) і ковтає кліки в hero (15.09). */
+.tab .logo { position: relative; left: auto; }
+.tab .headerRight { position: static; }
 .tab .mark { width: 26px; height: 26px; } .tab .mark > span { width: 8px; height: 8px; }
 .tab .logoText { font-size: 15px; }
 .tab .nav { gap: 28px; font-size: 14px; }
