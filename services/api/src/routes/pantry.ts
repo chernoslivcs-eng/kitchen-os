@@ -15,7 +15,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit, BatchState, DepletedReason } from '@kitchen/domain';
-import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, DEPLETED_REASONS } from '@kitchen/domain';
+import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, DEPLETED_REASONS, ensureProduct, pantryAddHint, pantryAddZone, normalizeTriple } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
 
@@ -141,8 +141,12 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     }
     const unit = req.body.unit ?? null;
     if (unit != null && !UNITS.includes(unit)) return reply.code(400).send({ error: 'unit_invalid' });
-    const zone = req.body.zone ?? 'dry';
-    if (!ZONES.includes(zone)) return reply.code(400).send({ error: 'zone_invalid' });
+    if (req.body.zone != null && !ZONES.includes(req.body.zone)) return reply.code(400).send({ error: 'zone_invalid' });
+    // 15.09: рівно той самий шлях, що для чату (apply add op): продукт дому за
+    // трійкою (без дублів), ключ на продукті — ensureProduct; зона, коли людина
+    // не чіпала, — resolveLabelToZone (generic), як `zone` партії в apply.
+    const product = await ensureProduct(repo, household_id, normalizeTriple({ product: label }), label, undefined, unit);
+    const zone: Zone = req.body.zone ?? pantryAddZone(label) ?? 'dry';
 
     const { randomUUID } = await import('node:crypto');
     const id = randomUUID();
@@ -151,6 +155,7 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
       id,
       household_id,
       catalog_key: null,
+      product_id: product?.id ?? null,
       label,
       zone,
       value,
@@ -169,6 +174,14 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     });
     const batch = await repo.getBatch(id);
     return reply.code(201).send({ batch });
+  });
+
+  // 15.09: підказка для форми «Додати» — без моделі, той самий суворий резолвер.
+  app.get<{ Querystring: { label?: string } }>('/v1/pantry/resolve', { preHandler: authenticated(repo) }, async (req) => {
+    const label = (req.query.label ?? '').trim();
+    const hint = pantryAddHint(label);
+    // Без ключа зона все одно може бути відома (generic, як у чаті) — форма її підставить.
+    return hint ?? { key: null, zone: pantryAddZone(label) };
   });
 
   app.patch<{
