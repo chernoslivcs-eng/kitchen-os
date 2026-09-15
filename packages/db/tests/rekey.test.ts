@@ -46,17 +46,18 @@ describe('decideKey: сувора планка дала інший ключ — 
 });
 
 describe('decideKey: сувора мовчить, друга планка відповідає', () => {
+  // GENERIC-0915: родове слово тепер має ЗАГАЛЬНИЙ запис і бере його суворою
+  // планкою — не випадкову «сметану 10%» другою. Саме це й було метою.
   it('сметана під ключем «Тан» — 21 ккал замість ~200', () => {
     const d = decide('dairy_tan', 'сметана');
     expect(d.action).toBe('rekey');
-    expect(d.key).toBe('dairy_sour_cream_10');
-    expect(d.why).toContain('generic');
+    expect(d.key).toBe('gen_sour_cream');
   });
 
   it('рис під «рисовим папером»', () => {
     const d = decide('rice_paper', 'рис');
     expect(d.action).toBe('rekey');
-    expect(d.key).toBe('grain_rice_long');
+    expect(d.key).toBe('gen_rice');
   });
 
   it('мийний засіб: ключ правильний, сувора планка його просто не бачить', () => {
@@ -71,16 +72,22 @@ describe('decideKey: сувора мовчить, друга планка від
     expect(d.key).toBe('hh_napkins_table');
   });
 
-  it('помідори: друга планка повертає той самий ключ — не чіпаємо', () => {
+  it('помідори під пелаті: GENERIC-0915 дає свіжі помідори, не консерву', () => {
     const d = decide('pomodori_pelati', 'помідори');
+    expect(d.action).toBe('rekey');
+    expect(d.key).toBe('gen_tomatoes');
+  });
+
+  it('друга планка підтверджує збережений — не чіпаємо', () => {
+    const d = decide('gen_tomatoes', 'помідори');
     expect(d.action).toBe('keep');
-    expect(d.key).toBe('pomodori_pelati');
+    expect(d.key).toBe('gen_tomatoes');
   });
 });
 
 describe('decideKey: друга планка теж мовчить — стерти', () => {
+  // «яловичина стейк Портер» з GENERIC-0915 — не мертвий, а gen_beef (тест нижче).
   const dead: [string, string, string][] = [
-    ['alc_beer_porter', 'яловичина стейк', 'яловичина стейк Портер'],
     ['alc_beer_ale', 'розпал гель', 'розпал гель Jarrkof'],
   ];
   for (const [stored, product, dn] of dead) {
@@ -96,7 +103,7 @@ describe('decideKey: друга планка рятує те, що вигляд�
   it('шоколад Korona: «шоколад» → молочний шоколад, а не кола', () => {
     const d = decide('drink_cola', 'шоколад', 'шоколад Korona мигдаль-кокос');
     expect(d.action).toBe('rekey');
-    expect(d.key).toBe('milk_chocolate_bar');
+    expect(d.key).toBe('gen_chocolate'); // GENERIC-0915: загальний «Шоколад» (молочний)
   });
 
   it('пакети біорозкладні: → пакети для сміття, а не кета', () => {
@@ -120,11 +127,13 @@ describe('decideKey: друга планка рятує те, що вигляд�
 // Тест тримає поточну поведінку, щоб вона не змінилась мовчки. Коли каталог
 // або планку полагодять, він впаде — і це буде правильний сигнал, а не
 // регресія.
-describe('decideKey: відома хиба другої планки', () => {
-  it("«чіпси Lay's сир» лишається під ключем сушеного банана", () => {
+// 15.09: полагоджено — #139 (вид після родової голови + аліас «lay's сир») і
+// resolveTripleKey (вид бʼє gen_*): «чіпси Lay's сир» → chips_cheese.
+describe('decideKey: колишня хиба другої планки', () => {
+  it("«чіпси Lay's сир» перекладається з сушеного банана на чипси з сиром", () => {
     const d = decide('dried_banana', 'чіпси', "чіпси Lay's сир");
-    expect(d.action).toBe('keep');
-    expect(d.key).toBe('dried_banana');
+    expect(d.action).toBe('rekey');
+    expect(d.key).toBe('chips_cheese');
   });
 });
 
@@ -138,7 +147,9 @@ describe('decideKey: порожній ключ — стара гілка, пов
   it('невпізнаване лишається порожнім — generic на дірку НЕ кличемо', () => {
     // Це і є межа: на порожньому місці родовий здогад — рівно те, від чого
     // сувора планка боронить (logic.ts:249, алергени в дірках тегів).
-    const d = decide(null, 'сметана');
+    // (GENERIC-0915: «сметана» тепер має запис і доливається; межа лишається
+    // на тому, чого в каталозі справді нема.)
+    const d = decide(null, 'щось незрозуміле');
     expect(d.action).toBe('keep');
     expect(d.key).toBeNull();
   });
@@ -154,9 +165,9 @@ describe('decideKey ідемпотентний', () => {
   });
 
   it('стертий ключ на другому прогоні лишається стертим', () => {
-    const first = decide('alc_beer_porter', 'яловичина стейк', 'яловичина стейк Портер');
+    const first = decide('alc_beer_ale', 'розпал гель', 'розпал гель Jarrkof');
     expect(first.action).toBe('erase');
-    const second = decide(first.key, 'яловичина стейк', 'яловичина стейк Портер');
+    const second = decide(first.key, 'розпал гель', 'розпал гель Jarrkof');
     expect(second.action).toBe('keep');
     expect(second.key).toBeNull();
   });

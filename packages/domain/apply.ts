@@ -12,7 +12,7 @@ import { subscriptionDefault, ruleFromDates } from './periods.js';
 import { CARD_APPLY_MODE } from './card-modes.js';
 import { rebuildVetoIndex } from './veto-index.js';
 import { expiryOnOpen, effectiveExpiry } from './pantry-view.js';
-import { resolveLabelToZone, resolveLabelToKey, type ResolveCtx } from '@kitchen/catalog';
+import { resolveLabelToZone, resolveTripleKey, type ResolveCtx } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
 import { normalizeTriple, displayName, catalogGroupsToAllergens, isCatalogFasting, type HouseholdProduct, type ProductTags, type ProductTriple } from './product.js';
@@ -466,7 +466,8 @@ export async function ensureProduct(
   // Модельні теги перемагають каталожні — З ОДНИМ ВИНЯТКОМ, і виняток цей
   // `fasting`. Решта тегів лишається за моделлю: вона бачить пакет, каталог
   // знає тільки клас, і на алергенах її слово конкретніше.
-  const key = resolveLabelToKey(triple.product, undefined, ctx) ?? resolveLabelToKey(fallbackLabel, undefined, ctx);
+  // Вид бʼє загальний запис: база «вершки» → gen_cream, повна «вершки 33%» → cream_33.
+  const key = resolveTripleKey(triple.product, fallbackLabel, 'anchored', undefined, ctx);
   const cat = key ? BY_KEY.get(key) : undefined;
   const tags: ProductTags = { ...(modelTags ?? {}) };
   if (cat) {

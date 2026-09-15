@@ -320,6 +320,28 @@ export function resolveLabelToKey(label: string, catalog = CATALOG, ctx?: Resolv
   return resolveLabel(label, 'anchored', catalog, ctx)?.key ?? null;
 }
 
+/**
+ * Ключ продукту за ТРІЙКОЮ: спершу база (`product`), потім повна назва
+ * (product + brand + variant). Вид завжди бʼє загальний запис: коли база дає
+ * gen_* («вершки» → gen_cream), а повна назва — вид («вершки 33%» → cream_33),
+ * береться вид. До GENERIC-0915 база на родовому слові мовчала й повна назва
+ * бралась сама собою; загальні записи цю дірку закрили — і разом із нею
+ * закрили шлях до виду (CI packages/db, decideKey: «вершки 33%» → gen_cream).
+ */
+export function resolveTripleKey(
+  product: string,
+  displayName: string,
+  minTier: MatchTier = 'anchored',
+  catalog = CATALOG,
+  ctx?: ResolveCtx,
+): string | null {
+  const base = resolveLabel(product, minTier, catalog, ctx)?.key ?? null;
+  if (base && !base.startsWith('gen_')) return base;
+  const full = displayName && displayName !== product ? resolveLabel(displayName, minTier, catalog, ctx)?.key ?? null : null;
+  if (full && !full.startsWith('gen_')) return full;
+  return base ?? full;
+}
+
 // Зона зберігання за назвою продукту. Використовується там, де зону не вказали
 // явно — unpack списку покупок, intake_diff без zone. Без цього все падало в
 // `dry`, і молоко переїжджало в комору замість холодильника (QA6-06).
