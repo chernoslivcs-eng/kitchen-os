@@ -31,6 +31,14 @@
 .icon > svg, .icon > svg * { transform-box: fill-box; transform-origin: center; }
 .icon > svg [data-draw] { stroke-dasharray: 1; }
 
+/* Хотфікс 15.09: non-scaling-stroke (motion.ts `ve`) лише поки грає
+ * transform-анімація частини — інакше в спокої штрих не масштабується з
+ * кеглем (1.75 px на екрані замість 0.9 у 12 px) і знак виглядає удвічі
+ * товщим за сусідів (`sys.receipt` у рядку походження комори). Канон
+ * (Icon.tsx) — штрих у координатах viewBox завжди, крім цього короткого вікна. */
+:global([data-play]) .icon[data-motion] [data-ve],
+.icon[data-motion][data-play] [data-ve] { vector-effect: non-scaling-stroke; }
+
 /* Натиск (v2): scale .955 за 110 мс на всіх знаках-кнопках. */
 :global(:is(button, a, [role="button"]):active) > .icon > svg,
 :global(:is(button, a, [role="button"]):active) .icon > svg { transform: scale(.955); transition: transform 110ms var(--ease-im-out); }

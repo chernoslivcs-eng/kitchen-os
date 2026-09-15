@@ -21,6 +21,33 @@ describe('№6 · штрих знака масштабується з розмі
   });
 });
 
+// ── Хотфікс 15.09: non-scaling-stroke лише поки грає анімація ─────────────
+// `ve: true` (motion.ts) плющив штрих у спокої — vectorEffect стояв атрибутом
+// завжди, тому в 12 px виходило 1.75 px на екрані замість 0.9 (удвічі товще
+// за sys.chat/sys.pantry поруч). Тепер атрибута нема ніколи — лише маркер
+// data-ve, а саму властивість вмикає CSS під [data-play] (Icon.module.css).
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+describe('non-scaling-stroke — лише під час анімації, не в спокої', () => {
+  it('у спокої в DOM нема атрибута vector-effect на частинах sys.receipt (маркер data-ve є)', () => {
+    const html = renderToStaticMarkup(<Icon name="sys.receipt" size={12} decorative />);
+    expect(html).not.toMatch(/vector-effect/i);
+    // 4 місця з ve:true у CUSTOM_PATHS['sys.receipt'] (body, l1, l2, l3).
+    expect((html.match(/data-ve=""/g) ?? []).length).toBe(4);
+  });
+
+  it('Icon.module.css вмикає vector-effect: non-scaling-stroke для [data-ve] лише під [data-play]', () => {
+    const css = readFileSync(join(process.cwd(), 'src/components/Icon/Icon.module.css'), 'utf8');
+    const rule = css.match(/\[data-play\][^{]*\[data-ve\][^{]*\{[^}]*\}/);
+    expect(rule?.[0]).toBeTruthy();
+    expect(rule![0]).toContain('vector-effect: non-scaling-stroke');
+    // Поза [data-play] властивість ніде більше не встановлюється — інакше
+    // штрих знову плющився б завжди, а не лише в русі.
+    expect(css.match(/vector-effect:\s*non-scaling-stroke/g)?.length).toBe(1);
+  });
+});
+
 // ── Icon Motion v2 (Р117): рух запускає носій ─────────────────────────────
 import { vi, afterEach } from 'vitest';
 import { act } from 'react';
