@@ -37,10 +37,14 @@ function product(id: string, name: string): HouseholdProduct {
 describe('міра широти назви', () => {
   it('родові слова дають кількість позицій, конкретні — null', () => {
     expect(categoryBreadth('мʼясо')).toBeGreaterThan(500);
-    expect(categoryBreadth('сир')).toBeGreaterThan(200);
-    // «Свинина» вужча за «мʼясо» більш ніж удвічі — саме це дає порівнювати
+    expect(categoryBreadth('молочне')).toBeGreaterThan(200);
+    // GENERIC-0915: «сир» і «риба» тепер мають загальний запис — це товари, як «курка», не категорії.
+    expect(categoryBreadth('сир')).toBeNull();
+    expect(categoryBreadth('риба')).toBeNull();
+    // «Птиця» вужча за «мʼясо» більш ніж удвічі — саме це дає порівнювати
     // відповідь людини з тим, що було, замість «впізнано / не впізнано».
-    expect(categoryBreadth('свинина')!).toBeLessThan(categoryBreadth('мʼясо')!);
+    // («Свинина» з 15.09 — товар із загальним записом, тому тут птиця.)
+    expect(categoryBreadth('птиця')!).toBeLessThan(categoryBreadth('мʼясо')!);
     expect(categoryBreadth('камбоцола'), 'конкретний продукт').toBeNull();
     expect(categoryBreadth('крем-брускетта')).toBeNull();
   });
