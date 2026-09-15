@@ -52,9 +52,9 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
       if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return reply.code(400).send({ error: 'valid email required' });
       }
-      // AUTH-BRIEF-0915: «Увійти» ніколи не створює акаунт. Виняток із
+      // AUTH-BRIEF-0915: «Вхід» ніколи не створює акаунт. Виняток із
       // навмисної анти-енумерації цього роута (коментар угорі файла) —
-      // людина сама обрала «Увійти», їй чесно потрібно знати, що ключ
+      // людина сама обрала «Вхід», їй чесно потрібно знати, що ключ
       // невідомий; лист НЕ шлемо і challenge НЕ заводимо.
       if (req.body?.mode === 'login' && !(await repo.findUserByEmail(email))) {
         return reply.send({ error: 'no_account' });

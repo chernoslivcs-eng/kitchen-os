@@ -29,7 +29,7 @@ export interface GoogleAuthOpts {
 }
 
 const STATE_COOKIE = 'kos_oauth_state';
-// AUTH-BRIEF-0915: «Почати / Увійти» — той самий OAuth-флоу, лише режим
+// AUTH-BRIEF-0915: «Реєстрація / Вхід» — той самий OAuth-флоу, лише режим
 // пронести крізь редирект на Google і назад. Окрема кука (не в state,
 // щоб не чіпати CSRF-порівняння 1:1) із тим самим TTL, що state.
 const MODE_COOKIE = 'kos_oauth_mode';
@@ -125,8 +125,8 @@ export function googleAuthRoutes(app: FastifyInstance, repo: Repo, opts?: Google
         return reply.code(403).send({ error: 'email not verified by google' });
       }
       const email = profile.email.toLowerCase();
-      // AUTH-BRIEF-0915: «Увійти» ніколи не створює — той самий виняток із
-      // анти-енумерації, що POST /v1/auth/request (людина сама обрала «Увійти»).
+      // AUTH-BRIEF-0915: «Вхід» ніколи не створює — той самий виняток із
+      // анти-енумерації, що POST /v1/auth/request (людина сама обрала «Вхід»).
       if (mode === 'login' && !(await repo.findUserByEmail(email))) {
         return reply.redirect('/?err=no_account&via=google');
       }

@@ -7,8 +7,8 @@ import { useAuth } from '../../store/auth';
 import { ApiError, type AuthMode } from '../../api';
 import { rememberEmail } from '../LinkGone/LinkGone';
 
-/** AUTH-BRIEF-0915: mode — «Почати» (типово) шле лист і для невідомої пошти;
- * «Увійти» на невідому пошту отримує {error:'no_account'} замість листа —
+/** AUTH-BRIEF-0915: mode — «Реєстрація» (типово) шле лист і для невідомої пошти;
+ * «Вхід» на невідому пошту отримує {error:'no_account'} замість листа —
  * noAccount піднімає це в SignInForm для рядка-note замість /sent. */
 export function useMagicLink(mode: AuthMode = 'start') {
   const [email, setEmail] = useState('');

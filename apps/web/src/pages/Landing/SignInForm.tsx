@@ -4,12 +4,13 @@
 // роздільник з'являються тоді, коли провайдер увімкнено на сервері.
 //
 // AUTH-BRIEF-0915: той самий блок — два режими, перемикач-пілюля зверху,
-// без переходу на сторінку/модалку (у продукті їх немає ніде). «Почати»
+// без переходу на сторінку/модалку (у продукті їх немає ніде). «Реєстрація»
 // (типово) — тариф (Бета обрана, Базовий/Сімʼя «скоро») + спосіб, будь-який
-// створює акаунт. «Увійти» (типово, якщо в браузері вже була сесія —
+// створює акаунт. «Вхід» (типово, якщо в браузері вже була сесія —
 // lib/session-flag) — ті самі три способи, БЕЗ тарифу, ніколи не створює:
-// невідомий ключ → рядок-note замість помилки, «Почати новий» перемикає
-// режим. mode:'start'|'login' летить у сервер на всіх трьох способах.
+// невідомий ключ → рядок-note замість помилки, «Зареєструватись» перемикає
+// режим. mode:'start'|'login' летить у сервер на всіх трьох способах (ключі
+// контракту лишаються start/login — на екрані лише текст інший).
 //
 // Telegram (TELEGRAM-AUTH-PAY-PLAN-0915; хотфікс 15.09 — ЗАМІНА Login
 // Widget): на десктопі офіційний віджет мовчав («Запит на вхід» не
@@ -95,8 +96,8 @@ interface Props {
 type UnknownMethod = 'telegram' | 'email' | 'google' | null;
 
 export function SignInForm({ id, or = true, className }: Props) {
-  // Дефолт: «Почати» для нових людей; «Увійти», якщо цей браузер уже мав тут
-  // сесію (kos-had-session, ставить store/auth.ts на успішному refresh()).
+  // Дефолт: «Реєстрація» для нових людей; «Вхід», якщо цей браузер уже мав
+  // тут сесію (kos-had-session, ставить store/auth.ts на успішному refresh()).
   const [mode, setMode] = useState<AuthMode>(() => (hadSession() ? 'login' : 'start'));
   const { email, setEmail, error, noAccount: emailNoAccount, loading, submit } = useMagicLink(mode);
   const [googleOn, setGoogleOn] = useState(false);
@@ -124,7 +125,7 @@ export function SignInForm({ id, or = true, className }: Props) {
     if (pollTimer.current) { window.clearInterval(pollTimer.current); pollTimer.current = null; }
   }
 
-  // «Почати новий» (у рядку невідомого ключа) — той самий перемикач, що
+  // «Зареєструватись» (у рядку невідомого ключа) — той самий перемикач, що
   // пілюля зверху, лише ще й гасить усі три note-стани заразом.
   function switchMode(next: AuthMode) {
     setMode(next);
@@ -166,7 +167,7 @@ export function SignInForm({ id, or = true, className }: Props) {
     }
   }
 
-  // У режимі «Увійти» — не більше однієї note одночасно; перемикач мод
+  // У режимі «Вхід» — не більше однієї note одночасно; перемикач мод
   // (switchMode) гасить усі три разом, тому тут просто пріоритет показу.
   const unknownMethod: UnknownMethod = mode === 'login'
     ? (tgNoAccount ? 'telegram' : emailNoAccount ? 'email' : googleNoAccount ? 'google' : null)
@@ -175,7 +176,7 @@ export function SignInForm({ id, or = true, className }: Props) {
   const anyProviderOn = googleOn || telegramOn;
   return (
     <div id={id} className={`${styles.signin} ${className ?? ''}`}>
-      <div className={styles.authSwitch} role="tablist" aria-label="Почати або увійти">
+      <div className={styles.authSwitch} role="tablist" aria-label="Реєстрація або вхід">
         <button
           type="button" role="tab" aria-selected={mode === 'start'}
           className={`${styles.authSeg} ${mode === 'start' ? styles.authSegOn : ''}`}

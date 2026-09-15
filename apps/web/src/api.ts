@@ -589,7 +589,7 @@ export interface AdminOccasion extends AdminOccasionInput {
   created_at: string;
 }
 
-/** AUTH-BRIEF-0915: «Почати» (типово) створює акаунт для невідомого ключа; «Увійти» — ніколи. */
+/** AUTH-BRIEF-0915: «Реєстрація» (типово) створює акаунт для невідомого ключа; «Вхід» — ніколи. */
 export type AuthMode = 'start' | 'login';
 
 export const api = {

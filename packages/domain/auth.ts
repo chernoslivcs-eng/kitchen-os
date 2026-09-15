@@ -190,8 +190,8 @@ export async function signInWithTelegram(
 
 /**
  * Крок 1: лендинг створює challenge ДО того, як особу знають. TTL — 15 хв,
- * як у магік-лінка. `mode` (AUTH-BRIEF-0915) — «Почати» завжди створює
- * акаунт для невідомого telegram_user_id (як і було); «Увійти» — ніколи
+ * як у магік-лінка. `mode` (AUTH-BRIEF-0915) — «Реєстрація» завжди створює
+ * акаунт для невідомого telegram_user_id (як і було); «Вхід» — ніколи
  * (attachTelegramLoginUser зупиниться раніше, ніж покличе signInWithTelegram).
  */
 export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_agent?: string | null, mode: 'start' | 'login' = 'start'): Promise<{ challenge: AuthChallenge; raw_token: string }> {
@@ -233,8 +233,8 @@ export async function attachTelegramLoginUser(repo: Repo, login_token: string, t
   if (!challenge || challenge.kind !== 'tg_login') return { ok: false, reason: 'not_found' };
   if (challenge.consumed_at) return { ok: false, reason: 'consumed' };
   if (new Date(challenge.expires_at).getTime() < Date.now()) return { ok: false, reason: 'expired' };
-  // Злиття (15.09): кнопка «Увійти» (mode 'login') акаунт НЕ створює — лише
-  // знаходить. Без акаунта веб побачить status 'no_account' і скаже «Почати».
+  // Злиття (15.09): кнопка «Вхід» (mode 'login') акаунт НЕ створює — лише
+  // знаходить. Без акаунта веб побачить status 'no_account' і скаже «Реєстрація».
   if (challenge.mode === 'login') {
     const known = await repo.getUserByTelegramId(tg.telegram_user_id) ?? await repo.getTelegramByTelegramUser(tg.telegram_user_id);
     if (!known) { await repo.setChallengeStatus(challenge.id, 'no_account'); return { ok: false, reason: 'no_account' }; }
@@ -247,7 +247,7 @@ export async function attachTelegramLoginUser(repo: Repo, login_token: string, t
 export type PollTelegramLoginOutcome =
   | { status: 'pending' }
   | { status: 'expired' }
-  /** Злиття (15.09): mode 'login', а акаунта з цим Telegram нема — веб веде на «Почати». */
+  /** Злиття (15.09): mode 'login', а акаунта з цим Telegram нема — веб веде на «Реєстрація». */
   | { status: 'no_account' }
   | { status: 'ok'; result: VerifyChallengeResult };
 
