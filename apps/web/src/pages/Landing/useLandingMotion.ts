@@ -150,10 +150,18 @@ export function useScrollScene(root: Root, on: boolean) {
     const run = () => {
       raf = 0;
       const sc = window.scrollY > 24;
-      const p = Math.min(1, Math.max(0, window.scrollY / (window.innerHeight * 0.6)));
+      // Хотфікс: у режимі «Реєстрація» hero може бути вищим за вʼюпорт
+      // (min-height замість height — CSS-блок вище) — гасіння/стиснення
+      // hero має чекати, поки його низ дійде до низу вʼюпорта, інакше форма
+      // гасне, поки людина її ще заповнює. overflow — на скільки hero
+      // виступає за межі vh−headerH; прогрес рахуємо від нього.
       const h = heroRef.current;
-      if (h) { h.style.opacity = String(1 - p); h.style.transform = `scale(${1 - p * 0.06})`; }
       const hd = headerRef.current;
+      const heroH = h ? h.getBoundingClientRect().height : 0;
+      const headerH = hd ? hd.getBoundingClientRect().height : 0;
+      const overflow = Math.max(0, heroH - (window.innerHeight - headerH));
+      const p = Math.min(1, Math.max(0, (window.scrollY - overflow) / (window.innerHeight * 0.6)));
+      if (h) { h.style.opacity = String(1 - p); h.style.transform = `scale(${1 - p * 0.06})`; }
       if (hd) { if (sc) hd.setAttribute('data-scrolled', ''); else hd.removeAttribute('data-scrolled'); }
       // активний рядок «Що вміє» — найближчий до середини вʼюпорта
       const mid = window.innerHeight * 0.5;
@@ -179,4 +187,42 @@ export function useScrollScene(root: Root, on: boolean) {
     return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [root, on]);
   return { active, heroRef, headerRef, illRef };
+}
+
+/**
+ * Хотфікс: hero тепер `min-height` (див. .hero) — у режимі «Реєстрація»
+ * росте під довший блок входу. `.laptopWrap` тягне себе на -0.18vh угору
+ * (фіксований «пульс» заходу на hero), і коли hero виріс, той самий пульс
+ * зʼїдає нову висоту — лептоп наповзає на форму. Рахуємо --hero-extra —
+ * рівно те, на скільки hero перевищив vh−headerH (+32px запасу), і додаємо
+ * назад у margin-top лептопа (Landing.module.css), щоб пульс лишався тим
+ * самим 0.18vh від НИЗУ виросшого hero, а не зʼїдав приріст.
+ * ResizeObserver на hero — росте не лише зі зміни вʼюпорта (mode switch,
+ * жовта плашка невідомого ключа теж міняють висоту блоку входу).
+ */
+export function useHeroOverflow(root: Root, heroRef: RefObject<HTMLDivElement | null>, headerRef: RefObject<HTMLElement | null>, on: boolean) {
+  useEffect(() => {
+    const el = root.current;
+    const hero = heroRef.current;
+    if (!on || !el || !hero) { el?.style.removeProperty('--hero-extra'); return; }
+    const apply = () => {
+      const header = headerRef.current;
+      const heroH = hero.getBoundingClientRect().height;
+      const headerH = header ? header.getBoundingClientRect().height : 80;
+      const extraReal = Math.max(0, heroH - (window.innerHeight - headerH));
+      if (extraReal <= 0) { el.style.setProperty('--hero-extra', '0px'); return; }
+      // margin-top лептопа рахується ВСЕРЕДИНІ .desk (zoom: var(--z)) — щоб
+      // компенсація на екрані дорівнювала extraReal реальних px, декларація
+      // мусить бути в пре-zoom одиницях: ділимо на z. +32px запасу — теж
+      // у реальних px, тому теж ділимо (інакше на вузьких 1280 запас зростав би).
+      const z = Math.min(1, window.innerWidth / 1920);
+      const extraCss = extraReal / z + 32 / z;
+      el.style.setProperty('--hero-extra', `${Math.round(extraCss)}px`);
+    };
+    apply();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(apply);
+    ro?.observe(hero);
+    window.addEventListener('resize', apply);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', apply); el.style.removeProperty('--hero-extra'); };
+  }, [root, heroRef, headerRef, on]);
 }

@@ -88,8 +88,15 @@
 .mob .nav { display: none; }
 .mob .enter { height: 36px; padding: 0 14px; font-size: 13px; }
 
-/* ── hero · 1920: sticky top 80, висота vh−80; 1024: 72/96/56; 390: 48/20/40 ─ */
-.hero { position: sticky; top: 80px; height: calc(var(--vh, 1080px) - 80px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 32px; padding: 0 160px 120px; transform-origin: 50% 40%; will-change: opacity, transform; }
+/* ── hero · 1920: sticky top 80, min-height vh−80; 1024: 72/96/56; 390: 48/20/40 ─
+ * Хотфікс (лендинг, режим «Реєстрація»): блок входу вищий (тариф + спосіб +
+ * пошта) і не завжди вміщується в vh−80 — `min-height` замість `height`,
+ * контент росте hero знизу замість того, щоб h1 виїжджав під шапку. `height:
+ * auto` + `interpolate-size` дають плавний перехід між режимами там, де
+ * браузер підтримує (Chrome 129+); де ні — просто без анімації, без стрибка
+ * (fallback за задумом постановки). Наскільки лептоп (.laptopWrap) заходить
+ * на hero знизу компенсує useHeroOverflow — --hero-extra. */
+.hero { position: sticky; top: 80px; height: auto; min-height: calc(var(--vh, 1080px) - 80px); interpolate-size: allow-keywords; transition: height 260ms var(--e); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 32px; padding: 0 160px 120px; transform-origin: 50% 40%; will-change: opacity, transform; }
 .h1 { font-size: 96px; letter-spacing: -.045em; line-height: 1; display: flex; flex-direction: column; text-wrap: balance; max-width: 1200px; font-weight: 700; }
 .h1a { font-weight: 400; color: var(--muted); }
 .lead { font-size: 22px; line-height: 1.5; color: var(--muted); max-width: 820px; text-wrap: pretty; }
@@ -168,8 +175,12 @@
 .tab .signinFinal, .mob .signinFinal { padding-top: 8px; }
 .mob .signinFinal { padding-top: 4px; }
 
-/* ── лептоп · 1920: 1600 × (820 екран), корпус r28 p16; 1024: 100 %, r22 p12, екран 560, маска ── */
-.laptopWrap { padding: 0 160px; display: flex; justify-content: center; position: relative; z-index: 2; margin-top: calc(var(--vh, 1080px) * -0.18); }
+/* ── лептоп · 1920: 1600 × (820 екран), корпус r28 p16; 1024: 100 %, r22 p12, екран 560, маска ──
+ * Хотфікс: -0.18vh лишається тим самим пульсом «заходить на hero», що й
+ * завжди, — --hero-extra (useHeroOverflow) лише повертає рівно стільки, на
+ * скільки hero виріс над vh−80 (+ запас 32px), щоб лептоп не наповз на форму
+ * входу в режимі «Реєстрація». У «Вхід» --hero-extra 0 — нічого не змінилось. */
+.laptopWrap { padding: 0 160px; display: flex; justify-content: center; position: relative; z-index: 2; margin-top: calc(var(--vh, 1080px) * -0.18 + var(--hero-extra, 0px)); transition: margin-top 260ms var(--e); }
 .laptop { width: 1600px; max-width: 100%; background: var(--bezel); border-radius: 28px; padding: 16px; box-shadow: var(--sh2), inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -1px 0 rgba(0, 0, 0, .6); position: relative; overflow: hidden; }
 .gloss { --gx: 50%; --gy: 30%; position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit;
   background:
