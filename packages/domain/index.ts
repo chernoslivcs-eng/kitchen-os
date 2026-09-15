@@ -29,6 +29,7 @@ export * from './help-intent.js';
 export * from './telegram-emoji.js';
 export * from './pantry-add.js';
 export * from './backfill-generic-keys.js';
+export * from './account-merge.js';
 export * from './periods.js';
 export * from './hebrew-calendar.js';
 export * from './islamic-calendar.js';

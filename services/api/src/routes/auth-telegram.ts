@@ -34,8 +34,10 @@ function isSecure(): boolean {
 export function telegramAuthRoutes(app: FastifyInstance, repo: Repo, opts?: TelegramAuthOpts) {
   if (!opts) return;
 
-  app.post('/v1/auth/telegram/begin', async (req, reply) => {
-    const { raw_token } = await beginTelegramLogin(repo, req.ip, req.headers['user-agent'] ?? null);
+  app.post<{ Body: { mode?: 'start' | 'login' } | null }>('/v1/auth/telegram/begin', async (req, reply) => {
+    // Злиття (15.09), контракт із лендингом: mode 'login' — /start без акаунта його не створює (poll → 'no_account').
+    const mode = req.body?.mode === 'login' ? 'login' : 'start';
+    const { raw_token } = await beginTelegramLogin(repo, req.ip, req.headers['user-agent'] ?? null, mode);
     const url = `https://t.me/${opts.botUsername}?start=${encodeURIComponent(`login_${raw_token}`)}`;
     return reply.send({ token: raw_token, url });
   });

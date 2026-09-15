@@ -33,6 +33,7 @@ import { cookRunsRoutes } from './routes/cook-runs.js';
 import { sessionRoutes } from './routes/session.js';
 import { onboardingRoutes } from './routes/onboarding.js';
 import { telegramRoutes } from './routes/telegram.js';
+import { accountRoutes } from './routes/account.js';
 
 import type { RateLimitCfg } from './rate-limit.js';
 import { googleAuthRoutes, type GoogleAuthOpts } from './routes/auth-google.js';
@@ -189,6 +190,7 @@ export function buildApp(
   sessionRoutes(app, repo);
   onboardingRoutes(app, repo);
   telegramRoutes(app, repo);
+  accountRoutes(app, repo);
   chatRoute(app, repo, store, {
     rateLimit: opts.rateLimits?.chat,
     retailCart: retail?.attemptBuildCart,

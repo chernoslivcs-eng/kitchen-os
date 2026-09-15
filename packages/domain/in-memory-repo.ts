@@ -6,7 +6,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe, RetailConnectionRow,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   SessionRow, MessageRow, LastAppliedIntake, IntakeCard, AppEventRow,
-  TelegramAccountRow, TelegramLinkTokenRow,
+  TelegramAccountRow, TelegramLinkTokenRow, MergeStats,
 } from './types.js';
 import { normalize } from '@kitchen/catalog';
 import { tripleKey, type HouseholdProduct, type ProductTriple } from './product.js';
@@ -774,6 +774,106 @@ export class InMemoryRepo implements Repo {
     this.profileTexts.delete(user_id);
     for (const [id, n] of this.profileNotes) if (n.user_id === user_id) this.profileNotes.delete(id);
     this.vetoRows = this.vetoRows.filter((r) => r.user_id !== user_id);
+  }
+
+  // ── Злиття акаунтів (15.09) ──
+  async setChallengeStatus(id: string, status: 'no_account'): Promise<void> {
+    for (const c of this.challenges.values()) if (c.id === id) c.status = status;
+  }
+  async setChallengeConflict(id: string, conflict_user_id: string): Promise<void> {
+    for (const c of this.challenges.values()) if (c.id === id) c.conflict_user_id = conflict_user_id;
+  }
+  async setTelegramLinkConflict(token: string, conflict_user_id: string): Promise<void> {
+    const t = this.telegramTokens.get(token);
+    if (t) t.conflict_user_id = conflict_user_id;
+  }
+  async findConflictProof(user_id: string, since: string): Promise<{ kind: 'telegram' | 'email'; from_user_id: string; proven_at: string } | null> {
+    const found: { kind: 'telegram' | 'email'; from_user_id: string; proven_at: string }[] = [];
+    for (const t of this.telegramTokens.values()) {
+      if (t.user_id === user_id && t.conflict_user_id && t.consumed_at && t.consumed_at >= since) found.push({ kind: 'telegram', from_user_id: t.conflict_user_id, proven_at: t.consumed_at });
+    }
+    for (const c of this.challenges.values()) {
+      if (c.user_id === user_id && c.conflict_user_id && c.consumed_at && c.consumed_at >= since) found.push({ kind: 'email', from_user_id: c.conflict_user_id, proven_at: c.consumed_at });
+    }
+    found.sort((a, b) => b.proven_at.localeCompare(a.proven_at));
+    return found[0] ?? null;
+  }
+  async clearConflictProof(user_id: string): Promise<void> {
+    for (const t of this.telegramTokens.values()) if (t.user_id === user_id) t.conflict_user_id = null;
+    for (const c of this.challenges.values()) if (c.user_id === user_id) c.conflict_user_id = null;
+  }
+  async revokeAllSessionsOfUser(user_id: string, now: string): Promise<void> {
+    for (const s of this.sessions.values()) if (s.user_id === user_id && !s.revoked_at) s.revoked_at = now;
+  }
+  async mergeAccounts(from_user_id: string, into_user_id: string, into_household_id: string, now: string): Promise<MergeStats> {
+    const stats: MergeStats = { batches: 0, products: 0, recipes: 0, sessions: 0, email_moved: false };
+    const fromHouseholds = this.members.filter((m) => m.user_id === from_user_id).map((m) => m.household_id);
+    for (const hh of fromHouseholds) {
+      // Продукти: та сама трійка — перевісити партії на продукт нового дому; інакше переїхати.
+      const remap = new Map<string, string>();
+      for (const [id, p] of this.products) {
+        if (p.household_id !== hh) continue;
+        const dup = await this.findProductByTriple(into_household_id, p);
+        if (dup) { remap.set(id, dup.id); this.products.delete(id); }
+        else { p.household_id = into_household_id; stats.products++; }
+      }
+      for (const b of this.batches.values()) {
+        if (b.household_id !== hh) continue;
+        b.household_id = into_household_id;
+        if (b.product_id && remap.has(b.product_id)) b.product_id = remap.get(b.product_id)!;
+        stats.batches++;
+      }
+      for (const it of this.shopping.values()) if (it.household_id === hh) it.household_id = into_household_id;
+      for (const e of this.events.values()) if (e.household_id === hh) e.household_id = into_household_id;
+      const subs = this.subscriptions.get(hh);
+      if (subs) {
+        const target = this.subscriptions.get(into_household_id) ?? new Map<string, OccasionSubscriptionRow>();
+        for (const [k, v] of subs) if (!target.has(k)) target.set(k, { ...v, household_id: into_household_id });
+        this.subscriptions.set(into_household_id, target);
+        this.subscriptions.delete(hh);
+      }
+      for (const c of this.catches.values()) if (c.household_id === hh) c.household_id = into_household_id;
+      for (const c of this.cookRuns.values()) if (c.household_id === hh) { c.household_id = into_household_id; if (c.user_id === from_user_id) c.user_id = into_user_id; }
+      for (const pc of this.pending.values()) if (pc.household_id === hh) { pc.household_id = into_household_id; if (pc.user_id === from_user_id) pc.user_id = into_user_id; }
+      for (const a of this.attachments.values()) if (a.household_id === hh) { a.household_id = into_household_id; if (a.user_id === from_user_id) a.user_id = into_user_id; }
+      for (const e of this.appEvents) if (e.household_id === hh) e.household_id = into_household_id;
+      for (const r of this.tokenUsage) if (r.household_id === hh) r.household_id = into_household_id;
+      this.households.delete(hh);
+    }
+    this.members = this.members.filter((m) => m.user_id !== from_user_id);
+    for (const r of this.recipes.values()) if (r.owner_id === from_user_id) { r.owner_id = into_user_id; stats.recipes++; }
+    for (const [key, s] of this.chatSessions) {
+      if (s.user_id !== from_user_id) continue;
+      s.user_id = into_user_id; stats.sessions++;
+      // Індекс «user:day» — переписати окремо (не мутувати Map під час обходу).
+      const days = [...this.chatSessionsByUserDay].filter(([, v]) => v === key);
+      for (const [k] of days) { this.chatSessionsByUserDay.delete(k); this.chatSessionsByUserDay.set(k.replace(from_user_id, into_user_id), key); }
+    }
+    for (const e of this.appEvents) if (e.user_id === from_user_id) e.user_id = into_user_id;
+    for (const r of this.tokenUsage) if (r.user_id === from_user_id) r.user_id = into_user_id;
+    for (const [k, r] of this.retail) if (r.user_id === from_user_id) {
+      const nk = `${into_user_id}:${r.provider}`;
+      if (!this.retail.has(nk)) this.retail.set(nk, { ...r, user_id: into_user_id });
+      this.retail.delete(k);
+    }
+    for (const a of this.telegramAccounts.values()) if (a.user_id === from_user_id) { a.user_id = into_user_id; a.linked_at = now; a.revoked_at = null; }
+    // Решта особистого (профіль, нотатки, вето, сесії) — з користувачем.
+    for (const [hash, se] of this.sessions) if (se.user_id === from_user_id) this.sessions.delete(hash);
+    this.profileTexts.delete(from_user_id);
+    for (const [id, n] of this.profileNotes) if (n.user_id === from_user_id) this.profileNotes.delete(id);
+    this.vetoRows = this.vetoRows.filter((r) => r.user_id !== from_user_id);
+    // Пошта: у поточного її нема (Telegram-акаунт, «Додати пошту») — переїжджає
+    // з дубля; інакше лишається своя, а пошта дубля звільняється.
+    const u = this.users.get(from_user_id);
+    const into = this.users.get(into_user_id);
+    if (u?.email) this.usersByEmail.delete(u.email.toLowerCase());
+    if (u?.email && into && !into.email) {
+      into.email = u.email.toLowerCase();
+      this.usersByEmail.set(into.email, into_user_id);
+      stats.email_moved = true;
+    }
+    this.users.delete(from_user_id);
+    return stats;
   }
 
   async getMessage(id: string): Promise<MessageRow | null> {

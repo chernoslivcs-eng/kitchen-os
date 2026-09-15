@@ -19,7 +19,7 @@ import type {
   HouseholdProduct, ProductTriple,
   HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, OccasionRow, Rule, OccasionSubscriptionRow,
   ProfileText, ProfileFieldKey, ProfileFieldValue, ProfileNote, VetoRow, VetoField,
-  TelegramAccountRow, TelegramLinkTokenRow,
+  TelegramAccountRow, TelegramLinkTokenRow, MergeStats,
 } from '@kitchen/domain';
 import { clampProfileText, emptyProfileText, NOTES_IN_PROMPT } from '@kitchen/domain';
 import { normalize } from '@kitchen/catalog';
@@ -281,6 +281,7 @@ function rowToTelegramToken(r: Record<string, unknown>): TelegramLinkTokenRow {
     token: String(r.token), user_id: String(r.user_id),
     expires_at: new Date(r.expires_at as string).toISOString(),
     consumed_at: r.consumed_at ? new Date(r.consumed_at as string).toISOString() : null,
+    conflict_user_id: (r.conflict_user_id as string | null) ?? null,
   };
 }
 
@@ -1138,10 +1139,10 @@ export class PostgresRepo implements Repo {
 
   async saveChallenge(c: AuthChallenge): Promise<void> {
     await this.pool.query(
-      `INSERT INTO auth_challenge (id, email, token_hash, created_at, expires_at, consumed_at, ip, user_agent, kind, user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      `INSERT INTO auth_challenge (id, email, token_hash, created_at, expires_at, consumed_at, ip, user_agent, kind, user_id, mode)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        ON CONFLICT (token_hash) DO NOTHING`,
-      [c.id, c.email, c.token_hash, c.created_at, c.expires_at, c.consumed_at, c.ip, c.user_agent, c.kind ?? 'email', c.user_id ?? null],
+      [c.id, c.email, c.token_hash, c.created_at, c.expires_at, c.consumed_at, c.ip, c.user_agent, c.kind ?? 'email', c.user_id ?? null, c.mode ?? 'start'],
     );
   }
 
@@ -1160,6 +1161,9 @@ export class PostgresRepo implements Repo {
       consumed_at: r.consumed_at ? new Date(r.consumed_at).toISOString() : null,
       ip: r.ip ?? null,
       user_agent: r.user_agent ?? null,
+      mode: (r.mode as 'start' | 'login' | null) ?? 'start',
+      status: (r.status as 'no_account' | null) ?? null,
+      conflict_user_id: r.conflict_user_id ?? null,
     };
   }
 
@@ -1171,6 +1175,141 @@ export class PostgresRepo implements Repo {
   // consumed — poll сам consume, гонитви немає).
   async attachChallengeUser(id: string, user_id: string): Promise<void> {
     await this.pool.query('UPDATE auth_challenge SET user_id = $2 WHERE id = $1', [id, user_id]);
+  }
+
+  // ── Злиття акаунтів (15.09) ──
+  async setChallengeStatus(id: string, status: 'no_account'): Promise<void> {
+    await this.pool.query('UPDATE auth_challenge SET status = $2 WHERE id = $1', [id, status]);
+  }
+  async setChallengeConflict(id: string, conflict_user_id: string): Promise<void> {
+    await this.pool.query('UPDATE auth_challenge SET conflict_user_id = $2 WHERE id = $1', [id, conflict_user_id]);
+  }
+  async setTelegramLinkConflict(token: string, conflict_user_id: string): Promise<void> {
+    await this.pool.query('UPDATE telegram_link_token SET conflict_user_id = $2 WHERE token = $1', [token, conflict_user_id]);
+  }
+  async findConflictProof(user_id: string, since: string): Promise<{ kind: 'telegram' | 'email'; from_user_id: string; proven_at: string } | null> {
+    const { rows } = await this.pool.query(
+      `SELECT kind, from_user_id, proven_at FROM (
+         SELECT 'telegram' AS kind, conflict_user_id AS from_user_id, consumed_at AS proven_at
+           FROM telegram_link_token WHERE user_id = $1 AND conflict_user_id IS NOT NULL AND consumed_at >= $2
+         UNION ALL
+         SELECT 'email' AS kind, conflict_user_id, consumed_at
+           FROM auth_challenge WHERE user_id = $1 AND conflict_user_id IS NOT NULL AND consumed_at >= $2
+       ) p ORDER BY proven_at DESC LIMIT 1`,
+      [user_id, since],
+    );
+    const r = rows[0];
+    return r ? { kind: r.kind as 'telegram' | 'email', from_user_id: String(r.from_user_id), proven_at: new Date(r.proven_at).toISOString() } : null;
+  }
+  async clearConflictProof(user_id: string): Promise<void> {
+    await this.pool.query('UPDATE telegram_link_token SET conflict_user_id = NULL WHERE user_id = $1', [user_id]);
+    await this.pool.query('UPDATE auth_challenge SET conflict_user_id = NULL WHERE user_id = $1', [user_id]);
+  }
+  async revokeAllSessionsOfUser(user_id: string, now: string): Promise<void> {
+    await this.pool.query('UPDATE auth_session SET revoked_at = $2 WHERE user_id = $1 AND revoked_at IS NULL', [user_id, now]);
+  }
+  async mergeAccounts(from_user_id: string, into_user_id: string, into_household_id: string, now: string): Promise<MergeStats> {
+    // Одна транзакція. Порядок: спершу все, що з household_id, потім особисте
+    // за user_id, потім видалення from-дому і from-user — каскади підбирають
+    // лише те, що свідомо НЕ переїхало (профіль, нотатки, вето, сесії,
+    // challenge/link-token, запрошення). Нову таблицю з household_id/user_id
+    // сюди треба додавати руками — інакше каскад її зітре.
+    const client = await this.pool.connect();
+    const stats: MergeStats = { batches: 0, products: 0, recipes: 0, sessions: 0, email_moved: false };
+    try {
+      await client.query('BEGIN');
+      const { rows: hhs } = await client.query<{ household_id: string }>(
+        'SELECT household_id FROM household_member WHERE user_id = $1', [from_user_id],
+      );
+      for (const { household_id: hh } of hhs) {
+        if (hh === into_household_id) continue;
+        // Продукти: та сама трійка вже є в новому домі — партії перевісити, дубль видалити.
+        const { rows: dups } = await client.query<{ from_id: string; into_id: string }>(
+          `SELECT f.id AS from_id, t.id AS into_id
+             FROM household_product f JOIN household_product t
+               ON t.household_id = $2
+              AND lower(t.product) = lower(f.product)
+              AND coalesce(lower(t.brand), '') = coalesce(lower(f.brand), '')
+              AND coalesce(lower(t.variant), '') = coalesce(lower(f.variant), '')
+            WHERE f.household_id = $1`,
+          [hh, into_household_id],
+        );
+        for (const d of dups) {
+          await client.query('UPDATE pantry_batch SET product_id = $2 WHERE product_id = $1', [d.from_id, d.into_id]);
+          await client.query('DELETE FROM household_product WHERE id = $1', [d.from_id]);
+        }
+        const p = await client.query('UPDATE household_product SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        stats.products += p.rowCount ?? 0;
+        const b = await client.query('UPDATE pantry_batch SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        stats.batches += b.rowCount ?? 0;
+        await client.query('UPDATE shopping_item SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('UPDATE household_event SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query(
+          `UPDATE occasion_subscription s SET household_id = $2 WHERE household_id = $1
+             AND NOT EXISTS (SELECT 1 FROM occasion_subscription t WHERE t.household_id = $2 AND t.occasion_id = s.occasion_id)`,
+          [hh, into_household_id],
+        );
+        await client.query(
+          `UPDATE household_occasion_catch c SET household_id = $2 WHERE household_id = $1
+             AND NOT EXISTS (SELECT 1 FROM household_occasion_catch t WHERE t.household_id = $2 AND t.occasion_id = c.occasion_id AND t.year = c.year)`,
+          [hh, into_household_id],
+        );
+        await client.query('UPDATE consumption SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('UPDATE eater SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('UPDATE cook_run SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('UPDATE card_pending SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('UPDATE attachment SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('UPDATE app_event SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('UPDATE token_usage SET household_id = $2 WHERE household_id = $1', [hh, into_household_id]);
+        await client.query('DELETE FROM household WHERE id = $1', [hh]);
+      }
+      // Особисте — на нового власника.
+      const r = await client.query('UPDATE recipe SET owner_id = $2 WHERE owner_id = $1', [from_user_id, into_user_id]);
+      stats.recipes += r.rowCount ?? 0;
+      const s = await client.query('UPDATE session SET user_id = $2 WHERE user_id = $1', [from_user_id, into_user_id]);
+      stats.sessions += s.rowCount ?? 0;
+      await client.query('UPDATE cook_run SET user_id = $2 WHERE user_id = $1', [from_user_id, into_user_id]);
+      await client.query('UPDATE card_pending SET user_id = $2 WHERE user_id = $1', [from_user_id, into_user_id]);
+      await client.query('UPDATE attachment SET user_id = $2 WHERE user_id = $1', [from_user_id, into_user_id]);
+      await client.query('UPDATE app_event SET user_id = $2 WHERE user_id = $1', [from_user_id, into_user_id]);
+      await client.query('UPDATE token_usage SET user_id = $2 WHERE user_id = $1', [from_user_id, into_user_id]);
+      await client.query(
+        `UPDATE retail_connection f SET user_id = $2 WHERE user_id = $1
+           AND NOT EXISTS (SELECT 1 FROM retail_connection t WHERE t.user_id = $2 AND t.provider = f.provider)`,
+        [from_user_id, into_user_id],
+      );
+      await client.query(
+        `UPDATE user_occasion_mute f SET user_id = $2 WHERE user_id = $1
+           AND NOT EXISTS (SELECT 1 FROM user_occasion_mute t WHERE t.user_id = $2 AND t.occasion_id = f.occasion_id)`,
+        [from_user_id, into_user_id],
+      );
+      await client.query(
+        'UPDATE telegram_account SET user_id = $2, linked_at = $3, revoked_at = NULL WHERE user_id = $1',
+        [from_user_id, into_user_id, now],
+      );
+      // Пошта: у поточного її нема (Telegram-акаунт, «Додати пошту») —
+      // переїжджає з дубля; у тій самій транзакції спершу зняти з from
+      // (частковий UNIQUE), потім поставити на into. Інакше своя лишається,
+      // а пошта дубля звільняється.
+      const { rows: emails } = await client.query<{ id: string; email: string | null }>(
+        'SELECT id, email FROM "user" WHERE id = ANY($1::uuid[])', [[from_user_id, into_user_id]],
+      );
+      const fromEmail = emails.find((r) => r.id === from_user_id)?.email ?? null;
+      const intoEmail = emails.find((r) => r.id === into_user_id)?.email ?? null;
+      if (fromEmail && !intoEmail) {
+        await client.query('UPDATE "user" SET email = NULL WHERE id = $1', [from_user_id]);
+        await client.query('UPDATE "user" SET email = $2 WHERE id = $1', [into_user_id, fromEmail]);
+        stats.email_moved = true;
+      }
+      await client.query('DELETE FROM "user" WHERE id = $1', [from_user_id]);
+      await client.query('COMMIT');
+      return stats;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async saveSession(s: AuthSession): Promise<void> {

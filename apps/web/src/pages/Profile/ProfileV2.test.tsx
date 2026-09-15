@@ -33,6 +33,9 @@ const initial = (): ProfileV2Response => ({
 type Call = { url: string; method: string; body: unknown };
 // Р148: стан Telegram у стабі — `null` = сервер відповідає 500.
 let telegram: { linked: boolean; username: string | null; linked_at: string | null } | null;
+// Злиття акаунтів (15.09): що відповідає GET /v1/account/conflict.
+let conflict: Record<string, unknown> | null = null;
+let mergeEmailMoved = false;
 let calls: Call[];
 let root: Root;
 let host: HTMLDivElement;
@@ -48,6 +51,9 @@ function installFetch() {
     if (url === '/v1/telegram' && method === 'GET') return telegram ? json(telegram) : json({ error: 'boom' }, 500);
     if (url === '/v1/telegram/link-token' && method === 'POST') return json({ url: 'https://t.me/kitchen_os_bot?start=tok1', expires_at: '2036-01-01T00:00:00.000Z' });
     if (url === '/v1/telegram' && method === 'DELETE') return json({ ok: true });
+    if (url === '/v1/account/conflict' && method === 'GET') return json(conflict);
+    if (url === '/v1/account/merge' && method === 'POST') { const k = conflict?.kind ?? 'telegram'; conflict = null; return json({ ok: true, kind: k, stats: { batches: 12, products: 9, recipes: 3, sessions: 2, email_moved: mergeEmailMoved } }); }
+    if (url === '/v1/account/conflict/dismiss' && method === 'POST') { conflict = null; return json({ ok: true }); }
     if (url === '/v1/auth/email/attach/request' && method === 'POST') {
       if (body?.email === 'taken@example.com') return json({ error: 'email_taken' }, 409);
       return json({ ok: true }, 202);
@@ -77,7 +83,7 @@ async function mount(data = initial()) {
 const edit = (k: string) => host.querySelector<HTMLSpanElement>(`[data-row="${k}"] [contenteditable]`)!;
 const fire = (el: Element, type: string, init: EventInit = {}) => el.dispatchEvent(new Event(type, { bubbles: true, ...init }));
 
-beforeEach(() => { telegram = { linked: false, username: null, linked_at: null }; installFetch(); });
+beforeEach(() => { telegram = { linked: false, username: null, linked_at: null }; conflict = null; mergeEmailMoved = false; installFetch(); });
 afterEach(async () => {
   await act(async () => { root.unmount(); });
   host.remove();
@@ -521,5 +527,68 @@ describe('PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915) · акаунт без пошти �
     await act(async () => { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
     expect(host.textContent).toContain('Ця пошта вже має акаунт');
     expect(host.querySelector<HTMLInputElement>('[data-section="account"] input[type="email"]')).not.toBeNull();
+  });
+});
+
+// Злиття акаунтів (власник 15.09): «Підключити Telegram» → бот сказав, що
+// Telegram уже має акаунт → у профілі note з кнопками; «Обʼєднати» → sage-note
+// і рядок Telegram «підключено»; «Ні, лишити окремо» → note зникає.
+describe('злиття акаунтів', () => {
+  const yana = { kind: 'telegram', from_user_id: 'u-tg', household_name: 'Дім Яна', pantry_count: 12, recipe_count: 3, sole_member: true, proven_at: '2026-09-15T12:00:00.000Z' };
+  it('конфлікт → note під рядком Telegram з текстом і двома кнопками', async () => {
+    conflict = yana;
+    await mount();
+    const note = host.querySelector('[data-merge="ask"]')!;
+    expect(note).not.toBeNull();
+    expect(note.textContent).toContain('Цей Telegram уже має свій акаунт «Дім Яна»: комора 12, рецептів 3, у домі лише ти. Обʼєднати з цим акаунтом? Усе звідти переїде сюди, той акаунт закриється. Це не скасувати.');
+    const btns = [...note.querySelectorAll('button')].map((b) => b.textContent);
+    expect(btns).toEqual(['Обʼєднати', 'Ні, лишити окремо']);
+    // Стоїть саме під рядком Telegram.
+    expect(note.previousElementSibling?.matches('[data-telegram], [data-telegram-link]')).toBe(true);
+  });
+  it('«Обʼєднати» → POST merge, note «Обʼєднано…», рядок Telegram → підключено', async () => {
+    conflict = yana;
+    await mount();
+    const btn = [...host.querySelectorAll('[data-merge="ask"] button')].find((b) => b.textContent === 'Обʼєднати')!;
+    await act(async () => { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(calls.find((c) => c.url === '/v1/account/merge')?.body).toEqual({ from_user_id: 'u-tg' });
+    const done = host.querySelector('[data-merge="done"]')!;
+    expect(done.textContent).toBe('Обʼєднано. Telegram підключено, комора спільна: 12 позицій додано.');
+    expect(host.querySelector('[data-telegram]')!.textContent).toContain('підключено');
+  });
+  it('«Ні, лишити окремо» → POST dismiss, note зникає, Telegram не підключений', async () => {
+    conflict = yana;
+    await mount();
+    const btn = [...host.querySelectorAll('[data-merge="ask"] button')].find((b) => b.textContent === 'Ні, лишити окремо')!;
+    await act(async () => { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(calls.some((c) => c.url === '/v1/account/conflict/dismiss')).toBe(true);
+    expect(host.querySelector('[data-merge]')).toBeNull();
+    expect(host.querySelector('[data-telegram]')!.textContent).toContain('Підключити');
+  });
+  it('у тому домі є ще хтось — текст «спершу вийди», кнопки «Обʼєднати» нема', async () => {
+    conflict = { ...yana, sole_member: false };
+    await mount();
+    const note = host.querySelector('[data-merge="ask"]')!;
+    expect(note.textContent).toContain('Спершу вийди з того дому');
+    expect([...note.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Ні, лишити окремо']);
+  });
+  it('злиття по пошті: «Пошту додано» лише коли пошту перенесено; інакше «Обʼєднано. Комора спільна…»', async () => {
+    for (const moved of [true, false]) {
+      conflict = { ...yana, kind: 'email' }; mergeEmailMoved = moved;
+      await mount();
+      const btn = [...host.querySelectorAll('[data-merge="ask"] button')].find((b) => b.textContent === 'Обʼєднати')!;
+      await act(async () => { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+      expect(host.querySelector('[data-merge="done"]')!.textContent)
+        .toBe(moved ? 'Обʼєднано. Пошту додано, комора спільна: 12 позицій додано.' : 'Обʼєднано. Комора спільна: 12 позицій додано.');
+      await act(async () => { root.unmount(); });
+    }
+    await mount(); // щоб afterEach мав що розмонтувати
+  });
+  it('конфлікт по пошті — note під рядком «Пошта»', async () => {
+    conflict = { ...yana, kind: 'email' };
+    await mount();
+    const note = host.querySelector('[data-merge="ask"]')!;
+    expect(note.textContent).toContain('Ця пошта уже має свій акаунт');
+    expect(note.previousElementSibling?.querySelector('[data-section="account"] input, .accKey') ?? note.previousElementSibling).not.toBeNull();
   });
 });
