@@ -584,10 +584,12 @@ export const api = {
       }),
     logout: () => req<null>('/v1/auth/logout', { method: 'POST', body: '{}' }),
     providers: () => req<{ google: boolean; telegram: boolean; telegramBotId: string | null }>('/v1/auth/providers'),
-    // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): payload — те, що повертає
-    // Telegram.Login.auth(...) на фронті, дослівно.
-    telegramWidget: (payload: { id: number; first_name: string; last_name?: string; username?: string; photo_url?: string; auth_date: number; hash: string }) =>
-      req<{ ok: true; next: string }>('/v1/auth/telegram/widget', { method: 'POST', body: JSON.stringify(payload) }),
+    // Хотфікс 15.09 (заміна Login Widget — попап/редирект-флоу не працювали
+    // надійно): begin створює challenge на сервері й дає лінк на бота;
+    // клік відкриває t.me/…?start=login_<token>, а лендинг опитує poll, поки
+    // людина не тисне Start у застосунку.
+    telegramBegin: () => req<{ token: string; url: string }>('/v1/auth/telegram/begin', { method: 'POST', body: '{}' }),
+    telegramPoll: (token: string) => req<{ status: 'pending' | 'ok' | 'expired' }>(`/v1/auth/telegram/poll?token=${encodeURIComponent(token)}`),
     attachEmailRequest: (email: string) =>
       req<{ ok: true }>('/v1/auth/email/attach/request', { method: 'POST', body: JSON.stringify({ email }) }),
   },

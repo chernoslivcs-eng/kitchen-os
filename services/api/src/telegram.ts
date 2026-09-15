@@ -17,7 +17,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind, type Tradition } from '@kitchen/domain';
+import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, attachTelegramLoginUser, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind, type Tradition } from '@kitchen/domain';
 import { saveScriptedTurn } from './chat-turn.js';
 import { renderPeriodSeriesText, periodSeriesKeyboard, maskOf, parseMask, selectedOf, periodAppliedStatus, TRADITION_SETS, TRADITION_LABEL } from './telegram-period.js';
 import { buildPeriodCard } from './period-card.js';
@@ -117,6 +117,8 @@ export const COPY = {
   startFirst: 'Натисни /start — і почнемо.',
   /** /start <token> із профілю, а токен уже не діє — не плодимо новий акаунт, просимо натиснути «Підключити» ще раз. */
   linkExpired: 'Лінк із профілю вже не діє — натисни «Підключити» ще раз.',
+  /** Хотфікс 15.09: /start login_<token> протух чи вже спожитий — назад на сайт, акаунт НЕ створюємо. */
+  loginExpired: 'Лінк для входу вже не діє — натисни «Продовжити з Telegram» на сайті ще раз.',
   stopped: 'Відключив.',
   /** /help — над рядом шести довідок. */
   helpPrompt: 'Про що розповісти?',
@@ -549,6 +551,23 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
   const start = text.match(/^\/start(?:@\w+)?(?:\s+(\S+))?$/);
   if (start) {
     const token = start[1];
+    if (token?.startsWith('login_')) {
+      // Хотфікс 15.09 (заміна Login Widget): лендинг завів challenge ДО того,
+      // як особу знали (POST /v1/auth/telegram/begin) — Start тут і є доказ
+      // володіння акаунтом. attachTelegramLoginUser сам не пускає далі, якщо
+      // токен протух чи вже спожитий (тоді акаунт НЕ створюємо — як і з
+      // protile-токеном нижче).
+      const out = await attachTelegramLoginUser(
+        deps.repo,
+        token.slice('login_'.length),
+        { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null },
+      );
+      if (!out.ok) return plain(COPY.loginExpired);
+      (deps.log ?? (console as unknown as FastifyBaseLogger)).info({ telegram_user_id: u.telegram_user_id, login: true }, 'tg_start');
+      const web = await webLink(deps, out.user.id);
+      const url = web('/app');
+      return { messages: [COPY.hello(out.user.name?.trim() || 'привіт')], html: false, keyboard: [[{ text: 'Відкрити сайт', url }], ...HELP_KEYBOARD_ROWS], replyKeyboard: QUICK_KEYBOARD };
+    }
     if (token) {
       // Профіль → «Підключити»: привʼязка до акаунта з поштою, як і раніше.
       const row = await deps.repo.consumeTelegramLinkToken(token, now.toISOString());

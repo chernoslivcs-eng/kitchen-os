@@ -3776,3 +3776,154 @@ ae56f08:
 Гейти після ребейзу: typecheck 0, `pnpm lint` 0, `apps/web` — 737 зелені,
 `services/api` — 712 зелені, `packages/domain` — 492 зелені, `packages/eval`
 — 65 зелені, `packages/db` — Postgres skip, як і раніше. Не мерджити.
+
+### Р159 · Telegram-вхід: хотфікс мобайл-редиректу (замість popup), 15.09
+
+Прод-репорт власника: «Продовжити з Telegram» на десктопі працює (popup
+oauth.telegram.org), на iPhone Safari — «Зʼєднуюсь…» і тиша. Причина:
+`Telegram.Login.auth` робить `window.open` ПІСЛЯ асинхронного завантаження
+скрипта віджета — тобто вже поза жестом тапу; iOS Safari такий popup
+мовчки блокує (десктопні блокувальники теж можуть зрізати з тієї ж причини).
+Гілка `fix/telegram-mobile-redirect` від `origin/main` 132e7fc (PR #128/#132
+вже на main).
+
+- `telegram-widget.ts`: `isTouchOrNarrow()` (`matchMedia (pointer: coarse)`
+  або ширина <768), `buildTelegramRedirectUrl(botId)` (URL на
+  `oauth.telegram.org/auth` з `bot_id`, `origin`, `embed=1`,
+  `request_access=write`, `return_to` = наш `/auth/telegram`),
+  `preloadTelegramWidget()` (запустити завантаження скрипта заздалегідь, не
+  чекаючи), `consumeTelegramRedirectError()` (читає `?tgError=1` один раз,
+  прибирає з адреси через `history.replaceState`).
+- `SignInForm.tsx`: на дотику/вузькому — клік одразу веде на
+  `buildTelegramRedirectUrl` (той самий жест тапу — навігація, без
+  `window.open`), popup-гілка (`Telegram.Login.auth`) лишається для
+  десктопу. На десктопі скрипт віджета підвантажується заздалегідь при
+  монтуванні (`preloadTelegramWidget`), щоб `auth()` у обробнику кліку
+  відкривав popup СИНХРОННО — інакше й на десктопі блокувальники можуть
+  зрізати вікно через `await` перед `window.open`.
+- Новий веб-маршрут `/auth/telegram` (`pages/AuthTelegram/AuthTelegram.tsx`,
+  без сесії, лазі-чанк): читає query, яку Telegram кладе на `return_to`
+  (id, first_name, last_name?, username?, photo_url?, auth_date, hash —
+  ті самі поля, що дає popup-колбек), б'є в той самий
+  `POST /v1/auth/telegram/widget`, на успіх → `location.href = next`, на
+  помилку чи брак обов'язкового поля → `/?tgError=1` (лендинг показує той
+  самий текст `SIGNIN.telegramError`, що й у popup-гілці). Префікс `/auth/…`
+  навмисно відмінний від API-роуту бота `/v1/auth/telegram` (PR 2-бот,
+  #129) — не перехоплює його.
+- CSP не чіпав: `oauth.telegram.org` уже дозволений хотфіксом #132.
+
+Тести: `telegram-widget.test.ts` (збірка URL редиректу, isTouchOrNarrow на
+вузькому/широкому, consumeTelegramRedirectError без параметра),
+`AuthTelegram.test.tsx` (query → POST → редирект на next; 403 і брак
+обов'язкового поля → назад на лендинг з `?tgError=1`), `SignInForm.test.tsx`
+доповнено трьома: десктоп підвантажує скрипт заздалегідь і popup-гілка без
+змін, дотик/вузький — клік не чіпає `Telegram.Login.auth` і веде на
+редирект-URL, `?tgError=1` показує той самий текст помилки.
+
+Гейти: typecheck 0 (усі 7 пакетів), `pnpm lint` 0 (той самий baseline — 8
+CSS-сиріт-не-доведено). `apps/web` — 747 зелені (було 737 + 10 нових: 4
+у `telegram-widget.test.ts`, 3 у `AuthTelegram.test.tsx`, 3 нових у
+`SignInForm.test.tsx`). API/domain/eval/db не чіпав — не запускав повторно
+(зміни лише у `apps/web`). Не мерджити.
+
+**Доповнення до Р159 (той самий PR #133, 15.09)**: десктоп-popup — власник
+відзначив, що людина губиться між кліком і підтвердженням у застосунку
+Telegram (не видно, що взагалі відбувається). Додав, лише для popup-гілки
+(мобільний редирект її не показує — людина вже в Telegram):
+- Поки кнопка в стані «Зʼєднуюсь…» — рядок під нею: `SIGNIN.telegramWaitHint`
+  («Telegram надішле повідомлення «Запит на вхід» — підтверди його в
+  застосунку Telegram»).
+- 120 с (`TELEGRAM_LOGIN_TIMEOUT_MS`) без відповіді від `Telegram.Login.auth`
+  — кнопка звичайна («Продовжити з Telegram», знову клікабельна), під нею —
+  `SIGNIN.telegramTimeoutHint` + лінк `t.me/KitchenOSAppBot`. Сам колбек
+  Telegram скасувати неможливо (`Telegram.Login.auth` не дає AbortController):
+  таймер лише перестає чекати УІ-шно; якщо відповідь усе ж прийде пізніше —
+  вхід все одно відбудеться (успішний `user` веде далі, як завжди).
+- Тексти — `copy.ts` (`telegramWaitHint`, `telegramTimeoutHint`,
+  `telegramBotLink`/`telegramBotLinkLabel`), не з бандла (функціональне
+  копі кнопки входу, як і решта `SIGNIN.telegram*` — COPY.md правило 5 сюди
+  не застосовується).
+
+Тест на таймаут — `vi.useFakeTimers()` з моменту кліку (до нього — реальні
+таймери, щоб не зависнути на `mount()`), `vi.advanceTimersByTimeAsync(120_000)`:
+перевіряє зникнення `telegramWaitHint`, появу тексту з лінком на бота,
+повернення кнопки в звичайний і клікабельний стан. Ще один тест — сам
+`telegramWaitHint` зʼявляється одразу після кліку, поки popup висить.
+
+Гейти: typecheck 0, lint 0 (той самий baseline), `apps/web` — 749 зелені
+(747 + 2 нових). Зміни лише в `apps/web`. Не мерджити.
+
+### Р160 · Telegram-вхід: ЗАМІНА Login Widget ботом (той самий PR #133), 15.09
+
+Власник (через головний чат): Login Widget не тримається — на десктопі
+«Запит на вхід» від Telegram не приходив узагалі, на мобайлі popup/редирект
+із Р159 усе одно потребував зайвого стрибка. Замість підпису HMAC від
+віджета — вхід ЧЕРЕЗ САМОГО БОТА, весь Р158/Р159-код на це замінено (у тому
+самому PR #133, від origin/main 132e7fc — main не рухався з часу PR #128).
+
+**Контракт** (той самий `auth_challenge`, новий `kind: 'tg_login'`, без
+міграції — колонка `kind` уже `text` без CHECK):
+1. `POST /v1/auth/telegram/begin` — challenge БЕЗ user_id (особу ще не
+   знають), TTL 15 хв. Повертає `{ token, url: t.me/<bot>?start=login_<token> }`.
+2. Клік відкриває цей url (десктоп — нова вкладка `window.open` у жесті
+   кліку, з фолбеком на ту саму вкладку, якщо блокувальник зрізав; дотик/
+   вузький екран — `location.href`, бо deep-link у застосунок Telegram
+   перехоплює навігацію без реального переходу).
+3. Бот, `/start login_<token>`: `attachTelegramLoginUser` (packages/domain/
+   auth.ts) знаходить challenge за хешем токена, перевіряє
+   не consumed/не expired, резолвить чи створює акаунт (`signInWithTelegram`
+   — той самий код, що й звичайний `/start` без токена), дописує user_id у
+   challenge через новий `repo.attachChallengeUser`. Сесію тут НЕ відкриває
+   — інакше плодилась би сесія, якою ніхто не скористається (poll відкриє
+   свою). Відповідь — hello + inline-кнопка «Відкрити сайт» (той самий
+   `webLink` → одноразовий `GET /v1/auth/telegram`, що вже був для /web) +
+   шість довідок. Протухлий/вигаданий/уже спожитий токен — `COPY.loginExpired`
+   («Лінк для входу вже не діє — натисни «Продовжити з Telegram» на сайті
+   ще раз»), акаунт НЕ створюється (перевірка ДО `signInWithTelegram`).
+4. Лендинг раз на 2 с (`GET /v1/auth/telegram/poll?token=…`, поки
+   `tgWaiting`): `pending` — user_id ще нема; `ok` — сервер сам
+   `consumeChallenge` + `openSession`, ставить ту саму cookie-сесію
+   (`COOKIE_NAME`, `SESSION_TTL_MS`), веде на `/app`; `expired` — і для
+   протухлого, і для вже спожитого (повторний poll після `ok`) — кнопка
+   назад у звичайний стан, `SIGNIN.telegramExpired`.
+
+**Прибрано повністю**: `apps/web/src/pages/Landing/telegram-widget.ts`
+(+тест), `apps/web/src/pages/AuthTelegram/` (редирект-callback з Р159 —
+більше не потрібен, немає ні popup, ні OAuth-редиректу, куди повертатись),
+`POST /v1/auth/telegram/widget` і `verifyTelegramWidgetHash`
+(HMAC-перевірка підпису віджета). CSP (`vercel.json`) — прибрано
+`script-src telegram.org`, `img-src t.me`, `frame-src oauth.telegram.org`
+(усе дійсно неживе: t.me відкривається звичайною навігацією/`window.open`,
+під CSP не підпадає).
+
+**Домен** (`packages/domain`): `AuthChallenge.kind` += `'tg_login'`;
+`Repo.attachChallengeUser(id, user_id)` (нова, окремо від `consumeChallenge`
+— бот лише дописує, консюмить лише poll); `beginTelegramLogin`,
+`attachTelegramLoginUser`, `pollTelegramLogin`. `TelegramAuthOpts.botUsername`
+став обов'язковим (без нього begin не може зібрати t.me-лінк) — `server.ts`
+тепер вмикає весь `telegramAuth` лише коли є ОБИДВІ змінні
+(`TELEGRAM_BOT_TOKEN` і `TELEGRAM_BOT_USERNAME`), не тільки токен.
+
+**product-map** (К1а, «Telegram») і `packages/prompts/CHANGELOG.md` —
+доповнено: «Продовжити з Telegram» описано як вхід через бота, без згадки
+підпису від віджета.
+
+Тести: `services/api/tests/auth-telegram.test.ts` (begin-контракт, poll
+pending/expired, providers, 404 без конфігурації) переписаний під новий
+контракт; новий `services/api/tests/telegram-login-begin.test.ts` — повний
+цикл begin → poll pending → бот `/start login_x` → poll ok + cookie на
+новий акаунт; повторний poll → expired; протухлий/вигаданий/спожитий
+токен у боті → `loginExpired`, акаунт не плодиться; той самий telegram_id
+двічі — той самий акаунт. `apps/web` `SignInForm.test.tsx` переписаний:
+кнопка лише при providers.telegram, десктоп — begin+window.open+рядок
+очікування, дотик/вузький — begin+location.href, poll pending→ok→редирект
+на /app, poll expired→кнопка звичайна+текст, begin мережева помилка,
+«Не відкрилось? Ще раз» повторно відкриває той самий лінк.
+
+Гейти: typecheck 0 (усі 7 пакетів), `pnpm lint` 0 (той самий baseline — 8
+CSS-сиріт-не-доведено). `apps/web` — 741 зелені (92→90 файлів: −2 видалені
+файли віджета/редиректу, тести SignInForm переписані), `services/api` —
+715 зелені, `packages/domain` — typecheck чистий (нові функції покриті
+опосередковано через services/api), `packages/eval` (overlap-lint) — 65
+зелені, `packages/db` — typecheck чистий, Postgres-тести скіпнуті без
+Docker/PG_TEST_URL (прод не чіпав). Не мерджити.

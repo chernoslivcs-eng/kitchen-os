@@ -114,6 +114,9 @@
 .pillBtnIcon { display: none; }
 .note { font-size: 13px; color: var(--dim-t); padding-top: 4px; }
 .formError { font-size: 13px; color: var(--danger); align-self: flex-start; padding: 0 16px; }
+/* Хотфікс 15.09: «Не відкрилось? Ще раз» під час очікування Telegram — і кнопка, і лінк одразу (сам href = t.me, повторний клік). */
+.tgRetry { font-size: 13px; color: var(--ink); text-decoration: underline; margin-top: -8px; }
+.tgRetry:hover { color: var(--sage); }
 .tab .signin { width: 480px; gap: 14px; }
 .tab .google { height: 54px; border-radius: 27px; font-size: 15px; }
 .tab .or { padding: 4px 0; }
