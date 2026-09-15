@@ -180,6 +180,53 @@ export function uncoveredCategories(
  * `number` — стільки днів; `null` — не псується; `undefined` — каталог мовчить,
  * далі працює таблиця зон.
  */
+// ---- Р161, PR 4: після відкриття ----
+//
+// Ті самі константи, що в промптах attachment-parser і card-routing (тег
+// shelf_open_days від моделі). Каталог — підстраховка без моделі: чек Сільпо
+// без розбору теж отримує строк після «Позначити відкритою». Порядок — від
+// вужчого до ширшого: гірчиця несе і «соус», і «спеції»; оливки — «консерви».
+export const OPEN_SHELF = {
+  mustard: 60,  // гірчиця, кетчуп, майонез
+  pickles: 21,  // оливки, маринади
+  sauce: 14,    // соуси
+  wine: 5,      // вино, сидр
+  juice: 5,     // сік
+  canned: 3,    // консерви
+  beer: 1,      // пиво
+} as const;
+
+interface OpenRule { when: string[]; days: number }
+const OPEN_RULES: OpenRule[] = [
+  { when: ['гірчиця', 'кетчуп', 'майонез'], days: OPEN_SHELF.mustard },
+  { when: ['оливки', 'маслини', 'маринади', 'мариноване', 'соління', 'квашене'], days: OPEN_SHELF.pickles },
+  { when: ['соус', 'соуси', 'гострий соус'], days: OPEN_SHELF.sauce },
+  { when: ['вино', 'ігристе', 'сидр'], days: OPEN_SHELF.wine },
+  { when: ['пиво', 'пиво безалкогольне'], days: OPEN_SHELF.beer },
+  { when: ['сік', 'нектар'], days: OPEN_SHELF.juice },
+  { when: ['консерви'], days: OPEN_SHELF.canned },
+];
+
+/**
+ * Днів життя ВІДКРИТИМ за категорією каталогу; null — каталогу нема чого
+ * сказати (сухі спеції, крупи, олія — без строку після відкриття).
+ * Крім категорій дивимось і на перше слово назви: «Гірчиця» в каталозі несе
+ * лише ['соус', 'спеції'].
+ */
+export function shelfOpenDays(catalogKey: string | null | undefined): number | null {
+  const item = catalogKey ? BY_KEY.get(catalogKey) : undefined;
+  if (!item) return null;
+  const head = item.name.toLowerCase().split(/\s+/)[0] ?? '';
+  const tokens = [head, ...item.categories];
+  const rule = OPEN_RULES.find((r) => r.when.some((w) => tokens.includes(w)));
+  return rule?.days ?? null;
+}
+
+/** Тег моделі (best_before_opened_days) важить більше; без нього — каталог. */
+export function openDaysFor(b: { best_before_opened_days: number | null; catalog_key: string | null }): number | null {
+  return b.best_before_opened_days ?? shelfOpenDays(b.catalog_key);
+}
+
 export function shelfSealedDays(catalogKey: string | null | undefined, zone: Zone): number | null | undefined {
   if (!catalogKey) return undefined;
   const item = BY_KEY.get(catalogKey);

@@ -556,6 +556,27 @@ export const registry: Record<string, Invariant> = {
     return bad.length ? fail(bad.join(' · ')) : pass(`${withBrand} брендів, label повні`);
   },
 
+  // Р161, PR 4: тег shelf_open_days на банках/пляшках — константи з промпту;
+  // на сухому (спеції, крупи, олія) тегу бути не має. Очікування — у фікстурі
+  // (open_shelf), інваріант лише звіряє.
+  'open-shelf-tags': (out, fx) => {
+    const ops = opsOfIntake(out) ?? [];
+    const rules = (fx.open_shelf ?? []) as { match: string; count: number; days: [number, number] | null }[];
+    const bad: string[] = [];
+    for (const r of rules) {
+      const re = new RegExp(r.match, 'i');
+      const hits = ops.filter((o: any) => re.test(`${o.label ?? ''} ${o.product ?? ''}`));
+      if (hits.length < r.count) { bad.push(`«${r.match}»: ${hits.length} рядків, очікували ${r.count}`); continue; }
+      for (const o of hits) {
+        const v = (o as any).tags?.shelf_open_days;
+        if (r.days === null) { if (v != null) bad.push(`«${o.label}»: зайвий shelf_open_days=${v}`); }
+        else if (typeof v !== 'number') bad.push(`«${o.label}»: без shelf_open_days (очікували ${r.days[0]}–${r.days[1]})`);
+        else if (v < r.days[0] || v > r.days[1]) bad.push(`«${o.label}»: shelf_open_days=${v}, очікували ${r.days[0]}–${r.days[1]}`);
+      }
+    }
+    return bad.length ? fail(bad.join(' · ')) : pass(`${rules.length} правил звірено`);
+  },
+
   'includes-nonfood': (out) => {
     const ops = opsOfIntake(out) ?? [];
     const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет|дрова|розпал|гриль|пакет|хустин/i;
