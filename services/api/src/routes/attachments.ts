@@ -15,7 +15,7 @@ import { authenticated, requireUser } from '../middleware/session.js';
 import { recordUsage } from '../usage.js';
 import { stampChatReceipt } from '../receipt-source.js';
 import { composeIntakeLabels } from '../intake-labels.js';
-import { vetoNonfood } from '../nonfood-veto.js';
+import { vetoNonfood, nonfoodReplyLine } from '../nonfood-veto.js';
 
 function kindOf(contentType: string): AttachmentKind {
   if (contentType.startsWith('image/')) return 'image';
@@ -111,7 +111,10 @@ export function attachmentsRoutes(app: FastifyInstance, repo: Repo, store: Attac
     await recordUsage(repo, ctx, 'attachment_parse', call.meta, call.calls, started);
 
     stampChatReceipt(call.card, call.raw_kind);
-    vetoNonfood(call.card);
+    if (vetoNonfood(call.card)) {
+      const nf = nonfoodReplyLine((call.card?.type === 'intake_diff' ? call.card.nonfood ?? [] : []).map((n) => n.label));
+      if (nf) call.reply = call.reply ? `${call.reply}\n${nf}` : nf;
+    }
     composeIntakeLabels(call.card);
 
     let card_id: string | null = null;

@@ -34,9 +34,10 @@ describe('receiptLinesToIntake', () => {
   });
 
   it('невпізнане не зникає мовчки — лягає в unmatched із назвою як у чеку', () => {
-    const r = receiptLinesToIntake([line("Дрова Pen'ok Початок вогню №2", 1, 'шт')]);
+    // (Дрова з 15.09 — стоп-слово каталогу, тому приклад інший.)
+    const r = receiptLinesToIntake([line('Журнал Vogue', 1, 'шт')]);
     expect(r.ops).toHaveLength(0);
-    expect(r.unmatched.map((l) => l.name)).toEqual(["Дрова Pen'ok Початок вогню №2"]);
+    expect(r.unmatched.map((l) => l.name)).toEqual(['Журнал Vogue']);
   });
 
   // Живий чек 23.08 (перший прогін на проді Сільпо): фаззі-підрядки давали
@@ -45,11 +46,12 @@ describe('receiptLinesToIntake', () => {
   // 01.09: round2-розширення каталогу (2342→4983) додало реальні позиції
   // «Стейк Портерхаус» і «Булочка з корицею» — колишні noisy-приклади тепер
   // ЧЕСНІ повнойменні збіги, не фаззі-підрядок; перенесено в позитивний тест.
-  it('шумні назви мережі не матчаться підрядком — ідуть в unmatched', () => {
+  it('шумні назви мережі не матчаться підрядком — «Сільпо» не стає сіллю', () => {
     const noisy = ['Пакет Сільпо Пакет з Пакетів 18кг'];   // «сіль» ⊄ цілим словом
     const r = receiptLinesToIntake(noisy.map((n) => line(n, 1, 'шт')));
     expect(r.ops).toHaveLength(0);
-    expect(r.unmatched.map((l) => l.name)).toEqual(noisy);
+    // 15.09: «пакет» — стоп-слово каталогу, рядок іде в nonfood, не в unmatched.
+    expect(r.nonfood.map((l) => l.name)).toEqual(noisy);
   });
 
   // Живий чек 01.09: «Пиво Kronenbourg Бланк з/б» лишалось unmatched —
