@@ -35,6 +35,7 @@ type Call = { url: string; method: string; body: unknown };
 let telegram: { linked: boolean; username: string | null; linked_at: string | null } | null;
 // Злиття акаунтів (15.09): що відповідає GET /v1/account/conflict.
 let conflict: Record<string, unknown> | null = null;
+let mergeEmailMoved = false;
 let calls: Call[];
 let root: Root;
 let host: HTMLDivElement;
@@ -51,7 +52,7 @@ function installFetch() {
     if (url === '/v1/telegram/link-token' && method === 'POST') return json({ url: 'https://t.me/kitchen_os_bot?start=tok1', expires_at: '2036-01-01T00:00:00.000Z' });
     if (url === '/v1/telegram' && method === 'DELETE') return json({ ok: true });
     if (url === '/v1/account/conflict' && method === 'GET') return json(conflict);
-    if (url === '/v1/account/merge' && method === 'POST') { conflict = null; return json({ ok: true, kind: 'telegram', stats: { batches: 12, products: 9, recipes: 3, sessions: 2 } }); }
+    if (url === '/v1/account/merge' && method === 'POST') { const k = conflict?.kind ?? 'telegram'; conflict = null; return json({ ok: true, kind: k, stats: { batches: 12, products: 9, recipes: 3, sessions: 2, email_moved: mergeEmailMoved } }); }
     if (url === '/v1/account/conflict/dismiss' && method === 'POST') { conflict = null; return json({ ok: true }); }
     if (url === '/v1/auth/email/attach/request' && method === 'POST') {
       if (body?.email === 'taken@example.com') return json({ error: 'email_taken' }, 409);
@@ -82,7 +83,7 @@ async function mount(data = initial()) {
 const edit = (k: string) => host.querySelector<HTMLSpanElement>(`[data-row="${k}"] [contenteditable]`)!;
 const fire = (el: Element, type: string, init: EventInit = {}) => el.dispatchEvent(new Event(type, { bubbles: true, ...init }));
 
-beforeEach(() => { telegram = { linked: false, username: null, linked_at: null }; conflict = null; installFetch(); });
+beforeEach(() => { telegram = { linked: false, username: null, linked_at: null }; conflict = null; mergeEmailMoved = false; installFetch(); });
 afterEach(async () => {
   await act(async () => { root.unmount(); });
   host.remove();
@@ -570,6 +571,18 @@ describe('злиття акаунтів', () => {
     const note = host.querySelector('[data-merge="ask"]')!;
     expect(note.textContent).toContain('Спершу вийди з того дому');
     expect([...note.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Ні, лишити окремо']);
+  });
+  it('злиття по пошті: «Пошту додано» лише коли пошту перенесено; інакше «Обʼєднано. Комора спільна…»', async () => {
+    for (const moved of [true, false]) {
+      conflict = { ...yana, kind: 'email' }; mergeEmailMoved = moved;
+      await mount();
+      const btn = [...host.querySelectorAll('[data-merge="ask"] button')].find((b) => b.textContent === 'Обʼєднати')!;
+      await act(async () => { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+      expect(host.querySelector('[data-merge="done"]')!.textContent)
+        .toBe(moved ? 'Обʼєднано. Пошту додано, комора спільна: 12 позицій додано.' : 'Обʼєднано. Комора спільна: 12 позицій додано.');
+      await act(async () => { root.unmount(); });
+    }
+    await mount(); // щоб afterEach мав що розмонтувати
   });
   it('конфлікт по пошті — note під рядком «Пошта»', async () => {
     conflict = { ...yana, kind: 'email' };

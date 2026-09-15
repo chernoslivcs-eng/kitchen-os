@@ -617,7 +617,7 @@ export const api = {
   account: {
     conflict: () => req<AccountConflict | null>('/v1/account/conflict'),
     merge: (from_user_id: string) =>
-      req<{ ok: true; kind: 'telegram' | 'email'; stats: { batches: number; products: number; recipes: number; sessions: number } }>(
+      req<{ ok: true; kind: 'telegram' | 'email'; stats: { batches: number; products: number; recipes: number; sessions: number; email_moved: boolean } }>(
         '/v1/account/merge', { method: 'POST', body: JSON.stringify({ from_user_id }) },
       ),
     dismissConflict: () => req<{ ok: true }>('/v1/account/conflict/dismiss', { method: 'POST', body: '{}' }),

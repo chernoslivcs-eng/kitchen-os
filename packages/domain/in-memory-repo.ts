@@ -806,7 +806,7 @@ export class InMemoryRepo implements Repo {
     for (const s of this.sessions.values()) if (s.user_id === user_id && !s.revoked_at) s.revoked_at = now;
   }
   async mergeAccounts(from_user_id: string, into_user_id: string, into_household_id: string, now: string): Promise<MergeStats> {
-    const stats: MergeStats = { batches: 0, products: 0, recipes: 0, sessions: 0 };
+    const stats: MergeStats = { batches: 0, products: 0, recipes: 0, sessions: 0, email_moved: false };
     const fromHouseholds = this.members.filter((m) => m.user_id === from_user_id).map((m) => m.household_id);
     for (const hh of fromHouseholds) {
       // Продукти: та сама трійка — перевісити партії на продукт нового дому; інакше переїхати.
@@ -862,8 +862,16 @@ export class InMemoryRepo implements Repo {
     this.profileTexts.delete(from_user_id);
     for (const [id, n] of this.profileNotes) if (n.user_id === from_user_id) this.profileNotes.delete(id);
     this.vetoRows = this.vetoRows.filter((r) => r.user_id !== from_user_id);
+    // Пошта: у поточного її нема (Telegram-акаунт, «Додати пошту») — переїжджає
+    // з дубля; інакше лишається своя, а пошта дубля звільняється.
     const u = this.users.get(from_user_id);
-    if (u?.email) this.usersByEmail.delete(u.email);
+    const into = this.users.get(into_user_id);
+    if (u?.email) this.usersByEmail.delete(u.email.toLowerCase());
+    if (u?.email && into && !into.email) {
+      into.email = u.email.toLowerCase();
+      this.usersByEmail.set(into.email, into_user_id);
+      stats.email_moved = true;
+    }
     this.users.delete(from_user_id);
     return stats;
   }

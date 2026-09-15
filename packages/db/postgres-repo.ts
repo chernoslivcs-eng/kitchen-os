@@ -1215,7 +1215,7 @@ export class PostgresRepo implements Repo {
     // challenge/link-token, запрошення). Нову таблицю з household_id/user_id
     // сюди треба додавати руками — інакше каскад її зітре.
     const client = await this.pool.connect();
-    const stats: MergeStats = { batches: 0, products: 0, recipes: 0, sessions: 0 };
+    const stats: MergeStats = { batches: 0, products: 0, recipes: 0, sessions: 0, email_moved: false };
     try {
       await client.query('BEGIN');
       const { rows: hhs } = await client.query<{ household_id: string }>(
@@ -1287,7 +1287,20 @@ export class PostgresRepo implements Repo {
         'UPDATE telegram_account SET user_id = $2, linked_at = $3, revoked_at = NULL WHERE user_id = $1',
         [from_user_id, into_user_id, now],
       );
-      // Пошта дубля звільняється (частковий унікальний індекс) — на випадок, якщо її додадуть у новий акаунт.
+      // Пошта: у поточного її нема (Telegram-акаунт, «Додати пошту») —
+      // переїжджає з дубля; у тій самій транзакції спершу зняти з from
+      // (частковий UNIQUE), потім поставити на into. Інакше своя лишається,
+      // а пошта дубля звільняється.
+      const { rows: emails } = await client.query<{ id: string; email: string | null }>(
+        'SELECT id, email FROM "user" WHERE id = ANY($1::uuid[])', [[from_user_id, into_user_id]],
+      );
+      const fromEmail = emails.find((r) => r.id === from_user_id)?.email ?? null;
+      const intoEmail = emails.find((r) => r.id === into_user_id)?.email ?? null;
+      if (fromEmail && !intoEmail) {
+        await client.query('UPDATE "user" SET email = NULL WHERE id = $1', [from_user_id]);
+        await client.query('UPDATE "user" SET email = $2 WHERE id = $1', [into_user_id, fromEmail]);
+        stats.email_moved = true;
+      }
       await client.query('DELETE FROM "user" WHERE id = $1', [from_user_id]);
       await client.query('COMMIT');
       return stats;

@@ -727,6 +727,8 @@ export interface MergeStats {
   products: number;
   recipes: number;
   sessions: number;
+  /** Пошта дубля перенесена на поточний акаунт (лише коли в поточного її не було). */
+  email_moved: boolean;
 }
 
 export interface AuthSession {

@@ -302,7 +302,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     | { kind: 'none' }
     | { kind: 'ask'; conflict: AccountConflict }
     | { kind: 'busy'; conflict: AccountConflict }
-    | { kind: 'done'; which: 'telegram' | 'email'; batches: number }
+    | { kind: 'done'; which: 'telegram' | 'email'; batches: number; emailMoved: boolean }
     | { kind: 'error'; conflict: AccountConflict };
   const [merge, setMerge] = useState<MergeState>({ kind: 'none' });
   const pollConflict = useCallback(async () => {
@@ -324,7 +324,9 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     setMerge({ kind: 'busy', conflict });
     try {
       const r = await api.account.merge(conflict.from_user_id);
-      setMerge({ kind: 'done', which: r.kind, batches: r.stats.batches });
+      setMerge({ kind: 'done', which: r.kind, batches: r.stats.batches, emailMoved: r.stats.email_moved });
+      // Пошта переїхала — перечитати me, щоб рядок «Пошта» показав її без перезавантаження.
+      if (r.stats.email_moved) { setEmailAdd('idle'); void useAuth.getState().refresh(); }
       if (r.kind === 'telegram') { setTg({ kind: 'ready', linked: true, username: tg.kind === 'ready' ? tg.username : null }); setTgLink(null); }
     } catch { setMerge({ kind: 'error', conflict }); }
   }
@@ -336,7 +338,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
   const mergeNote = merge.kind === 'none' ? null : (
     <div className={`${styles.mergeNote} ${merge.kind === 'done' ? styles.mergeNoteDone : ''}`} data-merge={merge.kind} role="status">
       {merge.kind === 'done' ? (
-        <span>{MERGE.done(merge.which, merge.batches)}</span>
+        <span>{MERGE.done(merge.which, merge.batches, merge.emailMoved)}</span>
       ) : (
         <>
           <span>{merge.conflict.sole_member

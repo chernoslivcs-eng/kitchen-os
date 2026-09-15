@@ -101,6 +101,30 @@ describe('mergeAccount', () => {
     // Повторно — нема ні доведення, ні акаунта.
     expect(await mergeAccount(repo, web.user_id, tg.user_id)).toMatchObject({ ok: false });
   });
+  // Дефект зі стенду (15.09): пошта дубля зникала після злиття — і магік-лінк
+  // на неї народжував НОВИЙ порожній акаунт, той самий дубль, який лікуємо.
+  it('пошта: у поточного її нема — переїжджає з дубля (email_moved), магік-лінк на неї веде в поточний акаунт', async () => {
+    const repo = new InMemoryRepo();
+    const tgOnly = await signInWithTelegram(repo, { telegram_user_id: 900, chat_id: 900, first_name: 'Т' });
+    const withMail = await signInWithVerifiedEmail(repo, 'dev@local.test', 'Д');
+    const token = randomUUID();
+    await repo.saveChallenge({ id: randomUUID(), email: 'dev@local.test', kind: 'email', user_id: tgOnly.user_id, token_hash: token, created_at: now(), expires_at: now(), consumed_at: now(), ip: null, user_agent: null, conflict_user_id: withMail.user_id });
+    const r = await mergeAccount(repo, tgOnly.user_id, withMail.user_id);
+    expect(r).toMatchObject({ ok: true, kind: 'email', stats: { email_moved: true } });
+    expect((await repo.getUser(tgOnly.user_id))!.email).toBe('dev@local.test');
+    expect((await repo.findUserByEmail('dev@local.test'))!.id).toBe(tgOnly.user_id);
+    const again = await signInWithVerifiedEmail(repo, 'dev@local.test', 'Д');
+    expect(again.user_id).toBe(tgOnly.user_id);
+  });
+  it('пошта: у поточного своя — лишається своя, пошта дубля звільняється (email_moved=false)', async () => {
+    const { repo, web } = await seed();
+    const dup = await signInWithVerifiedEmail(repo, 'dup@example.com', 'Д');
+    await prove(repo, web.user_id, dup.user_id);
+    const r = await mergeAccount(repo, web.user_id, dup.user_id);
+    expect(r).toMatchObject({ ok: true, stats: { email_moved: false } });
+    expect((await repo.getUser(web.user_id))!.email).toBe('yana@example.com');
+    expect(await repo.findUserByEmail('dup@example.com')).toBeNull();
+  });
   it('сесії дубля відкликано', async () => {
     const { repo, web, tg } = await seed();
     await prove(repo, web.user_id, tg.user_id);
