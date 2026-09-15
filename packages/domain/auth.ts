@@ -189,13 +189,14 @@ export async function signInWithTelegram(
 //      що verifyChallenge для kind 'telegram').
 
 /** Крок 1: лендинг створює challenge ДО того, як особу знають. TTL — 15 хв, як у магік-лінка. */
-export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_agent?: string | null): Promise<{ challenge: AuthChallenge; raw_token: string }> {
+export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_agent?: string | null, mode: 'start' | 'login' = 'start'): Promise<{ challenge: AuthChallenge; raw_token: string }> {
   const raw = randomToken();
   const now = new Date();
   const challenge: AuthChallenge = {
     id: randomUUID(),
     email: null,
     kind: 'tg_login',
+    mode,
     user_id: null,
     token_hash: sha256(raw),
     created_at: now.toISOString(),
@@ -210,7 +211,7 @@ export async function beginTelegramLogin(repo: Repo, ip?: string | null, user_ag
 
 export type AttachTelegramLoginOutcome =
   | { ok: true; user: UserRow; created: boolean }
-  | { ok: false; reason: 'not_found' | 'expired' | 'consumed' };
+  | { ok: false; reason: 'not_found' | 'expired' | 'consumed' | 'no_account' };
 
 /** Крок 2: бот отримав /start login_<login_token> — знайти/створити акаунт і записати user_id у challenge. Не відкриває сесію (це робить лише pollTelegramLogin, коли веб питає) — інакше довелося б плодити зайву cookie-сесію, якою ніхто не скористається. */
 export async function attachTelegramLoginUser(repo: Repo, login_token: string, tg: TelegramSignIn): Promise<AttachTelegramLoginOutcome> {
@@ -219,6 +220,12 @@ export async function attachTelegramLoginUser(repo: Repo, login_token: string, t
   if (!challenge || challenge.kind !== 'tg_login') return { ok: false, reason: 'not_found' };
   if (challenge.consumed_at) return { ok: false, reason: 'consumed' };
   if (new Date(challenge.expires_at).getTime() < Date.now()) return { ok: false, reason: 'expired' };
+  // Злиття (15.09): кнопка «Увійти» (mode 'login') акаунт НЕ створює — лише
+  // знаходить. Без акаунта веб побачить status 'no_account' і скаже «Почати».
+  if (challenge.mode === 'login') {
+    const known = await repo.getUserByTelegramId(tg.telegram_user_id) ?? await repo.getTelegramByTelegramUser(tg.telegram_user_id);
+    if (!known) { await repo.setChallengeStatus(challenge.id, 'no_account'); return { ok: false, reason: 'no_account' }; }
+  }
   const { user, created } = await signInWithTelegram(repo, tg, null, null);
   await repo.attachChallengeUser(challenge.id, user.id);
   return { ok: true, user, created };
@@ -227,6 +234,8 @@ export async function attachTelegramLoginUser(repo: Repo, login_token: string, t
 export type PollTelegramLoginOutcome =
   | { status: 'pending' }
   | { status: 'expired' }
+  /** Злиття (15.09): mode 'login', а акаунта з цим Telegram нема — веб веде на «Почати». */
+  | { status: 'no_account' }
   | { status: 'ok'; result: VerifyChallengeResult };
 
 /** Крок 3: лендинг питає раз на 2 с. 'expired' — і для протухлого, і для вже спожитого (повторний poll після 'ok') — контракт навмисно двозначний: людині однаково, який саме, кнопка на сайті та сама «Продовжити з Telegram» ще раз. */
@@ -235,6 +244,7 @@ export async function pollTelegramLogin(repo: Repo, raw_token: string, ip?: stri
   const challenge = await repo.getChallengeByHash(token_hash);
   if (!challenge || challenge.kind !== 'tg_login' || challenge.consumed_at) return { status: 'expired' };
   if (new Date(challenge.expires_at).getTime() < Date.now()) return { status: 'expired' };
+  if (challenge.status === 'no_account') return { status: 'no_account' };
   if (!challenge.user_id) return { status: 'pending' };
   const household_id = await repo.firstHouseholdOf(challenge.user_id);
   if (!household_id) return { status: 'expired' };
@@ -309,7 +319,9 @@ export async function logoutSession(repo: Repo, raw_cookie: string): Promise<voi
 // сесія читається в момент verify, не в момент request).
 export type AttachEmailOutcome =
   | { ok: true }
-  | { ok: false; reason: 'not_found' | 'expired' | 'consumed' | 'email_taken' | 'no_session' };
+  /** Злиття (15.09): пошта вже має акаунт — володіння доведено листом, чужий акаунт записано на challenge як підстава для merge. */
+  | { ok: false; reason: 'email_taken'; conflict_user_id: string }
+  | { ok: false; reason: 'not_found' | 'expired' | 'consumed' | 'no_session' };
 
 export async function verifyEmailAttach(repo: Repo, raw_token: string, current_user_id: string | null): Promise<AttachEmailOutcome> {
   const token_hash = sha256(raw_token);
@@ -326,7 +338,11 @@ export async function verifyEmailAttach(repo: Repo, raw_token: string, current_u
   // сюди ніколи не потрапляє (він не проходить через verifyEmailAttach).
   if (!challenge.email) return { ok: false, reason: 'not_found' };
   const existing = await repo.findUserByEmail(challenge.email);
-  if (existing && existing.id !== current_user_id) return { ok: false, reason: 'email_taken' };
+  if (existing && existing.id !== current_user_id) {
+    await repo.attachChallengeUser(challenge.id, current_user_id);
+    await repo.setChallengeConflict(challenge.id, existing.id);
+    return { ok: false, reason: 'email_taken', conflict_user_id: existing.id };
+  }
   if (!existing) await repo.updateUserEmail(current_user_id, challenge.email);
   return { ok: true };
 }

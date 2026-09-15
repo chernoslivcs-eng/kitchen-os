@@ -698,6 +698,35 @@ export interface AuthChallenge {
   consumed_at: string | null;
   ip: string | null;
   user_agent: string | null;
+  /**
+   * Злиття акаунтів (15.09). 'tg_login': mode 'start' (дефолт) — /start без
+   * акаунта створює його; 'login' (кнопка «Увійти» на лендингу) — не створює,
+   * а ставить status 'no_account'. conflict_user_id — доведено володіння
+   * ключем (пошта з листа), який належить ІНШОМУ акаунту: підстава для
+   * POST /v1/account/merge протягом 15 хв.
+   */
+  mode?: 'start' | 'login';
+  status?: 'no_account' | null;
+  conflict_user_id?: string | null;
+}
+
+/** Акаунт-дубль, володіння ключем якого щойно доведено: що людина побачить у профілі перед злиттям. */
+export interface AccountConflict {
+  kind: 'telegram' | 'email';
+  from_user_id: string;
+  household_name: string;
+  pantry_count: number;
+  recipe_count: number;
+  /** false — у тому домі є ще хтось: злиття заборонене, спершу вийти з дому. */
+  sole_member: boolean;
+  proven_at: string;
+}
+
+export interface MergeStats {
+  batches: number;
+  products: number;
+  recipes: number;
+  sessions: number;
 }
 
 export interface AuthSession {
@@ -853,4 +882,6 @@ export interface TelegramLinkTokenRow {
   user_id: string;
   expires_at: string;
   consumed_at: string | null;
+  /** Злиття (15.09): цей Telegram уже привʼязаний до іншого акаунта — його id; підстава для merge протягом 15 хв від consumed_at. */
+  conflict_user_id?: string | null;
 }

@@ -51,16 +51,24 @@ describe('додати пошту до акаунта без неї', () => {
     expect(user?.email).toBe('new-mail@example.com');
   });
 
-  it('пошта вже належить іншому акаунту — 409 на запиті, verify теж 409, пошта поточного юзера не змінюється', async () => {
+  // Злиття (15.09): зайнята пошта більше не відсікається на запиті — лист іде,
+  // відкритий лінк доводить володіння, verify пише конфлікт (підстава для
+  // POST /v1/account/merge), а пошта поточного юзера не змінюється.
+  it('пошта вже належить іншому акаунту — лист іде, verify 409 + conflict_user_id, пошта не змінюється, конфлікт видно в профілі', async () => {
     const owner = await signIn(app, mailer, 'taken@example.com');
     const me = await signIn(app, mailer, 'owner2@example.com');
     const req = await app.inject({
       method: 'POST', url: '/v1/auth/email/attach/request',
       headers: { cookie: me.cookie }, payload: { email: 'taken@example.com' },
     });
-    expect(req.statusCode).toBe(409);
-    expect(req.json()).toMatchObject({ error: 'email_taken' });
-    void owner;
+    expect(req.statusCode).toBe(202);
+    const url = new URL(mailer.last()!.link);
+    const verify = await app.inject({ method: 'GET', url: `${url.pathname}${url.search}`, headers: { cookie: me.cookie } });
+    expect(verify.statusCode).toBe(409);
+    expect(verify.json()).toMatchObject({ error: 'email_taken', conflict_user_id: owner.user_id });
+    expect((await repo.getUser(me.user_id))?.email).toBe('owner2@example.com');
+    const conflict = await app.inject({ method: 'GET', url: '/v1/account/conflict', headers: { cookie: me.cookie } });
+    expect(conflict.json()).toMatchObject({ kind: 'email', from_user_id: owner.user_id, sole_member: true });
   });
 
   it('лінк відкритий без активної сесії (attach=1, без куки) — 401, пошта не змінюється', async () => {

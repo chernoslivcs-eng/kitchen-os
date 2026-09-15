@@ -83,10 +83,9 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
       if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return reply.code(400).send({ error: 'valid email required' });
       }
-      const existing = await repo.findUserByEmail(email);
-      if (existing && existing.id !== ctx.user_id) {
-        return reply.code(409).send({ error: 'email_taken' });
-      }
+      // Злиття (15.09): зайняту пошту НЕ відсікаємо тут — лист іде, і саме
+      // відкритий лінк доводить володіння; verify запише конфлікт, а профіль
+      // запропонує обʼєднати акаунти (GET /v1/account/conflict).
       const { raw_token } = await requestChallenge(repo, {
         email,
         ip: req.ip,
@@ -114,7 +113,9 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
         if (wantsHtmlPage && (out.reason === 'expired' || out.reason === 'consumed')) {
           return reply.redirect(`/link/${out.reason}`);
         }
-        return reply.code(code).send({ error: out.reason });
+        // Злиття (15.09): пошта чужа, але володіння доведено — у профіль, там рядок «Обʼєднати?».
+        if (wantsHtmlPage && out.reason === 'email_taken') return reply.redirect('/profile');
+        return reply.code(code).send(out.reason === 'email_taken' ? { error: out.reason, conflict_user_id: out.conflict_user_id } : { error: out.reason });
       }
       const wantsHtml = /text\/html/i.test(String(req.headers.accept ?? ''));
       if (wantsHtml) return reply.redirect('/profile');

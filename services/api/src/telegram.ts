@@ -113,6 +113,12 @@ const limiter = makeRateLimiter({ max: 30, windowMs: 60_000 });
 
 export const COPY = {
   hello: (name: string) => `Привіт, ${name}. Це кухня дому — тепер усе, що напишеш сюди, зʼявиться в чаті Kitchen OS.`,
+  /** Злиття (15.09): другий абзац після /start (усі варіанти, крім login_) — щоб дубль не народжувався. */
+  helloHasAccount: 'Уже є акаунт на сайті? Підключи Telegram у профілі — це буде той самий акаунт, а не новий.',
+  /** Злиття (15.09): /start login_ у режимі «Увійти», а акаунта з цим Telegram нема. */
+  loginNoAccount: 'Акаунта з цим Telegram ще нема. На сайті натисни «Почати» — або просто напиши мені /start без лінка, і почнемо тут',
+  /** Злиття (15.09): «Підключити» з профілю, а цей Telegram уже привʼязаний до іншого акаунта — рішення в профілі. */
+  linkConflict: 'Цей Telegram уже має свій акаунт. Повернись у профіль на сайті — там можна обʼєднати їх в один або лишити окремо.',
   // PR 2: акаунт народжується з /start — «підключи в профілі» більше не потрібно.
   startFirst: 'Натисни /start — і почнемо.',
   /** /start <token> із профілю, а токен уже не діє — не плодимо новий акаунт, просимо натиснути «Підключити» ще раз. */
@@ -562,7 +568,7 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
         token.slice('login_'.length),
         { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null },
       );
-      if (!out.ok) return plain(COPY.loginExpired);
+      if (!out.ok) return plain(out.reason === 'no_account' ? COPY.loginNoAccount : COPY.loginExpired);
       (deps.log ?? (console as unknown as FastifyBaseLogger)).info({ telegram_user_id: u.telegram_user_id, login: true }, 'tg_start');
       const web = await webLink(deps, out.user.id);
       const url = web('/app');
@@ -572,16 +578,24 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
       // Профіль → «Підключити»: привʼязка до акаунта з поштою, як і раніше.
       const row = await deps.repo.consumeTelegramLinkToken(token, now.toISOString());
       if (!row) return plain(COPY.linkExpired);
+      // Злиття (15.09): Telegram уже привʼязаний до ІНШОГО акаунта — не
+      // перепривʼязувати мовчки; записати конфлікт, рішення — у профілі.
+      const owner = await deps.repo.getUserByTelegramId(u.telegram_user_id);
+      if (owner && owner.id !== row.user_id) {
+        await deps.repo.setTelegramLinkConflict(token, owner.id);
+        await botEvent(deps, row.user_id, 'tg_start', { created: false, linked: false, conflict: true });
+        return plain(COPY.linkConflict);
+      }
       await deps.repo.linkTelegram({ telegram_user_id: u.telegram_user_id, user_id: row.user_id, chat_id: u.chat_id, linked_at: now.toISOString(), revoked_at: null });
       const user = await deps.repo.getUser(row.user_id);
       await botEvent(deps, row.user_id, 'tg_start', { created: false, linked: true });
-      return { messages: [COPY.hello(user?.name?.trim() || 'привіт')], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
+      return { messages: [COPY.hello(user?.name?.trim() || 'привіт'), COPY.helloHasAccount], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
     }
     // PR 2: перший контакт із продуктом — у Telegram. Акаунт без пошти одразу; повторний /start — той самий.
     const r = await signInWithTelegram(deps.repo, { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null }, null, null);
     await botEvent(deps, r.user.id, 'tg_start', { created: r.created });
-    // HELP-CHIPS-TG-0915: під привітанням — шість довідок 2×3.
-    return { messages: [COPY.hello(r.user.name?.trim() || 'привіт')], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
+    // HELP-CHIPS-TG-0915: під привітанням — шість довідок 2×3. Злиття (15.09): другим абзацом — «уже є акаунт на сайті?».
+    return { messages: [COPY.hello(r.user.name?.trim() || 'привіт'), COPY.helloHasAccount], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD };
   }
 
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);

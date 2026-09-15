@@ -105,3 +105,17 @@ export const TELEGRAM = {
   /** Мітка під реплікою людини в стрічці. */
   fromChannel: 'з Telegram',
 };
+
+/** Злиття акаунтів (власник 15.09): ключ (Telegram або пошта) уже має свій акаунт — рядок-note під рядком у блоці «Акаунт». */
+export const MERGE = {
+  ask: (kind: 'telegram' | 'email', household: string, pantry: number, recipes: number) =>
+    `${kind === 'telegram' ? 'Цей Telegram' : 'Ця пошта'} уже має свій акаунт «${household}»: комора ${pantry}, рецептів ${recipes}, у домі лише ти. Обʼєднати з цим акаунтом? Усе звідти переїде сюди, той акаунт закриється. Це не скасувати.`,
+  /** У тому домі є ще хтось — злиття заборонене. */
+  blocked: (kind: 'telegram' | 'email', household: string) =>
+    `${kind === 'telegram' ? 'Цей Telegram' : 'Ця пошта'} уже має свій акаунт «${household}», і там є ще хтось. Спершу вийди з того дому — тоді обʼєднаємо.`,
+  merge: 'Обʼєднати',
+  keep: 'Ні, лишити окремо',
+  done: (kind: 'telegram' | 'email', batches: number) =>
+    `Обʼєднано. ${kind === 'telegram' ? 'Telegram підключено' : 'Пошту додано'}, комора спільна: ${batches} позицій додано.`,
+  error: 'Не вийшло обʼєднати. Спробуй ще раз за хвилину.',
+};

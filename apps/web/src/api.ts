@@ -355,6 +355,17 @@ export interface HouseholdProduct {
   search_terms?: string[];
 }
 
+/** GET /v1/account/conflict: акаунт-дубль перед злиттям. */
+export interface AccountConflict {
+  kind: 'telegram' | 'email';
+  from_user_id: string;
+  household_name: string;
+  pantry_count: number;
+  recipe_count: number;
+  sole_member: boolean;
+  proven_at: string;
+}
+
 /** GET /v1/pantry/resolve: { key: null } або продукт довідника з зоною і строком. */
 export type PantryResolveHint = { key: null; zone: PantryBatch['zone'] | null } | { key: string; name: string; cat: string; zone: PantryBatch['zone']; days: number | null };
 
@@ -602,6 +613,15 @@ export const api = {
   // M13 «Мережі»: стан підключення і синк чеків. connect — не fetch, а
   // навігація на /v1/retail/silpo/connect (OAuth-редирект наскрізь браузером).
   // Р148: Telegram-бот. Контракт зафіксований, сервер робить «ЛЕНДІНГ».
+  /** Злиття акаунтів (15.09): дубль, володіння ключем якого щойно доведено. */
+  account: {
+    conflict: () => req<AccountConflict | null>('/v1/account/conflict'),
+    merge: (from_user_id: string) =>
+      req<{ ok: true; kind: 'telegram' | 'email'; stats: { batches: number; products: number; recipes: number; sessions: number } }>(
+        '/v1/account/merge', { method: 'POST', body: JSON.stringify({ from_user_id }) },
+      ),
+    dismissConflict: () => req<{ ok: true }>('/v1/account/conflict/dismiss', { method: 'POST', body: '{}' }),
+  },
   telegram: {
     status: () => req<{ linked: boolean; username: string | null; linked_at: string | null }>('/v1/telegram'),
     linkToken: () => req<{ url: string; expires_at: string }>('/v1/telegram/link-token', { method: 'POST', body: '{}' }),

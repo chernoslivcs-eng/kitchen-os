@@ -13,10 +13,10 @@
 // contenteditable. Автозбереження PATCH /v1/profile/:key по blur і по паузі
 // 800 мс, оптимістично, без спінерів; помилка — тост і один повтор.
 
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, ApiError, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated } from '../../api';
-import { PROFILE_ROWS, SECTION, PLAN_LABEL, TELEGRAM, type ProfileRowCopy } from '../../lib/profile-copy';
+import { api, ApiError, type ProfileV2Response, type ProfileFieldV2, type ProfileNoteV2, type InviteInfo, type InviteCreated, type AccountConflict } from '../../api';
+import { PROFILE_ROWS, SECTION, PLAN_LABEL, TELEGRAM, MERGE, type ProfileRowCopy } from '../../lib/profile-copy';
 import { TABLET_MIN } from '../../lib/device';
 import { plural } from '../../lib/plural';
 import { KIT_DEFAULTS, type ProfileFieldKey } from '@kitchen/domain/profile-fields';
@@ -295,6 +295,65 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
     try { await api.telegram.unlink(); setTg({ kind: 'ready', linked: false, username: null }); setTgLink(null); }
     catch { setTg({ kind: 'error' }); } finally { setTgBusy(false); }
   }
+  // ----- Злиття акаунтів (15.09): Telegram чи пошта вже мають свій акаунт ---
+  // Доведення живе 15 хв; профіль питає раз при відкритті і після кожного
+  // «Підключити»/листа (раз на 3 с, поки лінк відкритий) — і показує note.
+  type MergeState =
+    | { kind: 'none' }
+    | { kind: 'ask'; conflict: AccountConflict }
+    | { kind: 'busy'; conflict: AccountConflict }
+    | { kind: 'done'; which: 'telegram' | 'email'; batches: number }
+    | { kind: 'error'; conflict: AccountConflict };
+  const [merge, setMerge] = useState<MergeState>({ kind: 'none' });
+  const pollConflict = useCallback(async () => {
+    try {
+      const c = await api.account.conflict();
+      setMerge((m) => (m.kind === 'busy' || m.kind === 'done' ? m : c ? { kind: 'ask', conflict: c } : { kind: 'none' }));
+      return c;
+    } catch { return null; }
+  }, []);
+  useEffect(() => { void pollConflict(); }, [pollConflict]);
+  useEffect(() => {
+    if (!tgLink) return;
+    const id = window.setInterval(() => { void pollConflict().then((c) => { if (c) setTgLink(null); }); }, 3000);
+    return () => window.clearInterval(id);
+  }, [tgLink, pollConflict]);
+  async function mergeAccounts() {
+    if (merge.kind !== 'ask' && merge.kind !== 'error') return;
+    const { conflict } = merge;
+    setMerge({ kind: 'busy', conflict });
+    try {
+      const r = await api.account.merge(conflict.from_user_id);
+      setMerge({ kind: 'done', which: r.kind, batches: r.stats.batches });
+      if (r.kind === 'telegram') { setTg({ kind: 'ready', linked: true, username: tg.kind === 'ready' ? tg.username : null }); setTgLink(null); }
+    } catch { setMerge({ kind: 'error', conflict }); }
+  }
+  async function keepSeparate() {
+    if (merge.kind !== 'ask' && merge.kind !== 'error') return;
+    setMerge({ kind: 'none' });
+    try { await api.account.dismissConflict(); } catch { /* доведення саме згорить за 15 хв */ }
+  }
+  const mergeNote = merge.kind === 'none' ? null : (
+    <div className={`${styles.mergeNote} ${merge.kind === 'done' ? styles.mergeNoteDone : ''}`} data-merge={merge.kind} role="status">
+      {merge.kind === 'done' ? (
+        <span>{MERGE.done(merge.which, merge.batches)}</span>
+      ) : (
+        <>
+          <span>{merge.conflict.sole_member
+            ? MERGE.ask(merge.conflict.kind, merge.conflict.household_name, merge.conflict.pantry_count, merge.conflict.recipe_count)
+            : MERGE.blocked(merge.conflict.kind, merge.conflict.household_name)}</span>
+          {merge.kind === 'error' && <span className={styles.tgError}>{MERGE.error}</span>}
+          <div className={styles.mergeActions}>
+            {merge.conflict.sole_member && (
+              <button type="button" className={styles.mergeBtn} data-tap onClick={() => void mergeAccounts()} disabled={merge.kind === 'busy'}>{MERGE.merge}</button>
+            )}
+            <button type="button" className={styles.tgConnect} data-tap onClick={() => void keepSeparate()} disabled={merge.kind === 'busy'}>{MERGE.keep}</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   async function tgCopy() {
     if (!tgLink) return;
     try { await navigator.clipboard.writeText(tgLink); setTgCopied(true); } catch { /* лінк видно — скопіює рукою */ }
@@ -488,6 +547,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
         )}
       </div>
       {emailAddError && <span className={styles.tgError}>{emailAddError}</span>}
+      {(merge.kind === 'done' ? merge.which : merge.kind !== 'none' ? merge.conflict.kind : null) === 'email' && mergeNote}
       <div className={styles.accRow}>
         <span className={styles.accKey}>{SECTION.plan}</span>
         <span className={styles.accVal}>{plan}</span>
@@ -514,6 +574,7 @@ export function ProfileV2({ initial }: { initial: ProfileV2Response }) {
           <span className={styles.tgHint}>{TELEGRAM.linkHint}</span>
         </div>
       )}
+      {(merge.kind === 'done' ? merge.which : merge.kind !== 'none' ? merge.conflict.kind : null) === 'telegram' && mergeNote}
       <div className={`${styles.accRow} ${styles.accRowTheme}`}>
         <span className={styles.accKey}>{SECTION.theme}<span className={styles.accKeySub}>{SECTION.themeSub}</span></span>
         <span className={styles.segment} role="radiogroup" aria-label={SECTION.theme}>

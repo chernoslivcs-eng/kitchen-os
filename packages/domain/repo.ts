@@ -7,7 +7,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   LastAppliedIntake, AppEventRow,
-  TelegramAccountRow, TelegramLinkTokenRow,
+  TelegramAccountRow, TelegramLinkTokenRow, MergeStats,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type {
@@ -325,6 +325,10 @@ export interface Repo {
   consumeChallenge(id: string): Promise<void>;
   /** Хотфікс 15.09: бот дописує user_id у challenge kind 'tg_login', яку веб створив ДО того, як особу знали (attachTelegramLoginUser). Не чіпає consumed — гонитва з poll неможлива (poll сам consume). */
   attachChallengeUser(id: string, user_id: string): Promise<void>;
+  /** Злиття (15.09): /start login_ без акаунта при mode 'login' — веб побачить 'no_account'. */
+  setChallengeStatus(id: string, status: 'no_account'): Promise<void>;
+  /** Злиття (15.09): доведено володіння поштою іншого акаунта — записати як підставу (challenge лишається consumed). */
+  setChallengeConflict(id: string, conflict_user_id: string): Promise<void>;
 
   saveSession(s: AuthSession): Promise<void>;
   getSessionByCookieHash(cookie_hash: string): Promise<AuthSession | null>;
@@ -351,6 +355,24 @@ export interface Repo {
   saveTelegramLinkToken(row: TelegramLinkTokenRow): Promise<void>;
   consumeTelegramLinkToken(token: string, now: string): Promise<TelegramLinkTokenRow | null>;
   linkTelegram(row: TelegramAccountRow): Promise<void>;
+  /** Злиття (15.09): токен «Підключити» спожито, але Telegram уже чужий — записати чий. */
+  setTelegramLinkConflict(token: string, conflict_user_id: string): Promise<void>;
+  /**
+   * Злиття (15.09): найсвіжіша підстава для злиття у цього user — link-token
+   * або challenge з conflict_user_id, доведені не раніше `since`. null — нема.
+   */
+  findConflictProof(user_id: string, since: string): Promise<{ kind: 'telegram' | 'email'; from_user_id: string; proven_at: string } | null>;
+  /** «Ні, лишити окремо»: зняти підставу. */
+  clearConflictProof(user_id: string): Promise<void>;
+  /**
+   * Злиття (15.09): усе з дому from_user переїжджає в into_household, усе
+   * особисте from_user — на into_user; from_user і його дім видаляються.
+   * Продукти зливаються за трійкою (партії перевішуються), решта додається.
+   * Одна транзакція. Хто кличе — уже перевірив, що from_user єдиний у домі.
+   */
+  mergeAccounts(from_user_id: string, into_user_id: string, into_household_id: string, now: string): Promise<MergeStats>;
+  /** Сесії user — відкликати всі (після злиття from_user не має лишатись залогіненим). */
+  revokeAllSessionsOfUser(user_id: string, now: string): Promise<void>;
   getTelegramByUser(user_id: string): Promise<TelegramAccountRow | null>;
   getTelegramByTelegramUser(telegram_user_id: number): Promise<TelegramAccountRow | null>;
   revokeTelegram(user_id: string, at: string): Promise<void>;
