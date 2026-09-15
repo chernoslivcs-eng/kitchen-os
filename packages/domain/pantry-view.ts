@@ -8,7 +8,7 @@ import type { HouseholdProduct } from './product.js';
 import type { VetoRow } from './profile-text.js';
 import { matchVeto, type VetoScope } from './veto.js';
 import { kcalOf, isEstimate } from './nutrition.js';
-import { shelfSealedDays } from './shelf-life.js';
+import { shelfSealedDays, openDaysFor } from './shelf-life.js';
 
 export type PantryNo = 'не їм' | 'не можна' | null;
 
@@ -128,7 +128,7 @@ export const ZONE_SHELF_DAYS: Record<Zone, number> = {
  * бекфіл на 246 наявних партій не потрібен узагалі.
  */
 export function effectiveExpiry(
-  b: Pick<PantryBatch, 'expires_at' | 'added_at' | 'zone'>,
+  b: Pick<PantryBatch, 'expires_at' | 'added_at' | 'zone'> & Partial<Pick<PantryBatch, 'state' | 'opened_at' | 'best_before_opened_days'>>,
   catalogKey: string | null = null,
   _nowMs = Date.now(),
 ): string | null {
@@ -137,10 +137,20 @@ export function effectiveExpiry(
   // взагалі; `undefined` — каталогу нема чого сказати або зона з ним не згодна,
   // і тоді працює таблиця зон.
   const fromCatalog = shelfSealedDays(catalogKey, b.zone);
-  if (fromCatalog === null) return null;
-  const days = fromCatalog ?? ZONE_SHELF_DAYS[b.zone];
-  if (days == null) return null;
-  return new Date(new Date(b.added_at).getTime() + days * 86_400_000).toISOString();
+  const sealed = (() => {
+    if (fromCatalog === null) return null;
+    const days = fromCatalog ?? ZONE_SHELF_DAYS[b.zone];
+    if (days == null) return null;
+    return new Date(new Date(b.added_at).getTime() + days * 86_400_000).toISOString();
+  })();
+  // Р161, PR 4: відкрита партія без записаного строку — годинник «після
+  // відкриття» від opened_at: тег моделі, а без нього каталог за категорією
+  // (банки, пляшки). Запечатане «не псується» відкритим живе днями.
+  if (b.state === 'opened' && b.opened_at) {
+    const openDays = openDaysFor({ best_before_opened_days: b.best_before_opened_days ?? null, catalog_key: catalogKey });
+    return expiryOnOpen(sealed, openDays, new Date(b.opened_at).getTime());
+  }
+  return sealed;
 }
 
 /** Днів до кінця свіжості — та сама арифметика, що в «Зараз» у стрічці. */

@@ -15,7 +15,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { PantryBatch, Repo, Zone, Unit, BatchState, DepletedReason } from '@kitchen/domain';
-import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, DEPLETED_REASONS, ensureProduct, pantryAddHint, pantryAddZone, normalizeTriple } from '@kitchen/domain';
+import { pantryItemView, newVetoScope, expiryOnOpen, effectiveExpiry, openDaysFor, DEPLETED_REASONS, ensureProduct, pantryAddHint, pantryAddZone, normalizeTriple } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { BY_KEY } from '@kitchen/catalog/seed';
 
@@ -261,7 +261,7 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
           'expires_at' in patch
             ? patch.expires_at ?? null
             : effectiveExpiry(batch, batch.catalog_key),
-          batch.best_before_opened_days,
+          openDaysFor(batch), // Р161, PR 4: без тегу — каталог за категорією
         );
       }
       if (req.body.state === 'depleted') {

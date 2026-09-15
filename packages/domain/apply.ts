@@ -12,6 +12,7 @@ import { subscriptionDefault, ruleFromDates } from './periods.js';
 import { CARD_APPLY_MODE } from './card-modes.js';
 import { rebuildVetoIndex } from './veto-index.js';
 import { expiryOnOpen, effectiveExpiry } from './pantry-view.js';
+import { openDaysFor } from './shelf-life.js';
 import { resolveLabelToZone, resolveTripleKey, type ResolveCtx } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
@@ -613,9 +614,10 @@ async function applyIntakeOp(
     // А2: менше з двох — відкриття скорочує життя, а не подовжує (expiryOnOpen).
     // Б1: другим числом іде РОЗРАХОВАНИЙ строк, а не колонка. У запечатаної
     // партії колонка порожня, і без цього відкриття знову подовжувало б життя.
+    // Р161, PR 4: без тегу від моделі — строк після відкриття з каталогу (банки, пляшки).
     const expires_at = expiryOnOpen(
       effectiveExpiry(target, target.catalog_key),
-      target.best_before_opened_days,
+      openDaysFor(target),
     );
     await repo.updateBatch(target.id, {
       state: 'opened',
@@ -685,7 +687,7 @@ async function applyIntakeOp(
       patch.expires_source = 'category';
       patch.expires_at = expiryOnOpen(
         effectiveExpiry(target, target.catalog_key),
-        target.best_before_opened_days,
+        openDaysFor(target),
       );
     } else if (op.state === 'sealed') {
       // «Ні, я її ще не відкривав» — той самий відкат, що вже робить ручна

@@ -1,0 +1,33 @@
+{
+  "id": "receipt-open-shelf",
+  "description": "Р161, PR 4: строк «після відкриття» для банок і пляшок. 12 рядків із комори власника (гірчиця ×2, оливки ×2, вино ×2, пиво, тунець, кукурудза, соус, сік, майонез) мусять нести shelf_open_days у межах правила; 8 контрольних (сіль, олія, рис, кава, чай, паприка, макарони, борошно) — без тегу.",
+  "call": "attachment_parse",
+  "invariants": [
+    "receipt-coverage-80",
+    "no-prices",
+    "open-shelf-tags"
+  ],
+  "attachment": {
+    "kind": "text",
+    "path": "receipt-open-shelf.txt"
+  },
+  "open_shelf": [
+    { "match": "гірчиц", "count": 2, "days": [60, 60] },
+    { "match": "оливк", "count": 2, "days": [21, 21] },
+    { "match": "вино", "count": 2, "days": [5, 5] },
+    { "match": "пиво", "count": 1, "days": [1, 1] },
+    { "match": "тунец", "count": 1, "days": [3, 3] },
+    { "match": "кукурудз", "count": 1, "days": [3, 3] },
+    { "match": "соус", "count": 1, "days": [14, 14] },
+    { "match": "сік", "count": 1, "days": [5, 5] },
+    { "match": "майонез", "count": 1, "days": [60, 60] },
+    { "match": "сіль", "count": 1, "days": null },
+    { "match": "олі", "count": 1, "days": null },
+    { "match": "рис", "count": 1, "days": null },
+    { "match": "кав", "count": 1, "days": null },
+    { "match": "чай", "count": 1, "days": null },
+    { "match": "паприк", "count": 1, "days": null },
+    { "match": "макарон|farfalle|фарфалле", "count": 1, "days": null },
+    { "match": "борошн", "count": 1, "days": null }
+  ]
+}

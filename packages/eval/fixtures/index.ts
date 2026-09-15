@@ -46,6 +46,10 @@ export interface Fixture {
   /** Скільки товарних позицій у чеку. Потрібне фото-фікстурам: тексту, з
    *  якого можна порахувати, там немає. */
   expect_lines?: number;
+  /** Р161, PR 4: очікування тегу shelf_open_days по рядках чека — regex по
+   *  label/product, скільки таких рядків, і межі значення ([min, max]) або
+   *  null — тегу бути не має. */
+  open_shelf?: { match: string; count: number; days: [number, number] | null }[];
   skip?: string;
 }
 
@@ -152,6 +156,10 @@ export function loadFixtures(): Fixture[] {
     {
       ...readJson('receipt-silpo.json'),
       attachment: { kind: 'text' as const, path: 'receipt-silpo.txt', content: readText('receipt-silpo.txt') },
+    },
+    {
+      ...readJson('receipt-open-shelf.json'),
+      attachment: { kind: 'text' as const, path: 'receipt-open-shelf.txt', content: readText('receipt-open-shelf.txt') },
     },
     (() => {
       const imgPath = join(HERE, 'shelf-photo.jpg');
