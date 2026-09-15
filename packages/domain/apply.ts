@@ -12,7 +12,7 @@ import { subscriptionDefault, ruleFromDates } from './periods.js';
 import { CARD_APPLY_MODE } from './card-modes.js';
 import { rebuildVetoIndex } from './veto-index.js';
 import { expiryOnOpen, effectiveExpiry } from './pantry-view.js';
-import { resolveLabelToZone, resolveLabelToKey } from '@kitchen/catalog';
+import { resolveLabelToZone, resolveLabelToKey, type ResolveCtx } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
 import { normalizeTriple, displayName, catalogGroupsToAllergens, isCatalogFasting, type HouseholdProduct, type ProductTags, type ProductTriple } from './product.js';
@@ -453,6 +453,7 @@ export async function ensureProduct(
   fallbackLabel: string,
   modelTags: ProductTags | undefined,
   unit: Unit | null,
+  ctx?: ResolveCtx,
 ): Promise<HouseholdProduct | null> {
   if (!triple.product) return null;
   const known = await repo.findProductByTriple(household_id, triple);
@@ -465,7 +466,7 @@ export async function ensureProduct(
   // Модельні теги перемагають каталожні — З ОДНИМ ВИНЯТКОМ, і виняток цей
   // `fasting`. Решта тегів лишається за моделлю: вона бачить пакет, каталог
   // знає тільки клас, і на алергенах її слово конкретніше.
-  const key = resolveLabelToKey(triple.product) ?? resolveLabelToKey(fallbackLabel);
+  const key = resolveLabelToKey(triple.product, undefined, ctx) ?? resolveLabelToKey(fallbackLabel, undefined, ctx);
   const cat = key ? BY_KEY.get(key) : undefined;
   const tags: ProductTags = { ...(modelTags ?? {}) };
   if (cat) {

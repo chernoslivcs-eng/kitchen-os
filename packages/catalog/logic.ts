@@ -195,17 +195,45 @@ function prepare(catalog: readonly CatalogItem[]): PreparedItem[] {
   return out;
 }
 
+/** Контекст резолвера (15.09, PR 1 серії «строки»): зона з чека/форми. */
+export interface ResolveCtx {
+  zone?: CatalogItem['zone_default'];
+}
+
+// Широкі токени категорій, за якими «та сама група» не визначається:
+// кефір і сир обидва «молочне», але «Сир Моцарела» не про кефір.
+const BROAD_TOKENS = new Set(['тваринне', 'рослинне', 'молочне', 'мʼясо', 'овочі', 'фрукти', 'консерви', 'напої', 'свіже', 'солодке', 'випічка', 'борошняне']);
+// У зоні спецій свіжого не буває: овочі та зелень туди не резолвимо.
+const NOT_IN_SPICES = new Set(['овочі', 'зелень', 'свіже', 'пасльонові']);
+
+function sameGroup(a: CatalogItem, b: CatalogItem): boolean {
+  const ta = a.categories.filter((c) => !BROAD_TOKENS.has(c));
+  return ta.some((c) => b.categories.includes(c));
+}
+
+/** «орегано» у spices → «Орегано сушене», коли такий запис є (та сама голова назви: «Орегано свіже» / «Орегано сушене»). */
+function driedVariant(item: CatalogItem, catalog: readonly CatalogItem[]): CatalogItem | null {
+  if (!/fresh|свіж/i.test(item.key + ' ' + item.name)) return null;
+  const head = wordsOf(item.name)[0];
+  if (!head) return null;
+  return catalog.find((i) => i.key !== item.key && wordsOf(i.name)[0] === head && /dried|сушен/i.test(i.key + ' ' + i.name)) ?? null;
+}
+
 export function resolveLabel(
   label: string,
   minTier: MatchTier = 'anchored',
   catalog = CATALOG,
+  ctx: ResolveCtx = {},
 ): { key: string; tier: MatchTier } | null {
   const norm = normalize(label);
   const ws = wordsOf(label);
   const set = new Set(ws);
   const head = headOf(ws);
-  let best: { key: string; tier: MatchTier; score: number; priority: number } | null = null;
+  let best: { key: string; item: CatalogItem; tier: MatchTier; score: number; priority: number } | null = null;
   for (const { item, cands } of prepare(catalog)) {
+    // (б) зона — контекст: у spices овочів і зелені не буває; свіжа трава там —
+    // сушена, коли такий запис є (підміна нижче), інакше запис пропускаємо.
+    if (ctx.zone === 'spices' && item.categories.some((c) => NOT_IN_SPICES.has(c)) && !driedVariant(item, catalog)) continue;
     for (const cand of cands) {
       const c = cand.norm;
       let tier: MatchTier | null = null;
@@ -239,11 +267,48 @@ export function resolveLabel(
       if (!tier || TIER_RANK[tier] < TIER_RANK[minTier]) continue;
       const score = TIER_RANK[tier] * 1000 + weight;
       if (!best || score > best.score || (score === best.score && prio(item) > best.priority)) {
-        best = { key: item.key, tier, score, priority: prio(item) };
+        best = { key: item.key, item, tier, score, priority: prio(item) };
       }
     }
   }
-  return best ? { key: best.key, tier: best.tier } : null;
+  if (!best) return null;
+  return { key: refineSpecies(best.item, set, catalog, ctx).key, tier: best.tier };
+}
+
+/**
+ * Правила (а) і (б) над уже обраним записом. Окремо — бо чековий резолвер
+ * (services/api, resolveReceiptKey) має власний цикл і мусить давати ТОЙ САМИЙ
+ * ключ (тест «два резолвери на одному корпусі»).
+ *
+ * (а) Родова голова взяла загальний запис, а далі в мітці стоїть вид тієї ж
+ *     групи («Сир Моцарела», «Хліб … житній») — вид перемагає, незалежно від
+ *     порядку слів. Р161: досі «Сир Гауда 45%» давало «Сир» (твердий, 60 дн).
+ *     Вид мусить нести слово ПОЗА родовим («Олія Олейна»: «олейна» — вид,
+ *     саме «олія» — ні).
+ * (б) У зоні спецій трава — сушена, коли такий запис є.
+ */
+export function refineSpecies(
+  chosen: CatalogItem,
+  labelWords: ReadonlySet<string>,
+  catalog: readonly CatalogItem[] = CATALOG,
+  ctx: ResolveCtx = {},
+): CatalogItem {
+  if (chosen.key.startsWith('gen_')) {
+    const genWords = new Set(chosen.aliases.flatMap((a) => wordsOf(a)).concat(wordsOf(chosen.name)));
+    let sp: { item: CatalogItem; weight: number } | null = null;
+    for (const { item, cands } of prepare(catalog)) {
+      if (item.key.startsWith('gen_') || !sameGroup(chosen, item)) continue;
+      if (ctx.zone === 'spices' && item.categories.some((c) => NOT_IN_SPICES.has(c)) && !driedVariant(item, catalog)) continue;
+      for (const cand of cands) {
+        const cw = cand.words;
+        if (!cw.length || !cw.every((w) => labelWords.has(w)) || !cw.some((w) => !genWords.has(w))) continue;
+        if (!sp || cand.weight > sp.weight || (cand.weight === sp.weight && prio(item) > prio(sp.item))) sp = { item, weight: cand.weight };
+      }
+    }
+    if (sp) chosen = sp.item;
+  }
+  if (ctx.zone === 'spices') chosen = driedVariant(chosen, catalog) ?? chosen;
+  return chosen;
 }
 
 // Планка за замовчуванням — `anchored`, бо найгарячіший споживач цієї
@@ -251,8 +316,8 @@ export function resolveLabel(
 // збігу там — чужий алерген на продукті, тож мовчання дешевше за здогад.
 // Кому потрібна ширина (пошук, підказки, де людина дивиться очима) — кличе
 // resolveLabel напряму з `words`.
-export function resolveLabelToKey(label: string, catalog = CATALOG): string | null {
-  return resolveLabel(label, 'anchored', catalog)?.key ?? null;
+export function resolveLabelToKey(label: string, catalog = CATALOG, ctx?: ResolveCtx): string | null {
+  return resolveLabel(label, 'anchored', catalog, ctx)?.key ?? null;
 }
 
 // Зона зберігання за назвою продукту. Використовується там, де зону не вказали

@@ -3,7 +3,7 @@
 // ensureProduct), зона — resolveLabelToZone (generic, як `zone` партії в
 // apply). Тому «кефір» тут, як і в чаті: ключа нема (у довіднику лише
 // варіанти), а зона — холодильник.
-import { resolveLabelToKey, resolveLabelToZone } from '@kitchen/catalog';
+import { resolveLabelToKey, resolveLabelToZone, type ResolveCtx } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import { shelfSealedDays } from './shelf-life.js';
 import { ZONE_SHELF_DAYS } from './pantry-view.js';
@@ -24,8 +24,10 @@ export function pantryAddZone(label: string): Zone | null {
   return resolveLabelToZone(label.trim()) ?? null;
 }
 
-export function pantryAddHint(label: string): PantryAddHint | null {
-  const key = resolveLabelToKey(label.trim());
+// 15.09, правило (б): зона, яку людина вже обрала, — контекст резолвера
+// («орегано» у спеціях — сушене, не свіжа зелень).
+export function pantryAddHint(label: string, ctx?: ResolveCtx): PantryAddHint | null {
+  const key = resolveLabelToKey(label.trim(), undefined, ctx);
   const item = key ? BY_KEY.get(key) : undefined;
   if (!key || !item) return null;
   const zone = pantryAddZone(label) ?? item.zone_default;
