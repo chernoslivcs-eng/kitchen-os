@@ -57,10 +57,46 @@ export interface HouseholdMemberRow {
  * Він цих людей особисто кликав і має розрізняти їх у списку; далі за список
  * ця пара не йде.
  */
+export interface AdminBetaRow {
+  user_id: string;
+  name: string;
+  email: string | null;
+  household_id: string;
+  household_name: string;
+  /** Реєстрація — created_at людини. */
+  started_at: string;
+  /** Звідки акаунт: telegram — без пошти або привʼязаний Telegram без магік-лінка; email — був магік-лінк; google — інакше. */
+  source: 'telegram' | 'email' | 'google';
+  telegram_user_id: number | null;
+  /** Живі партії в домі (не depleted). */
+  pantry: number;
+  /** Речень профілю з відповіддю (status filled або none — «Нічого такого» теж відповідь), із семи. */
+  profile_filled: number;
+  /** Скільки разів питала «що на вечерю» — картки proposal у її розмовах. */
+  dinner_asks: number;
+  /** Завершені готування (finished_at, без undone). */
+  cooks: number;
+  /** Готування з rating або verdict. */
+  feedback: number;
+  /** Застосовані картки period/event. */
+  periods: number;
+  /** Надіслані запрошення в дім. */
+  invites: number;
+  /** Сільпо підключено (active). */
+  silpo: boolean;
+  last_seen_at: string | null;
+  /** Канал останньої репліки людини. */
+  last_channel: 'web' | 'telegram' | null;
+  /** Днів із подіями або репліками за останні 7. */
+  active_days_7: number;
+}
+
 export interface AdminHouseholdRow {
   id: string;
   name: string;
   created_at: string;
+  /** 15.09: у домі є жива Telegram-привʼязка. */
+  telegram: boolean;
   /** Скільки людей у домі. */
   people: number;
   /** Останній хід (репліка людини або відповідь) — null, якщо ходів не було. */
@@ -252,6 +288,14 @@ export interface Repo {
    * найцінніші.
    */
   listAdminHouseholds(): Promise<AdminHouseholdRow[]>;
+  /**
+   * Власник 15.09 (BETA-PLAN-0915): рядок на людину для таблиці «Бета» — сім
+   * справ лічильниками з НАЯВНИХ таблиць (batch, profile_text, message,
+   * cook_run, card_pending, household_invite, retail_connection, auth_session,
+   * app_event, telegram_account). Нових таблиць нема. Технічні доми фільтрує
+   * маршрут (правило одне — routes/admin-households.ts).
+   */
+  adminBetaRows(now: Date): Promise<AdminBetaRow[]>;
   /**
    * Крок А4: гроші розрізами — ОДНИМ запитом на обидва періоди.
    *

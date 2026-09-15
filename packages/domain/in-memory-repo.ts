@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminMoneyGroup, AdminMoneyAverages } from './repo.js';
+import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminBetaRow, AdminMoneyGroup, AdminMoneyAverages } from './repo.js';
 import type {
   PantryBatch, PendingCard, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
@@ -376,6 +376,44 @@ export class InMemoryRepo implements Repo {
    * Крок А2: та сама семантика, що в SQL-версії — доми з агрегатами, і доми
    * без жодної активності присутні нарівні з рештою.
    */
+  async adminBetaRows(now: Date): Promise<AdminBetaRow[]> {
+    const out: AdminBetaRow[] = [];
+    const weekAgo = now.getTime() - 7 * 86_400_000;
+    for (const u of this.users.values()) {
+      const mem = [...this.members].filter((m) => m.user_id === u.id).sort((a, b) => a.joined_at.localeCompare(b.joined_at))[0];
+      if (!mem) continue;
+      const hh = this.households.get(mem.household_id);
+      const tg = [...this.telegramAccounts.values()].find((a) => a.user_id === u.id && !a.revoked_at) ?? null;
+      const hadMagic = !!u.email && [...this.challenges.values()].some((c) => (c.kind ?? 'email') === 'email' && c.email === u.email && c.consumed_at);
+      const source: AdminBetaRow['source'] = !u.email ? 'telegram' : hadMagic ? 'email' : tg ? 'telegram' : 'google';
+      const sessions = [...this.chatSessions.values()].filter((s) => s.user_id === u.id);
+      const msgs = sessions.flatMap((s) => this.messages.get(s.id) ?? []);
+      const userMsgs = msgs.filter((m) => m.role === 'user').sort((a, b) => a.created_at.localeCompare(b.created_at));
+      const profile = this.profileTexts.get(u.id);
+      const runs = [...this.cookRuns.values()].filter((r) => r.user_id === u.id && !r.undone_at);
+      const seen = [...this.sessions.values()].filter((a) => a.user_id === u.id).map((a) => a.last_seen_at).sort();
+      const days = new Set<string>();
+      for (const e of this.appEvents) if (e.user_id === u.id && new Date(e.created_at).getTime() >= weekAgo) days.add(e.created_at.slice(0, 10));
+      for (const m of userMsgs) if (new Date(m.created_at).getTime() >= weekAgo) days.add(m.created_at.slice(0, 10));
+      out.push({
+        user_id: u.id, name: u.name, email: u.email, household_id: mem.household_id, household_name: hh?.name ?? '',
+        started_at: u.created_at, source, telegram_user_id: tg?.telegram_user_id ?? null,
+        pantry: [...this.batches.values()].filter((b) => b.household_id === mem.household_id && b.state !== 'depleted').length,
+        profile_filled: profile ? Object.values(profile.fields).filter((f) => f.status !== 'empty').length : 0,
+        dinner_asks: msgs.filter((m) => m.role === 'assistant' && m.card?.type === 'proposal').length,
+        cooks: runs.filter((r) => r.finished_at).length,
+        feedback: runs.filter((r) => r.rating != null || (r.verdict && r.verdict.trim())).length,
+        periods: [...this.pending.values()].filter((p) => p.user_id === u.id && p.applied_at && (p.card.type === 'period' || p.card.type === 'event')).length,
+        invites: [...this.invites.values()].filter((i) => i.invited_by === u.id).length,
+        silpo: [...this.retail.values()].some((r) => r.user_id === u.id && r.provider === 'silpo' && r.status === 'active'),
+        last_seen_at: seen.at(-1) ?? null,
+        last_channel: userMsgs.length ? (userMsgs.at(-1)!.channel ?? 'web') : null,
+        active_days_7: days.size,
+      });
+    }
+    return out;
+  }
+
   async listAdminHouseholds(): Promise<AdminHouseholdRow[]> {
     const out: AdminHouseholdRow[] = [];
     for (const h of this.households.values()) {
@@ -400,6 +438,7 @@ export class InMemoryRepo implements Repo {
         owner_id: owner?.id ?? null,
         owner_name: owner?.name ?? null,
         owner_email: owner?.email ?? null,
+        telegram: [...this.telegramAccounts.values()].some((a) => userIds.has(a.user_id) && !a.revoked_at),
       });
     }
     return out.sort((a, b) => {

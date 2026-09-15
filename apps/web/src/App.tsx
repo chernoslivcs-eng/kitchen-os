@@ -18,6 +18,7 @@ const CalendarPage = lazyPage(() => import('./pages/Calendar/Calendar').then((m)
 const AdminOccasionsPage = lazyPage(() => import('./pages/Admin/AdminOccasions').then((m) => ({ default: m.AdminOccasionsPage })));
 const PulsePage = lazyPage(() => import('./pages/Admin/Pulse').then((m) => ({ default: m.PulsePage })));
 const BoomPage = lazyPage(() => import('./pages/Admin/Boom').then((m) => ({ default: m.BoomPage })));
+const BetaPage = lazyPage(() => import('./pages/Admin/Beta').then((m) => ({ default: m.BetaPage })));
 const AdminShell = lazyPage(() => import('./pages/Admin/AdminShell').then((m) => ({ default: m.AdminShell })));
 const HouseholdsPage = lazyPage(() => import('./pages/Admin/Households').then((m) => ({ default: m.HouseholdsPage })));
 const SharedRecipePage = lazyPage(() => import('./pages/SharedRecipe/SharedRecipe').then((m) => ({ default: m.SharedRecipePage })));
@@ -132,6 +133,7 @@ export function App() {
             <Route path="/admin/pulse" element={<PulsePage />} />
             <Route path="/admin/h/:household_id" element={<PulsePage />} />
             <Route path="/admin/occasions" element={<AdminOccasionsPage />} />
+            <Route path="/admin/beta" element={<BetaPage />} />
             <Route path="/admin/boom" element={<BoomPage />} />
           </Route>
           <Route path="/share" element={<RequireAuth><SharePage /></RequireAuth>} />

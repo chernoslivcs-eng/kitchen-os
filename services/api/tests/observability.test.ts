@@ -196,10 +196,11 @@ describe('GET /v1/admin/pulse', () => {
 });
 
 describe('набір подій', () => {
-  it('закритий список — двадцять одна точка, не кліки підряд', () => {
+  it('закритий список — двадцять девʼять точок, не кліки підряд', () => {
     // Крок А1: тринадцять було до знайомства й картки «Про тебе»; вісім нових
-    // закривають рівно ті два місця, де людина могла мовчки застрягти.
-    expect(KNOWN_EVENTS.size).toBe(21);
+    // закривають рівно ті два місця, де людина могла мовчки застрягти;
+    // 15.09 — вісім подій Telegram-бота (пише сервер, telegram.ts botEvent).
+    expect(KNOWN_EVENTS.size).toBe(29);
     expect(KNOWN_EVENTS.has('chat_input_abandoned')).toBe(true);
     expect(KNOWN_EVENTS.has('error_shown')).toBe(true);
   });

@@ -32,6 +32,8 @@ export interface PulseTurn {
   user_id: string;
   who: string;
   role: 'user' | 'assistant';
+  /** 15.09: звідки хід — web чи telegram. */
+  channel: 'web' | 'telegram';
   text: string | null;
   card_type: string | null;
   /** Стан картки словом: застосована / скасована / відхилена / чекає. */
@@ -187,6 +189,7 @@ export function pulseRoutes(app: FastifyInstance, repo: Repo) {
               user_id: m.user_id,
               who: m.name,
               role: msg.role,
+              channel: msg.channel ?? 'web',
               text: msg.text,
               card_type: (msg.card as Card | null)?.type ?? null,
               card_state: !msg.card ? null
@@ -223,6 +226,13 @@ export function pulseRoutes(app: FastifyInstance, repo: Repo) {
       const events = await repo.listAppEventsForHousehold(household_id, { from, to, limit: 500 });
 
       const household = await repo.getHousehold(household_id);
+      // 15.09: джерело акаунта і Telegram-id людини — щоб у пульсі було видно бета-тестерів з бота.
+      const sources = await Promise.all(members.map(async (m) => {
+        const u = await repo.getUser(m.user_id);
+        const tg = await repo.getTelegramByUser(m.user_id);
+        const source: 'telegram' | 'email' | 'google' = !u?.email ? 'telegram' : tg ? 'telegram' : 'email';
+        return { user_id: m.user_id, source, telegram_user_id: tg?.telegram_user_id ?? null };
+      }));
 
       return {
         day,
@@ -230,7 +240,7 @@ export function pulseRoutes(app: FastifyInstance, repo: Repo) {
         household_name: household?.name ?? null,
         /** Чужий дім. Екран мусить показати це сам, а не лише адресним рядком. */
         guest,
-        members: members.map((m) => ({ user_id: m.user_id, name: m.name, role: m.role })),
+        members: members.map((m) => { const src = sources.find((x) => x.user_id === m.user_id)!; return { user_id: m.user_id, name: m.name, role: m.role, source: src.source, telegram_user_id: src.telegram_user_id }; }),
         turns,
         money: { day: sum(usageOfDay), week: sum(usageOfWeek), byMember },
         events: events.map((e) => ({
