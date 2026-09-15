@@ -174,6 +174,8 @@ export function expiryOnOpen(
 }
 
 export interface PantryItemView {
+  /** Ключ каталогу, за яким порахували cat/kcal/days: партії або продукту. */
+  catalog_key: string | null;
   cat: string | null;
   kcal: number | null; fat: number | null; prot: number | null; carb: number | null;
   /** null — БЖВ немає; true — оцінка; false — джерело USDA/CIQUAL. */
@@ -200,6 +202,12 @@ export function pantryItemView(
   const item = key ? BY_KEY.get(key) : undefined;
   const n = item?.nutrition;
   return {
+    // 15.09: ключ, за яким усе порахували, — у відповідь. Партія свого ключа
+    // не має ніколи (apply пише null), ключ живе на продукті; веб читає
+    // batch.catalog_key (hasScale, «без категорії», тон строку, зріз
+    // «спливає», «Дім зараз») — і з 11.09 бачив null на ВСІХ позиціях, хоч
+    // cat/kcal/days тут же були порахувані. Прод власника: 0 із 129 із ключем.
+    catalog_key: key,
     cat: item ? topCategory(item.categories) : null,
     kcal: n ? kcalOf(n) : null,
     fat: n ? n.fat : null,
