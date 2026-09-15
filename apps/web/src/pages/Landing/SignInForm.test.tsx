@@ -31,6 +31,7 @@ beforeEach(() => {
   vi.spyOn(window, 'open').mockReturnValue({} as Window);
   vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList);
   Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
+  localStorage.clear();
 });
 afterEach(async () => {
   await act(async () => { root?.unmount(); });
@@ -148,5 +149,113 @@ describe('SignInForm · Telegram (хотфікс 15.09, вхід через бо
     const retry = byText('Не відкрилось? Ще раз')!;
     await act(async () => { retry.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); });
     expect(window.open).toHaveBeenCalledWith('https://t.me/KitchenOSAppBot?start=login_tok5', '_blank', 'noopener');
+  });
+});
+
+// ── AUTH-BRIEF-0915: «Реєстрація / Вхід» ─────────────────────────────────────
+describe('SignInForm · «Реєстрація / Вхід» (AUTH-BRIEF-0915)', () => {
+  const providersOn = () => json({ google: true, telegram: true, telegramBotId: '123456789' });
+
+  it('дефолт без kos-had-session — «Реєстрація», тариф-картки видно', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
+    await mount();
+    const start = byText('Реєстрація')!;
+    const login = byText('Вхід')!;
+    expect(start.getAttribute('aria-selected')).toBe('true');
+    expect(login.getAttribute('aria-selected')).toBe('false');
+    expect(host!.textContent).toContain('Бета-тест');
+    expect(host!.textContent).toContain('Базовий');
+  });
+
+  it('kos-had-session у localStorage — дефолт «Вхід», без тариф-карток', async () => {
+    localStorage.setItem('kos-had-session', '1');
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
+    await mount();
+    expect(byText('Вхід')!.getAttribute('aria-selected')).toBe('true');
+    expect(host!.textContent).not.toContain('Бета-тест');
+  });
+
+  it('перемикач ховає тариф-картки в «Вхід» і повертає в «Реєстрація»', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
+    await mount();
+    expect(host!.textContent).toContain('Бета-тест');
+    await act(async () => { byText('Вхід')!.click(); });
+    expect(host!.textContent).not.toContain('Бета-тест');
+    await act(async () => { byText('Реєстрація')!.click(); });
+    expect(host!.textContent).toContain('Бета-тест');
+  });
+
+  it('Telegram begin шле mode:login у тілі запиту, коли обрано «Вхід»', async () => {
+    const bodies: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/v1/auth/providers') return providersOn();
+      if (url === '/v1/auth/telegram/begin') { bodies.push(init?.body as string); return json({ token: 't', url: 'https://t.me/KitchenOSAppBot?start=login_t' }); }
+      return json({ status: 'pending' });
+    }));
+    await mount();
+    await act(async () => { byText('Вхід')!.click(); });
+    await act(async () => { byText('Продовжити з Telegram')!.click(); });
+    expect(JSON.parse(bodies[0]!)).toEqual({ mode: 'login' });
+  });
+
+  it('Google-кнопка веде на /v1/auth/google?mode=login, коли обрано «Вхід»', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
+    await mount();
+    await act(async () => { byText('Вхід')!.click(); });
+    await act(async () => { byText('Продовжити з Google')!.click(); });
+    expect(window.location.href).toBe('/v1/auth/google?mode=login');
+  });
+
+  it('Google-кнопка веде на /v1/auth/google (без mode) у «Реєстрація»', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
+    await mount();
+    await act(async () => { byText('Продовжити з Google')!.click(); });
+    expect(window.location.href).toBe('/v1/auth/google');
+  });
+
+  it('«Вхід» + невідома пошта ({error:no_account}) — рядок-note, «Зареєструватись» повертає в «Реєстрація»', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: false, telegramBotId: null });
+      if (url === '/v1/auth/request') return json({ error: 'no_account' });
+      return json({});
+    }));
+    await mount();
+    await act(async () => { byText('Вхід')!.click(); });
+    const input = host!.querySelector<HTMLInputElement>('input[type="email"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => { setter.call(input, 'nobody@example.com'); input.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => { input.closest('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    expect(host!.textContent).toContain('Цієї пошти ми ще не знаємо');
+    await act(async () => { byText('Зареєструватись')!.click(); });
+    expect(host!.textContent).not.toContain('Цієї пошти ми ще не знаємо');
+    expect(byText('Реєстрація')!.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('«Вхід» + Telegram poll no_account — рядок-note телеграма, кнопка знову звичайна', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return providersOn();
+      if (url === '/v1/auth/telegram/begin') return json({ token: 'tokna', url: 'https://t.me/KitchenOSAppBot?start=login_tokna' });
+      if (url.startsWith('/v1/auth/telegram/poll')) return json({ status: 'no_account' });
+      return json({});
+    }));
+    await mount();
+    vi.useFakeTimers();
+    await act(async () => { byText('Вхід')!.click(); });
+    await act(async () => { byText('Продовжити з Telegram')!.click(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(host!.textContent).toContain('Цього Telegram ми ще не знаємо');
+    expect(byText('Продовжити з Telegram')).not.toBeUndefined();
+  });
+
+  it('редирект від Google (?err=no_account&via=google) — режим «Вхід», note google, адреса очищена', async () => {
+    (window as unknown as { location: { href: string; search: string; pathname: string; hash: string } }).location = {
+      href: 'http://localhost/?err=no_account&via=google', search: '?err=no_account&via=google', pathname: '/', hash: '',
+    };
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/v1/auth/providers' ? providersOn() : json({}))));
+    const replaceSpy = vi.spyOn(window.history, 'replaceState');
+    await mount();
+    expect(byText('Вхід')!.getAttribute('aria-selected')).toBe('true');
+    expect(host!.textContent).toContain('Цього Google-акаунта ми ще не знаємо');
+    expect(replaceSpy).toHaveBeenCalled();
   });
 });

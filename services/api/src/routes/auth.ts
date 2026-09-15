@@ -44,13 +44,20 @@ export function authRoutes(app: FastifyInstance, repo: Repo, mailer: Mailer, opt
     }
   };
 
-  app.post<{ Body: { email?: string; next?: string } }>(
+  app.post<{ Body: { email?: string; next?: string; mode?: 'start' | 'login' } }>(
     '/v1/auth/request',
     { preHandler: limitCheck },
     async (req, reply) => {
       const email = req.body?.email?.trim().toLowerCase();
       if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return reply.code(400).send({ error: 'valid email required' });
+      }
+      // AUTH-BRIEF-0915: «Вхід» ніколи не створює акаунт. Виняток із
+      // навмисної анти-енумерації цього роута (коментар угорі файла) —
+      // людина сама обрала «Вхід», їй чесно потрібно знати, що ключ
+      // невідомий; лист НЕ шлемо і challenge НЕ заводимо.
+      if (req.body?.mode === 'login' && !(await repo.findUserByEmail(email))) {
+        return reply.send({ error: 'no_account' });
       }
       // ?next йде наскрізь від фронту: браузер лишає його в URL SignIn, той передає
       // сюди, ми — вшиваємо у magic-link. Гарантія, що після клацання лінка юзер

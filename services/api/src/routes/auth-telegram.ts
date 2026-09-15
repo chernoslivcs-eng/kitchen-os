@@ -6,11 +6,15 @@
 //
 //   GET  /v1/auth/providers        → { google, telegram, telegramBotId? } —
 //                                     той самий роут, auth-google.ts
-//   POST /v1/auth/telegram/begin   → challenge kind 'tg_login' без user_id,
+//   POST /v1/auth/telegram/begin   → { mode?: 'start'|'login' } (типово 'start')
+//                                     → challenge kind 'tg_login' без user_id,
 //                                     { token, url: t.me/<bot>?start=login_<token> }
-//   GET  /v1/auth/telegram/poll    → { status: 'pending' | 'ok' | 'expired' };
+//   GET  /v1/auth/telegram/poll    → { status: 'pending'|'ok'|'expired'|'no_account' };
 //                                     на 'ok' — та сама cookie-сесія, що й
-//                                     усюди (COOKIE_NAME, SESSION_TTL_MS)
+//                                     усюди (COOKIE_NAME, SESSION_TTL_MS).
+//                                     'no_account' (AUTH-BRIEF-0915) — mode
+//                                     'login' і бот не знайшов акаунт під цим
+//                                     Telegram; акаунт НЕ створено.
 //
 // Сам /start login_<token> — телеграм.ts (services/api/src/telegram.ts),
 // не тут: там attachTelegramLoginUser записує user_id у challenge, коли

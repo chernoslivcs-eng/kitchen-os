@@ -117,6 +117,35 @@
 /* Хотфікс 15.09: «Не відкрилось? Ще раз» під час очікування Telegram — і кнопка, і лінк одразу (сам href = t.me, повторний клік). */
 .tgRetry { font-size: 13px; color: var(--ink); text-decoration: underline; margin-top: -8px; }
 .tgRetry:hover { color: var(--sage); }
+
+/* AUTH-BRIEF-0915: перемикач «Реєстрація / Вхід» — пілюля 44 px, активний
+ * сегмент чорнило на bg (та сама формула, що активна ціль у сайдбарі/рейці:
+ * background var(--ink), color var(--bg)). */
+.authSwitch { display: flex; gap: 2px; width: 100%; height: 44px; padding: 3px; border-radius: 22px; background: var(--card); box-shadow: var(--sh); }
+.authSeg { flex: 1; border: 0; border-radius: 19px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; }
+.authSegOn { background: var(--ink); color: var(--bg); }
+
+/* Тариф («Реєстрація») — лейбл-підпис карток (12/500 muted uppercase, як лейбли
+ * карток деінде), три рядки-картки r14, обрана — контур чорнило + пілюля
+ * sage «обрано»; недоступні — opacity .45, пілюля «скоро», не клікаються. */
+.authLabel { width: 100%; font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+.tariffList { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.tariff { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line2); background: var(--card); text-align: left; }
+.tariffOn { border-color: var(--ink); }
+.tariffOff { opacity: .45; }
+.tariffName { font-size: 14px; font-weight: 600; }
+.tariffBlurb { font-size: 13px; color: var(--muted); }
+.tariffPrice { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.tariffRight { display: flex; align-items: center; gap: 10px; flex: none; }
+.tariffPill { height: 22px; padding: 0 8px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; white-space: nowrap; flex: none; }
+.tariffPillOn { background: var(--sage-bg); color: var(--sage); }
+.tariffPillSoon { background: var(--line); color: var(--muted); }
+
+/* Невідомий ключ («Вхід») — той самий тип рядка, що telegramError, лише
+ * amber: 14 px, r12. «Зареєструватись» підкреслена дія, перемикає режим. */
+.authNote { width: 100%; padding: 10px 14px; border-radius: 12px; background: var(--amber-bg); color: var(--ink); font-size: 14px; line-height: 1.45; }
+.authNoteAction { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+
 .tab .signin { width: 480px; gap: 14px; }
 .tab .google { height: 54px; border-radius: 27px; font-size: 15px; }
 .tab .or { padding: 4px 0; }

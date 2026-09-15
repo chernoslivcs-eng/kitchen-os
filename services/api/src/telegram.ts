@@ -115,7 +115,7 @@ export const COPY = {
   hello: (name: string) => `Привіт, ${name}. Це кухня дому — тепер усе, що напишеш сюди, зʼявиться в чаті Kitchen OS.`,
   /** Злиття (15.09): другий абзац після /start (усі варіанти, крім login_) — щоб дубль не народжувався. */
   helloHasAccount: 'Уже є акаунт на сайті? Підключи Telegram у профілі — це буде той самий акаунт, а не новий.',
-  /** Злиття (15.09): /start login_ у режимі «Увійти», а акаунта з цим Telegram нема. */
+  /** Злиття (15.09): /start login_ у режимі «Вхід», а акаунта з цим Telegram нема. */
   loginNoAccount: 'Акаунта з цим Telegram ще нема. На сайті натисни «Почати» — або просто напиши мені /start без лінка, і почнемо тут',
   /** Злиття (15.09): «Підключити» з профілю, а цей Telegram уже привʼязаний до іншого акаунта — рішення в профілі. */
   linkConflict: 'Цей Telegram уже має свій акаунт. Повернись у профіль на сайті — там можна обʼєднати їх в один або лишити окремо.',
@@ -568,8 +568,12 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
         token.slice('login_'.length),
         { telegram_user_id: u.telegram_user_id, chat_id: u.chat_id, first_name: (u.first_name ?? '').trim() || 'привіт', username: u.username ?? null },
       );
+      // AUTH-BRIEF-0915 / злиття (15.09): mode 'login' і телеграм-акаунт
+      // невідомий — окремий текст, акаунт НЕ створюємо (на відміну від
+      // loginExpired, тут токен сам по собі живий, річ у тім, що людина
+      // натиснула «Вхід», а не «Реєстрація»).
       if (!out.ok) return plain(out.reason === 'no_account' ? COPY.loginNoAccount : COPY.loginExpired);
-      (deps.log ?? (console as unknown as FastifyBaseLogger)).info({ telegram_user_id: u.telegram_user_id, login: true }, 'tg_start');
+      await botEvent(deps, out.user.id, 'tg_start', { created: out.created, login: true });
       const web = await webLink(deps, out.user.id);
       const url = web('/app');
       return { messages: [COPY.hello(out.user.name?.trim() || 'привіт')], html: false, keyboard: [[{ text: 'Відкрити сайт', url }], ...HELP_KEYBOARD_ROWS], replyKeyboard: QUICK_KEYBOARD };

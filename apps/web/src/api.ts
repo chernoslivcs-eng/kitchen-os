@@ -589,21 +589,30 @@ export interface AdminOccasion extends AdminOccasionInput {
   created_at: string;
 }
 
+/** AUTH-BRIEF-0915: «Реєстрація» (типово) створює акаунт для невідомого ключа; «Вхід» — ніколи. */
+export type AuthMode = 'start' | 'login';
+
 export const api = {
   auth: {
-    request: (email: string, next?: string | null) =>
-      req<{ ok: true }>('/v1/auth/request', {
+    // 'start' — як завжди; 'login' + невідома пошта → {error:'no_account'}
+    // замість {ok:true}, листа не шле (перевірено на сервері, не тут).
+    request: (email: string, next?: string | null, mode?: AuthMode) =>
+      req<{ ok: true } | { error: 'no_account' }>('/v1/auth/request', {
         method: 'POST',
-        body: JSON.stringify(next ? { email, next } : { email }),
+        body: JSON.stringify({ email, ...(next ? { next } : {}), ...(mode ? { mode } : {}) }),
       }),
     logout: () => req<null>('/v1/auth/logout', { method: 'POST', body: '{}' }),
     providers: () => req<{ google: boolean; telegram: boolean; telegramBotId: string | null }>('/v1/auth/providers'),
+    /** mode:'login' — кладе ?mode=login у href, /v1/auth/google/callback тоді не створює акаунт для невідомої пошти (редирект ?err=no_account&via=google). */
+    googleUrl: (mode?: AuthMode) => (mode === 'login' ? '/v1/auth/google?mode=login' : '/v1/auth/google'),
     // Хотфікс 15.09 (заміна Login Widget — попап/редирект-флоу не працювали
     // надійно): begin створює challenge на сервері й дає лінк на бота;
     // клік відкриває t.me/…?start=login_<token>, а лендинг опитує poll, поки
-    // людина не тисне Start у застосунку.
-    telegramBegin: () => req<{ token: string; url: string }>('/v1/auth/telegram/begin', { method: 'POST', body: '{}' }),
-    telegramPoll: (token: string) => req<{ status: 'pending' | 'ok' | 'expired' }>(`/v1/auth/telegram/poll?token=${encodeURIComponent(token)}`),
+    // людина не тисне Start у застосунку. mode:'login' — бот не створить
+    // акаунт для невідомого telegram_user_id (poll: {status:'no_account'}).
+    telegramBegin: (mode?: AuthMode) =>
+      req<{ token: string; url: string }>('/v1/auth/telegram/begin', { method: 'POST', body: JSON.stringify(mode ? { mode } : {}) }),
+    telegramPoll: (token: string) => req<{ status: 'pending' | 'ok' | 'expired' | 'no_account' }>(`/v1/auth/telegram/poll?token=${encodeURIComponent(token)}`),
     attachEmailRequest: (email: string) =>
       req<{ ok: true }>('/v1/auth/email/attach/request', { method: 'POST', body: JSON.stringify({ email }) }),
   },
