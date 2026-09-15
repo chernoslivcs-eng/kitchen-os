@@ -3,6 +3,7 @@ import { lazyPage } from './lib/lazyPage';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 const Landing = lazyPage(() => import('./pages/Landing/Landing').then((m) => ({ default: m.Landing })));
 const MagicLinkSent = lazyPage(() => import('./pages/MagicLinkSent/MagicLinkSent').then((m) => ({ default: m.MagicLinkSent })));
+const AuthTelegramPage = lazyPage(() => import('./pages/AuthTelegram/AuthTelegram').then((m) => ({ default: m.AuthTelegramPage })));
 const Feed = lazyPage(() => import('./pages/Feed/Feed').then((m) => ({ default: m.Feed })));
 const IconLab = lazyPage(() => import('./pages/Dev/IconLab').then((m) => ({ default: m.IconLab })));
 const PantryPage = lazyPage(() => import('./pages/Pantry/Pantry').then((m) => ({ default: m.PantryPage })));
@@ -110,6 +111,10 @@ export function App() {
         <Routes>
           <Route path="/" element={<RedirectIfSignedIn><Landing /></RedirectIfSignedIn>} />
           <Route path="/sent" element={<RedirectIfSignedIn><MagicLinkSent /></RedirectIfSignedIn>} />
+          {/* Хотфікс 15.09: редирект-гілка Telegram Login Widget на дотикових
+              екранах (return_to з oauth.telegram.org) — без сесії, /v1/auth/telegram
+              (роут бота, інший префікс) не чіпає. */}
+          <Route path="/auth/telegram" element={<AuthTelegramPage />} />
           <Route element={<RequireAuth><Shell /></RequireAuth>}>
             <Route path="/app" element={<Feed />} />
             <Route path="/pantry" element={<PantryPage />} />

@@ -15,8 +15,12 @@ import { SignInForm } from './SignInForm';
 
 vi.mock('./telegram-widget', () => ({
   telegramLoginAuth: vi.fn(),
+  isTouchOrNarrow: vi.fn(() => false),
+  buildTelegramRedirectUrl: vi.fn((botId: string) => `https://oauth.telegram.org/auth?bot_id=${botId}`),
+  preloadTelegramWidget: vi.fn(),
+  consumeTelegramRedirectError: vi.fn(() => false),
 }));
-import { telegramLoginAuth } from './telegram-widget';
+import { telegramLoginAuth, isTouchOrNarrow, buildTelegramRedirectUrl, preloadTelegramWidget, consumeTelegramRedirectError } from './telegram-widget';
 
 const json = (o: unknown) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
 
@@ -33,6 +37,10 @@ async function mount() {
 
 beforeEach(() => {
   vi.mocked(telegramLoginAuth).mockReset();
+  vi.mocked(isTouchOrNarrow).mockReset().mockReturnValue(false);
+  vi.mocked(buildTelegramRedirectUrl).mockReset().mockImplementation((botId: string) => `https://oauth.telegram.org/auth?bot_id=${botId}`);
+  vi.mocked(preloadTelegramWidget).mockReset();
+  vi.mocked(consumeTelegramRedirectError).mockReset().mockReturnValue(false);
   delete (window as unknown as { location?: unknown }).location;
   (window as unknown as { location: { href: string } }).location = { href: '' };
 });
@@ -73,6 +81,41 @@ describe('SignInForm · Telegram', () => {
     expect(calls).toHaveLength(1);
     expect(JSON.parse(calls[0]!.body!)).toMatchObject({ id: 42, hash: 'deadbeef' });
     expect(window.location.href).toBe('/app');
+  });
+
+  it('десктоп (isTouchOrNarrow: false): скрипт віджета підвантажується заздалегідь, popup-гілка без змін', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: true, telegramBotId: '123456789' });
+      return json({});
+    }));
+    await mount();
+    expect(preloadTelegramWidget).toHaveBeenCalled();
+    expect(buildTelegramRedirectUrl).not.toHaveBeenCalled();
+  });
+
+  it('дотик/вузький екран (хотфікс 15.09): клік не чіпає Telegram.Login.auth, а веде на редирект-URL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: true, telegramBotId: '123456789' });
+      return json({});
+    }));
+    vi.mocked(isTouchOrNarrow).mockReturnValue(true);
+    await mount();
+    expect(preloadTelegramWidget).not.toHaveBeenCalled();
+    const btn = byText('Продовжити з Telegram')!;
+    await act(async () => { btn.click(); });
+    expect(telegramLoginAuth).not.toHaveBeenCalled();
+    expect(buildTelegramRedirectUrl).toHaveBeenCalledWith('123456789');
+    expect(window.location.href).toBe('https://oauth.telegram.org/auth?bot_id=123456789');
+  });
+
+  it('/auth/telegram повернув ?tgError=1 — той самий текст помилки, що в попап-гілці', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: true, telegramBotId: '123456789' });
+      return json({});
+    }));
+    vi.mocked(consumeTelegramRedirectError).mockReturnValue(true);
+    await mount();
+    expect(host!.textContent).toContain('Не вийшло увійти через Telegram');
   });
 
   it('людина закриває вікно Telegram (колбек false) — тихо, без помилки й без запиту на сервер', async () => {

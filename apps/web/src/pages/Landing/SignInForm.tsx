@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api';
 import { Icon } from '../../components/Icon/Icon';
 import { useMagicLink } from './useMagicLink';
-import { telegramLoginAuth } from './telegram-widget';
+import { telegramLoginAuth, isTouchOrNarrow, buildTelegramRedirectUrl, preloadTelegramWidget, consumeTelegramRedirectError } from './telegram-widget';
 import { SIGNIN } from './copy';
 import styles from './Landing.module.css';
 
@@ -56,8 +56,28 @@ export function SignInForm({ id, or = true, className }: Props) {
       .then((p) => { setGoogleOn(p.google); setTelegramBotId(p.telegram ? p.telegramBotId : null); })
       .catch(() => { setGoogleOn(false); setTelegramBotId(null); });
   }, []);
+  // Хотфікс (15.09, прод): на десктопі popup відкривається лише СИНХРОННО в
+  // обробнику кліку, тому скрипт віджета тягнемо заздалегідь, при монтуванні
+  // — інакше await всередині telegramLoginAuth зсуває window.open поза жест
+  // кліку, і блокувальники попапів зрізають вікно (не лише на iOS).
+  useEffect(() => {
+    if (telegramBotId && !isTouchOrNarrow()) preloadTelegramWidget();
+  }, [telegramBotId]);
+  // /auth/telegram (редирект-гілка) веде сюди при провалі — той самий текст,
+  // що й попап-помилка.
+  useEffect(() => {
+    if (consumeTelegramRedirectError()) setTgError(SIGNIN.telegramError);
+  }, []);
   async function telegramLogin() {
     if (!telegramBotId || tgBusy) return;
+    // Дотик/вузький екран: popup Telegram.Login.auth відкриває window.open
+    // ПІСЛЯ асинхронного завантаження скрипта — уже поза жестом тапу, тому
+    // iOS Safari мовчки блокує вікно. На таких екранах — прямий редирект,
+    // без попапу; сама навігація і є жестом тапу.
+    if (isTouchOrNarrow()) {
+      window.location.href = buildTelegramRedirectUrl(telegramBotId);
+      return;
+    }
     setTgBusy(true);
     setTgError(null);
     try {

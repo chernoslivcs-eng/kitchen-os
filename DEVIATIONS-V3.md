@@ -3776,3 +3776,52 @@ ae56f08:
 Гейти після ребейзу: typecheck 0, `pnpm lint` 0, `apps/web` — 737 зелені,
 `services/api` — 712 зелені, `packages/domain` — 492 зелені, `packages/eval`
 — 65 зелені, `packages/db` — Postgres skip, як і раніше. Не мерджити.
+
+### Р159 · Telegram-вхід: хотфікс мобайл-редиректу (замість popup), 15.09
+
+Прод-репорт власника: «Продовжити з Telegram» на десктопі працює (popup
+oauth.telegram.org), на iPhone Safari — «Зʼєднуюсь…» і тиша. Причина:
+`Telegram.Login.auth` робить `window.open` ПІСЛЯ асинхронного завантаження
+скрипта віджета — тобто вже поза жестом тапу; iOS Safari такий popup
+мовчки блокує (десктопні блокувальники теж можуть зрізати з тієї ж причини).
+Гілка `fix/telegram-mobile-redirect` від `origin/main` 132e7fc (PR #128/#132
+вже на main).
+
+- `telegram-widget.ts`: `isTouchOrNarrow()` (`matchMedia (pointer: coarse)`
+  або ширина <768), `buildTelegramRedirectUrl(botId)` (URL на
+  `oauth.telegram.org/auth` з `bot_id`, `origin`, `embed=1`,
+  `request_access=write`, `return_to` = наш `/auth/telegram`),
+  `preloadTelegramWidget()` (запустити завантаження скрипта заздалегідь, не
+  чекаючи), `consumeTelegramRedirectError()` (читає `?tgError=1` один раз,
+  прибирає з адреси через `history.replaceState`).
+- `SignInForm.tsx`: на дотику/вузькому — клік одразу веде на
+  `buildTelegramRedirectUrl` (той самий жест тапу — навігація, без
+  `window.open`), popup-гілка (`Telegram.Login.auth`) лишається для
+  десктопу. На десктопі скрипт віджета підвантажується заздалегідь при
+  монтуванні (`preloadTelegramWidget`), щоб `auth()` у обробнику кліку
+  відкривав popup СИНХРОННО — інакше й на десктопі блокувальники можуть
+  зрізати вікно через `await` перед `window.open`.
+- Новий веб-маршрут `/auth/telegram` (`pages/AuthTelegram/AuthTelegram.tsx`,
+  без сесії, лазі-чанк): читає query, яку Telegram кладе на `return_to`
+  (id, first_name, last_name?, username?, photo_url?, auth_date, hash —
+  ті самі поля, що дає popup-колбек), б'є в той самий
+  `POST /v1/auth/telegram/widget`, на успіх → `location.href = next`, на
+  помилку чи брак обов'язкового поля → `/?tgError=1` (лендинг показує той
+  самий текст `SIGNIN.telegramError`, що й у popup-гілці). Префікс `/auth/…`
+  навмисно відмінний від API-роуту бота `/v1/auth/telegram` (PR 2-бот,
+  #129) — не перехоплює його.
+- CSP не чіпав: `oauth.telegram.org` уже дозволений хотфіксом #132.
+
+Тести: `telegram-widget.test.ts` (збірка URL редиректу, isTouchOrNarrow на
+вузькому/широкому, consumeTelegramRedirectError без параметра),
+`AuthTelegram.test.tsx` (query → POST → редирект на next; 403 і брак
+обов'язкового поля → назад на лендинг з `?tgError=1`), `SignInForm.test.tsx`
+доповнено трьома: десктоп підвантажує скрипт заздалегідь і popup-гілка без
+змін, дотик/вузький — клік не чіпає `Telegram.Login.auth` і веде на
+редирект-URL, `?tgError=1` показує той самий текст помилки.
+
+Гейти: typecheck 0 (усі 7 пакетів), `pnpm lint` 0 (той самий baseline — 8
+CSS-сиріт-не-доведено). `apps/web` — 747 зелені (було 737 + 10 нових: 4
+у `telegram-widget.test.ts`, 3 у `AuthTelegram.test.tsx`, 3 нових у
+`SignInForm.test.tsx`). API/domain/eval/db не чіпав — не запускав повторно
+(зміни лише у `apps/web`). Не мерджити.
