@@ -17,7 +17,7 @@
 // Порядок рядків усередині планки — той самий, що в решті кодової бази:
 // спершу `product`, потім `displayName` (apply.ts:485, backfill нижче).
 
-import { resolveLabel, resolveLabelToKey } from '@kitchen/catalog';
+import { resolveTripleKey } from '@kitchen/catalog';
 
 export type KeyAction = 'keep' | 'rekey' | 'erase' | 'fill';
 
@@ -29,11 +29,13 @@ export interface KeyDecision {
   why: string;
 }
 
+// Вид бʼє загальний запис (resolveTripleKey): база «вершки» → gen_cream,
+// повна назва «вершки 33%» → cream_33 — береться cream_33.
 const anchored = (product: string, dn: string): string | null =>
-  resolveLabelToKey(product) ?? resolveLabelToKey(dn);
+  resolveTripleKey(product, dn, 'anchored');
 
 const generic = (product: string, dn: string): string | null =>
-  resolveLabel(product, 'generic')?.key ?? resolveLabel(dn, 'generic')?.key ?? null;
+  resolveTripleKey(product, dn, 'generic');
 
 /**
  * @param stored  `catalog_key`, який стоїть у базі (null — його немає)

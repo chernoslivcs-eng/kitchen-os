@@ -272,7 +272,39 @@ export function resolveLabel(
     }
   }
   if (!best) return null;
-  return { key: refineSpecies(best.item, set, catalog, ctx).key, tier: best.tier };
+  const refined = refineSpecies(best.item, set, catalog, ctx);
+  return { key: refineFrozen(refined, norm, catalog, ctx).key, tier: best.tier };
+}
+
+// Р161, PR 2: маркери заморозки в чековому рядку/мітці. «в/м» (варено-морожені)
+// і «с/м» (свіжоморожені) — маркування Сільпо/METRO; «морозиво» — не маркер.
+const FROZEN_MARKER = /(^|[\s(])(з\/м|с\/м|в\/м|зам\.|заморож[а-яіїє]*|морож[а-яіїє]*|frozen)(?=$|[\s).,;])/u;
+export function hasFrozenMarker(label: string): boolean {
+  return FROZEN_MARKER.test(normalize(label));
+}
+
+/**
+ * Свіже і заморожене — один продукт, два життя (`frozen_of` у каталозі).
+ * Заморожена пара береться ЛИШЕ за маркером у мітці або зоною freezer із
+ * чека/форми; явна зона НЕ freezer повертає свіже. Без сигналу — як є:
+ * «спливло раніше» дешевше, ніж «ще добре». Завжди-заморожене (пельмені,
+ * морозиво — без `frozen_of`) зоною не «розморожується».
+ */
+export function refineFrozen(
+  chosen: CatalogItem,
+  normLabel: string,
+  catalog: readonly CatalogItem[] = CATALOG,
+  ctx: ResolveCtx = {},
+): CatalogItem {
+  const frozenSignal = ctx.zone === 'freezer' || FROZEN_MARKER.test(normLabel);
+  if (frozenSignal) {
+    if (chosen.frozen_of || chosen.zone_default === 'freezer') return chosen;
+    return catalog.find((i) => i.frozen_of === chosen.key) ?? chosen;
+  }
+  if (ctx.zone && ctx.zone !== 'freezer' && chosen.frozen_of) {
+    return catalog.find((i) => i.key === chosen.frozen_of) ?? chosen;
+  }
+  return chosen;
 }
 
 /**
@@ -318,6 +350,28 @@ export function refineSpecies(
 // resolveLabel напряму з `words`.
 export function resolveLabelToKey(label: string, catalog = CATALOG, ctx?: ResolveCtx): string | null {
   return resolveLabel(label, 'anchored', catalog, ctx)?.key ?? null;
+}
+
+/**
+ * Ключ продукту за ТРІЙКОЮ: спершу база (`product`), потім повна назва
+ * (product + brand + variant). Вид завжди бʼє загальний запис: коли база дає
+ * gen_* («вершки» → gen_cream), а повна назва — вид («вершки 33%» → cream_33),
+ * береться вид. До GENERIC-0915 база на родовому слові мовчала й повна назва
+ * бралась сама собою; загальні записи цю дірку закрили — і разом із нею
+ * закрили шлях до виду (CI packages/db, decideKey: «вершки 33%» → gen_cream).
+ */
+export function resolveTripleKey(
+  product: string,
+  displayName: string,
+  minTier: MatchTier = 'anchored',
+  catalog = CATALOG,
+  ctx?: ResolveCtx,
+): string | null {
+  const base = resolveLabel(product, minTier, catalog, ctx)?.key ?? null;
+  if (base && !base.startsWith('gen_')) return base;
+  const full = displayName && displayName !== product ? resolveLabel(displayName, minTier, catalog, ctx)?.key ?? null : null;
+  if (full && !full.startsWith('gen_')) return full;
+  return base ?? full;
 }
 
 // Зона зберігання за назвою продукту. Використовується там, де зону не вказали

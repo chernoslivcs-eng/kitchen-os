@@ -36,6 +36,8 @@ export interface CatalogItem {
   unit_weight?: number;
   density?: number;
   nutrition?: Nutrition;
+  /** Р161, PR 2: ключ свіжого близнюка — цей запис є його замороженим життям (зона freezer, строк морозилки). */
+  frozen_of?: string;
 }
 
 const CATALOG_0: CatalogItem[] = [
@@ -607,11 +609,12 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'salmon_portioned_frozen',
     name: 'Лосось порційний морожений',
-    aliases: ['mc лосось порційний', 'frozen salmon portion'],
-    categories: ['лосось', 'риба', 'тваринне'],
+    aliases: ['mc лосось порційний', 'лосось морожений', 'лосось заморожений', 'лосось с/м', 'frozen salmon portion'],
+    categories: ['лосось', 'риба', 'тваринне', 'заморожене'],
     allergen_groups: ['риба'],
     zone_default: 'freezer',
     nutrition: { protein: 20.42, fat: 13.42, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 59, source: 'usda:175167' },
+    frozen_of: 'salmon_fresh',
   },
   {
     key: 'smoked_bacon',
@@ -625,20 +628,22 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'spinach_frozen',
     name: 'Шпинат морожений порційний',
-    aliases: ['fl шпинат порційний', 'frozen spinach'],
-    categories: ['шпинат', 'зелень', 'овочі'],
+    aliases: ['fl шпинат порційний', 'шпинат заморожений', 'заморожений шпинат', 'шпинат морожений', 'шпинат з/м', 'frozen spinach'],
+    categories: ['шпинат', 'зелень', 'овочі', 'заморожене'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 2.9, fat: 0.4, carbs: 3.6, source: 'estimate' },
+    nutrition: { protein: 2.86, fat: 0.39, carbs: 3.63, fiber: 2.2, sugars: 0.42, sodium_mg: 79, source: 'usda:168462' },
+    frozen_of: 'veg_spinach_fresh',
   },
   {
     key: 'mushrooms_frozen',
     name: 'Гриби білі морожені різані',
-    aliases: ['spela білі гриби', 'frozen porcini'],
-    categories: ['гриби', 'овочі'],
+    aliases: ['spela білі гриби', 'білі гриби морожені', 'гриби білі морожені', 'frozen porcini'], // «білі гриби заморожені» — на r2fzb_porcini_frozen
+    categories: ['гриби', 'овочі', 'заморожене'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 2, fat: 0.3, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 3, fat: 0, carbs: 6, source: 'estimate' },
+    frozen_of: 'mush_porcini',
   },
   {
     key: 'potato_pancakes_frozen',
@@ -8416,7 +8421,8 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['полуниця', 'ягоди', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 8, source: 'estimate' },
+    nutrition: { protein: 0.67, fat: 0.3, carbs: 7.68, fiber: 2, sugars: 4.89, sodium_mg: 1, source: 'usda:167762' },
+    frozen_of: 'berry_strawberry',
   },
   {
     key: 'fruit_cherry_frozen',
@@ -8425,7 +8431,8 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['вишня', 'кісточкові', 'фрукти', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 1, fat: 0.3, carbs: 12.18, fiber: 1.6, sugars: 8.49, sodium_mg: 3, source: 'usda:173954' },
+    frozen_of: 'fruit_cherry_sour',
   },
   {
     key: 'berry_blackcurrant_frozen',
@@ -8434,7 +8441,8 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['смородина', 'ягоди', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 15, source: 'estimate' },
+    nutrition: { protein: 1.4, fat: 0.41, carbs: 15.38, sodium_mg: 2, source: 'usda:173963' },
+    frozen_of: 'berry_blackcurrant',
   },
   {
     key: 'berry_raspberry_frozen',
@@ -8443,7 +8451,8 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['малина', 'ягоди', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 1, carbs: 12, source: 'estimate' },
+    nutrition: { protein: 1.2, fat: 0.65, carbs: 11.94, fiber: 6.5, sugars: 4.42, sodium_mg: 1, source: 'usda:167755' },
+    frozen_of: 'berry_raspberry',
   },
   {
     key: 'berry_blueberry_frozen',
@@ -8452,7 +8461,8 @@ const CATALOG_3: CatalogItem[] = [
     categories: ['лохина', 'ягоди', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 0.74, fat: 0.33, carbs: 14.49, fiber: 2.4, sugars: 9.96, sodium_mg: 1, source: 'usda:171711' },
+    frozen_of: 'berry_blueberry_garden',
   },
   {
     key: 'fruit_banana',
@@ -15059,7 +15069,8 @@ const CATALOG_5: CatalogItem[] = [
     categories: ['броколі', 'капуста', 'овочі', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 3, fat: 0, carbs: 4, source: 'estimate' },
+    nutrition: { protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6, sugars: 1.7, sodium_mg: 33, source: 'usda:170379' },
+    frozen_of: 'veg_broccoli',
   },
   {
     key: 'frz_cauliflower',
@@ -15197,7 +15208,8 @@ const CATALOG_6: CatalogItem[] = [
     categories: ['печериці', 'гриби', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 3, fat: 0, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 3.09, fat: 0.34, carbs: 3.26, fiber: 1, sugars: 1.98, sodium_mg: 5, source: 'usda:169251' },
+    frozen_of: 'mush_champignon_white',
   },
   {
     key: 'frz_mushrooms_chanterelle',
@@ -15206,7 +15218,8 @@ const CATALOG_6: CatalogItem[] = [
     categories: ['лисички', 'гриби', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 2, fat: 0, carbs: 2, source: 'estimate' },
+    nutrition: { protein: 1.49, fat: 0.53, carbs: 6.86, fiber: 3.8, sugars: 1.16, sodium_mg: 9, source: 'usda:168422' },
+    frozen_of: 'mush_chanterelle',
   },
   {
     key: 'frz_mushrooms_mix',
@@ -15251,7 +15264,8 @@ const CATALOG_6: CatalogItem[] = [
     categories: ['тісто', 'напівфабрикат', 'пшениця', 'зернові', 'борошняне', 'заморожене'],
     allergen_groups: ['глютен'],
     zone_default: 'freezer',
-    nutrition: { protein: 8, fat: 3, carbs: 50, source: 'estimate' },
+    nutrition: { protein: 8, fat: 4, carbs: 52, source: 'estimate' },
+    frozen_of: 'bread_dough_pizza',
   },
   {
     key: 'frz_vareniki_potato',
@@ -15641,7 +15655,8 @@ const CATALOG_6: CatalogItem[] = [
     categories: ['манго', 'фрукти', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 14, source: 'estimate' },
+    nutrition: { protein: 0.82, fat: 0.38, carbs: 14.98, fiber: 1.6, sugars: 13.66, sodium_mg: 1, source: 'usda:169910' },
+    frozen_of: 'fruit_mango',
   },
   {
     key: 'frz_borscht',
@@ -32029,7 +32044,8 @@ const CATALOG_12: CatalogItem[] = [
     categories: ['чорниця', 'ягоди', 'заморожене', 'рослинне'],
     allergen_groups: [],
     zone_default: 'freezer',
-    nutrition: { protein: 1, fat: 0, carbs: 10, source: 'estimate' },
+    nutrition: { protein: 1.22, fat: 0.76, carbs: 12.31, fiber: 2.6, sugars: 6.46, sodium_mg: 6, source: 'usda:167640' },
+    frozen_of: 'berry_bilberry',
   },
   {
     key: 'r2fzb_mulberry_frozen',

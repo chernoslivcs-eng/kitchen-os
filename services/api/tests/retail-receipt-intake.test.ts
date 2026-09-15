@@ -84,6 +84,26 @@ describe('receiptLinesToIntake', () => {
     expect(r.ops.map((o) => 'catalog_key' in o && o.catalog_key)).toContain('r2bk_bun_cinnamon');
   });
 
+  // Р161, PR 2: маркер заморозки в рядку чека (з/м, с/м, в/м, зам.) → заморожена
+  // пара з зоною freezer; без маркера — свіже (fresh/fridge), і строк від зони.
+  it('маркер заморозки в рядку чека → пара freezer; без маркера — свіже', () => {
+    const r = receiptLinesToIntake([
+      line('Шпинат Fine Life з/м 400г', 1, 'шт'),
+      line('Лосось с/м порційний', 0.5, 'кг'),
+      line('Полуниця Сільпо з/м 500г', 1, 'шт'),
+      line('Шпинат свіжий 100г', 1, 'шт'),
+      line('Креветки Metro Chef 58/66 в/м очищ.', 1, 'шт'),
+    ]);
+    expect(r.unmatched).toHaveLength(0);
+    expect(r.ops.map((o) => { const a = o as { catalog_key?: string; zone?: string }; return [a.catalog_key, a.zone]; })).toEqual([
+      ['spinach_frozen', 'freezer'],
+      ['salmon_portioned_frozen', 'freezer'],
+      ['berry_strawberry_frozen', 'freezer'],
+      ['veg_spinach_fresh', 'fresh'],
+      ['shrimp_vannamei', 'freezer'],
+    ]);
+  });
+
   it('ковбаса Мілано з живого чека матчиться через аліас із головою', () => {
     const r = receiptLinesToIntake([line('Ковбаса Укрпромпостач для Сільпо Мілано с/в', 0.114, 'кг')]);
     expect(r.ops).toHaveLength(1);
