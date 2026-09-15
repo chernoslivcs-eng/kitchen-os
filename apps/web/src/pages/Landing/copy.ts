@@ -22,6 +22,16 @@ export const SIGNIN = {
   telegram: 'Продовжити з Telegram',
   telegramBusy: 'Зʼєднуюсь…',
   telegramError: 'Не вийшло увійти через Telegram. Спробуй ще раз.',
+  // Хотфікс 15.09 (доповнення до PR 2-веб): десктоп-popup — людина губиться
+  // між кліком і підтвердженням у застосунку Telegram. Рядок під кнопкою,
+  // поки чекаємо (тільки popup-гілка — на мобільному редиректі людина вже
+  // в Telegram, підказка не потрібна).
+  telegramWaitHint: 'Telegram надішле повідомлення «Запит на вхід» — підтверди його в застосунку Telegram.',
+  // 120 с без відповіді від віджета — кнопка повертається в звичайний стан,
+  // під нею — цей рядок замість telegramWaitHint.
+  telegramTimeoutHint: 'Не прийшло? Спробуй ще раз або просто відкрий бота:',
+  telegramBotLink: 'https://t.me/KitchenOSAppBot',
+  telegramBotLinkLabel: 't.me/KitchenOSAppBot',
   or: 'або лінк на пошту',
   email: 'Твій email',
   send: 'Надіслати лінк',

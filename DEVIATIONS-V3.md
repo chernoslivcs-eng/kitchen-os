@@ -3825,3 +3825,30 @@ CSS-сиріт-не-доведено). `apps/web` — 747 зелені (було
 у `telegram-widget.test.ts`, 3 у `AuthTelegram.test.tsx`, 3 нових у
 `SignInForm.test.tsx`). API/domain/eval/db не чіпав — не запускав повторно
 (зміни лише у `apps/web`). Не мерджити.
+
+**Доповнення до Р159 (той самий PR #133, 15.09)**: десктоп-popup — власник
+відзначив, що людина губиться між кліком і підтвердженням у застосунку
+Telegram (не видно, що взагалі відбувається). Додав, лише для popup-гілки
+(мобільний редирект її не показує — людина вже в Telegram):
+- Поки кнопка в стані «Зʼєднуюсь…» — рядок під нею: `SIGNIN.telegramWaitHint`
+  («Telegram надішле повідомлення «Запит на вхід» — підтверди його в
+  застосунку Telegram»).
+- 120 с (`TELEGRAM_LOGIN_TIMEOUT_MS`) без відповіді від `Telegram.Login.auth`
+  — кнопка звичайна («Продовжити з Telegram», знову клікабельна), під нею —
+  `SIGNIN.telegramTimeoutHint` + лінк `t.me/KitchenOSAppBot`. Сам колбек
+  Telegram скасувати неможливо (`Telegram.Login.auth` не дає AbortController):
+  таймер лише перестає чекати УІ-шно; якщо відповідь усе ж прийде пізніше —
+  вхід все одно відбудеться (успішний `user` веде далі, як завжди).
+- Тексти — `copy.ts` (`telegramWaitHint`, `telegramTimeoutHint`,
+  `telegramBotLink`/`telegramBotLinkLabel`), не з бандла (функціональне
+  копі кнопки входу, як і решта `SIGNIN.telegram*` — COPY.md правило 5 сюди
+  не застосовується).
+
+Тест на таймаут — `vi.useFakeTimers()` з моменту кліку (до нього — реальні
+таймери, щоб не зависнути на `mount()`), `vi.advanceTimersByTimeAsync(120_000)`:
+перевіряє зникнення `telegramWaitHint`, появу тексту з лінком на бота,
+повернення кнопки в звичайний і клікабельний стан. Ще один тест — сам
+`telegramWaitHint` зʼявляється одразу після кліку, поки popup висить.
+
+Гейти: typecheck 0, lint 0 (той самий baseline), `apps/web` — 749 зелені
+(747 + 2 нових). Зміни лише в `apps/web`. Не мерджити.

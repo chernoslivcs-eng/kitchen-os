@@ -48,6 +48,7 @@ afterEach(async () => {
   await act(async () => { root?.unmount(); });
   host?.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const byText = (t: string) => [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes(t));
@@ -81,6 +82,44 @@ describe('SignInForm · Telegram', () => {
     expect(calls).toHaveLength(1);
     expect(JSON.parse(calls[0]!.body!)).toMatchObject({ id: 42, hash: 'deadbeef' });
     expect(window.location.href).toBe('/app');
+  });
+
+  it('поки popup чекає підтвердження — рядок «Telegram надішле повідомлення…» під кнопкою', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: true, telegramBotId: '123456789' });
+      return json({});
+    }));
+    vi.mocked(telegramLoginAuth).mockReturnValue(new Promise(() => { /* висить, поки не таймаут */ }));
+    await mount();
+    const btn = byText('Продовжити з Telegram')!;
+    await act(async () => { btn.click(); });
+    expect(host!.textContent).toContain('Telegram надішле повідомлення');
+    expect(byText('Зʼєднуюсь…')).not.toBeUndefined();
+  });
+
+  it('хотфікс (доповнення 15.09): 120 с без відповіді — кнопка звичайна, підказка «не прийшло? … відкрий бота» з лінком', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/v1/auth/providers') return json({ google: false, telegram: true, telegramBotId: '123456789' });
+      return json({});
+    }));
+    vi.mocked(telegramLoginAuth).mockReturnValue(new Promise(() => { /* Telegram так і не відповів */ }));
+    await mount();
+    // Фейкові таймери — з моменту кліку, щоб перехопити саме 120-секундний
+    // setTimeout зсередини telegramLogin (а не microtask-флаш у mount()).
+    vi.useFakeTimers();
+    const btn = byText('Продовжити з Telegram')!;
+    await act(async () => { btn.click(); });
+    expect(host!.textContent).toContain('Telegram надішле повідомлення');
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
+
+    expect(host!.textContent).not.toContain('Telegram надішле повідомлення');
+    expect(host!.textContent).toContain('Не прийшло?');
+    const link = host!.querySelector('a[href="https://t.me/KitchenOSAppBot"]');
+    expect(link?.textContent).toBe('t.me/KitchenOSAppBot');
+    // Кнопка повернулась у звичайний стан і знову клікабельна.
+    expect(byText('Продовжити з Telegram')).not.toBeUndefined();
+    expect((byText('Продовжити з Telegram') as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('десктоп (isTouchOrNarrow: false): скрипт віджета підвантажується заздалегідь, popup-гілка без змін', async () => {

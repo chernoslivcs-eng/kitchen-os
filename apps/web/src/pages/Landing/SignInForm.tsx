@@ -38,6 +38,10 @@ function TelegramMark() {
   );
 }
 
+// Хотфікс 15.09 (доповнення): скільки чекаємо підтвердження в Telegram
+// (popup, десктоп), перш ніж повернути кнопку в звичайний стан.
+const TELEGRAM_LOGIN_TIMEOUT_MS = 120_000;
+
 interface Props {
   id?: string;
   /** Роздільник «або лінк на пошту»: у hero всюди; у фіналі — лише на 1920 (кадри 1024/390 його не мають). */
@@ -51,6 +55,9 @@ export function SignInForm({ id, or = true, className }: Props) {
   const [telegramBotId, setTelegramBotId] = useState<string | null>(null);
   const [tgBusy, setTgBusy] = useState(false);
   const [tgError, setTgError] = useState<string | null>(null);
+  // Хотфікс 15.09: після 120 с без відповіді — кнопка звичайна, під нею
+  // «не прийшло? … відкрий бота» замість «Зʼєднуюсь…».
+  const [tgTimedOut, setTgTimedOut] = useState(false);
   useEffect(() => {
     api.auth.providers()
       .then((p) => { setGoogleOn(p.google); setTelegramBotId(p.telegram ? p.telegramBotId : null); })
@@ -80,14 +87,27 @@ export function SignInForm({ id, or = true, className }: Props) {
     }
     setTgBusy(true);
     setTgError(null);
+    setTgTimedOut(false);
+    // 120 с без відповіді від попапу (людина не бачить повідомлення в
+    // Telegram, забула застосунок відкритим тощо) — не тримати кнопку
+    // «Зʼєднуюсь…» вічно; сам колбек Telegram.Login.auth скасувати
+    // неможливо, тому просто перестаємо на нього чекати УІ-ішно — якщо
+    // відповідь усе ж прийде пізніше, вхід все одно відбудеться.
+    let timedOut = false;
+    const timer = window.setTimeout(() => {
+      timedOut = true;
+      setTgBusy(false);
+      setTgTimedOut(true);
+    }, TELEGRAM_LOGIN_TIMEOUT_MS);
     try {
       const user = await telegramLoginAuth(telegramBotId);
-      if (!user) { setTgBusy(false); return; } // людина закрила вікно — не помилка
+      window.clearTimeout(timer);
+      if (!user) { if (!timedOut) setTgBusy(false); return; } // людина закрила вікно — не помилка
       const { next } = await api.auth.telegramWidget(user);
       window.location.href = next;
     } catch {
-      setTgError(SIGNIN.telegramError);
-      setTgBusy(false);
+      window.clearTimeout(timer);
+      if (!timedOut) { setTgError(SIGNIN.telegramError); setTgBusy(false); }
     }
   }
   const anyProviderOn = googleOn || !!telegramBotId;
@@ -102,6 +122,13 @@ export function SignInForm({ id, or = true, className }: Props) {
         <button type="button" className={styles.google} onClick={() => void telegramLogin()} disabled={tgBusy}>
           <TelegramMark />{tgBusy ? SIGNIN.telegramBusy : SIGNIN.telegram}
         </button>
+      )}
+      {tgBusy && <span className={styles.note}>{SIGNIN.telegramWaitHint}</span>}
+      {tgTimedOut && (
+        <span className={styles.note}>
+          {SIGNIN.telegramTimeoutHint}{' '}
+          <a href={SIGNIN.telegramBotLink} target="_blank" rel="noreferrer">{SIGNIN.telegramBotLinkLabel}</a>
+        </span>
       )}
       {tgError && <div className={styles.formError} role="alert">{tgError}</div>}
       {anyProviderOn && or && <div className={styles.or}><span />{SIGNIN.or}<span /></div>}
