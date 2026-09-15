@@ -124,13 +124,20 @@ describe('pantryItemView', () => {
   it('усі поля з каталогу, терміну, чека й індексу', () => {
     const b = batch('Куряче філе', { catalog_key: 'chicken_fillet', expires_at: new Date(NOW + 2 * 86_400_000).toISOString() });
     const v = pantryItemView(b, undefined, buildVetoIndex('u1', 'no', 'мʼяса'), new Set([b.id]), NOW);
-    expect(v).toEqual({ cat: 'мʼясо', kcal: 114, fat: 2.62, prot: 22.5, carb: 0, est: false, days: 2, receipt: true, no: 'не їм', added: 5, unit_weight: 180 });
+    expect(v).toEqual({ catalog_key: 'chicken_fillet', cat: 'мʼясо', kcal: 114, fat: 2.62, prot: 22.5, carb: 0, est: false, days: 2, receipt: true, no: 'не їм', added: 5, unit_weight: 180 });
   });
   it('невідомий продукт — БЖВ null, але строк тепер є: він від зони, не від каталогу', () => {
     // Б1 змінив саме це. Раніше `days: null` означало «мовчазно свіже» — і так
     // виглядали 245 із 246 позицій. Тепер позиція без каталогу все одно має
     // строк: fridge живе 21 день, пʼять минуло.
     const v = pantryItemView(batch('Щось xyz'), undefined, [], new Set(), NOW);
-    expect(v).toEqual({ cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: 16, receipt: false, no: null, added: 5, unit_weight: null });
+    expect(v).toEqual({ catalog_key: null, cat: null, kcal: null, fat: null, prot: null, carb: null, est: null, days: 16, receipt: false, no: null, added: 5, unit_weight: null });
+  });
+  it('ключ продукту йде у відповідь, коли партія свого не має (прод 15.09: 0 із 129 із ключем)', () => {
+    const b = batch('Куряче філе', { catalog_key: null, product_id: 'p1' });
+    const prod = { id: 'p1', household_id: b.household_id, product: 'куряче філе', brand: null, modifier: null, catalog_key: 'chicken_fillet', tags: [], unit: null } as unknown as Parameters<typeof pantryItemView>[1];
+    const v = pantryItemView(b, prod, [], new Set(), NOW);
+    expect(v.catalog_key).toBe('chicken_fillet');
+    expect(v.cat).toBe('мʼясо');
   });
 });
