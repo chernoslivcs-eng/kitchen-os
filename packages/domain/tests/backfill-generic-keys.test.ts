@@ -28,7 +28,16 @@ async function seed() {
   const batch = (product_id: string, zone: 'fridge' | 'spices', added_at: string) => repo.insertBatch({ id: randomUUID(), household_id: me.household_id, catalog_key: null, label: 'перець', zone, value: 1, unit: 'pcs', state: 'sealed', opened_at: null, expires_at: null, best_before_opened_days: null, added_at, depleted_at: null, confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: 'add', product_id });
   await batch(pepper, 'fridge', '2026-09-01T00:00:00.000Z');
   await batch(pepper, 'spices', '2026-09-10T00:00:00.000Z');
-  return { repo, me, kefir, xyz, milk, cheese, chips, bread, pepper };
+  // PR 2 (#142): не-gen ключ із frozen-парою — зона найновішої партії freezer → пара.
+  const spinach = await mk('шпинат Fine Life', 'veg_spinach_fresh');       // freezer → spinach_frozen
+  const salmon = await mk('лосось Metro Chef порційний', 'salmon_fresh');  // остання партія fridge → без змін
+  const frozenBerry = await mk('малина', 'berry_raspberry_frozen');        // frozen у fridge → НЕ назад (могли розморозити)
+  const b2 = (product_id: string, label: string, zone: 'fridge' | 'freezer' | 'fresh', added_at: string) => repo.insertBatch({ id: randomUUID(), household_id: me.household_id, catalog_key: null, label, zone, value: 1, unit: 'pcs', state: 'sealed', opened_at: null, expires_at: null, best_before_opened_days: null, added_at, depleted_at: null, confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: 'add', product_id });
+  await b2(spinach, 'шпинат Fine Life', 'freezer', '2026-09-12T00:00:00.000Z');
+  await b2(salmon, 'лосось', 'freezer', '2026-09-01T00:00:00.000Z');
+  await b2(salmon, 'лосось', 'fridge', '2026-09-12T00:00:00.000Z');
+  await b2(frozenBerry, 'малина', 'fridge', '2026-09-12T00:00:00.000Z');
+  return { repo, me, kefir, xyz, milk, cheese, chips, bread, pepper, spinach, salmon, frozenBerry };
 }
 
 describe('backfillGenericKeys', () => {
@@ -78,5 +87,25 @@ describe('backfillGenericKeys', () => {
     expect(by.get(milk)!.catalog_key).toBe('milk_cow_25');
     const again = await backfillGenericKeys(repo, { apply: true });
     expect(again.refined).toHaveLength(0);
+  });
+
+  // #142: свіже і заморожене — один продукт, два життя. Продукт із не-gen
+  // ключем, на який вказує frozen_of, і найновіша партія у freezer → пара.
+  // Зворотно (frozen → fresh) не робиться: людина могла розморозити.
+  it('frozen: не-gen ключ із парою й партією у freezer → пара; назад — ніколи', async () => {
+    const { repo, me, spinach, salmon, frozenBerry, milk } = await seed();
+    const dry = await backfillGenericKeys(repo, { apply: false });
+    expect(dry.frozen.map((f) => [f.product, f.from, f.to])).toEqual([['шпинат Fine Life', 'veg_spinach_fresh', 'spinach_frozen']]);
+    let by = new Map((await repo.listProducts(me.household_id)).map((p) => [p.id, p]));
+    expect(by.get(spinach)!.catalog_key).toBe('veg_spinach_fresh'); // сухий прогін
+
+    await backfillGenericKeys(repo, { apply: true });
+    by = new Map((await repo.listProducts(me.household_id)).map((p) => [p.id, p]));
+    expect(by.get(spinach)!.catalog_key).toBe('spinach_frozen');
+    expect(by.get(salmon)!.catalog_key).toBe('salmon_fresh');
+    expect(by.get(frozenBerry)!.catalog_key).toBe('berry_raspberry_frozen');
+    expect(by.get(milk)!.catalog_key).toBe('milk_cow_25');
+    const again = await backfillGenericKeys(repo, { apply: true });
+    expect(again.frozen).toHaveLength(0);
   });
 });
