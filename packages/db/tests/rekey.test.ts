@@ -66,10 +66,12 @@ describe('decideKey: сувора мовчить, друга планка від
     expect(d.key).toBe('hh_dish_gel');
   });
 
-  it('серветки: те саме — підтвердження, а не скамʼянілість', () => {
+  // Р161, PR 3: «серветки» — стоп-слово каталогу (nf_napkins), сувора планка
+  // тепер відповідає сама; сенс той самий — нехарчове, без строку.
+  it('серветки: стоп-слово нехарчового відповідає суворою планкою', () => {
     const d = decide('hh_napkins_table', 'серветки');
-    expect(d.action).toBe('keep');
-    expect(d.key).toBe('hh_napkins_table');
+    expect(d.action).toBe('rekey');
+    expect(d.key).toBe('nf_napkins');
   });
 
   it('помідори під пелаті: GENERIC-0915 дає свіжі помідори, не консерву', () => {
@@ -87,8 +89,9 @@ describe('decideKey: сувора мовчить, друга планка від
 
 describe('decideKey: друга планка теж мовчить — стерти', () => {
   // «яловичина стейк Портер» з GENERIC-0915 — не мертвий, а gen_beef (тест нижче).
+  // («розпал гель Jarrkof» з Р161 PR 3 — hh_firelighter, не мертвий.)
   const dead: [string, string, string][] = [
-    ['alc_beer_ale', 'розпал гель', 'розпал гель Jarrkof'],
+    ['alc_beer_ale', 'щось незрозуміле', 'щось незрозуміле Brand'],
   ];
   for (const [stored, product, dn] of dead) {
     it(`«${dn}» під ${stored}`, () => {
@@ -109,7 +112,7 @@ describe('decideKey: друга планка рятує те, що вигляд�
   it('пакети біорозкладні: → пакети для сміття, а не кета', () => {
     const d = decide('fish_keta', 'пакети біорозкладні', 'пакети біорозкладні 3кг');
     expect(d.action).toBe('rekey');
-    expect(d.key).toBe('r2hh_trash_bags_biodegradable');
+    expect(d.key).toBe('nf_bag'); // Р161, PR 3: стоп-слово «пакет» — точний аліас
   });
 });
 
@@ -165,9 +168,9 @@ describe('decideKey ідемпотентний', () => {
   });
 
   it('стертий ключ на другому прогоні лишається стертим', () => {
-    const first = decide('alc_beer_ale', 'розпал гель', 'розпал гель Jarrkof');
+    const first = decide('alc_beer_ale', 'щось незрозуміле', 'щось незрозуміле Brand');
     expect(first.action).toBe('erase');
-    const second = decide(first.key, 'розпал гель', 'розпал гель Jarrkof');
+    const second = decide(first.key, 'щось незрозуміле', 'щось незрозуміле Brand');
     expect(second.action).toBe('keep');
     expect(second.key).toBeNull();
   });
