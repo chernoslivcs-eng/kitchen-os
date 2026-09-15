@@ -22,7 +22,7 @@
     { "match": "сік", "count": 1, "days": [5, 5] },
     { "match": "майонез", "count": 1, "days": [60, 60] },
     { "match": "сіль", "count": 1, "days": null },
-    { "match": "олі", "count": 1, "days": null },
+    { "match": "олія", "count": 1, "days": null },
     { "match": "рис", "count": 1, "days": null },
     { "match": "кав", "count": 1, "days": null },
     { "match": "чай", "count": 1, "days": null },

@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+
+// 15.09: файл із монтуванням сторінки й кількома кліками на тест іде ~20–25 с на
+// раннері CI під --parallel; 5 с на тест давали флейк (двічі 14.09, раз 15.09).
+vi.setConfig({ testTimeout: 20_000 });
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
