@@ -13,6 +13,13 @@ export interface GenericEntry {
   aliases: string[];
   /** Спірне — на звірку власника. */
   note: string;
+  /**
+   * Швидкопсувне (власник 15.09): строк — КОНСЕРВАТИВНИЙ, найкоротший серед видових
+   * варіантів групи (ключі за префіксом; фарш, субпродукти, напівфабрикати й домашня
+   * ковбаса — не в групі: це інший рід товару). Категорії загального запису беруться
+   * з того варіанта, що дає мінімум, — правило строку живе в категоріях.
+   */
+  shelfGroup?: string;
 }
 
 export const GENERIC_0915: readonly GenericEntry[] = [
@@ -24,22 +31,22 @@ export const GENERIC_0915: readonly GenericEntry[] = [
   { word: 'рис', key: 'gen_rice', name: 'Рис', typical: 'grain_rice_long', typicalDesc: 'рис довгозернистий', aliases: ['рис', 'рису', 'рисом'], note: '' },
   { word: 'гречка', key: 'gen_buckwheat', name: 'Гречка', typical: 'grain_buckwheat_kernel', typicalDesc: 'гречка ядриця', aliases: ['гречка', 'гречки', 'гречкою', 'гречана крупа'], note: '' },
   { word: 'олія', key: 'gen_oil', name: 'Олія', typical: 'sunflower_oil', typicalDesc: 'олія соняшникова', aliases: ['олія', 'олії', 'олією', 'олійка'], note: '' },
-  { word: 'ковбаса', key: 'gen_sausage', name: 'Ковбаса', typical: 'saus_boiled_likarska', typicalDesc: 'ковбаса варена (Лікарська)', aliases: ['ковбаса', 'ковбаси', 'ковбасою', 'ковбаска', 'ковбаски'], note: '' },
+  { word: 'ковбаса', key: 'gen_sausage', name: 'Ковбаса', typical: 'saus_boiled_likarska', typicalDesc: 'ковбаса варена (Лікарська)', aliases: ['ковбаса', 'ковбаси', 'ковбасою', 'ковбаска', 'ковбаски'], note: '', shelfGroup: '^saus_' },
   { word: 'помідори', key: 'gen_tomatoes', name: 'Помідори', typical: 'veg_tomato_plum', typicalDesc: 'помідори звичайні (сливка, свіжі)', aliases: ['помідори', 'помідор', 'помідорів', 'помідорами', 'томати', 'томат', 'томатів'], note: 'спірне: свіжі помідори, не пелаті' },
-  { word: 'риба', key: 'gen_fish', name: 'Риба', typical: 'fish_hake', typicalDesc: 'біла риба сира без виду (хек)', aliases: ['риба', 'риби', 'рибу', 'рибою'], note: 'спірне: вид не відомий — беремо хек (морозилка)' },
-  { word: 'сир', key: 'gen_cheese', name: 'Сир', typical: 'cheese_hard_generic', typicalDesc: 'сир твердий', aliases: ['сир', 'сиру', 'сиром', 'сирок твердий'], note: 'спірне: сир = твердий; творог окремо' },
-  { word: 'творог', key: 'gen_curd', name: 'Творог', typical: 'cheese_curd_9', typicalDesc: 'сир кисломолочний 9%', aliases: ['творог', 'творогу', 'творогом', 'домашній сир', 'сир домашній'], note: 'спірне: творог/сир домашній → кисломолочний' },
-  { word: 'вершки', key: 'gen_cream', name: 'Вершки', typical: 'cream_20', typicalDesc: 'вершки 20%', aliases: ['вершки', 'вершків', 'вершками'], note: '' },
-  { word: 'індичка', key: 'gen_turkey', name: 'Індичка', typical: 'turkey_fillet', typicalDesc: 'філе індички', aliases: ['індичка', 'індички', 'індичкою', 'індиче'], note: '' },
-  { word: 'свинина', key: 'gen_pork', name: 'Свинина', typical: 'pork_neck', typicalDesc: 'свиняча шия', aliases: ['свинина', 'свинини', 'свининою'], note: '' },
-  { word: 'яловичина', key: 'gen_beef', name: 'Яловичина', typical: 'beef_stroganoff_cut', typicalDesc: 'яловичина (свіже мʼясо, холодильник)', aliases: ['яловичина', 'яловичини', 'яловичиною'], note: 'спірне: не тушкована консерва' },
-  { word: 'телятина', key: 'gen_veal', name: 'Телятина', typical: 'beef_veal_tenderloin', typicalDesc: 'телятина вирізка', aliases: ['телятина', 'телятиною'], note: '' },
-  { word: 'печінка', key: 'gen_liver', name: 'Печінка', typical: 'offal_chicken_liver', typicalDesc: 'печінка куряча', aliases: ['печінка', 'печінки', 'печінкою'], note: 'спірне: куряча vs яловича' },
-  { word: 'крила', key: 'gen_chicken_wings', name: 'Крила курячі', typical: 'chicken_wing', typicalDesc: 'куряче крило', aliases: ['крила', 'крильця', 'крил', 'курячі крила', 'крила курячі'], note: '' },
-  { word: 'стегна', key: 'gen_chicken_thighs', name: 'Стегна курячі', typical: 'chicken_thigh', typicalDesc: 'куряче стегно', aliases: ['стегна', 'стегно', 'стегон', 'курячі стегна', 'стегна курячі', 'стегенця'], note: '' },
+  { word: 'риба', key: 'gen_fish', name: 'Риба', typical: 'fish_hake', typicalDesc: 'біла риба сира без виду (хек)', aliases: ['риба', 'риби', 'рибу', 'рибою'], note: 'спірне: вид не відомий — беремо хек (морозилка)', shelfGroup: '^fish_' },
+  { word: 'сир', key: 'gen_cheese', name: 'Сир', typical: 'cheese_hard_generic', typicalDesc: 'сир твердий', aliases: ['сир', 'сиру', 'сиром', 'сирок твердий'], note: 'спірне: сир = твердий; творог окремо', shelfGroup: '^cheese_(?!curd)' },
+  { word: 'творог', key: 'gen_curd', name: 'Творог', typical: 'cheese_curd_9', typicalDesc: 'сир кисломолочний 9%', aliases: ['творог', 'творогу', 'творогом', 'домашній сир', 'сир домашній'], note: 'спірне: творог/сир домашній → кисломолочний', shelfGroup: '^cheese_curd_|^r2cz_curd' },
+  { word: 'вершки', key: 'gen_cream', name: 'Вершки', typical: 'cream_20', typicalDesc: 'вершки 20%', aliases: ['вершки', 'вершків', 'вершками'], note: '', shelfGroup: '^cream_' },
+  { word: 'індичка', key: 'gen_turkey', name: 'Індичка', typical: 'turkey_fillet', typicalDesc: 'філе індички', aliases: ['індичка', 'індички', 'індичкою', 'індиче'], note: '', shelfGroup: '^turkey_' },
+  { word: 'свинина', key: 'gen_pork', name: 'Свинина', typical: 'pork_neck', typicalDesc: 'свиняча шия', aliases: ['свинина', 'свинини', 'свининою'], note: '', shelfGroup: '^pork_' },
+  { word: 'яловичина', key: 'gen_beef', name: 'Яловичина', typical: 'beef_stroganoff_cut', typicalDesc: 'яловичина (свіже мʼясо, холодильник)', aliases: ['яловичина', 'яловичини', 'яловичиною'], note: 'спірне: не тушкована консерва', shelfGroup: '^beef_(?!veal)' },
+  { word: 'телятина', key: 'gen_veal', name: 'Телятина', typical: 'beef_veal_tenderloin', typicalDesc: 'телятина вирізка', aliases: ['телятина', 'телятиною'], note: '', shelfGroup: '^beef_veal' },
+  { word: 'печінка', key: 'gen_liver', name: 'Печінка', typical: 'offal_chicken_liver', typicalDesc: 'печінка куряча', aliases: ['печінка', 'печінки', 'печінкою'], note: 'спірне: куряча vs яловича', shelfGroup: '^offal_.*liver' },
+  { word: 'крила', key: 'gen_chicken_wings', name: 'Крила курячі', typical: 'chicken_wing', typicalDesc: 'куряче крило', aliases: ['крила', 'крильця', 'крил', 'курячі крила', 'крила курячі'], note: '', shelfGroup: '^chicken_' },
+  { word: 'стегна', key: 'gen_chicken_thighs', name: 'Стегна курячі', typical: 'chicken_thigh', typicalDesc: 'куряче стегно', aliases: ['стегна', 'стегно', 'стегон', 'курячі стегна', 'стегна курячі', 'стегенця'], note: '', shelfGroup: '^chicken_' },
   { word: 'тунець', key: 'gen_tuna', name: 'Тунець', typical: 'tuna_canned', typicalDesc: 'тунець консервований', aliases: ['тунець', 'тунцем'], note: '' },
-  { word: 'оселедець', key: 'gen_herring', name: 'Оселедець', typical: 'fish_herring_marinated', typicalDesc: 'оселедець (маринований, холодильник)', aliases: ['оселедець', 'оселедцем', 'оселедці'], note: 'спірне: маринований vs свіжоморожений' },
-  { word: 'креветки', key: 'gen_shrimp', name: 'Креветки', typical: 'shrimp_vannamei', typicalDesc: 'креветки vannamei', aliases: ['креветки', 'креветок', 'креветками', 'креветка'], note: '' },
+  { word: 'оселедець', key: 'gen_herring', name: 'Оселедець', typical: 'fish_herring_marinated', typicalDesc: 'оселедець (маринований, холодильник)', aliases: ['оселедець', 'оселедцем', 'оселедці'], note: 'спірне: маринований vs свіжоморожений', shelfGroup: '^fish_herring|^herring_' },
+  { word: 'креветки', key: 'gen_shrimp', name: 'Креветки', typical: 'shrimp_vannamei', typicalDesc: 'креветки vannamei', aliases: ['креветки', 'креветок', 'креветками', 'креветка'], note: '', shelfGroup: '^shrimp_|^r2fs_shrimp' },
   { word: 'перець', key: 'gen_bell_pepper', name: 'Перець', typical: 'veg_bell_pepper_red', typicalDesc: 'перець солодкий червоний', aliases: ['перець', 'перці', 'перцем', 'болгарський перець', 'перець болгарський'], note: 'спірне: «перець» = солодкий овоч, не чорний мелений' },
   { word: 'салат', key: 'gen_lettuce', name: 'Салат', typical: 'veg_lettuce_iceberg', typicalDesc: 'салат айсберг', aliases: ['салат', 'салату', 'салатом', 'салат листовий'], note: 'спірне: листовий салат, не готова страва' },
   { word: 'апельсини', key: 'gen_oranges', name: 'Апельсини', typical: 'orange', typicalDesc: 'апельсин', aliases: ['апельсини', 'апельсинів', 'апельсинами'], note: '' },
@@ -62,5 +69,5 @@ export const GENERIC_0915: readonly GenericEntry[] = [
   { word: 'булочки', key: 'gen_buns', name: 'Булочки', typical: 'bread_kaiser_bun', typicalDesc: 'булочка кайзер', aliases: ['булочки', 'булочка', 'булочок', 'булка', 'булки'], note: '' },
   { word: 'дріжджі', key: 'gen_yeast', name: 'Дріжджі', typical: 'spice_yeast_dry', typicalDesc: 'дріжджі сухі', aliases: ['дріжджі', 'дріжджів', 'дріжджами'], note: '' },
   { word: 'паприка', key: 'gen_paprika', name: 'Паприка', typical: 'spice_paprika_smoked', typicalDesc: 'паприка (спеція)', aliases: ['паприка', 'паприки', 'паприкою'], note: 'спірне: спеція, не свіжий перець' },
-  { word: 'салямі', key: 'gen_salami', name: 'Салямі', typical: 'salami_italian_sliced', typicalDesc: 'салямі італійське', aliases: ['салямі'], note: '' },
+  { word: 'салямі', key: 'gen_salami', name: 'Салямі', typical: 'salami_italian_sliced', typicalDesc: 'салямі італійське', aliases: ['салямі'], note: '', shelfGroup: '^salami_|^saus_salami' },
 ];

@@ -45819,7 +45819,8 @@ const CATALOG_17: CatalogItem[] = [
 
 
 // ---- 15.09: загальні записи для родових слів (GENERIC-0915.md, generic-0915.ts) ----
-// Категорії/зона/алергени — з типового варіанта; нутрієнти — його ж, як оцінка;
+// Категорії/зона/алергени — з типового варіанта (для швидкопсувних — з найкоротшого
+// видового варіанта групи: строк консервативний); нутрієнти — типового, як оцінка;
 // priority −1: за рівного збігу конкретний варіант сильніший. Не редагувати руками —
 // джерело generic-0915.ts.
 export const CATALOG_GENERIC: CatalogItem[] = [
@@ -45857,7 +45858,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['масло', 'молочне'],
     allergen_groups: ['молочне'],
     zone_default: 'fridge',
-    priority: -1, nutrition: { protein: 1, fat: 82, carbs: 1, source: 'estimate' },
+    priority: -1, nutrition: { protein: 1, fat: 83, carbs: 1, source: 'estimate' },
   },
   {
     key: 'gen_bread',
@@ -45899,7 +45900,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_sausage',
     name: 'Ковбаса',
     aliases: ['ковбаса', 'ковбаси', 'ковбасою', 'ковбаска', 'ковбаски'],
-    categories: ['ковбаса', 'варене', 'свинина', 'яловичина', 'мʼясо', 'тваринне'],
+    categories: ['сосиски', 'варене', 'свинина', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
     priority: -1, nutrition: { protein: 12, fat: 21, carbs: 2, source: 'estimate' },
@@ -45917,7 +45918,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_fish',
     name: 'Риба',
     aliases: ['риба', 'риби', 'рибу', 'рибою'],
-    categories: ['хек', 'біла риба', 'морська риба', 'риба', 'тваринне'],
+    categories: ['лосось', 'суповий набір', 'червона риба', 'риба', 'тваринне'],
     allergen_groups: ['риба'],
     zone_default: 'freezer',
     priority: -1, nutrition: { protein: 18, fat: 1, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 99, source: 'estimate' },
@@ -45926,7 +45927,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_cheese',
     name: 'Сир',
     aliases: ['сир', 'сиру', 'сиром', 'сирок твердий'],
-    categories: ['твердий сир', 'сир', 'молочне', 'тваринне'],
+    categories: ['мʼякий сир', 'сир', 'молочне', 'тваринне'],
     allergen_groups: ['молочне'],
     zone_default: 'fridge',
     priority: -1, nutrition: { protein: 25, fat: 28, carbs: 1, source: 'estimate' },
@@ -45935,7 +45936,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_curd',
     name: 'Творог',
     aliases: ['творог', 'творогу', 'творогом', 'домашній сир', 'сир домашній'],
-    categories: ['свіжий сир', 'сир', 'кисломолочне', 'молочне', 'тваринне', 'сир кисломолочний'],
+    categories: ['свіжий сир', 'сир', 'кисломолочне', 'молочне', 'тваринне'],
     allergen_groups: ['молочне'],
     zone_default: 'fridge',
     priority: -1, nutrition: { protein: 5, fat: 8, carbs: 6, fiber: 0, sugars: 4, sodium_mg: 41, source: 'estimate' },
@@ -45953,7 +45954,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_turkey',
     name: 'Індичка',
     aliases: ['індичка', 'індички', 'індичкою', 'індиче'],
-    categories: ['філе', 'індичка', 'птиця', 'мʼясо', 'тваринне'],
+    categories: ['тушка', 'індичка', 'птиця', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
     priority: -1, nutrition: { protein: 22, fat: 1, carbs: 0, source: 'estimate' },
@@ -45971,7 +45972,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_beef',
     name: 'Яловичина',
     aliases: ['яловичина', 'яловичини', 'яловичиною'],
-    categories: ['нарізка', 'яловичина', 'мʼясо', 'тваринне'],
+    categories: ['вирізка', 'яловичина', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
     priority: -1, nutrition: { protein: 20, fat: 12, carbs: 0, source: 'estimate' },
@@ -45998,7 +45999,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_chicken_wings',
     name: 'Крила курячі',
     aliases: ['крила', 'крильця', 'крил', 'курячі крила', 'крила курячі'],
-    categories: ['крило', 'курка', 'птиця', 'мʼясо', 'тваринне'],
+    categories: ['курка', 'птиця', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
     priority: -1, unit_weight: 90, nutrition: { protein: 18, fat: 13, carbs: 0, source: 'estimate' },
@@ -46007,7 +46008,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_chicken_thighs',
     name: 'Стегна курячі',
     aliases: ['стегна', 'стегно', 'стегон', 'курячі стегна', 'стегна курячі', 'стегенця'],
-    categories: ['стегно', 'курка', 'птиця', 'мʼясо', 'тваринне'],
+    categories: ['курка', 'птиця', 'мʼясо', 'тваринне'],
     allergen_groups: [],
     zone_default: 'fridge',
     priority: -1, unit_weight: 170, nutrition: { protein: 17, fat: 17, carbs: 0, fiber: 0, sugars: 0, sodium_mg: 81, source: 'estimate' },
@@ -46025,7 +46026,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     key: 'gen_herring',
     name: 'Оселедець',
     aliases: ['оселедець', 'оселедцем', 'оселедці'],
-    categories: ['оселедець', 'мариноване', 'риба', 'тваринне'],
+    categories: ['оселедець', 'риба', 'тваринне'],
     allergen_groups: ['риба'],
     zone_default: 'fridge',
     priority: -1, nutrition: { protein: 15, fat: 14, carbs: 2, source: 'estimate' },
@@ -46163,7 +46164,7 @@ export const CATALOG_GENERIC: CatalogItem[] = [
     categories: ['горошок', 'бобові', 'консерви'],
     allergen_groups: [],
     zone_default: 'dry',
-    priority: -1, nutrition: { protein: 5, fat: 0, carbs: 8, source: 'estimate' },
+    priority: -1, nutrition: { protein: 5, fat: 1, carbs: 8, source: 'estimate' },
   },
   {
     key: 'gen_vareniki',
