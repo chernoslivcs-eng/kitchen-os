@@ -5,7 +5,7 @@
 // запис ЛИШЕ де ключ знайшовся; теги — як там: allergens у дірку, fasting
 // вирівняти за класом. Наявні ключі не чіпаються. Dry-run, поки не apply.
 // Ядро спільне для скрипта стенда (packages/db/scripts) і адмін-ендпоінта.
-import { resolveLabelToKey } from '@kitchen/catalog';
+import { resolveTripleKey } from '@kitchen/catalog';
 import { BY_KEY } from '@kitchen/catalog/seed';
 import type { Repo } from './repo.js';
 import { catalogGroupsToAllergens, isCatalogFasting, displayName, type ProductTags } from './product.js';
@@ -27,7 +27,7 @@ export async function backfillGenericKeys(repo: Repo, opts: { apply: boolean }):
     for (const prod of await repo.listProducts(h.id)) {
       if (prod.catalog_key) continue;
       log.without_key++;
-      const key = resolveLabelToKey(prod.product) ?? resolveLabelToKey(displayName(prod));
+      const key = resolveTripleKey(prod.product, displayName(prod));
       const cat = key ? BY_KEY.get(key) : undefined;
       if (!key || !cat) { log.left++; continue; }
       log.filled.push({ household_id: h.id, product: prod.product, key, name: cat.name });
