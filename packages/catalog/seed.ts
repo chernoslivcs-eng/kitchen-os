@@ -564,7 +564,8 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'tomato_yellow',
     name: 'Томат жовтий',
-    aliases: ['томат жовтий', 'жовтий помідор', 'yellow tomato'],
+    // 15.09 (комора власника): «Томат Біоранж жовтий» і «томати Біоранж жовті» — одна позиція.
+    aliases: ['томат жовтий', 'жовтий помідор', 'yellow tomato', 'томати жовті', 'помідори жовті', 'жовті помідори'],
     categories: ['томати', 'овочі', 'свіже'],
     allergen_groups: [],
     zone_default: 'fresh',
@@ -952,7 +953,8 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'lemon_pepper',
     name: 'Перець з лимонним ароматом',
-    aliases: ['еко перець з лимонним ароматом', 'lemon pepper'],
+    // 15.09 (комора власника, zone=spices): «перець Еко золотий серпанок з лимоном».
+    aliases: ['еко перець з лимонним ароматом', 'lemon pepper', 'перець з лимоном', 'еко перець з лимоном'],
     categories: ['спеції'],
     allergen_groups: [],
     zone_default: 'spices',
@@ -1109,7 +1111,8 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'kvass',
     name: 'Квас',
-    aliases: ['квас тарас білий', 'kvass'],
+    // 15.09: «Квас Тарас …» будь-якого виду — та сама позиція, що «квас Тарас білий».
+    aliases: ['квас тарас білий', 'kvass', 'квас тарас', 'квас тарас хлібний', 'тарас'],
     categories: ['квас', 'напої'],
     allergen_groups: [],
     zone_default: 'drinks',
@@ -1157,7 +1160,8 @@ const CATALOG_0: CatalogItem[] = [
   {
     key: 'chips_cheese',
     name: 'Чипси зі смаком сиру',
-    aliases: ['lay\'s чипси сир', 'cheese chips'],
+    // 15.09: «чипси Lay's з сиром» ↔ «Чипси Lay's картопляні зі смаком сиру» — один ключ.
+    aliases: ['lay\'s чипси сир', 'cheese chips', 'lay\'s сиром', 'lay\'s сир'],
     categories: ['снеки', 'картопля'],
     allergen_groups: ['молочне'],
     zone_default: 'dry',
@@ -30016,7 +30020,7 @@ const CATALOG_11: CatalogItem[] = [
   {
     key: 'r2dr_drink_kvas_taras',
     name: 'Квас Тарас',
-    aliases: ['квас тарас', 'тарас квас', 'taras kvass'],
+    aliases: ['тарас квас', 'taras kvass'], // «квас тарас» — на стартовому `kvass` (уніфікація 15.09)
     categories: ['квас', 'ферментоване', 'напої', 'рослинне'],
     allergen_groups: [],
     zone_default: 'drinks',
@@ -45126,7 +45130,7 @@ const CATALOG_16: CatalogItem[] = [
   {
     key: 'r2vg_tomato_yellow',
     name: 'Помідори жовті',
-    aliases: ['помідори жовті', 'жовті помідори', 'томати жовті', 'yellow tomatoes'],
+    aliases: ['yellow tomatoes'], // кириличні — на стартовому `tomato_yellow` (уніфікація 15.09)
     categories: ['томати', 'пасльонові', 'овочі', 'рослинне'],
     allergen_groups: [],
     zone_default: 'fresh',

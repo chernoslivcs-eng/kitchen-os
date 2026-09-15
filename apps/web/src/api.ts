@@ -660,7 +660,7 @@ export const api = {
 
   batches: {
     // 15.09: підказка форми «Додати» — суворий резолвер, без моделі.
-    resolve: (label: string) => req<PantryResolveHint>(`/v1/pantry/resolve?label=${encodeURIComponent(label)}`),
+    resolve: (label: string, zone?: PantryBatch['zone']) => req<PantryResolveHint>(`/v1/pantry/resolve?label=${encodeURIComponent(label)}${zone ? `&zone=${zone}` : ''}`),
     create: (input: { label: string; value?: number | null; unit?: PantryBatch['unit']; zone?: PantryBatch['zone'] }) =>
       req<{ batch: PantryBatch }>('/v1/pantry', {
         method: 'POST',

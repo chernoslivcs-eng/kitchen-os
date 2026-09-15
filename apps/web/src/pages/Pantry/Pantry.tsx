@@ -645,7 +645,8 @@ export function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onC
     if (!l) { setHint(undefined); return; }
     let alive = true;
     const id = window.setTimeout(() => {
-      void api.batches.resolve(l).then((h) => {
+      // Обрана людиною зона — контекст резолвера («орегано» у спеціях — сушене).
+      void api.batches.resolve(l, zoneTouched ? zone : undefined).then((h) => {
         if (!alive) return;
         setHint(h.key ? h : null);
         // Зона може бути відома і без ключа (generic, як у чаті) — підставляємо, поки не чіпали.
@@ -653,8 +654,8 @@ export function BatchAddSheet({ onClose, onCreated }: { onClose: () => void; onC
       }).catch(() => { if (alive) setHint(undefined); });
     }, HINT_DEBOUNCE_MS);
     return () => { alive = false; window.clearTimeout(id); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- підставляти зону лише на нову підказку, не на кожен тап по селекту
-  }, [label]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- нечіпана зона не перезапускає підказку; обрана — так (контекст)
+  }, [label, zoneTouched ? zone : null]);
   // Стрілка — знак sys.go з набору, не гліф у тексті (канон no-glyphs).
   const hintLine = hint === undefined ? null
     : hint === null ? 'без категорії — строк не рахуватиму'

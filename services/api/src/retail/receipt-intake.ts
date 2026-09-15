@@ -3,8 +3,8 @@
 // unmatched — каталог не впізнав, людина вирішує сама («додати руками»).
 // Тут навмисно немає евристик поверх каталогу: що не впізнали — показуємо, не вгадуємо.
 import type { IntakeOp, Unit } from '@kitchen/domain';
-import { normalize } from '@kitchen/catalog';
-import { CATALOG, BY_KEY } from '@kitchen/catalog/seed';
+import { normalize, refineSpecies } from '@kitchen/catalog';
+import { CATALOG, BY_KEY, type CatalogItem } from '@kitchen/catalog/seed';
 
 export interface ReceiptLine {
   name: string;
@@ -48,7 +48,7 @@ export function resolveReceiptKey(name: string): string | null {
   // ставало «mc» чи «kaserei». Аліас її не містив, і правильний збіг —
   // при тому, що ВСІ слова аліаса стояли в назві — мовчки відкидався.
   const head = nameWords.find((w) => /[а-яіїєґ]/.test(w)) ?? nameWords[0];
-  let best: { key: string; score: number; priority: number } | null = null;
+  let best: { key: string; item: CatalogItem; score: number; priority: number } | null = null;
   for (const item of CATALOG) {
     for (const cand of [item.name, ...item.aliases]) {
       const cw = normalize(cand).split(/\s+/).filter(Boolean);
@@ -57,11 +57,13 @@ export function resolveReceiptKey(name: string): string | null {
       const score = cw.reduce((s, w) => s + w.length, 0);
       const priority = item.priority ?? 0;
       if (!best || score > best.score || (score === best.score && priority > best.priority)) {
-        best = { key: item.key, score, priority };
+        best = { key: item.key, item, score, priority };
       }
     }
   }
-  return best?.key ?? null;
+  // 15.09, правило (а): вид після родової голови («СИР КАМБОЦОЛА» — не «Сир»).
+  // Те саме правило, що в resolveLabel, — щоб два резолвери давали один ключ.
+  return best ? refineSpecies(best.item, words).key : null;
 }
 
 export function receiptLinesToIntake(lines: ReceiptLine[]): ReceiptIntake {

@@ -146,11 +146,19 @@ describe('передпідрахунок каталогу не змінив жо
     'шоколад Korona полуниця-чіа',
     'яловичина стейк Портер',
   ];
+  // 15.09, правило (а) «вид після родової голови»: еталон не знає видів, тож
+  // мітки, де нинішній резолвер СВІДОМО відходить від еталона, стоять поіменно
+  // з очікуваним ключем. Будь-яка інша розбіжність — усе ще поломка.
+  const speciesOverrides: Record<string, string> = {
+    'KASEREI СИР КАМБОЦОЛА 70%': 'cambozola_cheese',
+    'томат черрі Гордій': 'veg_tomato_cherry',
+  };
   it.each(tiers)('мітки з живими підмінами, тир %s', (tier) => {
-    for (const label of tricky) {
-      expect({ label, r: resolveLabel(label, tier) })
-        .toEqual({ label, r: resolveLabelReference(label, tier) });
-    }
+    const diffs = tricky
+      .map((label) => ({ label, now: resolveLabel(label, tier), ref: resolveLabelReference(label, tier) }))
+      .filter((d) => JSON.stringify(d.now) !== JSON.stringify(d.ref))
+      .filter((d) => d.now?.key !== speciesOverrides[d.label]);
+    expect(diffs).toEqual([]);
   });
 });
 

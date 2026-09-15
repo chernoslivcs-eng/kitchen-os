@@ -145,7 +145,9 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
     // 15.09: рівно той самий шлях, що для чату (apply add op): продукт дому за
     // трійкою (без дублів), ключ на продукті — ensureProduct; зона, коли людина
     // не чіпала, — resolveLabelToZone (generic), як `zone` партії в apply.
-    const product = await ensureProduct(repo, household_id, normalizeTriple({ product: label }), label, undefined, unit);
+    // Правило (б): обрана людиною зона — контекст резолвера (спеції → сушена трава).
+    const ctx = req.body.zone ? { zone: req.body.zone } : undefined;
+    const product = await ensureProduct(repo, household_id, normalizeTriple({ product: label }), label, undefined, unit, ctx);
     const zone: Zone = req.body.zone ?? pantryAddZone(label) ?? 'dry';
 
     const { randomUUID } = await import('node:crypto');
@@ -177,9 +179,10 @@ export function pantryRoute(app: FastifyInstance, repo: Repo) {
   });
 
   // 15.09: підказка для форми «Додати» — без моделі, той самий суворий резолвер.
-  app.get<{ Querystring: { label?: string } }>('/v1/pantry/resolve', { preHandler: authenticated(repo) }, async (req) => {
+  app.get<{ Querystring: { label?: string; zone?: Zone } }>('/v1/pantry/resolve', { preHandler: authenticated(repo) }, async (req) => {
     const label = (req.query.label ?? '').trim();
-    const hint = pantryAddHint(label);
+    const zone = req.query.zone && ZONES.includes(req.query.zone) ? req.query.zone : undefined;
+    const hint = pantryAddHint(label, zone ? { zone } : undefined);
     // Без ключа зона все одно може бути відома (generic, як у чаті) — форма її підставить.
     return hint ?? { key: null, zone: pantryAddZone(label) };
   });
