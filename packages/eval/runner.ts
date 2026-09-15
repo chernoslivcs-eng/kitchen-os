@@ -185,6 +185,8 @@ async function main() {
     // повторний у межах TTL — читає (cached>0). Обидва 0 на живому виклику =
     // провайдер не прокидає поля.
     const u = result.usage;
+    // У --only показуємо токени завжди — вартість прогону рахується з них.
+    if (only && u) console.log(`      токени: input=${u.input} output=${u.output}`);
     if (u && ((u.cached ?? 0) > 0 || (u.cache_write ?? 0) > 0)) {
       console.log(`      кеш: read=${u.cached ?? 0} write=${u.cache_write ?? 0} input=${u.input}`);
     }
