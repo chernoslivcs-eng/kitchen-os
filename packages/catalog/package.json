@@ -7,7 +7,8 @@
   "types": "./logic.ts",
   "exports": {
     ".": "./logic.ts",
-    "./seed": "./seed.ts"
+    "./seed": "./seed.ts",
+    "./generic-0915": "./generic-0915.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

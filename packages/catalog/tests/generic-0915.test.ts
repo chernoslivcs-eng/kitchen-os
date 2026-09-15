@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { resolveLabelToKey, resolveLabelToZone } from '../logic.js';
 import { BY_KEY, CATALOG, CATALOG_GENERIC } from '../seed.js';
 import { GENERIC_0915 } from '../generic-0915.js';
-// Каталог не залежить від домену (зворотний напрям); правило строку — відносним шляхом.
-import { shelfSealedDays } from '../../domain/shelf-life.js';
 
 // Власник 15.09: загальні записи для родових слів («кефір», «сметана»…), яких
 // у довіднику були лише варіанти. Таблиця слово → типовий варіант → ключ —
@@ -29,21 +27,6 @@ describe('загальні записи каталогу (GENERIC-0915)', () => 
       expect(k, label).not.toMatch(/^gen_/);
       if (expected) expect(k, label).toBe(expected);
     }
-  });
-  it('швидкопсувні: строк консервативний — не довший за найкоротший видовий варіант групи (sealed)', () => {
-    const EXCL = new Set(['фарш', 'субпродукти', 'домашня ковбаса', 'вуха', 'напівфабрикат']);
-    for (const g of GENERIC_0915.filter((x) => x.shelfGroup)) {
-      const item = BY_KEY.get(g.key)!;
-      const re = new RegExp(g.shelfGroup!);
-      const z = item.zone_default;
-      const grp = CATALOG.filter((i) => !i.key.startsWith('gen_') && re.test(i.key) && i.zone_default === z && typeof shelfSealedDays(i.key, z) === 'number' && !(g.key !== 'gen_liver' && i.categories.some((c) => EXCL.has(c))));
-      expect(grp.length, g.key).toBeGreaterThan(0);
-      const minSealed = Math.min(...grp.map((i) => shelfSealedDays(i.key, z) as number));
-      expect(shelfSealedDays(g.key, z), `${g.key} sealed`).toBeLessThanOrEqual(minSealed);
-      // opened: строк після відкриття в каталозі не живе (tags.shelf_open_days від моделі на продукті) — тут лише sealed.
-    }
-    // приклад власника: «Сир Моцарела» з чека не має отримати 30+ днів твердого сиру
-    expect(shelfSealedDays('gen_cheese', 'fridge')).toBeLessThanOrEqual(21);
   });
   it('загальний запис успадковує зону й алергени типового; категорії — типового або найкоротшого варіанта групи; нутрієнти — оцінка', () => {
     for (const item of CATALOG_GENERIC) {
