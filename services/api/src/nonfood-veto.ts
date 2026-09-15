@@ -1,5 +1,6 @@
 import type { Card, IntakeOp, NonfoodOp } from '@kitchen/domain';
 import { BY_KEY } from '@kitchen/catalog/seed';
+import { normalize } from '@kitchen/catalog';
 import { resolveReceiptKey } from './retail/receipt-intake.js';
 
 // Вето каталогу: нехарчове не потрапляє в комору.
@@ -41,4 +42,16 @@ export function vetoNonfood(card: Card | null | undefined): number {
   card.ops = keep;
   card.nonfood = [...(card.nonfood ?? []), ...cut];
   return cut.length;
+}
+
+// Тихий рядок відповіді під карткою: «Не в комору: N (пакети, дрова…)».
+// Головами слів, не повними назвами — щоб не переписувати чек назад людині.
+export function nonfoodReplyLine(labels: readonly string[]): string | null {
+  if (!labels.length) return null;
+  const heads = labels
+    .map((l) => normalize(l).split(/\s+/).find((w) => /[а-яіїєґ]/.test(w)) ?? '')
+    .filter(Boolean)
+    .filter((h, i, a) => a.indexOf(h) === i);
+  const shown = heads.slice(0, 3).join(', ') + (heads.length > 3 ? '…' : '');
+  return `Не в комору: ${labels.length}${shown ? ` (${shown})` : ''}`;
 }

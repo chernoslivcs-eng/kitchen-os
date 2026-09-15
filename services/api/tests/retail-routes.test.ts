@@ -17,6 +17,7 @@ const RECEIPT: RetailReceipt = {
     { name: 'Філе куряче охолоджене', quantity: 0.64, unit: 'кг', price: 200, image: null },
     { name: 'Папір туалетний Zewa 8 рулонів', quantity: 8, unit: 'шт', price: 189, image: null },
     { name: "Дрова Pen'ok Початок вогню №2", quantity: 1, unit: 'шт', price: 259, image: null },
+    { name: 'Журнал Vogue', quantity: 1, unit: 'шт', price: 120, image: null },
   ],
 };
 
@@ -185,17 +186,19 @@ describe('retail routes · silpo', () => {
     expect(c.auto_applied).toBe(false);
     expect(c.undo_token).toBeFalsy();
     expect(c.card.type).toBe('intake_diff');
-    expect(c.text).toBe('Чек Сільпо · вул. Київська, буд. 10. Додати до комори ці покупки?');
+    // Р161, PR 3: другий рядок — тихий підсумок нехарчового, головами слів.
+    expect(c.text).toBe('Чек Сільпо · вул. Київська, буд. 10. Додати до комори ці покупки?\nНе в комору: 2 (папір, дрова)');
     // Метадані джерела — В КАРТЦІ (не тільки у відповіді): стрічка рендерить
     // шапку «Чек Сільпо · …», сірі рядки і «не для комори» після перезавантаження.
     expect(c.card.source).toMatchObject({
       kind: 'retail_receipt', provider: 'silpo',
       shop: 'вул. Київська, буд. 10', total: 2644,
     });
+    // 15.09 (Р161, PR 3): дрова — стоп-слово каталогу, теж «не для комори».
     expect(c.card.source.nonfood.map((l: { name: string }) => l.name))
-      .toEqual(['Папір туалетний Zewa 8 рулонів']);
+      .toEqual(['Папір туалетний Zewa 8 рулонів', "Дрова Pen'ok Початок вогню №2"]);
     expect(c.card.source.unmatched.map((l: { name: string }) => l.name))
-      .toEqual(["Дрова Pen'ok Початок вогню №2"]);
+      .toEqual(['Журнал Vogue']);
 
     // Нічого не застосовано, поки людина не тисне «Застосувати».
     expect(await repo.listBatches(me.household_id)).toHaveLength(0);
@@ -206,7 +209,7 @@ describe('retail routes · silpo', () => {
     );
     const msg = messages.find((m) => m.id === c.card_id);
     expect((msg?.card as { source?: { kind?: string } })?.source?.kind).toBe('retail_receipt');
-    expect(msg?.text).toBe('Чек Сільпо · вул. Київська, буд. 10. Додати до комори ці покупки?');
+    expect(msg?.text).toBe('Чек Сільпо · вул. Київська, буд. 10. Додати до комори ці покупки?\nНе в комору: 2 (папір, дрова)');
 
     // Явне підтвердження — тим самим шляхом, що будь-яка intake_diff-картка.
     const applyRes = await app.inject({

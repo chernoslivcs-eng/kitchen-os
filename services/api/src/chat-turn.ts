@@ -35,7 +35,7 @@ import type { RetailCartAttempt, RetailSearchAttempt } from './routes/retail.js'
 import { localDay } from './local-day.js';
 import { stampChatReceipt } from './receipt-source.js';
 import { composeIntakeLabels } from './intake-labels.js';
-import { vetoNonfood } from './nonfood-veto.js';
+import { vetoNonfood, nonfoodReplyLine } from './nonfood-veto.js';
 import { applyVeto, recipeVetoHits, type VetoLogEntry } from './veto.js';
 
 import type { TelemetryHost } from './telemetry.js';
@@ -200,7 +200,10 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       }
 
       stampChatReceipt(call.card, call.raw_kind);
-      vetoNonfood(call.card);
+      if (vetoNonfood(call.card)) {
+        const nf = nonfoodReplyLine((call.card?.type === 'intake_diff' ? call.card.nonfood ?? [] : []).map((n) => n.label));
+        if (nf) call.reply = call.reply ? `${call.reply}\n${nf}` : nf;
+      }
       composeIntakeLabels(call.card);
       const card_id = call.card ? randomUUID() : null;
       if (call.card && card_id) {

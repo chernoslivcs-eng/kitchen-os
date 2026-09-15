@@ -24,7 +24,7 @@ describe('vetoNonfood', () => {
   // нехарчове. Зворотне правило («пускати тільки впізнану їжу») зламало б
   // звичайний intake — строгий матчер не знає й половини нормальної їжі.
   it('невідоме каталогу проходить — модель тут компетентніша за словник', () => {
-    const card = intake(['Крем-брускетта Ponti з чорних оливок', 'Дрова Penok']);
+    const card = intake(['Крем-брускетта Ponti з чорних оливок', 'Журнал Vogue']);
     expect(vetoNonfood(card)).toBe(0);
     expect(card.ops).toHaveLength(2);
     expect(card.nonfood).toBeUndefined();

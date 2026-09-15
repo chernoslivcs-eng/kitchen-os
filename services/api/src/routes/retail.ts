@@ -25,6 +25,7 @@ import { makeTokenCipher } from '../retail/crypto.js';
 import { SilpoProvider, RetailAuthError, type RetailFoundRow, type RetailProduct } from '../retail/silpo-provider.js';
 import { KarpatyProvider } from '../retail/karpaty-provider.js';
 import { receiptLinesToIntake } from '../retail/receipt-intake.js';
+import { nonfoodReplyLine } from '../nonfood-veto.js';
 import { callAltFilter } from '../model.js';
 import { recordUsage } from '../usage.js';
 import { localDay } from '../local-day.js';
@@ -436,9 +437,11 @@ export function retailRoutes(app: FastifyInstance, repo: Repo, opts?: RetailOpts
       // позицій (той самий чекбоксовий UI, що в будь-якій intake_diff).
       const card_id = randomUUID();
       await createPending(repo, { message_id: card_id, household_id, user_id, card });
-      const text = ops.length
+      // Р161, PR 3: тихий рядок про нехарчове — щоб людина бачила, чого продукт не взяв.
+      const nf = nonfoodReplyLine(nonfood.map((l) => l.name));
+      const text = (ops.length
         ? `Чек Сільпо · ${receipt.shop}. Додати до комори ці покупки?`
-        : `Чек Сільпо · ${receipt.shop}`;
+        : `Чек Сільпо · ${receipt.shop}`) + (nf ? `\n${nf}` : '');
       await repo.saveMessage({
         id: card_id, session_id: session.id, role: 'assistant',
         text, card, applied: 0, created_at: new Date().toISOString(),
