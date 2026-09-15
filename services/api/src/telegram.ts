@@ -17,8 +17,11 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind } from '@kitchen/domain';
+import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind, type Tradition } from '@kitchen/domain';
 import { saveScriptedTurn } from './chat-turn.js';
+import { renderPeriodSeriesText, periodSeriesKeyboard, maskOf, parseMask, selectedOf, periodAppliedStatus, TRADITION_SETS, TRADITION_LABEL } from './telegram-period.js';
+import { buildPeriodCard } from './period-card.js';
+import { createPending } from '@kitchen/domain';
 import { localDay } from './local-day.js';
 import type { AttachmentStore } from './attachment-store.js';
 import { runChatTurn, ChatTurnHttpError, type ChatRouteOpts, type ChatTurnInput, type ChatTurnOutput } from './chat-turn.js';
@@ -418,7 +421,10 @@ export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCall
   if (!linked) return { status: COPY.startFirst };
   try {
     if (m[1] === 'apply') {
+      const pc = await deps.repo.getPending(m[2]!);
       const r = await applyCard(deps.repo, m[2]!, [], linked.user_id);
+      if (pc?.card.type === 'period' && (pc.card.kind === 'custom' || pc.card.kind === 'diet')) return { status: periodAppliedStatus(pc.card) };
+      if (pc?.card.type === 'event') return { status: 'Записав у календар' };
       return { status: COPY.added(r.applied) };
     }
     await dismissCard(deps.repo, m[2]!, linked.user_id);
@@ -447,7 +453,9 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
   const recipe = u.data.match(/^recipe:([0-9a-f-]{36})$/);
   const help = u.data.match(/^help:(start|telegram|app|list|pantry|calendar)$/);
   const calendar = u.data.match(/^calendar:(holidays)$/);
-  if (!pantry && !toggle && !recipe && !help && !calendar) return null;
+  const pt = u.data.match(/^(pt|pa):([0-9a-f-]{36}):([0-9a-f]+)$/);
+  const calSet = u.data.match(/^cal-set:(orthodox|catholic|jewish|islamic|secular)$/);
+  if (!pantry && !toggle && !recipe && !help && !calendar && !pt && !calSet) return null;
   if (seenUpdate(u.update_id, (deps.now?.() ?? new Date()).getTime())) return null;
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
@@ -464,9 +472,36 @@ export async function handleQuickCallback(deps: TelegramDeps, u: IncomingCallbac
     return { kind: 'reply', reply: { messages: splitTelegramText(renderHelpHtml(topic.text)), html: true, keyboard: helpKeyboardWithout(topic.id) } };
   }
   if (calendar) {
-    // «Свята»: серія з галочками в боті — наступним PR (рішення власника); поки — та сама відповідь + рядок.
+    // «Свята» → набори традицій з каталогу (нових не додаємо — рішення власника); тап → серія без моделі.
     const text = renderCalendarText(await collectCalendarFacts(deps.repo, household_id, linked.user_id));
-    return { kind: 'edit', text: `${text}\n\n${escapeHtml(CALENDAR_HOLIDAYS_HINT)}`, keyboard: calendarKeyboard(web) };
+    const sets = TRADITION_SETS.map((t) => ({ text: TRADITION_LABEL[t].charAt(0).toUpperCase() + TRADITION_LABEL[t].slice(1), data: `cal-set:${t}` }));
+    return { kind: 'edit', text: `${text}\n\n${escapeHtml(CALENDAR_HOLIDAYS_HINT)}`, keyboard: [sets.slice(0, 3), sets.slice(3), ...calendarKeyboard(web)] };
+  }
+  if (calSet) {
+    // Сервер сам будує серію, як для картки з чату; кладе її в розмову дня як картку
+    // асистента + pending — «Записати» іде тим самим apply, а веб бачить серію.
+    const card = await buildPeriodCard(deps.repo, { type: 'period', kind: 'tradition', tradition: calSet[1] as Tradition }, household_id);
+    if (!card?.items?.length) return { kind: 'reply', reply: { messages: ['Такого набору в довіднику нема.'], html: false } };
+    const session = await deps.repo.getOrCreateSessionForDay(linked.user_id, localDay());
+    const card_id = randomUUID();
+    await deps.repo.saveMessage({ id: card_id, session_id: session.id, role: 'assistant', text: null, card, applied: 0, created_at: new Date().toISOString(), channel: 'telegram' });
+    await createPending(deps.repo, { message_id: card_id, household_id, user_id: linked.user_id, card });
+    return { kind: 'reply', reply: calendarCardReply({ reply: null, card, card_id }) as QuickReply };
+  }
+  if (pt) {
+    const pc = await deps.repo.getPending(pt[2]!);
+    if (!pc || pc.card.type !== 'period' || !pc.card.items?.length) return { kind: 'reply', reply: { messages: [COPY.notAdded], html: false } };
+    const mask = parseMask(pt[3]!);
+    if (pt[1] === 'pt') return { kind: 'edit', text: renderPeriodSeriesText(pc.card, mask), keyboard: periodSeriesKeyboard(pc.card, pc.id, mask) };
+    const selected = selectedOf(mask, pc.card.items.length);
+    try {
+      const r = selected.length ? await applyCard(deps.repo, pc.id, selected, linked.user_id) : await applyCard(deps.repo, pc.id, [], linked.user_id, { none: true });
+      void r;
+      return { kind: 'edit', text: `${renderPeriodSeriesText(pc.card, mask)}\n\nЗаписав у календар · ${selected.length}`, keyboard: [] };
+    } catch (err) {
+      (deps.log ?? (console as unknown as FastifyBaseLogger)).warn({ err: String(err), data: u.data }, 'telegram-period-apply');
+      return { kind: 'edit', text: `${renderPeriodSeriesText(pc.card, mask)}\n\n${COPY.notAdded}`, keyboard: [] };
+    }
   }
   if (pantry) return { kind: 'edit', text: renderPantryText(await deps.repo.listBatches(household_id), Date.now(), pantry[1] as 'soon' | 'all'), keyboard: pantryKeyboard(web) };
   if (toggle) {
@@ -549,6 +584,23 @@ async function runQuickCommand(cmd: ReturnType<typeof matchQuickCommand> & {}, d
   }
 }
 
+/** Власник 15.09: картки календаря в боті — з кнопками, не «Відкрити у вебі».
+ *  tradition із items → серія з тоглами; custom/diet/event → «Записати» / «Ні» (той самий apply/dismiss, що для чека). */
+function calendarCardReply(out: { reply: string | null; card: Card | null; card_id: string | null }): TelegramReply | null {
+  const card = out.card;
+  if (!card || !out.card_id) return null;
+  if (card.type === 'period' && card.kind === 'tradition' && card.items?.length) {
+    const mask = maskOf(card.items.length);
+    const messages = [...(out.reply ? [escapeHtml(out.reply)] : []), renderPeriodSeriesText(card, mask)];
+    return { messages: splitTelegramText(messages.join('\n\n')), html: true, keyboard: periodSeriesKeyboard(card, out.card_id, mask) };
+  }
+  if ((card.type === 'period' && (card.kind === 'custom' || card.kind === 'diet')) || card.type === 'event') {
+    const text = [out.reply ? escapeHtml(out.reply) : null, renderCardText(card) ? escapeHtml(renderCardText(card)!) : null].filter(Boolean).join('\n\n');
+    return { messages: splitTelegramText(text || 'Записати?'), html: true, keyboard: [[{ text: 'Записати', data: `apply:${out.card_id}` }, { text: 'Ні', data: `dismiss:${out.card_id}` }]] };
+  }
+  return null;
+}
+
 /** Той самий хід, що POST /v1/chat, для привʼязаної людини; дім — її. Спільне для тексту й голосу. */
 async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: number, text: string, prefix?: string): Promise<TelegramReply> {
   const plain = (s: string): TelegramReply => ({ messages: [s], html: false });
@@ -563,6 +615,8 @@ async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: n
     const out = await turn({ user: { user_id, household_id }, text, channel: 'telegram', host, log });
     // Рецепт показує на комору через ing.p (uuid) — як і веб, підставляємо назви партій.
     const card = await withRecipeLabels(deps.repo, household_id, out.card);
+    const calendarReply = calendarCardReply({ reply: out.reply, card, card_id: out.card_id });
+    if (calendarReply) { if (prefix) calendarReply.messages.unshift(escapeHtml(prefix)); return calendarReply; }
     const web = await webLink(deps, user_id);
     const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, web);
     if (prefix) messages.unshift(escapeHtml(prefix));
