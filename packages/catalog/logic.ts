@@ -272,7 +272,39 @@ export function resolveLabel(
     }
   }
   if (!best) return null;
-  return { key: refineSpecies(best.item, set, catalog, ctx).key, tier: best.tier };
+  const refined = refineSpecies(best.item, set, catalog, ctx);
+  return { key: refineFrozen(refined, norm, catalog, ctx).key, tier: best.tier };
+}
+
+// Р161, PR 2: маркери заморозки в чековому рядку/мітці. «в/м» (варено-морожені)
+// і «с/м» (свіжоморожені) — маркування Сільпо/METRO; «морозиво» — не маркер.
+const FROZEN_MARKER = /(^|[\s(])(з\/м|с\/м|в\/м|зам\.|заморож[а-яіїє]*|морож[а-яіїє]*|frozen)(?=$|[\s).,;])/u;
+export function hasFrozenMarker(label: string): boolean {
+  return FROZEN_MARKER.test(normalize(label));
+}
+
+/**
+ * Свіже і заморожене — один продукт, два життя (`frozen_of` у каталозі).
+ * Заморожена пара береться ЛИШЕ за маркером у мітці або зоною freezer із
+ * чека/форми; явна зона НЕ freezer повертає свіже. Без сигналу — як є:
+ * «спливло раніше» дешевше, ніж «ще добре». Завжди-заморожене (пельмені,
+ * морозиво — без `frozen_of`) зоною не «розморожується».
+ */
+export function refineFrozen(
+  chosen: CatalogItem,
+  normLabel: string,
+  catalog: readonly CatalogItem[] = CATALOG,
+  ctx: ResolveCtx = {},
+): CatalogItem {
+  const frozenSignal = ctx.zone === 'freezer' || FROZEN_MARKER.test(normLabel);
+  if (frozenSignal) {
+    if (chosen.frozen_of || chosen.zone_default === 'freezer') return chosen;
+    return catalog.find((i) => i.frozen_of === chosen.key) ?? chosen;
+  }
+  if (ctx.zone && ctx.zone !== 'freezer' && chosen.frozen_of) {
+    return catalog.find((i) => i.key === chosen.frozen_of) ?? chosen;
+  }
+  return chosen;
 }
 
 /**
