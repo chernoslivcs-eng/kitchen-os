@@ -36,7 +36,17 @@
 // і колонки в token_usage немає — тобто в базу вони не потрапляють. Провайдер
 // бере за них 1,25× ставки входу, тож це реальні гроші, яких ми не бачимо.
 
-interface Price { input: number; cached: number; output: number }
+interface Price {
+  input: number; cached: number; output: number;
+  /**
+   * 16.09: множник запису в кеш до ставки входу. Дефолт 1,25 — виміряний
+   * для Anthropic (нижче). Google за запис окремої ставки не бере: контекст
+   * кешується за звичайною ставкою входу (+ погодинне зберігання, яке
+   * OpenRouter показує як input_cache_write $0,0417/млн·год і яке ми не
+   * рахуємо — воно не токенне), тож для Gemini множник 1,0.
+   */
+  cache_write_mult?: number;
+}
 
 /**
  * Крок А5: ЗАПИС у кеш коштує 1,25 × ставки входу.
@@ -73,11 +83,18 @@ const PRICES: [string, Price][] = [
   ['haiku',  { input: 1.00, cached: 0.10, output: 5.00 }],
   ['sonnet', { input: 3.00, cached: 0.30, output: 15.00 }],
   ['opus',   { input: 15.00, cached: 1.50, output: 75.00 }],
+  // 16.09: smart-модель проду через OpenRouter. Звірено з GET
+  // https://openrouter.ai/api/v1/models (pricing.prompt 0.75, completion 3.75,
+  // input_cache_read 0.075 за млн). Роздуми (thinking) OpenRouter віддає
+  // всередині output_tokens і тарифікує як completion (internal_reasoning =
+  // 3.75) — окремо НЕ додаємо, інакше порахуємо двічі. Ключ — точна назва:
+  // у інших gemini інші ціни.
+  ['gemini-3.8-flash', { input: 0.75, cached: 0.075, output: 3.75, cache_write_mult: 1.0 }],
 ];
 
-/** Ставка запису в кеш для моделі: sonnet $3,75, haiku $1,25, opus $18,75 за млн. */
+/** Ставка запису в кеш для моделі: sonnet $3,75, haiku $1,25, opus $18,75, gemini-3.8-flash $0,75 за млн. */
 export function cacheWriteRate(p: Price): number {
-  return p.input * CACHE_WRITE_MULTIPLIER;
+  return p.input * (p.cache_write_mult ?? CACHE_WRITE_MULTIPLIER);
 }
 
 export function priceFor(model: string): Price | null {

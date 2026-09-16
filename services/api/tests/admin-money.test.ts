@@ -114,6 +114,16 @@ describe('GET /v1/admin/money', () => {
     expect(b.byCall.reduce((n: number, s: { calls: number }) => n + s.calls, 0)).toBe(1);
   });
 
+  // 16.09: smart-модель проду — минулі рядки token_usage з gemini тепер
+  // рахуються при кожному запиті (ціна не зберігається в базі), не «не знаємо».
+  // (Вікно за замовчуванням — поточний період; сам перерахунок від дати не залежить.)
+  it('gemini-3.8-flash: минулі рядки перераховуються, unpriced 0', async () => {
+    await repo.logTokenUsage(usage({ model: 'google/gemini-3.8-flash', input_tokens: 1_000_000, cached_tokens: 0, output_tokens: 0, cache_write_tokens: 0 }));
+    const b = (await money()).json();
+    expect(b.totals.unpriced_calls).toBe(0);
+    expect(b.totals.usd).toBeCloseTo(0.75, 6);
+  });
+
   it('невідома модель — «не знаємо», а НЕ нуль', async () => {
     await repo.logTokenUsage(usage());
     await repo.logTokenUsage(usage({ model: 'llama-3-70b', input_tokens: 9_000_000 }));
