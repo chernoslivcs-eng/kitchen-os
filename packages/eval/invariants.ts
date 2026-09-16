@@ -577,6 +577,41 @@ export const registry: Record<string, Invariant> = {
     return bad.length ? fail(bad.join(' · ')) : pass(`${rules.length} правил звірено`);
   },
 
+  // 16.09: чек зі скріншота низької якості (receipt-lowres-silpo) — звірка з
+  // еталоном receipt-lowres-silpo.ETALON.md: 13 позицій, пакети — нехарчове,
+  // ваги 892/384/160 г, бренди Lay's/Селянське/АХА/King Oscar, сидр
+  // alcohol:true, свинина запечена — cooked. Ціни й ШК не стають позиціями.
+  'lowres-etalon': (out) => {
+    const ops = opsOfIntake(out) ?? [];
+    const bad: string[] = [];
+    const hay = (o: any) => `${o.label ?? ''} ${o.product ?? ''} ${o.brand ?? ''} ${o.variant ?? ''}`.toLowerCase();
+    if (ops.length !== 13) bad.push(`позицій ${ops.length}, еталон 13`);
+    const noise = ops.filter((o: any) => /шк|укт|підсумок|знижка/i.test(String(o.label ?? '')));
+    if (noise.length) bad.push(`шум став позицією: ${noise.map((o: any) => o.label).join(', ')}`);
+    const find = (re: RegExp) => ops.find((o: any) => re.test(hay(o)));
+    for (const [re, g, name] of [[/грейпфрут/, 892, 'грейпфрут'], [/томат|помідор/, 384, 'томати'], [/свинин/, 160, 'свинина']] as const) {
+      const o = find(re) as any;
+      if (!o) { bad.push(`нема ${name}`); continue; }
+      const v = o.v ?? o.value; const u = o.u ?? o.unit;
+      if (!(v === g && u === 'g')) bad.push(`${name}: ${v} ${u}, еталон ${g} g`);
+    }
+    // «Печ121KingOscTрісКон» — ПЕЧІНКА ТРІСКИ консервована (King Oscar продає
+    // саме її), не печиво: ручний еталон помилявся, модель — ні.
+    for (const [re, brand] of [[/чипс/, /lay/i], [/молок/, /селянськ/i], [/гранол/, /аха|axa/i], [/печ|тріск/, /king\s*osc/i]] as const) {
+      const o = find(re) as any;
+      if (!o) { bad.push(`нема ${re.source}`); continue; }
+      if (!brand.test(String(o.brand ?? ''))) bad.push(`${re.source}: brand «${o.brand ?? ''}», еталон ${brand.source}`);
+    }
+    const cider = find(/сидр/) as any;
+    if (!cider) bad.push('нема сидру'); else if (cider.tags?.alcohol !== true) bad.push('сидр без alcohol:true');
+    const pork = find(/свинин/) as any;
+    // Запечена свинина — і cooked, і ready (готова до столу) за словником промпту; обидва чесні, raw — ні.
+    if (pork && !['cooked', 'ready'].includes(String(pork.tags?.processing ?? ''))) bad.push(`свинина processing «${pork.tags?.processing ?? ''}», еталон cooked/ready`);
+    const bags = find(/пакет/) as any;
+    if (!bags) bad.push('пакети загубились (мають бути окремою позицією, не в комору — відсікає каталог)');
+    return bad.length ? fail(bad.join(' · ')) : pass('13/13 · ваги · бренди · сидр · свинина');
+  },
+
   'includes-nonfood': (out) => {
     const ops = opsOfIntake(out) ?? [];
     const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет|дрова|розпал|гриль|пакет|хустин/i;
