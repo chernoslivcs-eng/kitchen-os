@@ -161,6 +161,10 @@ export function loadFixtures(): Fixture[] {
       ...readJson('receipt-open-shelf.json'),
       attachment: { kind: 'text' as const, path: 'receipt-open-shelf.txt', content: readText('receipt-open-shelf.txt') },
     },
+    {
+      ...readJson('receipt-lowres-silpo.json'),
+      attachment: { kind: 'text' as const, path: 'receipt-lowres-silpo.txt', content: readText('receipt-lowres-silpo.txt') },
+    },
     (() => {
       const imgPath = join(HERE, 'shelf-photo.jpg');
       if (!existsSync(imgPath)) {

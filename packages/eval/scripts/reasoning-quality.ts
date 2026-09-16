@@ -17,6 +17,7 @@ const all = loadFixtures();
 const ALL_GROUPS: Record<string, Fixture[]> = {
   attachment_parse: all.filter((f) => f.call === 'attachment_parse' && !f.skip && f.id !== 'receipt-till-photo'),
   photo: all.filter((f) => f.id === 'receipt-till-photo' && !f.skip),
+  lowres: all.filter((f) => f.id === 'receipt-lowres-silpo'),
   recipe_gen: all.filter((f) => f.call === 'recipe_gen' && !f.skip),
   chat: CHAT_IDS.map((id) => all.find((f) => f.id === id)!).filter(Boolean),
 };
@@ -50,6 +51,8 @@ async function pass(level: string | null, fxs: Fixture[]): Promise<Row[]> {
     console.log(`  [${level ?? 'base'}] ${fx.id.padEnd(26)} ${String(row.ok).padStart(2)}/${row.n} ${String(row.ms).padStart(6)}ms out=${String(row.out).padStart(5)} think=${String(row.think ?? '?').padStart(5)} json=${json ? 'ok ' : 'BAD'}${row.failed.length ? ' ✗ ' + row.failed.join(' · ') : ''}`);
     if (fx.call === 'chat') console.log(`         card: ${row.card}`);
     if (row.lines) console.log(`         ${row.lines}`);
+    // DUMP=1 — усі ops коротко (label | product | brand | variant | v u | tags), щоб звірити з еталоном очима.
+    if (process.env.DUMP) for (const o of ops as any[]) console.log(`           · ${o.label} | ${o.product ?? ''} | ${o.brand ?? ''} | ${o.variant ?? ''} | ${o.v ?? o.value ?? ''} ${o.u ?? o.unit ?? ''} | ${JSON.stringify(o.tags ?? {})}`);
   }
   return rows;
 }

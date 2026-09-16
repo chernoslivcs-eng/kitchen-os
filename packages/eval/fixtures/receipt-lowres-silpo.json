@@ -1,0 +1,16 @@
+{
+  "id": "receipt-lowres-silpo",
+  "description": "Чек Сільпо зі скріншота низької якості, розпізнаний вручну у текст (16.09): 13 позицій + шум ШК/УКТ ЗЕД/ПІДСУМОК/ЗНИЖКА; вагові рядки «0.892 X 59.99»; нехарчове (пакети); еталон — receipt-lowres-silpo.ETALON.md.",
+  "call": "attachment_parse",
+  "invariants": [
+    "triple-discipline",
+    "no-prices",
+    "no-markdown",
+    "lowres-etalon"
+  ],
+  "attachment": {
+    "kind": "text",
+    "path": "receipt-lowres-silpo.txt"
+  },
+  "expect_lines": 13
+}
