@@ -62,7 +62,7 @@ export async function recordUsage(
   // поля, яке ця функція навіть не читає.
   ctx: Pick<UserContext, 'user_id' | 'household_id'>,
   call: CallName,
-  meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number; reasoning?: string },
+  meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number; reasoning?: string; provider?: string | null; generation_id?: string | null },
   calls: ModelCallUsage[],
   started_at_ms: number,
   turn?: UsageTurn,
@@ -97,6 +97,9 @@ export async function recordUsage(
       cache_write_tokens: usage.cache_write ?? null,
       // 16.09: рівень міркування, що поїхав у виклик (MODEL_REASONING) — видно в admin/money.
       reasoning: meta.reasoning ?? null,
+      // 16.09: хто відповідав (OpenRouter) і id генерації — лише для першого виклику ходу; повторні — той самий маршрут.
+      provider: i === 0 ? meta.provider ?? null : null,
+      generation_id: i === 0 ? meta.generation_id ?? null : null,
       created_at: new Date().toISOString(),
     });
   }
