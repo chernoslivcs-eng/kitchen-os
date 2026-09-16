@@ -1,13 +1,21 @@
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { buildApp } from '../src/server.js';
-import { InMemoryRepo, ONBOARDING_GREETING, PROFILE_SUMMARY_REQUEST } from '@kitchen/domain';
+import { InMemoryRepo, PROFILE_SUMMARY_REQUEST } from '@kitchen/domain';
 import { InMemoryStore } from '../src/attachment-store.js';
 import { ConsoleMailer } from '../src/mailer.js';
 import { signIn } from './helpers.js';
+import { localDay } from '../src/local-day.js';
 
-// Раунд 4, крок 7: картка «Про тебе» в стрічці. Видається один раз — у першій
-// розмові, коли всі сім полів порожні; стан панелей — з profile_text, пропуски
-// — у самій картці; резюме — серверний хід без картки.
+// Хотфікс 15.09: сервер більше НЕ вставляє вітання+картку онбордингу в GET
+// /v1/session/today (session.ts, «Крок 7» знято) — після вимкнення екранів
+// онбордингу воно спливало в кожному новому акаунті, а картка «Про тебе»
+// у стрічці v3 уже не малюється (INTAKE_ON_WELCOME, №37), тож повідомлення
+// лише заважало побачити шість підказок порожнього чату.
+// PATCH /v1/onboarding/:id (пропуск панелі) і POST /v1/chat {action:
+// 'profile_summary'} лишаються живими для СТАРИХ карток, уже в БД — тести
+// нижче сіють таку картку напряму через repo.saveMessage, а не чекають, що
+// її вставить сервер.
 
 function mk() {
   const repo = new InMemoryRepo();
@@ -17,49 +25,60 @@ function mk() {
 }
 type Msg = { id: string; role: string; text: string | null; card: { type: string; skipped?: string[] } | null };
 
-describe('видача картки онбордингу', () => {
-  it('перший GET /v1/session/today → вітання + картка onboarding; другий — без дубля; прапорець у користувача', async () => {
+/** Картка онбордингу, як її раніше вставляв сервер — тепер лише для тестів історичних даних. */
+async function seedOnboardingCard(repo: InMemoryRepo, user_id: string): Promise<{ session_id: string; message_id: string }> {
+  const session = await repo.getOrCreateSessionForDay(user_id, localDay());
+  const message_id = randomUUID();
+  await repo.saveMessage({
+    id: message_id, session_id: session.id, role: 'assistant',
+    text: null, card: { type: 'onboarding', skipped: [] }, applied: 0, created_at: new Date().toISOString(),
+  });
+  return { session_id: session.id, message_id };
+}
+
+describe('вітання й картка онбордингу зняті з GET /v1/session/today', () => {
+  it('нова сесія, порожній профіль → messages: [] (не вставляє вітання)', async () => {
     const { repo, mailer, app } = mk();
     await app.ready();
     const me = await signIn(app, mailer, 'new@example.com');
     const r1 = await app.inject({ method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie } });
-    const m1 = (r1.json() as { messages: Msg[] }).messages;
-    expect(m1).toHaveLength(1);
-    expect(m1[0]).toMatchObject({ role: 'assistant', text: ONBOARDING_GREETING, card: { type: 'onboarding' } });
-    expect((await repo.getUser(me.user_id))?.profile_onboarding_at).toBeTruthy();
+    expect((r1.json() as { messages: Msg[] }).messages).toEqual([]);
+    // profile_onboarding_at лишається полем — просто ніхто його тут не виставляє.
+    expect((await repo.getUser(me.user_id))?.profile_onboarding_at).toBeNull();
 
     const r2 = await app.inject({ method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie } });
-    expect((r2.json() as { messages: Msg[] }).messages.filter((m) => m.card?.type === 'onboarding')).toHaveLength(1);
+    expect((r2.json() as { messages: Msg[] }).messages).toEqual([]);
   });
 
-  it('профіль уже не порожній → картки нема', async () => {
+  it('профіль уже не порожній — той самий результат: messages: []', async () => {
     const a = mk(); await a.app.ready();
     const me = await signIn(a.app, a.mailer, 'filled@example.com');
     await a.repo.patchProfileField(me.user_id, 'love', { text: 'супи' });
     const r = await a.app.inject({ method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie } });
     expect((r.json() as { messages: Msg[] }).messages).toHaveLength(0);
   });
+});
 
-  it('PATCH /v1/onboarding/:message_id {skip} → пропуск живе в картці й переживає перезавантаження', async () => {
-    const { mailer, app } = mk(); await app.ready();
+describe('PATCH /v1/onboarding/:message_id — лишається живим для карток, уже в БД', () => {
+  it('{skip} → пропуск живе в картці й переживає перезавантаження', async () => {
+    const { repo, mailer, app } = mk(); await app.ready();
     const me = await signIn(app, mailer, 'skip@example.com');
-    const first = (await app.inject({ method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie } })).json() as { messages: Msg[] };
-    const id = first.messages[0]!.id;
+    const { message_id: id } = await seedOnboardingCard(repo, me.user_id);
     const s1 = await app.inject({ method: 'PATCH', url: `/v1/onboarding/${id}`, headers: { cookie: me.cookie }, payload: { skip: 'name' } });
     expect(s1.statusCode).toBe(200);
     expect(s1.json().card.skipped).toEqual(['name']);
     await app.inject({ method: 'PATCH', url: `/v1/onboarding/${id}`, headers: { cookie: me.cookie }, payload: { skip: 'name' } });
     const again = (await app.inject({ method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie } })).json() as { messages: Msg[] };
-    expect(again.messages[0]!.card?.skipped).toEqual(['name']);
+    expect(again.messages.find((m) => m.id === id)?.card?.skipped).toEqual(['name']);
     expect((await app.inject({ method: 'PATCH', url: `/v1/onboarding/${id}`, headers: { cookie: me.cookie }, payload: { skip: 'nope' } })).statusCode).toBe(400);
   });
 
   it('чужу картку не пропустити — 404', async () => {
-    const { mailer, app } = mk(); await app.ready();
+    const { repo, mailer, app } = mk(); await app.ready();
     const me = await signIn(app, mailer, 'a@example.com');
     const other = await signIn(app, mailer, 'b@example.com');
-    const first = (await app.inject({ method: 'GET', url: '/v1/session/today', headers: { cookie: me.cookie } })).json() as { messages: Msg[] };
-    const r = await app.inject({ method: 'PATCH', url: `/v1/onboarding/${first.messages[0]!.id}`, headers: { cookie: other.cookie }, payload: { skip: 'name' } });
+    const { message_id: id } = await seedOnboardingCard(repo, me.user_id);
+    const r = await app.inject({ method: 'PATCH', url: `/v1/onboarding/${id}`, headers: { cookie: other.cookie }, payload: { skip: 'name' } });
     expect(r.statusCode).toBe(404);
   });
 });

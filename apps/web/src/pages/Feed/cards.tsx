@@ -1455,6 +1455,13 @@ export function Card(props: CardProps) {
     case 'cook_photo':  return <CookPhotoCard {...props} />;
     case 'recipe_link': return <RecipeLinkCard {...props} />;
     // Крок 7: картка «Про тебе» — сім панелей; стан — з profile_text (props).
+    // TODO (хотфікс 15.09, зняте вітання в services/api/src/routes/session.ts):
+    // сервер більше не вставляє card.type==='onboarding' у нові сесії — цей
+    // case тепер живий лише для СТАРИХ повідомлень, уже збережених у БД (і сам
+    // OnboardingCard усередині вже повертає null — INTAKE_ON_WELCOME, №37).
+    // Прибирати весь ланцюжок (OnboardingCard.tsx 298 рядків + тест + CSS +
+    // Feed.tsx loadProfileFields-тригер на history-дані) — окрема задача, не
+    // ≤30 рядків і не ізольовано від чужих даних; не займався в цьому PR.
     case 'onboarding':  return (
       <OnboardingCard
         card={props.card} cardId={props.cardId}

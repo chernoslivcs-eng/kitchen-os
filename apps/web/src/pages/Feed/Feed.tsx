@@ -632,6 +632,9 @@ export function Feed() {
         const { session, messages } = await api.session.today();
         activate(session.id, session.created_at);
         setTurns(messages.map((m) => messageToTurn(m)));
+        // TODO (хотфікс 15.09): сервер більше не вставляє onboarding-картку в
+        // нові сесії (session.ts) — цей тригер лишається живим лише для
+        // СТАРИХ повідомлень уже в БД. Не чіпав: cards.tsx має той самий TODO.
         if (messages.some((m) => m.card?.type === 'onboarding')) void loadProfileFields();
       } catch {/* offline: залишаємо порожню стрічку */}
       // M13: тихий синк чеків при відкритті стрічки. Не частіше ніж раз на
