@@ -5,8 +5,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { Repo, Recipe, RecipeLinkCard, OnboardingCard } from '@kitchen/domain';
-import { ONBOARDING_GREETING, isProfileEmpty } from '@kitchen/domain';
+import type { Repo, Recipe, RecipeLinkCard } from '@kitchen/domain';
 import { authenticated, requireUser } from '../middleware/session.js';
 import { localDay } from '../local-day.js';
 
@@ -17,23 +16,14 @@ export function sessionRoutes(app: FastifyInstance, repo: Repo) {
     // П.8 pre-deploy: recipe_link несе повний рецепт у кожному повідомленні —
     // без кепа стара сесія важить мегабайти. 200 останніх вистачає будь-якому
     // екрану; глибша історія — окрема задача пагінації, якщо знадобиться.
-    let messages = (await repo.listMessages(session.id)).slice(-200);
+    const messages = (await repo.listMessages(session.id)).slice(-200);
 
-    // Крок 7 (§4 контракту): перша розмова, усі сім полів порожні, картка ще
-    // не видавалась → вітання + картка в одному повідомленні, без моделі.
-    // Позначка на користувачі — щоб рівно один раз, а не раз на сесію.
-    const user = await repo.getUser(user_id);
-    if (user && !user.profile_onboarding_at && isProfileEmpty(await repo.getProfileText(user_id))) {
-      const now = new Date().toISOString();
-      const message = {
-        id: randomUUID(), session_id: session.id, role: 'assistant' as const,
-        text: ONBOARDING_GREETING, card: { type: 'onboarding' } as OnboardingCard,
-        applied: 0, created_at: now,
-      };
-      await repo.saveMessage(message);
-      await repo.touchUser(user_id, 'profile_onboarding_at', now);
-      messages = [...messages, message];
-    }
+    // Хотфікс 15.09: вітання «Крок 7» знято — після вимкнення екранів
+    // онбордингу воно спливало в кожному новому акаунті, а картка «Про
+    // тебе» у стрічці v3 уже не малюється (лишається голий текст «гортай»),
+    // тож повідомлення заважало побачити шість підказок порожнього чату.
+    // profile_onboarding_at не чіпаємо — поле лишається в схемі, просто
+    // більше нічого його тут не виставляє.
     return { session, messages };
   });
 
