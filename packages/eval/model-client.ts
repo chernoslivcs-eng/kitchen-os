@@ -248,7 +248,7 @@ function cachedSystem(stable: string, dynamic?: string): Anthropic.TextBlockPara
   return blocks;
 }
 
-const REASONING_BUDGET: Record<string, number> = { minimal: 128, low: 1024, medium: 4096, high: 16384 };
+const REASONING_BUDGET: Record<string, number> = { minimal: 256, low: 1024, medium: 4096, high: 16384 };
 export function reasoningBudget(model: string, env: NodeJS.ProcessEnv = process.env): { thinking?: { type: 'enabled'; budget_tokens: number } } {
   const level = (env.MODEL_REASONING ?? '').trim().toLowerCase();
   if (!(level in REASONING_BUDGET) || /claude|sonnet|haiku|opus/i.test(model)) return {};
@@ -283,7 +283,10 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       // attachment_parse — чек на 20+ позицій із трійками й тегами в 4096 не
       // влазить, JSON обривається посеред рядка, і фікстура падає як «немає
       // ops», хоча модель відпрацювала. Спіймано 09.09 на receipt-till-photo.
-      max_tokens: call === 'attachment_parse' ? 16384 : 4096,
+      // 16.09: стелі як у проді — chat 8192, recipe_gen 5000, attachment_parse
+      // 16384 (services/api/src/model.ts). З 4096 на чаті/рецепті евал
+      // обрізав вихід раніше, ніж прод, і міряв не ту поведінку.
+      max_tokens: call === 'attachment_parse' ? 16384 : call === 'recipe_gen' ? 5000 : 8192,
       temperature: spec.temperature ?? (call === 'attachment_parse' ? 0 : 1),
       // Дзеркалить прод (services/api/src/model.ts, thinkingOff): Sonnet 5 думає
       // за замовчуванням, і на наших коротких структурованих репліках це 78%

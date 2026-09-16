@@ -25,7 +25,7 @@ describe('reasoningLevel: env MODEL_REASONING', () => {
 
 describe('reasoningFor: бюджет лише для не-Claude', () => {
   it('gemini через OpenRouter: рівень → thinking.enabled з бюджетом; порожній рівень — нічого', () => {
-    expect(reasoningFor('google/gemini-3.8-flash', 'minimal')).toEqual({ thinking: { type: 'enabled', budget_tokens: 128 } });
+    expect(reasoningFor('google/gemini-3.8-flash', 'minimal')).toEqual({ thinking: { type: 'enabled', budget_tokens: 256 } });
     expect(reasoningFor('google/gemini-3.8-flash', 'high')).toEqual({ thinking: { type: 'enabled', budget_tokens: 16384 } });
     expect(reasoningFor('google/gemini-3.8-flash', null)).toEqual({});
   });
@@ -52,10 +52,10 @@ describe('callChat: параметр їде у виклик і в meta', () => {
   afterEach(() => { process.env = { ...OLD_ENV }; });
   const args = { user_id: 'u1', session_id: 's1', text: 'привіт', pantry: [], profile: null } as never;
 
-  it('MODEL_REASONING=minimal → thinking.budget_tokens=128 у create, meta.reasoning="minimal"', async () => {
+  it('MODEL_REASONING=minimal → thinking.budget_tokens=256 у create, meta.reasoning="minimal"', async () => {
     process.env.MODEL_REASONING = 'minimal';
     const out = await callChat(args);
-    expect(createMock.mock.calls[0]![0]).toMatchObject({ thinking: { type: 'enabled', budget_tokens: 128 } });
+    expect(createMock.mock.calls[0]![0]).toMatchObject({ thinking: { type: 'enabled', budget_tokens: 256 } });
     expect(out.meta).toMatchObject({ reasoning: 'minimal', mode: 'live' });
   });
   it('без env → thinking не шлемо, meta без reasoning (відкат без коду)', async () => {

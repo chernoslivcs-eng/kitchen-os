@@ -4,7 +4,7 @@
 feedback-diagnosis, allergy-stated-no-followup, cook-chronology), 3 з карткою
 (generic-label-ask, member-card, missing-ingredient), 2 продуктових питання
 (product-calories-where, product-silpo-connect). Два прогони підряд: без
-параметра і з `MODEL_REASONING=minimal` (= thinking.budget_tokens 128).
+параметра і з `MODEL_REASONING=minimal` (тоді = thinking.budget_tokens 128; рішенням власника 16.09 minimal = 256 — див. «Якість», рядки «256»).
 Скрипт: `cd packages/eval && npx tsx scripts/reasoning-bench.ts`.
 
 Висновки: базовий прогін відтворює прод (36–43 с на хід, 91 % виходу —
@@ -171,5 +171,80 @@ diet-pescatarian-steak — пропозиції з обмеженнями про
   diet-pescatarian-steak:
     base:    proposal items=3 [Стейк тунця з лимоном; Печена картопля зі стейком тунця; Теплий салат із картоплі та тунця]
     minimal: proposal items=3 [Стейк тунця з відвареною картоплею та лимоном; Теплий картопляний салат із тунцем; Смажена картопля з лисичками +1]
+
+```
+
+### Доповнення 16.09: minimal = 256, стелі евалу як у проді, фото чека
+
+Рішення власника: `minimal` = 256 (не 128). Евал-клієнт вирівняно зі стелями
+проду (chat 8192, recipe_gen 5000, attachment_parse 16384) — у першому замірі
+рецепт без параметра падав на 4096, на проді впав би на 5000 (роздумів там
+було 3933 — теж не влізло б). Фото чека — `receipt-till-photo.png` (той самий
+чек, що receipt-till-silpo текстом; файл не в репо, скопійовано в worktree).
+
+| виклик | рівень | зелених фікстур | latency медіана | токени | JSON |
+|---|---|---|---|---|---|
+| фото чека (21 позиція) | без параметра | 0/1 (2/3 інв.) | 31,1 с | out 4584 · роздуми 2986 | 1/1 |
+| фото чека | minimal=256 | 0/1 (2/3 інв.) | 5,8 с | out 1647 · роздуми 0 | 1/1 |
+| recipe_gen (5) | minimal=256 | 5/5 | 5,1 с (p90 5,8) | out Σ 3705 · роздуми Σ 790 | 5/5 |
+| chat складний (4) | minimal=256 | 4/4 | 6,6 с (p90 7,8) | out Σ 5050 · роздуми Σ 3637 | 4/4 |
+
+Фото: в обох прогонах розпізнано **21/21 рядків**, еталонних продуктів **7/8**
+(хустинки, багет, туалетний папір, шоколад, брускетта, чипси, ковбаса — томат
+Біоранж не впізнано ні там, ні там), брендів 14 (без) / 16 (minimal); єдина
+червона — той самий `triple-discipline` на різних рядках (хустинки Ruta / шоколад
+Korona) — шум моделі, як і на текстових чеках. Роздуми на minimal — 0.
+Рецепти 5/5 і чат 4/4 на 256 тримаються; інтейк на 8 позицій — ті самі 8 ops
+(«вершкове масло Metro Chef» → «вершкове масло», бренд у трійці, не в label —
+у межах triple-discipline), пропозиції з обмеженнями — усі інваріанти зелені.
+
+Рекомендація без змін: `MODEL_REASONING=minimal` (256) на всі три виклики.
+Вартість доповнення: 2 фото + 9 текстових ≈ 11 викликів ≈ $0.06.
+
+```
+Модель: google/gemini-3.8-flash
+
+=== photo (receipt-till-photo) ===
+--- без параметра ---
+  [base] receipt-till-photo          2/3  31124ms out= 4584 think= 2986 json=ok  ✗ triple-discipline (label «паперові хустинки Ruta Mini Tissues 150 шт» бідніший за трійку:)
+         рядків 21/21, еталонних 7/8, брендів 14
+--- minimal ---
+  [minimal] receipt-till-photo          2/3   5836ms out= 1647 think=    0 json=ok  ✗ triple-discipline (label «шоколад молочний Korona з мигдалем та кокосом 25 г» бідніший за)
+         рядків 21/21, еталонних 7/8, брендів 16
+
+| виклик | рівень | зелених фікстур | latency медіана | токени | JSON |
+|---|---|---|---|---|---|
+| photo | без параметра | 0/1 | 31124 мс (p90 31124) | out Σ 4584 · роздуми Σ 2986 | 1/1 |
+| photo | minimal | 0/1 | 5836 мс (p90 5836) | out Σ 1647 · роздуми Σ 0 | 1/1 |
+
+Модель: google/gemini-3.8-flash
+
+=== recipe_gen (recipe-context-carries, recipe-edit-keeps-cast, servings-scale, lesson-into-step, diet-vegan-fish-sauce) ===
+--- minimal ---
+  [minimal] recipe-context-carries      3/3   5835ms out=  724 think=    0 json=ok 
+  [minimal] recipe-edit-keeps-cast      1/1   4504ms out=  266 think=    0 json=ok 
+  [minimal] servings-scale              1/1   4037ms out=  136 think=    0 json=ok 
+  [minimal] lesson-into-step            2/2   5122ms out=  722 think=    0 json=ok 
+  [minimal] diet-vegan-fish-sauce       3/3   8567ms out= 1857 think=  790 json=ok 
+
+=== chat (chat-dictation-dup, tagger-chat-brand, profile-verbatim, diet-pescatarian-steak) ===
+--- minimal ---
+  [minimal] chat-dictation-dup          2/2   5430ms out=  510 think=    0 json=ok 
+         card: intake_diff ops=8 [банани; багет; вершкове масло; вода; суміш овочів; стейк з лосося; м'ясний стейк; м'ясний набір на гуляш]
+  [minimal] tagger-chat-brand           4/4   6554ms out= 1605 think= 1316 json=ok 
+         card: intake_diff ops=2 [пармезан Galbani тертий; оливкова олія]
+  [minimal] profile-verbatim            4/4   9174ms out= 1888 think= 1575 json=ok 
+         card: proposal items=2 [Томатно-кокосовий суп-пюре; Карі з нутом і томатами]
+  [minimal] diet-pescatarian-steak      4/4   7782ms out= 1047 think=  746 json=ok 
+         card: proposal items=3 [Стейк тунця з печеною картоплею; Картопляне пюре з обсмаженим тунцем; Стейк тунця зі свіжим салатом +1]
+
+| виклик | рівень | зелених фікстур | latency медіана | токени | JSON |
+|---|---|---|---|---|---|
+| recipe_gen | minimal | 5/5 | 5122 мс (p90 5835) | out Σ 3705 · роздуми Σ 790 | 5/5 |
+| chat | minimal | 4/4 | 6554 мс (p90 7782) | out Σ 5050 · роздуми Σ 3637 | 4/4 |
+  [minimal] chat-dictation-dup: intake_diff ops=8 [банани; багет; вершкове масло; вода; суміш овочів; стейк з лосося; м'ясний стейк; м'ясний набір на гуляш]
+  [minimal] tagger-chat-brand: intake_diff ops=2 [пармезан Galbani тертий; оливкова олія]
+  [minimal] profile-verbatim: proposal items=2 [Томатно-кокосовий суп-пюре; Карі з нутом і томатами]
+  [minimal] diet-pescatarian-steak: proposal items=3 [Стейк тунця з печеною картоплею; Картопляне пюре з обсмаженим тунцем; Стейк тунця зі свіжим салатом +1]
 
 ```

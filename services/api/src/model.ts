@@ -204,7 +204,7 @@ function thinkingOff(model: string): { thinking?: { type: 'disabled' } } {
  * Рівень міркування для НЕ-Claude моделей через OpenRouter (16.09: чат на
  * google/gemini-3.8-flash давав 46–49 с і 5455 вихідних токенів на ~600
  * видимих — усе решта роздуми). Env `MODEL_REASONING` = minimal|low|medium|
- * high; порожній — нічого не шлемо (як було), відкат без коду.
+ * high; порожній — нічого не шлемо (як було), відкат без коду. Рішення власника 16.09: minimal = 256.
  *
  * Виміряно живим викликом 16.09 через Anthropic-сумісний /v1/messages
  * OpenRouter: `reasoning.effort` (chat/completions-параметр) тут НЕ діє
@@ -215,7 +215,7 @@ function thinkingOff(model: string): { thinking?: { type: 'disabled' } } {
  * (thinkingOff), env ігнорується.
  */
 export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high';
-const REASONING_BUDGET: Record<ReasoningLevel, number> = { minimal: 128, low: 1024, medium: 4096, high: 16384 };
+const REASONING_BUDGET: Record<ReasoningLevel, number> = { minimal: 256, low: 1024, medium: 4096, high: 16384 };
 export function reasoningLevel(env: NodeJS.ProcessEnv = process.env): ReasoningLevel | null {
   const v = (env.MODEL_REASONING ?? '').trim().toLowerCase();
   return v in REASONING_BUDGET ? (v as ReasoningLevel) : null;
