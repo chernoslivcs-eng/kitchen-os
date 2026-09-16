@@ -1439,14 +1439,14 @@ export class PostgresRepo implements Repo {
       `INSERT INTO token_usage
          (id, user_id, household_id, call, profile, model, prompt_version, mode,
           input_tokens, output_tokens, cached_tokens, latency_ms,
-          prompt_hash, prompt_chars, message_id, session_id, cache_write_tokens, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+          prompt_hash, prompt_chars, message_id, session_id, cache_write_tokens, created_at, reasoning)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
       [
         row.id, row.user_id, row.household_id, row.call, row.profile, row.model,
         row.prompt_version, row.mode,
         row.input_tokens, row.output_tokens, row.cached_tokens,
         row.latency_ms, row.prompt_hash, row.prompt_chars,
-        row.message_id, row.session_id, row.cache_write_tokens, row.created_at,
+        row.message_id, row.session_id, row.cache_write_tokens, row.created_at, row.reasoning ?? null,
       ],
     );
   }

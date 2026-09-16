@@ -199,6 +199,36 @@ function modelForCall(call: CallName, prompt: LoadedPrompt): string {
 function thinkingOff(model: string): { thinking?: { type: 'disabled' } } {
   return /sonnet-5/.test(model) ? { thinking: { type: 'disabled' } } : {};
 }
+
+/**
+ * Рівень міркування для НЕ-Claude моделей через OpenRouter (16.09: чат на
+ * google/gemini-3.8-flash давав 46–49 с і 5455 вихідних токенів на ~600
+ * видимих — усе решта роздуми). Env `MODEL_REASONING` = minimal|low|medium|
+ * high; порожній — нічого не шлемо (як було), відкат без коду.
+ *
+ * Виміряно живим викликом 16.09 через Anthropic-сумісний /v1/messages
+ * OpenRouter: `reasoning.effort` (chat/completions-параметр) тут НЕ діє
+ * (373→340 роздумів — шум), `thinking: {type:'disabled'}` → 400 «Reasoning is
+ * mandatory», а `thinking: {type:'enabled', budget_tokens: N}` мапиться на
+ * thinking_budget моделі: N ≤ 512 → 0 токенів роздумів і ~1 с замість 12–15.
+ * Тому рівні — це бюджети. Для Claude (sonnet/haiku) — своя механіка
+ * (thinkingOff), env ігнорується.
+ */
+export type ReasoningLevel = 'minimal' | 'low' | 'medium' | 'high';
+const REASONING_BUDGET: Record<ReasoningLevel, number> = { minimal: 128, low: 1024, medium: 4096, high: 16384 };
+export function reasoningLevel(env: NodeJS.ProcessEnv = process.env): ReasoningLevel | null {
+  const v = (env.MODEL_REASONING ?? '').trim().toLowerCase();
+  return v in REASONING_BUDGET ? (v as ReasoningLevel) : null;
+}
+export function reasoningFor(model: string, level: ReasoningLevel | null = reasoningLevel()): { thinking?: { type: 'enabled'; budget_tokens: number } } {
+  if (!level || /claude|sonnet|haiku|opus/i.test(model)) return {};
+  return { thinking: { type: 'enabled', budget_tokens: REASONING_BUDGET[level] } };
+}
+/** Що записати в meta: рівень, лише коли він реально поїхав у виклик. */
+function reasoningMeta(model: string): { reasoning?: ReasoningLevel } {
+  const level = reasoningLevel();
+  return level && reasoningFor(model, level).thinking ? { reasoning: level } : {};
+}
 function makeClient(): Anthropic | null {
   const key = apiKey();
   if (!key) return null;
@@ -282,6 +312,8 @@ export interface ChatCall {
   calls: ModelCallUsage[];
   meta: {
     promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number;
+    /** 16.09: рівень міркування (MODEL_REASONING), що поїхав у виклик; нема — не слали. */
+    reasoning?: ReasoningLevel;
     // Крок 6е: чи довелось перепитувати модель, бо reply дослівно повторював
     // зразок voice.md. chat.ts логує це як 'example-copy' — сюди, а не в
     // model.ts, бо тільки маршрут має req.log.
@@ -720,6 +752,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     // запусками — фікстури падали через раз на тих самих правилах.
     temperature: prompt.manifest.calls.chat.temperature,
     ...thinkingOff(model),
+    ...reasoningFor(model),
     system: cachedSystem(stable, dynamic),
   };
   const resp = await withRetry(() => client.messages.create({ ...callOpts, messages }));
@@ -767,7 +800,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     note,
     calls,
     meta: {
-      promptVersion: prompt.version, model, mode: 'live',
+      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model),
       // A3: слід тексту, що реально поїхав (стабільний префікс).
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
       example_copy: exampleCopy,
@@ -869,6 +902,7 @@ export async function callRecipe(args: {
     max_tokens: 5000,
     temperature: prompt.manifest.calls.recipe_gen.temperature,
     ...thinkingOff(model),
+    ...reasoningFor(model),
     system: cachedSystem(stable, dynamic),
     messages: [{ role: 'user', content: userText }],
   }));
@@ -899,7 +933,7 @@ export async function callRecipe(args: {
     raw: recipe ? text : unaliasProse(text, aliasLabels),
     calls: [usageFrom(resp.usage)],
     meta: {
-      promptVersion: prompt.version, model, mode: 'live',
+      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model),
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
     },
   };
@@ -1046,6 +1080,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     max_tokens: 16384,
     temperature: 0,
     ...thinkingOff(model),
+    ...reasoningFor(model),
     // System тут повністю статичний — кешується цілком, без динаміки.
     system: cachedSystem(system),
     messages: [{ role: 'user', content: parts }],
@@ -1064,7 +1099,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     raw_kind,
     calls: [usageFrom(resp.usage)],
     meta: {
-      promptVersion: prompt.version, model, mode: 'live',
+      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model),
       prompt_hash: hashPromptText(system), prompt_chars: system.length,
     },
   };
