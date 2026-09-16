@@ -661,6 +661,9 @@ export interface TokenUsageRow {
   cache_write_tokens: number | null;
   /** 16.09: MODEL_REASONING, що поїхав у виклик; null — не слали (Claude або env порожній). */
   reasoning?: string | null;
+  /** 16.09: OpenRouter — хто відповідав і id генерації (перший виклик ходу). */
+  provider?: string | null;
+  generation_id?: string | null;
   /**
    * Крок А1: до якого ходу належить цей виклик. Досі pulse.ts зшивав ціну з
    * повідомленням здогадкою — найближчий виклик тієї самої людини в межах

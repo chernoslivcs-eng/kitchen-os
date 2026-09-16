@@ -229,10 +229,55 @@ function reasoningMeta(model: string): { reasoning?: ReasoningLevel } {
   const level = reasoningLevel();
   return level && reasoningFor(model, level).thinking ? { reasoning: level } : {};
 }
+/**
+ * 16.09: OpenRouter кидав частину запитів gemini на деградований апстрім
+ * («Google»/Vertex, uptime 30 % за 30 хв) — 30–45 с при 100 вихідних токенах
+ * поруч із 3–5 с на тих самих викликах. Живий вимір через /v1/messages:
+ * `provider: { order: [...], allow_fallbacks: true }` приймається (виклик
+ * пішов на «Google AI Studio»), у тілі відповіді є поле `provider`, а
+ * `id`/заголовок `x-generation-id` — id генерації. Env
+ * `OPENROUTER_PROVIDER_ORDER` — кома-список; порожній — не шлемо.
+ */
+export function providerRouting(env: NodeJS.ProcessEnv = process.env): { provider?: { order: string[]; allow_fallbacks: boolean } } {
+  if (!env.OPENROUTER_API_KEY) return {};
+  const order = (env.OPENROUTER_PROVIDER_ORDER ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return order.length ? { provider: { order, allow_fallbacks: true } } : {};
+}
+
+/**
+ * Таймаути на виклик (мс): повільний апстрім краще перепитати, ніж чекати —
+ * при таймауті наш withRetry іде на нову спробу. SDK-ретраї вимкнено
+ * (maxRetries: 0): раніше дефолт 2 з беkoff до 8 с × наш withRetry 3 = до
+ * 6 спроб і хвилина мовчання. Тепер рівно 3 спроби, усі наші.
+ */
+export const CALL_TIMEOUT_MS = { chat: 25_000, recipe_gen: 25_000, attachment_parse: 60_000, alt_filter: 25_000 } as const;
+
+/** Що OpenRouter розповів про виклик — у meta й token_usage: хто відповідав і як його знайти в їхньому логу. */
+export interface ProviderInfo { provider: string | null; generation_id: string | null }
+type MessageWithProvider = Anthropic.Message & { _provider: ProviderInfo };
+
+/** Один виклик моделі: маршрут провайдера (OpenRouter), таймаут, наші ретраї, provider/generation з відповіді. */
+async function createMessage(client: Anthropic, params: Anthropic.MessageCreateParamsNonStreaming, timeoutMs: number): Promise<MessageWithProvider> {
+  const routing = providerRouting();
+  const { data, response } = await withRetry(async () => {
+    const req = client.messages.create(params, { timeout: timeoutMs, ...(routing.provider ? { body: { ...params, ...routing } } : {}) });
+    // withResponse — щоб дістати заголовки (x-generation-id); моки в тестах його не мають.
+    return typeof (req as { withResponse?: unknown }).withResponse === 'function'
+      ? req.withResponse()
+      : { data: await req, response: null as { headers: Headers } | null };
+  });
+  const raw = data as Anthropic.Message & { provider?: string | null };
+  const _provider: ProviderInfo = {
+    provider: raw.provider ?? null,
+    generation_id: raw.id ?? response?.headers.get('x-generation-id') ?? null,
+  };
+  return Object.assign(raw, { _provider });
+}
+
 function makeClient(): Anthropic | null {
   const key = apiKey();
   if (!key) return null;
-  return new Anthropic({ apiKey: key, baseURL: baseURL() });
+  return new Anthropic({ apiKey: key, baseURL: baseURL(), maxRetries: 0 });
 }
 
 // Тимчасові помилки провайдера — 429 (rate limit), 5xx (їхній сервер), мережеві —
@@ -242,7 +287,13 @@ function isRetryable(err: unknown): boolean {
   const anyErr = err as { status?: number; code?: string; name?: string };
   if (anyErr.status === 429) return true;
   if (anyErr.status && anyErr.status >= 500 && anyErr.status < 600) return true;
-  if (anyErr.name === 'APIConnectionError') return true;
+  // APIConnectionError і APIConnectionTimeoutError (таймаут SDK) — мережа/повільний
+  // апстрім, перепитуємо. Перевірка за класом: SDK не ставить `name`, і старий
+  // рядок `name === 'APIConnectionError'` не спрацьовував ніколи (16.09: перший
+  // бенч із таймаутом 25 с показав «Request timed out» без жодного ретраю).
+  const ConnErr = (Anthropic as unknown as { APIConnectionError?: unknown }).APIConnectionError;
+  if (typeof ConnErr === 'function' && err instanceof ConnErr) return true;
+  if (anyErr.name && /^APIConnection/.test(anyErr.name)) return true;
   if (anyErr.code === 'ECONNRESET' || anyErr.code === 'ETIMEDOUT' || anyErr.code === 'ECONNREFUSED') return true;
   return false;
 }
@@ -314,6 +365,9 @@ export interface ChatCall {
     promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number;
     /** 16.09: рівень міркування (MODEL_REASONING), що поїхав у виклик; нема — не слали. */
     reasoning?: ReasoningLevel;
+    /** 16.09: хто відповідав (OpenRouter `provider`) і id генерації — щоб бачити, хто повільний. */
+    provider?: string | null;
+    generation_id?: string | null;
     // Крок 6е: чи довелось перепитувати модель, бо reply дослівно повторював
     // зразок voice.md. chat.ts логує це як 'example-copy' — сюди, а не в
     // model.ts, бо тільки маршрут має req.log.
@@ -755,7 +809,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     ...reasoningFor(model),
     system: cachedSystem(stable, dynamic),
   };
-  const resp = await withRetry(() => client.messages.create({ ...callOpts, messages }));
+  const resp = await createMessage(client, { ...callOpts, messages }, CALL_TIMEOUT_MS.chat);
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
@@ -773,7 +827,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
       ...(args.history ?? []),
       { role: 'user' as const, content: `${withAvoid(args.text, args.avoid)}\n\n${line}` },
     ];
-    const retryResp = await withRetry(() => client.messages.create({ ...callOpts, messages: retryMessages }));
+    const retryResp = await createMessage(client, { ...callOpts, messages: retryMessages }, CALL_TIMEOUT_MS.chat);
     const retryText = retryResp.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
@@ -800,7 +854,7 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
     note,
     calls,
     meta: {
-      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model),
+      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model), ...resp._provider,
       // A3: слід тексту, що реально поїхав (стабільний префікс).
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
       example_copy: exampleCopy,
@@ -891,7 +945,7 @@ export async function callRecipe(args: {
   const userText = args.context
     ? `${args.title}${convBlock}\n\n${args.context}`
     : `${args.title}${convBlock}`;
-  const resp = await withRetry(() => client.messages.create({
+  const resp = await createMessage(client, {
     model,
     // 09.09: було 3072. На Gemini 3.8 Flash ШІСТЬ генерацій поспіль не дійшли
     // до полів `ing` і `st` — а парсер вимагає саме їх, тож картка не
@@ -905,7 +959,7 @@ export async function callRecipe(args: {
     ...reasoningFor(model),
     system: cachedSystem(stable, dynamic),
     messages: [{ role: 'user', content: userText }],
-  }));
+  }, CALL_TIMEOUT_MS.recipe_gen);
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
@@ -933,7 +987,7 @@ export async function callRecipe(args: {
     raw: recipe ? text : unaliasProse(text, aliasLabels),
     calls: [usageFrom(resp.usage)],
     meta: {
-      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model),
+      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model), ...resp._provider,
       prompt_hash: hashPromptText(stable), prompt_chars: stable.length,
     },
   };
@@ -1073,7 +1127,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
   // тихо перестане дзеркалити прод на семи фікстурах attachment_parse.
   parts.push({ type: 'text', text: 'Розбери за схемою й поверни JSON. Користувач бачив вкладення на власні очі — його слово важливіше. JSON компактний: без відступів і переносів рядків. Це про пробіли, а не про вміст — назви лишаються повними.' });
 
-  const resp = await withRetry(() => client.messages.create({
+  const resp = await createMessage(client, {
     model,
     // Пул-2 №3: інвентар на ~100 позицій з трійками+тегами — це ~10k токенів
     // відповіді; 8192 обрізало живий кейс. Платимо за фактичне.
@@ -1084,7 +1138,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     // System тут повністю статичний — кешується цілком, без динаміки.
     system: cachedSystem(system),
     messages: [{ role: 'user', content: parts }],
-  }));
+  }, CALL_TIMEOUT_MS.attachment_parse);
   const text = resp.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
@@ -1099,7 +1153,7 @@ export async function callAttachmentParse(atts: AttachmentPayload[]): Promise<At
     raw_kind,
     calls: [usageFrom(resp.usage)],
     meta: {
-      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model),
+      promptVersion: prompt.version, model, mode: 'live', ...reasoningMeta(model), ...resp._provider,
       prompt_hash: hashPromptText(system), prompt_chars: system.length,
     },
   };
@@ -1146,13 +1200,13 @@ export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCa
     // забута: знімати її означало б, що в день, коли блок доросте до порога,
     // кеш мовчки не ввімкнеться. Дописувати блок до порога заради кешу ми не
     // будемо — це промпт, і haiku тут коштує копійки.
-    const resp = await withRetry(() => client.messages.create({
+    const resp = await createMessage(client, {
       model,
       max_tokens: 4096,
       temperature: 0,
       system: cachedSystem(system),
       messages: [{ role: 'user', content: query }],
-    }));
+    }, CALL_TIMEOUT_MS.alt_filter);
     const text = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
@@ -1166,7 +1220,7 @@ export async function callAltFilter(pairs: AltFilterPair[]): Promise<AltFilterCa
     return {
       keep,
       calls: [usageFrom(resp.usage)],
-      meta: { promptVersion: prompt.version, model, mode: 'live' },
+      meta: { promptVersion: prompt.version, model, mode: 'live', ...resp._provider },
     };
   } catch {
     return {
