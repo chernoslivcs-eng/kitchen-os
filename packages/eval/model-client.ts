@@ -233,7 +233,7 @@ export interface RunResult extends ModelOutput {
   promptHash?: string;
   model: string;
   call: CallName;
-  usage?: { input: number; output: number; cached?: number; cache_write?: number };
+  usage?: { input: number; output: number; cached?: number; cache_write?: number; thinking?: number };
   latencyMs: number;
   error?: string;
 }
@@ -246,6 +246,13 @@ function cachedSystem(stable: string, dynamic?: string): Anthropic.TextBlockPara
   ];
   if (dynamic) blocks.push({ type: 'text', text: dynamic });
   return blocks;
+}
+
+const REASONING_BUDGET: Record<string, number> = { minimal: 256, low: 1024, medium: 4096, high: 16384 };
+export function reasoningBudget(model: string, env: NodeJS.ProcessEnv = process.env): { thinking?: { type: 'enabled'; budget_tokens: number } } {
+  const level = (env.MODEL_REASONING ?? '').trim().toLowerCase();
+  if (!(level in REASONING_BUDGET) || /claude|sonnet|haiku|opus/i.test(model)) return {};
+  return { thinking: { type: 'enabled', budget_tokens: REASONING_BUDGET[level]! } };
 }
 
 export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResult> {
@@ -276,12 +283,18 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
       // attachment_parse — чек на 20+ позицій із трійками й тегами в 4096 не
       // влазить, JSON обривається посеред рядка, і фікстура падає як «немає
       // ops», хоча модель відпрацювала. Спіймано 09.09 на receipt-till-photo.
-      max_tokens: call === 'attachment_parse' ? 16384 : 4096,
+      // 16.09: стелі як у проді — chat 8192, recipe_gen 5000, attachment_parse
+      // 16384 (services/api/src/model.ts). З 4096 на чаті/рецепті евал
+      // обрізав вихід раніше, ніж прод, і міряв не ту поведінку.
+      max_tokens: call === 'attachment_parse' ? 16384 : call === 'recipe_gen' ? 5000 : 8192,
       temperature: spec.temperature ?? (call === 'attachment_parse' ? 0 : 1),
       // Дзеркалить прод (services/api/src/model.ts, thinkingOff): Sonnet 5 думає
       // за замовчуванням, і на наших коротких структурованих репліках це 78%
       // виходу. Без цього рядка еваль міряв би не ту поведінку, що в проді.
       ...(/sonnet-5/.test(model) ? { thinking: { type: 'disabled' as const } } : {}),
+      // 16.09: дзеркалить reasoningFor у проді — MODEL_REASONING (minimal|low|
+      // medium|high) → thinking.budget_tokens для не-Claude через OpenRouter.
+      ...reasoningBudget(model),
       system: cachedSystem(system.stable, system.dynamic),
       messages: fixtureAsUserTurn(fx),
     });
@@ -325,12 +338,15 @@ export async function runOne(fx: Fixture, prompt: LoadedPrompt): Promise<RunResu
         const u = resp.usage as typeof resp.usage & {
           cache_read_input_tokens?: number | null;
           cache_creation_input_tokens?: number | null;
+          // OpenRouter (/v1/messages) прокидає роздуми окремим полем — для виміру MODEL_REASONING.
+          output_tokens_details?: { thinking_tokens?: number | null } | null;
         };
         return {
           input: u.input_tokens,
           output: u.output_tokens,
           cached: u.cache_read_input_tokens ?? 0,
           cache_write: u.cache_creation_input_tokens ?? 0,
+          thinking: u.output_tokens_details?.thinking_tokens ?? undefined,
         };
       })(),
       latencyMs: Date.now() - started,

@@ -62,7 +62,7 @@ export async function recordUsage(
   // поля, яке ця функція навіть не читає.
   ctx: Pick<UserContext, 'user_id' | 'household_id'>,
   call: CallName,
-  meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number },
+  meta: { promptVersion: string; model: string; mode: CallMode; prompt_hash?: string; prompt_chars?: number; reasoning?: string },
   calls: ModelCallUsage[],
   started_at_ms: number,
   turn?: UsageTurn,
@@ -95,6 +95,8 @@ export async function recordUsage(
       // `?? null`, а не `?? 0`: провайдер, який поля не прокидає (перевіряється
       // живим викликом), має лишити «не знаємо», а не «записів не було».
       cache_write_tokens: usage.cache_write ?? null,
+      // 16.09: рівень міркування, що поїхав у виклик (MODEL_REASONING) — видно в admin/money.
+      reasoning: meta.reasoning ?? null,
       created_at: new Date().toISOString(),
     });
   }
