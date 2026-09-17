@@ -124,6 +124,22 @@ describe('GET /v1/admin/money', () => {
     expect(b.totals.usd).toBeCloseTo(0.75, 6);
   });
 
+  // 17.09: точна ціна від OpenRouter важить над формулою; підсумок каже, яка частка точна.
+  it('usd_actual: де є — замість формули; totals.actual_calls/actual_usd і byModel.actual_calls', async () => {
+    delete process.env.OPENROUTER_API_KEY; // бекфіл у маршруті вимкнений — без ключа
+    await repo.logTokenUsage(usage({ model: 'google/gemini-3.8-flash', input_tokens: 0, cached_tokens: 23_440, cache_write_tokens: 23_440, output_tokens: 106, usd_actual: 0.0032 }));
+    await repo.logTokenUsage(usage({ model: 'google/gemini-3.8-flash', input_tokens: 0, cached_tokens: 23_440, cache_write_tokens: 23_440, output_tokens: 106, usd_actual: null }));
+    const b = (await money()).json();
+    // 0.0032 (точна) + 0.0021555 (формула: cached×0.075 + out×3.75; запис не рахується).
+    expect(b.totals.usd).toBeCloseTo(0.0053555, 6);
+    expect(b.totals.actual_calls).toBe(1);
+    expect(b.totals.actual_usd).toBeCloseTo(0.0032, 6);
+    expect(b.totals.calls).toBe(2);
+    const gem = b.byModel.find((m: { key: string }) => m.key === 'google/gemini-3.8-flash');
+    expect(gem.actual_calls).toBe(1);
+    expect(gem.usd).toBeCloseTo(0.0053555, 6);
+  });
+
   it('невідома модель — «не знаємо», а НЕ нуль', async () => {
     await repo.logTokenUsage(usage());
     await repo.logTokenUsage(usage({ model: 'llama-3-70b', input_tokens: 9_000_000 }));

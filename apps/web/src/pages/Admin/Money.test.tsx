@@ -286,3 +286,25 @@ describe('блок грошей', () => {
     expect(calls[0]).toContain('technical=1');
   });
 });
+
+// 17.09: точна ціна від OpenRouter.
+describe('MoneyPage · точна ціна від OpenRouter', () => {
+  it('рядок «За OpenRouter» із часткою; у розрізі за моделлю — позначка OR n/m', async () => {
+    install({
+      ...MONEY,
+      totals: { ...MONEY.totals, actual_calls: 12, actual_usd: 0.31 },
+      byModel: [slice({ key: 'google/gemini-3.8-flash', label: 'google/gemini-3.8-flash', calls: 20, usd: 0.5, usd_per_call: 0.025, actual_calls: 12 } as never)],
+    });
+    await mount();
+    const row = host!.querySelector('[data-actual]')!;
+    expect(row.textContent).toContain('За OpenRouter');
+    expect(row.textContent).toContain('12 з 40 викликів');
+    expect(row.textContent).toContain('решта — за формулою');
+    expect(host!.querySelector('[data-key="google/gemini-3.8-flash"] [data-usd]')!.textContent).toContain('OR 12/20');
+  });
+  it('без точних цін рядка нема', async () => {
+    install(MONEY);
+    await mount();
+    expect(host!.querySelector('[data-actual]')).toBeNull();
+  });
+});

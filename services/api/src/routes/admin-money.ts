@@ -20,6 +20,7 @@ import type { AdminMoneyGroup, Repo } from '@kitchen/domain';
 import { authenticated } from '../middleware/session.js';
 import { requireAdmin } from '../middleware/admin.js';
 import { priceOf, priceFor, cacheWriteRate } from '../pricing.js';
+import { backfillActualCosts } from '../openrouter-cost.js';
 import { periodBounds, previousBounds, localDay, elapsedShare, type Period } from '../period.js';
 import { TECHNICAL_DOMAIN } from './admin-households.js';
 
@@ -93,6 +94,8 @@ export interface MoneySlice {
   cached_tokens: number;
   /** Викликів, ціни яких прайс не знає. Не нуль і не «безкоштовно». */
   unpriced_calls: number;
+  /** 17.09: скільки викликів розрізу мають точну ціну від OpenRouter (usd_actual), решта — за формулою. */
+  actual_calls: number;
 }
 
 export interface MoneyTotals {
@@ -137,12 +140,20 @@ export interface MoneyTotals {
    * сказати це, а не змовчати.
    */
   calls_without_write: number;
+  /**
+   * 17.09: точна ціна від OpenRouter. `usd` уже включає її там, де вона є
+   * (замість формули); тут — скільки викликів і доларів з них точні, щоб
+   * читач бачив, наскільки підсумок «за OpenRouter», а наскільки «за формулою».
+   */
+  actual_calls: number;
+  actual_usd: number;
 }
 
 const empty = (): MoneyTotals => ({
   calls: 0, usd: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0,
   input_all_tokens: 0, cached_share: null, stub_calls: 0, unpriced_calls: 0,
   cache_write_tokens: 0, cache_write_usd: 0, calls_without_write: 0,
+  actual_calls: 0, actual_usd: 0,
 });
 
 /**
@@ -150,7 +161,9 @@ const empty = (): MoneyTotals => ({
  * нуль у підсумку читався б як «безкоштовно», а це інша новина. Такі виклики
  * рахуються окремим лічильником і в суму не входять.
  */
-function priceGroup(g: AdminMoneyGroup): { usd: number; unpriced: number } {
+function priceGroup(g: AdminMoneyGroup): { usd: number; unpriced: number; actual: boolean } {
+  // 17.09: точна ціна від OpenRouter важить над формулою — де вона є.
+  if (g.usd_actual !== null) return { usd: g.usd_actual, unpriced: 0, actual: true };
   const one = priceOf({
     model: g.model,
     input_tokens: g.input_tokens,
@@ -158,7 +171,7 @@ function priceGroup(g: AdminMoneyGroup): { usd: number; unpriced: number } {
     cached_tokens: g.cached_tokens,
     cache_write_tokens: g.cache_write_tokens,
   });
-  return one === null ? { usd: 0, unpriced: g.calls } : { usd: one, unpriced: 0 };
+  return one === null ? { usd: 0, unpriced: g.calls, actual: false } : { usd: one, unpriced: 0, actual: false };
 }
 
 /** Скільки з ціни групи припадає саме на ЗАПИС у кеш. */
@@ -174,10 +187,11 @@ function fold(groups: AdminMoneyGroup[]): MoneyTotals {
   const t = empty();
   for (const g of groups) {
     if (!isLive(g)) { t.stub_calls += g.calls; continue; }
-    const { usd, unpriced } = priceGroup(g);
+    const { usd, unpriced, actual } = priceGroup(g);
     t.calls += g.calls;
     t.usd += usd;
     t.unpriced_calls += unpriced;
+    if (actual) { t.actual_calls += g.calls; t.actual_usd += usd; }
     t.input_tokens += g.input_tokens;
     t.output_tokens += g.output_tokens;
     t.cached_tokens += g.cached_tokens;
@@ -187,6 +201,7 @@ function fold(groups: AdminMoneyGroup[]): MoneyTotals {
   }
   t.cache_write_usd = Number(t.cache_write_usd.toFixed(6));
   t.usd = Number(t.usd.toFixed(6));
+  t.actual_usd = Number(t.actual_usd.toFixed(6));
   // Три окремі лічильники, жоден не всередині іншого — це вже з'ясовано на
   // А4а (69 зі 105 вересневих рядків мають cached > input, тож «кеш усередині
   // входу» неможливий). Разом вони і є вхід, який показує рахунок.
@@ -208,14 +223,15 @@ function sliceBy(
     if (!s) {
       s = {
         key, label: labelOf(key, g), calls: 0, usd: 0, usd_per_call: null,
-        input_tokens: 0, output_tokens: 0, cached_tokens: 0, unpriced_calls: 0, _g: g,
+        input_tokens: 0, output_tokens: 0, cached_tokens: 0, unpriced_calls: 0, actual_calls: 0, _g: g,
       };
       acc.set(key, s);
     }
-    const { usd, unpriced } = priceGroup(g);
+    const { usd, unpriced, actual } = priceGroup(g);
     s.calls += g.calls;
     s.usd += usd;
     s.unpriced_calls += unpriced;
+    if (actual) s.actual_calls += g.calls;
     s.input_tokens += g.input_tokens;
     s.output_tokens += g.output_tokens;
     s.cached_tokens += g.cached_tokens;
@@ -248,6 +264,10 @@ export function moneyRoutes(app: FastifyInstance, repo: Repo) {
       // осядуть у ціні продукту. Правило те саме, що в списку домів; сюди
       // їде шаблон, а не друге визначення.
       const technicalLike = req.query.technical === '1' ? null : `%${TECHNICAL_DOMAIN}`;
+
+      // 17.09: лінивий бекфіл точних цін (OpenRouter generation) — до 50
+      // рядків, не довше ~3 с; невдалі лишаються на наступний раз.
+      await backfillActualCosts(repo);
 
       const [groups, averages] = await Promise.all([
         repo.adminMoneyGroups({ now, prev, technicalLike }),

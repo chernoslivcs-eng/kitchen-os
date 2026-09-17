@@ -466,7 +466,8 @@ export class InMemoryRepo implements Repo {
       if (!period) continue;
       if (this.isTechnicalHousehold(r.household_id, q.technicalLike)) continue;
       const has_turn = r.message_id !== null;
-      const key = [period, r.household_id, r.user_id, r.call, r.model, r.profile, r.mode, has_turn].join('\u0000');
+      const hasActual = r.usd_actual != null;
+      const key = [period, r.household_id, r.user_id, r.call, r.model, r.profile, r.mode, has_turn, hasActual].join('\u0000');
       let g = buckets.get(key);
       if (!g) {
         g = {
@@ -475,10 +476,12 @@ export class InMemoryRepo implements Repo {
           calls: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0,
           cache_write_tokens: 0, rows_without_write: 0,
           latency_sum_ms: 0, latency_n: 0,
+          usd_actual: hasActual ? 0 : null,
         };
         buckets.set(key, g);
       }
       g.calls += 1;
+      if (hasActual) g.usd_actual = (g.usd_actual ?? 0) + (r.usd_actual ?? 0);
       g.input_tokens += r.input_tokens;
       g.output_tokens += r.output_tokens;
       g.cached_tokens += r.cached_tokens;
@@ -487,6 +490,17 @@ export class InMemoryRepo implements Repo {
       if (r.latency_ms !== null) { g.latency_sum_ms += r.latency_ms; g.latency_n += 1; }
     }
     return [...buckets.values()];
+  }
+
+  async listTokenUsageWithoutActual(limit: number): Promise<{ id: string; generation_id: string }[]> {
+    return this.tokenUsage
+      .filter((r) => r.generation_id && r.usd_actual == null && r.mode === 'live')
+      .slice(-limit)
+      .map((r) => ({ id: r.id, generation_id: r.generation_id! }));
+  }
+  async setTokenUsageActual(id: string, usd_actual: number): Promise<void> {
+    const r = this.tokenUsage.find((x) => x.id === id);
+    if (r) r.usd_actual = usd_actual;
   }
 
   async adminMoneyAverages(q: {
