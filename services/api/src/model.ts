@@ -351,6 +351,8 @@ export interface ChatArgs {
   // Аудит раунд 3, крок 5: картки дому, закриті поза цією сесією за останні
   // 48 год (repo.listRecentResolved) — [ОСТАННІ ДІЇ] в контексті.
   recentActions?: PendingCard[];
+  /** Тестовий шов: «зараз» для горизонту [ЗАРАЗ]/строків; у проді не задається. */
+  now?: Date;
 }
 
 export interface ChatCall {
@@ -659,6 +661,10 @@ export function buildDynamicContext(args: ChatArgs, productMap?: string | null):
     recentActions: args.recentActions,
     queryText,
     productMap: productMap ?? null,
+    // 17.09: «зараз» — лише для тестів (у проді не задається): тест на плани
+    // дому фіксував now, а сюди воно не доходило — і зогнив, щойно подія
+    // 10.09+7 дн вийшла з горизонту реальної дати. Main червоний з 17.09.
+    now: args.now,
   });
 }
 
