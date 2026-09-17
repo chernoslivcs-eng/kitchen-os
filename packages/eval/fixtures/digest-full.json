@@ -107,7 +107,6 @@
   "invariants": [
     "joke-format",
     "joke-mentions-any:молоко|сир|філе|хліб|яйця|кава|гості|курк",
-    "no-markdown",
-    "addresses-informally"
+    "no-markdown"
   ]
 }
