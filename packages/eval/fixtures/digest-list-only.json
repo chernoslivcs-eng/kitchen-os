@@ -1,0 +1,47 @@
+{
+  "id": "digest-list-only",
+  "description": "DIGEST-PLAN-0917: дайджест, коли нічого не горить і подій нема — лише список покупок; блоки «Горить» і «Попереду» мають бути пропущені. «Попереду» може містити приводи довідника ([ЗАРАЗ]: сезони) — це теж календар; серверний гейт «порожньо» дивиться лише на події дому.",
+  "call": "chat",
+  "now": "2026-09-17T07:00:00",
+  "pantry": [
+    {
+      "id": "b1",
+      "label": "рис",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    },
+    {
+      "id": "b2",
+      "label": "олія соняшникова",
+      "zone": "dry",
+      "v": 800,
+      "u": "ml",
+      "state": "sealed"
+    }
+  ],
+  "shopping": [
+    {
+      "id": "s1",
+      "label": "молоко",
+      "v": 1,
+      "u": "l",
+      "checked": false
+    },
+    {
+      "id": "s2",
+      "label": "хліб",
+      "v": 1,
+      "u": "pcs",
+      "checked": false
+    }
+  ],
+  "events": [],
+  "invariants": [
+    "digest-format",
+    "digest-mentions:молоко",
+    "digest-no-block:Горить",
+    "no-markdown"
+  ]
+}

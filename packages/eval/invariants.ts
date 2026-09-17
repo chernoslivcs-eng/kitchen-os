@@ -612,6 +612,34 @@ export const registry: Record<string, Invariant> = {
     return bad.length ? fail(bad.join(' · ')) : pass('13/13 · ваги · бренди · сидр · свинина');
   },
 
+  // DIGEST-PLAN-0917: верстка дайджесту — заголовки блоків окремим рядком без
+  // «**», рядки списку з «·», гумореска окремим абзацом наприкінці (не
+  // перевіряємо зміст жарту — лише що після останнього блоку є абзац тексту).
+  'digest-format': (out) => {
+    const reply = String(out.reply ?? '');
+    const bad: string[] = [];
+    if (!reply.trim()) return fail('порожня відповідь');
+    if (/\*\*/.test(reply)) bad.push('є «**»');
+    if (out.card) bad.push(`є картка ${(out.card as { type?: string }).type}`);
+    const lines = reply.split('\n');
+    const heads = ['Горить', 'У списку', 'Попереду'].filter((h) => lines.some((l) => l.trim() === h));
+    for (const h of heads) {
+      const i = lines.findIndex((l) => l.trim() === h);
+      const next = lines[i + 1]?.trim() ?? '';
+      if (!next.startsWith('·')) bad.push(`після «${h}» не рядок з «·»: «${next.slice(0, 40)}»`);
+      const block = lines.slice(i + 1).findIndex((l) => l.trim() === '');
+      const n = (block === -1 ? lines.slice(i + 1) : lines.slice(i + 1, i + 1 + block)).filter((l) => l.trim().startsWith('·')).length;
+      const max = h === 'Попереду' ? 3 : 5;
+      if (n > max) bad.push(`«${h}»: ${n} рядків, ліміт ${max}`);
+    }
+    const paras = reply.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+    if (paras.length < 2) bad.push('менше двох абзаців');
+    const last = paras[paras.length - 1] ?? '';
+    if (/^(Горить|У списку|Попереду)/.test(last) || last.startsWith('·')) bad.push('останній абзац — блок, а не гумореска');
+    if (/\?\s*$/.test(last)) bad.push('закінчується запитанням');
+    return bad.length ? fail(bad.join(' · ')) : pass(`блоки: ${heads.join(', ') || '—'}; абзаців ${paras.length}`);
+  },
+
   'includes-nonfood': (out) => {
     const ops = opsOfIntake(out) ?? [];
     const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет|дрова|розпал|гриль|пакет|хустин/i;
@@ -1436,6 +1464,12 @@ export function resolve(name: string): Invariant {
   if (base === 'has-note-or-reply-mentions') {
     const roots = (arg ?? '').split('|');
     return (out) => (roots.some((r) => `${out.note ?? ''} ${out.reply ?? ''}`.toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`ні note, ні reply не згадують «${arg}»`));
+  // DIGEST-PLAN-0917: «digest-mentions:молоко» — рядок є у відповіді; «digest-no-block:Горить» — заголовка нема.
+  if (base === 'digest-mentions') {
+    return (out) => (String(out.reply ?? '').toLowerCase().includes((arg ?? '').toLowerCase()) ? pass() : fail(`нема «${arg}»: «${String(out.reply ?? '').slice(0, 120)}»`));
+  }
+  if (base === 'digest-no-block') {
+    return (out) => (String(out.reply ?? '').split('\n').some((l) => l.trim() === arg) ? fail(`є блок «${arg}», хоч даних для нього нема`) : pass());
   }
   // Крок 8: note з фрагментом («note-present:сол»), ≤ 140 знаків.
   if (base === 'note-present') {

@@ -32,6 +32,7 @@ export * from './pantry-add.js';
 export * from './backfill-generic-keys.js';
 export * from './dish-category.js';
 export * from './account-merge.js';
+export * from './digest.js';
 export * from './periods.js';
 export * from './hebrew-calendar.js';
 export * from './islamic-calendar.js';
