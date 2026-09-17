@@ -230,6 +230,20 @@ export function MoneyBlock({ technical }: { technical: boolean }) {
               кількість заднім числом нема з чого.
             </div>
           )}
+          {/* 17.09: точна ціна від OpenRouter — де підтягнута, вона в сумі
+              замість формули. Рядок каже, яка частка підсумку точна. */}
+          {(data.totals.actual_calls ?? 0) > 0 && (
+            <div className={styles.rows} data-actual>
+              <Row
+                label="За OpenRouter"
+                value={`${usd(data.totals.actual_usd ?? 0)} · ${num(data.totals.actual_calls ?? 0)} з ${num(data.totals.calls)} викликів`}
+                // копі: точна ціна проти формули.
+                note={(data.totals.actual_calls ?? 0) === data.totals.calls
+                  ? 'усі виклики періоду — за точною ціною з логу OpenRouter'
+                  : 'решта — за формулою прайсу; точна ціна підтягується поступово'}
+              />
+            </div>
+          )}
           <Slices title="ЗА МОДЕЛЛЮ" slices={data.byModel} floor={data.percent_floor} total={data.totals.calls} />
           <Slices title="ЗА ДОМОМ" slices={data.byHousehold} floor={data.percent_floor} total={data.totals.calls} />
           <Slices title="ЗА ЛЮДИНОЮ" slices={data.byPerson} floor={data.percent_floor} total={data.totals.calls} />
@@ -325,7 +339,9 @@ function Slices({ title, note, slices, floor, total }: {
             <span className={styles.name}>{s.label}</span>
             <span className={styles.mono}>{num(s.calls)}</span>
             <span className={`${styles.mono} ${styles.dim}`}>{shareWord(s.calls, total, floor)}</span>
-            <span className={styles.mono}>{usd(s.usd)}</span>
+            <span className={styles.mono} data-usd title={(s.actual_calls ?? 0) > 0 ? `${s.actual_calls} з ${s.calls} — за OpenRouter, решта за формулою` : 'за формулою прайсу'}>
+              {usd(s.usd)}{(s.actual_calls ?? 0) > 0 && <span className={styles.dim}> {s.actual_calls === s.calls ? '· OR' : `· OR ${s.actual_calls}/${s.calls}`}</span>}
+            </span>
             <span className={styles.mono} data-per-call>
               {s.usd_per_call === null ? <span className={styles.dim}>ціни не знаємо</span> : usd(s.usd_per_call)}
             </span>

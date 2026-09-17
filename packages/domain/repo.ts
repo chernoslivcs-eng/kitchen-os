@@ -150,6 +150,12 @@ export interface AdminMoneyGroup {
   /** Сума й кількість — щоб середнє рахувалось після згортання, а не до. */
   latency_sum_ms: number;
   latency_n: number;
+  /**
+   * 17.09: точна ціна від OpenRouter. Групи розбиті ще й за «є usd_actual чи
+   * нема»: у групі з ним — сума по рядках (усі рядки групи мають його), без
+   * нього — null, і екран рахує формулою.
+   */
+  usd_actual: number | null;
 }
 
 /** Крок А4: середні по періоду. Одним рядком — усе, що не зводиться з груп. */
@@ -310,6 +316,9 @@ export interface Repo {
     technicalLike: string | null;
   }): Promise<AdminMoneyGroup[]>;
   /** Крок А4: середні по періоду — теж одним запитом. `tz` для меж місцевого дня. */
+  /** 17.09: рядки з generation_id без точної ціни — для лінивого бекфілу в /v1/admin/money. */
+  listTokenUsageWithoutActual(limit: number): Promise<{ id: string; generation_id: string }[]>;
+  setTokenUsageActual(id: string, usd_actual: number): Promise<void>;
   adminMoneyAverages(q: {
     now: { from: Date; to: Date };
     technicalLike: string | null;

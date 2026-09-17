@@ -219,6 +219,8 @@ export interface MoneySlice {
   output_tokens: number;
   cached_tokens: number;
   unpriced_calls: number;
+  /** 17.09: скільки викликів розрізу з точною ціною від OpenRouter; решта — за формулою. */
+  actual_calls?: number;
 }
 
 export interface MoneyTotals {
@@ -239,6 +241,9 @@ export interface MoneyTotals {
   cache_write_usd: number;
   /** Викликів, для яких запис не рахувався: підсумок на стільки занижений. */
   calls_without_write: number;
+  /** 17.09: точна ціна від OpenRouter — скільки викликів і доларів у `usd` саме такі. */
+  actual_calls?: number;
+  actual_usd?: number;
 }
 
 export interface AdminMoney {

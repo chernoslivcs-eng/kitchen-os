@@ -39,13 +39,16 @@
 interface Price {
   input: number; cached: number; output: number;
   /**
-   * 16.09: множник запису в кеш до ставки входу. Дефолт 1,25 — виміряний
-   * для Anthropic (нижче). Google за запис окремої ставки не бере: контекст
-   * кешується за звичайною ставкою входу (+ погодинне зберігання, яке
-   * OpenRouter показує як input_cache_write $0,0417/млн·год і яке ми не
-   * рахуємо — воно не токенне), тож для Gemini множник 1,0.
+   * Як рахувати `cache_write_tokens` (cache_creation_input_tokens):
+   *   'anthropic' (дефолт) — запис у кеш за 1,25× ставки входу (виміряно нижче);
+   *   'none' — НЕ рахувати взагалі. 17.09, Gemini через Anthropic-сумісний
+   *   ендпойнт OpenRouter: там cache_creation_input_tokens віддається РІВНИМ
+   *   cache_read_input_tokens (23440/23440 на кожному ході) — це не запис, а
+   *   ще раз той самий прочитаний кеш. Рахуючи його як запис, ми завищували
+   *   Gemini у ~2 рази (звірка з OpenRouter usage: $1,53 у нас проти $0,675 у
+   *   них; «усе з кешу» — $0,69, збіг). Точна ціна їде окремо — usd_actual.
    */
-  cache_write_mult?: number;
+  cache_write?: 'anthropic' | 'none';
 }
 
 /**
@@ -89,12 +92,12 @@ const PRICES: [string, Price][] = [
   // всередині output_tokens і тарифікує як completion (internal_reasoning =
   // 3.75) — окремо НЕ додаємо, інакше порахуємо двічі. Ключ — точна назва:
   // у інших gemini інші ціни.
-  ['gemini-3.8-flash', { input: 0.75, cached: 0.075, output: 3.75, cache_write_mult: 1.0 }],
+  ['gemini-3.8-flash', { input: 0.75, cached: 0.075, output: 3.75, cache_write: 'none' }],
 ];
 
-/** Ставка запису в кеш для моделі: sonnet $3,75, haiku $1,25, opus $18,75, gemini-3.8-flash $0,75 за млн. */
+/** Ставка запису в кеш для моделі: sonnet $3,75, haiku $1,25, opus $18,75; gemini — 0 (запис не рахується, див. Price.cache_write). */
 export function cacheWriteRate(p: Price): number {
-  return p.input * (p.cache_write_mult ?? CACHE_WRITE_MULTIPLIER);
+  return p.cache_write === 'none' ? 0 : p.input * CACHE_WRITE_MULTIPLIER;
 }
 
 export function priceFor(model: string): Price | null {

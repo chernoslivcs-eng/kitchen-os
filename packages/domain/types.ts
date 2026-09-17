@@ -664,6 +664,8 @@ export interface TokenUsageRow {
   /** 16.09: OpenRouter — хто відповідав і id генерації (перший виклик ходу). */
   provider?: string | null;
   generation_id?: string | null;
+  /** 17.09: точна ціна від OpenRouter (GET /api/v1/generation total_cost), USD; null — ще не підтягнуто. */
+  usd_actual?: number | null;
   /**
    * Крок А1: до якого ходу належить цей виклик. Досі pulse.ts зшивав ціну з
    * повідомленням здогадкою — найближчий виклик тієї самої людини в межах

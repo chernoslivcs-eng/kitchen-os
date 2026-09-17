@@ -1019,7 +1019,9 @@ export class PostgresRepo implements Repo {
              coalesce(sum(tu.cache_write_tokens), 0)::bigint            AS cache_write_tokens,
              count(*) FILTER (WHERE tu.cache_write_tokens IS NULL)::int AS rows_without_write,
              coalesce(sum(tu.latency_ms), 0)::bigint      AS latency_sum_ms,
-             count(tu.latency_ms)::int                    AS latency_n
+             count(tu.latency_ms)::int                    AS latency_n,
+             (tu.usd_actual IS NOT NULL)                  AS has_actual,
+             sum(tu.usd_actual)::float8                   AS usd_actual
         FROM token_usage tu
        WHERE ((tu.created_at >= $1 AND tu.created_at < $2)
            OR (tu.created_at >= $3 AND tu.created_at < $4))
@@ -1029,7 +1031,7 @@ export class PostgresRepo implements Repo {
                 WHERE hm.household_id = tu.household_id
                   AND hm.role = 'owner'
                   AND lower(u.email) LIKE $5))
-       GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
+       GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, (tu.usd_actual IS NOT NULL)
     `, [q.now.from, q.now.to, q.prev.from, q.prev.to, q.technicalLike]);
     return rows.map((r): AdminMoneyGroup => ({
       period: r.period,
@@ -1048,7 +1050,21 @@ export class PostgresRepo implements Repo {
       rows_without_write: r.rows_without_write,
       latency_sum_ms: Number(r.latency_sum_ms),
       latency_n: r.latency_n,
+      usd_actual: r.has_actual ? Number(r.usd_actual ?? 0) : null,
     }));
+  }
+
+  async listTokenUsageWithoutActual(limit: number): Promise<{ id: string; generation_id: string }[]> {
+    const { rows } = await this.pool.query(
+      `SELECT id, generation_id FROM token_usage
+        WHERE generation_id IS NOT NULL AND usd_actual IS NULL AND mode = 'live'
+        ORDER BY created_at DESC LIMIT $1`,
+      [limit],
+    );
+    return rows.map((r) => ({ id: String(r.id), generation_id: String(r.generation_id) }));
+  }
+  async setTokenUsageActual(id: string, usd_actual: number): Promise<void> {
+    await this.pool.query('UPDATE token_usage SET usd_actual = $2 WHERE id = $1', [id, usd_actual]);
   }
 
   /**
