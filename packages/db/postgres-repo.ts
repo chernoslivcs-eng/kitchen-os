@@ -9,7 +9,7 @@
 
 import type { Pool } from './pool.js';
 import type {
-  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminBetaRow, AdminMoneyGroup, AdminMoneyAverages,
+  Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminBetaRow, AdminMoneyGroup, AdminMoneyAverages, DigestCandidateRow,
   PantryBatch, PendingCard, AttachmentRecord, AttachmentKind,
   AuthChallenge, AuthSession, TokenUsageRow, CallName, ModelProfile, CallMode,
   HouseholdInvite, HouseholdRole, ShoppingItemRow, RetailConnectionRow,
@@ -283,6 +283,13 @@ function rowToTelegramToken(r: Record<string, unknown>): TelegramLinkTokenRow {
     consumed_at: r.consumed_at ? new Date(r.consumed_at as string).toISOString() : null,
     conflict_user_id: (r.conflict_user_id as string | null) ?? null,
   };
+}
+
+/** date-колонка → 'YYYY-MM-DD' (pg віддає Date у локальному поясі процесу — беремо частини, не toISOString). */
+function isoDay(v: unknown): string {
+  if (typeof v === 'string') return v.slice(0, 10);
+  const d = v as Date;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export class PostgresRepo implements Repo {
@@ -1191,6 +1198,38 @@ export class PostgresRepo implements Repo {
   // consumed — poll сам consume, гонитви немає).
   async attachChallengeUser(id: string, user_id: string): Promise<void> {
     await this.pool.query('UPDATE auth_challenge SET user_id = $2 WHERE id = $1', [id, user_id]);
+  }
+
+  // ── Дайджест (DIGEST-PLAN-0917, PR 1) ──
+  async listDigestCandidates(): Promise<DigestCandidateRow[]> {
+    const { rows } = await this.pool.query(`
+      SELECT ta.user_id, ta.chat_id, u.tz, u.digest_enabled, u.digest_sent_on,
+             (SELECT hm.household_id FROM household_member hm WHERE hm.user_id = ta.user_id ORDER BY hm.joined_at LIMIT 1) AS household_id
+        FROM telegram_account ta JOIN "user" u ON u.id = ta.user_id
+       WHERE ta.revoked_at IS NULL AND ta.chat_id IS NOT NULL`);
+    return rows.filter((r) => r.household_id).map((r) => ({
+      user_id: String(r.user_id), household_id: String(r.household_id), chat_id: Number(r.chat_id),
+      tz: (r.tz as string | null) ?? null, digest_enabled: r.digest_enabled !== false,
+      digest_sent_on: r.digest_sent_on ? isoDay(r.digest_sent_on) : null,
+    }));
+  }
+  async setDigestSentOn(user_id: string, day: string): Promise<void> {
+    await this.pool.query('UPDATE "user" SET digest_sent_on = $2 WHERE id = $1', [user_id, day]);
+  }
+  async setDigestEnabled(user_id: string, enabled: boolean): Promise<void> {
+    await this.pool.query('UPDATE "user" SET digest_enabled = $2 WHERE id = $1', [user_id, enabled]);
+  }
+  async getDigestEnabled(user_id: string): Promise<boolean> {
+    const { rows } = await this.pool.query('SELECT digest_enabled FROM "user" WHERE id = $1', [user_id]);
+    return rows[0]?.digest_enabled !== false;
+  }
+  async hasUserMessageSince(user_id: string, since: string): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM message m JOIN session s ON s.id = m.session_id
+        WHERE s.user_id = $1 AND m.role = 'user' AND m.created_at >= $2 LIMIT 1`,
+      [user_id, since],
+    );
+    return rows.length > 0;
   }
 
   // ── Злиття акаунтів (15.09) ──

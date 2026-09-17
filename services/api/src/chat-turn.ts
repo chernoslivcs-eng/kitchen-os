@@ -15,7 +15,7 @@ import { mergeAttachmentCalls } from './attachment-merge.js';
 import { detectRepeat, repeatReply } from './repeat-guard.js';
 import { recipeStaleByNotes } from './recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
-import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
+import { PROFILE_SUMMARY_REQUEST, DIGEST_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
 import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow } from '@kitchen/domain';
 import { buildChatHistory } from './chat-history.js';
 import type { AttachmentStore } from './attachment-store.js';
@@ -81,8 +81,8 @@ export interface ChatTurnInput {
   text?: string;
   attachments?: { id: string }[];
   session_id?: string;
-  /** Крок 7: «Показати, що вийшло» — серверний хід без репліки людини. */
-  action?: 'profile_summary';
+  /** Крок 7: «Показати, що вийшло» — серверний хід без репліки людини. 'digest' (DIGEST-PLAN-0917) — ранковий дайджест, той самий механізм. */
+  action?: 'profile_summary' | 'digest';
   /** Звідки хід; 'web' не пишеться в базу (типове значення колонки). */
   channel?: 'web' | 'telegram';
   /** Р150: intake_diff із вкладення — у вебі застосовується одразу (Пул-8, запобіжник — undo);
@@ -114,8 +114,9 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     const { attachments, session_id: clientSessionId, action } = input;
     // Резюме «Про тебе»: у user-turn іде серверний рядок, в історію він не
     // пишеться, картки не буває — модель лише переказує [ПРО ЛЮДИНУ] у голосі.
-    const summaryTurn = action === 'profile_summary';
-    const text = summaryTurn ? PROFILE_SUMMARY_REQUEST : input.text;
+    // Дайджест — той самий серверний хід: [СЕРВЕР]-рядок, без репліки людини в історії, без картки.
+    const summaryTurn = action === 'profile_summary' || action === 'digest';
+    const text = action === 'profile_summary' ? PROFILE_SUMMARY_REQUEST : action === 'digest' ? DIGEST_REQUEST : input.text;
     if (!text && !attachments?.length) {
       throw new ChatTurnHttpError(400, { error: 'text or attachments required' });
     }

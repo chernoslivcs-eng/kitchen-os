@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
-import { PROFILE_SUMMARY_REQUEST } from '@kitchen/domain';
+import { PROFILE_SUMMARY_REQUEST, DIGEST_REQUEST } from '@kitchen/domain';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -267,6 +267,11 @@ export function loadFixtures(): Fixture[] {
     ...['onboarding-summary', 'onboarding-summary-empty'].map((id) => ({
       ...readJson(`${id}.json`),
       conversation: [{ role: 'user' as const, content: PROFILE_SUMMARY_REQUEST }],
+    })),
+    // DIGEST-PLAN-0917: ранковий дайджест — серверний рядок DIGEST_REQUEST у user-turn.
+    ...['digest-full', 'digest-list-only', 'digest-empty'].map((id) => ({
+      ...readJson(`${id}.json`),
+      conversation: [{ role: 'user' as const, content: DIGEST_REQUEST }],
     })),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
