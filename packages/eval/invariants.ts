@@ -612,32 +612,31 @@ export const registry: Record<string, Invariant> = {
     return bad.length ? fail(bad.join(' · ')) : pass('13/13 · ваги · бренди · сидр · свинина');
   },
 
-  // DIGEST-PLAN-0917: верстка дайджесту — заголовки блоків окремим рядком без
-  // «**», рядки списку з «·», гумореска окремим абзацом наприкінці (не
-  // перевіряємо зміст жарту — лише що після останнього блоку є абзац тексту).
-  'digest-format': (out) => {
-    const reply = String(out.reply ?? '');
+  // DIGEST-PLAN-0917 (жанр 17.09 — анекдот): три-пʼять речень, ≤ 400 знаків,
+  // без заголовків/маркерів/«**», без грамів, без запитань, без картки.
+  'joke-format': (out) => {
+    const reply = String(out.reply ?? '').trim();
     const bad: string[] = [];
-    if (!reply.trim()) return fail('порожня відповідь');
-    if (/\*\*/.test(reply)) bad.push('є «**»');
+    if (!reply) return fail('порожня відповідь');
     if (out.card) bad.push(`є картка ${(out.card as { type?: string }).type}`);
-    const lines = reply.split('\n');
-    const heads = ['Горить', 'У списку', 'Попереду'].filter((h) => lines.some((l) => l.trim() === h));
-    for (const h of heads) {
-      const i = lines.findIndex((l) => l.trim() === h);
-      const next = lines[i + 1]?.trim() ?? '';
-      if (!next.startsWith('·')) bad.push(`після «${h}» не рядок з «·»: «${next.slice(0, 40)}»`);
-      const block = lines.slice(i + 1).findIndex((l) => l.trim() === '');
-      const n = (block === -1 ? lines.slice(i + 1) : lines.slice(i + 1, i + 1 + block)).filter((l) => l.trim().startsWith('·')).length;
-      const max = h === 'Попереду' ? 3 : 5;
-      if (n > max) bad.push(`«${h}»: ${n} рядків, ліміт ${max}`);
-    }
-    const paras = reply.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-    if (paras.length < 2) bad.push('менше двох абзаців');
-    const last = paras[paras.length - 1] ?? '';
-    if (/^(Горить|У списку|Попереду)/.test(last) || last.startsWith('·')) bad.push('останній абзац — блок, а не гумореска');
-    if (/\?\s*$/.test(last)) bad.push('закінчується запитанням');
-    return bad.length ? fail(bad.join(' · ')) : pass(`блоки: ${heads.join(', ') || '—'}; абзаців ${paras.length}`);
+    if (/\*\*/.test(reply)) bad.push('є «**»');
+    if (/^\s*[·•\-–]\s/m.test(reply)) bad.push('є маркери списку');
+    if (/^(Горить|У списку|Попереду)\s*$/m.test(reply)) bad.push('є заголовок блоку');
+    if (Array.from(reply).length > 420) bad.push(`довжина ${Array.from(reply).length} > 400`);
+    if (/\b\d+\s?(г|мл|кг|л)\b/i.test(reply)) bad.push('є грами/мілілітри');
+    // Запитання в репліці персонажа («Слухай, а де всі?») — це сюжет, як у зразках власника;
+    // заборонене — запитання ДО ЛЮДИНИ наприкінці (панчлайн має бути ствердженням).
+    if (/\?\s*[»"]?\s*$/.test(reply)) bad.push('закінчується запитанням до людини');
+    const sentences = reply.split(/[.!…]+\s+|[.!…]+$/).filter((x) => x.trim()).length;
+    if (sentences < 2 || sentences > 7) bad.push(`речень ${sentences}, чекали 3–5`);
+    return bad.length ? fail(bad.join(' · ')) : pass(`${Array.from(reply).length} зн., ${sentences} реч.`);
+  },
+  // Порожній дім: модель не має стверджувати, що в домі ЩОСЬ Є (гіпотетичне
+  // «чи принесли бодай цибулину» — не вигадка, а сюжет про порожнечу).
+  'joke-no-invented-products': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const claims = /(лежить|стоїть|стоять|лежать|є|відкрит[аеі]|чекає|чекають)\s+[^.,;]{0,20}(молок|сир|хліб|яйц|курк|лосос|тунец|креветк|картопл|томат|помідор|масл|олі|рис|кав|вин|пив|квас)/;
+    return claims.test(reply) ? fail(`стверджує, що в домі є продукт: «${reply.slice(0, 120)}»`) : pass();
   },
 
   'includes-nonfood': (out) => {
@@ -1470,6 +1469,10 @@ export function resolve(name: string): Invariant {
   }
   if (base === 'digest-no-block') {
     return (out) => (String(out.reply ?? '').split('\n').some((l) => l.trim() === arg) ? fail(`є блок «${arg}», хоч даних для нього нема`) : pass());
+  // DIGEST-PLAN-0917 (анекдот): «joke-mentions-any:молоко|сир» — персонаж узятий із контексту (хоч один корінь).
+  if (base === 'joke-mentions-any') {
+    const roots = (arg ?? '').split('|').filter(Boolean);
+    return (out) => (roots.some((r) => String(out.reply ?? '').toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`жодного з «${arg}»: «${String(out.reply ?? '').slice(0, 120)}»`));
   }
   // Крок 8: note з фрагментом («note-present:сол»), ≤ 140 знаків.
   if (base === 'note-present') {

@@ -25,13 +25,13 @@ const deps = (repo: InMemoryRepo, over: Partial<DigestDeps> = {}): DigestDeps & 
   return {
     repo, store: new InMemoryStore(), chatOpts: {}, log, now: () => NOW,
     send: async (chat_id, text) => { sent.push({ chat_id, text }); },
-    turn: async (input) => { turns.push(input); return { reply: 'Доброго ранку.\n\nГорить\n· молоко — 200 мл, до завтра\n\nУ списку\n· хліб\n\nЖарт про молоко.', card: null, card_id: null }; },
+    turn: async (input) => { turns.push(input); return { reply: 'Молоко відкрите вчора питає хліб зі списку, чи той узагалі прийде. Хліб мовчить — він ще в магазині.', card: null, card_id: null }; },
     sent, turns, ...over,
   };
 };
 
 describe('runDigestFor', () => {
-  it('07 місцевого, є що казати → хід action:digest без тексту людини, Telegram з маркерами, sent_on = сьогодні, app_event', async () => {
+  it('07 місцевого, є що казати → хід action:digest без тексту людини, анекдот у Telegram як є, sent_on = сьогодні, app_event', async () => {
     const { repo, tg } = await seed();
     const d = deps(repo);
     const [c] = await repo.listDigestCandidates();
@@ -40,8 +40,7 @@ describe('runDigestFor', () => {
     expect(d.turns[0]).toMatchObject({ action: 'digest', channel: 'telegram', user: { user_id: tg.user_id } });
     expect((d.turns[0] as { text?: string }).text).toBeUndefined();
     expect(d.sent[0]!.chat_id).toBe(777);
-    expect(d.sent[0]!.text).toContain('🔥 Горить');
-    expect(d.sent[0]!.text).toContain('🛒 У списку');
+    expect(d.sent[0]!.text).toBe('Молоко відкрите вчора питає хліб зі списку, чи той узагалі прийде. Хліб мовчить — він ще в магазині.');
     expect((await repo.listDigestCandidates())[0]!.digest_sent_on).toBe('2026-09-17');
     // Повторно того ж дня — не шлемо.
     expect(await runDigestFor(d, (await repo.listDigestCandidates())[0]!)).toMatchObject({ status: 'skipped', reason: 'already_sent' });
