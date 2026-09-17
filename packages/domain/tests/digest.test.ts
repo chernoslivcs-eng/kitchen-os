@@ -58,9 +58,8 @@ describe('localClock / shouldSendDigest', () => {
 });
 
 describe('DIGEST_REQUEST / digestForTelegram', () => {
-  it('команда — серверний рядок про анекдот: сюжет, панчлайн, без заголовків, маркерів, грамів, запитань', () => {
-    expect(DIGEST_REQUEST.startsWith('[СЕРВЕР]')).toBe(true);
-    for (const w of ['анекдот', 'панчлайн', 'без заголовків і маркерів', 'без грамів', 'без запитань', 'Нічого не вигадуй']) expect(DIGEST_REQUEST).toContain(w);
+  it('команда — дослівно і тільки це', () => {
+    expect(DIGEST_REQUEST).toBe('[СЕРВЕР] Розкажи анекдот про поточний стан дому.');
   });
   it('Telegram: текст як є, лише обрізані пробіли; жодних емодзі всередині', () => {
     expect(digestForTelegram('  Зустрічаються в морозилці лосось і тунець…  ')).toBe('Зустрічаються в морозилці лосось і тунець…');

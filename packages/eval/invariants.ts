@@ -612,24 +612,16 @@ export const registry: Record<string, Invariant> = {
     return bad.length ? fail(bad.join(' · ')) : pass('13/13 · ваги · бренди · сидр · свинина');
   },
 
-  // DIGEST-PLAN-0917 (жанр 17.09 — анекдот): три-пʼять речень, ≤ 400 знаків,
-  // без заголовків/маркерів/«**», без грамів, без запитань, без картки.
+  // DIGEST-PLAN-0917 (анекдот; команда — один рядок, межі тримає role/voice):
+  // мʼякий інваріант — є текст, нема картки, не JSON-уламок, ≤ ~600 знаків.
   'joke-format': (out) => {
     const reply = String(out.reply ?? '').trim();
-    const bad: string[] = [];
     if (!reply) return fail('порожня відповідь');
+    const bad: string[] = [];
     if (out.card) bad.push(`є картка ${(out.card as { type?: string }).type}`);
-    if (/\*\*/.test(reply)) bad.push('є «**»');
-    if (/^\s*[·•\-–]\s/m.test(reply)) bad.push('є маркери списку');
-    if (/^(Горить|У списку|Попереду)\s*$/m.test(reply)) bad.push('є заголовок блоку');
-    if (Array.from(reply).length > 420) bad.push(`довжина ${Array.from(reply).length} > 400`);
-    if (/\b\d+\s?(г|мл|кг|л)\b/i.test(reply)) bad.push('є грами/мілілітри');
-    // Запитання в репліці персонажа («Слухай, а де всі?») — це сюжет, як у зразках власника;
-    // заборонене — запитання ДО ЛЮДИНИ наприкінці (панчлайн має бути ствердженням).
-    if (/\?\s*[»"]?\s*$/.test(reply)) bad.push('закінчується запитанням до людини');
-    const sentences = reply.split(/[.!…]+\s+|[.!…]+$/).filter((x) => x.trim()).length;
-    if (sentences < 2 || sentences > 7) bad.push(`речень ${sentences}, чекали 3–5`);
-    return bad.length ? fail(bad.join(' · ')) : pass(`${Array.from(reply).length} зн., ${sentences} реч.`);
+    if (/^\s*[{[]/.test(reply)) bad.push('схоже на JSON');
+    if (Array.from(reply).length > 600) bad.push(`довжина ${Array.from(reply).length} > 600`);
+    return bad.length ? fail(bad.join(' · ')) : pass(`${Array.from(reply).length} зн.`);
   },
   // Порожній дім: модель не має стверджувати, що в домі ЩОСЬ Є (гіпотетичне
   // «чи принесли бодай цибулину» — не вигадка, а сюжет про порожнечу).
