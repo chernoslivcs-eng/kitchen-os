@@ -1,0 +1,46 @@
+{
+  "id": "digest-list-only",
+  "description": "DIGEST-PLAN-0917 (анекдот): нічого не горить, подій нема — персонажі лише зі списку покупок (молоко, хліб) і сухої комори (рис, олія).",
+  "call": "chat",
+  "now": "2026-09-17T07:00:00",
+  "pantry": [
+    {
+      "id": "b1",
+      "label": "рис",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    },
+    {
+      "id": "b2",
+      "label": "олія соняшникова",
+      "zone": "dry",
+      "v": 800,
+      "u": "ml",
+      "state": "sealed"
+    }
+  ],
+  "shopping": [
+    {
+      "id": "s1",
+      "label": "молоко",
+      "v": 1,
+      "u": "l",
+      "checked": false
+    },
+    {
+      "id": "s2",
+      "label": "хліб",
+      "v": 1,
+      "u": "pcs",
+      "checked": false
+    }
+  ],
+  "events": [],
+  "invariants": [
+    "joke-format",
+    "joke-mentions-any:молоко|хліб|рис|олі",
+    "no-markdown"
+  ]
+}

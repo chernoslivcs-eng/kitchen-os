@@ -1,0 +1,14 @@
+{
+  "id": "digest-empty",
+  "description": "DIGEST-PLAN-0917 (анекдот): порожній дім — на проді хід НЕ робиться (digestIsEmpty); фікстура — лише щоб бачити, що модель не вигадує продуктів, якби її спитали.",
+  "call": "chat",
+  "now": "2026-09-17T07:00:00",
+  "pantry": [],
+  "shopping": [],
+  "events": [],
+  "invariants": [
+    "joke-format",
+    "joke-no-invented-products",
+    "no-markdown"
+  ]
+}

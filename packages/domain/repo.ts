@@ -31,6 +31,17 @@ export interface UserRow {
 
 export type UserStampField = 'welcome_seen_at' | 'profile_onboarding_at';
 
+/** Дайджест (DIGEST-PLAN-0917): кому є куди доставити — привʼязаний Telegram. */
+export interface DigestCandidateRow {
+  user_id: string;
+  household_id: string;
+  chat_id: number;
+  tz: string | null;
+  digest_enabled: boolean;
+  /** YYYY-MM-DD локального дня останньої відправки. */
+  digest_sent_on: string | null;
+}
+
 export interface HouseholdRow {
   id: string;
   name: string;
@@ -271,6 +282,14 @@ export interface Repo {
   // PR 1 (TELEGRAM-AUTH-PAY-PLAN-0915): акаунт із Telegram-id. Пошук — за
   // telegram_account без revoked; створення — user без пошти + дім + привʼязка.
   getUserByTelegramId(telegram_user_id: number): Promise<UserRow | null>;
+  // ── Дайджест (DIGEST-PLAN-0917, PR 1) ──
+  /** Усі з живою привʼязкою Telegram (chat_id відомий) — крон сам вирішує, кому зараз 07:00. */
+  listDigestCandidates(): Promise<DigestCandidateRow[]>;
+  setDigestSentOn(user_id: string, day: string): Promise<void>;
+  setDigestEnabled(user_id: string, enabled: boolean): Promise<void>;
+  getDigestEnabled(user_id: string): Promise<boolean>;
+  /** Чи людина писала в чат (role user) від `since` — «вона й так у додатку». */
+  hasUserMessageSince(user_id: string, since: string): Promise<boolean>;
   createUserFromTelegram(tg: { telegram_user_id: number; chat_id: number | null; name: string }): Promise<{ user_id: string; household_id: string }>;
   getUser(id: string): Promise<UserRow | null>;
   // PR 2 (TELEGRAM-AUTH-PAY-PLAN-0915): «Додати пошту» до акаунта без неї.

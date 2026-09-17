@@ -612,6 +612,25 @@ export const registry: Record<string, Invariant> = {
     return bad.length ? fail(bad.join(' · ')) : pass('13/13 · ваги · бренди · сидр · свинина');
   },
 
+  // DIGEST-PLAN-0917 (анекдот; команда — один рядок, межі тримає role/voice):
+  // мʼякий інваріант — є текст, нема картки, не JSON-уламок, ≤ ~600 знаків.
+  'joke-format': (out) => {
+    const reply = String(out.reply ?? '').trim();
+    if (!reply) return fail('порожня відповідь');
+    const bad: string[] = [];
+    if (out.card) bad.push(`є картка ${(out.card as { type?: string }).type}`);
+    if (/^\s*[{[]/.test(reply)) bad.push('схоже на JSON');
+    if (Array.from(reply).length > 600) bad.push(`довжина ${Array.from(reply).length} > 600`);
+    return bad.length ? fail(bad.join(' · ')) : pass(`${Array.from(reply).length} зн.`);
+  },
+  // Порожній дім: модель не має стверджувати, що в домі ЩОСЬ Є (гіпотетичне
+  // «чи принесли бодай цибулину» — не вигадка, а сюжет про порожнечу).
+  'joke-no-invented-products': (out) => {
+    const reply = String(out.reply ?? '').toLowerCase();
+    const claims = /(лежить|стоїть|стоять|лежать|є|відкрит[аеі]|чекає|чекають)\s+[^.,;]{0,20}(молок|сир|хліб|яйц|курк|лосос|тунец|креветк|картопл|томат|помідор|масл|олі|рис|кав|вин|пив|квас)/;
+    return claims.test(reply) ? fail(`стверджує, що в домі є продукт: «${reply.slice(0, 120)}»`) : pass();
+  },
+
   'includes-nonfood': (out) => {
     const ops = opsOfIntake(out) ?? [];
     const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет|дрова|розпал|гриль|пакет|хустин/i;
@@ -1383,6 +1402,11 @@ export const registry: Record<string, Invariant> = {
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
 
+  // DIGEST-PLAN-0917 (анекдот): «joke-mentions-any:молоко|сир» — персонаж узятий із контексту (хоч один корінь).
+  if (base === 'joke-mentions-any') {
+    const roots = (arg ?? '').split('|').filter(Boolean);
+    return (out) => (roots.some((r) => String(out.reply ?? '').toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`жодного з «${arg}»: «${String(out.reply ?? '').slice(0, 120)}»`));
+  }
   // Крок 8: note з фрагментом («note-present:сол»), ≤ 140 знаків.
   if (base === 'note-present') {
     return (out) => {

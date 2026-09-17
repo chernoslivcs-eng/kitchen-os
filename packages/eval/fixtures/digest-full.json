@@ -1,0 +1,112 @@
+{
+  "id": "digest-full",
+  "description": "DIGEST-PLAN-0917 (жанр 17.09 — анекдот): повний дім — відкрите молоко до завтра, сир, список із 3 позицій, гості через 2 дні, учора готували. Анекдот має взяти один-два факти звідси.",
+  "call": "chat",
+  "now": "2026-09-17T07:00:00",
+  "pantry": [
+    {
+      "id": "b1",
+      "label": "молоко 2,5%",
+      "zone": "fridge",
+      "v": 300,
+      "u": "ml",
+      "state": "opened",
+      "expires_at": "2026-09-18T00:00:00"
+    },
+    {
+      "id": "b2",
+      "label": "сир маасдам",
+      "zone": "fridge",
+      "v": 150,
+      "u": "g",
+      "state": "opened",
+      "expires_at": "2026-09-20T00:00:00"
+    },
+    {
+      "id": "b3",
+      "label": "філе куряче",
+      "zone": "fridge",
+      "v": 600,
+      "u": "g",
+      "state": "sealed",
+      "expires_at": "2026-09-19T00:00:00"
+    },
+    {
+      "id": "b4",
+      "label": "рис",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    },
+    {
+      "id": "b5",
+      "label": "томати",
+      "zone": "fresh",
+      "v": 400,
+      "u": "g",
+      "state": "sealed",
+      "expires_at": "2026-09-30T00:00:00"
+    }
+  ],
+  "shopping": [
+    {
+      "id": "s1",
+      "label": "хліб",
+      "v": 1,
+      "u": "pcs",
+      "checked": false
+    },
+    {
+      "id": "s2",
+      "label": "яйця",
+      "v": 10,
+      "u": "pcs",
+      "checked": false
+    },
+    {
+      "id": "s3",
+      "label": "кава",
+      "v": 1,
+      "u": "pack",
+      "checked": false
+    }
+  ],
+  "events": [
+    {
+      "id": "7f3a91c4-0000-4000-8000-000000000001",
+      "household_id": "h1",
+      "kind": "custom",
+      "title": "гості на вечерю",
+      "note": null,
+      "rule": {
+        "t": "once",
+        "at": "2026-09-19"
+      },
+      "force": "hint",
+      "restricts": null,
+      "buy": [],
+      "recipe_id": null,
+      "servings": 4,
+      "supply": null,
+      "created_by": "u1",
+      "source": "user",
+      "expires_at": null,
+      "done_at": null,
+      "created_at": "2026-09-10T10:00:00.000Z"
+    }
+  ],
+  "recentCookRuns": [
+    {
+      "title": "Курка з рисом",
+      "rating": 4,
+      "verdict": "repeat",
+      "finished_at": "2026-09-16T19:30:00"
+    }
+  ],
+  "invariants": [
+    "joke-format",
+    "joke-mentions-any:молоко|сир|філе|хліб|яйця|кава|гості|курк",
+    "no-markdown"
+  ]
+}
