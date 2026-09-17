@@ -1,6 +1,6 @@
 // Ранковий дайджест (DIGEST-PLAN-0917, PR 1): що є для дайджесту, кому і коли слати, розкладка для Telegram.
 import { describe, it, expect } from 'vitest';
-import { digestFacts, digestIsEmpty, shouldSendDigest, localClock, digestForTelegram, DIGEST_REQUEST, DIGEST_HEADINGS, DIGEST_LIST_EMPTY } from '../digest.js';
+import { digestFacts, digestIsEmpty, shouldSendDigest, localClock, digestForTelegram, DIGEST_REQUEST } from '../digest.js';
 import type { PantryBatch, ShoppingItemRow, HouseholdEventRow } from '../types.js';
 
 const NOW = new Date('2026-09-17T04:30:00.000Z'); // 07:30 Київ
@@ -58,14 +58,11 @@ describe('localClock / shouldSendDigest', () => {
 });
 
 describe('DIGEST_REQUEST / digestForTelegram', () => {
-  it('команда — серверний рядок із форматом', () => {
+  it('команда — серверний рядок про анекдот: сюжет, панчлайн, без заголовків, маркерів, грамів, запитань', () => {
     expect(DIGEST_REQUEST.startsWith('[СЕРВЕР]')).toBe(true);
-    for (const h of Object.values(DIGEST_HEADINGS)) expect(DIGEST_REQUEST).toContain(h);
-    expect(DIGEST_REQUEST).toContain(DIGEST_LIST_EMPTY);
-    expect(DIGEST_REQUEST).toContain('Без картки');
+    for (const w of ['анекдот', 'панчлайн', 'без заголовків і маркерів', 'без грамів', 'без запитань', 'Нічого не вигадуй']) expect(DIGEST_REQUEST).toContain(w);
   });
-  it('Telegram: емодзі лише перед заголовками блоків, рядки списку й абзаци — як є', () => {
-    const text = 'Доброго ранку.\n\nГорить\n· молоко — 200 мл, до завтра\n\nУ списку порожньо\n\nПопереду\n· 20.09 — гості\n\nЖарт.';
-    expect(digestForTelegram(text)).toBe('Доброго ранку.\n\n🔥 Горить\n· молоко — 200 мл, до завтра\n\n🛒 У списку порожньо\n\n📌 Попереду\n· 20.09 — гості\n\nЖарт.');
+  it('Telegram: текст як є, лише обрізані пробіли; жодних емодзі всередині', () => {
+    expect(digestForTelegram('  Зустрічаються в морозилці лосось і тунець…  ')).toBe('Зустрічаються в морозилці лосось і тунець…');
   });
 });

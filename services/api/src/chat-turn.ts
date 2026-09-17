@@ -114,7 +114,7 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     const { attachments, session_id: clientSessionId, action } = input;
     // Резюме «Про тебе»: у user-turn іде серверний рядок, в історію він не
     // пишеться, картки не буває — модель лише переказує [ПРО ЛЮДИНУ] у голосі.
-    // Дайджест — той самий серверний хід: [СЕРВЕР]-рядок, без репліки людини в історії, без картки.
+    // Дайджест (анекдот про стан дому) — той самий серверний хід: [СЕРВЕР]-рядок, без репліки людини в історії, без картки.
     const summaryTurn = action === 'profile_summary' || action === 'digest';
     const text = action === 'profile_summary' ? PROFILE_SUMMARY_REQUEST : action === 'digest' ? DIGEST_REQUEST : input.text;
     if (!text && !attachments?.length) {
