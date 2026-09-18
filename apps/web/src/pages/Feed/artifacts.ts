@@ -5,6 +5,8 @@
 // чека), а перевірити її на екрані можна лише тоді, коли в сесії випадково
 // є потрібна картка. Тут вона перевіряється тестом на будь-яких даних.
 import type { ChatCard } from '../../api';
+import { dishIcon } from '../../lib/dish-icon';
+import type { IconName } from '../../components/Icon/icons';
 import { TRADITION_LABEL } from '../../lib/period';
 
 // Крок Ф2: 'batch' — картка позиції комори в тій самій панелі.
@@ -219,3 +221,8 @@ export const ARTIFACT_ICON = {
   event: 'sys.calendar',
   batch: 'sys.pantry',
 } as const satisfies Record<ArtifactKey, string>;
+
+/** Р1: рецепт — іконка страви за назвою (одна на рецепт скрізь); решта — знак виду артефакта. */
+export function artifactIcon(a: { kind: ArtifactKey; label: string }): IconName {
+  return a.kind === 'recipe' ? dishIcon(a.label) : ARTIFACT_ICON[a.kind];
+}

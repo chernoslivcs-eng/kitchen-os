@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { keepFieldInView } from '../../lib/keepFieldInView';
 import { lockBodyScroll } from '../../lib/lockBodyScroll';
-import { ARTIFACT_ICON } from '../../pages/Feed/artifacts';
+import { artifactIcon } from '../../pages/Feed/artifacts';
 import { Icon } from '../Icon/Icon';
 import { PanelFootSlot, PanelHeadSlot } from '../../pages/Feed/panel-slots';
 import { usePanelStore, RAIL_IN_FLOW, RAIL_MIN, RAIL_MAX, ARTIFACT_SHEET } from '../../store/panel';
@@ -179,7 +179,7 @@ export function ArtifactPanel() {
                   артефакт — відкритий; інші — з карток і слідів у стрічці та
                   зі згорнутої смуги. */}
               <div className={styles['rail-kicker']}>
-                <span className={styles['rail-kicker-icon']}><Icon name={ARTIFACT_ICON[shown.kind]} size={16} inherit decorative /></span>
+                <span className={styles['rail-kicker-icon']}><Icon name={artifactIcon(shown)} size={16} inherit decorative /></span>
                 {/* Назва ТИПУ, не назва страви: «Рецепт», «Чек», «Кошик»; страва — у вмісті h2. */}
                 <span className={styles['rail-kicker-title']}>{shown.kind === 'recipe' ? 'Рецепт' : shown.label}</span>
               </div>
@@ -214,7 +214,7 @@ export function ArtifactPanel() {
         {shown && (
           <button type="button" className={`${styles['mini-marker']} ${styles['mini-marker-on']} ${fresh ? styles['mini-fresh'] : ''}`} data-tap
             onClick={miniClick} aria-label={`Відкрити: ${shown.label}${fresh ? ' (нове)' : ''}`}>
-            <span className={styles['mini-glyph']}><Icon name={ARTIFACT_ICON[shown.kind]} size={16} inherit decorative /></span>
+            <span className={styles['mini-glyph']}><Icon name={artifactIcon(shown)} size={16} inherit decorative /></span>
             {shown.meta && <span className={styles['mini-badge']}>{shown.meta}</span>}
             <span className={styles['mini-hint']}>{shown.label}</span>
           </button>
@@ -229,7 +229,7 @@ export function ArtifactPanel() {
             {miniOthers.map((a) => (
               <button key={a.key} type="button" className={styles['mini-list-row']}
                 onClick={() => { setMiniListOpen(false); s.openArtifact(a.key); }}>
-                <span className={styles['mini-list-name']}><Icon name={ARTIFACT_ICON[a.kind]} size={16} inherit decorative /> {a.label}</span>
+                <span className={styles['mini-list-name']}><Icon name={artifactIcon(a)} size={16} inherit decorative /> {a.label}</span>
                 {a.meta && <span className={styles['mini-list-meta']}>{a.meta}</span>}
               </button>
             ))}

@@ -16,6 +16,7 @@
 // картки на card+тінь у сітці 2×, шапка на картках, чипи без рамки.
 
 import { useEffect, useState } from 'react';
+import { dishIcon } from '../../lib/dish-icon';
 import { Icon } from '../../components/Icon/Icon';
 import { useNavigate } from 'react-router-dom';
 import { api, type SavedRecipe } from '../../api';
@@ -149,7 +150,7 @@ export function RecipesPage() {
                   }
                 }}
               >
-                <span className={styles.icon}><Icon name="cook.type" size={20} inherit decorative /></span>
+                <span className={styles.icon}><Icon name={dishIcon(r.title)} size={20} inherit decorative /></span>
                 <div className={styles.info}>
                   <span className={styles.dish}>{r.title}</span>
 
