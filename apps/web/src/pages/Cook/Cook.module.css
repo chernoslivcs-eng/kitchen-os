@@ -16,7 +16,9 @@
 .shell {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  /* Хотфікс: токен спільний з TabBar.module.css .wrap.peek — рейка мусить
+     лишатись поверх кукінг-моду (tokens.css). */
+  z-index: var(--z-cook);
   overflow-y: auto;
   padding-top: env(safe-area-inset-top, 0px); /* 0912 D (42а) */
   background: var(--bg);
