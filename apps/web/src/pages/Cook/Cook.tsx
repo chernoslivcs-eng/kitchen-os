@@ -4,6 +4,7 @@
 // подія списання, тут ми зберігаємо тільки локальний стан.
 
 import { Icon } from '../../components/Icon/Icon';
+import { dishIcon } from '../../lib/dish-icon';
 import { useEffect, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { useNavigate } from 'react-router-dom';
@@ -587,7 +588,7 @@ export function CookOverlay() {
           <span className={styles['step-pill-gap']} />
           <Icon name="cook.steps" size={16} inherit decorative />
         </button>
-        <span className={styles['head-title']}><Icon name="cook.type" size={16} inherit decorative />{recipe.t}</span>
+        <span className={styles['head-title']}><Icon name={dishIcon(recipe.t)} size={16} inherit decorative />{recipe.t}</span>
         <button type="button" className={styles.exit} data-tap onClick={exitToOrigin} data-exit>
           <Icon name="sys.close" size={16} inherit decorative /><span className={styles['exit-text']}>Вийти</span>
         </button>

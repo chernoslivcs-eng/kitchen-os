@@ -3,6 +3,7 @@
 // з mono-мітками. Стан (applied/undone) прикручує клас — картка притлумлюється.
 
 import { formatModelEstimate } from '../../lib/nutrition';
+import { dishIcon } from '../../lib/dish-icon';
 import { Icon } from '../../components/Icon/Icon';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { PanelFootSlot, PanelHeadSlot } from './panel-slots';
@@ -605,7 +606,7 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
         if (i !== openIdx) {
           return (
             <div key={i} className={`${styles['prop-row']} ${styles['prop-row-closed']}`} data-proposal="closed">
-              <span className={`${styles['prop-ico']} ${styles['prop-ico-muted']}`}><Icon name="cook.type" size={18} inherit decorative /></span>
+              <span className={`${styles['prop-ico']} ${styles['prop-ico-muted']}`}><Icon name={dishIcon(title)} size={18} inherit decorative /></span>
               <span className={styles['prop-body']}>
                 <span className={styles['prop-title-sm']}>{title}</span>
                 {needs.length > 0
@@ -620,7 +621,7 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
         }
         return (
           <div key={i} className={styles['prop-row']} data-proposal="open">
-            <span className={styles['prop-ico']}><Icon name="cook.type" size={20} inherit decorative /></span>
+            <span className={styles['prop-ico']}><Icon name={dishIcon(title)} size={20} inherit decorative /></span>
             <span className={styles['prop-body']}>
               <span className={styles['prop-title']}>{title}</span>
               {it.character && <span className={styles['prop-meta']}><span>{it.character}</span></span>}
@@ -1081,7 +1082,7 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCa
   const allHome = !!r?.ing?.length && r.ing.every((i) => !!i.p);
   return (
     <div className={`${styles['rcard']} ${active ? styles['rcard-on'] : ''}`} data-recipe-stream>
-      <span className={styles['rcard-icon']}><Icon name="cook.type" size={20} inherit decorative /></span>
+      <span className={styles['rcard-icon']}><Icon name={dishIcon(title)} size={20} inherit decorative /></span>
       <div className={styles['rcard-body']}>
         <button type="button" className={`t-h3 ${styles['rcard-title']}`} onClick={() => setCollapsed((v) => !v)} aria-expanded={!collapsed}>{title}</button>
         {r && (

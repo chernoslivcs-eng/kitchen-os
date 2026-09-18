@@ -13,7 +13,8 @@
     "./profile-fields": "./profile-fields.ts",
     "./plans": "./plans.ts",
     "./help-topics": "./help-topics.ts",
-    "./shelf-thresholds": "./shelf-thresholds.ts"
+    "./shelf-thresholds": "./shelf-thresholds.ts",
+    "./dish-category": "./dish-category.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
