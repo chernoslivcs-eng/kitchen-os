@@ -1578,7 +1578,7 @@ export function Feed() {
               /* Етап 6b (4a): рецепт у стрічці — картка, не слід-пігулка.
                  Рецептів може бути багато й вони не суперечать один одному —
                  картка лишається назавжди, а в панелі живе відкритий. */
-              <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id}
+              <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id} live={livePositions}
                 onOpen={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
                 onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }} />
             )}
