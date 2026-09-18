@@ -121,11 +121,6 @@ export interface CardProps {
   // Крок 4.3: «у список» на групі «не для комори». Нехарчове не має де
   // жити в коморі, але має де в списку покупок.
   onNonfoodToList?: (names: string[]) => void;
-  // Уточнення до конкретної страви: тап префілить композитор «{title} — » і
-  // ставить фокус. Прототипний startRefine: префікс механічно тримає тему
-  // розмови — головну промптову болячку QA-3…6 («тема не тримається») він
-  // закриває з боку інтерфейсу, а не вмовляннями в промпті.
-  onRefine?: (title: string) => void;
   // recipe_link: рецепт живе в розмові — готуємо і зберігаємо прямо звідси.
   // UX9-11: recipeId — id чернетки, cook-run реюзає її рядок замість дубля.
   onCook?: (recipe: Recipe, recipeId?: string) => void;
@@ -587,7 +582,7 @@ export function IntakeCard({ card, cardId, applied, applying, dismissed, undone,
 
 // ----- Proposal ------------------------------------------------------------
 
-export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
+export function ProposalCard({ card, onOpen }: CardProps) {
   const items = (card.items as ProposalItem[] | undefined ?? []);
   // 6b-4 — картка пропозицій за Prototype (propDesk): одна картка r16 на
   // тіні, 0 18, пропозиції рядками через волосину, знак 44, назва 18/600,
@@ -599,7 +594,8 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
   // стану згорнуто/розкрито й «+» більше немає (рішення власника 18.09).
   // Клік ВІДКРИВАЄ рецепт (картка в стрічці + артефакт), не починає
   // готування — тому знак chevron-right (sys.next, оператор — не «Готуємо»),
-  // не cook.go/каструля.
+  // не cook.go/каструля. «↩ Уточнити» — прибрано як функцію (18.09): праворуч
+  // лишається лише зелене коло з шевроном.
   if (items.length === 0) return null;
   return (
     <div className={styles['prop-card']} data-proposals>
@@ -624,18 +620,11 @@ export function ProposalCard({ card, onOpen, onRefine }: CardProps) {
                 </span>
               )}
             </span>
-            {(onOpen || onRefine) && (
+            {onOpen && (
               <span className={styles['prop-actions']}>
-                {onOpen && (
-                  <button type="button" className={`${styles['prop-act']} ${styles['prop-act-sage']}`} data-tap onClick={() => onOpen(i)} aria-label={`Відкрити «${title}»`} title="Відкрити рецепт" data-proposal-open>
-                    <Icon name="sys.next" size={20} inherit decorative />
-                  </button>
-                )}
-                {onRefine && it.title && (
-                  <button type="button" className={styles['prop-act']} data-tap onClick={() => onRefine(it.title!)} aria-label={`Уточнити «${title}»`} title="Уточнити" data-proposal-refine>
-                    <Icon name="sys.reply" size={16} inherit decorative />
-                  </button>
-                )}
+                <button type="button" className={`${styles['prop-act']} ${styles['prop-act-sage']}`} data-tap onClick={() => onOpen(i)} aria-label={`Відкрити «${title}»`} title="Відкрити рецепт" data-proposal-open>
+                  <Icon name="sys.next" size={20} inherit decorative />
+                </button>
               </span>
             )}
           </div>
@@ -1066,7 +1055,7 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
 // (кошик cook.missing amber на «докупити»), низ дій «Готуємо» + «У список·N»
 // (той самий низ, що в артефакті). Праворуч лишається лише «↩ уточнити» —
 // cooking-pot і зелене коло пішли: картка вже відкрита, відкривати нема куди.
-export function RecipeStreamCard({ card, active, onOpen, onAsk, onCook, onNeedToList, live }: { card: ChatCard; active?: boolean; onOpen?: () => void; onAsk?: (title: string) => void; onCook?: (recipe: Recipe, recipeId?: string) => void; onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void; live?: Map<string, LivePosition> }) {
+export function RecipeStreamCard({ card, active, onOpen, onCook, onNeedToList, live }: { card: ChatCard; active?: boolean; onOpen?: () => void; onCook?: (recipe: Recipe, recipeId?: string) => void; onNeedToList?: (label: string, v: number | undefined, u: string | undefined, forDish: string) => void; live?: Map<string, LivePosition> }) {
   const r = card.recipe;
   const rid = card.recipe_id;
   const title = card.title ?? r?.t ?? 'Рецепт';
@@ -1116,12 +1105,6 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk, onCook, onNeedTo
                 {r.tm ? <span className={styles['rcard-meta-item']}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.tm)}</span> : null}
                 <Portions value={sv} onChange={setServings} />
                 {r.nu?.kcal ? <span>≈ {r.nu.kcal} ккал</span> : null}
-                {/* Макет В: «↩ Уточнити» праворуч у рядку мети (390 — переноситься під чіпи). */}
-                {onAsk && (
-                  <button type="button" className={styles['rcard-refine']} data-tap onClick={() => onAsk(title)} data-recipe-refine>
-                    <Icon name="sys.reply" size={16} inherit decorative />Уточнити
-                  </button>
-                )}
               </div>
             )}
           </div>

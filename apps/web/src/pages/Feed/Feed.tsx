@@ -281,9 +281,7 @@ export function Feed() {
     wasListening.current = listening;
   }, [listening]);
 
-    // «Уточнити» на пропозиції: префілимо композитор назвою страви з тире —
-  // відповідь механічно привʼязана до неї. Прототипний startRefine.
-  // Бриф-3 п.2: перерване готування живе — рядок над таймлайном веде назад
+    // Бриф-3 п.2: перерване готування живе — рядок над таймлайном веде назад
   // на той самий крок. Перечитуємо при поверненні фокуса (могло завершитись
   // в іншій вкладці).
   const cookArgs = useCookStore((s) => s.args);
@@ -300,8 +298,8 @@ export function Feed() {
     // Поп-ап закрився без навігації — банер оживає одразу.
   }, [cookArgs]);
 
-    // «+ Імпорт» з екрана Рецептів приходить сюди з префіксом — той самий
-  // механізм, що startRefine: композитор веде, канал вводу один.
+    // «+ Імпорт» з екрана Рецептів приходить сюди з префіксом — композитор
+  // веде, канал вводу один.
   const location = useLocation();
   useEffect(() => {
     const prefix = (location.state as { composePrefix?: string } | null)?.composePrefix;
@@ -411,11 +409,6 @@ export function Feed() {
     } catch (err) {
       setToast({ id: Date.now(), kind: 'err', text: (err as Error).message });
     }
-  }
-
-    function startRefine(title: string) {
-    setInput(`${title} — `);
-    composerInputRef.current?.focus();
   }
 
   // Черга Г (№3): дані правої панелі — незакриті картки дому і неоцінене
@@ -1580,7 +1573,6 @@ export function Feed() {
                  картка лишається назавжди, а в панелі живе відкритий. */
               <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id} live={livePositions}
                 onOpen={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
-                onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }}
                 onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
                 onNeedToList={addNeedToList} />
             )}
@@ -1766,7 +1758,6 @@ export function Feed() {
                 shoppingLabels={shoppingLabels}
                 onNonfoodToList={addNonfoodToList}
                 onOpen={t.card.type === 'proposal' ? (i) => openRecipe(t, i) : undefined}
-                onRefine={t.card.type === 'proposal' ? startRefine : undefined}
                 onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
                 onShare={(r, rid) => navigate('/share', { state: { recipe: r, recipeId: rid } })}
                 onSaveRecipe={saveRecipeForLater}

@@ -41,7 +41,7 @@ describe('Р2: превʼю в пропозиції — усі розкриті,
         { title: 'Паста', desc: 'На вечерю', character: 'швидко' },
       ],
     } as unknown as ChatCard;
-    await mount(<ProposalCard card={card} onOpen={() => {}} onRefine={() => {}} />);
+    await mount(<ProposalCard card={card} onOpen={() => {}} />);
     expect(host!.querySelector('[aria-label="Розгорнути"]')).toBeNull();
     expect(host!.querySelectorAll('[data-proposal="closed"]')).toHaveLength(0);
     expect(host!.querySelectorAll('[data-proposal="open"]')).toHaveLength(3);
