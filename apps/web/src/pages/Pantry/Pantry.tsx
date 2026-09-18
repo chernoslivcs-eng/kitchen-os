@@ -432,7 +432,7 @@ export function PantryPage() {
               </span>
             </button>
             <button type="button" className={styles['banner-main']} data-tap onClick={() => navigate('/app', { state: { composePrefix: 'Приготуй щось із того, що горить: ' } })} aria-label="Приготувати з цього" data-banner-cook>
-              <Icon name="cook.go" size={16} inherit decorative /><span className={styles['banner-main-text']}>Приготувати з цього</span>
+              <span className={styles['banner-main-text']}>Приготувати з цього</span>
             </button>
             <button type="button" className={styles['banner-ghost']} data-tap onClick={() => { setFilter((f) => ({ ...f, sort: 'fresh' })); setFilterOpen(true); }} data-banner-check>
               Перевірити {ended.length}

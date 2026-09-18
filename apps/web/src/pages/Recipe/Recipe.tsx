@@ -236,9 +236,7 @@ export function RecipePage() {
   );
 
   const cookBtn = (
-    <button type="button" className={styles.cook} onClick={() => cookOpen({ recipe: recipe!, startAt: currentStep, recipeId: id })} data-cook>
-      <Icon name="cook.go" size={18} inherit decorative />Готуємо
-    </button>
+    <button type="button" className={styles.cook} onClick={() => cookOpen({ recipe: recipe!, startAt: currentStep, recipeId: id })} data-cook>Готуємо</button>
   );
 
   return (

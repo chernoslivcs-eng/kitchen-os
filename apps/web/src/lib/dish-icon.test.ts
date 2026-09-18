@@ -8,14 +8,17 @@ describe('dishIcon', () => {
   it('кожна категорія має ключ, і кожен ключ існує в наборі іконок', () => {
     for (const c of DISH_CATEGORIES) expect(ICONS).toHaveProperty(DISH_ICON[c]);
   });
-  it('назва → існуючий гліф; поки без гліфа — ковпак; невідоме/порожнє — ковпак', () => {
-    expect(dishIcon('Бабусин борщ')).toBe('cook.soup');
-    expect(dishIcon('Салат із бурратою')).toBe('cook.salad');
-    expect(dishIcon('Тости з лососем')).toBe('cook.sandwich');
-    expect(dishIcon('Клафуті зі сливами')).toBe('cook.dessert');
-    expect(dishIcon('Омлет із сиром')).toBe('cook.breakfast');
-    expect(dishIcon('Спагеті карбонара')).toBe('cook.type'); // pasta — гліф ще не намальовано
+  it('назва → існуючий гліф; невідоме/порожнє — ковпак', () => {
+    expect(dishIcon('Бабусин борщ')).toBe('dish.soup');
+    expect(dishIcon('Салат із бурратою')).toBe('dish.salad');
+    expect(dishIcon('Тости з лососем')).toBe('dish.sandwich');
+    expect(dishIcon('Клафуті зі сливами')).toBe('dish.dessert');
+    expect(dishIcon('Омлет із сиром')).toBe('dish.breakfast');
+    expect(dishIcon('Спагеті карбонара')).toBe('dish.pasta');
     expect(dishIcon('Щось смачне')).toBe('cook.type');
     expect(dishIcon(null)).toBe('cook.type');
+  });
+  it('усі 20 категорій мають окремий гліф (не ковпак)', () => {
+    for (const c of DISH_CATEGORIES) expect(DISH_ICON[c]).not.toBe('cook.type');
   });
 });
