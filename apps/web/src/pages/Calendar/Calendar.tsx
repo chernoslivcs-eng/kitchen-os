@@ -115,11 +115,10 @@ export function CalendarPage() {
 
   const today = useMemo(() => dayStart(Date.now()), []);
   const todayIsoStr = useMemo(() => todayIso(new Date(today)), [today]);
-  const headerDate = useMemo(() => {
-    const d = new Date(today);
-    const month = d.toLocaleDateString('uk-UA', { month: 'long' });
-    return `${d.getDate()} ${month}`;
-  }, [today]);
+  // Родовий відмінок («18 вересня», не «18 вересень»): Intl дає його лише
+  // коли день і місяць форматуються РАЗОМ, тому не можна брати month:'long'
+  // окремо від day (той самий урок, що monthGenitive у CalendarGrid.tsx).
+  const headerDate = useMemo(() => new Date(today).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' }), [today]);
 
   const [loadFailed, setLoadFailed] = useState(false);
   useEffect(() => {
