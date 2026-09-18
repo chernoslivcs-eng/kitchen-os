@@ -4237,3 +4237,49 @@ safe-area зверху як була.
 CSS-сиріт-не-доведено). `apps/web` — 771 зелені, `services/api` — 774,
 `packages/domain` — 534, `packages/eval` — 65, `packages/catalog` — 205,
 `packages/db` — typecheck чистий, Postgres skip. Не мерджити.
+
+### Р167 · Порції в картці рецепта в стрічці — спільний стан з артефактом (spec 18.09, Р3), 18.09
+
+Постановка: spec `docs/superpowers/specs/2026-09-18-recipe-card-design.md`
+(комміт `10f3241` гілки `feat/redesign-v3` головної теки), розділ Р3.
+Гілка `feat/recipe-card-portions-p3` від `origin/main`.
+
+**Зроблено**:
+- Новий стор `apps/web/src/store/recipePortions.ts` (zustand,
+  `Record<recipe_id, servings>`) — `useRecipePortions(recipeId)` повертає
+  `[servings, setServings]`, той самий контракт, що був у локального
+  `useState<number|null>(null)`, тільки запис живе за `recipe_id`, не за
+  інстансом компонента.
+- `RecipeLinkCard` (`cards.tsx`, артефакт «Рецепт») — локальний
+  `useState` порцій замінено на `useRecipePortions(rid)`; решта логіки
+  (`scaleRecipe`, `isMissing`/coversNeed, рендер) не чіпав.
+- `RecipeStreamCard` (`cards.tsx`, картка рецепта в стрічці, після кліку
+  «Готуємо» в пропозиції) — додано той самий `<Portions>` у рядок метаданих
+  (замість статичного тексту «N порції»); склад тепер рахується через
+  `scaleRecipe(r, sv)`, а «бракує» — тим самим `coversNeed`, що в
+  `RecipeLinkCard.isMissing` (раніше — лише `!ing.p`, без урахування
+  кількості). Живі залишки комори (`live: Map<batch_id, LivePosition>`)
+  передаються пропсом з `Feed.tsx` (`livePositions`, вже порахований
+  `useMemo` там-таки) — контекст `LivePositions.Provider` обгортає лише
+  панель артефакта, стрічку розширювати не став.
+- `Feed.tsx` — виклик `<RecipeStreamCard .../>` отримав `live={livePositions}`.
+
+**Тести** (`apps/web/src/pages/Feed/RecipeCardPortions.test.tsx`, новий
+файл, 3 тести):
+- зміна порцій у картці стрічки одразу видна в `data-servings` артефакта;
+- зміна порцій в артефакті одразу видна в `[data-portions]` картки стрічки;
+- перерахунок чіпів: кількість інгредієнта росте з порціями (5 г → 10 г на
+  ×2), і «бракує» (`data-icon="cook.missing"`) зʼявляється рівно тоді, коли
+  scaled-потреба перевищує наявне в коморі (coversNeed 'short').
+
+Перевірено вживо на стенді (памʼять, `stand-seed.mts` + `POST /v1/session
+{recipe_id}` для картки в стрічці): 1440 — клік «+» у картці стрічки одразу
+міняє «N порцій» і склад в артефакті праворуч (і навпаки); чіпи «Пармезан»/
+«Фует» (є вдома) лишаються білими, решта — бурштинові (бракує), консистентно
+з артефактом. 390 — картка не ламає ширину, «− N +» переноситься в рядок
+метаданих поруч із часом.
+
+Гейти: typecheck 0 (усі 7 пакетів), `pnpm lint` 0 (той самий baseline — 8
+CSS-сиріт-не-доведено). `apps/web` — 774 зелені (+3 нові), `services/api` —
+774, `packages/domain` — 534, `packages/eval` — 65, `packages/catalog` —
+205, `packages/db` — typecheck чистий, Postgres skip. Не мерджити.

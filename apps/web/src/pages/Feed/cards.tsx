@@ -24,6 +24,7 @@ import { RollingNumber } from '../../components/RollingNumber/RollingNumber';
 import { formatQty, formatUnit } from '../../lib/units';
 import { scaleRecipe, coversNeed } from '../../lib/recipe';
 import { Portions } from '../../components/Portions/Portions';
+import { useRecipePortions } from '../../store/recipePortions';
 import { plural } from '../../lib/plural';
 import styles from './Feed.module.css';
 import { groupShopping, sourceLabel } from './shopping-groups';
@@ -906,8 +907,9 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
   const footSlot = useContext(PanelFootSlot);
   const headSlot = useContext(PanelHeadSlot);
   void headSlot;
-  // Порційник (14.09): вибір живе до перерендеру картки — не зберігається.
-  const [servings, setServings] = useState<number | null>(null);
+  // Порційник (14.09): вибір; Р3 (18.09) — спільний з карткою рецепта в
+  // стрічці, один стан на recipe_id (store/recipePortions).
+  const [servings, setServings] = useRecipePortions(rid);
   // Кількості партій — щоб «N з M» рахувати по вибраних порціях, не лише за фактом партії.
   const live = useContext(LivePositions);
   if (!rid) return null;
@@ -1075,11 +1077,22 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
 // cooking-pot (відкрити рецепт), reply (уточнити), мінус (згорнути).
 // Зелена рамка з капсом «РЕЦЕПТ» зникла разом із формою; слово сліду
 // (етап 3) лишилось у службовому рядку над ходом.
-export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCard; active?: boolean; onOpen: () => void; onAsk?: (title: string) => void }) {
+export function RecipeStreamCard({ card, active, onOpen, onAsk, live }: { card: ChatCard; active?: boolean; onOpen: () => void; onAsk?: (title: string) => void; live?: Map<string, LivePosition> }) {
   const r = card.recipe;
   const [collapsed, setCollapsed] = useState(false);
   const title = card.title ?? r?.t ?? 'Рецепт';
   const allHome = !!r?.ing?.length && r.ing.every((i) => !!i.p);
+  // Р3 (spec 18.09): порції — спільний стан з артефактом (store/recipePortions),
+  // один запис на recipe_id; склад (кількості й «бракує») перераховується тим
+  // самим coversNeed, що в артефакті (RecipeLinkCard.isMissing).
+  const [servings, setServings] = useRecipePortions(card.recipe_id);
+  const sv = servings ?? r?.sv ?? 1;
+  const scaled = r ? scaleRecipe(r, sv) : undefined;
+  const isMissing = (ing: { p?: string | null; v?: number | null; u?: string | null }): boolean => {
+    if (!ing.p) return true;
+    const pos = live?.get(ing.p);
+    return !!pos && coversNeed(ing.v, ing.u, pos.value, pos.unit) === 'short';
+  };
   return (
     <div className={`${styles['rcard']} ${active ? styles['rcard-on'] : ''}`} data-recipe-stream>
       <span className={styles['rcard-icon']}><Icon name={dishIcon(title)} size={20} inherit decorative /></span>
@@ -1088,24 +1101,27 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk }: { card: ChatCa
         {r && (
           <div className={`t-caption ${styles['rcard-meta']}`}>
             {r.tm ? <span className={styles['rcard-meta-item']}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.tm)}</span> : null}
-            {r.sv ? <span>{r.sv} {plural(r.sv, ['порція', 'порції', 'порцій'])}</span> : null}
+            <Portions value={sv} onChange={setServings} />
             {r.nu?.kcal ? <span>≈ {r.nu.kcal} ккал</span> : null}
             {allHome && <span className={`${styles['rcard-meta-item']} ${styles['rcard-ok']}`}><Icon name="sys.done" size={12} inherit decorative />усе є</span>}
           </div>
         )}
         {!collapsed && r?.d && <div className={`t-small ${styles['rcard-desc']}`}>{r.d}</div>}
-        {!collapsed && !!r?.ing?.length && (
+        {!collapsed && !!scaled?.ing?.length && (
           <div className={styles['rcard-chips']}>
-            {/* Чіпи на bg (Prototype); чого бракує — бурштином зі знаком «бракує». */}
-            {r.ing.slice(0, 6).map((ing, i) => (
-              /* №33: назва з трьома крапками, кількість окремим span і не ріжеться; повна назва в title. */
-              <span key={i} className={`${styles['prop-chip']} ${!ing.p ? styles['prop-chip-amber'] : ''}`} title={ing.n ?? 'з комори'}>
-                {!ing.p && <Icon name="cook.missing" size={12} inherit decorative />}
-                <span className={styles['chip-name']}>{ing.n ?? 'з комори'}</span>
-                {ing.v != null && ing.u ? <span className={styles['chip-qty']}>{formatQty(ing.v, ing.u)}</span> : null}
-              </span>
-            ))}
-            {r.ing.length > 6 && <span className={`${styles['prop-chip']} ${styles['prop-chip-dim']}`}>ще {r.ing.length - 6}</span>}
+            {/* Чіпи на bg (Prototype); чого бракує — бурштином зі знаком «бракує» (coversNeed, як в артефакті). */}
+            {scaled.ing.slice(0, 6).map((ing, i) => {
+              const missing = isMissing(ing);
+              return (
+                /* №33: назва з трьома крапками, кількість окремим span і не ріжеться; повна назва в title. */
+                <span key={i} className={`${styles['prop-chip']} ${missing ? styles['prop-chip-amber'] : ''}`} title={ing.n ?? 'з комори'}>
+                  {missing && <Icon name="cook.missing" size={12} inherit decorative />}
+                  <span className={styles['chip-name']}>{ing.n ?? 'з комори'}</span>
+                  {ing.v != null && ing.u ? <span className={styles['chip-qty']}>{formatQty(ing.v, ing.u)}</span> : null}
+                </span>
+              );
+            })}
+            {scaled.ing.length > 6 && <span className={`${styles['prop-chip']} ${styles['prop-chip-dim']}`}>ще {scaled.ing.length - 6}</span>}
           </div>
         )}
       </div>
