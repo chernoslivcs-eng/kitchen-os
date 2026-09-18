@@ -173,8 +173,11 @@ describe('CalendarPage · порожній стан і сітка-довідка
     const toggle = host!.querySelector<HTMLButtonElement>('[data-cal-grid-toggle]')!;
     await act(async () => { toggle.click(); });
     expect(host!.querySelector('[data-month-grid]')).not.toBeNull();
-    const bars = [...host!.querySelectorAll('[class*="_mbar_"][aria-label="Піст"]')];
+    const bars = [...host!.querySelectorAll('[class*="_mband_"][aria-label="Піст"]')];
     expect(bars.length).toBeGreaterThanOrEqual(1);
+    // Правка ГОЛОВНИЙ ЧАТ 18.09: смуга з підписом, не гола лінія — «Піст ·
+    // до 08.10» на тижні з сегментом ≥3 дні (bandLabel), не лише колір.
+    expect(bars.some((b) => b.textContent?.includes('Піст · до 08.10'))).toBe(true);
   });
 
   it('<1024: сітки нема зовсім (К4)', async () => {

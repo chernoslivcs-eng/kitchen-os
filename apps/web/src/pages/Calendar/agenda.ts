@@ -124,3 +124,19 @@ export function aheadMeta(row: AheadRow): string | null {
   if (e.servings != null) return `${e.servings} ${plural(e.servings, ['особа', 'особи', 'осіб'])}`;
   return e.note ?? null;
 }
+
+// ── Підпис смуги в сітці-довідці (CalendarGrid, макет 2b weeks2/bandDefs) ──
+
+/**
+ * Мокет рахує label ОКРЕМО для кожного тижня, який смуга перетинає (не
+ * лише для першого): «Без молочного · до 05.10» на тижнях, де сегмент ≥3
+ * дні, просто «Без молочного» — на 1–2 днях (тісно). Той самий підпис на
+ * кожному тижні — не «одна назва вгорі, далі порожньо»: рядок сітки
+ * самодостатній, не треба гортати вгору, щоб згадати, чий це колір.
+ */
+export function bandLabel(e: Pick<EventOccurrence, 'title' | 'start' | 'end' | 'approx'>, daysInWeek: number, today: number): string {
+  if (daysInWeek < 3) return e.title;
+  const pre = e.approx ? '≈ ' : '';
+  const when = dayStartOf(e.start) <= today ? `до ${pre}${ddmm(e.end)}` : `${ddmm(e.start)} – ${pre}${ddmm(e.end)}`;
+  return `${e.title} · ${when}`;
+}

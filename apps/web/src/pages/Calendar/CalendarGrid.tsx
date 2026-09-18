@@ -13,6 +13,7 @@ import {
 } from '../../lib/spans';
 import { buildTimeline, monthWeeks, type TimelineWeek } from './days';
 import { pointIcon } from './legend';
+import { bandLabel } from './agenda';
 import styles from './Calendar.module.css';
 
 interface Props {
@@ -76,10 +77,12 @@ export function CalendarGrid({ month, today, lasting, point, onOpen, evMotion }:
                 <div className={styles.mbars}>
                   {bands.map((b) => (
                     <button key={b.event.id} type="button"
-                      className={`${styles.mbar} ${styles[`t-${toneKey(b.event)}`]} ${b.event.approx ? styles['mbar-approx'] : ''} ${evMotion(b.event.id)}`} data-tap
+                      className={`${styles.mband} ${styles[`t-${toneKey(b.event)}`]} ${evMotion(b.event.id)}`} data-tap
                       style={{ gridColumn: `${b.from} / ${b.to}`, gridRow: b.lane + 1 }}
                       title={b.event.title} aria-label={b.event.title}
-                      onClick={() => onOpen(b.event)} />
+                      onClick={() => onOpen(b.event)}>
+                      <span className={styles['mband-text']}>{bandLabel(b.event, b.to - b.from, today)}</span>
+                    </button>
                   ))}
                 </div>
               )}

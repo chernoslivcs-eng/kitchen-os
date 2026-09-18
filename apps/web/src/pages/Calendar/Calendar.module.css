@@ -107,10 +107,16 @@
 .mdow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 12px 16px 8px; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 500; color: var(--muted); }
 .mweek { display: flex; flex-direction: column; padding: 8px 16px 0; border-bottom: 1px solid var(--line); }
 .mweek-last { border-bottom: 0; padding-bottom: 8px; }
-.mbars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px 8px; }
-.mbar { height: 5px; border: 0; border-radius: 3px; padding: 0; background: var(--t); cursor: pointer; }
-.t-restrict.mbar, .t-tradition.mbar { opacity: .55; }
-.mbar-approx { background: repeating-linear-gradient(90deg, var(--t) 0 6px, transparent 6px 9px); }
+.mbars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px 8px; margin-bottom: 4px; }
+/* Смуга з назвою (правка К7-бис, ГОЛОВНИЙ ЧАТ 18.09): 24px, підпис — повна
+   назва + дата, коли сегмент цього тижня ≥3 дні (bandLabel), інакше сама
+   назва; CSS-еліпс доробляє решту там, де назва все одно не влазить. */
+.mband {
+  height: 24px; min-width: 0; border: 0; border-radius: 6px;
+  padding: 0 9px; display: flex; align-items: center;
+  background: var(--t-bg); color: var(--t); cursor: pointer;
+}
+.mband-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-body); font-size: 11px; font-weight: 600; }
 .mbar-more { justify-self: start; display: inline-flex; align-items: center; gap: 4px; height: 16px; padding: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 11px; line-height: 12px; color: var(--muted); cursor: pointer; }
 .mbar-more:hover { color: var(--ink); }
 .mdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 6px 0 8px; }
@@ -135,7 +141,7 @@
 
 /* Моушн-чекліст: рядок/смуга, що зʼявилась після дії, входить через
    base/enter; прибрана — гасне й осідає (exit); правлена — флеш тінтом. */
-.now-row, .ahead-row, .mev, .mbar { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+.now-row, .ahead-row, .mev, .mband { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
 @keyframes cal-in {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: none; }

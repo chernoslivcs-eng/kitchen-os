@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nowProgress, nowWhen, nowSub, aheadRows, aheadDateLabel, aheadMeta,
+  nowProgress, nowWhen, nowSub, aheadRows, aheadDateLabel, aheadMeta, bandLabel,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
 
@@ -125,5 +125,38 @@ describe('aheadDateLabel / aheadMeta', () => {
     expect(aheadMeta(withGuests)).toBe('6 осіб');
     const plain = { event: ev(11, 11, { title: 'Покрова' }), endingSoon: false };
     expect(aheadMeta(plain)).toBeNull();
+  });
+});
+
+// К7-бис (ГОЛОВНИЙ ЧАТ, живі дані 18.09): смуга в сітці мала колір і без
+// підпису — незрозуміло, яка лінія що. Мокет (weeks2/bandDefs) рахує label
+// окремо на кожному тижні: повна назва + дата на ≥3-денному сегменті,
+// сама назва — на 1–2 днях.
+describe('bandLabel: підпис смуги в сітці, за тижнем окремо', () => {
+  const todayIso = new Date(2026, 8, 18).getTime();
+
+  it('сегмент 1–2 дні (тісно) — лише назва, без дати', () => {
+    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 1, todayIso)).toBe('Без молочного');
+    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 2, todayIso)).toBe('Без молочного');
+  });
+
+  it('сегмент ≥3 дні, подія вже почалась — «назва · до <кінець>»', () => {
+    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 3, todayIso)).toBe('Без молочного · до 05.10');
+    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 7, todayIso)).toBe('Без молочного · до 05.10');
+  });
+
+  it('сегмент ≥3 дні, подія ще не почалась — «назва · старт – кінець»', () => {
+    expect(bandLabel({ title: 'Набір ваги', start: at(12), end: at(42) }, 5, todayIso)).toBe('Набір ваги · 30.09 – 30.10');
+  });
+
+  it('≈ — коли дати приблизні (наближений піст)', () => {
+    expect(bandLabel({ title: 'Різдвяний піст', start: at(-3), end: at(17), approx: true }, 4, todayIso)).toBe('Різдвяний піст · до ≈ 05.10');
+    expect(bandLabel({ title: 'Різдвяний піст', start: at(12), end: at(42), approx: true }, 4, todayIso)).toBe('Різдвяний піст · 30.09 – ≈ 30.10');
+  });
+
+  it('той самий підпис на кожному тижні — не лише на першому (мокет рахує label per-week)', () => {
+    const e = { title: 'Без молочного', start: at(-3), end: at(17) };
+    // Тиждень посередині діапазону — теж повний підпис, якщо сегмент ≥3 дні.
+    expect(bandLabel(e, 5, todayIso)).toBe('Без молочного · до 05.10');
   });
 });
