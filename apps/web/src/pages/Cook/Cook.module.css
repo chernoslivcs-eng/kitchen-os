@@ -41,12 +41,14 @@
 
 /* ── Шапка ─────────────────────────────────────────────────────────────── */
 .head { display: flex; align-items: center; gap: 12px; flex: none; }
+/* Р6 (spec 18.09): danger-токен палітри, як в інших danger-кнопках (Pantry
+   .card-remove, Feed .att-remove) — не новий колір. */
 .exit {
   display: inline-flex; align-items: center; gap: 8px;
   height: 40px; padding: 0 14px 0 12px;
-  border: 0; border-radius: var(--r-pill);
-  background: var(--card); box-shadow: var(--sh-a), var(--sh-b);
-  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink);
+  border: 1px solid var(--danger-line); border-radius: var(--r-pill);
+  background: var(--danger-bg);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--danger);
   cursor: pointer; flex: none;
 }
 .head-title {

@@ -577,9 +577,9 @@ export function CookOverlay() {
       </div>
 
       <header className={styles.head}>
-        <button type="button" className={styles.exit} data-tap onClick={exitToOrigin} data-exit>
-          <Icon name="sys.close" size={16} inherit decorative /><span className={styles['exit-text']}>Вийти</span>
-        </button>
+        {/* Р6 (spec 18.09): тема й гучність — лівий верхній кут, «Вийти» — правий. */}
+        <span className={styles['head-theme']}>{themeToggle}</span>
+        {soundBtn}
         {/* 390: пілюля «N з M · крок» зі знаком списку → шторка кроків. */}
         <button type="button" className={styles['step-pill']} data-tap onClick={() => setSheetOpen(true)} aria-haspopup="dialog" data-step-pill>
           <span className={styles['step-pill-n']}>{stepIdx + 1} з {total}</span>
@@ -588,8 +588,9 @@ export function CookOverlay() {
           <Icon name="cook.steps" size={16} inherit decorative />
         </button>
         <span className={styles['head-title']}><Icon name="cook.type" size={16} inherit decorative />{recipe.t}</span>
-        <span className={styles['head-theme']}>{themeToggle}</span>
-        {soundBtn}
+        <button type="button" className={styles.exit} data-tap onClick={exitToOrigin} data-exit>
+          <Icon name="sys.close" size={16} inherit decorative /><span className={styles['exit-text']}>Вийти</span>
+        </button>
       </header>
 
       <div className={styles.body}>

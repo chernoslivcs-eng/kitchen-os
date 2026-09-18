@@ -4201,3 +4201,39 @@ CSS-сиріт-не-доведено). `apps/web` — 769 зелені, `service
 решта файлу без змін), `packages/domain` — 534, `packages/eval` — 65,
 `packages/catalog` — 205, `packages/db` — typecheck чистий, Postgres skip
 (прод не чіпав). Не мерджити.
+
+### Р166 · Кукінг-мод: danger-«Вийти» і перестановка шапки (spec 18.09, Р6), 18.09
+
+Постановка: spec `docs/superpowers/specs/2026-09-18-recipe-card-design.md`
+(комміт `10f3241` гілки `feat/redesign-v3` головної теки), розділ Р6.
+Гілка `fix/cook-mode-header-p6` від `origin/main`.
+
+**Зроблено** (`apps/web/src/pages/Cook/Cook.tsx`, `Cook.module.css`):
+- `.exit` («Вийти») перефарбовано на danger-токени палітри — `background:
+  var(--danger-bg)`, `color: var(--danger)`, `border: 1px solid
+  var(--danger-line)` — замість `var(--card)`/`var(--ink)` з тінню. Той
+  самий підхід, що в інших danger-кнопках репо (`Pantry.module.css
+  .card-remove`, `Feed.module.css .att-remove`) — нового кольору не заводив.
+- Порядок дітей `<header className={styles.head}>` перестановлено: тема
+  (`sys.theme`) і звук (`sys.sound`) — першими (лівий верхній кут), «Вийти»
+  — останнім (правий верхній кут). `step-pill` і `head-title` лишились між
+  ними — на 1440/768 це дає «тема · звук … назва … Вийти», на 390 (де
+  `head-title`/`head-theme` й далі `display:none` — тема на мобайлі не
+  малювалась і до цього) — «звук · пілюля кроку · Вийти». CSS-властивості
+  елементів (розміри, safe-area на `.shell`/`.screen`) не чіпав — лише
+  порядок JSX і колір `.exit`.
+
+**Тести**: снапшотів/структурних тестів шапки Cook Mode в репо нема
+(`Cook.test.ts`, `Cook.hooks.test.tsx`, `CookRoute.test.tsx`,
+`CookShare.test.tsx` — жоден не перевіряє розташування шапки) — оновлювати
+нічого.
+
+Перевірено вживо на стенді (памʼять, окремі порти, `/recipe/:id` →
+«Готуємо»): 1440 — тема/звук зліва, «Вийти» danger-пігулкою справа; 390 —
+звук зліва, пілюля кроку по центру, «Вийти» danger-колом справа,
+safe-area зверху як була.
+
+Гейти: typecheck 0 (усі 7 пакетів), `pnpm lint` 0 (той самий baseline — 8
+CSS-сиріт-не-доведено). `apps/web` — 771 зелені, `services/api` — 774,
+`packages/domain` — 534, `packages/eval` — 65, `packages/catalog` — 205,
+`packages/db` — typecheck чистий, Postgres skip. Не мерджити.
