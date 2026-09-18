@@ -1,24 +1,34 @@
-// Р1 (spec 2026-09-18-recipe-card-design): одна іконка на рецепт скрізь —
-// превʼю пропозиції, картка, артефакт, бібліотека, шапка кукінг-моду.
-// Категорію рахує домен (dishCategory), тут — лише мапа на ключ іконки.
-// Тимчасово: 6 наявних гліфів + ковпак; коли доїдуть нові гліфи з дизайну,
-// міняється лише ця мапа.
-// Глибокий імпорт, не барел: барел @kitchen/domain тягне profile-text.ts з node:crypto, і vite
-// у браузері падає («Module "node:crypto" has been externalized»); tsc/vitest цього не ловлять.
+// Р1 (spec 2026-09-18-recipe-card-design, «Рішення після макета»): одна
+// іконка на рецепт скрізь — превʼю пропозиції, картка, артефакт, бібліотека,
+// шапка кукінг-моду. Категорію рахує домен (dishCategory), тут — мапа на
+// ключ іконки dish.* (усі 20, icons.ts) + ковпак для нерозпізнаного.
+// Субпуть, не '@kitchen/domain' — той тягне Repo/node:crypto, і vite у
+// браузері падає («Module "node:crypto" has been externalized»); tsc/vitest
+// цього не ловлять (той самий принцип, що card-modes.ts, when.ts).
 import { dishCategory, type DishCategory } from '@kitchen/domain/dish-category';
 import type { IconName } from '../components/Icon/icons';
 
 export const DISH_ICON: Record<DishCategory, IconName> = {
-  soup: 'cook.soup',
-  salad: 'cook.salad',
-  dough: 'cook.dough',
-  sandwich: 'cook.sandwich',
-  breakfast: 'cook.breakfast',
-  dessert: 'cook.dessert',
-  // Гліфів ще нема — ковпак, як і для нерозпізнаного.
-  pasta: 'cook.type', meat: 'cook.type', poultry: 'cook.type', fish: 'cook.type', seafood: 'cook.type',
-  grain: 'cook.type', veg: 'cook.type', stew: 'cook.type', grill: 'cook.type', drink: 'cook.type',
-  sauce: 'cook.type', pancake: 'cook.type', sushi: 'cook.type', burger: 'cook.type',
+  soup: 'dish.soup',
+  salad: 'dish.salad',
+  pasta: 'dish.pasta',
+  dough: 'dish.dough',
+  sandwich: 'dish.sandwich',
+  breakfast: 'dish.breakfast',
+  dessert: 'dish.dessert',
+  meat: 'dish.meat',
+  poultry: 'dish.poultry',
+  fish: 'dish.fish',
+  seafood: 'dish.seafood',
+  grain: 'dish.grain',
+  veg: 'dish.veg',
+  stew: 'dish.stew',
+  grill: 'dish.grill',
+  drink: 'dish.drink',
+  sauce: 'dish.sauce',
+  pancake: 'dish.pancake',
+  sushi: 'dish.sushi',
+  burger: 'dish.burger',
 };
 
 /** Ключ іконки для назви рецепта; невідоме — ковпак. */

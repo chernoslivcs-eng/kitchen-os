@@ -1580,7 +1580,9 @@ export function Feed() {
                  картка лишається назавжди, а в панелі живе відкритий. */
               <RecipeStreamCard card={t.card} active={shownArtifact?.turn?.id === t.id} live={livePositions}
                 onOpen={() => { const k = artifactKeyOf(t); if (k) openArtifact(k); }}
-                onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }} />
+                onAsk={(title) => { setInput(`Уточни рецепт «${title}»: `); composerInputRef.current?.focus(); }}
+                onCook={(r, rid) => cookOpen({ recipe: r, recipeId: rid, returnSessionId: sessionId })}
+                onNeedToList={addNeedToList} />
             )}
             {t.card?.type === 'event' && t.applied && (
               /* Слід події — як у списку: дельта в сліді, стан у панелі.

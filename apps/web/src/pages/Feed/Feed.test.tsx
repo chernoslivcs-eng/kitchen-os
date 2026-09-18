@@ -528,7 +528,7 @@ describe('14.09 · шапка чату розчищена (відгук тест
     expect(qa('.rail-pill')).toHaveLength(0);
   });
 
-  it('шторка артефакта на мобайлі відкривається тапом по самій картці рецепта («Готуємо»), як і раніше', async () => {
+  it('шторка артефакта на мобайлі відкривається тапом по назві картки рецепта (картка рецепта v2: зелене коло геть — картка вже відкрита)', async () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }));
     await mount();
     await type('рецепт'); await submit();
@@ -536,9 +536,9 @@ describe('14.09 · шапка чату розчищена (відгук тест
       waiting[0]!.resolve({ reply: 'ось', card: { type: 'recipe_link', recipe_id: 'r1', title: 'Борщ' }, card_id: 'rec-1' });
       await new Promise((r) => setTimeout(r, 0));
     });
-    const cookBtn = host!.querySelector<HTMLButtonElement>('[data-recipe-stream] button[aria-label="Готуємо"]')!;
-    expect(cookBtn).not.toBeNull();
-    await act(async () => { cookBtn.click(); });
+    const openBtn = host!.querySelector<HTMLButtonElement>('[data-recipe-stream] [data-recipe-open]')!;
+    expect(openBtn).not.toBeNull();
+    await act(async () => { openBtn.click(); });
     expect(usePanelStore.getState().active).toBe('rec-1');
     expect(usePanelStore.getState().open).toBe(true);
   });

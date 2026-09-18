@@ -34,6 +34,10 @@ import {
   Pause, Play,
   type LucideIcon,
 } from 'lucide-react';
+// Картка рецепта v2 (18.09): словник dish.* — «Смузі» бере вільний cup-soda
+// (наявний Droplet/Wine уже інших значень). Решта — власні гліфи (dish-glyphs.tsx).
+import { CupSoda } from 'lucide-react';
+import { DishPasta, DishGrill, DishPancake, DishSushi, DishBurger, DishStew } from './dish-glyphs';
 // 12.09 (ANSWERS A, ряд «Дії й стани» в Icons): нові знаки — окремим рядком.
 import { ArrowRight, Equal, EyeOff, ListPlus, Lock, Lightbulb, Mail, Trash2, Ellipsis, StickyNote, CircleDashed } from 'lucide-react';
 // Лендінг (блок «landing» у кінці мапи) — окремим рядком, щоб не чіпати імпорт вище.
@@ -158,12 +162,35 @@ export const ICONS = {
   // ---- готування: страви, техніка, кроки ----
   // «Плита» → `flame-kindling` (вогонь під чимось). Окремого «Гриль, вогонь»
   // більше немає: він існував лише щоб дати `flame` друге значення.
-  'cook.soup':     { glyph: Soup,          label: 'Суп',           family: 'cooking' },
-  'cook.salad':    { glyph: Salad,         label: 'Салат',         family: 'cooking' },
-  'cook.dough':    { glyph: Pizza,         label: 'Піца, тісто',   family: 'cooking' },
-  'cook.sandwich': { glyph: Sandwich,      label: 'Сендвіч',       family: 'cooking' },
-  'cook.breakfast':{ glyph: EggFried,      label: 'Сніданок',      family: 'cooking' },
-  'cook.dessert':  { glyph: Cake,          label: 'Десерт',        family: 'cooking' },
+  //
+  // Картка рецепта v2 (spec 2026-09-18, «Рішення після макета»): 20 dish.* —
+  // одна іконка страви скрізь (превʼю, картка, артефакт, бібліотека, кукінг-
+  // мод). Де глиф уже має значення в 'products' (Мʼясо/Птиця/Риба/Овочі/
+  // Крупи, борошно/Олія, соуси/Морепродукти) — підпис дослівно той самий, це
+  // не друге значення, а той самий референт на двох осях (продукт і страва),
+  // тест на колізії групує саме за підписом. Решта — власні гліфи
+  // (dish-glyphs.tsx) з path-ами макета, дослівно, крім двох задокументованих
+  // відхилень (там-таки).
+  'dish.soup':     { glyph: Soup,          label: 'Суп',            family: 'cooking' },
+  'dish.salad':    { glyph: Salad,         label: 'Салат',          family: 'cooking' },
+  'dish.pasta':    { glyph: DishPasta,     label: 'Паста',          family: 'cooking' },
+  'dish.dough':    { glyph: Pizza,         label: 'Піца, тісто',    family: 'cooking' },
+  'dish.sandwich': { glyph: Sandwich,      label: 'Сендвіч',        family: 'cooking' },
+  'dish.breakfast':{ glyph: EggFried,      label: 'Сніданок',       family: 'cooking' },
+  'dish.dessert':  { glyph: Cake,          label: 'Десерт',         family: 'cooking' },
+  'dish.meat':     { glyph: Beef,          label: 'Мʼясо',          family: 'cooking' },
+  'dish.poultry':  { glyph: Drumstick,     label: 'Птиця',          family: 'cooking' },
+  'dish.fish':     { glyph: Fish,          label: 'Риба',           family: 'cooking' },
+  'dish.seafood':  { glyph: Shell,         label: 'Морепродукти',   family: 'cooking' },
+  'dish.grain':    { glyph: Wheat,         label: 'Крупи, борошно', family: 'cooking' },
+  'dish.veg':      { glyph: Carrot,        label: 'Овочі',          family: 'cooking' },
+  'dish.stew':     { glyph: DishStew,      label: 'Рагу',           family: 'cooking' },
+  'dish.grill':    { glyph: DishGrill,     label: 'Гриль',          family: 'cooking' },
+  'dish.drink':    { glyph: CupSoda,       label: 'Напій, смузі',   family: 'cooking' },
+  'dish.sauce':    { glyph: Droplet,       label: 'Олія, соуси',    family: 'cooking' },
+  'dish.pancake':  { glyph: DishPancake,   label: 'Млинці',         family: 'cooking' },
+  'dish.sushi':    { glyph: DishSushi,     label: 'Суші',           family: 'cooking' },
+  'dish.burger':   { glyph: DishBurger,    label: 'Бургер',         family: 'cooking' },
   'cook.go':       { glyph: CookingPot,    label: 'Готуємо',       family: 'cooking' },
   'cook.oven':     { glyph: Microwave,     label: 'Духовка, мікро',family: 'cooking' },
   'cook.stove':    { glyph: FlameKindling, label: 'Плита',         family: 'cooking' },
