@@ -1326,9 +1326,12 @@ a.att-chip:hover { border-color: var(--sage); }
 .rcard-meta-item { display: inline-flex; align-items: center; gap: 4px; }
 .rcard-desc { color: var(--muted); }
 .rcard-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+/* Макет В: «↩ Уточнити» праворуч у рядку мети (не окремим рядком над
+   кнопками) — margin-left:auto штовхає його в кінець .rcard-meta; на 390
+   рядок мети переноситься, і «Уточнити» падає під чіпи — прийнятно. */
 .rcard-refine {
-  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
-  border: 0; background: none; padding: 4px 0; margin-top: 2px;
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: none; padding: 2px 0;
   font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer;
 }
 .rcard-refine:hover { color: var(--ink); }

@@ -974,16 +974,17 @@ export function RecipeLinkCard({ card, onCook, onNeedToList, batchLabels }: Card
       ? { text: `майже · ${have} з ${total}`, tone: styles['pill-amber'] }
       : { text: `далеко · ${have} з ${total}`, tone: styles['pill-far'] };
 
-  // Низ картки: «Готуємо» головна; «У список · N» текстом — лише коли є що докупити.
+  // Низ картки (макет Г): «Готуємо» ліворуч (ink, flex 1.5, головна) + «У
+  // список · N» праворуч (контурна, flex 1) — лише коли є що докупити.
   const footRaw = (
     <div className={`${styles['card-foot']} ${styles['recipe-foot']}`}>
+      {onCook && (
+        <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)} data-cook-go>Готуємо</button>
+      )}
       {missIdx.length > 0 && onNeedToList && (
         <button type="button" className={styles['recipe-tolist']} disabled={!leftToList.length} onClick={addAllMissing} data-recipe-tolist>
           {leftToList.length ? `У список · ${leftToList.length}` : 'Уже в списку'}
         </button>
-      )}
-      {onCook && (
-        <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)} data-cook-go>Готуємо</button>
       )}
     </div>
   );
@@ -1115,6 +1116,12 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk, onCook, onNeedTo
                 {r.tm ? <span className={styles['rcard-meta-item']}><Icon name="cook.time" size={12} inherit decorative />{formatDuration(r.tm)}</span> : null}
                 <Portions value={sv} onChange={setServings} />
                 {r.nu?.kcal ? <span>≈ {r.nu.kcal} ккал</span> : null}
+                {/* Макет В: «↩ Уточнити» праворуч у рядку мети (390 — переноситься під чіпи). */}
+                {onAsk && (
+                  <button type="button" className={styles['rcard-refine']} data-tap onClick={() => onAsk(title)} data-recipe-refine>
+                    <Icon name="sys.reply" size={16} inherit decorative />Уточнити
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1137,23 +1144,18 @@ export function RecipeStreamCard({ card, active, onOpen, onAsk, onCook, onNeedTo
               {allIng.length > 6 && <span className={`${styles['prop-chip']} ${styles['prop-chip-dim']}`}>ще {allIng.length - 6}</span>}
             </div>
           )}
-        {onAsk && (
-          <button type="button" className={styles['rcard-refine']} data-tap onClick={() => onAsk(title)} data-recipe-refine>
-            <Icon name="sys.reply" size={16} inherit decorative />Уточнити
-          </button>
-        )}
-      </div>
-      {/* Р4: «Готуємо» текстова (ink) + «У список · N» контурна — той самий
-          низ, що в артефакті (RecipeLinkCard). */}
-      <div className={`${styles['card-foot']} ${styles['recipe-foot']}`} data-recipe-card-foot>
-        {missIdx.length > 0 && onNeedToList && (
-          <button type="button" className={styles['recipe-tolist']} disabled={!leftToList.length} onClick={addAllMissing} data-recipe-tolist>
-            {leftToList.length ? `У список · ${leftToList.length}` : 'Уже в списку'}
-          </button>
-        )}
-        {onCook && scaled && (
-          <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)} data-cook-go>Готуємо</button>
-        )}
+        {/* Макет В/Г: низ дій ВСЕРЕДИНІ білої картки, останнім рядом; «Готуємо»
+            ліворуч (ink, flex 1.5), «У список · N» праворуч (контурна, flex 1). */}
+        <div className={`${styles['card-foot']} ${styles['recipe-foot']}`} data-recipe-card-foot>
+          {onCook && scaled && (
+            <button type="button" className={styles['cook-go']} onClick={() => onCook(scaled, rid)} data-cook-go>Готуємо</button>
+          )}
+          {missIdx.length > 0 && onNeedToList && (
+            <button type="button" className={styles['recipe-tolist']} disabled={!leftToList.length} onClick={addAllMissing} data-recipe-tolist>
+              {leftToList.length ? `У список · ${leftToList.length}` : 'Уже в списку'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
