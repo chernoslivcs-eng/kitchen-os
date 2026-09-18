@@ -53,8 +53,16 @@ describe('nowWhen / nowSub', () => {
   });
 });
 
-describe('aheadRows: лише майбутнє, без готування дому', () => {
-  it('kind meal (готування сьогодні) — геть', () => {
+describe('aheadRows: лише майбутнє', () => {
+  // Уточнення К3 (ГОЛОВНИЙ ЧАТ, живі дані 18.09): «готування сьогодні —
+  // геть» — це сесія готування в процесі (cook-session, не /v1/events), НЕ
+  // заплановані вечері/гості дому (kind 'meal', власна подія з датою). Такі
+  // йдуть звичайним рядком «Попереду» — «19.09 сб · Гості на вечерю · 6 осіб».
+  it('kind meal у майбутньому (гості на вечерю) — попереду, як звичайна одноденна', () => {
+    const rows = aheadRows([ev(1, 1, { kind: 'meal', title: 'Гості на вечерю', servings: 6 })], today, at(60));
+    expect(rows).toEqual([{ event: expect.objectContaining({ title: 'Гості на вечерю' }), endingSoon: false }]);
+  });
+  it('kind meal сьогодні — не попереду (те саме правило, що для будь-якого кінду)', () => {
     const rows = aheadRows([ev(0, 0, { kind: 'meal', title: 'Панкейки' })], today, at(60));
     expect(rows).toEqual([]);
   });

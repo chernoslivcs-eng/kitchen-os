@@ -48,9 +48,13 @@ describe('CalendarPage · збій завантаження', () => {
   });
 });
 
-// Наповнення 2b (К8, 18.09 вечір): «Без молочного» — своя дієта, вже діє;
-// Сливи — сезон, добігає; Гості 19.09 — одноденна попереду; Набір ваги —
-// тривала попереду; панкейки — готування (kind meal), геть із календаря.
+// Наповнення 2b (К8, 18.09 вечір; уточнено ГОЛОВНИЙ ЧАТ після живих даних
+// на стенді): «Без молочного» — своя дієта, вже діє; Сливи — сезон, добігає;
+// «Гості на вечерю» 19.09 — kind 'meal' (запланована вечеря дому, як у
+// реальному наповненні!), одноденна попереду; Набір ваги — тривала попереду;
+// «Панкейки» — теж kind 'meal', але СЬОГОДНІ: не попереду (це «зараз», не
+// «готування в процесі» — те окреме поняття живе в cook-session, geть з
+// календаря взагалі, тут не фігурує).
 function fixtureNow() {
   return [
     { kind: 'diet', title: 'Без молочного', from: iso(day(-3)), to: iso(day(17)), strict: true, source: 'user', id: 'diet1', rule_text: 'без молока, сирів, вершків' },
@@ -61,7 +65,7 @@ function fixtureEvents() {
   return [
     { id: 'diet1', scope: 'household', kind: 'diet', title: 'Без молочного', start: day(-3).getTime(), end: day(17, 23).getTime(), force: 'restrict', strict: true, from: iso(day(-3)), to: iso(day(17)), rule_text: 'без молока, сирів, вершків' },
     { id: 'plum', scope: 'catalog', kind: 'season', title: 'Сливи', start: day(-60).getTime(), end: day(3, 23).getTime(), force: 'hint', from: iso(day(-60)), to: iso(day(3)) },
-    { id: 'guests', scope: 'household', kind: 'custom', title: 'Гості', start: day(1).getTime(), end: day(1, 23).getTime(), force: 'hint', servings: 6 },
+    { id: 'guests', scope: 'household', kind: 'meal', title: 'Гості на вечерю', start: day(1).getTime(), end: day(1, 23).getTime(), force: 'hint', servings: 6 },
     { id: 'weight', scope: 'household', kind: 'diet', title: 'Набір ваги', start: day(12).getTime(), end: day(42, 23).getTime(), force: 'hint', from: iso(day(12)), to: iso(day(42)) },
     { id: 'pancakes', scope: 'household', kind: 'meal', title: 'Панкейки', start: day(0).getTime(), end: day(0, 23).getTime(), force: 'hint' },
   ];
@@ -115,11 +119,11 @@ describe('CalendarPage · «Попереду»', () => {
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-  it('готування дому (kind meal) — геть; одноденна й тривала майбутні — з датами й «N осіб»', async () => {
+  it('kind meal у майбутньому (вечеря дому) — показується; те саме сьогодні — ні (не «готування в процесі», просто «зараз», не «попереду»)', async () => {
     ({ host, root } = await mount(true, [], fixtureEvents()));
     const ahead = host!.querySelector('[data-cal-ahead]')!;
     expect(ahead.textContent).not.toContain('Панкейки');
-    expect(ahead.textContent).toContain('Гості');
+    expect(ahead.textContent).toContain('Гості на вечерю');
     expect(ahead.textContent).toContain('19.09');
     expect(ahead.textContent).toContain('6 осіб');
     expect(ahead.textContent).toContain('Набір ваги');
@@ -226,7 +230,7 @@ describe('панель: подія ↔ каталог — одне з двох',
     expect(host!.textContent).toContain('Каталог подій');
     await click(eventButton());
     const sheets = [...host!.querySelectorAll('[data-sheet]')].map((e) => e.getAttribute('aria-label'));
-    expect(sheets).toContain('Гості');
+    expect(sheets).toContain('Гості на вечерю');
     expect(sheets).not.toContain('Каталог подій');
   });
 });

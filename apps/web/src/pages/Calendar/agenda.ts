@@ -83,12 +83,15 @@ function dayStartOf(at: number): number {
 /**
  * Майбутнє в діапазоні [today, horizon]: те, що ще не почалось (за стартом),
  * і те, що вже триває, але скінчиться в діапазоні (за кінцем — «останні
- * дні»). Готування дому (kind 'meal') — геть, це «Дім зараз» і чат (К3).
+ * дні»). Уточнення К3 (ГОЛОВНИЙ ЧАТ, живі дані на стенді): «готування
+ * сьогодні — геть» означало сесію готування в процесі («Картопляні
+ * панкейки · крок 1 з 3», 1c) — вона живе в cook-session, не в /v1/events, і
+ * в Calendar.tsx вже не читається. Заплановані вечері/гості дому (kind
+ * 'meal', власна подія з датою) — звичайний рядок «Попереду», не відсіюємо.
  */
 export function aheadRows(events: EventOccurrence[], today: number, horizon: number): AheadRow[] {
   const out: AheadRow[] = [];
   for (const e of events) {
-    if (e.kind === 'meal') continue;
     const s = dayStartOf(e.start);
     const en = dayStartOf(e.end);
     if (en < today || s > horizon) continue;
