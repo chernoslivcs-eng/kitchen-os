@@ -800,8 +800,10 @@
   .banner-icon { width: 36px; height: 36px; }
   .banner-text { min-width: 0; cursor: pointer; }
   .banner-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .banner-main { width: 36px; padding: 0; justify-content: center; }
-  .banner-main-text { display: none; }
+  /* Картка рецепта v2 (spec 18.09): cook.go-іконку зняли з «Приготувати з
+     цього» (текст без гліфа скрізь) — компакт до кола 36 без тексту більше
+     нема чим заповнити, тому на мобайлі кнопка лишається текстовою. */
+  .banner-main { flex: none; }
   .banner-ghost { display: none; }
   /* Рядок 390 — два стовпці (Screens «мобайл»): ліворуч назва з тегом
      безпеки поруч і паспорт під ними; праворуч час над кількістю. Іконка
