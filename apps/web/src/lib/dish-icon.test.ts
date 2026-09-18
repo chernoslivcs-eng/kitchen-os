@@ -1,7 +1,7 @@
 // Р1: мапа категорія → ключ іконки; невідоме — ковпак.
 import { describe, it, expect } from 'vitest';
 import { dishIcon, DISH_ICON } from './dish-icon';
-import { DISH_CATEGORIES } from '@kitchen/domain';
+import { DISH_CATEGORIES } from '@kitchen/domain/dish-category';
 import { ICONS } from '../components/Icon/icons';
 
 describe('dishIcon', () => {

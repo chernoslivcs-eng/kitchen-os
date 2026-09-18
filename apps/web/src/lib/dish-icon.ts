@@ -3,7 +3,9 @@
 // Категорію рахує домен (dishCategory), тут — лише мапа на ключ іконки.
 // Тимчасово: 6 наявних гліфів + ковпак; коли доїдуть нові гліфи з дизайну,
 // міняється лише ця мапа.
-import { dishCategory, type DishCategory } from '@kitchen/domain';
+// Глибокий імпорт, не барел: барел @kitchen/domain тягне profile-text.ts з node:crypto, і vite
+// у браузері падає («Module "node:crypto" has been externalized»); tsc/vitest цього не ловлять.
+import { dishCategory, type DishCategory } from '@kitchen/domain/dish-category';
 import type { IconName } from '../components/Icon/icons';
 
 export const DISH_ICON: Record<DishCategory, IconName> = {
