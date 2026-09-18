@@ -50,6 +50,16 @@ export function isoWeek(t: number): number {
   return 1 + Math.round((d.getTime() - firstThu.getTime()) / (7 * DAY));
 }
 
+/** Понеділок першого тижня місяця й кількість тижнів, що покривають місяць (5–6). */
+export function monthWeeks(month: number): { from: number; weeks: number } {
+  const first = new Date(month); first.setDate(1); first.setHours(0, 0, 0, 0);
+  const dow = (first.getDay() + 6) % 7;
+  const from = first.getTime() - dow * DAY;
+  const last = new Date(first); last.setMonth(last.getMonth() + 1); last.setDate(0);
+  const span = Math.round((dayStart(last.getTime()) - dayStart(from)) / DAY) + 1;
+  return { from: dayStart(from), weeks: Math.ceil(span / 7) };
+}
+
 /**
  * Тижні від `from` (вирівнюється до понеділка) на `weeks` тижнів уперед.
  * Точкова подія лягає в день свого початку.

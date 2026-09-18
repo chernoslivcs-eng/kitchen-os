@@ -95,8 +95,11 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
     return () => { openerRef.current?.focus?.(); };
   }, [sheet]);
 
-  const shown = home.now.slice(0, 3);
-  const restNow = Math.max(0, home.now.length - shown.length);
+  // Календар v3 (spec 18.09, п.4): «Зараз» — 1 рядок (найважливіший: суворе
+  // перше, інакше перше з nowItems, уже відсортоване), не до трьох — решта
+  // тепер живе в самому календарі («Зараз діє»). Лишається лише посилання.
+  const topNow = home.strict ?? home.now[0] ?? null;
+  const restNow = Math.max(0, home.now.length - (topNow ? 1 : 0));
   const shownOverdue = home.burning.filter((b) => b.days < 0).length;
   const restOverdue = Math.max(0, home.overdue - shownOverdue);
   const pantryEmpty = nowEmptyKind(home.facts) === 'pantry-empty';
@@ -113,10 +116,14 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
   );
 
   if (sheet) {
-    // G3 — список станів рядками; тихі рядки внизу.
+    // G3 — список станів рядками.
     // (хук викликано вище, до гілки — Rules of Hooks)
+    // Календар v3 (spec 18.09, п.4): суворе (якщо є) — рядком, інакше перше
+    // тихе; решта — одне посилання «усі в календарі», не до трьох рядків.
     const strict = home.strict;
-    const quiet = home.now.filter((e) => e !== strict).slice(0, 3);
+    const quiet = home.now.filter((e) => e !== strict);
+    const topQuiet = !strict ? quiet[0] : undefined;
+    const restCount = strict ? quiet.length : Math.max(0, quiet.length - (topQuiet ? 1 : 0));
     return (
       <>
         <div className={`${styles.scrim} ${styles['scrim-dark']}`} onClick={onClose} />
@@ -166,17 +173,24 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
                 <button type="button" className={`${styles.act} ${styles['act-sage']}`} data-tap onClick={onCook}>До плити</button>
               </div>
             )}
-            {quiet.map((e) => (
-              <button key={`${e.occasion_id ?? e.id}:${e.from}`} type="button" className={`${styles.g3} ${styles['g3-quiet']}`} onClick={onCalendar}>
-                <span className={`${styles.sq} ${styles['sq-grey']}`}><Icon name={quietIcon(e)} size={18} inherit decorative /></span>
+            {topQuiet && (
+              <button key={`${topQuiet.occasion_id ?? topQuiet.id}:${topQuiet.from}`} type="button" className={`${styles.g3} ${styles['g3-quiet']}`} onClick={onCalendar}>
+                <span className={`${styles.sq} ${styles['sq-grey']}`}><Icon name={quietIcon(topQuiet)} size={18} inherit decorative /></span>
                 <span className={styles['g3-text']}>
-                  <span className={styles['g3-title-quiet']}>{e.title}</span>
-                  <span className={styles['g3-sub']}>{nowWhen(e) ?? 'триває'} · {nowSub(e).text}</span>
+                  <span className={styles['g3-title-quiet']}>{topQuiet.title}</span>
+                  <span className={styles['g3-sub']}>{nowWhen(topQuiet) ?? 'триває'} · {nowSub(topQuiet).text}</span>
                 </span>
                 <Icon name="sys.next" size={16} inherit decorative />
               </button>
-            ))}
-            {!strict && quiet.length === 0 && (
+            )}
+            {(strict || topQuiet) && (
+              <button type="button" className={`${styles.g3} ${styles['g3-quiet']}`} onClick={onCalendar} data-home-now-tail>
+                <span className={`${styles.sq} ${styles['sq-grey']}`}><Icon name="sys.calendar" size={18} inherit decorative /></span>
+                <span className={styles['g3-text']}><span className={styles['g3-title-quiet']}>{restCount > 0 ? `Ще ${restCount} — усі в календарі` : 'Усі в календарі'}</span></span>
+                <Icon name="sys.next" size={16} inherit decorative />
+              </button>
+            )}
+            {!strict && !topQuiet && (
               <div className={`${styles.g3} ${styles['g3-quiet']}`} data-home-empty="no-events">
                 <span className={`${styles.sq} ${styles['sq-grey']}`}><Icon name="sys.calendar" size={18} inherit decorative /></span>
                 <span className={styles['g3-text']}><span className={styles['g3-title-quiet']}>{EMPTY.noEvents}</span></span>
@@ -243,25 +257,27 @@ export function HomeNowPanel({ home, cookLive, sheet, onClose, onCook, onOverdue
               <button type="button" className={`${styles.act} ${styles['act-sage']}`} data-tap onClick={onCook}>До плити</button>
             </div>
           )}
-          {shown.map((e) => {
-            const tone = toneOfNow(e);
-            const sub = nowSub(e);
+          {topNow && (() => {
+            const tone = toneOfNow(topNow);
+            const sub = nowSub(topNow);
             return (
-              <button key={`${e.occasion_id ?? e.id}:${e.from}`} type="button" className={styles.row48} onClick={onCalendar}>
-                <span className={`${styles.dot8} ${styles[`dot-${tone}`]} ${e.approx ? styles['dot-ring'] : ''}`} aria-hidden />
+              <button key={`${topNow.occasion_id ?? topNow.id}:${topNow.from}`} type="button" className={styles.row48} onClick={onCalendar}>
+                <span className={`${styles.dot8} ${styles[`dot-${tone}`]} ${topNow.approx ? styles['dot-ring'] : ''}`} aria-hidden />
                 <span className={styles.text}>
-                  <span className={styles.name}>{e.title}</span>
+                  <span className={styles.name}>{topNow.title}</span>
                   <span className={styles.sub}><Icon name={sub.icon} size={12} inherit decorative />{sub.text}</span>
                 </span>
-                <span className={`${styles.when} ${styles[`tone-${tone}`]}`}>{nowWhen(e) ?? 'триває'}</span>
+                <span className={`${styles.when} ${styles[`tone-${tone}`]}`}>{nowWhen(topNow) ?? 'триває'}</span>
                 <Icon name="sys.next" size={16} inherit decorative />
               </button>
             );
-          })}
-          {!cookLive && shown.length === 0 && (
+          })()}
+          {!cookLive && !topNow && (
             <div className={styles.empty} data-home-empty="no-events"><Icon name="sys.calendar" size={16} inherit decorative />{EMPTY.noEvents}</div>
           )}
-          {restNow > 0 && <button type="button" className={styles.tail} data-tap onClick={onCalendar}>Ще {restNow} — у календарі</button>}
+          {topNow && (
+            <button type="button" className={styles.tail} data-tap onClick={onCalendar}>{restNow > 0 ? `Ще ${restNow} — усі в календарі` : 'Усі в календарі'}</button>
+          )}
         </section>
 
         {/* Р116: у вікні — одна головна дія на всю ширину, чорнило 44; у шторці лишається посилання. */}

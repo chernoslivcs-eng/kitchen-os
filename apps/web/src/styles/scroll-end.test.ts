@@ -14,7 +14,7 @@ const SCROLLERS: Array<[string, string]> = [
   ['pages/CookLog/CookLog.module.css', 'body'],
   ['pages/Recipe/Recipe.module.css', 'body'],
   ['pages/Profile/ProfileV2.module.css', 'main'],
-  ['pages/Calendar/Calendar.module.css', 'list'],
+  ['pages/Calendar/Calendar.module.css', 'body'],
   ['pages/Feed/Feed.module.css', 'timeline'],
 ];
 

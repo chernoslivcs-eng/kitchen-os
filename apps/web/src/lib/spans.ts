@@ -250,3 +250,45 @@ export function assignLanes(lasting: EventOccurrence[]): Map<string, number> {
 function overlaps(a: EventOccurrence, b: EventOccurrence): boolean {
   return dayStart(a.start) <= dayStart(b.end) && dayStart(a.end) >= dayStart(b.start);
 }
+
+/**
+ * Смуги ОДНОГО тижня для сітки календаря (v3, 2b), прив'язані до фіксованої
+ * доріжки з `assignLanes`: та сама подія завжди в тому самому ряду на
+ * кожному тижні, який перетинає — доріжка рахується один раз на весь
+ * діапазон, тут лише розкладається по тижнях.
+ *
+ * Максимум `cap` видимих рядів (за замовчуванням GRID_LANES = 3, як і рейка
+ * на мобільному). Подія на доріжці ≥ cap не малює смугу — натомість день,
+ * який вона покриває, підіймає свій `overflow` на одиницю («+N», розкриття
+ * по тапу). Лічильник — за днями, не за подіями: два «зайвих» пости в один
+ * день дають той самий один «+2», що очікує око, а не «+1» двічі.
+ */
+export const GRID_LANES = 3;
+
+export interface WeekBand extends WeekSpan {
+  lane: number;
+}
+
+export function weekBands(
+  lasting: EventOccurrence[],
+  laneOf: Map<string, number>,
+  weekStart: number,
+  cap = GRID_LANES,
+): { bands: WeekBand[]; overflow: Map<number, number> } {
+  const spans = weekSpans(lasting, weekStart);
+  const bands: WeekBand[] = [];
+  const overflow = new Map<number, number>();
+  const lo = dayStart(weekStart);
+  for (const s of spans) {
+    const lane = laneOf.get(s.event.id);
+    if (lane !== undefined && lane < cap) {
+      bands.push({ ...s, lane });
+      continue;
+    }
+    for (let i = 0; i < 7; i++) {
+      const d = lo + i * DAY;
+      if (coversDay(s.event, d)) overflow.set(d, (overflow.get(d) ?? 0) + 1);
+    }
+  }
+  return { bands, overflow };
+}

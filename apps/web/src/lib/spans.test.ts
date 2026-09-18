@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   spanDays, isLasting, splitAxes, weekSpans, coversDay, edgeCaption,
-  bubblesToNow, moreLabel, rank, railable, assignLanes,
+  bubblesToNow, moreLabel, rank, railable, assignLanes, weekBands, GRID_LANES,
 } from './spans';
 import type { EventOccurrence } from '../api';
 
 // Понеділок 2026-03-02.
 const mon = new Date(2026, 2, 2).getTime();
 const at = (off: number, h = 0) => new Date(2026, 2, 2 + off, h).getTime();
+const DAY_MS = 86_400_000;
 
 const ev = (from: number, to: number, over: Partial<EventOccurrence> = {}): EventOccurrence => ({
   id: over.title ?? `e${from}-${to}`, scope: 'household', kind: 'custom',
@@ -217,5 +218,60 @@ describe('стеля три для сезонів (B4/B5)', () => {
   it('хвіст без сезонів — просто «ще N»', () => {
     expect(tailLabel([ev(0, 4, { title: 'гості' })])).toBe('ще 1');
     expect(tailLabel([ev(0, 4, { title: 'а' }), season(0, 4, 'б')])).toBe('ще 2');
+  });
+});
+
+// Календар v3 (spec 18.09, «Р2. Доріжки в сітці»): подія тримає СВОЮ
+// доріжку на кожному тижні, який перетинає; максимум GRID_LANES (3), далі —
+// overflow по днях («+N», розкриття по тапу).
+describe('смуги сітки: 4 паралельні події, дві перетинають кілька тижнів', () => {
+  // week1 = [0..6] (mon), week2 = [7..13], week3 = [14..20].
+  const week1 = mon;
+  const week2 = mon + 7 * DAY_MS;
+  const pist = ev(0, 20, { title: 'піст', scope: 'catalog', force: 'restrict' });       // 21 днів, week1→3
+  const svojaA = ev(0, 10, { title: 'своя-а', scope: 'household' });                    // week1→2
+  const svojaB = ev(3, 17, { title: 'своя-б', scope: 'household' });                    // week1→3
+  const svojaV = ev(5, 9, { title: 'своя-в', scope: 'household' });                     // week1→2, 4-та — overflow
+  const four = [pist, svojaA, svojaB, svojaV];
+
+  it('lane assignment: обмеження перше, далі власні за стартом; четверта — за межею GRID_LANES', () => {
+    const lanes = assignLanes(four);
+    expect(lanes.get('піст')).toBe(0);
+    expect(lanes.get('своя-а')).toBe(1);
+    expect(lanes.get('своя-б')).toBe(2);
+    expect(lanes.get('своя-в')).toBe(3);
+    expect(lanes.get('своя-в')).toBeGreaterThanOrEqual(GRID_LANES);
+  });
+
+  it('перші три доріжки — смуги в обох тижнях, той самий ряд (доріжка тримається)', () => {
+    const lanes = assignLanes(four);
+    const w1 = weekBands(four, lanes, week1);
+    const w2 = weekBands(four, lanes, week2);
+    const laneIn = (bands: typeof w1.bands, title: string) => bands.find((b) => b.event.title === title)?.lane;
+    expect(laneIn(w1.bands, 'піст')).toBe(0);
+    expect(laneIn(w2.bands, 'піст')).toBe(0);
+    expect(laneIn(w1.bands, 'своя-б')).toBe(2);
+    expect(laneIn(w2.bands, 'своя-б')).toBe(2);
+    // Рівно три смуги в кожному тижні — не більше GRID_LANES.
+    expect(w1.bands.length).toBeLessThanOrEqual(GRID_LANES);
+    expect(w2.bands.length).toBeLessThanOrEqual(GRID_LANES);
+  });
+
+  it('четверта подія (за межею трьох) не дає смуги — лише overflow по днях, які перетинає', () => {
+    const lanes = assignLanes(four);
+    const { bands, overflow } = weekBands(four, lanes, week1);
+    expect(bands.some((b) => b.event.title === 'своя-в')).toBe(false);
+    // «своя-в» триває 5..9 — у week1 це дні 5 і 6.
+    expect(overflow.get(mon + 5 * DAY_MS)).toBe(1);
+    expect(overflow.get(mon + 6 * DAY_MS)).toBe(1);
+    expect(overflow.has(mon + 2 * DAY_MS)).toBe(false);
+  });
+
+  it('overflow рахує дні, не події: два «зайвих» в один день дають один «+2», не два «+1»', () => {
+    const another = ev(5, 9, { title: 'ще-одна', scope: 'household' });
+    const five = [...four, another];
+    const lanes = assignLanes(five);
+    const { overflow } = weekBands(five, lanes, week1);
+    expect(overflow.get(mon + 5 * DAY_MS)).toBe(2);
   });
 });
