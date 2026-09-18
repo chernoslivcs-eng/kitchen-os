@@ -427,8 +427,10 @@
 @media (min-width: 1024px) {
   .wrap.wide { width: 256px; }
   /* №14: оверлей із наведення — поверх контенту, з тінню шухляди; закріплений
-     (body.nav-expanded) — у потоці, контент зсувається (tokens.css). */
-  .wrap.peek { z-index: 30; box-shadow: var(--sh2); border-right: 0; }
+     (body.nav-expanded) — у потоці, контент зсувається (tokens.css).
+     Хотфікс: поверх усього, включно з кукінг-модом (z-index: 90/95/96,
+     Cook.module.css) — token спільний з .shell (tokens.css). */
+  .wrap.peek { z-index: var(--z-rail-peek); box-shadow: var(--sh2); border-right: 0; }
   .wide .brand-name, .wide .tab > span:nth-child(2), .wide .tab-count, .wide .tab-pill, .wide .user-text {
     opacity: 1;
     visibility: visible;
@@ -466,7 +468,8 @@
     width: 300px;
     box-shadow: var(--sh2);
     border-right: 0;
-    z-index: 30;
+    /* Хотфікс: той самий шар, що .wrap.peek (≥1024) — поверх кукінг-моду. */
+    z-index: var(--z-rail-peek);
   }
   .wrap.open .brand-name, .wrap.open .tab > span:nth-child(2), .wrap.open .tab-count, .wrap.open .tab-pill, .wrap.open .user-text {
     opacity: 1;

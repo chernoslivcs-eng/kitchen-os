@@ -126,3 +126,27 @@ describe('ролі типографіки v3', () => {
     expect(roles).toMatch(/font-variant-numeric:\s*tabular-nums/);
   });
 });
+
+// Хотфікс (власник): рейка/сайдбар (TabBar) при наведенні/відкритті виїжджала
+// ПІД кукінг-мод (Cook), бо два файли тримали незалежні магічні z-index.
+// Тест ловить регрес, якщо хтось повернеться до літерала замість токена.
+describe('z-index: рейка завжди поверх кукінг-моду', () => {
+  const cook = readFileSync(fileURLToPath(new URL('../pages/Cook/Cook.module.css', import.meta.url)), 'utf8');
+  const tabBar = readFileSync(fileURLToPath(new URL('../components/TabBar/TabBar.module.css', import.meta.url)), 'utf8');
+
+  it('--z-rail-peek > --z-cook (і вище scrim/sheet кукінг-моду 95/96)', () => {
+    const zCook = Number(tokenIn(':root {\n  --z-cook', 'z-cook'));
+    const zRailPeek = Number(tokenIn(':root {\n  --z-cook', 'z-rail-peek'));
+    expect(zCook).toBe(90);
+    expect(zRailPeek).toBeGreaterThan(96);
+  });
+
+  it('Cook .shell бере var(--z-cook), не літерал', () => {
+    expect(cook).toMatch(/\.shell\s*\{[^}]*z-index:\s*var\(--z-cook\)/);
+  });
+
+  it('TabBar .wrap.peek (≥1024) і .wrap.open (768–1023) беруть var(--z-rail-peek), не літерал', () => {
+    expect(tabBar).toMatch(/\.wrap\.peek\s*\{[^}]*z-index:\s*var\(--z-rail-peek\)/);
+    expect(tabBar).toMatch(/\.wrap\.open\s*\{[^}]*z-index:\s*var\(--z-rail-peek\)/);
+  });
+});

@@ -193,7 +193,8 @@ describe('оболонка 6a', () => {
     // №14: розкладку 256 несе клас .wide (закріплено АБО оверлей з наведення);
     // зсув контенту — body.nav-expanded у tokens.css.
     expect(css).toMatch(/\.wrap\.wide \{\s*width: 256px/);
-    expect(css).toMatch(/\.wrap\.peek \{[^}]*z-index: 30/);
+    // Хотфікс: peek-оверлей мусить лишатись поверх кукінг-моду (var(--z-rail-peek), tokens.css) — не 30.
+    expect(css).toMatch(/\.wrap\.peek \{[^}]*z-index: var\(--z-rail-peek\)/);
     expect(css).toMatch(/\.wrap \{[^}]*width: 60px/);
   });
 });
