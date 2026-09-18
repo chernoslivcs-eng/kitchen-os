@@ -1,7 +1,10 @@
-/* Календар v3 (макет 2b, спек 18.09) — «Зараз діє» → «Попереду» → сітка
-   згорнутою довідкою. Один стовпець на всіх ширинах: шапка AppHeader
-   («Календар · дата» + «Додати»), картки нижче — на 390 на всю ширину, на
-   ≥1024 центровано (720). Сітка — лише ≥1024 (К4). */
+/* Календар v3 (макет 2b, спек 18.09; компактність — ГОЛОВНИЙ ЧАТ 18.09,
+   структура 1b) — «Зараз діє» → «Попереду» + сітка. На 390: одна колонка,
+   рядки списку 46px однорядкові. На ≥1024 («структура 1b з даними 2b»):
+   «Зараз діє» — чипи в ряд (h44, перелив на другий ряд); нижче — дві
+   колонки 1.55fr:1fr — «Попереду» (рядки 46px) і сітка місяця, РОЗКРИТА
+   за замовчуванням, без рядка-перемикача. Шапка AppHeader («Календар ·
+   дата» + «Додати»). */
 
 .screen {
   height: 100dvh;
@@ -34,7 +37,7 @@
   display: flex; flex-direction: column; gap: 14px;
 }
 @media (min-width: 1024px) {
-  .body { padding: 8px 32px 0; max-width: 720px; margin: 0 auto; width: 100%; gap: 18px; }
+  .body { padding: 8px 32px 0; max-width: 960px; margin: 0 auto; width: 100%; gap: 18px; }
 }
 /* fix/ios-scroll-end-padding: iOS WebKit не рахує кінцевий padding скрол-
    контейнера у scrollable overflow — резерв під нижній таббар і низ скролера
@@ -62,20 +65,42 @@
 .t-tradition { --t: var(--plum);  --t-bg: var(--plum-bg); }
 .t-grey      { --t: var(--muted); --t-bg: var(--line); }
 
-/* ── Рядки «Зараз діє» / «Попереду» — той самий рисунок ─────────────────── */
+/* ── Рядки «Попереду» (усі ширини) і «Зараз діє» (<1024) — однорядкові,
+   46px: знак · назва (+ мета в тому самому рядку) · дата праворуч. Без
+   окремого рядка meaning — компактність (ГОЛОВНИЙ ЧАТ 18.09). ─────────── */
 .now-row, .ahead-row {
-  display: flex; align-items: flex-start; gap: 10px;
-  min-height: 48px; padding: 9px 0;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 46px; padding: 6px 0;
   border: 0; border-bottom: 1px solid var(--line); background: transparent; width: 100%;
   text-align: left; cursor: pointer; font-family: var(--font-body);
+  position: relative;
 }
-.now-icon { flex: none; margin-top: 2px; color: var(--t); }
-.now-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.now-title { font-size: 14px; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
-.now-sub { font-size: 12px; color: var(--muted); }
-.now-progress { height: 3px; border-radius: 2px; background: var(--line2); margin-top: 4px; overflow: hidden; }
-.now-progress > i { display: block; height: 100%; background: var(--t); border-radius: 2px; }
-.now-when { flex: none; padding-top: 2px; font-size: 12px; font-weight: 500; color: var(--t); white-space: nowrap; }
+.now-icon { flex: none; color: var(--t); }
+.now-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; color: var(--ink); }
+.now-meta { color: var(--muted); font-weight: 400; }
+/* Прогрес — тонка смужка на нижньому краю рядка, не другий текстовий рядок. */
+.now-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--line2); overflow: hidden; }
+.now-progress > i { display: block; height: 100%; background: var(--t); }
+.now-when { flex: none; font-size: 12px; font-weight: 500; color: var(--t); white-space: nowrap; }
+
+/* ── «Зараз діє» ≥1024 — чипи в ряд, перелив на другий (структура 1b) ───── */
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 44px; padding: 0 16px;
+  border: 0; border-radius: 11px;
+  background: var(--t-bg); color: var(--ink); cursor: pointer;
+  font-family: var(--font-body); font-size: 14px; font-weight: 600;
+  white-space: nowrap; max-width: 100%;
+}
+.chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chip-when { font-weight: 400; opacity: .8; color: var(--t); }
+
+/* ── ≥1024, другий ряд: «Попереду» (ширша) і сітка місяця (вужча) ───────── */
+.columns { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+/* Сітка — завжди права колонка, навіть коли «Попереду» порожнє й лівого
+   елемента в DOM нема зовсім (grid-column декларативно, без плейсхолдера). */
+.columns > .mcard { grid-column: 2; }
 
 /* ── Порожній стан (К1): одна кнопка, не три ─────────────────────────────── */
 .empty { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
@@ -87,23 +112,16 @@
   font-family: var(--font-body); font-size: 14px; font-weight: 600; cursor: pointer;
 }
 
-/* ── Сітка-довідка (CalendarGrid, К4): рядок-перемикач + місяць carточкою ── */
-.grid-toggle {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  height: 44px; padding: 0 16px;
-  border: 0; border-radius: 12px;
-  background: var(--card); box-shadow: var(--sh-a), var(--sh-b); color: var(--muted);
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer;
-}
-.grid-toggle:hover { color: var(--ink); }
-.grid-toggle-text { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-cal-grid] .grid-toggle { margin-bottom: 10px; }
-
+/* ── Сітка місяця (CalendarGrid) — права колонка ≥1024, розкрита завжди
+   (структура 1b: «Вересень · твої події й періоди», без перемикача). ───── */
 .mcard {
   background: var(--card); border-radius: 20px;
   box-shadow: var(--sh-a), var(--sh-b);
   display: flex; flex-direction: column; overflow: hidden;
 }
+.mcard-head { display: flex; align-items: center; gap: 10px; padding: 16px 16px 0; }
+.mcard-month { flex: 1; min-width: 0; font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--ink); }
+.mcard-sub { font-size: 12px; color: var(--dim); }
 .mdow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 12px 16px 8px; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 500; color: var(--muted); }
 .mweek { display: flex; flex-direction: column; padding: 8px 16px 0; border-bottom: 1px solid var(--line); }
 .mweek-last { border-bottom: 0; padding-bottom: 8px; }
@@ -120,7 +138,7 @@
 .mbar-more { justify-self: start; display: inline-flex; align-items: center; gap: 4px; height: 16px; padding: 0; border: 0; background: transparent; font-family: var(--font-body); font-size: 11px; line-height: 12px; color: var(--muted); cursor: pointer; }
 .mbar-more:hover { color: var(--ink); }
 .mdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 6px 0 8px; }
-.mcell { display: flex; flex-direction: column; gap: 4px; min-width: 0; border-radius: 12px; }
+.mcell { display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 58px; border-radius: 12px; }
 .mnum { font-size: 14px; color: var(--muted); line-height: 26px; }
 .mcell-other .mnum { color: var(--faint); }
 .mcell-today { background: var(--bg); margin: -6px -6px 0; padding: 6px; }

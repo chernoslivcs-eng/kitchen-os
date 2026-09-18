@@ -52,16 +52,6 @@ export function nowWhen(it: Pick<NowItem, 'kind' | 'source' | 'from' | 'to' | 'a
   return `до ${it.approx ? '≈ ' : ''}${isoDdmm(it.to)}`;
 }
 
-/** Підрядок: дата (коли є прогрес — інакше вона вже в when) + значення для раціону. */
-export function nowSub(it: Pick<NowItem, 'kind' | 'source' | 'from' | 'to' | 'approx' | 'meaning' | 'rule_text'>, today = todayIso()): string | null {
-  const p = nowProgress(it, today);
-  const parts: string[] = [];
-  if (p) parts.push(`до ${it.approx ? '≈ ' : ''}${isoDdmm(it.to)}`);
-  const meaning = it.meaning ?? it.rule_text ?? null;
-  if (meaning) parts.push(meaning);
-  return parts.length ? parts.join(' · ') : null;
-}
-
 export const NOW_TONE_ICON: Record<ToneKey, string> = {
   restrict: 'live.fast', own: 'live.household', season: 'live.season', tradition: 'live.tradition', grey: 'live.household',
 };

@@ -89,28 +89,71 @@ describe('CalendarPage · «Зараз діє»', () => {
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-  it('своя дієта — прогрес і день/загалом; сезон з каталогу — «до дати» й значення, без прогресу', async () => {
+  // Компактність (ГОЛОВНИЙ ЧАТ 18.09): ≥1024 — чипи (назва + дата, БЕЗ
+  // meaning-речення); <1024 — рядки 46px, теж без meaning.
+  it('≥1024: чипи — назва й дата, прогрес у самій даті («N-й день»), meaning-речення нема', async () => {
     ({ host, root } = await mount(true, fixtureNow(), fixtureEvents()));
     const nowCard = host!.querySelector('[data-cal-now]')!;
+    expect(nowCard.querySelector('[class*="_chips_"]')).not.toBeNull();
     expect(nowCard.textContent).toContain('Без молочного');
     expect(nowCard.textContent).toContain('4-й день з 21');
-    expect(nowCard.textContent).toContain('без молока, сирів, вершків');
-    expect(nowCard.querySelector('[class*="now-progress"]')).not.toBeNull();
     expect(nowCard.textContent).toContain('Сливи');
     expect(nowCard.textContent).toContain('до 21.09');
-    expect(nowCard.textContent).toContain('сливи в пріоритеті');
+    expect(nowCard.textContent).not.toContain('без молока, сирів, вершків');
+    expect(nowCard.textContent).not.toContain('сливи в пріоритеті');
   });
 
-  it('понад 4 — «Показати всі», решта ховається до кліку', async () => {
+  it('<1024: рядки 46px — назва й дата, прогрес смужкою, meaning-речення нема', async () => {
+    ({ host, root } = await mount(false, fixtureNow(), fixtureEvents()));
+    const nowCard = host!.querySelector('[data-cal-now]')!;
+    expect(nowCard.querySelector('[class*="_chips_"]')).toBeNull();
+    expect(nowCard.textContent).toContain('Без молочного');
+    expect(nowCard.textContent).toContain('4-й день з 21');
+    expect(nowCard.querySelector('[class*="now-progress"]')).not.toBeNull();
+    expect(nowCard.textContent).not.toContain('без молока, сирів, вершків');
+    expect(nowCard.textContent).not.toContain('сливи в пріоритеті');
+  });
+
+  it('≥1024: понад 4 — усі чипи одразу, перелив рядом (без «Показати всі»)', async () => {
     const five = Array.from({ length: 5 }, (_, i) => ({
       kind: 'season', title: `Сезон ${i}`, from: iso(day(-10)), to: iso(day(10)), strict: false, source: 'catalog', occasion_id: `s${i}`,
     }));
     ({ host, root } = await mount(true, five, []));
+    expect(host!.textContent).toContain('Сезон 4');
+    expect(host!.textContent).not.toContain('Показати всі');
+  });
+
+  it('<1024: понад 4 — «Показати всі», решта ховається до кліку', async () => {
+    const five = Array.from({ length: 5 }, (_, i) => ({
+      kind: 'season', title: `Сезон ${i}`, from: iso(day(-10)), to: iso(day(10)), strict: false, source: 'catalog', occasion_id: `s${i}`,
+    }));
+    ({ host, root } = await mount(false, five, []));
     expect(host!.textContent).toContain('Показати всі · 5');
     expect(host!.textContent).not.toContain('Сезон 4');
     const btn = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('Показати всі'))!;
     await act(async () => { btn.click(); });
     expect(host!.textContent).toContain('Сезон 4');
+  });
+
+  // К2 бага (ГОЛОВНИЙ ЧАТ 18.09): клік по каталожній події в «Зараз діє»
+  // відкривав ВЕСЬ каталог замість самої події. EventOccurrence.id ===
+  // occasion_id для каталогу (services/api events.ts) — шукаємо за ним.
+  it('клік по каталожній події («Зараз діє») відкриває САМУ подію, не каталог', async () => {
+    usePanelStore.getState().clear();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
+      if (url.includes('/v1/events')) return jsonRes({ events: fixtureEvents() });
+      return jsonRes({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    const chip = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Сливи'))!;
+    await act(async () => { chip.click(); });
+    await act(async () => {});
+    expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Подія']);
+    expect(usePanelStore.getState().active).toBe('event:plum');
   });
 });
 
@@ -164,16 +207,21 @@ describe('CalendarPage · порожній стан і сітка-довідка
     expect(host!.querySelector('[data-cal-ahead]')).toBeNull();
   });
 
-  it('≥1024: сітка згорнута за замовчуванням; розкриття показує поточний місяць, доріжка тримається через тижні', async () => {
+  // Компактність (ГОЛОВНИЙ ЧАТ 18.09, структура 1b): сітка — права колонка
+  // поруч із «Попереду», РОЗКРИТА одразу, без рядка-перемикача; шапка
+  // «Вересень · твої події й періоди» (К3: чому нема сезонів).
+  it('≥1024: сітка розкрита одразу поруч із «Попереду», доріжка тримається через тижні', async () => {
     const spanning = { id: 'fast', scope: 'catalog', kind: 'tradition', title: 'Піст', start: day(-3).getTime(), end: day(20, 23).getTime(), force: 'restrict', strict: true, from: iso(day(-3)), to: iso(day(20)) };
     ({ host, root } = await mount(true, [], [spanning]));
-    expect(host!.querySelector('[data-cal-grid-toggle]')).not.toBeNull();
-    expect(host!.querySelector('[data-month-grid]')).toBeNull();
-    expect(host!.textContent).toContain('Сітка вересня — якщо треба глянути дати');
-    const toggle = host!.querySelector<HTMLButtonElement>('[data-cal-grid-toggle]')!;
-    await act(async () => { toggle.click(); });
-    expect(host!.querySelector('[data-month-grid]')).not.toBeNull();
-    const bars = [...host!.querySelectorAll('[class*="_mband_"][aria-label="Піст"]')];
+    expect(host!.querySelector('[data-cal-grid-toggle]')).toBeNull();
+    const columns = host!.querySelector('[class*="_columns_"]')!;
+    expect(columns).not.toBeNull();
+    const grid = host!.querySelector('[data-month-grid]')!;
+    expect(grid).not.toBeNull();
+    expect(columns.contains(grid)).toBe(true);
+    expect(grid.textContent).toContain('Вересень');
+    expect(grid.textContent).toContain('твої події й періоди');
+    const bars = [...grid.querySelectorAll('[class*="_mband_"][aria-label="Піст"]')];
     expect(bars.length).toBeGreaterThanOrEqual(1);
     // Правка ГОЛОВНИЙ ЧАТ 18.09: смуга з підписом, не гола лінія — «Піст ·
     // до 08.10» на тижні з сегментом ≥3 дні (bandLabel), не лише колір.

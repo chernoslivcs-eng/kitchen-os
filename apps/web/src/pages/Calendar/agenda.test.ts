@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nowProgress, nowWhen, nowSub, aheadRows, aheadDateLabel, aheadMeta, bandLabel,
+  nowProgress, nowWhen, aheadRows, aheadDateLabel, aheadMeta, bandLabel,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
 
@@ -32,24 +32,18 @@ describe('nowProgress: прогрес лише для власної дієти 
   });
 });
 
-describe('nowWhen / nowSub', () => {
-  it('з прогресом — when показує день, sub — дату і значення разом', () => {
+describe('nowWhen', () => {
+  it('з прогресом — «N-й день з M»', () => {
     const it_: NowItem = { kind: 'diet', source: 'user', from: '2026-09-15', to: '2026-10-05', title: 'Без молочного', strict: true, rule_text: 'без молока, сирів, вершків' };
     expect(nowWhen(it_, '2026-09-18')).toBe('4-й день з 21');
-    expect(nowSub(it_, '2026-09-18')).toBe('до 05.10 · без молока, сирів, вершків');
   });
-  it('без прогресу — when показує «до дати», sub лише значення', () => {
+  it('без прогресу — «до дати»', () => {
     const it_: NowItem = { kind: 'season', source: 'catalog', from: '2026-07-20', to: '2026-09-21', title: 'Сливи', strict: false, meaning: 'сливи в пріоритеті' };
     expect(nowWhen(it_, '2026-09-18')).toBe('до 21.09');
-    expect(nowSub(it_, '2026-09-18')).toBe('сливи в пріоритеті');
   });
   it('≈ — коли дати приблизні', () => {
     const it_: NowItem = { kind: 'season', source: 'catalog', from: '2026-07-20', to: '2026-09-21', title: 'Сливи', strict: false, approx: true };
     expect(nowWhen(it_, '2026-09-18')).toBe('до ≈ 21.09');
-  });
-  it('нема ні meaning, ні rule_text — sub null', () => {
-    const it_: NowItem = { kind: 'season', source: 'catalog', from: '2026-07-20', to: '2026-09-21', title: 'Х', strict: false };
-    expect(nowSub(it_, '2026-09-18')).toBeNull();
   });
 });
 

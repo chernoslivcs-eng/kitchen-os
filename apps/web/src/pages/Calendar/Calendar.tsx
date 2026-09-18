@@ -25,7 +25,7 @@ import { dayStart } from './days';
 import { legendIcon } from './legend';
 import { splitAxes } from '../../lib/spans';
 import {
-  nowProgress, nowWhen, nowSub, NOW_TONE_ICON, toneOfNow,
+  nowProgress, nowWhen, NOW_TONE_ICON, toneOfNow,
   aheadRows, aheadDateLabel, aheadMeta, type AheadRow,
 } from './agenda';
 import { todayIso } from '../../lib/period';
@@ -153,12 +153,17 @@ export function CalendarPage() {
   const visibleNow = nowExpanded ? now : now.slice(0, NOW_CAP);
   const isEmpty = !loading && now.length === 0 && ahead.length === 0;
 
+  // Клік з «Зараз діє»/«Попереду» відкриває САМУ подію (власну — на
+  // редагування, каталожну — PeriodEvent у режимі читання з «Не показувати»,
+  // як для системних подій у чаті), не весь каталог: каталог — лише з
+  // «Додати» (ГОЛОВНИЙ ЧАТ 18.09, п.2). Для каталожних `EventOccurrence.id
+  // === occasion_id` (services/api events.ts), і поточна активна подія
+  // завжди в уже завантаженому `events` — горизонт починається з gridFrom,
+  // а gridFrom ≤ today завжди.
   const openNowItem = (it: NowItem) => {
-    if (it.source === 'user' && it.id) {
-      const found = events.find((e) => e.id === it.id);
-      if (found) { showEvent(found); return; }
-    }
-    showSeries(undefined);
+    const key = it.source === 'user' ? it.id : it.occasion_id;
+    const found = key ? events.find((e) => e.id === key) : undefined;
+    if (found) showEvent(found);
   };
 
   const grid = useMedia(GRID);
@@ -194,25 +199,40 @@ export function CalendarPage() {
   }, [panelInFlow, openPanel]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps -- clear лише при розмонтуванні; panel — стабільний стор
 
+  // <1024: рядок 46px однорядковий — назва + дата, meaning геть
+  // (компактність, ГОЛОВНИЙ ЧАТ 18.09); прогрес — смужка на нижньому краю,
+  // не другий текстовий рядок.
   const nowRow = (it: NowItem) => {
     const tone = toneOfNow(it);
     const p = nowProgress(it, todayIsoStr);
-    const sub = nowSub(it, todayIsoStr);
     const id = it.occasion_id ?? it.id ?? it.title;
     return (
       <button key={`${id}:${it.from}`} type="button" className={`${styles['now-row']} ${styles[`t-${tone}`]} ${evMotion(id)}`} data-tap
         onClick={() => openNowItem(it)}>
         <Icon name={NOW_TONE_ICON[tone] as IconName} size={16} inherit decorative className={styles['now-icon']} />
-        <span className={styles['now-text']}>
-          <span className={styles['now-title']}>{it.title}</span>
-          {sub && <span className={styles['now-sub']}>{sub}</span>}
-          {p && <span className={styles['now-progress']}><i style={{ width: `${p.pct}%` }} /></span>}
-        </span>
+        <span className={styles['now-text']}>{it.title}</span>
         <span className={styles['now-when']}>{nowWhen(it, todayIsoStr)}</span>
+        {p && <span className={styles['now-progress']}><i style={{ width: `${p.pct}%` }} /></span>}
       </button>
     );
   };
 
+  // ≥1024: «Зараз діє» — чипи в ряд (структура 1b), назва + дата, без meaning.
+  const nowChip = (it: NowItem) => {
+    const tone = toneOfNow(it);
+    const id = it.occasion_id ?? it.id ?? it.title;
+    return (
+      <button key={`${id}:${it.from}`} type="button" className={`${styles.chip} ${styles[`t-${tone}`]} ${evMotion(id)}`} data-tap
+        onClick={() => openNowItem(it)}>
+        <Icon name={NOW_TONE_ICON[tone] as IconName} size={16} inherit decorative />
+        <span className={styles['chip-name']}>{it.title}</span>
+        <span className={styles['chip-when']}>{nowWhen(it, todayIsoStr)}</span>
+      </button>
+    );
+  };
+
+  // Усі ширини: «Попереду» — рядок 46px однорядковий, назва · мета в
+  // одному рядку, дата праворуч.
   const aheadRow = (row: AheadRow) => {
     const e = row.event;
     const meta = aheadMeta(row);
@@ -220,14 +240,21 @@ export function CalendarPage() {
       <button key={`${e.scope}:${e.id}`} type="button" className={`${styles['ahead-row']} ${styles[`t-${toneKey(e)}`]} ${evMotion(e.id)}`} data-tap
         onClick={() => showEvent(e)}>
         {legendIcon(e) && <Icon name={legendIcon(e)!} size={16} inherit decorative className={styles['now-icon']} />}
-        <span className={styles['now-text']}>
-          <span className={styles['now-title']}>{e.title}</span>
-          {meta && <span className={styles['now-sub']}>{meta}</span>}
-        </span>
+        <span className={styles['now-text']}>{e.title}{meta && <span className={styles['now-meta']}> · {meta}</span>}</span>
         <span className={styles['now-when']}>{aheadDateLabel(row)}</span>
       </button>
     );
   };
+
+  const aheadCard = ahead.length > 0 && (
+    <section className={styles.card} data-cal-ahead>
+      <h2 className={styles['card-h']}>Попереду</h2>
+      {ahead.map(aheadRow)}
+      <button type="button" className={styles['card-more']} data-tap onClick={() => setAheadExtra((n) => n + 1)} data-cal-ahead-more>
+        Показати далі
+      </button>
+    </section>
+  );
 
   return (
     <div className={styles.screen}>
@@ -258,26 +285,30 @@ export function CalendarPage() {
             {now.length > 0 && (
               <section className={styles.card} data-cal-now>
                 <h2 className={styles['card-h']}>Зараз діє</h2>
-                {visibleNow.map(nowRow)}
-                {now.length > NOW_CAP && !nowExpanded && (
-                  <button type="button" className={styles['card-more']} data-tap onClick={() => setNowExpanded(true)}>
-                    Показати всі · {now.length}
-                  </button>
+                {grid ? (
+                  <div className={styles.chips}>{now.map(nowChip)}</div>
+                ) : (
+                  <>
+                    {visibleNow.map(nowRow)}
+                    {now.length > NOW_CAP && !nowExpanded && (
+                      <button type="button" className={styles['card-more']} data-tap onClick={() => setNowExpanded(true)}>
+                        Показати всі · {now.length}
+                      </button>
+                    )}
+                  </>
                 )}
               </section>
             )}
-            {ahead.length > 0 && (
-              <section className={styles.card} data-cal-ahead>
-                <h2 className={styles['card-h']}>Попереду</h2>
-                {ahead.map(aheadRow)}
-                <button type="button" className={styles['card-more']} data-tap onClick={() => setAheadExtra((n) => n + 1)} data-cal-ahead-more>
-                  Показати далі
-                </button>
-              </section>
-            )}
-            {grid && (
-              <CalendarGrid month={gridFrom} today={today} lasting={lasting} point={point} onOpen={showEvent} evMotion={evMotion} />
-            )}
+            {/* ≥1024 (структура 1b): «Попереду» і сітка — колонками поруч,
+                сітка розкрита завжди (немає перемикача — К4 деталь прибрана
+                на користь компактності). <1024 — сітки нема (К4), «Попереду»
+                своєю карткою під «Зараз діє». */}
+            {grid ? (
+              <div className={styles.columns}>
+                {aheadCard}
+                <CalendarGrid month={gridFrom} today={today} lasting={lasting} point={point} onOpen={showEvent} evMotion={evMotion} />
+              </div>
+            ) : aheadCard}
           </>
         )}
       </div>
