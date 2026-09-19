@@ -1,0 +1,288 @@
+<title>Календар: вісь днів</title>
+<style>
+:root{
+  --bg:#f6f4ef; --paper:#ffffff; --ink:#1e1c19; --ink-2:#5c5850; --ink-3:#9a958b;
+  --line:#e3dfd6; --line-2:#cfc9bd;
+  --sage:#8fae8b; --sage-bg:#e6efe3; --amber:#d9a441; --amber-bg:#f7ecd2; --plum:#8a5b8f; --plum-bg:#efe3f0;
+  --today:#1e1c19;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,"Inter",system-ui,"Segoe UI",sans-serif;
+}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans);padding-inline:24px;padding-block:32px 64px}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--ink-2);margin:0 0 28px;max-width:70ch}
+h2{font-size:17px;margin:44px 0 4px;display:flex;gap:10px;align-items:baseline}
+h2 .k{font:600 11px var(--mono);letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase}
+.why{color:var(--ink-2);margin:0 0 16px;max-width:80ch}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:20px;align-items:start}
+@media (max-width:900px){.pair{grid-template-columns:1fr}}
+.frame{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.frame .cap{font:600 10px var(--mono);letter-spacing:.08em;color:var(--ink-3);padding:6px 10px;border-bottom:1px dashed var(--line);text-transform:uppercase}
+.d{padding:14px;display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:14px}
+.m{padding:10px;display:flex;flex-direction:column;gap:10px}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.hdr b{font-size:15px}
+.ctl{display:flex;gap:6px}
+.btn{font-size:11px;padding:5px 9px;border-radius:7px;border:1px solid var(--line-2);background:var(--paper);white-space:nowrap}
+.btn.ink{background:var(--ink);color:#fff;border-color:var(--ink)}
+.zone{font:600 9px var(--mono);letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase;margin:0 0 6px}
+.today{border:1.5px solid var(--ink);border-radius:9px;padding:10px 12px;display:grid;gap:5px;margin-bottom:12px}
+.today .d1{display:flex;align-items:baseline;gap:8px}
+.today .d1 b{font-size:20px;letter-spacing:-.02em}
+.today .d1 span{color:var(--ink-2)}
+.row{display:flex;gap:8px;align-items:center;font-size:12px}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.sage{background:var(--sage)}.dot.amber{background:var(--amber)}.dot.plum{background:var(--plum)}.dot.ink{background:var(--ink)}
+.pips{display:inline-flex;gap:2px;margin-left:4px}
+.pips i{width:4px;height:4px;border-radius:50%;background:var(--line-2);display:block}
+.pips i.on{background:var(--plum)}
+.axis{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(58px,1fr);gap:6px;overflow:hidden;padding-top:12px}
+.stripe{position:absolute;top:0;height:5px;border-radius:3px}
+.stripe.plum{background:var(--plum)}.stripe.sage{background:var(--sage)}
+.stripe span{position:absolute;left:0;top:-1px;font:600 8px var(--mono);letter-spacing:.06em;color:#fff;padding:0 4px;line-height:7px;white-space:nowrap}
+.day{border:1px solid var(--line);border-radius:8px;padding:6px 7px;min-height:74px;display:grid;grid-template-rows:auto 1fr;gap:5px;background:var(--paper)}
+.day.empty{background:transparent;border-style:dashed;min-height:74px}
+.day.now{border-color:var(--ink);border-width:1.5px}
+.day.open{grid-column:span 2;background:var(--bg)}
+.day .n{display:flex;align-items:baseline;gap:4px}
+.day .n b{font-size:16px;letter-spacing:-.02em}
+.day .n s{text-decoration:none;color:var(--ink-3);font-size:10px}
+.day .it{display:flex;gap:4px;align-items:center;font-size:10px;line-height:1.2;color:var(--ink)}
+.day .it .dot{width:6px;height:6px}
+.day .more{font-size:10px;color:var(--ink-3)}
+.day .detail{font-size:10px;color:var(--ink-2);border-top:1px dashed var(--line);padding-top:4px;margin-top:2px}
+.next{border:1px dashed var(--line-2);border-radius:8px;display:grid;place-items:center;font-size:10px;color:var(--ink-2);text-align:center;padding:6px;min-height:74px}
+.side{display:grid;gap:12px;align-content:start}
+.card{border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.card .zone{margin-bottom:8px}
+.card .ctl{flex-direction:column;align-items:stretch}
+.card .btn{text-align:center}
+.grid-row{border:1px solid var(--line);border-radius:9px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-2)}
+.grid-row b{color:var(--ink);font-weight:600}
+.mini{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font:10px var(--mono);text-align:center}
+.mini .h{color:var(--ink-3);font-size:8px;padding-bottom:2px}
+.mini .c{aspect-ratio:1;display:grid;place-items:center;border-radius:5px;position:relative;color:var(--ink-2)}
+.mini .c.o{color:var(--line-2)}
+.mini .c.p{background:var(--plum-bg)}
+.mini .c.t{background:var(--ink);color:#fff;border-radius:50%}
+.mini .c.sel{outline:1.5px solid var(--ink);outline-offset:-1.5px}
+.mini .c em{position:absolute;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--ink)}
+.mini .c em.a{background:var(--amber)}
+.legend{font-size:9px;color:var(--ink-3);margin-top:6px;display:flex;gap:8px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;vertical-align:middle;margin-right:3px}
+.arrow{font-size:10px;color:var(--ink-2);margin-top:6px}
+/* mobile frame */
+.m .hdr{margin:0}
+.m .today{margin:0}
+.m .axis{grid-auto-columns:96px;overflow:visible}
+.m .axis .day{min-height:82px}
+.m .scroll{overflow:hidden;position:relative}
+.m .scroll:after{content:"";position:absolute;right:0;top:0;bottom:0;width:36px;background:linear-gradient(90deg,transparent,var(--paper))}
+.m .bar{display:flex;gap:6px}
+.m .bar .btn{flex:1;text-align:center}
+.notes{margin-top:44px;border-top:1px solid var(--line);padding-top:18px;max-width:80ch;color:var(--ink-2)}
+.notes b{color:var(--ink)}
+.notes ul{padding-left:18px;margin:6px 0 0}
+.notes li{margin:4px 0}
+</style>
+
+<h1>Календар: вісь днів — де жити сітці місяця</h1>
+<p class="lead">Спільне для всіх трьох: зверху «Сьогодні» одною карткою, під нею вісь 19–28 вересня картками з гортанням, керування («Каталог», «+ Своя подія») — окремо від подій. Тривалі періоди — смужкою над картками, а не текстом у кожній. Різниця — лише в тому, що з сіткою місяця. Схема, не макет: без справжніх токенів і знаків.</p>
+
+<!-- ============ А ============ -->
+<h2><span class="k">Опція А</span> Без сітки — вісь гортається далі</h2>
+<p class="why">Одна модель часу на екрані. Місяць — це та сама вісь, розгорнута в лінію: у кінці ряду «ще тиждень», і так до горизонту. Стрибнути на конкретну дату можна лише гортанням.</p>
+<div class="pair">
+  <div class="frame"><div class="cap">1440</div><div class="d">
+    <div>
+      <div class="hdr"><b>Календар · 19 вересня</b></div>
+      <p class="zone">Сьогодні</p>
+      <div class="today">
+        <div class="d1"><b>19</b><span>субота</span></div>
+        <div class="row"><i class="dot plum"></i>Без молочного · 5-й день з 21<span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="row"><i class="dot ink"></i>Гості на вечерю · 6 осіб</div>
+        <div class="row"><i class="dot sage"></i>Сезон: сливи (до 20.09), білі гриби, виноград +4</div>
+      </div>
+      <p class="zone">Далі</p>
+      <div class="axis">
+        <div class="stripe plum" style="left:0;right:0"><span>Без молочного · до 05.10</span></div>
+        <div class="stripe sage" style="left:0;width:calc(20% - 4px);top:6px"><span>сливи</span></div>
+        <div class="day now"><div class="n"><b>19</b><s>сб</s></div><div><div class="it"><i class="dot ink"></i>Гості · 6</div></div></div>
+        <div class="day"><div class="n"><b>20</b><s>нд</s></div><div><div class="it"><i class="dot sage"></i>сливи, кінець</div></div></div>
+        <div class="day empty"><div class="n"><b>21</b><s>пн</s></div></div>
+        <div class="day empty"><div class="n"><b>22</b><s>вт</s></div></div>
+        <div class="day open"><div class="n"><b>23</b><s>ср</s></div><div><div class="it"><i class="dot ink"></i>Мало часу</div><div class="detail">рамка дня · чат пропонує до 20 хв · діє: без молочного</div></div></div>
+        <div class="day empty"><div class="n"><b>24</b><s>чт</s></div></div>
+        <div class="day empty"><div class="n"><b>25</b><s>пт</s></div></div>
+        <div class="day empty"><div class="n"><b>26</b><s>сб</s></div></div>
+        <div class="day empty"><div class="n"><b>27</b><s>нд</s></div></div>
+        <div class="next">ще<br>тиждень →</div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card"><p class="zone">Керування</p><div class="ctl"><span class="btn">Каталог</span><span class="btn ink">+ Своя подія</span></div></div>
+    </div>
+  </div></div>
+  <div class="frame"><div class="cap">390</div><div class="m">
+    <div class="hdr"><b>Календар · 19 вер</b></div>
+    <div class="today">
+      <div class="d1"><b>19</b><span>субота</span></div>
+      <div class="row"><i class="dot plum"></i>Без молочного · 5-й з 21</div>
+      <div class="row"><i class="dot ink"></i>Гості · 6</div>
+      <div class="row"><i class="dot sage"></i>Сезон: сливи +6</div>
+    </div>
+    <p class="zone" style="margin:0">Далі</p>
+    <div class="scroll"><div class="axis">
+      <div class="stripe plum" style="left:0;right:-40px"><span>Без молочного</span></div>
+      <div class="day"><div class="n"><b>20</b><s>нд</s></div><div><div class="it"><i class="dot sage"></i>сливи, кінець</div></div></div>
+      <div class="day empty"><div class="n"><b>21</b><s>пн</s></div></div>
+      <div class="day empty"><div class="n"><b>22</b><s>вт</s></div></div>
+      <div class="day"><div class="n"><b>23</b><s>ср</s></div><div><div class="it"><i class="dot ink"></i>Мало часу</div></div></div>
+    </div></div>
+    <div class="bar"><span class="btn">Каталог</span><span class="btn ink">+ Своя</span></div>
+  </div></div>
+</div>
+
+<!-- ============ Б ============ -->
+<h2><span class="k">Опція Б</span> Сітка згорнутою довідкою</h2>
+<p class="why">Вісь — головна, сітка лишається як у 1c: один рядок «Сітка вересня» під керуванням, розкривається по тапу. Дві моделі часу на екрані, але друга захована. Найменший зсув від 2b.</p>
+<div class="pair">
+  <div class="frame"><div class="cap">1440</div><div class="d">
+    <div>
+      <div class="hdr"><b>Календар · 19 вересня</b></div>
+      <p class="zone">Сьогодні</p>
+      <div class="today">
+        <div class="d1"><b>19</b><span>субота</span></div>
+        <div class="row"><i class="dot plum"></i>Без молочного · 5-й день з 21</div>
+        <div class="row"><i class="dot ink"></i>Гості на вечерю · 6 осіб</div>
+        <div class="row"><i class="dot sage"></i>Сезон: сливи (до 20.09), білі гриби, виноград +4</div>
+      </div>
+      <p class="zone">Далі</p>
+      <div class="axis">
+        <div class="stripe plum" style="left:0;right:0"><span>Без молочного · до 05.10</span></div>
+        <div class="stripe sage" style="left:0;width:calc(20% - 4px);top:6px"><span>сливи</span></div>
+        <div class="day now"><div class="n"><b>19</b><s>сб</s></div><div><div class="it"><i class="dot ink"></i>Гості · 6</div></div></div>
+        <div class="day"><div class="n"><b>20</b><s>нд</s></div><div><div class="it"><i class="dot sage"></i>сливи, кінець</div></div></div>
+        <div class="day empty"><div class="n"><b>21</b><s>пн</s></div></div>
+        <div class="day empty"><div class="n"><b>22</b><s>вт</s></div></div>
+        <div class="day"><div class="n"><b>23</b><s>ср</s></div><div><div class="it"><i class="dot ink"></i>Мало часу</div></div></div>
+        <div class="day empty"><div class="n"><b>24</b><s>чт</s></div></div>
+        <div class="day empty"><div class="n"><b>25</b><s>пт</s></div></div>
+        <div class="day empty"><div class="n"><b>26</b><s>сб</s></div></div>
+        <div class="day empty"><div class="n"><b>27</b><s>нд</s></div></div>
+        <div class="day empty"><div class="n"><b>28</b><s>пн</s></div></div>
+      </div>
+      <div class="grid-row" style="margin-top:12px"><span><b>Сітка вересня</b> · якщо треба глянути дати</span><span>▾</span></div>
+    </div>
+    <div class="side">
+      <div class="card"><p class="zone">Керування</p><div class="ctl"><span class="btn">Каталог</span><span class="btn ink">+ Своя подія</span></div></div>
+    </div>
+  </div></div>
+  <div class="frame"><div class="cap">390</div><div class="m">
+    <div class="hdr"><b>Календар · 19 вер</b></div>
+    <div class="today">
+      <div class="d1"><b>19</b><span>субота</span></div>
+      <div class="row"><i class="dot plum"></i>Без молочного · 5-й з 21</div>
+      <div class="row"><i class="dot ink"></i>Гості · 6</div>
+      <div class="row"><i class="dot sage"></i>Сезон: сливи +6</div>
+    </div>
+    <p class="zone" style="margin:0">Далі</p>
+    <div class="scroll"><div class="axis">
+      <div class="stripe plum" style="left:0;right:-40px"><span>Без молочного</span></div>
+      <div class="day"><div class="n"><b>20</b><s>нд</s></div><div><div class="it"><i class="dot sage"></i>сливи, кінець</div></div></div>
+      <div class="day empty"><div class="n"><b>21</b><s>пн</s></div></div>
+      <div class="day empty"><div class="n"><b>22</b><s>вт</s></div></div>
+      <div class="day"><div class="n"><b>23</b><s>ср</s></div><div><div class="it"><i class="dot ink"></i>Мало часу</div></div></div>
+    </div></div>
+    <div class="grid-row"><span><b>Сітка вересня</b></span><span>▾</span></div>
+    <div class="bar"><span class="btn">Каталог</span><span class="btn ink">+ Своя</span></div>
+  </div></div>
+</div>
+
+<!-- ============ В ============ -->
+<h2><span class="k">Опція В</span> Міні-місяць як навігація</h2>
+<p class="why">Сітка не показує події — вона лише крапки й тон, як у фітнес-застосунках. Тап по дню прокручує вісь до нього. Найкраще для «стрибнути на 14.10»; ціна — ще один елемент у керуванні.</p>
+<div class="pair">
+  <div class="frame"><div class="cap">1440</div><div class="d">
+    <div>
+      <div class="hdr"><b>Календар · 19 вересня</b></div>
+      <p class="zone">Сьогодні</p>
+      <div class="today">
+        <div class="d1"><b>19</b><span>субота</span></div>
+        <div class="row"><i class="dot plum"></i>Без молочного · 5-й день з 21</div>
+        <div class="row"><i class="dot ink"></i>Гості на вечерю · 6 осіб</div>
+        <div class="row"><i class="dot sage"></i>Сезон: сливи (до 20.09), білі гриби, виноград +4</div>
+      </div>
+      <p class="zone">Далі · від 23.09</p>
+      <div class="axis">
+        <div class="stripe plum" style="left:0;right:0"><span>Без молочного · до 05.10</span></div>
+        <div class="day now" style="border-style:dashed;border-width:1px"><div class="n"><b>23</b><s>ср</s></div><div><div class="it"><i class="dot ink"></i>Мало часу</div></div></div>
+        <div class="day empty"><div class="n"><b>24</b><s>чт</s></div></div>
+        <div class="day empty"><div class="n"><b>25</b><s>пт</s></div></div>
+        <div class="day empty"><div class="n"><b>26</b><s>сб</s></div></div>
+        <div class="day empty"><div class="n"><b>27</b><s>нд</s></div></div>
+        <div class="day empty"><div class="n"><b>28</b><s>пн</s></div></div>
+        <div class="day"><div class="n"><b>29</b><s>вт</s></div><div><div class="it"><i class="dot ink"></i>Сільпо</div></div></div>
+        <div class="day"><div class="n"><b>30</b><s>ср</s></div><div><div class="it"><i class="dot plum"></i>Набір ваги, початок</div></div></div>
+        <div class="day empty"><div class="n"><b>1</b><s>чт</s></div></div>
+        <div class="day empty"><div class="n"><b>2</b><s>пт</s></div></div>
+      </div>
+      <p class="arrow">↑ вісь прокручена до 23 після тапу в міні-місяці</p>
+    </div>
+    <div class="side">
+      <div class="card"><p class="zone">Керування</p><div class="ctl"><span class="btn">Каталог</span><span class="btn ink">+ Своя подія</span></div></div>
+      <div class="card"><p class="zone">Вересень</p>
+        <div class="mini">
+          <div class="h">пн</div><div class="h">вт</div><div class="h">ср</div><div class="h">чт</div><div class="h">пт</div><div class="h">сб</div><div class="h">нд</div>
+          <div class="c o">31</div><div class="c">1</div><div class="c">2</div><div class="c">3</div><div class="c">4</div><div class="c">5</div><div class="c">6</div>
+          <div class="c">7</div><div class="c">8</div><div class="c">9</div><div class="c">10</div><div class="c">11</div><div class="c">12</div><div class="c">13</div>
+          <div class="c">14</div><div class="c p">15</div><div class="c p">16</div><div class="c p">17</div><div class="c p">18</div><div class="c t">19</div><div class="c p">20</div>
+          <div class="c p">21</div><div class="c p">22</div><div class="c p sel">23<em></em></div><div class="c p">24</div><div class="c p">25</div><div class="c p">26</div><div class="c p">27</div>
+          <div class="c p">28</div><div class="c p">29<em></em></div><div class="c p">30<em></em></div><div class="c o">1</div><div class="c o">2</div><div class="c o">3</div><div class="c o">4</div>
+        </div>
+        <div class="legend"><span><i style="background:var(--plum-bg)"></i>період</span><span><i style="background:var(--ink);border-radius:50%"></i>подія</span></div>
+      </div>
+    </div>
+  </div></div>
+  <div class="frame"><div class="cap">390</div><div class="m">
+    <div class="hdr"><b>Календар · 19 вер</b></div>
+    <div class="today">
+      <div class="d1"><b>19</b><span>субота</span></div>
+      <div class="row"><i class="dot plum"></i>Без молочного · 5-й з 21</div>
+      <div class="row"><i class="dot ink"></i>Гості · 6</div>
+      <div class="row"><i class="dot sage"></i>Сезон: сливи +6</div>
+    </div>
+    <div class="mini" style="padding:2px 0">
+      <div class="h">пн</div><div class="h">вт</div><div class="h">ср</div><div class="h">чт</div><div class="h">пт</div><div class="h">сб</div><div class="h">нд</div>
+      <div class="c p">14</div><div class="c p">15</div><div class="c p">16</div><div class="c p">17</div><div class="c p">18</div><div class="c t">19</div><div class="c p">20</div>
+      <div class="c p">21</div><div class="c p">22</div><div class="c p">23<em></em></div><div class="c p">24</div><div class="c p">25</div><div class="c p">26</div><div class="c p">27</div>
+    </div>
+    <p class="zone" style="margin:0">Далі</p>
+    <div class="scroll"><div class="axis">
+      <div class="stripe plum" style="left:0;right:-40px"><span>Без молочного</span></div>
+      <div class="day"><div class="n"><b>20</b><s>нд</s></div><div><div class="it"><i class="dot sage"></i>сливи, кінець</div></div></div>
+      <div class="day empty"><div class="n"><b>21</b><s>пн</s></div></div>
+      <div class="day empty"><div class="n"><b>22</b><s>вт</s></div></div>
+      <div class="day"><div class="n"><b>23</b><s>ср</s></div><div><div class="it"><i class="dot ink"></i>Мало часу</div></div></div>
+    </div></div>
+    <div class="bar"><span class="btn">Каталог</span><span class="btn ink">+ Своя</span></div>
+  </div></div>
+</div>
+
+<div class="notes">
+  <b>Що однакове в усіх трьох і вже вирішене</b>
+  <ul>
+    <li>«Сьогодні» — одна картка: дата, періоди з лічильником днів, події дня, сезони одним рядком.</li>
+    <li>Вісь 7–10 днів картками; порожній день — вузька пунктирна картка, вісь не рветься.</li>
+    <li>Тривалий період — смужка над картками наскрізь, текст один раз на початку; не повторюється в кожному дні.</li>
+    <li>Картка дня розкривається по тапу (23.09 в опції А показана розкритою); на 390 — шторка.</li>
+    <li>Керування окремо: на 1440 колонка праворуч, на 390 панель унизу.</li>
+    <li>Сезони в осі — лише кінець підписаного («сливи, кінець»), не початки й не всі сім.</li>
+  </ul>
+  <b>Що відрізняється</b>
+  <ul>
+    <li><b>А</b> — нема сітки; «ще тиждень» у кінці ряду. Найчистіша, але немає стрибка на дату.</li>
+    <li><b>Б</b> — сітка згорнута під віссю, як у 1c. Безпечно; сітка лишається тим самим полотном зі смугами, що на стенді.</li>
+    <li><b>В</b> — міні-місяць лише крапками й тоном, тап прокручує вісь. Один зайвий елемент, але сітка перестає бути другою моделлю часу.</li>
+  </ul>
+</div>
