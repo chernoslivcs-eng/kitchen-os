@@ -1,33 +1,35 @@
-// Календар v3 (макет 2b, спек 18.09) — переписано цілком.
+// Календар v3 — рішення власника 19.09, «мінімум» (К9, замінює К2–К5 і
+// бриф-3; схема ai 2/project/calendar-minimal-0919.html). Один спосіб
+// дивитись на час: картка «Сьогодні» + один список «Далі» + дві кнопки.
+// Макет у Claude Design не робився — екран збирається в коді з наявних
+// nowItems/aheadRows. Нема: сітки місяця, осі днів, міні-місяця, легенд,
+// чипів, «ще N», режимів Тиждень/Список (ці й раніші деталі — DEVIATIONS).
 //
-// Три блоки зверху вниз: «Зараз діє» (GET /v1/now — стан, суворі спершу),
-// «Попереду» (GET /v1/events — лише майбутнє, до горизонту, «показати
-// далі»), і згорнута сітка місяця-довідки (CalendarGrid, лише ≥1024 — К4).
-// Готування сьогодні в календар не потрапляє (К3): це «Дім зараз» і чат.
+// «Сьогодні» — завжди є: число (24px), «субота · сьогодні»; рядки строгі
+// періоди → точкові події дня → мʼякі періоди → один рядок «Сезон»
+// (розкриття — список сезонів). Обмеження — по тапу на рядок (артефакт
+// події), не в самій картці. Порожньо — «Нічого не діє».
 //
-// Два входи в шапці (рішення власника 19.09, замість одного «Додати» — К5):
-// «Каталог» відкриває PeriodSubscriptions на рівні пакетів; «+ Своя подія»
-// веде напряму в PeriodEvent створення, без проходу через каталог. Порожній
-// стан — та сама пара кнопок, тим самим стилем.
+// «Далі» — один список від завтра до кінця третього місяця (горизонт
+// aheadHorizon), роздільники місяців. Сезони — геть повністю, сьогоднішнє
+// — геть (воно в «Сьогодні»). Рядок-кінець — окремо, лише для власних
+// тривалих періодів.
 //
-// Клік-і-тягнути по днях і режими Місяць/Тиждень/Список — прибрані разом зі
-// старою сіткою-як-екраном (рішення власника, DEVIATIONS Р146): нова сітка —
-// лише довідка для очей, не поверхня для створення подій.
+// Клік по будь-якому рядку — той самий артефакт події, що з чату
+// (openNowItem/showEvent); «Сезон» — лише розкриває список на місці.
+// Кнопки «Каталог»/«+ Своя подія»: ≥768 — у шапці; <768 — панеллю під
+// списком (не дублюється в порожньому стані — там уже свої кнопки).
 
 import { Icon } from '../../components/Icon/Icon';
-import type { IconName } from '../../components/Icon/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { track } from '../../lib/track';
 import { api, type EventOccurrence, type NowItem, type OccasionSet } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import { toneKey } from '../../lib/tone';
-import { dayStart } from './days';
-import { legendIcon } from './legend';
-import { splitAxes } from '../../lib/spans';
 import {
-  nowProgress, nowWhen, NOW_TONE_ICON, toneOfNow, nowItemToEvent,
-  aheadRows, aheadDateLabel, aheadMeta, type AheadRow,
+  nowWhen, toneOfNow, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta,
+  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, dow, type AheadRow,
 } from './agenda';
 import { todayIso } from '../../lib/period';
 import { Sheet } from '../../components/Sheet/Sheet';
@@ -37,19 +39,21 @@ import { Toast } from '../../components/ErrorState/Toast';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton';
 import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
 import { usePanelStore, ARTIFACT_SIDE } from '../../store/panel';
-import { CalendarGrid } from './CalendarGrid';
 import styles from './Calendar.module.css';
 
-/** Сітка-довідка (К4) — лише ≥1024, як і колишня сітка місяця. */
-const GRID = '(min-width: 1024px)';
-const NOW_CAP = 4;
+/** Кнопки в шапці від 768; нижче — панеллю під списком. */
+const WIDE = '(min-width: 768px)';
 
-const monthStart = (at: number) => { const d = new Date(at); d.setDate(1); d.setHours(0, 0, 0, 0); return d.getTime(); };
-/** Кінець місяця, що настане через `months` місяців від `at` (1 = наступний). */
-const endOfMonthPlus = (at: number, months: number) => {
-  const d = new Date(at); d.setDate(1); d.setMonth(d.getMonth() + months + 1, 0); d.setHours(0, 0, 0, 0);
+function dayStart(at: number): number {
+  const d = new Date(at);
+  d.setHours(0, 0, 0, 0);
   return d.getTime();
-};
+}
+/** Називний («Жовтень») — роздільник місяця в «Далі», не родовий. */
+function monthName(at: number): string {
+  const m = new Date(at).toLocaleDateString('uk-UA', { month: 'long' });
+  return m.charAt(0).toUpperCase() + m.slice(1);
+}
 
 // Локальна дата в ISO — форма події живе в 'YYYY-MM-DD'.
 function isoOf(at: number): string {
@@ -108,18 +112,19 @@ export function CalendarPage() {
     setVersion((v) => v + 1);
   };
   const evMotion = (id: string) => `${leavingEvent === id ? styles['ev-leave'] : ''} ${flashEvent === id ? styles['ev-flash'] : ''}`;
-  // Нова подія: з кнопки шапки «+ Своя подія» (рішення власника 19.09), на сьогодні.
+  // Нова подія: з кнопки «+ Своя подія» (рішення власника 19.09), на сьогодні.
   const [creating, setCreating] = useState<{ date: string; dateTo: string } | null>(null);
   const openAfterCreate = useRef<string | null>(null);
+  const startOwn = () => { closePanel(); setCreating({ date: isoOf(today), dateTo: '' }); };
 
   useEffect(() => { track('calendar_opened'); }, []);
 
   const today = useMemo(() => dayStart(Date.now()), []);
   const todayIsoStr = useMemo(() => todayIso(new Date(today)), [today]);
-  // Родовий відмінок («18 вересня», не «18 вересень»): Intl дає його лише
-  // коли день і місяць форматуються РАЗОМ, тому не можна брати month:'long'
-  // окремо від day (той самий урок, що monthGenitive у CalendarGrid.tsx).
+  // Родовий відмінок («19 вересня», не «19 вересень»): Intl дає його лише
+  // коли день і місяць форматуються РАЗОМ.
   const headerDate = useMemo(() => new Date(today).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' }), [today]);
+  const todayWeekday = useMemo(() => new Date(today).toLocaleDateString('uk-UA', { weekday: 'long' }), [today]);
 
   const [loadFailed, setLoadFailed] = useState(false);
   useEffect(() => {
@@ -129,12 +134,10 @@ export function CalendarPage() {
       .finally(() => setNowLoaded(true));
   }, [version]);
 
-  // Горизонт «Попереду» — до кінця наступного місяця; «показати далі» додає ще один.
-  const [aheadExtra, setAheadExtra] = useState(0);
-  const gridFrom = useMemo(() => monthStart(today), [today]);
-  const horizon = useMemo(() => endOfMonthPlus(today, 1 + aheadExtra), [today, aheadExtra]);
+  // Горизонт «Далі» (К9) — кінець третього місяця після поточного, фіксовано.
+  const horizon = useMemo(() => aheadHorizon(today), [today]);
   useEffect(() => {
-    api.events.list(isoOf(gridFrom), isoOf(horizon))
+    api.events.list(isoOf(today), isoOf(horizon))
       .then(({ events: list }) => {
         setEvents(list);
         if (openAfterCreate.current) {
@@ -146,31 +149,31 @@ export function CalendarPage() {
       })
       .catch(() => setLoadFailed(true))
       .finally(() => setEventsLoaded(true));
-  }, [gridFrom, horizon, version]);
+  }, [today, horizon, version]);
 
-  const { lasting, point } = useMemo(() => splitAxes(events), [events]);
+  const { strict, soft, seasons } = useMemo(() => todayGroups(now), [now]);
+  const todayEvents = useMemo(() => todayPointEvents(events, today), [events, today]);
   const ahead = useMemo(() => aheadRows(events, today, horizon), [events, today, horizon]);
-  const [nowExpanded, setNowExpanded] = useState(false);
-  const visibleNow = nowExpanded ? now : now.slice(0, NOW_CAP);
-  const isEmpty = !loading && now.length === 0 && ahead.length === 0;
+  const [seasonOpen, setSeasonOpen] = useState(false);
+  const todaySummary = seasonSummary(seasons, todayIsoStr);
+  const todayEmpty = strict.length === 0 && soft.length === 0 && seasons.length === 0 && todayEvents.length === 0;
+  const pageEmpty = todayEmpty && ahead.length === 0;
 
-  // ОДИН обробник кліку по події на всю сторінку — «Зараз діє», «Попереду»
-  // й сітка ведуть в одне й те саме: власна відкривається на редагування,
-  // каталожна — PeriodEvent у режимі читання з «Не показувати» (як системні
-  // події в чаті). Каталог (рівень пакетів) — лише з «Додати» (ГОЛОВНИЙ ЧАТ
-  // 18.09, п.2, уточнено після живого перегляду власника). «Попереду»/сітка
-  // вже мають повний EventOccurrence — showEvent напряму; «Зараз діє» має
-  // лише NowItem, тож спершу шукає той самий об'єкт у вже завантаженому
-  // events (те, що бачить «Попереду» — гарантує однаковий артефакт з
-  // однакового occasion_id), а якщо не знайшла — не мовчить і не падає в
-  // каталог, а показує подію, зібрану напряму з NowItem (nowItemToEvent).
+  // ОДИН обробник кліку по події для «Сьогодні» й «Далі»: власна відкривається
+  // на редагування, каталожна — PeriodEvent у режимі читання з «Не показувати»
+  // (як системні події в чаті). Каталог (рівень пакетів) — лише з «Каталог»/
+  // «+ Своя подія» в шапці. «Далі» вже має повний EventOccurrence — showEvent
+  // напряму; «Сьогодні» має лише NowItem для періодів, тож спершу шукає той
+  // самий об'єкт у вже завантаженому events, а якщо не знайшла — показує
+  // подію, зібрану напряму з NowItem (nowItemToEvent) — клік ніколи не мовчить
+  // і ніколи не падає в каталог.
   const openNowItem = (it: NowItem) => {
     const key = it.source === 'user' ? it.id : it.occasion_id;
     const found = key ? events.find((e) => e.id === key) : undefined;
     showEvent(found ?? nowItemToEvent(it));
   };
 
-  const grid = useMedia(GRID);
+  const wide = useMedia(WIDE);
 
   // №34: праворуч (панель ≥1200, плавуча картка 600–1199), шторка лише < 600.
   const panel = usePanelStore();
@@ -202,61 +205,70 @@ export function CalendarPage() {
   }, [panelInFlow, openPanel]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps -- clear лише при розмонтуванні; panel — стабільний стор
 
-  // <1024: рядок 46px однорядковий — назва + дата, meaning геть
-  // (компактність, ГОЛОВНИЙ ЧАТ 18.09); прогрес — смужка на нижньому краю,
-  // не другий текстовий рядок.
-  const nowRow = (it: NowItem) => {
+  const periodRow = (it: NowItem) => {
     const tone = toneOfNow(it);
-    const p = nowProgress(it, todayIsoStr);
     const id = it.occasion_id ?? it.id ?? it.title;
     return (
-      <button key={`${id}:${it.from}`} type="button" className={`${styles['now-row']} ${styles[`t-${tone}`]} ${evMotion(id)}`} data-tap
-        onClick={() => openNowItem(it)}>
-        <Icon name={NOW_TONE_ICON[tone] as IconName} size={16} inherit decorative className={styles['now-icon']} />
-        <span className={styles['now-text']}>{it.title}</span>
-        <span className={styles['now-when']}>{nowWhen(it, todayIsoStr)}</span>
-        {p && <span className={styles['now-progress']}><i style={{ width: `${p.pct}%` }} /></span>}
+      <button key={`${id}:${it.from}`} type="button" className={`${styles['today-row']} ${evMotion(id)}`} data-tap onClick={() => openNowItem(it)}>
+        <span className={`${styles.dot} ${styles[`t-${tone}`]}`} aria-hidden />
+        <span className={styles['today-name']}>{it.title}</span>
+        <span className={styles['today-right']}>{nowWhen(it, todayIsoStr)}</span>
       </button>
     );
   };
 
-  // ≥1024: «Зараз діє» — чипи в ряд (структура 1b), назва + дата, без meaning.
-  const nowChip = (it: NowItem) => {
-    const tone = toneOfNow(it);
-    const id = it.occasion_id ?? it.id ?? it.title;
+  const pointRow = (e: EventOccurrence) => {
+    const meta = todayPointMeta(e);
     return (
-      <button key={`${id}:${it.from}`} type="button" className={`${styles.chip} ${styles[`t-${tone}`]} ${evMotion(id)}`} data-tap
-        onClick={() => openNowItem(it)}>
-        <Icon name={NOW_TONE_ICON[tone] as IconName} size={16} inherit decorative />
-        <span className={styles['chip-name']}>{it.title}</span>
-        <span className={styles['chip-when']}>{nowWhen(it, todayIsoStr)}</span>
+      <button key={`${e.scope}:${e.id}`} type="button" className={`${styles['today-row']} ${evMotion(e.id)}`} data-tap onClick={() => showEvent(e)}>
+        <span className={`${styles.dot} ${styles[`t-${toneKey(e)}`]}`} aria-hidden />
+        <span className={styles['today-name']}>{e.title}</span>
+        {meta && <span className={styles['today-right']}>{meta}</span>}
       </button>
     );
   };
 
-  // Усі ширини: «Попереду» — рядок 46px однорядковий, назва · мета в
-  // одному рядку, дата праворуч.
   const aheadRow = (row: AheadRow) => {
     const e = row.event;
     const meta = aheadMeta(row);
+    const at = aheadRowDate(row);
     return (
-      <button key={`${e.scope}:${e.id}`} type="button" className={`${styles['ahead-row']} ${styles[`t-${toneKey(e)}`]} ${evMotion(e.id)}`} data-tap
-        onClick={() => showEvent(e)}>
-        {legendIcon(e) && <Icon name={legendIcon(e)!} size={16} inherit decorative className={styles['now-icon']} />}
-        <span className={styles['now-text']}>{e.title}{meta && <span className={styles['now-meta']}> · {meta}</span>}</span>
-        <span className={styles['now-when']}>{aheadDateLabel(row)}</span>
+      <button key={`${row.kind}:${e.scope}:${e.id}`} type="button" className={`${styles.li} ${evMotion(e.id)}`} data-tap onClick={() => showEvent(e)}>
+        <span className={styles.dt}>{String(new Date(at).getDate()).padStart(2, '0')}<s>{dow(at)}</s></span>
+        <span className={styles.t}>
+          <span className={`${styles.dot} ${styles[`t-${toneKey(e)}`]}`} aria-hidden />
+          <span className={styles.name}>{e.title}</span>
+          {meta && <span className={styles.meta}>{meta}</span>}
+        </span>
       </button>
     );
   };
 
-  const aheadCard = ahead.length > 0 && (
-    <section className={styles.card} data-cal-ahead>
-      <h2 className={styles['card-h']}>Попереду</h2>
-      {ahead.map(aheadRow)}
-      <button type="button" className={styles['card-more']} data-tap onClick={() => setAheadExtra((n) => n + 1)} data-cal-ahead-more>
-        Показати далі
-      </button>
-    </section>
+  const daliRows = useMemo(() => {
+    const out: { key: string; el: React.ReactNode }[] = [];
+    let lastMonth = new Date(today).getMonth();
+    for (const row of ahead) {
+      const at = aheadRowDate(row);
+      const m = new Date(at).getMonth();
+      if (m !== lastMonth) {
+        lastMonth = m;
+        out.push({ key: `mon-${at}`, el: <div key={`mon-${at}`} className={styles.mon}>{monthName(at)}</div> });
+      }
+      out.push({ key: `${row.kind}:${row.event.id}`, el: aheadRow(row) });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- aheadRow нова щорендеру — перебудовуємо лише на зміну самих рядків
+  }, [ahead, today]);
+
+  const catalogBtn = (
+    <button type="button" className={styles['catalog-btn']} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій" data-cal-catalog>
+      <Icon name="sys.recipes" size={16} inherit decorative />Каталог
+    </button>
+  );
+  const ownBtn = (
+    <button type="button" className={styles.add} data-tap onClick={startOwn} aria-label="Своя подія" data-cal-add>
+      <Icon name="sys.add" size={16} inherit decorative />Своя подія
+    </button>
   );
 
   return (
@@ -267,58 +279,63 @@ export function CalendarPage() {
       <AppHeader
         title={`Календар · ${headerDate}`}
         onMenu={() => openNav(true)}
-        action={(
-          <>
-            <button type="button" className={styles['catalog-btn']} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій" data-cal-catalog>
-              <Icon name="sys.recipes" size={16} inherit decorative />Каталог
-            </button>
-            <button type="button" className={styles.add} data-tap onClick={() => { closePanel(); setCreating({ date: isoOf(today), dateTo: '' }); }} aria-label="Своя подія" data-cal-add>
-              <Icon name="sys.add" size={16} inherit decorative />Своя
-            </button>
-          </>
-        )}
+        action={wide ? <>{catalogBtn}{ownBtn}</> : undefined}
       />
       <div className={styles.body} data-testid="calendar-body">
-        {loading && !now.length && !events.length && <SkeletonRows rows={3} />}
-        {isEmpty && !loading && (
-          <div className={styles.empty} data-cal-empty>
-            <button type="button" className={styles['catalog-btn']} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій">
-              <Icon name="sys.recipes" size={16} inherit decorative />Каталог
-            </button>
-            <button type="button" className={styles['empty-btn']} data-tap onClick={() => { closePanel(); setCreating({ date: isoOf(today), dateTo: '' }); }} aria-label="Своя подія">
-              <Icon name="sys.add" size={18} inherit decorative />Своя подія
-            </button>
-          </div>
-        )}
-        {!isEmpty && (
+        {loading && !now.length && !events.length ? <SkeletonRows rows={3} /> : (
           <>
-            {now.length > 0 && (
-              <section className={styles.card} data-cal-now>
-                <h2 className={styles['card-h']}>Зараз діє</h2>
-                {grid ? (
-                  <div className={styles.chips}>{now.map(nowChip)}</div>
-                ) : (
-                  <>
-                    {visibleNow.map(nowRow)}
-                    {now.length > NOW_CAP && !nowExpanded && (
-                      <button type="button" className={styles['card-more']} data-tap onClick={() => setNowExpanded(true)}>
-                        Показати всі · {now.length}
-                      </button>
-                    )}
-                  </>
-                )}
-              </section>
-            )}
-            {/* ≥1024 (структура 1b): «Попереду» і сітка — колонками поруч,
-                сітка розкрита завжди (немає перемикача — К4 деталь прибрана
-                на користь компактності). <1024 — сітки нема (К4), «Попереду»
-                своєю карткою під «Зараз діє». */}
-            {grid ? (
-              <div className={styles.columns}>
-                {aheadCard}
-                <CalendarGrid month={gridFrom} today={today} lasting={lasting} point={point} onOpen={showEvent} evMotion={evMotion} />
+            <section className={styles.today} data-cal-today>
+              <div className={styles['today-head']}>
+                <b className={styles['today-num']}>{new Date(today).getDate()}</b>
+                <span className={styles['today-sub']}>{todayWeekday} · сьогодні</span>
               </div>
-            ) : aheadCard}
+              {todayEmpty ? (
+                <div className={`${styles['today-row']} ${styles['today-empty']}`} data-cal-today-empty>Нічого не діє</div>
+              ) : (
+                <>
+                  {strict.map(periodRow)}
+                  {todayEvents.map(pointRow)}
+                  {soft.map(periodRow)}
+                  {seasons.length > 0 && (
+                    <div data-cal-season>
+                      <button type="button" className={styles['today-row']} data-tap onClick={() => setSeasonOpen((o) => !o)} data-cal-season-toggle>
+                        <span className={`${styles.dot} ${styles['dot-outline']}`} aria-hidden />
+                        <span className={styles['today-name']}>{seasonOpen ? 'Сезон' : todaySummary}</span>
+                        <Icon name={seasonOpen ? 'sys.opened' : 'sys.next'} size={12} inherit decorative className={styles['today-chevron']} />
+                      </button>
+                      {seasonOpen && seasons.map((s) => (
+                        <button key={s.occasion_id ?? s.title} type="button" className={`${styles['today-row']} ${styles['today-row-sub']}`} data-tap onClick={() => openNowItem(s)}>
+                          <span className={styles['today-name']}>{s.title}</span>
+                          <span className={styles['today-right']}>{nowWhen(s, todayIsoStr)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
+
+            {ahead.length > 0 ? (
+              <section data-cal-ahead>
+                <p className={styles.zone}>Далі</p>
+                <div className={styles.list}>{daliRows.map((r) => r.el)}</div>
+              </section>
+            ) : pageEmpty && (
+              <div className={styles['empty-block']} data-cal-empty>
+                <p>Підпишись на свята або сезони, або додай свою подію — тут буде видно, що попереду.</p>
+                <div className={styles['empty-btns']}>
+                  {catalogBtn}
+                  {ownBtn}
+                </div>
+              </div>
+            )}
+
+            {!wide && !pageEmpty && (
+              <div className={styles['btn-row']} data-cal-btn-row>
+                {catalogBtn}
+                {ownBtn}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nowProgress, nowWhen, aheadRows, aheadDateLabel, aheadMeta, bandLabel, nowItemToEvent,
+  nowProgress, nowWhen, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta,
+  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
 
-// Сьогодні пт 18.09.2026 (наповнення спеки 18.09, К8).
+// Сьогодні пт 18.09.2026 (наповнення спеки 18.09, К8) — крім блоків «Далі»/
+// «Сьогодні» (К9, 19.09), де сьогодні — субота 19.09, як у calendar-minimal-0919.html.
 const at = (off: number, h = 0) => new Date(2026, 8, 18 + off, h).getTime();
 const today = new Date(2026, 8, 18).getTime();
 
@@ -47,117 +49,6 @@ describe('nowWhen', () => {
   });
 });
 
-describe('aheadRows: лише майбутнє', () => {
-  // Уточнення К3 (ГОЛОВНИЙ ЧАТ, живі дані 18.09): «готування сьогодні —
-  // геть» — це сесія готування в процесі (cook-session, не /v1/events), НЕ
-  // заплановані вечері/гості дому (kind 'meal', власна подія з датою). Такі
-  // йдуть звичайним рядком «Попереду» — «19.09 сб · Гості на вечерю · 6 осіб».
-  it('kind meal у майбутньому (гості на вечерю) — попереду, як звичайна одноденна', () => {
-    const rows = aheadRows([ev(1, 1, { kind: 'meal', title: 'Гості на вечерю', servings: 6 })], today, at(60));
-    expect(rows).toEqual([{ event: expect.objectContaining({ title: 'Гості на вечерю' }), endingSoon: false }]);
-  });
-  it('kind meal сьогодні — не попереду (те саме правило, що для будь-якого кінду)', () => {
-    const rows = aheadRows([ev(0, 0, { kind: 'meal', title: 'Панкейки' })], today, at(60));
-    expect(rows).toEqual([]);
-  });
-  it('минуле (кінець раніше за сьогодні) — геть', () => {
-    const rows = aheadRows([ev(-10, -2, { title: 'минуле' })], today, at(60));
-    expect(rows).toEqual([]);
-  });
-  it('за межею горизонту — геть', () => {
-    const rows = aheadRows([ev(90, 90, { title: 'далеко' })], today, at(60));
-    expect(rows).toEqual([]);
-  });
-  it('одноденна в майбутньому — попереду', () => {
-    const rows = aheadRows([ev(1, 1, { title: 'Гості' })], today, at(60));
-    expect(rows).toEqual([{ event: expect.objectContaining({ title: 'Гості' }), endingSoon: false }]);
-  });
-  it('тривала, що ще не почалась — попереду, endingSoon false', () => {
-    const rows = aheadRows([ev(12, 42, { title: 'Набір ваги' })], today, at(60));
-    expect(rows).toEqual([{ event: expect.objectContaining({ title: 'Набір ваги' }), endingSoon: false }]);
-  });
-  it('тривала, що вже триває і скінчиться в горизонті — endingSoon true', () => {
-    const rows = aheadRows([ev(-20, 3, { title: 'Сливи' })], today, at(60));
-    expect(rows).toEqual([{ event: expect.objectContaining({ title: 'Сливи' }), endingSoon: true }]);
-  });
-  it('тривала, що вже триває і закінчується СЬОГОДНІ — не попереду (це «зараз»)', () => {
-    const rows = aheadRows([ev(-20, 0, { title: 'кінчається сьогодні' })], today, at(60));
-    expect(rows).toEqual([]);
-  });
-  it('одноденна подія сьогодні — не попереду', () => {
-    const rows = aheadRows([ev(0, 0, { title: 'сьогодні' })], today, at(60));
-    expect(rows).toEqual([]);
-  });
-  it('сортування — за релевантною датою (старт для майбутніх, кінець для тих, що добігають)', () => {
-    const rows = aheadRows([
-      ev(20, 20, { title: 'B' }),
-      ev(-5, 2, { title: 'A-ending' }),
-      ev(1, 1, { title: 'C' }),
-    ], today, at(60));
-    expect(rows.map((r) => r.event.title)).toEqual(['C', 'A-ending', 'B']);
-  });
-});
-
-describe('aheadDateLabel / aheadMeta', () => {
-  it('тривала майбутня — «старт → кінець · N днів»', () => {
-    const row = { event: ev(12, 42, { title: 'Набір ваги' }), endingSoon: false };
-    expect(aheadDateLabel(row)).toBe('30.09 – 30.10 · 31 день');
-  });
-  it('одноденна майбутня — «дата день-тижня»', () => {
-    const row = { event: ev(1, 1, { title: 'Гості' }), endingSoon: false };
-    expect(aheadDateLabel(row)).toBe('19.09 сб');
-  });
-  it('endingSoon — дата кінця, «останні дні»', () => {
-    const row = { event: ev(-20, 3, { title: 'Сливи' }), endingSoon: true };
-    expect(aheadDateLabel(row)).toBe('21.09 пн');
-    expect(aheadMeta(row)).toBe('останні дні');
-  });
-  it('мета — restricts, інакше кількість гостей, інакше нічого', () => {
-    const withRestricts = { event: ev(70, 109, { title: 'Різдвяний піст', restricts: 'без мʼяса, риби, молочного і яєць' }), endingSoon: false };
-    expect(aheadMeta(withRestricts)).toBe('без мʼяса, риби, молочного і яєць');
-    const withGuests = { event: ev(1, 1, { title: 'Гості', servings: 6 }), endingSoon: false };
-    expect(aheadMeta(withGuests)).toBe('6 осіб');
-    const plain = { event: ev(11, 11, { title: 'Покрова' }), endingSoon: false };
-    expect(aheadMeta(plain)).toBeNull();
-  });
-});
-
-// К7-бис (ГОЛОВНИЙ ЧАТ, живі дані 18.09): смуга в сітці мала колір і без
-// підпису — незрозуміло, яка лінія що. Мокет (weeks2/bandDefs) рахує label
-// окремо на кожному тижні: повна назва + дата на ≥3-денному сегменті,
-// сама назва — на 1–2 днях.
-describe('bandLabel: підпис смуги в сітці, за тижнем окремо', () => {
-  const todayIso = new Date(2026, 8, 18).getTime();
-
-  it('сегмент 1–2 дні (тісно) — лише назва, без дати', () => {
-    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 1, todayIso)).toBe('Без молочного');
-    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 2, todayIso)).toBe('Без молочного');
-  });
-
-  it('сегмент ≥3 дні, подія вже почалась — «назва · до <кінець>»', () => {
-    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 3, todayIso)).toBe('Без молочного · до 05.10');
-    expect(bandLabel({ title: 'Без молочного', start: at(-3), end: at(17) }, 7, todayIso)).toBe('Без молочного · до 05.10');
-  });
-
-  it('сегмент ≥3 дні, подія ще не почалась — «назва · старт – кінець»', () => {
-    expect(bandLabel({ title: 'Набір ваги', start: at(12), end: at(42) }, 5, todayIso)).toBe('Набір ваги · 30.09 – 30.10');
-  });
-
-  it('≈ — коли дати приблизні (наближений піст)', () => {
-    expect(bandLabel({ title: 'Різдвяний піст', start: at(-3), end: at(17), approx: true }, 4, todayIso)).toBe('Різдвяний піст · до ≈ 05.10');
-    expect(bandLabel({ title: 'Різдвяний піст', start: at(12), end: at(42), approx: true }, 4, todayIso)).toBe('Різдвяний піст · 30.09 – ≈ 30.10');
-  });
-
-  it('той самий підпис на кожному тижні — не лише на першому (мокет рахує label per-week)', () => {
-    const e = { title: 'Без молочного', start: at(-3), end: at(17) };
-    // Тиждень посередині діапазону — теж повний підпис, якщо сегмент ≥3 дні.
-    expect(bandLabel(e, 5, todayIso)).toBe('Без молочного · до 05.10');
-  });
-});
-
-// Уточнення ГОЛОВНИЙ ЧАТ 18.09 (К2): резервний шлях openNowItem() —
-// перетворення NowItem в EventOccurrence напряму, без пошуку в events,
-// щоб клік по «Зараз діє» ніколи не мовчав і не падав у каталог.
 describe('nowItemToEvent: NowItem → EventOccurrence (резервний шлях кліку)', () => {
   it('власна подія (source user) — id справжній, scope household, rule_text лишається rule_text', () => {
     const it_: NowItem = {
@@ -174,7 +65,7 @@ describe('nowItemToEvent: NowItem → EventOccurrence (резервний шля
     expect(e.to).toBe('2026-09-26');
   });
 
-  it('каталожна подія (source catalog) — id з occasion_id, scope catalog, rule_text → restricts (readonly «Правило» читає саме restricts)', () => {
+  it('каталожна подія (source catalog) — id з occasion_id, scope catalog, rule_text → restricts', () => {
     const it_: NowItem = {
       kind: 'season', title: 'Сливи', from: '2026-07-20', to: '2026-09-21', strict: false,
       source: 'catalog', occasion_id: 'plum', meaning: 'сливи в пріоритеті', approx: true,
@@ -183,7 +74,7 @@ describe('nowItemToEvent: NowItem → EventOccurrence (резервний шля
     expect(e.id).toBe('plum');
     expect(e.scope).toBe('catalog');
     expect(e.force).toBe('hint');
-    expect(e.restricts).toBeNull(); // без rule_text — restricts явно null, не відсутнє
+    expect(e.restricts).toBeNull();
     expect(e.meaning).toBe('сливи в пріоритеті');
     expect(e.approx).toBe(true);
   });
@@ -201,5 +92,159 @@ describe('nowItemToEvent: NowItem → EventOccurrence (резервний шля
   it('гості (source user, servings) — servings переносяться', () => {
     const it_: NowItem = { kind: 'custom', title: 'Гості', from: '2026-09-18', to: '2026-09-18', strict: false, source: 'user', id: 'guests1', servings: 6 };
     expect(nowItemToEvent(it_).servings).toBe(6);
+  });
+});
+
+describe('todayGroups: строгі / мʼякі періоди / сезони (К9)', () => {
+  const strictDiet: NowItem = { kind: 'diet', title: 'Без молочного', from: '2026-09-15', to: '2026-10-05', strict: true, source: 'user' };
+  const softDiet: NowItem = { kind: 'diet', title: 'Набір ваги', from: '2026-08-01', to: '2026-10-30', strict: false, source: 'user' };
+  const season: NowItem = { kind: 'season', title: 'Сливи', from: '2026-07-20', to: '2026-09-21', strict: false, source: 'catalog' };
+  const oneDay: NowItem = { kind: 'custom', title: 'Гості', from: '2026-09-18', to: '2026-09-18', strict: false, source: 'user' };
+
+  it('ділить на строгі/мʼякі періоди (from ≠ to, не сезон) і сезони; одноденні — геть (вони з events)', () => {
+    const g = todayGroups([strictDiet, softDiet, season, oneDay]);
+    expect(g.strict.map((i) => i.title)).toEqual(['Без молочного']);
+    expect(g.soft.map((i) => i.title)).toEqual(['Набір ваги']);
+    expect(g.seasons.map((i) => i.title)).toEqual(['Сливи']);
+  });
+
+  it('порожньо — усі три групи порожні', () => {
+    const g = todayGroups([]);
+    expect(g.strict).toEqual([]); expect(g.soft).toEqual([]); expect(g.seasons).toEqual([]);
+  });
+});
+
+describe('todayPointEvents / todayPointMeta', () => {
+  it('лише одноденні, чий день — сьогодні', () => {
+    const guests = ev(0, 0, { title: 'Гості', servings: 6 });
+    const tomorrow = ev(1, 1, { title: 'Завтра' });
+    const lastingToday = ev(0, 5, { title: 'Тривала' });
+    expect(todayPointEvents([guests, tomorrow, lastingToday], today).map((e) => e.title)).toEqual(['Гості']);
+  });
+
+  it('мета: гості — «N осіб», constraint — «рамка дня», supply — «постачання», custom без servings — null', () => {
+    expect(todayPointMeta({ kind: 'custom', servings: 6 })).toBe('6 осіб');
+    expect(todayPointMeta({ kind: 'constraint', servings: null })).toBe('рамка дня');
+    expect(todayPointMeta({ kind: 'supply', servings: null })).toBe('постачання');
+    expect(todayPointMeta({ kind: 'custom', servings: null })).toBeNull();
+  });
+});
+
+describe('seasonSummary', () => {
+  const s = (title: string, to: string): NowItem => ({ kind: 'season', title, from: '2026-06-01', to, strict: false, source: 'catalog' });
+
+  it('нема сезонів — null', () => {
+    expect(seasonSummary([], '2026-09-19')).toBeNull();
+  });
+  it('один сезон — назва й дата, без «+N»', () => {
+    expect(seasonSummary([s('Сливи', '2026-09-20')], '2026-09-19')).toBe('Сезон: Сливи (до 20.09)');
+  });
+  it('три сезони — усі поіменно, без «+N»', () => {
+    const out = seasonSummary([s('Сливи', '2026-09-20'), s('Білі гриби', '2026-11-01'), s('Виноград', '2026-10-15')], '2026-09-19');
+    expect(out).toBe('Сезон: Сливи (до 20.09), Білі гриби, Виноград');
+  });
+  it('більше трьох — перший з датою, далі два імені, решта «+N»', () => {
+    const seasons = [
+      s('Сливи', '2026-09-20'), s('Пік овочевого', '2026-09-20'), s('Кавуни', '2026-09-30'),
+      s('Виноград', '2026-10-15'), s('Білі гриби', '2026-11-01'), s('Опеньки', '2026-11-01'), s('Журавлина', '2026-11-01'),
+    ];
+    expect(seasonSummary(seasons, '2026-09-19')).toBe('Сезон: Сливи (до 20.09), Пік овочевого, Кавуни +4');
+  });
+});
+
+describe('aheadHorizon: кінець третього місяця після поточного', () => {
+  it('вересень → 31 грудня', () => {
+    const d = new Date(aheadHorizon(new Date(2026, 8, 19).getTime()));
+    expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2026, 11, 31]);
+  });
+});
+
+// Сьогодні субота 19.09.2026 (К9, той самий день, що в мокеті).
+const at9 = (off: number, h = 0) => new Date(2026, 8, 19 + off, h).getTime();
+const today9 = new Date(2026, 8, 19).getTime();
+const horizon9 = aheadHorizon(today9); // 31.12.2026
+const ev9 = (from: number, to: number, over: Partial<EventOccurrence> = {}): EventOccurrence => ({
+  id: over.title ?? `e${from}-${to}`, scope: 'household', kind: 'custom',
+  title: over.title ?? 'подія', start: at9(from), end: at9(to, 23), force: 'hint', ...over,
+});
+
+describe('aheadRows (К9): сезони геть, сьогодні геть, кінець лише для власних тривалих', () => {
+  it('сезон — жодного рядка, навіть якщо стартує чи закінчується в горизонті', () => {
+    const season = ev9(5, 40, { kind: 'season', scope: 'catalog', title: 'Хурма' });
+    expect(aheadRows([season], today9, horizon9)).toEqual([]);
+  });
+
+  it('стартує сьогодні — не в «Далі» (воно в «Сьогодні»)', () => {
+    const today_ = ev9(0, 0, { title: 'Гості сьогодні' });
+    expect(aheadRows([today_], today9, horizon9)).toEqual([]);
+  });
+
+  it('власна одноденна в майбутньому — рядок-старт', () => {
+    const guests = ev9(4, 4, { title: 'Гості на вечерю', servings: 6 });
+    const rows = aheadRows([guests], today9, horizon9);
+    expect(rows).toEqual([{ event: expect.objectContaining({ title: 'Гості на вечерю' }), kind: 'start' }]);
+  });
+
+  it('каталожне свято (tradition, одноденне) — рядок-старт, без кінця', () => {
+    const feast = ev9(25, 25, { kind: 'tradition', scope: 'catalog', title: 'Покрова' });
+    expect(aheadRows([feast], today9, horizon9)).toEqual([{ event: expect.objectContaining({ title: 'Покрова' }), kind: 'start' }]);
+  });
+
+  it('власний тривалий період, УЖЕ діє (старт у минулому) — лише рядок-кінець', () => {
+    const diet = ev9(-14, 16, { kind: 'diet', title: 'Без молочного' }); // старт до сьогодні, кінець у горизонті
+    expect(aheadRows([diet], today9, horizon9)).toEqual([{ event: expect.objectContaining({ title: 'Без молочного' }), kind: 'end' }]);
+  });
+
+  it('власний тривалий період, СТАРТУЄ в горизонті — рядок-старт І рядок-кінець (обидва)', () => {
+    const weight = ev9(11, 41, { kind: 'diet', title: 'Набір ваги' });
+    const rows = aheadRows([weight], today9, horizon9);
+    expect(rows.map((r) => r.kind)).toEqual(['start', 'end']);
+    expect(rows.every((r) => r.event.title === 'Набір ваги')).toBe(true);
+  });
+
+  it('каталожний тривалий (піст) — лише рядок-старт, кінця нема НІКОЛИ', () => {
+    const fast = ev9(70, 109, { kind: 'tradition', scope: 'catalog', force: 'restrict', title: 'Різдвяний піст', restricts: 'без мʼяса, риби, молочного і яєць' });
+    const rows = aheadRows([fast], today9, horizon9);
+    expect(rows).toEqual([{ event: expect.objectContaining({ title: 'Різдвяний піст' }), kind: 'start' }]);
+  });
+
+  it('сортування — за релевантною датою рядка (старт для start, кінець для end)', () => {
+    const b = ev9(20, 20, { title: 'B' });
+    const aEnd = ev9(-5, 2, { kind: 'diet', title: 'A-кінець' }); // діє, кінець за 2 дні
+    const c = ev9(1, 1, { title: 'C' });
+    const rows = aheadRows([b, aEnd, c], today9, horizon9);
+    expect(rows.map((r) => r.event.title)).toEqual(['C', 'A-кінець', 'B']);
+  });
+
+  it('за межею горизонту — жодного рядка', () => {
+    const far = ev9(120, 120, { title: 'Далеко' });
+    expect(aheadRows([far], today9, horizon9)).toEqual([]);
+  });
+});
+
+describe('aheadRowDate / aheadMeta', () => {
+  it('start — дата старту; end — дата кінця, мета «кінець»', () => {
+    const e = ev9(11, 41, { kind: 'diet', title: 'Набір ваги' });
+    const startRow = { event: e, kind: 'start' as const };
+    const endRow = { event: e, kind: 'end' as const };
+    expect(aheadRowDate(startRow)).toBe(e.start);
+    expect(aheadRowDate(endRow)).toBe(e.end);
+    expect(aheadMeta(endRow)).toBe('кінець');
+  });
+
+  it('тривала-старт — «до <кінець> · N днів · <rule_text>»', () => {
+    const e = ev9(11, 41, { kind: 'diet', title: 'Набір ваги', rule_text: 'калорійніше' });
+    expect(aheadMeta({ event: e, kind: 'start' })).toBe('до 30.10 · 31 день · калорійніше');
+  });
+
+  it('каталожний пост-старт — «до <кінець> · N днів · <restricts>»', () => {
+    const e = ev9(70, 109, { kind: 'tradition', scope: 'catalog', title: 'Різдвяний піст', restricts: 'без мʼяса, риби, молочного і яєць' });
+    expect(aheadMeta({ event: e, kind: 'start' })).toBe('до 06.01 · 40 днів · без мʼяса, риби, молочного і яєць');
+  });
+
+  it('одноденна-старт — рід за kind/гості; каталожне свято без деталей — null', () => {
+    expect(aheadMeta({ event: ev9(4, 4, { title: 'Гості', servings: 6 }), kind: 'start' })).toBe('6 осіб');
+    expect(aheadMeta({ event: ev9(4, 4, { kind: 'constraint', title: 'Мало часу' }), kind: 'start' })).toBe('рамка дня');
+    expect(aheadMeta({ event: ev9(25, 25, { kind: 'tradition', scope: 'catalog', title: 'Покрова' }), kind: 'start' })).toBeNull();
   });
 });

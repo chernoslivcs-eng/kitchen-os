@@ -13,11 +13,11 @@ import { usePanelStore } from '../../store/panel';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-// Спек 18.09 (2b): сьогодні пʼт 18.09.2026 — ті самі числа, що в agenda.test.ts
-// і в наповненні макета («4-й день з 21», «21.09 пн», «31 день»).
-const FIXED_NOW = '2026-09-18T10:00:00';
+// К9 (рішення 19.09, «мінімум»): сьогодні субота 19.09.2026 — той самий
+// день, що в calendar-minimal-0919.html.
+const FIXED_NOW = '2026-09-19T10:00:00';
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const day = (offset: number, h = 0) => { const d = new Date(2026, 8, 18, h); d.setDate(d.getDate() + offset); return d; };
+const day = (offset: number, h = 0) => { const d = new Date(2026, 8, 19, h); d.setDate(d.getDate() + offset); return d; };
 
 function jsonRes(b: unknown, status = 200) {
   return new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } });
@@ -48,31 +48,36 @@ describe('CalendarPage · збій завантаження', () => {
   });
 });
 
-// Наповнення 2b (К8, 18.09 вечір; уточнено ГОЛОВНИЙ ЧАТ після живих даних
-// на стенді): «Без молочного» — своя дієта, вже діє; Сливи — сезон, добігає;
-// «Гості на вечерю» 19.09 — kind 'meal' (запланована вечеря дому, як у
-// реальному наповненні!), одноденна попереду; Набір ваги — тривала попереду;
-// «Панкейки» — теж kind 'meal', але СЬОГОДНІ: не попереду (це «зараз», не
-// «готування в процесі» — те окреме поняття живе в cook-session, geть з
-// календаря взагалі, тут не фігурує).
+// Наповнення К9 (той самий зміст, що в calendar-minimal-0919.html, дати
+// перераховані на офсети від «сьогодні» 19.09): «Без молочного» — власна
+// строга дієта, вже діє, кінець 05.10 (у «Далі» — рядок-кінець); «Гості на
+// вечерю» — точкова подія СЬОГОДНІ (в «Сьогодні», не в «Далі»); «Мало часу» /
+// «Замовлення Сільпо» — одноденні в майбутньому; «Набір ваги» — власний
+// період, СТАРТУЄ в горизонті (рядок-старт І рядок-кінець); «Покрова» —
+// каталожне свято; «Різдвяний піст» — каталожний тривалий (лише старт);
+// «Сливи»/«Білі гриби» — сезони (лише в «Сьогодні», геть з «Далі»).
 function fixtureNow() {
   return [
-    { kind: 'diet', title: 'Без молочного', from: iso(day(-3)), to: iso(day(17)), strict: true, source: 'user', id: 'diet1', rule_text: 'без молока, сирів, вершків' },
-    { kind: 'season', title: 'Сливи', from: iso(day(-60)), to: iso(day(3)), strict: false, source: 'catalog', occasion_id: 'plum', meaning: 'сливи в пріоритеті' },
+    { kind: 'diet', title: 'Без молочного', from: iso(day(-4)), to: iso(day(16)), strict: true, source: 'user', id: 'diet1', rule_text: 'без молока, сирів, вершків' },
+    { kind: 'season', title: 'Сливи', from: iso(day(-60)), to: iso(day(1)), strict: false, source: 'catalog', occasion_id: 'season-plum', meaning: 'сливи в пріоритеті' },
+    { kind: 'season', title: 'Білі гриби', from: iso(day(-10)), to: iso(day(43)), strict: false, source: 'catalog', occasion_id: 'mushroom' },
   ];
 }
 function fixtureEvents() {
   return [
-    { id: 'diet1', scope: 'household', kind: 'diet', title: 'Без молочного', start: day(-3).getTime(), end: day(17, 23).getTime(), force: 'restrict', strict: true, from: iso(day(-3)), to: iso(day(17)), rule_text: 'без молока, сирів, вершків' },
-    { id: 'plum', scope: 'catalog', kind: 'season', title: 'Сливи', start: day(-60).getTime(), end: day(3, 23).getTime(), force: 'hint', from: iso(day(-60)), to: iso(day(3)) },
-    { id: 'guests', scope: 'household', kind: 'meal', title: 'Гості на вечерю', start: day(1).getTime(), end: day(1, 23).getTime(), force: 'hint', servings: 6 },
-    { id: 'weight', scope: 'household', kind: 'diet', title: 'Набір ваги', start: day(12).getTime(), end: day(42, 23).getTime(), force: 'hint', from: iso(day(12)), to: iso(day(42)) },
-    { id: 'pancakes', scope: 'household', kind: 'meal', title: 'Панкейки', start: day(0).getTime(), end: day(0, 23).getTime(), force: 'hint' },
+    { id: 'guests', scope: 'household', kind: 'custom', title: 'Гості на вечерю', start: day(0).getTime(), end: day(0, 23).getTime(), force: 'hint', servings: 6 },
+    { id: 'notime', scope: 'household', kind: 'constraint', title: 'Мало часу', start: day(4).getTime(), end: day(4, 23).getTime(), force: 'hint' },
+    { id: 'silpo', scope: 'household', kind: 'supply', title: 'Замовлення Сільпо', start: day(10).getTime(), end: day(10, 23).getTime(), force: 'hint' },
+    { id: 'weight', scope: 'household', kind: 'diet', title: 'Набір ваги', start: day(11).getTime(), end: day(41, 23).getTime(), force: 'hint', rule_text: 'калорійніше' },
+    { id: 'diet1', scope: 'household', kind: 'diet', title: 'Без молочного', start: day(-4).getTime(), end: day(16, 23).getTime(), force: 'restrict', strict: true, rule_text: 'без молока, сирів, вершків' },
+    { id: 'pokrova', scope: 'catalog', kind: 'tradition', title: 'Покрова', start: day(25).getTime(), end: day(25, 23).getTime(), force: 'hint' },
+    { id: 'fast', scope: 'catalog', kind: 'tradition', title: 'Різдвяний піст', start: day(70).getTime(), end: day(109, 23).getTime(), force: 'restrict', restricts: 'без мʼяса, риби, молочного і яєць' },
+    { id: 'season-plum', scope: 'catalog', kind: 'season', title: 'Сливи', start: day(-60).getTime(), end: day(1, 23).getTime(), force: 'hint' },
   ];
 }
 
 async function mount(wide: boolean, now: unknown[], events: unknown[]) {
-  vi.stubGlobal('matchMedia', vi.fn((q: string) => ({ matches: wide && q.includes('1024'), addEventListener: () => {}, removeEventListener: () => {} })));
+  vi.stubGlobal('matchMedia', vi.fn((q: string) => ({ matches: wide && q.includes('768'), addEventListener: () => {}, removeEventListener: () => {} })));
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.includes('/v1/now')) return jsonRes({ now });
     if (url.includes('/v1/events')) return jsonRes({ events });
@@ -84,185 +89,140 @@ async function mount(wide: boolean, now: unknown[], events: unknown[]) {
   return { host, root };
 }
 
-describe('CalendarPage · «Зараз діє»', () => {
+describe('CalendarPage · «Сьогодні»', () => {
   let host: HTMLDivElement | undefined; let root: Root | undefined;
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-  // Компактність (ГОЛОВНИЙ ЧАТ 18.09): ≥1024 — чипи (назва + дата, БЕЗ
-  // meaning-речення); <1024 — рядки 46px, теж без meaning.
-  it('≥1024: чипи — назва й дата, прогрес у самій даті («N-й день»), meaning-речення нема', async () => {
+  it('число, «субота · сьогодні», порядок: строгий період → подія дня → сезон одним рядком', async () => {
     ({ host, root } = await mount(true, fixtureNow(), fixtureEvents()));
-    const nowCard = host!.querySelector('[data-cal-now]')!;
-    expect(nowCard.querySelector('[class*="_chips_"]')).not.toBeNull();
-    expect(nowCard.textContent).toContain('Без молочного');
-    expect(nowCard.textContent).toContain('4-й день з 21');
-    expect(nowCard.textContent).toContain('Сливи');
-    expect(nowCard.textContent).toContain('до 21.09');
-    expect(nowCard.textContent).not.toContain('без молока, сирів, вершків');
-    expect(nowCard.textContent).not.toContain('сливи в пріоритеті');
+    const card = host!.querySelector('[data-cal-today]')!;
+    expect(card.querySelector('[class*="_today-num_"]')!.textContent).toBe('19');
+    expect(card.textContent).toContain('субота');
+    expect(card.textContent).toContain('сьогодні');
+    expect(card.textContent).toContain('Без молочного');
+    expect(card.textContent).toContain('5-й день з 21');
+    expect(card.textContent).toContain('Гості на вечерю');
+    expect(card.textContent).toContain('6 осіб');
+    // Обмеження — по тапу, не в картці.
+    expect(card.textContent).not.toContain('без молока, сирів, вершків');
+    // Сезони — одним рядком «Сезон: …», не поіменно кожен.
+    expect(card.textContent).toContain('Сезон: Сливи (до 20.09), Білі гриби');
+    const rows = [...card.querySelectorAll('[class*="_today-row_"]')].map((r) => r.textContent);
+    const idx = (s: string) => rows.findIndex((r) => r?.includes(s));
+    expect(idx('Без молочного')).toBeLessThan(idx('Гості на вечерю'));
+    expect(idx('Гості на вечерю')).toBeLessThan(idx('Сезон:'));
   });
 
-  it('<1024: рядки 46px — назва й дата, прогрес смужкою, meaning-речення нема', async () => {
-    ({ host, root } = await mount(false, fixtureNow(), fixtureEvents()));
-    const nowCard = host!.querySelector('[data-cal-now]')!;
-    expect(nowCard.querySelector('[class*="_chips_"]')).toBeNull();
-    expect(nowCard.textContent).toContain('Без молочного');
-    expect(nowCard.textContent).toContain('4-й день з 21');
-    expect(nowCard.querySelector('[class*="now-progress"]')).not.toBeNull();
-    expect(nowCard.textContent).not.toContain('без молока, сирів, вершків');
-    expect(nowCard.textContent).not.toContain('сливи в пріоритеті');
+  it('розкриття «Сезон» — список сезонів рядками «назва · до дати»', async () => {
+    ({ host, root } = await mount(true, fixtureNow(), fixtureEvents()));
+    const toggle = host!.querySelector<HTMLButtonElement>('[data-cal-season-toggle]')!;
+    expect(host!.textContent).not.toContain('Білі гриби · ');
+    await act(async () => { toggle.click(); });
+    const card = host!.querySelector('[data-cal-today]')!;
+    expect(card.textContent).toContain('Сливи');
+    expect(card.textContent).toContain('до 20.09');
+    expect(card.textContent).toContain('Білі гриби');
   });
 
-  it('≥1024: понад 4 — усі чипи одразу, перелив рядом (без «Показати всі»)', async () => {
-    const five = Array.from({ length: 5 }, (_, i) => ({
-      kind: 'season', title: `Сезон ${i}`, from: iso(day(-10)), to: iso(day(10)), strict: false, source: 'catalog', occasion_id: `s${i}`,
-    }));
-    ({ host, root } = await mount(true, five, []));
-    expect(host!.textContent).toContain('Сезон 4');
-    expect(host!.textContent).not.toContain('Показати всі');
-  });
-
-  it('<1024: понад 4 — «Показати всі», решта ховається до кліку', async () => {
-    const five = Array.from({ length: 5 }, (_, i) => ({
-      kind: 'season', title: `Сезон ${i}`, from: iso(day(-10)), to: iso(day(10)), strict: false, source: 'catalog', occasion_id: `s${i}`,
-    }));
-    ({ host, root } = await mount(false, five, []));
-    expect(host!.textContent).toContain('Показати всі · 5');
-    expect(host!.textContent).not.toContain('Сезон 4');
-    const btn = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes('Показати всі'))!;
-    await act(async () => { btn.click(); });
-    expect(host!.textContent).toContain('Сезон 4');
-  });
-
-  // К2 бага (ГОЛОВНИЙ ЧАТ 18.09): клік по каталожній події в «Зараз діє»
-  // відкривав ВЕСЬ каталог замість самої події. EventOccurrence.id ===
-  // occasion_id для каталогу (services/api events.ts) — шукаємо за ним.
-  it('клік по каталожній події («Зараз діє») відкриває САМУ подію, не каталог', async () => {
-    usePanelStore.getState().clear();
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
-      if (url.includes('/v1/events')) return jsonRes({ events: fixtureEvents() });
-      return jsonRes({});
-    }));
-    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
-    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
-    await act(async () => {});
-    const chip = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Сливи'))!;
-    await act(async () => { chip.click(); });
-    await act(async () => {});
-    expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Подія']);
-    expect(usePanelStore.getState().active).toBe('event:plum');
-  });
-
-  // Уточнення ГОЛОВНИЙ ЧАТ 18.09 до К2: ОДИН обробник для обох блоків —
-  // клік по тій самій occasion_id з «Зараз діє» і з «Попереду» має давати
-  // той самий артефакт (та сама подія «Сливи» / occasion_id 'plum' в обох).
-  it('той самий occasion_id з «Зараз діє» і з «Попереду» відкриває той самий артефакт', async () => {
-    usePanelStore.getState().clear();
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
-      if (url.includes('/v1/events')) return jsonRes({ events: fixtureEvents() });
-      return jsonRes({});
-    }));
-    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
-    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
-    await act(async () => {});
-    const fromNow = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.className.includes('_chip_') && b.textContent?.includes('Сливи'))!;
-    await act(async () => { fromNow.click(); });
-    await act(async () => {});
-    const activeFromNow = usePanelStore.getState().active;
-    const fromAhead = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.className.includes('_ahead-row_') && b.textContent?.includes('Сливи'))!;
-    await act(async () => { fromAhead.click(); });
-    await act(async () => {});
-    const activeFromAhead = usePanelStore.getState().active;
-    expect(activeFromNow).toBe('event:plum');
-    expect(activeFromAhead).toBe('event:plum');
-    expect(activeFromNow).toBe(activeFromAhead);
-  });
-});
-
-describe('CalendarPage · «Попереду»', () => {
-  let host: HTMLDivElement | undefined; let root: Root | undefined;
-  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
-  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
-
-  it('kind meal у майбутньому (вечеря дому) — показується; те саме сьогодні — ні (не «готування в процесі», просто «зараз», не «попереду»)', async () => {
-    ({ host, root } = await mount(true, [], fixtureEvents()));
-    const ahead = host!.querySelector('[data-cal-ahead]')!;
-    expect(ahead.textContent).not.toContain('Панкейки');
-    expect(ahead.textContent).toContain('Гості на вечерю');
-    expect(ahead.textContent).toContain('19.09');
-    expect(ahead.textContent).toContain('6 осіб');
-    expect(ahead.textContent).toContain('Набір ваги');
-    expect(ahead.textContent).toContain('30.09 – 30.10 · 31 день');
-  });
-
-  it('те, що вже триває й добігає в горизонті — рядком «останні дні»', async () => {
-    ({ host, root } = await mount(true, [], fixtureEvents()));
-    const ahead = host!.querySelector('[data-cal-ahead]')!;
-    expect(ahead.textContent).toContain('Сливи');
-    expect(ahead.textContent).toContain('21.09');
-    expect(ahead.textContent).toContain('останні дні');
-  });
-
-  it('«Показати далі» розширює горизонт — подія за першим горизонтом стає видною', async () => {
-    const farAway = { id: 'far', scope: 'household', kind: 'custom', title: 'Далека подія', start: day(80).getTime(), end: day(80, 23).getTime(), force: 'hint' };
-    ({ host, root } = await mount(true, [], [...fixtureEvents(), farAway]));
-    expect(host!.textContent).not.toContain('Далека подія');
-    const more = host!.querySelector<HTMLButtonElement>('[data-cal-ahead-more]')!;
-    await act(async () => { more.click(); });
-    await act(async () => {});
-    await act(async () => { more.click(); });
-    await act(async () => {});
-    expect(host!.textContent).toContain('Далека подія');
-  });
-});
-
-describe('CalendarPage · порожній стан і сітка-довідка', () => {
-  let host: HTMLDivElement | undefined; let root: Root | undefined;
-  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
-  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
-
-  // Рішення власника 19.09: та сама пара «Каталог»/«Своя подія», що в
-  // шапці, замість окремої «Обрати події» (К1: без зайвих кнопок).
-  it('нема ні «зараз», ні «попереду» — пара «Каталог»/«Своя подія», без заголовків карток', async () => {
+  it('порожньо — «Нічого не діє»', async () => {
     ({ host, root } = await mount(true, [], []));
-    const empty = host!.querySelector('[data-cal-empty]')!;
-    expect(empty).not.toBeNull();
-    expect(empty.textContent).toContain('Каталог');
-    expect(empty.textContent).toContain('Своя подія');
-    expect(host!.querySelector('[data-cal-now]')).toBeNull();
+    expect(host!.querySelector('[data-cal-today-empty]')!.textContent).toBe('Нічого не діє');
+  });
+});
+
+describe('CalendarPage · «Далі»', () => {
+  let host: HTMLDivElement | undefined; let root: Root | undefined;
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  it('сезони геть повністю; сьогоднішнє геть; одноденні й старт власного періоду — з датами', async () => {
+    ({ host, root } = await mount(true, [], fixtureEvents()));
+    const ahead = host!.querySelector('[data-cal-ahead]')!;
+    expect(ahead.textContent).not.toContain('Сливи');
+    expect(ahead.textContent).not.toContain('Гості на вечерю');
+    expect(ahead.textContent).toContain('Мало часу');
+    expect(ahead.textContent).toContain('рамка дня');
+    expect(ahead.textContent).toContain('Замовлення Сільпо');
+    expect(ahead.textContent).toContain('постачання');
+    expect(ahead.textContent).toContain('Набір ваги');
+    expect(ahead.textContent).toContain('до 30.10 · 31 день · калорійніше');
+  });
+
+  it('рядок-кінець для власного періоду, що вже діє («Без молочного» → 05.10 · кінець)', async () => {
+    ({ host, root } = await mount(true, [], fixtureEvents()));
+    const ahead = host!.querySelector('[data-cal-ahead]')!;
+    const rows = [...ahead.querySelectorAll('[class*="_li_"]')].map((r) => r.textContent ?? '');
+    expect(rows.some((r) => r.includes('Без молочного') && r.includes('кінець'))).toBe(true);
+  });
+
+  it('власний період, що СТАРТУЄ в горизонті («Набір ваги»), дає ОБИДВА рядки — старт і кінець', async () => {
+    ({ host, root } = await mount(true, [], fixtureEvents()));
+    const ahead = host!.querySelector('[data-cal-ahead]')!;
+    const weight = [...ahead.querySelectorAll('[class*="_li_"]')].filter((r) => r.textContent?.includes('Набір ваги'));
+    expect(weight.length).toBe(2);
+    expect(weight.some((r) => r.textContent?.includes('кінець'))).toBe(true);
+    expect(weight.some((r) => r.textContent?.includes('31 день'))).toBe(true);
+  });
+
+  it('каталожний тривалий (піст) — лише рядок-старт із повною метою, без окремого «кінець»', async () => {
+    ({ host, root } = await mount(true, [], fixtureEvents()));
+    const ahead = host!.querySelector('[data-cal-ahead]')!;
+    const fast = [...ahead.querySelectorAll('[class*="_li_"]')].filter((r) => r.textContent?.includes('Різдвяний піст'));
+    expect(fast.length).toBe(1);
+    expect(fast[0]!.textContent).toContain('до 06.01 · 40 днів · без мʼяса, риби, молочного і яєць');
+  });
+
+  it('роздільники місяців — «Жовтень», «Листопад»; для вересня роздільника нема', async () => {
+    ({ host, root } = await mount(true, [], fixtureEvents()));
+    const ahead = host!.querySelector('[data-cal-ahead]')!;
+    const mons = [...ahead.querySelectorAll('[class*="_mon_"]')].map((m) => m.textContent);
+    expect(mons).toEqual(['Жовтень', 'Листопад']);
+    expect(host!.textContent).not.toContain('Вересень');
+  });
+
+  it('порожній список при непорожньому «Сьогодні» — блок «Далі» не рендериться', async () => {
+    ({ host, root } = await mount(true, fixtureNow(), []));
     expect(host!.querySelector('[data-cal-ahead]')).toBeNull();
+    expect(host!.querySelector('[data-cal-empty]')).toBeNull();
+  });
+});
+
+describe('CalendarPage · кнопки й порожній стан', () => {
+  let host: HTMLDivElement | undefined; let root: Root | undefined;
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
+  afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  it('≥768: кнопки в шапці, повний текст «Своя подія»; панелі під списком нема', async () => {
+    ({ host, root } = await mount(true, [], fixtureEvents()));
+    expect(host!.querySelector('[data-cal-catalog]')).not.toBeNull();
+    expect(host!.querySelector('[data-cal-add]')!.textContent).toContain('Своя подія');
+    expect(host!.querySelector('[data-cal-btn-row]')).toBeNull();
   });
 
-  // Компактність (ГОЛОВНИЙ ЧАТ 18.09, структура 1b): сітка — права колонка
-  // поруч із «Попереду», РОЗКРИТА одразу, без рядка-перемикача; шапка
-  // «Вересень · твої події й періоди» (К3: чому нема сезонів).
-  it('≥1024: сітка розкрита одразу поруч із «Попереду», доріжка тримається через тижні', async () => {
-    const spanning = { id: 'fast', scope: 'catalog', kind: 'tradition', title: 'Піст', start: day(-3).getTime(), end: day(20, 23).getTime(), force: 'restrict', strict: true, from: iso(day(-3)), to: iso(day(20)) };
-    ({ host, root } = await mount(true, [], [spanning]));
-    expect(host!.querySelector('[data-cal-grid-toggle]')).toBeNull();
-    const columns = host!.querySelector('[class*="_columns_"]')!;
-    expect(columns).not.toBeNull();
-    const grid = host!.querySelector('[data-month-grid]')!;
-    expect(grid).not.toBeNull();
-    expect(columns.contains(grid)).toBe(true);
-    expect(grid.textContent).toContain('Вересень');
-    expect(grid.textContent).toContain('твої події й періоди');
-    const bars = [...grid.querySelectorAll('[class*="_mband_"][aria-label="Піст"]')];
-    expect(bars.length).toBeGreaterThanOrEqual(1);
-    // Правка ГОЛОВНИЙ ЧАТ 18.09: смуга з підписом, не гола лінія — «Піст ·
-    // до 08.10» на тижні з сегментом ≥3 дні (bandLabel), не лише колір.
-    expect(bars.some((b) => b.textContent?.includes('Піст · до 08.10'))).toBe(true);
-  });
-
-  it('<1024: сітки нема зовсім (К4)', async () => {
+  it('<768: кнопок у шапці нема, панель під списком на всю ширину, повні підписи', async () => {
     ({ host, root } = await mount(false, [], fixtureEvents()));
-    expect(host!.querySelector('[data-cal-grid-toggle]')).toBeNull();
-    expect(host!.querySelector('[data-month-grid]')).toBeNull();
+    const header = host!.querySelector('header')!;
+    expect(header.querySelector('[data-cal-catalog]')).toBeNull();
+    const row = host!.querySelector('[data-cal-btn-row]')!;
+    expect(row).not.toBeNull();
+    expect(row.querySelector('[data-cal-catalog]')).not.toBeNull();
+    expect(row.querySelector('[data-cal-add]')!.textContent).toContain('Своя подія');
+  });
+
+  it('порожній стан: «Сьогодні» з «Нічого не діє» + пунктирний блок з реченням і кнопками', async () => {
+    ({ host, root } = await mount(true, [], []));
+    expect(host!.querySelector('[data-cal-today-empty]')).not.toBeNull();
+    const empty = host!.querySelector('[data-cal-empty]')!;
+    expect(empty.textContent).toContain('тут буде видно, що попереду');
+    expect(empty.querySelector('[data-cal-catalog]')).not.toBeNull();
+    expect(empty.querySelector('[data-cal-add]')).not.toBeNull();
+  });
+
+  it('порожній стан на <768 — панель під списком НЕ дублюється (кнопки лише в блоці)', async () => {
+    ({ host, root } = await mount(false, [], []));
+    expect(host!.querySelector('[data-cal-btn-row]')).toBeNull();
+    expect(host!.querySelector('[data-cal-empty]')).not.toBeNull();
   });
 });
 
@@ -275,11 +235,10 @@ describe('панель: подія ↔ каталог — одне з двох',
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
   const click = async (el: Element | null) => { expect(el).not.toBeNull(); await act(async () => { (el as HTMLButtonElement).click(); }); await act(async () => {}); };
-  const eventButton = () => [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Гості')) ?? null;
+  const eventButton = () => [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Мало часу')) ?? null;
 
-  // wide: і сітка (≥1024), і панель у потоці (≥1200) — на відміну від спільного
-  // mount(), тут matchMedia не звіряє рядок запиту: панель і сітка — різні
-  // breakpoints (ARTIFACT_SIDE ≠ 1024), і обидва мають збігтись при wide.
+  // wide: і кнопки шапки (≥768), і панель у потоці (≥1200) — тут matchMedia
+  // не звіряє рядок запиту, обидва мають збігтись при wide.
   async function mountPanel(wide: boolean, events: unknown[]) {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: wide, addEventListener: () => {}, removeEventListener: () => {} })));
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
@@ -300,7 +259,7 @@ describe('панель: подія ↔ каталог — одне з двох',
     await click(eventButton());
     const st = usePanelStore.getState();
     expect(st.artifacts.map((a) => a.label)).toEqual(['Подія']);
-    expect(st.active).toBe('event:guests');
+    expect(st.active).toBe('event:notime');
     await click(host!.querySelector('[data-cal-catalog]'));
     expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Каталог подій']);
     expect(usePanelStore.getState().active).toBe('catalog');
@@ -312,12 +271,10 @@ describe('панель: подія ↔ каталог — одне з двох',
     expect(host!.textContent).toContain('Каталог подій');
     await click(eventButton());
     const sheets = [...host!.querySelectorAll('[data-sheet]')].map((e) => e.getAttribute('aria-label'));
-    expect(sheets).toContain('Гості на вечерю');
+    expect(sheets).toContain('Мало часу');
     expect(sheets).not.toContain('Каталог подій');
   });
 
-  // Рішення власника 19.09: «+ Своя подія» — окремий вхід, веде НАПРЯМУ в
-  // PeriodEvent створення (шторка, як і раніше), без проходу через каталог.
   it('«Своя подія» відкриває шторку створення напряму, каталог не чіпає', async () => {
     ({ host, root } = await mountPanel(true, fixtureEvents()));
     await click(host!.querySelector('[data-cal-add]'));
@@ -325,5 +282,37 @@ describe('панель: подія ↔ каталог — одне з двох',
     expect(sheets).toContain('Нова подія');
     expect(usePanelStore.getState().artifacts).toEqual([]);
     expect(host!.textContent).not.toContain('Каталог подій');
+  });
+
+  it('«+ Своя подія» лишала каталог відкритим позаду — закриває панель перед відкриттям шторки', async () => {
+    ({ host, root } = await mountPanel(true, fixtureEvents()));
+    await click(host!.querySelector('[data-cal-catalog]'));
+    expect(usePanelStore.getState().active).toBe('catalog');
+    await click(host!.querySelector('[data-cal-add]'));
+    expect(usePanelStore.getState().artifacts).toEqual([]);
+    const sheets = [...host!.querySelectorAll('[data-sheet]')].map((e) => e.getAttribute('aria-label'));
+    expect(sheets).toContain('Нова подія');
+  });
+
+  // Уточнення ГОЛОВНИЙ ЧАТ 18.09 (К2): той самий occasion_id з «Сьогодні» і
+  // з «Далі» відкриває той самий артефакт.
+  it('той самий occasion_id з «Сьогодні» і з «Далі» відкриває той самий артефакт', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
+      if (url.includes('/v1/events')) return jsonRes({ events: fixtureEvents() });
+      return jsonRes({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    const fromToday = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.className.includes('_today-row_') && b.textContent?.includes('Без молочного'))!;
+    await act(async () => { fromToday.click(); });
+    await act(async () => {});
+    expect(usePanelStore.getState().active).toBe('event:diet1');
+    const fromAhead = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.className.includes('_li_') && b.textContent?.includes('Без молочного'))!;
+    await act(async () => { fromAhead.click(); });
+    await act(async () => {});
+    expect(usePanelStore.getState().active).toBe('event:diet1');
   });
 });
