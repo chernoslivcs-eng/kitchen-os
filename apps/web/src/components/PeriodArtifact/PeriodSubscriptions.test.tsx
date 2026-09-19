@@ -114,6 +114,33 @@ describe('PeriodSubscriptions', () => {
     expect(onDone).toHaveBeenCalledWith('subscribe');
   });
 
+  // Живий клік власника в каталозі 19.09: «Твій» на сезонах був статичним
+  // написом (`packageOn('seasons')` — константа `true`) — тап після
+  // часткового вимкнення нічого не робив. Тепер сезони — той самий
+  // перемикач пакета, що традиції: «Твій» ↔ «Увімкнути», за ЕФЕКТИВНИМ
+  // станом пунктів (не всі вимкнені), як traditions.
+  it('«Твій» на сезонах — перемикач, не напис: частково вимкнено → «Твій»; тап вимикає всі 2 разом', async () => {
+    const onDone = vi.fn();
+    await mount(<PeriodSubscriptions onDone={onDone} />);
+    const btn = $('[data-package-toggle="seasons"]')!;
+    // tomato enabled:true, ramson enabled:false — хоч один увімкнений → «Твій».
+    expect(btn.textContent).toBe(SUBSCRIPTIONS_COPY.mine);
+    await click(btn);
+    expect(puts).toEqual([[{ occasion_id: 'tomato', enabled: false }, { occasion_id: 'ramson', enabled: false }]]);
+    expect($('[data-package-toggle="seasons"]')!.textContent).toBe('Увімкнути');
+    expect(onDone).toHaveBeenCalledWith('subscribe');
+  });
+
+  it('сезони всі вимкнені — «Увімкнути»; тап вмикає всі разом, стає «Твій»', async () => {
+    rowsBySet.seasons = seasons.map((r) => ({ ...r, enabled: false }));
+    await mount(<PeriodSubscriptions />);
+    const btn = $('[data-package-toggle="seasons"]')!;
+    expect(btn.textContent).toBe('Увімкнути');
+    await click(btn);
+    expect(puts).toEqual([[{ occasion_id: 'tomato', enabled: true }, { occasion_id: 'ramson', enabled: true }]]);
+    expect($('[data-package-toggle="seasons"]')!.textContent).toBe(SUBSCRIPTIONS_COPY.mine);
+  });
+
   it('вимкнути окреме в рівні 2 — PUT одним рядком; рядок лишається як «заглушено · повернути»; повернути — той самий перемикач', async () => {
     rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
     subs = [{ occasion_id: 'xmas', enabled: true, updated_at: '', title: 'Різдво', type: 'tradition', tradition: 'catholic' }];

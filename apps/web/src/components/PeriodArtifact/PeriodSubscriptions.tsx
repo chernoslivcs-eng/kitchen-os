@@ -133,9 +133,23 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
     return () => { alive = false; };
   }, [viewed]);
 
-  /** Пакет «увімкнено» — традиція за підпискою; сезони за задумом завжди «Твій» (дефолт-он). */
-  const packageOn = (set: OccasionSet): boolean =>
-    set === 'seasons' ? true : (set === viewed && rows ? rows.some((r) => r.enabled) : !!subs?.some((r) => r.enabled && r.tradition === set));
+  /**
+   * Пакет «увімкнено»: традиція — за підпискою (лічильник `subs` — лише
+   * відхилення від дефолту, тож перевіряємо, чи є хоч один увімкнений
+   * запис). Сезони (рішення власника 19.09, живий клік у каталозі): той
+   * самий перемикач, що в традицій — «не всі сезони вимкнені», за
+   * ЕФЕКТИВНИМ станом пунктів (`items`/`rows` з `/v1/occasions?set=`, уже
+   * зваженим дефолт+відхилення), а не константа `true`. Раніше «Твій» був
+   * статичним написом — тап після часткового вимкнення «увімкнути всі» не
+   * робив нічого.
+   */
+  const packageOn = (set: OccasionSet): boolean => {
+    if (set === 'seasons') {
+      const items = set === viewed && rows ? rows : packageItems[set];
+      return !!items?.some((r) => r.enabled);
+    }
+    return set === viewed && rows ? rows.some((r) => r.enabled) : !!subs?.some((r) => r.enabled && r.tradition === set);
+  };
   const offCount = (set: OccasionSet): number =>
     (subs ?? []).filter((r) => !r.enabled && (set === 'seasons' ? r.type === 'season' : r.tradition === set)).length;
 
@@ -196,14 +210,11 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
                   </span>
                   <Icon name="sys.next" size={16} inherit decorative />
                 </button>
-                {set !== 'seasons' && (
-                  <button type="button" className={`${sub['pkg-btn']} ${on ? sub['pkg-btn-on'] : ''}`} data-tap
-                    disabled={busy !== null || n === undefined} data-package-toggle={set}
-                    onClick={() => togglePackage(set)}>
-                    {on ? SUBSCRIPTIONS_COPY.mine : 'Увімкнути'}
-                  </button>
-                )}
-                {set === 'seasons' && <span className={`${sub['pkg-btn']} ${sub['pkg-btn-on']}`}>{SUBSCRIPTIONS_COPY.mine}</span>}
+                <button type="button" className={`${sub['pkg-btn']} ${on ? sub['pkg-btn-on'] : ''}`} data-tap
+                  disabled={busy !== null || n === undefined} data-package-toggle={set}
+                  onClick={() => togglePackage(set)}>
+                  {on ? SUBSCRIPTIONS_COPY.mine : 'Увімкнути'}
+                </button>
               </div>
             );
           })}
