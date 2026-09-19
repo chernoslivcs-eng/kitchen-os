@@ -155,6 +155,33 @@ describe('CalendarPage · «Зараз діє»', () => {
     expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Подія']);
     expect(usePanelStore.getState().active).toBe('event:plum');
   });
+
+  // Уточнення ГОЛОВНИЙ ЧАТ 18.09 до К2: ОДИН обробник для обох блоків —
+  // клік по тій самій occasion_id з «Зараз діє» і з «Попереду» має давати
+  // той самий артефакт (та сама подія «Сливи» / occasion_id 'plum' в обох).
+  it('той самий occasion_id з «Зараз діє» і з «Попереду» відкриває той самий артефакт', async () => {
+    usePanelStore.getState().clear();
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })));
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/v1/now')) return jsonRes({ now: fixtureNow() });
+      if (url.includes('/v1/events')) return jsonRes({ events: fixtureEvents() });
+      return jsonRes({});
+    }));
+    host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root!.render(<MemoryRouter><CalendarPage /></MemoryRouter>); });
+    await act(async () => {});
+    const fromNow = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.className.includes('_chip_') && b.textContent?.includes('Сливи'))!;
+    await act(async () => { fromNow.click(); });
+    await act(async () => {});
+    const activeFromNow = usePanelStore.getState().active;
+    const fromAhead = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.className.includes('_ahead-row_') && b.textContent?.includes('Сливи'))!;
+    await act(async () => { fromAhead.click(); });
+    await act(async () => {});
+    const activeFromAhead = usePanelStore.getState().active;
+    expect(activeFromNow).toBe('event:plum');
+    expect(activeFromAhead).toBe('event:plum');
+    expect(activeFromNow).toBe(activeFromAhead);
+  });
 });
 
 describe('CalendarPage · «Попереду»', () => {
@@ -199,10 +226,14 @@ describe('CalendarPage · порожній стан і сітка-довідка
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(FIXED_NOW)); });
   afterEach(async () => { if (root) await act(async () => { root!.unmount(); }); host?.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-  it('нема ні «зараз», ні «попереду» — одна кнопка «Обрати події» (К1), без заголовків карток', async () => {
+  // Рішення власника 19.09: та сама пара «Каталог»/«Своя подія», що в
+  // шапці, замість окремої «Обрати події» (К1: без зайвих кнопок).
+  it('нема ні «зараз», ні «попереду» — пара «Каталог»/«Своя подія», без заголовків карток', async () => {
     ({ host, root } = await mount(true, [], []));
-    expect(host!.querySelector('[data-cal-empty]')).not.toBeNull();
-    expect(host!.textContent).toContain('Обрати події');
+    const empty = host!.querySelector('[data-cal-empty]')!;
+    expect(empty).not.toBeNull();
+    expect(empty.textContent).toContain('Каталог');
+    expect(empty.textContent).toContain('Своя подія');
     expect(host!.querySelector('[data-cal-now]')).toBeNull();
     expect(host!.querySelector('[data-cal-ahead]')).toBeNull();
   });
@@ -262,26 +293,37 @@ describe('панель: подія ↔ каталог — одне з двох',
     return { host: h, root: r };
   }
 
-  it('≥1200 (панель): Додати → клік по події → панель «Подія»; подія → Додати → «Каталог подій»', async () => {
+  it('≥1200 (панель): Каталог → клік по події → панель «Подія»; подія → Каталог → «Каталог подій»', async () => {
     ({ host, root } = await mountPanel(true, fixtureEvents()));
-    await click(host!.querySelector('[data-cal-add]'));
+    await click(host!.querySelector('[data-cal-catalog]'));
     expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Каталог подій']);
     await click(eventButton());
     const st = usePanelStore.getState();
     expect(st.artifacts.map((a) => a.label)).toEqual(['Подія']);
     expect(st.active).toBe('event:guests');
-    await click(host!.querySelector('[data-cal-add]'));
+    await click(host!.querySelector('[data-cal-catalog]'));
     expect(usePanelStore.getState().artifacts.map((a) => a.label)).toEqual(['Каталог подій']);
     expect(usePanelStore.getState().active).toBe('catalog');
   }, 15_000);
 
-  it('<600 (шторка): Додати → клік по події → шторка події, не каталогу', async () => {
+  it('<600 (шторка): Каталог → клік по події → шторка події, не каталогу', async () => {
     ({ host, root } = await mountPanel(false, fixtureEvents()));
-    await click(host!.querySelector('[data-cal-add]'));
+    await click(host!.querySelector('[data-cal-catalog]'));
     expect(host!.textContent).toContain('Каталог подій');
     await click(eventButton());
     const sheets = [...host!.querySelectorAll('[data-sheet]')].map((e) => e.getAttribute('aria-label'));
     expect(sheets).toContain('Гості на вечерю');
     expect(sheets).not.toContain('Каталог подій');
+  });
+
+  // Рішення власника 19.09: «+ Своя подія» — окремий вхід, веде НАПРЯМУ в
+  // PeriodEvent створення (шторка, як і раніше), без проходу через каталог.
+  it('«Своя подія» відкриває шторку створення напряму, каталог не чіпає', async () => {
+    ({ host, root } = await mountPanel(true, fixtureEvents()));
+    await click(host!.querySelector('[data-cal-add]'));
+    const sheets = [...host!.querySelectorAll('[data-sheet]')].map((e) => e.getAttribute('aria-label'));
+    expect(sheets).toContain('Нова подія');
+    expect(usePanelStore.getState().artifacts).toEqual([]);
+    expect(host!.textContent).not.toContain('Каталог подій');
   });
 });

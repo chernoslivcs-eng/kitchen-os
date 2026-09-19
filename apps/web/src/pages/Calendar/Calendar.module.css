@@ -4,7 +4,8 @@
    «Зараз діє» — чипи в ряд (h44, перелив на другий ряд); нижче — дві
    колонки 1.55fr:1fr — «Попереду» (рядки 46px) і сітка місяця, РОЗКРИТА
    за замовчуванням, без рядка-перемикача. Шапка AppHeader («Календар ·
-   дата» + «Додати»). */
+   дата» + дві кнопки: «Каталог» контурна, «Своя» чорнилом — рішення
+   власника після живого перегляду, замість однієї «Додати»). */
 
 .screen {
   height: 100dvh;
@@ -15,19 +16,16 @@
 }
 .screen { height: calc(100dvh - var(--kb, 0px)); }
 
-.add {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  width: 36px; height: 36px; padding: 0;
-  border: 0; border-radius: 50%;
-  background: var(--ink); color: var(--bg);
+/* Дві кнопки шапки — з підписом на всіх ширинах (390 теж, не лише знак). */
+.catalog-btn, .add {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 14px;
+  border-radius: 10px;
   font-family: var(--font-body); font-size: 13px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
 }
-.add-text { display: none; }
-@media (min-width: 1024px) {
-  .add { width: auto; padding: 0 14px; border-radius: 10px; }
-  .add-text { display: inline; }
-}
+.catalog-btn { border: 1px solid var(--line2); background: transparent; color: var(--ink); }
+.add { border: 0; background: var(--ink); color: var(--bg); }
 
 /* ── Тіло: одна колонка карток ──────────────────────────────────────────── */
 .body {
@@ -102,8 +100,10 @@
    елемента в DOM нема зовсім (grid-column декларативно, без плейсхолдера). */
 .columns > .mcard { grid-column: 2; }
 
-/* ── Порожній стан (К1): одна кнопка, не три ─────────────────────────────── */
-.empty { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+/* ── Порожній стан: та сама пара кнопок шапки, не три (К1, рішення
+   власника — дві кнопки замість «Обрати події») ─────────────────────────── */
+.empty { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; }
+.empty .catalog-btn { height: 48px; padding: 0 20px; font-size: 14px; }
 .empty-btn {
   display: inline-flex; align-items: center; gap: 8px;
   height: 48px; padding: 0 20px;

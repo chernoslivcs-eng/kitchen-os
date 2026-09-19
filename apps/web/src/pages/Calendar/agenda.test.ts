@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nowProgress, nowWhen, aheadRows, aheadDateLabel, aheadMeta, bandLabel,
+  nowProgress, nowWhen, aheadRows, aheadDateLabel, aheadMeta, bandLabel, nowItemToEvent,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
 
@@ -152,5 +152,54 @@ describe('bandLabel: підпис смуги в сітці, за тижнем о
     const e = { title: 'Без молочного', start: at(-3), end: at(17) };
     // Тиждень посередині діапазону — теж повний підпис, якщо сегмент ≥3 дні.
     expect(bandLabel(e, 5, todayIso)).toBe('Без молочного · до 05.10');
+  });
+});
+
+// Уточнення ГОЛОВНИЙ ЧАТ 18.09 (К2): резервний шлях openNowItem() —
+// перетворення NowItem в EventOccurrence напряму, без пошуку в events,
+// щоб клік по «Зараз діє» ніколи не мовчав і не падав у каталог.
+describe('nowItemToEvent: NowItem → EventOccurrence (резервний шлях кліку)', () => {
+  it('власна подія (source user) — id справжній, scope household, rule_text лишається rule_text', () => {
+    const it_: NowItem = {
+      kind: 'diet', title: 'Без цукру', from: '2026-09-06', to: '2026-09-26', strict: true,
+      source: 'user', id: 'diet1', rule_text: 'без цукру й солодкого',
+    };
+    const e = nowItemToEvent(it_);
+    expect(e.id).toBe('diet1');
+    expect(e.scope).toBe('household');
+    expect(e.force).toBe('restrict');
+    expect(e.rule_text).toBe('без цукру й солодкого');
+    expect(e.restricts).toBeUndefined();
+    expect(e.from).toBe('2026-09-06');
+    expect(e.to).toBe('2026-09-26');
+  });
+
+  it('каталожна подія (source catalog) — id з occasion_id, scope catalog, rule_text → restricts (readonly «Правило» читає саме restricts)', () => {
+    const it_: NowItem = {
+      kind: 'season', title: 'Сливи', from: '2026-07-20', to: '2026-09-21', strict: false,
+      source: 'catalog', occasion_id: 'plum', meaning: 'сливи в пріоритеті', approx: true,
+    };
+    const e = nowItemToEvent(it_);
+    expect(e.id).toBe('plum');
+    expect(e.scope).toBe('catalog');
+    expect(e.force).toBe('hint');
+    expect(e.restricts).toBeNull(); // без rule_text — restricts явно null, не відсутнє
+    expect(e.meaning).toBe('сливи в пріоритеті');
+    expect(e.approx).toBe(true);
+  });
+
+  it('каталожна подія з rule_text (пост) — переходить у restricts, не в rule_text', () => {
+    const it_: NowItem = {
+      kind: 'tradition', title: 'Різдвяний піст', from: '2026-11-28', to: '2027-01-06', strict: true,
+      source: 'catalog', occasion_id: 'nativity-fast', rule_text: 'без мʼяса, риби, молочного і яєць',
+    };
+    const e = nowItemToEvent(it_);
+    expect(e.restricts).toBe('без мʼяса, риби, молочного і яєць');
+    expect(e.rule_text).toBeUndefined();
+  });
+
+  it('гості (source user, servings) — servings переносяться', () => {
+    const it_: NowItem = { kind: 'custom', title: 'Гості', from: '2026-09-18', to: '2026-09-18', strict: false, source: 'user', id: 'guests1', servings: 6 };
+    expect(nowItemToEvent(it_).servings).toBe(6);
   });
 });

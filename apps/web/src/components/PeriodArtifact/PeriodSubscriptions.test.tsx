@@ -78,12 +78,13 @@ describe('PeriodSubscriptions', () => {
   const $ = (sel: string) => host!.querySelector(sel);
   const switchOf = (id: string) => $(`[data-occasion="${id}"] [role="switch"]`) as HTMLButtonElement;
 
-  it('без initialSet — рівень 1, шість пакетів з лічильниками; «Своя подія» внизу', async () => {
+  // «Своя подія» переїхала в шапку календаря (рішення власника 19.09) — тут
+  // її вже нема, лише пакети.
+  it('без initialSet — рівень 1, шість пакетів з лічильниками', async () => {
     await mount(<PeriodSubscriptions />);
     expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('packages');
     expect($('[data-package="catholic"]')!.textContent).toContain('2 події');
     expect($('[data-package="seasons"]')!.textContent).toContain('2 вікна');
-    expect(host!.textContent).toContain(SUBSCRIPTIONS_COPY.own);
   });
 
   it('клік по рядку пакета — переходить у вміст (рівень 2) з кнопкою «назад»', async () => {

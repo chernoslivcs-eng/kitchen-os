@@ -3,7 +3,8 @@
 // пакети (пʼять традицій + сезони), кожен «підписуєшся й отримуєш весь
 // набір одразу»; другий — вміст пакета, рядки з перемикачами на кожному.
 // Періоди раціону (сушка, набір ваги…) у каталозі більше нема — це власні
-// події, людина створює їх через «Своя подія» (onAddOwn), поза пакетами.
+// події. Рішення власника 19.09: «Своя подія» — окрема кнопка в шапці
+// календаря («+ Своя подія»), не пункт унизу каталогу — два входи, не один.
 //
 // Дані й контракт не змінились від попередньої версії (PLAN §7): перемикач
 // пише одразу — PUT одним рядком; «Твій»/«Увімкнути» на пакеті — PUT усіма
@@ -21,8 +22,6 @@ export interface SubscriptionsProps {
   /** Звідки відкрили: конкретний пакет — одразу його вміст; нема — список пакетів. */
   initialSet?: OccasionSet;
   onDone?: (change: PeriodChange) => void;
-  onAddOwn?: () => void;
-  onClose?: () => void;
 }
 
 /** Шість пакетів каталогу: пʼять традицій + сезони (К7). */
@@ -31,9 +30,6 @@ const OCCASION_SETS: OccasionSet[] = [...TRADITION_SETS, 'seasons'];
 export const SUBSCRIPTIONS_COPY = {
   title: 'Каталог подій',
   text: 'Підпишись на пакет — і отримаєш весь набір одразу. Усередині можна вимкнути зайве, за замовчуванням усе увімкнено.',
-  own: 'Своя подія',
-  ownMeta: 'гості · вечеря · рамка дня · постачання · свій період',
-  add: 'Додати',
   mine: 'Твій',
   events: (n: number) => `${n} ${plural(n, ['подія', 'події', 'подій'])}`,
   seasons: (n: number) => `${n} ${plural(n, ['вікно', 'вікна', 'вікон'])}`,
@@ -99,7 +95,7 @@ export function rowSub(
   return [when, does].filter(Boolean).join(' · ');
 }
 
-export function PeriodSubscriptions({ initialSet, onDone, onAddOwn, onClose }: SubscriptionsProps) {
+export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) {
   // Рівень 1 (пакети) — нема обраного набору; рівень 2 (вміст) — набір є.
   const [viewed, setViewed] = useState<OccasionSet | null>(initialSet ?? null);
   const [subs, setSubs] = useState<SubscriptionRow[] | null>(null);
@@ -212,14 +208,6 @@ export function PeriodSubscriptions({ initialSet, onDone, onAddOwn, onClose }: S
             );
           })}
         </div>
-        <button type="button" className={sub.own} onClick={() => { onClose?.(); onAddOwn?.(); }}>
-          <Icon name="sys.add" size={16} inherit decorative />
-          <span className={sub['own-text']}>
-            <span className={sub['row-name']}>{SUBSCRIPTIONS_COPY.own}</span>
-            <span className={sub['row-sub']}>{SUBSCRIPTIONS_COPY.ownMeta}</span>
-          </span>
-          <span className={sub['own-go']}>{SUBSCRIPTIONS_COPY.add}</span>
-        </button>
         {err && <div className={styles.err}>{err}</div>}
       </div>
     );

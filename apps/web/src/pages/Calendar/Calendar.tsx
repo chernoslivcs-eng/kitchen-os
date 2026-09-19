@@ -5,9 +5,10 @@
 // далі»), і згорнута сітка місяця-довідки (CalendarGrid, лише ≥1024 — К4).
 // Готування сьогодні в календар не потрапляє (К3): це «Дім зараз» і чат.
 //
-// «Додати» — один вхід (К5): відкриває каталог подій (PeriodSubscriptions,
-// рівень пакетів), у якому внизу «Своя подія» веде в уже наявний артефакт
-// PeriodEvent. Порожній стан — одна кнопка «Обрати події», та сама дія.
+// Два входи в шапці (рішення власника 19.09, замість одного «Додати» — К5):
+// «Каталог» відкриває PeriodSubscriptions на рівні пакетів; «+ Своя подія»
+// веде напряму в PeriodEvent створення, без проходу через каталог. Порожній
+// стан — та сама пара кнопок, тим самим стилем.
 //
 // Клік-і-тягнути по днях і режими Місяць/Тиждень/Список — прибрані разом зі
 // старою сіткою-як-екраном (рішення власника, DEVIATIONS Р146): нова сітка —
@@ -25,7 +26,7 @@ import { dayStart } from './days';
 import { legendIcon } from './legend';
 import { splitAxes } from '../../lib/spans';
 import {
-  nowProgress, nowWhen, NOW_TONE_ICON, toneOfNow,
+  nowProgress, nowWhen, NOW_TONE_ICON, toneOfNow, nowItemToEvent,
   aheadRows, aheadDateLabel, aheadMeta, type AheadRow,
 } from './agenda';
 import { todayIso } from '../../lib/period';
@@ -107,7 +108,7 @@ export function CalendarPage() {
     setVersion((v) => v + 1);
   };
   const evMotion = (id: string) => `${leavingEvent === id ? styles['ev-leave'] : ''} ${flashEvent === id ? styles['ev-flash'] : ''}`;
-  // Нова подія: лише з каталогу («Своя подія» — К5), на сьогодні.
+  // Нова подія: з кнопки шапки «+ Своя подія» (рішення власника 19.09), на сьогодні.
   const [creating, setCreating] = useState<{ date: string; dateTo: string } | null>(null);
   const openAfterCreate = useRef<string | null>(null);
 
@@ -153,17 +154,20 @@ export function CalendarPage() {
   const visibleNow = nowExpanded ? now : now.slice(0, NOW_CAP);
   const isEmpty = !loading && now.length === 0 && ahead.length === 0;
 
-  // Клік з «Зараз діє»/«Попереду» відкриває САМУ подію (власну — на
-  // редагування, каталожну — PeriodEvent у режимі читання з «Не показувати»,
-  // як для системних подій у чаті), не весь каталог: каталог — лише з
-  // «Додати» (ГОЛОВНИЙ ЧАТ 18.09, п.2). Для каталожних `EventOccurrence.id
-  // === occasion_id` (services/api events.ts), і поточна активна подія
-  // завжди в уже завантаженому `events` — горизонт починається з gridFrom,
-  // а gridFrom ≤ today завжди.
+  // ОДИН обробник кліку по події на всю сторінку — «Зараз діє», «Попереду»
+  // й сітка ведуть в одне й те саме: власна відкривається на редагування,
+  // каталожна — PeriodEvent у режимі читання з «Не показувати» (як системні
+  // події в чаті). Каталог (рівень пакетів) — лише з «Додати» (ГОЛОВНИЙ ЧАТ
+  // 18.09, п.2, уточнено після живого перегляду власника). «Попереду»/сітка
+  // вже мають повний EventOccurrence — showEvent напряму; «Зараз діє» має
+  // лише NowItem, тож спершу шукає той самий об'єкт у вже завантаженому
+  // events (те, що бачить «Попереду» — гарантує однаковий артефакт з
+  // однакового occasion_id), а якщо не знайшла — не мовчить і не падає в
+  // каталог, а показує подію, зібрану напряму з NowItem (nowItemToEvent).
   const openNowItem = (it: NowItem) => {
     const key = it.source === 'user' ? it.id : it.occasion_id;
     const found = key ? events.find((e) => e.id === key) : undefined;
-    if (found) showEvent(found);
+    showEvent(found ?? nowItemToEvent(it));
   };
 
   const grid = useMedia(GRID);
@@ -179,8 +183,7 @@ export function CalendarPage() {
         artifacts: [{ key, kind: 'event', label: 'Каталог подій', meta: '' }],
         render: () => (
           <PeriodSubscriptions key={openPanel.set ?? 'root'} initialSet={openPanel.set}
-            onClose={() => closePanel()} onDone={(c) => onEventChanged(undefined, c)}
-            onAddOwn={() => setCreating({ date: isoOf(today), dateTo: '' })} />
+            onDone={(c) => onEventChanged(undefined, c)} />
         ),
       });
       panel.openArtifact(key);
@@ -264,19 +267,26 @@ export function CalendarPage() {
       <AppHeader
         title={`Календар · ${headerDate}`}
         onMenu={() => openNav(true)}
-        fill
         action={(
-          <button type="button" className={styles.add} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій" data-cal-add>
-            <Icon name="sys.add" size={16} inherit decorative /><span className={styles['add-text']}>Додати</span>
-          </button>
+          <>
+            <button type="button" className={styles['catalog-btn']} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій" data-cal-catalog>
+              <Icon name="sys.recipes" size={16} inherit decorative />Каталог
+            </button>
+            <button type="button" className={styles.add} data-tap onClick={() => { closePanel(); setCreating({ date: isoOf(today), dateTo: '' }); }} aria-label="Своя подія" data-cal-add>
+              <Icon name="sys.add" size={16} inherit decorative />Своя
+            </button>
+          </>
         )}
       />
       <div className={styles.body} data-testid="calendar-body">
         {loading && !now.length && !events.length && <SkeletonRows rows={3} />}
         {isEmpty && !loading && (
           <div className={styles.empty} data-cal-empty>
-            <button type="button" className={styles['empty-btn']} data-tap onClick={() => showSeries(undefined)}>
-              <Icon name="sys.calendar" size={18} inherit decorative />Обрати події
+            <button type="button" className={styles['catalog-btn']} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій">
+              <Icon name="sys.recipes" size={16} inherit decorative />Каталог
+            </button>
+            <button type="button" className={styles['empty-btn']} data-tap onClick={() => { closePanel(); setCreating({ date: isoOf(today), dateTo: '' }); }} aria-label="Своя подія">
+              <Icon name="sys.add" size={18} inherit decorative />Своя подія
             </button>
           </div>
         )}
@@ -328,8 +338,7 @@ export function CalendarPage() {
       {seriesOpen && !panelInFlow && (
         <Sheet onClose={() => closePanel()} ariaLabel="Каталог подій" kind="event">
           <PeriodSubscriptions key={openSeriesSet ?? 'root'} initialSet={openSeriesSet}
-            onClose={() => closePanel()} onDone={(c) => onEventChanged(undefined, c)}
-            onAddOwn={() => setCreating({ date: isoOf(today), dateTo: '' })} />
+            onDone={(c) => onEventChanged(undefined, c)} />
         </Sheet>
       )}
     </div>

@@ -56,6 +56,34 @@ export const NOW_TONE_ICON: Record<ToneKey, string> = {
   restrict: 'live.fast', own: 'live.household', season: 'live.season', tradition: 'live.tradition', grey: 'live.household',
 };
 
+/**
+ * NowItem → EventOccurrence, щоб клік по «Зараз діє» відкривав PeriodEvent
+ * тим самим шляхом, що «Попереду» й сітка (ГОЛОВНИЙ ЧАТ 18.09, уточнення
+ * до п.2: «один обробник для обох блоків»), навіть коли подію з якоїсь
+ * причини не знайдено у вже завантаженому `events` (резервний шлях —
+ * основний, `events.find`, дає той самий об'єкт, що бачить «Попереду»;
+ * цей — гарантія, що клік ніколи не мовчить і ніколи не падає в каталог).
+ *
+ * НЕ плутати `NowItem.source` ('catalog'|'user'|'chat' — ХТО завів подію)
+ * з `EventOccurrence.source` (імʼя редакційного джерела) — це різні поля,
+ * synthetic-об'єкт лишає друге незаповненим.
+ */
+export function nowItemToEvent(it: NowItem): EventOccurrence {
+  const scope: EventOccurrence['scope'] = it.source === 'user' ? 'household' : 'catalog';
+  const id = (it.source === 'user' ? it.id : it.occasion_id) ?? it.title;
+  return {
+    id, scope, kind: it.kind, title: it.title,
+    start: Date.parse(it.from), end: Date.parse(it.to),
+    force: it.strict ? 'restrict' : 'hint', strict: it.strict,
+    from: it.from, to: it.to,
+    ...(scope === 'catalog' ? { restricts: it.rule_text ?? null } : { rule_text: it.rule_text ?? null }),
+    ...(it.meaning ? { meaning: it.meaning } : {}),
+    ...(it.buy?.length ? { buy: it.buy } : {}),
+    ...(it.servings != null ? { servings: it.servings } : {}),
+    ...(it.approx ? { approx: true } : {}),
+  };
+}
+
 // ── «Попереду» (GET /v1/events, майбутнє: старт попереду або кінець того, що вже триває) ──
 
 export interface AheadRow {
