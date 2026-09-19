@@ -1,11 +1,11 @@
-// Календар v3 (К9, рішення 19.09 «мінімум»): чисті хелпери для «Сьогодні» і
-// «Далі» — текст рядків, прогрес, дати, групування. Без React, щоб межі
-// («що вважається стартом», «коли є рядок «кінець»») перевірялись тестом.
+// Календар v3 (приведення до каркасу Комори, рішення 19.09): чисті хелпери
+// для «Сьогодні» і «Далі» — текст рядків, прогрес, дати, групування,
+// знак рядка. Без React, щоб межі («що вважається стартом», «коли є рядок
+// «кінець»», «який знак у рядка») перевірялись тестом.
 
 import type { EventOccurrence, NowItem } from '../../api';
 import { daysBetween, plural, todayIso } from '../../lib/period';
 import { isLasting, spanDays } from '../../lib/spans';
-import { toneOfNow } from '../../lib/period';
 
 function isoParts(iso: string): [number, number, number] {
   const [y = 1970, m = 1, d = 1] = iso.split('-').map(Number);
@@ -23,13 +23,42 @@ export function ddmm(at: number): string {
 export function dow(at: number): string {
   return new Date(at).toLocaleDateString('uk-UA', { weekday: 'short' });
 }
+/** «Жовтень» — називний, роздільник місяця в «Далі» (тепер — заголовок картки місяця). */
+export function monthName(at: number): string {
+  const m = new Date(at).toLocaleDateString('uk-UA', { month: 'long' });
+  return m.charAt(0).toUpperCase() + m.slice(1);
+}
 function dayStartOf(at: number): number {
   const d = new Date(at);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
 
-export { toneOfNow };
+// ── Знак рядка (приведення до Комори): тон крапки більше не носій типу —
+// знак носій, колір один (muted), без розфарбовування. ────────────────────
+
+type RowIcon = 'live.season' | 'live.fast' | 'live.tradition' | 'live.household' | 'live.supply' | 'cook.timer';
+
+function iconFor(kind: string, scope: 'catalog' | 'household', strict: boolean | undefined, restricts: string | null | undefined): RowIcon {
+  if (kind === 'season') return 'live.season';
+  // Каталожне: піст/обмеження (restricts непорожній) — той самий знак, що
+  // строга своя дієта (той самий зміст — «не можна»); свято без обмежень —
+  // church.
+  if (scope === 'catalog') return restricts ? 'live.fast' : 'live.tradition';
+  if (kind === 'diet' && strict) return 'live.fast';
+  if (kind === 'supply') return 'live.supply';
+  if (kind === 'constraint') return 'cook.timer';
+  return 'live.household';
+}
+
+/** Знак рядка «Сьогодні» — з NowItem (періоди й сезон). */
+export function nowIcon(it: Pick<NowItem, 'kind' | 'source' | 'strict' | 'rule_text'>): RowIcon {
+  return iconFor(it.kind, it.source === 'user' ? 'household' : 'catalog', it.strict, it.rule_text);
+}
+/** Знак рядка з EventOccurrence — точкові події «Сьогодні» й усі рядки «Далі». */
+export function eventIcon(e: Pick<EventOccurrence, 'kind' | 'scope' | 'strict' | 'restricts'>): RowIcon {
+  return iconFor(e.kind, e.scope, e.strict, e.restricts);
+}
 
 // ── «Сьогодні» (GET /v1/now — стан; + точкові події дня з /v1/events) ──────
 
@@ -103,10 +132,15 @@ export function todayPointEvents(events: EventOccurrence[], today: number): Even
 
 const KIND_META: Partial<Record<string, string>> = { constraint: 'рамка дня', supply: 'постачання' };
 
-/** Права колонка рядка точкової події дня: «N осіб» (гості), рід за kind, інакше нічого. */
+/** Середня колонка (мета, dim): рід за kind, коли нема числа праворуч; з числом — нічого (число вже все каже). */
 export function todayPointMeta(e: Pick<EventOccurrence, 'kind' | 'servings'>): string | null {
-  if (e.servings != null) return `${e.servings} ${plural(e.servings, ['особа', 'особи', 'осіб'])}`;
+  if (e.servings != null) return null;
   return KIND_META[e.kind] ?? null;
+}
+/** Права колонка (термінна, ROW ANATOMY): «N осіб» — коли є гості, інакше нічого. */
+export function todayPointRight(e: Pick<EventOccurrence, 'servings'>): string | null {
+  if (e.servings != null) return `${e.servings} ${plural(e.servings, ['особа', 'особи', 'осіб'])}`;
+  return null;
 }
 
 /** «Сезон: сливи (до 20.09), білі гриби, виноград +4» — перший з датою, далі імена, решта — «+N». */
@@ -168,15 +202,43 @@ export function aheadRowDate(row: AheadRow): number {
   return row.kind === 'end' ? row.event.end : row.event.start;
 }
 
-/** Мета рядка: «кінець» для рядка-кінця; тривала-старт — «до <кінець> · N днів · <причина>»;
- *  одноденна — рід за kind/гості; каталожне свято без обмежень — нічого. */
+/** Середня колонка (мета, dim): «до 30.10 · калорійніше» для тривалого-старту;
+ *  рід за kind для одноденної без гостей; нічого — для рядка-кінця й одноденної з гостями (число вже праворуч). */
 export function aheadMeta(row: AheadRow): string | null {
+  if (row.kind === 'end') return null;
+  const e = row.event;
+  if (isLasting(e)) {
+    const extra = e.restricts ?? e.rule_text ?? null;
+    return `до ${ddmm(e.end)}${extra ? ` · ${extra}` : ''}`;
+  }
+  return todayPointMeta(e);
+}
+/** Права колонка (термінна, ROW ANATOMY): «31 день» — тривала; «кінець» — рядок-кінець; «6 осіб» — гості; інакше нічого. */
+export function aheadRight(row: AheadRow): string | null {
   if (row.kind === 'end') return 'кінець';
   const e = row.event;
   if (isLasting(e)) {
     const n = spanDays(e);
-    const extra = e.restricts ?? e.rule_text ?? null;
-    return `до ${ddmm(e.end)} · ${n} ${plural(n, ['день', 'дні', 'днів'])}${extra ? ` · ${extra}` : ''}`;
+    return `${n} ${plural(n, ['день', 'дні', 'днів'])}`;
   }
-  return todayPointMeta(e);
+  return todayPointRight(e);
+}
+
+export interface MonthGroup { key: string; label: string; rows: AheadRow[] }
+
+/** «Далі» — картка на місяць (приведення до Комори: zone-card на зону → zone-card на місяць). Порожніх карток нема — групи йдуть лише там, де є рядки. */
+export function aheadMonthGroups(rows: AheadRow[]): MonthGroup[] {
+  const groups: MonthGroup[] = [];
+  let cur: MonthGroup | null = null;
+  for (const row of rows) {
+    const at = aheadRowDate(row);
+    const d = new Date(at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!cur || cur.key !== key) {
+      cur = { key, label: monthName(at), rows: [] };
+      groups.push(cur);
+    }
+    cur.rows.push(row);
+  }
+  return groups;
 }

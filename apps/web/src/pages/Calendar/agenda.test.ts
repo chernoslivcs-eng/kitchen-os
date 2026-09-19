@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nowProgress, nowWhen, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta,
-  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta,
+  nowProgress, nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
+  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, monthName,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
 
@@ -46,6 +46,27 @@ describe('nowWhen', () => {
   it('≈ — коли дати приблизні', () => {
     const it_: NowItem = { kind: 'season', source: 'catalog', from: '2026-07-20', to: '2026-09-21', title: 'Сливи', strict: false, approx: true };
     expect(nowWhen(it_, '2026-09-18')).toBe('до ≈ 21.09');
+  });
+});
+
+describe('nowIcon / eventIcon (приведення до Комори: знак замість тону крапки)', () => {
+  it('своя строга дієта — moon (live.fast); своя мʼяка — users (live.household)', () => {
+    expect(nowIcon({ kind: 'diet', source: 'user', strict: true, rule_text: undefined })).toBe('live.fast');
+    expect(nowIcon({ kind: 'diet', source: 'user', strict: false, rule_text: undefined })).toBe('live.household');
+  });
+  it('своє постачання — truck; своя рамка дня — timer; гості/custom — users', () => {
+    expect(eventIcon({ kind: 'supply', scope: 'household', strict: undefined, restricts: null })).toBe('live.supply');
+    expect(eventIcon({ kind: 'constraint', scope: 'household', strict: undefined, restricts: null })).toBe('cook.timer');
+    expect(eventIcon({ kind: 'custom', scope: 'household', strict: undefined, restricts: null })).toBe('live.household');
+    expect(eventIcon({ kind: 'meal', scope: 'household', strict: undefined, restricts: null })).toBe('live.household');
+  });
+  it('каталожне свято (без restricts) — church; каталожний піст (restricts) — moon', () => {
+    expect(eventIcon({ kind: 'tradition', scope: 'catalog', strict: undefined, restricts: null })).toBe('live.tradition');
+    expect(eventIcon({ kind: 'tradition', scope: 'catalog', strict: undefined, restricts: 'без мʼяса' })).toBe('live.fast');
+  });
+  it('сезон — sun, незалежно від джерела', () => {
+    expect(nowIcon({ kind: 'season', source: 'catalog', strict: false, rule_text: undefined })).toBe('live.season');
+    expect(eventIcon({ kind: 'season', scope: 'catalog', strict: undefined, restricts: null })).toBe('live.season');
   });
 });
 
@@ -114,7 +135,7 @@ describe('todayGroups: строгі / мʼякі періоди / сезони (
   });
 });
 
-describe('todayPointEvents / todayPointMeta', () => {
+describe('todayPointEvents / todayPointMeta / todayPointRight', () => {
   it('лише одноденні, чий день — сьогодні', () => {
     const guests = ev(0, 0, { title: 'Гості', servings: 6 });
     const tomorrow = ev(1, 1, { title: 'Завтра' });
@@ -122,11 +143,16 @@ describe('todayPointEvents / todayPointMeta', () => {
     expect(todayPointEvents([guests, tomorrow, lastingToday], today).map((e) => e.title)).toEqual(['Гості']);
   });
 
-  it('мета: гості — «N осіб», constraint — «рамка дня», supply — «постачання», custom без servings — null', () => {
-    expect(todayPointMeta({ kind: 'custom', servings: 6 })).toBe('6 осіб');
+  it('права колонка: гості — «N осіб», інакше нічого (рід — у меті, не тут)', () => {
+    expect(todayPointRight({ servings: 6 })).toBe('6 осіб');
+    expect(todayPointRight({ servings: null })).toBeNull();
+  });
+
+  it('мета (dim, середня колонка): constraint — «рамка дня», supply — «постачання», custom без servings — null; з servings — теж null (число вже праворуч)', () => {
     expect(todayPointMeta({ kind: 'constraint', servings: null })).toBe('рамка дня');
     expect(todayPointMeta({ kind: 'supply', servings: null })).toBe('постачання');
     expect(todayPointMeta({ kind: 'custom', servings: null })).toBeNull();
+    expect(todayPointMeta({ kind: 'custom', servings: 6 })).toBeNull();
   });
 });
 
@@ -222,29 +248,62 @@ describe('aheadRows (К9): сезони геть, сьогодні геть, к�
   });
 });
 
-describe('aheadRowDate / aheadMeta', () => {
-  it('start — дата старту; end — дата кінця, мета «кінець»', () => {
+describe('aheadRowDate / aheadMeta / aheadRight (мета — dim текст, права колонка — термінне число)', () => {
+  it('start — дата старту; end — дата кінця, мета null, право «кінець»', () => {
     const e = ev9(11, 41, { kind: 'diet', title: 'Набір ваги' });
     const startRow = { event: e, kind: 'start' as const };
     const endRow = { event: e, kind: 'end' as const };
     expect(aheadRowDate(startRow)).toBe(e.start);
     expect(aheadRowDate(endRow)).toBe(e.end);
-    expect(aheadMeta(endRow)).toBe('кінець');
+    expect(aheadMeta(endRow)).toBeNull();
+    expect(aheadRight(endRow)).toBe('кінець');
   });
 
-  it('тривала-старт — «до <кінець> · N днів · <rule_text>»', () => {
+  it('тривала-старт — мета «до <кінець> · <rule_text>», право «N днів»', () => {
     const e = ev9(11, 41, { kind: 'diet', title: 'Набір ваги', rule_text: 'калорійніше' });
-    expect(aheadMeta({ event: e, kind: 'start' })).toBe('до 30.10 · 31 день · калорійніше');
+    const row = { event: e, kind: 'start' as const };
+    expect(aheadMeta(row)).toBe('до 30.10 · калорійніше');
+    expect(aheadRight(row)).toBe('31 день');
   });
 
-  it('каталожний пост-старт — «до <кінець> · N днів · <restricts>»', () => {
+  it('каталожний пост-старт — мета «до <кінець> · <restricts>», право «N днів»', () => {
     const e = ev9(70, 109, { kind: 'tradition', scope: 'catalog', title: 'Різдвяний піст', restricts: 'без мʼяса, риби, молочного і яєць' });
-    expect(aheadMeta({ event: e, kind: 'start' })).toBe('до 06.01 · 40 днів · без мʼяса, риби, молочного і яєць');
+    const row = { event: e, kind: 'start' as const };
+    expect(aheadMeta(row)).toBe('до 06.01 · без мʼяса, риби, молочного і яєць');
+    expect(aheadRight(row)).toBe('40 днів');
   });
 
-  it('одноденна-старт — рід за kind/гості; каталожне свято без деталей — null', () => {
-    expect(aheadMeta({ event: ev9(4, 4, { title: 'Гості', servings: 6 }), kind: 'start' })).toBe('6 осіб');
-    expect(aheadMeta({ event: ev9(4, 4, { kind: 'constraint', title: 'Мало часу' }), kind: 'start' })).toBe('рамка дня');
-    expect(aheadMeta({ event: ev9(25, 25, { kind: 'tradition', scope: 'catalog', title: 'Покрова' }), kind: 'start' })).toBeNull();
+  it('одноденна-старт — гості: мета null, право «6 осіб»; рід без гостей — мета, право null; каталожне свято без деталей — обидва null', () => {
+    const guests = { event: ev9(4, 4, { title: 'Гості', servings: 6 }), kind: 'start' as const };
+    expect(aheadMeta(guests)).toBeNull();
+    expect(aheadRight(guests)).toBe('6 осіб');
+    const constraint = { event: ev9(4, 4, { kind: 'constraint', title: 'Мало часу' }), kind: 'start' as const };
+    expect(aheadMeta(constraint)).toBe('рамка дня');
+    expect(aheadRight(constraint)).toBeNull();
+    const feast = { event: ev9(25, 25, { kind: 'tradition', scope: 'catalog', title: 'Покрова' }), kind: 'start' as const };
+    expect(aheadMeta(feast)).toBeNull();
+    expect(aheadRight(feast)).toBeNull();
+  });
+});
+
+describe('aheadMonthGroups / monthName: «Далі» — картка на місяць, лише там, де є рядки', () => {
+  it('групує послідовні рядки одного місяця; поточний місяць має свою картку, коли в ньому є рядки', () => {
+    const rows = aheadRows([
+      ev9(4, 4, { title: 'Мало часу', kind: 'constraint' }), // 23.09
+      ev9(25, 25, { kind: 'tradition', scope: 'catalog', title: 'Покрова' }), // 14.10
+      ev9(42, 42, { title: 'Пізніше' }), // 31.10
+    ], today9, horizon9);
+    const groups = aheadMonthGroups(rows);
+    expect(groups.map((g) => g.label)).toEqual(['Вересень', 'Жовтень']);
+    expect(groups[0]!.rows.map((r) => r.event.title)).toEqual(['Мало часу']);
+    expect(groups[1]!.rows.map((r) => r.event.title)).toEqual(['Покрова', 'Пізніше']);
+  });
+
+  it('порожній список рядків — жодної групи', () => {
+    expect(aheadMonthGroups([])).toEqual([]);
+  });
+
+  it('monthName — називний із великої літери', () => {
+    expect(monthName(new Date(2026, 9, 5).getTime())).toBe('Жовтень');
   });
 });

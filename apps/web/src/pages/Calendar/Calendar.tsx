@@ -1,35 +1,24 @@
-// Календар v3 — рішення власника 19.09, «мінімум» (К9, замінює К2–К5 і
-// бриф-3; схема ai 2/project/calendar-minimal-0919.html). Один спосіб
-// дивитись на час: картка «Сьогодні» + один список «Далі» + дві кнопки.
-// Макет у Claude Design не робився — екран збирається в коді з наявних
-// nowItems/aheadRows. Нема: сітки місяця, осі днів, міні-місяця, легенд,
-// чипів, «ще N», режимів Тиждень/Список (ці й раніші деталі — DEVIATIONS).
-//
-// «Сьогодні» — завжди є: число (24px), «субота · сьогодні»; рядки строгі
-// періоди → точкові події дня → мʼякі періоди → один рядок «Сезон»
-// (розкриття — список сезонів). Обмеження — по тапу на рядок (артефакт
-// події), не в самій картці. Порожньо — «Нічого не діє».
-//
-// «Далі» — один список від завтра до кінця третього місяця (горизонт
-// aheadHorizon), роздільники місяців. Сезони — геть повністю, сьогоднішнє
-// — геть (воно в «Сьогодні»). Рядок-кінець — окремо, лише для власних
-// тривалих періодів.
-//
-// Клік по будь-якому рядку — той самий артефакт події, що з чату
-// (openNowItem/showEvent); «Сезон» — лише розкриває список на місці.
-// Кнопки «Каталог»/«+ Своя подія»: ≥768 — у шапці; <768 — панеллю під
-// списком (не дублюється в порожньому стані — там уже свої кнопки).
+// Календар v3 — приведення до каркасу Комори (рішення власника 19.09, після
+// К9 «мінімум»). Той самий зміст (картка «Сьогодні» + список «Далі» + дві
+// дії), тепер у словнику Pantry.tsx/Pantry.module.css: шапка з лічильником
+// і двома компактними діями (як «Фільтр»/«Додати»), zone-card + section-label
+// (замість голого блоку), рядки 48 ROW ANATOMY зі знаком замість крапки-тону,
+// дві колонки на широкому екрані (як zone-cols), «Далі» — картка на місяць
+// (замість голого роздільника-рядка). Нічого нового не вигадуємо — усі числа
+// й розмітка звідти. Обмеження — по тапу на рядок (артефакт події), не в
+// самій картці. Клік по будь-якому рядку — той самий артефакт, що з чату
+// (openNowItem/showEvent, той самий обробник з Р174/Р175).
 
 import { Icon } from '../../components/Icon/Icon';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { IconName } from '../../components/Icon/icons';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { track } from '../../lib/track';
 import { api, type EventOccurrence, type NowItem, type OccasionSet } from '../../api';
 import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
-import { toneKey } from '../../lib/tone';
 import {
-  nowWhen, toneOfNow, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta,
-  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, dow, type AheadRow,
+  nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
+  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, dow, type AheadRow,
 } from './agenda';
 import { todayIso } from '../../lib/period';
 import { Sheet } from '../../components/Sheet/Sheet';
@@ -41,35 +30,16 @@ import { CALENDAR_FAILED } from '../../components/ErrorState/copy';
 import { usePanelStore, ARTIFACT_SIDE } from '../../store/panel';
 import styles from './Calendar.module.css';
 
-/** Кнопки в шапці від 768; нижче — панеллю під списком. */
-const WIDE = '(min-width: 768px)';
-
 function dayStart(at: number): number {
   const d = new Date(at);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
-}
-/** Називний («Жовтень») — роздільник місяця в «Далі», не родовий. */
-function monthName(at: number): string {
-  const m = new Date(at).toLocaleDateString('uk-UA', { month: 'long' });
-  return m.charAt(0).toUpperCase() + m.slice(1);
 }
 
 // Локальна дата в ISO — форма події живе в 'YYYY-MM-DD'.
 function isoOf(at: number): string {
   const d = new Date(at);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function useMedia(query: string): boolean {
-  const [on, setOn] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const fn = () => setOn(mq.matches);
-    mq.addEventListener('change', fn);
-    return () => mq.removeEventListener('change', fn);
-  }, [query]);
-  return on;
 }
 
 /** Що відкрито праворуч (панель ≥1200 / картка 600–1199 / шторка <600): подія або каталог — одне з двох.
@@ -154,10 +124,17 @@ export function CalendarPage() {
   const { strict, soft, seasons } = useMemo(() => todayGroups(now), [now]);
   const todayEvents = useMemo(() => todayPointEvents(events, today), [events, today]);
   const ahead = useMemo(() => aheadRows(events, today, horizon), [events, today, horizon]);
+  const monthGroups = useMemo(() => aheadMonthGroups(ahead), [ahead]);
   const [seasonOpen, setSeasonOpen] = useState(false);
   const todaySummary = seasonSummary(seasons, todayIsoStr);
   const todayEmpty = strict.length === 0 && soft.length === 0 && seasons.length === 0 && todayEvents.length === 0;
   const pageEmpty = todayEmpty && ahead.length === 0;
+  // Лічильник шапки (приведення до Комори, як pantry «N позицій»): «діє» —
+  // рядки «Сьогодні» без сезону (сезон — один згорнутий рядок, не лічиться
+  // окремо); «попереду» — рядки «Далі» (старт+кінець рахуються окремо,
+  // так само, як їх бачить список).
+  const todayCount = strict.length + soft.length + todayEvents.length;
+  const counterText = pageEmpty ? 'нічого не діє' : `${todayCount} діє · ${ahead.length} попереду`;
 
   // ОДИН обробник кліку по події для «Сьогодні» й «Далі»: власна відкривається
   // на редагування, каталожна — PeriodEvent у режимі читання з «Не показувати»
@@ -172,8 +149,6 @@ export function CalendarPage() {
     const found = key ? events.find((e) => e.id === key) : undefined;
     showEvent(found ?? nowItemToEvent(it));
   };
-
-  const wide = useMedia(WIDE);
 
   // №34: праворуч (панель ≥1200, плавуча картка 600–1199), шторка лише < 600.
   const panel = usePanelStore();
@@ -205,67 +180,66 @@ export function CalendarPage() {
   }, [panelInFlow, openPanel]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps -- clear лише при розмонтуванні; panel — стабільний стор
 
+  // Рядок ROW ANATOMY (Pantry «Комора»): знак 16 · назва · мета dim · права
+  // колонка dim. Один вигляд для «Сьогодні» й «Далі» — секції різнить лише
+  // контейнер (zone-card) і те, що́ саме рахує середню/праву колонку.
+  const row = (opts: { key: string; icon: IconName; name: string; meta?: string | null; right?: string | null; date?: ReactNode; onClick: () => void; motionId: string }) => (
+    <button key={opts.key} type="button" className={`${styles.row} ${evMotion(opts.motionId)}`} data-tap onClick={opts.onClick}>
+      {opts.date}
+      {/* Без `inherit`: рядок не задає свій колір, а бездоганний спокійний
+          muted — це якраз дефолт самого Icon (Icon.module.css `.icon`), без
+          гри в специфічність двох модулів на тому самому вузлі. */}
+      <Icon name={opts.icon} size={16} decorative />
+      <span className={styles.name}>{opts.name}</span>
+      {opts.meta && <span className={styles.rmeta}>{opts.meta}</span>}
+      {opts.right && <span className={styles.rval}>{opts.right}</span>}
+    </button>
+  );
+
   const periodRow = (it: NowItem) => {
-    const tone = toneOfNow(it);
     const id = it.occasion_id ?? it.id ?? it.title;
-    return (
-      <button key={`${id}:${it.from}`} type="button" className={`${styles['today-row']} ${evMotion(id)}`} data-tap onClick={() => openNowItem(it)}>
-        <span className={`${styles.dot} ${styles[`t-${tone}`]}`} aria-hidden />
-        <span className={styles['today-name']}>{it.title}</span>
-        <span className={styles['today-right']}>{nowWhen(it, todayIsoStr)}</span>
-      </button>
-    );
+    return row({ key: `${id}:${it.from}`, icon: nowIcon(it), name: it.title, right: nowWhen(it, todayIsoStr), onClick: () => openNowItem(it), motionId: id });
   };
 
-  const pointRow = (e: EventOccurrence) => {
-    const meta = todayPointMeta(e);
-    return (
-      <button key={`${e.scope}:${e.id}`} type="button" className={`${styles['today-row']} ${evMotion(e.id)}`} data-tap onClick={() => showEvent(e)}>
-        <span className={`${styles.dot} ${styles[`t-${toneKey(e)}`]}`} aria-hidden />
-        <span className={styles['today-name']}>{e.title}</span>
-        {meta && <span className={styles['today-right']}>{meta}</span>}
-      </button>
-    );
-  };
+  const pointRow = (e: EventOccurrence) => row({
+    key: `${e.scope}:${e.id}`, icon: eventIcon(e), name: e.title,
+    meta: todayPointMeta(e), right: todayPointRight(e), onClick: () => showEvent(e), motionId: e.id,
+  });
 
-  const aheadRow = (row: AheadRow) => {
-    const e = row.event;
-    const meta = aheadMeta(row);
-    const at = aheadRowDate(row);
-    return (
-      <button key={`${row.kind}:${e.scope}:${e.id}`} type="button" className={`${styles.li} ${evMotion(e.id)}`} data-tap onClick={() => showEvent(e)}>
-        <span className={styles.dt}>{String(new Date(at).getDate()).padStart(2, '0')}<s>{dow(at)}</s></span>
-        <span className={styles.t}>
-          <span className={`${styles.dot} ${styles[`t-${toneKey(e)}`]}`} aria-hidden />
-          <span className={styles.name}>{e.title}</span>
-          {meta && <span className={styles.meta}>{meta}</span>}
-        </span>
-      </button>
+  const aheadRow = (r: AheadRow) => {
+    const e = r.event;
+    const at = aheadRowDate(r);
+    const date = (
+      <span className={styles.dcol}>
+        {String(new Date(at).getDate()).padStart(2, '0')}<s>{dow(at)}</s>
+      </span>
     );
+    return row({
+      key: `${r.kind}:${e.scope}:${e.id}`, icon: eventIcon(e), name: e.title,
+      meta: aheadMeta(r), right: aheadRight(r), date, onClick: () => showEvent(e), motionId: e.id,
+    });
   };
-
-  const daliRows = useMemo(() => {
-    const out: { key: string; el: React.ReactNode }[] = [];
-    let lastMonth = new Date(today).getMonth();
-    for (const row of ahead) {
-      const at = aheadRowDate(row);
-      const m = new Date(at).getMonth();
-      if (m !== lastMonth) {
-        lastMonth = m;
-        out.push({ key: `mon-${at}`, el: <div key={`mon-${at}`} className={styles.mon}>{monthName(at)}</div> });
-      }
-      out.push({ key: `${row.kind}:${row.event.id}`, el: aheadRow(row) });
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- aheadRow нова щорендеру — перебудовуємо лише на зміну самих рядків
-  }, [ahead, today]);
 
   const catalogBtn = (
+    <button type="button" className={styles['head-icon']} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій" title="Каталог" data-cal-catalog>
+      <Icon name="sys.recipes" size={16} inherit decorative />
+    </button>
+  );
+  const ownBtn = (
+    <button type="button" className={styles['head-add']} data-tap onClick={startOwn} aria-label="Своя подія" data-cal-add>
+      <Icon name="sys.add" size={16} inherit decorative /><span className={styles['head-add-text']}>Своя подія</span>
+    </button>
+  );
+  // Порожній стан (К9, той самий пункт, лише СТИЛЬ zone-card/Комора): своя
+  // пара повновидних кнопок із підписом — той самий приклад, що в Комори
+  // («Додати, що є вдома» в порожній коморі поруч зі знаком «Додати» в
+  // шапці): шапка несе дію завжди, порожній блок називає її словами.
+  const ctaCatalogBtn = (
     <button type="button" className={styles['catalog-btn']} data-tap onClick={() => showSeries(undefined)} aria-label="Каталог подій" data-cal-catalog>
       <Icon name="sys.recipes" size={16} inherit decorative />Каталог
     </button>
   );
-  const ownBtn = (
+  const ctaOwnBtn = (
     <button type="button" className={styles.add} data-tap onClick={startOwn} aria-label="Своя подія" data-cal-add>
       <Icon name="sys.add" size={16} inherit decorative />Своя подія
     </button>
@@ -277,63 +251,80 @@ export function CalendarPage() {
         <Toast tone="danger" text={CALENDAR_FAILED.text} action={{ label: CALENDAR_FAILED.cta, run: () => setVersion((v) => v + 1) }} />
       )}
       <AppHeader
-        title={`Календар · ${headerDate}`}
+        title="Календар"
         onMenu={() => openNav(true)}
-        action={wide ? <>{catalogBtn}{ownBtn}</> : undefined}
+        fill
+        action={<>
+          <div className={styles.meta} data-testid="calendar-meta">{counterText}</div>
+          <span className={styles['head-gap']} />
+          {catalogBtn}
+          {ownBtn}
+        </>}
       />
       <div className={styles.body} data-testid="calendar-body">
         {loading && !now.length && !events.length ? <SkeletonRows rows={3} /> : (
           <>
-            <section className={styles.today} data-cal-today>
-              <div className={styles['today-head']}>
-                <b className={styles['today-num']}>{new Date(today).getDate()}</b>
-                <span className={styles['today-sub']}>{todayWeekday} · сьогодні</span>
-              </div>
-              {todayEmpty ? (
-                <div className={`${styles['today-row']} ${styles['today-empty']}`} data-cal-today-empty>Нічого не діє</div>
-              ) : (
-                <>
-                  {strict.map(periodRow)}
-                  {todayEvents.map(pointRow)}
-                  {soft.map(periodRow)}
-                  {seasons.length > 0 && (
-                    <div data-cal-season>
-                      <button type="button" className={styles['today-row']} data-tap onClick={() => setSeasonOpen((o) => !o)} data-cal-season-toggle>
-                        <span className={`${styles.dot} ${styles['dot-outline']}`} aria-hidden />
-                        <span className={styles['today-name']}>{seasonOpen ? 'Сезон' : todaySummary}</span>
-                        <Icon name={seasonOpen ? 'sys.opened' : 'sys.next'} size={12} inherit decorative className={styles['today-chevron']} />
-                      </button>
-                      {seasonOpen && seasons.map((s) => (
-                        <button key={s.occasion_id ?? s.title} type="button" className={`${styles['today-row']} ${styles['today-row-sub']}`} data-tap onClick={() => openNowItem(s)}>
-                          <span className={styles['today-name']}>{s.title}</span>
-                          <span className={styles['today-right']}>{nowWhen(s, todayIsoStr)}</span>
-                        </button>
-                      ))}
-                    </div>
+            <div className={styles.layout}>
+              <div className={styles['col-today']}>
+                <section className={styles['zone-card']} data-cal-today>
+                  <div className={styles['section-label']}>
+                    <Icon name="sys.calendar" size={16} inherit decorative />
+                    <span className={styles['section-name']}>Сьогодні</span>
+                  </div>
+                  <div className={styles['today-date']}>
+                    <b className={styles['today-num']}>{new Date(today).getDate()}</b>
+                    <span className={styles['today-sub']}>{todayWeekday} · {headerDate}</span>
+                  </div>
+                  {todayEmpty ? (
+                    <div className={`${styles.row} ${styles['row-empty']}`} data-cal-today-empty>Нічого не діє</div>
+                  ) : (
+                    <>
+                      {strict.map(periodRow)}
+                      {todayEvents.map(pointRow)}
+                      {soft.map(periodRow)}
+                      {seasons.length > 0 && (
+                        <div data-cal-season>
+                          <button type="button" className={styles.row} data-tap onClick={() => setSeasonOpen((o) => !o)} data-cal-season-toggle>
+                            <Icon name="live.season" size={16} decorative />
+                            <span className={styles.name}>{seasonOpen ? 'Сезон' : todaySummary}</span>
+                            <span className={styles.chev}><Icon name={seasonOpen ? 'sys.opened' : 'sys.next'} size={12} inherit decorative /></span>
+                          </button>
+                          {seasonOpen && seasons.map((s) => (
+                            <button key={s.occasion_id ?? s.title} type="button" className={styles.subrow} data-tap onClick={() => openNowItem(s)}>
+                              <span className={styles.name}>{s.title}</span>
+                              <span className={styles.rval}>{nowWhen(s, todayIsoStr)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </section>
+                </section>
+              </div>
 
-            {ahead.length > 0 ? (
-              <section data-cal-ahead>
-                <p className={styles.zone}>Далі</p>
-                <div className={styles.list}>{daliRows.map((r) => r.el)}</div>
-              </section>
-            ) : pageEmpty && (
-              <div className={styles['empty-block']} data-cal-empty>
+              {ahead.length > 0 && (
+                <div className={styles['col-ahead']} data-cal-ahead>
+                  {monthGroups.map((g) => (
+                    <section key={g.key} className={styles['zone-card']} data-cal-month={g.key}>
+                      <div className={styles['section-label']}>
+                        <Icon name="sys.calendar" size={16} inherit decorative />
+                        <span className={styles['section-name']}>{g.label}</span>
+                        <span className={styles['section-count']}>{g.rows.length}</span>
+                      </div>
+                      {g.rows.map(aheadRow)}
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {pageEmpty && (
+              <div className={styles.empty} data-cal-empty>
                 <p>Підпишись на свята або сезони, або додай свою подію — тут буде видно, що попереду.</p>
                 <div className={styles['empty-btns']}>
-                  {catalogBtn}
-                  {ownBtn}
+                  {ctaCatalogBtn}
+                  {ctaOwnBtn}
                 </div>
-              </div>
-            )}
-
-            {!wide && !pageEmpty && (
-              <div className={styles['btn-row']} data-cal-btn-row>
-                {catalogBtn}
-                {ownBtn}
               </div>
             )}
           </>
@@ -360,4 +351,15 @@ export function CalendarPage() {
       )}
     </div>
   );
+}
+
+function useMedia(query: string): boolean {
+  const [on, setOn] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const fn = () => setOn(mq.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, [query]);
+  return on;
 }

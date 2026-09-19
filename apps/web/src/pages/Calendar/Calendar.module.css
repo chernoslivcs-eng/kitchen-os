@@ -1,7 +1,8 @@
-/* Календар v3 — «мінімум» (рішення власника 19.09, К9): картка «Сьогодні» +
-   один список «Далі» + дві кнопки. Один стовпець на всіх ширинах, ≥1024
-   центровано (760, як .d у calendar-minimal-0919.html). Кнопки шапки —
-   ≥768; нижче — панеллю під списком (.btn-row). */
+/* Календар v3 — приведення до каркасу Комори (рішення власника 19.09, після
+   К9 «мінімум»): шапка/zone-card/section-label/ROW ANATOMY 1:1 з
+   Pantry.module.css, значення — свої (Календар лишається собою, змінився
+   лише словник). Дві колонки («Сьогодні» ліворуч, «Далі» праворуч) — від
+   1024; нижче — підряд. */
 
 .screen {
   height: 100dvh;
@@ -12,95 +13,157 @@
 }
 .screen { height: calc(100dvh - var(--kb, 0px)); }
 
-/* ── Дві кнопки — «Каталог» контурна, «Своя подія» чорнилом ─────────────── */
-.catalog-btn, .add {
-  display: inline-flex; align-items: center; gap: 7px;
-  height: 36px; padding: 0 14px;
-  border-radius: 10px;
-  font-family: var(--font-body); font-size: 13px; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
+/* ── Шапка (Pantry «Комора»): лічильник 13 dim · розпірка · «Каталог» 38
+   card+тінь (як «Фільтр») · «+ Своя подія» 36 чорнилом (як «Додати»); на
+   390 — знаки колом 40/42. ── */
+/* min-width:0 — інакше nowrap-текст лічильника не стискається зовсім
+   (min-width:auto флекс-елемента = повна ширина вмісту при nowrap) і на
+   вузьких вʼюпортах забирає весь дефіцит у кнопок праворуч. */
+.meta { flex: 1 1 auto; min-width: 0; font-family: var(--font-body); font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head-gap { flex: 1; }
+.head-icon {
+  position: relative; flex: none;
+  width: 38px; height: 38px; border: 0; border-radius: 10px;
+  background: var(--card); color: var(--muted); box-shadow: var(--sh-a), var(--sh-b);
+  display: grid; place-items: center; cursor: pointer;
 }
-.catalog-btn { border: 1px solid var(--line2); background: transparent; color: var(--ink); }
-.add { border: 0; background: var(--ink); color: var(--bg); }
+/* flex:none — без нього флекс-алгоритм стискає кнопку нижче заданої
+   ширини (min-width:auto для флекс-елемента дозволяє це), і на 390 «+
+   Своя подія» рендерилась шириною 0 (знайдено живою перевіркою). */
+.head-add {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  height: 36px; padding: 0 14px;
+  border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.head-add:hover { filter: brightness(0.96); }
+@media (max-width: 767px) {
+  .head-icon { width: 40px; height: 40px; border-radius: 50%; }
+  .head-add { width: 42px; height: 42px; padding: 0; justify-content: center; border-radius: 50%; }
+  .head-add-text { display: none; }
+}
 
-/* ── Тіло ─────────────────────────────────────────────────────────────── */
+/* ── Тіло (Pantry «Комора»): поля 22/16, без стелі й центрування. ───────── */
 .body {
   flex: 1; min-height: 0;
   overflow-y: auto; overscroll-behavior: contain;
-  padding: 4px 16px 0;
-  display: flex; flex-direction: column; gap: 18px;
+  padding: 0 22px 0;
+  display: flex; flex-direction: column; gap: 14px;
 }
-@media (min-width: 1024px) {
-  .body { padding: 8px 32px 0; max-width: 760px; margin: 0 auto; width: 100%; }
-}
+@media (max-width: 767px) { .body { padding: 0 16px 0; gap: 12px; } }
 /* fix/ios-scroll-end-padding: iOS WebKit не рахує кінцевий padding скрол-
    контейнера у scrollable overflow — резерв під нижній таббар і низ скролера
    робить спейсер ::after, не padding-bottom. */
 .body::after { content: ''; display: block; flex: none; height: 24px; }
 @media (max-width: 767px) { .body::after { height: calc(24px + 64px + env(safe-area-inset-bottom, 0px)); } }
 
-/* Роди → тон (крапка, не знак — К9). */
-.t-own       { --t: var(--sage); }
-.t-season    { --t: var(--amber); }
-.t-restrict  { --t: var(--plum); }
-.t-tradition { --t: var(--plum); }
-.t-grey      { --t: var(--dim); }
-.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--t); }
-.dot-outline { background: transparent; box-shadow: inset 0 0 0 1.5px var(--sage); }
-
-/* ── Картка «Сьогодні» ────────────────────────────────────────────────── */
-.today {
-  border: 1.5px solid var(--ink); border-radius: 14px;
-  padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;
+/* ── Дві колонки від 1024 («Сьогодні» ліворуч, «Далі» праворуч); нижче —
+   підряд. Коли «Далі» порожнє (нічого не рендериться), «Сьогодні» —
+   єдина дитина flex-контейнера — займає весь рядок сама. ── */
+.layout { display: flex; flex-direction: column; gap: 14px; }
+@media (min-width: 1024px) {
+  .layout { flex-direction: row; align-items: flex-start; }
+  .col-today, .col-ahead { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 }
-.today-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.today-num { font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--ink); }
-.today-sub { font-size: 13px; color: var(--muted); }
-.today-row {
+.col-today { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Картка (Pantry «zone-card»): та сама форма для «Сьогодні» й кожного
+   місяця «Далі». ── */
+.zone-card { background: var(--card); border-radius: 14px; overflow: hidden; padding: 0 18px 4px; box-shadow: var(--sh-a), var(--sh-b); }
+.section-label {
   display: flex; align-items: center; gap: 10px;
-  min-height: 34px; padding: 5px 0;
+  height: 44px; margin: 0 -18px 8px; padding: 0 18px;
+  background: var(--ink); color: var(--bg);
+}
+.section-name { font-size: 14px; font-weight: 600; }
+.section-count { font-size: 12px; font-weight: 400; opacity: .7; font-variant-numeric: tabular-nums; }
+@media (max-width: 767px) {
+  .zone-card { padding: 0 16px 4px; }
+  .section-label { margin: 0 -16px 8px; padding: 0 16px; }
+}
+
+/* ── «Сьогодні»: дата великим числом (токен display, як h1 Комори) +
+   «субота · 19 вересня» dim поруч. ── */
+.today-date { display: flex; align-items: baseline; gap: 8px; padding: 2px 0 8px; }
+.today-num { font-family: var(--font-display); font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--ink); }
+.today-sub { font-size: 13px; color: var(--muted); }
+
+/* ── Рядок 48 (Components «ROW ANATOMY», Pantry «.row»): знак 16 · назва ·
+   мета dim · права колонка dim; волосина знизу (крім останнього), підсвітка
+   наведення на 8 px ширша за текст. Один вигляд для «Сьогодні» й «Далі» —
+   «Далі» додає ще ліву колонку дати. ── */
+.row {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 48px;
+  padding: 4px 8px; margin: 0 -8px;
+  border-radius: 10px;
+  border: 0; background: transparent; width: 100%;
+  text-align: left; cursor: pointer; font-family: var(--font-body);
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.row::after {
+  content: ''; position: absolute; left: 8px; right: 8px; bottom: 0;
+  height: 1px; background: var(--line);
+}
+.row:last-child::after { display: none; }
+@media (hover: hover) { .row:hover { background: var(--bg); } }
+.row:focus-visible { outline: 2px solid var(--sage); outline-offset: -2px; }
+.row-empty { color: var(--muted); cursor: default; }
+@media (hover: hover) { .row-empty:hover { background: transparent; } }
+
+/* Назва — головний елемент рядка, тому має підлогу (5em): без неї довга
+   мета («до 30.10 · калорійніше») з'їдала назву до «На…» на 390, бо
+   `flex:none` тримав мету на повну довжину контенту. Тепер обидві діляться
+   дефіцитом (flex-shrink на обох), назва — з гарантованим мінімумом. */
+.name { flex: 1 1 auto; min-width: 5em; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rmeta { flex: 1 1 auto; min-width: 0; max-width: 45%; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rval { flex: none; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chev { display: inline-flex; color: var(--dim); flex: none; }
+
+/* «Далі»: ліва колонка дати — «23 ср», tabular. */
+.dcol { flex: none; width: 44px; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dcol s { text-decoration: none; font-weight: 400; color: var(--dim); font-size: 11px; margin-left: 3px; }
+
+/* Сезон розкритий — підрядки 40, без знака, з відступом і датою кінця праворуч. */
+.subrow {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px; padding: 4px 8px 4px 34px; margin: 0 -8px;
   border: 0; background: transparent; width: 100%;
   text-align: left; cursor: pointer; font-family: var(--font-body);
 }
-.today-name { flex: 1; min-width: 0; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.today-right { flex: none; font-size: 13px; color: var(--dim); }
-.today-empty { color: var(--muted); cursor: default; }
-.today-row-sub { padding-left: 18px; }
-.today-row-sub .today-name, .today-row-sub .today-right { color: var(--muted); }
-.today-chevron { flex: none; color: var(--dim); }
+@media (hover: hover) { .subrow:hover { background: var(--bg); } }
+.subrow .name, .subrow .rval { color: var(--muted); }
 
-/* ── «Далі» ───────────────────────────────────────────────────────────── */
-.zone { margin: 0 0 2px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
-.mon { padding: 10px 0 2px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
-.list { display: flex; flex-direction: column; }
-.li {
-  display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: baseline;
-  padding: 9px 0; border-top: 1px solid var(--line);
-  border-left: 0; border-right: 0; border-bottom: 0;
-  background: transparent; width: 100%; text-align: left; cursor: pointer; font-family: var(--font-body);
+/* ── Порожній стан (К9, стиль — як Комора: .empty дашд, r-xl). ──────────── */
+.empty {
+  border: 1px dashed var(--line2);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
 }
-.dt { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
-.dt s { text-decoration: none; font-weight: 400; color: var(--dim); font-size: 11px; margin-left: 3px; }
-.t { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.name { font-size: 13px; color: var(--ink); }
-.meta { font-size: 13px; color: var(--muted); }
+.empty p { margin: 0; max-width: 48ch; }
+.empty-btns { display: flex; gap: 8px; margin-top: 12px; }
 
-/* ── Порожній стан (К9): «Сьогодні» з «Нічого не діє» + пунктирний блок ── */
-.empty-block {
-  border: 1px dashed var(--line2); border-radius: 12px;
-  padding: 18px; display: flex; flex-direction: column; gap: 12px; align-items: center;
-  text-align: center; color: var(--muted); font-size: 13px;
+/* CTA-пара порожнього стану: повний вигляд з підписом (як «Додати, що є
+   вдома» в Коморі) — шапка несе дію завжди компактно, тут вона названа
+   словами. */
+.catalog-btn, .add {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 14px; border-radius: 10px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
 }
-.empty-block p { margin: 0; max-width: 48ch; }
-.empty-btns { display: flex; gap: 8px; }
-
-/* ── <768: кнопки панеллю під списком (не sticky — список короткий) ─────── */
-.btn-row { display: flex; gap: 8px; }
-.btn-row .catalog-btn, .btn-row .add { flex: 1; justify-content: center; }
+.catalog-btn { border: 1px solid var(--line2); background: transparent; color: var(--ink); }
+.add { border: 0; background: var(--ink); color: var(--bg); }
 
 /* Моушн-чекліст: рядок, що зʼявився після дії, входить через base/enter;
    прибраний — гасне й осідає (exit); правлений — флеш тінтом. */
-.today-row, .li { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
+.row { animation: cal-in var(--dur-base, 250ms) var(--ease-enter, ease) both; }
 @keyframes cal-in {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: none; }
