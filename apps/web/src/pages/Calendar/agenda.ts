@@ -143,14 +143,17 @@ export function todayPointRight(e: Pick<EventOccurrence, 'servings'>): string | 
   return null;
 }
 
-/** «Сезон: сливи (до 20.09), білі гриби, виноград +4» — перший з датою, далі імена, решта — «+N». */
-export function seasonSummary(seasons: NowItem[], today = todayIso()): string | null {
+/**
+ * Мета згорнутого рядка «Сезон» (другим рядком, живий стенд 19.09): лише
+ * назви, без дат — дати з'являються в розкритих підрядках, повторювати їх
+ * тут зайве. «пік овочевого сезону · сливи · виноград +4» — перші три,
+ * решта «+N».
+ */
+export function seasonNames(seasons: NowItem[]): string | null {
   if (seasons.length === 0) return null;
-  const [first, ...rest] = seasons;
-  const shown = rest.slice(0, 2).map((s) => s.title);
-  const hidden = rest.length - shown.length;
-  const parts = [`${first!.title} (${nowWhen(first!, today)})`, ...shown].join(', ');
-  return `Сезон: ${parts}${hidden > 0 ? ` +${hidden}` : ''}`;
+  const shown = seasons.slice(0, 3).map((s) => s.title);
+  const hidden = seasons.length - shown.length;
+  return `${shown.join(' · ')}${hidden > 0 ? ` +${hidden}` : ''}`;
 }
 
 // ── «Далі» (GET /v1/events, від завтра до горизонту) ───────────────────────

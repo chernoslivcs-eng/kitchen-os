@@ -18,7 +18,7 @@ import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import {
   nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
-  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, dow, type AheadRow,
+  seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, dow, type AheadRow,
 } from './agenda';
 import { todayIso } from '../../lib/period';
 import { Sheet } from '../../components/Sheet/Sheet';
@@ -126,7 +126,6 @@ export function CalendarPage() {
   const ahead = useMemo(() => aheadRows(events, today, horizon), [events, today, horizon]);
   const monthGroups = useMemo(() => aheadMonthGroups(ahead), [ahead]);
   const [seasonOpen, setSeasonOpen] = useState(false);
-  const todaySummary = seasonSummary(seasons, todayIsoStr);
   const todayEmpty = strict.length === 0 && soft.length === 0 && seasons.length === 0 && todayEvents.length === 0;
   const pageEmpty = todayEmpty && ahead.length === 0;
   // Лічильник шапки (приведення до Комори, як pantry «N позицій»): «діє» —
@@ -180,19 +179,26 @@ export function CalendarPage() {
   }, [panelInFlow, openPanel]);
   useEffect(() => () => panel.clear(), []); // eslint-disable-line react-hooks/exhaustive-deps -- clear лише при розмонтуванні; panel — стабільний стор
 
-  // Рядок ROW ANATOMY (Pantry «Комора»): знак 16 · назва · мета dim · права
-  // колонка dim. Один вигляд для «Сьогодні» й «Далі» — секції різнить лише
-  // контейнер (zone-card) і те, що́ саме рахує середню/праву колонку.
+  // Рядок ROW ANATOMY (Pantry «Комора», п. 2 живої перевірки на стенді
+  // 19.09: мета — ДРУГИМ РЯДКОМ під назвою, як `.meta-line` у рядках
+  // партій, не в один рядок із назвою). Рядок 1: знак · назва · права
+  // колонка (усі — на одному рівні, вирівняні по центру блока). Рядок 2
+  // (лише коли є мета): опис dim, на всю ширину назви, окремим рядком.
+  // Висота 48 без мети / 56 з метою — `.row-tall` про це.
   const row = (opts: { key: string; icon: IconName; name: string; meta?: string | null; right?: string | null; date?: ReactNode; onClick: () => void; motionId: string }) => (
-    <button key={opts.key} type="button" className={`${styles.row} ${evMotion(opts.motionId)}`} data-tap onClick={opts.onClick}>
+    <button key={opts.key} type="button" className={`${styles.row} ${opts.meta ? styles['row-tall'] : ''} ${evMotion(opts.motionId)}`} data-tap onClick={opts.onClick}>
       {opts.date}
       {/* Без `inherit`: рядок не задає свій колір, а бездоганний спокійний
           muted — це якраз дефолт самого Icon (Icon.module.css `.icon`), без
           гри в специфічність двох модулів на тому самому вузлі. */}
       <Icon name={opts.icon} size={16} decorative />
-      <span className={styles.name}>{opts.name}</span>
-      {opts.meta && <span className={styles.rmeta}>{opts.meta}</span>}
-      {opts.right && <span className={styles.rval}>{opts.right}</span>}
+      <span className={styles.content}>
+        <span className={styles.line1}>
+          <span className={styles.name}>{opts.name}</span>
+          {opts.right && <span className={styles.rval}>{opts.right}</span>}
+        </span>
+        {opts.meta && <span className={styles.rmeta}>{opts.meta}</span>}
+      </span>
     </button>
   );
 
@@ -284,10 +290,18 @@ export function CalendarPage() {
                       {soft.map(periodRow)}
                       {seasons.length > 0 && (
                         <div data-cal-season>
-                          <button type="button" className={styles.row} data-tap onClick={() => setSeasonOpen((o) => !o)} data-cal-season-toggle>
+                          {/* Назва — завжди «Сезон» (не зведення): зведення без дат тепер
+                              живе в меті другим рядком, дати — лише в розкритих підрядках.
+                              Розгорнуто — мета ховається, підрядки вже все кажуть. */}
+                          <button type="button" className={`${styles.row} ${!seasonOpen ? styles['row-tall'] : ''}`} data-tap onClick={() => setSeasonOpen((o) => !o)} data-cal-season-toggle>
                             <Icon name="live.season" size={16} decorative />
-                            <span className={styles.name}>{seasonOpen ? 'Сезон' : todaySummary}</span>
-                            <span className={styles.chev}><Icon name={seasonOpen ? 'sys.opened' : 'sys.next'} size={12} inherit decorative /></span>
+                            <span className={styles.content}>
+                              <span className={styles.line1}>
+                                <span className={styles.name}>Сезон</span>
+                                <span className={styles.chev}><Icon name={seasonOpen ? 'sys.opened' : 'sys.next'} size={12} inherit decorative /></span>
+                              </span>
+                              {!seasonOpen && <span className={styles.rmeta}>{seasonNames(seasons)}</span>}
+                            </span>
                           </button>
                           {seasonOpen && seasons.map((s) => (
                             <button key={s.occasion_id ?? s.title} type="button" className={styles.subrow} data-tap onClick={() => openNowItem(s)}>

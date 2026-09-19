@@ -90,8 +90,12 @@
 .today-num { font-family: var(--font-display); font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--ink); }
 .today-sub { font-size: 13px; color: var(--muted); }
 
-/* ── Рядок 48 (Components «ROW ANATOMY», Pantry «.row»): знак 16 · назва ·
-   мета dim · права колонка dim; волосина знизу (крім останнього), підсвітка
+/* ── Рядок (Components «ROW ANATOMY», Pantry «.row», уточнення живого
+   стенду 19.09): рядок 1 — знак 16 · назва · права колонка, усі по центру
+   блока; рядок 2 (лише коли є мета) — опис dim, ОКРЕМИМ рядком під назвою
+   (як `.meta-line` у партіях Комори, не в одну лінію з назвою — той у один
+   рядок обрізав і назву, і мету одразу на 390). Висота 48 без мети / 56 з
+   метою (`.row-tall`) — волосина знизу (крім останнього), підсвітка
    наведення на 8 px ширша за текст. Один вигляд для «Сьогодні» й «Далі» —
    «Далі» додає ще ліву колонку дати. ── */
 .row {
@@ -104,6 +108,7 @@
   text-align: left; cursor: pointer; font-family: var(--font-body);
   transition: background var(--dur-fast) var(--ease-standard);
 }
+.row-tall { min-height: 56px; }
 .row::after {
   content: ''; position: absolute; left: 8px; right: 8px; bottom: 0;
   height: 1px; background: var(--line);
@@ -114,12 +119,12 @@
 .row-empty { color: var(--muted); cursor: default; }
 @media (hover: hover) { .row-empty:hover { background: transparent; } }
 
-/* Назва — головний елемент рядка, тому має підлогу (5em): без неї довга
-   мета («до 30.10 · калорійніше») з'їдала назву до «На…» на 390, бо
-   `flex:none` тримав мету на повну довжину контенту. Тепер обидві діляться
-   дефіцитом (flex-shrink на обох), назва — з гарантованим мінімумом. */
-.name { flex: 1 1 auto; min-width: 5em; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rmeta { flex: 1 1 auto; min-width: 0; max-width: 45%; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Колонка «назва + мета»: рядок 1 (назва · права колонка) завжди, рядок 2
+   (мета) — лише коли є що сказати. */
+.content { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.line1 { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.name { flex: 1; min-width: 0; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rmeta { display: block; width: 100%; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rval { flex: none; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chev { display: inline-flex; color: var(--dim); flex: none; }
 

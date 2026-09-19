@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   nowProgress, nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
-  seasonSummary, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, monthName,
+  seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, monthName,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
 
@@ -156,25 +156,24 @@ describe('todayPointEvents / todayPointMeta / todayPointRight', () => {
   });
 });
 
-describe('seasonSummary', () => {
-  const s = (title: string, to: string): NowItem => ({ kind: 'season', title, from: '2026-06-01', to, strict: false, source: 'catalog' });
+describe('seasonNames: мета згорнутого рядка «Сезон» (без дат, живий стенд 19.09)', () => {
+  const s = (title: string): NowItem => ({ kind: 'season', title, from: '2026-06-01', to: '2026-09-20', strict: false, source: 'catalog' });
 
   it('нема сезонів — null', () => {
-    expect(seasonSummary([], '2026-09-19')).toBeNull();
+    expect(seasonNames([])).toBeNull();
   });
-  it('один сезон — назва й дата, без «+N»', () => {
-    expect(seasonSummary([s('Сливи', '2026-09-20')], '2026-09-19')).toBe('Сезон: Сливи (до 20.09)');
+  it('один сезон — сама назва, без дати й без «+N»', () => {
+    expect(seasonNames([s('Сливи')])).toBe('Сливи');
   });
-  it('три сезони — усі поіменно, без «+N»', () => {
-    const out = seasonSummary([s('Сливи', '2026-09-20'), s('Білі гриби', '2026-11-01'), s('Виноград', '2026-10-15')], '2026-09-19');
-    expect(out).toBe('Сезон: Сливи (до 20.09), Білі гриби, Виноград');
+  it('три сезони — усі поіменно через « · », без «+N»', () => {
+    expect(seasonNames([s('Сливи'), s('Білі гриби'), s('Виноград')])).toBe('Сливи · Білі гриби · Виноград');
   });
-  it('більше трьох — перший з датою, далі два імені, решта «+N»', () => {
+  it('більше трьох — перші три, решта «+N»', () => {
     const seasons = [
-      s('Сливи', '2026-09-20'), s('Пік овочевого', '2026-09-20'), s('Кавуни', '2026-09-30'),
-      s('Виноград', '2026-10-15'), s('Білі гриби', '2026-11-01'), s('Опеньки', '2026-11-01'), s('Журавлина', '2026-11-01'),
+      s('Сливи'), s('Пік овочевого'), s('Кавуни'),
+      s('Виноград'), s('Білі гриби'), s('Опеньки'), s('Журавлина'),
     ];
-    expect(seasonSummary(seasons, '2026-09-19')).toBe('Сезон: Сливи (до 20.09), Пік овочевого, Кавуни +4');
+    expect(seasonNames(seasons)).toBe('Сливи · Пік овочевого · Кавуни +4');
   });
 });
 

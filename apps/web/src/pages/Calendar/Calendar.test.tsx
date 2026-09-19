@@ -135,19 +135,20 @@ describe('CalendarPage · «Сьогодні» (zone-card)', () => {
     expect(card.textContent).toContain('6 осіб');
     // Обмеження — по тапу, не в картці.
     expect(card.textContent).not.toContain('без молока, сирів, вершків');
-    // Сезони — одним рядком «Сезон: …», не поіменно кожен.
-    expect(card.textContent).toContain('Сезон: Сливи (до 20.09), Білі гриби');
+    // Сезони — назва «Сезон», зведення (без дат) другим рядком-метою.
+    expect(card.textContent).toContain('СезонСливи · Білі гриби');
     const rows = [...card.querySelectorAll('[class*="_row_"]')].map((r) => r.textContent);
     const idx = (s: string) => rows.findIndex((r) => r?.includes(s));
     expect(idx('Без молочного')).toBeLessThan(idx('Гості на вечерю'));
-    expect(idx('Гості на вечерю')).toBeLessThan(idx('Сезон:'));
+    expect(idx('Гості на вечерю')).toBeLessThan(idx('Сезон'));
   });
 
-  it('розкриття «Сезон» — список сезонів рядками «назва · до дати»', async () => {
+  it('розкриття «Сезон» — зведення без дат ховається, підрядки «назва · до дати» зʼявляються', async () => {
     ({ host, root } = await mount(true, fixtureNow(), fixtureEvents()));
     const toggle = host!.querySelector<HTMLButtonElement>('[data-cal-season-toggle]')!;
-    expect(host!.textContent).not.toContain('Білі гриби · ');
+    expect(toggle.textContent).toBe('СезонСливи · Білі гриби');
     await act(async () => { toggle.click(); });
+    expect(toggle.textContent).toBe('Сезон');
     const card = host!.querySelector('[data-cal-today]')!;
     expect(card.textContent).toContain('Сливи');
     expect(card.textContent).toContain('до 20.09');
@@ -202,6 +203,27 @@ describe('CalendarPage · «Далі» (картка на місяць)', () => 
     expect(fast.length).toBe(1);
     expect(fast[0]!.textContent).toContain('до 06.01 · без мʼяса, риби, молочного і яєць');
     expect(fast[0]!.textContent).toContain('40 днів');
+  });
+
+  it('мета — ДРУГИМ рядком (клас .row-tall, окремий вузол); рядок 1 — лише назва й права колонка', async () => {
+    ({ host, root } = await mount(true, [], fixtureEvents()));
+    const ahead = host!.querySelector('[data-cal-ahead]')!;
+    const rows = [...ahead.querySelectorAll('button[class*="_row_"]')];
+    const find = (s: string) => rows.find((r) => r.textContent?.includes(s))!;
+
+    const notime = find('Мало часу'); // constraint без servings — мета «рамка дня», право нема.
+    expect(notime.className).toMatch(/_row-tall_/);
+    expect(notime.querySelector('[class*="_rmeta_"]')!.textContent).toBe('рамка дня');
+    expect(notime.querySelector('[class*="_line1_"]')!.textContent).toBe('Мало часу');
+
+    const weight = rows.filter((r) => r.textContent?.includes('Набір ваги')).find((r) => r.textContent?.includes('31 день'))!;
+    expect(weight.className).toMatch(/_row-tall_/);
+    expect(weight.querySelector('[class*="_rmeta_"]')!.textContent).toBe('до 30.10 · калорійніше');
+    expect(weight.querySelector('[class*="_line1_"]')!.textContent).toBe('Набір ваги31 день');
+
+    const pokrova = find('Покрова'); // каталожне свято без деталей — ні мети, ні права.
+    expect(pokrova.className).not.toMatch(/_row-tall_/);
+    expect(pokrova.querySelector('[class*="_rmeta_"]')).toBeNull();
   });
 
   it('картки місяців — «Вересень», «Жовтень», «Листопад», кожна з лічильником рядків', async () => {
