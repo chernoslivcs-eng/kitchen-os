@@ -1,0 +1,145 @@
+<title>Календар: мінімум</title>
+<style>
+:root{
+  --bg:#f6f4ef; --paper:#ffffff; --ink:#1e1c19; --ink-2:#5c5850; --ink-3:#9a958b;
+  --line:#e3dfd6; --line-2:#cfc9bd;
+  --sage:#7d9c78; --sage-bg:#e6efe3; --amber:#c9922e; --amber-bg:#f7ecd2; --plum:#8a5b8f; --plum-bg:#efe3f0;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,"Inter",system-ui,"Segoe UI",sans-serif;
+}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans);padding-inline:24px;padding-block:32px 64px}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--ink-2);margin:0 0 28px;max-width:72ch}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:20px;align-items:start}
+@media (max-width:900px){.pair{grid-template-columns:1fr}}
+.frame{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.frame .cap{font:600 10px var(--mono);letter-spacing:.08em;color:var(--ink-3);padding:6px 10px;border-bottom:1px dashed var(--line);text-transform:uppercase}
+.d{padding:20px 24px;max-width:760px}
+.m{padding:12px}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.hdr b{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctl{display:flex;gap:6px;flex:none}
+.btn{font-size:11px;padding:6px 10px;border-radius:7px;border:1px solid var(--line-2);background:var(--paper);white-space:nowrap}
+.btn.ink{background:var(--ink);color:#fff;border-color:var(--ink)}
+.today{border:1.5px solid var(--ink);border-radius:10px;padding:12px 14px;display:grid;gap:7px;margin-bottom:18px}
+.today .d1{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+.today .d1 b{font-size:24px;letter-spacing:-.02em;line-height:1}
+.today .d1 span{color:var(--ink-2)}
+.row{display:flex;gap:9px;align-items:center;font-size:13px}
+.row .r{margin-left:auto;color:var(--ink-3)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.sage{background:var(--sage)}.dot.amber{background:var(--amber)}.dot.plum{background:var(--plum)}.dot.ink{background:var(--ink)}
+.dot.o{background:transparent;border:1.5px solid var(--sage)}
+.zone{font:600 10px var(--mono);letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase;margin:0 0 8px}
+.list{display:grid}
+.li{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.li .dt{font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.li .dt s{text-decoration:none;font-weight:400;color:var(--ink-3);font-size:11px;margin-left:3px}
+.li .t{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.li .t .meta{color:var(--ink-3)}
+.li .t .dot{width:7px;height:7px}
+.mon{padding:12px 0 4px;font:600 10px var(--mono);letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase}
+.m .today .d1 b{font-size:22px}
+.m .row{font-size:12px}
+.m .li{font-size:12px;grid-template-columns:46px 1fr}
+.m .bar{display:flex;gap:6px;margin-top:14px}
+.m .bar .btn{flex:1;text-align:center}
+.notes{margin-top:40px;border-top:1px solid var(--line);padding-top:18px;max-width:80ch;color:var(--ink-2)}
+.notes b{color:var(--ink)}
+.notes ul{padding-left:18px;margin:6px 0 0}
+.notes li{margin:4px 0}
+.empty{border:1px dashed var(--line-2);border-radius:10px;padding:18px;text-align:center;color:var(--ink-2);font-size:13px;display:grid;gap:10px;justify-items:center}
+.empty .ctl{justify-content:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:28px}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+</style>
+
+<h1>Календар: мінімум — «Сьогодні» + один список</h1>
+<p class="lead">Один спосіб дивитись на час. Картка «Сьогодні» — що діє і що сьогодні. «Далі» — лише дні, де щось є, роздільниками місяців до кінця підписаного (Різдвяний піст у листопаді — у тому ж списку). Сітки, осі й міні-місяця нема. На 390 — те саме одна в одну.</p>
+
+<div class="pair">
+  <div class="frame"><div class="cap">1440</div><div class="d">
+    <div class="hdr"><b>Календар · 19 вересня</b><div class="ctl"><span class="btn">Каталог</span><span class="btn ink">+ Своя подія</span></div></div>
+    <div class="today">
+      <div class="d1"><b>19</b><span>субота · сьогодні</span></div>
+      <div class="row"><i class="dot sage"></i>Без молочного<span class="r">5-й день з 21</span></div>
+      <div class="row"><i class="dot plum"></i>Гості на вечерю<span class="r">6 осіб</span></div>
+      <div class="row"><i class="dot o"></i>Сезон: сливи (до 20.09), білі гриби, виноград +4<span class="r">˅</span></div>
+    </div>
+    <p class="zone">Далі</p>
+    <div class="list">
+      <div class="li"><span class="dt">23<s>ср</s></span><span class="t"><i class="dot plum"></i>Мало часу<span class="meta">рамка дня</span></span></div>
+      <div class="li"><span class="dt">29<s>вт</s></span><span class="t"><i class="dot plum"></i>Замовлення Сільпо<span class="meta">постачання</span></span></div>
+      <div class="li"><span class="dt">30<s>ср</s></span><span class="t"><i class="dot sage"></i>Набір ваги<span class="meta">до 30.10 · 31 день · калорійніше</span></span></div>
+      <div class="mon">Жовтень</div>
+      <div class="li"><span class="dt">05<s>пн</s></span><span class="t"><i class="dot sage"></i>Без молочного<span class="meta">кінець</span></span></div>
+      <div class="li"><span class="dt">14<s>ср</s></span><span class="t"><i class="dot amber"></i>Покрова</span></div>
+      <div class="li"><span class="dt">30<s>пт</s></span><span class="t"><i class="dot sage"></i>Набір ваги<span class="meta">кінець</span></span></div>
+      <div class="mon">Листопад</div>
+      <div class="li"><span class="dt">28<s>сб</s></span><span class="t"><i class="dot amber"></i>Різдвяний піст<span class="meta">до 06.01 · 40 днів · без мʼяса, риби, молочного і яєць</span></span></div>
+      <div class="mon">Грудень</div>
+      <div class="li"><span class="dt">19<s>сб</s></span><span class="t"><i class="dot amber"></i>Миколая</span></div>
+      <div class="li"><span class="dt">25<s>пт</s></span><span class="t"><i class="dot amber"></i>Різдво</span></div>
+    </div>
+  </div></div>
+
+  <div class="frame"><div class="cap">390</div><div class="m">
+    <div class="hdr"><b>Календар · 19 вер</b></div>
+    <div class="today">
+      <div class="d1"><b>19</b><span>субота</span></div>
+      <div class="row"><i class="dot sage"></i>Без молочного<span class="r">5-й з 21</span></div>
+      <div class="row"><i class="dot plum"></i>Гості на вечерю<span class="r">6</span></div>
+      <div class="row"><i class="dot o"></i>Сезон: сливи +6<span class="r">˅</span></div>
+    </div>
+    <p class="zone">Далі</p>
+    <div class="list">
+      <div class="li"><span class="dt">23<s>ср</s></span><span class="t"><i class="dot plum"></i>Мало часу</span></div>
+      <div class="li"><span class="dt">29<s>вт</s></span><span class="t"><i class="dot plum"></i>Сільпо</span></div>
+      <div class="li"><span class="dt">30<s>ср</s></span><span class="t"><i class="dot sage"></i>Набір ваги<span class="meta">до 30.10</span></span></div>
+      <div class="mon">Жовтень</div>
+      <div class="li"><span class="dt">05<s>пн</s></span><span class="t"><i class="dot sage"></i>Без молочного<span class="meta">кінець</span></span></div>
+      <div class="li"><span class="dt">14<s>ср</s></span><span class="t"><i class="dot amber"></i>Покрова</span></div>
+      <div class="mon">Листопад</div>
+      <div class="li"><span class="dt">28<s>сб</s></span><span class="t"><i class="dot amber"></i>Різдвяний піст<span class="meta">до 06.01</span></span></div>
+    </div>
+    <div class="bar"><span class="btn">Каталог</span><span class="btn ink">+ Своя подія</span></div>
+  </div></div>
+</div>
+
+<div class="two">
+  <div class="frame"><div class="cap">Порожній стан · 1440</div><div class="d">
+    <div class="hdr"><b>Календар · 19 вересня</b></div>
+    <div class="today">
+      <div class="d1"><b>19</b><span>субота · сьогодні</span></div>
+      <div class="row" style="color:var(--ink-2)">Нічого не діє</div>
+    </div>
+    <div class="empty">
+      <span>Підпишись на свята або сезони, або додай свою подію — тут буде видно, що попереду.</span>
+      <div class="ctl"><span class="btn">Каталог</span><span class="btn ink">+ Своя подія</span></div>
+    </div>
+  </div></div>
+  <div class="frame"><div class="cap">«Сезон» розкрито · 1440</div><div class="d">
+    <div class="today">
+      <div class="d1"><b>19</b><span>субота · сьогодні</span></div>
+      <div class="row"><i class="dot sage"></i>Без молочного<span class="r">5-й день з 21</span></div>
+      <div class="row"><i class="dot plum"></i>Гості на вечерю<span class="r">6 осіб</span></div>
+      <div class="row"><i class="dot o"></i>Сезон<span class="r">˄</span></div>
+      <div class="row" style="padding-left:17px;color:var(--ink-2)">сливи<span class="r">до 20.09</span></div>
+      <div class="row" style="padding-left:17px;color:var(--ink-2)">пік овочевого сезону<span class="r">до 20.09</span></div>
+      <div class="row" style="padding-left:17px;color:var(--ink-2)">виноград<span class="r">до 15.10</span></div>
+      <div class="row" style="padding-left:17px;color:var(--ink-2)">білі гриби · осінні яблука й груші · опеньки · журавлина<span class="r">до 31.10</span></div>
+    </div>
+  </div></div>
+</div>
+
+<div class="notes">
+  <b>Правила</b>
+  <ul>
+    <li>«Сьогодні» — завжди є. Рядки: строгі періоди → події дня → м'які періоди → «Сезон» одним рядком. Лічильник «5-й день з 21» лише там, де є початок і кінець; інакше «до 05.10». Обмеження («без молока, сирів, вершків») — по тапу на рядок, не в картці.</li>
+    <li>«Далі» — один список до кінця останньої підписаної/власної події (Різдво у грудні → до грудня), роздільники місяців. Рядок: число · день тижня · крапка тону · назва · мета. Тривале — «до 30.10 · 31 день · калорійніше»; його кінець — окремим рядком «кінець» у своєму місяці.</li>
+    <li>Сезонів у «Далі» нема взагалі. Вони живуть лише в рядку «Сезон» картки «Сьогодні» (розкриття — список із датами кінця).</li>
+    <li>Тап по будь-якому рядку — той самий артефакт події, що й з чату. Нічого не розкривається на місці.</li>
+    <li>Кнопки: 1440 — у шапці праворуч; 390 — панель під списком (не sticky: список короткий).</li>
+    <li>Нема: сітки, осі, міні-місяця, «Далі цього року», легенд, чипів, «ще N».</li>
+  </ul>
+</div>
