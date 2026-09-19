@@ -6,9 +6,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { PeriodSubscriptions, rowSub, nextWindows, SUBSCRIPTIONS_COPY } from './PeriodSubscriptions';
 import type { OccasionItem, SubscriptionRow } from '../../api';
 
-// PLAN §7: підписка на традицію як «увімкнути набір» + вимикання окремих;
-// заглушити / повернути. Перевіряється на межі API: що саме летить у PUT.
-// У проді одна подія — цей сценарій живе лише тут і на засіві.
+// Календар v3 (spec 18.09, К7): каталог — пакети (рівень 1) → вміст пакета
+// (рівень 2), не чіпи+рядки на одному екрані. Контракт API той самий —
+// перевіряється на межі: що саме летить у PUT.
 
 const catholic: OccasionItem[] = [
   { occasion_id: 'xmas', title: 'Різдво', type: 'tradition', tradition: 'catholic', from: '2026-12-25', to: '2026-12-25', enabled: false, what: 'святкова вечеря', strict: false },
@@ -55,7 +55,7 @@ describe('PeriodSubscriptions', () => {
   beforeEach(() => {
     puts = [];
     subs = [];
-    rowsBySet = { catholic, orthodox: [], seasons };
+    rowsBySet = { catholic, seasons, orthodox: [], islamic: [], jewish: [], secular: [] };
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
       const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } });
       if (init?.method === 'PUT') { const body = JSON.parse(init.body as string); puts.push(body); return json({ written: body, subscriptions: body }); }
@@ -72,28 +72,76 @@ describe('PeriodSubscriptions', () => {
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
     await act(async () => { root!.render(<MemoryRouter>{el}</MemoryRouter>); });
     await act(async () => {}); // другий тік — довідник дочитався
+    await act(async () => {});
   }
-  const click = async (el: Element | null) => act(async () => { (el as HTMLElement).click(); });
+  const click = async (el: Element | null) => { expect(el).not.toBeNull(); await act(async () => { (el as HTMLElement).click(); }); await act(async () => {}); };
   const $ = (sel: string) => host!.querySelector(sel);
   const switchOf = (id: string) => $(`[data-occasion="${id}"] [role="switch"]`) as HTMLButtonElement;
 
-  it('«увімкнути набір» — PUT усіма рядками традиції enabled:true, чіп стає увімкненим', async () => {
+  // «Своя подія» переїхала в шапку календаря (рішення власника 19.09) — тут
+  // її вже нема, лише пакети.
+  it('без initialSet — рівень 1, шість пакетів з лічильниками', async () => {
+    await mount(<PeriodSubscriptions />);
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('packages');
+    expect($('[data-package="catholic"]')!.textContent).toContain('2 події');
+    expect($('[data-package="seasons"]')!.textContent).toContain('2 вікна');
+  });
+
+  it('клік по рядку пакета — переходить у вміст (рівень 2) з кнопкою «назад»', async () => {
+    await mount(<PeriodSubscriptions />);
+    await click($('[data-package="catholic"] button'));
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('items');
+    expect(host!.textContent).toContain('Католицькі свята');
+    expect($('[data-occasion="xmas"]')).not.toBeNull();
+    await click($('[aria-label="Назад до пакетів"]'));
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('packages');
+  });
+
+  it('initialSet="catholic" — одразу рівень 2 (вхід із конкретного пакета)', async () => {
+    await mount(<PeriodSubscriptions initialSet="catholic" />);
+    expect($('[data-catalog-level]')!.getAttribute('data-catalog-level')).toBe('items');
+    expect(host!.textContent).toContain('Католицькі свята');
+  });
+
+  it('«Увімкнути» на пакеті (рівень 1) — PUT усіма рядками пакета, кнопка стає «Твій»', async () => {
     const onDone = vi.fn();
-    await mount(<PeriodSubscriptions initialSet="catholic" onDone={onDone} />);
-    expect($('[role="tab"][aria-selected="true"]')!.textContent).toBe('Католицькі');
-    expect($('[role="tab"][data-on]')).toBeNull();
-    expect($('[data-set-toggle]')!.textContent).toBe(SUBSCRIPTIONS_COPY.setOn);
-    // Не підключена традиція — рядки не «заглушені», а з датами.
-    expect($('[data-occasion="xmas"]')!.textContent).not.toContain(SUBSCRIPTIONS_COPY.muted);
-    await click($('[data-set-toggle="on"]'));
+    await mount(<PeriodSubscriptions onDone={onDone} />);
+    const btn = $('[data-package-toggle="catholic"]')!;
+    expect(btn.textContent).toBe('Увімкнути');
+    await click(btn);
     expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: true }, { occasion_id: 'lent', enabled: true }]]);
-    expect($('[role="tab"][data-on]')!.textContent).toBe('Католицькі');
-    expect($('[data-set-toggle]')!.textContent).toBe(SUBSCRIPTIONS_COPY.setOff);
-    expect(switchOf('lent').getAttribute('aria-checked')).toBe('true');
+    expect($('[data-package-toggle="catholic"]')!.textContent).toBe(SUBSCRIPTIONS_COPY.mine);
     expect(onDone).toHaveBeenCalledWith('subscribe');
   });
 
-  it('вимкнути окреме — PUT одним рядком; рядок лишається як «заглушено · повернути»; повернути — той самий перемикач', async () => {
+  // Живий клік власника в каталозі 19.09: «Твій» на сезонах був статичним
+  // написом (`packageOn('seasons')` — константа `true`) — тап після
+  // часткового вимкнення нічого не робив. Тепер сезони — той самий
+  // перемикач пакета, що традиції: «Твій» ↔ «Увімкнути», за ЕФЕКТИВНИМ
+  // станом пунктів (не всі вимкнені), як traditions.
+  it('«Твій» на сезонах — перемикач, не напис: частково вимкнено → «Твій»; тап вимикає всі 2 разом', async () => {
+    const onDone = vi.fn();
+    await mount(<PeriodSubscriptions onDone={onDone} />);
+    const btn = $('[data-package-toggle="seasons"]')!;
+    // tomato enabled:true, ramson enabled:false — хоч один увімкнений → «Твій».
+    expect(btn.textContent).toBe(SUBSCRIPTIONS_COPY.mine);
+    await click(btn);
+    expect(puts).toEqual([[{ occasion_id: 'tomato', enabled: false }, { occasion_id: 'ramson', enabled: false }]]);
+    expect($('[data-package-toggle="seasons"]')!.textContent).toBe('Увімкнути');
+    expect(onDone).toHaveBeenCalledWith('subscribe');
+  });
+
+  it('сезони всі вимкнені — «Увімкнути»; тап вмикає всі разом, стає «Твій»', async () => {
+    rowsBySet.seasons = seasons.map((r) => ({ ...r, enabled: false }));
+    await mount(<PeriodSubscriptions />);
+    const btn = $('[data-package-toggle="seasons"]')!;
+    expect(btn.textContent).toBe('Увімкнути');
+    await click(btn);
+    expect(puts).toEqual([[{ occasion_id: 'tomato', enabled: true }, { occasion_id: 'ramson', enabled: true }]]);
+    expect($('[data-package-toggle="seasons"]')!.textContent).toBe(SUBSCRIPTIONS_COPY.mine);
+  });
+
+  it('вимкнути окреме в рівні 2 — PUT одним рядком; рядок лишається як «заглушено · повернути»; повернути — той самий перемикач', async () => {
     rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
     subs = [{ occasion_id: 'xmas', enabled: true, updated_at: '', title: 'Різдво', type: 'tradition', tradition: 'catholic' }];
     await mount(<PeriodSubscriptions initialSet="catholic" />);
@@ -101,35 +149,32 @@ describe('PeriodSubscriptions', () => {
     expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: false }]]);
     expect($('[data-occasion="xmas"]')!.textContent).toContain(SUBSCRIPTIONS_COPY.muted);
     expect($('[data-occasion="xmas"]')!.hasAttribute('data-enabled')).toBe(false);
-    // Набір ще увімкнений — піст лишився.
-    expect($('[data-set-toggle]')!.textContent).toBe(SUBSCRIPTIONS_COPY.setOff);
     await click(switchOf('xmas'));
     expect(puts[1]).toEqual([{ occasion_id: 'xmas', enabled: true }]);
     expect($('[data-occasion="xmas"]')!.textContent).toContain('25 груд');
   });
 
-  it('«вимкнути набір» — усі рядки enabled:false; сезони живуть у тій самій картці', async () => {
+  it('«вимкнути набір» (рівень 2) — усі рядки enabled:false; «Вимкнути пакет» унизу робить те саме', async () => {
     rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
     await mount(<PeriodSubscriptions initialSet="catholic" />);
     await click($('[data-set-toggle="off"]'));
     expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: false }, { occasion_id: 'lent', enabled: false }]]);
-    expect($('[role="tab"][data-on]')).toBeNull();
-    expect($('[data-occasion="ramson"]')!.textContent).toContain(SUBSCRIPTIONS_COPY.muted);
-    await click(switchOf('ramson'));
-    expect(puts[1]).toEqual([{ occasion_id: 'ramson', enabled: true }]);
+    expect($('[data-occasion="ramson"]')).toBeNull(); // це не сезони — інший пакет
   });
 
-  it('відкрили «приховані» — показує першу увімкнену традицію, не православні за замовчуванням', async () => {
-    subs = [{ occasion_id: 'xmas', enabled: true, updated_at: '', title: 'Різдво', type: 'tradition', tradition: 'catholic' }];
-    await mount(<PeriodSubscriptions initialSet="seasons" />);
-    expect($('[role="tab"][aria-selected="true"]')!.textContent).toContain('Католицькі');
+  it('«Вимкнути пакет» (кнопка підвалу рівня 2) — та сама дія, що «вимкнути набір»', async () => {
+    rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
+    await mount(<PeriodSubscriptions initialSet="catholic" />);
+    const offPkg = [...host!.querySelectorAll('button')].find((b) => b.textContent?.includes(SUBSCRIPTIONS_COPY.offPackage));
+    await click(offPkg ?? null);
+    expect(puts).toEqual([[{ occasion_id: 'xmas', enabled: false }, { occasion_id: 'lent', enabled: false }]]);
   });
 
   it('PUT упав — помилка, стан не міняється', async () => {
+    rowsBySet.catholic = catholic.map((r) => ({ ...r, enabled: true }));
     await mount(<PeriodSubscriptions initialSet="catholic" />);
     (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => new Response('{}', { status: 500 }));
-    await click($('[data-set-toggle="on"]'));
+    await click($('[data-set-toggle="off"]'));
     expect(host!.textContent).toContain(SUBSCRIPTIONS_COPY.err);
-    expect($('[role="tab"][data-on]')).toBeNull();
   });
 });

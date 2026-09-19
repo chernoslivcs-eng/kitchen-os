@@ -1,13 +1,12 @@
-/* «Що впливає на кухню протягом року» — Components, картка підписок:
-   секції з dim-підписом 12/500, чіпи традицій 36 px (увімкнена — чорнильна
-   зі знаком), рядки 48 px з перемикачем 40×24, сезони з крапкою-контуром. */
+/* «Каталог подій» (Календар v3, К7) — два рівні: пакети (рядок 62 · знак 16 ·
+   назва 14/500 · мета dim · кнопка «Твій»/«Увімкнути» · шеврон) і вміст
+   пакета (та сама шапка з «‹», рядки 48px з перемикачем 40×24). */
 
 .head { margin: 0; font-family: var(--font-body); font-size: 16px; font-weight: 600; color: var(--ink); }
 .head-text { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
-.section { margin-top: 14px; }
 .section-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  margin-bottom: 8px;
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 12px;
+  margin: 14px 0 8px;
 }
 .label { font-size: 12px; font-weight: 500; color: var(--muted); }
 .set-link {
@@ -17,36 +16,44 @@
 }
 .set-link:disabled { opacity: 0.45; cursor: default; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 36px; padding: 0 14px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--line2);
-  background: transparent;
-  font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink);
-  cursor: pointer;
+/* ── Рівень 1: пакети ──────────────────────────────────────────────────── */
+.list { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin-top: 10px; }
+.pkg { display: flex; align-items: center; gap: 10px; min-height: 62px; border-bottom: 1px solid var(--line); }
+.pkg-body {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  border: 0; background: none; padding: 8px 0; margin: 0;
+  text-align: left; cursor: pointer; font: inherit; color: var(--ink);
 }
-.chip-on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.chip-viewed:not(.chip-on) { border-color: var(--ink); }
-.chip-viewed.chip-on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ink); }
+.pkg-body > [data-icon] { flex: none; color: var(--muted); }
+.pkg-btn {
+  flex: none; height: 32px; padding: 0 12px;
+  border: 1px solid var(--line2); border-radius: 8px;
+  background: transparent; color: var(--ink);
+  font-family: var(--font-body); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.pkg-btn-on { border-color: transparent; background: var(--sage-bg); color: var(--sage); cursor: default; }
+.pkg-btn:disabled { opacity: 0.5; cursor: default; }
 
-.list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
-.row {
-  display: flex; align-items: center; gap: 12px;
-  min-height: 48px; padding: 6px 0;
-  border-bottom: 1px solid var(--line);
+/* ── Рівень 2: вміст пакета ────────────────────────────────────────────── */
+.items-head { display: flex; align-items: center; gap: 10px; }
+.back {
+  flex: none; width: 36px; height: 36px;
+  border: 1px solid var(--line2); border-radius: 10px;
+  background: var(--card); color: var(--ink);
+  display: grid; place-items: center; cursor: pointer;
 }
-.row-off { color: var(--muted); }
 .row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .row-name { font-size: 14px; font-weight: 500; color: var(--ink); }
 .row-off .row-name { color: var(--muted); }
 .row-sub { font-size: 12px; color: var(--muted); }
 .row-strict { color: var(--plum); }
 
-/* Сезон — мʼяко: контурна крапка бурштином; знятий — контур лінією. */
-.dot { width: 8px; height: 8px; flex: none; border-radius: 50%; border: 1.5px solid var(--amber); }
-.dot-off { border-color: var(--line2); }
+.row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 48px; padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.row-off { color: var(--muted); }
 
 .switch {
   position: relative; flex: none;
@@ -66,13 +73,14 @@
 }
 .switch-on .knob { transform: translateX(16px); }
 
-.own {
-  display: flex; align-items: center; gap: 10px;
-  width: 100%; margin-top: 18px; padding: 12px 14px;
+/* «Вимкнути пакет» — підвал вмісту, той самий ряд-картка, danger-текст. */
+.off-pkg {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; margin-top: 14px; padding: 14px 16px;
   border: 0; border-radius: 12px;
-  background: var(--bg);
-  font-family: var(--font-body); font-size: 13px; color: var(--muted);
+  background: var(--bg); color: var(--danger);
+  font-family: var(--font-body); font-size: 13.5px; font-weight: 500;
   text-align: left; cursor: pointer;
 }
-.own-text { flex: 1; min-width: 0; }
-.own-go { color: var(--ink); font-weight: 500; }
+.off-pkg:disabled { opacity: 0.6; cursor: default; }
+.off-pkg-meta { color: var(--muted); font-size: 12px; font-weight: 400; }
