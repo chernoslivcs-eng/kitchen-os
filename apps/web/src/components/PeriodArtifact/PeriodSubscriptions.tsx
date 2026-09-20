@@ -30,14 +30,14 @@ const OCCASION_SETS: OccasionSet[] = [...TRADITION_SETS, 'seasons'];
 export const SUBSCRIPTIONS_COPY = {
   title: 'Каталог подій',
   text: 'Підпишись на пакет — і отримаєш весь набір одразу. Усередині можна вимкнути зайве, за замовчуванням усе увімкнено.',
-  mine: 'Твій',
+  // Рішення власника 20.09: те саме слово, де раніше було «Твій» — на
+  // рядку пакета (рівень 1) і в шапці вмісту (рівень 2).
+  mine: 'Відслідковується',
   events: (n: number) => `${n} ${plural(n, ['подія', 'події', 'подій'])}`,
   seasons: (n: number) => `${n} ${plural(n, ['вікно', 'вікна', 'вікон'])}`,
   someOff: (n: number) => `${n} вимкнено`,
-  setOn: 'увімкнути набір',
-  setOff: 'вимкнути набір',
-  offPackage: 'Вимкнути пакет',
-  offPackageMeta: (n: number) => `усі ${n} ${plural(n, ['подія', 'події', 'подій'])} зникнуть`,
+  setOn: 'Увімкнути всі',
+  setOff: 'Вимкнути всі',
   muted: 'заглушено · повернути',
   strict: 'суворо',
   err: 'Не вийшло записати. Спробуй ще раз',
@@ -177,11 +177,6 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
 
   const toggle = (i: OccasionItem) => write([{ occasion_id: i.occasion_id, enabled: !i.enabled }], i.occasion_id, rows ?? []);
   const setAll = (enabled: boolean) => rows && viewed && write(rows.map((r) => ({ occasion_id: r.occasion_id, enabled })), `set:${viewed}`, rows);
-  const togglePackage = (set: OccasionSet) => {
-    const items = packageItems[set];
-    if (!items) return;
-    void write(items.map((r) => ({ occasion_id: r.occasion_id, enabled: !packageOn(set) })), `set:${set}`, items);
-  };
   const openPackage = (set: OccasionSet) => { setErr(null); setViewed(set); };
   const backToPackages = () => { setErr(null); setViewed(null); setRows(null); };
 
@@ -191,29 +186,33 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
       <div className={styles.body} data-testid="period-subscriptions" data-catalog-level="packages">
         <h2 className={sub.head}>{SUBSCRIPTIONS_COPY.title}</h2>
         <p className={sub['head-text']}>{SUBSCRIPTIONS_COPY.text}</p>
+        {/* Рішення власника 20.09: кнопка «Твій/Увімкнути» на рядку пакета
+            прибрана — рядок веде лише всередину (рівень 2), де тепер обидва
+            «Увімкнути всі»/«Вимкнути всі» завжди видимі зверху. Підпис під
+            назвою несе статус замість кнопки: увімкнено — слово статусу
+            (sage) · кількість · «N вимкнено» (лише коли є); вимкнено —
+            сама кількість, muted. */}
         <div className={sub.list} data-list="packages">
           {OCCASION_SETS.map((set) => {
             const items = packageItems[set];
             const n = items?.length;
             const on = packageOn(set);
             const off = offCount(set);
+            const countLabel = n === undefined ? '…' : set === 'seasons' ? SUBSCRIPTIONS_COPY.seasons(n) : SUBSCRIPTIONS_COPY.events(n);
             return (
               <div key={set} className={sub.pkg} data-package={set}>
-                <button type="button" className={sub['pkg-body']} onClick={() => openPackage(set)}>
+                <button type="button" className={sub['pkg-body']} data-tap onClick={() => openPackage(set)}>
                   <Icon name={set === 'seasons' ? 'live.season' : 'live.tradition'} size={16} inherit decorative />
                   <span className={sub['row-body']}>
                     <span className={sub['row-name']}>{packageName(set)}</span>
                     <span className={sub['row-sub']}>
-                      {n === undefined ? '…' : set === 'seasons' ? SUBSCRIPTIONS_COPY.seasons(n) : SUBSCRIPTIONS_COPY.events(n)}
-                      {off > 0 ? ` · ${SUBSCRIPTIONS_COPY.someOff(off)}` : ''}
+                      {on && <span className={sub['status-on']}>{SUBSCRIPTIONS_COPY.mine}</span>}
+                      {on && ' · '}
+                      {countLabel}
+                      {on && off > 0 && ` · ${SUBSCRIPTIONS_COPY.someOff(off)}`}
                     </span>
                   </span>
-                  <Icon name="sys.next" size={16} inherit decorative />
-                </button>
-                <button type="button" className={`${sub['pkg-btn']} ${on ? sub['pkg-btn-on'] : ''}`} data-tap
-                  disabled={busy !== null || n === undefined} data-package-toggle={set}
-                  onClick={() => togglePackage(set)}>
-                  {on ? SUBSCRIPTIONS_COPY.mine : 'Увімкнути'}
+                  <span className={sub['pkg-chev']}><Icon name="sys.next" size={16} inherit decorative /></span>
                 </button>
               </div>
             );
@@ -235,17 +234,24 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
         </button>
         <span className={sub['row-body']}>
           <span className={sub.head}>{packageName(viewed)}</span>
-          <span className={sub['row-sub']}>{rows ? `${SUBSCRIPTIONS_COPY.events(total)} · ${viewedOn ? 'твій пакет' : 'не підключено'}` : '…'}</span>
+          <span className={sub['row-sub']}>{rows ? `${SUBSCRIPTIONS_COPY.events(total)} · ${viewedOn ? SUBSCRIPTIONS_COPY.mine : 'не підключено'}` : '…'}</span>
         </span>
       </div>
 
       {!rows && !err && <div className={styles.loading}>Читаю довідник…</div>}
       {rows && (
         <>
+          {/* Рішення власника 20.09: обидві дії — завжди видимі зверху
+              списку, не лише одна за станом (раніше — один перемикач
+              setOn/setOff; «Вимкнути пакет» підвалу прибрано — та сама дія,
+              що «Вимкнути всі» тут). */}
           <div className={sub['section-head']}>
             <span className={sub.label} />
-            <button type="button" className={sub['set-link']} data-tap disabled={busy !== null} onClick={() => void setAll(!viewedOn)} data-set-toggle={viewedOn ? 'off' : 'on'}>
-              {viewedOn ? SUBSCRIPTIONS_COPY.setOff : SUBSCRIPTIONS_COPY.setOn}
+            <button type="button" className={sub['set-link']} data-tap disabled={busy !== null} onClick={() => void setAll(true)} data-set-toggle="on">
+              {SUBSCRIPTIONS_COPY.setOn}
+            </button>
+            <button type="button" className={sub['set-link']} data-tap disabled={busy !== null} onClick={() => void setAll(false)} data-set-toggle="off">
+              {SUBSCRIPTIONS_COPY.setOff}
             </button>
           </div>
           <div className={sub.list} data-list={viewed}>
@@ -263,12 +269,6 @@ export function PeriodSubscriptions({ initialSet, onDone }: SubscriptionsProps) 
               </div>
             ))}
           </div>
-          {viewedOn && (
-            <button type="button" className={sub['off-pkg']} data-tap disabled={busy !== null} onClick={() => void setAll(false)}>
-              <span>{SUBSCRIPTIONS_COPY.offPackage}</span>
-              <span className={sub['off-pkg-meta']}>{SUBSCRIPTIONS_COPY.offPackageMeta(total)}</span>
-            </button>
-          )}
         </>
       )}
       {err && <div className={styles.err}>{err}</div>}

@@ -1,6 +1,8 @@
-/* «Каталог подій» (Календар v3, К7) — два рівні: пакети (рядок 62 · знак 16 ·
-   назва 14/500 · мета dim · кнопка «Твій»/«Увімкнути» · шеврон) і вміст
-   пакета (та сама шапка з «‹», рядки 48px з перемикачем 40×24). */
+/* «Каталог подій» (Календар v3, К7) — два рівні: пакети (рядок 62, ОДНА
+   кнопка на всю ширину — знак 16 · назва 14/500 · статус-мета dim · шеврон;
+   рішення власника 20.09 — кнопка «Твій»/«Увімкнути» прибрана з рядка) і
+   вміст пакета (та сама шапка з «‹», зверху завжди обидва «Увімкнути всі»/
+   «Вимкнути всі», рядки 48px з перемикачем 40×24). */
 
 .head { margin: 0; font-family: var(--font-body); font-size: 16px; font-weight: 600; color: var(--ink); }
 .head-text { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
@@ -18,21 +20,25 @@
 
 /* ── Рівень 1: пакети ──────────────────────────────────────────────────── */
 .list { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin-top: 10px; }
-.pkg { display: flex; align-items: center; gap: 10px; min-height: 62px; border-bottom: 1px solid var(--line); }
+.pkg { display: flex; align-items: center; min-height: 62px; border-bottom: 1px solid var(--line); }
+/* Рішення власника 20.09: рядок — ОДНА кнопка на всю ширину (кнопка
+   «Твій»/«Увімкнути» прибрана з рядка — увімкнення тепер лише всередині,
+   рівень 2). Підсвітка/курсор — як у рядках партій Комори (margin -8 ·
+   padding 8 · r10 · bg на ховері), знак і назва — по центру блока. */
 .pkg-body {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
-  border: 0; background: none; padding: 8px 0; margin: 0;
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  border: 0; background: none; padding: 8px; margin: 0 -8px;
+  border-radius: 10px;
   text-align: left; cursor: pointer; font: inherit; color: var(--ink);
+  transition: background var(--dur-fast, 150ms) var(--ease-standard, ease);
 }
 .pkg-body > [data-icon] { flex: none; color: var(--muted); }
-.pkg-btn {
-  flex: none; height: 32px; padding: 0 12px;
-  border: 1px solid var(--line2); border-radius: 8px;
-  background: transparent; color: var(--ink);
-  font-family: var(--font-body); font-size: 12px; font-weight: 600; cursor: pointer;
-}
-.pkg-btn-on { border-color: transparent; background: var(--sage-bg); color: var(--sage); cursor: default; }
-.pkg-btn:disabled { opacity: 0.5; cursor: default; }
+@media (hover: hover) { .pkg-body:hover { background: var(--bg); } }
+.pkg-chev { flex: none; display: inline-flex; color: var(--dim); }
+@media (hover: hover) { .pkg-body:hover .pkg-chev { color: var(--ink); } }
+/* Статус «Відслідковується» на рядку пакета — той самий тон, що дії
+   рівня 2 (.set-link); решта підрядка лишається muted (успадковує .row-sub). */
+.status-on { color: var(--sage); font-weight: 500; }
 
 /* ── Рівень 2: вміст пакета ────────────────────────────────────────────── */
 .items-head { display: flex; align-items: center; gap: 10px; }
@@ -72,15 +78,3 @@
   transition: transform var(--dur-fast, 150ms) var(--ease-standard, ease);
 }
 .switch-on .knob { transform: translateX(16px); }
-
-/* «Вимкнути пакет» — підвал вмісту, той самий ряд-картка, danger-текст. */
-.off-pkg {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  width: 100%; margin-top: 14px; padding: 14px 16px;
-  border: 0; border-radius: 12px;
-  background: var(--bg); color: var(--danger);
-  font-family: var(--font-body); font-size: 13.5px; font-weight: 500;
-  text-align: left; cursor: pointer;
-}
-.off-pkg:disabled { opacity: 0.6; cursor: default; }
-.off-pkg-meta { color: var(--muted); font-size: 12px; font-weight: 400; }
