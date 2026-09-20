@@ -62,13 +62,19 @@ export function isNo(text: string): boolean {
 // ПЕРШОГО СЕГМЕНТА (до першої крапки, «!», «?», переносу чи тире), а решта —
 // звичайний хід моделі в тому самому повідомленні.
 export type LeadingAnswer = { decision: 'yes' | 'no' | null; rest: string };
+// Решта, що починається з уточнення («Так, але тільки пасту»), — не згода:
+// людина звужує списання, і це має вирішувати модель, а не детермінатика.
+const QUALIFIER_START = /^(але|тільки|лише|крім|окрім|без|а не)(?![а-яіїєґ'ʼ])/iu;
+
 export function splitLeadingAnswer(text: string): LeadingAnswer {
-  const m = /^([^.!?\n—–]*)([.!?\n—–]+)?([\s\S]*)$/.exec(text.trim());
+  const m = /^([^.!?,\n—–]*)([.!?,\n—–]+)?([\s\S]*)$/.exec(text.trim());
   const head = (m?.[1] ?? text).trim();
   const rest = (m?.[3] ?? '').trim();
   const decision = isNo(head) ? 'no' : isYes(head) ? 'yes' : null;
   // Без розділювача сегмент = увесь текст, і решти нема — як було.
-  return { decision, rest: decision ? rest : '' };
+  if (!decision) return { decision: null, rest: '' };
+  if (QUALIFIER_START.test(rest)) return { decision: null, rest: '' };
+  return { decision, rest };
 }
 
 // Оцінка з вільної фрази: словоформи («на четвірку») і цифри тільки в явних

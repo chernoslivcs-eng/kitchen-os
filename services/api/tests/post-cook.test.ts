@@ -28,7 +28,15 @@ describe('post-cook детермінатика (юніти)', () => {
   // 19.09: «Так. І що до цього з напоїв? Вино?» — рішення з першого сегмента, решта моделі.
   it('splitLeadingAnswer: рішення з першого сегмента, решта — окремо; без розділювача — як isYes/isNo', () => {
     expect(splitLeadingAnswer('Так. І що до цього з напоїв? Вино?')).toEqual({ decision: 'yes', rest: 'І що до цього з напоїв? Вино?' });
-    expect(splitLeadingAnswer('Ні, потім. А що на завтра?')).toEqual({ decision: 'no', rest: 'А що на завтра?' });
+    expect(splitLeadingAnswer('Ні, потім. А що на завтра?')).toEqual({ decision: 'no', rest: 'потім. А що на завтра?' });
+    // Кома теж роздільник.
+    expect(splitLeadingAnswer('Так, а вино?')).toEqual({ decision: 'yes', rest: 'а вино?' });
+    expect(splitLeadingAnswer('Ні, потім')).toEqual({ decision: 'no', rest: 'потім' });
+    // Уточнення після згоди — не згода: усе моделі.
+    expect(splitLeadingAnswer('Так, але тільки пасту')).toEqual({ decision: null, rest: '' });
+    expect(splitLeadingAnswer('Так. Тільки без сиру')).toEqual({ decision: null, rest: '' });
+    expect(splitLeadingAnswer('Так, а не спагеті')).toEqual({ decision: null, rest: '' });
+    expect(splitLeadingAnswer('Так, крім вина')).toEqual({ decision: null, rest: '' });
     expect(splitLeadingAnswer('Так')).toEqual({ decision: 'yes', rest: '' });
     expect(splitLeadingAnswer('так собі')).toEqual({ decision: null, rest: '' });
     expect(splitLeadingAnswer('Давай!\nА вино?')).toEqual({ decision: 'yes', rest: 'А вино?' });
@@ -251,6 +259,35 @@ describe('post-cook флоу в чаті', () => {
     expect((await repo.listBatches(me.household_id)).find((x) => x.id === batchId)!.value).toBe(500);
     const msgs = await repo.listMessages(session.id);
     expect(msgs[msgs.length - 1]!.text).toBe(FEEDBACK_PROMPT);
+  });
+
+  it('«Так, а вино?» → списано, модель отримала «а вино?»', async () => {
+    const me = await signIn(app, mailer, 'pc9@example.com');
+    const batchId = await addBatch(me.household_id, { label: 'спагеті', value: 500 });
+    const { session } = await cookInSession(me, [{ p: batchId, n: 'спагеті', v: 320, u: 'g' }]);
+    const chat = await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie }, payload: { session_id: session.id, text: 'Так, а вино?' } });
+    const body = chat.json();
+    expect(body.reply.startsWith(WRITEOFF_CARD_REPLY)).toBe(true);
+    expect(body.card?.type).toBe('intake_diff');
+    expect(body.auto_applied).toBe(true);
+    expect((await repo.listBatches(me.household_id)).find((x) => x.id === batchId)!.value).toBe(180);
+    const tail = body.reply.split('[STUB')[1] ?? '';
+    expect(tail).toContain('а вино?');
+    expect(tail).not.toContain('Так,');
+    expect(body.followup).toBe(FEEDBACK_PROMPT);
+  });
+
+  it('«Так, але тільки пасту» → уточнення: усе моделі, списання нема', async () => {
+    const me = await signIn(app, mailer, 'pc10@example.com');
+    const batchId = await addBatch(me.household_id, { label: 'спагеті', value: 500 });
+    const { session } = await cookInSession(me, [{ p: batchId, n: 'спагеті', v: 320, u: 'g' }]);
+    const chat = await app.inject({ method: 'POST', url: '/v1/chat', headers: { cookie: me.cookie }, payload: { session_id: session.id, text: 'Так, але тільки пасту' } });
+    const body = chat.json();
+    expect(body.reply.startsWith(WRITEOFF_CARD_REPLY)).toBe(false);
+    expect(body.reply).toContain('Так, але тільки пасту');            // моделі — цілком
+    expect(body.card).toBeNull();
+    expect(body.auto_applied).toBeFalsy();
+    expect((await repo.listBatches(me.household_id)).find((x) => x.id === batchId)!.value).toBe(500);
   });
 
   it('«так собі» — не згода: звичайний чат, комора недоторкана', async () => {
