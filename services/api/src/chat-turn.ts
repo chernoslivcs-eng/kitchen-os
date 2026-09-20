@@ -25,7 +25,7 @@ import { incident } from './incident.js';
 import { resolveWhen } from './event-when.js';
 import { buildPeriodCard, droppedPeriodReply } from './period-card.js';
 import {
-  isYes, isNo, splitLeadingAnswer, extractRating, buildWriteoffOps, latestRunInSession,
+  isYes, isNo, splitLeadingAnswer, extractRating, buildWriteoffOps, latestRunInSession, sessionWriteoffs,
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
   FEEDBACK_MARKERS, FEEDBACK_PROMPT,
 } from './post-cook.js';
@@ -466,6 +466,10 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       exclude_session_id: session.id,
     });
 
+    // D (20.09): списання після готувань цієї сесії — модель бачить, що саме пішло з комори,
+    // і може дати поправку («взяв Helcom замість вʼялених», «десь 40 мл соку»).
+    const sessionWriteoffsBlock = await sessionWriteoffs(repo, user_id, session.id, preMessages);
+
     const started = Date.now();
     // QA5-05: коли історія обрізана, модель читала порожнечу як відсутність факту —
     // «у тебе немає покупок на початку», хоча вони були за межею вікна. Кажемо прямо.
@@ -490,6 +494,7 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
         events,
         recipesTruncated,
         recentActions,
+        sessionWriteoffs: sessionWriteoffsBlock,
       });
     } catch (err) {
       incident(sink, 'broke', 'chat-model-call-failed', { user_id, household_id, session_id: session.id, err: String(err) });

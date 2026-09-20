@@ -32,6 +32,8 @@ export interface Fixture {
   // Плани дому в [ТВОЇ ПЛАНИ] — щоб фікстура могла перевірити правку по id.
   events?: unknown[];
   recentCookRuns?: unknown[];
+  /** D (20.09): [СПИСАНО В ЦІЙ СЕСІЇ] — списання після готувань цієї сесії. */
+  sessionWriteoffs?: unknown[];
   // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картки дому, закриті поза цією
   // розмовою (PendingCard-подібні обʼєкти: card, applied_at/undone_at/dismissed_at).
   recentActions?: unknown[];
@@ -268,6 +270,8 @@ export function loadFixtures(): Fixture[] {
       ...readJson(`${id}.json`),
       conversation: [{ role: 'user' as const, content: PROFILE_SUMMARY_REQUEST }],
     })),
+    // D (20.09): поправка списання після готування — [СПИСАНО В ЦІЙ СЕСІЇ].
+    ...['writeoff-fix-substitute', 'writeoff-fix-quantity', 'writeoff-fix-negative', 'writeoff-fix-third-turn'].map((id) => readJson(`${id}.json`)),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
     // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,

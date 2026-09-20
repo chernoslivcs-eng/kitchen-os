@@ -1383,6 +1383,28 @@ export const registry: Record<string, Invariant> = {
 export function resolve(name: string): Invariant {
   const [base, arg] = name.split(':');
 
+  // D (20.09): «writeoff-fix-card:вʼялені томати=200:Helcom|Хелком=320» — intake_diff з correct
+  // на кожну пару «label містить … = value»; нічого поза [СПИСАНО]/[КОМОРА] (лише correct/open).
+  if (base === 'writeoff-fix-card') {
+    const specs = name.slice(base.length + 1).split(':').filter(Boolean).map((p) => { const [labels, v] = p.split('='); return { labels: (labels ?? '').split('|'), value: Number(v) }; });
+    return (out) => {
+      const card = out.card as { type?: string; ops?: { op: string; label: string; value?: number }[] } | null;
+      if (!card || card.type !== 'intake_diff') return fail(`нема intake_diff-картки: «${String(out.reply ?? '').slice(0, 100)}»`);
+      const ops = card.ops ?? [];
+      const bad: string[] = [];
+      if (ops.some((o) => o.op === 'add' || o.op === 'deplete')) bad.push('є add/deplete — поправка лише correct/open');
+      for (const sp of specs) {
+        const o = ops.find((x) => sp.labels.some((l) => x.label.toLowerCase().includes(l.toLowerCase())));
+        if (!o) { bad.push(`нема correct для «${sp.labels.join('|')}»`); continue; }
+        if (o.op !== 'correct' || o.value !== sp.value) bad.push(`«${o.label}»: ${o.op} ${o.value ?? ''}, чекали correct ${sp.value}`);
+      }
+      return bad.length ? fail(bad.join(' · ')) : pass(ops.map((o) => `${o.op} ${o.label} ${o.value ?? ''}`).join('; '));
+    };
+  }
+  if (base === 'has-note-or-reply-mentions') {
+    const roots = (arg ?? '').split('|');
+    return (out) => (roots.some((r) => `${out.note ?? ''} ${out.reply ?? ''}`.toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`ні note, ні reply не згадують «${arg}»`));
+  }
   // Крок 8: note з фрагментом («note-present:сол»), ≤ 140 знаків.
   if (base === 'note-present') {
     return (out) => {

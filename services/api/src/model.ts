@@ -24,7 +24,7 @@ import { noteFrom,
 } from '@kitchen/domain';
 import type {
   Card, PantryBatch, ShoppingItemRow, RecipeRow,
-  Recipe, HouseholdProduct, PendingCard,
+  Recipe, HouseholdProduct, PendingCard, SessionWriteoff,
 } from '@kitchen/domain';
 // Recipe/RecipeIng/RecipeStep переїхали в домен: вони потрібні картці рецепта,
 // а картки живуть там. Реекспорт — щоб решта services/api не переписувалась.
@@ -351,6 +351,8 @@ export interface ChatArgs {
   // Аудит раунд 3, крок 5: картки дому, закриті поза цією сесією за останні
   // 48 год (repo.listRecentResolved) — [ОСТАННІ ДІЇ] в контексті.
   recentActions?: PendingCard[];
+  /** D (20.09): списання після готувань цієї сесії — [СПИСАНО В ЦІЙ СЕСІЇ]. */
+  sessionWriteoffs?: SessionWriteoff[];
   /** Тестовий шов: «зараз» для горизонту [ЗАРАЗ]/строків; у проді не задається. */
   now?: Date;
 }
@@ -659,6 +661,7 @@ export function buildDynamicContext(args: ChatArgs, productMap?: string | null):
     modes: args.modes,
     recipesTruncated: args.recipesTruncated,
     recentActions: args.recentActions,
+    sessionWriteoffs: args.sessionWriteoffs,
     queryText,
     productMap: productMap ?? null,
     // 17.09: «зараз» — лише для тестів (у проді не задається): тест на плани

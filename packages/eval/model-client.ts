@@ -141,6 +141,7 @@ export function composeWithContext(call: CallName, prompt: LoadedPrompt, fx: Fix
     // розмовою. У проді рахує repo.listRecentResolved; фікстура описує
     // напряму, як і events/modes вище.
     recentActions: (fx.recentActions ?? []) as PendingCard[],
+    sessionWriteoffs: (fx.sessionWriteoffs ?? []) as never,
     // Раунд 5, крок К1: карта додатку — той самий класифікатор, що в проді
     // (callChat), на останній репліці людини.
     productMap: productMapFor(lastUserText(fx), prompt.blocks['product-map']),

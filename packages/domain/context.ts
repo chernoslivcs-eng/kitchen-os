@@ -65,6 +65,10 @@ export interface KitchenContext {
   // поза цією розмовою — щоб модель не реконструювала стан дому із власних
   // минулих реплік. repo.listRecentResolved(), вікно й ліміт рахує викликач.
   recentActions?: PendingCard[];
+  // D (20.09): списання після готувань ЦІЄЇ сесії — щоб «взяв Helcom замість
+  // вʼялених» чи «десь 40 мл соку» перетворились на картку-поправку. Лише в
+  // межах дня (сесії); скасовані undo не показуються; до двох останніх.
+  sessionWriteoffs?: SessionWriteoff[];
   // Раунд 5, крок К1: карта додатку — лише на ходах, де репліка схожа на
   // питання про додаток (productMapFor у product-question.ts). Іде одразу
   // за [ПРО ЛЮДИНУ]/[НОТАТКИ], перед [КОМОРА]: це довідка, не стан.
@@ -400,6 +404,37 @@ function joinNames(names: string[]): string {
   return shown.join(', ') + (rest > 0 ? ` … ще ${rest}` : '');
 }
 
+/** D (20.09): одне списання після готування в цій сесії. */
+export interface SessionWriteoff {
+  title: string;
+  /** ISO — коли списано (час картки). */
+  at: string;
+  /** Що пішло з комори: «партія · скільки · од.» (повністю — «усе»). */
+  lines: { label: string; amount: string }[];
+  /** Інгредієнти рецепта, для яких партії в коморі не знайшлось — їх ніхто не списував. */
+  notFound: string[];
+}
+
+export const SESSION_WRITEOFFS_MAX = 2;
+
+/**
+ * [СПИСАНО В ЦІЙ СЕСІЇ] — блок на кожному ході сесії, у якій було хоч одне
+ * застосоване списання після готування. Правило для моделі (card-routing.md):
+ * заміна продукту чи інша кількість у тому, що тут є, → intake_diff-поправка;
+ * рядків поза блоком не вигадувати.
+ */
+export function renderSessionWriteoffs(items: SessionWriteoff[] | undefined, now: Date): string {
+  if (!items?.length) return '';
+  const nowMs = now.getTime();
+  const blocks = items.slice(-SESSION_WRITEOFFS_MAX).map((w) => {
+    const head = `${w.title} · ${relativeWhen(new Date(w.at).getTime(), nowMs)}`;
+    const lines = w.lines.map((l) => `• ${l.label} · ${l.amount}`);
+    const missing = w.notFound.length ? [`не знайшлось у коморі (не списано): ${w.notFound.join(', ')}`] : [];
+    return [head, ...lines, ...missing].join('\n');
+  });
+  return '\n\n[СПИСАНО В ЦІЙ СЕСІЇ] (після готування; поправка — лише до цих рядків: «взяв X замість Y» → повернути Y, списати X з [КОМОРА]; «взяв N» → поправити кількість)\n' + blocks.join('\n\n');
+}
+
 export function renderRecentActions(cards: PendingCard[], now: Date): string {
   if (!cards.length) return '';
   const nowMs = now.getTime();
@@ -448,6 +483,7 @@ export function buildKitchenContext(ctx: KitchenContext): string {
     + serializeShopping(ctx.shopping ?? [])
     + cookLog
     + renderRecentActions(ctx.recentActions ?? [], now)
+    + renderSessionWriteoffs(ctx.sessionWriteoffs, now)
     + serializeRecentRecipes(ctx.recentRecipes ?? [], ctx.recipesTruncated)
     + serializeRetail(ctx.retailConnected, ctx.retailKarpaty)
     // Режим — ОСТАННІМ: це найлетючіше й найдієвіше, що є в контексті, і
