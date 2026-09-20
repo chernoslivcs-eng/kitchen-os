@@ -1,0 +1,14 @@
+{
+  "id": "photo-product-more",
+  "description": "Те саме фото + «ще дві банки» → intent add (констатація).",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-product-tomatoes.png",
+    "hint": "ще дві банки"
+  },
+  "invariants": [
+    "attachment-intent:add",
+    "has-op-label:томат"
+  ]
+}

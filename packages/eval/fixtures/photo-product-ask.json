@@ -1,0 +1,15 @@
+{
+  "id": "photo-product-ask",
+  "description": "Те саме фото + «це підійде до пасти з фуетом?» → intent ask, note — відповідь по суті, ops усе одно є.",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-product-tomatoes.png",
+    "hint": "це підійде до пасти з фуетом?"
+  },
+  "invariants": [
+    "attachment-intent:ask",
+    "has-op-label:томат",
+    "note-answers-not-asks-to-add"
+  ]
+}

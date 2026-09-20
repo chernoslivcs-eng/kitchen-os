@@ -1,0 +1,13 @@
+{
+  "id": "photo-product-plain",
+  "description": "Фото банки вʼялених томатів без підпису → intent add, позиція розібрана.",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-product-tomatoes.png"
+  },
+  "invariants": [
+    "attachment-intent:add",
+    "has-op-label:томат"
+  ]
+}

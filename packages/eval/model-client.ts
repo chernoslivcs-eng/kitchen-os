@@ -212,6 +212,8 @@ function fixtureAsUserTurn(fx: Fixture): Anthropic.MessageParam[] {
         source: { type: 'base64', media_type, data: readFileSync(file).toString('base64') },
       });
     }
+    // Дослівно як у проді (model.ts): підпис людини до вкладення.
+    if (fx.attachment?.hint) parts.push({ type: 'text', text: `[уточнення від користувача: ${fx.attachment.hint}]` });
     // Дослівно як у проді (callAttachmentParse): хвостова фраза частина промпту.
     // Е2-Т1 дописав сюди вимогу компактності — синхронно з `model.ts`. Якщо
     // ці два рядки розійдуться, еваль мовчки міритиме поведінку, якої в проді

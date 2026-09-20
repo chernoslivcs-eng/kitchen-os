@@ -27,6 +27,8 @@ export function mergeAttachmentCalls(calls: AttachmentCall[]): AttachmentCall {
   // два рядки в рахунку OpenRouter (звірка 08.09: 11:14, $0,0528 + $0,0790,
   // у нас один рядок $0,1319). Сума грошей від злиття не страждала, страждав
   // знаменник: «ціна одного виклику» виходила вдвічі більшою за справжню.
+  // 20.09: хоч одне вкладення з питанням про продукт — картка лишається pending.
+  const intent = calls.some((c) => c.intent === 'ask') ? 'ask' : (calls.find((c) => c.intent)?.intent ?? null);
   const perCall = calls.flatMap((c) => c.calls);
   const first = calls.find((c) => c.reply)?.reply ?? '';
   // Ручний тест 04.09: «2 вкладення, разом 21 — Одинадцять позицій із Сільпо…»
@@ -36,5 +38,5 @@ export function mergeAttachmentCalls(calls: AttachmentCall[]): AttachmentCall {
   const reply = ops.length
     ? `Розібрав ${calls.length} вкладення — разом ${ops.length}. Розкласти?`
     : first;
-  return { reply, card, raw_kind, calls: perCall, meta: calls[0]!.meta };
+  return { reply, card, raw_kind, intent, calls: perCall, meta: calls[0]!.meta };
 }
