@@ -126,9 +126,11 @@ describe('CalendarPage · «Сьогодні» (zone-card)', () => {
     const card = host!.querySelector('[data-cal-today]')!;
     expect(card.querySelector('[class*="_section-name_"]')!.textContent).toBe('Сьогодні');
     expect(card.querySelector('[class*="_section-count_"]')).toBeNull();
-    expect(card.querySelector('[class*="_today-num_"]')!.textContent).toBe('19');
-    expect(card.textContent).toContain('субота');
-    expect(card.textContent).toContain('19 вересня');
+    // Живий стенд 20.09: дата не дублюється — «19 вересня» крупно одним
+    // рядком, «сб» коротким днем тижня поруч (не «19» окремо + «субота · 19 вересня»).
+    expect(card.querySelector('[class*="_today-num_"]')!.textContent).toBe('19 вересня');
+    expect(card.querySelector('[class*="_today-sub_"]')!.textContent).toBe('сб');
+    expect(card.textContent).not.toContain('субота');
     expect(card.textContent).toContain('Без молочного');
     expect(card.textContent).toContain('5-й день з 21');
     expect(card.textContent).toContain('Гості на вечерю');

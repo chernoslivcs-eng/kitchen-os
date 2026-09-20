@@ -95,7 +95,6 @@ export function CalendarPage() {
   // Родовий відмінок («19 вересня», не «19 вересень»): Intl дає його лише
   // коли день і місяць форматуються РАЗОМ.
   const headerDate = useMemo(() => new Date(today).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' }), [today]);
-  const todayWeekday = useMemo(() => new Date(today).toLocaleDateString('uk-UA', { weekday: 'long' }), [today]);
 
   const [loadFailed, setLoadFailed] = useState(false);
   useEffect(() => {
@@ -298,9 +297,13 @@ export function CalendarPage() {
                     <Icon name="sys.calendar" size={16} inherit decorative />
                     <span className={styles['section-name']}>Сьогодні</span>
                   </div>
+                  {/* Живий стенд 20.09: дата дублювалась («20» + «неділя · 20
+                      вересня») — тепер одне число+місяць крупно, короткий
+                      день тижня поруч на базовій лінії (той самий скорочений
+                      підпис, що в .dcol «23 ср»). */}
                   <div className={styles['today-date']}>
-                    <b className={styles['today-num']}>{new Date(today).getDate()}</b>
-                    <span className={styles['today-sub']}>{todayWeekday} · {headerDate}</span>
+                    <b className={styles['today-num']}>{headerDate}</b>
+                    <span className={styles['today-sub']}>{dow(today)}</span>
                   </div>
                   {todayEmpty ? (
                     <div className={`${styles.row} ${styles['row-empty']}`} data-cal-today-empty>Нічого не діє</div>

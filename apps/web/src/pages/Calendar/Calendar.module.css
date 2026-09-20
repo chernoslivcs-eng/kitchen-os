@@ -87,11 +87,19 @@
   .section-label { margin: 0 -16px 8px; padding: 0 16px; }
 }
 
-/* ── «Сьогодні»: дата великим числом (токен display, як h1 Комори) +
-   «субота · 19 вересня» dim поруч. ── */
+/* ── «Сьогодні»: «20 вересня» крупно (токен display, як h1 Комори) + «нд»
+   dim поруч на базовій лінії — короткий день тижня, той самий підпис, що
+   в .dcol «23 ср». Раніше дата дублювалась («20» окремо + «неділя · 20
+   вересня» підрядком) — живий стенд 20.09. ── */
 .today-date { display: flex; align-items: baseline; gap: 8px; padding: 2px 0 8px; }
 .today-num { font-family: var(--font-display); font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--ink); }
 .today-sub { font-size: 13px; color: var(--muted); }
+@media (max-width: 767px) {
+  /* «якщо не влазить — 32px» (постановка): місяці на кшталт «листопада» з
+     днем тижня поруч не завжди влазять у 40px на 390 — просте фіксоване
+     зменшення на мобільному, без вимірювання рендеру. */
+  .today-num { font-size: 32px; }
+}
 
 /* ── Рядок (Components «ROW ANATOMY», Pantry «.row», уточнення живого
    стенду 20.09): подія · період · дні — знак 16 · назва(+мета) · період
