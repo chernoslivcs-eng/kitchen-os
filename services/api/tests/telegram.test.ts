@@ -85,7 +85,8 @@ describe('Р147/Р149 · Telegram', () => {
     const me = await linked();
     const reply = await handleTelegramText(deps(), upd(500, 'купив молоко і хліб'));
     expect(reply?.html).toBe(true);
-    expect(reply?.messages.at(-1)).toMatch(new RegExp(`Відкрити у вебі: ${APP}/v1/auth/telegram\\?token=[A-Za-z0-9_-]+&amp;next=%2Fapp`));
+    // E: картка комори → next=/pantry, не /app.
+    expect(reply?.messages.at(-1)).toMatch(new RegExp(`Відкрити у вебі: ${APP}/v1/auth/telegram\\?token=[A-Za-z0-9_-]+&amp;next=%2Fpantry`));
     const session = await repo.getOrCreateSessionForDay(me.user_id, localDay());
     const msgs = await repo.listMessages(session.id);
     const user = msgs.filter((m) => m.role === 'user');

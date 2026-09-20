@@ -287,10 +287,24 @@ export function renderCardText(card: Card | null | undefined): string | null {
   }
 }
 
+/** E (20.09): куди веде «Відкрити у вебі» — туди, де картка живе у вебі. Збережений
+ *  рецепт → одразу кукінг-мод (/recipe/:id?cook=1); картка 'recipe' з вкладення ще не
+ *  має адреси — /app. */
+export function webNextFor(card: Card | null | undefined): string {
+  switch (card?.type) {
+    case 'recipe_link': return `/recipe/${encodeURIComponent(card.recipe_id)}?cook=1`;
+    case 'intake_diff': return '/pantry';
+    case 'shopping': return '/list';
+    case 'event':
+    case 'period': return '/calendar';
+    default: return '/app';
+  }
+}
+
 /** Відповідь ходу → повідомлення для Telegram (HTML, ≤ 4096 кожне). */
 export function renderTurnMessages(out: { reply: string | null; card: Card | null; scripted?: boolean }, web: WebLink | string): string[] {
   const link = typeof web === 'string' ? (next: string) => `${web}${next}` : web;
-  const open = escapeHtml(COPY.openWeb(link('/app')));
+  const open = escapeHtml(COPY.openWeb(link(webNextFor(out.card))));
   // 14.09: довідка (scripted) несе **…** для шляхів і кнопок → <b>; звичайна
   // репліка моделі markdown не має, зірочки лишаються як є.
   const replyHtml = (r: string) => (out.scripted ? escapeHtml(r).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') : escapeHtml(r));

@@ -167,7 +167,7 @@ export async function renderSavedRecipe(repo: Repo, household_id: string, recipe
   if (!row) return null;
   const recipe = resolveRecipeLabels(row.payload as Recipe, await repo.listBatches(household_id));
   const { head, steps } = renderRecipeBlocks(recipe);
-  const open = escapeHtml(`Відкрити у вебі: ${web('/recipes')}`);
+  const open = escapeHtml(`Відкрити у вебі: ${web(`/recipe/${encodeURIComponent(recipe_id)}?cook=1`)}`);   // E: одразу кукінг-мод
   const whole = `${head}\n\n${steps}\n\n${open}`;
   if (whole.length <= TELEGRAM_MSG_MAX) return { messages: [whole], html: true };
   return { messages: [...splitTelegramText(head), ...splitByBlocks(`${steps}\n\n${open}`, /\n(?=\d+\. )/)], html: true };
