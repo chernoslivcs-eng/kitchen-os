@@ -25,7 +25,7 @@ import { incident } from './incident.js';
 import { resolveWhen } from './event-when.js';
 import { buildPeriodCard, droppedPeriodReply } from './period-card.js';
 import {
-  isYes, isNo, extractRating, buildWriteoffOps, latestRunInSession,
+  isYes, isNo, splitLeadingAnswer, extractRating, buildWriteoffOps, latestRunInSession,
   WRITEOFF_PROMPT, WRITEOFF_CARD_REPLY, WRITEOFF_DECLINED_REPLY, WRITEOFF_EMPTY_REPLY,
   FEEDBACK_MARKERS, FEEDBACK_PROMPT,
 } from './post-cook.js';
@@ -115,7 +115,8 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     // Резюме «Про тебе»: у user-turn іде серверний рядок, в історію він не
     // пишеться, картки не буває — модель лише переказує [ПРО ЛЮДИНУ] у голосі.
     const summaryTurn = action === 'profile_summary';
-    const text = summaryTurn ? PROFILE_SUMMARY_REQUEST : input.text;
+    const text0 = summaryTurn ? PROFILE_SUMMARY_REQUEST : input.text;
+    let text = text0;
     if (!text && !attachments?.length) {
       throw new ChatTurnHttpError(400, { error: 'text or attachments required' });
     }
@@ -270,29 +271,49 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       input.log.info({ user_id, card_type: repeat.card_type, ops: repeat.ops }, 'repeat-guard');
       return { reply: reply_text, card: null, card_id: null, usage: zeroUsage, meta: { ...detMeta, promptVersion: 'repeat-guard' } };
     }
+    // 19.09: «Так. І що до цього з напоїв?» — рішення з першого сегмента, решта —
+    // моделі в тому самому повідомленні (writeoffPrefix зливається з відповіддю
+    // моделі наприкінці; «Як вийшло?» стає ОСТАННІМ, щоб наступна репліка
+    // читалась як фідбек).
+    let writeoffPrefix: { reply: string; card: Card | null; card_id: string | null; auto_applied?: boolean; undo_token?: string } | null = null;
     if (text && lastMsg?.role === 'assistant' && !lastMsg.card && lastMsg.text === WRITEOFF_PROMPT) {
+      const fullText = text;
+      const lead = splitLeadingAnswer(fullText);
+      const combined = lead.decision !== null && lead.rest.length > 0;
       const saveTurn = async (reply_text: string, card: Card | null, card_id: string | null) => {
         await saveMsg({
           id: randomUUID(), session_id: session.id, role: 'user',
-          text, card: null, applied: 0, created_at: new Date().toISOString(),
+          text: fullText, card: null, applied: 0, created_at: new Date().toISOString(),
         });
         await saveMsg({
           id: card_id ?? randomUUID(), session_id: session.id, role: 'assistant',
           text: reply_text, card, applied: 0, created_at: new Date().toISOString(),
         });
       };
-      if (isNo(text)) {
-        await saveTurn(WRITEOFF_DECLINED_REPLY, null, null);
-        return { reply: WRITEOFF_DECLINED_REPLY, card: null, card_id: null, usage: zeroUsage, meta: detMeta };
-      }
-      if (isYes(text)) {
+      if (lead.decision === 'no' || (!combined && isNo(text))) {
+        if (!combined) {
+          await saveTurn(WRITEOFF_DECLINED_REPLY, null, null);
+          return { reply: WRITEOFF_DECLINED_REPLY, card: null, card_id: null, usage: zeroUsage, meta: detMeta };
+        }
+        // Комбіновано: репліка людини — повна, відмова — без «Як вийшло?» (він піде після відповіді моделі).
+        await saveTurn('Гаразд, комору не чіпаю.', null, null);
+        writeoffPrefix = { reply: 'Гаразд, комору не чіпаю.', card: null, card_id: null };
+        text = lead.rest;
+      } else if (lead.decision === 'yes' || (!combined && isYes(text))) {
         const run = await latestRunInSession(repo, user_id, session.id);
         const payload = run?.recipe?.payload as Recipe | undefined;
         const ops = payload ? await buildWriteoffOps(repo, household_id, payload) : [];
         if (!ops.length) {
-          await saveTurn(WRITEOFF_EMPTY_REPLY, null, null);
-          return { reply: WRITEOFF_EMPTY_REPLY, card: null, card_id: null, usage: zeroUsage, meta: detMeta };
+          if (combined) {
+            await saveTurn('Це готування комори не торкалось — списувати нічого.', null, null);
+            writeoffPrefix = { reply: 'Це готування комори не торкалось — списувати нічого.', card: null, card_id: null };
+            text = lead.rest;
+          } else {
+            await saveTurn(WRITEOFF_EMPTY_REPLY, null, null);
+            return { reply: WRITEOFF_EMPTY_REPLY, card: null, card_id: null, usage: zeroUsage, meta: detMeta };
+          }
         }
+        if (!writeoffPrefix) {
         const card: Card = { type: 'intake_diff', ops };
         const card_id = randomUUID();
         await createPending(repo, { message_id: card_id, household_id, user_id, card });
@@ -306,15 +327,21 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
         if (applied.missed?.length) {
           incident(sink, 'guard', 'intake-op-missed', { user_id, household_id, session_id: session.id, card_id, missed: applied.missed });
         }
-        await saveMsg({
-          id: randomUUID(), session_id: session.id, role: 'assistant',
-          text: FEEDBACK_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
-        });
-        return {
-          reply: WRITEOFF_CARD_REPLY, card, card_id,
-          auto_applied: applied.applied > 0, undo_token: applied.undo_token ?? undefined, followup: FEEDBACK_PROMPT,
-          usage: zeroUsage, meta: detMeta,
-        };
+        if (combined) {
+          writeoffPrefix = { reply: WRITEOFF_CARD_REPLY, card, card_id, auto_applied: applied.applied > 0, undo_token: applied.undo_token ?? undefined };
+          text = lead.rest;
+        } else {
+          await saveMsg({
+            id: randomUUID(), session_id: session.id, role: 'assistant',
+            text: FEEDBACK_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
+          });
+          return {
+            reply: WRITEOFF_CARD_REPLY, card, card_id,
+            auto_applied: applied.applied > 0, undo_token: applied.undo_token ?? undefined, followup: FEEDBACK_PROMPT,
+            usage: zeroUsage, meta: detMeta,
+          };
+        }
+        }
       }
       // складна відповідь → модель (питання лишиться в історії — вона побачить контекст)
     }
@@ -366,7 +393,8 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     // повтор після вето). Резюме ходу людини не має взагалі: там message_id
     // лишається порожнім, і це чесно — прив'язувати нема до чого.
     let turnMsgId: string | null = null;
-    if (!summaryTurn) {
+    // Комбінована відповідь на «Списати?» — репліку людини вже збережено повністю в гілці списання.
+    if (!summaryTurn && !writeoffPrefix) {
       turnMsgId = randomUUID();
       await saveMsg({
         id: turnMsgId, session_id: session.id, role: 'user',
@@ -1014,6 +1042,21 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       // щоб артефакт не показував стару назву. Механізм пішов разом із
       // другою копією — картка тепер дивиться на живу позицію, і правка
       // видно в ній без жодної синхронізації.
+    }
+    if (writeoffPrefix) {
+      // 19.09: спершу репліка списання + її картка (вона застосована, їй треба undo), потім
+      // відповідь моделі; «Як вийшло?» — останнім, щоб наступна репліка людини була фідбеком.
+      if (call.card) input.log.info({ user_id, dropped_card: call.card.type }, 'writeoff-combined-model-card-dropped');
+      await saveMsg({
+        id: randomUUID(), session_id: session.id, role: 'assistant',
+        text: FEEDBACK_PROMPT, card: null, applied: 0, created_at: new Date().toISOString(),
+      });
+      return {
+        reply: [writeoffPrefix.reply, replyText].filter(Boolean).join('\n\n'),
+        card: writeoffPrefix.card, card_id: writeoffPrefix.card_id,
+        auto_applied: writeoffPrefix.auto_applied, undo_token: writeoffPrefix.undo_token, followup: FEEDBACK_PROMPT,
+        usage: sumUsage(call.calls), meta: call.meta,
+      };
     }
     return {
       reply: replyText, card: call.card, card_id,
