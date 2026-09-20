@@ -32,6 +32,15 @@ export const LINK_EXPIRED: ErrorCopy = {
 };
 
 /** Лінк уже спрацював: 410 consumed. Це не помилка, і текст це знає. */
+/** E (20.09): лінк із Telegram-бота застарів чи відкликаний. Зі сторінки не перевидати — лише бот. */
+export const LINK_EXPIRED_TELEGRAM: ErrorCopy = {
+  kicker: 'вхід · запізнились',
+  h1a: 'Цей лінк',
+  h1b: 'уже не діє.',
+  body: 'Лінк із бота живе добу. Напиши боту /web — дам новий.',
+  cta: 'На головну',
+};
+
 export const LINK_CONSUMED: ErrorCopy = {
   kicker: 'вхід · вже був',
   h1a: 'Все добре.',

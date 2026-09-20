@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from 'react';
 import { track } from '../../lib/track';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/Button/Button';
 import { api, type Recipe, type RecipeNutritionInfo, type SavedRecipe } from '../../api';
 import { loadPantry } from '../../store/pantryList';
@@ -77,6 +77,17 @@ export function RecipePage() {
   const [servings, setServings] = useState<number | null>(null);
   const cookOpen = useCookStore((s) => s.open);
   const recipe = baseRecipe ? scaleRecipe(baseRecipe, servings ?? baseRecipe.sv ?? 1) : null;
+  // E (20.09): лінк із Telegram /recipe/:id?cook=1 — щойно рецепт є, одразу кукінг-мод
+  // з кроку 1 (те саме, що «Готуємо»). Параметр знімаємо (replace), щоб F5 не стартував знову.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const wantsCook = searchParams.get('cook') === '1';
+  useEffect(() => {
+    if (!wantsCook || !baseRecipe) return;
+    cookOpen({ recipe: baseRecipe, startAt: 0, recipeId: id });
+    const next = new URLSearchParams(searchParams);
+    next.delete('cook');
+    setSearchParams(next, { replace: true });
+  }, [wantsCook, baseRecipe, id, cookOpen, searchParams, setSearchParams]);
   const [currentStep, setCurrentStep] = useState(0);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [allergies, setAllergies] = useState<{ label: string; who: string | null }[]>([]);
