@@ -17,7 +17,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { resolveRecipeLabels, applyCard, dismissCard, signInWithTelegram, createWebLoginChallenge, attachTelegramLoginUser, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind, type Tradition } from '@kitchen/domain';
+import { resolveRecipeLabels, applyCard, dismissCard, undoCard, streakActive, onIntakeApply, startStreak, breakStreak, isAllToPantry, ALL_TO_PANTRY_LOOKBACK_MS, signInWithTelegram, createWebLoginChallenge, attachTelegramLoginUser, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind, type Tradition } from '@kitchen/domain';
 import { saveScriptedTurn } from './chat-turn.js';
 import { renderPeriodSeriesText, periodSeriesKeyboard, maskOf, parseMask, selectedOf, periodAppliedStatus, TRADITION_SETS, TRADITION_LABEL } from './telegram-period.js';
 import { buildPeriodCard } from './period-card.js';
@@ -138,6 +138,11 @@ export const COPY = {
   notNeeded: 'Не треба',
   added: (n: number) => `Додав у комору · ${n}`,
   notAdded: 'Не додав',
+  /** Серія «наповнюю комору» (19.09): фото йде в комору одразу, одна кнопка — скасувати. */
+  streakAdded: (n: number) => `Записав у комору · ${n}`,
+  streakUndo: 'Скасувати',
+  streakUndone: 'Скасував. Наступні фото знову чекатимуть на «У комору».',
+  allToPantry: (n: number) => (n > 0 ? `Записав у комору все, що чекало · ${n}. Далі фото йдуть у комору одразу — «Скасувати» під карткою, якщо щось не туди.` : 'Нічого не чекало. Далі фото йдуть у комору одразу — «Скасувати» під карткою, якщо щось не туди.'),
   fileUnsupported: 'Такий файл не читаю — фото, PDF або текст',
   fileTooBig: 'Завеликий файл — до 20 МБ',
   photoHint: 'Якщо чек не розібрався — надішли його як файл, без стиснення',
@@ -404,13 +409,21 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
       content_type, bytes: stored.bytes, hint: null, created_at: now.toISOString(),
     });
     const turn = deps.turn ?? ((input: ChatTurnInput) => runChatTurn(deps.repo, deps.store ?? noStore, deps.chatOpts ?? {}, input));
+    // Серія «наповнюю комору» (19.09): поки активна — фото йде в комору одразу (як текст), з undo.
+    const inStreak = u.source === 'photo' && streakActive(linked, now);
     const out = await turn({
       user: { user_id: linked.user_id, household_id }, text: u.caption?.trim() || undefined,
-      attachments: [{ id }], channel: 'telegram', attachmentApply: 'pending', host, log,
+      attachments: [{ id }], channel: 'telegram', attachmentApply: inStreak ? 'auto' : 'pending', host, log,
     });
     const card = out.card;
     const web = await webLink(deps, linked.user_id);
     if (card?.type === 'intake_diff' && out.card_id && card.ops.length) {
+      if (inStreak) {
+        // Репліка — доконана й наша, не нотатка розбору («розкладаємо по полицях?» — не її рішення).
+        await deps.repo.setTelegramIntakeStreak(u.telegram_user_id, onIntakeApply(linked, now));
+        const text = [escapeHtml(COPY.streakAdded(card.ops.length)), escapeHtml(renderCardText(card)!)].join('\n\n');
+        return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.streakUndo, data: `undo:${out.card_id}` }]] };
+      }
       const text = [
         out.reply ? escapeHtml(out.reply) : null,
         escapeHtml(renderCardText(card)!),
@@ -418,6 +431,8 @@ export async function handleTelegramFile(deps: TelegramDeps, u: IncomingFile): P
       ].filter(Boolean).join('\n\n');
       return { messages: splitTelegramText(text), html: true, keyboard: [[{ text: COPY.toPantry, data: `apply:${out.card_id}` }, { text: COPY.notNeeded, data: `dismiss:${out.card_id}` }]] };
     }
+    // Фото-страва чи порожня картка — людина показує/питає, а не наповнює: серія рветься.
+    if (inStreak) await deps.repo.setTelegramIntakeStreak(u.telegram_user_id, breakStreak());
     // Нічого не розібрав (нема картки або порожній список): стиснуте фото — підказка про файл.
     const messages = renderTurnMessages({ reply: out.reply, card, scripted: !!(out.meta as { scripted?: string } | undefined)?.scripted }, web);
     const nothing = !card || (card.type === 'intake_diff' && !card.ops.length);
@@ -439,21 +454,32 @@ export interface IncomingCallback { update_id: number; telegram_user_id: number;
 export async function handleTelegramCallback(deps: TelegramDeps, u: IncomingCallback): Promise<{ status: string } | null> {
   const now = deps.now?.() ?? new Date();
   if (seenUpdate(u.update_id, now.getTime())) return null;
-  const m = u.data.match(/^(apply|dismiss):([0-9a-f-]{36})$/);
+  const m = u.data.match(/^(apply|dismiss|undo):([0-9a-f-]{36})$/);
   if (!m) return null;
   const account = await deps.repo.getTelegramByTelegramUser(u.telegram_user_id);
   const linked = account && !account.revoked_at ? account : null;
   if (!linked) return { status: COPY.startFirst };
   try {
     const pcKind = (await deps.repo.getPending(m[2]!))?.card.type ?? null;
-    await botEvent(deps, linked.user_id, m[1] === 'apply' ? 'tg_card_apply' : 'tg_card_dismiss', { kind: pcKind });
+    await botEvent(deps, linked.user_id, m[1] === 'apply' ? 'tg_card_apply' : m[1] === 'undo' ? 'tg_card_undo' : 'tg_card_dismiss', { kind: pcKind });
     if (m[1] === 'apply') {
       const pc = await deps.repo.getPending(m[2]!);
       const r = await applyCard(deps.repo, m[2]!, [], linked.user_id);
       if (pc?.card.type === 'period' && (pc.card.kind === 'custom' || pc.card.kind === 'diet')) return { status: periodAppliedStatus(pc.card) };
       if (pc?.card.type === 'event') return { status: 'Записав у календар' };
+      // Серія (19.09): другий apply за 15 хв вмикає її; кожен apply продовжує.
+      if (pc?.card.type === 'intake_diff') await deps.repo.setTelegramIntakeStreak(u.telegram_user_id, onIntakeApply(linked, now));
       return { status: COPY.added(r.applied) };
     }
+    if (m[1] === 'undo') {
+      // «Скасувати» під авто-карткою серії — той самий undo, що у вебі (токен на картці); серія рветься.
+      const pc = await deps.repo.getPending(m[2]!);
+      if (pc?.undo_token) await undoCard(deps.repo, m[2]!, pc.undo_token, linked.user_id);
+      await deps.repo.setTelegramIntakeStreak(u.telegram_user_id, breakStreak());
+      return { status: COPY.streakUndone };
+    }
+    // «Не треба» на будь-якій картці рве серію — навіть якщо сама картка вже закрита (409 нижче).
+    await deps.repo.setTelegramIntakeStreak(u.telegram_user_id, breakStreak());
     await dismissCard(deps.repo, m[2]!, linked.user_id);
     return { status: COPY.notAdded };
   } catch (err) {
@@ -672,6 +698,22 @@ async function textTurn(deps: TelegramDeps, user_id: string, telegram_user_id: n
   const household_id = await householdOf(deps.repo, user_id);
   if (!household_id) return plain(COPY.startFirst);
   const log = deps.log ?? (console as unknown as FastifyBaseLogger);
+  // Серія «наповнюю комору» (19.09): «все у комору» — без моделі: застосувати всі
+  // pending intake_diff за 30 хв і ввімкнути серію (наступні фото — одразу в комору).
+  if (isAllToPantry(text)) {
+    const now = deps.now?.() ?? new Date();
+    const since = new Date(now.getTime() - ALL_TO_PANTRY_LOOKBACK_MS).toISOString();
+    const open = (await deps.repo.listOpenPending(household_id, 100))
+      .filter((pc) => pc.user_id === user_id && pc.card.type === 'intake_diff' && (pc.created_at ?? '') >= since);
+    let applied = 0;
+    for (const pc of open) {
+      try { applied += (await applyCard(deps.repo, pc.message_id, [], user_id)).applied; }
+      catch (err) { log.warn({ err: String(err), card_id: pc.message_id }, 'telegram-all-to-pantry-apply'); }
+    }
+    await deps.repo.setTelegramIntakeStreak(telegram_user_id, startStreak(now));
+    await botEvent(deps, user_id, 'tg_all_to_pantry', { cards: open.length, applied });
+    return { messages: [...(prefix ? [prefix] : []), COPY.allToPantry(applied)], html: false };
+  }
   const host: TelemetryHost = { log, telemetry: [] };
   try {
     const turn = deps.turn ?? ((input: ChatTurnInput) => runChatTurn(deps.repo, deps.store ?? noStore, deps.chatOpts ?? {}, input));
