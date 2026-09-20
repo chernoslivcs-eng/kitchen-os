@@ -36,7 +36,8 @@ describe('події з бота → app_event', () => {
     expect(ev).toContainEqual(['tg_command', { name: 'help' }]);
     expect(ev).toContainEqual(['tg_help', { topic: 'pantry' }]);
     expect(ev).toContainEqual(['tg_command', { name: 'web' }]);
-    expect(ev).toContainEqual(['tg_web_link', { next: '/app' }]);
+    // E: /pantry вище вже видав токен, /web перевидає той самий — reused: true.
+    expect(ev).toContainEqual(['tg_web_link', { next: '/app', reused: true }]);
     expect(ev).toContainEqual(['tg_message', { kind: 'text' }]);
     // пристрій у бота порожній — подію писав сервер
     const raw = await repo.listAppEvents(u.id, { from: new Date(0), to: new Date(Date.now() + 60_000), limit: 100 });

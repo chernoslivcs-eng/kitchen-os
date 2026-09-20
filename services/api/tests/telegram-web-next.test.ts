@@ -27,4 +27,15 @@ describe('E · next по типах карток', () => {
     const shop = renderTurnMessages({ reply: 'ок', card: { type: 'shopping', items: [{ op: 'add', label: 'сіль' }] } as unknown as Card }, APP);
     expect(shop.at(-1)).toContain(`Відкрити у вебі: ${APP}/list`);
   });
+
+  it('рядок «Відкрити у вебі» — лише під карткою; репліка без картки і варіанти — без нього', () => {
+    const plain = renderTurnMessages({ reply: 'Привіт, що готуємо?', card: null }, APP);
+    expect(plain).toEqual(['Привіт, що готуємо?']);
+    const proposal = renderTurnMessages({ reply: null, card: { type: 'proposal', items: [{ title: 'Паста' }] } as unknown as Card }, APP);
+    expect(proposal.join('\n')).not.toContain('Відкрити у вебі');
+    const pantry = renderTurnMessages({ reply: 'Записав.', card: { type: 'intake_diff', ops: [{ op: 'add', label: 'сіль' }] } as unknown as Card }, APP);
+    expect(pantry.at(-1)).toContain(`Відкрити у вебі: ${APP}/pantry`);
+    const parsed = renderTurnMessages({ reply: null, card: { type: 'recipe', recipe: R } }, APP);
+    expect(parsed.at(-1)).toContain(`Відкрити у вебі: ${APP}/app`);
+  });
 });

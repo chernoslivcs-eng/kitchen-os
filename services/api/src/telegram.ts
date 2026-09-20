@@ -325,7 +325,10 @@ export function renderTurnMessages(out: { reply: string | null; card: Card | nul
   const cardText = renderCardText(out.card);
   if (cardText) parts.push(escapeHtml(cardText));
   if (!parts.length) return [];
-  parts.push(open);
+  // Менше шуму (рішення ГОЛОВНОГО ЧАТУ 20.09, власник може відкликати — окремий коміт):
+  // рядок «Відкрити у вебі» лише під карткою, куди є куди йти (комора, список, подія);
+  // під звичайною реплікою і варіантами — ні. /web лишається.
+  if (webNextFor(out.card) !== '/app') parts.push(open);
   return splitTelegramText(parts.join('\n\n'));
 }
 

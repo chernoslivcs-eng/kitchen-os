@@ -120,7 +120,8 @@ describe('Р147/Р149 · Telegram', () => {
     expect(renderCardText({ type: 'cook_go', title: 'x' })).toBeNull();
     const msgs = renderTurnMessages({ reply: 'a < b & c', card: proposal }, APP);
     expect(msgs).toHaveLength(1);
-    expect(msgs[0]).toBe(`a &lt; b &amp; c\n\n${escapeHtml(renderCardText(proposal)!)}\n\n${escapeHtml(COPY.openWeb(`${APP}/app`))}`);
+    // E: під варіантами «Відкрити у вебі» нема — лише під карткою, куди є куди йти.
+    expect(msgs[0]).toBe(`a &lt; b &amp; c\n\n${escapeHtml(renderCardText(proposal)!)}`);
     const long = Array.from({ length: 300 }, (_, i) => `рядок ${i} ${'x'.repeat(20)}`).join('\n');
     const parts = splitTelegramText(long);
     expect(parts.length).toBeGreaterThan(1);
