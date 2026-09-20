@@ -4,7 +4,7 @@
 // Крон щогодини (api/cron-digest.ts) → для кожного з привʼязаним Telegram: чи
 // зараз 18 його місцевого часу, чи не слали сьогодні, чи не опт-аут, чи не
 // писала за останні 3 години (shouldSendDigest) → форма за пріоритетом
-// (pickForm, детерміновано; форма 4 — назва страви з proposal-ходу + рецепт)
+// (pickForm, детерміновано; форма 4 — назва страви з proposal-ходу, без рецепта)
 // → одне речення голосу (хід моделі з серверною командою) → повідомлення:
 // рядок конкретики, рядок голосу, одна inline-кнопка з глибоким лінком
 // (той самий 24-годинний токен, що «Відкрити у вебі») → digest_sent_on →
@@ -12,12 +12,11 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import {
-  pickForm, digestRequest, voiceSentence, digestText, shouldSendDigest, localClock, resolveRecipeLabels,
+  pickForm, digestRequest, voiceSentence, digestText, shouldSendDigest, localClock,
   subscribedRows, subscribedTraditions, BUILTIN_OCCASIONS, getOrCreateTelegramWebToken,
-  DIGEST_ACTIVE_WINDOW_MS, type Repo, type DigestCandidateRow, type DigestPick, type Recipe,
+  DIGEST_ACTIVE_WINDOW_MS, type Repo, type DigestCandidateRow, type DigestPick,
 } from '@kitchen/domain';
 import { runChatTurn, type ChatTurnInput, type ChatTurnOutput, type ChatRouteOpts } from './chat-turn.js';
-import { callRecipe } from './model.js';
 import type { AttachmentStore } from './attachment-store.js';
 import type { QuickKeyboardBtn } from './telegram-nomodel.js';
 import { webTokenSecret } from './telegram.js';
@@ -34,8 +33,6 @@ export interface DigestDeps {
   now?: () => Date;
   /** Тестовий шов замість runChatTurn (і для proposal-ходу форми 4, і для речення голосу). */
   turn?: (input: ChatTurnInput) => Promise<ChatTurnOutput>;
-  /** Тестовий шов замість callRecipe + saveRecipe: назва → id збереженого рецепта (null — не склалось). */
-  generate?: (user_id: string, household_id: string, title: string) => Promise<string | null>;
   webTokenSecret?: string;
 }
 
@@ -44,35 +41,16 @@ export type DigestOutcome =
   | { user_id: string; status: 'skipped'; reason: string }
   | { user_id: string; status: 'failed'; error: string };
 
-/** Форма 4: «Що зготувати з того, що є?» → proposal → перша назва → рецепт у бібліотеці. */
+/** Форма 4 (правка 20.09): «Що зготувати з того, що є?» → proposal у розмові дня → перша назва.
+ *  Рецепт НЕ генеруємо — він народиться по тапу «Готуємо» там; кнопка веде в /app. Два виклики
+ *  максимум (proposal + речення голосу), без callRecipe/saveRecipe. */
 export const DIGEST_PROPOSAL_TEXT = 'Що зготувати сьогодні з того, що є в коморі? Одна страва.';
 
 async function dishForm(deps: DigestDeps, c: DigestCandidateRow, pick: DigestPick, turn: NonNullable<DigestDeps['turn']>): Promise<DigestPick | null> {
   const out = await turn({ user: { user_id: c.user_id, household_id: c.household_id }, text: DIGEST_PROPOSAL_TEXT, channel: 'telegram', host: { log: deps.log }, log: deps.log });
   const title = out.card?.type === 'proposal' ? out.card.items?.[0]?.title?.trim() : undefined;
   if (!title) return null;
-  const generate = deps.generate ?? ((user_id: string, household_id: string, t: string) => generateRecipe(deps.repo, user_id, household_id, t));
-  const id = await generate(c.user_id, c.household_id, title);
-  if (!id) return null;
-  return { ...pick, facts: title, button: { text: 'Рецепт', next: `/recipe/${encodeURIComponent(id)}?cook=1` } };
-}
-
-/** Як go-гілка chat-turn: callRecipe → saveRecipe (origin generated, saved_at null). */
-async function generateRecipe(repo: Repo, user_id: string, household_id: string, title: string): Promise<string | null> {
-  const [pantry, products, profileText, profileNotes, vetoIndex] = await Promise.all([
-    repo.listBatches(household_id), repo.listProducts(household_id), repo.getProfileText(user_id), repo.listProfileNotes(user_id), repo.getVetoIndex(user_id),
-  ]);
-  const call = await callRecipe({ title, pantry, products, profileText, profileNotes, vetoIndex });
-  if (!call.recipe) return null;
-  const resolved: Recipe = resolveRecipeLabels(call.recipe, pantry);
-  const id = randomUUID();
-  await repo.saveRecipe({
-    id, owner_id: user_id, origin: 'generated', title: resolved.t, requested_title: title,
-    descr: resolved.d ?? null, character: resolved.ch ?? null, risk: resolved.rk ?? null,
-    base_servings: resolved.sv ?? 2, time_total: resolved.tm ?? null, nutrition: resolved.nu ?? null, payload: resolved,
-    created_at: new Date().toISOString(), saved_at: null,
-  });
-  return id;
+  return { ...pick, facts: title };
 }
 
 /** Один кандидат: усі перевірки → форма → речення → доставка. Ніколи не кидає — крон іде далі. */

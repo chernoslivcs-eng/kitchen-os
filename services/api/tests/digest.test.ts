@@ -35,7 +35,6 @@ const deps = (repo: InMemoryRepo, over: Partial<DigestDeps> = {}) => {
       if (input.text === DIGEST_PROPOSAL_TEXT) return { reply: 'Є ідея.', card: { type: 'proposal', items: [{ title: 'Омлет із сиром', desc: '' }] } as Card, card_id: null };
       return { reply: 'Вершки — бо камамбер у холодильнику вже третій день чекає компанію. І ще одне речення.', card: null, card_id: null };
     },
-    generate: async () => 'rec-1',
     sent, turns, ...over,
   };
   return d;
@@ -82,7 +81,7 @@ describe('runDigestFor · форми і розкладка', () => {
     expect(d.sent[0]!.keyboard[0]![0]!.url).toContain('next=%2Fapp');
   });
 
-  it('форма 4: комора є, нічого не горить → proposal-хід → назва страви, рецепт, кнопка [Рецепт] → /recipe/<id>?cook=1; картка у відповіді голосу → без речення', async () => {
+  it('форма 4: комора є, нічого не горить → proposal-хід → назва страви, БЕЗ рецепта, кнопка [Що зготувати] → /app; картка у відповіді голосу → без речення', async () => {
     const { repo, tg } = await seed();
     await repo.insertBatch(batch(tg.household_id, 'яйця', day(20)));
     const d = deps(repo);
@@ -94,9 +93,12 @@ describe('runDigestFor · форми і розкладка', () => {
     const r = await runDigestFor(d, await cand(repo));
     expect(r).toMatchObject({ status: 'sent', form: 4, voice: false });
     expect(d.sent[0]!.text).toBe('Омлет із сиром');
-    expect(d.sent[0]!.keyboard[0]![0]).toMatchObject({ text: 'Рецепт' });
-    expect(d.sent[0]!.keyboard[0]![0]!.url).toContain('next=%2Frecipe%2Frec-1%3Fcook%3D1');
-    expect(d.turns.map((t) => t.action ?? 'chat')).toEqual(['chat', 'digest']);
+    expect(d.sent[0]!.keyboard[0]![0]).toMatchObject({ text: 'Що зготувати' });
+    expect(d.sent[0]!.keyboard[0]![0]!.url).toMatch(/next=%2Fapp$/);
+    expect(d.turns.map((t) => t.action ?? 'chat')).toEqual(['chat', 'digest']);   // два виклики максимум
+    expect((await repo.listRecentRecipes(tg.user_id, 5))).toHaveLength(0);          // рецепт не народжується
+    const ev = await repo.listAppEvents(tg.user_id, { from: new Date(0), to: new Date(NOW.getTime() + 60_000), limit: 10 });
+    expect(ev.find((e) => e.name === 'digest_sent')?.props).toEqual({ channel: 'telegram', form: 4, voice: false });
   });
 
   it('порожньо (нема списку, подій, комора порожня) → не шлемо, хід не робиться, день закритий', async () => {
