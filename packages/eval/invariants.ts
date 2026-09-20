@@ -1410,10 +1410,17 @@ export function resolve(name: string): Invariant {
       return hit ? pass(hit.label) : fail(`нема add-опа з «${arg}»: ${(card.ops ?? []).map((o) => o.label).join(', ')}`);
     };
   }
+  // F (20.09): «raw-kind:dish» — рід знімка у відповіді розбору.
+  if (base === 'raw-kind') {
+    return (out) => {
+      const m = /"kind"\s*:\s*"(receipt|shelf|recipe|dish|other)"/.exec(out.raw);
+      return m?.[1] === arg ? pass(arg) : fail(`kind ${m?.[1] ?? '—'}, чекали ${arg}`);
+    };
+  }
   // 20.09: «attachment-intent:add» / «attachment-intent:ask» — поле intent у відповіді розбору.
   if (base === 'attachment-intent') {
     return (out) => {
-      const m = /"intent"\s*:\s*"(add|ask)"/.exec(out.raw);
+      const m = /"intent"\s*:\s*"(add|ask|report|fix)"/.exec(out.raw);
       const got = m?.[1] ?? 'add';                                     // поля нема → add (як сервер)
       return got === arg ? pass(got) : fail(`intent ${got}, чекали ${arg}: «${String(out.reply ?? '').slice(0, 120)}»`);
     };

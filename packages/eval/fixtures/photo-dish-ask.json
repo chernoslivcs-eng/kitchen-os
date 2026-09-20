@@ -1,0 +1,17 @@
+{
+  "id": "photo-dish-ask",
+  "description": "Тісто на пательні + «А тісто повинно бути таким густим?» → dish, intent ask, note — відповідь про густину, без «гранола».",
+  "call": "attachment_parse",
+  "attachment": {
+    "kind": "image",
+    "path": "photo-dish-dough.png",
+    "hint": "А тісто повинно бути таким густим?"
+  },
+  "invariants": [
+    "raw-kind:dish",
+    "attachment-intent:ask",
+    "has-note-or-reply-mentions:густ|рідк|борошн|консистенц",
+    "reply-lacks:гранол",
+    "note-answers-not-asks-to-add"
+  ]
+}

@@ -321,6 +321,8 @@ export interface ChatArgs {
   user_id: string;
   session_id: string;
   text: string;
+  /** F (20.09): фото страви з питанням — зображення йдуть у репліку людини перед текстом. */
+  images?: AttachmentPayload[];
   pantry: PantryBatch[];
   stage?: 1 | 2;                       // онбординг: 1 — порожня комора; 2 — комора наповнена, але людину ще не спитали
   recentCookRuns?: RecentCookRunSummary[];
@@ -788,6 +790,19 @@ export function matchesVoiceExample(reply: string, examples: string[]): boolean 
 // «без …». Рядок серверний, іде в user-turn (не в кеш і не в промт).
 export const AVOID_LINE = (avoid: string[]) =>
   `[СЕРВЕР] Попередню пропозицію знято — там було те, чого людина не їсть: ${avoid.join(', ')}. Запропонуй інше, без цього.`;
+/** F: текст людини, а перед ним — її фото (dish×ask). Без фото — звичайний рядок, як було. */
+function userContent(text: string, images?: AttachmentPayload[]): string | Anthropic.ContentBlockParam[] {
+  const imgs = (images ?? []).filter((a) => a.kind === 'image');
+  if (!imgs.length) return text;
+  return [
+    ...imgs.map((a): Anthropic.ImageBlockParam => ({
+      type: 'image',
+      source: { type: 'base64', media_type: (a.content_type ?? 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif', data: a.buffer.toString('base64') },
+    })),
+    { type: 'text', text },
+  ];
+}
+
 export function withAvoid(text: string, avoid?: string[]): string {
   return avoid?.length ? `${text}\n\n${AVOID_LINE(avoid)}` : text;
 }
@@ -805,9 +820,9 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   const dynamic = buildDynamicContext(args, productMapFor(args.text, prompt.blocks['product-map']));
   // Історія розмови. Без неї модель відповідала на кожну репліку як на першу:
   // ставила уточнення, не бачила відповіді, ставила його знову (QA4-01).
-  const messages = [
+  const messages: Anthropic.MessageParam[] = [
     ...(args.history ?? []),
-    { role: 'user' as const, content: withAvoid(args.text, args.avoid) },
+    { role: 'user' as const, content: userContent(withAvoid(args.text, args.avoid), args.images) },
   ];
   const callOpts = {
     model,
@@ -835,9 +850,9 @@ export async function callChat(args: ChatArgs): Promise<ChatCall> {
   // Один повторний виклик із guard-рядком у кінці репліки людини — спільний
   // для example-guard і guard-а службових позначок.
   const retryWith = async (line: string) => {
-    const retryMessages = [
+    const retryMessages: Anthropic.MessageParam[] = [
       ...(args.history ?? []),
-      { role: 'user' as const, content: `${withAvoid(args.text, args.avoid)}\n\n${line}` },
+      { role: 'user' as const, content: userContent(`${withAvoid(args.text, args.avoid)}\n\n${line}`, args.images) },
     ];
     const retryResp = await createMessage(client, { ...callOpts, messages: retryMessages }, CALL_TIMEOUT_MS.chat);
     const retryText = retryResp.content
@@ -1018,8 +1033,8 @@ export interface AttachmentCall {
   reply: string;
   card: Card | null;
   raw_kind: 'receipt' | 'shelf' | 'recipe' | 'dish' | 'other' | null;
-  /** 20.09: `ask` — людина питає про продукт, не записує (картка лишається pending). */
-  intent?: 'add' | 'ask' | null;
+  /** 20.09: намір з підпису (F): add — записати; ask — питання; report — звіт про готування; fix — правка картки. */
+  intent?: 'add' | 'ask' | 'report' | 'fix' | null;
   /** По одному запису на фактичний виклик моделі (крок А4б). */
   calls: ModelCallUsage[];
   meta: { promptVersion: string; model: string; mode: 'stub' | 'live'; prompt_hash?: string; prompt_chars?: number };
@@ -1074,10 +1089,14 @@ function attachmentStub(atts: AttachmentPayload[], promptVersion: string): Attac
   }
   // Фото в стабі — «готова страва»: дає інтеграційним тестам шлях dish → журнал.
   if (atts.some((a) => a.kind === 'image')) {
+    // F: намір із підпису — «?» → ask, «готово/вийшло/приготував/зробив» → report, інакше add.
+    const hint = atts.find((a) => a.hint)?.hint ?? '';
+    const intent = /\?/.test(hint) ? 'ask' : /(готово|вийшло|приготував|зробив)/i.test(hint) ? 'report' : 'add';
     return {
-      reply: 'Виглядає як готова страва.',
+      reply: intent === 'ask' ? 'Так, має бути густішим — ще ложку борошна.' : 'Виглядає як готова страва.',
       card: null,
       raw_kind: 'dish',
+      intent,
       calls: [ZERO_USAGE],
       meta: { promptVersion, model: 'stub', mode: 'stub' },
     };
