@@ -1,0 +1,43 @@
+{
+  "id": "digest-voice-event",
+  "description": "Вечірнє нагадування, форма 2 (подія): одне речення голосу до фактів «Покрова у середу, 14.10» — без переліку, порад, питань.",
+  "call": "chat",
+  "now": "2026-09-17T18:00:00",
+  "pantry": [
+    {
+      "id": "b1",
+      "label": "камамбер",
+      "zone": "fridge",
+      "v": 150,
+      "u": "g",
+      "state": "opened",
+      "expires_at": "2026-09-19"
+    },
+    {
+      "id": "b2",
+      "label": "рис",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    },
+    {
+      "id": "b3",
+      "label": "яйця",
+      "zone": "fridge",
+      "v": 6,
+      "u": "pcs",
+      "state": "sealed"
+    }
+  ],
+  "shopping": [],
+  "events": [],
+  "digest": {
+    "theme": "подія попереду",
+    "facts": "Покрова у середу, 14.10"
+  },
+  "invariants": [
+    "voice-sentence",
+    "no-markdown"
+  ]
+}

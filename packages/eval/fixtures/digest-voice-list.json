@@ -1,0 +1,64 @@
+{
+  "id": "digest-voice-list",
+  "description": "Вечірнє нагадування, форма 1 (список): одне речення голосу до фактів «Дорогою додому: хліб · молоко · лимони · вершки 33%» — без переліку, порад, питань.",
+  "call": "chat",
+  "now": "2026-09-17T18:00:00",
+  "pantry": [
+    {
+      "id": "b1",
+      "label": "камамбер",
+      "zone": "fridge",
+      "v": 150,
+      "u": "g",
+      "state": "opened",
+      "expires_at": "2026-09-19"
+    },
+    {
+      "id": "b2",
+      "label": "рис",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    },
+    {
+      "id": "b3",
+      "label": "яйця",
+      "zone": "fridge",
+      "v": 6,
+      "u": "pcs",
+      "state": "sealed"
+    }
+  ],
+  "shopping": [
+    {
+      "id": "s1",
+      "label": "хліб",
+      "checked": false
+    },
+    {
+      "id": "s2",
+      "label": "молоко",
+      "checked": false
+    },
+    {
+      "id": "s3",
+      "label": "лимони",
+      "checked": false
+    },
+    {
+      "id": "s4",
+      "label": "вершки 33%",
+      "checked": false
+    }
+  ],
+  "events": [],
+  "digest": {
+    "theme": "список покупок дорогою додому",
+    "facts": "Дорогою додому: хліб · молоко · лимони · вершки 33%"
+  },
+  "invariants": [
+    "voice-sentence",
+    "no-markdown"
+  ]
+}

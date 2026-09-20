@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
-import { PROFILE_SUMMARY_REQUEST, DIGEST_REQUEST } from '@kitchen/domain';
+import { PROFILE_SUMMARY_REQUEST, digestRequest } from '@kitchen/domain';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -277,11 +277,12 @@ export function loadFixtures(): Fixture[] {
     ...['photo-product-plain', 'photo-product-ask', 'photo-product-more'].map((id) => readJson(`${id}.json`)),
     // F (20.09): рід dish × намір — питання про страву не губиться, звіт і без підпису — report/add.
     ...['photo-dish-ask', 'photo-dish-report', 'photo-dish-plain'].map((id) => readJson(`${id}.json`)),
-    // DIGEST-PLAN-0917: ранковий дайджест — серверний рядок DIGEST_REQUEST у user-turn.
-    ...['digest-full', 'digest-list-only', 'digest-empty'].map((id) => ({
-      ...readJson(`${id}.json`),
-      conversation: [{ role: 'user' as const, content: DIGEST_REQUEST }],
-    })),
+    // Вечірнє нагадування (spec 2026-09-20): серверна команда digestRequest у user-turn, по одній фікстурі на форму.
+    // Порожній дім — без моделі (pickForm → null), тому фікстури нема.
+    ...['digest-voice-list', 'digest-voice-event', 'digest-voice-burning', 'digest-voice-dish'].map((id) => {
+      const fx = readJson(`${id}.json`) as Fixture & { digest?: { theme: string; facts: string } };
+      return { ...fx, conversation: [{ role: 'user' as const, content: digestRequest(fx.digest!.theme, fx.digest!.facts) }] };
+    }),
     // 1.2: уподобання після фідбеку — note з recipe (s42).
     readJson('preference-after-feedback.json'),
     // Аудит раунд 3, крок 5: [ОСТАННІ ДІЇ] — картка закрита в іншій сесії,

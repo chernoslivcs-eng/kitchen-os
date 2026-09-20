@@ -1,67 +1,113 @@
-// Ранковий дайджест (DIGEST-PLAN-0917, PR 1): що є для дайджесту, кому і коли слати, розкладка для Telegram.
+// Вечірнє нагадування (spec 2026-09-20): вибір форми за пріоритетом, рядки конкретики,
+// гейт «3 години», 18:00 по поясах, опт-аут, порожньо, речення голосу.
 import { describe, it, expect } from 'vitest';
-import { digestFacts, digestIsEmpty, shouldSendDigest, localClock, digestForTelegram, DIGEST_REQUEST } from '../digest.js';
-import type { PantryBatch, ShoppingItemRow, HouseholdEventRow } from '../types.js';
+import {
+  pickForm, listLine, burningLine, burningBatches, eventLine, voiceSentence, digestText, digestRequest,
+  shouldSendDigest, localClock, DIGEST_REQUEST_PREFIX,
+} from '../digest.js';
+import { subscribedRows } from '../periods.js';
+import { BUILTIN_OCCASIONS } from '../occasion-data.js';
+import type { PantryBatch, ShoppingItemRow } from '../types.js';
 
-const NOW = new Date('2026-09-17T04:30:00.000Z'); // 07:30 Київ
+const NOW = new Date('2026-09-17T15:30:00.000Z'); // 18:30 Київ
+const day = (n: number) => new Date(NOW.getTime() + n * 86_400_000).toISOString();
 const batch = (over: Partial<PantryBatch>): PantryBatch => ({
-  id: 'b', household_id: 'h', catalog_key: null, label: 'x', zone: 'fridge', value: 1, unit: 'pcs', state: 'sealed',
+  id: 'b', household_id: 'h', catalog_key: 'x', label: 'x', zone: 'fridge', value: 1, unit: 'pcs', state: 'sealed',
   opened_at: null, expires_at: null, best_before_opened_days: null, added_at: NOW.toISOString(), depleted_at: null,
   confidence: 1, provenance: 'user_statement', staple: false, last_by: null, last_action: 'add', product_id: null, ...over,
 });
-const item = (checked = false): ShoppingItemRow => ({ id: 's', household_id: 'h', label: 'хліб', reason: null, value: null, unit: null, zone: null, checked, added_by: null, source: 'user', created_at: NOW.toISOString() });
-const event = (at: string, days?: number, done: string | null = null): HouseholdEventRow => ({
-  id: 'e', household_id: 'h', kind: 'custom', title: 'гості', note: null, rule: { t: 'once', at, ...(days ? { days } : {}) }, force: 'hint', restricts: null,
-  from: null, to: null, rule_text: null, strict: false, buy: [], recipe_id: null, servings: null, supply: null, created_by: 'u', source: 'user',
-  expires_at: null, done_at: done, created_at: NOW.toISOString(),
-});
+const item = (label: string, checked = false): ShoppingItemRow => ({ id: label, household_id: 'h', label, reason: null, value: null, unit: null, zone: null, checked, added_by: null, source: 'user', created_at: NOW.toISOString() });
+const base = { pantry: [] as PantryBatch[], shopping: [] as ShoppingItemRow[], trads: [] as never[], occasionRows: [] as never[], now: NOW };
 
-describe('digestFacts / digestIsEmpty', () => {
-  it('горить — строк ≤ 5 днів або прострочено; списані не рахуються', () => {
-    const soon = batch({ expires_at: new Date(NOW.getTime() + 2 * 86_400_000).toISOString() });
-    const later = batch({ id: 'c', expires_at: new Date(NOW.getTime() + 20 * 86_400_000).toISOString() });
-    const gone = batch({ id: 'd', expires_at: new Date(NOW.getTime() + 1 * 86_400_000).toISOString(), depleted_at: NOW.toISOString(), state: 'depleted' });
-    const expired = batch({ id: 'e', expires_at: new Date(NOW.getTime() - 86_400_000).toISOString() });
-    expect(digestFacts([soon, later, gone, expired], [], [], NOW)).toEqual({ burning: 2, list: 0, events: 0 });
+describe('форма 1 · список', () => {
+  it('до 6 позицій через «·», далі +N; відмічені не рахуються', () => {
+    const items = ['хліб', 'молоко', 'лимони', 'вершки 33%', 'яйця', 'масло', 'сіль', 'цукор'].map((l) => item(l));
+    expect(listLine(items)).toBe('Дорогою додому: хліб · молоко · лимони · вершки 33% · яйця · масло +2');
+    expect(listLine([item('хліб'), item('молоко', true)])).toBe('Дорогою додому: хліб');
+    expect(listLine([item('молоко', true)])).toBeNull();
   });
-  it('список — лише невідмічене; події — на 7 днів, з тривалістю, без done', () => {
-    expect(digestFacts([], [item(false), item(true)], [], NOW).list).toBe(1);
-    const f = digestFacts([], [], [event('2026-09-20'), event('2026-09-30'), event('2026-09-12', 7), event('2026-09-18', undefined, NOW.toISOString())], NOW);
-    expect(f.events).toBe(2); // 20.09 у горизонті; 12.09+7 дн ще триває; 30.09 — за горизонтом; done — ні
-  });
-  it('порожньо — коли всі три нулі', () => {
-    expect(digestIsEmpty({ burning: 0, list: 0, events: 0 })).toBe(true);
-    expect(digestIsEmpty({ burning: 0, list: 1, events: 0 })).toBe(false);
+  it('список має пріоритет над рештою', () => {
+    const p = pickForm({ ...base, shopping: [item('хліб')], pantry: [batch({ expires_at: day(1) })] });
+    expect(p).toMatchObject({ form: 1, facts: 'Дорогою додому: хліб', button: { text: 'Список', next: '/list' } });
   });
 });
 
-describe('localClock / shouldSendDigest', () => {
-  it('пояс із профілю або Europe/Kyiv; хибний пояс — Київ', () => {
-    expect(localClock(NOW, 'Europe/Kyiv')).toEqual({ hour: 7, day: '2026-09-17' });
-    expect(localClock(NOW, null)).toEqual({ hour: 7, day: '2026-09-17' });
-    expect(localClock(NOW, 'America/New_York')).toEqual({ hour: 0, day: '2026-09-17' });
-    expect(localClock(NOW, 'Not/AZone')).toEqual({ hour: 7, day: '2026-09-17' });
+describe('форма 2 · подія в межах 7 днів', () => {
+  it('формат дат: «у середу, 14.10» / «відходять до 21.09» / «із суботи, 28.11»', () => {
+    expect(eventLine({ at: Date.parse('2026-10-14T09:00:00Z'), title: 'Покрова', kind: 'tradition' })).toBe('Покрова у середу, 14.10');
+    expect(eventLine({ at: Date.parse('2026-09-21T09:00:00Z'), title: 'Сливи — останні дні', kind: 'season' })).toBe('Сливи відходять до 21.09');
+    expect(eventLine({ at: Date.parse('2026-11-28T09:00:00Z'), title: 'Різдвяний піст — починається', kind: 'tradition' })).toBe('Різдвяний піст із суботи, 28.11');
   });
-  const base = { digest_enabled: true, digest_sent_on: null, tz: 'Europe/Kyiv', wrote_today_before: false };
-  it('о 07 місцевого — так; о 08 — ні; уже надіслано сьогодні — ні; писала до 07 — ні; опт-аут — ні', () => {
-    expect(shouldSendDigest(base, NOW)).toEqual({ send: true, day: '2026-09-17' });
-    expect(shouldSendDigest(base, new Date('2026-09-17T05:30:00.000Z')).reason).toBe('not_hour');
-    expect(shouldSendDigest({ ...base, digest_sent_on: '2026-09-17' }, NOW).reason).toBe('already_sent');
-    expect(shouldSendDigest({ ...base, digest_sent_on: '2026-09-16' }, NOW).send).toBe(true);
-    expect(shouldSendDigest({ ...base, wrote_today_before: true }, NOW).reason).toBe('already_active');
-    expect(shouldSendDigest({ ...base, digest_enabled: false }, NOW).reason).toBe('opted_out');
-  });
-  it('крон щогодини: людину в Лісабоні (07 = 06:xx UTC) ловить інший тик, не київський', () => {
-    expect(shouldSendDigest({ ...base, tz: 'Europe/Lisbon' }, NOW).reason).toBe('not_hour');
-    expect(shouldSendDigest({ ...base, tz: 'Europe/Lisbon' }, new Date('2026-09-17T06:30:00.000Z')).send).toBe(true);
+  it('лише підписані рядки; далі за 7 днів — ні; вибір ставить кнопку «Календар»', () => {
+    // Дім підписаний лише на Спас (сезони вимкнені явно) — 12.08 він за 5 днів.
+    const subs = [{ occasion_id: 'spas', enabled: true }, ...BUILTIN_OCCASIONS.filter((r) => r.id !== 'spas').map((r) => ({ occasion_id: r.id, enabled: false }))];
+    const rows = subscribedRows(BUILTIN_OCCASIONS, subs);
+    const p = pickForm({ ...base, trads: ['orthodox'], occasionRows: rows, now: new Date('2026-08-12T15:30:00Z') });
+    expect(p?.form).toBe(2);
+    expect(p?.facts).toBe('Яблучний Спас із понеділка, 17.08');
+    expect(p?.button).toEqual({ text: 'Календар', next: '/calendar' });
+    expect(pickForm({ ...base, trads: ['orthodox'], occasionRows: rows, now: new Date('2026-07-01T15:30:00Z') })).toBeNull();
   });
 });
 
-describe('DIGEST_REQUEST / digestForTelegram', () => {
-  it('команда — дослівно і тільки це', () => {
-    expect(DIGEST_REQUEST).toBe('[СЕРВЕР] Розкажи анекдот про поточний стан дому.');
+describe('форма 3 · горить', () => {
+  it('≤ 2 дні або прострочено, лише з catalog_key; до 4 позицій; строк за найближчим', () => {
+    const p = [
+      batch({ id: '1', label: 'вершки', expires_at: day(1) }), batch({ id: '2', label: 'лимонний сік', expires_at: day(2) }),
+      batch({ id: '3', label: 'сметана', expires_at: day(5) }), batch({ id: '4', label: 'без ключа', catalog_key: null, expires_at: day(0) }),
+      batch({ id: '5', label: 'списане', expires_at: day(0), depleted_at: NOW.toISOString(), state: 'depleted' }),
+    ];
+    expect(burningLine(burningBatches(p, NOW))).toBe('вершки й лимонний сік — до завтра');
+    const many = ['а', 'б', 'в', 'г', 'д'].map((l, i) => batch({ id: l, label: l, expires_at: day(i === 0 ? -1 : 2) }));
+    expect(burningLine(burningBatches(many, NOW))).toBe('а, б, в й г — уже прострочено');
+    expect(burningLine([{ label: 'сир', days: 0 }])).toBe('сир — сьогодні');
+    expect(burningLine([{ label: 'сир', days: 2 }])).toBe('сир — два дні');
   });
-  it('Telegram: текст як є, лише обрізані пробіли; жодних емодзі всередині', () => {
-    expect(digestForTelegram('  Зустрічаються в морозилці лосось і тунець…  ')).toBe('Зустрічаються в морозилці лосось і тунець…');
+  it('кнопка «Що зготувати» → /app (входу ?ask=burning у вебі ще нема)', () => {
+    expect(pickForm({ ...base, pantry: [batch({ expires_at: day(1) })] })?.button).toEqual({ text: 'Що зготувати', next: '/app' });
+  });
+});
+
+describe('форма 4 і порожньо', () => {
+  it('комора не порожня, нічого не горить → форма 4 (назву дає api); порожньо → null', () => {
+    expect(pickForm({ ...base, pantry: [batch({ expires_at: day(20) })] })?.form).toBe(4);
+    expect(pickForm({ ...base, pantry: [batch({ expires_at: day(0), depleted_at: NOW.toISOString(), state: 'depleted' })] })).toBeNull();
+    expect(pickForm(base)).toBeNull();
+  });
+});
+
+describe('речення голосу', () => {
+  it('команда — з темою і фактами, з упізнаваною головою', () => {
+    const r = digestRequest('список покупок дорогою додому', 'Дорогою додому: хліб');
+    expect(r.startsWith(DIGEST_REQUEST_PREFIX)).toBe(true);
+    expect(r).toContain('Тема: список покупок дорогою додому. Факти: Дорогою додому: хліб.');
+    expect(r).toContain('Без переліку, без порад, без питань');
+  });
+  it('обрізання до першого речення, стеля 140, порожньо/JSON → null', () => {
+    expect(voiceSentence('Вершки — бо камамбер чекає компанію. А ще хліб.')).toBe('Вершки — бо камамбер чекає компанію.');
+    expect(voiceSentence('**Ого!** Хліб')).toBe('Ого!');
+    expect(voiceSentence('x'.repeat(200))).toHaveLength(140);
+    expect(voiceSentence('')).toBeNull();
+    expect(voiceSentence('{"reply":"…"}')).toBeNull();
+  });
+  it('розкладка: конкретика, голос; без голосу — лише конкретика', () => {
+    expect(digestText('Дорогою додому: хліб', 'Хліб — і дім пахне.')).toBe('Дорогою додому: хліб\nХліб — і дім пахне.');
+    expect(digestText('Дорогою додому: хліб', null)).toBe('Дорогою додому: хліб');
+  });
+});
+
+describe('кому і коли', () => {
+  const c = { digest_enabled: true, digest_sent_on: null, tz: 'Europe/Kyiv', wrote_recently: false };
+  it('18 місцевого — так; 17 — ні; вже сьогодні — ні; писала за 3 год — ні; опт-аут — ні', () => {
+    expect(shouldSendDigest(c, NOW)).toEqual({ send: true, day: '2026-09-17' });
+    expect(shouldSendDigest(c, new Date('2026-09-17T14:30:00Z')).reason).toBe('not_hour');
+    expect(shouldSendDigest({ ...c, digest_sent_on: '2026-09-17' }, NOW).reason).toBe('already_sent');
+    expect(shouldSendDigest({ ...c, wrote_recently: true }, NOW).reason).toBe('already_active');
+    expect(shouldSendDigest({ ...c, digest_enabled: false }, NOW).reason).toBe('opted_out');
+  });
+  it('пояси: Лісабон о 18 = 17:xx UTC; хибний пояс — Київ', () => {
+    expect(shouldSendDigest({ ...c, tz: 'Europe/Lisbon' }, NOW).reason).toBe('not_hour');
+    expect(shouldSendDigest({ ...c, tz: 'Europe/Lisbon' }, new Date('2026-09-17T17:30:00Z')).send).toBe(true);
+    expect(localClock(NOW, 'Not/AZone')).toEqual({ hour: 18, day: '2026-09-17' });
   });
 });

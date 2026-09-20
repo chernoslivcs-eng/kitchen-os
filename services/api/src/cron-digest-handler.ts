@@ -20,7 +20,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const repo = await pickRepo();
     const bot = new Bot(token, { botInfo: botInfoFor(token, process.env.TELEGRAM_BOT_USERNAME), client: { fetch: telegramFetch as never } });
     const summary = await runDigestCron({
-      repo, store: pickStore(), chatOpts: {}, log,
+      repo, store: pickStore(), chatOpts: {}, log, appUrl: process.env.APP_URL ?? 'http://localhost:3000',
       send: async (chat_id, text, keyboard) => {
         const reply_markup = InlineKeyboard.from(keyboard.map((row) => row.map((b) => (b.url ? InlineKeyboard.url(b.text, b.url) : InlineKeyboard.text(b.text, b.data!)))));
         await bot.api.sendMessage(chat_id, text, { reply_markup });

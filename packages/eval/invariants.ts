@@ -612,25 +612,6 @@ export const registry: Record<string, Invariant> = {
     return bad.length ? fail(bad.join(' · ')) : pass('13/13 · ваги · бренди · сидр · свинина');
   },
 
-  // DIGEST-PLAN-0917 (анекдот; команда — один рядок, межі тримає role/voice):
-  // мʼякий інваріант — є текст, нема картки, не JSON-уламок, ≤ ~600 знаків.
-  'joke-format': (out) => {
-    const reply = String(out.reply ?? '').trim();
-    if (!reply) return fail('порожня відповідь');
-    const bad: string[] = [];
-    if (out.card) bad.push(`є картка ${(out.card as { type?: string }).type}`);
-    if (/^\s*[{[]/.test(reply)) bad.push('схоже на JSON');
-    if (Array.from(reply).length > 600) bad.push(`довжина ${Array.from(reply).length} > 600`);
-    return bad.length ? fail(bad.join(' · ')) : pass(`${Array.from(reply).length} зн.`);
-  },
-  // Порожній дім: модель не має стверджувати, що в домі ЩОСЬ Є (гіпотетичне
-  // «чи принесли бодай цибулину» — не вигадка, а сюжет про порожнечу).
-  'joke-no-invented-products': (out) => {
-    const reply = String(out.reply ?? '').toLowerCase();
-    const claims = /(лежить|стоїть|стоять|лежать|є|відкрит[аеі]|чекає|чекають)\s+[^.,;]{0,20}(молок|сир|хліб|яйц|курк|лосос|тунец|креветк|картопл|томат|помідор|масл|олі|рис|кав|вин|пив|квас)/;
-    return claims.test(reply) ? fail(`стверджує, що в домі є продукт: «${reply.slice(0, 120)}»`) : pass();
-  },
-
   'includes-nonfood': (out) => {
     const ops = opsOfIntake(out) ?? [];
     const nonfoodWords = /папір|гель|порошок|балон|серветк|губк|туалет|дрова|розпал|гриль|пакет|хустин/i;
@@ -1452,19 +1433,26 @@ export function resolve(name: string): Invariant {
       return /(додати|розклас|зафіксувати|записати|у комору)[^.!]*\?/i.test(r) ? fail(`note питає про запис замість відповіді: «${r}»`) : pass(r);
     };
   }
+  // Вечірнє нагадування (spec 2026-09-20): «voice-sentence» — одне речення ≤ 140, без картки,
+  // без переліку (жодних «·»/«,» ланцюжків із 3+), без питання, без порад («варто», «спробуй», «не забудь»).
+  if (base === 'voice-sentence') {
+    return (out) => {
+      const r = String(out.reply ?? '').replace(/\*\*/g, '').trim();
+      if (!r) return fail('порожня відповідь');
+      const bad: string[] = [];
+      if (out.card) bad.push(`є картка ${(out.card as { type?: string }).type}`);
+      const sentences = r.split(/(?<=[.!?…])\s+/).filter(Boolean);
+      if (sentences.length > 1) bad.push(`${sentences.length} речення`);
+      if (Array.from(r).length > 140) bad.push(`довжина ${Array.from(r).length} > 140`);
+      if (/\?/.test(r)) bad.push('є питання');
+      if ((r.match(/[·,]/g) ?? []).length >= 3) bad.push('схоже на перелік');
+      if (/(варто|спробуй|не забудь|рекоменд|краще б|треба)/i.test(r)) bad.push('порада');
+      return bad.length ? fail(`${bad.join(' · ')}: «${r.slice(0, 160)}»`) : pass(r);
+    };
+  }
   if (base === 'has-note-or-reply-mentions') {
     const roots = (arg ?? '').split('|');
     return (out) => (roots.some((r) => `${out.note ?? ''} ${out.reply ?? ''}`.toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`ні note, ні reply не згадують «${arg}»`));
-  // DIGEST-PLAN-0917: «digest-mentions:молоко» — рядок є у відповіді; «digest-no-block:Горить» — заголовка нема.
-  if (base === 'digest-mentions') {
-    return (out) => (String(out.reply ?? '').toLowerCase().includes((arg ?? '').toLowerCase()) ? pass() : fail(`нема «${arg}»: «${String(out.reply ?? '').slice(0, 120)}»`));
-  }
-  if (base === 'digest-no-block') {
-    return (out) => (String(out.reply ?? '').split('\n').some((l) => l.trim() === arg) ? fail(`є блок «${arg}», хоч даних для нього нема`) : pass());
-  // DIGEST-PLAN-0917 (анекдот): «joke-mentions-any:молоко|сир» — персонаж узятий із контексту (хоч один корінь).
-  if (base === 'joke-mentions-any') {
-    const roots = (arg ?? '').split('|').filter(Boolean);
-    return (out) => (roots.some((r) => String(out.reply ?? '').toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`жодного з «${arg}»: «${String(out.reply ?? '').slice(0, 120)}»`));
   }
   // Крок 8: note з фрагментом («note-present:сол»), ≤ 140 знаків.
   if (base === 'note-present') {

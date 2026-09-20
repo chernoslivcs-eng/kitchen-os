@@ -15,7 +15,7 @@ import { mergeAttachmentCalls } from './attachment-merge.js';
 import { detectRepeat, repeatReply } from './repeat-guard.js';
 import { recipeStaleByNotes } from './recipe-dedup.js';
 import { subscribedRows, periodVetoRows } from '@kitchen/domain';
-import { PROFILE_SUMMARY_REQUEST, DIGEST_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
+import { PROFILE_SUMMARY_REQUEST, acceptAssistantNote, helpTopicFor, helpTopicById, type HelpTopic } from '@kitchen/domain';
 import { createPending, applyCard, applyModeFor, deriveSessionTitle, resolveRecipeLabels, buildAliasMap, aliasRecipeIds, detectModes, type Repo, type Card, type Recipe, type MessageRow, type CookRunWithRecipe } from '@kitchen/domain';
 import { buildChatHistory } from './chat-history.js';
 import type { AttachmentStore } from './attachment-store.js';
@@ -116,7 +116,8 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     // пишеться, картки не буває — модель лише переказує [ПРО ЛЮДИНУ] у голосі.
     // Дайджест (анекдот про стан дому) — той самий серверний хід: [СЕРВЕР]-рядок, без репліки людини в історії, без картки.
     const summaryTurn = action === 'profile_summary' || action === 'digest';
-    const text0 = action === 'profile_summary' ? PROFILE_SUMMARY_REQUEST : action === 'digest' ? DIGEST_REQUEST : input.text;
+    // Вечірнє нагадування (action 'digest') — серверна команда digestRequest приходить у input.text.
+    const text0 = action === 'profile_summary' ? PROFILE_SUMMARY_REQUEST : input.text;
     let text = text0;
     if (!text && !attachments?.length) {
       throw new ChatTurnHttpError(400, { error: 'text or attachments required' });
