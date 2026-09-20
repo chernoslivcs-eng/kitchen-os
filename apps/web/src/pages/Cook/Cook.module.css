@@ -318,9 +318,18 @@
   .focus-card { background: transparent; box-shadow: none; border-radius: 0; padding: 0; gap: 20px; }
   .focus-head { display: none; }
   .step-text { font-size: 26px; font-weight: 600; line-height: 1.3; letter-spacing: -0.02em; }
+  /* Хотфікс 19.09 (живий прохід власника, крок «2 з 6 · Нарізка» ~175
+     симв. + 3 чипи + таймер — низ «Далі: …» ішов за екран): ступінь тексту
+     за довжиною (stepTextTier), не за виміром — 26 лишається до 110
+     символів, довше стискається, щоб рядок «Далі»+кнопки влізли без
+     гортання. */
+  .step-text[data-len="m"] { font-size: 22px; line-height: 1.3; }
+  .step-text[data-len="l"] { font-size: 19px; line-height: 1.35; }
   .step-chips { gap: 6px; }
   .step-ing { height: 29px; padding: 6px 11px; font-size: 13px; }
-  /* Таймер — окрема картка r18 з великим числом 72 по центру. */
+  /* Таймер — окрема картка r18 з великим числом 72 по центру (тільки коли
+     крок короткий — тіру «s»; довший текст уже забрав висоту, і компактний
+     ряд (.timer-compact нижче) звільняє її таймеру). */
   .timer { flex-flow: row wrap; justify-content: center; gap: 14px 8px; padding: 22px 20px; border-radius: 18px; background: var(--card); box-shadow: var(--sh-a), var(--sh-b); }
   .timer-icon, .timer-gap { display: none; }
   .timer-value { flex-basis: 100%; text-align: center; font-size: 72px; }
@@ -330,6 +339,15 @@
   .timer-main { height: 44px; padding: 0 18px; border-radius: var(--r-pill); font-size: 14px; }
   .timer-plus { height: 44px; padding: 0 16px; border: 0; border-radius: var(--r-pill); background: var(--bg); box-shadow: none; font-size: 14px; font-weight: 500; }
   .timer-main, .timer-plus { flex: none; }
+  /* Компактний таймер (тіри m/l): один ряд — число 44 tabular зліва,
+     Старт/+1 хв справа (той самий контур .timer-main/.timer-plus, що вище
+     й на ≥768 — лише повертаємо .timer-gap як розпірку, щоб дії стали
+     праворуч, і ховаємо картку прогресу — вона тут не влазить і не мала
+     бути частиною мінімального ряду). */
+  .timer-compact { flex-wrap: nowrap; justify-content: flex-start; gap: 12px; padding: 12px 16px; }
+  .timer-compact .timer-value { flex-basis: auto; text-align: left; font-size: 44px; }
+  .timer-compact .timer-base { display: none; }
+  .timer-compact .timer-gap { display: block; flex: 1; }
   .next-line { display: flex; align-items: center; gap: 10px; padding: 0 4px; font-family: var(--font-body); font-size: 13px; color: var(--muted); }
   .next-line .next-n { width: 24px; height: 24px; font-size: 11px; border-width: 1px; }
   .next-line .next-t { font-size: 13px; }

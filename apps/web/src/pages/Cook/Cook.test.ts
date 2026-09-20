@@ -2,7 +2,7 @@
 // «150:00» — і саме тому, що це хвилини, число читалось як помилка.
 
 import { describe, it, expect } from 'vitest';
-import { formatMS } from './Cook';
+import { formatMS, stepTextTier } from './Cook';
 
 describe('відлік кроку', () => {
   it('крок до двох годин — хв:сек, як було', () => {
@@ -26,5 +26,25 @@ describe('відлік кроку', () => {
   it('нуль і від’ємне не ламають рядок', () => {
     expect(formatMS(0, 150 * 60)).toBe('0:00:00');
     expect(formatMS(-4, 25 * 60)).toBe('0:00');
+  });
+});
+
+// Хотфікс мобільного 19.09 (живий прохід власника: крок «2 з 6 · Нарізка»
+// ~175 символів, три чипи, таймер 3:00 — низ «Далі: …» + кнопки йшли за
+// екран). Межі рівно на 110/200 символах — тест на «одна більше/менше».
+describe('stepTextTier', () => {
+  const s = (n: number) => 'а'.repeat(n);
+
+  it('до 110 символів включно — s', () => {
+    expect(stepTextTier(s(0))).toBe('s');
+    expect(stepTextTier(s(110))).toBe('s');
+  });
+  it('111–200 включно — m', () => {
+    expect(stepTextTier(s(111))).toBe('m');
+    expect(stepTextTier(s(200))).toBe('m');
+  });
+  it('понад 200 — l', () => {
+    expect(stepTextTier(s(201))).toBe('l');
+    expect(stepTextTier(s(500))).toBe('l');
   });
 });
