@@ -17,7 +17,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyBaseLogger } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { resolveRecipeLabels, applyCard, dismissCard, undoCard, streakActive, onIntakeApply, startStreak, breakStreak, isAllToPantry, ALL_TO_PANTRY_LOOKBACK_MS, signInWithTelegram, createWebLoginChallenge, attachTelegramLoginUser, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind, type Tradition } from '@kitchen/domain';
+import { resolveRecipeLabels, applyCard, dismissCard, undoCard, streakActive, onIntakeApply, startStreak, breakStreak, isAllToPantry, ALL_TO_PANTRY_LOOKBACK_MS, signInWithTelegram, getOrCreateTelegramWebToken, attachTelegramLoginUser, helpTopicById, type Repo, type Card, type Recipe, type AttachmentKind, type Tradition } from '@kitchen/domain';
 import { saveScriptedTurn } from './chat-turn.js';
 import { renderPeriodSeriesText, periodSeriesKeyboard, maskOf, parseMask, selectedOf, periodAppliedStatus, TRADITION_SETS, TRADITION_LABEL } from './telegram-period.js';
 import { buildPeriodCard } from './period-card.js';
@@ -70,6 +70,9 @@ export interface TelegramDeps {
   log?: FastifyBaseLogger;
   /** Username бота для botInfo без getMe (типово з env TELEGRAM_BOT_USERNAME). */
   botUsername?: string | null;
+  /** E: секрет для перевидання того самого лінка у веб (типово TELEGRAM_WEB_TOKEN_SECRET,
+   *  далі TELEGRAM_BOT_TOKEN; без обох — випадковий на процес: лінки живуть, але не перевидаються). */
+  webTokenSecret?: string;
   /** Р150: завантажити файл Telegram за file_id (бот — через getFile + telegramFetch; тести — стаб). */
   downloadFile?: (file_id: string) => Promise<{ buffer: Buffer; content_type: string | null }>;
   /** Р151: голос → текст (типово OpenRouter, telegram-stt.ts; тести — стаб). */
@@ -331,14 +334,20 @@ export function splitByBlocks(text: string, boundary: RegExp, max = TELEGRAM_MSG
  *  `pantry:soon|all` / `list-toggle:<id>` / `recipe:<id>` (Р152); url — «Відкрити у вебі», не
  *  callback (grammY `InlineKeyboard.url`). `replyKeyboard` — постійна reply-клавіатура (не
  *  inline): лише з відповіді на привʼязку і з чотирьох команд PR 5. */
-/** PR 2: усі «Відкрити у вебі» — разовий лінк входу з бота: один токен на відповідь
- *  (auth_challenge kind 'telegram', 15 хв, одноразово), next — куди після входу. */
+/** Секрет процесу, коли env порожній: лінки працюють, але після рестарту не перевидаються тими самими. */
+const processSecret = randomBytes(32).toString('base64url');
+export function webTokenSecret(deps: TelegramDeps): string {
+  return deps.webTokenSecret ?? process.env.TELEGRAM_WEB_TOKEN_SECRET ?? process.env.TELEGRAM_BOT_TOKEN ?? processSecret;
+}
+
+/** Усі «Відкрити у вебі» — лінк входу з бота. E (20.09): один живий токен на акаунт,
+ *  24 год, багаторазовий (telegram-web-token.ts); next — куди після входу. */
 export async function webLink(deps: TelegramDeps, user_id: string): Promise<WebLink> {
-  const { raw_token } = await createWebLoginChallenge(deps.repo, user_id);
+  const { raw_token, reused } = await getOrCreateTelegramWebToken(deps.repo, user_id, webTokenSecret(deps), deps.now?.() ?? new Date());
   let logged = false;
   return (next: string) => {
-    // tg_web_link — раз на виданий токен, з тим next, куди веде лінк.
-    if (!logged) { logged = true; void botEvent(deps, user_id, 'tg_web_link', { next }); }
+    // tg_web_link — раз на виданий лінк, з тим next, куди веде лінк; reused — той самий токен.
+    if (!logged) { logged = true; void botEvent(deps, user_id, 'tg_web_link', { next, reused }); }
     return `${deps.appUrl}/v1/auth/telegram?token=${encodeURIComponent(raw_token)}&next=${encodeURIComponent(next)}`;
   };
 }

@@ -7,7 +7,7 @@ import type {
   ShoppingItemRow, RecipeRow, RecipeListItem, CookRunRow, CookRunWithRecipe,
   SessionRow, MessageRow, RetailConnectionRow, HouseholdEventRow, OccasionCatchRow, AdminOccasionRow, Card,
   LastAppliedIntake, AppEventRow,
-  TelegramAccountRow, TelegramLinkTokenRow, MergeStats,
+  TelegramAccountRow, TelegramLinkTokenRow, TelegramWebTokenRow, MergeStats,
 } from './types.js';
 import type { HouseholdProduct, ProductTriple } from './product.js';
 import type {
@@ -363,6 +363,11 @@ export interface Repo {
   // telegram_user_id (новий /start після /stop оживляє рядок).
   saveTelegramLinkToken(row: TelegramLinkTokenRow): Promise<void>;
   consumeTelegramLinkToken(token: string, now: string): Promise<TelegramLinkTokenRow | null>;
+  // E (20.09): багаторазовий лінк у веб — один живий на акаунт (telegram-web-token.ts).
+  saveTelegramWebToken(row: TelegramWebTokenRow): Promise<void>;
+  getLiveTelegramWebToken(user_id: string, now: string): Promise<TelegramWebTokenRow | null>;
+  getTelegramWebTokenByHash(token_hash: string): Promise<TelegramWebTokenRow | null>;
+  revokeTelegramWebTokens(user_id: string, now: string): Promise<void>;
   linkTelegram(row: TelegramAccountRow): Promise<void>;
   /** Серія «наповнюю комору» (19.09): стан на акаунті. */
   setTelegramIntakeStreak(telegram_user_id: number, s: { intake_streak_until: string | null; intake_streak_last_apply: string | null }): Promise<void>;

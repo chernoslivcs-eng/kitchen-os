@@ -22,7 +22,9 @@ export function telegramRoutes(app: FastifyInstance, repo: Repo): void {
   });
   app.delete('/v1/telegram', { preHandler: authenticated(repo) }, async (req) => {
     const { user_id } = requireUser(req);
-    await repo.revokeTelegram(user_id, new Date().toISOString());
+    const now = new Date().toISOString();
+    await repo.revokeTelegram(user_id, now);
+    await repo.revokeTelegramWebTokens(user_id, now);   // E: лінк у веб із бота — теж
     return { ok: true };
   });
 }
