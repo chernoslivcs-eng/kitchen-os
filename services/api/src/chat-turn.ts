@@ -81,8 +81,8 @@ export interface ChatTurnInput {
   text?: string;
   attachments?: { id: string }[];
   session_id?: string;
-  /** Крок 7: «Показати, що вийшло» — серверний хід без репліки людини. */
-  action?: 'profile_summary';
+  /** Крок 7: «Показати, що вийшло» — серверний хід без репліки людини. 'digest' (DIGEST-PLAN-0917) — ранковий дайджест, той самий механізм. */
+  action?: 'profile_summary' | 'digest';
   /** Звідки хід; 'web' не пишеться в базу (типове значення колонки). */
   channel?: 'web' | 'telegram';
   /** Р150: intake_diff із вкладення — у вебі застосовується одразу (Пул-8, запобіжник — undo);
@@ -114,8 +114,10 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
     const { attachments, session_id: clientSessionId, action } = input;
     // Резюме «Про тебе»: у user-turn іде серверний рядок, в історію він не
     // пишеться, картки не буває — модель лише переказує [ПРО ЛЮДИНУ] у голосі.
-    const summaryTurn = action === 'profile_summary';
-    const text0 = summaryTurn ? PROFILE_SUMMARY_REQUEST : input.text;
+    // Дайджест (анекдот про стан дому) — той самий серверний хід: [СЕРВЕР]-рядок, без репліки людини в історії, без картки.
+    const summaryTurn = action === 'profile_summary' || action === 'digest';
+    // Вечірнє нагадування (action 'digest') — серверна команда digestRequest приходить у input.text.
+    const text0 = action === 'profile_summary' ? PROFILE_SUMMARY_REQUEST : input.text;
     let text = text0;
     if (!text && !attachments?.length) {
       throw new ChatTurnHttpError(400, { error: 'text or attachments required' });

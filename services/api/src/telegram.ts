@@ -129,6 +129,10 @@ export const COPY = {
   /** Хотфікс 15.09: /start login_<token> протух чи вже спожитий — назад на сайт, акаунт НЕ створюємо. */
   loginExpired: 'Лінк для входу вже не діє — натисни «Продовжити з Telegram» на сайті ще раз.',
   stopped: 'Відключив.',
+  /** Вечірнє нагадування (spec 2026-09-20): /digest on|off — о 18:00. */
+  digestOn: 'Вечірнє нагадування увімкнено: о шостій вечора нагадаю, що купити дорогою, що попереду чи що горить. Вимкнути — /digest off.',
+  digestOff: 'Вечірнє нагадування вимкнено. Увімкнути — /digest on.',
+  digestStatus: (on: boolean) => on ? 'Вечірнє нагадування увімкнено. Вимкнути — /digest off.' : 'Вечірнє нагадування вимкнено. Увімкнути — /digest on.',
   /** /help — над рядом шести довідок. */
   helpPrompt: 'Про що розповісти?',
   /** E1, ErrorState/copy.ts REPLY_FAILED — той самий рядок, що показує веб при падінні моделі. */
@@ -657,6 +661,17 @@ export async function handleTelegramText(deps: TelegramDeps, u: IncomingText): P
     return plain(COPY.stopped);
   }
   if (!linked) return plain(COPY.startFirst);
+  // /digest on|off — опт-аут вечірнього нагадування; без аргументу — стан.
+  const digest = text.match(/^\/digest(?:@\w+)?(?:\s+(on|off))?$/i);
+  if (digest) {
+    const arg = digest[1]?.toLowerCase();
+    if (arg === 'on' || arg === 'off') {
+      await deps.repo.setDigestEnabled(linked.user_id, arg === 'on');
+      await botEvent(deps, linked.user_id, 'tg_command', { name: 'digest', on: arg === 'on' });
+      return plain(arg === 'on' ? COPY.digestOn : COPY.digestOff);
+    }
+    return plain(COPY.digestStatus(await deps.repo.getDigestEnabled(linked.user_id)));
+  }
   // HELP-CHIPS-TG-0915: /help — той самий ряд шести довідок.
   if (/^\/help(?:@\w+)?$/.test(text)) { await botEvent(deps, linked.user_id, 'tg_command', { name: 'help' }); return { messages: [COPY.helpPrompt], html: false, keyboard: HELP_KEYBOARD_ROWS, replyKeyboard: QUICK_KEYBOARD }; }
   // PR 2: /web — разовий лінк входу у веб (той самий, що на всіх «Відкрити у вебі»).

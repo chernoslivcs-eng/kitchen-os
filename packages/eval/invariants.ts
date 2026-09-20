@@ -1433,6 +1433,28 @@ export function resolve(name: string): Invariant {
       return /(додати|розклас|зафіксувати|записати|у комору)[^.!]*\?/i.test(r) ? fail(`note питає про запис замість відповіді: «${r}»`) : pass(r);
     };
   }
+  // Вечірнє нагадування (spec 2026-09-20): «voice-sentence» — одне речення ≤ 140, без картки,
+  // без переліку (жодних «·»/«,» ланцюжків із 3+), без питання, без порад («варто», «спробуй», «не забудь»).
+  if (base === 'voice-sentence') {
+    return (out, fx) => {
+      const r = String(out.reply ?? '').replace(/\*\*/g, '').trim();
+      if (!r) return fail('порожня відповідь');
+      const bad: string[] = [];
+      if (out.card) bad.push(`є картка ${(out.card as { type?: string }).type}`);
+      const sentences = r.split(/(?<=[.!?…])\s+/).filter(Boolean);
+      if (sentences.length > 1) bad.push(`${sentences.length} речення`);
+      if (Array.from(r).length > 140) bad.push(`довжина ${Array.from(r).length} > 140`);
+      if (/\?/.test(r)) bad.push('є питання');
+      if ((r.match(/[·,]/g) ?? []).length >= 3) bad.push('схоже на перелік');
+      if (/(варто|спробуй|не забудь|рекоменд|краще б|треба)/i.test(r)) bad.push('порада');
+      // Правка 20.09: речення — враження про дім, не переказ; ≥2 позицій із фактів дослівно — провал.
+      const facts = (fx as Fixture & { digest?: { facts?: string } }).digest?.facts ?? '';
+      const items = facts.replace(/^[^:]*:\s*/, '').split(/\s*·\s*|\s+й\s+|,\s*/).map((x) => x.replace(/\s*\+\d+$/, '').trim().toLowerCase()).filter((x) => x.length >= 3);
+      const repeated = items.filter((x) => r.toLowerCase().includes(x));
+      if (items.length >= 2 && repeated.length >= 2) bad.push(`повторює факти: ${repeated.join(', ')}`);
+      return bad.length ? fail(`${bad.join(' · ')}: «${r.slice(0, 160)}»`) : pass(r);
+    };
+  }
   if (base === 'has-note-or-reply-mentions') {
     const roots = (arg ?? '').split('|');
     return (out) => (roots.some((r) => `${out.note ?? ''} ${out.reply ?? ''}`.toLowerCase().includes(r.toLowerCase())) ? pass() : fail(`ні note, ні reply не згадують «${arg}»`));

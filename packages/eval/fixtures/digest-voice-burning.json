@@ -1,0 +1,43 @@
+{
+  "id": "digest-voice-burning",
+  "description": "Вечірнє нагадування, форма 3 (горить): одне речення голосу до фактів «камамбер — до завтра» — без переліку, порад, питань.",
+  "call": "chat",
+  "now": "2026-09-17T18:00:00",
+  "pantry": [
+    {
+      "id": "b1",
+      "label": "камамбер",
+      "zone": "fridge",
+      "v": 150,
+      "u": "g",
+      "state": "opened",
+      "expires_at": "2026-09-19"
+    },
+    {
+      "id": "b2",
+      "label": "рис",
+      "zone": "dry",
+      "v": 900,
+      "u": "g",
+      "state": "sealed"
+    },
+    {
+      "id": "b3",
+      "label": "яйця",
+      "zone": "fridge",
+      "v": 6,
+      "u": "pcs",
+      "state": "sealed"
+    }
+  ],
+  "shopping": [],
+  "events": [],
+  "digest": {
+    "theme": "що горить у коморі",
+    "facts": "камамбер — до завтра"
+  },
+  "invariants": [
+    "voice-sentence",
+    "no-markdown"
+  ]
+}

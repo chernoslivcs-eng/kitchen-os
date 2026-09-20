@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminBetaRow, AdminMoneyGroup, AdminMoneyAverages } from './repo.js';
+import type { Repo, UserRow, HouseholdRow, HouseholdMemberRow, UserStampField, AdminHouseholdRow, AdminBetaRow, AdminMoneyGroup, AdminMoneyAverages, DigestCandidateRow } from './repo.js';
 import type {
   PantryBatch, PendingCard, AttachmentRecord,
   AuthChallenge, AuthSession, TokenUsageRow, HouseholdInvite, HouseholdRole,
@@ -50,6 +50,7 @@ export class InMemoryRepo implements Repo {
   private telegramTokens = new Map<string, TelegramLinkTokenRow>();   // Р147: token → рядок
   private telegramWebTokens = new Map<string, TelegramWebTokenRow>(); // E: id → рядок
   private telegramAccounts = new Map<number, TelegramAccountRow>();  // Р147: telegram_user_id → рядок
+  private digest = new Map<string, { enabled: boolean; sent_on: string | null; tz: string | null }>(); // дайджест: user_id → налаштування
 
   async listBatches(household_id: string): Promise<PantryBatch[]> {
     return [...this.batches.values()]
@@ -807,6 +808,36 @@ export class InMemoryRepo implements Repo {
     this.profileTexts.delete(user_id);
     for (const [id, n] of this.profileNotes) if (n.user_id === user_id) this.profileNotes.delete(id);
     this.vetoRows = this.vetoRows.filter((r) => r.user_id !== user_id);
+  }
+
+  // ── Дайджест (DIGEST-PLAN-0917) ──
+  private digestOf(user_id: string) {
+    let d = this.digest.get(user_id);
+    if (!d) { d = { enabled: true, sent_on: null, tz: null }; this.digest.set(user_id, d); }
+    return d;
+  }
+  /** Тестовий шов: пояс людини (колонка user.tz). */
+  setUserTz(user_id: string, tz: string | null): void { this.digestOf(user_id).tz = tz; }
+  async listDigestCandidates(): Promise<DigestCandidateRow[]> {
+    const out: DigestCandidateRow[] = [];
+    for (const a of this.telegramAccounts.values()) {
+      if (a.revoked_at || a.chat_id == null || !this.users.has(a.user_id)) continue;
+      const household_id = await this.firstHouseholdOf(a.user_id);
+      if (!household_id) continue;
+      const d = this.digestOf(a.user_id);
+      out.push({ user_id: a.user_id, household_id, chat_id: a.chat_id, tz: d.tz, digest_enabled: d.enabled, digest_sent_on: d.sent_on });
+    }
+    return out;
+  }
+  async setDigestSentOn(user_id: string, day: string): Promise<void> { this.digestOf(user_id).sent_on = day; }
+  async setDigestEnabled(user_id: string, enabled: boolean): Promise<void> { this.digestOf(user_id).enabled = enabled; }
+  async getDigestEnabled(user_id: string): Promise<boolean> { return this.digestOf(user_id).enabled; }
+  async hasUserMessageSince(user_id: string, since: string): Promise<boolean> {
+    for (const [sid, s] of this.chatSessions) {
+      if (s.user_id !== user_id) continue;
+      if ((this.messages.get(sid) ?? []).some((m) => m.role === 'user' && m.created_at >= since)) return true;
+    }
+    return false;
   }
 
   // ── Злиття акаунтів (15.09) ──
