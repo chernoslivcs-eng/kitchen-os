@@ -906,6 +906,14 @@ export interface RecipeCall {
 }
 
 function recipeStub(title: string, promptVersion: string, pantry?: PantryBatch[]): RecipeCall {
+  // 20.09: тестовий шлях «нерозбірний JSON» — назва з «(проза)» → recipe null, сирий
+  // текст як у живому факті 19:10 («json {"t":…»), stop не max_tokens.
+  if (/\(проза\)/i.test(title)) {
+    return {
+      recipe: null, raw: 'json {"t":"' + title + '","sv":2,"ing":[{"n":"ло', stopReason: 'end_turn', outputTokens: 666,
+      calls: [ZERO_USAGE], meta: { promptVersion, model: 'stub', mode: 'stub' },
+    };
+  }
   // Мінімальний рецепт для тестів без ключа. Не намагається бути «розумним»,
   // але імітує головну механіку живої моделі: якщо партія з комори згадана в
   // назві — «показує пальцем» через p БЕЗ n (QA9-01 перевіряє, що сервер

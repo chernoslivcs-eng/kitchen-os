@@ -21,7 +21,8 @@ import { buildChatHistory } from './chat-history.js';
 import type { AttachmentStore } from './attachment-store.js';
 import { recordUsage } from './usage.js';
 import type { RateLimitCfg } from './rate-limit.js';
-import { incident } from './incident.js';
+import { incident, type IncidentSink } from './incident.js';
+import { keepUntilSent } from './telemetry.js';
 import { resolveWhen } from './event-when.js';
 import { buildPeriodCard, droppedPeriodReply } from './period-card.js';
 import {
@@ -793,6 +794,9 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
           goRecipe = resolved;
         } else {
           // Модель відповіла прозою (неоднозначно) — чесна репліка замість картки.
+          // 20.09: або нерозбірним JSON (факт 19:10 у Telegram власника: «json {"t":…»
+          // обрізаний до 400 пішов людині) — поки не правимо, а міряємо частоту.
+          recipeJsonFailed(sink, { user_id, household_id, session_id: session.id, title: wantedTitle, gen });
           const clean = gen.raw.replace(/\*\*/g, '').replace(/`/g, '').replace(/\n{2,}/g, ' ').trim().slice(0, 400);
           const proseReply = clean || `Не зміг скласти «${wantedTitle}» — уточни, що саме готуємо.`;
           await saveMsg({
@@ -861,7 +865,8 @@ export async function runChatTurn(repo: Repo, store: AttachmentStore, opts: Chat
       await recordUsage(repo, ctx, 'recipe_gen', gen.meta, gen.calls, genStarted, turn);
 
       if (!gen.recipe) {
-        // Модель відповіла прозою (неоднозначна правка) — віддаємо як репліку.
+        // Модель відповіла прозою (неоднозначна правка) — віддаємо як репліку. 20.09: міряємо, як і в go-гілці.
+        recipeJsonFailed(sink, { user_id, household_id, session_id: session.id, title: base.title, gen });
         const clean = gen.raw.replace(/\*\*/g, '').replace(/`/g, '').replace(/\n{2,}/g, ' ').trim().slice(0, 400);
         const reply = clean || `Не зміг оновити «${base.title}» — сформулюй правку інакше.`;
         await saveMsg({
@@ -1104,4 +1109,24 @@ export async function freshCookRun(repo: Repo, user_id: string, now = Date.now()
   return runs.find((r) =>
     !r.undone_at && !r.photo_url
     && now - new Date(r.finished_at ?? r.started_at).getTime() <= FRESH_COOK_RUN_MS) ?? null;
+}
+
+/** 20.09: recipe_gen без рецепта — інцидент із сирим текстом (до 2000 знаків) ПЕРЕД тим, як
+ *  запасний шлях покаже його людині, плюс app_event recipe_json_failed для /admin/pulse.
+ *  Поведінку не міняє — власник вирішив спершу поміряти частоту. */
+export function recipeJsonFailed(
+  sink: IncidentSink,
+  a: { user_id: string; household_id: string; session_id: string; title: string; gen: { raw: string; stopReason?: string | null; outputTokens?: number | null } },
+): void {
+  const looksJson = /[{}]/.test(a.gen.raw);
+  incident(sink, 'guard', 'recipe-json-failed', {
+    user_id: a.user_id, household_id: a.household_id, session_id: a.session_id,
+    title: a.title, stop: a.gen.stopReason ?? null, out: a.gen.outputTokens ?? null, looksJson, raw: a.gen.raw.slice(0, 2000),
+  });
+  const write = sink.repo.saveAppEvents([{
+    id: randomUUID(), user_id: a.user_id, household_id: a.household_id, name: 'recipe_json_failed',
+    props: { looksJson, out: a.gen.outputTokens ?? null, session_id: a.session_id },
+    viewport_w: null, device_class: null, ua_family: null, created_at: new Date().toISOString(),
+  }]).catch((err: unknown) => sink.req.log.error({ err: String(err) }, 'recipe-json-failed-event-save-failed'));
+  keepUntilSent(sink.req, write);
 }
