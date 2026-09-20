@@ -74,11 +74,34 @@ export function nowProgress(it: Pick<NowItem, 'kind' | 'source' | 'from' | 'to'>
   return { dayN, total, pct: Math.round((dayN / total) * 100) };
 }
 
-/** Праве значення рядка періоду: день з прогресу, інакше «до 21.09». */
+/** Праве значення рядка періоду: день з прогресу, інакше «до 21.09».
+ *  (Лишається для підрядків розкритого «Сезону» — там дата, не діапазон.) */
 export function nowWhen(it: Pick<NowItem, 'kind' | 'source' | 'from' | 'to' | 'approx'>, today = todayIso()): string {
   const p = nowProgress(it, today);
   if (p) return `${p.dayN}-й день з ${p.total}`;
   return `до ${it.approx ? '≈ ' : ''}${isoDdmm(it.to)}`;
+}
+
+/**
+ * Колонка «період» рядка «Сьогодні» (живий стенд 20.09): «15.09 – 05.10»,
+ * каталожне з приблизним кінцем — «20.09 – ≈21.09». Той самий діапазон,
+ * що завжди був у даних (from/to), тепер — окремою колонкою, а не сховано
+ * в одному рядку з прогресом.
+ */
+export function todayPeriodRange(it: Pick<NowItem, 'from' | 'to' | 'approx'>): string {
+  return `${isoDdmm(it.from)} – ${it.approx ? '≈ ' : ''}${isoDdmm(it.to)}`;
+}
+
+/**
+ * Права колонка (dim→ink, «дні») рядка-періоду «Сьогодні»: прогрес для
+ * своєї дієти («6-й день з 21»), інакше повна довжина періоду («2 дні») —
+ * каталожний піст/пост не має «свого» початку, але має відому тривалість.
+ */
+export function todayPeriodDays(it: Pick<NowItem, 'kind' | 'source' | 'from' | 'to'>, today = todayIso()): string {
+  const p = nowProgress(it, today);
+  if (p) return `${p.dayN}-й день з ${p.total}`;
+  const total = daysBetween(it.from, it.to) + 1;
+  return `${total} ${plural(total, ['день', 'дні', 'днів'])}`;
 }
 
 /**
@@ -205,16 +228,28 @@ export function aheadRowDate(row: AheadRow): number {
   return row.kind === 'end' ? row.event.end : row.event.start;
 }
 
-/** Середня колонка (мета, dim): «до 30.10 · калорійніше» для тривалого-старту;
- *  рід за kind для одноденної без гостей; нічого — для рядка-кінця й одноденної з гостями (число вже праворуч). */
+/**
+ * Середня колонка (мета, dim): лише правило («калорійніше», «без мʼяса,
+ * риби…») для тривалого-старту — дата пішла в окрему колонку «період»
+ * (живий стенд 20.09: подія · період · дні, а не дата всередині мети);
+ * рід за kind для одноденної без гостей; нічого — для рядка-кінця й
+ * одноденної з гостями (число вже праворуч).
+ */
 export function aheadMeta(row: AheadRow): string | null {
   if (row.kind === 'end') return null;
   const e = row.event;
-  if (isLasting(e)) {
-    const extra = e.restricts ?? e.rule_text ?? null;
-    return `до ${ddmm(e.end)}${extra ? ` · ${extra}` : ''}`;
-  }
+  if (isLasting(e)) return e.restricts ?? e.rule_text ?? null;
   return todayPointMeta(e);
+}
+/**
+ * Колонка «період» — «30.09 – 30.10»: і для рядка-старту, і для рядка-
+ * кінця (в обох — повний діапазон, не лише одна дата), лише для тривалих;
+ * одноденні — null (колонка лишається порожньою, без рисок).
+ */
+export function aheadPeriod(row: AheadRow): string | null {
+  const e = row.event;
+  if (!isLasting(e)) return null;
+  return `${ddmm(e.start)} – ${e.approx ? '≈ ' : ''}${ddmm(e.end)}`;
 }
 /** Права колонка (термінна, ROW ANATOMY): «31 день» — тривала; «кінець» — рядок-кінець; «6 осіб» — гості; інакше нічого. */
 export function aheadRight(row: AheadRow): string | null {
@@ -225,6 +260,10 @@ export function aheadRight(row: AheadRow): string | null {
     return `${n} ${plural(n, ['день', 'дні', 'днів'])}`;
   }
   return todayPointRight(e);
+}
+/** Чи права колонка несе кількість днів (ink) — тон різнить лічильник від «кінець»/«N осіб»/рангу (усі muted). */
+export function aheadRightIsDays(row: AheadRow): boolean {
+  return row.kind === 'start' && isLasting(row.event);
 }
 
 export interface MonthGroup { key: string; label: string; rows: AheadRow[] }

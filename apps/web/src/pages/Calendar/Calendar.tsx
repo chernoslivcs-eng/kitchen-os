@@ -18,7 +18,8 @@ import { AppHeader } from '../../components/AppHeader/AppHeader';
 import { useNavStore } from '../../store/nav';
 import {
   nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
-  seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, dow, type AheadRow,
+  todayPeriodRange, todayPeriodDays,
+  seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadPeriod, aheadRight, aheadRightIsDays, aheadMonthGroups, dow, type AheadRow,
 } from './agenda';
 import { todayIso } from '../../lib/period';
 import { Sheet } from '../../components/Sheet/Sheet';
@@ -182,29 +183,48 @@ export function CalendarPage() {
   // Рядок ROW ANATOMY (Pantry «Комора», п. 2 живої перевірки на стенді
   // 19.09: мета — ДРУГИМ РЯДКОМ під назвою, як `.meta-line` у рядках
   // партій, не в один рядок із назвою). Рядок 1: знак · назва · права
-  // колонка (усі — на одному рівні, вирівняні по центру блока). Рядок 2
-  // (лише коли є мета): опис dim, на всю ширину назви, окремим рядком.
-  // Висота 48 без мети / 56 з метою — `.row-tall` про це.
-  const row = (opts: { key: string; icon: IconName; name: string; meta?: string | null; right?: string | null; date?: ReactNode; onClick: () => void; motionId: string }) => (
-    <button key={opts.key} type="button" className={`${styles.row} ${opts.meta ? styles['row-tall'] : ''} ${evMotion(opts.motionId)}`} data-tap onClick={opts.onClick}>
-      {opts.date}
-      {/* Без `inherit`: рядок не задає свій колір, а бездоганний спокійний
-          muted — це якраз дефолт самого Icon (Icon.module.css `.icon`), без
-          гри в специфічність двох модулів на тому самому вузлі. */}
-      <Icon name={opts.icon} size={16} decorative />
-      <span className={styles.content}>
-        <span className={styles.line1}>
+  // колонка (усі — на одному рівні, вирівняні по центру блока), далі —
+  // «період» (тривалі: «30.09 – 30.10», muted, tabular; одноденні —
+  // порожня, без рисок, тієї самої фіксованої ширини) і «дні» (тривалі —
+  // ink, кількість; інакше — те, що й раніше: «6 осіб»/«кінець»/нічого).
+  // Рядок 2 (лише коли є period і/або meta): на <768 колонка «період» не
+  // вміщується — вона йде ПЕРШОЮ в мету («30.09 – 30.10 · калорійніше»);
+  // на ≥768 у мету йде лише meta (правило, без дати — дата у своїй колонці).
+  // Висота рядка (48/56) — за `data-meta-wide`/`data-meta-mobile`, кожен
+  // прапорець рахує «чи покаже якийсь рядок другу лінію», а брейкпоінт
+  // (CSS) вирішує, який з двох.
+  const row = (opts: {
+    key: string; icon: IconName; name: string;
+    meta?: string | null; period?: string | null; right?: string | null; daysTone?: 'days' | 'plain';
+    date?: ReactNode; onClick: () => void; motionId: string;
+  }) => {
+    const metaMobile = [opts.period, opts.meta].filter(Boolean).join(' · ') || null;
+    return (
+      <button key={opts.key} type="button" className={`${styles.row} ${evMotion(opts.motionId)}`} data-tap onClick={opts.onClick}
+        data-meta-wide={opts.meta ? '' : undefined} data-meta-mobile={metaMobile ? '' : undefined}>
+        {opts.date}
+        {/* Без `inherit`: рядок не задає свій колір, а бездоганний спокійний
+            muted — це якраз дефолт самого Icon (Icon.module.css `.icon`), без
+            гри в специфічність двох модулів на тому самому вузлі. */}
+        <Icon name={opts.icon} size={16} decorative />
+        <span className={styles.content}>
           <span className={styles.name}>{opts.name}</span>
-          {opts.right && <span className={styles.rval}>{opts.right}</span>}
+          {opts.meta && <span className={`${styles.rmeta} ${styles['rmeta-wide']}`}>{opts.meta}</span>}
+          {metaMobile && <span className={`${styles.rmeta} ${styles['rmeta-m']}`}>{metaMobile}</span>}
         </span>
-        {opts.meta && <span className={styles.rmeta}>{opts.meta}</span>}
-      </span>
-    </button>
-  );
+        <span className={styles.period}>{opts.period ?? ''}</span>
+        {opts.right && <span className={`${styles.rval} ${opts.daysTone === 'days' ? styles['rval-days'] : ''}`}>{opts.right}</span>}
+      </button>
+    );
+  };
 
   const periodRow = (it: NowItem) => {
     const id = it.occasion_id ?? it.id ?? it.title;
-    return row({ key: `${id}:${it.from}`, icon: nowIcon(it), name: it.title, right: nowWhen(it, todayIsoStr), onClick: () => openNowItem(it), motionId: id });
+    return row({
+      key: `${id}:${it.from}`, icon: nowIcon(it), name: it.title,
+      period: todayPeriodRange(it), right: todayPeriodDays(it, todayIsoStr), daysTone: 'days',
+      onClick: () => openNowItem(it), motionId: id,
+    });
   };
 
   const pointRow = (e: EventOccurrence) => row({
@@ -222,7 +242,8 @@ export function CalendarPage() {
     );
     return row({
       key: `${r.kind}:${e.scope}:${e.id}`, icon: eventIcon(e), name: e.title,
-      meta: aheadMeta(r), right: aheadRight(r), date, onClick: () => showEvent(e), motionId: e.id,
+      meta: aheadMeta(r), period: aheadPeriod(r), right: aheadRight(r), daysTone: aheadRightIsDays(r) ? 'days' : 'plain',
+      date, onClick: () => showEvent(e), motionId: e.id,
     });
   };
 

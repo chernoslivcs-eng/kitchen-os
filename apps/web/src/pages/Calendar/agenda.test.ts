@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   nowProgress, nowWhen, nowIcon, eventIcon, nowItemToEvent, todayGroups, todayPointEvents, todayPointMeta, todayPointRight,
-  seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadRight, aheadMonthGroups, monthName,
+  todayPeriodRange, todayPeriodDays,
+  seasonNames, aheadHorizon, aheadRows, aheadRowDate, aheadMeta, aheadPeriod, aheadRight, aheadRightIsDays, aheadMonthGroups, monthName,
 } from './agenda';
 import type { EventOccurrence, NowItem } from '../../api';
 
@@ -156,6 +157,20 @@ describe('todayPointEvents / todayPointMeta / todayPointRight', () => {
   });
 });
 
+describe('todayPeriodRange / todayPeriodDays (живий стенд 20.09: період — окремою колонкою)', () => {
+  it('діапазон — «від – до», з «≈» лише на кінці для приблизних дат', () => {
+    expect(todayPeriodRange({ from: '2026-09-15', to: '2026-10-05', approx: false })).toBe('15.09 – 05.10');
+    // «≈ » з пробілом — та сама форма, що вже в nowWhen() («до ≈ 21.09»), не нова.
+    expect(todayPeriodRange({ from: '2026-09-20', to: '2026-09-21', approx: true })).toBe('20.09 – ≈ 21.09');
+  });
+  it('дні: прогрес для своєї дієти («N-й день з M»), інакше повна довжина періоду', () => {
+    const own: NowItem = { kind: 'diet', source: 'user', from: '2026-09-15', to: '2026-10-05', title: 'Без молочного', strict: true };
+    expect(todayPeriodDays(own, '2026-09-19')).toBe('5-й день з 21');
+    const catalog: NowItem = { kind: 'tradition', source: 'catalog', from: '2026-09-20', to: '2026-09-21', title: 'Щось', strict: true };
+    expect(todayPeriodDays(catalog, '2026-09-19')).toBe('2 дні');
+  });
+});
+
 describe('seasonNames: мета згорнутого рядка «Сезон» (без дат, живий стенд 19.09)', () => {
   const s = (title: string): NowItem => ({ kind: 'season', title, from: '2026-06-01', to: '2026-09-20', strict: false, source: 'catalog' });
 
@@ -247,39 +262,49 @@ describe('aheadRows (К9): сезони геть, сьогодні геть, к�
   });
 });
 
-describe('aheadRowDate / aheadMeta / aheadRight (мета — dim текст, права колонка — термінне число)', () => {
-  it('start — дата старту; end — дата кінця, мета null, право «кінець»', () => {
+describe('aheadRowDate / aheadMeta / aheadPeriod / aheadRight / aheadRightIsDays (подія · період · дні, живий стенд 20.09)', () => {
+  it('start — дата старту; end — дата кінця, мета null, період — повний діапазон обох дат, право «кінець», не «дні»', () => {
     const e = ev9(11, 41, { kind: 'diet', title: 'Набір ваги' });
     const startRow = { event: e, kind: 'start' as const };
     const endRow = { event: e, kind: 'end' as const };
     expect(aheadRowDate(startRow)).toBe(e.start);
     expect(aheadRowDate(endRow)).toBe(e.end);
     expect(aheadMeta(endRow)).toBeNull();
+    expect(aheadPeriod(endRow)).toBe('30.09 – 30.10');
     expect(aheadRight(endRow)).toBe('кінець');
+    expect(aheadRightIsDays(endRow)).toBe(false);
   });
 
-  it('тривала-старт — мета «до <кінець> · <rule_text>», право «N днів»', () => {
+  it('тривала-старт — мета ЛИШЕ правило (дата пішла в період), період «30.09 – 30.10», право «31 день» (дні)', () => {
     const e = ev9(11, 41, { kind: 'diet', title: 'Набір ваги', rule_text: 'калорійніше' });
     const row = { event: e, kind: 'start' as const };
-    expect(aheadMeta(row)).toBe('до 30.10 · калорійніше');
+    expect(aheadMeta(row)).toBe('калорійніше');
+    expect(aheadPeriod(row)).toBe('30.09 – 30.10');
     expect(aheadRight(row)).toBe('31 день');
+    expect(aheadRightIsDays(row)).toBe(true);
   });
 
-  it('каталожний пост-старт — мета «до <кінець> · <restricts>», право «N днів»', () => {
+  it('каталожний пост-старт — мета лише restricts, період «28.11 – 06.01», право «40 днів» (дні)', () => {
     const e = ev9(70, 109, { kind: 'tradition', scope: 'catalog', title: 'Різдвяний піст', restricts: 'без мʼяса, риби, молочного і яєць' });
     const row = { event: e, kind: 'start' as const };
-    expect(aheadMeta(row)).toBe('до 06.01 · без мʼяса, риби, молочного і яєць');
+    expect(aheadMeta(row)).toBe('без мʼяса, риби, молочного і яєць');
+    expect(aheadPeriod(row)).toBe('28.11 – 06.01');
     expect(aheadRight(row)).toBe('40 днів');
+    expect(aheadRightIsDays(row)).toBe(true);
   });
 
-  it('одноденна-старт — гості: мета null, право «6 осіб»; рід без гостей — мета, право null; каталожне свято без деталей — обидва null', () => {
+  it('одноденна-старт — період null (без рисок); гості: мета null, право «6 осіб»; рід без гостей — мета, право null; каталожне свято без деталей — обидва null; жодна не «дні»', () => {
     const guests = { event: ev9(4, 4, { title: 'Гості', servings: 6 }), kind: 'start' as const };
+    expect(aheadPeriod(guests)).toBeNull();
     expect(aheadMeta(guests)).toBeNull();
     expect(aheadRight(guests)).toBe('6 осіб');
+    expect(aheadRightIsDays(guests)).toBe(false);
     const constraint = { event: ev9(4, 4, { kind: 'constraint', title: 'Мало часу' }), kind: 'start' as const };
+    expect(aheadPeriod(constraint)).toBeNull();
     expect(aheadMeta(constraint)).toBe('рамка дня');
     expect(aheadRight(constraint)).toBeNull();
     const feast = { event: ev9(25, 25, { kind: 'tradition', scope: 'catalog', title: 'Покрова' }), kind: 'start' as const };
+    expect(aheadPeriod(feast)).toBeNull();
     expect(aheadMeta(feast)).toBeNull();
     expect(aheadRight(feast)).toBeNull();
   });

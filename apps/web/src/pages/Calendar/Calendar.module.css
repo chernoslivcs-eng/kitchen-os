@@ -78,7 +78,10 @@
   background: var(--ink); color: var(--bg);
 }
 .section-name { font-size: 14px; font-weight: 600; }
-.section-count { font-size: 12px; font-weight: 400; opacity: .7; font-variant-numeric: tabular-nums; }
+/* Живий стенд 20.09: табличні цифри лишаються лише там, де вони справді
+   вирівнюються по стовпчику (дата, період) — тут одна цифра й пропорційні
+   рівно так само не шкодять, для однорідності. */
+.section-count { font-size: 12px; font-weight: 400; opacity: .7; }
 @media (max-width: 767px) {
   .zone-card { padding: 0 16px 4px; }
   .section-label { margin: 0 -16px 8px; padding: 0 16px; }
@@ -91,13 +94,19 @@
 .today-sub { font-size: 13px; color: var(--muted); }
 
 /* ── Рядок (Components «ROW ANATOMY», Pantry «.row», уточнення живого
-   стенду 19.09): рядок 1 — знак 16 · назва · права колонка, усі по центру
-   блока; рядок 2 (лише коли є мета) — опис dim, ОКРЕМИМ рядком під назвою
-   (як `.meta-line` у партіях Комори, не в одну лінію з назвою — той у один
-   рядок обрізав і назву, і мету одразу на 390). Висота 48 без мети / 56 з
-   метою (`.row-tall`) — волосина знизу (крім останнього), підсвітка
-   наведення на 8 px ширша за текст. Один вигляд для «Сьогодні» й «Далі» —
-   «Далі» додає ще ліву колонку дати. ── */
+   стенду 20.09): подія · період · дні — знак 16 · назва(+мета) · період
+   (тривалі, фіксована колонка, muted, tabular) · дні (тривалі — ink;
+   інакше те, що раніше було «право»: «6 осіб»/«кінець»/нічого), усі по
+   центру блока. Рядок 2 (лише коли є period і/або meta) — опис dim,
+   ОКРЕМИМ рядком під назвою (як `.meta-line` у партіях Комори): на ≥768
+   у нього йде лише meta (правило, без дати — дата вже в колонці «період»);
+   на <768 колонка «період» не вміщується — вона йде ПЕРШОЮ в мету
+   («30.09 – 30.10 · калорійніше»), і сама колонка ховається. Висота рядка
+   48/56 — за `data-meta-wide`/`-mobile` (кожен каже «на СВОЄМУ брейкпоінті
+   буде другий рядок», а не «зараз є мета» — інакше 56 не збігався б із
+   тим, яка з двох мета-версій справді видима). Волосина знизу (крім
+   останнього), підсвітка наведення на 8 px ширша за текст. Один вигляд
+   для «Сьогодні» й «Далі» — «Далі» додає ще ліву колонку дати. ── */
 .row {
   position: relative;
   display: flex; align-items: center; gap: 10px;
@@ -109,6 +118,8 @@
   transition: background var(--dur-fast) var(--ease-standard);
 }
 .row-tall { min-height: 56px; }
+@media (min-width: 768px) { .row[data-meta-wide] { min-height: 56px; } }
+@media (max-width: 767px) { .row[data-meta-mobile] { min-height: 56px; } }
 .row::after {
   content: ''; position: absolute; left: 8px; right: 8px; bottom: 0;
   height: 1px; background: var(--line);
@@ -119,14 +130,30 @@
 .row-empty { color: var(--muted); cursor: default; }
 @media (hover: hover) { .row-empty:hover { background: transparent; } }
 
-/* Колонка «назва + мета»: рядок 1 (назва · права колонка) завжди, рядок 2
-   (мета) — лише коли є що сказати. */
+/* Колонка «назва + мета»: рядок 1 — сама назва (право й період — свої
+   колонки поруч, не тут); рядок 2 (мета) — лише коли є що сказати, у двох
+   версіях (wide/m), брейкпоінт вирішує, яка видима. */
 .content { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .line1 { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .name { flex: 1; min-width: 0; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rmeta { display: block; width: 100%; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rval { flex: none; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rmeta-m { display: none; }
+@media (max-width: 767px) { .rmeta-wide { display: none; } .rmeta-m { display: block; } }
+/* Право («дні»): тривалі — ink (число, що справді щось рахує), інакше —
+   muted, як і раніше («6 осіб»/«кінець»/рід за kind). Без tabular-nums —
+   цифри всередині рядка тексту («6-й день з 21») інакше «розсипались»
+   проміжками; табличні лишились тільки там, де цифри вирівнюються по
+   стовпчику (.dcol, .period). */
+.rval { flex: none; font-size: 13px; color: var(--muted); }
+.rval-days { color: var(--ink); }
 .chev { display: inline-flex; color: var(--dim); flex: none; }
+
+/* Колонка «період»: «30.09 – 30.10», фіксована ширина — щоб «дні» справа
+   стояли в одну лінію в усіх рядках картки, одноденні чи ні. Порожня для
+   одноденних (без рисок — просто пробіл), не зникає, аби не зсунути
+   сусідні рядки. Ховається на <768 — не вміщається, переїжджає в мету. */
+.period { flex: none; width: 110px; text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 767px) { .period { display: none; } }
 
 /* «Далі»: ліва колонка дати — «23 ср», tabular. */
 .dcol { flex: none; width: 44px; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
