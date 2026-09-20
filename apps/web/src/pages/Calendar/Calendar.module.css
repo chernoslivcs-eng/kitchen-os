@@ -123,13 +123,22 @@
    б із тим, яка з двох мета-версій справді видима). Волосина знизу (крім
    останнього), підсвітка наведення на 8 px ширша за текст. Один вигляд
    для «Сьогодні» й «Далі» — «Далі» додає ще ліву колонку дати. ── */
+/* `.row` — `<button>`, не `<div>` (на відміну від Pantry): форми-контроли
+   розв'язують `width:auto` у себе (shrink-to-fit по вмісту), а не за
+   звичайною блоковою формулою «заповнити контейнер під відʼємні поля» —
+   живий стенд 20.09 показав це напряму: без `width` рядок «Далі» лишався
+   вузьким під власний вміст (374px замість ~650), а не розтягувався.
+   Явний приріст на 16px (та сама механіка, що в `.pkg-body` каталогу)
+   працює для кнопки так само надійно, як і для блокового боксу. Раніше з
+   `width:100%` рядок був вужчим на 16px і зсунутим ліворуч — відсоток
+   рахувався від контейнера БЕЗ урахування відʼємних `margin`. */
 .row {
   position: relative;
   display: flex; align-items: center; gap: 10px;
   min-height: 48px;
-  padding: 4px 8px; margin: 0 -8px;
+  padding: 4px 8px; margin: 0 -8px; width: calc(100% + 16px);
   border-radius: 10px;
-  border: 0; background: transparent; width: 100%;
+  border: 0; background: transparent;
   text-align: left; cursor: pointer; font-family: var(--font-body);
   transition: background var(--dur-fast) var(--ease-standard);
 }
@@ -186,8 +195,8 @@
 /* Сезон розкритий — підрядки 40, без знака, з відступом і датою кінця праворуч. */
 .subrow {
   display: flex; align-items: center; gap: 10px;
-  min-height: 40px; padding: 4px 8px 4px 34px; margin: 0 -8px;
-  border: 0; background: transparent; width: 100%;
+  min-height: 40px; padding: 4px 8px 4px 34px; margin: 0 -8px; width: calc(100% + 16px);
+  border: 0; background: transparent;
   text-align: left; cursor: pointer; font-family: var(--font-body);
 }
 @media (hover: hover) { .subrow:hover { background: var(--bg); } }
